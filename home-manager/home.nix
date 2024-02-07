@@ -47,11 +47,25 @@
   # Add stuff for your user as you see fit:
   # programs.neovim.enable = true;
   home.packages = with pkgs; [
-    kubectl
+    
   ];
 
   # Enable home-manager and git
   programs.home-manager.enable = true;
+  programs.neovim = {
+    enable = true;
+    viAlias = true;
+    vimAlias = true;
+    extraConfig = ''
+      set number relativenumber
+      '';
+  };
+  programs.fish = {
+    enable = true;
+    interactiveShellInit = ''
+      set fish_greeting # Disable greeting
+    '';
+  };
   programs.git = {
     enable = true;
     userName = "Krezh";
