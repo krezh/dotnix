@@ -1,20 +1,6 @@
-# This is your home-manager configuration file
-# Use this to configure your home environment (it replaces ~/.config/nixpkgs/home.nix)
+{ inputs, lib, config, pkgs, ... }:
 {
-  inputs,
-  lib,
-  config,
-  pkgs,
-  ...
-}: {
-  # You can import other home-manager modules here
-  imports = [
-    # If you want to use home-manager modules from other flakes (such as nix-colors):
-    # inputs.nix-colors.homeManagerModule
-
-    # You can also split up your configuration and import pieces of it here:
-    # ./nvim.nix
-  ];
+  imports = [];
 
   nixpkgs = {
     # You can add overlays here
@@ -53,16 +39,51 @@
     enable = true;
     viAlias = true;
     vimAlias = true;
+    defaultEditor = true;
     extraConfig = ''
       set number relativenumber
       '';
   };
+
+  programs.yazi = {
+    enable = true;
+  };
+  
+  programs.eza = {
+    enable = true;
+    icons = true;
+    enableAliases = true;
+  };
+
+  programs.zoxide.enable = true;
+
+  programs.fzf.enable = true;
 
   programs.fish = {
     enable = true;
     interactiveShellInit = ''
       set fish_greeting # Disable greeting
     '';
+    shellAliases = {
+      # other
+      df = "df -h";
+      du = "du -h";
+      ls = "eza";
+    };
+    plugins = [
+      { name = "puffer"; src = pkgs.fishPlugins.puffer.src; }
+      { name = "fzf-fish"; src = pkgs.fishPlugins.fzf-fish.src; }
+      { name = "autopair"; src = pkgs.fishPlugins.autopair.src; }
+      { name = "bass"; src = pkgs.fishPlugins.bass.src; }
+      { name = "forgit"; src = pkgs.fishPlugins.forgit.src; }
+      { name = "zoxide"; src = pkgs.fetchFromGitHub {
+          owner = "kidonng";
+          repo = "zoxide.fish";
+          rev = "bfd5947bcc7cd01beb23c6a40ca9807c174bba0e";
+          sha256 = "Hq9UXB99kmbWKUVFDeJL790P8ek+xZR5LDvS+Qih+N4=";
+        };
+      }
+    ];
   };
   
   programs.git = {
