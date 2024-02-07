@@ -18,17 +18,7 @@
 
   nixpkgs = {
     # You can add overlays here
-    overlays = [
-      # If you want to use overlays exported from other flakes:
-      # neovim-nightly-overlay.overlays.default
-
-      # Or define it inline, for example:
-      # (final: prev: {
-      #   hi = final.hello.overrideAttrs (oldAttrs: {
-      #     patches = [ ./change-hello-to-hi.patch ];
-      #   });
-      # })
-    ];
+    overlays = [];
     # Configure your nixpkgs instance
     config = {
       # Disable if you don't want unfree packages
@@ -45,16 +35,20 @@
 
   # Add stuff for your user as you see fit:
   home.packages = with pkgs; [
-    
+    wget
+    curl
+    nodejs
+    nixd
   ];
 
-  # Enable home-manager and git
   programs.home-manager.enable = true;
+
   programs.starship = {
     enable = true;
     enableFishIntegration = true;
     settings = pkgs.lib.importTOML ../config/starship.toml;
   };
+
   programs.neovim = {
     enable = true;
     viAlias = true;
@@ -63,12 +57,14 @@
       set number relativenumber
       '';
   };
+
   programs.fish = {
     enable = true;
     interactiveShellInit = ''
       set fish_greeting # Disable greeting
     '';
   };
+  
   programs.git = {
     enable = true;
     userName = "Krezh";

@@ -21,7 +21,7 @@ contexts = [
 [cmd_duration]
 format = "took [$duration]($style) "
 style = "yellow bold"
-show_notifications = false
+show_notifications = true
 min_time_to_notify = 45000
 
 [username]
@@ -33,9 +33,8 @@ show_always = true
 
 [hostname]
 ssh_only = false
-format = 'on [$hostname](bold orange) '
+format = '→ [$hostname](blue bold) '
 disabled = false
-
 
 [jobs]
 symbol = " "
