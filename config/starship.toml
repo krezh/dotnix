@@ -1,0 +1,54 @@
+# Get editor completions based on the config schema
+"$schema" = 'https://starship.rs/config-schema.json'
+
+# Inserts a blank line between shell prompts
+add_newline = false
+
+format = """
+
+$username$hostname$kubernetes$git_branch$git_commit$git_state$git_metrics$git_status
+$all
+"""
+
+[kubernetes]
+format = '[$symbol$context:$namespace](blue) '
+symbol = "⚓"
+disabled = false
+contexts = [
+  { context_pattern = "admin@talos-plexuz", style = "green", symbol = "⚓ ", context_alias = "talos" },
+]
+
+[cmd_duration]
+format = "took [$duration]($style) "
+style = "yellow bold"
+show_notifications = false
+min_time_to_notify = 45000
+
+[username]
+style_user = 'green bold'
+style_root = 'red bold'
+format = '[$user]($style) '
+disabled = false
+show_always = true
+
+[hostname]
+ssh_only = false
+format = 'on [$hostname](bold orange) '
+disabled = false
+
+
+[jobs]
+symbol = " "
+format = "[$number$symbol]($style) "
+style  = "bold blue" 
+
+[sudo]
+symbol = "💀 "
+disabled = false
+
+[container]
+disabled = true
+
+[git_branch]
+symbol = " "
+format = "[$symbol$branch(:$remote_branch)]($style) "

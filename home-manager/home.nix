@@ -38,20 +38,23 @@
     };
   };
 
-  # TODO: Set your username
   home = {
     username = "krezh";
     homeDirectory = "/home/krezh";
   };
 
   # Add stuff for your user as you see fit:
-  # programs.neovim.enable = true;
   home.packages = with pkgs; [
     
   ];
 
   # Enable home-manager and git
   programs.home-manager.enable = true;
+  programs.starship = {
+    enable = true;
+    enableFishIntegration = true;
+    settings = pkgs.lib.importTOML ../config/starship.toml;
+  };
   programs.neovim = {
     enable = true;
     viAlias = true;

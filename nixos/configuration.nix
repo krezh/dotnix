@@ -26,6 +26,8 @@
     ./hardware-configuration.nix
   ];
 
+
+
   wsl = {
     enable = true;
     defaultUser = "krezh";
@@ -120,6 +122,7 @@
   # TODO: Set your hostname
   networking.hostName = "nixos";
 
+  programs.fish.enable = true;
   # TODO: Configure your system-wide user settings (groups, etc), add more users as needed.
   users.users = {
     # FIXME: Replace with your username
@@ -131,6 +134,7 @@
       isNormalUser = true;
       # TODO: Be sure to add any other groups you need (such as networkmanager, audio, docker, etc)
       extraGroups = ["wheel"];
+      shell = pkgs.fish;
     };
   };
 
