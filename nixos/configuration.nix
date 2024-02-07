@@ -7,6 +7,7 @@
   lib,
   config,
   pkgs,
+  nix-fast-build,
   ...
 }: {
   # You can import other NixOS modules here
