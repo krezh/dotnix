@@ -16,14 +16,6 @@
     # Hardware
     hardware.url = "github:nixos/nixos-hardware";
 
-    # nix-fast-build
-    nix-fast-build = {
-      url = "github:Mic92/nix-fast-build";
-      inputs = {
-        nixpkgs.follows = "nixpkgs";
-      };
-    };
-
     # sops-nix
     sops-nix = {
       url = "github:Mic92/sops-nix";
@@ -55,6 +47,7 @@
     nixosConfigurations = {
       # hostname
       nixos = nixpkgs.lib.nixosSystem {
+        system = "x86_64-linux";
         specialArgs = {inherit inputs outputs;};
         # > Our main nixos configuration file <
         modules = [./nixos/configuration.nix];
