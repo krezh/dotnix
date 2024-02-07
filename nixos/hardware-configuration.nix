@@ -22,7 +22,7 @@
     };
 
   fileSystems."/" =
-    { device = "/dev/disk/by-uuid/862d6012-53ff-4259-a49f-6e37e5b9f475";
+    { device = "/dev/disk/by-uuid/e0496e67-de66-4980-bf4f-7fcde71c5959";
       fsType = "ext4";
     };
 
@@ -31,18 +31,13 @@
       fsType = "tmpfs";
     };
 
-  fileSystems."/mnt/wslg/distro" =
-    { device = "";
-      fsType = "none";
-      options = [ "bind" ];
-    };
+  #fileSystems."/mnt/wslg/distro" =
+  #  { device = "";
+  #    fsType = "none";
+  #    options = [ "bind" ];
+  #  };
 
   fileSystems."/usr/lib/wsl/lib" =
-    { device = "none";
-      fsType = "overlay";
-    };
-
-  fileSystems."/mnt/wslg/doc" =
     { device = "none";
       fsType = "overlay";
     };
@@ -51,6 +46,11 @@
     { device = "/mnt/wslg/.X11-unix";
       fsType = "none";
       options = [ "bind" ];
+    };
+
+  fileSystems."/mnt/wslg/doc" =
+    { device = "none";
+      fsType = "overlay";
     };
 
   fileSystems."/mnt/c" =
@@ -64,7 +64,7 @@
     };
 
   swapDevices =
-    [ { device = "/dev/disk/by-uuid/7fe12126-8f7d-4b68-b478-622d74e14fa9"; }
+    [ { device = "/dev/disk/by-uuid/12deee08-cb5d-4b06-b49a-76c99e66aeb1"; }
     ];
 
   # Enables DHCP on each ethernet and wireless interface. In case of scripted networking

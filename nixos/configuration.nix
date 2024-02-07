@@ -2,6 +2,8 @@
 # Use this to configure your system environment (it replaces /etc/nixos/configuration.nix)
 {
   inputs,
+  outputs,
+  modulesPath,
   lib,
   config,
   pkgs,
@@ -10,7 +12,9 @@
   # You can import other NixOS modules here
   imports = [
     # include NixOS-WSL modules
-    <nixos-wsl/modules>
+    inputs.nixos-wsl.nixosModules.wsl
+    (modulesPath + "/profiles/minimal.nix")
+    inputs.home-manager.nixosModules.home-manager
     # If you want to use modules from other flakes (such as nixos-hardware):
     # inputs.hardware.nixosModules.common-cpu-amd
     # inputs.hardware.nixosModules.common-ssd
@@ -22,8 +26,26 @@
     ./hardware-configuration.nix
   ];
 
-  wsl.enable = true;
-  wsl.defaultUser = "krezh";
+  wsl = {
+    enable = true;
+    defaultUser = "krezh";
+    nativeSystemd = true;
+    wslConf.network = {
+      hostname = "nixos";
+      generateResolvConf = true;
+    };
+    startMenuLaunchers = false;
+    interop.includePath = false;
+  };
+
+  home-manager = {
+    extraSpecialArgs = { inherit inputs outputs; };
+    users = {
+      # Import your home-manager configuration
+      krezh = import ../home-manager/home.nix;
+    };
+  };
+
   security.sudo.wheelNeedsPassword = true;
   nix.gc = {
     automatic = true;
@@ -31,36 +53,45 @@
     options = "--delete-older-than 7d";
   };
 
-  environment.systemPackages = [
-    pkgs.neovim
-    pkgs.git
-  ];
-
-  users.users.krezh = {
-    isNormalUser = true;
-    home = "/home/krezh";
-    extraGroups = [ "wheel" "networkmanager" ];
-  };
-
-  nixpkgs = {
-    # You can add overlays here
-    overlays = [
-      # If you want to use overlays exported from other flakes:
-      # neovim-nightly-overlay.overlays.default
-
-      # Or define it inline, for example:
-      # (final: prev: {
-      #   hi = final.hello.overrideAttrs (oldAttrs: {
-      #     patches = [ ./change-hello-to-hi.patch ];
-      #   });
-      # })
+  environment = {
+    noXlibs = lib.mkForce false;
+    systemPackages = with pkgs; [
+      wget
+      wslu
+      git
+      neovim
     ];
-    # Configure your nixpkgs instance
-    config = {
-      # Disable if you don't want unfree packages
-      allowUnfree = true;
-    };
   };
+
+  # doesn't work on wsl
+  services.dbus.apparmor = "disabled";
+  # ditto
+  networking.networkmanager.enable = false;
+
+  boot.isContainer = true;
+
+  ## Disable systemd units that don't make sense on WSL
+  #systemd.services."serial-getty@ttyS0".enable = false;
+  #systemd.services."serial-getty@hvc0".enable = false;
+  #systemd.services."getty@tty1".enable = false;
+  #systemd.services."autovt@".enable = false;
+
+  #systemd.services.firewall.enable = false;
+  #systemd.services.systemd-resolved.enable = false;
+  #systemd.services.systemd-udevd.enable = false;
+
+  ## Don't allow emergency mode, because we don't have a console.
+  #systemd.enableEmergencyMode = false;
+
+  # ditto
+  security = {
+    apparmor.enable = false;
+    audit.enable = false;
+    auditd.enable = false;
+  };
+
+  # ditto
+  services.resolved.enable = false;
 
   # This will add each flake input as a registry
   # To make nix3 commands consistent with your flake
