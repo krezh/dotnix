@@ -7,7 +7,6 @@
   lib,
   config,
   pkgs,
-  nix-fast-build,
   ...
 }: {
   # You can import other NixOS modules here
@@ -16,6 +15,7 @@
     inputs.nixos-wsl.nixosModules.wsl
     (modulesPath + "/profiles/minimal.nix")
     inputs.home-manager.nixosModules.home-manager
+
     # If you want to use modules from other flakes (such as nixos-hardware):
     # inputs.hardware.nixosModules.common-cpu-amd
     # inputs.hardware.nixosModules.common-ssd
@@ -39,11 +39,32 @@
     interop.includePath = false;
   };
 
+  time.timeZone = "Europe/Stockholm";
+
+  nixpkgs = {
+    # You can add overlays here
+    overlays = [
+      # Add overlays your own flake exports (from overlays and pkgs dir):
+      outputs.overlays.additions
+      outputs.overlays.modifications
+      outputs.overlays.unstable-packages
+    ];
+    # Configure your nixpkgs instance
+    config = {
+      # Disable if you don't want unfree packages
+      allowUnfree = true;
+      # Workaround for https://github.com/nix-community/home-manager/issues/2942
+      allowUnfreePredicate = _: true;
+    };
+  };
+
   home-manager = {
-    extraSpecialArgs = { inherit inputs outputs; };
+    extraSpecialArgs = {inherit inputs outputs;};
+    # useGlobalPkgs = true;
+    # useUserPackages = true;
     users = {
       # Import your home-manager configuration
-      krezh = import ../home-manager/home.nix;
+      krezh = import ../home/krezh.nix;
     };
   };
 
@@ -68,13 +89,13 @@
 
   # doesn't work on wsl
   services.dbus.apparmor = "disabled";
+  services.resolved.enable = false;
   networking.networkmanager.enable = false;
   security = {
     apparmor.enable = false;
     audit.enable = false;
     auditd.enable = false;
   };
-  services.resolved.enable = false;
 
   # This will add each flake input as a registry
   # To make nix3 commands consistent with your flake
@@ -92,19 +113,15 @@
     config.nix.registry;
 
   nix.settings = {
-    # Enable flakes and new 'nix' command
     experimental-features = "nix-command flakes";
-    # Deduplicate and optimize nix store
     auto-optimise-store = true;
   };
-  
+
   networking.hostName = "nixos";
 
   programs.fish.enable = true;
   users.users = {
     krezh = {
-      # If you do, you can skip setting a root password by passing '--no-root-passwd' to nixos-install.
-      # Be sure to change it (using passwd) after rebooting!
       initialPassword = "krezh";
       isNormalUser = true;
       extraGroups = ["wheel"];
