@@ -1,0 +1,28 @@
+---
+keys:
+  - &user_krezh age1el5jq43hnhq8uzyfruretlrxk0ch8xvykdzu94cfsu5tyywwga3qy3f46h
+  - &user_krezh_ykey age1yubikey1qdwwcxxstqw9kwgw37xuf3lc3ua2ql7cphgwnkv6udm9zavj0ndgug3ades # Requires https://github.com/getsops/sops/pull/1335
+  - &user_flux age15e7zt8gwt8eg2hcm35h0mlvvexkrxj8uu424lvrmlzvma3ancpvslcevcg
+
+creation_rules:
+  - path_regex: (clusters)/.*\.sops\.ya?ml
+    encrypted_regex: ^(data|stringData)$
+    key_groups:
+      - age:
+          - *user_krezh
+          - *user_flux
+  - path_regex: (clusters)/.*\.sops\.toml
+    key_groups:
+      - age:
+          - *user_krezh
+          - *user_flux
+  - path_regex: (clusters)/.*\.sops\.ini
+    key_groups:
+      - age:
+          - *user_krezh
+          - *user_flux
+  - path_regex: (terraform)/.*\.sops\.ya?ml
+    key_groups:
+      - age:
+          - *user_krezh
+          - *user_flux

@@ -82,6 +82,7 @@
       wslu
       git
       neovim
+      lf
     ];
   };
 

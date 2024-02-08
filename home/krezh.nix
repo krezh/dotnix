@@ -6,10 +6,11 @@
   pkgs,
   ...
 }: let
-  nixd = inputs.nixd;
+  user = "krezh";
 in {
   imports = [
     ../modules/common
+    inputs.sops-nix.homeManagerModules.sops
   ];
 
   nixpkgs = {
@@ -30,10 +31,17 @@ in {
   };
 
   home = {
-    username = "krezh";
-    homeDirectory = "/home/krezh";
+    username = "${user}";
+    homeDirectory = "/home/${user}";
   };
 
+  sops = {
+    age.keyFile = "/home/${user}/.config/sops/age/keys"; # must have no password!
+    # It's also possible to use a ssh key, but only when it has no password:
+    #age.sshKeyPaths = [ "/home/user/path-to-ssh-key" ];
+    defaultSopsFile = ../.sops.yaml;
+  };
+  
   # Add stuff for your user as you see fit:
   home.packages = with pkgs; [
     wget
@@ -43,8 +51,11 @@ in {
     ripgrep
     gh
     gcc
-    nixd.packages.${pkgs.system}.nixd
+    sops
+    age
+    inputs.nixd.packages.${pkgs.system}.nixd
   ];
+
 
   modules.shell.mise = {
     enable = true;
