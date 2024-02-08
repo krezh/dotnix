@@ -36,10 +36,13 @@ in {
   };
 
   sops = {
-    age.keyFile = "/home/${user}/.config/sops/age/keys"; # must have no password!
-    # It's also possible to use a ssh key, but only when it has no password:
-    #age.sshKeyPaths = [ "/home/user/path-to-ssh-key" ];
-    defaultSopsFile = ../.sops.yaml;
+    age.keyFile = "/home/${user}/.config/sops/age/keys";
+    defaultSopsFile = ./secrets.sops.yaml;
+    secrets = {
+      hello  = {
+        path = "/home/krezh/nix-config/hello";
+      };
+    };
   };
   
   # Add stuff for your user as you see fit:

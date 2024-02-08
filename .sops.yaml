@@ -5,23 +5,7 @@ keys:
   - &user_flux age15e7zt8gwt8eg2hcm35h0mlvvexkrxj8uu424lvrmlzvma3ancpvslcevcg
 
 creation_rules:
-  - path_regex: (clusters)/.*\.sops\.ya?ml
-    encrypted_regex: ^(data|stringData)$
-    key_groups:
-      - age:
-          - *user_krezh
-          - *user_flux
-  - path_regex: (clusters)/.*\.sops\.toml
-    key_groups:
-      - age:
-          - *user_krezh
-          - *user_flux
-  - path_regex: (clusters)/.*\.sops\.ini
-    key_groups:
-      - age:
-          - *user_krezh
-          - *user_flux
-  - path_regex: (terraform)/.*\.sops\.ya?ml
+  - path_regex: .*\.sops\.*
     key_groups:
       - age:
           - *user_krezh
