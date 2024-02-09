@@ -58,6 +58,7 @@
   home.packages = with pkgs; [
     inputs.nh.packages.${pkgs.system}.default
     inputs.nixd.packages.${pkgs.system}.nixd
+    inputs.nix-fast-build.packages.${pkgs.system}.nix-fast-build
     wget
     curl
     nodejs
