@@ -16,14 +16,7 @@
     (modulesPath + "/profiles/minimal.nix")
     inputs.home-manager.nixosModules.home-manager
 
-    # If you want to use modules from other flakes (such as nixos-hardware):
-    # inputs.hardware.nixosModules.common-cpu-amd
-    # inputs.hardware.nixosModules.common-ssd
-
-    # You can also split up your configuration and import pieces of it here:
-    # ./users.nix
-
-    # Import your generated (nixos-generate-config) hardware configuration
+    ../common/global
     ./hardware-configuration.nix
   ];
 
@@ -32,14 +25,12 @@
     defaultUser = "krezh";
     nativeSystemd = true;
     wslConf.network = {
-      hostname = "nixos";
+      hostname = "thor-wsl";
       generateResolvConf = true;
     };
     startMenuLaunchers = false;
     interop.includePath = false;
   };
-
-  time.timeZone = "Europe/Stockholm";
 
   nixpkgs = {
     # You can add overlays here
@@ -49,13 +40,6 @@
       outputs.overlays.modifications
       outputs.overlays.unstable-packages
     ];
-    # Configure your nixpkgs instance
-    config = {
-      # Disable if you don't want unfree packages
-      allowUnfree = true;
-      # Workaround for https://github.com/nix-community/home-manager/issues/2942
-      allowUnfreePredicate = _: true;
-    };
   };
 
   home-manager = {
@@ -64,15 +48,8 @@
     # useUserPackages = true;
     users = {
       # Import your home-manager configuration
-      krezh = import ../home/krezh.nix;
+      krezh = import ../../home/krezh;
     };
-  };
-
-  security.sudo.wheelNeedsPassword = true;
-  nix.gc = {
-    automatic = true;
-    dates = "weekly";
-    options = "--delete-older-than 7d";
   };
 
   environment = {
@@ -82,11 +59,11 @@
       wslu
       git
       neovim
-      lf
     ];
   };
 
   boot.isContainer = true;
+  security.sudo.wheelNeedsPassword = true;
 
   # doesn't work on wsl
   services.dbus.apparmor = "disabled";
@@ -98,13 +75,6 @@
     auditd.enable = false;
   };
 
-  # This will add each flake input as a registry
-  # To make nix3 commands consistent with your flake
-  nix.registry = (lib.mapAttrs (_: flake: {inherit flake;})) ((lib.filterAttrs (_: lib.isType "flake")) inputs);
-
-  # This will additionally add your inputs to the system's legacy channels
-  # Making legacy nix commands consistent as well, awesome!
-  nix.nixPath = ["/etc/nix/path"];
   environment.etc =
     lib.mapAttrs'
     (name: value: {
@@ -113,12 +83,7 @@
     })
     config.nix.registry;
 
-  nix.settings = {
-    experimental-features = "nix-command flakes";
-    auto-optimise-store = true;
-  };
-
-  networking.hostName = "nixos";
+  networking.hostName = "thor-wsl";
 
   programs.fish.enable = true;
   users.users = {
