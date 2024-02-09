@@ -60,6 +60,8 @@
   
   # Add stuff for your user as you see fit:
   home.packages = with pkgs; [
+    inputs.nh.packages.${pkgs.system}.default
+    inputs.nixd.packages.${pkgs.system}.nixd
     wget
     curl
     nodejs
@@ -69,7 +71,6 @@
     gcc
     sops
     age
-    inputs.nixd.packages.${pkgs.system}.nixd
     comma # Install and run programs by sticking a , before them
     bc # Calculator
     bottom # System viewer
