@@ -1,14 +1,6 @@
 # This is your system's configuration file.
 # Use this to configure your system environment (it replaces /etc/nixos/configuration.nix)
-{
-  inputs,
-  outputs,
-  modulesPath,
-  lib,
-  config,
-  pkgs,
-  ...
-}: {
+{ inputs, outputs, modulesPath, lib, config, pkgs, ... }: {
   # You can import other NixOS modules here
   imports = [
     # include NixOS-WSL modules
@@ -43,7 +35,7 @@
   };
 
   home-manager = {
-    extraSpecialArgs = {inherit inputs outputs;};
+    extraSpecialArgs = { inherit inputs outputs; };
     # useGlobalPkgs = true;
     # useUserPackages = true;
     users = {
@@ -54,12 +46,7 @@
 
   environment = {
     noXlibs = lib.mkForce false;
-    systemPackages = with pkgs; [
-      wget
-      wslu
-      git
-      neovim
-    ];
+    systemPackages = with pkgs; [ wget wslu git neovim ];
   };
 
   boot.isContainer = true;
@@ -75,13 +62,10 @@
     auditd.enable = false;
   };
 
-  environment.etc =
-    lib.mapAttrs'
-    (name: value: {
-      name = "nix/path/${name}";
-      value.source = value.flake;
-    })
-    config.nix.registry;
+  environment.etc = lib.mapAttrs' (name: value: {
+    name = "nix/path/${name}";
+    value.source = value.flake;
+  }) config.nix.registry;
 
   networking.hostName = "thor-wsl";
 
@@ -90,7 +74,7 @@
     krezh = {
       initialPassword = "krezh";
       isNormalUser = true;
-      extraGroups = ["wheel"];
+      extraGroups = [ "wheel" ];
       shell = pkgs.fish;
     };
   };

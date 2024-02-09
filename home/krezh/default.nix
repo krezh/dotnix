@@ -1,4 +1,4 @@
-{ inputs, outputs, lib, config, pkgs, ...}:
+{ inputs, outputs, lib, config, pkgs, ... }:
 
 {
   imports = [
@@ -29,9 +29,7 @@
     homeDirectory = lib.mkDefault "/home/${config.home.username}";
     stateVersion = lib.mkDefault "23.11";
     sessionPath = [ "$HOME/.local/bin" ];
-    sessionVariables = {
-      FLAKE = "$HOME/nix-config";
-    };
+    sessionVariables = { FLAKE = "$HOME/nix-config"; };
 
     persistence = {
       "/mnt/wsl/home/${config.home.username}" = {
@@ -52,12 +50,10 @@
     age.keyFile = "/home/${config.home.username}/.config/sops/age/keys.txt";
     defaultSopsFile = ./secrets.sops.yaml;
     secrets = {
-      hello  = {
-        path = "/home/${config.home.username}/nix-config/hello";
-      };
+      hello = { path = "/home/${config.home.username}/nix-config/hello"; };
     };
   };
-  
+
   # Add stuff for your user as you see fit:
   home.packages = with pkgs; [
     inputs.nh.packages.${pkgs.system}.default
@@ -89,7 +85,6 @@
     ltex-ls # Spell checking LSP
   ];
 
-
   modules.shell.mise = {
     enable = true;
     config = {
@@ -105,9 +100,7 @@
   programs = {
     home-manager.enable = true;
 
-    neomutt = {
-      enable = true;
-    };
+    neomutt = { enable = true; };
 
     neovim = {
       enable = true;
@@ -119,9 +112,7 @@
       '';
     };
 
-    yazi = {
-      enable = true;
-    };
+    yazi = { enable = true; };
 
     bat = {
       enable = true;

@@ -1,7 +1,7 @@
 {
   description = "Krezh Nix Flake";
 
-  nixConfig = {};
+  nixConfig = { };
 
   inputs = {
     # Nixpkgs
@@ -30,7 +30,7 @@
       url = "github:hyprwm/hyprland";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-    
+
     hyprwm-contrib = {
       url = "github:hyprwm/contrib";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -62,54 +62,48 @@
     };
   };
 
-  outputs = inputs @ {
-    self,
-    nixpkgs,
-    home-manager,
-    ...
-  }: let
-    inherit (self) outputs;
-    lib = nixpkgs.lib // home-manager.lib;
-    forAllSystems = nixpkgs.lib.genAttrs [
-      "aarch64-darwin"
-      "aarch64-linux"
-      "x86_64-darwin"
-      "x86_64-linux"
-    ];
-  in {
-    inherit lib;
+  outputs = inputs@{ self, nixpkgs, home-manager, ... }:
+    let
+      inherit (self) outputs;
+      lib = nixpkgs.lib // home-manager.lib;
+      forAllSystems = nixpkgs.lib.genAttrs [
+        "aarch64-darwin"
+        "aarch64-linux"
+        "x86_64-darwin"
+        "x86_64-linux"
+      ];
+    in {
+      inherit lib;
 
-    home-manager.sharedModules = [
-      inputs.sops-nix.homeManagerModules.sops
-    ];
+      home-manager.sharedModules = [ inputs.sops-nix.homeManagerModules.sops ];
 
-    packages = forAllSystems (pkgs: import ./packages { inherit pkgs; });
-    formatter = forAllSystems (pkgs: pkgs.nixpkgs-fmt);
-    devShells = forAllSystems (pkgs: import ./shell.nix { inherit pkgs; });
-    overlays = import ./overlays { inherit inputs outputs; };
-    nixosModules = import ./modules/nixos;
-    commonModules = import ./modules/common;
-    homeManagerModules = import ./modules/home-manager;
+      packages = forAllSystems (pkgs: import ./packages { inherit pkgs; });
+      formatter = forAllSystems (pkgs: pkgs.nixpkgs-fmt);
+      devShells = forAllSystems (pkgs: import ./shell.nix { inherit pkgs; });
+      overlays = import ./overlays { inherit inputs outputs; };
+      nixosModules = import ./modules/nixos;
+      commonModules = import ./modules/common;
+      homeManagerModules = import ./modules/home-manager;
 
-    pkgs = forAllSystems (localSystem:
-      import nixpkgs {
-        inherit localSystem;
-        overlays = [self.overlays.default];
-        config = {
-          allowUnfree = true;
-          allowAliases = true;
+      pkgs = forAllSystems (localSystem:
+        import nixpkgs {
+          inherit localSystem;
+          overlays = [ self.overlays.default ];
+          config = {
+            allowUnfree = true;
+            allowAliases = true;
+          };
+        });
+
+      nixosConfigurations = {
+        thor-wsl = nixpkgs.lib.nixosSystem {
+          specialArgs = { inherit self inputs outputs; };
+          modules = [ ./hosts/thor-wsl ];
         };
-      });
-
-    nixosConfigurations = {
-      thor-wsl = nixpkgs.lib.nixosSystem {
-        specialArgs = {inherit self inputs outputs;};
-        modules = [./hosts/thor-wsl];
-      };
-      odin = nixpkgs.lib.nixosSystem {
-        specialArgs = {inherit self inputs outputs;};
-        modules = [./hosts/odin-wsl];
+        odin = nixpkgs.lib.nixosSystem {
+          specialArgs = { inherit self inputs outputs; };
+          modules = [ ./hosts/odin-wsl ];
+        };
       };
     };
-  };
 }
