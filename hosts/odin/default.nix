@@ -21,8 +21,8 @@
 
   home-manager = {
     extraSpecialArgs = { inherit inputs outputs; };
-    # useGlobalPkgs = true;
-    # useUserPackages = true;
+    useGlobalPkgs = true;
+    useUserPackages = true;
     users = {
       # Import your home-manager configuration
       krezh = import ../../home/krezh;

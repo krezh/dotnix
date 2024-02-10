@@ -1,5 +1,10 @@
 # This is your system's configuration file.
-{ inputs, outputs, modulesPath, lib, config, pkgs, ... }: {
+{ inputs, outputs, modulesPath, lib, config, pkgs, ... }:
+let
+  ifTheyExist = groups:
+    builtins.filter (group: builtins.hasAttr group config.users.groups) groups;
+in
+{
   # You can import other NixOS modules here
   imports = [
     # include NixOS-WSL modules
@@ -35,8 +40,8 @@
 
   home-manager = {
     extraSpecialArgs = { inherit inputs outputs; };
-    # useGlobalPkgs = true;
-    # useUserPackages = true;
+    useGlobalPkgs = true;
+    useUserPackages = true;
     users = {
       # Import your home-manager configuration
       krezh = import ../../home/krezh;
@@ -55,6 +60,7 @@
   services.dbus.apparmor = "disabled";
   services.resolved.enable = false;
   networking.networkmanager.enable = false;
+  networking.hostName = "thor-wsl";
   security = {
     apparmor.enable = false;
     audit.enable = false;
@@ -68,15 +74,27 @@
     })
     config.nix.registry;
 
-  networking.hostName = "thor-wsl";
-
   programs.fish.enable = true;
-  users.users = {
-    krezh = {
-      initialPassword = "krezh";
-      isNormalUser = true;
-      extraGroups = [ "wheel" ];
-      shell = pkgs.fish;
+  users = {
+    mutableUsers = false;
+    users = {
+      krezh = {
+        initialPassword = "krezh";
+        isNormalUser = true;
+        shell = pkgs.fish;
+        extraGroups = [ "wheel" "video" "audio" ] ++ ifTheyExist [
+          "minecraft"
+          "network"
+          "wireshark"
+          "i2c"
+          "mysql"
+          "docker"
+          "podman"
+          "git"
+          "libvirtd"
+          "deluge"
+        ];
+      };
     };
   };
 

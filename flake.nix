@@ -90,7 +90,9 @@
       nixosConfigurations = {
         thor-wsl = nixpkgs.lib.nixosSystem {
           specialArgs = { inherit self inputs outputs; };
-          modules = [ ./hosts/thor-wsl ];
+          modules = [
+            ./hosts/thor-wsl
+          ];
         };
         odin = nixpkgs.lib.nixosSystem {
           specialArgs = { inherit self inputs outputs; };
