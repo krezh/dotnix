@@ -3,12 +3,13 @@ with lib;
 let
   cfg = config.modules.shell.mise;
   tomlFormat = pkgs.formats.toml { };
-in {
+in
+{
   options.modules.shell.mise = {
     enable = mkEnableOption "mise";
 
     # TODO: This will probably not work until nixpkgs adds the mise package
-    package = mkPackageOption pkgs.unstable "mise" { };
+    package = mkPackageOption pkgs "mise" { };
 
     enableFishIntegration = mkEnableOption "Fish Integration" // {
       default = true;

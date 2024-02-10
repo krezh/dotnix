@@ -13,13 +13,15 @@
   };
   programs.fuse.userAllowOther = true;
 
-  system.activationScripts.persistent-dirs.text = let
-    mkHomePersist = user:
-      lib.optionalString user.createHome ''
-        mkdir -p /mnt/wsl/${user.home}
-        chown ${user.name}:${user.group} /mnt/wsl/${user.home}
-        chmod ${user.homeMode} /mnt/wsl/${user.home}
-      '';
-    users = lib.attrValues config.users.users;
-  in lib.concatLines (map mkHomePersist users);
+  system.activationScripts.persistent-dirs.text =
+    let
+      mkHomePersist = user:
+        lib.optionalString user.createHome ''
+          mkdir -p /mnt/wsl/${user.home}
+          chown ${user.name}:${user.group} /mnt/wsl/${user.home}
+          chmod ${user.homeMode} /mnt/wsl/${user.home}
+        '';
+      users = lib.attrValues config.users.users;
+    in
+    lib.concatLines (map mkHomePersist users);
 }

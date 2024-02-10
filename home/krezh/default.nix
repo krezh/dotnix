@@ -6,7 +6,7 @@
     ./features/cli
     inputs.impermanence.nixosModules.home-manager.impermanence
     inputs.sops-nix.homeManagerModules.sops
-  ] ++ (builtins.attrValues outputs.homeManagerModules);
+  ]; # ++ (builtins.attrValues outputs.homeManagerModules); #TODO: not sure what it does
 
   nixpkgs = {
     overlays = builtins.attrValues outputs.overlays;
@@ -19,10 +19,15 @@
   nix = {
     package = lib.mkDefault pkgs.nix;
     settings = {
+      accept-flake-config = true;
+      cores = 0;
+      max-jobs = "auto";
       experimental-features = [ "nix-command" "flakes" "repl-flake" ];
       warn-dirty = false;
     };
   };
+
+  xdg.enable = true;
 
   home = {
     username = lib.mkDefault "krezh";
@@ -31,30 +36,34 @@
     sessionPath = [ "$HOME/.local/bin" ];
     sessionVariables = { FLAKE = "$HOME/nix-config"; };
 
-    persistence = {
-      "/mnt/wsl/home/${config.home.username}" = {
-        directories = [
-          "Documents"
-          "Downloads"
-          "Pictures"
-          "Videos"
-          ".local/bin"
-          ".local/share/nix" # trusted settings and repl history
-        ];
-        allowOther = false;
-      };
-    };
+    # persistence = {
+    #   "/mnt/wsl/home/${config.home.username}" = {
+    #     directories = [
+    #       "Documents"
+    #       "Downloads"
+    #       "Pictures"
+    #       "Videos"
+    #       ".local/bin"
+    #       ".local/share/nix" # trusted settings and repl history
+    #     ];
+    #     allowOther = false;
+    #   };
+    # };
   };
 
   sops = {
     age.keyFile = "/home/${config.home.username}/.config/sops/age/keys.txt";
     defaultSopsFile = ./secrets.sops.yaml;
     secrets = {
-      hello = { path = "/home/${config.home.username}/nix-config/hello"; };
+      "ssh/privkey" = {
+        path = "/home/${config.home.username}/.ssh/id_ed25519";
+        mode = "0600";
+        #owner = config.users.users.krezh.name;
+        #group = config.users.users.krezh.group;
+      };
     };
   };
 
-  # Add stuff for your user as you see fit:
   home.packages = with pkgs; [
     inputs.nh.packages.${pkgs.system}.default
     inputs.nixd.packages.${pkgs.system}.nixd
@@ -69,6 +78,7 @@
     sops
     age
     go
+    go-task
     comma # Install and run programs by sticking a , before them
     bc # Calculator
     bottom # System viewer
@@ -89,20 +99,22 @@
 
   modules.shell.mise = {
     enable = true;
+    package = pkgs.unstable.mise;
     config = {
       python_venv_auto_create = true;
       status = {
-        missing_tools = "if_other_versions_installed";
+        missing_tools = "always";
         show_env = false;
-        show_tools = true;
+        show_tools = false;
       };
     };
   };
 
   programs = {
     home-manager.enable = true;
-
-    neomutt = { enable = true; };
+    neomutt.enable = true;
+    yazi.enable = true;
+    fzf.enable = true;
 
     neovim = {
       enable = true;
@@ -113,8 +125,6 @@
         set number relativenumber
       '';
     };
-
-    yazi = { enable = true; };
 
     bat = {
       enable = true;
@@ -135,8 +145,6 @@
       enable = true;
       enableFishIntegration = true;
     };
-
-    fzf.enable = true;
 
     git = {
       enable = true;

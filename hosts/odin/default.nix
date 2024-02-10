@@ -2,26 +2,12 @@
 { inputs, outputs, modulesPath, lib, config, pkgs, ... }: {
   # You can import other NixOS modules here
   imports = [
-    # include NixOS-WSL modules
-    inputs.nixos-wsl.nixosModules.wsl
     (modulesPath + "/profiles/minimal.nix")
     inputs.home-manager.nixosModules.home-manager
 
     ../common/global
     ./hardware-configuration.nix
   ];
-
-  wsl = {
-    enable = true;
-    defaultUser = "krezh";
-    nativeSystemd = true;
-    wslConf.network = {
-      hostname = "thor-wsl";
-      generateResolvConf = true;
-    };
-    startMenuLaunchers = false;
-    interop.includePath = false;
-  };
 
   nixpkgs = {
     # You can add overlays here

@@ -65,35 +65,27 @@
   outputs = inputs@{ self, nixpkgs, home-manager, ... }:
     let
       inherit (self) outputs;
-      lib = nixpkgs.lib // home-manager.lib;
-      forAllSystems = nixpkgs.lib.genAttrs [
-        "aarch64-darwin"
+      # Supported systems for your flake packages, shell, etc.
+      systems = [
         "aarch64-linux"
-        "x86_64-darwin"
+        "aarch64-darwin"
         "x86_64-linux"
+        "x86_64-darwin"
       ];
-    in {
-      inherit lib;
+      # This is a function that generates an attribute by calling a function you
+      # pass to it, with each system as an argument
+      forAllSystems = nixpkgs.lib.genAttrs systems;
 
-      home-manager.sharedModules = [ inputs.sops-nix.homeManagerModules.sops ];
+    in
+    {
 
-      packages = forAllSystems (pkgs: import ./packages { inherit pkgs; });
-      formatter = forAllSystems (pkgs: pkgs.nixpkgs-fmt);
-      devShells = forAllSystems (pkgs: import ./shell.nix { inherit pkgs; });
+      #packages = forAllSystems (pkgs: import ./packages { inherit pkgs; });
+      formatter = forAllSystems (system: nixpkgs.legacyPackages.${system}.nixpkgs-fmt);
+      #devShells = forAllSystems (pkgs: import ./shell.nix { inherit pkgs; });
       overlays = import ./overlays { inherit inputs outputs; };
       nixosModules = import ./modules/nixos;
-      commonModules = import ./modules/common;
-      homeManagerModules = import ./modules/home-manager;
-
-      pkgs = forAllSystems (localSystem:
-        import nixpkgs {
-          inherit localSystem;
-          overlays = [ self.overlays.default ];
-          config = {
-            allowUnfree = true;
-            allowAliases = true;
-          };
-        });
+      #commonModules = import ./modules/common;
+      #homeManagerModules = import ./modules/home-manager;
 
       nixosConfigurations = {
         thor-wsl = nixpkgs.lib.nixosSystem {
@@ -102,7 +94,7 @@
         };
         odin = nixpkgs.lib.nixosSystem {
           specialArgs = { inherit self inputs outputs; };
-          modules = [ ./hosts/odin-wsl ];
+          modules = [ ./hosts/odin ];
         };
       };
     };

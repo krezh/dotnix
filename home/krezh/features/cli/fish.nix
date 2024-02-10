@@ -10,7 +10,8 @@ let
   hasNeomutt = config.programs.neomutt.enable;
   hasShellColor = config.programs.shellcolor.enable;
   hasKitty = config.programs.kitty.enable;
-in {
+in
+{
   programs.fish = {
     enable = true;
     shellAbbrs = rec {
@@ -112,7 +113,8 @@ in {
         '';
     };
     interactiveShellInit = ''
-      set fish_greeting # Disable greeting
+      set -gx fish_greeting # Disable greeting
+      set -gx SOPS_AGE_KEY_FILE "$XDG_CONFIG_HOME/sops/age/keys.txt"
     '';
   };
 }
