@@ -4,7 +4,7 @@
   imports = [
     ../../modules/common
     ./features/cli
-    inputs.impermanence.nixosModules.home-manager.impermanence
+    #inputs.impermanence.nixosModules.home-manager.impermanence
     inputs.sops-nix.homeManagerModules.sops
   ]; # ++ (builtins.attrValues outputs.homeManagerModules); #TODO: not sure what it does
 
@@ -50,6 +50,7 @@
   sops = {
     age.keyFile = "/home/${config.home.username}/.config/sops/age/keys.txt";
     defaultSopsFile = ./secrets.sops.yaml;
+    gnupg.sshKeyPaths = [];
     secrets = {
       "ssh/privkey" = {
         path = "/home/${config.home.username}/.ssh/id_ed25519";

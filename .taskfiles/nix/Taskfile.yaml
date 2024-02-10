@@ -16,7 +16,7 @@ tasks:
         vars:
           host: "{{ .host }}"
       - task: .prompt_to_continue
-      - nixos-rebuild switch --flake "{{.ROOT_DIR}}/#{{.host}}" --impure
+      - sudo nixos-rebuild switch --flake "{{.ROOT_DIR}}/#{{.host}}" --impure
     preconditions:
       - sh: which nix
         msg: "nix not found"

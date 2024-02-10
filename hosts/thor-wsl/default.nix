@@ -9,6 +9,7 @@ in
   imports = [
     # include NixOS-WSL modules
     inputs.nixos-wsl.nixosModules.wsl
+    #inputs.sops-nix.nixosModules.sops
     (modulesPath + "/profiles/minimal.nix")
     inputs.home-manager.nixosModules.home-manager
 
@@ -77,9 +78,10 @@ in
   programs.fish.enable = true;
   users = {
     mutableUsers = false;
+    
     users = {
       krezh = {
-        initialPassword = "krezh";
+        hashedPasswordFile = config.sops.secrets.krezh-password.path;
         isNormalUser = true;
         shell = pkgs.fish;
         extraGroups = [ "wheel" "video" "audio" ] ++ ifTheyExist [
