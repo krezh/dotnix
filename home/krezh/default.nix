@@ -41,7 +41,7 @@
           ".local/bin"
           ".local/share/nix" # trusted settings and repl history
         ];
-        allowOther = true;
+        allowOther = false;
       };
     };
   };
@@ -68,6 +68,7 @@
     gcc
     sops
     age
+    go
     comma # Install and run programs by sticking a , before them
     bc # Calculator
     bottom # System viewer
@@ -141,8 +142,18 @@
       enable = true;
       userName = "Krezh";
       userEmail = "krezh@users.noreply.github.com";
+      extraConfig = {
+        # Sign all commits using ssh key
+        commit.gpgsign = true;
+        gpg.format = "ssh";
+        user.signingkey = "~/.ssh/id_ed25519.pub";
+        gpg.ssh.allowedSignersFile = "~/.ssh/allowed_signers";
+      };
     };
   };
+
+  home.file.".ssh/allowed_signers".text =
+    "* ${builtins.readFile /home/${config.home.username}/.ssh/id_ed25519.pub}";
 
   # Nicely reload system units when changing configs
   systemd.user.startServices = "sd-switch";
