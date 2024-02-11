@@ -162,7 +162,7 @@
         format.signoff = true;
         status.submoduleSummary = false;
         tag.forceSignAnnotated = true;
-        user.signingkey = "~/.ssh/id_ed25519.pub";
+        user.signingkey = config.sops.secrets."ssh/privkey".path;
         init.defaultBranch = "main";
         #gpg.ssh.allowedSignersFile = "~/.ssh/allowed_signers";
         url."ssh://git@github.com/".pushInsteadOf = "https://github.com/";
@@ -170,8 +170,8 @@
     };
   };
 
-  home.file.".ssh/allowed_signers".text =
-    "* ${builtins.readFile /home/${config.home.username}/.ssh/id_ed25519.pub}";
+  # home.file.".ssh/allowed_signers".text =
+  #   "* ${builtins.readFile /home/${config.home.username}/.ssh/id_ed25519.pub}";
 
   # Nicely reload system units when changing configs
   systemd.user.startServices = "sd-switch";
