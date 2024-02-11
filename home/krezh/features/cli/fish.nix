@@ -114,7 +114,15 @@ in
     };
     interactiveShellInit = ''
       set -gx fish_greeting # Disable greeting
+      # Sops
       set -gx SOPS_AGE_KEY_FILE "$XDG_CONFIG_HOME/sops/age/keys.txt"
+      # GO
+      set -gx GOPATH "$XDG_DATA_HOME/go"
+      set -gx PATH $PATH "$GOROOT/bin" "$GOPATH/bin"
+      # Cargo
+      set -gx CARGO_HOME "$XDG_DATA_HOME/cargo"
+      set -gx PATH $PATH "$CARGO_HOME/bin"
+
     '';
   };
 }

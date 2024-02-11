@@ -120,7 +120,13 @@
       defaultEditor = true;
       extraConfig = ''
         set number relativenumber
+	set tabstop=2
+        set expandtab
       '';
+    };
+
+    helix = {
+      enable = true;
     };
 
     bat = {
@@ -150,9 +156,16 @@
       extraConfig = {
         # Sign all commits using ssh key
         commit.gpgsign = true;
+        pull.rebase = true;
+        push.autoSetupRemote = true;
         gpg.format = "ssh";
+        format.signoff = true;
+        status.submoduleSummary = false;
+        tag.forceSignAnnotated = true;
         user.signingkey = "~/.ssh/id_ed25519.pub";
-        gpg.ssh.allowedSignersFile = "~/.ssh/allowed_signers";
+        init.defaultBranch = "main";
+        #gpg.ssh.allowedSignersFile = "~/.ssh/allowed_signers";
+        url."ssh://git@github.com/".pushInsteadOf = "https://github.com/";
       };
     };
   };
