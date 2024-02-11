@@ -81,7 +81,7 @@
 
       #packages = forAllSystems (pkgs: import ./packages { inherit pkgs; });
       formatter = forAllSystems (system: nixpkgs.legacyPackages.${system}.nixpkgs-fmt);
-      #devShells = forAllSystems (pkgs: import ./shell.nix { inherit pkgs; });
+      devShells = forAllSystems (pkgs: import ./shell.nix { inherit pkgs; });
       overlays = import ./overlays { inherit inputs outputs; };
       nixosModules = import ./modules/nixos;
       #commonModules = import ./modules/common;
