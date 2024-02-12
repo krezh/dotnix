@@ -39,6 +39,12 @@ in
     ];
   };
 
+  nix = {
+    package = pkgs.nixFlakes;
+    extraOptions = lib.optionalString (config.nix.package == pkgs.nixFlakes)
+      "experimental-features = nix-command flakes";
+  };
+
   home-manager = {
     extraSpecialArgs = { inherit inputs outputs; };
     useGlobalPkgs = true;
@@ -51,7 +57,7 @@ in
 
   environment = {
     noXlibs = lib.mkForce false;
-    systemPackages = with pkgs; [ wget wslu git neovim ];
+    systemPackages = with pkgs; [ wget wslu git ];
   };
 
   boot.isContainer = true;

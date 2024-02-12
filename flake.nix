@@ -8,6 +8,10 @@
     nixpkgs.url = "github:nixos/nixpkgs/nixos-23.11";
     nixpkgs-unstable.url = "github:nixos/nixpkgs/nixos-unstable";
     impermanence.url = "github:nix-community/impermanence";
+    talhelper.url = "github:budimanjojo/talhelper";
+    # Hardware
+    hardware.url = "github:nixos/nixos-hardware";
+    nixd.url = "github:nix-community/nixd";
 
     # Home Manager
     home-manager = {
@@ -41,16 +45,16 @@
       inputs.hyprland.follows = "hyprland";
     };
 
-    # Hardware
-    hardware.url = "github:nixos/nixos-hardware";
-
     # sops-nix
     sops-nix = {
       url = "github:Mic92/sops-nix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    nixd.url = "github:nix-community/nixd";
+    nixvim = {
+      url = "github:nix-community/nixvim/nixos-23.11";
+      inputs.nixpkgs.follows = "nixpkgs";
+  };
 
     # NixOS-WSL
     nixos-wsl = {

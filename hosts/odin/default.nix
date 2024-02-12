@@ -31,7 +31,7 @@
 
   environment = {
     noXlibs = lib.mkForce false;
-    systemPackages = with pkgs; [ wget wslu git neovim ];
+    systemPackages = with pkgs; [ wget wslu git ];
   };
 
   boot.isContainer = true;

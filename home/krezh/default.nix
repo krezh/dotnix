@@ -6,6 +6,7 @@
     ./features/cli
     #inputs.impermanence.nixosModules.home-manager.impermanence
     inputs.sops-nix.homeManagerModules.sops
+    inputs.nixvim.homeManagerModules.nixvim
   ]; # ++ (builtins.attrValues outputs.homeManagerModules); #TODO: not sure what it does
 
   nixpkgs = {
@@ -47,6 +48,8 @@
     # };
   };
 
+  
+
   sops = {
     age.keyFile = "/home/${config.home.username}/.config/sops/age/keys.txt";
     defaultSopsFile = ./secrets.sops.yaml;
@@ -65,6 +68,7 @@
     inputs.nh.packages.${pkgs.system}.default
     inputs.nixd.packages.${pkgs.system}.nixd
     inputs.nix-fast-build.packages.${pkgs.system}.nix-fast-build
+    inputs.talhelper.packages.${pkgs.system}.default
     wget
     curl
     nodejs
@@ -113,21 +117,32 @@
     yazi.enable = true;
     fzf.enable = true;
 
-    neovim = {
+    nixvim = {
       enable = true;
-      viAlias = true;
-      vimAlias = true;
-      defaultEditor = true;
-      extraConfig = ''
-                set number relativenumber
-        	set tabstop=2
-                set expandtab
-      '';
+      plugins.lightline.enable = true;
+      colorschemes.catppuccin.enable = true;
+      extraPlugins = with pkgs.vimPlugins; [
+        vim-nix
+      ];
+      options = {
+        number = true;         # Show line numbers
+        relativenumber = true; # Show relative line numbers
+        shiftwidth = 2;        # Tab width should be 2
+      };
     };
 
-    helix = {
-      enable = true;
-    };
+    # neovim = {
+    #   enable = true;
+    #   viAlias = true;
+    #   vimAlias = true;
+    #   defaultEditor = true;
+    #   extraConfig = ''
+    #       set number relativenumber
+    #     	set tabstop=2
+    #       set expandtab
+    #       set shiftwidth=2
+    #   '';
+    # };
 
     bat = {
       enable = true;
