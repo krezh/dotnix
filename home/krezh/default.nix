@@ -32,23 +32,9 @@
     stateVersion = lib.mkDefault "23.11";
     sessionPath = [ "$HOME/.local/bin" ];
     sessionVariables = { FLAKE = "$HOME/nix-config"; };
-
-    # persistence = {
-    #   "/mnt/wsl/home/${config.home.username}" = {
-    #     directories = [
-    #       "Documents"
-    #       "Downloads"
-    #       "Pictures"
-    #       "Videos"
-    #       ".local/bin"
-    #       ".local/share/nix" # trusted settings and repl history
-    #     ];
-    #     allowOther = false;
-    #   };
-    # };
   };
 
-  
+
 
   sops = {
     age.keyFile = "/home/${config.home.username}/.config/sops/age/keys.txt";
@@ -58,8 +44,6 @@
       "ssh/privkey" = {
         path = "/home/${config.home.username}/.ssh/id_ed25519";
         mode = "0600";
-        #owner = config.users.users.krezh.name;
-        #group = config.users.users.krezh.group;
       };
     };
   };
@@ -119,30 +103,34 @@
 
     nixvim = {
       enable = true;
+      viAlias = true;
+      vimAlias = true;
+      defaultEditor = true;
       plugins.lightline.enable = true;
       colorschemes.catppuccin.enable = true;
       extraPlugins = with pkgs.vimPlugins; [
+        LazyVim
         vim-nix
       ];
       options = {
-        number = true;         # Show line numbers
+        number = true; # Show line numbers
         relativenumber = true; # Show relative line numbers
-        shiftwidth = 2;        # Tab width should be 2
+        shiftwidth = 2; # Tab width should be 2
       };
     };
 
-    # neovim = {
-    #   enable = true;
-    #   viAlias = true;
-    #   vimAlias = true;
-    #   defaultEditor = true;
-    #   extraConfig = ''
-    #       set number relativenumber
-    #     	set tabstop=2
-    #       set expandtab
-    #       set shiftwidth=2
-    #   '';
-    # };
+    #neovim = {
+    #  enable = true;
+    #  viAlias = true;
+    #  vimAlias = true;
+    #  defaultEditor = true;
+    #  extraConfig = ''
+    #      set number relativenumber
+    #    	set tabstop=2
+    #      set expandtab
+    #      set shiftwidth=2
+    #  '';
+    #};
 
     bat = {
       enable = true;

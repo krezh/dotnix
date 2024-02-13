@@ -54,7 +54,7 @@
     nixvim = {
       url = "github:nix-community/nixvim/nixos-23.11";
       inputs.nixpkgs.follows = "nixpkgs";
-  };
+    };
 
     # NixOS-WSL
     nixos-wsl = {
@@ -83,7 +83,7 @@
     in
     {
 
-      #packages = forAllSystems (pkgs: import ./packages { inherit pkgs; });
+      #packages = forAllSystems (pkgs: import ./pkgs { inherit pkgs; });
       formatter = forAllSystems (system: nixpkgs.legacyPackages.${system}.nixpkgs-fmt);
       devShells = forAllSystems (pkgs: import ./shell.nix { inherit pkgs; });
       overlays = import ./overlays { inherit inputs outputs; };
@@ -94,9 +94,7 @@
       nixosConfigurations = {
         thor-wsl = nixpkgs.lib.nixosSystem {
           specialArgs = { inherit self inputs outputs; };
-          modules = [
-            ./hosts/thor-wsl
-          ];
+          modules = [ ./hosts/thor-wsl ];
         };
         odin = nixpkgs.lib.nixosSystem {
           specialArgs = { inherit self inputs outputs; };

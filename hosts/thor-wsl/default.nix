@@ -3,6 +3,7 @@
 let
   ifTheyExist = groups:
     builtins.filter (group: builtins.hasAttr group config.users.groups) groups;
+  
 in
 {
   # You can import other NixOS modules here
@@ -57,7 +58,7 @@ in
 
   environment = {
     noXlibs = lib.mkForce false;
-    systemPackages = with pkgs; [ wget wslu git ];
+    systemPackages = [ pkgs.wget pkgs.wslu pkgs.git ];
   };
 
   boot.isContainer = true;
@@ -82,9 +83,9 @@ in
     config.nix.registry;
 
   programs.fish.enable = true;
+
   users = {
     mutableUsers = false;
-
     users = {
       krezh = {
         hashedPasswordFile = config.sops.secrets.krezh-password.path;
