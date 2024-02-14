@@ -5,7 +5,7 @@
     nixpkgs.url = "github:NixOS/nixpkgs";
   };
 
-  outputs = {self, nixpkgs}: {
+  outputs = { self, nixpkgs }: {
     defaultPackage.x86_64-linux =
       with import nixpkgs { system = "x86_64-linux"; };
 
@@ -23,7 +23,7 @@
         sourceRoot = ".";
 
         installPhase = ''
-        install -m755 -D postgrest $out/bin/postgrest
+          install -m755 -D postgrest $out/bin/postgrest
         '';
 
         meta = with lib; {

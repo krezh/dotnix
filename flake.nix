@@ -1,14 +1,17 @@
 {
   description = "Krezh Nix Flake";
 
+  # Configuration for the Nix package manager
   nixConfig = { };
 
+  # External inputs for the flake
   inputs = {
     # Nixpkgs
     nixpkgs.url = "github:nixos/nixpkgs/nixos-23.11";
     nixpkgs-unstable.url = "github:nixos/nixpkgs/nixos-unstable";
     impermanence.url = "github:nix-community/impermanence";
     talhelper.url = "github:budimanjojo/talhelper";
+    
     # Hardware
     hardware.url = "github:nixos/nixos-hardware";
     nixd.url = "github:nix-community/nixd";
@@ -66,31 +69,39 @@
     };
   };
 
+  # Outputs of the flake
   outputs = inputs@{ self, nixpkgs, home-manager, ... }:
     let
       inherit (self) outputs;
-      # Supported systems for your flake packages, shell, etc.
       systems = [
         "aarch64-linux"
         "aarch64-darwin"
         "x86_64-linux"
         "x86_64-darwin"
       ];
-      # This is a function that generates an attribute by calling a function you
-      # pass to it, with each system as an argument
-      forAllSystems = nixpkgs.lib.genAttrs systems;
 
+      # Generate attributes for each system
+      forAllSystems = nixpkgs.lib.genAttrs systems;
     in
     {
+      # Packages for each system
+      packages = forAllSystems (pkgs: import ./pkgs { inherit pkgs; });
 
-      #packages = forAllSystems (pkgs: import ./pkgs { inherit pkgs; });
+      # Formatter for each system
       formatter = forAllSystems (system: nixpkgs.legacyPackages.${system}.nixpkgs-fmt);
+
+      # Development shells for each system
       devShells = forAllSystems (pkgs: import ./shell.nix { inherit pkgs; });
+
+      # Overlays for the flake
       overlays = import ./overlays { inherit inputs outputs; };
+
+      # NixOS modules
       nixosModules = import ./modules/nixos;
       #commonModules = import ./modules/common;
       #homeManagerModules = import ./modules/home-manager;
 
+      # NixOS configurations
       nixosConfigurations = {
         thor-wsl = nixpkgs.lib.nixosSystem {
           specialArgs = { inherit self inputs outputs; };

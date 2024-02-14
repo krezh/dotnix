@@ -58,7 +58,7 @@ in
 
   environment = {
     noXlibs = lib.mkForce false;
-    systemPackages = [ pkgs.wget pkgs.wslu pkgs.git ];
+    systemPackages = [ pkgs.wget pkgs.wslu pkgs.git pkgs.talosctl ];
   };
 
   boot.isContainer = true;

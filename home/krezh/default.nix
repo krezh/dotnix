@@ -34,8 +34,6 @@
     sessionVariables = { FLAKE = "$HOME/nix-config"; };
   };
 
-
-
   sops = {
     age.keyFile = "/home/${config.home.username}/.config/sops/age/keys.txt";
     defaultSopsFile = ./secrets.sops.yaml;
@@ -62,7 +60,7 @@
     gcc
     sops
     age
-    go
+    unstable.go
     go-task
     comma # Install and run programs by sticking a , before them
     bc # Calculator
