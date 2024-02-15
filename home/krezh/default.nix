@@ -4,10 +4,9 @@
   imports = [
     ../../modules/common
     ./features/cli
-    #inputs.impermanence.nixosModules.home-manager.impermanence
     inputs.sops-nix.homeManagerModules.sops
     inputs.nixvim.homeManagerModules.nixvim
-  ]; # ++ (builtins.attrValues outputs.homeManagerModules); #TODO: not sure what it does
+  ] ++ (builtins.attrValues outputs.homeManagerModules);
 
   nixpkgs = {
     overlays = builtins.attrValues outputs.overlays;
@@ -26,14 +25,6 @@
 
   xdg.enable = true;
 
-  home = {
-    username = lib.mkDefault "krezh";
-    homeDirectory = lib.mkDefault "/home/${config.home.username}";
-    stateVersion = lib.mkDefault "23.11";
-    sessionPath = [ "$HOME/.local/bin" ];
-    sessionVariables = { FLAKE = "$HOME/nix-config"; };
-  };
-
   sops = {
     age.keyFile = "/home/${config.home.username}/.config/sops/age/keys.txt";
     defaultSopsFile = ./secrets.sops.yaml;
@@ -46,39 +37,46 @@
     };
   };
 
-  home.packages = with pkgs; [
-    inputs.nh.packages.${pkgs.system}.default
-    inputs.nixd.packages.${pkgs.system}.nixd
-    inputs.nix-fast-build.packages.${pkgs.system}.nix-fast-build
-    inputs.talhelper.packages.${pkgs.system}.default
-    wget
-    curl
-    nodejs
-    jq
-    ripgrep
-    gh
-    gcc
-    sops
-    age
-    unstable.go
-    go-task
-    comma # Install and run programs by sticking a , before them
-    bc # Calculator
-    bottom # System viewer
-    ncdu # TUI disk usage
-    eza # Better ls
-    ripgrep # Better grep
-    fd # Better find
-    httpie # Better curl
-    diffsitter # Better diff
-    jq # JSON pretty printer and manipulator
-    timer # To help with my ADHD paralysis
-    nil # Nix LSP
-    nixfmt # Nix formatter
-    nvd # Differ
-    nix-output-monitor
-    ltex-ls # Spell checking LSP
-  ];
+  home = {
+    username = lib.mkDefault "krezh";
+    homeDirectory = lib.mkDefault "/home/${config.home.username}";
+    stateVersion = lib.mkDefault "23.11";
+    sessionPath = [ "$HOME/.local/bin" ];
+    sessionVariables = { FLAKE = "$HOME/nix-config"; };
+    packages = with pkgs; [
+      inputs.nh.packages.${pkgs.system}.default
+      inputs.nixd.packages.${pkgs.system}.nixd
+      inputs.nix-fast-build.packages.${pkgs.system}.nix-fast-build
+      inputs.talhelper.packages.${pkgs.system}.default
+      wget
+      curl
+      nodejs
+      jq
+      ripgrep
+      gh
+      gcc
+      sops
+      age
+      unstable.go
+      go-task
+      comma # Install and run programs by sticking a , before them
+      bc # Calculator
+      bottom # System viewer
+      ncdu # TUI disk usage
+      eza # Better ls
+      ripgrep # Better grep
+      fd # Better find
+      httpie # Better curl
+      diffsitter # Better diff
+      jq # JSON pretty printer and manipulator
+      timer # To help with my ADHD paralysis
+      nil # Nix LSP
+      nixfmt # Nix formatter
+      nvd # Differ
+      nix-output-monitor
+      ltex-ls # Spell checking LSP
+    ];
+  };
 
   modules.shell.mise = {
     enable = true;

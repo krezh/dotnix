@@ -3,7 +3,7 @@
 let
   ifTheyExist = groups:
     builtins.filter (group: builtins.hasAttr group config.users.groups) groups;
-  
+
 in
 {
   # You can import other NixOS modules here
@@ -51,7 +51,6 @@ in
     useGlobalPkgs = true;
     useUserPackages = true;
     users = {
-      # Import your home-manager configuration
       krezh = import ../../home/krezh;
     };
   };
@@ -59,10 +58,15 @@ in
   environment = {
     noXlibs = lib.mkForce false;
     systemPackages = [ pkgs.wget pkgs.wslu pkgs.git pkgs.talosctl ];
+    etc = lib.mapAttrs'
+      (name: value: {
+        name = "nix/path/${name}";
+        value.source = value.flake;
+      })
+      config.nix.registry;
   };
 
   boot.isContainer = true;
-  security.sudo.wheelNeedsPassword = true;
 
   # doesn't work on wsl
   services.dbus.apparmor = "disabled";
@@ -70,17 +74,11 @@ in
   networking.networkmanager.enable = false;
   networking.hostName = "thor-wsl";
   security = {
+    sudo.wheelNeedsPassword = true;
     apparmor.enable = false;
     audit.enable = false;
     auditd.enable = false;
   };
-
-  environment.etc = lib.mapAttrs'
-    (name: value: {
-      name = "nix/path/${name}";
-      value.source = value.flake;
-    })
-    config.nix.registry;
 
   programs.fish.enable = true;
 

@@ -11,10 +11,18 @@
     nixpkgs-unstable.url = "github:nixos/nixpkgs/nixos-unstable";
     impermanence.url = "github:nix-community/impermanence";
     talhelper.url = "github:budimanjojo/talhelper";
-    
+
+    flake-parts = {
+      url = "github:hercules-ci/flake-parts";
+      inputs.nixpkgs-lib.follows = "nixpkgs";
+    };
+
     # Hardware
     hardware.url = "github:nixos/nixos-hardware";
     nixd.url = "github:nix-community/nixd";
+
+    nix-index-database.url = "github:Mic92/nix-index-database";
+    nix-index-database.inputs.nixpkgs.follows = "nixpkgs";
 
     # Home Manager
     home-manager = {
@@ -48,6 +56,8 @@
       inputs.hyprland.follows = "hyprland";
     };
 
+    xdg-portal-hyprland.url = "github:hyprwm/xdg-desktop-portal-hyprland";
+
     # sops-nix
     sops-nix = {
       url = "github:Mic92/sops-nix";
@@ -70,7 +80,7 @@
   };
 
   # Outputs of the flake
-  outputs = inputs@{ self, nixpkgs, home-manager, ... }:
+  outputs = inputs@{ self, nixpkgs, home-manager, nix-index-database, ... }:
     let
       inherit (self) outputs;
       systems = [
@@ -98,8 +108,8 @@
 
       # NixOS modules
       nixosModules = import ./modules/nixos;
-      #commonModules = import ./modules/common;
-      #homeManagerModules = import ./modules/home-manager;
+      commonModules = import ./modules/common;
+      homeManagerModules = import ./modules/home-manager;
 
       # NixOS configurations
       nixosConfigurations = {
