@@ -48,6 +48,7 @@
       inputs.nixd.packages.${pkgs.system}.nixd
       inputs.nix-fast-build.packages.${pkgs.system}.nix-fast-build
       inputs.talhelper.packages.${pkgs.system}.default
+      unstable.fluxcd
       wget
       curl
       nodejs
