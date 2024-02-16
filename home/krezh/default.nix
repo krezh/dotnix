@@ -34,6 +34,9 @@
         path = "/home/${config.home.username}/.ssh/id_ed25519";
         mode = "0600";
       };
+      "atuin/key" = {
+        path = "${config.xdg.configHome}/atuin/key";
+      };
     };
   };
 
@@ -90,6 +93,18 @@
         show_env = false;
         show_tools = false;
       };
+    };
+  };
+
+  modules.shell.atuin = {
+    enable = true;
+    package = pkgs.unstable.atuin;
+    sync_address = "https://sh.talos.plexuz.xyz";
+    config = {
+      key_path = config.sops.secrets."atuin/key".path;
+      style = "compact";
+      workspaces = true;
+
     };
   };
 
