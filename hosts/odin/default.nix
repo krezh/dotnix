@@ -1,9 +1,12 @@
 # This is your system's configuration file.
-{ inputs, outputs, modulesPath, lib, config, pkgs, ... }: {
-  # You can import other NixOS modules here
+{ inputs, outputs, modulesPath, lib, config, pkgs, ... }:
+let
+  ifTheyExist = groups:
+    builtins.filter (group: builtins.hasAttr group config.users.groups) groups;
+in
+{
   imports = [
     (modulesPath + "/profiles/minimal.nix")
-    inputs.home-manager.nixosModules.home-manager
 
     ../common/global
     ./hardware-configuration.nix
@@ -32,29 +35,28 @@
   environment = {
     noXlibs = lib.mkForce false;
     systemPackages = with pkgs; [ wget wslu git ];
+    etc = lib.mapAttrs'
+      (name: value: {
+        name = "nix/path/${name}";
+        value.source = value.flake;
+      })
+      config.nix.registry;
   };
 
   boot.isContainer = true;
-  security.sudo.wheelNeedsPassword = true;
 
   # doesn't work on wsl
   services.dbus.apparmor = "disabled";
   services.resolved.enable = false;
   networking.networkmanager.enable = false;
   security = {
+    sudo.wheelNeedsPassword = true;
     apparmor.enable = false;
     audit.enable = false;
     auditd.enable = false;
   };
 
-  environment.etc = lib.mapAttrs'
-    (name: value: {
-      name = "nix/path/${name}";
-      value.source = value.flake;
-    })
-    config.nix.registry;
-
-  networking.hostName = "thor-wsl";
+  networking.hostName = "odin";
 
   programs.fish.enable = true;
   users.users = {

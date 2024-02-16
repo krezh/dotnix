@@ -14,7 +14,8 @@ buildGoModule rec {
   vendorHash = "sha256-ldNM9KpBVTLTEv1rJs1kNUtVn5qH2yvAqX/X++bIjGY=";
 
   ldflags = [
-    "-s" "-w"
+    "-s"
+    "-w"
     "-X github.com/derailed/k9s/cmd.version=${version}"
     "-X github.com/derailed/k9s/cmd.commit=${src.rev}"
     "-X github.com/derailed/k9s/cmd.date=1970-01-01T00:00:00Z"

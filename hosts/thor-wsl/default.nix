@@ -3,16 +3,11 @@
 let
   ifTheyExist = groups:
     builtins.filter (group: builtins.hasAttr group config.users.groups) groups;
-
 in
 {
-  # You can import other NixOS modules here
   imports = [
-    # include NixOS-WSL modules
     inputs.nixos-wsl.nixosModules.wsl
-    #inputs.sops-nix.nixosModules.sops
     (modulesPath + "/profiles/minimal.nix")
-    inputs.home-manager.nixosModules.home-manager
 
     ../common/global
     ./hardware-configuration.nix

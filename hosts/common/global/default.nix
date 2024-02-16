@@ -7,7 +7,7 @@
     ./podman.nix
     ./fish.nix
     ./sops.nix
-  ]; # ++ (builtins.attrValues outputs.nixosModules); #TODO: not sure what it does
+  ] ++ (builtins.attrValues outputs.nixosModules);
 
   home-manager.extraSpecialArgs = { inherit inputs outputs; };
 

@@ -59,6 +59,7 @@
       age
       unstable.go
       go-task
+      opentofu
       comma # Install and run programs by sticking a , before them
       bc # Calculator
       bottom # System viewer
