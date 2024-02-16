@@ -3,7 +3,7 @@
 buildGoModule rec {
   pname = "k9s";
   # renovate: datasource=github-tags depName=derailed/k9s
-  version = "0.31.8";
+  version = "v0.31.9";
 
   src = fetchFromGitHub {
     owner = "derailed";
