@@ -2,7 +2,16 @@
   description = "Krezh Nix Flake";
 
   # Configuration for the Nix package manager
-  nixConfig = { };
+  nixConfig = {
+    extra-trusted-substituters = [
+      "https://krezh.cachix.org"
+      "https://nix-community.cachix.org"
+    ];
+    extra-trusted-public-keys = [
+      "krezh.cachix.org-1:0hGx8u/mABpZkzJEBh/UMXyNon5LAXdCRqEeVn5mff8="
+      "nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs="
+    ];
+  };
 
   # External inputs for the flake
   inputs = {
@@ -10,7 +19,7 @@
     nixpkgs.url = "github:nixos/nixpkgs/nixos-23.11";
     nixpkgs-unstable.url = "github:nixos/nixpkgs/nixos-unstable";
     impermanence.url = "github:nix-community/impermanence";
-    talhelper.url = "github:budimanjojo/talhelper";
+    nur.url = "github:nix-community/NUR";
 
     flake-parts = {
       url = "github:hercules-ci/flake-parts";
@@ -19,10 +28,8 @@
 
     # Hardware
     hardware.url = "github:nixos/nixos-hardware";
+    
     nixd.url = "github:nix-community/nixd";
-
-    nix-index-database.url = "github:Mic92/nix-index-database";
-    nix-index-database.inputs.nixpkgs.follows = "nixpkgs";
 
     # Home Manager
     home-manager = {
@@ -80,7 +87,7 @@
   };
 
   # Outputs of the flake
-  outputs = inputs@{ self, nixpkgs, home-manager, nix-index-database, ... }:
+  outputs = inputs@{ self, nixpkgs, home-manager, nur, ... }:
     let
       inherit (self) outputs;
       systems = [

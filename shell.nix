@@ -18,8 +18,8 @@
       git
       go-task
       sops
-      ssh-to-age
-      gnupg
+      #ssh-to-age
+      #gnupg
       age
     ];
   };
