@@ -20,13 +20,13 @@
       max-jobs = "auto";
       experimental-features = [ "nix-command" "flakes" "repl-flake" ];
       warn-dirty = false;
-      substituters = [
-        "https://krezh.cachix.org"
-        "https://nix-community.cachix.org"
+      extra-substituters = [
+       "https://krezh.cachix.org"
+       "https://nix-community.cachix.org"
       ];
-      trusted-public-keys = [
-        "krezh.cachix.org-1:0hGx8u/mABpZkzJEBh/UMXyNon5LAXdCRqEeVn5mff8="
-        "nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs="
+      extra-trusted-public-keys = [
+       "krezh.cachix.org-1:0hGx8u/mABpZkzJEBh/UMXyNon5LAXdCRqEeVn5mff8="
+       "nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs="
       ];
     };
   };
@@ -126,10 +126,31 @@
       viAlias = true;
       vimAlias = true;
       defaultEditor = true;
-      plugins.lightline.enable = true;
+      plugins = {
+        lightline.enable = true;
+        treesitter.enable = true;
+        telescope.enable = true;
+        oil.enable = true;
+        lsp = {
+          enable = true;
+          servers = {
+            lua-ls.enable = true;
+            gopls.enable = true;
+          };
+        };
+        nvim-cmp = {
+          enable = true;
+          autoEnableSources = true;
+          sources = [
+            { name = "nvim_lsp"; }
+            { name = "path"; }
+            { name = "buffer"; }
+            { name = "emoji"; }
+          ];
+        };
+      };
       colorschemes.catppuccin.enable = true;
       extraPlugins = with pkgs.vimPlugins; [
-        LazyVim
         vim-nix
       ];
       options = {

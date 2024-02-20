@@ -684,11 +684,19 @@
     },
     "nur": {
       "locked": {
+<<<<<<< Updated upstream
         "lastModified": 1708371921,
         "narHash": "sha256-8EeraFy3KND9d8GZ0EjClXpHXIJn7KoC1ylJyFBArIg=",
         "owner": "nix-community",
         "repo": "NUR",
         "rev": "393fab7036bd90aea269f2b8c105e5cb8ba553c0",
+=======
+        "lastModified": 1708385290,
+        "narHash": "sha256-e5EvxABoiTE69I2knnIQ9rmkDKNPESHqztRaZB2WUZM=",
+        "owner": "nix-community",
+        "repo": "NUR",
+        "rev": "dba6c8fa776e83f7d02921c097569cfb7cf2b6d6",
+>>>>>>> Stashed changes
         "type": "github"
       },
       "original": {
