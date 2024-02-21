@@ -1,5 +1,5 @@
 # This file (and the global directory) holds config that i use on all hosts
-{ inputs, outputs, ... }: {
+{ inputs, outputs, pkgs, ... }: {
   imports = [
     inputs.home-manager.nixosModules.home-manager
     ./locale.nix
@@ -28,6 +28,19 @@
   };
 
   hardware.enableRedistributableFirmware = true;
+
+  security.sudo = {
+    enable = true;
+    extraRules = [{
+      commands = [
+       {
+         command = "${pkgs.systemd}/bin/reboot";
+         options = [ "NOPASSWD" ];
+        }
+      ];
+      groups = [ "wheel" ];
+    }];
+  };
 
   # Increase open file limit for sudoers
   security.pam.loginLimits = [
