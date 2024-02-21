@@ -33,6 +33,18 @@
 
   xdg.enable = true;
 
+  wayland.windowManager.hyprland = {
+    enable = true;
+    package = inputs.hyprland.packages.${pkgs.system}.hyprland;
+    systemd.enable = true;
+    xwayland.enable = true;
+    settings = {
+      monitor = [
+	",preferred,auto,1"
+      ];
+    };
+  };
+
   sops = {
     age.keyFile = "/home/${config.home.username}/.config/sops/age/keys.txt";
     defaultSopsFile = ./secrets.sops.yaml;
@@ -58,6 +70,7 @@
       inputs.nh.packages.${pkgs.system}.default
       inputs.nixd.packages.${pkgs.system}.nixd
       inputs.nix-fast-build.packages.${pkgs.system}.nix-fast-build
+      
       unstable.fluxcd
       wget
       curl

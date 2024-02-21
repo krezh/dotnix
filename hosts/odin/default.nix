@@ -14,6 +14,8 @@
   boot.loader.systemd-boot.enable = true;
   boot.loader.efi.canTouchEfiVariables = true;
   boot.loader.grub.device = "nodev";
+  networking.networkmanager.enable = true;
+
   disko.devices = {
     disk = {
       vdb = {
@@ -43,6 +45,11 @@
         };
       };
     };
+  };
+
+  programs.hyprland = {
+    enable = true;
+    package = inputs.hyprland.packages.${pkgs.system}.hyprland;
   };
 
   security = {
