@@ -6,6 +6,7 @@
     ./features/cli
     inputs.sops-nix.homeManagerModules.sops
     inputs.nixvim.homeManagerModules.nixvim
+    inputs.hyprlock.homeManagerModules.hyprlock
   ] ++ (builtins.attrValues outputs.homeManagerModules);
 
   nixpkgs = {
@@ -33,14 +34,50 @@
 
   xdg.enable = true;
 
+  gtk = {
+    enable = true;
+    theme = {
+      name = "Catppuccin-Mocha-Compact-Maroon-Dark";
+      package = pkgs.catppuccin-gtk.override {
+        accents = [ "maroon" ];
+        size = "compact";
+        tweaks = [ "rimless" "black" ];
+        variant = "mocha";
+      };
+    };
+  };
+
   wayland.windowManager.hyprland = {
     enable = true;
     package = inputs.hyprland.packages.${pkgs.system}.hyprland;
     systemd.enable = true;
     xwayland.enable = true;
+    extraConfig = ''
+      ${builtins.readFile ./hypr.conf}
+    '';
     settings = {
+      "$mod" = "SUPER";
+      input = {
+	kb_layout = "se";
+	follow_mouse = 1;
+	accel_profile = "flat";
+	sensitivity = 0;
+	touchpad = {
+	  natural_scroll = "false";
+	};
+      };
       monitor = [
 	",preferred,auto,1"
+      ];
+      bind = [
+	"$mod,        RETURN, exec, wezterm"
+	"$mod, 	      L,      exec, hyprlock"
+	"$mod,        Q,      killactive"
+	"$mod,        V,      togglefloating"
+	"SUPER SHIFT, LEFT,   movewindow, l"
+	"SUPER SHIFT, RIGHT,  movewindow, r"
+	"SUPER SHIFT, UP,     movewindow, u"
+	"SUPER SHIFT, RIGHT,  movewindow, d"
       ];
     };
   };
@@ -66,12 +103,19 @@
     stateVersion = lib.mkDefault "23.11";
     sessionPath = [ "$HOME/.local/bin" ];
     sessionVariables = { FLAKE = "$HOME/nix-config"; };
+    pointerCursor = {
+      gtk.enable = true;
+      x11.enable = true;
+      package = pkgs.bibata-cursors;
+      name = "Bibata-Modern-Amber";
+      size = 28;
+    };
     packages = with pkgs; [
       inputs.nh.packages.${pkgs.system}.default
       inputs.nixd.packages.${pkgs.system}.nixd
       inputs.nix-fast-build.packages.${pkgs.system}.nix-fast-build
-      
       unstable.fluxcd
+      firefox
       wget
       curl
       nodejs
@@ -133,6 +177,7 @@
     neomutt.enable = true;
     yazi.enable = true;
     fzf.enable = true;
+    hyprlock.enable = true;
 
     nixvim = {
       enable = true;
@@ -172,6 +217,8 @@
         shiftwidth = 2; # Tab width should be 2
       };
     };
+
+    wezterm.enable = true;
 
     #neovim = {
     #  enable = true;

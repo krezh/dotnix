@@ -4,6 +4,7 @@
   imports = [
     (modulesPath + "/profiles/minimal.nix")
     inputs.disko.nixosModules.disko
+    inputs.hyprland.nixosModules.default
 
     ../common/global
     ../common/users/krezh
@@ -47,9 +48,19 @@
     };
   };
 
+
   programs.hyprland = {
     enable = true;
     package = inputs.hyprland.packages.${pkgs.system}.hyprland;
+  };
+
+  environment = {
+    systemPackages = with pkgs; [
+      wget
+      git
+      talosctl
+      inputs.hyprlock.packages.${pkgs.system}.hyprlock
+    ];
   };
 
   security = {
