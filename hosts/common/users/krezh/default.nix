@@ -8,7 +8,7 @@ in
     mutableUsers = false;
     users = {
       krezh = {
-        hashedPasswordFile = config.sops.secrets.krezh-password.path;
+        initialPassword = "password";
         isNormalUser = true;
         shell = pkgs.fish;
         extraGroups = [ "wheel" "video" "audio" ] ++ ifTheyExist [

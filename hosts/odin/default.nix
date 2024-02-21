@@ -10,9 +10,6 @@
     ./hardware-configuration.nix
   ];
 
-  boot.loader.grub.devices = [ "/dev/nvme0n1" ];
-  boot.loader.grub.enable = true;
-  boot.loader.grub.efiSupport = true;
   boot.kernelPackages = pkgs.linuxPackages_latest;
   disko.devices = {
     disk = {
