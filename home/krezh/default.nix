@@ -21,12 +21,12 @@
       experimental-features = [ "nix-command" "flakes" "repl-flake" ];
       warn-dirty = false;
       extra-substituters = [
-       "https://krezh.cachix.org"
-       "https://nix-community.cachix.org"
+        "https://krezh.cachix.org"
+        "https://nix-community.cachix.org"
       ];
       extra-trusted-public-keys = [
-       "krezh.cachix.org-1:0hGx8u/mABpZkzJEBh/UMXyNon5LAXdCRqEeVn5mff8="
-       "nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs="
+        "krezh.cachix.org-1:0hGx8u/mABpZkzJEBh/UMXyNon5LAXdCRqEeVn5mff8="
+        "nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs="
       ];
     };
   };
@@ -150,9 +150,9 @@
         };
       };
       colorschemes.catppuccin.enable = true;
-      extraPlugins = with pkgs.vimPlugins; [
-        vim-nix
-      ];
+      # extraPlugins = with pkgs.vimPlugins; [
+      #   vim-nix
+      # ];
       options = {
         number = true; # Show line numbers
         relativenumber = true; # Show relative line numbers

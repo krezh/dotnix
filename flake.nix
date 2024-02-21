@@ -3,14 +3,14 @@
 
   # Configuration for the Nix package manager
   nixConfig = {
-   extra-trusted-substituters = [
-     "https://krezh.cachix.org"
-     "https://nix-community.cachix.org"
-   ];
-   extra-trusted-public-keys = [
-     "krezh.cachix.org-1:0hGx8u/mABpZkzJEBh/UMXyNon5LAXdCRqEeVn5mff8="
-     "nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs="
-   ];
+    extra-trusted-substituters = [
+      "https://krezh.cachix.org"
+      "https://nix-community.cachix.org"
+    ];
+    extra-trusted-public-keys = [
+      "krezh.cachix.org-1:0hGx8u/mABpZkzJEBh/UMXyNon5LAXdCRqEeVn5mff8="
+      "nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs="
+    ];
   };
 
   # External inputs for the flake
@@ -20,6 +20,7 @@
     nixpkgs-unstable.url = "github:nixos/nixpkgs/nixos-unstable";
     impermanence.url = "github:nix-community/impermanence";
     nur.url = "github:nix-community/NUR";
+    disko = { url = "github:nix-community/disko"; inputs.nixpkgs.follows = "nixpkgs"; };
 
     flake-parts = {
       url = "github:hercules-ci/flake-parts";
@@ -28,7 +29,7 @@
 
     # Hardware
     hardware.url = "github:nixos/nixos-hardware";
-    
+
     nixd.url = "github:nix-community/nixd";
 
     # Home Manager

@@ -1,15 +1,13 @@
 # This is your system's configuration file.
 { inputs, outputs, modulesPath, lib, config, pkgs, ... }:
-let
-  ifTheyExist = groups:
-    builtins.filter (group: builtins.hasAttr group config.users.groups) groups;
-in
+
 {
   imports = [
     inputs.nixos-wsl.nixosModules.wsl
     (modulesPath + "/profiles/minimal.nix")
 
     ../common/global
+    ../common/users/krezh
     ./hardware-configuration.nix
   ];
 
@@ -35,31 +33,6 @@ in
     ];
   };
 
-  nix = {
-    package = pkgs.nixFlakes;
-    extraOptions = lib.optionalString (config.nix.package == pkgs.nixFlakes)
-      "experimental-features = nix-command flakes";
-  };
-
-  home-manager = {
-    extraSpecialArgs = { inherit inputs outputs; };
-    useGlobalPkgs = true;
-    useUserPackages = true;
-    users = {
-      krezh = import ../../home/krezh;
-    };
-  };
-
-  environment = {
-    noXlibs = lib.mkForce false;
-    systemPackages = [ pkgs.wget pkgs.wslu pkgs.git pkgs.talosctl ];
-    etc = lib.mapAttrs'
-      (name: value: {
-        name = "nix/path/${name}";
-        value.source = value.flake;
-      })
-      config.nix.registry;
-  };
 
   boot.isContainer = true;
 
@@ -76,29 +49,6 @@ in
   };
 
   programs.fish.enable = true;
-
-  users = {
-    mutableUsers = false;
-    users = {
-      krezh = {
-        hashedPasswordFile = config.sops.secrets.krezh-password.path;
-        isNormalUser = true;
-        shell = pkgs.fish;
-        extraGroups = [ "wheel" "video" "audio" ] ++ ifTheyExist [
-          "minecraft"
-          "network"
-          "wireshark"
-          "i2c"
-          "mysql"
-          "docker"
-          "podman"
-          "git"
-          "libvirtd"
-          "deluge"
-        ];
-      };
-    };
-  };
 
   # https://nixos.wiki/wiki/FAQ/When_do_I_update_stateVersion
   system.stateVersion = "23.11";

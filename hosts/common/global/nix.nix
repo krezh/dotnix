@@ -1,5 +1,8 @@
-{ inputs, lib, pkgs, ... }: {
+{ inputs, lib, pkgs, config, ... }: {
   nix = {
+    package = pkgs.nixFlakes;
+    extraOptions = lib.optionalString (config.nix.package == pkgs.nixFlakes)
+      "experimental-features = nix-command flakes";
     settings = {
       trusted-users = [ "root" "@wheel" ];
       auto-optimise-store = lib.mkDefault true;
