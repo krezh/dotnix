@@ -4,6 +4,7 @@
   imports = [
     ../../modules/common
     ./features/cli
+    ./features/desktop/terminal
     inputs.sops-nix.homeManagerModules.sops
     inputs.nixvim.homeManagerModules.nixvim
     inputs.hyprlock.homeManagerModules.hyprlock
@@ -24,10 +25,12 @@
       extra-substituters = [
         "https://krezh.cachix.org"
         "https://nix-community.cachix.org"
+        "https://hyprland.cachix.org"
       ];
       extra-trusted-public-keys = [
         "krezh.cachix.org-1:0hGx8u/mABpZkzJEBh/UMXyNon5LAXdCRqEeVn5mff8="
         "nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs="
+        "hyprland.cachix.org-1:a7pgxzMz7+chwVL3/pzj6jIBMioiJM7ypFP8PwtkuGc="
       ];
     };
   };
@@ -58,26 +61,26 @@
     settings = {
       "$mod" = "SUPER";
       input = {
-	kb_layout = "se";
-	follow_mouse = 1;
-	accel_profile = "flat";
-	sensitivity = 0;
-	touchpad = {
-	  natural_scroll = "false";
-	};
+        kb_layout = "se";
+        follow_mouse = 1;
+        accel_profile = "flat";
+        sensitivity = 0;
+        touchpad = {
+          natural_scroll = "false";
+        };
       };
       monitor = [
-	",preferred,auto,1"
+        ",preferred,auto,1"
       ];
       bind = [
-	"$mod,        RETURN, exec, wezterm"
-	"$mod, 	      L,      exec, hyprlock"
-	"$mod,        Q,      killactive"
-	"$mod,        V,      togglefloating"
-	"SUPER SHIFT, LEFT,   movewindow, l"
-	"SUPER SHIFT, RIGHT,  movewindow, r"
-	"SUPER SHIFT, UP,     movewindow, u"
-	"SUPER SHIFT, RIGHT,  movewindow, d"
+        "$mod,        RETURN, exec, wezterm"
+        "$mod, 	      L,      exec, hyprlock"
+        "$mod,        Q,      killactive"
+        "$mod,        V,      togglefloating"
+        "$mod SHIFT,  LEFT,    movewindow, l"
+        "$mod SHIFT,  RIGHT,   movewindow, r"
+        "$mod SHIFT,  UP,      movewindow, u"
+        "$mod SHIFT,  RIGHT,   movewindow, d"
       ];
     };
   };
@@ -100,7 +103,7 @@
   home = {
     username = lib.mkDefault "krezh";
     homeDirectory = lib.mkDefault "/home/${config.home.username}";
-    stateVersion = lib.mkDefault "23.11";
+    stateVersion = lib.mkDefault "24.05";
     sessionPath = [ "$HOME/.local/bin" ];
     sessionVariables = { FLAKE = "$HOME/nix-config"; };
     pointerCursor = {
@@ -144,6 +147,7 @@
       nvd # Differ
       nix-output-monitor
       ltex-ls # Spell checking LSP
+      dconf
     ];
   };
 
@@ -217,21 +221,6 @@
         shiftwidth = 2; # Tab width should be 2
       };
     };
-
-    wezterm.enable = true;
-
-    #neovim = {
-    #  enable = true;
-    #  viAlias = true;
-    #  vimAlias = true;
-    #  defaultEditor = true;
-    #  extraConfig = ''
-    #      set number relativenumber
-    #    	set tabstop=2
-    #      set expandtab
-    #      set shiftwidth=2
-    #  '';
-    #};
 
     bat = {
       enable = true;

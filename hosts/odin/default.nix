@@ -2,7 +2,6 @@
 { inputs, outputs, modulesPath, lib, config, pkgs, ... }:
 {
   imports = [
-    (modulesPath + "/profiles/minimal.nix")
     inputs.disko.nixosModules.disko
     inputs.hyprland.nixosModules.default
 
@@ -11,7 +10,9 @@
     ./hardware-configuration.nix
   ];
 
+  # Use latest kernel
   boot.kernelPackages = pkgs.linuxPackages_latest;
+
   boot.loader.systemd-boot.enable = true;
   boot.loader.efi.canTouchEfiVariables = true;
   boot.loader.grub.device = "nodev";
@@ -56,9 +57,6 @@
 
   environment = {
     systemPackages = with pkgs; [
-      wget
-      git
-      talosctl
       inputs.hyprlock.packages.${pkgs.system}.hyprlock
     ];
   };
@@ -68,7 +66,4 @@
   };
 
   networking.hostName = "odin";
-
-  # https://nixos.wiki/wiki/FAQ/When_do_I_update_stateVersion
-  system.stateVersion = "23.11";
 }
