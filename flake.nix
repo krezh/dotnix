@@ -97,6 +97,11 @@
         flake-compat.follows = "";
       };
     };
+
+    # Wezterm
+    wezterm = {
+      url = "github:wez/wezterm?dir=nix";
+    };
   };
 
   # Outputs of the flake
