@@ -2,6 +2,7 @@
 let
   ifTheyExist = groups:
     builtins.filter (group: builtins.hasAttr group config.users.groups) groups;
+  hostName = config.networking.hostName;
 in
 {
   users = {
@@ -28,7 +29,7 @@ in
   };
 
   home-manager = {
-    extraSpecialArgs = { inherit inputs outputs; };
+    extraSpecialArgs = { inherit inputs outputs hostName; };
     useGlobalPkgs = true;
     useUserPackages = true;
     users = {

@@ -1,13 +1,17 @@
-{ inputs, outputs, lib, config, pkgs, ... }:
+{ inputs, outputs, lib, config, pkgs, hostName, ... }:
 
 {
-  imports = [
+  imports  = if (hostName == "odin") then [
     ../../modules/common
     ./features/cli
-    ./features/desktop/terminal
+    ./features/desktop
     inputs.sops-nix.homeManagerModules.sops
-    inputs.nixvim.homeManagerModules.nixvim
-    inputs.hyprlock.homeManagerModules.hyprlock
+
+  ] ++ (builtins.attrValues outputs.homeManagerModules) else [
+    ../../modules/common
+    ./features/cli
+    inputs.sops-nix.homeManagerModules.sops
+    
   ] ++ (builtins.attrValues outputs.homeManagerModules);
 
   nixpkgs = {
@@ -38,7 +42,7 @@
   xdg.enable = true;
 
   gtk = {
-    enable = true;
+    enable = hostName == "odin";
     theme = {
       name = "Catppuccin-Mocha-Compact-Maroon-Dark";
       package = pkgs.catppuccin-gtk.override {
@@ -50,43 +54,8 @@
     };
   };
 
-  wayland.windowManager.hyprland = {
-    enable = true;
-    package = inputs.hyprland.packages.${pkgs.system}.hyprland;
-    systemd.enable = true;
-    xwayland.enable = true;
-    extraConfig = ''
-      ${builtins.readFile ./hypr.conf}
-    '';
-    settings = {
-      "$mod" = "SUPER";
-      input = {
-        kb_layout = "se";
-        follow_mouse = 1;
-        accel_profile = "flat";
-        sensitivity = 0;
-        touchpad = {
-          natural_scroll = "false";
-        };
-      };
-      monitor = [
-        ",preferred,auto,1"
-      ];
-      bind = [
-        "$mod,        RETURN, exec, wezterm"
-        "$mod, 	      L,      exec, hyprlock"
-        "$mod,        Q,      killactive"
-        "$mod,        V,      togglefloating"
-        "$mod SHIFT,  LEFT,    movewindow, l"
-        "$mod SHIFT,  RIGHT,   movewindow, r"
-        "$mod SHIFT,  UP,      movewindow, u"
-        "$mod SHIFT,  RIGHT,   movewindow, d"
-      ];
-    };
-  };
-
   sops = {
-    age.keyFile = "/home/${config.home.username}/.config/sops/age/keys.txt";
+    age.keyFile = "${config.xdg.configHome}/sops/age/keys.txt";
     defaultSopsFile = ./secrets.sops.yaml;
     gnupg.sshKeyPaths = [ ];
     secrets = {
@@ -103,7 +72,7 @@
   home = {
     username = lib.mkDefault "krezh";
     homeDirectory = lib.mkDefault "/home/${config.home.username}";
-    stateVersion = lib.mkDefault "24.05";
+    stateVersion = lib.mkDefault "23.11";
     sessionPath = [ "$HOME/.local/bin" ];
     sessionVariables = { FLAKE = "$HOME/nix-config"; };
     pointerCursor = {
@@ -119,6 +88,7 @@
       inputs.nix-fast-build.packages.${pkgs.system}.nix-fast-build
       unstable.fluxcd
       firefox
+      vscode
       wget
       curl
       nodejs
@@ -181,46 +151,6 @@
     neomutt.enable = true;
     yazi.enable = true;
     fzf.enable = true;
-    hyprlock.enable = true;
-
-    nixvim = {
-      enable = true;
-      viAlias = true;
-      vimAlias = true;
-      defaultEditor = true;
-      plugins = {
-        lightline.enable = true;
-        treesitter.enable = true;
-        telescope.enable = true;
-        oil.enable = true;
-        lsp = {
-          enable = true;
-          servers = {
-            lua-ls.enable = true;
-            gopls.enable = true;
-          };
-        };
-        nvim-cmp = {
-          enable = true;
-          autoEnableSources = true;
-          sources = [
-            { name = "nvim_lsp"; }
-            { name = "path"; }
-            { name = "buffer"; }
-            { name = "emoji"; }
-          ];
-        };
-      };
-      colorschemes.catppuccin.enable = true;
-      # extraPlugins = with pkgs.vimPlugins; [
-      #   vim-nix
-      # ];
-      options = {
-        number = true; # Show line numbers
-        relativenumber = true; # Show relative line numbers
-        shiftwidth = 2; # Tab width should be 2
-      };
-    };
 
     bat = {
       enable = true;

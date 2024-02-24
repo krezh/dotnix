@@ -9,20 +9,15 @@
     ./sops.nix
   ] ++ (builtins.attrValues outputs.nixosModules);
 
-  home-manager.extraSpecialArgs = { inherit inputs outputs; };
-
   nixpkgs = {
     overlays = builtins.attrValues outputs.overlays;
     config = {
-      # Disable if you don't want unfree packages
       allowUnfree = true;
-      # Workaround for https://github.com/nix-community/home-manager/issues/2942
       allowUnfreePredicate = _: true;
     };
   };
 
   # Fix for qt6 plugins
-  # TODO: maybe upstream this?
   environment.profileRelativeSessionVariables = {
     QT_PLUGIN_PATH = [ "/lib/qt-6/plugins" ];
   };
