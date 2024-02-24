@@ -14,6 +14,10 @@
     '';
     settings = {
       "$mod" = "SUPER";
+      exec-once = [      
+        "hyprlock"
+        "ags"
+      ];
       input = {
         kb_layout = "se";
         follow_mouse = 1;
