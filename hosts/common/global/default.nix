@@ -25,6 +25,7 @@
   hardware.enableRedistributableFirmware = true;
 
   security.sudo = {
+    wheelNeedsPassword = true;
     enable = true;
     extraRules = [{
       commands = [

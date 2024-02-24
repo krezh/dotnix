@@ -8,6 +8,8 @@ let
 
     ${pkgs.hyprland}/bin/Hyprland
   '';
+  tuigreet = "${pkgs.greetd.tuigreet}/bin/tuigreet";
+  hyprland-session = "${inputs.hyprland.packages.${pkgs.system}.hyprland}/share/wayland-sessions";
 in
 {
   imports = [
@@ -63,9 +65,25 @@ in
     enable = true;
     settings = {
       default_session = {
-        command = "${lib.makeBinPath [pkgs.greetd.tuigreet] }/tuigreet --time --cmd ${hyprRun}";
+        command = "${tuigreet} --time --remember --remember-session --sessions ${hyprland-session}";
+        user = "greeter";
       };
     };
+  };
+
+  # this is a life saver.
+  # literally no documentation about this anywhere.
+  # might be good to write about this...
+  # https://www.reddit.com/r/NixOS/comments/u0cdpi/tuigreet_with_xmonad_how/
+  systemd.services.greetd.serviceConfig = {
+    Type = "idle";
+    StandardInput = "tty";
+    StandardOutput = "tty";
+    StandardError = "journal"; # Without this errors will spam on screen
+    # Without these bootlogs will spam on screen
+    TTYReset = true;
+    TTYVHangup = true;
+    TTYVTDisallocate = true;
   };
 
 
@@ -78,10 +96,6 @@ in
     systemPackages = with pkgs; [
       inputs.hyprlock.packages.${pkgs.system}.hyprlock
     ];
-  };
-
-  security = {
-    sudo.wheelNeedsPassword = true;
   };
 
   networking.hostName = "odin";

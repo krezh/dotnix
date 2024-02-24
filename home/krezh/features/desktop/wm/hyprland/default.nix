@@ -1,4 +1,4 @@
-{ inputs, config, lib, pkgs, hostName, ... }:
+{ inputs, pkgs, ... }:
 {
   imports = [
     inputs.hyprlock.homeManagerModules.hyprlock

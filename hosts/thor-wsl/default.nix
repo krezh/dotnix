@@ -47,7 +47,6 @@
   networking.networkmanager.enable = false;
   networking.hostName = "thor-wsl";
   security = {
-    sudo.wheelNeedsPassword = true;
     apparmor.enable = false;
     audit.enable = false;
     auditd.enable = false;
