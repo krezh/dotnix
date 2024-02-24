@@ -25,14 +25,14 @@ if is_windows then
 
 end
 
-for _, gpu in ipairs(wezterm.gui.enumerate_gpus()) do
-  if gpu.device_type == "DiscreteGpu" then
-    config.webgpu_preferred_adapter = gpu
-    config.webgpu_power_preference = "HighPerformance"
-    config.front_end = "WebGpu"
-    break
-  end
-end
+--for _, gpu in ipairs(wezterm.gui.enumerate_gpus()) do
+--  if gpu.device_type == "DiscreteGpu" then
+--    config.webgpu_preferred_adapter = gpu
+--    config.webgpu_power_preference = "HighPerformance"
+--    config.front_end = "WebGpu"
+--    break
+--  end
+--end
 
 -- Modify config properties directly
 config.hide_tab_bar_if_only_one_tab = true
@@ -40,7 +40,7 @@ config.color_scheme = "tokyonight_night" --"Catppuccin Mocha"
 config.font = wezterm.font("JetBrains Mono")
 config.font_size = 13.0
 config.macos_window_background_blur = 30
-config.window_background_opacity = 0
+config.window_background_opacity = 60
 config.win32_system_backdrop = "Mica"
 config.max_fps = 120
 config.animation_fps = 30
