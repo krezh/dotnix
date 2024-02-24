@@ -15,8 +15,6 @@
     settings = {
       "$mod" = "SUPER";
       exec-once = [      
-        "hyprlock"
-        "ags"
       ];
       input = {
         kb_layout = "se";
@@ -45,14 +43,5 @@
 
   programs.hyprlock = {
     enable = true;
-  };
-
-  programs.ags = {
-    enable = true;
-    extraPackages = with pkgs; [
-      gtksourceview
-      webkitgtk
-      accountsservice
-    ];
   };
 }

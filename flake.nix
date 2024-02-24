@@ -79,8 +79,6 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    #eww.url = "github:elkowar/eww";
-
     ags.url = "github:Aylur/ags";
 
     xdg-portal-hyprland.url = "github:hyprwm/xdg-desktop-portal-hyprland";
