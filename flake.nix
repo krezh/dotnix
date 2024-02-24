@@ -34,6 +34,9 @@
 
     nixd.url = "github:nix-community/nixd";
 
+    nix-ld.url = "github:Mic92/nix-ld";
+    nix-ld.inputs.nixpkgs.follows = "nixpkgs";
+
     # Home Manager
     home-manager = {
       url = "github:nix-community/home-manager";
@@ -75,6 +78,10 @@
       url = "github:hyprwm/hyprlock";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+
+    #eww.url = "github:elkowar/eww";
+
+    ags.url = "github:Aylur/ags";
 
     xdg-portal-hyprland.url = "github:hyprwm/xdg-desktop-portal-hyprland";
 

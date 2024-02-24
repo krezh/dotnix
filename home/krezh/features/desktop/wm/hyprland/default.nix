@@ -2,6 +2,7 @@
 {
   imports = [
     inputs.hyprlock.homeManagerModules.hyprlock
+    inputs.ags.homeManagerModules.default
   ];
   wayland.windowManager.hyprland = {
     enable = true;
@@ -40,5 +41,14 @@
 
   programs.hyprlock = {
     enable = true;
+  };
+
+  programs.ags = {
+    enable = true;
+    extraPackages = with pkgs; [
+      gtksourceview
+      webkitgtk
+      accountsservice
+    ];
   };
 }
