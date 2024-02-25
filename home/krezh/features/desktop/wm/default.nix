@@ -1,3 +1,3 @@
 {
-  imports = [ ./hyprland ./eww ];
+  imports = [ ./hyprland ./ags ];
 }
