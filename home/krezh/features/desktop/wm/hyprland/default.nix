@@ -14,6 +14,7 @@
     '';
     settings = {
       exec-once = [
+	"ags"
       ];
     };
   };
