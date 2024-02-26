@@ -1,7 +1,7 @@
 { inputs, outputs, lib, config, pkgs, hostName, ... }:
 
 {
-  imports  = if (hostName == "odin") then [
+  imports  = if (hostName != "thor-wsl") then [
     ../../modules/common
     ./features/cli
     ./features/desktop
@@ -41,19 +41,6 @@
 
   xdg.enable = true;
 
-  gtk = {
-    enable = hostName == "odin";
-    theme = {
-      name = "Catppuccin-Mocha-Compact-Maroon-Dark";
-      package = pkgs.catppuccin-gtk.override {
-        accents = [ "maroon" ];
-        size = "compact";
-        tweaks = [ "rimless" "black" ];
-        variant = "mocha";
-      };
-    };
-  };
-
   sops = {
     age.keyFile = "${config.xdg.configHome}/sops/age/keys.txt";
     defaultSopsFile = ./secrets.sops.yaml;
@@ -74,21 +61,14 @@
     homeDirectory = lib.mkDefault "/home/${config.home.username}";
     stateVersion = lib.mkDefault "23.11";
     sessionPath = [ "$HOME/.local/bin" ];
-    sessionVariables = { FLAKE = "$HOME/nix-config"; };
-    pointerCursor = {
-      gtk.enable = true;
-      x11.enable = true;
-      package = pkgs.bibata-cursors;
-      name = "Bibata-Modern-Amber";
-      size = 28;
+    sessionVariables = { 
+      FLAKE = "$HOME/nix-config";
     };
     packages = with pkgs; [
       inputs.nh.packages.${pkgs.system}.default
       inputs.nixd.packages.${pkgs.system}.nixd
       inputs.nix-fast-build.packages.${pkgs.system}.nix-fast-build
       unstable.fluxcd
-      firefox
-      vscode
       wget
       curl
       nodejs
@@ -177,7 +157,6 @@
       userName = "Krezh";
       userEmail = "krezh@users.noreply.github.com";
       extraConfig = {
-        # Sign all commits using ssh key
         commit.gpgsign = true;
         pull.rebase = true;
         push.autoSetupRemote = true;
@@ -187,14 +166,10 @@
         tag.forceSignAnnotated = true;
         user.signingkey = config.sops.secrets."ssh/privkey".path;
         init.defaultBranch = "main";
-        #gpg.ssh.allowedSignersFile = "~/.ssh/allowed_signers";
         url."ssh://git@github.com/".pushInsteadOf = "https://github.com/";
       };
     };
   };
-
-  # home.file.".ssh/allowed_signers".text =
-  #   "* ${builtins.readFile /home/${config.home.username}/.ssh/id_ed25519.pub}";
 
   # Nicely reload system units when changing configs
   systemd.user.startServices = "sd-switch";

@@ -1,3 +1,3 @@
 {
-  imports = [ ./terminal ./wm ];
+  imports = [ ./terminal ./wm ./gtk ];
 }

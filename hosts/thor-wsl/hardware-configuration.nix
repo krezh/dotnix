@@ -9,60 +9,57 @@
   boot.kernelModules = [ "kvm-intel" ];
   boot.extraModulePackages = [ ];
 
-  fileSystems."/mnt/wsl" = {
-    device = "none";
-    fsType = "tmpfs";
-  };
+  # fileSystems."/mnt/wsl" = {
+  #   device = "none";
+  #   fsType = "tmpfs";
+  # };
 
-  fileSystems."/usr/lib/wsl/drivers" = {
-    device = "none";
-    fsType = "9p";
-  };
+  # fileSystems."/usr/lib/wsl/drivers" = {
+  #   device = "none";
+  #   fsType = "9p";
+  # };
 
-  fileSystems."/" = {
-    device = "/dev/disk/by-uuid/e0496e67-de66-4980-bf4f-7fcde71c5959";
-    fsType = "ext4";
-  };
+  # fileSystems."/" = {
+  #   device = "/dev/disk/by-uuid/e0496e67-de66-4980-bf4f-7fcde71c5959";
+  #   fsType = "ext4";
+  # };
 
-  fileSystems."/mnt/wslg" = {
-    device = "none";
-    fsType = "tmpfs";
-  };
+  # fileSystems."/mnt/wslg" = {
+  #   device = "none";
+  #   fsType = "tmpfs";
+  # };
 
-  #fileSystems."/mnt/wslg/distro" =
-  #  { device = "";
-  #    fsType = "none";
-  #    options = [ "bind" ];
-  #  };
+  # #fileSystems."/mnt/wslg/distro" =
+  # #  { device = "";
+  # #    fsType = "none";
+  # #    options = [ "bind" ];
+  # #  };
 
-  fileSystems."/usr/lib/wsl/lib" = {
-    device = "none";
-    fsType = "overlay";
-  };
+  # fileSystems."/usr/lib/wsl/lib" = {
+  #   device = "none";
+  #   fsType = "overlay";
+  # };
 
-  fileSystems."/mnt/wslg/.X11-unix" = {
-    device = "/mnt/wslg/.X11-unix";
-    fsType = "none";
-    options = [ "bind" ];
-  };
+  # fileSystems."/mnt/wslg/.X11-unix" = {
+  #   device = "/mnt/wslg/.X11-unix";
+  #   fsType = "none";
+  #   options = [ "bind" ];
+  # };
 
-  fileSystems."/mnt/wslg/doc" = {
-    device = "none";
-    fsType = "overlay";
-  };
+  # fileSystems."/mnt/wslg/doc" = {
+  #   device = "none";
+  #   fsType = "overlay";
+  # };
 
-  fileSystems."/mnt/c" = {
-    device = "C:134";
-    fsType = "9p";
-  };
+  # fileSystems."/mnt/c" = {
+  #   device = "C:134";
+  #   fsType = "9p";
+  # };
 
-  fileSystems."/mnt/f" = {
-    device = "F:134";
-    fsType = "9p";
-  };
-
-  swapDevices =
-    [{ device = "/dev/disk/by-uuid/12deee08-cb5d-4b06-b49a-76c99e66aeb1"; }];
+  # fileSystems."/mnt/f" = {
+  #   device = "F:134";
+  #   fsType = "9p";
+  # };
 
   # Enables DHCP on each ethernet and wireless interface. In case of scripted networking
   # (the default) this is the recommended approach. When using systemd-networkd it's

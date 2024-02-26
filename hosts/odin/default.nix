@@ -86,7 +86,6 @@ in
     TTYVTDisallocate = true;
   };
 
-
   programs.hyprland = {
     enable = true;
     package = inputs.hyprland.packages.${pkgs.system}.hyprland;
@@ -107,21 +106,21 @@ in
     jack.enable = true;
   };
 
-  environment.etc = {
-    "wireplumber/bluetooth.lua.d/51-bluez-config.lua".text = ''
-	bluez_monitor.properties = {
-	  ["bluez5.enable-sbc-xq"] = true,
-	  ["bluez5.enable-msbc"] = true,
-	  ["bluez5.enable-hw-volume"] = true,
-	  ["bluez5.headset-roles"] = "[ hsp_hs hsp_ag hfp_hf hfp_ag ]"
-	}
-    '';
-  };
-
   environment = {
     systemPackages = with pkgs; [
       inputs.hyprlock.packages.${pkgs.system}.hyprlock
+      vscodium
     ];
+    etc = {
+      "wireplumber/bluetooth.lua.d/51-bluez-config.lua".text = ''
+	      bluez_monitor.properties = {
+	        ["bluez5.enable-sbc-xq"] = true,
+	        ["bluez5.enable-msbc"] = true,
+	        ["bluez5.enable-hw-volume"] = true,
+	        ["bluez5.headset-roles"] = "[ hsp_hs hsp_ag hfp_hf hfp_ag ]"
+	      }
+      '';
+    };
   };
 
   networking.hostName = "odin";
