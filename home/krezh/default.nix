@@ -1,18 +1,19 @@
 { inputs, outputs, lib, config, pkgs, hostName, ... }:
 
 {
-  imports  = if (hostName != "thor-wsl") then [
-    ../../modules/common
-    ./features/cli
-    ./features/desktop
-    inputs.sops-nix.homeManagerModules.sops
+  imports =
+    if (hostName != "thor-wsl") then [
+      ../../modules/common
+      ./features/cli
+      ./features/desktop
+      inputs.sops-nix.homeManagerModules.sops
 
-  ] ++ (builtins.attrValues outputs.homeManagerModules) else [
-    ../../modules/common
-    ./features/cli
-    inputs.sops-nix.homeManagerModules.sops
-    
-  ] ++ (builtins.attrValues outputs.homeManagerModules);
+    ] ++ (builtins.attrValues outputs.homeManagerModules) else [
+      ../../modules/common
+      ./features/cli
+      inputs.sops-nix.homeManagerModules.sops
+
+    ] ++ (builtins.attrValues outputs.homeManagerModules);
 
   nixpkgs = {
     overlays = builtins.attrValues outputs.overlays;
@@ -63,7 +64,7 @@
     homeDirectory = lib.mkDefault "/home/${config.home.username}";
     stateVersion = lib.mkDefault "23.11";
     sessionPath = [ "$HOME/.local/bin" ];
-    sessionVariables = { 
+    sessionVariables = {
       FLAKE = "$HOME/nix-config";
     };
     packages = with pkgs; [

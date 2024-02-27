@@ -10,7 +10,7 @@
     ./hardware-configuration.nix
   ];
 
-  
+
 
   wsl = {
     enable = true;

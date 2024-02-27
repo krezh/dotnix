@@ -2,8 +2,6 @@
 {
   imports = [
     inputs.hyprlock.homeManagerModules.hyprlock
-    inputs.ags.homeManagerModules.default
-    
   ];
   wayland.windowManager.hyprland = {
     enable = true;
