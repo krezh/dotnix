@@ -3,6 +3,7 @@
   imports = [
     inputs.hyprlock.homeManagerModules.hyprlock
     inputs.ags.homeManagerModules.default
+    
   ];
   wayland.windowManager.hyprland = {
     enable = true;
@@ -11,10 +12,11 @@
     xwayland.enable = true;
     extraConfig = ''
       ${builtins.readFile ./hypr.conf}
+      plugin = ${inputs.hyprfocus.packages.${pkgs.system}.default}/hyprfocus.so
     '';
     settings = {
       exec-once = [
-	"ags"
+	      "ags"
       ];
     };
   };

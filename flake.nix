@@ -94,6 +94,10 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
+    hyprfocus = {
+      url = "github:/VortexCoyote/hyprfocus";
+    };
+
     deadnix = {
       url = "github:astro/deadnix";
       inputs.nixpkgs.follows = "nixpkgs";
