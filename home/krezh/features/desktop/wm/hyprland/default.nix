@@ -12,7 +12,7 @@
     xwayland.enable = true;
     extraConfig = ''
       ${builtins.readFile ./hypr.conf}
-      plugin = ${inputs.hyprfocus.packages.${pkgs.system}.default}/lib/libhyprfocus.so
+      #plugin = ${inputs.hyprfocus.packages.${pkgs.system}.default}/lib/libhyprfocus.so
     '';
     settings = {
       exec-once = [
