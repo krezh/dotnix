@@ -20,6 +20,7 @@ in
   boot.loader.systemd-boot.enable = true;
   boot.loader.efi.canTouchEfiVariables = true;
   boot.loader.grub.device = "nodev";
+  boot.loader.systemd-boot.configurationLimit = 5;
   networking.networkmanager.enable = true;
 
   services.xserver.gdk-pixbuf.modulePackages = [ pkgs.librsvg ];
