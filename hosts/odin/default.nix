@@ -22,6 +22,8 @@ in
   boot.loader.grub.device = "nodev";
   networking.networkmanager.enable = true;
 
+  services.xserver.gdk-pixbuf.modulePackages = [ pkgs.librsvg ];
+
   disko.devices = {
     disk = {
       vdb = {
@@ -99,10 +101,21 @@ in
     jack.enable = true;
   };
 
+  services.upower.enable = true;
+
   environment = {
     systemPackages = with pkgs; [
       inputs.hyprlock.packages.${pkgs.system}.hyprlock
       vscodium
+      fira-code
+      fira-code-symbols
+      font-awesome
+      liberation_ttf
+      mplus-outline-fonts.githubRelease
+      nerdfonts
+      noto-fonts
+      noto-fonts-emoji
+      proggyfonts
     ];
     etc = {
       "wireplumber/bluetooth.lua.d/51-bluez-config.lua".text = ''
