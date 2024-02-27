@@ -1,5 +1,5 @@
 # This is your system's configuration file.
-{ inputs, outputs, modulesPath, lib, config, pkgs, ... }:
+{ inputs, modulesPath, pkgs, ... }:
 {
   imports = [
     inputs.nixos-wsl.nixosModules.wsl

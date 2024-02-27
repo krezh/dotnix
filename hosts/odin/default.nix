@@ -1,13 +1,6 @@
 # This is your system's configuration file.
-{ inputs, outputs, modulesPath, lib, config, pkgs, ... }:
+{ inputs, pkgs, ... }:
 let
-  hyprRun = pkgs.writeShellScript "hypr-run" ''
-    export XDG_SESSION_TYPE=wayland
-    export XDG_SESSION_DESKTOP=hyprland
-    export XDG_CURRENT_DESKTOP=hyprland
-
-    ${pkgs.hyprland}/bin/Hyprland
-  '';
   tuigreet = "${pkgs.greetd.tuigreet}/bin/tuigreet";
   hyprland-session = "${inputs.hyprland.packages.${pkgs.system}.hyprland}/share/wayland-sessions";
 in

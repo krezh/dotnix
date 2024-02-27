@@ -94,6 +94,11 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
+    deadnix = {
+      url = "github:astro/deadnix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
     # NixOS-WSL
     nixos-wsl = {
       url = "github:nix-community/NixOS-WSL";
@@ -110,7 +115,7 @@
   };
 
   # Outputs of the flake
-  outputs = inputs@{ self, nixpkgs, home-manager, nur, ... }:
+  outputs = inputs@{ self, nixpkgs, ... }:
     let
       inherit (self) outputs;
       systems = [

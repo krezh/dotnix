@@ -6,9 +6,7 @@ let
   hasRipgrep = hasPackage "ripgrep";
   hasEza = hasPackage "eza";
   hasNeovim = config.programs.neovim.enable;
-  hasEmacs = config.programs.emacs.enable;
   hasNeomutt = config.programs.neomutt.enable;
-  hasShellColor = config.programs.shellcolor.enable;
   hasKitty = config.programs.kitty.enable;
 in
 {

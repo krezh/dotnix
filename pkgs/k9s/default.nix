@@ -1,4 +1,4 @@
-{ lib, buildGoModule, fetchFromGitHub, installShellFiles }:
+{ buildGoModule, fetchFromGitHub, installShellFiles }:
 
 buildGoModule rec {
   pname = "k9s";
