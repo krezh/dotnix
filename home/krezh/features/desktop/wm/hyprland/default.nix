@@ -12,11 +12,7 @@
       ${builtins.readFile ./hypr.conf}
       #plugin = ${inputs.hyprfocus.packages.${pkgs.system}.default}/lib/libhyprfocus.so
     '';
-    settings = {
-      exec-once = [
-        "ags"
-      ];
-    };
+    settings = {};
   };
 
   programs.hyprlock = {
