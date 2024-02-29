@@ -73,7 +73,7 @@ const Media = () =>
           const { track_artists, track_title } = mpris.players[0];
           self.label = `${track_artists.join(", ")} - ${track_title}`;
         } else {
-          self.label = "Nothing is playing";
+          self.label = "";
         }
       },
       "player-changed"
