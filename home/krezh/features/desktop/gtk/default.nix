@@ -23,5 +23,9 @@
         variant = "mocha";
       };
     };
+    iconTheme = {
+      name = "Papirus";
+      package = pkgs.papirus-icon-theme;
+    };
   };
 }
