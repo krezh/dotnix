@@ -71,7 +71,7 @@
       inputs.nh.packages.${pkgs.system}.default
       inputs.nixd.packages.${pkgs.system}.nixd
       inputs.nix-fast-build.packages.${pkgs.system}.nix-fast-build
-      unstable.fluxcd
+      fluxcd
       doppler
       wget
       curl
@@ -82,7 +82,7 @@
       gcc
       sops
       age
-      unstable.go
+      go
       go-task
       opentofu
       comma # Install and run programs by sticking a , before them
@@ -109,7 +109,7 @@
 
   modules.shell.mise = {
     enable = true;
-    package = pkgs.unstable.mise;
+    package = pkgs.mise;
     config = {
       python_venv_auto_create = true;
       status = {
@@ -122,7 +122,7 @@
 
   modules.shell.atuin = {
     enable = true;
-    package = pkgs.unstable.atuin;
+    package = pkgs.atuin;
     sync_address = "https://sh.talos.plexuz.xyz";
     config = {
       key_path = config.sops.secrets."atuin/key".path;

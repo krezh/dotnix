@@ -2,7 +2,7 @@
 # You can build them using 'nix build .#example'
 
 { pkgs ? import <nixpkgs> { } }: {
-  talosctl = pkgs.unstable.callPackage ./talosctl { };
-  k9s = pkgs.unstable.callPackage ./k9s { };
+  #talosctl = pkgs.unstable.callPackage ./talosctl { };
+  #k9s = pkgs.unstable.callPackage ./k9s { };
   #flux = pkgs.unstable.callPackage ./flux { };
 }
