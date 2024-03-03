@@ -72,6 +72,7 @@
       inputs.nixd.packages.${pkgs.system}.nixd
       inputs.nix-fast-build.packages.${pkgs.system}.nix-fast-build
       unstable.fluxcd
+      doppler
       wget
       curl
       nodejs
@@ -101,6 +102,8 @@
       nix-output-monitor
       ltex-ls # Spell checking LSP
       dconf
+      kubectl-cnpg
+      kubectl-node-shell
     ];
   };
 
@@ -125,7 +128,6 @@
       key_path = config.sops.secrets."atuin/key".path;
       style = "compact";
       workspaces = true;
-
     };
   };
 
