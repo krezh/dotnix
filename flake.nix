@@ -107,10 +107,7 @@
     # NixOS-WSL
     nixos-wsl = {
       url = "github:nix-community/NixOS-WSL";
-      inputs = {
-        nixpkgs.follows = "nixpkgs";
-        flake-compat.follows = "";
-      };
+      inputs = { nixpkgs.follows = "nixpkgs"; };
     };
 
     # Wezterm

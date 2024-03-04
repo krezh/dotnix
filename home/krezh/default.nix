@@ -85,7 +85,6 @@
       bc # Calculator
       bottom # System viewer
       ncdu # TUI disk usage
-      eza # Better ls
       ripgrep # Better grep
       fd # Better find
       httpie # Better curl
@@ -133,42 +132,9 @@
     yazi.enable = true;
     fzf.enable = true;
 
-    bat = {
-      enable = true;
-      config = {
-        paging = "never";
-        style = "plain";
-        theme = "base16";
-      };
-    };
-
-    eza = {
-      enable = true;
-      icons = true;
-      enableAliases = true;
-    };
-
     zoxide = {
       enable = true;
       enableFishIntegration = true;
-    };
-
-    git = {
-      enable = true;
-      userName = "Krezh";
-      userEmail = "krezh@users.noreply.github.com";
-      extraConfig = {
-        commit.gpgsign = true;
-        pull.rebase = true;
-        push.autoSetupRemote = true;
-        gpg.format = "ssh";
-        format.signoff = true;
-        status.submoduleSummary = false;
-        tag.forceSignAnnotated = true;
-        user.signingkey = config.sops.secrets."ssh/privkey".path;
-        init.defaultBranch = "main";
-        url."ssh://git@github.com/".pushInsteadOf = "https://github.com/";
-      };
     };
   };
 
