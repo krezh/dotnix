@@ -9,7 +9,6 @@
       name = "mochaBlue";
       size = 28;
     };
-    packages = with pkgs; [ ];
   };
 
   gtk = {
