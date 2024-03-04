@@ -82,6 +82,11 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
+    hyprkeys = {
+      url = "github:hyprland-community/hyprkeys";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
     ags.url = "github:Aylur/ags";
 
     xdg-portal-hyprland.url = "github:hyprwm/xdg-desktop-portal-hyprland";

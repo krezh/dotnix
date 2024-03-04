@@ -15,4 +15,7 @@
   };
 
   programs.hyprlock = { enable = true; };
+
+  home.packages = with pkgs;
+    [ inputs.hyprkeys.packages.${pkgs.system}.hyprkeys ];
 }
