@@ -8,7 +8,7 @@ in
   options.modules.shell.k9s = {
     enable = mkEnableOption "k9s";
 
-    package = mkPackageOption pkgs "" { };
+    package = mkPackageOption pkgs "k9s" { };
 
     config = mkOption {
       type = yamlFormat.type;

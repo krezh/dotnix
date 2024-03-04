@@ -8,16 +8,15 @@ in
   options.modules.shell.mise = {
     enable = mkEnableOption "mise";
 
-    # TODO: This will probably not work until nixpkgs adds the mise package
     package = mkPackageOption pkgs "mise" { };
-
-    enableFishIntegration = mkEnableOption "Fish Integration" // {
-      default = true;
-    };
 
     config = mkOption {
       type = tomlFormat.type;
       default = { };
+    };
+
+    enableFishIntegration = mkEnableOption "Fish Integration" // {
+      default = true;
     };
   };
 
