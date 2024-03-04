@@ -8,8 +8,7 @@ let
   hasNeovim = config.programs.neovim.enable;
   hasNeomutt = config.programs.neomutt.enable;
   hasKitty = config.programs.kitty.enable;
-in
-{
+in {
   programs.fish = {
     enable = true;
     shellAbbrs = rec {

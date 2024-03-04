@@ -1,8 +1,5 @@
-{ inputs, pkgs, ... }:
-{
-  imports = [
-    inputs.hyprlock.homeManagerModules.hyprlock
-  ];
+{ inputs, pkgs, ... }: {
+  imports = [ inputs.hyprlock.homeManagerModules.hyprlock ];
   wayland.windowManager.hyprland = {
     enable = true;
     package = inputs.hyprland.packages.${pkgs.system}.hyprland;
@@ -10,12 +7,12 @@
     xwayland.enable = true;
     extraConfig = ''
       ${builtins.readFile ./hypr.conf}
-      #plugin = ${inputs.hyprfocus.packages.${pkgs.system}.default}/lib/libhyprfocus.so
+      #plugin = ${
+        inputs.hyprfocus.packages.${pkgs.system}.default
+      }/lib/libhyprfocus.so
     '';
-    settings = {};
+    settings = { };
   };
 
-  programs.hyprlock = {
-    enable = true;
-  };
+  programs.hyprlock = { enable = true; };
 }

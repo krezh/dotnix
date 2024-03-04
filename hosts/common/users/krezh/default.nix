@@ -3,8 +3,7 @@ let
   ifTheyExist = groups:
     builtins.filter (group: builtins.hasAttr group config.users.groups) groups;
   hostName = config.networking.hostName;
-in
-{
+in {
   users = {
     mutableUsers = false;
     users = {
@@ -42,12 +41,10 @@ in
 
   environment = {
     noXlibs = lib.mkForce false;
-    etc = lib.mapAttrs'
-      (name: value: {
-        name = "nix/path/${name}";
-        value.source = value.flake;
-      })
-      config.nix.registry;
+    etc = lib.mapAttrs' (name: value: {
+      name = "nix/path/${name}";
+      value.source = value.flake;
+    }) config.nix.registry;
     systemPackages = with pkgs; [
       wget
       git

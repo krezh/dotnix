@@ -1,23 +1,23 @@
 { inputs, outputs, lib, config, pkgs, hostName, ... }:
 
 {
-  imports =
-    if (hostName != "thor-wsl") then [
+  imports = if (hostName != "thor-wsl") then
+    [
       ../../modules/common
       ./features/cli
       ./features/desktop
       inputs.sops-nix.homeManagerModules.sops
 
-    ] ++ (builtins.attrValues outputs.homeManagerModules) else [
+    ] ++ (builtins.attrValues outputs.homeManagerModules)
+  else
+    [
       ../../modules/common
       ./features/cli
       inputs.sops-nix.homeManagerModules.sops
 
     ] ++ (builtins.attrValues outputs.homeManagerModules);
 
-  nixpkgs = {
-    overlays = builtins.attrValues outputs.overlays;
-  };
+  nixpkgs = { overlays = builtins.attrValues outputs.overlays; };
 
   nix = {
     package = lib.mkDefault pkgs.nix;
@@ -53,9 +53,7 @@
         path = "/home/${config.home.username}/.ssh/id_ed25519";
         mode = "0600";
       };
-      "atuin/key" = {
-        path = "${config.xdg.configHome}/atuin/key";
-      };
+      "atuin/key" = { path = "${config.xdg.configHome}/atuin/key"; };
     };
   };
 
@@ -64,9 +62,7 @@
     homeDirectory = lib.mkDefault "/home/${config.home.username}";
     stateVersion = lib.mkDefault "23.11";
     sessionPath = [ "$HOME/.local/bin" ];
-    sessionVariables = {
-      FLAKE = "$HOME/nix-config";
-    };
+    sessionVariables = { FLAKE = "$HOME/nix-config"; };
     packages = with pkgs; [
       inputs.nh.packages.${pkgs.system}.default
       inputs.nixd.packages.${pkgs.system}.nixd

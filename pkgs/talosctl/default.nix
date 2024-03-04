@@ -31,7 +31,8 @@ buildGoModule rec {
   doCheck = false; # no tests
 
   meta = with lib; {
-    description = "A CLI for out-of-band management of Kubernetes nodes created by Talos";
+    description =
+      "A CLI for out-of-band management of Kubernetes nodes created by Talos";
     homepage = "https://www.talos.dev/";
     license = licenses.mpl20;
     maintainers = with maintainers; [ flokli ];

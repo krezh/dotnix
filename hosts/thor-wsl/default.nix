@@ -1,6 +1,5 @@
 # This is your system's configuration file.
-{ inputs, modulesPath, pkgs, ... }:
-{
+{ inputs, modulesPath, pkgs, ... }: {
   imports = [
     inputs.nixos-wsl.nixosModules.wsl
     (modulesPath + "/profiles/minimal.nix")
@@ -9,8 +8,6 @@
     ../common/users/krezh
     ./hardware-configuration.nix
   ];
-
-
 
   wsl = {
     enable = true;

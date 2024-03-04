@@ -22,7 +22,10 @@
     nixpkgs-unstable.url = "github:nixos/nixpkgs/nixos-unstable";
     impermanence.url = "github:nix-community/impermanence";
     nur.url = "github:nix-community/NUR";
-    disko = { url = "github:nix-community/disko"; inputs.nixpkgs.follows = "nixpkgs"; };
+    disko = {
+      url = "github:nix-community/disko";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
 
     flake-parts = {
       url = "github:hercules-ci/flake-parts";
@@ -94,9 +97,7 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    hyprfocus = {
-      url = "github:/VortexCoyote/hyprfocus";
-    };
+    hyprfocus = { url = "github:/VortexCoyote/hyprfocus"; };
 
     deadnix = {
       url = "github:astro/deadnix";
@@ -113,31 +114,25 @@
     };
 
     # Wezterm
-    wezterm = {
-      url = "github:wez/wezterm?dir=nix";
-    };
+    wezterm = { url = "github:wez/wezterm?dir=nix"; };
   };
 
   # Outputs of the flake
   outputs = inputs@{ self, nixpkgs, ... }:
     let
       inherit (self) outputs;
-      systems = [
-        "aarch64-linux"
-        "aarch64-darwin"
-        "x86_64-linux"
-        "x86_64-darwin"
-      ];
+      systems =
+        [ "aarch64-linux" "aarch64-darwin" "x86_64-linux" "x86_64-darwin" ];
 
       # Generate attributes for each system
       forAllSystems = nixpkgs.lib.genAttrs systems;
-    in
-    {
+    in {
       # Packages for each system
       packages = forAllSystems (pkgs: import ./pkgs { inherit pkgs; });
 
       # Formatter for each system
-      formatter = forAllSystems (system: nixpkgs.legacyPackages.${system}.nixpkgs-fmt);
+      formatter =
+        forAllSystems (system: nixpkgs.legacyPackages.${system}.nixfmt);
 
       # Development shells for each system
       devShells = forAllSystems (pkgs: import ./shell.nix { inherit pkgs; });
