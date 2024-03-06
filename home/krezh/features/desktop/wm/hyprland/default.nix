@@ -7,15 +7,20 @@
     xwayland.enable = true;
     extraConfig = ''
       ${builtins.readFile ./hypr.conf}
-      #plugin = ${
-        inputs.hyprfocus.packages.${pkgs.system}.default
-      }/lib/libhyprfocus.so
+      bind = $mainMod,L,exec,${pkgs.hyprlock}/bin/hyprlock
+      bind = $mainMod,ESCAPE,exec,${pkgs.wlogout}/bin/wlogout
+      bind = $mainMod, K, exec, $term ${pkgs.hyprkeys}/bin/hyprkeys -o markdown -c $XDG_CONFIG_HOME/hypr/hypr.conf | ${pkgs.glow}/bin/glow -s dark
+
     '';
     settings = { };
   };
 
   programs.hyprlock = { enable = true; };
 
-  home.packages = with pkgs;
-    [ inputs.hyprkeys.packages.${pkgs.system}.hyprkeys ];
+  home.packages = with pkgs; [
+    inputs.hyprkeys.packages.${pkgs.system}.hyprkeys
+    wlogout
+    glow
+  ];
+
 }
