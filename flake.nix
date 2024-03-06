@@ -138,7 +138,7 @@
         forAllSystems (system: nixpkgs.legacyPackages.${system}.nixfmt);
 
       # Development shells for each system
-      devShells = forAllSystems (pkgs: import ./shell.nix { inherit pkgs; });
+      #devShells = forAllSystems (pkgs: import ./shell.nix { inherit pkgs; });
 
       # Overlays for the flake
       overlays = import ./overlays { inherit inputs outputs; };
