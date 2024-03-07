@@ -19,16 +19,6 @@
             gopls.enable = true;
           };
         };
-        nvim-cmp = {
-          enable = true;
-          autoEnableSources = true;
-          sources = [
-            { name = "nvim_lsp"; }
-            { name = "path"; }
-            { name = "buffer"; }
-            { name = "emoji"; }
-          ];
-        };
       };
       colorschemes.catppuccin.enable = true;
       # extraPlugins = with pkgs.vimPlugins; [
