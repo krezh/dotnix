@@ -83,6 +83,7 @@
       sops
       age
       go
+      dyff
       go-task
       opentofu
       comma # Install and run programs by sticking a , before them
@@ -103,6 +104,8 @@
       dconf
       kubectl-cnpg
       kubectl-node-shell
+      ntfy-sh
+      procs
     ];
   };
 
