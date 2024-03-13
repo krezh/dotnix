@@ -26,8 +26,8 @@ in {
     };
     programs = {
       fish.shellInit = mkIf cfg.enableFishIntegration (mkAfter ''
-        ${getExe cfg.package} hook-env | source
-        ${getExe cfg.package} activate fish | source
+        ${cfg.package}/bin/mise hook-env | source
+        ${cfg.package}/bin/mise activate fish | source
       '');
     };
   };
