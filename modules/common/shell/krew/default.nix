@@ -15,13 +15,16 @@ in {
 
   config = mkIf cfg.enable {
     home.packages = [ cfg.package ];
+    home.sessionVariables = {
+      KREW_ROOT = "$HOME/.krew";
+    };
     home.sessionPath = [
-      PATH="${KREW_ROOT:-$HOME/.krew}/bin:$PATH"
+      "$KREW_ROOT/bin"
     ];
 
     programs = {
       fish.shellInit = mkIf cfg.enableFishIntegration (mkAfter ''
-        ${getExe cfg.package} completion fish | source
+        ${cfg.package}/bin/krew completion fish | source
       '');
     };
   };

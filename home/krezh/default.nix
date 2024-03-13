@@ -86,6 +86,9 @@
       dyff
       go-task
       opentofu
+      niv
+      kubectl
+      kubeswitch
       comma # Install and run programs by sticking a , before them
       bc # Calculator
       bottom # System viewer
@@ -107,6 +110,11 @@
       ntfy-sh
       procs
     ];
+  };
+
+  modules.shell.krew = {
+    enable = true;
+    package = pkgs.krew;
   };
 
   modules.shell.mise = {
