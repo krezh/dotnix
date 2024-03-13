@@ -68,7 +68,7 @@
       inputs.hyprland.follows = "hyprland";
     };
 
-    hyprwm-contrib = {
+    hyprland-contrib = {
       url = "github:hyprwm/contrib";
       inputs.nixpkgs.follows = "nixpkgs";
     };

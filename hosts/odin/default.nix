@@ -108,6 +108,8 @@ in {
   environment = {
     systemPackages = with pkgs; [
       inputs.hyprlock.packages.${pkgs.system}.hyprlock
+      inputs.hyprland-contrib.packages.${pkgs.system}.grimblast
+      inputs.hyprland-contrib.packages.${pkgs.system}.scratchpad
       vscodium
       fira-code
       fira-code-symbols

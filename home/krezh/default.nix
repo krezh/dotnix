@@ -110,6 +110,7 @@
       kubectl-node-shell
       ntfy-sh
       procs
+      hwatch
     ];
   };
 
