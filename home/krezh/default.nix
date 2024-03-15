@@ -89,6 +89,7 @@
       niv
       kubectl
       kubeswitch
+      kubectx
       cargo
       comma # Install and run programs by sticking a , before them
       bc # Calculator
