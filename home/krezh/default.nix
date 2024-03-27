@@ -91,27 +91,28 @@
       kubeswitch
       kubectx
       cargo
-      comma # Install and run programs by sticking a , before them
-      bc # Calculator
-      bottom # System viewer
-      ncdu # TUI disk usage
-      ripgrep # Better grep
-      fd # Better find
-      httpie # Better curl
-      diffsitter # Better diff
-      jq # JSON pretty printer and manipulator
-      timer # To help with my ADHD paralysis
-      nil # Nix LSP
-      nixfmt # Nix formatter
-      nvd # Differ
+      comma
+      bc
+      bottom
+      ncdu
+      ripgrep
+      fd
+      httpie
+      diffsitter
+      jq
+      timer
+      nil
+      nixfmt
+      nvd
       nix-output-monitor
-      ltex-ls # Spell checking LSP
+      ltex-ls
       dconf
       kubectl-cnpg
       kubectl-node-shell
       ntfy-sh
       procs
       hwatch
+      envsubst
     ];
   };
 
