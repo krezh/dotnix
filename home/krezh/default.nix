@@ -113,6 +113,8 @@
       procs
       hwatch
       envsubst
+      gopls
+      gotools
     ];
   };
 

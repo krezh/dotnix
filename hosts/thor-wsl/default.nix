@@ -19,7 +19,8 @@
       generateResolvConf = true;
     };
     startMenuLaunchers = false;
-    interop.includePath = false;
+    interop.includePath = true;
+    useWindowsDriver = true;
   };
 
   vscode-remote-workaround.enable = true;
