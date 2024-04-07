@@ -15,9 +15,7 @@
     ];
   };
 
-  # External inputs for the flake
   inputs = {
-    # Nixpkgs
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
     nixpkgs-unstable.url = "github:nixos/nixpkgs/nixos-unstable";
     impermanence.url = "github:nix-community/impermanence";
@@ -32,7 +30,6 @@
       inputs.nixpkgs-lib.follows = "nixpkgs";
     };
 
-    # Hardware
     hardware.url = "github:nixos/nixos-hardware";
 
     nixd.url = "github:nix-community/nixd";
@@ -40,13 +37,11 @@
     nix-ld.url = "github:Mic92/nix-ld";
     nix-ld.inputs.nixpkgs.follows = "nixpkgs";
 
-    # Home Manager
     home-manager = {
       url = "github:nix-community/home-manager";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    # nix-fast-build
     nix-fast-build = {
       url = "github:Mic92/nix-fast-build";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -88,11 +83,12 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    ags.url = "github:Aylur/ags";
-
     xdg-portal-hyprland.url = "github:hyprwm/xdg-desktop-portal-hyprland";
 
-    # sops-nix
+    ags.url = "github:Aylur/ags";
+
+    waybar.url = "github:Alexays/Waybar";
+
     sops-nix = {
       url = "github:Mic92/sops-nix";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -110,7 +106,6 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    # NixOS-WSL
     nixos-wsl = {
       url = "github:nix-community/NixOS-WSL";
       inputs = { nixpkgs.follows = "nixpkgs"; };
@@ -118,7 +113,6 @@
 
     nixos-wsl-vscode = { url = "github:K900/vscode-remote-workaround"; };
 
-    # Wezterm
     wezterm = { url = "github:wez/wezterm?dir=nix"; };
   };
 
