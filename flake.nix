@@ -1,7 +1,6 @@
 {
   description = "Krezh Nix Flake";
 
-  # Configuration for the Nix package manager
   nixConfig = {
     extra-trusted-substituters = [
       "https://krezh.cachix.org"
@@ -116,35 +115,27 @@
     wezterm = { url = "github:wez/wezterm?dir=nix"; };
   };
 
-  # Outputs of the flake
   outputs = inputs@{ self, nixpkgs, ... }:
     let
       inherit (self) outputs;
       systems =
         [ "aarch64-linux" "aarch64-darwin" "x86_64-linux" "x86_64-darwin" ];
 
-      # Generate attributes for each system
       forAllSystems = nixpkgs.lib.genAttrs systems;
     in {
-      # Packages for each system
       packages = forAllSystems (pkgs: import ./pkgs { inherit pkgs; });
 
-      # Formatter for each system
       formatter =
         forAllSystems (system: nixpkgs.legacyPackages.${system}.nixfmt);
 
-      # Development shells for each system
       #devShells = forAllSystems (pkgs: import ./shell.nix { inherit pkgs; });
 
-      # Overlays for the flake
       overlays = import ./overlays { inherit inputs outputs; };
 
-      # NixOS modules
       nixosModules = import ./modules/nixos;
       commonModules = import ./modules/common;
       homeManagerModules = import ./modules/home-manager;
 
-      # NixOS configurations
       nixosConfigurations = {
         thor-wsl = nixpkgs.lib.nixosSystem {
           specialArgs = { inherit self inputs outputs; };
