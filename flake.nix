@@ -113,6 +113,8 @@
     nixos-wsl-vscode = { url = "github:K900/vscode-remote-workaround"; };
 
     wezterm = { url = "github:wez/wezterm?dir=nix"; };
+
+    talosctl = { url = "github:szinn/nix-config"; };
   };
 
   outputs = inputs@{ self, nixpkgs, ... }:

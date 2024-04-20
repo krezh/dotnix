@@ -48,7 +48,6 @@ in {
     systemPackages = with pkgs; [
       wget
       git
-      talosctl
       inputs.deadnix.packages.${pkgs.system}.deadnix
     ];
   };
