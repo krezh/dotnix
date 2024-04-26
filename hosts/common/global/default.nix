@@ -1,5 +1,5 @@
 # This file (and the global directory) holds config that i use on all hosts
-{ inputs, outputs, pkgs, lib, ... }: {
+{ inputs, outputs, lib, ... }: {
   imports = [
     inputs.home-manager.nixosModules.home-manager
     ./locale.nix
@@ -13,7 +13,7 @@
     overlays = builtins.attrValues outputs.overlays;
     config = {
       allowUnfree = true;
-      allowUnfreePredicate = _: true;
+      allowUnfreePredicate = true;
     };
   };
 
@@ -34,6 +34,9 @@
       }];
       groups = [ "wheel" ];
     }];
+    extraConfig = ''
+      Defaults pwfeedback
+    '';
   };
 
   # Increase open file limit for sudoers
