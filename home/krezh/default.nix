@@ -116,6 +116,7 @@
       envsubst
       gopls
       gotools
+      stern
     ];
   };
 
