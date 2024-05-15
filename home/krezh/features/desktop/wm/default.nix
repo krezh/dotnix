@@ -1,1 +1,1 @@
-{ imports = [ ./hyprland ./ags ]; }
+{ imports = [ ./hyprland ./gbar ]; }
