@@ -52,8 +52,7 @@
     };
 
     hyprland = {
-      url =
-        "github:hyprwm/hyprland?rev=1c460e98f870676b15871fe4e5bfeb1a32a3d6d8";
+      url = "git+https://github.com/hyprwm/Hyprland?submodules=1";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
@@ -62,29 +61,19 @@
       inputs.hyprland.follows = "hyprland";
     };
 
-    hyprland-contrib = {
-      url = "github:hyprwm/contrib";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
+    hyprland-contrib = { url = "github:hyprwm/contrib"; };
 
-    hypridle = {
-      url = "github:hyprwm/hypridle";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
+    hypridle = { url = "github:hyprwm/hypridle"; };
 
-    hyprlock = {
-      url = "github:hyprwm/hyprlock";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
+    hyprlock = { url = "github:hyprwm/hyprlock"; };
 
-    hyprkeys = {
-      url = "github:hyprland-community/hyprkeys";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
+    hyprkeys = { url = "github:hyprland-community/hyprkeys"; };
 
     xdg-portal-hyprland.url = "github:hyprwm/xdg-desktop-portal-hyprland";
 
     ags.url = "github:Aylur/ags";
+
+    gBar.url = "github:scorpion-26/gBar";
 
     waybar.url = "github:Alexays/Waybar";
 

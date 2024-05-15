@@ -1,5 +1,5 @@
 { inputs, pkgs, config, ... }: {
-  imports = [ inputs.hyprlock.homeManagerModules.hyprlock ];
+  imports = [ ];
   wayland.windowManager.hyprland = {
     enable = true;
     package = inputs.hyprland.packages.${pkgs.system}.hyprland;
