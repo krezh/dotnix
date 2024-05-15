@@ -85,6 +85,11 @@ in {
     TTYVTDisallocate = true;
   };
 
+
+  fonts.packages = with pkgs; [
+    (nerdfonts.override { fonts = [ "CascadiaCode" "DroidSansMono" ]; })
+  ];
+
   programs.hyprland = {
     enable = true;
     package = inputs.hyprland.packages.${pkgs.system}.hyprland;
