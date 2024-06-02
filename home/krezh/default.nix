@@ -91,7 +91,6 @@
       niv
       kubectl
       kubeswitch
-      kubectx
       cargo
       comma
       bc
@@ -125,6 +124,8 @@
     enable = true;
     package = pkgs.krew;
   };
+
+  modules.shell.kubectx = { enable = true; };
 
   modules.shell.mise = {
     enable = true;
