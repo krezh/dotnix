@@ -1,5 +1,5 @@
 # This file (and the global directory) holds config that i use on all hosts
-{ inputs, outputs, lib, pkgs, ... }: {
+{ inputs, outputs, pkgs, ... }: {
   imports = [
     inputs.home-manager.nixosModules.home-manager
     ./locale.nix
@@ -58,10 +58,9 @@
   system = {
     stateVersion = "23.11";
     # Enable printing changes on nix build etc with nvd
-    activationScripts.report-changes = ''
-      PATH=$PATH:${lib.makeBinPath [ pkgs.nvd pkgs.nix ]}
-      nvd diff $(ls -dv /nix/var/nix/profiles/system-*-link | tail -2)
-    '';
+    # activationScripts.report-changes = ''
+    #   PATH=$PATH:${lib.makeBinPath [ pkgs.nvd pkgs.nix ]}
+    #   nvd diff $(ls -dv /nix/var/nix/profiles/system-*-link | tail -2)
+    # '';
   };
-
 }
