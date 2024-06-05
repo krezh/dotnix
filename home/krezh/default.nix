@@ -17,7 +17,7 @@
 
     ] ++ (builtins.attrValues outputs.homeManagerModules);
 
-  nixpkgs = { overlays = builtins.attrValues outputs.overlays; };
+  # nixpkgs = { overlays = builtins.attrValues outputs.overlays; };
 
   nix = {
     package = lib.mkDefault pkgs.nix;

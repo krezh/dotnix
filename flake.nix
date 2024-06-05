@@ -119,9 +119,9 @@
       formatter =
         forAllSystems (system: nixpkgs.legacyPackages.${system}.nixfmt);
 
-      #devShells = forAllSystems (pkgs: import ./shell.nix { inherit pkgs; });
+      # devShells = forAllSystems (pkgs: import ./shell.nix { inherit pkgs; });
 
-      overlays = import ./overlays { inherit inputs outputs; };
+      # overlays = import ./overlays { inherit inputs outputs; };
 
       nixosModules = import ./modules/nixos;
       commonModules = import ./modules/common;

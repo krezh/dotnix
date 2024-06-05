@@ -10,7 +10,7 @@
   ] ++ (builtins.attrValues outputs.nixosModules);
 
   nixpkgs = {
-    overlays = builtins.attrValues outputs.overlays;
+    # overlays = builtins.attrValues outputs.overlays;
     config = {
       allowUnfree = true;
       allowUnfreePredicate = true;
