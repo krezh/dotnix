@@ -71,6 +71,8 @@
 
     xdg-portal-hyprland.url = "github:hyprwm/xdg-desktop-portal-hyprland";
 
+    swww.url = "github:LGFae/swww";
+
     ags.url = "github:Aylur/ags";
 
     gBar.url = "github:scorpion-26/gBar";

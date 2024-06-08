@@ -11,7 +11,7 @@
       # Generated from Nix
       bind = $mainMod,L,exec,${pkgs.hyprlock}/bin/hyprlock
       bind = $mainMod,ESCAPE,exec,${pkgs.wlogout}/bin/wlogout
-      #bind = $mainMod,K,exec,$term start -- ${pkgs.hyprkeys}/bin/hyprkeys -b -m -c ${config.xdg.configHome}/hypr/hyprland.conf | ${pkgs.glow}/bin/glow -p
+      bind = $mainMod,K,exec,$term start -- ${pkgs.hyprkeys}/bin/hyprkeys -b -m -c ${config.xdg.configHome}/hypr/hyprland.conf | ${pkgs.glow}/bin/glow -p
     '';
     settings = { };
   };
