@@ -11,11 +11,11 @@ $all
 """
 
 [kubernetes]
-format = '[$symbol$context:$namespace](blue) '
-symbol = "⚓"
+format = '[$symbol$context:$namespace](bold blue) '
+symbol = "⎈"
 disabled = false
 contexts = [
-  { context_pattern = "admin@talos-plexuz", style = "green", symbol = "⚓ ", context_alias = "talos" },
+  { context_pattern = "admin@talos-plexuz", symbol = "⎈", context_alias = "talos" },
 ]
 
 [cmd_duration]
@@ -27,13 +27,13 @@ min_time_to_notify = 45000
 [username]
 style_user = 'green bold'
 style_root = 'red bold'
-format = '[$user]($style) '
+format = '[$user]($style)'
 disabled = false
 show_always = true
 
 [hostname]
 ssh_only = false
-format = '→ [$hostname](blue bold) '
+format = '@[$hostname](blue bold) '
 disabled = false
 
 [jobs]
@@ -42,7 +42,8 @@ format = "[$number$symbol]($style) "
 style  = "bold blue" 
 
 [sudo]
-symbol = "💀 "
+format = "[as $symbol ]()"
+symbol = "💀"
 disabled = false
 
 [container]
