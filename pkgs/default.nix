@@ -3,7 +3,5 @@
 
 { pkgs ? import <nixpkgs> { } }:
 {
-  #talosctl = pkgs.unstable.callPackage ./talosctl { };
-  #k9s = pkgs.unstable.callPackage ./k9s { };
-  #flux = pkgs.unstable.callPackage ./flux { };
+  #talosctl = pkgs.callPackage ./talosctl { };
 }

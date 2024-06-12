@@ -1,20 +1,24 @@
-{ lib, buildGoModule, fetchFromGitHub, installShellFiles }:
-
-buildGoModule rec {
+{ lib, buildGo122Module, fetchFromGitHub, installShellFiles, }:
+buildGo122Module rec {
   pname = "talosctl";
-  version = "1.6.4";
+  # renovate: datasource=docker depName=ghcr.io/siderolabs/installer
+  version = "1.7.4";
 
   src = fetchFromGitHub {
     owner = "siderolabs";
     repo = "talos";
     rev = "v${version}";
-    hash = "sha256-2ZccpOqddgq51Q1AxV1uK9fThPMtJIL66ZGU51k2eL0=";
+    # nix-shell -p nix-prefetch-github --run "nix-prefetch-github siderolabs talos --rev v1.7.4"
+    hash = "sha256-TVRWcgBt6MmHOh3LYSjJtp5qf/+ar+LWDGfHKQhDFZ8=";
   };
 
-  vendorHash = "sha256-BC3RMhpYmyELJDzOva31QsTmrPeptMcfDYNK3q8D+dw=";
+  # vendorHash = lib.fakeHash;
+  vendorHash = "sha256-30fMLczb4+BVSxZSbhQ2S1MrQ2+Ykyqf+Dio8n0LGE0=";
 
   ldflags = [ "-s" "-w" ];
 
+  # This is needed to deal with workspace issues during the build
+  overrideModAttrs = _: { GOWORK = "off"; };
   GOWORK = "off";
 
   subPackages = [ "cmd/talosctl" ];

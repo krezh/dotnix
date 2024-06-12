@@ -86,7 +86,7 @@
 
     nixvim = {
       url = "github:nix-community/nixvim";
-      inputs.nixpkgs.follows = "nixpkgs";
+      #inputs.nixpkgs.follows = "nixpkgs";
     };
 
     hyprfocus = { url = "github:/VortexCoyote/hyprfocus"; };
@@ -116,6 +116,7 @@
 
       forAllSystems = nixpkgs.lib.genAttrs systems;
     in {
+
       packages = forAllSystems (pkgs: import ./pkgs { inherit pkgs; });
 
       formatter =
@@ -123,7 +124,7 @@
 
       # devShells = forAllSystems (pkgs: import ./shell.nix { inherit pkgs; });
 
-      # overlays = import ./overlays { inherit inputs outputs; };
+      overlays = import ./overlays { inherit inputs; };
 
       nixosModules = import ./modules/nixos;
       commonModules = import ./modules/common;
