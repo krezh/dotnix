@@ -106,6 +106,8 @@
     wezterm = { url = "github:wez/wezterm?dir=nix"; };
 
     talosctl = { url = "github:szinn/nix-config"; };
+
+    catppuccin.url = "github:catppuccin/nix";
   };
 
   outputs = inputs@{ self, nixpkgs, ... }:
@@ -119,8 +121,8 @@
 
       packages = forAllSystems (pkgs: import ./pkgs { inherit pkgs; });
 
-      formatter =
-        forAllSystems (system: nixpkgs.legacyPackages.${system}.nixfmt);
+      formatter = forAllSystems
+        (system: nixpkgs.legacyPackages.${system}.nixfmt-rfc-style);
 
       # devShells = forAllSystems (pkgs: import ./shell.nix { inherit pkgs; });
 

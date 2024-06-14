@@ -26,7 +26,7 @@ in {
   boot.loader.systemd-boot.configurationLimit = 5;
   networking.networkmanager.enable = true;
 
-  services.xserver.gdk-pixbuf.modulePackages = [ pkgs.librsvg ];
+  programs.gdk-pixbuf.modulePackages = [ pkgs.librsvg ];
 
   disko.devices = {
     disk = {

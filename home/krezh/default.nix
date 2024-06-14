@@ -7,6 +7,7 @@
       ./features/cli
       ./features/desktop
       inputs.sops-nix.homeManagerModules.sops
+      inputs.catppuccin.homeManagerModules.catppuccin
 
     ] ++ (builtins.attrValues outputs.homeManagerModules)
   else
@@ -14,6 +15,7 @@
       ../../modules/common
       ./features/cli
       inputs.sops-nix.homeManagerModules.sops
+      inputs.catppuccin.homeManagerModules.catppuccin
 
     ] ++ (builtins.attrValues outputs.homeManagerModules);
 
@@ -43,6 +45,11 @@
   xdg.enable = true;
 
   fonts.fontconfig.enable = true;
+
+  catppuccin = {
+    flavor = "mocha";
+    enable = true;
+  };
 
   sops = {
     age.keyFile = "${config.xdg.configHome}/sops/age/keys.txt";
@@ -103,7 +110,7 @@
       jq
       timer
       nil
-      nixfmt
+      nixfmt-rfc-style
       nvd
       nix-output-monitor
       ltex-ls

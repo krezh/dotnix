@@ -2,6 +2,7 @@
 { inputs, outputs, pkgs, ... }: {
   imports = [
     inputs.home-manager.nixosModules.home-manager
+    inputs.catppuccin.nixosModules.catppuccin
     ./locale.nix
     ./nix.nix
     ./podman.nix
@@ -15,6 +16,11 @@
       allowUnfree = true;
       allowUnfreePredicate = true;
     };
+  };
+
+  catppuccin = {
+    flavor = "mocha";
+    enable = true;
   };
 
   # Fix for qt6 plugins
