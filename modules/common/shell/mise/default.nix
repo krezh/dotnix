@@ -1,9 +1,15 @@
-{ pkgs, lib, config, ... }:
+{
+  pkgs,
+  lib,
+  config,
+  ...
+}:
 with lib;
 let
   cfg = config.modules.shell.mise;
   tomlFormat = pkgs.formats.toml { };
-in {
+in
+{
   options.modules.shell.mise = {
     enable = mkEnableOption "mise";
 

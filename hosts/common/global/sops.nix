@@ -5,6 +5,10 @@
   sops = {
     age.keyFile = "/home/krezh/.config/sops/age/keys.txt";
     defaultSopsFile = ../secrets.sops.yaml;
-    secrets = { "krezh-password" = { neededForUsers = true; }; };
+    secrets = {
+      "krezh-password" = {
+        neededForUsers = true;
+      };
+    };
   };
 }

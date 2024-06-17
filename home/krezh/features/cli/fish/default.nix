@@ -1,4 +1,9 @@
-{ pkgs, lib, config, ... }:
+{
+  pkgs,
+  lib,
+  config,
+  ...
+}:
 let
   inherit (lib) mkIf;
   packageNames = map (p: p.pname or p.name or null) config.home.packages;
@@ -8,7 +13,8 @@ let
   hasNeovim = config.programs.neovim.enable;
   hasNeomutt = config.programs.neomutt.enable;
   hasKitty = config.programs.kitty.enable;
-in {
+in
+{
   programs.fish = {
     enable = true;
     shellAbbrs = rec {
@@ -85,8 +91,7 @@ in {
       # Disable greeting
       fish_greeting = "";
       # Grep using ripgrep and pass to nvim
-      nvimrg =
-        mkIf (hasNeomutt && hasRipgrep) "nvim -q (rg --vimgrep $argv | psub)";
+      nvimrg = mkIf (hasNeomutt && hasRipgrep) "nvim -q (rg --vimgrep $argv | psub)";
       # Merge history upon doing up-or-search
       # This lets multiple fish instances share history
       up-or-search = # fish

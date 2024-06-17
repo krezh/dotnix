@@ -1,25 +1,38 @@
-{ inputs, outputs, lib, config, pkgs, hostName, ... }:
+{
+  inputs,
+  outputs,
+  lib,
+  config,
+  pkgs,
+  hostName,
+  ...
+}:
 
 {
-  imports = if (hostName != "thor-wsl") then
-    [
-      ../../modules/common
-      ./features/cli
-      ./features/desktop
-      inputs.sops-nix.homeManagerModules.sops
-      inputs.catppuccin.homeManagerModules.catppuccin
+  imports =
+    if (hostName != "thor-wsl") then
+      [
+        ../../modules/common
+        ./features/cli
+        ./features/desktop
+        inputs.sops-nix.homeManagerModules.sops
+        inputs.catppuccin.homeManagerModules.catppuccin
 
-    ] ++ (builtins.attrValues outputs.homeManagerModules)
-  else
-    [
-      ../../modules/common
-      ./features/cli
-      inputs.sops-nix.homeManagerModules.sops
-      inputs.catppuccin.homeManagerModules.catppuccin
+      ]
+      ++ (builtins.attrValues outputs.homeManagerModules)
+    else
+      [
+        ../../modules/common
+        ./features/cli
+        inputs.sops-nix.homeManagerModules.sops
+        inputs.catppuccin.homeManagerModules.catppuccin
 
-    ] ++ (builtins.attrValues outputs.homeManagerModules);
+      ]
+      ++ (builtins.attrValues outputs.homeManagerModules);
 
-  nixpkgs = { overlays = builtins.attrValues outputs.overlays; };
+  nixpkgs = {
+    overlays = builtins.attrValues outputs.overlays;
+  };
 
   nix = {
     package = lib.mkDefault pkgs.nix;
@@ -27,7 +40,11 @@
       accept-flake-config = true;
       cores = 0;
       max-jobs = "auto";
-      experimental-features = [ "nix-command" "flakes" "repl-flake" ];
+      experimental-features = [
+        "nix-command"
+        "flakes"
+        "repl-flake"
+      ];
       warn-dirty = false;
       extra-substituters = [
         "https://krezh.cachix.org"
@@ -60,7 +77,9 @@
         path = "/home/${config.home.username}/.ssh/id_ed25519";
         mode = "0600";
       };
-      "atuin/key" = { path = "${config.xdg.configHome}/atuin/key"; };
+      "atuin/key" = {
+        path = "${config.xdg.configHome}/atuin/key";
+      };
     };
   };
 
@@ -132,7 +151,9 @@
     package = pkgs.krew;
   };
 
-  modules.shell.kubectx = { enable = true; };
+  modules.shell.kubectx = {
+    enable = true;
+  };
 
   modules.shell.mise = {
     enable = true;

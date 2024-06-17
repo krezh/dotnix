@@ -1,1 +1,7 @@
-{ imports = [ ./wm ./gtk ./apps ]; }
+{
+  imports = [
+    ./wm
+    ./gtk
+    ./apps
+  ];
+}

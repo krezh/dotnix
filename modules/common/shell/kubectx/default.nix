@@ -1,7 +1,14 @@
-{ pkgs, lib, config, ... }:
+{
+  pkgs,
+  lib,
+  config,
+  ...
+}:
 with lib;
-let cfg = config.modules.shell.kubectx;
-in {
+let
+  cfg = config.modules.shell.kubectx;
+in
+{
   options.modules.shell.kubectx = {
     enable = mkEnableOption "kubectx";
 

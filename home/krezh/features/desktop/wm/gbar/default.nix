@@ -1,4 +1,10 @@
-{ inputs, lib, pkgs, config, ... }:
+{
+  inputs,
+  lib,
+  pkgs,
+  config,
+  ...
+}:
 let
   requiredDeps = with pkgs; [
     config.wayland.windowManager.hyprland.package
@@ -22,7 +28,8 @@ let
   dependencies = requiredDeps ++ guiDeps;
 
   cfg = config.programs.gBar;
-in {
+in
+{
   imports = [ inputs.gBar.homeManagerModules.x86_64-linux.default ];
 
   programs.gBar = {
@@ -34,13 +41,19 @@ in {
         Discord = 26;
         OBS = 23;
       };
-      WorkspaceSymbols = [ " " " " ];
+      WorkspaceSymbols = [
+        " "
+        " "
+      ];
     };
   };
   systemd.user.services.gbar = {
     Unit = {
       Description = "gBar";
-      PartOf = [ "tray.target" "graphical-session.target" ];
+      PartOf = [
+        "tray.target"
+        "graphical-session.target"
+      ];
     };
     Service = {
       Environment = "PATH=/run/wrappers/bin:${lib.makeBinPath dependencies}";

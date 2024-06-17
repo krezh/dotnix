@@ -61,13 +61,21 @@
       inputs.hyprland.follows = "hyprland";
     };
 
-    hyprland-contrib = { url = "github:hyprwm/contrib"; };
+    hyprland-contrib = {
+      url = "github:hyprwm/contrib";
+    };
 
-    hypridle = { url = "github:hyprwm/hypridle"; };
+    hypridle = {
+      url = "github:hyprwm/hypridle";
+    };
 
-    hyprlock = { url = "github:hyprwm/hyprlock"; };
+    hyprlock = {
+      url = "github:hyprwm/hyprlock";
+    };
 
-    hyprkeys = { url = "github:hyprland-community/hyprkeys"; };
+    hyprkeys = {
+      url = "github:hyprland-community/hyprkeys";
+    };
 
     xdg-portal-hyprland.url = "github:hyprwm/xdg-desktop-portal-hyprland";
 
@@ -89,7 +97,9 @@
       #inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    hyprfocus = { url = "github:/VortexCoyote/hyprfocus"; };
+    hyprfocus = {
+      url = "github:/VortexCoyote/hyprfocus";
+    };
 
     deadnix = {
       url = "github:astro/deadnix";
@@ -98,31 +108,44 @@
 
     nixos-wsl = {
       url = "github:nix-community/NixOS-WSL";
-      inputs = { nixpkgs.follows = "nixpkgs"; };
+      inputs = {
+        nixpkgs.follows = "nixpkgs";
+      };
     };
 
-    nixos-wsl-vscode = { url = "github:K900/vscode-remote-workaround"; };
+    nixos-wsl-vscode = {
+      url = "github:K900/vscode-remote-workaround";
+    };
 
-    wezterm = { url = "github:wez/wezterm?dir=nix"; };
+    wezterm = {
+      url = "github:wez/wezterm?dir=nix";
+    };
 
-    talosctl = { url = "github:szinn/nix-config"; };
+    talosctl = {
+      url = "github:szinn/nix-config";
+    };
 
     catppuccin.url = "github:catppuccin/nix";
   };
 
-  outputs = inputs@{ self, nixpkgs, ... }:
+  outputs =
+    inputs@{ self, nixpkgs, ... }:
     let
       inherit (self) outputs;
-      systems =
-        [ "aarch64-linux" "aarch64-darwin" "x86_64-linux" "x86_64-darwin" ];
+      systems = [
+        "aarch64-linux"
+        "aarch64-darwin"
+        "x86_64-linux"
+        "x86_64-darwin"
+      ];
 
       forAllSystems = nixpkgs.lib.genAttrs systems;
-    in {
+    in
+    {
 
       packages = forAllSystems (pkgs: import ./pkgs { inherit pkgs; });
 
-      formatter = forAllSystems
-        (system: nixpkgs.legacyPackages.${system}.nixfmt-rfc-style);
+      formatter = forAllSystems (system: nixpkgs.legacyPackages.${system}.nixfmt-rfc-style);
 
       # devShells = forAllSystems (pkgs: import ./shell.nix { inherit pkgs; });
 
@@ -134,11 +157,15 @@
 
       nixosConfigurations = {
         thor-wsl = nixpkgs.lib.nixosSystem {
-          specialArgs = { inherit self inputs outputs; };
+          specialArgs = {
+            inherit self inputs outputs;
+          };
           modules = [ ./hosts/thor-wsl ];
         };
         odin = nixpkgs.lib.nixosSystem {
-          specialArgs = { inherit self inputs outputs; };
+          specialArgs = {
+            inherit self inputs outputs;
+          };
           modules = [ ./hosts/odin ];
         };
       };

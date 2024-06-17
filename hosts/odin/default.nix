@@ -2,10 +2,9 @@
 { inputs, pkgs, ... }:
 let
   tuigreet = "${pkgs.greetd.tuigreet}/bin/tuigreet";
-  hyprland-session = "${
-      inputs.hyprland.packages.${pkgs.system}.hyprland
-    }/share/wayland-sessions";
-in {
+  hyprland-session = "${inputs.hyprland.packages.${pkgs.system}.hyprland}/share/wayland-sessions";
+in
+{
   imports = [
     inputs.disko.nixosModules.disko
     inputs.hyprland.nixosModules.default
@@ -63,8 +62,7 @@ in {
     enable = true;
     settings = {
       default_session = {
-        command =
-          "${tuigreet} --time --remember --remember-session --sessions ${hyprland-session}";
+        command = "${tuigreet} --time --remember --remember-session --sessions ${hyprland-session}";
         user = "greeter";
       };
     };
@@ -85,15 +83,23 @@ in {
     TTYVTDisallocate = true;
   };
 
-  fonts.packages = with pkgs;
-    [ (nerdfonts.override { fonts = [ "CascadiaCode" "DroidSansMono" ]; }) ];
+  fonts.packages = with pkgs; [
+    (nerdfonts.override {
+      fonts = [
+        "CascadiaCode"
+        "DroidSansMono"
+      ];
+    })
+  ];
 
   programs.hyprland = {
     enable = true;
     package = inputs.hyprland.packages.${pkgs.system}.hyprland;
   };
 
-  programs.firefox = { enable = true; };
+  programs.firefox = {
+    enable = true;
+  };
 
   # rtkit is optional but recommended
   security.rtkit.enable = true;

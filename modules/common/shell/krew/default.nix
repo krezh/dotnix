@@ -1,7 +1,14 @@
-{ pkgs, lib, config, ... }:
+{
+  pkgs,
+  lib,
+  config,
+  ...
+}:
 with lib;
-let cfg = config.modules.shell.krew;
-in {
+let
+  cfg = config.modules.shell.krew;
+in
+{
   options.modules.shell.krew = {
     enable = mkEnableOption "krew";
 
@@ -14,7 +21,9 @@ in {
 
   config = mkIf cfg.enable {
     home.packages = [ cfg.package ];
-    home.sessionVariables = { KREW_ROOT = "$HOME/.krew"; };
+    home.sessionVariables = {
+      KREW_ROOT = "$HOME/.krew";
+    };
     home.sessionPath = [ "$KREW_ROOT/bin" ];
   };
 }

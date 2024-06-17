@@ -1,4 +1,10 @@
-{ inputs, pkgs, config, ... }: {
+{
+  inputs,
+  pkgs,
+  config,
+  ...
+}:
+{
   imports = [ ];
   wayland.windowManager.hyprland = {
     enable = true;
@@ -16,7 +22,9 @@
     settings = { };
   };
 
-  programs.hyprlock = { enable = true; };
+  programs.hyprlock = {
+    enable = true;
+  };
 
   home.packages = with pkgs; [
     inputs.hyprkeys.packages.${pkgs.system}.hyprkeys

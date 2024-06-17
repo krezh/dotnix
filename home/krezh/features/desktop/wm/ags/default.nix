@@ -1,4 +1,10 @@
-{ inputs, pkgs, lib, config, ... }:
+{
+  inputs,
+  pkgs,
+  lib,
+  config,
+  ...
+}:
 let
   requiredDeps = with pkgs; [
     config.wayland.windowManager.hyprland.package
@@ -22,7 +28,8 @@ let
   dependencies = requiredDeps ++ guiDeps;
 
   cfg = config.programs.ags;
-in {
+in
+{
   imports = [ inputs.ags.homeManagerModules.default ];
 
   programs.ags = {
@@ -33,7 +40,10 @@ in {
   systemd.user.services.ags = {
     Unit = {
       Description = "Aylur's Gtk Shell";
-      PartOf = [ "tray.target" "graphical-session.target" ];
+      PartOf = [
+        "tray.target"
+        "graphical-session.target"
+      ];
     };
     Service = {
       Environment = "PATH=/run/wrappers/bin:${lib.makeBinPath dependencies}";

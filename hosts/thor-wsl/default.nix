@@ -1,4 +1,5 @@
-{ inputs, modulesPath, ... }: {
+{ inputs, modulesPath, ... }:
+{
   imports = [
     inputs.nixos-wsl.nixosModules.wsl
     inputs.nixos-wsl-vscode.nixosModules.default

@@ -1,5 +1,11 @@
 # This file (and the global directory) holds config that i use on all hosts
-{ inputs, outputs, pkgs, ... }: {
+{
+  inputs,
+  outputs,
+  pkgs,
+  ...
+}:
+{
   imports = [
     inputs.home-manager.nixosModules.home-manager
     inputs.catppuccin.nixosModules.catppuccin
@@ -33,13 +39,17 @@
   security.sudo = {
     wheelNeedsPassword = true;
     enable = true;
-    extraRules = [{
-      commands = [{
-        command = "${pkgs.systemd}/bin/reboot";
-        options = [ "NOPASSWD" ];
-      }];
-      groups = [ "wheel" ];
-    }];
+    extraRules = [
+      {
+        commands = [
+          {
+            command = "${pkgs.systemd}/bin/reboot";
+            options = [ "NOPASSWD" ];
+          }
+        ];
+        groups = [ "wheel" ];
+      }
+    ];
     extraConfig = ''
       Defaults pwfeedback
     '';

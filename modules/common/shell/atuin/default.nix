@@ -1,12 +1,17 @@
-{ pkgs, lib, config, ... }:
+{
+  pkgs,
+  lib,
+  config,
+  ...
+}:
 with lib;
 
 let
   cfg = config.modules.shell.atuin;
-  defaultConfig =
-    import ./defaultConfig.nix { sync_address = cfg.sync_address; };
+  defaultConfig = import ./defaultConfig.nix { sync_address = cfg.sync_address; };
 
-in {
+in
+{
   options.modules.shell.atuin = {
     enable = mkEnableOption "${username} atuin";
     package = mkPackageOption pkgs "atuin" { };
@@ -28,7 +33,10 @@ in {
 
       flags = [ "--disable-up-arrow" ];
 
-      settings = lib.mkMerge [ defaultConfig cfg.config ];
+      settings = lib.mkMerge [
+        defaultConfig
+        cfg.config
+      ];
     };
   };
 }

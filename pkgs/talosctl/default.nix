@@ -1,4 +1,9 @@
-{ lib, buildGo122Module, fetchFromGitHub, installShellFiles, }:
+{
+  lib,
+  buildGo122Module,
+  fetchFromGitHub,
+  installShellFiles,
+}:
 buildGo122Module rec {
   pname = "talosctl";
   # renovate: datasource=docker depName=ghcr.io/siderolabs/installer
@@ -15,7 +20,10 @@ buildGo122Module rec {
   # vendorHash = lib.fakeHash;
   vendorHash = "sha256-30fMLczb4+BVSxZSbhQ2S1MrQ2+Ykyqf+Dio8n0LGE0=";
 
-  ldflags = [ "-s" "-w" ];
+  ldflags = [
+    "-s"
+    "-w"
+  ];
 
   # This is needed to deal with workspace issues during the build
   overrideModAttrs = _: { GOWORK = "off"; };
@@ -35,8 +43,7 @@ buildGo122Module rec {
   doCheck = false; # no tests
 
   meta = with lib; {
-    description =
-      "A CLI for out-of-band management of Kubernetes nodes created by Talos";
+    description = "A CLI for out-of-band management of Kubernetes nodes created by Talos";
     homepage = "https://www.talos.dev/";
     license = licenses.mpl20;
     maintainers = with maintainers; [ flokli ];

@@ -1,4 +1,8 @@
-{ buildGoModule, fetchFromGitHub, installShellFiles }:
+{
+  buildGoModule,
+  fetchFromGitHub,
+  installShellFiles,
+}:
 
 buildGoModule rec {
   pname = "flux";
@@ -13,7 +17,12 @@ buildGoModule rec {
 
   vendorHash = "sha256-UPX5V3VwpX/eDy9ktqpvYb0JOzKRHH2nIQZzZ0jrYoQ=";
 
-  ldflags = [ "-s" "-w" "-X" "main.VERSION=$(VERSION)" ];
+  ldflags = [
+    "-s"
+    "-w"
+    "-X"
+    "main.VERSION=$(VERSION)"
+  ];
 
   GOWORK = "off";
 

@@ -1,9 +1,16 @@
-{ pkgs, config, outputs, inputs, lib, ... }:
+{
+  pkgs,
+  config,
+  outputs,
+  inputs,
+  lib,
+  ...
+}:
 let
-  ifTheyExist = groups:
-    builtins.filter (group: builtins.hasAttr group config.users.groups) groups;
+  ifTheyExist = groups: builtins.filter (group: builtins.hasAttr group config.users.groups) groups;
   hostName = config.networking.hostName;
-in {
+in
+{
   users = {
     mutableUsers = false;
     users = {
@@ -11,24 +18,32 @@ in {
         hashedPasswordFile = config.sops.secrets.krezh-password.path;
         isNormalUser = true;
         shell = pkgs.fish;
-        extraGroups = [ "wheel" "video" "audio" ] ++ ifTheyExist [
-          "minecraft"
-          "network"
-          "wireshark"
-          "i2c"
-          "mysql"
-          "docker"
-          "podman"
-          "git"
-          "libvirtd"
-          "deluge"
-        ];
+        extraGroups =
+          [
+            "wheel"
+            "video"
+            "audio"
+          ]
+          ++ ifTheyExist [
+            "minecraft"
+            "network"
+            "wireshark"
+            "i2c"
+            "mysql"
+            "docker"
+            "podman"
+            "git"
+            "libvirtd"
+            "deluge"
+          ];
       };
     };
   };
 
   home-manager = {
-    extraSpecialArgs = { inherit inputs outputs hostName; };
+    extraSpecialArgs = {
+      inherit inputs outputs hostName;
+    };
     useGlobalPkgs = true;
     useUserPackages = true;
     users = {

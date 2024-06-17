@@ -1,1 +1,11 @@
-{ imports = [ ./fish ./starship ./k9s ./neovim ./bat ./eza ./git ]; }
+{
+  imports = [
+    ./fish
+    ./starship
+    ./k9s
+    ./neovim
+    ./bat
+    ./eza
+    ./git
+  ];
+}
