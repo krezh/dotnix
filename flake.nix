@@ -147,7 +147,7 @@
 
       formatter = forAllSystems (system: nixpkgs.legacyPackages.${system}.nixfmt-rfc-style);
 
-      # devShells = forAllSystems (pkgs: import ./shell.nix { inherit pkgs; });
+      devShells = forAllSystems (pkgs: import ./shell.nix { inherit pkgs; });
 
       overlays = import ./overlays { inherit inputs; };
 
