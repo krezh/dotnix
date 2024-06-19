@@ -25,6 +25,7 @@ jobs:
         uses: DeterminateSystems/update-flake-lock@v21
         with:
           pr-reviewers: ${{ github.repository_owner }}
+          nix-options: "--accept-flake-config"
           pr-labels: |
             merge-queue
 
