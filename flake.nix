@@ -147,7 +147,7 @@
 
       formatter = forAllSystems (system: nixpkgs.legacyPackages.${system}.nixfmt-rfc-style);
 
-      devShells = forAllSystems (pkgs: import ./shell.nix { inherit pkgs; });
+      # devShells = forAllSystems (pkgs: import ./shell.nix { inherit pkgs; });
 
       overlays = import ./overlays { inherit inputs; };
 
@@ -157,17 +157,28 @@
 
       nixosConfigurations = {
         thor-wsl = nixpkgs.lib.nixosSystem {
+          system = "x86_64-linux";
           specialArgs = {
             inherit self inputs outputs;
           };
           modules = [ ./hosts/thor-wsl ];
         };
         odin = nixpkgs.lib.nixosSystem {
+          system = "x86_64-linux";
           specialArgs = {
             inherit self inputs outputs;
           };
           modules = [ ./hosts/odin ];
         };
       };
+      # Convenience output that aggregates the outputs for home, nixos.
+      # Also used in ci to build targets generally.
+      top =
+        let
+          nixtop = nixpkgs.lib.genAttrs (builtins.attrNames inputs.self.nixosConfigurations) (
+            attr: inputs.self.nixosConfigurations.${attr}.config.system.build.toplevel
+          );
+        in
+        nixtop;
     };
 }
