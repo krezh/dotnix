@@ -27,3 +27,6 @@ jobs:
           pr-reviewers: ${{ github.repository_owner }}
           pr-labels: |
             merge-queue
+
+      - run: nixos-rebuild build --flake .#odin
+      - run: nixos-rebuild build --flake .#thor-wsl
