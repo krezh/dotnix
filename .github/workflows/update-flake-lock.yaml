@@ -35,4 +35,4 @@ jobs:
 
       - name: Cache
         if: ${{ success() }}
-        run: nix build ".#top.${{ matrix.system }}"
+        run: nix build ".#top.${{ matrix.system }}" --accept-flake-config
