@@ -146,14 +146,12 @@
 
       nixosConfigurations = {
         thor-wsl = nixpkgs.lib.nixosSystem {
-          system = "x86_64-linux";
           specialArgs = {
             inherit self inputs outputs;
           };
           modules = [ ./hosts/thor-wsl ];
         };
         odin = nixpkgs.lib.nixosSystem {
-          system = "x86_64-linux";
           specialArgs = {
             inherit self inputs outputs;
           };
