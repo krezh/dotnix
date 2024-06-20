@@ -17,32 +17,21 @@
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
     nixpkgs-unstable.url = "github:nixos/nixpkgs/nixos-unstable";
-    impermanence.url = "github:nix-community/impermanence";
     nur.url = "github:nix-community/NUR";
     disko = {
       url = "github:nix-community/disko";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    flake-parts = {
-      url = "github:hercules-ci/flake-parts";
-      inputs.nixpkgs-lib.follows = "nixpkgs";
-    };
-
     hardware.url = "github:nixos/nixos-hardware";
 
-    nixd.url = "github:nix-community/nixd";
-
-    nix-ld.url = "github:Mic92/nix-ld";
-    nix-ld.inputs.nixpkgs.follows = "nixpkgs";
-
-    home-manager = {
-      url = "github:nix-community/home-manager";
+    nix-ld = {
+      url = "github:Mic92/nix-ld";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    nix-fast-build = {
-      url = "github:Mic92/nix-fast-build";
+    home-manager = {
+      url = "github:nix-community/home-manager";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
@@ -77,7 +66,9 @@
       url = "github:hyprland-community/hyprkeys";
     };
 
-    xdg-portal-hyprland.url = "github:hyprwm/xdg-desktop-portal-hyprland";
+    xdg-portal-hyprland = {
+      url = "github:hyprwm/xdg-desktop-portal-hyprland";
+    };
 
     swww.url = "github:LGFae/swww";
 
@@ -133,8 +124,6 @@
     let
       inherit (self) outputs;
       systems = [
-        "aarch64-linux"
-        "aarch64-darwin"
         "x86_64-linux"
         "x86_64-darwin"
       ];
@@ -147,7 +136,7 @@
 
       formatter = forAllSystems (system: nixpkgs.legacyPackages.${system}.nixfmt-rfc-style);
 
-      # devShells = forAllSystems (pkgs: import ./shell.nix { inherit pkgs; });
+      devShells = forAllSystems (pkgs: import ./shell.nix { inherit pkgs; });
 
       overlays = import ./overlays { inherit inputs; };
 

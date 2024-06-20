@@ -1,1 +1,6 @@
-{ imports = [ ./terminal ]; }
+{
+  imports = [
+    ./terminal
+    ./spotify
+  ];
+}
