@@ -3,5 +3,6 @@
     ./hyprland
     ./gbar
     ./swww
+    ./waypaper
   ];
 }

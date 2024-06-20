@@ -7,28 +7,19 @@
   hostName,
   ...
 }:
-
+let
+  isDesktop = hostName != "thor-wsl";
+in
 {
   imports =
-    if (hostName != "thor-wsl") then
-      [
-        ../../modules/common
-        ./features/cli
-        ./features/desktop
-        inputs.sops-nix.homeManagerModules.sops
-        inputs.catppuccin.homeManagerModules.catppuccin
-
-      ]
-      ++ (builtins.attrValues outputs.homeManagerModules)
-    else
-      [
-        ../../modules/common
-        ./features/cli
-        inputs.sops-nix.homeManagerModules.sops
-        inputs.catppuccin.homeManagerModules.catppuccin
-
-      ]
-      ++ (builtins.attrValues outputs.homeManagerModules);
+    [
+      ../../modules/common
+      ./features/cli
+      inputs.sops-nix.homeManagerModules.sops
+      inputs.catppuccin.homeManagerModules.catppuccin
+    ]
+    ++ (if isDesktop then [ ./features/desktop ] else [ ])
+    ++ (builtins.attrValues outputs.homeManagerModules);
 
   nixpkgs = {
     overlays = builtins.attrValues outputs.overlays;
@@ -45,23 +36,24 @@
         "flakes"
         "repl-flake"
       ];
+      builders-use-substitutes = true;
       warn-dirty = false;
       extra-substituters = [
         "https://krezh.cachix.org"
         "https://nix-community.cachix.org"
         "https://hyprland.cachix.org"
+        "https://anyrun.cachix.org"
       ];
       extra-trusted-public-keys = [
         "krezh.cachix.org-1:0hGx8u/mABpZkzJEBh/UMXyNon5LAXdCRqEeVn5mff8="
         "nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs="
         "hyprland.cachix.org-1:a7pgxzMz7+chwVL3/pzj6jIBMioiJM7ypFP8PwtkuGc="
+        "anyrun.cachix.org-1:pqBobmOjI7nKlsUMV25u9QHa9btJK65/C8vnO3p346s="
       ];
     };
   };
 
   xdg.enable = true;
-
-  fonts.fontconfig.enable = true;
 
   catppuccin = {
     flavor = "mocha";
@@ -94,6 +86,7 @@
     };
     packages = with pkgs; [
       inputs.nh.packages.${pkgs.system}.default
+      inputs.nixd.packages.${pkgs.system}.nixd
       inputs.talosctl.packages.${pkgs.system}.talosctl
       ansible
       cachix

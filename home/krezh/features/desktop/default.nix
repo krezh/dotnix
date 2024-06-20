@@ -9,4 +9,5 @@
     recursive = true;
     source = ./wallpapers;
   };
+  fonts.fontconfig.enable = true;
 }
