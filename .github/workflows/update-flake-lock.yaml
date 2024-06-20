@@ -33,5 +33,5 @@ jobs:
           pr-labels: |
             merge-queue
 
-      - name: Cache
-        run: nix build ".#top.${{ matrix.system }}" --accept-flake-config
+      # - name: Cache
+      #   run: nix build ".#top.${{ matrix.system }}" --accept-flake-config
