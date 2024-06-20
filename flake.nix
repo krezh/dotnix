@@ -121,6 +121,9 @@
     };
 
     catppuccin.url = "github:catppuccin/nix";
+
+    anyrun.url = "github:anyrun-org/anyrun";
+    anyrun.inputs.nixpkgs.follows = "nixpkgs";
   };
 
   outputs =

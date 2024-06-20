@@ -3,6 +3,7 @@
     ./wm
     ./gtk
     ./apps
+    ./runners
   ];
   # Import wallpapers into $HOME/wallpapers
   home.file."wallpapers" = {
