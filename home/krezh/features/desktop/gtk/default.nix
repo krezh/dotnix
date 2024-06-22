@@ -14,16 +14,8 @@
   gtk = {
     enable = true;
     theme = {
-      name = "Catppuccin-Mocha-Compact-Maroon-Dark";
-      package = pkgs.catppuccin-gtk.override {
-        accents = [ "maroon" ];
-        size = "compact";
-        tweaks = [
-          "rimless"
-          "black"
-        ];
-        variant = "mocha";
-      };
+      name = "Arc-Dark";
+      package = pkgs.arc-theme;
     };
     iconTheme = {
       name = "Papirus";
