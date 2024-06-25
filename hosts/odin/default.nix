@@ -6,7 +6,7 @@ let
 in
 {
   imports = [
-    # inputs.disko.nixosModules.disko
+    inputs.disko.nixosModules.disko
     inputs.hyprland.nixosModules.default
     inputs.hardware.nixosModules.common-cpu-intel
     inputs.hardware.nixosModules.common-pc-ssd
@@ -27,36 +27,36 @@ in
 
   programs.gdk-pixbuf.modulePackages = [ pkgs.librsvg ];
 
-  # disko.devices = {
-  #   disk = {
-  #     vdb = {
-  #       device = "/dev/nvme0n1";
-  #       type = "disk";
-  #       content = {
-  #         type = "gpt";
-  #         partitions = {
-  #           ESP = {
-  #             type = "EF00";
-  #             size = "1G";
-  #             content = {
-  #               type = "filesystem";
-  #               format = "vfat";
-  #               mountpoint = "/boot";
-  #             };
-  #           };
-  #           root = {
-  #             size = "100%";
-  #             content = {
-  #               type = "filesystem";
-  #               format = "ext4";
-  #               mountpoint = "/";
-  #             };
-  #           };
-  #         };
-  #       };
-  #     };
-  #   };
-  # };
+  disko.devices = {
+    disk = {
+      vdb = {
+        device = "/dev/nvme0n1";
+        type = "disk";
+        content = {
+          type = "gpt";
+          partitions = {
+            ESP = {
+              type = "EF00";
+              size = "1G";
+              content = {
+                type = "filesystem";
+                format = "vfat";
+                mountpoint = "/boot";
+              };
+            };
+            root = {
+              size = "100%";
+              content = {
+                type = "filesystem";
+                format = "ext4";
+                mountpoint = "/";
+              };
+            };
+          };
+        };
+      };
+    };
+  };
 
   services.greetd = {
     enable = true;
@@ -116,19 +116,12 @@ in
 
   environment = {
     systemPackages = with pkgs; [
-      inputs.hyprlock.packages.${pkgs.system}.hyprlock
       inputs.hyprland-contrib.packages.${pkgs.system}.grimblast
       inputs.hyprland-contrib.packages.${pkgs.system}.scratchpad
       vscodium
-      fira-code
-      fira-code-symbols
       font-awesome
       liberation_ttf
-      mplus-outline-fonts.githubRelease
-      nerdfonts
-      noto-fonts
       noto-fonts-emoji
-      proggyfonts
     ];
   };
 

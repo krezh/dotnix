@@ -24,6 +24,7 @@
 
   programs.hyprlock = {
     enable = true;
+    package = inputs.hyprlock.packages.${pkgs.system}.hyprlock;
   };
 
   home.packages = with pkgs; [

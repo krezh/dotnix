@@ -26,7 +26,6 @@
       system-features = [
         "kvm"
         "big-parallel"
-        "nixos-test"
       ];
       flake-registry = ""; # Disable global flake registry
       use-xdg-base-directories = true;

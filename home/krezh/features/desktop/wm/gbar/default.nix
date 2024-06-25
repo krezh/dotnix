@@ -9,20 +9,10 @@ let
   requiredDeps = with pkgs; [
     config.wayland.windowManager.hyprland.package
     bash
-    coreutils
-    dart-sass
-    gawk
-    imagemagick
-    procps
-    ripgrep
-    util-linux
   ];
 
   guiDeps = with pkgs; [
-    gnome.gnome-control-center
-    mission-center
-    overskride
-    wlogout
+
   ];
 
   dependencies = requiredDeps ++ guiDeps;
@@ -42,8 +32,8 @@ in
         OBS = 23;
       };
       WorkspaceSymbols = [
-        " "
-        " "
+        # " "
+        # " "
       ];
     };
   };

@@ -10,9 +10,9 @@ let
   hasPackage = name: lib.any (x: x == name) packageNames;
   hasRipgrep = hasPackage "ripgrep";
   hasEza = hasPackage "eza";
+  hasKubectl = hasPackage "kubectl";
   hasNeovim = config.programs.neovim.enable;
   hasNeomutt = config.programs.neomutt.enable;
-  hasKitty = config.programs.kitty.enable;
 in
 {
   programs.fish = {
@@ -45,16 +45,13 @@ in
 
       mutt = mkIf hasNeomutt "neomutt";
       m = mutt;
-
-      cik = mkIf hasKitty "clone-in-kitty --type os-window";
-      ck = cik;
     };
     shellAliases = {
       # Clear screen and scrollback
       clear = "printf '\\033[2J\\033[3J\\033[1;1H'";
       df = "df -h";
       du = "du -h";
-      k = "kubectl";
+      k = mkIf hasKubectl "kubectl";
     };
     plugins = [
       {
@@ -94,25 +91,25 @@ in
       nvimrg = mkIf (hasNeomutt && hasRipgrep) "nvim -q (rg --vimgrep $argv | psub)";
       # Merge history upon doing up-or-search
       # This lets multiple fish instances share history
-      up-or-search = # fish
-        ''
-          if commandline --search-mode
-            commandline -f history-search-backward
-            return
-          end
-          if commandline --paging-mode
-            commandline -f up-line
-            return
-          end
-          set -l lineno (commandline -L)
-          switch $lineno
-            case 1
-              commandline -f history-search-backward
-              history merge
-            case '*'
-              commandline -f up-line
-          end
-        '';
+      # up-or-search = # fish
+      #   ''
+      #     if commandline --search-mode
+      #       commandline -f history-search-backward
+      #       return
+      #     end
+      #     if commandline --paging-mode
+      #       commandline -f up-line
+      #       return
+      #     end
+      #     set -l lineno (commandline -L)
+      #     switch $lineno
+      #       case 1
+      #         commandline -f history-search-backward
+      #         history merge
+      #       case '*'
+      #         commandline -f up-line
+      #     end
+      #   '';
     };
     interactiveShellInit = ''
       set -gx fish_greeting # Disable greeting

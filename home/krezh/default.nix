@@ -103,7 +103,6 @@ in
       go-task
       opentofu
       niv
-      cargo
       comma
       bottom
       ncdu
@@ -125,7 +124,6 @@ in
       hwatch
       envsubst
       gopls
-      gotools
       stern
     ];
   };
