@@ -88,17 +88,14 @@ in
       inputs.nh.packages.${pkgs.system}.default
       inputs.nixd.packages.${pkgs.system}.nixd
       inputs.talosctl.packages.${pkgs.system}.talosctl
-      ansible
       cachix
       fluxcd
       doppler
       wget
       curl
-      nodejs
       jq
       ripgrep
       gh
-      gcc
       sops
       age
       go
@@ -106,27 +103,23 @@ in
       go-task
       opentofu
       niv
-      kubectl
-      kubeswitch
       cargo
       comma
-      bc
       bottom
       ncdu
-      ripgrep
       fd
       httpie
       diffsitter
       jq
       timer
-      nil
       nixfmt-rfc-style
       nvd
       nix-output-monitor
-      ltex-ls
-      dconf
+      kubectl
+      kubeswitch
       kubectl-cnpg
       kubectl-node-shell
+      kubectl-klock
       ntfy-sh
       procs
       hwatch
