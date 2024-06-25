@@ -25,6 +25,8 @@ jobs:
         include:
           - system: odin
             os: ubuntu-latest
+          - system: thor-wsl
+            os: ubuntu-latest
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout repository
