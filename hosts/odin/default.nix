@@ -6,7 +6,7 @@ let
 in
 {
   imports = [
-    inputs.disko.nixosModules.disko
+    # inputs.disko.nixosModules.disko
     inputs.hyprland.nixosModules.default
     inputs.hardware.nixosModules.common-cpu-intel
     inputs.hardware.nixosModules.common-pc-ssd
