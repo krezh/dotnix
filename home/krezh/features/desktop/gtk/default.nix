@@ -5,9 +5,9 @@
     pointerCursor = {
       gtk.enable = true;
       x11.enable = true;
-      package = pkgs.catppuccin-cursors;
-      name = "mochaBlue";
-      size = 28;
+      # package = pkgs.catppuccin-cursors;
+      # name = "mochaBlue";
+      # size = 28;
     };
   };
 
@@ -16,10 +16,6 @@
     theme = {
       name = "Arc-Dark";
       package = pkgs.arc-theme;
-    };
-    iconTheme = {
-      name = "Papirus";
-      package = pkgs.papirus-icon-theme;
     };
   };
 }
