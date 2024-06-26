@@ -70,6 +70,16 @@
       url = "github:hyprland-community/hyprkeys";
     };
 
+    hyprgrass = {
+      url = "github:horriblename/hyprgrass";
+      inputs.hyprland.follows = "hyprland";
+    };
+
+    hyprfocus = {
+      url = "github:/pyt0xic/hyprfocus";
+      inputs.hyprland.follows = "hyprland";
+    };
+
     xdg-portal-hyprland = {
       url = "github:hyprwm/xdg-desktop-portal-hyprland";
     };
@@ -90,10 +100,6 @@
     nixvim = {
       url = "github:nix-community/nixvim";
       #inputs.nixpkgs.follows = "nixpkgs";
-    };
-
-    hyprfocus = {
-      url = "github:/VortexCoyote/hyprfocus";
     };
 
     deadnix = {

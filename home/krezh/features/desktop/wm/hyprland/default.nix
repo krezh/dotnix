@@ -20,6 +20,10 @@
       # Generated from Nix
     '';
     settings = { };
+    plugins = [
+      inputs.hyprfocus.packages.${pkgs.system}.hyprfocus
+      inputs.hyprgrass.packages.${pkgs.system}.default
+    ];
   };
 
   programs.hyprlock = {
