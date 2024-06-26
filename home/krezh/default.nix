@@ -114,11 +114,14 @@ in
       nixfmt-rfc-style
       nvd
       nix-output-monitor
+      
+      # Kubernetes
       kubectl
       kubeswitch
       kubectl-cnpg
       kubectl-node-shell
       kubectl-klock
+
       ntfy-sh
       procs
       hwatch
@@ -130,7 +133,6 @@ in
 
   modules.shell.krew = {
     enable = true;
-    package = pkgs.krew;
   };
 
   modules.shell.kubectx = {
@@ -139,7 +141,6 @@ in
 
   modules.shell.mise = {
     enable = true;
-    package = pkgs.mise;
     config = {
       python_venv_auto_create = true;
       status = {

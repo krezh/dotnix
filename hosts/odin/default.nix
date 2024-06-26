@@ -109,17 +109,14 @@ in
     alsa.support32Bit = true;
     pulse.enable = true;
     # If you want to use JACK applications, uncomment this
-    jack.enable = true;
+    jack.enable = false;
   };
 
   services.upower.enable = true;
 
   environment = {
+    sessionVariables.NIXOS_OZONE_WL = "1";
     systemPackages = with pkgs; [
-      inputs.hyprland-contrib.packages.${pkgs.system}.grimblast
-      inputs.hyprland-contrib.packages.${pkgs.system}.scratchpad
-      vscodium
-      font-awesome
       liberation_ttf
       noto-fonts-emoji
     ];
