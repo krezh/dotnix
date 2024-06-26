@@ -23,6 +23,7 @@
     plugins = [
       inputs.hyprfocus.packages.${pkgs.system}.hyprfocus
       inputs.hyprgrass.packages.${pkgs.system}.default
+      inputs.hyprland-plugins.packages.${pkgs.system}.hyprexpo
     ];
   };
 
