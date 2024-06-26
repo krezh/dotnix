@@ -55,7 +55,8 @@ jobs:
             "github:krezh/nix-config#top.${{ matrix.system }}" \
             -v \
             --log-format raw \
-            --profile ./profile
+            --profile ./profile \
+            --accept-flake-config
 
       - name: Build new ${{ matrix.system }} system
         run: |
@@ -63,6 +64,7 @@ jobs:
           nix build \
             ".#top.${{ matrix.system }}" \
             --profile ./profile \
+            --accept-flake-config \
             --fallback \
             -v \
             --log-format raw \
