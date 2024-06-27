@@ -39,7 +39,5 @@
   home.packages = with pkgs; [
     inputs.hyprkeys.packages.${pkgs.system}.hyprkeys
     inputs.xdg-portal-hyprland.packages.${pkgs.system}.default
-    wlogout
-    glow
   ];
 }
