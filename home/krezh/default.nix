@@ -85,11 +85,6 @@ in
       DEFAULT_BROWSER = "${pkgs.firefox}/bin/firefox";
     };
     packages = with pkgs; [
-      inputs.nh.packages.${pkgs.system}.default
-      inputs.nixd.packages.${pkgs.system}.nixd
-      inputs.talosctl.packages.${pkgs.system}.talosctl
-      cachix
-      fluxcd
       doppler
       wget
       curl
@@ -102,32 +97,41 @@ in
       dyff
       go-task
       opentofu
-      niv
-      comma
-      bottom
       ncdu
       fd
       httpie
       diffsitter
       jq
       timer
+      bottom
+
+      # Nix
+      inputs.nh.packages.${pkgs.system}.default
+      inputs.nixd.packages.${pkgs.system}.nixd
+      cachix
       nixfmt-rfc-style
       nvd
       nix-output-monitor
-      
+      niv
+      comma
+
       # Kubernetes
+      inputs.talosctl.packages.${pkgs.system}.talosctl
       kubectl
       kubeswitch
       kubectl-cnpg
       kubectl-node-shell
       kubectl-klock
+      kustomize
+      fluxcd
+      stern
+      helmfile
 
       ntfy-sh
       procs
       hwatch
       envsubst
       gopls
-      stern
     ];
   };
 
