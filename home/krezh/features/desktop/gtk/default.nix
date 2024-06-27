@@ -4,7 +4,7 @@
   home = {
     pointerCursor = {
       gtk.enable = true;
-      x11.enable = false;
+      x11.enable = true;
       # package = pkgs.catppuccin-cursors;
       # name = "mochaBlue";
       # size = 28;
