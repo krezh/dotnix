@@ -3,6 +3,7 @@
   inputs,
   outputs,
   pkgs,
+  lib,
   ...
 }:
 {
@@ -72,7 +73,7 @@
   ];
 
   system = {
-    stateVersion = "23.11";
+    stateVersion = lib.mkDefault "24.05";
     # Enable printing changes on nix build etc with nvd
     # activationScripts.report-changes = ''
     #   PATH=$PATH:${lib.makeBinPath [ pkgs.nvd pkgs.nix ]}
