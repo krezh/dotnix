@@ -11,12 +11,14 @@
       ${builtins.readFile ./hypr.conf}
 
       # Generated from Nix
-      bind = $mainMod,L,exec,${pkgs.hyprlock}/bin/hyprlock
       bind = $mainMod,ESCAPE,exec,${pkgs.wlogout}/bin/wlogout
+      bind = $mainMod,L,exec,${inputs.hyprlock.packages.${pkgs.system}.hyprlock}/bin/hyprlock
       bind = $mainMod,R,exec,${inputs.anyrun.packages.${pkgs.system}.default}/bin/anyrun --plugins ${
         inputs.anyrun.packages.${pkgs.system}.applications
       }/lib/libapplications.so
-      bind = $mainMod,K,exec,${pkgs.hyprkeys}/bin/hyprkeys -b -r | anyrun --plugins ${
+      bind = $mainMod,K,exec,${
+        inputs.hyprkeys.packages.${pkgs.system}.hyprkeys
+      }/bin/hyprkeys -b -r | anyrun --plugins ${
         inputs.anyrun.packages.${pkgs.system}.stdin
       }/lib/libstdin.so
       # Generated from Nix
