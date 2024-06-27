@@ -4,7 +4,7 @@
   wayland.windowManager.hyprland = {
     enable = true;
     systemd.enable = true;
-    xwayland.enable = false;
+    xwayland.enable = true;
     extraConfig = ''
       ${builtins.readFile ./hypr.conf}
 
@@ -21,9 +21,9 @@
     '';
     settings = { };
     plugins = [
-      # inputs.hyprfocus.packages.${pkgs.system}.hyprfocus
-      # inputs.hyprgrass.packages.${pkgs.system}.default
-      # inputs.hyprland-plugins.packages.${pkgs.system}.hyprexpo
+      inputs.hyprfocus.packages.${pkgs.system}.hyprfocus
+      inputs.hyprgrass.packages.${pkgs.system}.default
+      inputs.hyprland-plugins.packages.${pkgs.system}.hyprexpo
     ];
   };
 

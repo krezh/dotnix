@@ -18,21 +18,25 @@
 
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
-    nixpkgs-unstable.url = "github:nixos/nixpkgs/nixos-unstable";
     nur.url = "github:nix-community/NUR";
+
+    hardware.url = "github:nixos/nixos-hardware";
+    catppuccin.url = "github:catppuccin/nix";
+
     disko = {
       url = "github:nix-community/disko";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-
-    hardware.url = "github:nixos/nixos-hardware";
 
     nix-ld = {
       url = "github:Mic92/nix-ld";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    nixd.url = "github:nix-community/nixd";
+    nixd = {
+      url = "github:nix-community/nixd";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
 
     home-manager = {
       url = "github:nix-community/home-manager";
@@ -44,6 +48,7 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
+    # Hyprland
     hyprland = {
       url = "git+https://github.com/hyprwm/Hyprland?submodules=1";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -52,22 +57,6 @@
     hyprland-plugins = {
       url = "github:hyprwm/hyprland-plugins";
       inputs.hyprland.follows = "hyprland";
-    };
-
-    hyprland-contrib = {
-      url = "github:hyprwm/contrib";
-    };
-
-    hypridle = {
-      url = "github:hyprwm/hypridle";
-    };
-
-    hyprlock = {
-      url = "github:hyprwm/hyprlock";
-    };
-
-    hyprkeys = {
-      url = "github:hyprland-community/hyprkeys";
     };
 
     hyprgrass = {
@@ -80,17 +69,40 @@
       inputs.hyprland.follows = "hyprland";
     };
 
-    xdg-portal-hyprland = {
-      url = "github:hyprwm/xdg-desktop-portal-hyprland";
+    hyprland-contrib = {
+      url = "github:hyprwm/contrib";
+      inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    swww.url = "github:LGFae/swww";
+    hypridle = {
+      url = "github:hyprwm/hypridle";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
 
-    ags.url = "github:Aylur/ags";
+    hyprlock = {
+      url = "github:hyprwm/hyprlock";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
 
-    gBar.url = "github:scorpion-26/gBar";
+    hyprkeys = {
+      url = "github:hyprland-community/hyprkeys";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
 
-    waybar.url = "github:Alexays/Waybar";
+    xdg-portal-hyprland = {
+      url = "github:hyprwm/xdg-desktop-portal-hyprland";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
+    swww = {
+      url = "github:LGFae/swww";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
+    gBar = {
+      url = "github:scorpion-26/gBar";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
 
     sops-nix = {
       url = "github:Mic92/sops-nix";
@@ -99,7 +111,7 @@
 
     nixvim = {
       url = "github:nix-community/nixvim";
-      #inputs.nixpkgs.follows = "nixpkgs";
+      inputs.nixpkgs.follows = "nixpkgs";
     };
 
     deadnix = {
@@ -109,27 +121,28 @@
 
     nixos-wsl = {
       url = "github:nix-community/NixOS-WSL";
-      inputs = {
-        nixpkgs.follows = "nixpkgs";
-      };
+      inputs.nixpkgs.follows = "nixpkgs";
     };
 
     nixos-wsl-vscode = {
       url = "github:K900/vscode-remote-workaround";
+      inputs.nixpkgs.follows = "nixpkgs";
     };
 
     wezterm = {
       url = "github:wez/wezterm?dir=nix";
+      inputs.nixpkgs.follows = "nixpkgs";
     };
 
     talosctl = {
       url = "github:szinn/nix-config";
+      inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    catppuccin.url = "github:catppuccin/nix";
-
-    anyrun.url = "github:anyrun-org/anyrun";
-    anyrun.inputs.nixpkgs.follows = "nixpkgs";
+    anyrun = {
+      url = "git+https://github.com/anyrun-org/anyrun";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs =
