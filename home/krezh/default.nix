@@ -56,8 +56,9 @@ in
   xdg.enable = true;
 
   catppuccin = {
-    flavor = "mocha";
     enable = true;
+    flavor = "mocha";
+    accent = "lavender";
   };
 
   sops = {
