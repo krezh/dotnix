@@ -105,6 +105,8 @@ in
       jq
       timer
       bottom
+      ffmpeg
+      yt-dlp
 
       # Nix
       inputs.nh.packages.${pkgs.system}.default
