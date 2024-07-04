@@ -26,8 +26,9 @@
   };
 
   catppuccin = {
-    flavor = "mocha";
     enable = true;
+    flavor = "mocha";
+    accent = "lavender";
   };
 
   # Fix for qt6 plugins

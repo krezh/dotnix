@@ -1,15 +1,15 @@
 { pkgs, ... }:
 
 {
-  home = {
-    pointerCursor = {
-      gtk.enable = true;
-      x11.enable = true;
-      # package = pkgs.catppuccin-cursors;
-      # name = "mochaBlue";
-      # size = 28;
-    };
-  };
+  # home = {
+  #   pointerCursor = {
+  #     gtk.enable = true;
+  #     x11.enable = true;
+  #     # package = pkgs.catppuccin-cursors;
+  #     # name = "mochaBlue";
+  #     # size = 28;
+  #   };
+  # };
 
   gtk = {
     enable = true;
