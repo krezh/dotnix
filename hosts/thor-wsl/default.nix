@@ -2,7 +2,7 @@
 {
   imports = [
     inputs.nixos-wsl.nixosModules.wsl
-    inputs.nixos-wsl-vscode.nixosModules.default
+    inputs.vscode-server.nixosModules.default
     (modulesPath + "/profiles/minimal.nix")
 
     ../common/global
@@ -23,7 +23,8 @@
     useWindowsDriver = true;
   };
 
-  vscode-remote-workaround.enable = true;
+  services.vscode-server.enable = true;
+  services.vscode-server.enableFHS = true;
 
   boot.isContainer = true;
 

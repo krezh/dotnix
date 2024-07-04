@@ -123,10 +123,7 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    nixos-wsl-vscode = {
-      url = "github:K900/vscode-remote-workaround";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
+    vscode-server.url = "github:nix-community/nixos-vscode-server";
 
     wezterm = {
       url = "github:wez/wezterm?dir=nix";
