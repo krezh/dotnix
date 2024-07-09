@@ -86,7 +86,7 @@ in
       DEFAULT_BROWSER = "${pkgs.firefox}/bin/firefox";
     };
     packages = with pkgs; [
-      doppler
+      # doppler
       wget
       curl
       jq
