@@ -1753,6 +1753,26 @@
         "type": "github"
       }
     },
+    "nix-index": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1720334033,
+        "narHash": "sha256-X9pEvvHTVWJphhbUYqXvlLedOndNqGB7rvhSvL2CIgU=",
+        "owner": "nix-community",
+        "repo": "nix-index-database",
+        "rev": "685e40e1348007d2cf76747a201bab43d86b38cb",
+        "type": "github"
+      },
+      "original": {
+        "owner": "nix-community",
+        "repo": "nix-index-database",
+        "type": "github"
+      }
+    },
     "nix-index-database": {
       "inputs": {
         "nixpkgs": [
@@ -2150,6 +2170,7 @@
         "hyprland-plugins": "hyprland-plugins",
         "hyprlock": "hyprlock",
         "nh": "nh",
+        "nix-index": "nix-index",
         "nix-ld": "nix-ld",
         "nixd": "nixd",
         "nixos-wsl": "nixos-wsl",

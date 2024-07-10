@@ -23,6 +23,11 @@
     hardware.url = "github:nixos/nixos-hardware";
     catppuccin.url = "github:catppuccin/nix";
 
+    nix-index = {
+      url = "github:nix-community/nix-index-database";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
     disko = {
       url = "github:nix-community/disko";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -149,39 +154,29 @@
         "x86_64-linux"
         "x86_64-darwin"
       ];
-
       forAllSystems = nixpkgs.lib.genAttrs systems;
+      mkLegacyPkgs = system: inputs.nixpkgs.legacyPackages.${system};
+      mkNixosSystem =
+        hostName:
+        nixpkgs.lib.nixosSystem {
+          specialArgs = {
+            inherit self inputs outputs;
+          };
+          modules = [ ./hosts/${hostName} ];
+        };
     in
     {
-
-      packages = forAllSystems (pkgs: import ./pkgs { inherit pkgs; });
-
-      formatter = forAllSystems (system: nixpkgs.legacyPackages.${system}.nixfmt-rfc-style);
-
-      devShells = forAllSystems (pkgs: import ./shell.nix { inherit pkgs; });
-
+      packages = forAllSystems (system: import ./pkgs { pkgs = mkLegacyPkgs system; });
+      formatter = forAllSystems (system: mkLegacyPkgs system.nixfmt-rfc-style);
+      devShells = forAllSystems (system: import ./shell.nix { pkgs = mkLegacyPkgs system; });
       overlays = import ./overlays { inherit inputs; };
-
       nixosModules = import ./modules/nixos;
       commonModules = import ./modules/common;
       homeManagerModules = import ./modules/home-manager;
-
       nixosConfigurations = {
-        thor-wsl = nixpkgs.lib.nixosSystem {
-          specialArgs = {
-            inherit self inputs outputs;
-          };
-          modules = [ ./hosts/thor-wsl ];
-        };
-        odin = nixpkgs.lib.nixosSystem {
-          specialArgs = {
-            inherit self inputs outputs;
-          };
-          modules = [ ./hosts/odin ];
-        };
+        thor-wsl = mkNixosSystem "thor-wsl";
+        odin = mkNixosSystem "odin";
       };
-      # Convenience output that aggregates the outputs for home, nixos.
-      # Also used in ci to build targets generally.
       top =
         let
           nixtop = nixpkgs.lib.genAttrs (builtins.attrNames inputs.self.nixosConfigurations) (

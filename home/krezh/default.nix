@@ -17,6 +17,7 @@ in
       ./features/cli
       inputs.sops-nix.homeManagerModules.sops
       inputs.catppuccin.homeManagerModules.catppuccin
+      inputs.nix-index.hmModules.nix-index
     ]
     ++ (if isDesktop then [ ./features/desktop ] else [ ])
     ++ (builtins.attrValues outputs.homeManagerModules);
@@ -52,6 +53,8 @@ in
       ];
     };
   };
+
+  programs.nix-index.enable = true;
 
   xdg.enable = true;
 
@@ -129,6 +132,7 @@ in
       fluxcd
       stern
       helmfile
+      kind
 
       ntfy-sh
       procs
