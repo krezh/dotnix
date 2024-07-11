@@ -3,7 +3,7 @@ version: "3"
 
 tasks:
   re-encrypt:
-    desc: Decrypt and re-encrypt all sops secrets
+    desc: Rotate all sops secrets
     silent: true
     dir: "{{.USER_WORKING_DIR}}"
     vars:
@@ -12,6 +12,5 @@ tasks:
     cmds:
       - for: { var: SECRET_FILES }
         cmd: |
-          echo "Re-encrypting {{ .ITEM }}"
-          sops --decrypt --in-place "{{ .ITEM }}"
-          sops --encrypt --in-place "{{ .ITEM }}"
+          echo "Rotating {{ .ITEM }}"
+          sops --rotate --in-place "{{ .ITEM }}"
