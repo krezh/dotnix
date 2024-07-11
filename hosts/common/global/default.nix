@@ -10,6 +10,7 @@
   imports = [
     inputs.home-manager.nixosModules.home-manager
     inputs.catppuccin.nixosModules.catppuccin
+    inputs.lix-module.nixosModules.default
     ./locale.nix
     ./nix.nix
     ./podman.nix

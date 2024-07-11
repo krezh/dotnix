@@ -1,7 +1,12 @@
 # Custom packages, that can be defined similarly to ones from nixpkgs
-# You can build them using 'nix build .#example'
-
-{ pkgs, ... }:
+# You can build them using 'nix build .#example' or (legacy) 'nix-build -A example'
 {
-  # kubectl-login = pkgs.callPackage ./kubectl-login { };
+  pkgs ? (import ../nixpkgs.nix) { },
+  ...
+}@inputs:
+let
+  inherit (pkgs) callPackage;
+in
+{
+  talosctl = callPackage ./talosctl { };
 }

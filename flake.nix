@@ -19,6 +19,12 @@
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
     nur.url = "github:nix-community/NUR";
+    flake-utils.url = "github:numtide/flake-utils";
+
+    lix-module = {
+      url = "https://git.lix.systems/lix-project/nixos-module/archive/2.90.0.tar.gz";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
 
     hardware.url = "github:nixos/nixos-hardware";
     catppuccin.url = "github:catppuccin/nix";
@@ -135,11 +141,6 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    talosctl = {
-      url = "github:szinn/nix-config";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-
     anyrun = {
       url = "git+https://github.com/anyrun-org/anyrun";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -147,16 +148,32 @@
   };
 
   outputs =
-    inputs@{ self, nixpkgs, ... }:
+    inputs@{
+      self,
+      nixpkgs,
+      flake-utils,
+      ...
+    }:
     let
       inherit (self) outputs;
-      systems = [
+      supportedSystems = [
         "x86_64-linux"
-        "x86_64-darwin"
+        "aarch64-darwin"
       ];
-      forAllSystems = nixpkgs.lib.genAttrs systems;
-      mkLegacyPkgs = system: inputs.nixpkgs.legacyPackages.${system};
-      mkNixosSystem =
+      forAllSystems = nixpkgs.lib.genAttrs supportedSystems;
+      overlays = import ./overlays { inherit inputs; };
+      flake-packages = self.packages;
+
+      legacyPackages = forAllSystems (
+        system:
+        import nixpkgs {
+          inherit system;
+          overlays = builtins.attrValues overlays;
+          config.allowUnfree = true;
+        }
+      );
+
+      nixosSystem =
         hostName:
         nixpkgs.lib.nixosSystem {
           specialArgs = {
@@ -166,21 +183,30 @@
         };
     in
     {
-      packages = forAllSystems (system: import ./pkgs { pkgs = mkLegacyPkgs system; });
-      formatter = forAllSystems (system: mkLegacyPkgs system.nixfmt-rfc-style);
-      devShells = forAllSystems (system: import ./shell.nix { pkgs = mkLegacyPkgs system; });
-      overlays = import ./overlays { inherit inputs; };
+      inherit overlays;
+      packages = forAllSystems (
+        system:
+        let
+          pkgs = legacyPackages.${system};
+        in
+        import ./pkgs {
+          inherit pkgs;
+          inherit inputs;
+        }
+      );
+
+      formatter = forAllSystems (system: nixpkgs.legacyPackages.${system}.nixfmt-rfc-style);
       nixosModules = import ./modules/nixos;
       commonModules = import ./modules/common;
       homeManagerModules = import ./modules/home-manager;
       nixosConfigurations = {
-        thor-wsl = mkNixosSystem "thor-wsl";
-        odin = mkNixosSystem "odin";
+        thor-wsl = nixosSystem "thor-wsl";
+        odin = nixosSystem "odin";
       };
       top =
         let
-          nixtop = nixpkgs.lib.genAttrs (builtins.attrNames inputs.self.nixosConfigurations) (
-            attr: inputs.self.nixosConfigurations.${attr}.config.system.build.toplevel
+          nixtop = nixpkgs.lib.genAttrs (builtins.attrNames self.nixosConfigurations) (
+            attr: self.nixosConfigurations.${attr}.config.system.build.toplevel
           );
         in
         nixtop;

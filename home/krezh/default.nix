@@ -122,7 +122,7 @@ in
       comma
 
       # Kubernetes
-      inputs.talosctl.packages.${pkgs.system}.talosctl
+      talosctl
       kubectl
       kubeswitch
       kubectl-cnpg
