@@ -1,18 +1,18 @@
 {
   lib,
-  buildGo122Module,
+  buildGoModule,
   fetchFromGitHub,
   installShellFiles,
 }:
-buildGo122Module rec {
+buildGoModule rec {
   pname = "talosctl";
   # renovate: datasource=docker depName=ghcr.io/siderolabs/installer
-  version = "v1.7.5";
+  version = "1.7.5";
 
   src = fetchFromGitHub {
     owner = "siderolabs";
     repo = "talos";
-    rev = "${version}";
+    rev = "v${version}";
     # nix-shell -p nix-prefetch-github --run "nix-prefetch-github siderolabs talos --rev v1.7.5"
     hash = "sha256-lmDLlxiPyVhlSPplYkIaS5Uw19hir6XD8MAk8q+obhY=";
   };
