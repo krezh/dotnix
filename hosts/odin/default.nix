@@ -87,6 +87,7 @@ in
     systemPackages = with pkgs; [
       liberation_ttf
       noto-fonts-emoji
+      age-plugin-yubikey
     ];
   };
 
