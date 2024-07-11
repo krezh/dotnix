@@ -35,7 +35,7 @@
       dates = "weekly";
     };
 
-    channel.enable = true;
+    channel.enable = false;
 
     # Add each flake input as a registry
     # To make nix3 commands consistent with the flake

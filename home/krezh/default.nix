@@ -114,6 +114,7 @@ in
       # Nix
       inputs.nh.packages.${pkgs.system}.default
       inputs.nixd.packages.${pkgs.system}.nixd
+      inputs.nix-update.packages.${pkgs.system}.nix-update
       cachix
       nixfmt-rfc-style
       nvd
