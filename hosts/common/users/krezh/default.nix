@@ -60,10 +60,5 @@ in
       name = "nix/path/${name}";
       value.source = value.flake;
     }) config.nix.registry;
-    systemPackages = with pkgs; [
-      wget
-      git
-      inputs.deadnix.packages.${pkgs.system}.deadnix
-    ];
   };
 }

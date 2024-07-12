@@ -9,4 +9,5 @@ let
 in
 {
   talosctl = callPackage ./talosctl { };
+  flux = callPackage ./flux { };
 }

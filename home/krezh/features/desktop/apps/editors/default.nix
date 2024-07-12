@@ -1,1 +1,6 @@
-{ imports = [ ./vscode ]; }
+{
+  imports = [
+    ./vscode
+    ./zed
+  ];
+}

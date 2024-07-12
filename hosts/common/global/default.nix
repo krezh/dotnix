@@ -16,6 +16,7 @@
     ./podman.nix
     ./fish.nix
     ./sops.nix
+    ./packages.nix
   ] ++ (builtins.attrValues outputs.nixosModules);
 
   nixpkgs = {
