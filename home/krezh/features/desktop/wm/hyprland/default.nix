@@ -5,7 +5,7 @@
     enable = true;
     package = inputs.hyprland.packages.${pkgs.system}.hyprland;
     systemd.enable = true;
-    xwayland.enable = true;
+    xwayland.enable = false;
 
     extraConfig = ''
       ${builtins.readFile ./hypr.conf}

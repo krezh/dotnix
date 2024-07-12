@@ -4,20 +4,15 @@
   outputs,
   pkgs,
   lib,
+  mylib,
   ...
 }:
 {
   imports = [
     inputs.home-manager.nixosModules.home-manager
     inputs.catppuccin.nixosModules.catppuccin
-    inputs.lix-module.nixosModules.default
-    ./locale.nix
-    ./nix.nix
-    ./podman.nix
-    ./fish.nix
-    ./sops.nix
-    ./packages.nix
-  ] ++ (builtins.attrValues outputs.nixosModules);
+
+  ] ++ (builtins.attrValues outputs.nixosModules) ++ mylib.scanPaths ./.;
 
   nixpkgs = {
     overlays = builtins.attrValues outputs.overlays;
@@ -40,40 +35,46 @@
 
   hardware.enableRedistributableFirmware = true;
 
-  security.sudo = {
-    wheelNeedsPassword = true;
-    enable = true;
-    extraRules = [
+  security = {
+    sudo = {
+      wheelNeedsPassword = true;
+      enable = true;
+      extraRules = [
+        {
+          commands = [
+            {
+              command = "${pkgs.systemd}/bin/reboot";
+              options = [ "NOPASSWD" ];
+            }
+          ];
+          groups = [ "wheel" ];
+        }
+      ];
+      extraConfig = ''
+        # Show feedback when typing password
+        Defaults pwfeedback
+
+        # Set sudo timeout to value in minutes
+        Defaults timestamp_timeout=15 
+      '';
+    };
+
+    # Increase open file limit for sudoers
+    pam.loginLimits = [
       {
-        commands = [
-          {
-            command = "${pkgs.systemd}/bin/reboot";
-            options = [ "NOPASSWD" ];
-          }
-        ];
-        groups = [ "wheel" ];
+        domain = "@wheel";
+        item = "nofile";
+        type = "soft";
+        value = "524288";
+      }
+      {
+        domain = "@wheel";
+        item = "nofile";
+        type = "hard";
+        value = "1048576";
       }
     ];
-    extraConfig = ''
-      Defaults pwfeedback
-    '';
   };
-
-  # Increase open file limit for sudoers
-  security.pam.loginLimits = [
-    {
-      domain = "@wheel";
-      item = "nofile";
-      type = "soft";
-      value = "524288";
-    }
-    {
-      domain = "@wheel";
-      item = "nofile";
-      type = "hard";
-      value = "1048576";
-    }
-  ];
 
   system = {
     stateVersion = lib.mkDefault "24.05";

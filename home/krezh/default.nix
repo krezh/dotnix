@@ -86,7 +86,6 @@ in
     sessionPath = [ "$HOME/.local/bin" ];
     sessionVariables = {
       FLAKE = "$HOME/nix-config";
-      DEFAULT_BROWSER = "${pkgs.firefox}/bin/firefox";
     };
     packages = with pkgs; [
       # doppler

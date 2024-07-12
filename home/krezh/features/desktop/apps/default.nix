@@ -3,5 +3,6 @@
     ./terminal
     ./spotify
     ./editors
+    ./browsers
   ];
 }

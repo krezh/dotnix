@@ -3,11 +3,11 @@
 {
   pkgs ? (import ../nixpkgs.nix) { },
   ...
-}@inputs:
+}:
 let
   inherit (pkgs) callPackage;
 in
 {
   talosctl = callPackage ./talosctl { };
-  flux = callPackage ./flux { };
+  fluxcd = callPackage ./fluxcd { };
 }

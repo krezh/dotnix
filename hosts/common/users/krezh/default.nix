@@ -52,8 +52,6 @@ in
     };
   };
 
-  services.tailscale.enable = true;
-
   environment = {
     noXlibs = lib.mkForce false;
     etc = lib.mapAttrs' (name: value: {
@@ -61,4 +59,7 @@ in
       value.source = value.flake;
     }) config.nix.registry;
   };
+
+  services.tailscale.enable = true;
+
 }

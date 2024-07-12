@@ -65,10 +65,6 @@ in
     package = inputs.hyprland.packages.${pkgs.system}.hyprland;
   };
 
-  programs.firefox = {
-    enable = true;
-  };
-
   # rtkit is optional but recommended
   security.rtkit.enable = true;
   services.pipewire = {

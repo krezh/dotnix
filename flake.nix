@@ -153,21 +153,19 @@
   };
 
   outputs =
-    inputs@{
-      self,
-      nixpkgs,
-      flake-utils,
-      ...
-    }:
+    inputs@{ self, nixpkgs, ... }:
     let
       inherit (self) outputs;
+
       supportedSystems = [
         "x86_64-linux"
         "aarch64-darwin"
       ];
+
+      lib = nixpkgs.lib;
+
       forAllSystems = nixpkgs.lib.genAttrs supportedSystems;
       overlays = import ./overlays { inherit inputs; };
-      flake-packages = self.packages;
 
       legacyPackages = forAllSystems (
         system:
@@ -178,17 +176,25 @@
         }
       );
 
+      mylib = import ./lib { inherit lib; };
+
       nixosSystem =
         hostName:
         nixpkgs.lib.nixosSystem {
           specialArgs = {
-            inherit self inputs outputs;
+            inherit
+              self
+              inputs
+              outputs
+              mylib
+              ;
           };
           modules = [ ./hosts/${hostName} ];
         };
     in
     {
       inherit overlays;
+
       packages = forAllSystems (
         system:
         let

@@ -6,6 +6,8 @@
   ...
 }:
 {
+  imports = [ inputs.lix-module.nixosModules.default ];
+
   nix = {
     package = pkgs.nixFlakes;
     extraOptions = lib.optionalString (
