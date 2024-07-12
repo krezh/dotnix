@@ -4,8 +4,6 @@
   config,
   ...
 }:
-with lib;
-
 let
   cfg = config.modules.shell.atuin;
   defaultConfig = import ./defaultConfig.nix { sync_address = cfg.sync_address; };
@@ -13,8 +11,8 @@ let
 in
 {
   options.modules.shell.atuin = {
-    enable = mkEnableOption "${username} atuin";
-    package = mkPackageOption pkgs "atuin" { };
+    enable = lib.mkEnableOption "${lib.username} atuin";
+    package = lib.mkPackageOption pkgs "atuin" { };
 
     sync_address = lib.mkOption {
       type = lib.types.str;

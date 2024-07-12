@@ -3,7 +3,7 @@
   imports = [ inputs.nixvim.homeManagerModules.nixvim ];
   programs = {
     nixvim = {
-      #package = inputs.nixvim.packages.${pkgs.system}.nixvim;
+      # package = inputs.nixvim.packages.${pkgs.system}.default;
       enable = true;
       viAlias = true;
       vimAlias = true;
