@@ -2,13 +2,18 @@
 version: "3"
 
 vars:
-  host: $HOSTNAME
+  PKGS:
+    sh: ls -1 pkgs/ -I "default.nix"
 
 tasks:
   update-packages:
     desc: Update nix packages
-    cmds:
-      - nix-update --flake talosctl
+    silent: true
     preconditions:
       - sh: which nix
         msg: "nix not found"
+      - sh: which nix-update
+        msg: "nix-update not found"
+    cmds:
+      - for: { var: PKGS }
+        cmd: nix-update --flake --commit "{{ .ITEM }}"
