@@ -8,6 +8,8 @@ let
   hyprlockFlake = inputs.hyprlock.packages.${pkgs.system}.hyprlock;
   anyrunFlake = inputs.anyrun.packages.${pkgs.system};
   hyprkeysFlake = inputs.hyprkeys.packages.${pkgs.system}.hyprkeys;
+  catppuccin_border = "0xff89b4fa";
+  catppuccin_inactive_border = "0xff1e1e2e";
 in
 {
   imports = [ ];
@@ -41,17 +43,17 @@ in
       };
 
       general = {
-        gaps_in = 2;
-        gaps_out = 0;
-        border_size = 0;
-        # "col.active_border" = "${catppuccin_border}";
-        # "col.inactive_border" = "${tokyonight_border}";
+        gaps_in = 3;
+        gaps_out = 3;
+        border_size = 2;
+        "col.active_border" = "${catppuccin_border}";
+        "col.inactive_border" = "${catppuccin_inactive_border}";
         layout = "dwindle";
         apply_sens_to_raw = 1; # whether to apply the sensitivity to raw input (e.g. used by games where you aim using your mouse)
       };
 
       decoration = {
-        rounding = 0;
+        rounding = 15;
         shadow_ignore_window = true;
         drop_shadow = false;
         shadow_range = 20;
