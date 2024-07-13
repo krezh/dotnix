@@ -1,5 +1,10 @@
 # This is your system's configuration file.
-{ inputs, pkgs, ... }:
+{
+  inputs,
+  pkgs,
+  lib,
+  ...
+}:
 let
   tuigreet = "${pkgs.greetd.tuigreet}/bin/tuigreet";
   hyprland-session = "${inputs.hyprland.packages.${pkgs.system}.hyprland}/share/wayland-sessions";
@@ -64,15 +69,25 @@ in
   # literally no documentation about this anywhere.
   # might be good to write about this...
   # https://www.reddit.com/r/NixOS/comments/u0cdpi/tuigreet_with_xmonad_how/
-  systemd.services.greetd.serviceConfig = {
-    Type = "idle";
-    StandardInput = "tty";
-    StandardOutput = "tty";
-    StandardError = "journal"; # Without this errors will spam on screen
-    # Without these bootlogs will spam on screen
-    TTYReset = true;
-    TTYVHangup = true;
-    TTYVTDisallocate = true;
+  systemd.services.greetd = {
+    enable = true;
+    unitConfig = {
+      After = lib.mkOverride 0 [ "multi-user.target" ];
+    };
+    serviceConfig = {
+      Type = "idle";
+    };
+    # vt = "7";
+    # serviceConfig = {
+    #   Type = "idle";
+    #   StandardInput = "tty";
+    #   StandardOutput = "tty";
+    #   StandardError = "journal"; # Without this errors will spam on screen
+    #   # Without these bootlogs will spam on screen
+    #   TTYReset = true;
+    #   TTYVHangup = true;
+    #   TTYVTDisallocate = true;
+    # };
   };
 
   fonts.packages = with pkgs; [
