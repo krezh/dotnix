@@ -1,4 +1,14 @@
-{ inputs, pkgs, ... }:
+{
+  inputs,
+  pkgs,
+  config,
+  ...
+}:
+let
+  hyprlockFlake = inputs.hyprlock.packages.${pkgs.system}.hyprlock;
+  anyrunFlake = inputs.anyrun.packages.${pkgs.system};
+  hyprkeysFlake = inputs.hyprkeys.packages.${pkgs.system}.hyprkeys;
+in
 {
   imports = [ ];
   wayland.windowManager.hyprland = {
@@ -12,18 +22,22 @@
 
       # Generated from Nix
       bind = $mainMod,ESCAPE,exec,${pkgs.wlogout}/bin/wlogout
-      bind = $mainMod,L,exec,${inputs.hyprlock.packages.${pkgs.system}.hyprlock}/bin/hyprlock
-      bind = $mainMod,R,exec,${inputs.anyrun.packages.${pkgs.system}.default}/bin/anyrun --plugins ${
-        inputs.anyrun.packages.${pkgs.system}.applications
-      }/lib/libapplications.so
-      bind = $mainMod,K,exec,${
-        inputs.hyprkeys.packages.${pkgs.system}.hyprkeys
-      }/bin/hyprkeys -b -r | anyrun --plugins ${
-        inputs.anyrun.packages.${pkgs.system}.stdin
-      }/lib/libstdin.so
+      bind = $mainMod,L,exec,${hyprlockFlake}/bin/hyprlock
+      bind = $mainMod,R,exec,${anyrunFlake.default}/bin/anyrun --plugins ${anyrunFlake.applications}/lib/libapplications.so
+      bind = $mainMod,K,exec,${hyprkeysFlake}/bin/hyprkeys -b -r | anyrun --plugins ${anyrunFlake.stdin}/lib/libstdin.so
       # Generated from Nix
     '';
-    settings = { };
+    settings = {
+      env = [
+        "XCURSOR_SIZE,32"
+        "XCURSOR_THEME,macOS-BigSur"
+        "HYPRCURSOR_THEME,macOS-BigSur"
+        "HYPRCURSOR_SIZE,32"
+      ];
+      cursor = {
+        enable_hyprcursor = true;
+      };
+    };
     plugins = [
       inputs.hyprfocus.packages.${pkgs.system}.hyprfocus
       inputs.hyprgrass.packages.${pkgs.system}.default
@@ -36,8 +50,28 @@
     package = inputs.hyprlock.packages.${pkgs.system}.hyprlock;
   };
 
-  home.packages = with pkgs; [
-    inputs.hyprkeys.packages.${pkgs.system}.hyprkeys
-    inputs.xdg-portal-hyprland.packages.${pkgs.system}.default
-  ];
+  services.hypridle = {
+    enable = true;
+    package = inputs.hypridle.packages.${pkgs.system}.hypridle;
+    settings = {
+      general = {
+        after_sleep_cmd = "hyprctl dispatch dpms on";
+        ignore_dbus_inhibit = false;
+        lock_cmd = "pidof ${hyprlockFlake}/bin/hyprlock || ${hyprlockFlake}/bin/hyprlock";
+      };
+      listener = [
+        {
+          timeout = 900;
+          on-timeout = "${hyprlockFlake}/bin/hyprlock";
+        }
+        {
+          timeout = 1200;
+          on-timeout = "hyprctl dispatch dpms off";
+          on-resume = "hyprctl dispatch dpms on";
+        }
+      ];
+    };
+  };
+
+  home.packages = with pkgs; [ inputs.xdg-portal-hyprland.packages.${pkgs.system}.default ];
 }
