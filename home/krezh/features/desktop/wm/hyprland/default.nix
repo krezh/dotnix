@@ -107,11 +107,11 @@ in
       };
       listener = [
         {
-          timeout = 900;
+          timeout = 5 * 60;
           on-timeout = "${hyprlockFlake}/bin/hyprlock";
         }
         {
-          timeout = 1200;
+          timeout = 10 * 60;
           on-timeout = "hyprctl dispatch dpms off";
           on-resume = "hyprctl dispatch dpms on";
         }
