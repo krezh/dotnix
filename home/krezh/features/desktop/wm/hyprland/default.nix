@@ -51,7 +51,7 @@ in
     settings = {
       general = {
         disable_loading_bar = true;
-        grace = 5; # in seconds
+        grace = 3; # in seconds
         hide_cursor = true;
         no_fade_in = false;
       };
@@ -76,7 +76,6 @@ in
         position = "0, 80"; # x, y
         halign = "center";
         valign = "center";
-
       };
 
       input-field = [
@@ -85,7 +84,7 @@ in
           position = "0, -80";
           monitor = "";
           dots_center = true;
-          fade_on_empty = false;
+          fade_on_empty = true;
           font_color = "rgb(202, 211, 245)";
           inner_color = "rgb(91, 96, 120)";
           outer_color = "rgb(24, 25, 38)";
