@@ -36,9 +36,25 @@
   hardware.enableRedistributableFirmware = true;
 
   security = {
-    sudo = {
+    doas = {
+      enable = false;
       wheelNeedsPassword = true;
+      extraRules = [
+        {
+          cmd = "${pkgs.systemd}/bin/reboot";
+          groups = [ "wheel" ];
+          noPass = true;
+        }
+        {
+          groups = [ "wheel" ];
+          keepEnv = true;
+          persist = true;
+        }
+      ];
+    };
+    sudo = {
       enable = true;
+      wheelNeedsPassword = true;
       extraRules = [
         {
           commands = [
