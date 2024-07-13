@@ -1,3 +1,4 @@
+{ inputs, ... }:
 {
   imports = [
     ./wm
@@ -12,4 +13,5 @@
     source = ./wallpapers;
   };
   fonts.fontconfig.enable = true;
+
 }

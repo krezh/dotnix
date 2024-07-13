@@ -20,6 +20,8 @@
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
     nur.url = "github:nix-community/NUR";
     flake-utils.url = "github:numtide/flake-utils";
+    haumea.url = "github:nix-community/haumea/v0.2.2";
+    stylix.url = "github:danth/stylix";
 
     lix-module = {
       url = "https://git.lix.systems/lix-project/nixos-module/archive/2.90.0.tar.gz";
@@ -154,12 +156,7 @@
     let
       inherit (self) outputs;
 
-      supportedSystems = [
-        "x86_64-linux"
-        "aarch64-darwin"
-      ];
-
-      lib = nixpkgs.lib;
+      supportedSystems = [ "x86_64-linux" ];
 
       forAllSystems = nixpkgs.lib.genAttrs supportedSystems;
       overlays = import ./overlays { inherit inputs; };
@@ -173,7 +170,7 @@
         }
       );
 
-      mylib = import ./lib { inherit lib; };
+      mylib = import ./lib { inherit nixpkgs; };
 
       nixosSystem =
         hostName:
@@ -186,7 +183,7 @@
               mylib
               ;
           };
-          modules = [ ./hosts/${hostName} ];
+          modules = [ ] ++ (mylib.scanPath { path = ./hosts/${hostName}; });
         };
     in
     {
@@ -205,7 +202,7 @@
 
       formatter = forAllSystems (system: nixpkgs.legacyPackages.${system}.nixfmt-rfc-style);
       nixosModules = import ./modules/nixos;
-      commonModules = import ./modules/common;
+      commonModules = (mylib.scanPath { path = ./modules/common; });
       homeManagerModules = import ./modules/home-manager;
       nixosConfigurations = {
         thor-wsl = nixosSystem "thor-wsl";

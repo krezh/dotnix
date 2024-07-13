@@ -7,5 +7,7 @@
     ./bat
     ./eza
     ./git
+    ./mise
+    ./atuin
   ];
 }

@@ -5,6 +5,7 @@
   config,
   pkgs,
   hostName,
+  mylib,
   ...
 }:
 let
@@ -13,45 +14,17 @@ in
 {
   imports =
     [
-      ../../modules/common
       ./features/cli
       inputs.sops-nix.homeManagerModules.sops
       inputs.catppuccin.homeManagerModules.catppuccin
       inputs.nix-index.hmModules.nix-index
     ]
     ++ (if isDesktop then [ ./features/desktop ] else [ ])
-    ++ (builtins.attrValues outputs.homeManagerModules);
+    ++ (builtins.attrValues outputs.homeManagerModules)
+    ++ (outputs.commonModules);
 
   nixpkgs = {
     overlays = builtins.attrValues outputs.overlays;
-  };
-
-  nix = {
-    package = lib.mkDefault pkgs.nix;
-    settings = {
-      accept-flake-config = true;
-      cores = 0;
-      max-jobs = "auto";
-      experimental-features = [
-        "nix-command"
-        "flakes"
-        "repl-flake"
-      ];
-      builders-use-substitutes = true;
-      warn-dirty = false;
-      extra-substituters = [
-        "https://krezh.cachix.org"
-        "https://nix-community.cachix.org"
-        "https://hyprland.cachix.org"
-        "https://anyrun.cachix.org"
-      ];
-      extra-trusted-public-keys = [
-        "krezh.cachix.org-1:0hGx8u/mABpZkzJEBh/UMXyNon5LAXdCRqEeVn5mff8="
-        "nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs="
-        "hyprland.cachix.org-1:a7pgxzMz7+chwVL3/pzj6jIBMioiJM7ypFP8PwtkuGc="
-        "anyrun.cachix.org-1:pqBobmOjI7nKlsUMV25u9QHa9btJK65/C8vnO3p346s="
-      ];
-    };
   };
 
   programs.nix-index.enable = true;
@@ -150,29 +123,6 @@ in
     enable = true;
   };
 
-  modules.shell.mise = {
-    enable = true;
-    config = {
-      python_venv_auto_create = true;
-      status = {
-        missing_tools = "always";
-        show_env = false;
-        show_tools = false;
-      };
-    };
-  };
-
-  modules.shell.atuin = {
-    enable = true;
-    package = pkgs.atuin;
-    sync_address = "https://sh.talos.plexuz.xyz";
-    config = {
-      key_path = config.sops.secrets."atuin/key".path;
-      style = "compact";
-      workspaces = true;
-    };
-  };
-
   programs = {
     home-manager.enable = true;
     neomutt.enable = true;
@@ -182,6 +132,38 @@ in
     zoxide = {
       enable = true;
       enableFishIntegration = true;
+    };
+  };
+
+  nix = {
+    package = lib.mkDefault pkgs.nix;
+    settings = {
+      accept-flake-config = true;
+      cores = 0;
+      max-jobs = "auto";
+      experimental-features = [
+        "nix-command"
+        "flakes"
+        "repl-flake"
+      ];
+      trusted-users = [
+        "root"
+        "@wheel"
+      ];
+      builders-use-substitutes = true;
+      warn-dirty = false;
+      extra-substituters = [
+        "https://krezh.cachix.org"
+        "https://nix-community.cachix.org"
+        "https://hyprland.cachix.org"
+        "https://anyrun.cachix.org"
+      ];
+      extra-trusted-public-keys = [
+        "krezh.cachix.org-1:0hGx8u/mABpZkzJEBh/UMXyNon5LAXdCRqEeVn5mff8="
+        "nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs="
+        "hyprland.cachix.org-1:a7pgxzMz7+chwVL3/pzj6jIBMioiJM7ypFP8PwtkuGc="
+        "anyrun.cachix.org-1:pqBobmOjI7nKlsUMV25u9QHa9btJK65/C8vnO3p346s="
+      ];
     };
   };
 

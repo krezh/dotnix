@@ -1,19 +1,22 @@
-# This is your system's configuration file.
-{ inputs, pkgs, ... }:
-let
-  tuigreet = "${pkgs.greetd.tuigreet}/bin/tuigreet";
-  hyprland-session = "${inputs.hyprland.packages.${pkgs.system}.hyprland}/share/wayland-sessions";
-in
+{
+  inputs,
+  pkgs,
+  mylib,
+  config,
+  ...
+}:
 {
   imports = [
     inputs.hyprland.nixosModules.default
     inputs.hardware.nixosModules.common-cpu-intel
+    inputs.stylix.nixosModules.stylix
 
-    ../common/global
-    ../common/users/krezh
-    ./diskconfig.nix
-    ./hardware-configuration.nix
-  ];
+  ] ++ (mylib.scanPath { path = ../common/users; }) ++ (mylib.scanPath { path = ../common/global; });
+
+  stylix.enable = true;
+  stylix.autoEnable = false;
+  stylix.base16Scheme = "${pkgs.base16-schemes}/share/themes/catppuccin-mocha.yaml";
+  stylix.image = config.lib.stylix.pixel "base0A";
 
   boot = {
     plymouth = {
@@ -76,18 +79,48 @@ in
     package = inputs.hyprland.packages.${pkgs.system}.hyprland;
   };
 
-  # rtkit is optional but recommended
+  sound.enable = true;
   security.rtkit.enable = true;
   services.pipewire = {
     enable = true;
-    alsa.enable = true;
-    alsa.support32Bit = true;
-    pulse.enable = true;
-    # If you want to use JACK applications, uncomment this
-    jack.enable = true;
+    alsa = {
+      enable = true;
+      support32Bit = true;
+    };
+    pulse = {
+      enable = true;
+    };
+    jack = {
+      enable = true;
+    };
+    wireplumber = {
+      enable = true;
+    };
+    audio = {
+      enable = true;
+    };
   };
 
   services.upower.enable = true;
+
+  services.fstrim.enable = true;
+  services.libinput = {
+    enable = true;
+    mouse = {
+      accelProfile = "flat";
+    };
+    touchpad = {
+      accelProfile = "flat";
+    };
+  };
+
+  services.tlp = {
+    enable = true;
+    settings = {
+      PLATFORM_PROFILE_ON_AC = "performance";
+      PLATFORM_PROFILE_ON_BAT = "low-power";
+    };
+  };
 
   environment = {
     sessionVariables.NIXOS_OZONE_WL = "1";

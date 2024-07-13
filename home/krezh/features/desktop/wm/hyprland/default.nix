@@ -1,8 +1,4 @@
-{
-  inputs,
-  pkgs,
-  ...
-}:
+{ inputs, pkgs, ... }:
 let
   hyprlockFlake = inputs.hyprlock.packages.${pkgs.system}.hyprlock;
   anyrunFlake = inputs.anyrun.packages.${pkgs.system};
@@ -12,6 +8,9 @@ let
 in
 {
   imports = [ ];
+
+  stylix.targets.hyprland.enable = true;
+
   wayland.windowManager.hyprland = {
     enable = true;
     package = inputs.hyprland.packages.${pkgs.system}.hyprland;
@@ -45,8 +44,8 @@ in
         gaps_in = 3;
         gaps_out = 3;
         border_size = 2;
-        "col.active_border" = "${catppuccin_border}";
-        "col.inactive_border" = "${catppuccin_inactive_border}";
+        # "col.active_border" = "${catppuccin_border}";
+        # "col.inactive_border" = "${catppuccin_inactive_border}";
         layout = "dwindle";
         apply_sens_to_raw = 1; # whether to apply the sensitivity to raw input (e.g. used by games where you aim using your mouse)
       };
@@ -90,7 +89,7 @@ in
         vfr = true; # misc:no_vfr -> misc:vfr. bool, heavily recommended to leave at default on. Saves on CPU usage.
         vrr = false; # misc:vrr -> Adaptive sync of your monitor. 0 (off), 1 (on), 2 (fullscreen only). Default 0 to avoid white flashes on select hardware.
         disable_hyprland_logo = true;
-        # disable_splash_rendering = true;
+        disable_splash_rendering = true;
       };
 
       dwindle = {

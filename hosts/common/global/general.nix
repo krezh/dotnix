@@ -12,7 +12,7 @@
     inputs.home-manager.nixosModules.home-manager
     inputs.catppuccin.nixosModules.catppuccin
 
-  ] ++ (builtins.attrValues outputs.nixosModules) ++ mylib.scanPaths ./.;
+  ] ++ (builtins.attrValues outputs.nixosModules);
 
   nixpkgs = {
     overlays = builtins.attrValues outputs.overlays;

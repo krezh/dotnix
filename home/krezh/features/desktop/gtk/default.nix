@@ -13,9 +13,9 @@
 
   gtk = {
     enable = true;
-    theme = {
-      name = "Arc-Dark";
-      package = pkgs.arc-theme;
-    };
+    # theme = {
+    #   name = "Arc-Dark";
+    #   package = pkgs.arc-theme;
+    # };
   };
 }

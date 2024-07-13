@@ -1,15 +1,18 @@
-{ lib, ... }:
+{ nixpkgs, ... }:
 {
-  scanPaths =
-    path:
+  scanPath =
+    {
+      path,
+      excludeFiles ? [ ],
+    }:
     builtins.map (f: (path + "/${f}")) (
       builtins.attrNames (
-        lib.attrsets.filterAttrs (
+        nixpkgs.lib.attrsets.filterAttrs (
           path: _type:
-          (_type == "directory") # include directories
-          || (
-            (path != "default.nix") # ignore default.nix
-            && (lib.strings.hasSuffix ".nix" path) # include .nix files
+          !(builtins.elem path ([ "default.nix" ] ++ excludeFiles)) # ignore default.nix
+          && (
+            (_type == "directory") # include directories
+            || (nixpkgs.lib.strings.hasSuffix ".nix" path) # include .nix files
           )
         ) (builtins.readDir path)
       )
