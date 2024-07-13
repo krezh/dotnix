@@ -1,10 +1,5 @@
 # This is your system's configuration file.
-{
-  inputs,
-  pkgs,
-  lib,
-  ...
-}:
+{ inputs, pkgs, ... }:
 let
   tuigreet = "${pkgs.greetd.tuigreet}/bin/tuigreet";
   hyprland-session = "${inputs.hyprland.packages.${pkgs.system}.hyprland}/share/wayland-sessions";
@@ -51,44 +46,6 @@ in
       };
     };
   };
-  networking.networkmanager.enable = true;
-
-  programs.gdk-pixbuf.modulePackages = [ pkgs.librsvg ];
-
-  # services.greetd = {
-  #   enable = true;
-  #   settings = {
-  #     default_session = {
-  #       command = "${tuigreet} --time --remember --remember-session --sessions ${hyprland-session}";
-  #       user = "greeter";
-  #     };
-  #   };
-  # };
-
-  # this is a life saver.
-  # literally no documentation about this anywhere.
-  # might be good to write about this...
-  # https://www.reddit.com/r/NixOS/comments/u0cdpi/tuigreet_with_xmonad_how/
-  # systemd.services.greetd = {
-  #   enable = true;
-  #   unitConfig = {
-  #     After = lib.mkOverride 0 [ "multi-user.target" ];
-  #   };
-  #   serviceConfig = {
-  #     Type = "idle";
-  #   };
-  #   # vt = "7";
-  #   # serviceConfig = {
-  #   #   Type = "idle";
-  #   #   StandardInput = "tty";
-  #   #   StandardOutput = "tty";
-  #   #   StandardError = "journal"; # Without this errors will spam on screen
-  #   #   # Without these bootlogs will spam on screen
-  #   #   TTYReset = true;
-  #   #   TTYVHangup = true;
-  #   #   TTYVTDisallocate = true;
-  #   # };
-  # };
 
   services.displayManager = {
     sddm = {
@@ -100,6 +57,10 @@ in
     };
     defaultSession = "hyprland";
   };
+
+  networking.networkmanager.enable = true;
+
+  programs.gdk-pixbuf.modulePackages = [ pkgs.librsvg ];
 
   fonts.packages = with pkgs; [
     (nerdfonts.override {
