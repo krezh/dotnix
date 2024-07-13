@@ -145,6 +145,8 @@
       url = "git+https://github.com/anyrun-org/anyrun";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+
+    nixos-grub-themes.url = "github:jeslie0/nixos-grub-themes";
   };
 
   outputs =

@@ -4,5 +4,6 @@
     ./spotify
     ./editors
     ./browsers
+    ./chat
   ];
 }

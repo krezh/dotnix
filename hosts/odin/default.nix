@@ -15,13 +15,27 @@ in
     ./hardware-configuration.nix
   ];
 
-  # Use latest kernel
-  boot.kernelPackages = pkgs.linuxPackages_latest;
-
-  boot.loader.systemd-boot.enable = true;
-  boot.loader.efi.canTouchEfiVariables = true;
-  boot.loader.grub.device = "nodev";
-  boot.loader.systemd-boot.configurationLimit = 5;
+  boot = {
+    kernelPackages = pkgs.linuxPackages_latest; # Use latest kernel
+    loader = {
+      systemd-boot = {
+        enable = false;
+        configurationLimit = 5;
+      };
+      efi = {
+        canTouchEfiVariables = true;
+      };
+      grub = {
+        enable = true;
+        device = "nodev";
+        efiSupport = true;
+        useOSProber = true;
+        configurationLimit = 5;
+        catppuccin.enable = false;
+        theme = inputs.nixos-grub-themes.packages.${pkgs.system}.nixos;
+      };
+    };
+  };
   networking.networkmanager.enable = true;
 
   programs.gdk-pixbuf.modulePackages = [ pkgs.librsvg ];
