@@ -33,7 +33,7 @@ in
         useOSProber = true;
         configurationLimit = 5;
         catppuccin.enable = false;
-        theme = inputs.nixos-grub-themes.packages.${pkgs.system}.nixos;
+        theme = inputs.nixos-grub-themes.packages.${pkgs.system}.hyperfluent;
       };
     };
   };
