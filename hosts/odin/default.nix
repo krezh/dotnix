@@ -16,6 +16,16 @@ in
   ];
 
   boot = {
+    plymouth = {
+      enable = true;
+      catppuccin.enable = true;
+    };
+    initrd.verbose = false;
+    consoleLogLevel = 0;
+    kernelParams = [
+      "quiet"
+      "udev.log_level=0"
+    ];
     kernelPackages = pkgs.linuxPackages_latest; # Use latest kernel
     loader = {
       systemd-boot = {
@@ -32,8 +42,7 @@ in
         efiSupport = true;
         useOSProber = true;
         configurationLimit = 5;
-        catppuccin.enable = false;
-        theme = inputs.nixos-grub-themes.packages.${pkgs.system}.hyperfluent;
+        catppuccin.enable = true;
       };
     };
   };
