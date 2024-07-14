@@ -1,1 +1,6 @@
-{ imports = [ ./wlogout ]; }
+{
+  imports = [
+    ./wlogout
+    ./swww
+  ];
+}

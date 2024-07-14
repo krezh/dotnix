@@ -1,23 +1,8 @@
-{ pkgs, ... }:
+{ config, ... }:
 {
-
-  home = {
-    packages = with pkgs; [ swww ];
+  modules.desktop.swww = {
+    enable = true;
+    interval = 5 * 60;
+    path = "${config.home.file.wallpapers.source}";
   };
-
-  # systemd.user.services.swww = {
-  #   Unit = {
-  #     Description = "swww";
-  #     PartOf = [
-  #       "tray.target"
-  #       "graphical-session.target"
-  #     ];
-  #   };
-  #   Service = {
-  #     Environment = "PATH=/run/wrappers/bin:${lib.makeBinPath dependencies}";
-  #     ExecStart = "${pkgs.swww}/bin/swww-daemon";
-  #     Restart = "on-failure";
-  #   };
-  #   Install.WantedBy = [ "graphical-session.target" ];
-  # };
 }

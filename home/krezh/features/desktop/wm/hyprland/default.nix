@@ -7,7 +7,13 @@
 let
   hyprlockConfig = config.programs.hyprlock.package;
   anyrunFlake = inputs.anyrun.packages.${pkgs.system};
+  anyrun = {
+    stdin = "${anyrunFlake.stdin}/lib/libstdin.so";
+    applications = "${anyrunFlake.applications}/lib/libapplications.so";
+    bin = "${anyrunFlake.default}/bin/anyrun";
+  };
   hyprkeysFlake = inputs.hyprkeys.packages.${pkgs.system}.hyprkeys;
+  weztermConfig = config.programs.wezterm.package;
 in
 {
   imports = [ ];
@@ -15,7 +21,7 @@ in
   wayland.windowManager.hyprland = {
     enable = true;
     catppuccin.enable = true;
-    xwayland.enable = true;
+    xwayland.enable = false;
     package = inputs.hyprland.packages.${pkgs.system}.hyprland;
     systemd = {
       enable = true;
@@ -44,10 +50,19 @@ in
       };
 
       bind = [
-        "$mainMod,ESCAPE,exec,${pkgs.wlogout}/bin/wlogout}"
+        "$mainMod,ESCAPE,exec,${pkgs.wlogout}/bin/wlogout"
         "$mainMod,L,exec,${hyprlockConfig}/bin/hyprlock"
-        "$mainMod,R,exec,${anyrunFlake.default}/bin/anyrun --plugins ${anyrunFlake.applications}/lib/libapplications.so"
-        "$mainMod,K,exec,${hyprkeysFlake}/bin/hyprkeys -b -r | anyrun --plugins ${anyrunFlake.stdin}/lib/libstdin.so"
+        "$mainMod,R,exec,${anyrunFlake.default}/bin/anyrun --plugins ${anyrun.applications}"
+        "$mainMod,K,exec,${hyprkeysFlake}/bin/hyprkeys -b -r | anyrun --plugins ${anyrun.stdin}"
+        # Applications
+        "$mainMod,B,exec,${pkgs.firefox}/bin/firefox"
+        "$mainMod,E,exec,${pkgs.cinnamon.nemo}/bin/nemo"
+        "$mainMod,RETURN,exec,${weztermConfig}/bin/wezterm"
+        "$SupShft,RETURN,exec,${weztermConfig}/bin/wezterm"
+        "$mainMod,C,exec,${pkgs.clipman}/bin/clipman pick -t rofi"
+        "$mainMod,O,exec,${pkgs.obsidian}/bin/obsidian"
+        # Hyprland
+        "$mainMod,TAB,hyprexpo:expo,toggle" # can be: toggle, off/disable or on/enable
       ];
 
       input = {
@@ -61,7 +76,7 @@ in
 
       plugins = {
         hyprfocus = {
-          enabled = false;
+          enabled = true;
           animate_floating = true;
           animate_workspacechange = true;
           focus_animation = "shrink";
@@ -89,20 +104,10 @@ in
           };
         };
 
-        touch_gestures = {
-          sensitivity = 1.0;
-          workspace_swipe_fingers = 3;
-          workspace_swipe_edge = "d";
-          long_press_delay = 400;
-          experimental = {
-            send_cancel = 0;
-          };
-        };
-
         hyprexpo = {
           columns = 3;
           gap_size = 5;
-          bg_col = "rgb(111111)";
+          bg_col = "$base";
           workspace_method = "center current";
           enable_gesture = true;
           gesture_fingers = 3;
@@ -114,9 +119,9 @@ in
       general = {
         gaps_in = 3;
         gaps_out = 3;
-        border_size = 2;
-        "col.active_border" = "rgb(ff0000)";
-        "col.inactive_border" = "rgb(00ff00)";
+        border_size = 1;
+        "col.active_border" = "$blue";
+        "col.inactive_border" = "$base";
         layout = "dwindle";
         apply_sens_to_raw = 1; # whether to apply the sensitivity to raw input (e.g. used by games where you aim using your mouse)
       };
@@ -189,13 +194,12 @@ in
     };
     plugins = [
       inputs.hyprfocus.packages.${pkgs.system}.hyprfocus
-      inputs.hyprgrass.packages.${pkgs.system}.default
-      # inputs.hyprland-plugins.packages.${pkgs.system}.hyprexpo
+      inputs.hyprland-plugins.packages.${pkgs.system}.hyprexpo
     ];
   };
 
   home.packages = with pkgs; [
     inputs.xdg-portal-hyprland.packages.${pkgs.system}.default
-    wlogout
+    clipman
   ];
 }

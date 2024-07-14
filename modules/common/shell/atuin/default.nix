@@ -7,7 +7,6 @@
 let
   cfg = config.modules.shell.atuin;
   defaultConfig = import ./defaultConfig.nix { sync_address = cfg.sync_address; };
-
 in
 {
   options.modules.shell.atuin = {
