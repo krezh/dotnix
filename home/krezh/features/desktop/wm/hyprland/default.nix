@@ -12,43 +12,50 @@ in
 {
   imports = [ ];
 
-  stylix.targets.hyprland.enable = true;
-
   wayland.windowManager.hyprland = {
     enable = true;
+    catppuccin.enable = true;
+    xwayland.enable = true;
     package = inputs.hyprland.packages.${pkgs.system}.hyprland;
-    systemd.enable = true;
-    xwayland.enable = false;
+    systemd = {
+      enable = true;
+      variables = [ "--all" ]; # https://wiki.hyprland.org/Nix/Hyprland-on-Home-Manager/#programs-dont-work-in-systemd-services-but-do-on-the-terminal
+    };
+
+    #TODO: Split into separate files
+    #TODO: Remove hypr.conf
 
     extraConfig = ''
       ${builtins.readFile ./hypr.conf}
 
       # Generated from Nix
-      bind = $mainMod,ESCAPE,exec,${pkgs.wlogout}/bin/wlogout
-      bind = $mainMod,L,exec,${hyprlockConfig}/bin/hyprlock
-      bind = $mainMod,R,exec,${anyrunFlake.default}/bin/anyrun --plugins ${anyrunFlake.applications}/lib/libapplications.so
-      bind = $mainMod,K,exec,${hyprkeysFlake}/bin/hyprkeys -b -r | anyrun --plugins ${anyrunFlake.stdin}/lib/libstdin.so
       # Generated from Nix
     '';
+
     settings = {
       monitor = [ ",preferred,auto,1" ];
-      env = [
-        "XCURSOR_SIZE,32"
-        "HYPRCURSOR_SIZE,32"
-        "XCURSOR_THEME,mochaLight"
-        "HYPRCURSOR_THEME,mochaLight"
-      ];
+      "$mainMod" = "SUPER";
+      "$SupShft" = "SUPER SHIFT";
+
+      env = [ "QT_WAYLAND_DISABLE_WINDOWDECORATION,1" ];
 
       cursor = {
         enable_hyprcursor = true;
       };
 
+      bind = [
+        "$mainMod,ESCAPE,exec,${pkgs.wlogout}/bin/wlogout}"
+        "$mainMod,L,exec,${hyprlockConfig}/bin/hyprlock"
+        "$mainMod,R,exec,${anyrunFlake.default}/bin/anyrun --plugins ${anyrunFlake.applications}/lib/libapplications.so"
+        "$mainMod,K,exec,${hyprkeysFlake}/bin/hyprkeys -b -r | anyrun --plugins ${anyrunFlake.stdin}/lib/libstdin.so"
+      ];
+
       general = {
         gaps_in = 3;
         gaps_out = 3;
         border_size = 2;
-        # "col.active_border" = "${catppuccin_border}";
-        # "col.inactive_border" = "${catppuccin_inactive_border}";
+        "col.active_border" = "rgb(ff0000)";
+        "col.inactive_border" = "rgb(00ff00)";
         layout = "dwindle";
         apply_sens_to_raw = 1; # whether to apply the sensitivity to raw input (e.g. used by games where you aim using your mouse)
       };

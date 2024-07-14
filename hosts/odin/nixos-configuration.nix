@@ -13,7 +13,7 @@
 
   ] ++ (mylib.scanPath { path = ../common/users; }) ++ (mylib.scanPath { path = ../common/global; });
 
-  stylix.enable = true;
+  stylix.enable = false;
   stylix.autoEnable = false;
   stylix.base16Scheme = "${pkgs.base16-schemes}/share/themes/catppuccin-mocha.yaml";
   stylix.image = config.lib.stylix.pixel "base0A";
