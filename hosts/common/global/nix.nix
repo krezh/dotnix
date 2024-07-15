@@ -10,9 +10,10 @@
 
   nix = {
     package = pkgs.nixFlakes;
-    extraOptions = lib.optionalString (
-      config.nix.package == pkgs.nixFlakes
-    ) "experimental-features = nix-command flakes";
+    extraOptions = lib.optionalString (config.nix.package == pkgs.nixFlakes) ''
+      !include ${config.sops.templates."nix_access_token.conf".path}
+      experimental-features = nix-command flakes
+    '';
     settings = {
       trusted-users = [
         "root"

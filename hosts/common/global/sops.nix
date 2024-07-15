@@ -1,4 +1,4 @@
-{ inputs, ... }:
+{ inputs, config, ... }:
 
 {
   imports = [ inputs.sops-nix.nixosModules.sops ];
@@ -11,6 +11,12 @@
       "krezh-password" = {
         neededForUsers = true;
       };
+      "github/token" = { };
+    };
+    templates."nix_access_token.conf" = {
+      content = ''
+        access-tokens = github.com=${config.sops.placeholder."github/token"}
+      '';
     };
   };
 }
