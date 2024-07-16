@@ -79,7 +79,6 @@
     package = inputs.hyprland.packages.${pkgs.system}.hyprland;
   };
 
-  sound.enable = false;
   security.rtkit.enable = true;
   services.pipewire = {
     enable = true;
