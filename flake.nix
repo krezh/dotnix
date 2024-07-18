@@ -18,10 +18,9 @@
 
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
-    nur.url = "github:nix-community/NUR";
     flake-utils.url = "github:numtide/flake-utils";
     haumea.url = "github:nix-community/haumea/v0.2.2";
-    stylix.url = "github:danth/stylix";
+    # stylix.url = "github:danth/stylix";
 
     lix-module = {
       url = "https://git.lix.systems/lix-project/nixos-module/archive/2.90.0.tar.gz";
