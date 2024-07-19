@@ -25,7 +25,7 @@
         text = "$TIME";
         text_align = "center"; # center/right or any value for default left. multi-line text alignment inside label container
         color = "rgba(200, 200, 200, 1.0)";
-        font_size = 25;
+        font_size = 50;
         font_family = "Noto Sans";
         rotate = 0; # degrees, counter-clockwise
         position = "0, 80"; # x, y
