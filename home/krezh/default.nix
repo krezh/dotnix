@@ -55,9 +55,16 @@ in
     username = lib.mkDefault "krezh";
     homeDirectory = lib.mkDefault "/home/${config.home.username}";
     stateVersion = lib.mkDefault "24.05";
-    sessionPath = [ "$HOME/.local/bin" ];
+    sessionPath = [
+      "$HOME/.local/bin"
+      "$GOPATH/bin"
+      "$CARGO_HOME/bin"
+    ];
     sessionVariables = {
       FLAKE = "$HOME/nix-config";
+      GOPATH = "${config.xdg.dataHome}/go";
+      CARGO_HOME = "${config.xdg.dataHome}/cargo";
+      SOPS_AGE_KEY_FILE = "${config.xdg.configHome}/sops/age/keys.txt";
     };
     packages = with pkgs; [
       # doppler
@@ -81,6 +88,7 @@ in
       bottom
       ffmpeg
       yt-dlp
+      nitch
 
       # Nix
       inputs.nh.packages.${pkgs.system}.default

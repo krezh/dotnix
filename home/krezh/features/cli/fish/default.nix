@@ -8,50 +8,21 @@ let
   inherit (lib) mkIf;
   packageNames = map (p: p.pname or p.name or null) config.home.packages;
   hasPackage = name: lib.any (x: x == name) packageNames;
-  hasRipgrep = hasPackage "ripgrep";
   hasEza = hasPackage "eza";
   hasKubectl = hasPackage "kubectl";
   hasNeovim = config.programs.neovim.enable;
-  hasNeomutt = config.programs.neomutt.enable;
 in
 {
   programs.fish = {
     enable = true;
     shellAbbrs = rec {
-      jqless = "jq -C | less -r";
-
-      n = "nix";
-      nd = "nix develop -c $SHELL";
-      ns = "nix shell";
-      nsn = "nix shell nixpkgs#";
-      nb = "nix build";
-      nbn = "nix build nixpkgs#";
-      nf = "nix flake";
-
-      nr = "nixos-rebuild --flake .";
-      nrs = "nixos-rebuild --flake . switch";
-      snr = "sudo nixos-rebuild --flake .";
-      snrs = "sudo nixos-rebuild --flake . switch";
-      hm = "home-manager --flake .";
-      hms = "home-manager --flake . switch";
-
-      ls = mkIf hasEza "eza";
-      exa = mkIf hasEza "eza";
-
-      vrg = mkIf (hasNeomutt && hasRipgrep) "nvimrg";
       vim = mkIf hasNeovim "nvim";
-      vi = vim;
-      v = vim;
-
-      mutt = mkIf hasNeomutt "neomutt";
-      m = mutt;
     };
     shellAliases = {
       # Clear screen and scrollback
       clear = "printf '\\033[2J\\033[3J\\033[1;1H'";
-      df = "df -h";
-      du = "du -h";
       k = mkIf hasKubectl "kubectl";
+      ls = mkIf hasEza "eza";
     };
     plugins = [
       {
@@ -87,41 +58,9 @@ in
     functions = {
       # Disable greeting
       fish_greeting = "";
-      # Grep using ripgrep and pass to nvim
-      nvimrg = mkIf (hasNeomutt && hasRipgrep) "nvim -q (rg --vimgrep $argv | psub)";
-      # Merge history upon doing up-or-search
-      # This lets multiple fish instances share history
-      # up-or-search = # fish
-      #   ''
-      #     if commandline --search-mode
-      #       commandline -f history-search-backward
-      #       return
-      #     end
-      #     if commandline --paging-mode
-      #       commandline -f up-line
-      #       return
-      #     end
-      #     set -l lineno (commandline -L)
-      #     switch $lineno
-      #       case 1
-      #         commandline -f history-search-backward
-      #         history merge
-      #       case '*'
-      #         commandline -f up-line
-      #     end
-      #   '';
     };
     interactiveShellInit = ''
-      set -gx fish_greeting # Disable greeting
-      # Sops
-      set -gx SOPS_AGE_KEY_FILE "$XDG_CONFIG_HOME/sops/age/keys.txt"
-      # GO
-      set -gx GOPATH "$XDG_DATA_HOME/go"
-      set -gx PATH $PATH "$GOROOT/bin" "$GOPATH/bin"
-      # Cargo
-      set -gx CARGO_HOME "$XDG_DATA_HOME/cargo"
-      set -gx PATH $PATH "$CARGO_HOME/bin"
-
+      nitch
     '';
   };
 }
