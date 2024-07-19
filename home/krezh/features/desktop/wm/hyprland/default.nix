@@ -121,7 +121,7 @@ in
         "$mainMod,C,exec,${pkgs.clipman}/bin/clipman pick -t rofi"
         "$mainMod,O,exec,${pkgs.obsidian}/bin/obsidian"
         # Hyprland Plugins
-        "$mainMod,TAB,hyprexpo:expo,toggle" # can be: toggle, off/disable or on/enable
+        # "$mainMod,TAB,hyprexpo:expo,toggle" # can be: toggle, off/disable or on/enable
       ];
 
       bindm = [
@@ -169,16 +169,16 @@ in
           };
         };
 
-        hyprexpo = {
-          columns = 3;
-          gap_size = 5;
-          bg_col = "$base";
-          workspace_method = "center current";
-          enable_gesture = true;
-          gesture_fingers = 3;
-          gesture_distance = 300;
-          gesture_positive = true;
-        };
+        # hyprexpo = {
+        #   columns = 3;
+        #   gap_size = 5;
+        #   bg_col = "$base";
+        #   workspace_method = "center current";
+        #   enable_gesture = true;
+        #   gesture_fingers = 3;
+        #   gesture_distance = 300;
+        #   gesture_positive = true;
+        # };
       };
 
       general = {
@@ -259,7 +259,7 @@ in
     };
     plugins = [
       inputs.hyprfocus.packages.${pkgs.system}.hyprfocus
-      inputs.hyprland-plugins.packages.${pkgs.system}.hyprexpo
+      # inputs.hyprland-plugins.packages.${pkgs.system}.hyprexpo
     ];
   };
 
