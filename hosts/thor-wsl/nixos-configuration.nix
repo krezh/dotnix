@@ -25,6 +25,10 @@
     useWindowsDriver = true;
   };
 
+  environment.sessionVariables = {
+    PODMAN_IGNORE_CGROUPSV1_WARNING = "true";
+  };
+
   services.vscode-server.enable = true;
   services.vscode-server.enableFHS = true;
 
