@@ -89,6 +89,7 @@ in
       ffmpeg
       yt-dlp
       nitch
+      earthly
 
       # Nix
       inputs.nh.packages.${pkgs.system}.default

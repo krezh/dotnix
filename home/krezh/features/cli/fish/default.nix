@@ -60,7 +60,7 @@ in
       fish_greeting = "";
     };
     interactiveShellInit = ''
-      nitch
+      ${pkgs.nitch}/bin/nitch
     '';
   };
 }
