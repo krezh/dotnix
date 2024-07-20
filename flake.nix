@@ -143,7 +143,7 @@
     };
 
     anyrun = {
-      url = "git+https://github.com/anyrun-org/anyrun";
+      url = "github:anyrun-org/anyrun";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
@@ -200,9 +200,7 @@
       );
 
       formatter = forAllSystems (system: nixpkgs.legacyPackages.${system}.nixfmt-rfc-style);
-      nixosModules = import ./modules/nixos;
       commonModules = (mylib.scanPath { path = ./modules/common; });
-      homeManagerModules = import ./modules/home-manager;
       nixosConfigurations = {
         thor-wsl = nixosSystem "thor-wsl";
         odin = nixosSystem "odin";

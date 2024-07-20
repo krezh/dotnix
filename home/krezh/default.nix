@@ -11,16 +11,12 @@ let
   isDesktop = hostName != "thor-wsl";
 in
 {
-  imports =
-    [
-      ./features/cli
-      inputs.sops-nix.homeManagerModules.sops
-      inputs.catppuccin.homeManagerModules.catppuccin
-      inputs.nix-index.hmModules.nix-index
-    ]
-    ++ (if isDesktop then [ ./features/desktop ] else [ ])
-    ++ (builtins.attrValues outputs.homeManagerModules)
-    ++ (outputs.commonModules);
+  imports = [
+    ./features/cli
+    inputs.sops-nix.homeManagerModules.sops
+    inputs.catppuccin.homeManagerModules.catppuccin
+    inputs.nix-index.hmModules.nix-index
+  ] ++ (if isDesktop then [ ./features/desktop ] else [ ]) ++ (outputs.commonModules);
 
   nixpkgs = {
     overlays = builtins.attrValues outputs.overlays;

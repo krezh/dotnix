@@ -11,15 +11,15 @@
       "locked": {
         "lastModified": 1721135360,
         "narHash": "sha256-ZhSA0e45UxiOAjEVqkym/aULh0Dt+KHJLNda7bjx9UI=",
-        "ref": "refs/heads/master",
+        "owner": "anyrun-org",
+        "repo": "anyrun",
         "rev": "c6101a31a80b51e32e96f6a77616b609770172e0",
-        "revCount": 163,
-        "type": "git",
-        "url": "https://github.com/anyrun-org/anyrun"
+        "type": "github"
       },
       "original": {
-        "type": "git",
-        "url": "https://github.com/anyrun-org/anyrun"
+        "owner": "anyrun-org",
+        "repo": "anyrun",
+        "type": "github"
       }
     },
     "catppuccin": {
