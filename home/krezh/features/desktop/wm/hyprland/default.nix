@@ -12,8 +12,6 @@
       variables = [ "--all" ]; # https://wiki.hyprland.org/Nix/Hyprland-on-Home-Manager/#programs-dont-work-in-systemd-services-but-do-on-the-terminal
     };
 
-    #TODO: Split into separate files
-
     extraConfig = '''';
 
     settings = {
