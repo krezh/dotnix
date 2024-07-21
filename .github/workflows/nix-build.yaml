@@ -40,7 +40,10 @@ jobs:
       pull-requests: write
     strategy:
       fail-fast: false
-      matrix: ${{ fromJSON(needs.nix-matrix.outputs.matrix) }}
+      matrix:
+        host: ${{ fromJSON(needs.nix-matrix.outputs.matrix.host) }}
+        ghSystem: ${{ fromJSON(needs.nix-matrix.outputs.matrix.ghSystem) }}
+
     runs-on: ${{ matrix.ghSystem }}
     steps:
       - name: maximize build space
