@@ -31,7 +31,7 @@ jobs:
 
       - name: show output
         run: |
-          echo "hosts: ${{ steps.set-matrix.outputs.matrix }}" >> $GITHUB_STEP_SUMMARY
+          echo "${{ steps.set-matrix.outputs.matrix }} | jq" >> $GITHUB_STEP_SUMMARY
 
   nix-build:
     if: github.event.pull_request.draft == false
@@ -40,9 +40,7 @@ jobs:
       pull-requests: write
     strategy:
       fail-fast: false
-      matrix:
-        host: ${{ fromJSON(needs.nix-matrix.outputs.matrix.host) }}
-        ghSystem: ${{ fromJSON(needs.nix-matrix.outputs.matrix.ghSystem) }}
+      matrix: ${{ fromJSON(needs.nix-matrix.outputs.matrix) }}
 
     runs-on: ${{ matrix.ghSystem }}
     steps:

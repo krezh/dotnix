@@ -220,11 +220,13 @@
         attr: self.nixosConfigurations.${attr}.config.system.build.toplevel
       );
 
-      evalHosts = builtins.map (host: {
-        inherit host;
-        system = self.nixosConfigurations.${host}.pkgs.system;
-        ghSystem = mapToGh self.nixosConfigurations.${host}.pkgs.system;
-      }) (builtins.attrNames self.nixosConfigurations);
+      evalHosts = {
+        include = builtins.map (host: {
+          inherit host;
+          system = self.nixosConfigurations.${host}.pkgs.system;
+          ghSystem = mapToGh self.nixosConfigurations.${host}.pkgs.system;
+        }) (builtins.attrNames self.nixosConfigurations);
+      };
 
     };
 }
