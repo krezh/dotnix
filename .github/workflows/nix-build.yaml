@@ -31,7 +31,7 @@ jobs:
 
       - name: show output
         run: |
-          echo ${{ steps.set-matrix.outputs.matrix }} | jq >> $GITHUB_STEP_SUMMARY
+          echo ${{ toJson(steps.set-matrix.outputs.matrix) }} >> $GITHUB_STEP_SUMMARY
 
   nix-build:
     if: github.event.pull_request.draft == false
