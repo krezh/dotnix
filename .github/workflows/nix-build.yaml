@@ -15,18 +15,28 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  nix-matrix:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: cachix/install-nix-action@v27
+      - id: set-matrix
+        name: Generate Nix Matrix
+        run: |
+          set -Eeu
+          matrix="$(nix eval --json '.#evalHosts')"
+          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+
   nix-build:
     if: github.event.pull_request.draft == false
+    needs: nix-matrix
     permissions:
       pull-requests: write
     strategy:
       fail-fast: false
-      matrix:
-        include:
-          - system: odin
-            os: ubuntu-latest
-          - system: thor-wsl
-            os: ubuntu-latest
+      matrix: ${{fromJSON(needs.nix-matrix.outputs.matrix)}}
     runs-on: ${{ matrix.os }}
     steps:
       - name: maximize build space
@@ -60,20 +70,20 @@ jobs:
       - name: Garbage collect build dependencies
         run: nix-collect-garbage
 
-      - name: Build previous ${{ matrix.system }} system
+      - name: Build previous ${{ matrix.host }} system
         run: |
           nix build \
-            "github:krezh/nix-config#top.${{ matrix.system }}" \
+            "github:krezh/nix-config#top.${{ matrix.host }}" \
             -v \
             --log-format raw \
             --profile ./profile \
             --accept-flake-config
 
-      - name: Build new ${{ matrix.system }} system
+      - name: Build new ${{ matrix.host }} system
         run: |
           set -o pipefail
           nix build \
-            ".#top.${{ matrix.system }}" \
+            ".#top.${{ matrix.host }}" \
             --profile ./profile \
             --accept-flake-config \
             --fallback \
@@ -104,9 +114,9 @@ jobs:
         uses: marocchino/sticky-pull-request-comment@v2
         with:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          header: ".#top.${{ matrix.system }}"
+          header: ".#top.${{ matrix.host }}"
           message: |
-            ### Report for `${{ matrix.system }}`
+            ### Report for `${{ matrix.host }}`
 
             <summary> Version changes </summary> <br>
             <pre> ${{ steps.diff.outputs.diff }} </pre>

@@ -20,6 +20,8 @@
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
     flake-utils.url = "github:numtide/flake-utils";
     haumea.url = "github:nix-community/haumea/v0.2.2";
+    nix-github-actions.url = "github:nix-community/nix-github-actions";
+    nix-github-actions.inputs.nixpkgs.follows = "nixpkgs";
     # stylix.url = "github:danth/stylix";
 
     lix-module = {
@@ -151,7 +153,12 @@
   };
 
   outputs =
-    inputs@{ self, nixpkgs, ... }:
+    inputs@{
+      self,
+      nixpkgs,
+      nix-github-actions,
+      ...
+    }:
     let
       inherit (self) outputs;
 
@@ -184,6 +191,8 @@
           };
           modules = [ ] ++ (mylib.scanPath { path = ./hosts/${hostName}; });
         };
+
+      mapToGh = system: if system == "x86_64-linux" then "ubuntu-latest" else system;
     in
     {
       inherit overlays;
@@ -205,12 +214,16 @@
         thor-wsl = nixosSystem "thor-wsl";
         odin = nixosSystem "odin";
       };
-      top =
-        let
-          nixtop = nixpkgs.lib.genAttrs (builtins.attrNames self.nixosConfigurations) (
-            attr: self.nixosConfigurations.${attr}.config.system.build.toplevel
-          );
-        in
-        nixtop;
+
+      # Used by CI 
+      top = nixpkgs.lib.genAttrs (builtins.attrNames self.nixosConfigurations) (
+        attr: self.nixosConfigurations.${attr}.config.system.build.toplevel
+      );
+
+      evalHosts = builtins.map (host: {
+        inherit host;
+        system = mapToGh self.nixosConfigurations.${host}.pkgs.system;
+      }) (builtins.attrNames self.nixosConfigurations);
+
     };
 }
