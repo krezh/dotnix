@@ -150,6 +150,10 @@
     };
 
     nixos-grub-themes.url = "github:jeslie0/nixos-grub-themes";
+    browser-previews = {
+      url = "github:nix-community/browser-previews";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs =

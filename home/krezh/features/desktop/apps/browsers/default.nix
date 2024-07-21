@@ -1,4 +1,4 @@
-{ pkgs, ... }:
+{ pkgs, inputs, ... }:
 {
   home = {
     sessionVariables = {
@@ -11,4 +11,5 @@
       enable = true;
     };
   };
+  home.packages = with pkgs; [ inputs.browser-previews.packages.${pkgs.system}.google-chrome ];
 }
