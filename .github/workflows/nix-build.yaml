@@ -29,6 +29,10 @@ jobs:
           matrix="$(nix eval --json '.#evalHosts')"
           echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
 
+      - name: show output
+        run: |
+          echo "hosts: ${{ toJson(steps.set-matrix.outputs.matrix) }}" >> $GITHUB_STEP_SUMMARY
+
   nix-build:
     if: github.event.pull_request.draft == false
     needs: nix-matrix
@@ -37,7 +41,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix: ${{fromJSON(needs.nix-matrix.outputs.matrix)}}
-    runs-on: ${{ matrix.os }}
+    runs-on: ${{ matrix.ghSystem }}
     steps:
       - name: maximize build space
         uses: easimon/maximize-build-space@v10

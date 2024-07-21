@@ -222,7 +222,8 @@
 
       evalHosts = builtins.map (host: {
         inherit host;
-        system = mapToGh self.nixosConfigurations.${host}.pkgs.system;
+        system = self.nixosConfigurations.${host}.pkgs.system;
+        ghSystem = mapToGh self.nixosConfigurations.${host}.pkgs.system;
       }) (builtins.attrNames self.nixosConfigurations);
 
     };
