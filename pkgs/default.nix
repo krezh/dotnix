@@ -10,4 +10,6 @@ in
 {
   talosctl = callPackage ./talosctl { };
   fluxcd = callPackage ./fluxcd { };
+  brightness_script = callPackage ./brightness_script { };
+  volume_script = callPackage ./volume_script { };
 }

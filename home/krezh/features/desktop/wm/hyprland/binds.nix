@@ -34,6 +34,13 @@ in
         "$mainMod,C,exec,${pkgs.clipman}/bin/clipman pick -t rofi"
         "$mainMod,O,exec,${pkgs.obsidian}/bin/obsidian"
 
+        # Print Screen
+        "ALT,        P,          exec, grimshot copy"
+        "ALT SHIFT,  P,          exec, pkill slurp || grimshot copy area"
+
+        # Audio
+        ",XF86AudioMute,         exec, $SCRIPTS_HOME/volume mute"
+
         # Hyprland binds
         "$mainMod,Q,killactive"
         "$mainMod,V,togglefloating"
@@ -85,6 +92,16 @@ in
         "$mainMod,mouse_up,workspace,e-1"
         # Hyprland Plugins
         # "$mainMod,TAB,hyprexpo:expo,toggle" # can be: toggle, off/disable or on/enable
+      ];
+
+      binde = [
+        # Brightness
+        ",XF86MonBrightnessUp,   exec, ${pkgs.brightness_script} up"
+        ",XF86MonBrightnessDown, exec, ${pkgs.brightness_script} down"
+
+        # Audio
+        ",XF86AudioRaiseVolume,  exec, $SCRIPTS_HOME/volume up"
+        ",XF86AudioLowerVolume,  exec, $SCRIPTS_HOME/volume down"
       ];
 
       bindm = [
