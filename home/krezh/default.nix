@@ -63,7 +63,7 @@ in
       SOPS_AGE_KEY_FILE = "${config.xdg.configHome}/sops/age/keys.txt";
     };
     packages = with pkgs; [
-      # doppler
+      doppler
       wget
       curl
       jq
