@@ -14,6 +14,7 @@ let
   };
   hyprkeysFlake = inputs.hyprkeys.packages.${pkgs.system}.hyprkeys;
   weztermConfig = config.programs.wezterm.package;
+
 in
 {
   wayland.windowManager.hyprland = {
@@ -39,7 +40,7 @@ in
         "ALT SHIFT,  P,          exec, pkill slurp || grimshot copy area"
 
         # Audio
-        ",XF86AudioMute,         exec, $SCRIPTS_HOME/volume mute"
+        ",XF86AudioMute,         exec, ${pkgs.volume_script}/bin/volume_script mute"
 
         # Hyprland binds
         "$mainMod,Q,killactive"
@@ -96,12 +97,12 @@ in
 
       binde = [
         # Brightness
-        ",XF86MonBrightnessUp,   exec, ${pkgs.brightness_script} up"
-        ",XF86MonBrightnessDown, exec, ${pkgs.brightness_script} down"
+        ",XF86MonBrightnessUp,   exec, ${pkgs.brightness_script}/bin/brightness_script up"
+        ",XF86MonBrightnessDown, exec, ${pkgs.brightness_script}/bin/brightness_script down"
 
         # Audio
-        ",XF86AudioRaiseVolume,  exec, $SCRIPTS_HOME/volume up"
-        ",XF86AudioLowerVolume,  exec, $SCRIPTS_HOME/volume down"
+        ",XF86AudioRaiseVolume,  exec, ${pkgs.volume_script}/bin/volume_script up"
+        ",XF86AudioLowerVolume,  exec, ${pkgs.volume_script}/bin/volume_script down"
       ];
 
       bindm = [

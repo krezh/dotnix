@@ -114,7 +114,7 @@
   };
 
   services.tlp = {
-    enable = true;
+    enable = false;
     settings = {
       PLATFORM_PROFILE_ON_AC = "performance";
       PLATFORM_PROFILE_ON_BAT = "low-power";
@@ -129,6 +129,5 @@
       age-plugin-yubikey
     ];
   };
-
   networking.hostName = "odin";
 }
