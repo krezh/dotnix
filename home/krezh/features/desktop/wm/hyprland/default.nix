@@ -73,16 +73,16 @@
           };
         };
 
-        hyprexpo = {
-          columns = 3;
-          gap_size = 5;
-          bg_col = "$base";
-          workspace_method = "center current";
-          enable_gesture = true;
-          gesture_fingers = 3;
-          gesture_distance = 300;
-          gesture_positive = true;
-        };
+        # hyprexpo = {
+        #   columns = 3;
+        #   gap_size = 5;
+        #   bg_col = "$base";
+        #   workspace_method = "center current";
+        #   enable_gesture = true;
+        #   gesture_fingers = 3;
+        #   gesture_distance = 300;
+        #   gesture_positive = true;
+        # };
       };
 
       general = {
@@ -163,7 +163,7 @@
     };
     plugins = [
       inputs.hyprfocus.packages.${pkgs.system}.hyprfocus
-      inputs.hyprland-plugins.packages.${pkgs.system}.hyprexpo
+      # inputs.hyprland-plugins.packages.${pkgs.system}.hyprexpo
     ];
   };
 
