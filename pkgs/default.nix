@@ -12,4 +12,5 @@ in
   fluxcd = callPackage ./fluxcd { };
   brightness_script = callPackage ./brightness_script { };
   volume_script = callPackage ./volume_script { };
+  volume_brightness = callPackage ./volume_brightness { };
 }
