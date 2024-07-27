@@ -7,4 +7,9 @@
     deadnix
     nix-init
   ];
+
+  programs.winbox = {
+    enable = true;
+    openFirewall = true;
+  };
 }
