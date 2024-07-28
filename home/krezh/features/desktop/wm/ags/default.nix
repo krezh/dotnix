@@ -27,6 +27,10 @@ let
     dart-sass
     brightnessctl
     bun
+    which
+    curl
+    python3
+    upower
   ];
 
   guiDeps = with pkgs; [
@@ -64,4 +68,9 @@ in
     };
     Install.WantedBy = [ "graphical-session.target" ];
   };
+
+  home.packages = with pkgs; [
+    bun
+    sass
+  ];
 }
