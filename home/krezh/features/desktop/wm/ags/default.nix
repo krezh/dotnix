@@ -26,7 +26,7 @@ let
     networkmanager
     dart-sass
     brightnessctl
-    gnome.gnome-bluetooth
+    bun
   ];
 
   guiDeps = with pkgs; [
@@ -34,6 +34,7 @@ let
     mission-center
     overskride
     wlogout
+    gnome.gnome-bluetooth
   ];
 
   dependencies = requiredDeps ++ guiDeps;
