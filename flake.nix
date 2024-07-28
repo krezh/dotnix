@@ -20,8 +20,6 @@
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
     flake-utils.url = "github:numtide/flake-utils";
     haumea.url = "github:nix-community/haumea/v0.2.2";
-    nix-github-actions.url = "github:nix-community/nix-github-actions";
-    nix-github-actions.inputs.nixpkgs.follows = "nixpkgs";
     # stylix.url = "github:danth/stylix";
 
     lix-module = {
@@ -125,6 +123,11 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
+    ags = {
+      url = "github:Aylur/ags";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
     sops-nix = {
       url = "github:Mic92/sops-nix";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -160,12 +163,7 @@
   };
 
   outputs =
-    inputs@{
-      self,
-      nixpkgs,
-      nix-github-actions,
-      ...
-    }:
+    inputs@{ self, nixpkgs, ... }:
     let
       inherit (self) outputs;
 

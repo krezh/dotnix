@@ -29,7 +29,7 @@ in
         "$mainMod,K,exec,${hyprkeysFlake}/bin/hyprkeys -b -r | anyrun --plugins ${anyrun.stdin}"
         # Applications
         "$mainMod,B,exec,${pkgs.firefox}/bin/firefox"
-        "$mainMod,E,exec,${pkgs.cinnamon.nemo}/bin/nemo"
+        "$mainMod,E,exec,${pkgs.nemo}/bin/nemo"
         "$mainMod,RETURN,exec,${weztermConfig}/bin/wezterm"
         "$SupShft,RETURN,exec,${weztermConfig}/bin/wezterm"
         "$mainMod,C,exec,${pkgs.clipman}/bin/clipman pick -t rofi"
