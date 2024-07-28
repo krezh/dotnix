@@ -6,6 +6,9 @@ let
 in
 lib.mapPathsToAttrs {
   func = callPackage;
-  path = ./.;
+  path = [
+    ./bin
+    ./scripts
+  ];
   args = { };
 }
