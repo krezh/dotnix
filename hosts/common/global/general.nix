@@ -4,7 +4,6 @@
   outputs,
   pkgs,
   lib,
-  mylib,
   ...
 }:
 {

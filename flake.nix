@@ -170,7 +170,9 @@
       supportedSystems = [ "x86_64-linux" ];
 
       forAllSystems = nixpkgs.lib.genAttrs supportedSystems;
-      overlays = import ./overlays { inherit inputs; };
+      overlays = import ./overlays { inherit inputs lib; };
+
+      lib = nixpkgs.lib // import ./lib { inherit nixpkgs; };
 
       legacyPackages = forAllSystems (
         system:
@@ -181,8 +183,6 @@
         }
       );
 
-      mylib = import ./lib { inherit nixpkgs; };
-
       nixosSystem =
         hostName:
         nixpkgs.lib.nixosSystem {
@@ -191,10 +191,10 @@
               self
               inputs
               outputs
-              mylib
+              lib
               ;
           };
-          modules = [ ] ++ (mylib.scanPath { path = ./hosts/${hostName}; });
+          modules = [ ] ++ (lib.listNixFiles { path = ./hosts/${hostName}; });
         };
 
       mapToGh = system: if system == "x86_64-linux" then "ubuntu-latest" else system;
@@ -207,14 +207,11 @@
         let
           pkgs = legacyPackages.${system};
         in
-        import ./pkgs {
-          inherit pkgs;
-          inherit inputs;
-        }
+        import ./pkgs { inherit pkgs inputs lib; }
       );
 
       formatter = forAllSystems (system: nixpkgs.legacyPackages.${system}.nixfmt-rfc-style);
-      commonModules = (mylib.scanPath { path = ./modules/common; });
+      commonModules = (lib.listNixFiles { path = ./modules/common; });
       nixosConfigurations = {
         thor-wsl = nixosSystem "thor-wsl";
         odin = nixosSystem "odin";

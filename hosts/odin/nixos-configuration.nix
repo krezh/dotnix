@@ -1,17 +1,20 @@
 {
   inputs,
   pkgs,
-  mylib,
+  lib,
   config,
   ...
 }:
 {
-  imports = [
-    inputs.hyprland.nixosModules.default
-    inputs.hardware.nixosModules.common-cpu-intel
-    # inputs.stylix.nixosModules.stylix
+  imports =
+    [
+      inputs.hyprland.nixosModules.default
+      inputs.hardware.nixosModules.common-cpu-intel
+      # inputs.stylix.nixosModules.stylix
 
-  ] ++ (mylib.scanPath { path = ../common/users; }) ++ (mylib.scanPath { path = ../common/global; });
+    ]
+    ++ (lib.listNixFiles { path = ../common/users; })
+    ++ (lib.listNixFiles { path = ../common/global; });
 
   # stylix.enable = false;
   # stylix.autoEnable = false;

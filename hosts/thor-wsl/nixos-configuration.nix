@@ -1,16 +1,19 @@
 {
   inputs,
   modulesPath,
-  mylib,
+  lib,
   ...
 }:
 {
-  imports = [
-    inputs.nixos-wsl.nixosModules.wsl
-    inputs.vscode-server.nixosModules.default
-    (modulesPath + "/profiles/minimal.nix")
+  imports =
+    [
+      inputs.nixos-wsl.nixosModules.wsl
+      inputs.vscode-server.nixosModules.default
+      (modulesPath + "/profiles/minimal.nix")
 
-  ] ++ (mylib.scanPath { path = ../common/users; }) ++ (mylib.scanPath { path = ../common/global; });
+    ]
+    ++ (lib.listNixFiles { path = ../common/users; })
+    ++ (lib.listNixFiles { path = ../common/global; });
 
   wsl = {
     enable = true;

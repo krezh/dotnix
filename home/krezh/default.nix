@@ -86,6 +86,7 @@ in
       yt-dlp
       nitch
       earthly
+      gowall
 
       # Nix
       inputs.nh.packages.${pkgs.system}.default
