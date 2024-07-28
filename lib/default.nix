@@ -32,7 +32,8 @@
         p:
         builtins.map
           (f: {
-            name = f;
+            name =
+              if nixpkgs.lib.strings.hasSuffix ".nix" f then nixpkgs.lib.strings.removeSuffix ".nix" f else f;
             value = func (p + "/${f}") args;
           })
           (
