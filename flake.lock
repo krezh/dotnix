@@ -711,6 +711,31 @@
         "type": "github"
       }
     },
+    "hyprhook": {
+      "inputs": {
+        "hyprland": [
+          "hyprland"
+        ],
+        "systems": [
+          "hyprhook",
+          "hyprland",
+          "systems"
+        ]
+      },
+      "locked": {
+        "lastModified": 1722272026,
+        "narHash": "sha256-6M3PGHbGOrYBVMMqtQv+o64poZYWjeRYPZYaQB9KHUM=",
+        "owner": "Hyprhook",
+        "repo": "Hyprhook",
+        "rev": "b1fb35ac16ca05e44b41b8e2bf634a74a37d796f",
+        "type": "github"
+      },
+      "original": {
+        "owner": "Hyprhook",
+        "repo": "Hyprhook",
+        "type": "github"
+      }
+    },
     "hypridle": {
       "inputs": {
         "hyprlang": "hyprlang",
@@ -1568,6 +1593,7 @@
         "home-manager": "home-manager",
         "hyprfocus": "hyprfocus",
         "hyprgrass": "hyprgrass",
+        "hyprhook": "hyprhook",
         "hypridle": "hypridle",
         "hyprkeys": "hyprkeys",
         "hyprland": "hyprland",

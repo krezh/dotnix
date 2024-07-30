@@ -88,6 +88,11 @@
       inputs.hyprland.follows = "hyprland";
     };
 
+    hyprhook = {
+      url = "github:/Hyprhook/Hyprhook";
+      inputs.hyprland.follows = "hyprland";
+    };
+
     hyprland-contrib = {
       url = "github:hyprwm/contrib";
       inputs.nixpkgs.follows = "nixpkgs";
