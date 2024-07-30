@@ -40,6 +40,8 @@ in
     };
   };
 
+  services.tailscale.enable = true;
+
   home-manager = {
     extraSpecialArgs = {
       inherit inputs outputs hostName;
@@ -54,12 +56,11 @@ in
 
   environment = {
     noXlibs = lib.mkForce false;
-    etc = lib.mapAttrs' (name: value: {
-      name = "nix/path/${name}";
-      value.source = value.flake;
-    }) config.nix.registry;
+
+    #TODO Not sure what this does
+    # etc = lib.mapAttrs' (name: value: {
+    #   name = "nix/path/${name}";
+    #   value.source = value.flake;
+    # }) config.nix.registry;
   };
-
-  services.tailscale.enable = true;
-
 }

@@ -221,7 +221,7 @@
       top = nixpkgs.lib.genAttrs (builtins.attrNames self.nixosConfigurations) (
         attr: self.nixosConfigurations.${attr}.config.system.build.toplevel
       );
-
+      # Lists hosts with their system kind
       evalHosts = {
         include = builtins.map (host: {
           inherit host;
