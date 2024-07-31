@@ -6,16 +6,16 @@
 
 buildGoModule rec {
   pname = "gowall";
-  version = "0.1.0";
+  version = "0.1.4";
 
   src = fetchFromGitHub {
     owner = "Achno";
     repo = "gowall";
     rev = "v${version}";
-    hash = "sha256-4Xs9sEt4+6YWJz6QKo/ih6MXX5b9eGI9fdw5O7u68Bo=";
+    hash = "sha256-6Fyanvqqf87liJFpYZq/7pG9bZjYESJH5K5In27ZGgk=";
   };
 
-  vendorHash = "sha256-IbUOhqg3lKqV5h9MZagsnmqmCLn/gSopxWSyxHp7AJ8=";
+  vendorHash = "sha256-jNx4ehew+IBx7M6ey/rT0vb53+9OBVYSEDJv8JWfZIw=";
 
   ldflags = [
     "-s"
