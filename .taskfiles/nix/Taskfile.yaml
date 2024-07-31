@@ -3,7 +3,7 @@ version: "3"
 
 vars:
   PKGS:
-    sh: ls -1 pkgs/ -I "default.nix"
+    sh: ls -1 pkgs/bin -I "default.nix"
   HOST: $HOSTNAME
 
 tasks:

@@ -1,5 +1,5 @@
 {
-  description = "Krezh Nix Flake";
+  description = "Krezh's NixOS Flake";
 
   nixConfig = {
     extra-trusted-substituters = [
@@ -18,7 +18,7 @@
 
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
-    flake-utils.url = "github:numtide/flake-utils";
+    flake-parts.url = "github:hercules-ci/flake-parts";
     haumea.url = "github:nix-community/haumea/v0.2.2";
     # stylix.url = "github:danth/stylix";
 
@@ -161,6 +161,7 @@
     };
 
     nixos-grub-themes.url = "github:jeslie0/nixos-grub-themes";
+
     browser-previews = {
       url = "github:nix-community/browser-previews";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -168,25 +169,16 @@
   };
 
   outputs =
-    inputs@{ self, nixpkgs, ... }:
+    inputs@{
+      flake-parts,
+      nixpkgs,
+      self,
+      ...
+    }:
     let
       inherit (self) outputs;
 
-      supportedSystems = [ "x86_64-linux" ];
-
-      forAllSystems = nixpkgs.lib.genAttrs supportedSystems;
-      overlays = import ./overlays { inherit inputs lib; };
-
       lib = nixpkgs.lib // import ./lib { inherit nixpkgs; };
-
-      legacyPackages = forAllSystems (
-        system:
-        import nixpkgs {
-          inherit system;
-          overlays = builtins.attrValues overlays;
-          config.allowUnfree = true;
-        }
-      );
 
       nixosSystem =
         hostName:
@@ -202,38 +194,53 @@
           modules = [ ] ++ (lib.listNixFiles { path = ./hosts/${hostName}; });
         };
 
-      mapToGh = system: if system == "x86_64-linux" then "ubuntu-latest" else system;
-    in
-    {
-      inherit overlays;
-
-      packages = forAllSystems (
+      mapToGha =
         system:
-        let
-          pkgs = legacyPackages.${system};
-        in
-        import ./pkgs { inherit pkgs inputs lib; }
-      );
+        if system == "x86_64-linux" then
+          "ubuntu-latest"
+        else if "x86_64-darwin" then
+          "ubuntu-latest"
+        else if "aarch64-darwin" then
+          "macos-14.0"
+        else
+          system;
+    in
+    flake-parts.lib.mkFlake { inherit inputs; } {
+      systems = [
+        "x86_64-linux"
+        "x86_64-darwin"
+      ];
 
-      formatter = forAllSystems (system: nixpkgs.legacyPackages.${system}.nixfmt-rfc-style);
-      commonModules = (lib.listNixFiles { path = ./modules/common; });
-      nixosConfigurations = {
-        thor-wsl = nixosSystem "thor-wsl";
-        odin = nixosSystem "odin";
+      flake = {
+        nixosConfigurations = {
+          thor-wsl = nixosSystem "thor-wsl";
+          odin = nixosSystem "odin";
+        };
+
+        # Used by CI 
+        top = nixpkgs.lib.genAttrs (builtins.attrNames self.nixosConfigurations) (
+          attr: self.nixosConfigurations.${attr}.config.system.build.toplevel
+        );
+        # Lists hosts with their system kind for use in github actions
+        evalHosts = {
+          include = builtins.map (host: {
+            inherit host;
+            system = self.nixosConfigurations.${host}.pkgs.system;
+            ghSystem = mapToGha self.nixosConfigurations.${host}.pkgs.system;
+          }) (builtins.attrNames self.nixosConfigurations);
+        };
+
+        commonModules = (lib.listNixFiles { path = ./modules/common; });
+
+        overlays = import ./overlays { inherit inputs lib; };
       };
 
-      # Used by CI 
-      top = nixpkgs.lib.genAttrs (builtins.attrNames self.nixosConfigurations) (
-        attr: self.nixosConfigurations.${attr}.config.system.build.toplevel
-      );
-      # Lists hosts with their system kind
-      evalHosts = {
-        include = builtins.map (host: {
-          inherit host;
-          system = self.nixosConfigurations.${host}.pkgs.system;
-          ghSystem = mapToGh self.nixosConfigurations.${host}.pkgs.system;
-        }) (builtins.attrNames self.nixosConfigurations);
-      };
-
+      perSystem =
+        { inputs, pkgs, ... }:
+        {
+          packages = (import ./pkgs { inherit pkgs inputs lib; });
+          formatter = pkgs.nixfmt-rfc-style;
+        };
     };
+
 }
