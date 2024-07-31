@@ -32,7 +32,7 @@
       "quiet"
       "udev.log_level=0"
     ];
-    kernelPackages = pkgs.linuxPackages_6_10; # Use latest kernel
+    kernelPackages = pkgs.linuxPackages_zen; # Use latest kernel
     loader = {
       systemd-boot = {
         enable = false;
