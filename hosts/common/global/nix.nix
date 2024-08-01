@@ -1,19 +1,15 @@
 {
   inputs,
   lib,
-  pkgs,
-  config,
   ...
 }:
 {
   imports = [ inputs.lix-module.nixosModules.default ];
 
   nix = {
-    package = pkgs.nixFlakes;
-    extraOptions = lib.optionalString (config.nix.package == pkgs.nixFlakes) ''
-      !include ${config.sops.templates."nix_access_token.conf".path}
-      experimental-features = nix-command flakes
-    '';
+    # extraOptions = ''
+    #   !include ${config.sops.templates."nix_access_token.conf".path}
+    # '';
     settings = {
       trusted-users = [
         "root"
@@ -42,10 +38,10 @@
 
     # Add each flake input as a registry
     # To make nix3 commands consistent with the flake
-    #registry = lib.mapAttrs (_: value: { flake = value; }) inputs;
+    registry = lib.mapAttrs (_: value: { flake = value; }) inputs;
 
     # Add nixpkgs input to NIX_PATH
     # This lets nix2 commands still use <nixpkgs>
-    nixPath = [ "nixpkgs=${inputs.nixpkgs}" ];
+    nixPath = lib.mkForce [ "nixpkgs=${inputs.nixpkgs}" ];
   };
 }

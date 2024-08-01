@@ -1,9 +1,4 @@
-{ pkgs, lib, ... }:
-let
-  requiredDeps = with pkgs; [ waypaper ];
-  guiDeps = with pkgs; [ swww ];
-  dependencies = requiredDeps ++ guiDeps;
-in
+{ pkgs, ... }:
 {
   home = {
     packages = with pkgs; [ waypaper ];

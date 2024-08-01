@@ -1,10 +1,4 @@
-{
-  inputs,
-  lib,
-  pkgs,
-  config,
-  ...
-}:
+{ pkgs, ... }:
 
 {
   imports = [ ];
@@ -58,7 +52,7 @@
         timeout = 10;
       };
       urgency_normal = {
-        timeout = 60;
+        timeout = 10;
       };
       urgency_critical = {
         timeout = 0;
