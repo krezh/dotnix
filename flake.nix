@@ -32,6 +32,9 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
+    nix-inspect.url = "github:bluskript/nix-inspect";
+    nix-inspect.inputs.nixpkgs.follows = "nixpkgs";
+
     hardware.url = "github:nixos/nixos-hardware";
     catppuccin.url = "github:catppuccin/nix";
 
