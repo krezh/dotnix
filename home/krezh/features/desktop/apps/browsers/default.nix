@@ -2,7 +2,9 @@
 {
   home = {
     sessionVariables = {
-      DEFAULT_BROWSER = "${pkgs.firefox}/bin/firefox";
+      DEFAULT_BROWSER = "${
+        inputs.browser-previews.packages.${pkgs.system}.google-chrome
+      }/bin/google-chrome-stable";
     };
   };
 
