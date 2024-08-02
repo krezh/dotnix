@@ -25,7 +25,6 @@ in
             "audio"
           ]
           ++ ifTheyExist [
-            "minecraft"
             "network"
             "wireshark"
             "i2c"
@@ -56,11 +55,5 @@ in
 
   environment = {
     noXlibs = lib.mkForce false;
-
-    #TODO Not sure what this does
-    # etc = lib.mapAttrs' (name: value: {
-    #   name = "nix/path/${name}";
-    #   value.source = value.flake;
-    # }) config.nix.registry;
   };
 }
