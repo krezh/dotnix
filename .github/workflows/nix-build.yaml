@@ -21,10 +21,10 @@ jobs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
     steps:
       - uses: actions/checkout@v4
-      - uses: cachix/install-nix-action@v27
+      # - uses: cachix/install-nix-action@v27
 
-      # - name: Install Lix
-      #   run: curl -sSf -L https://install.lix.systems/lix | sh -s -- install --no-confirm --extra-conf="trusted-users = root runner"
+      - name: Install Lix
+        run: curl -sSf -L https://install.lix.systems/lix | sh -s -- install --no-confirm --extra-conf="trusted-users = root runner"
 
       - id: set-matrix
         name: Generate Nix Matrix
