@@ -11,5 +11,8 @@
     automerge: false,
     automergeType: "pr",
     ignoreTests: false,
+    constraints: {
+      "nix": "< 2.24.0"
+    },
   },
 }
