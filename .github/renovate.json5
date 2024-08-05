@@ -3,9 +3,6 @@
   nix: {
     enabled: true,
   },
-  constraints: {
-    nix: "< 2.24.0"
-  },
   lockFileMaintenance: {
     enabled: true,
     extends: ["schedule:daily"],
