@@ -12,6 +12,10 @@ let
     applications = "${anyrunFlake.applications}/lib/libapplications.so";
     bin = "${anyrunFlake.default}/bin/anyrun";
   };
+  chromeFlake = inputs.browser-previews.packages.${pkgs.system}.google-chrome;
+  chrome = {
+    bin = "${chromeFlake}/bin/google-chrome-stable";
+  };
   hyprkeysFlake = inputs.hyprkeys.packages.${pkgs.system}.hyprkeys;
   weztermConfig = config.programs.wezterm.package;
 
@@ -28,7 +32,7 @@ in
         "$mainMod,R,exec,${anyrunFlake.default}/bin/anyrun --plugins ${anyrun.applications}"
         "$mainMod,K,exec,${hyprkeysFlake}/bin/hyprkeys -b -r | anyrun --plugins ${anyrun.stdin}"
         # Applications
-        "$mainMod,B,exec,${pkgs.firefox}/bin/firefox"
+        "$mainMod,B,exec,${chrome.bin}"
         "$mainMod,E,exec,${pkgs.nemo}/bin/nemo"
         "$mainMod,RETURN,exec,${weztermConfig}/bin/wezterm"
         "$SupShft,RETURN,exec,${weztermConfig}/bin/wezterm"
@@ -36,11 +40,11 @@ in
         "$mainMod,O,exec,${pkgs.obsidian}/bin/obsidian"
 
         # Print Screen
-        "ALT,        P,          exec, grimshot copy"
-        "ALT SHIFT,  P,          exec, pkill slurp || grimshot copy area"
+        "ALT,P,exec,grimshot copy"
+        "ALT SHIFT,P,exec,pkill slurp || grimshot copy area"
 
         # Audio
-        ",XF86AudioMute,         exec, ${pkgs.volume_script}/bin/volume_script mute"
+        ",XF86AudioMute,exec,${pkgs.volume_script}/bin/volume_script mute"
 
         # Hyprland binds
         "$mainMod,Q,killactive"
