@@ -21,6 +21,7 @@
     "rtsx_usb_sdmmc"
   ];
   boot.initrd.kernelModules = [ ];
+  boot.kernelParams = [ "ipv6.disable=1" ];
   boot.kernelModules = [ "kvm-intel" ];
   boot.extraModulePackages = [ ];
 

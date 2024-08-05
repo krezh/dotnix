@@ -78,7 +78,7 @@
 
   programs.hyprland = {
     enable = true;
-    package = inputs.hyprland.packages.${pkgs.system}.hyprland;
+    #package = inputs.hyprland.packages.${pkgs.system}.hyprland;
   };
 
   security.rtkit.enable = true;
@@ -103,13 +103,16 @@
     };
   };
 
+  nixpkgs.config.packageOverrides = pkgs: {
+    intel-vaapi-driver = pkgs.intel-vaapi-driver.override { enableHybridCodec = true; };
+  };
+
   hardware = {
     graphics = {
       enable = true;
       extraPackages = with pkgs; [
         intel-media-driver # LIBVA_DRIVER_NAME=iHD
-        vaapiIntel # LIBVA_DRIVER_NAME=i965 (older but works better for Firefox/Chromium)
-        vaapiVdpau
+        intel-vaapi-driver # LIBVA_DRIVER_NAME=i965 (older but works better for Firefox/Chromium)
         libvdpau-va-gl
       ];
     };
@@ -118,6 +121,7 @@
   services.upower.enable = true;
 
   services.fstrim.enable = true;
+
   services.libinput = {
     enable = true;
     mouse = {
@@ -137,11 +141,15 @@
   };
 
   environment = {
-    sessionVariables.NIXOS_OZONE_WL = "1";
+    sessionVariables = {
+      NIXOS_OZONE_WL = "1";
+      LIBVA_DRIVER_NAME = "iHD";
+    };
     systemPackages = with pkgs; [
       liberation_ttf
       noto-fonts-emoji
       age-plugin-yubikey
+      intel-gpu-tools
     ];
   };
   networking.hostName = "odin";
