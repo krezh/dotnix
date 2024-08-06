@@ -32,6 +32,11 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
+    pre-commit-hooks = {
+      url = "github:cachix/pre-commit-hooks.nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
     nix-inspect.url = "github:bluskript/nix-inspect";
     nix-inspect.inputs.nixpkgs.follows = "nixpkgs";
 
@@ -209,6 +214,8 @@
           system;
     in
     flake-parts.lib.mkFlake { inherit inputs; } {
+      imports = [ inputs.pre-commit-hooks.flakeModule ];
+
       systems = [
         "x86_64-linux"
         "x86_64-darwin"
@@ -220,7 +227,7 @@
           odin = nixosSystem "odin";
         };
 
-        # Used by CI 
+        # Used by CI
         top = nixpkgs.lib.genAttrs (builtins.attrNames self.nixosConfigurations) (
           attr: self.nixosConfigurations.${attr}.config.system.build.toplevel
         );
@@ -241,7 +248,15 @@
       perSystem =
         { inputs, pkgs, ... }:
         {
-          packages = (import ./pkgs { inherit pkgs inputs lib; });
+          pre-commit = {
+            settings = {
+              hooks = {
+                nixfmt.enable = true;
+                nixfmt.package = pkgs.nixfmt-rfc-style;
+              };
+            };
+          };
+          packages = import ./pkgs { inherit pkgs inputs lib; };
           formatter = pkgs.nixfmt-rfc-style;
         };
     };
