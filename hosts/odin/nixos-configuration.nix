@@ -12,8 +12,8 @@
       # inputs.stylix.nixosModules.stylix
 
     ]
-    ++ (lib.listNixFiles { path = ../common/users; })
-    ++ (lib.listNixFiles { path = ../common/global; });
+    ++ (lib.scanPath.toList { path = ../common/users; })
+    ++ (lib.scanPath.toList { path = ../common/global; });
 
   # stylix.enable = false;
   # stylix.autoEnable = false;

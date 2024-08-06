@@ -15,7 +15,7 @@ in
 {
   programs.fish = {
     enable = true;
-    shellAbbrs = rec {
+    shellAbbrs = {
       vim = mkIf hasNeovim "nvim";
     };
     shellAliases = {

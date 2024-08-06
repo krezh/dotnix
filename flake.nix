@@ -174,6 +174,8 @@
       url = "github:nix-community/browser-previews";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+
+    devshell.url = "github:numtide/devshell";
   };
 
   outputs =
@@ -186,7 +188,7 @@
     let
       inherit (self) outputs;
 
-      lib = nixpkgs.lib // import ./lib { inherit nixpkgs; };
+      lib = nixpkgs.lib // import ./lib { inherit lib; };
 
       nixosSystem =
         hostName:
@@ -199,7 +201,7 @@
               lib
               ;
           };
-          modules = [ ] ++ (lib.listNixFiles { path = ./hosts/${hostName}; });
+          modules = [ ] ++ (lib.scanPath.toList { path = ./hosts/${hostName}; });
         };
 
       mapToGha =
@@ -214,7 +216,10 @@
           system;
     in
     flake-parts.lib.mkFlake { inherit inputs; } {
-      imports = [ inputs.pre-commit-hooks.flakeModule ];
+      imports = [
+        inputs.pre-commit-hooks.flakeModule
+        inputs.devshell.flakeModule
+      ];
 
       systems = [
         "x86_64-linux"
@@ -240,23 +245,42 @@
           }) (builtins.attrNames self.nixosConfigurations);
         };
 
-        commonModules = (lib.listNixFiles { path = ./modules/common; });
+        commonModules = (lib.scanPath.toList { path = ./modules/common; });
 
         overlays = import ./overlays { inherit inputs lib; };
       };
 
       perSystem =
-        { inputs, pkgs, ... }:
+        { pkgs, config, ... }:
         {
           pre-commit = {
             settings = {
               hooks = {
                 nixfmt.enable = true;
                 nixfmt.package = pkgs.nixfmt-rfc-style;
+                deadnix.enable = true;
+                shellcheck.enable = true;
               };
             };
           };
-          packages = import ./pkgs { inherit pkgs inputs lib; };
+
+          devshells.default = {
+            devshell.startup.pre-commit-hook.text = config.pre-commit.installationScript;
+            devshell = {
+              name = "Krezh";
+              motd = ''
+                ❄️ Welcome to {14}{bold}Krezh{reset}'s shell ❄️
+              '';
+            };
+            packages = with pkgs; [
+              bash
+              curl
+              jq
+              nixos-rebuild
+            ];
+          };
+
+          packages = import ./pkgs { inherit pkgs lib; };
           formatter = pkgs.nixfmt-rfc-style;
         };
     };

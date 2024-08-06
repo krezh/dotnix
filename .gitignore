@@ -4,3 +4,6 @@ result
 # Sops
 .decrypted*.sops.*
 *decrypted*
+
+# Pre-commit
+.pre-commit-config.yaml

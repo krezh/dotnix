@@ -12,8 +12,8 @@
       (modulesPath + "/profiles/minimal.nix")
 
     ]
-    ++ (lib.listNixFiles { path = ../common/users; })
-    ++ (lib.listNixFiles { path = ../common/global; });
+    ++ (lib.scanPath.toList { path = ../common/users; })
+    ++ (lib.scanPath.toList { path = ../common/global; });
 
   wsl = {
     enable = true;
