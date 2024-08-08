@@ -273,7 +273,7 @@
               '';
             };
             packages = with pkgs; [
-              bash
+              fish
               curl
               jq
               nixos-rebuild
