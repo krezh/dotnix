@@ -272,12 +272,6 @@
                 ❄️ Welcome to {14}{bold}Krezh{reset}'s shell ❄️
               '';
             };
-            packages = with pkgs; [
-              fish
-              curl
-              jq
-              nixos-rebuild
-            ];
           };
 
           packages = import ./pkgs { inherit pkgs lib; };
