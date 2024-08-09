@@ -12,11 +12,21 @@
         neededForUsers = true;
       };
       "github/token" = { };
+      "wifi/Plexuz" = { };
+      "wifi/Flyn" = { };
     };
-    templates."nix_access_token.conf" = {
-      content = ''
-        access-tokens = github.com=${config.sops.placeholder."github/token"}
-      '';
+    templates = {
+      "nix_access_token.conf" = {
+        content = ''
+          access-tokens = github.com=${config.sops.placeholder."github/token"}
+        '';
+      };
+      "networkManager.env" = {
+        content = ''
+          Plexuz=${config.sops.placeholder."wifi/Plexuz"}
+          Flyn=${config.sops.placeholder."wifi/Flyn"}
+        '';
+      };
     };
   };
 }

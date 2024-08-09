@@ -63,10 +63,9 @@ in
       SOPS_AGE_KEY_FILE = "${config.xdg.configHome}/sops/age/keys.txt";
     };
     packages = with pkgs; [
-      # doppler
+      doppler
       wget
       curl
-      jq
       ripgrep
       gh
       sops
@@ -79,7 +78,6 @@ in
       fd
       httpie
       diffsitter
-      jq
       timer
       bottom
       ffmpeg
@@ -87,6 +85,16 @@ in
       nitch
       earthly
       gowall
+      await
+      ntfy-sh
+      procs
+      hwatch
+      envsubst
+      gopls
+      # JSON
+      jq
+      jc
+      jnv
 
       # Nix      
       cachix
@@ -108,12 +116,6 @@ in
       stern
       helmfile
       kind
-
-      ntfy-sh
-      procs
-      hwatch
-      envsubst
-      gopls
     ];
   };
 
@@ -130,10 +132,13 @@ in
     neomutt.enable = true;
     yazi.enable = true;
     fzf.enable = true;
-
     zoxide = {
       enable = true;
       enableFishIntegration = true;
+    };
+    direnv = {
+      enable = true;
+      nix-direnv.enable = true;
     };
   };
 

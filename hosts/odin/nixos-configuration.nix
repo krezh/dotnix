@@ -2,6 +2,7 @@
   inputs,
   pkgs,
   lib,
+  config,
   ...
 }:
 {
@@ -67,14 +68,27 @@
 
   programs.gdk-pixbuf.modulePackages = [ pkgs.librsvg ];
 
-  fonts.packages = with pkgs; [
-    (nerdfonts.override {
-      fonts = [
-        "CascadiaCode"
-        "DroidSansMono"
-      ];
-    })
-  ];
+  fonts = {
+    fontDir.enable = true;
+    enableDefaultPackages = true;
+    packages = with pkgs; [
+      noto-fonts
+      noto-fonts-cjk
+      noto-fonts-emoji
+      liberation_ttf
+      fira-code
+      fira-code-symbols
+      mplus-outline-fonts.githubRelease
+      dina-font
+      proggyfonts
+      (nerdfonts.override {
+        fonts = [
+          "CascadiaCode"
+          "DroidSansMono"
+        ];
+      })
+    ];
+  };
 
   programs.hyprland = {
     enable = true;
@@ -146,8 +160,6 @@
       LIBVA_DRIVER_NAME = "iHD";
     };
     systemPackages = with pkgs; [
-      liberation_ttf
-      noto-fonts-emoji
       age-plugin-yubikey
       intel-gpu-tools
     ];

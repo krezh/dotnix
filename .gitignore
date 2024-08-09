@@ -7,3 +7,6 @@ result
 
 # Pre-commit
 .pre-commit-config.yaml
+
+# direnv
+.direnv
