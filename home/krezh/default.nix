@@ -143,7 +143,7 @@ in
   };
 
   nix = {
-    package = lib.mkDefault pkgs.nix;
+    # package = lib.mkDefault pkgs.nix;
     settings = {
       accept-flake-config = true;
       cores = 0;

@@ -26,6 +26,7 @@ in
           ]
           ++ ifTheyExist [
             "network"
+            "networkmanager"
             "wireshark"
             "i2c"
             "mysql"

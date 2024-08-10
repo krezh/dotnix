@@ -1,17 +1,33 @@
-{ inputs, lib, ... }:
+{
+  inputs,
+  lib,
+  config,
+  outputs,
+  ...
+}:
 {
   imports = [ inputs.lix-module.nixosModules.default ];
 
+  nixpkgs = {
+    overlays = builtins.attrValues outputs.overlays;
+    config = {
+      allowUnfree = true;
+      allowUnfreePredicate = true;
+    };
+  };
+
   nix = {
-    # extraOptions = ''
-    #   !include ${config.sops.templates."nix_access_token.conf".path}
-    # '';
+    extraOptions = ''
+      !include ${config.sops.templates."nix_access_token.conf".path}
+    '';
     settings = {
+      keep-outputs = true;
+      keep-derivations = true;
       trusted-users = [
         "root"
         "@wheel"
       ];
-      auto-optimise-store = lib.mkDefault true;
+      auto-optimise-store = true;
       experimental-features = [
         "nix-command"
         "flakes"

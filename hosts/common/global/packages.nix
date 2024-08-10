@@ -11,10 +11,10 @@
     inputs.nix-inspect.packages.${pkgs.system}.default
   ];
 
-  programs.winbox = {
-    enable = true;
-    openFirewall = true;
-  };
+  # programs.winbox = {
+  #   enable = true;
+  #   openFirewall = true;
+  # };
 
   programs.nh = {
     enable = true;

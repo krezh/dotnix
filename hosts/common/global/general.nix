@@ -1,7 +1,6 @@
 # This file (and the global directory) holds config that i use on all hosts
 {
   inputs,
-  outputs,
   pkgs,
   lib,
   ...
@@ -11,14 +10,6 @@
     inputs.home-manager.nixosModules.home-manager
     inputs.catppuccin.nixosModules.catppuccin
   ];
-
-  nixpkgs = {
-    overlays = builtins.attrValues outputs.overlays;
-    config = {
-      allowUnfree = true;
-      allowUnfreePredicate = true;
-    };
-  };
 
   catppuccin = {
     enable = true;

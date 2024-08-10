@@ -29,6 +29,9 @@
     useWindowsDriver = true;
   };
 
+  # services.vscode-server.enable = true;
+  # services.vscode-server.enableFHS = true;
+
   programs.nix-ld = {
     enable = true;
     package = pkgs.nix-ld-rs;
@@ -37,9 +40,6 @@
   environment.sessionVariables = {
     PODMAN_IGNORE_CGROUPSV1_WARNING = "true";
   };
-
-  # services.vscode-server.enable = true;
-  # services.vscode-server.enableFHS = true;
 
   boot.isContainer = true;
 

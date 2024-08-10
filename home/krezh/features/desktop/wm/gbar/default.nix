@@ -11,11 +11,7 @@ let
     bash
   ];
 
-  guiDeps = with pkgs; [
-
-  ];
-
-  dependencies = requiredDeps ++ guiDeps;
+  dependencies = requiredDeps;
 
   cfg = config.programs.gBar;
 in

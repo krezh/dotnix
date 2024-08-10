@@ -1,7 +1,7 @@
 { ... }:
 {
   modules.shell.mise = {
-    enable = true;
+    enable = false;
     config = {
       python_venv_auto_create = true;
       status = {

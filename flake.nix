@@ -73,13 +73,9 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    # Hyprland
-    hyprland = {
-      type = "git";
-      url = "https://github.com/hyprwm/Hyprland";
-      ref = "refs/tags/v0.41.2";
-      submodules = true;
-    };
+    ### Hyprland
+    hyprland.url = "git+https://github.com/hyprwm/Hyprland?submodules=1";
+    xdg-portal-hyprland.url = "github:hyprwm/xdg-desktop-portal-hyprland";
 
     hyprland-plugins = {
       url = "github:hyprwm/hyprland-plugins";
@@ -106,23 +102,11 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    hypridle = {
-      url = "github:hyprwm/hypridle";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-
-    hyprlock = {
-      url = "github:hyprwm/hyprlock";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
+    hypridle.url = "github:hyprwm/hypridle";
+    hyprlock.url = "github:hyprwm/hyprlock";
 
     hyprkeys = {
       url = "github:hyprland-community/hyprkeys";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-
-    xdg-portal-hyprland = {
-      url = "github:hyprwm/xdg-desktop-portal-hyprland";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
@@ -133,7 +117,6 @@
 
     gBar = {
       url = "github:scorpion-26/gBar";
-      inputs.nixpkgs.follows = "nixpkgs";
     };
 
     ags = {
@@ -148,7 +131,7 @@
 
     nixvim = {
       url = "github:nix-community/nixvim";
-      inputs.nixpkgs.follows = "nixpkgs";
+      #inputs.nixpkgs.follows = "nixpkgs";
     };
 
     nixos-wsl = {
@@ -254,6 +237,7 @@
         { pkgs, config, ... }:
         {
           pre-commit = {
+            check.enable = true;
             settings = {
               hooks = {
                 nixfmt.enable = true;

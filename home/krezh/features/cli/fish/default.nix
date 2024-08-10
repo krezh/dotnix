@@ -10,7 +10,7 @@ let
   hasPackage = name: lib.any (x: x == name) packageNames;
   hasEza = hasPackage "eza";
   hasKubectl = hasPackage "kubectl";
-  hasNeovim = config.programs.neovim.enable;
+  hasNeovim = config.programs.neovim.enable or config.programs.nixvim.enable;
 in
 {
   programs.fish = {
