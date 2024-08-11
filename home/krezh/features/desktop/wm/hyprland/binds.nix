@@ -19,6 +19,18 @@ let
   hyprkeysFlake = inputs.hyprkeys.packages.${pkgs.system}.hyprkeys;
   weztermConfig = config.programs.wezterm.package;
 
+  volume_script =
+    if config.modules.desktop.hyprpanel.enable then
+      "${pkgs.volume_script_hyprpanel}/bin/volume_script_hyprpanel"
+    else
+      "${pkgs.volume_script}/bin/volume_script";
+
+  brightness_script =
+    if config.modules.desktop.hyprpanel.enable then
+      "${pkgs.brightness_script_hyprpanel}/bin/brightness_script_hyprpanel"
+    else
+      "${pkgs.brightness_script}/bin/brightness_script";
+
 in
 {
   wayland.windowManager.hyprland = {
@@ -44,7 +56,7 @@ in
         "ALT SHIFT,P,exec,pkill slurp || grimshot copy area"
 
         # Audio
-        ",XF86AudioMute,exec,${pkgs.volume_script}/bin/volume_script mute"
+        ",XF86AudioMute,exec,${volume_script}/bin/volume_script mute"
 
         # Hyprland binds
         "$mainMod,Q,killactive"
@@ -101,12 +113,12 @@ in
 
       binde = [
         # Brightness
-        ",XF86MonBrightnessUp,   exec, ${pkgs.brightness_script}/bin/brightness_script up"
-        ",XF86MonBrightnessDown, exec, ${pkgs.brightness_script}/bin/brightness_script down"
+        ",XF86MonBrightnessUp,   exec, ${brightness_script} up"
+        ",XF86MonBrightnessDown, exec, ${brightness_script} down"
 
         # Audio
-        ",XF86AudioRaiseVolume,  exec, ${pkgs.volume_script}/bin/volume_script up"
-        ",XF86AudioLowerVolume,  exec, ${pkgs.volume_script}/bin/volume_script down"
+        ",XF86AudioRaiseVolume,  exec, ${volume_script} up"
+        ",XF86AudioLowerVolume,  exec, ${volume_script} down"
       ];
 
       bindm = [

@@ -61,6 +61,7 @@ in
           "SWWW_TRANSITION_BEZIER"
         ];
         ExecStart = "${swww}/bin/swww-daemon";
+        Restart = "on-failure";
       };
       Install.WantedBy = [
         (lib.mkIf config.wayland.windowManager.hyprland.systemd.enable "hyprland-session.target")
@@ -79,6 +80,7 @@ in
       Service = {
         PassEnvironment = [ "PATH" ];
         ExecStart = "${swww-random}/bin/swww-random ${cfg.path} ${toString cfg.interval}";
+        Restart = "on-failure";
       };
       Install.WantedBy = [
         (lib.mkIf config.wayland.windowManager.hyprland.systemd.enable "hyprland-session.target")

@@ -1,7 +1,7 @@
 {
   imports = [
     ./hyprland
-    ./ags
+    ./hyprpanel
     #./gbar
     ./swww
     ./waypaper
