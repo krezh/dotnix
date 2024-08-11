@@ -60,7 +60,7 @@ in
       FLAKE = "$HOME/nix-config";
       GOPATH = "${config.xdg.dataHome}/go";
       CARGO_HOME = "${config.xdg.dataHome}/cargo";
-      SOPS_AGE_KEY_FILE = "${config.xdg.configHome}/sops/age/keys.txt";
+      SOPS_AGE_KEY_FILE = "${config.sops.age.keyFile}";
     };
     packages = with pkgs; [
       doppler
