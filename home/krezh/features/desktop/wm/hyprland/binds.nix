@@ -108,7 +108,7 @@ in
         "$mainMod,mouse_down,workspace,e+1"
         "$mainMod,mouse_up,workspace,e-1"
         # Hyprland Plugins
-        # "$mainMod,TAB,hyprexpo:expo,toggle" # can be: toggle, off/disable or on/enable
+        "$mainMod,TAB,hyprexpo:expo,toggle" # can be: toggle, off/disable or on/enable
       ];
 
       binde = [

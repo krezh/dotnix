@@ -5,5 +5,6 @@
     ./atuin
     ./krew
     ./kubectx
+    ./aria2
   ];
 }

@@ -22,7 +22,7 @@
     plugins = [
       inputs.hyprfocus.packages.${pkgs.system}.hyprfocus
       # inputs.hyprhook.packages.${pkgs.system}.hyprhook
-      # inputs.hyprland-plugins.packages.${pkgs.system}.hyprexpo
+      inputs.hyprland-plugins.packages.${pkgs.system}.hyprexpo
     ];
   };
 

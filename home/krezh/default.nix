@@ -119,13 +119,9 @@ in
     ];
   };
 
-  modules.shell.krew = {
-    enable = true;
-  };
-
-  modules.shell.kubectx = {
-    enable = true;
-  };
+  modules.shell.krew.enable = true;
+  modules.shell.kubectx.enable = true;
+  modules.shell.aria2.enable = true;
 
   programs = {
     home-manager.enable = true;
