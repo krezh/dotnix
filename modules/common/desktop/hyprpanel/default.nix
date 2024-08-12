@@ -23,7 +23,7 @@ in
 
   config = lib.mkIf cfg.enable {
     home = {
-      packages = [ hyprpanelFlake ];
+      packages = [ cfg.package ];
       sessionVariables = { };
     };
 
@@ -31,15 +31,15 @@ in
 
     systemd.user.services.hyprpanel = {
       Unit = {
-        Description = "A Solution to your Wayland Wallpaper Woes";
-        Documentation = "https://github.com/Horus645/swww";
+        Description = "A Bar/Panel for Hyprland with extensive customizability.";
+        Documentation = "https://github.com/Jas-SinghFSU/HyprPanel";
       };
       Service = {
         PassEnvironment = [
           "PATH"
           "XDG_RUNTIME_DIR"
         ];
-        ExecStart = "${hyprpanelFlake}/bin/hyprpanel";
+        ExecStart = "${cfg.package}/bin/hyprpanel";
         Restart = "on-failure";
       };
       Install.WantedBy = [
