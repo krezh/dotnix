@@ -102,8 +102,15 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    hypridle.url = "github:hyprwm/hypridle";
-    hyprlock.url = "github:hyprwm/hyprlock";
+    hypridle = {
+      url = "github:hyprwm/hypridle";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
+    hyprlock = {
+      url = "github:hyprwm/hyprlock";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
 
     hyprkeys = {
       url = "github:hyprland-community/hyprkeys";

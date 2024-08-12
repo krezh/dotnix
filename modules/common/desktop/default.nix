@@ -3,5 +3,6 @@
     ./wlogout
     ./swww
     ./hyprpanel
+    ./vesktop
   ];
 }

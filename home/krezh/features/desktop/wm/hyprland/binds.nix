@@ -5,19 +5,37 @@
   ...
 }:
 let
-  hyprlockConfig = config.programs.hyprlock.package;
-  anyrunFlake = inputs.anyrun.packages.${pkgs.system};
+  hyprlock = {
+    pkg = config.programs.hyprlock.package;
+    bin = "${hyprlock.pkg}/bin/hyprlock";
+  };
+
+  clipman = {
+    pkg = pkgs.clipman;
+    bin = "${clipman.pkg}/bin/clipman";
+  };
+
   anyrun = {
-    stdin = "${anyrunFlake.stdin}/lib/libstdin.so";
-    applications = "${anyrunFlake.applications}/lib/libapplications.so";
-    bin = "${anyrunFlake.default}/bin/anyrun";
+    pkg = inputs.anyrun.packages.${pkgs.system};
+    stdin = "${anyrun.pkg.stdin}/lib/libstdin.so";
+    apps = "${anyrun.pkg.applications}/lib/libapplications.so";
+    bin = "${anyrun.pkg.default}/bin/anyrun";
   };
-  chromeFlake = inputs.browser-previews.packages.${pkgs.system}.google-chrome;
+
   chrome = {
-    bin = "${chromeFlake}/bin/google-chrome-stable";
+    pkg = inputs.browser-previews.packages.${pkgs.system}.google-chrome;
+    bin = "${chrome.pkg}/bin/google-chrome-stable";
   };
-  hyprkeysFlake = inputs.hyprkeys.packages.${pkgs.system}.hyprkeys;
-  weztermConfig = config.programs.wezterm.package;
+
+  hyprkeys = {
+    pkg = inputs.hyprkeys.packages.${pkgs.system}.hyprkeys;
+    bin = "${hyprkeys.pkg}/bin/hyprkeys";
+  };
+
+  wezterm = {
+    pkg = config.programs.wezterm.package;
+    bin = "${wezterm.pkg}/bin/wezterm";
+  };
 
   volume_script =
     if config.modules.desktop.hyprpanel.enable then
@@ -31,6 +49,11 @@ let
     else
       "${pkgs.brightness_script}/bin/brightness_script";
 
+  grimblast = {
+    pkg = inputs.hyprland-contrib.packages.${pkgs.system}.grimblast;
+    bin = "${grimblast.pkg}/bin/grimblast";
+  };
+
 in
 {
   wayland.windowManager.hyprland = {
@@ -40,23 +63,23 @@ in
 
       bind = [
         "$mainMod,ESCAPE,exec,${pkgs.wlogout}/bin/wlogout"
-        "$mainMod,L,exec,${hyprlockConfig}/bin/hyprlock"
-        "$mainMod,R,exec,${anyrunFlake.default}/bin/anyrun --plugins ${anyrun.applications}"
-        "$mainMod,K,exec,${hyprkeysFlake}/bin/hyprkeys -b -r | anyrun --plugins ${anyrun.stdin}"
+        "$mainMod,L,exec,${hyprlock.bin} --immediate"
+        "$mainMod,R,exec,${anyrun.bin} --plugins ${anyrun.apps}"
+        "$mainMod,K,exec,${hyprkeys.bin} -b -r | ${anyrun.bin} --plugins ${anyrun.stdin}"
         # Applications
         "$mainMod,B,exec,${chrome.bin}"
         "$mainMod,E,exec,${pkgs.nemo}/bin/nemo"
-        "$mainMod,RETURN,exec,${weztermConfig}/bin/wezterm"
-        "$SupShft,RETURN,exec,${weztermConfig}/bin/wezterm"
-        "$mainMod,C,exec,${pkgs.clipman}/bin/clipman pick -t rofi"
+        "$mainMod,RETURN,exec,${wezterm.bin}"
+        "$SupShft,RETURN,exec,[floating] ${wezterm.bin}"
+        "$mainMod,C,exec,${clipman.bin} pick -t rofi"
         "$mainMod,O,exec,${pkgs.obsidian}/bin/obsidian"
 
         # Print Screen
-        "ALT,P,exec,grimshot copy"
-        "ALT SHIFT,P,exec,pkill slurp || grimshot copy area"
+        "ALT,P,exec,${grimblast.bin} --notify copy"
+        "ALT SHIFT,P,exec,${grimblast.bin} --notify --freeze copy area || notify-send 'Grimblast'"
 
         # Audio
-        ",XF86AudioMute,exec,${volume_script}/bin/volume_script mute"
+        ",XF86AudioMute,exec,${volume_script} mute"
 
         # Hyprland binds
         "$mainMod,Q,killactive"

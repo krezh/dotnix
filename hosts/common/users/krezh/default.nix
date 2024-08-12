@@ -43,6 +43,7 @@ in
   services.tailscale.enable = true;
 
   home-manager = {
+    backupFileExtension = "bk";
     extraSpecialArgs = {
       inherit inputs outputs hostName;
     };
