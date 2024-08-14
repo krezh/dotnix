@@ -1,8 +1,9 @@
 ---
 name: Build and diff Nix systems
 
-on: #
+on:
   pull_request:
+  workflow_dispatch:
   push:
     branches:
       - main
