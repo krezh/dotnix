@@ -129,8 +129,8 @@ jobs:
         id: diff
         run: |
           { 
-            nix profile diff-closures --profile ./profile
-            delimiter="$(openssl rand -hex 16)"
+            nix profile diff-closures --profile ./profile;
+            delimiter="$(openssl rand -hex 16)";
             echo "diff<<${delimiter}";
             nix profile diff-closures --profile ./profile | perl -pe 's/\e\[[0-9;]*m(?:\e\[K)?//g';
             echo "${delimiter}";
