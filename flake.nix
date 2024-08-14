@@ -29,6 +29,9 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
+    attic.url = "github:zhaofengli/attic";
+    attic.inputs.nixpkgs.follows = "nixpkgs";
+
     nix-update = {
       url = "github:Mic92/nix-update";
       inputs.nixpkgs.follows = "nixpkgs";
