@@ -12,6 +12,8 @@
     recursive = true;
     source = ./wallpapers;
   };
+
   fonts.fontconfig.enable = true;
 
+  modules.desktop.upower-notify.enable = true;
 }

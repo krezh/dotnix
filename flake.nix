@@ -196,16 +196,6 @@
           modules = [ ] ++ (lib.scanPath.toList { path = ./hosts/${hostName}; });
         };
 
-      mapToGha =
-        system:
-        if system == "x86_64-linux" then
-          "ubuntu-latest"
-        else if "x86_64-darwin" then
-          "ubuntu-latest"
-        else if "aarch64-darwin" then
-          "macos-14.0"
-        else
-          system;
     in
     flake-parts.lib.mkFlake { inherit inputs; } {
       imports = [
@@ -228,22 +218,21 @@
         top = nixpkgs.lib.genAttrs (builtins.attrNames self.nixosConfigurations) (
           attr: self.nixosConfigurations.${attr}.config.system.build.toplevel
         );
+
         # Lists hosts with their system kind for use in github actions
         evalHosts = {
           include = builtins.map (host: {
             inherit host;
             system = self.nixosConfigurations.${host}.pkgs.system;
-            ghSystem = mapToGha self.nixosConfigurations.${host}.pkgs.system;
+            ghSystem = lib.mapToGha self.nixosConfigurations.${host}.pkgs.system;
           }) (builtins.attrNames self.nixosConfigurations);
         };
 
         commonModules = lib.scanPath.toList { path = ./modules/common; };
 
-        nixosModules.default =
-          { ... }:
-          {
-            imports = [ ] ++ (lib.scanPath.toList { path = ./modules/nixos; });
-          };
+        nixosModules.default = {
+          imports = (lib.scanPath.toList { path = ./modules/nixos; });
+        };
 
         overlays = import ./overlays { inherit inputs lib; };
       };

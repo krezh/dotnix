@@ -4,5 +4,6 @@
     ./swww
     ./hyprpanel
     ./vesktop
+    ./upower-notify
   ];
 }
