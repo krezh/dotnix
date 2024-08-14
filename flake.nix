@@ -250,7 +250,7 @@
                 shellcheck.enable = true;
                 check-shebang-scripts-are-executable.enable = true;
                 check-case-conflicts.enable = true;
-                actionlint.enable = true;
+                # actionlint.enable = true;
                 check-json.enable = true;
                 lua-ls.enable = true;
                 luacheck.enable = true;
