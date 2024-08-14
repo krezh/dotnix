@@ -3,13 +3,14 @@
   inputs,
   pkgs,
   lib,
+  outputs,
   ...
 }:
 {
   imports = [
     inputs.home-manager.nixosModules.home-manager
     inputs.catppuccin.nixosModules.catppuccin
-  ];
+  ] ++ (builtins.attrValues outputs.nixosModules);
 
   catppuccin = {
     enable = true;

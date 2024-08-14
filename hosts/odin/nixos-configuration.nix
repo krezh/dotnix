@@ -31,7 +31,7 @@
       "quiet"
       "udev.log_level=0"
     ];
-    kernelPackages = pkgs.linuxPackages_zen; # Use latest kernel
+    kernelPackages = pkgs.linuxPackages_zen;
     loader = {
       systemd-boot = {
         enable = false;
@@ -52,15 +52,51 @@
     };
   };
 
-  services.displayManager = {
-    sddm = {
-      enable = true;
-      wayland.enable = true;
-      autoNumlock = true;
-      package = pkgs.kdePackages.sddm;
-      catppuccin.enable = true;
+  nixosModules.desktop.battery.enable = true;
+
+  services = {
+    displayManager = {
+      sddm = {
+        enable = true;
+        wayland.enable = true;
+        autoNumlock = true;
+        package = pkgs.kdePackages.sddm;
+        catppuccin.enable = true;
+      };
+      defaultSession = "hyprland";
     };
-    defaultSession = "hyprland";
+
+    fstrim.enable = true;
+
+    libinput = {
+      enable = true;
+      mouse = {
+        accelProfile = "flat";
+      };
+      touchpad = {
+        accelProfile = "flat";
+      };
+    };
+
+    pipewire = {
+      enable = true;
+      alsa = {
+        enable = true;
+        support32Bit = true;
+      };
+      pulse = {
+        enable = true;
+      };
+      jack = {
+        enable = true;
+      };
+      wireplumber = {
+        enable = true;
+      };
+      audio = {
+        enable = true;
+      };
+    };
   };
 
   networking.networkmanager.enable = true;
@@ -95,28 +131,6 @@
     portalPackage = inputs.xdg-portal-hyprland.packages.${pkgs.system}.default;
   };
 
-  security.rtkit.enable = true;
-
-  services.pipewire = {
-    enable = true;
-    alsa = {
-      enable = true;
-      support32Bit = true;
-    };
-    pulse = {
-      enable = true;
-    };
-    jack = {
-      enable = true;
-    };
-    wireplumber = {
-      enable = true;
-    };
-    audio = {
-      enable = true;
-    };
-  };
-
   nixpkgs.config.packageOverrides = pkgs: {
     intel-vaapi-driver = pkgs.intel-vaapi-driver.override { enableHybridCodec = true; };
   };
@@ -132,27 +146,7 @@
     };
   };
 
-  services.upower.enable = true;
-
-  services.fstrim.enable = true;
-
-  services.libinput = {
-    enable = true;
-    mouse = {
-      accelProfile = "flat";
-    };
-    touchpad = {
-      accelProfile = "flat";
-    };
-  };
-
-  services.tlp = {
-    enable = false;
-    settings = {
-      PLATFORM_PROFILE_ON_AC = "performance";
-      PLATFORM_PROFILE_ON_BAT = "low-power";
-    };
-  };
+  security.rtkit.enable = true;
 
   environment = {
     sessionVariables = {

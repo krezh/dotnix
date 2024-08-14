@@ -91,6 +91,9 @@ in
       hwatch
       envsubst
       gopls
+      tldr
+      sd
+
       # JSON
       jq
       jc

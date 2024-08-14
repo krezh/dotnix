@@ -19,7 +19,7 @@
     );
   toAttrs =
     {
-      func,
+      func ? { },
       path,
       excludeFiles ? [ ],
       args ? { },

@@ -13,6 +13,11 @@ in
   options.modules.desktop.vesktop = {
     enable = mkEnableOption "Enable Vesktop";
 
+    package = mkOption {
+      type = pkgs.lib.types.package;
+      default = pkgs.vesktop;
+    };
+
     settings = mkOption {
       type = json.type;
       default = { };
@@ -24,7 +29,7 @@ in
   };
 
   config = mkIf cfg.enable {
-    home.packages = with pkgs; [ vesktop ];
+    home.packages = [ cfg.package ];
     xdg.configFile."vesktop/settings.json" = mkIf (cfg.settings != { }) {
       source = json.generate "settings.json" cfg.settings;
     };

@@ -13,5 +13,6 @@
       enable = true;
     };
   };
-  home.packages = with pkgs; [ inputs.browser-previews.packages.${pkgs.system}.google-chrome ];
+
+  home.packages = [ inputs.browser-previews.packages.${pkgs.system}.google-chrome ];
 }

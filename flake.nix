@@ -237,7 +237,13 @@
           }) (builtins.attrNames self.nixosConfigurations);
         };
 
-        commonModules = (lib.scanPath.toList { path = ./modules/common; });
+        commonModules = lib.scanPath.toList { path = ./modules/common; };
+
+        nixosModules.default =
+          { ... }:
+          {
+            imports = [ ] ++ (lib.scanPath.toList { path = ./modules/nixos; });
+          };
 
         overlays = import ./overlays { inherit inputs lib; };
       };
