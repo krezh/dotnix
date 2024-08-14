@@ -1,6 +1,7 @@
+---
 name: Build and diff Nix systems
 
-on:
+on: #
   pull_request:
   push:
     branches:
@@ -21,7 +22,7 @@ jobs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Install Nix
         uses: cachix/install-nix-action@v27
 
@@ -37,7 +38,7 @@ jobs:
 
       - name: show output
         run: |
-          echo ${{ toJson(steps.set-matrix.outputs.matrix) }} >> $GITHUB_STEP_SUMMARY
+          echo "${{ toJson(steps.set-matrix.outputs.matrix) }}" >> "$GITHUB_STEP_SUMMARY"
 
   nix-build:
     if: github.event.pull_request.draft == false
@@ -55,25 +56,32 @@ jobs:
         with:
           root-reserve-mb: 38912
           swap-size-mb: 4096
-          remove-dotnet: "true"
-          remove-android: "true"
-          remove-haskell: "true"
-          remove-docker-images: "true"
-          remove-codeql: "true"
+          remove-dotnet: true
+          remove-android: true
+          remove-haskell: true
+          remove-docker-images: true
+          remove-codeql: true
 
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          
+
       # - name: Install Lix
       #   run: curl -sSf -L https://install.lix.systems/lix | sh -s -- install --no-confirm --extra-conf="trusted-users = root runner"
 
       - name: Install Nix
         uses: DeterminateSystems/nix-installer-action@v13
-        
+
       - name: Set up Magic Nix Cache
         uses: DeterminateSystems/magic-nix-cache-action@v7
+
+      - name: Setup Attic cache
+        uses: ryanccn/attic-action@v0.2.1
+        with:
+          endpoint: ${{ secrets.ATTIC_ENDPOINT }}
+          cache: ${{ secrets.ATTIC_CACHE }}
+          token: ${{ secrets.ATTIC_TOKEN }}
 
       - name: Set up Cachix
         uses: cachix/cachix-action@v15
@@ -85,7 +93,7 @@ jobs:
       - name: Garbage collect build dependencies
         run: nix-collect-garbage
 
-      - name: Build previous ${{ matrix.host }} system
+      - name: Build previous "${{ matrix.host }}" system
         run: |
           nix build \
             "github:krezh/nix-config#top.${{ matrix.host }}" \
@@ -94,7 +102,7 @@ jobs:
             --profile ./profile \
             --accept-flake-config
 
-      - name: Build new ${{ matrix.host }} system
+      - name: Build new "${{ matrix.host }}" system
         run: |
           set -o pipefail
           nix build \
@@ -110,20 +118,22 @@ jobs:
         if: failure()
         run: |
           drv=$(grep "For full logs, run" /tmp/nix-build-err.log | grep -oE "/nix/store/.*.drv")
-          if [ -n $drv ]; then
-            nix log $drv
-            echo $drv
+          if [ -n "$dr"v ]; then
+            nix log "$drv"
+            echo "$drv"
           fi
           exit 1
 
       - name: Diff profile
         id: diff
         run: |
-          nix profile diff-closures --profile ./profile
-          delimiter="$(openssl rand -hex 16)"
-          echo "diff<<${delimiter}" >> "${GITHUB_OUTPUT}"
-          nix profile diff-closures --profile ./profile | perl -pe 's/\e\[[0-9;]*m(?:\e\[K)?//g' >> "${GITHUB_OUTPUT}"
-          echo "${delimiter}" >> "${GITHUB_OUTPUT}"
+          { 
+            nix profile diff-closures --profile ./profile
+            delimiter="$(openssl rand -hex 16)"
+            echo "diff<<${delimiter}";
+            nix profile diff-closures --profile ./profile | perl -pe 's/\e\[[0-9;]*m(?:\e\[K)?//g';
+            echo "${delimiter}";
+          } >> "${GITHUB_OUTPUT}"
 
       - name: Comment report in pr
         uses: marocchino/sticky-pull-request-comment@v2
