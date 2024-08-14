@@ -77,7 +77,7 @@ jobs:
         uses: DeterminateSystems/magic-nix-cache-action@v7
 
       - name: Setup Attic cache
-        uses: ryanccn/attic-action@v0.2.1
+        uses: ryanccn/attic-action@main
         with:
           endpoint: "${{ secrets.ATTIC_ENDPOINT }}"
           cache: "${{ secrets.ATTIC_CACHE }}"
