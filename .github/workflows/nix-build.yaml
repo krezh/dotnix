@@ -79,9 +79,9 @@ jobs:
       - name: Setup Attic cache
         uses: ryanccn/attic-action@v0.2.1
         with:
-          endpoint: ${{ secrets.ATTIC_ENDPOINT }}
-          cache: ${{ secrets.ATTIC_CACHE }}
-          token: ${{ secrets.ATTIC_TOKEN }}
+          endpoint: "${{ secrets.ATTIC_ENDPOINT }}"
+          cache: "${{ secrets.ATTIC_CACHE }}"
+          token: "${{ secrets.ATTIC_TOKEN }}"
 
       - name: Set up Cachix
         uses: cachix/cachix-action@v15
