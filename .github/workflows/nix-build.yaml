@@ -3,12 +3,13 @@ name: Build and diff Nix systems
 
 on:
   pull_request:
+    paths-ignore:
+      - "pkgs/**"
   workflow_dispatch:
   push:
     branches:
       - main
     paths:
-      - .github/workflows/**
       - "**.nix"
       - "flake.lock"
 

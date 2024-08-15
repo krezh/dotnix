@@ -5,7 +5,7 @@ on:
   workflow_dispatch: {}
   pull_request:
     paths: ["pkgs/**"]
-    branches: [main]
+    branches: ["main"]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.number || github.ref }}
