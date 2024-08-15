@@ -6,7 +6,6 @@ on:
   pull_request:
     paths: ["pkgs/**"]
     branches: ["main"]
-    types: [opened, reopened]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.number || github.ref }}
@@ -55,3 +54,10 @@ jobs:
           author_email: "${{ secrets.BOT_USER_ID }}+${{ secrets.BOT_USERNAME }}[bot]@users.noreply.github.com"
           branch: "${{ github.event.pull_request.head.ref }}"
           message: "Update ${{ steps.extract-values.outputs.package }} to ${{ steps.extract-values.outputs.new_version }}"
+
+  build:
+    runs-on: ubuntu-latest
+    needs: update-package
+    steps:
+      - name: Trigger Build
+        uses: ./.github/workflows/nix-build.yaml@main

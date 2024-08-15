@@ -4,6 +4,10 @@ name: Build and diff Nix systems
 on:
   pull_request:
   workflow_dispatch:
+  workflow_run:
+    workflows: ["update-pkgs"]
+    types:
+      - completed
   push:
     branches:
       - main
