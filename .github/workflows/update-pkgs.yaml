@@ -43,7 +43,7 @@ jobs:
 
       - name: "Update hashes for package: ${{ steps.extract-values.outputs.package }}"
         run: |
-          nix run github:Mic92/nix-update -- --flake--version=skip "${{ steps.extract-values.outputs.package }}"
+          nix run github:Mic92/nix-update -- --flake --version=skip "${{ steps.extract-values.outputs.package }}"
 
       - name: Push changes
         uses: actions-js/push@v1.5
