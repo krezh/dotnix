@@ -2,6 +2,7 @@
   lib,
   buildGoModule,
   fetchFromGitHub,
+  installShellFiles,
 }:
 
 buildGoModule rec {
@@ -22,6 +23,15 @@ buildGoModule rec {
     "-s"
     "-w"
   ];
+
+  nativeBuildInputs = [ installShellFiles ];
+
+  postInstall = ''
+    installShellCompletion --cmd gowall \
+      --bash <($out/bin/gowall completion bash) \
+      --fish <($out/bin/gowall completion fish) \
+      --zsh <($out/bin/gowall completion zsh)
+  '';
 
   meta = with lib; {
     description = "A tool to convert a Wallpaper's color scheme / palette";
