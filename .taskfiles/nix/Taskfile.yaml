@@ -17,7 +17,7 @@ tasks:
         msg: "nix-update not found"
     cmds:
       - for: { var: PKGS }
-        cmd: nix-update --flake --commit "{{ .ITEM }}"
+        cmd: nix-update --flake --commit --format --generate-lockfile "{{ .ITEM }}"
 
   apply:
     desc: Build and apply nix configuration

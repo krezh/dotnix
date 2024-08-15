@@ -1,0 +1,45 @@
+---
+name: Update Package
+
+on:
+  workflow_dispatch: {}
+  pull_request:
+    paths:
+      - pkgs/*
+    branches:
+      - main
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  update-package:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Generate Token
+        uses: actions/create-github-app-token@v1.10.3
+        id: app-token
+        with:
+          app-id: "${{ secrets.BOT_APP_ID }}"
+          private-key: "${{ secrets.BOT_APP_PRIVATE_KEY }}"
+          owner: "${{ github.repository_owner }}"
+
+      - uses: actions/checkout@v4
+
+      - uses: cachix/install-nix-action@v27
+        with:
+          extra_nix_config: |
+            access-tokens = github.com=${{ steps.app-token.outputs.token }}
+
+      - name: Extract values
+        id: extract-values
+        run: |
+          package=$(echo "${{ github.event.pull_request.title }}" | grep -oP --color=never 'update [^/]+/\K[^ ]+')
+          new_version=$(echo "${{ github.event.pull_request.title }}" | grep -oP --color=never '→ \K(v[^\s]+)')
+          echo "package=$package" >> $GITHUB_OUTPUT
+          echo "new_version=$new_version" >> $GITHUB_OUTPUT
+
+      - name: "Update hashes for package: ${{ steps.extract-values.outputs.package }}"
+        run: |
+          nix run github:Mic92/nix-update -- --flake --commit --format --generate-lockfile --version=skip "${{ steps.extract-values.outputs.package }}"
