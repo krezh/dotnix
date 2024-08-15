@@ -5,10 +5,7 @@ on:
   pull_request:
     paths-ignore: ["pkgs/**"]
   workflow_dispatch:
-  workflow_run:
-    workflows: ["update-pkgs"]
-    types:
-      - completed
+  workflow_call:
   push:
     branches:
       - main
