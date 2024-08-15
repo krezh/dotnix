@@ -1,6 +1,9 @@
 { pkgs, inputs, ... }:
 {
-  imports = [ inputs.anyrun.homeManagerModules.default ];
+  imports = [
+    inputs.anyrun.homeManagerModules.default
+    inputs.walker.homeManagerModules.default
+  ];
 
   programs.anyrun = {
     enable = true;
@@ -31,13 +34,21 @@
     extraCss = ''
       // Add any extra CSS here
     '';
+  };
 
-    # extraConfigFiles."some-plugin.ron".text = ''
-    #   Config(
-    #     // for any other plugin
-    #     // this file will be put in ~/.config/anyrun/some-plugin.ron
-    #     // refer to docs of xdg.configFile for available options
-    #   )
-    # '';
+  programs.walker = {
+    enable = true;
+    runAsService = true;
+
+    # All options from the config.json can be used here.
+    config = {
+      search.placeholder = "Example";
+      ui.fullscreen = true;
+      list = {
+        height = 200;
+      };
+      websearch.prefix = "?";
+      switcher.prefix = "/";
+    };
   };
 }
