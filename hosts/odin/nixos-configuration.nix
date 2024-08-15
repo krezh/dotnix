@@ -6,19 +6,9 @@
 }:
 {
   imports =
-    [
-      inputs.hyprland.nixosModules.default
-      inputs.hardware.nixosModules.common-cpu-intel
-      # inputs.stylix.nixosModules.stylix
-
-    ]
+    [ inputs.hyprland.nixosModules.default ]
     ++ (lib.scanPath.toList { path = ../common/users; })
     ++ (lib.scanPath.toList { path = ../common/global; });
-
-  # stylix.enable = false;
-  # stylix.autoEnable = false;
-  # stylix.base16Scheme = "${pkgs.base16-schemes}/share/themes/catppuccin-mocha.yaml";
-  # stylix.image = config.lib.stylix.pixel "base0A";
 
   boot = {
     plymouth = {

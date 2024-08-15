@@ -9,7 +9,6 @@
   imports =
     [
       inputs.nixos-wsl.nixosModules.wsl
-      inputs.vscode-server.nixosModules.default
       (modulesPath + "/profiles/minimal.nix")
 
     ]
@@ -28,9 +27,6 @@
     interop.includePath = true;
     useWindowsDriver = true;
   };
-
-  # services.vscode-server.enable = true;
-  # services.vscode-server.enableFHS = true;
 
   programs.nix-ld = {
     enable = true;

@@ -16,17 +16,26 @@
       "anyrun.cachix.org-1:pqBobmOjI7nKlsUMV25u9QHa9btJK65/C8vnO3p346s="
       "krezh:pqkm/pHp8LD52mFQdGjZR1Xo7RvaG3KdBK4r4FvxIlA="
     ];
+    http-connections = 128;
+    max-substitution-jobs = 128;
   };
 
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
     flake-parts.url = "github:hercules-ci/flake-parts";
-    haumea.url = "github:nix-community/haumea/v0.2.2";
-    # stylix.url = "github:danth/stylix";
+    hardware.url = "github:nixos/nixos-hardware";
+    lix-module.url = "https://git.lix.systems/lix-project/nixos-module/archive/2.91.0.tar.gz";
+    lix-module.inputs.nixpkgs.follows = "nixpkgs";
+    devshell.url = "github:numtide/devshell";
+    devshell.inputs.nixpkgs.follows = "nixpkgs";
 
-    lix-module = {
-      url = "https://git.lix.systems/lix-project/nixos-module/archive/2.91.0.tar.gz";
+    disko = {
+      url = "github:nix-community/disko";
       inputs.nixpkgs.follows = "nixpkgs";
+    };
+
+    nix-ld = {
+      url = "github:Mic92/nix-ld";
     };
 
     attic.url = "github:zhaofengli/attic";
@@ -44,22 +53,10 @@
 
     nix-inspect.url = "github:bluskript/nix-inspect";
     nix-inspect.inputs.nixpkgs.follows = "nixpkgs";
-
-    hardware.url = "github:nixos/nixos-hardware";
     catppuccin.url = "github:catppuccin/nix";
 
     nix-index = {
       url = "github:nix-community/nix-index-database";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-
-    disko = {
-      url = "github:nix-community/disko";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-
-    nix-ld = {
-      url = "github:Mic92/nix-ld";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
@@ -87,18 +84,8 @@
       inputs.hyprland.follows = "hyprland";
     };
 
-    hyprgrass = {
-      url = "github:horriblename/hyprgrass";
-      inputs.hyprland.follows = "hyprland";
-    };
-
     hyprfocus = {
       url = "github:/pyt0xic/hyprfocus";
-      inputs.hyprland.follows = "hyprland";
-    };
-
-    hyprhook = {
-      url = "github:/Hyprhook/Hyprhook";
       inputs.hyprland.follows = "hyprland";
     };
 
@@ -127,10 +114,6 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    gBar = {
-      url = "github:scorpion-26/gBar";
-    };
-
     ags = {
       url = "github:Aylur/ags";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -153,8 +136,6 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    vscode-server.url = "github:nix-community/nixos-vscode-server";
-
     wezterm = {
       url = "github:wez/wezterm?dir=nix";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -172,7 +153,10 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    devshell.url = "github:numtide/devshell";
+    jovian = {
+      url = "github:Jovian-Experiments/Jovian-NixOS";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs =
@@ -188,19 +172,21 @@
       lib = nixpkgs.lib // import ./lib { inherit lib; };
 
       nixosSystem =
-        hostName:
-        nixpkgs.lib.nixosSystem {
-          specialArgs = {
-            inherit
-              self
-              inputs
-              outputs
-              lib
-              ;
-          };
-          modules = [ ] ++ (lib.scanPath.toList { path = ./hosts/${hostName}; });
-        };
-
+        hostNames:
+        lib.genAttrs hostNames (
+          hostName:
+          lib.nixosSystem {
+            specialArgs = {
+              inherit
+                self
+                inputs
+                outputs
+                lib
+                ;
+            };
+            modules = lib.scanPath.toList { path = ./hosts/${hostName}; };
+          }
+        );
     in
     flake-parts.lib.mkFlake { inherit inputs; } {
       imports = [
@@ -214,13 +200,14 @@
       ];
 
       flake = {
-        nixosConfigurations = {
-          thor-wsl = nixosSystem "thor-wsl";
-          odin = nixosSystem "odin";
-        };
+        nixosConfigurations = nixosSystem [
+          "thor-wsl"
+          "odin"
+          "steamdeck"
+        ];
 
         # Used by CI
-        top = nixpkgs.lib.genAttrs (builtins.attrNames self.nixosConfigurations) (
+        top = lib.genAttrs (builtins.attrNames self.nixosConfigurations) (
           attr: self.nixosConfigurations.${attr}.config.system.build.toplevel
         );
 
