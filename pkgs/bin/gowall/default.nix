@@ -14,7 +14,7 @@ buildGoModule rec {
     owner = "Achno";
     repo = "gowall";
     rev = "v${version}";
-    hash = "sha256-4h7vRu1aqCGccKx2UiLSFNloqf22QUml4BHkKzzdwYA=";
+    hash = "sha256-BNksshg1yK3mQuBaC4S3HzwfJ8vW0XxfDkG7YJAF00E=";
   };
 
   vendorHash = "sha256-jNx4ehew+IBx7M6ey/rT0vb53+9OBVYSEDJv8JWfZIw=";
