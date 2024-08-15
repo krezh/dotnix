@@ -52,5 +52,5 @@ jobs:
           github_token: "${{ steps.app-token.outputs.token }}"
           author_name: "${{ secrets.BOT_USERNAME }}"
           author_email: "${{ secrets.BOT_USER_ID }}+${{ secrets.BOT_USERNAME }}[bot]@users.noreply.github.com"
-          #branch: "${{ github.event.pull_request.head.sha }}"
+          branch: "${{ github.ref_name }}"
           message: "Update ${{ steps.extract-values.outputs.package }} to ${{ steps.extract-values.outputs.new_version }}"
