@@ -27,6 +27,11 @@ jobs:
         with:
           token: "${{ steps.app-token.outputs.token }}"
 
+      - name: Setup Git User
+        run: |
+          git config --global user.name "${{ secrets.BOT_USERNAME }}"
+          git config --global user.email "${{ secrets.BOT_USER_ID }}+${{ secrets.BOT_USERNAME }}[bot]@users.noreply.github.com"
+
       - uses: cachix/install-nix-action@v27
         with:
           extra_nix_config: |
@@ -48,7 +53,5 @@ jobs:
       - name: Push changes
         uses: actions-js/push@v1.5
         with:
-          author_name: "${{ secrets.BOT_USERNAME }}"
-          author_email: "${{ secrets.BOT_USER_ID }}+${{ secrets.BOT_USERNAME }}[bot]@users.noreply.github.com"
           github_token: ${{ steps.app-token.outputs.token }}
           branch: ${{ github.ref }}
