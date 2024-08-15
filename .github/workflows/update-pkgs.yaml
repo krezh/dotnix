@@ -59,3 +59,5 @@ jobs:
     name: Build and diff Nix systems
     needs: update-package
     uses: ./.github/workflows/nix-build.yaml
+    permissions:
+      pull-requests: write
