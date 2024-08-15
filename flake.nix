@@ -20,8 +20,6 @@
       "walker.cachix.org-1:fG8q+uAaMqhsMxWjwvk0IMb4mFPFLqHjuvfwQxE4oJM="
       "walker-git.cachix.org-1:vmC0ocfPWh0S/vRAQGtChuiZBTAe4wiKDeyyXM0/7pM="
     ];
-    http-connections = 128;
-    max-substitution-jobs = 128;
   };
 
   inputs = {
