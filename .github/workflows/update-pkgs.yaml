@@ -6,6 +6,7 @@ on:
   pull_request:
     paths: ["pkgs/**"]
     branches: ["main"]
+    types: [opened, reopened]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.number || github.ref }}
