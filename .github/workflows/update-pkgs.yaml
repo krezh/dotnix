@@ -43,3 +43,9 @@ jobs:
       - name: "Update hashes for package: ${{ steps.extract-values.outputs.package }}"
         run: |
           nix run github:Mic92/nix-update -- --flake --commit --format --generate-lockfile --version=skip "${{ steps.extract-values.outputs.package }}"
+
+      - name: Commit & Push changes
+        uses: actions-js/push@v1.5
+        with:
+          github_token: ${{ steps.app-token.outputs.token }}
+          branch: ${{ github.ref }}
