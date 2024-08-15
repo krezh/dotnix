@@ -27,11 +27,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install Nix
-        uses: cachix/install-nix-action@v27
+      # - name: Install Nix
+      #   uses: cachix/install-nix-action@v27
 
-      # - name: Install Lix
-      #   run: curl -sSf -L https://install.lix.systems/lix | sh -s -- install --no-confirm --extra-conf="trusted-users = root runner"
+      - name: Install Lix
+        run: curl -sSf -L https://install.lix.systems/lix | sh -s -- install --no-confirm --extra-conf="trusted-users = root runner"
 
       - id: set-matrix
         name: Generate Nix Matrix
@@ -71,28 +71,29 @@ jobs:
         with:
           fetch-depth: 0
 
-      # - name: Install Lix
-      #   run: curl -sSf -L https://install.lix.systems/lix | sh -s -- install --no-confirm --extra-conf="trusted-users = root runner"
+      - name: Install Lix
+        run: curl -sSf -L https://install.lix.systems/lix | sh -s -- install --no-confirm --extra-conf="trusted-users = root runner"
 
-      - name: Install Nix
-        uses: DeterminateSystems/nix-installer-action@v13
+      # - name: Install Nix
+      #   uses: DeterminateSystems/nix-installer-action@v13
 
       - name: Set up Magic Nix Cache
         uses: DeterminateSystems/magic-nix-cache-action@v7
 
-      - name: Setup Attic cache
+      - name: Set up Attic
         uses: ryanccn/attic-action@v0.2.1
+        if: ${{ !github.event.pull_request.head.repo.fork }}
         with:
           endpoint: "${{ secrets.ATTIC_ENDPOINT }}"
           cache: "${{ secrets.ATTIC_CACHE }}"
           token: "${{ secrets.ATTIC_TOKEN }}"
 
-      - name: Set up Cachix
-        uses: cachix/cachix-action@v15
-        if: ${{ !github.event.pull_request.head.repo.fork }}
-        with:
-          name: krezh
-          authToken: "${{ secrets.CACHIX_AUTH_TOKEN }}"
+      # - name: Set up Cachix
+      #   uses: cachix/cachix-action@v15
+      #   if: ${{ !github.event.pull_request.head.repo.fork }}
+      #   with:
+      #     name: krezh
+      #     authToken: "${{ secrets.CACHIX_AUTH_TOKEN }}"
 
       - name: Garbage collect build dependencies
         run: nix-collect-garbage

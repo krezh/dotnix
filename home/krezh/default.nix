@@ -162,18 +162,18 @@ in
       warn-dirty = false;
       netrc-file = config.sops.secrets."attic/netrc".path;
       extra-substituters = [
-        "https://krezh.cachix.org"
+        #"https://krezh.cachix.org"
+        "https://nix-cache.plexuz.xyz/krezh"
         "https://nix-community.cachix.org"
         "https://hyprland.cachix.org"
         "https://anyrun.cachix.org"
-        "https://nix-cache.plexuz.xyz/krezh"
       ];
       extra-trusted-public-keys = [
-        "krezh.cachix.org-1:0hGx8u/mABpZkzJEBh/UMXyNon5LAXdCRqEeVn5mff8="
+        #"krezh.cachix.org-1:0hGx8u/mABpZkzJEBh/UMXyNon5LAXdCRqEeVn5mff8="
+        "krezh:pqkm/pHp8LD52mFQdGjZR1Xo7RvaG3KdBK4r4FvxIlA="
         "nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs="
         "hyprland.cachix.org-1:a7pgxzMz7+chwVL3/pzj6jIBMioiJM7ypFP8PwtkuGc="
         "anyrun.cachix.org-1:pqBobmOjI7nKlsUMV25u9QHa9btJK65/C8vnO3p346s="
-        "krezh:pqkm/pHp8LD52mFQdGjZR1Xo7RvaG3KdBK4r4FvxIlA="
       ];
     };
   };
