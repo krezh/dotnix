@@ -61,3 +61,4 @@ jobs:
     uses: ./.github/workflows/nix-build.yaml
     permissions:
       pull-requests: write
+    secrets: inherit
