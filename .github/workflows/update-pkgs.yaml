@@ -35,8 +35,9 @@ jobs:
       - name: Extract values
         id: extract-values
         run: |
-          package=$(echo "${{ github.event.pull_request.title }}" | grep -oP --color=never 'update [^/]+/\K[^ ]+')
+          package=$(echo "${{ github.event.pull_request.title }}" | grep -oP --color=never '([^ ]+/[^ ]+)')
           new_version=$(echo "${{ github.event.pull_request.title }}" | grep -oP --color=never '→ \K(v[^\s]+)')
+          package=${grep -Rl "${package}" pkgs | awk -F'/' '{print $(NF-1)}'}
           echo "package=$package" >> $GITHUB_OUTPUT
           echo "new_version=$new_version" >> $GITHUB_OUTPUT
 
