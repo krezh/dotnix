@@ -36,6 +36,7 @@
 
     nix-ld = {
       url = "github:Mic92/nix-ld";
+      inputs.nixpkgs.follows = "nixpkgs";
     };
 
     attic.url = "github:zhaofengli/attic";
@@ -43,6 +44,11 @@
 
     nix-update = {
       url = "github:Mic92/nix-update";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
+    nix-init = {
+      url = "github:nix-community/nix-init";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 

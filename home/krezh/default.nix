@@ -44,6 +44,7 @@ in
       "atuin/key" = {
         path = "${config.xdg.configHome}/atuin/key";
       };
+      "attic/netrc" = { };
     };
   };
 
@@ -159,6 +160,7 @@ in
       ];
       builders-use-substitutes = true;
       warn-dirty = false;
+      netrc-file = config.sops.secrets."attic/netrc".path;
       extra-substituters = [
         "https://krezh.cachix.org"
         "https://nix-community.cachix.org"

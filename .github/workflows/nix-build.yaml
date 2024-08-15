@@ -101,7 +101,6 @@ jobs:
         run: |
           nix build \
             "github:krezh/nix-config#top.${{ matrix.host }}" \
-            -v \
             --log-format raw \
             --profile ./profile \
             --accept-flake-config
@@ -114,7 +113,6 @@ jobs:
             --profile ./profile \
             --accept-flake-config \
             --fallback \
-            -v \
             --log-format raw \
              > >(tee stdout.log) 2> >(tee /tmp/nix-build-err.log >&2)
 
