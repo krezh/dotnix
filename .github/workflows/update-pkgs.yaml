@@ -53,6 +53,9 @@ jobs:
           author_name: "${{ secrets.BOT_USERNAME }}"
           author_email: "${{ secrets.BOT_USER_EMAIL }}"
           branch: "${{ github.event.pull_request.head.ref }}"
+          amend: true
+          rebase: true
+          force: true
           message: "Update ${{ steps.extract-values.outputs.package }} to ${{ steps.extract-values.outputs.new_version }}"
 
   nix-build:
