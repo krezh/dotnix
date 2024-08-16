@@ -4,6 +4,7 @@
   nixConfig = {
     extra-trusted-substituters = [
       "https://krezh.cachix.org"
+      "https://cache.garnix.io"
       #"https://nix-cache.plexuz.xyz/krezh"
       "https://nix-community.cachix.org"
       "https://hyprland.cachix.org"
@@ -19,6 +20,7 @@
       "anyrun.cachix.org-1:pqBobmOjI7nKlsUMV25u9QHa9btJK65/C8vnO3p346s="
       "walker.cachix.org-1:fG8q+uAaMqhsMxWjwvk0IMb4mFPFLqHjuvfwQxE4oJM="
       "walker-git.cachix.org-1:vmC0ocfPWh0S/vRAQGtChuiZBTAe4wiKDeyyXM0/7pM="
+      "cache.garnix.io:CTFPyKSLcx5RMJKfLo5EEPUObbA78b0YQ2DTCJXqr9g="
     ];
   };
 
