@@ -1,6 +1,7 @@
 { buildGoModule, fetchFromGitHub }:
 buildGoModule rec {
   pname = "gh-poi";
+  # renovate: datasource=github-releases depName=seachicken/gh-poi
   version = "0.10.1";
 
   src = fetchFromGitHub {

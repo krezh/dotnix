@@ -6,31 +6,25 @@
   lib,
   stdenv,
 }:
-
-let
-  version = "2.3.0";
-  sha256 = "sha256-ZQs1rWI31qDo/BgjrmiNnEdR2OL8bUHVz+j5VceEp2k=";
-  manifestsSha256 = "sha256-PdhR+UDquIJWtpSymtT6V7qO5fVJOkFz6RGzAx7xeb4=";
-
-  manifests = fetchzip {
-    url = "https://github.com/fluxcd/flux2/releases/download/v${version}/manifests.tar.gz";
-    hash = manifestsSha256;
-    stripRoot = false;
-  };
-in
-
 buildGoModule rec {
   pname = "fluxcd";
-  inherit version;
+  # renovate: datasource=github-releases depName=fluxcd/flux2
+  version = "2.3.0";
 
   src = fetchFromGitHub {
     owner = "fluxcd";
     repo = "flux2";
     rev = "v${version}";
-    hash = sha256;
+    hash = "sha256-ZQs1rWI31qDo/BgjrmiNnEdR2OL8bUHVz+j5VceEp2k=";
   };
 
   vendorHash = "sha256-0YH3pgFrsnh5jIsZpj/sIgfiOCTtIlPltMS5mdGz1eM=";
+
+  manifests = fetchzip {
+    url = "https://github.com/fluxcd/flux2/releases/download/v${version}/manifests.tar.gz";
+    hash = "sha256-PdhR+UDquIJWtpSymtT6V7qO5fVJOkFz6RGzAx7xeb4=";
+    stripRoot = false;
+  };
 
   postUnpack = ''
     cp -r ${manifests} source/cmd/flux/manifests
