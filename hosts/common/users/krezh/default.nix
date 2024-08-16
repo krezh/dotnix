@@ -56,6 +56,6 @@ in
   };
 
   environment = {
-    noXlibs = lib.mkForce true;
+    noXlibs = lib.mkForce false;
   };
 }
