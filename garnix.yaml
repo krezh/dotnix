@@ -11,4 +11,3 @@ builds:
     - nixosConfigurations.*
     - packages.x86_64-linux.*
     - packages.aarch64-linux.*
-    - top.*
