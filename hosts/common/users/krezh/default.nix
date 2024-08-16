@@ -3,7 +3,6 @@
   config,
   outputs,
   inputs,
-  lib,
   ...
 }:
 let
@@ -53,9 +52,5 @@ in
       # Import your home-manager configuration
       krezh = import ../../../../home/krezh;
     };
-  };
-
-  environment = {
-    noXlibs = lib.mkForce true;
   };
 }

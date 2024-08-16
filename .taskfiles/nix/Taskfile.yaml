@@ -44,7 +44,7 @@ tasks:
       vars:
         - HOST
     cmds:
-      - nixos-rebuild build --flake "{{.ROOT_DIR}}/#{{.HOST}}"
+      - nixos-rebuild build --fallback --flake "{{.ROOT_DIR}}/#{{.HOST}}"
       - nvd diff /run/current-system result
     preconditions:
       - sh: which nix
