@@ -1,7 +1,7 @@
-{ inputs, config, ... }:
+{ config, ... }:
 
 {
-  imports = [ inputs.sops-nix.nixosModules.sops ];
+  imports = [ ];
   sops = {
     age = {
       keyFile = "/home/krezh/.config/sops/age/keys.txt";

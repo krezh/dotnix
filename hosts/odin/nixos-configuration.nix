@@ -2,6 +2,7 @@
   inputs,
   pkgs,
   lib,
+  hostname,
   ...
 }:
 {
@@ -43,6 +44,9 @@
   };
 
   nixosModules.desktop.battery.enable = true;
+  nixosModules.desktop.fingerprint.enable = true;
+  nixosModules.desktop.openssh.enable = true;
+  security.pam.services.hyprlock = { };
 
   services = {
     displayManager = {
@@ -74,18 +78,10 @@
         enable = true;
         support32Bit = true;
       };
-      pulse = {
-        enable = true;
-      };
-      jack = {
-        enable = true;
-      };
-      wireplumber = {
-        enable = true;
-      };
-      audio = {
-        enable = true;
-      };
+      pulse.enable = true;
+      jack.enable = true;
+      wireplumber.enable = true;
+      audio.enable = true;
     };
   };
 
@@ -121,9 +117,11 @@
     portalPackage = inputs.xdg-portal-hyprland.packages.${pkgs.system}.default;
   };
 
-  nixpkgs.config.packageOverrides = pkgs: {
-    intel-vaapi-driver = pkgs.intel-vaapi-driver.override { enableHybridCodec = true; };
-  };
+  nixpkgs.overlays = [
+    (_final: prev: {
+      intel-vaapi-driver = prev.intel-vaapi-driver.override { enableHybridCodec = true; };
+    })
+  ];
 
   hardware = {
     graphics = {
@@ -148,5 +146,5 @@
       intel-gpu-tools
     ];
   };
-  networking.hostName = "odin";
+  networking.hostName = "${hostname}";
 }

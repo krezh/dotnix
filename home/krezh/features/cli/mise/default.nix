@@ -1,6 +1,6 @@
 { ... }:
 {
-  modules.shell.mise = {
+  hmModules.shell.mise = {
     enable = false;
     config = {
       python_venv_auto_create = true;

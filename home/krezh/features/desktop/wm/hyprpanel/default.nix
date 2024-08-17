@@ -3,7 +3,7 @@ let
   hyprpanelFlake = inputs.hyprpanel.packages.${pkgs.system}.default;
 in
 {
-  modules.desktop.hyprpanel = {
+  hmModules.desktop.hyprpanel = {
     enable = true;
     package = hyprpanelFlake;
   };

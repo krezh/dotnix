@@ -5,7 +5,7 @@
     package = inputs.hyprlock.packages.${pkgs.system}.hyprlock;
     settings = {
       general = {
-        disable_loading_bar = true;
+        disable_loading_bar = false;
         grace = 3; # in seconds
         hide_cursor = true;
         no_fade_in = false;
@@ -13,7 +13,7 @@
 
       background = [
         {
-          monitor = "eDP-1";
+          monitor = "";
           path = "screenshot";
           blur_passes = 3;
           blur_size = 8;
@@ -21,7 +21,7 @@
       ];
 
       label = {
-        monitor = "eDP-1";
+        monitor = "";
         text = "$TIME";
         text_align = "center"; # center/right or any value for default left. multi-line text alignment inside label container
         color = "rgba(200, 200, 200, 1.0)";
@@ -35,7 +35,7 @@
 
       input-field = [
         {
-          monitor = "eDP-1";
+          monitor = "";
           size = "200, 50";
           position = "0, -80";
           dots_center = true;

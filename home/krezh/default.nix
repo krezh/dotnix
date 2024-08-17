@@ -4,19 +4,17 @@
   lib,
   config,
   pkgs,
-  hostName,
+  hostname,
   ...
 }:
 let
-  isDesktop = hostName != "thor-wsl";
+  isDesktop = hostname != "thor-wsl";
 in
 {
   imports = [
     ./features/cli
-    inputs.sops-nix.homeManagerModules.sops
-    inputs.catppuccin.homeManagerModules.catppuccin
     inputs.nix-index.hmModules.nix-index
-  ] ++ (if isDesktop then [ ./features/desktop ] else [ ]) ++ (outputs.commonModules);
+  ] ++ (if isDesktop then [ ./features/desktop ] else [ ]) ++ (outputs.homeManagerModules);
 
   nixpkgs = {
     overlays = builtins.attrValues outputs.overlays;
@@ -52,6 +50,7 @@ in
     username = lib.mkDefault "krezh";
     homeDirectory = lib.mkDefault "/home/${config.home.username}";
     stateVersion = lib.mkDefault "24.05";
+    preferXdgDirectories = true;
     sessionPath = [
       "$HOME/.local/bin"
       "$GOPATH/bin"
@@ -94,6 +93,7 @@ in
       gopls
       tldr
       sd
+      act
 
       # JSON
       jq
@@ -123,9 +123,9 @@ in
     ];
   };
 
-  modules.shell.krew.enable = true;
-  modules.shell.kubectx.enable = true;
-  modules.shell.aria2.enable = true;
+  hmModules.shell.krew.enable = true;
+  hmModules.shell.kubectx.enable = true;
+  hmModules.shell.aria2.enable = true;
 
   programs = {
     home-manager.enable = true;

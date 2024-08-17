@@ -1,1 +1,7 @@
-{ imports = [ ./battery ]; }
+{
+  imports = [
+    ./battery
+    ./fingerprint
+    ./openssh
+  ];
+}

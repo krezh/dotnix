@@ -1,7 +1,7 @@
 { pkgs, ... }:
 
 {
-  modules.shell.k9s = {
+  hmModules.shell.k9s = {
     enable = true;
     aliases = {
       aliases = {

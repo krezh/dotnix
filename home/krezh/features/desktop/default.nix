@@ -15,5 +15,5 @@
 
   fonts.fontconfig.enable = true;
 
-  modules.desktop.upower-notify.enable = true;
+  hmModules.desktop.upower-notify.enable = true;
 }

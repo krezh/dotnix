@@ -1,6 +1,6 @@
 { ... }:
 {
-  modules.desktop.vesktop = {
+  hmModules.desktop.vesktop = {
     enable = true;
     settings = {
       minimizeToTray = true;

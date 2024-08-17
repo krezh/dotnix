@@ -1,6 +1,6 @@
 { config, pkgs, ... }:
 {
-  modules.shell.atuin = {
+  hmModules.shell.atuin = {
     enable = true;
     package = pkgs.atuin;
     sync_address = "https://sh.talos.plexuz.xyz";

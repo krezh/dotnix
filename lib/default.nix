@@ -1,9 +1,10 @@
-{ lib, ... }:
+{ inputs, ... }:
 {
   imports = [ ./mapToGha.nix ];
-  scanPath = import ./scanPath.nix { inherit lib; };
+  scanPath = import ./scanPath.nix { inherit inputs; };
 
-  relativeToRoot = lib.path.append ../.;
+  relativeToRoot = inputs.nixpkgs.lib.path.append ../.;
+
   mapToGha =
     system:
     if system == "x86_64-linux" then

@@ -2,19 +2,10 @@
   inputs,
   lib,
   config,
-  outputs,
   ...
 }:
 {
   imports = [ inputs.lix-module.nixosModules.default ];
-
-  nixpkgs = {
-    overlays = builtins.attrValues outputs.overlays;
-    config = {
-      allowUnfree = true;
-      allowUnfreePredicate = true;
-    };
-  };
 
   nix = {
     extraOptions = ''

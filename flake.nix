@@ -32,6 +32,7 @@
     lix-module.inputs.nixpkgs.follows = "nixpkgs";
     devshell.url = "github:numtide/devshell";
     devshell.inputs.nixpkgs.follows = "nixpkgs";
+    nixos-generators.url = "github:nix-community/nixos-generators";
 
     disko = {
       url = "github:nix-community/disko";
@@ -170,36 +171,22 @@
       url = "github:Jovian-Experiments/Jovian-NixOS";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+
+    ssh-keys = {
+      url = "https://github.com/krezh.keys";
+      flake = false;
+    };
   };
 
   outputs =
-    inputs@{
-      flake-parts,
-      nixpkgs,
-      self,
-      ...
-    }:
+    inputs@{ flake-parts, self, ... }:
     let
       inherit (self) outputs;
 
-      lib = nixpkgs.lib // import ./lib { inherit lib; };
+      lib = inputs.nixpkgs.lib // import ./lib { inherit inputs; };
 
-      nixosSystem =
-        hostNames:
-        lib.genAttrs hostNames (
-          hostName:
-          lib.nixosSystem {
-            specialArgs = {
-              inherit
-                self
-                inputs
-                outputs
-                lib
-                ;
-            };
-            modules = lib.scanPath.toList { path = ./hosts/${hostName}; };
-          }
-        );
+      flakeLib = import ./flakeLib.nix { inherit inputs outputs lib; };
+
     in
     flake-parts.lib.mkFlake { inherit inputs; } {
       imports = [
@@ -213,11 +200,28 @@
       ];
 
       flake = {
-        nixosConfigurations = nixosSystem [
-          "thor-wsl"
-          "odin"
-          "steamdeck"
-        ];
+        nixosConfigurations = {
+          thor-wsl = flakeLib.mkSystem {
+            hostname = "thor-wsl";
+            homeUsers = [ "krezh" ];
+            baseModules = lib.scanPath.toList { path = ./hosts/thor-wsl; };
+          };
+          odin = flakeLib.mkSystem {
+            hostname = "odin";
+            homeUsers = [ "krezh" ];
+            baseModules = lib.scanPath.toList { path = ./hosts/odin; };
+          };
+          steamdeck = flakeLib.mkSystem {
+            hostname = "steamdeck";
+            homeUsers = [ "krezh" ];
+            baseModules = lib.scanPath.toList { path = ./hosts/steamdeck; };
+          };
+          nixos-livecd = flakeLib.mkSystem {
+            hostname = "nixos-livecd";
+            homeUsers = [ ];
+            baseModules = [ ./hosts/nixos-livecd ];
+          };
+        };
 
         # Used by CI
         top = lib.genAttrs (builtins.attrNames self.nixosConfigurations) (
@@ -233,56 +237,24 @@
           }) (builtins.attrNames self.nixosConfigurations);
         };
 
-        commonModules = lib.scanPath.toList { path = ./modules/common; };
-
-        nixosModules.default = {
-          imports = (lib.scanPath.toList { path = ./modules/nixos; });
-        };
-
         overlays = import ./overlays { inherit inputs lib; };
+
+        homeManagerModules = lib.scanPath.toList { path = ./modules/homeManager; };
+
+        nixosModules = {
+          default = {
+            imports = lib.scanPath.toList { path = ./modules/nixos; };
+          };
+        };
       };
 
       perSystem =
         { pkgs, config, ... }:
         {
-          pre-commit = {
-            check.enable = true;
-            settings = {
-              hooks = {
-                nixfmt.enable = true;
-                nixfmt.package = pkgs.nixfmt-rfc-style;
-                deadnix.enable = true;
-                shellcheck.enable = true;
-                check-shebang-scripts-are-executable.enable = true;
-                check-case-conflicts.enable = true;
-                check-json.enable = true;
-                lua-ls.enable = true;
-                luacheck.enable = true;
-              };
-            };
-          };
-
-          devshells.default = {
-            devshell.startup.pre-commit-hook.text = config.pre-commit.installationScript;
-            devshell = {
-              name = "Default";
-              motd = ''
-                ❄️ Welcome to the {14}{bold}Default{reset} shell ❄️
-              '';
-            };
-            commands = [
-              {
-                name = "gpa";
-                command = "${pkgs.git}/bin/git pull --autostash && ${pkgs.nh}/bin/nh os switch --ask --no-specialisation";
-                help = "git pull and os switch";
-                category = "Nix";
-              }
-            ];
-          };
-
+          pre-commit = import ./pre-commit.nix { inherit pkgs; };
+          devshells.default = import ./shell.nix { inherit inputs pkgs config; };
           packages = import ./pkgs { inherit pkgs lib; };
           formatter = pkgs.nixfmt-rfc-style;
         };
     };
-
 }

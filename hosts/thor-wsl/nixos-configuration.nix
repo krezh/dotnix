@@ -3,6 +3,7 @@
   modulesPath,
   lib,
   pkgs,
+  hostname,
   ...
 }:
 {
@@ -20,7 +21,7 @@
     defaultUser = "krezh";
     nativeSystemd = true;
     wslConf.network = {
-      hostname = "thor-wsl";
+      hostname = "${hostname}";
       generateResolvConf = true;
     };
     startMenuLaunchers = false;
@@ -46,7 +47,7 @@
 
   networking = {
     networkmanager.enable = false;
-    hostName = "thor-wsl";
+    hostName = "${hostname}";
   };
 
   security = {

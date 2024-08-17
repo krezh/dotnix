@@ -2,6 +2,7 @@
   inputs,
   pkgs,
   lib,
+  hostname,
   ...
 }:
 {
@@ -93,5 +94,5 @@
 
   security.rtkit.enable = true;
 
-  networking.hostName = "steamdeck";
+  networking.hostName = "${hostname}";
 }

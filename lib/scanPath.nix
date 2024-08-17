@@ -1,4 +1,4 @@
-{ lib, ... }:
+{ inputs, ... }:
 {
   toList =
     {
@@ -7,12 +7,12 @@
     }:
     builtins.map (f: (path + "/${f}")) (
       builtins.attrNames (
-        lib.attrsets.filterAttrs (
+        inputs.nixpkgs.lib.attrsets.filterAttrs (
           path: _type:
           !(builtins.elem path ([ "default.nix" ] ++ excludeFiles)) # ignore default.nix
           && (
             (_type == "directory") # include directories
-            || (lib.strings.hasSuffix ".nix" path) # include .nix files
+            || (inputs.nixpkgs.lib.strings.hasSuffix ".nix" path) # include .nix files
           )
         ) (builtins.readDir path)
       )
@@ -32,17 +32,21 @@
         p:
         builtins.map
           (f: {
-            name = if lib.strings.hasSuffix ".nix" f then lib.strings.removeSuffix ".nix" f else f;
+            name =
+              if inputs.nixpkgs.lib.strings.hasSuffix ".nix" f then
+                inputs.nixpkgs.lib.strings.removeSuffix ".nix" f
+              else
+                f;
             value = func (p + "/${f}") args;
           })
           (
             builtins.attrNames (
-              lib.attrsets.filterAttrs (
+              inputs.nixpkgs.lib.attrsets.filterAttrs (
                 path: _type:
                 !(builtins.elem path ([ "default.nix" ] ++ excludeFiles)) # ignore default.nix
                 && (
                   (_type == "directory") # include directories
-                  || (lib.strings.hasSuffix ".nix" path) # include .nix files
+                  || (inputs.nixpkgs.lib.strings.hasSuffix ".nix" path) # include .nix files
                 )
               ) (builtins.readDir p)
             )

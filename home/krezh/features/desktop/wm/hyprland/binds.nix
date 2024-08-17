@@ -38,13 +38,13 @@ let
   };
 
   volume_script =
-    if config.modules.desktop.hyprpanel.enable then
+    if config.hmModules.desktop.hyprpanel.enable then
       "${pkgs.volume_script_hyprpanel}/bin/volume_script_hyprpanel"
     else
       "${pkgs.volume_script}/bin/volume_script";
 
   brightness_script =
-    if config.modules.desktop.hyprpanel.enable then
+    if config.hmModules.desktop.hyprpanel.enable then
       "${pkgs.brightness_script_hyprpanel}/bin/brightness_script_hyprpanel"
     else
       "${pkgs.brightness_script}/bin/brightness_script";
