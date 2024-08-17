@@ -2,10 +2,9 @@
   imports = [
     ./hyprland
     ./hyprpanel
-    #./gbar
     ./swww
     ./waypaper
-    ./dunst
+    #./dunst
     ./hypridle
     ./hyprlock
     ./clipman
