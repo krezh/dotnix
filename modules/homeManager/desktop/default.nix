@@ -5,5 +5,6 @@
     ./hyprpanel
     ./vesktop
     ./upower-notify
+    ./clipse
   ];
 }

@@ -8,5 +8,5 @@ in
     package = hyprpanelFlake;
   };
 
-  home.packages = with pkgs; [ hyprpanelFlake ];
+  home.packages = [ hyprpanelFlake ];
 }

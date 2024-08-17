@@ -7,7 +7,8 @@
     #./dunst
     ./hypridle
     ./hyprlock
-    ./clipman
+    #./clipman
     ./tofi
+    ./clipse
   ];
 }

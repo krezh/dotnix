@@ -13,7 +13,10 @@ in
   options.hmModules.desktop.hyprpanel = {
     enable = lib.mkEnableOption "hyprpanel";
 
-    package = lib.mkPackageOption pkgs hyprpanelFlake { };
+    package = lib.mkOption {
+      type = pkgs.lib.types.package;
+      default = hyprpanelFlake;
+    };
 
     settings = lib.mkOption {
       type = lib.types.attrs;

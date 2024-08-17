@@ -2,6 +2,7 @@
   pkgs,
   config,
   lib,
+  inputs,
   ...
 }:
 let
@@ -15,6 +16,9 @@ in
         hashedPasswordFile = config.sops.secrets.krezh-password.path;
         isNormalUser = true;
         shell = pkgs.fish;
+        openssh.authorizedKeys.keys = lib.strings.splitString "\n" (
+          builtins.readFile inputs.ssh-keys.outPath
+        );
         extraGroups =
           [
             "wheel"

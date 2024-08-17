@@ -10,11 +10,6 @@ let
     bin = "${hyprlock.pkg}/bin/hyprlock";
   };
 
-  clipman = {
-    pkg = pkgs.clipman;
-    bin = "${clipman.pkg}/bin/clipman";
-  };
-
   anyrun = {
     pkg = inputs.anyrun.packages.${pkgs.system};
     stdin = "${anyrun.pkg.stdin}/lib/libstdin.so";
@@ -71,7 +66,6 @@ in
         "$mainMod,E,exec,${pkgs.nemo}/bin/nemo"
         "$mainMod,RETURN,exec,${wezterm.bin}"
         "$SupShft,RETURN,exec,[floating] ${wezterm.bin}"
-        "$mainMod,C,exec,${clipman.bin} pick -t rofi"
         "$mainMod,O,exec,${pkgs.obsidian}/bin/obsidian"
 
         # Print Screen
