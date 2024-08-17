@@ -3,6 +3,9 @@ name: Build Nix ISO
 
 on:
   pull_request:
+    branches:
+      - "!main"
+      - "test-**"
   push:
     branches:
       - "!main"
