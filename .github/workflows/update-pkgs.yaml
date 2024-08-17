@@ -5,6 +5,7 @@ on:
   workflow_dispatch: {}
   pull_request:
     paths: ["pkgs/**"]
+    types: [opened, reopened]
     branches: ["main"]
 
 concurrency:
@@ -48,15 +49,27 @@ jobs:
 
       - name: Push changes
         uses: actions-js/push@v1.5
+        id: push
         with:
           github_token: "${{ steps.app-token.outputs.token }}"
           author_name: "${{ secrets.BOT_USERNAME }}"
           author_email: "${{ secrets.BOT_USER_EMAIL }}"
           branch: "${{ github.event.pull_request.head.ref }}"
           amend: true
-          rebase: true
           force: true
           message: "Update ${{ steps.extract-values.outputs.package }} to ${{ steps.extract-values.outputs.new_version }}"
+
+      - name: check for changes
+        if: steps.push.conclusion == 'success'
+        run: |
+          echo "Cooling down..."
+          seconds=10
+          while [ $seconds -gt 0 ]; do
+          echo "Seconds left: $seconds"
+          sleep 1
+          seconds=$((seconds - 1))
+          done
+          echo "Done"
 
   nix-build:
     name: Build and diff Nix systems
