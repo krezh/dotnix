@@ -137,7 +137,7 @@ jobs:
         run: |
           set -o pipefail
           nix build \
-            ".#${{ matrix.host }}" \
+            ".#top.${{ matrix.host }}" \
             --accept-flake-config \
             --fallback \
             --log-format raw \
