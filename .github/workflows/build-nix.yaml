@@ -85,6 +85,9 @@ jobs:
       # - name: Install Nix
       #   uses: DeterminateSystems/nix-installer-action@v13
 
+      - name: Install nvd
+        run: nix-env -iA nvd
+
       - name: Set up Magic Nix Cache
         uses: DeterminateSystems/magic-nix-cache-action@v7
 
@@ -106,24 +109,43 @@ jobs:
       - name: Garbage collect build dependencies
         run: nix-collect-garbage
 
+      # - name: Build previous ${{ matrix.host }} system
+      #   run: |
+      #     nix build \
+      #       "github:krezh/nix-config#top.${{ matrix.host }}" \
+      #       --log-format raw \
+      #       --profile ./profile \
+      #       --accept-flake-config
+
+      # - name: Build new ${{ matrix.host }} system
+      #   run: |
+      #     set -o pipefail
+      #     nix build \
+      #       ".#top.${{ matrix.host }}" \
+      #       --profile ./profile \
+      #       --accept-flake-config \
+      #       --fallback \
+      #       --log-format raw \
+      #        > >(tee stdout.log) 2> >(tee /tmp/nix-build-err.log >&2)
+
       - name: Build previous ${{ matrix.host }} system
         run: |
           nix build \
             "github:krezh/nix-config#top.${{ matrix.host }}" \
             --log-format raw \
-            --profile ./profile \
             --accept-flake-config
+          mv result result-previous
 
       - name: Build new ${{ matrix.host }} system
         run: |
           set -o pipefail
           nix build \
             ".#top.${{ matrix.host }}" \
-            --profile ./profile \
             --accept-flake-config \
             --fallback \
             --log-format raw \
              > >(tee stdout.log) 2> >(tee /tmp/nix-build-err.log >&2)
+          mv result result-new
 
       - name: Output build failure
         if: failure()
@@ -135,20 +157,25 @@ jobs:
           fi
           exit 1
 
+      # - name: Diff profile
+      #   id: diff
+      #   run: |
+      #     nix profile diff-closures --profile ./profile
+      #     delimiter="$(openssl rand -hex 16)"
+      #     echo "diff<<${delimiter}" >> "${GITHUB_OUTPUT}"
+      #     nix profile diff-closures --profile ./profile | perl -pe 's/\e\[[0-9;]*m(?:\e\[K)?//g' >> "${GITHUB_OUTPUT}"
+      #     echo "${delimiter}" >> "${GITHUB_OUTPUT}"
+
       - name: Diff profile
         id: diff
         run: |
-          nix profile diff-closures --profile ./profile
-          delimiter="$(openssl rand -hex 16)"
-          echo "diff<<${delimiter}" >> "${GITHUB_OUTPUT}"
-          nix profile diff-closures --profile ./profile | perl -pe 's/\e\[[0-9;]*m(?:\e\[K)?//g' >> "${GITHUB_OUTPUT}"
-          echo "${delimiter}" >> "${GITHUB_OUTPUT}"
+          diff="$(nvd --color never diff result result-new)" >> "${GITHUB_OUTPUT}"
 
       - name: Comment report in pr
         uses: marocchino/sticky-pull-request-comment@v2
         with:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          header: ".#top.${{ matrix.host }}"
+          header: ".#${{ matrix.host }}"
           message: |
             ### Report for `${{ matrix.host }}`
 

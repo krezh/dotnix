@@ -64,6 +64,7 @@ in
     };
     packages = with pkgs; [
       doppler
+      infisical
       wget
       curl
       ripgrep
