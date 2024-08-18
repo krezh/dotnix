@@ -44,8 +44,8 @@
   };
 
   nixosModules.desktop.battery.enable = true;
-  nixosModules.desktop.fingerprint.enable = true;
   nixosModules.desktop.openssh.enable = true;
+
   security.pam.services.hyprlock = { };
 
   services = {

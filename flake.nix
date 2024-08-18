@@ -28,11 +28,15 @@
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
     flake-parts.url = "github:hercules-ci/flake-parts";
     hardware.url = "github:nixos/nixos-hardware";
+
     lix-module.url = "https://git.lix.systems/lix-project/nixos-module/archive/2.91.0.tar.gz";
     lix-module.inputs.nixpkgs.follows = "nixpkgs";
+
     devshell.url = "github:numtide/devshell";
     devshell.inputs.nixpkgs.follows = "nixpkgs";
+
     nixos-generators.url = "github:nix-community/nixos-generators";
+    nixos-generators.inputs.nixpkgs.follows = "nixpkgs";
 
     disko = {
       url = "github:nix-community/disko";
@@ -89,6 +93,7 @@
     ### Hyprland
     hyprland.url = "git+https://github.com/hyprwm/Hyprland?submodules=1";
     xdg-portal-hyprland.url = "github:hyprwm/xdg-desktop-portal-hyprland";
+    xdg-portal-hyprland.inputs.nixpkgs.follows = "nixpkgs";
 
     hyprland-plugins = {
       url = "github:hyprwm/hyprland-plugins";
@@ -134,6 +139,7 @@
     };
 
     hyprpanel.url = "github:Jas-SinghFSU/HyprPanel";
+    hyprpanel.inputs.nixpkgs.follows = "nixpkgs";
 
     sops-nix = {
       url = "github:Mic92/sops-nix";
@@ -142,7 +148,7 @@
 
     nixvim = {
       url = "github:nix-community/nixvim";
-      #inputs.nixpkgs.follows = "nixpkgs";
+      inputs.nixpkgs.follows = "nixpkgs";
     };
 
     nixos-wsl = {
@@ -164,6 +170,7 @@
     walker.inputs.nixpkgs.follows = "nixpkgs";
 
     nixos-grub-themes.url = "github:jeslie0/nixos-grub-themes";
+    nixos-grub-themes.inputs.nixpkgs.follows = "nixpkgs";
 
     browser-previews = {
       url = "github:nix-community/browser-previews";

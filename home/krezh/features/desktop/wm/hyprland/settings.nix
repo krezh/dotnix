@@ -76,7 +76,6 @@
     "col.active_border" = "$blue";
     "col.inactive_border" = "$base";
     layout = "dwindle";
-    apply_sens_to_raw = 1; # whether to apply the sensitivity to raw input (e.g. used by games where you aim using your mouse)
   };
 
   decoration = {
