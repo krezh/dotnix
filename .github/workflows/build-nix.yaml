@@ -166,13 +166,13 @@ jobs:
       - name: Diff profile
         id: diff
         run: |
-          diff="$(nix store diff-closures result result-new)" >> "${GITHUB_OUTPUT}"
+          diff="$(nix store diff-closures ./result-previous ./result-new)" >> "${GITHUB_OUTPUT}"
 
       - name: Comment report in pr
         uses: marocchino/sticky-pull-request-comment@v2
         with:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          header: ".#${{ matrix.host }}"
+          header: ".#top.${{ matrix.host }}"
           message: |
             ### Report for `${{ matrix.host }}`
 
