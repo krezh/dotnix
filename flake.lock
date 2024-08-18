@@ -1208,6 +1208,26 @@
         "type": "github"
       }
     },
+    "hyprsplit": {
+      "inputs": {
+        "hyprland": [
+          "hyprland"
+        ]
+      },
+      "locked": {
+        "lastModified": 1723077859,
+        "narHash": "sha256-2KwSOv+7XzQWxxGrAlBPwRjYMUyMYDwXjTEAY1I8H8w=",
+        "owner": "shezdy",
+        "repo": "hyprsplit",
+        "rev": "d4c59ca20581b04ef9348944377a12b911d9b5e3",
+        "type": "github"
+      },
+      "original": {
+        "owner": "shezdy",
+        "repo": "hyprsplit",
+        "type": "github"
+      }
+    },
     "hyprutils": {
       "inputs": {
         "nixpkgs": [
@@ -2130,6 +2150,7 @@
         "hyprland-plugins": "hyprland-plugins",
         "hyprlock": "hyprlock",
         "hyprpanel": "hyprpanel",
+        "hyprsplit": "hyprsplit",
         "jovian": "jovian",
         "lix-module": "lix-module",
         "nh": "nh",

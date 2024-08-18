@@ -95,8 +95,11 @@
       inputs.hyprland.follows = "hyprland";
     };
 
+    hyprsplit.url = "github:shezdy/hyprsplit";
+    hyprsplit.inputs.hyprland.follows = "hyprland";
+
     hyprfocus = {
-      url = "github:/pyt0xic/hyprfocus";
+      url = "github:pyt0xic/hyprfocus";
       inputs.hyprland.follows = "hyprland";
     };
 
