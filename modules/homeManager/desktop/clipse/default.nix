@@ -7,6 +7,7 @@
 let
   cfg = config.hmModules.desktop.clipse;
   json = pkgs.formats.json { };
+  defaultTerminal = "${pkgs.xdg-terminal-exec}/bin/xdg-terminal-exec";
 in
 {
   options.hmModules.desktop.clipse = {
@@ -36,7 +37,11 @@ in
 
     wayland.windowManager.hyprland = {
       settings = {
-        bind = [ "$mainMod,C,exec,${cfg.package}/bin/clipse" ];
+        windowrulev2 = [
+          "float,class:(clipse)"
+          "size 622 652,class:(clipse)"
+        ];
+        bind = [ "$mainMod,C,exec,${defaultTerminal} --class clipse ${cfg.package}/bin/clipse" ];
       };
     };
 

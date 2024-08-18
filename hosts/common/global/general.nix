@@ -23,6 +23,7 @@
   };
 
   hardware.enableRedistributableFirmware = true;
+  xdg.terminal-exec.enable = true;
 
   security = {
     doas = {
