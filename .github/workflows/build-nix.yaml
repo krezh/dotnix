@@ -86,7 +86,7 @@ jobs:
       #   uses: DeterminateSystems/nix-installer-action@v13
 
       - name: Install nvd
-        run: nix-env -iA nvd
+        run: nix-env -i nvd
 
       - name: Set up Magic Nix Cache
         uses: DeterminateSystems/magic-nix-cache-action@v7
