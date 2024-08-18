@@ -85,9 +85,6 @@ jobs:
       # - name: Install Nix
       #   uses: DeterminateSystems/nix-installer-action@v13
 
-      - name: Install nvd
-        run: nix-env -i nvd
-
       - name: Set up Magic Nix Cache
         uses: DeterminateSystems/magic-nix-cache-action@v7
 
@@ -169,7 +166,7 @@ jobs:
       - name: Diff profile
         id: diff
         run: |
-          diff="$(nvd --color never diff result result-new)" >> "${GITHUB_OUTPUT}"
+          diff="$(nix store diff-closures result result-new)" >> "${GITHUB_OUTPUT}"
 
       - name: Comment report in pr
         uses: marocchino/sticky-pull-request-comment@v2
