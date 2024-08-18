@@ -17,6 +17,7 @@
     };
     templates = {
       "nix_access_token.conf" = {
+        owner = "krezh";
         content = ''
           access-tokens = github.com=${config.sops.placeholder."github/token"}
         '';
