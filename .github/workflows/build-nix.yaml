@@ -23,13 +23,6 @@ env:
   EXCLUDED_HOSTS: '["nixos-livecd"]'
 
 jobs:
-  # check-cache:
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - run: |
-  #         echo "Checking cache"
-  #         curl -sSL "${{ env.ATTIC_ENDPOINT }}/${{ env.ATTIC_CACHE }}/nix-cache-info" -H 'Authorization: Bearer ${{ secrets.ATTIC_TOKEN }}'
-
   nix-matrix:
     runs-on: ubuntu-latest
     #needs: check-cache
@@ -167,6 +160,7 @@ jobs:
         id: diff
         run: |
           diff="$(nix store diff-closures ./result-previous ./result-new)" >> "${GITHUB_OUTPUT}"
+          echo"${diff}" >> "${GITHUB_STEP_SUMMARY}"
 
       - name: Comment report in pr
         uses: marocchino/sticky-pull-request-comment@v2
