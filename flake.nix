@@ -138,7 +138,7 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    hyprpanel.url = "github:Jas-SinghFSU/HyprPanel/39aa433d109f931d7e08e9a67312e3e6bf70ac2a";
+    hyprpanel.url = "github:Jas-SinghFSU/HyprPanel";
     hyprpanel.inputs.nixpkgs.follows = "nixpkgs";
 
     sops-nix = {
