@@ -13,7 +13,5 @@
     source = ./wallpapers;
   };
 
-  fonts.fontconfig.enable = true;
-
   hmModules.desktop.upower-notify.enable = true;
 }

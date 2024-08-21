@@ -90,9 +90,31 @@
   programs.gdk-pixbuf.modulePackages = [ pkgs.librsvg ];
 
   fonts = {
+    fontconfig = {
+      antialias = true;
+      cache32Bit = true;
+      hinting.enable = true;
+      hinting.autohint = true;
+      subpixel.rgba = "rgb";
+      # defaultFonts = {
+      #   monospace = [ "Source Code Pro" ];
+      #   sansSerif = [ "Source Sans Pro" ];
+      #   serif = [ "Source Serif Pro" ];
+      # };
+    };
     fontDir.enable = true;
     enableDefaultPackages = true;
     packages = with pkgs; [
+      corefonts # Microsoft free fonts
+      dejavu_fonts
+      fira
+      fira-mono
+      google-fonts
+      source-code-pro
+      source-sans-pro
+      source-serif-pro
+      ubuntu_font_family # Ubuntu fonts
+      unifont # some international languages
       noto-fonts
       noto-fonts-cjk
       noto-fonts-emoji
