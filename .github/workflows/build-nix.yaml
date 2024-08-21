@@ -172,8 +172,10 @@ jobs:
           message: |
             ### Report for `${{ matrix.host }}`
 
-            <summary> Version changes </summary> <br>
-            <pre> ${{ steps.diff.outputs.diff }} </pre>
+            #### Version changes:
+            ```yaml
+            ${{ steps.diff.outputs.diff }}
+            ```
 
   nix-build-success:
     if: ${{ always() }}
