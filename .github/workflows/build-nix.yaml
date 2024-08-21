@@ -161,7 +161,7 @@ jobs:
         run: |
           delimiter="$(openssl rand -hex 16)"
           echo "diff<<${delimiter}" >> "${GITHUB_OUTPUT}"
-          diff=$(nix store diff-closures ./result-previous ./result-new)"
+          diff="$(nix store diff-closures ./result-previous ./result-new)"
           echo "${diff}" >> "${GITHUB_OUTPUT}"
           echo "${delimiter}" >> "${GITHUB_OUTPUT}"
           echo "${diff}" >> "${GITHUB_STEP_SUMMARY}"
