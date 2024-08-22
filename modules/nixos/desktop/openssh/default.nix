@@ -1,4 +1,9 @@
-{ config, lib, ... }:
+{
+  config,
+  lib,
+  inputs,
+  ...
+}:
 let
   cfg = config.nixosModules.desktop.openssh;
 in
@@ -11,6 +16,13 @@ in
     services.openssh = {
       enable = true;
       startWhenNeeded = true;
+      openFirewall = true;
+      listenAddresses = [
+        {
+          addr = "0.0.0.0";
+          port = 22;
+        }
+      ];
       settings = {
         UseDns = true;
         PasswordAuthentication = false;
@@ -24,6 +36,7 @@ in
           type = "ed25519";
         }
       ];
+      authorizedKeysFiles = lib.strings.splitString "\n" (builtins.readFile inputs.ssh-keys.outPath);
     };
   };
 }
