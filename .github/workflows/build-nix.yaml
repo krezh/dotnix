@@ -67,6 +67,9 @@ jobs:
           remove-docker-images: true
           remove-codeql: true
           build-mount-path: "/nix"
+          
+      - name: Change /nix owner
+        run: sudo chown root:root /nix
 
       - name: Checkout repository
         uses: actions/checkout@v4
