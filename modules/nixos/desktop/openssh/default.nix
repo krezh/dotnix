@@ -17,14 +17,8 @@ in
       enable = true;
       startWhenNeeded = true;
       openFirewall = true;
-      listenAddresses = [
-        {
-          addr = "0.0.0.0";
-          port = 22;
-        }
-      ];
       settings = {
-        UseDns = true;
+        UseDns = false;
         PasswordAuthentication = false;
         PermitRootLogin = "no";
         AllowGroups = [ "sshusers" ];
@@ -36,7 +30,7 @@ in
           type = "ed25519";
         }
       ];
-      authorizedKeysFiles = lib.strings.splitString "\n" (builtins.readFile inputs.ssh-keys.outPath);
+      authorizedKeysFiles = [ "${inputs.ssh-keys.outPath}" ];
     };
   };
 }
