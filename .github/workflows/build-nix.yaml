@@ -70,7 +70,7 @@ jobs:
 
       - name: Change /nix owner
         run: |
-          sudo chown -R root:root /nix
+          sudo chown -R root:runner /nix
           ls -la /nix
 
       - name: Checkout repository
