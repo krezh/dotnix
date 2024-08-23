@@ -68,11 +68,11 @@ jobs:
       #     remove-codeql: true
       #     build-mount-path: "/nix"
 
-      - name: Change /nix owner
-        run: |
-          ls -la /nix
-          sudo chown -R root:runner /nix
-          ls -la /nix
+      # - name: Change /nix owner
+      #   run: |
+      #     ls -la /nix
+      #     sudo chown -R root:runner /nix
+      #     ls -la /nix
 
       - name: Checkout repository
         uses: actions/checkout@v4
