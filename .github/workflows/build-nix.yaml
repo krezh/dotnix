@@ -59,7 +59,7 @@ jobs:
       - name: maximize build space
         uses: easimon/maximize-build-space@v10
         with:
-          root-reserve-mb: 20480
+          root-reserve-mb: 16384
           swap-size-mb: 4096
           remove-dotnet: true
           remove-android: true
@@ -79,16 +79,15 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Install Lix
-        run: curl -sSf -L https://install.lix.systems/lix | sh -s -- install --no-confirm --extra-conf="trusted-users = root runner"
-
-      # - name: Install Nix
-      #   uses: DeterminateSystems/nix-installer-action@v13
+      - name: Install Nix
+        uses: cachix/install-nix-action@v27
+        with:
+          github_access_token: ${{ secrets.GITHUB_TOKEN }}
+          extra_nix_config: |
+            accept-flake-config = true
 
       - name: Set up Magic Nix Cache
         uses: DeterminateSystems/magic-nix-cache-action@v7
-        with:
-          upstream-cache: https://cache.garnix.io
 
       # - name: Set up Attic
       #   uses: ryanccn/attic-action@v0.2.1
