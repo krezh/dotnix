@@ -54,19 +54,19 @@ jobs:
       fail-fast: false
       matrix: ${{ fromJSON(needs.nix-matrix.outputs.matrix) }}
 
-    runs-on: ${{ matrix.ghSystem }}
+    runs-on: nix-config-runner
     steps:
-      - name: maximize build space
-        uses: easimon/maximize-build-space@v10
-        with:
-          root-reserve-mb: 16384
-          swap-size-mb: 4096
-          remove-dotnet: true
-          remove-android: true
-          remove-haskell: true
-          remove-docker-images: true
-          remove-codeql: true
-          build-mount-path: "/nix"
+      # - name: maximize build space
+      #   uses: easimon/maximize-build-space@v10
+      #   with:
+      #     root-reserve-mb: 16384
+      #     swap-size-mb: 4096
+      #     remove-dotnet: true
+      #     remove-android: true
+      #     remove-haskell: true
+      #     remove-docker-images: true
+      #     remove-codeql: true
+      #     build-mount-path: "/nix"
 
       - name: Change /nix owner
         run: sudo chown root:root /nix
