@@ -54,7 +54,7 @@ jobs:
       fail-fast: false
       matrix: ${{ fromJSON(needs.nix-matrix.outputs.matrix) }}
 
-    runs-on: nix-config-runner
+    runs-on: ${{ matrix.ghSystem }}
     steps:
       - name: maximize build space
         uses: easimon/maximize-build-space@v10
