@@ -56,23 +56,23 @@ jobs:
 
     runs-on: nix-config-runner
     steps:
-      # - name: maximize build space
-      #   uses: easimon/maximize-build-space@v10
-      #   with:
-      #     root-reserve-mb: 16384
-      #     swap-size-mb: 4096
-      #     remove-dotnet: true
-      #     remove-android: true
-      #     remove-haskell: true
-      #     remove-docker-images: true
-      #     remove-codeql: true
-      #     build-mount-path: "/nix"
+      - name: maximize build space
+        uses: easimon/maximize-build-space@v10
+        with:
+          root-reserve-mb: 20480
+          swap-size-mb: 4096
+          remove-dotnet: true
+          remove-android: true
+          remove-haskell: true
+          remove-docker-images: true
+          remove-codeql: true
+          build-mount-path: "/nix"
 
-      # - name: Change /nix owner
-      #   run: |
-      #     ls -la /nix
-      #     sudo chown -R root:runner /nix
-      #     ls -la /nix
+      - name: Change /nix owner
+        run: |
+          ls -la /nix
+          sudo chown -R root:root /nix
+          ls -la /nix
 
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -85,8 +85,10 @@ jobs:
       # - name: Install Nix
       #   uses: DeterminateSystems/nix-installer-action@v13
 
-      # - name: Set up Magic Nix Cache
-      #   uses: DeterminateSystems/magic-nix-cache-action@v7
+      - name: Set up Magic Nix Cache
+        uses: DeterminateSystems/magic-nix-cache-action@v7
+        with:
+          upstream-cache: https://cache.garnix.io
 
       # - name: Set up Attic
       #   uses: ryanccn/attic-action@v0.2.1
@@ -105,25 +107,6 @@ jobs:
 
       - name: Garbage collect build dependencies
         run: nix-collect-garbage
-
-      # - name: Build previous ${{ matrix.host }} system
-      #   run: |
-      #     nix build \
-      #       "github:krezh/nix-config#top.${{ matrix.host }}" \
-      #       --log-format raw \
-      #       --profile ./profile \
-      #       --accept-flake-config
-
-      # - name: Build new ${{ matrix.host }} system
-      #   run: |
-      #     set -o pipefail
-      #     nix build \
-      #       ".#top.${{ matrix.host }}" \
-      #       --profile ./profile \
-      #       --accept-flake-config \
-      #       --fallback \
-      #       --log-format raw \
-      #        > >(tee stdout.log) 2> >(tee /tmp/nix-build-err.log >&2)
 
       - name: Build previous ${{ matrix.host }} system
         run: |
@@ -153,15 +136,6 @@ jobs:
             echo "$drv"
           fi
           exit 1
-
-      # - name: Diff profile
-      #   id: diff
-      #   run: |
-      #     nix profile diff-closures --profile ./profile
-      #     delimiter="$(openssl rand -hex 16)"
-      #     echo "diff<<${delimiter}" >> "${GITHUB_OUTPUT}"
-      #     nix profile diff-closures --profile ./profile | perl -pe 's/\e\[[0-9;]*m(?:\e\[K)?//g' >> "${GITHUB_OUTPUT}"
-      #     echo "${delimiter}" >> "${GITHUB_OUTPUT}"
 
       - name: Diff profile
         id: diff
