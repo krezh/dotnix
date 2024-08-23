@@ -113,8 +113,8 @@ jobs:
           nix build \
             "github:krezh/nix-config#top.${{ matrix.host }}" \
             --log-format raw \
+            -o result-previous \
             --accept-flake-config
-          mv result result-previous
 
       - name: Build new ${{ matrix.host }} system
         run: |
@@ -122,10 +122,10 @@ jobs:
           nix build \
             ".#top.${{ matrix.host }}" \
             --accept-flake-config \
+            -o result-new \
             --fallback \
             --log-format raw \
              > >(tee stdout.log) 2> >(tee /tmp/nix-build-err.log >&2)
-          mv result result-new
 
       - name: Output build failure
         if: failure()

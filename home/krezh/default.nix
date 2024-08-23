@@ -147,7 +147,7 @@ in
   nix = {
     settings = {
       accept-flake-config = true;
-      cores = 0;
+      #cores = 0;
       max-jobs = "auto";
       experimental-features = [
         "nix-command"
