@@ -262,7 +262,7 @@
         { pkgs, config, ... }:
         {
           pre-commit = import ./pre-commit.nix { inherit pkgs; };
-          devshells.default = import ./shell.nix { inherit inputs pkgs config; };
+          devshells = import ./shell.nix { inherit inputs pkgs config; };
           packages = import ./pkgs { inherit pkgs lib; };
           formatter = pkgs.nixfmt-rfc-style;
         };
