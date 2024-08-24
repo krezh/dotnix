@@ -97,12 +97,12 @@ jobs:
       #     cache: "${{ env.ATTIC_CACHE }}"
       #     token: "${{ secrets.ATTIC_TOKEN }}"
 
-      - name: Set up Cachix
-        uses: cachix/cachix-action@v15
-        if: ${{ !github.event.pull_request.head.repo.fork }}
-        with:
-          name: krezh
-          authToken: "${{ secrets.CACHIX_AUTH_TOKEN }}"
+      # - name: Set up Cachix
+      #   uses: cachix/cachix-action@v15
+      #   if: ${{ !github.event.pull_request.head.repo.fork }}
+      #   with:
+      #     name: krezh
+      #     authToken: "${{ secrets.CACHIX_AUTH_TOKEN }}"
 
       - name: Garbage collect build dependencies
         run: nix-collect-garbage

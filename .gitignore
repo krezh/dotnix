@@ -1,5 +1,5 @@
 # Nix
-result
+result*
 
 # Sops
 .decrypted*.sops.*

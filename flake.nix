@@ -3,7 +3,7 @@
 
   nixConfig = {
     extra-trusted-substituters = [
-      "https://krezh.cachix.org"
+      #"https://krezh.cachix.org"
       "https://cache.garnix.io"
       #"https://nix-cache.plexuz.xyz/krezh"
       "https://nix-community.cachix.org"
@@ -13,14 +13,14 @@
       "https://walker-git.cachix.org"
     ];
     extra-trusted-public-keys = [
-      "krezh.cachix.org-1:0hGx8u/mABpZkzJEBh/UMXyNon5LAXdCRqEeVn5mff8="
+      #"krezh.cachix.org-1:0hGx8u/mABpZkzJEBh/UMXyNon5LAXdCRqEeVn5mff8="
+      "cache.garnix.io:CTFPyKSLcx5RMJKfLo5EEPUObbA78b0YQ2DTCJXqr9g="
       #"krezh:pqkm/pHp8LD52mFQdGjZR1Xo7RvaG3KdBK4r4FvxIlA="
       "nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs="
       "hyprland.cachix.org-1:a7pgxzMz7+chwVL3/pzj6jIBMioiJM7ypFP8PwtkuGc="
       "anyrun.cachix.org-1:pqBobmOjI7nKlsUMV25u9QHa9btJK65/C8vnO3p346s="
       "walker.cachix.org-1:fG8q+uAaMqhsMxWjwvk0IMb4mFPFLqHjuvfwQxE4oJM="
       "walker-git.cachix.org-1:vmC0ocfPWh0S/vRAQGtChuiZBTAe4wiKDeyyXM0/7pM="
-      "cache.garnix.io:CTFPyKSLcx5RMJKfLo5EEPUObbA78b0YQ2DTCJXqr9g="
     ];
   };
 
@@ -204,10 +204,7 @@
         inputs.devshell.flakeModule
       ];
 
-      systems = [
-        "x86_64-linux"
-        "x86_64-darwin"
-      ];
+      systems = [ "x86_64-linux" ];
 
       flake = {
         nixosConfigurations = {
@@ -251,10 +248,8 @@
 
         homeManagerModules = lib.scanPath.toList { path = ./modules/homeManager; };
 
-        nixosModules = {
-          default = {
-            imports = lib.scanPath.toList { path = ./modules/nixos; };
-          };
+        nixosModules.default = {
+          imports = lib.scanPath.toList { path = ./modules/nixos; };
         };
       };
 
@@ -267,4 +262,5 @@
           formatter = pkgs.nixfmt-rfc-style;
         };
     };
+
 }
