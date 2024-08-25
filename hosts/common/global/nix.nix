@@ -14,6 +14,9 @@
     settings = {
       keep-outputs = true;
       keep-derivations = true;
+      warn-dirty = false;
+      flake-registry = ""; # Disable global flake registry
+      use-xdg-base-directories = true;
       trusted-users = [
         "root"
         "@wheel"
@@ -22,15 +25,11 @@
       experimental-features = [
         "nix-command"
         "flakes"
-        "repl-flake"
       ];
-      warn-dirty = false;
       system-features = [
         "kvm"
         "big-parallel"
       ];
-      flake-registry = ""; # Disable global flake registry
-      use-xdg-base-directories = true;
     };
     gc = {
       automatic = true;

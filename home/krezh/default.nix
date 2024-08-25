@@ -147,12 +147,9 @@ in
   nix = {
     settings = {
       accept-flake-config = true;
-      #cores = 0;
-      max-jobs = "auto";
       experimental-features = [
         "nix-command"
         "flakes"
-        "repl-flake"
       ];
       trusted-users = [
         "root"
