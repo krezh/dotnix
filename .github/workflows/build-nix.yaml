@@ -88,11 +88,11 @@ jobs:
           github_access_token: ${{ secrets.GITHUB_TOKEN }}
           extra_nix_config: |
             accept-flake-config = true
-            cores = 2
-            max-jobs = 2
+            always-allow-substitutes = true
+            builders-use-substitutes = true
 
-      # - name: Set up Magic Nix Cache
-      #   uses: DeterminateSystems/magic-nix-cache-action@v7
+      - name: Set up Magic Nix Cache
+        uses: DeterminateSystems/magic-nix-cache-action@v7
 
       # - name: Set up Attic
       #   uses: ryanccn/attic-action@v0.2.1
@@ -117,7 +117,7 @@ jobs:
           nix build \
             "github:krezh/nix-config#top.${{ matrix.host }}" \
             --log-format raw \
-            -o result-previous \
+            -o result-previous
 
       - name: Build new ${{ matrix.host }} system
         run: |
