@@ -102,6 +102,9 @@ jobs:
           cache: "${{ env.ATTIC_CACHE }}"
           token: "${{ secrets.ATTIC_TOKEN }}"
 
+      - name: Install NVD
+        run: nix profile install nixpkgs#nvd
+
       # - name: Set up Cachix
       #   uses: cachix/cachix-action@v15
       #   if: ${{ !github.event.pull_request.head.repo.fork }}
@@ -145,7 +148,7 @@ jobs:
         run: |
           delimiter="$(openssl rand -hex 16)"
           echo "diff<<${delimiter}" >> "${GITHUB_OUTPUT}"
-          nix store diff-closures ./result-previous ./result-new >> "${GITHUB_OUTPUT}"
+          nvd --color never diff ./result-previous ./result-new >> "${GITHUB_OUTPUT}"
           echo "${delimiter}" >> "${GITHUB_OUTPUT}"
 
       - name: Comment report in pr
