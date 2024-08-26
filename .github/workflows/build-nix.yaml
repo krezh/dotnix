@@ -91,8 +91,8 @@ jobs:
             always-allow-substitutes = true
             builders-use-substitutes = true
 
-      # - name: Set up Magic Nix Cache
-      #   uses: DeterminateSystems/magic-nix-cache-action@v7
+      - name: Set up Magic Nix Cache
+        uses: DeterminateSystems/magic-nix-cache-action@v7
 
       - name: Set up Attic
         uses: ryanccn/attic-action@v0.2.1
