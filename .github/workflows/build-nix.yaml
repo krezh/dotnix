@@ -148,7 +148,7 @@ jobs:
         run: |
           delimiter="$(openssl rand -hex 16)"
           echo "diff<<${delimiter}" >> "${GITHUB_OUTPUT}"
-          nvd --color never diff ./result-previous ./result-new >> "${GITHUB_OUTPUT}"
+          nvd --color never diff ./result-previous ./result-new | sed '/<<</d; />>>/d' >> "${GITHUB_OUTPUT}"
           echo "${delimiter}" >> "${GITHUB_OUTPUT}"
 
       - name: Comment report in pr
@@ -158,9 +158,7 @@ jobs:
           header: ".#top.${{ matrix.host }}"
           message: |
             ### Report for `${{ matrix.host }}`
-
-            #### Version changes:
-            ```yaml
+            ```
             ${{ steps.diff.outputs.diff }}
             ```
 
