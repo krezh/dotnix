@@ -24,6 +24,7 @@
 
   hardware.enableRedistributableFirmware = true;
   xdg.terminal-exec.enable = true;
+  zramSwap.enable
 
   security = {
     doas = {
