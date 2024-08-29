@@ -120,6 +120,7 @@ jobs:
           nix build \
             "github:krezh/nix-config#top.${{ matrix.host }}" \
             --log-format raw \
+            --fallback \
             -o result-previous \
             > >(tee stdout.log) 2> >(tee /tmp/nix-build-err.log >&2)
 
