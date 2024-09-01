@@ -8,7 +8,7 @@
     extends: ["schedule:daily"],
     //recreateWhen: "always",
     //rebaseWhen: "behind-base-branch",
-    automerge: false,
+    automerge: true,
     automergeType: "pr",
     ignoreTests: false,
   },
