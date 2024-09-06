@@ -1,10 +1,8 @@
-{ pkgs, ... }:
-{
+{ ... }: {
   check.enable = true;
   settings = {
     hooks = {
-      nixfmt.enable = true;
-      nixfmt.package = pkgs.nixfmt-rfc-style;
+      nixfmt-rfc-style.enable = true;
       deadnix.enable = true;
       shellcheck.enable = true;
       check-shebang-scripts-are-executable.enable = true;
