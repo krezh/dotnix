@@ -7,7 +7,10 @@
 }:
 {
   imports =
-    [ inputs.hyprland.nixosModules.default ]
+    [
+      inputs.hyprland.nixosModules.default
+      inputs.nixos-cosmic.nixosModules.default
+    ]
     ++ (lib.scanPath.toList { path = ../common/users; })
     ++ (lib.scanPath.toList { path = ../common/global; });
 

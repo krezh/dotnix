@@ -11,6 +11,7 @@
       "https://anyrun.cachix.org"
       "https://walker.cachix.org"
       "https://walker-git.cachix.org"
+      "https://cosmic.cachix.org"
     ];
     extra-trusted-public-keys = [
       #"krezh.cachix.org-1:0hGx8u/mABpZkzJEBh/UMXyNon5LAXdCRqEeVn5mff8="
@@ -21,6 +22,7 @@
       "anyrun.cachix.org-1:pqBobmOjI7nKlsUMV25u9QHa9btJK65/C8vnO3p346s="
       "walker.cachix.org-1:fG8q+uAaMqhsMxWjwvk0IMb4mFPFLqHjuvfwQxE4oJM="
       "walker-git.cachix.org-1:vmC0ocfPWh0S/vRAQGtChuiZBTAe4wiKDeyyXM0/7pM="
+      "cosmic.cachix.org-1:Dya9IyXD4xdBehWjrkPv6rtxpmMdRel02smYzA85dPE="
     ];
   };
 
@@ -87,6 +89,11 @@
 
     nh = {
       url = "github:viperml/nh";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
+    nixos-cosmic = {
+      url = "github:lilyinstarlight/nixos-cosmic";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
