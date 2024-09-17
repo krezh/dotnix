@@ -99,6 +99,7 @@ in
       tldr
       sd
       act
+      see
 
       # JSON
       jq

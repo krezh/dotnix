@@ -12,6 +12,12 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.event.number || github.ref }}
   cancel-in-progress: true
 
+env:
+  ATTIC_ENDPOINT: "https://nix-cache.plexuz.xyz"
+  ATTIC_CACHE: "krezh"
+  EXCLUDED_HOSTS: '["nixos-livecd"]'
+  TMPDIR: /tmp
+
 jobs:
   update-package:
     runs-on: ubuntu-latest
@@ -29,10 +35,32 @@ jobs:
           token: "${{ steps.app-token.outputs.token }}"
           fetch-depth: 0
 
-      - uses: cachix/install-nix-action@v27
+      - name: Install Nix
+        uses: cachix/install-nix-action@v27
         with:
+          github_access_token: ${{ secrets.GITHUB_TOKEN }}
           extra_nix_config: |
-            access-tokens = github.com=${{ steps.app-token.outputs.token }}
+            accept-flake-config = true
+            always-allow-substitutes = true
+            builders-use-substitutes = true
+
+      - name: Set up Attic
+        uses: ryanccn/attic-action@v0.2.1
+        if: ${{ !github.event.pull_request.head.repo.fork }}
+        with:
+          endpoint: "${{ env.ATTIC_ENDPOINT }}"
+          cache: "${{ env.ATTIC_CACHE }}"
+          token: "${{ secrets.ATTIC_TOKEN }}"
+
+      - name: Set up Cachix
+        uses: cachix/cachix-action@v15
+        if: ${{ !github.event.pull_request.head.repo.fork }}
+        with:
+          name: krezh
+          authToken: "${{ secrets.CACHIX_AUTH_TOKEN }}"
+
+      - name: Garbage collect build dependencies
+        run: nix-collect-garbage
 
       - name: Extract values
         id: extract-values
@@ -43,9 +71,9 @@ jobs:
           echo "package=$package" >> $GITHUB_OUTPUT
           echo "new_version=$new_version" >> $GITHUB_OUTPUT
 
-      - name: "Update hashes for package: ${{ steps.extract-values.outputs.package }}"
+      - name: "Update hashes and build package: ${{ steps.extract-values.outputs.package }}"
         run: |
-          nix run github:Mic92/nix-update -- --flake --version=skip "${{ steps.extract-values.outputs.package }}"
+          nix run github:Mic92/nix-update -- --flake --version=skip --build "${{ steps.extract-values.outputs.package }}"
 
       - name: Push changes
         uses: actions-js/push@v1.5
@@ -70,11 +98,3 @@ jobs:
           seconds=$((seconds - 1))
           done
           echo "Done"
-
-  nix-build:
-    name: Build and diff Nix systems
-    needs: update-package
-    uses: ./.github/workflows/build-nix.yaml
-    permissions:
-      pull-requests: write
-    secrets: inherit
