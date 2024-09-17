@@ -8,7 +8,11 @@
   ...
 }:
 let
-  isDesktop = hostname != "thor-wsl";
+  isDesktop =
+    !(builtins.elem hostname) [
+      "thor-wsl"
+      "steamdeck"
+    ];
 in
 {
   imports = [
