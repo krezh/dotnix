@@ -113,6 +113,7 @@ in
       nix-output-monitor
       niv
       comma
+      nix-tree
 
       # Kubernetes
       talosctl

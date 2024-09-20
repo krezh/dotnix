@@ -13,11 +13,6 @@
     inputs.attic.packages.${pkgs.system}.default
   ];
 
-  programs.winbox = {
-    enable = true;
-    openFirewall = true;
-  };
-
   programs.nh = {
     enable = true;
     package = inputs.nh.packages.${pkgs.system}.default;
