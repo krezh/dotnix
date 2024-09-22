@@ -5,5 +5,6 @@
     ./editors
     ./browsers
     ./chat
+    ./notes
   ];
 }
