@@ -100,6 +100,7 @@ in
       sd
       act
       see
+      btop
 
       # JSON
       jq
