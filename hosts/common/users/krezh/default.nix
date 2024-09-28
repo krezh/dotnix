@@ -43,8 +43,4 @@ in
   };
 
   services.tailscale.enable = true;
-
-  environment = {
-    noXlibs = lib.mkForce false;
-  };
 }
