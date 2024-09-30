@@ -9,7 +9,7 @@
 buildGoModule rec {
   pname = "fluxcd";
   # renovate: datasource=github-releases depName=fluxcd/flux2
-  version = "2.3.0";
+  version = "2.4.0";
 
   src = fetchFromGitHub {
     owner = "fluxcd";
@@ -72,11 +72,7 @@ buildGoModule rec {
     '';
     homepage = "https://fluxcd.io";
     license = lib.licenses.asl20;
-    maintainers = with lib.maintainers; [
-      bryanasdev000
-      jlesquembre
-      superherointj
-    ];
+    maintainers = [ ];
     mainProgram = "flux";
   };
 }
