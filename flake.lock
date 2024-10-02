@@ -1787,11 +1787,11 @@
         "rust-overlay": "rust-overlay_2"
       },
       "locked": {
-        "lastModified": 1727746579,
-        "narHash": "sha256-DUfc08Zry3EJi9SutWopIEdADWm0lzcmnDIXEIFoYGU=",
+        "lastModified": 1727830406,
+        "narHash": "sha256-4ekXerSu3/K8U0I9A8hipIZxfvN2znvdKxYCy4UAaIo=",
         "owner": "lilyinstarlight",
         "repo": "nixos-cosmic",
-        "rev": "074bbcc4e3fa9ce4bee100de64506c3662c62299",
+        "rev": "7b940d61e09249aee3c6269730d06ffac0061bb8",
         "type": "github"
       },
       "original": {
