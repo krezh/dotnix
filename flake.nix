@@ -225,11 +225,11 @@
             homeUsers = [ "krezh" ];
             baseModules = lib.scanPath.toList { path = ./hosts/odin; };
           };
-          steamdeck = flakeLib.mkSystem {
-            hostname = "steamdeck";
-            homeUsers = [ "krezh" ];
-            baseModules = lib.scanPath.toList { path = ./hosts/steamdeck; };
-          };
+          #steamdeck = flakeLib.mkSystem {
+          #  hostname = "steamdeck";
+          #  homeUsers = [ "krezh" ];
+          #  baseModules = lib.scanPath.toList { path = ./hosts/steamdeck; };
+          #};
           nixos-livecd = flakeLib.mkSystem {
             hostname = "nixos-livecd";
             homeUsers = [ ];
