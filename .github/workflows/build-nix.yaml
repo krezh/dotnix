@@ -95,7 +95,7 @@ jobs:
       #   uses: DeterminateSystems/magic-nix-cache-action@v7
 
       - name: Set up Attic
-        uses: ryanccn/attic-action@v0.2.1
+        uses: ryanccn/attic-action@v0.3.0
         if: ${{ !github.event.pull_request.head.repo.fork }}
         with:
           endpoint: "${{ env.ATTIC_ENDPOINT }}"
