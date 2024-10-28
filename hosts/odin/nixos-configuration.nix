@@ -119,7 +119,7 @@
       ubuntu_font_family # Ubuntu fonts
       unifont # some international languages
       noto-fonts
-      noto-fonts-cjk-sans
+      noto-fonts-cjk
       noto-fonts-emoji
       liberation_ttf
       fira-code

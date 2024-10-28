@@ -1,7 +1,7 @@
 {
   programs.eza = {
     enable = true;
-    icons = "auto";
+    icons = true;
     enableFishIntegration = true;
   };
 }
