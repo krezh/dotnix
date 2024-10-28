@@ -99,11 +99,6 @@
       hinting.enable = true;
       hinting.autohint = true;
       subpixel.rgba = "rgb";
-      # defaultFonts = {
-      #   monospace = [ "Source Code Pro" ];
-      #   sansSerif = [ "Source Sans Pro" ];
-      #   serif = [ "Source Serif Pro" ];
-      # };
     };
     fontDir.enable = true;
     enableDefaultPackages = true;
@@ -119,7 +114,7 @@
       ubuntu_font_family # Ubuntu fonts
       unifont # some international languages
       noto-fonts
-      noto-fonts-cjk
+      noto-fonts-cjk-sans
       noto-fonts-emoji
       liberation_ttf
       fira-code
@@ -152,18 +147,11 @@
     portalPackage = inputs.xdg-portal-hyprland.packages.${pkgs.system}.default;
   };
 
-  nixpkgs.overlays = [
-    (_final: prev: {
-      intel-vaapi-driver = prev.intel-vaapi-driver.override { enableHybridCodec = true; };
-    })
-  ];
-
   hardware = {
     graphics = {
       enable = true;
       extraPackages = with pkgs; [
         intel-media-driver # LIBVA_DRIVER_NAME=iHD
-        intel-vaapi-driver # LIBVA_DRIVER_NAME=i965 (older but works better for Firefox/Chromium)
         libvdpau-va-gl
       ];
     };
