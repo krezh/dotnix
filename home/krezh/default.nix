@@ -107,7 +107,7 @@ in
       jc
       jnv
 
-      # Nix      
+      # Nix
       cachix
       nixfmt-rfc-style
       nvd
@@ -127,6 +127,8 @@ in
       fluxcd
       stern
       helmfile
+      kubernetes-helm
+      kubernetes-helmPlugins.helm-diff
       kind
     ];
   };
