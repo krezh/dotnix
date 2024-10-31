@@ -101,7 +101,7 @@ jobs:
           cp ./result/iso/*.iso /tmp/nixos-${{ matrix.host }}-${{ steps.tag.outputs.tag }}.iso
 
       - name: Release
-        uses: softprops/action-gh-release@v2.0.8
+        uses: softprops/action-gh-release@v2.0.9
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           name: "NixOS ISO: ${{ matrix.host }}-${{ steps.tag.outputs.tag }}"
