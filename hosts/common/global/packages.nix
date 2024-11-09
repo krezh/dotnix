@@ -6,11 +6,11 @@
     git
     deadnix
     usbutils
-    inputs.nix-init.packages.${pkgs.system}.default
+    nix-init
+    nix-update
     inputs.nixd.packages.${pkgs.system}.nixd
-    inputs.nix-update.packages.${pkgs.system}.nix-update
     inputs.nix-inspect.packages.${pkgs.system}.default
-    inputs.attic.packages.${pkgs.system}.default
+    # inputs.attic.packages.${pkgs.system}.default
   ];
 
   programs.nh = {

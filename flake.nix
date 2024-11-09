@@ -5,7 +5,7 @@
     extra-trusted-substituters = [
       "https://krezh.cachix.org"
       "https://cache.garnix.io"
-      "https://nix-cache.plexuz.xyz/krezh"
+      #"https://nix-cache.plexuz.xyz/krezh"
       "https://nix-community.cachix.org"
       "https://hyprland.cachix.org"
       "https://anyrun.cachix.org"
@@ -16,7 +16,7 @@
     extra-trusted-public-keys = [
       "krezh.cachix.org-1:0hGx8u/mABpZkzJEBh/UMXyNon5LAXdCRqEeVn5mff8="
       "cache.garnix.io:CTFPyKSLcx5RMJKfLo5EEPUObbA78b0YQ2DTCJXqr9g="
-      "krezh:pTHGRGjsJcN7JiWnsL9/CaSIMVQbeqQc/xzLi0YgsxQ="
+      #"krezh:pTHGRGjsJcN7JiWnsL9/CaSIMVQbeqQc/xzLi0YgsxQ="
       "nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs="
       "hyprland.cachix.org-1:a7pgxzMz7+chwVL3/pzj6jIBMioiJM7ypFP8PwtkuGc="
       "anyrun.cachix.org-1:pqBobmOjI7nKlsUMV25u9QHa9btJK65/C8vnO3p346s="
@@ -52,16 +52,6 @@
 
     attic.url = "github:zhaofengli/attic";
     attic.inputs.nixpkgs.follows = "nixpkgs";
-
-    nix-update = {
-      url = "github:Mic92/nix-update";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-
-    nix-init = {
-      url = "github:nix-community/nix-init";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
 
     pre-commit-hooks = {
       url = "github:cachix/pre-commit-hooks.nix";
