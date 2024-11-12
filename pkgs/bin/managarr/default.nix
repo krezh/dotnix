@@ -17,10 +17,10 @@ rustPlatform.buildRustPackage rec {
     owner = "Dark-Alex-17";
     repo = "managarr";
     rev = "v${version}";
-    hash = "sha256-TAt1mFOyk4qVrwYVj2Irjx8NTtEFe3VASmbE0QxbIwA=";
+    hash = "sha256-1zdLvuEFwB+SI+8kHBOu+2KS1IRJSq8qRMS7vZjV2Fo=";
   };
 
-  cargoHash = "sha256-bgf9aNyPOwSo2VIwg6gogTxOOGdiIa5v3BNXYg1MTUI=";
+  cargoHash = "sha256-yGqhrKGo5c9d9sCDr8q4e/cSfGr3E5kr/f4e8x+4UB4=";
 
   nativeBuildInputs = [
     pkg-config
