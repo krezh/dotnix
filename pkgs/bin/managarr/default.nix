@@ -11,7 +11,7 @@
 rustPlatform.buildRustPackage rec {
   pname = "managarr";
   # renovate: datasource=github-releases depName=Dark-Alex-17/managarr
-  version = "0.1.4";
+  version = "0.2.2";
 
   src = fetchFromGitHub {
     owner = "Dark-Alex-17";
