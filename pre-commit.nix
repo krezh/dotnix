@@ -1,4 +1,5 @@
-{ ... }: {
+{ ... }:
+{
   check.enable = true;
   settings = {
     hooks = {

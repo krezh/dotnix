@@ -18,7 +18,7 @@
       {
         name = "partition";
         command = "sudo nix --experimental-features 'nix-command flakes' run github:nix-community/disko -- --mode disko --flake github:krezh/nix-config#odin";
-        help = "Will partition the disk";
+        help = "Will partition the disk (Odin)";
         category = "Nix";
       }
     ];

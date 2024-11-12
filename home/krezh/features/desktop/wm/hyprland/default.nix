@@ -1,5 +1,9 @@
-{ inputs, pkgs, ... }: {
-  imports = [ inputs.hyprland.homeManagerModules.default ./binds.nix ];
+{ inputs, pkgs, ... }:
+{
+  imports = [
+    inputs.hyprland.homeManagerModules.default
+    ./binds.nix
+  ];
 
   wayland.windowManager.hyprland = {
     enable = true;
