@@ -56,17 +56,6 @@
         out_speed = 2;
       };
     };
-
-    hyprexpo = {
-      columns = 3;
-      gap_size = 5;
-      bg_col = "$base";
-      workspace_method = "center current";
-      enable_gesture = true;
-      gesture_fingers = 3;
-      gesture_distance = 300;
-      gesture_positive = true;
-    };
   };
 
   general = {
@@ -80,12 +69,6 @@
 
   decoration = {
     rounding = 15;
-    shadow_ignore_window = true;
-    drop_shadow = false;
-    shadow_range = 20;
-    shadow_render_power = 3;
-    # "col.shadow" = "rgb(${oxocarbon_background})";
-    # "col.shadow_inactive" = "${background}";
     blur = {
       enabled = true;
       size = 4;
@@ -125,7 +108,6 @@
     force_split = 0;
     preserve_split = true;
     default_split_ratio = 1.0;
-    no_gaps_when_only = false;
     special_scale_factor = 0.8;
     split_width_multiplier = 1.0;
     use_active_for_splits = true;
@@ -136,7 +118,6 @@
     orientation = "right";
     special_scale_factor = 0.8;
     new_status = "slave";
-    no_gaps_when_only = false;
   };
 
   debug = {

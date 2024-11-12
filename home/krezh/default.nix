@@ -27,6 +27,11 @@ in
   programs.nix-index.enable = true;
 
   xdg.enable = true;
+  dconf.settings = {
+    "org/gnome/desktop/interface" = {
+      color-scheme = "prefer-dark";
+    };
+  };
 
   catppuccin = {
     enable = true;
