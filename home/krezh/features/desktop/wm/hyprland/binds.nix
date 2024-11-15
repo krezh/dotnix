@@ -32,6 +32,11 @@ let
     bin = "${wezterm.pkg}/bin/wezterm";
   };
 
+  kitty = {
+    pkg = config.programs.kitty.package;
+    bin = "${wezterm.pkg}/bin/kitty";
+  };
+
   volume_script =
     if config.hmModules.desktop.hyprpanel.enable then
       "${pkgs.volume_script_hyprpanel}/bin/volume_script_hyprpanel"
@@ -64,8 +69,8 @@ in
         # Applications
         "$mainMod,B,exec,${chrome.bin}"
         "$mainMod,E,exec,${pkgs.nemo}/bin/nemo"
-        "$mainMod,RETURN,exec,${wezterm.bin}"
-        "$SupShft,RETURN,exec,[floating] ${wezterm.bin}"
+        "$mainMod,RETURN,exec,${kitty.bin}"
+        "$SupShft,RETURN,exec,[floating] ${kitty.bin}"
         "$mainMod,O,exec,${pkgs.obsidian}/bin/obsidian"
 
         # Print Screen
