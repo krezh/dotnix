@@ -7,6 +7,7 @@
     extraConfig = {
       commit.gpgsign = true;
       pull.rebase = true;
+      rebase.autoStash = true;
       push.autoSetupRemote = true;
       gpg.format = "ssh";
       format.signoff = true;

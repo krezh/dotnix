@@ -48,32 +48,26 @@
           # that.
           # See: <https://github.com/PMunch/nimlsp/issues/178#issue-2128106096>
           nim.enable = false;
-
           nix.enable = true;
-
           markdown.enable = true;
           html.enable = true;
           css.enable = true;
-          sql.enable = true;
-          java.enable = true;
+          sql.enable = false;
+          java.enable = false;
           ts.enable = true;
-          svelte.enable = true;
+          svelte.enable = false;
           go.enable = true;
           lua.enable = true;
-          elixir.enable = true;
-          zig.enable = true;
-          ocaml.enable = true;
+          elixir.enable = false;
+          zig.enable = false;
+          ocaml.enable = false;
           python.enable = true;
-          dart.enable = true;
+          dart.enable = false;
           bash.enable = true;
-          r.enable = true;
-          tailwind.enable = true;
-          typst.enable = true;
-          clang = {
-            enable = true;
-            lsp.server = "clangd";
-          };
-
+          r.enable = false;
+          tailwind.enable = false;
+          typst.enable = false;
+          clang.enable = false;
           rust = {
             enable = true;
             crates.enable = true;

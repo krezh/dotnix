@@ -15,6 +15,12 @@
   catppuccin.pointerCursor.flavor = "mocha";
   catppuccin.pointerCursor.accent = "light";
 
+  dconf.settings = {
+    "org/gnome/desktop/interface" = {
+      color-scheme = "prefer-dark";
+    };
+  };
+
   gtk = {
     enable = true;
     catppuccin.icon.enable = true;
