@@ -24,6 +24,12 @@
 
   hardware.enableRedistributableFirmware = true;
   xdg.terminal-exec.enable = true;
+  xdg.terminal-exec.settings = {
+    default = [
+      "kitty.desktop"
+      "wezterm.desktop"
+    ];
+  };
   zramSwap.enable = true;
 
   security = {
