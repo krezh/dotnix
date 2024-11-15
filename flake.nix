@@ -137,7 +137,7 @@
     hyprpanel.inputs.nixpkgs.follows = "nixpkgs";
 
     sops-nix = {
-      url = "github:Mic92/sops-nix";
+      url = "github:Mic92/sops-nix?rev=59d6988329626132eaf107761643f55eb979eef1"; # Broken on master
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
