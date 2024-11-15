@@ -5,6 +5,8 @@
   ...
 }:
 let
+  defaultTerminal = "${pkgs.xdg-terminal-exec}/bin/xdg-terminal-exec";
+
   hyprlock = {
     pkg = config.programs.hyprlock.package;
     bin = "${hyprlock.pkg}/bin/hyprlock";
@@ -25,16 +27,6 @@ let
   hyprkeys = {
     pkg = inputs.hyprkeys.packages.${pkgs.system}.hyprkeys;
     bin = "${hyprkeys.pkg}/bin/hyprkeys";
-  };
-
-  wezterm = {
-    pkg = config.programs.wezterm.package;
-    bin = "${wezterm.pkg}/bin/wezterm";
-  };
-
-  kitty = {
-    pkg = config.programs.kitty.package;
-    bin = "${wezterm.pkg}/bin/kitty";
   };
 
   volume_script =
@@ -69,8 +61,8 @@ in
         # Applications
         "$mainMod,B,exec,${chrome.bin}"
         "$mainMod,E,exec,${pkgs.nemo}/bin/nemo"
-        "$mainMod,RETURN,exec,${kitty.bin}"
-        "$SupShft,RETURN,exec,[floating] ${kitty.bin}"
+        "$mainMod,RETURN,exec,${defaultTerminal}"
+        "$SupShft,RETURN,exec,[floating] ${defaultTerminal}"
         "$mainMod,O,exec,${pkgs.obsidian}/bin/obsidian"
 
         # Print Screen

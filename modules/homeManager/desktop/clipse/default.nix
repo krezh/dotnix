@@ -8,6 +8,41 @@ let
   cfg = config.hmModules.desktop.clipse;
   json = pkgs.formats.json { };
   defaultTerminal = "${pkgs.xdg-terminal-exec}/bin/xdg-terminal-exec";
+  defaultConfig = {
+    historyFile = "clipboard_history.json";
+    maxHistory = 100;
+    allowDuplicates = false;
+    themeFile = "custom_theme.json";
+    tempDir = "tmp_files";
+    logFile = "clipse.log";
+    keyBindings = {
+      choose = "enter";
+      clearSelected = "S";
+      down = "down";
+      end = "end";
+      filter = "/";
+      home = "home";
+      more = "?";
+      nextPage = "right";
+      prevPage = "left";
+      preview = "t";
+      quit = "q";
+      remove = "x";
+      selectDown = "ctrl+down";
+      selectSingle = "s";
+      selectUp = "ctrl+up";
+      togglePin = "p";
+      togglePinned = "tab";
+      up = "up";
+      yankFilter = "ctrl+s";
+    };
+    imageDisplay = {
+      type = "basic";
+      scaleX = 9;
+      scaleY = 9;
+      heightCut = 2;
+    };
+  };
 in
 {
   options.hmModules.desktop.clipse = {
@@ -18,22 +53,18 @@ in
       default = pkgs.clipse;
     };
 
-    settings = lib.mkOption {
+    config = lib.mkOption {
       type = lib.types.attrs;
-      default = {
-        allowDuplicates = false;
-        historyFile = "clipboard_history.json";
-        logFile = "clipse.log";
-        maxHistory = 20;
-        tempDir = "tmp_files";
-        themeFile = "custom_theme.json";
-      };
+      default = { };
     };
   };
 
   config = lib.mkIf cfg.enable {
 
-    home.packages = [ cfg.package ];
+    home.packages = [
+      cfg.package
+      pkgs.wl-clipboard
+    ];
 
     wayland.windowManager.hyprland = {
       settings = {
@@ -45,14 +76,18 @@ in
       };
     };
 
-    xdg.configFile."clipse/config.json" = lib.mkIf (cfg.settings != { }) {
-      source = json.generate "config.json" cfg.settings;
+    xdg.configFile."clipse/config.json" = {
+      source = json.generate "clipse/config.json" (
+        lib.recursiveUpdate defaultConfig cfg.config
+
+      );
     };
 
     systemd.user.services.clipse = {
       Unit = {
         Description = "Configurable TUI clipboard manager for Unix";
         Documentation = "https://github.com/savedra1/clipse";
+        X-SwitchMethod = "restart";
       };
       Service = {
         PassEnvironment = [

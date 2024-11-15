@@ -2,6 +2,8 @@
 {
   hmModules.desktop.clipse = {
     enable = true;
-    #settings = { };
+    config = {
+      maxHistory = 20;
+    };
   };
 }

@@ -6,5 +6,6 @@
     ./browsers
     ./chat
     ./notes
+    ./mail
   ];
 }
