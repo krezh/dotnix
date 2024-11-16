@@ -4034,7 +4034,7 @@
     "ssh-keys": {
       "flake": false,
       "locked": {
-        "narHash": "sha256-moOWeB3suOFrj00fQJmfXx8hUe4wJ12R74solnXHjr0=",
+        "narHash": "sha256-LJdJX5BPX3qUDwH7mJ0mUwb5N3z2COLZosXC03KGw/4=",
         "type": "file",
         "url": "https://github.com/krezh.keys"
       },
