@@ -43,7 +43,7 @@ in
           "XDG_RUNTIME_DIR"
         ];
         ExecStart = "${cfg.package}/bin/hyprpanel";
-        Restart = "on-failure";
+        Restart = "always";
       };
       Install.WantedBy = [
         (lib.mkIf config.wayland.windowManager.hyprland.systemd.enable "hyprland-session.target")

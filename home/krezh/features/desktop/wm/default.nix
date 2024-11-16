@@ -8,5 +8,6 @@
     ./hyprlock
     ./tofi
     ./clipse
+    ./shikane
   ];
 }

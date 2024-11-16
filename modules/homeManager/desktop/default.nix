@@ -6,5 +6,6 @@
     ./vesktop
     ./upower-notify
     ./clipse
+    ./shikane
   ];
 }

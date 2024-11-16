@@ -95,7 +95,7 @@ in
           "XDG_RUNTIME_DIR"
         ];
         ExecStart = "${cfg.package}/bin/clipse --listen-shell";
-        Restart = "on-failure";
+        Restart = "always";
       };
       Install.WantedBy = [
         (lib.mkIf config.wayland.windowManager.hyprland.systemd.enable "hyprland-session.target")

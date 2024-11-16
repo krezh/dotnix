@@ -41,33 +41,15 @@
           enableFormat = true;
           enableTreesitter = true;
           enableExtraDiagnostics = true;
-
-          # Nim LSP is broken on Darwin and therefore
-          # should be disabled by default. Users may still enable
-          # `vim.languages.vim` to enable it, this does not restrict
-          # that.
-          # See: <https://github.com/PMunch/nimlsp/issues/178#issue-2128106096>
-          nim.enable = false;
           nix.enable = true;
           markdown.enable = true;
           html.enable = true;
           css.enable = true;
-          sql.enable = false;
-          java.enable = false;
           ts.enable = true;
-          svelte.enable = false;
           go.enable = true;
           lua.enable = true;
-          elixir.enable = false;
-          zig.enable = false;
-          ocaml.enable = false;
           python.enable = true;
-          dart.enable = false;
           bash.enable = true;
-          r.enable = false;
-          tailwind.enable = false;
-          typst.enable = false;
-          clang.enable = false;
           rust = {
             enable = true;
             crates.enable = true;
@@ -172,8 +154,6 @@
         };
 
         notes = {
-          obsidian.enable = false; # FIXME: neovim fails to build if obsidian is enabled
-          orgmode.enable = false;
           mind-nvim.enable = true;
           todo-comments.enable = true;
         };
