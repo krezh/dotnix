@@ -53,7 +53,9 @@ in
 
       Service = {
         Type = "simple";
-        ExecStart = "${cfg.package}/bin/shikane -c ${config.xdg.configFile."shikane/config.toml".target}";
+        ExecStart = "${cfg.package}/bin/shikane -c ${
+          config.home.homeDirectory + "/" + config.xdg.configFile."shikane/config.toml".target
+        }";
         Restart = "always";
       };
 
