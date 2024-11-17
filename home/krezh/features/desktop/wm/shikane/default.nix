@@ -1,28 +1,29 @@
 { ... }:
 {
   hmModules.desktop.shikane = {
-    enable = true;
+    enable = false;
     config = {
       profile = [
         {
           name = "default";
           output = [
             {
-              name = "eDP-1";
+              search = [ "eDP-1" ];
+              mode = "1920x1080@60";
               enable = true;
             }
           ];
         }
         {
           name = "docking";
-          exec = [ ''notify-send "shikane" "profile $SHIKANE_PROFILE_NAME active"'' ];
+          exec = [ "notify-send shikane profile $SHIKANE_PROFILE_NAME active" ];
           output = [
             {
-              match = "eDP-1";
+              search = [ "eDP-1" ];
               enable = false;
             }
             {
-              match = "/DP-[1-9]/";
+              search = [ "DP-[1-9]" ];
               enable = true;
             }
           ];

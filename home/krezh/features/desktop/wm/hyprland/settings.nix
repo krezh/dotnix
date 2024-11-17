@@ -1,11 +1,11 @@
 {
-  monitor = [
-    "eDP-1,1920x1080@60.0,0x360,1.0"
-    "DP-6,2560x1440@239.97,1920x0,1.0"
-    "DP-7,2560x1440@144.0,4480x0,1.0"
-  ];
+  # monitor = [
+  #   ", preferred, auto, 1"
+  # ];
 
   env = [ "QT_WAYLAND_DISABLE_WINDOWDECORATION,1" ];
+
+  source = [ "~/.config/hypr/monitors.conf" ]; # nwg displays
 
   cursor = {
     enable_hyprcursor = true;

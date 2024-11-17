@@ -49,6 +49,7 @@ in
         PartOf = cfg.systemdTarget;
         Requires = cfg.systemdTarget;
         After = cfg.systemdTarget;
+        X-SwitchMethod = "restart";
       };
 
       Service = {
@@ -66,6 +67,7 @@ in
 
     home.packages = [
       pkgs.shikane # For the CLI (saving profiles)
+      pkgs.libnotify # For the notify-send command
     ];
   };
 }
