@@ -1,7 +1,7 @@
-{ inputs, pkgs, ... }:
+{ pkgs, ... }:
 {
   imports = [
-    inputs.hyprland.homeManagerModules.default
+    #inputs.hyprland.homeManagerModules.default
     ./binds.nix
   ];
 
@@ -9,7 +9,7 @@
     enable = true;
     catppuccin.enable = true;
     xwayland.enable = true;
-    package = inputs.hyprland.packages.${pkgs.system}.hyprland;
+    #package = inputs.hyprland.packages.${pkgs.system}.hyprland;
     systemd = {
       enable = true;
       variables = [
