@@ -19,5 +19,5 @@
     };
   };
 
-  hmModules.desktop.upower-notify.enable = true;
+  hmModules.desktop.upower-notify.enable = false;
 }
