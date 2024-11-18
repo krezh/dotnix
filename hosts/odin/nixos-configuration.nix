@@ -51,6 +51,8 @@
 
   security.pam.services.hyprlock = { };
 
+  services.desktopManager.cosmic.enable = true;
+
   services = {
     displayManager = {
       sddm = {
@@ -61,6 +63,7 @@
         catppuccin.enable = true;
       };
       defaultSession = "hyprland";
+      cosmic-greeter.enable = false;
     };
 
     fstrim.enable = true;
