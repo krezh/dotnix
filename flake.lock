@@ -8,11 +8,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1731944682,
-        "narHash": "sha256-iZSbCJceoV0mVCXUwiBk0xANDk5dekdxg6JSdEuHcr8=",
+        "lastModified": 1731952799,
+        "narHash": "sha256-ANRb7GgUaM4ORl+tpT5dxIAs0C4M7oXqSyQlk/NP9M8=",
         "owner": "Aylur",
         "repo": "ags",
-        "rev": "7dff0fe79d8649de24effcba6880715b935b1991",
+        "rev": "027a4418f83c14390859438ccc415d1e4e988cd5",
         "type": "github"
       },
       "original": {
@@ -103,11 +103,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1731891022,
-        "narHash": "sha256-Vd9X4nPzRHIVDwO9HJdBvSjDFMinRmpPnMLrPHZJ7dM=",
+        "lastModified": 1731952585,
+        "narHash": "sha256-Sh1E7sJd8JJM3PCU1ZOei/QWz97OLCENIi2rTRoaniw=",
         "owner": "aylur",
         "repo": "astal",
-        "rev": "48692ff557f5f9e95744f939e3fcd1054badb585",
+        "rev": "664c7a4ddfcf48c6e8accd3c33bb94424b0e8609",
         "type": "github"
       },
       "original": {
@@ -534,11 +534,11 @@
         "systems": "systems_7"
       },
       "locked": {
-        "lastModified": 1731533236,
-        "narHash": "sha256-l0KFg5HjrsfsO/JpG+r7fRrqm12kzFHyUHqHCVpMMbI=",
+        "lastModified": 1726560853,
+        "narHash": "sha256-X6rJYSESBVr3hBoH0WbKE5KvhPU5bloyZ2L4K60/fPQ=",
         "owner": "numtide",
         "repo": "flake-utils",
-        "rev": "11707dc2f618dd54ca8739b309ec4fc024de578b",
+        "rev": "c1dfcf08411b08f6b8615f7d8971a2bfa81d5e8a",
         "type": "github"
       },
       "original": {
@@ -4344,11 +4344,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1731940729,
-        "narHash": "sha256-44FZUcR8TY0hA3ASLnRO5PKM4BdCjmSrYwGTwZyeFI4=",
+        "lastModified": 1731948444,
+        "narHash": "sha256-E3lkCI1PjPSwD7DeQcxqJU7mGa5bcAlM0g7803NSsrQ=",
         "owner": "abenz1267",
         "repo": "walker",
-        "rev": "ba69a44634dc1dfc44a2c5639c85809cde254dfc",
+        "rev": "651779f813f62edba9227b41111360592532f52b",
         "type": "github"
       },
       "original": {
