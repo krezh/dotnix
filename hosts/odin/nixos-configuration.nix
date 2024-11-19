@@ -51,7 +51,7 @@
 
   security.pam.services.hyprlock = { };
 
-  services.desktopManager.cosmic.enable = true;
+  services.desktopManager.cosmic.enable = false;
 
   services = {
     displayManager = {
