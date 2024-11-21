@@ -38,17 +38,14 @@
 
   programs.walker = {
     enable = true;
+    package = inputs.walker.packages.${pkgs.system}.default;
     runAsService = true;
 
-    # All options from the config.json can be used here.
     config = {
-      search.placeholder = "Example";
-      ui.fullscreen = true;
-      list = {
-        height = 200;
-      };
-      websearch.prefix = "?";
-      switcher.prefix = "/";
+      theme_base = [ "catppuccin" ];
+
+      activation_mode.disabled = true;
+      ignore_mouse = false;
     };
   };
 }

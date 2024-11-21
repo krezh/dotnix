@@ -90,6 +90,7 @@
       audio.enable = true;
     };
   };
+  services.udev.packages = [ pkgs.headsetcontrol ];
 
   networking.networkmanager.enable = true;
 
@@ -170,6 +171,7 @@
     systemPackages = with pkgs; [
       age-plugin-yubikey
       intel-gpu-tools
+      headsetcontrol
     ];
   };
   networking.hostName = "${hostname}";

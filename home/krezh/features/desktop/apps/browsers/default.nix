@@ -14,5 +14,11 @@
     };
   };
 
+  programs = {
+    vivaldi = {
+      enable = true;
+    };
+  };
+
   home.packages = [ inputs.browser-previews.packages.${pkgs.system}.google-chrome ];
 }
