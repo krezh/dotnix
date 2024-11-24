@@ -103,6 +103,7 @@ in
       btop
       flyctl
       up
+      retry
 
       # JSON
       jq
