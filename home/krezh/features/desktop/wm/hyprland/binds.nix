@@ -19,6 +19,11 @@ let
     bin = "${anyrun.pkg.default}/bin/anyrun";
   };
 
+  walker = {
+    pkg = config.programs.walker.package;
+    bin = "${walker.pkg}/bin/walker";
+  };
+
   chrome = {
     pkg = inputs.browser-previews.packages.${pkgs.system}.google-chrome;
     bin = "${chrome.pkg}/bin/google-chrome-stable";
@@ -56,7 +61,7 @@ in
       bind = [
         "$mainMod,ESCAPE,exec,${pkgs.wlogout}/bin/wlogout"
         "$mainMod,L,exec,${hyprlock.bin} --immediate"
-        "$mainMod,R,exec,${anyrun.bin} --plugins ${anyrun.apps}"
+        "$mainMod,R,exec,${walker.bin}"
         "$mainMod,K,exec,${hyprkeys.bin} -b -r | ${anyrun.bin} --plugins ${anyrun.stdin}"
         # Applications
         "$mainMod,B,exec,${chrome.bin}"

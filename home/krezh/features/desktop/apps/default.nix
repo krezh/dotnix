@@ -1,11 +1,15 @@
+{ pkgs, ... }:
 {
   imports = [
     ./terminal
-    ./spotify
     ./editors
     ./browsers
     ./chat
     ./notes
     ./mail
+    ./media
+  ];
+  home.packages = with pkgs; [
+    resources
   ];
 }

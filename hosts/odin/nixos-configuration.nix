@@ -63,7 +63,6 @@
         catppuccin.enable = true;
       };
       defaultSession = "hyprland";
-      cosmic-greeter.enable = false;
     };
 
     fstrim.enable = true;
