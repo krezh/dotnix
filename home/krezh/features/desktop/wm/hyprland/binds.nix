@@ -51,26 +51,28 @@ let
     bin = "${grimblast.pkg}/bin/grimblast";
   };
 
+  mainMod = "SUPER";
+  mainModShift = "${mainMod} SHIFT";
+
 in
 {
   wayland.windowManager.hyprland = {
     settings = {
-      "$mainMod" = "SUPER";
-      "$SupShft" = "SUPER SHIFT";
 
       bind = [
-        "$mainMod,ESCAPE,exec,${pkgs.wlogout}/bin/wlogout"
-        "$mainMod,L,exec,${hyprlock.bin} --immediate"
-        "$mainMod,R,exec,${walker.bin}"
-        "$mainMod,K,exec,${hyprkeys.bin} -b -r | ${anyrun.bin} --plugins ${anyrun.stdin}"
+        "${mainMod},ESCAPE,exec,${pkgs.wlogout}/bin/wlogout"
+        "${mainMod},L,exec,${hyprlock.bin} --immediate"
+        "${mainMod},R,exec,${walker.bin}"
+        "${mainMod},K,exec,${hyprkeys.bin} -b -r | ${anyrun.bin} --plugins ${anyrun.stdin}"
         # Applications
-        "$mainMod,B,exec,${chrome.bin}"
-        "$mainMod,E,exec,${pkgs.nemo}/bin/nemo"
-        "$mainMod,RETURN,exec,${defaultTerminal}"
-        "$SupShft,RETURN,exec,[floating] ${defaultTerminal}"
-        "$mainMod,O,exec,${pkgs.obsidian}/bin/obsidian"
+        "${mainMod},B,exec,${chrome.bin}"
+        "${mainMod},E,exec,${pkgs.nemo}/bin/nemo"
+        "${mainMod},RETURN,exec,${defaultTerminal}"
+        "${mainModShift},RETURN,exec,[floating] ${defaultTerminal}"
+        "${mainMod},O,exec,${pkgs.obsidian}/bin/obsidian"
+        "CTRL SHIFT,ESCAPE,exec,${pkgs.resources}/bin/resources"
 
-        # Print Screen
+        # Printscreen
         "ALT,P,exec,${grimblast.bin} --notify copy"
         "ALT SHIFT,P,exec,${grimblast.bin} --notify --freeze copy area || notify-send 'Grimblast'"
 
@@ -78,54 +80,54 @@ in
         ",XF86AudioMute,exec,${volume_script} mute"
 
         # Hyprland binds
-        "$mainMod,Q,killactive"
-        "$mainMod,V,togglefloating"
-        "$mainMod,P,pseudo"
-        "$mainMod,J,togglesplit"
-        "$mainMod,F,fullscreen,1"
-        "$SupShft,F,fullscreen,2"
-        "$SupShft,LEFT,movewindow,l"
-        "$SupShft,RIGHT,movewindow,r"
-        "$SupShft,UP,movewindow,u"
-        "$SupShft,DOWN,movewindow,d"
+        "${mainMod},Q,killactive"
+        "${mainMod},V,togglefloating"
+        "${mainMod},P,pseudo"
+        "${mainMod},J,togglesplit"
+        "${mainMod},F,fullscreen,1"
+        "${mainModShift},F,fullscreen,2"
+        "${mainModShift},LEFT,movewindow,l"
+        "${mainModShift},RIGHT,movewindow,r"
+        "${mainModShift},UP,movewindow,u"
+        "${mainModShift},DOWN,movewindow,d"
 
         # Move focus with mainMod + arrow keys
-        "$mainMod,left,movefocus,l"
-        "$mainMod,right,movefocus,r"
-        "$mainMod,up,movefocus,u"
-        "$mainMod,down,movefocus,d"
+        "${mainMod},left,movefocus,l"
+        "${mainMod},right,movefocus,r"
+        "${mainMod},up,movefocus,u"
+        "${mainMod},down,movefocus,d"
 
         # Switch workspaces with mainMod + [0-9]
-        "$mainMod,1,workspace,1"
-        "$mainMod,2,workspace,2"
-        "$mainMod,3,workspace,3"
-        "$mainMod,4,workspace,4"
-        "$mainMod,5,workspace,5"
-        "$mainMod,6,workspace,6"
-        "$mainMod,7,workspace,7"
-        "$mainMod,8,workspace,8"
-        "$mainMod,9,workspace,9"
-        "$mainMod,0,workspace,10"
+        "${mainMod},1,workspace,1"
+        "${mainMod},2,workspace,2"
+        "${mainMod},3,workspace,3"
+        "${mainMod},4,workspace,4"
+        "${mainMod},5,workspace,5"
+        "${mainMod},6,workspace,6"
+        "${mainMod},7,workspace,7"
+        "${mainMod},8,workspace,8"
+        "${mainMod},9,workspace,9"
+        "${mainMod},0,workspace,10"
 
         # Scratchpad
-        "$mainMod,S,togglespecialworkspace"
-        "$mainModSHIFT,S,movetoworkspace,special"
+        "${mainMod},S,togglespecialworkspace"
+        "${mainModShift},S,movetoworkspace,special"
 
         # Move active window to a workspace with mainMod + SHIFT + [0-9]
-        "$mainModSHIFT,1,movetoworkspace,1"
-        "$mainModSHIFT,2,movetoworkspace,2"
-        "$mainModSHIFT,3,movetoworkspace,3"
-        "$mainModSHIFT,4,movetoworkspace,4"
-        "$mainModSHIFT,5,movetoworkspace,5"
-        "$mainModSHIFT,6,movetoworkspace,6"
-        "$mainModSHIFT,7,movetoworkspace,7"
-        "$mainModSHIFT,8,movetoworkspace,8"
-        "$mainModSHIFT,9,movetoworkspace,9"
-        "$mainModSHIFT,0,movetoworkspace,10"
+        "${mainModShift},1,movetoworkspace,1"
+        "${mainModShift},2,movetoworkspace,2"
+        "${mainModShift},3,movetoworkspace,3"
+        "${mainModShift},4,movetoworkspace,4"
+        "${mainModShift},5,movetoworkspace,5"
+        "${mainModShift},6,movetoworkspace,6"
+        "${mainModShift},7,movetoworkspace,7"
+        "${mainModShift},8,movetoworkspace,8"
+        "${mainModShift},9,movetoworkspace,9"
+        "${mainModShift},0,movetoworkspace,10"
 
         # Scroll through existing workspaces with mainMod + scroll
-        "$mainMod,mouse_down,workspace,e+1"
-        "$mainMod,mouse_up,workspace,e-1"
+        "${mainMod},mouse_down,workspace,e+1"
+        "${mainMod},mouse_up,workspace,e-1"
       ];
 
       binde = [
@@ -140,8 +142,8 @@ in
 
       bindm = [
         # Move/resize windows with mainMod + SHIFT and dragging
-        "$mainMod,       mouse:272, movewindow"
-        "$mainMod SHIFT, mouse:272, resizewindow"
+        "${mainMod},       mouse:272, movewindow"
+        "${mainModShift},  mouse:272, resizewindow"
       ];
     };
   };
