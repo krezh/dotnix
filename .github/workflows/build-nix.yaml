@@ -91,16 +91,16 @@ jobs:
             always-allow-substitutes = true
             builders-use-substitutes = true
 
-      # - name: Set up Magic Nix Cache
-      #   uses: DeterminateSystems/magic-nix-cache-action@v7
+      - name: Set up Magic Nix Cache
+        uses: DeterminateSystems/magic-nix-cache-action@v8
 
-     # - name: Set up Attic
-     #   uses: ryanccn/attic-action@v0.3.0
-     #   if: ${{ !github.event.pull_request.head.repo.fork }}
-     #   with:
-     #     endpoint: "${{ env.ATTIC_ENDPOINT }}"
-     #     cache: "${{ env.ATTIC_CACHE }}"
-     #     token: "${{ secrets.ATTIC_TOKEN }}"
+      # - name: Set up Attic
+      #   uses: ryanccn/attic-action@v0.3.0
+      #   if: ${{ !github.event.pull_request.head.repo.fork }}
+      #   with:
+      #     endpoint: "${{ env.ATTIC_ENDPOINT }}"
+      #     cache: "${{ env.ATTIC_CACHE }}"
+      #     token: "${{ secrets.ATTIC_TOKEN }}"
 
       - name: Set up Cachix
         uses: cachix/cachix-action@v15
