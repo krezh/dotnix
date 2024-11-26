@@ -208,6 +208,11 @@
             homeUsers = [ "krezh" ];
             baseModules = lib.scanPath.toList { path = ./hosts/thor-wsl; };
           };
+          thor = flakeLib.mkSystem {
+            hostname = "thor";
+            homeUsers = [ "krezh" ];
+            baseModules = lib.scanPath.toList { path = ./hosts/thor; };
+          };
           odin = flakeLib.mkSystem {
             hostname = "odin";
             homeUsers = [ "krezh" ];
