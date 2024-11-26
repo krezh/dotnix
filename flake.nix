@@ -240,7 +240,7 @@
           include = builtins.map (host: {
             inherit host;
             system = self.nixosConfigurations.${host}.pkgs.system;
-            ghSystem = lib.mapToGha self.nixosConfigurations.${host}.pkgs.system;
+            runner = lib.mapToGha self.nixosConfigurations.${host}.pkgs.system;
           }) (builtins.attrNames self.nixosConfigurations);
         };
 
