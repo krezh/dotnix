@@ -58,6 +58,10 @@ in
 {
   wayland.windowManager.hyprland = {
     settings = {
+      windowrulev2 = [
+        "float,class:(clipse)"
+        "size 622 652,class:(clipse)"
+      ];
 
       bind = [
         "${mainMod},ESCAPE,exec,${pkgs.wlogout}/bin/wlogout"
@@ -71,6 +75,7 @@ in
         "${mainModShift},RETURN,exec,[floating] ${defaultTerminal}"
         "${mainMod},O,exec,${pkgs.obsidian}/bin/obsidian"
         "CTRL SHIFT,ESCAPE,exec,${pkgs.resources}/bin/resources"
+        "${mainMod},C,exec,${defaultTerminal} --class clipse ${config.hmModules.desktop.clipse.package}/bin/clipse"
 
         # Printscreen
         "ALT,P,exec,${grimblast.bin} --notify copy"

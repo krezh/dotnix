@@ -7,7 +7,6 @@
 let
   cfg = config.hmModules.desktop.clipse;
   json = pkgs.formats.json { };
-  defaultTerminal = "${pkgs.xdg-terminal-exec}/bin/xdg-terminal-exec";
   defaultConfig = {
     historyFile = "clipboard_history.json";
     maxHistory = 100;
@@ -66,21 +65,8 @@ in
       pkgs.wl-clipboard
     ];
 
-    wayland.windowManager.hyprland = {
-      settings = {
-        windowrulev2 = [
-          "float,class:(clipse)"
-          "size 622 652,class:(clipse)"
-        ];
-        bind = [ "$mainMod,C,exec,${defaultTerminal} --class clipse ${cfg.package}/bin/clipse" ];
-      };
-    };
-
     xdg.configFile."clipse/config.json" = {
-      source = json.generate "clipse/config.json" (
-        lib.recursiveUpdate defaultConfig cfg.config
-
-      );
+      source = json.generate "clipse/config.json" (lib.recursiveUpdate defaultConfig cfg.config);
     };
 
     systemd.user.services.clipse = {
