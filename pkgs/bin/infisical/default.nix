@@ -7,7 +7,7 @@
 
 let
   # renovate: datasource=github-tag depName=infisical/infisical
-  tagName = "infisical-cli/v0.28.5";
+  tagName = "infisical-cli/v0.32.0";
 
   version = lib.strings.removePrefix "infisical-cli/v" tagName;
 
@@ -23,7 +23,7 @@ let
         ."${stdenv.hostPlatform.system}" or (throw "Unsupported system: ${stdenv.hostPlatform.system}");
 
       name = "infisical_${version}_${suffix}.tar.gz";
-      hash = "sha256-hYDBZ6cTUCJTd5Zv/jCXVLpSGSeXbtC0uxAjh4NIjV8=";
+      hash = "sha256-EX4GDtboD9Gdo2WpJtXoswDLYIyKbtH0q6yg+c0M1ls=";
       url = "https://github.com/Infisical/infisical/releases/download/infisical-cli%2Fv${version}/${name}";
     in
     fetchurl { inherit name url hash; };
