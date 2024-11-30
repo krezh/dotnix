@@ -61,7 +61,8 @@ in
       "$CARGO_HOME/bin"
     ];
     sessionVariables = {
-      FLAKE = "$HOME/nix-config";
+      #FLAKE = "$HOME/nix-config";
+      NH_FLAKE = "$HOME/nix-config";
       GOPATH = "${config.xdg.dataHome}/go";
       CARGO_HOME = "${config.xdg.dataHome}/cargo";
       SOPS_AGE_KEY_FILE = "${config.sops.age.keyFile}";
