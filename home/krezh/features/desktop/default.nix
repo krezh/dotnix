@@ -1,7 +1,7 @@
 { ... }:
 {
   imports = [
-    ./wm
+    ./hyprland
     ./gtk
     ./apps
     ./runners

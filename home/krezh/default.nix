@@ -70,7 +70,6 @@ in
     packages = with pkgs; [
       doppler
       infisical
-      wget
       curl
       ripgrep
       gh
@@ -122,7 +121,7 @@ in
 
       # Kubernetes
       talosctl
-      kubectl
+      unstable.kubectl
       kubeswitch
       kubectl-cnpg
       kubectl-node-shell

@@ -1,10 +1,13 @@
-{ pkgs, inputs, ... }:
+{
+  pkgs,
+  inputs,
+  config,
+  ...
+}:
 {
   home = {
     sessionVariables = {
-      DEFAULT_BROWSER = "${
-        inputs.browser-previews.packages.${pkgs.system}.google-chrome
-      }/bin/google-chrome-stable";
+      DEFAULT_BROWSER = "${config.programs.vivaldi.package}/bin/vivaldi";
     };
   };
 

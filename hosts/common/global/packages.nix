@@ -9,7 +9,7 @@
     nix-init
     nix-update
     inputs.nixd.packages.${pkgs.system}.nixd
-    inputs.nix-inspect.packages.${pkgs.system}.default
+    nix-inspect
     # inputs.attic.packages.${pkgs.system}.default
   ];
 

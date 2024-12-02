@@ -6,7 +6,6 @@
     ./waypaper
     ./hypridle
     ./hyprlock
-    ./tofi
     ./clipse
     ./shikane
   ];
