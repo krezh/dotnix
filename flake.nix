@@ -42,14 +42,20 @@
 
     hardware.url = "github:nixos/nixos-hardware";
 
-    lix-module.url = "https://git.lix.systems/lix-project/nixos-module/archive/2.91.1-1.tar.gz";
-    lix-module.inputs.nixpkgs.follows = "nixpkgs";
+    lix-module = {
+      url = "https://git.lix.systems/lix-project/nixos-module/archive/2.91.1-1.tar.gz";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
 
-    devshell.url = "github:numtide/devshell";
-    devshell.inputs.nixpkgs.follows = "nixpkgs";
+    devshell = {
+      url = "github:numtide/devshell";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
 
-    nixos-generators.url = "github:nix-community/nixos-generators";
-    nixos-generators.inputs.nixpkgs.follows = "nixpkgs";
+    nixos-generators = {
+      url = "github:nix-community/nixos-generators";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
 
     disko = {
       url = "github:nix-community/disko";
@@ -61,16 +67,20 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    attic.url = "github:zhaofengli/attic";
-    attic.inputs.nixpkgs.follows = "nixpkgs";
+    attic = {
+      url = "github:zhaofengli/attic";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
 
     pre-commit-hooks = {
       url = "github:cachix/pre-commit-hooks.nix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    nix-inspect.url = "github:bluskript/nix-inspect";
-    nix-inspect.inputs.nixpkgs.follows = "nixpkgs";
+    nix-inspect = {
+      url = "github:bluskript/nix-inspect";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
 
     catppuccin.url = "github:catppuccin/nix";
 
@@ -94,10 +104,15 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    ### Hyprland
-    hyprland.url = "git+https://github.com/hyprwm/Hyprland?submodules=1";
-    xdg-portal-hyprland.url = "github:hyprwm/xdg-desktop-portal-hyprland";
-    xdg-portal-hyprland.inputs.nixpkgs.follows = "nixpkgs";
+    hyprland = {
+      url = "git+https://github.com/hyprwm/Hyprland?submodules=1";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
+    xdg-portal-hyprland = {
+      url = "github:hyprwm/xdg-desktop-portal-hyprland";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
 
     hyprland-plugins = {
       url = "github:hyprwm/hyprland-plugins";
@@ -139,11 +154,13 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    hyprpanel.url = "github:Jas-SinghFSU/HyprPanel";
-    hyprpanel.inputs.nixpkgs.follows = "nixpkgs";
+    hyprpanel = {
+      url = "github:Jas-SinghFSU/HyprPanel";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
 
     sops-nix = {
-      url = "github:Mic92/sops-nix?rev=59d6988329626132eaf107761643f55eb979eef1"; # Broken on master
+      url = "github:Mic92/sops-nix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
@@ -167,11 +184,15 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    walker.url = "github:abenz1267/walker";
-    walker.inputs.nixpkgs.follows = "nixpkgs";
+    walker = {
+      url = "github:abenz1267/walker";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
 
-    nixos-grub-themes.url = "github:jeslie0/nixos-grub-themes";
-    nixos-grub-themes.inputs.nixpkgs.follows = "nixpkgs";
+    nixos-grub-themes = {
+      url = "github:jeslie0/nixos-grub-themes";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
 
     browser-previews = {
       url = "github:nix-community/browser-previews";
