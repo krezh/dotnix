@@ -133,6 +133,7 @@ in
       kubernetes-helm
       kubernetes-helmPlugins.helm-diff
       kind
+      unstable.teleport
     ];
   };
 

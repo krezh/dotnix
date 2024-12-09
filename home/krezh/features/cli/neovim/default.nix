@@ -57,19 +57,18 @@
         };
 
         visuals = {
-          enable = true;
-          nvimWebDevicons.enable = true;
-          scrollBar.enable = true;
-          smoothScroll.enable = true;
-          cellularAutomaton.enable = false;
+          nvim-web-devicons.enable = true;
+          nvim-scrollbar.enable = true;
+          cinnamon-nvim.enable = true;
+          cellular-automaton.enable = false;
           fidget-nvim.enable = true;
           highlight-undo.enable = true;
 
-          indentBlankline.enable = true;
+          indent-blankline.enable = true;
 
-          cursorline = {
+          nvim-cursorline = {
             enable = true;
-            lineTimeout = 0;
+            setupOpts.line_timeout = 0;
           };
         };
 
@@ -87,11 +86,10 @@
           transparent = false;
         };
 
-        autopairs.enable = true;
+        autopairs.nvim-autopairs.enable = true;
 
-        autocomplete = {
+        autocomplete.nvim-cmp = {
           enable = true;
-          type = "nvim-cmp";
         };
 
         filetree = {
