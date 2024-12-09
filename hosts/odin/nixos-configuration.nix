@@ -28,7 +28,7 @@
     kernelPackages = pkgs.linuxPackages_zen;
     loader = {
       systemd-boot = {
-        enable = false;
+        enable = true;
         configurationLimit = 5;
       };
       efi = {
@@ -36,7 +36,7 @@
         efiSysMountPoint = "/boot";
       };
       grub = {
-        enable = true;
+        enable = false;
         device = "nodev";
         efiSupport = true;
         useOSProber = true;
