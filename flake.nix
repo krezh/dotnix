@@ -52,6 +52,11 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
+    treefmt-nix = {
+      url = "github:numtide/treefmt-nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
     nixos-generators = {
       url = "github:nix-community/nixos-generators";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -224,6 +229,7 @@
       imports = [
         inputs.pre-commit-hooks.flakeModule
         inputs.devshell.flakeModule
+        inputs.treefmt-nix.flakeModule
       ];
 
       systems = [ "x86_64-linux" ];
@@ -286,7 +292,13 @@
           pre-commit = import ./pre-commit.nix { inherit pkgs; };
           devshells = import ./shell.nix { inherit inputs pkgs config; };
           packages = import ./pkgs { inherit pkgs lib; };
-          formatter = pkgs.nixfmt-rfc-style;
+          treefmt = {
+            projectRootFile = "flake.nix";
+            programs.nixfmt.enable = pkgs.lib.meta.availableOn pkgs.stdenv.buildPlatform pkgs.nixfmt-rfc-style.compiler;
+            programs.nixfmt.package = pkgs.nixfmt-rfc-style;
+            programs.shellcheck.enable = true;
+            programs.deadnix.enable = true;
+          };
         };
     };
 

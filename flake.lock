@@ -4219,6 +4219,7 @@
         "sops-nix": "sops-nix",
         "ssh-keys": "ssh-keys",
         "swww": "swww",
+        "treefmt-nix": "treefmt-nix_2",
         "walker": "walker",
         "wezterm": "wezterm",
         "xdg-portal-hyprland": "xdg-portal-hyprland"
@@ -4618,6 +4619,26 @@
         "owner": "numtide",
         "repo": "treefmt-nix",
         "rev": "768acdb06968e53aa1ee8de207fd955335c754b7",
+        "type": "github"
+      },
+      "original": {
+        "owner": "numtide",
+        "repo": "treefmt-nix",
+        "type": "github"
+      }
+    },
+    "treefmt-nix_2": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1733662930,
+        "narHash": "sha256-9qOp6jNdezzLMxwwXaXZWPXosHbNqno+f7Ii/xftqZ8=",
+        "owner": "numtide",
+        "repo": "treefmt-nix",
+        "rev": "357cda84af1d74626afb7fb3bc12d6957167cda9",
         "type": "github"
       },
       "original": {
