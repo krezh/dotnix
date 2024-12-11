@@ -162,6 +162,7 @@
     nvidia.open = false;
     nvidia.nvidiaSettings = true;
   };
+  services.xserver.videoDrivers = [ "nvidia" ];
 
   security.rtkit.enable = true;
 
