@@ -21,6 +21,12 @@
         help = "Will partition the disk (Odin)";
         category = "Nix";
       }
+      {
+        name = "install";
+        command = "sudo nix run 'github:nix-community/disko/latest#disko-install' -- --flake krezh#thor";
+        help = "Will partition the disk (Thor)";
+        category = "Nix";
+      }
     ];
   };
 }
