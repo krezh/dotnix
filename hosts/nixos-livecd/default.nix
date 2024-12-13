@@ -21,9 +21,19 @@
       pkgs.gitMinimal
     ];
 
+    nix = {
+      settings = {
+        experimental-features = [
+          "nix-command"
+          "flakes"
+        ];
+      };
+    };
+
     networking.hostName = hostname;
 
     time.timeZone = "Europe/Stockholm";
+    console.keyMap = lib.mkDefault "sv-latin1";
 
     security = {
       sudo.wheelNeedsPassword = false;
