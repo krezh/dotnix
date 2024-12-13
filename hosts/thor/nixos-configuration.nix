@@ -26,7 +26,7 @@
       "quiet"
       "udev.log_level=0"
     ];
-    kernelPackages = pkgs.linuxPackages_zen;
+    kernelPackages = pkgs.linuxPackages_latest;
     loader = {
       systemd-boot = {
         enable = true;
@@ -52,7 +52,10 @@
     remotePlay.openFirewall = true; # Open ports in the firewall for Steam Remote Play
     dedicatedServer.openFirewall = true; # Open ports in the firewall for Source Dedicated Server
     localNetworkGameTransfers.openFirewall = true; # Open ports in the firewall for Steam Local Network Game Transfers
+    gamescopeSession.enable = true;
   };
+
+  programs.gamemode.enable = true;
 
   nixosModules.desktop.battery.enable = true;
   nixosModules.desktop.openssh.enable = true;
@@ -72,6 +75,7 @@
       };
       defaultSession = "hyprland";
     };
+    gnome.gnome-keyring.enable = true;
 
     fstrim.enable = true;
 
@@ -167,20 +171,50 @@
     nvidia.modesetting.enable = true;
     nvidia.powerManagement.enable = false;
     nvidia.powerManagement.finegrained = false;
-    nvidia.open = false;
+    nvidia.open = true;
     nvidia.nvidiaSettings = true;
   };
   services.xserver.videoDrivers = [ "nvidia" ];
 
   security.rtkit.enable = true;
 
+  programs.nix-ld = {
+    enable = true;
+    package = pkgs.nix-ld-rs;
+  };
+
   environment = {
     sessionVariables = {
       NIXOS_OZONE_WL = "1";
+      STEAM_EXTRA_COMPAT_TOOLS_PATHS = "\${HOME}/.steam/root/compatibilitytools.d";
+      WLR_BACKEND = "vulkan";
+      LIBVA_DRIVER_NAME = "nvidia";
+      __GLX_VENDOR_LIBRARY_NAME = "nvidia";
     };
     systemPackages = with pkgs; [
       age-plugin-yubikey
       headsetcontrol
+      mangohud
+      lutris
+      protonup
+      heroic
+      # Steam
+      mangohud
+      gamemode
+      # WINE
+      wine
+      winetricks
+      protontricks
+      vulkan-tools
+      # Extra dependencies
+      # https://github.com/lutris/docs/
+      gnutls
+      libgpg-error
+      freetype
+      sqlite
+      libxml2
+      xml2
+      SDL2
     ];
   };
   networking.hostName = "${hostname}";

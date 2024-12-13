@@ -12,8 +12,6 @@
 {
   imports = [
     (modulesPath + "/installer/scan/not-detected.nix")
-    inputs.hardware.nixosModules.common-cpu-intel
-    inputs.hardware.nixosModules.common-pc-ssd
   ];
 
   boot.initrd.availableKernelModules = [
@@ -28,7 +26,11 @@
 
   boot.initrd.kernelModules = [ ];
   boot.kernelParams = [ "ipv6.disable=1" ];
-  boot.kernelModules = [ "kvm-intel" ];
+  boot.kernelModules = [
+    "kvm-intel"
+    "nvidia"
+    "module_blacklist=i915"
+  ];
   boot.extraModulePackages = [ ];
 
   swapDevices = [ ];
