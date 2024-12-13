@@ -33,7 +33,7 @@
     networking.hostName = hostname;
 
     time.timeZone = "Europe/Stockholm";
-    console.keyMap = lib.mkDefault "sv-latin1";
+    console.keyMap = "sv-latin1";
 
     security = {
       sudo.wheelNeedsPassword = false;
