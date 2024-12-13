@@ -26,7 +26,7 @@
       "quiet"
       "udev.log_level=0"
     ];
-    #kernelPackages = pkgs.linuxPackages_zen;
+    kernelPackages = pkgs.linuxPackages_zen;
     loader = {
       systemd-boot = {
         enable = true;
