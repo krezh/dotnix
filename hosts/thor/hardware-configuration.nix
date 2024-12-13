@@ -17,14 +17,15 @@
   ];
 
   boot.initrd.availableKernelModules = [
+    "vmd"
     "xhci_pci"
-    "thunderbolt"
+    "ahci"
     "nvme"
-    "usb_storage"
     "usbhid"
+    "usb_storage"
     "sd_mod"
-    "rtsx_usb_sdmmc"
   ];
+
   boot.initrd.kernelModules = [ ];
   boot.kernelParams = [ "ipv6.disable=1" ];
   boot.kernelModules = [ "kvm-intel" ];
