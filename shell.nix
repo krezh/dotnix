@@ -23,8 +23,8 @@
       }
       {
         name = "install";
-        command = "sudo nix --experimental-features 'nix-command flakes' run 'github:nix-community/disko/latest#disko-install' --experimental-features 'nix-command flakes' -- --flake krezh#thor";
-        help = "Will partition the disk (Thor)";
+        command = "sudo nix --experimental-features 'nix-command flakes' run 'github:nix-community/disko/latest#disko-install' --experimental-features 'nix-command flakes' -- --flake github:krezh/nix-config#thor";
+        help = "Will partition the disk and install (Thor)";
         category = "Nix";
       }
     ];
