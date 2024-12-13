@@ -14,7 +14,7 @@
 
     # enable SSH in the boot process
     systemd.services.sshd.wantedBy = pkgs.lib.mkForce [ "multi-user.target" ];
-    users.users.nixos.openssh.authorizedKeys.keys = [ inputs.ssh-keys.outPath ];
+    users.users.nixos.openssh.authorizedKeys.keyFiles = [ inputs.ssh-keys.outPath ];
 
     environment.systemPackages = [
       pkgs.neovim
