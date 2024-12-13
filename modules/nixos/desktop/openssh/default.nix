@@ -20,7 +20,7 @@ in
       settings = {
         UseDns = false;
         PasswordAuthentication = false;
-        PermitRootLogin = "no";
+        PermitRootLogin = lib.mkDefault "no";
         AllowGroups = [ "sshusers" ];
       };
       hostKeys = [
