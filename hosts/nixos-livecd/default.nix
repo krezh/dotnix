@@ -21,15 +21,6 @@
       pkgs.gitMinimal
     ];
 
-    nix = {
-      settings = {
-        experimental-features = [
-          "nix-command"
-          "flakes"
-        ];
-      };
-    };
-
     networking.hostName = hostname;
 
     time.timeZone = "Europe/Stockholm";
