@@ -1,7 +1,7 @@
 ---
 # Config for garnix.io builds & caching
 builds:
-  exclude: []
+  exclude: ["nixosConfigurations.nixos-livecd"]
   include:
     - "*.x86_64-linux.*"
     - defaultPackage.x86_64-linux
