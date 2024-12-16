@@ -3,5 +3,6 @@
     ./battery
     ./fingerprint
     ./openssh
+    ./fonts
   ];
 }

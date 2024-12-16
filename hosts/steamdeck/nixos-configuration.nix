@@ -1,6 +1,5 @@
 {
   inputs,
-  pkgs,
   lib,
   hostname,
   ...
@@ -27,6 +26,8 @@
       desktopSession = "hyprland";
     };
   };
+
+  nixosModules.desktop.fonts.enable = true;
 
   services = {
     fstrim.enable = true;
@@ -63,28 +64,6 @@
   };
 
   networking.networkmanager.enable = true;
-
-  fonts = {
-    fontDir.enable = true;
-    enableDefaultPackages = true;
-    packages = with pkgs; [
-      noto-fonts
-      noto-fonts-cjk
-      noto-fonts-emoji
-      liberation_ttf
-      fira-code
-      fira-code-symbols
-      mplus-outline-fonts.githubRelease
-      dina-font
-      proggyfonts
-      (nerdfonts.override {
-        fonts = [
-          "CascadiaCode"
-          "DroidSansMono"
-        ];
-      })
-    ];
-  };
 
   programs.hyprland = {
     enable = true;
