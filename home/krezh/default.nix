@@ -107,6 +107,9 @@ in
       flyctl
       up
       retry
+      age-plugin-yubikey
+      gpg-tui
+      yubikey-manager
 
       # JSON
       jq

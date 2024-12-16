@@ -92,6 +92,7 @@
       audio.enable = true;
     };
   };
+
   services.udev.packages = [ pkgs.headsetcontrol ];
 
   networking.networkmanager.enable = true;

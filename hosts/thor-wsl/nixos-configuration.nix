@@ -27,7 +27,19 @@
     startMenuLaunchers = false;
     interop.includePath = true;
     useWindowsDriver = true;
+    usbip = {
+      enable = true;
+      # Replace this with the BUSID for your Yubikey
+      autoAttach = [ "9-4" ];
+    };
   };
+
+  services.udev.enable = lib.mkForce true;
+
+  programs.gnupg.agent.enable = true;
+  programs.gnupg.agent.enableSSHSupport = true;
+
+  services.pcscd.enable = true;
 
   programs.nix-ld = {
     enable = true;
