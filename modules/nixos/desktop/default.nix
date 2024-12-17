@@ -4,5 +4,6 @@
     ./fingerprint
     ./openssh
     ./fonts
+    ./steam
   ];
 }
