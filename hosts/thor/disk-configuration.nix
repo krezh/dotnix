@@ -5,7 +5,7 @@
 
   disko.devices = {
     disk = {
-      vdb = {
+      main = {
         device = "/dev/nvme0n1";
         type = "disk";
         content = {
@@ -26,6 +26,23 @@
                 type = "filesystem";
                 format = "ext4";
                 mountpoint = "/";
+              };
+            };
+          };
+        };
+      };
+      secondary = {
+        device = "/dev/nvme1n1";
+        type = "disk";
+        content = {
+          type = "gpt";
+          partitions = {
+            root = {
+              size = "100%";
+              content = {
+                type = "filesystem";
+                format = "ext4";
+                mountpoint = "/mnt/secondary";
               };
             };
           };
