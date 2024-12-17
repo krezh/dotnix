@@ -27,7 +27,6 @@
   xdg.terminal-exec.settings = {
     default = [
       "kitty.desktop"
-      "wezterm.desktop"
     ];
   };
   zramSwap.enable = true;
@@ -68,7 +67,7 @@
         Defaults pwfeedback
 
         # Set sudo timeout to value in minutes
-        Defaults timestamp_timeout=15 
+        Defaults timestamp_timeout=15
       '';
     };
 
@@ -89,12 +88,5 @@
     ];
   };
 
-  system = {
-    stateVersion = lib.mkDefault "24.05";
-    # Enable printing changes on nix build etc with nvd
-    # activationScripts.report-changes = ''
-    #   PATH=$PATH:${lib.makeBinPath [ pkgs.nvd pkgs.nix ]}
-    #   nvd diff $(ls -dv /nix/var/nix/profiles/system-*-link | tail -2)
-    # '';
-  };
+  system.stateVersion = lib.mkDefault "24.05";
 }

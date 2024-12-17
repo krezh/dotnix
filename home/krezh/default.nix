@@ -15,13 +15,10 @@ let
     ];
 in
 {
-  imports =
-    [
-      ./features/cli
-      inputs.nix-index.hmModules.nix-index
-    ]
-    ++ (if isDesktop then [ ./features/desktop ] else [ ])
-    ++ outputs.homeManagerModules;
+  imports = [
+    ./features/cli
+    inputs.nix-index.hmModules.nix-index
+  ] ++ (if isDesktop then [ ./features/desktop ] else [ ]) ++ outputs.homeManagerModules;
 
   nixpkgs = {
     overlays = builtins.attrValues outputs.overlays;
@@ -124,6 +121,7 @@ in
       niv
       comma
       nix-tree
+      nixos-anywhere
 
       # Kubernetes
       talosctl
