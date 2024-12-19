@@ -6,7 +6,12 @@
     age = {
       keyFile = "/home/krezh/.config/sops/age/keys.txt";
     };
+    # gnupg = {
+    #   home = "/home/krezh/.gnupg";
+    #   sshKeyPaths = [ ];
+    # };
     defaultSopsFile = ../secrets.sops.yaml;
+
     secrets = {
       "krezh-password" = {
         neededForUsers = true;

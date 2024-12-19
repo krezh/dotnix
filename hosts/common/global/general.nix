@@ -29,7 +29,10 @@
       "kitty.desktop"
     ];
   };
+
   zramSwap.enable = true;
+
+  services.pcscd.enable = true;
 
   security = {
     doas = {

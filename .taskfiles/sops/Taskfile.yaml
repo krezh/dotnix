@@ -14,3 +14,14 @@ tasks:
         cmd: |
           echo "Rotating {{ .ITEM }}"
           sops --rotate --in-place "{{ .ITEM }}"
+  update-keys:
+    desc: Update all sops keys
+    silent: true
+    dir: "{{.USER_WORKING_DIR}}"
+    vars:
+      SECRET_FILES:
+        sh: find . -type f -name '*.sops.yaml' ! -name ".sops.yaml"
+    cmds:
+      - for: { var: SECRET_FILES }
+        cmd: |
+          sops updatekeys "{{ .ITEM }}"

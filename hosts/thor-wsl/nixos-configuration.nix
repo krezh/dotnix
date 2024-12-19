@@ -36,11 +36,6 @@
 
   services.udev.enable = lib.mkForce true;
 
-  programs.gnupg.agent.enable = true;
-  programs.gnupg.agent.enableSSHSupport = true;
-
-  services.pcscd.enable = true;
-
   programs.nix-ld = {
     enable = true;
     package = pkgs.nix-ld-rs;

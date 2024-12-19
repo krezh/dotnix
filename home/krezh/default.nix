@@ -148,7 +148,24 @@ in
   hmModules.shell.kubectx.enable = true;
   hmModules.shell.aria2.enable = true;
 
+  services.gpg-agent = {
+    enable = true;
+    enableBashIntegration = true;
+    enableFishIntegration = true;
+    enableSshSupport = true;
+    enableScDaemon = true;
+    pinentryPackage = pkgs.pinentry-tty;
+    enableExtraSocket = true;
+  };
+
   programs = {
+    gpg = {
+      enable = true;
+      scdaemonSettings = {
+        disable-ccid = true;
+        reader-port = "Yubico Yubi";
+      };
+    };
     home-manager.enable = true;
     neomutt.enable = true;
     yazi.enable = true;
