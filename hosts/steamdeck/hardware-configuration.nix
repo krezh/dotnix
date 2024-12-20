@@ -46,7 +46,6 @@
         efiSupport = true;
         useOSProber = true;
         configurationLimit = 5;
-        catppuccin.enable = true;
       };
     };
   };

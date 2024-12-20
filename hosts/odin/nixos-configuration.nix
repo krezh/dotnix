@@ -18,7 +18,6 @@
   boot = {
     plymouth = {
       enable = true;
-      catppuccin.enable = true;
     };
     initrd.verbose = false;
     consoleLogLevel = 0;
@@ -42,7 +41,6 @@
         efiSupport = true;
         useOSProber = true;
         configurationLimit = 5;
-        catppuccin.enable = true;
       };
     };
   };
@@ -65,6 +63,9 @@
 
   services.desktopManager.cosmic.enable = false;
 
+  catppuccin.plymouth.enable = true;
+  catppuccin.sddm.enable = true;
+
   services = {
     displayManager = {
       sddm = {
@@ -72,10 +73,10 @@
         wayland.enable = true;
         autoNumlock = true;
         package = pkgs.kdePackages.sddm;
-        catppuccin.enable = true;
       };
       defaultSession = "hyprland";
     };
+    gnome.gnome-keyring.enable = true;
 
     fstrim.enable = true;
 

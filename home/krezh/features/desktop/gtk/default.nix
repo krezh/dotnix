@@ -11,9 +11,11 @@
     };
   };
 
-  catppuccin.pointerCursor.enable = true;
-  catppuccin.pointerCursor.flavor = "mocha";
-  catppuccin.pointerCursor.accent = "light";
+  catppuccin.cursors.enable = true;
+  catppuccin.cursors.flavor = "mocha";
+  catppuccin.cursors.accent = "light";
+  catppuccin.hyprland.enable = true;
+  catppuccin.gtk.icon.enable = true;
 
   dconf.settings = {
     "org/gnome/desktop/interface" = {
@@ -23,7 +25,6 @@
 
   gtk = {
     enable = true;
-    catppuccin.icon.enable = true;
     theme = {
       name = "Arc-Dark";
       package = pkgs.arc-theme;
