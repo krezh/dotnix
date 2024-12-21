@@ -1,37 +1,29 @@
 {
-  pkgs,
   lib,
   config,
+  pkgs,
   ...
 }:
 let
-  inherit (lib) mkIf;
   packageNames = map (p: p.pname or p.name or null) config.home.packages;
-  hasPackage = name: lib.any (x: x == name) packageNames;
-  hasEza = hasPackage "eza";
-  hasKubectl = hasPackage "kubectl";
-  hasNeovim = config.programs.neovim.enable or config.programs.nixvim.enable;
+  hasPackage = name: lib.elem name packageNames;
+  createAlias = name: lib.mkIf (hasPackage name) name;
 in
 {
   programs.fish = {
     enable = true;
-    shellAbbrs = {
-      vim = mkIf hasNeovim "nvim";
-    };
+    shellAbbrs = { };
     shellAliases = {
       # Clear screen and scrollback
       clear = "printf '\\033[2J\\033[3J\\033[1;1H'";
-      k = mkIf hasKubectl "kubectl";
-      ls = mkIf hasEza "eza";
+      k = createAlias "kubectl";
+      ls = createAlias "eza";
+      cat = createAlias "bat";
     };
     plugins = [
       {
         name = "puffer";
         src = pkgs.fishPlugins.puffer.src;
-      }
-      {
-        name = "fzf-fish";
-        src = pkgs.fishPlugins.fzf-fish.src;
       }
       {
         name = "autopair";
@@ -44,15 +36,6 @@ in
       {
         name = "forgit";
         src = pkgs.fishPlugins.forgit.src;
-      }
-      {
-        name = "zoxide";
-        src = pkgs.fetchFromGitHub {
-          owner = "kidonng";
-          repo = "zoxide.fish";
-          rev = "bfd5947bcc7cd01beb23c6a40ca9807c174bba0e";
-          sha256 = "Hq9UXB99kmbWKUVFDeJL790P8ek+xZR5LDvS+Qih+N4=";
-        };
       }
     ];
     functions = {

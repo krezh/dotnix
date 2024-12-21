@@ -9,5 +9,7 @@
     ./git
     ./mise
     ./atuin
+    ./zoxide
+    ./fzf
   ];
 }

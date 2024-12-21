@@ -174,10 +174,6 @@ in
     neomutt.enable = true;
     yazi.enable = true;
     fzf.enable = true;
-    zoxide = {
-      enable = true;
-      enableFishIntegration = true;
-    };
     direnv = {
       enable = true;
       nix-direnv.enable = true;
