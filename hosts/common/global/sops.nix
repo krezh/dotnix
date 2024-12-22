@@ -13,7 +13,10 @@
     defaultSopsFile = ../secrets.sops.yaml;
 
     secrets = {
-      "krezh-password" = {
+      "passwords/krezh" = {
+        neededForUsers = true;
+      };
+      "passwords/dummy" = {
         neededForUsers = true;
       };
       "github/token" = { };

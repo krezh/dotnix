@@ -18,6 +18,10 @@
         init.defaultBranch = "main";
         url."ssh://git@github.com/".pushInsteadOf = "https://github.com/";
       };
+      aliases = {
+        lol = "log --graph --decorate --pretty=oneline --abbrev-commit";
+        lola = "log --graph --decorate --pretty=oneline --abbrev-commit --all";
+      };
       difftastic.enable = true;
       difftastic.display = "inline";
     };

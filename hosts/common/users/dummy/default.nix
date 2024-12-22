@@ -1,8 +1,6 @@
 {
   pkgs,
   config,
-  lib,
-  inputs,
   ...
 }:
 let
@@ -12,13 +10,10 @@ in
   users = {
     mutableUsers = false;
     users = {
-      krezh = {
-        hashedPasswordFile = config.sops.secrets."passwords/krezh".path;
+      dummy = {
+        hashedPasswordFile = config.sops.secrets."passwords/dummy".path;
         isNormalUser = true;
         shell = pkgs.fish;
-        openssh.authorizedKeys.keys = lib.strings.splitString "\n" (
-          builtins.readFile inputs.ssh-keys.outPath
-        );
         extraGroups =
           [
             "wheel"

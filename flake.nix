@@ -223,7 +223,7 @@
 
       lib = inputs.nixpkgs.lib // import ./lib { inherit inputs; };
 
-      flakeLib = import ./flakeLib.nix { inherit inputs outputs lib; };
+      flakeLib = import ./lib/flakeLib.nix { inherit inputs outputs lib; };
 
     in
     flake-parts.lib.mkFlake { inherit inputs; } {
@@ -236,33 +236,31 @@
       systems = [ "x86_64-linux" ];
 
       flake = {
-        nixosConfigurations = {
-          thor-wsl = flakeLib.mkSystem {
-            hostname = "thor-wsl";
-            homeUsers = [ "krezh" ];
-            baseModules = lib.scanPath.toList { path = ./hosts/thor-wsl; };
-          };
-          thor = flakeLib.mkSystem {
+        nixosConfigurations = flakeLib.mkSystems [
+          {
             hostname = "thor";
+            system = "x86_64-linux";
             homeUsers = [ "krezh" ];
-            baseModules = lib.scanPath.toList { path = ./hosts/thor; };
-          };
-          odin = flakeLib.mkSystem {
+          }
+          {
             hostname = "odin";
+            system = "x86_64-linux";
+            homeUsers = [
+              "krezh"
+              "dummy"
+            ];
+          }
+          {
+            hostname = "thor-wsl";
+            system = "x86_64-linux";
             homeUsers = [ "krezh" ];
-            baseModules = lib.scanPath.toList { path = ./hosts/odin; };
-          };
-          steamdeck = flakeLib.mkSystem {
-            hostname = "steamdeck";
-            homeUsers = [ "krezh" ];
-            baseModules = lib.scanPath.toList { path = ./hosts/steamdeck; };
-          };
-          nixos-livecd = flakeLib.mkSystem {
+          }
+          {
             hostname = "nixos-livecd";
+            system = "x86_64-linux";
             homeUsers = [ ];
-            baseModules = [ ./hosts/nixos-livecd ];
-          };
-        };
+          }
+        ];
 
         # Used by CI
         top = lib.genAttrs (builtins.attrNames self.nixosConfigurations) (

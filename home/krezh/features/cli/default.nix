@@ -11,5 +11,6 @@
     ./atuin
     ./zoxide
     ./fzf
+    ./tmux
   ];
 }

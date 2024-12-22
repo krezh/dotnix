@@ -37,12 +37,31 @@ in
         name = "forgit";
         src = pkgs.fishPlugins.forgit.src;
       }
+      {
+        name = "abbreviation-tips";
+        src = pkgs.fetchFromGitHub {
+          owner = "gazorby";
+          repo = "fish-abbreviation-tips";
+          rev = "v0.7.0";
+          sha256 = "sha256-F1t81VliD+v6WEWqj1c1ehFBXzqLyumx5vV46s/FZRU=";
+        };
+      }
+      (lib.mkIf (config.programs.tmux.enable && !config.programs.zellij.enable) {
+        name = "tmux";
+        src = pkgs.fetchFromGitHub {
+          owner = "budimanjojo";
+          repo = "tmux.fish";
+          rev = "v2.0.1";
+          sha256 = "sha256-ynhEhrdXQfE1dcYsSk2M2BFScNXWPh3aws0U7eDFtv4=";
+        };
+      })
     ];
     functions = {
       # Disable greeting
       fish_greeting = "";
     };
     interactiveShellInit = ''
+      ${lib.optionalString config.programs.tmux.enable "set fish_tmux_autostart true"}
       ${pkgs.nitch}/bin/nitch
     '';
   };

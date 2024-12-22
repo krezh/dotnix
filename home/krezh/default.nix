@@ -19,6 +19,7 @@ in
     [
       ./features/cli
       inputs.nix-index.hmModules.nix-index
+      inputs.catppuccin.homeManagerModules.catppuccin
     ]
     ++ (if isDesktop then [ ./features/desktop ] else [ ])
     ++ outputs.homeManagerModules;
@@ -57,7 +58,6 @@ in
   };
 
   home = {
-    username = lib.mkDefault "krezh";
     homeDirectory = lib.mkDefault "/home/${config.home.username}";
     stateVersion = lib.mkDefault "24.05";
     preferXdgDirectories = true;
@@ -68,19 +68,15 @@ in
     ];
     sessionVariables = {
       #FLAKE = "$HOME/nix-config";
-      NH_FLAKE = "$HOME/nix-config";
+      NH_FLAKE = "${config.home.homeDirectory}/nix-config";
       GOPATH = "${config.xdg.dataHome}/go";
       CARGO_HOME = "${config.xdg.dataHome}/cargo";
       SOPS_AGE_KEY_FILE = "${config.sops.age.keyFile}";
     };
     packages = with pkgs; [
-      doppler
-      infisical
       curl
       ripgrep
       gh
-      sops
-      age
       go
       dyff
       go-task
@@ -110,14 +106,24 @@ in
       flyctl
       up
       retry
+      cue
+
+      # Secrets
       age-plugin-yubikey
       gpg-tui
       yubikey-manager
+      sops
+      age
+      doppler
+      infisical
 
       # JSON
       jq
       jc
       jnv
+
+      # YAML
+      yq-go
 
       # Nix
       cachix
@@ -145,6 +151,7 @@ in
       kind
       unstable.teleport
       tlk
+      minio-client
     ];
   };
 
