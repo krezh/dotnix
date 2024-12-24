@@ -17,14 +17,14 @@ buildGoModule rec {
 
   vendorHash = "sha256-YkDPgN7jBvYveiyU8N+3Ia52SEmlzC0TGBQjUuIAaw0=";
 
-  ldflags = [
-    "-s"
-    "-w"
-  ];
+  postInstall = ''
+    mv $out/bin/df-pv $out/bin/kubectl-df-pv
+  '';
 
   meta = {
-    description = "Kubectl plugin - giving admins df (disk free) like utility for persistent volumes";
+    description = "df (disk free)-like utility for persistent volumes on kubernetes";
     homepage = "https://github.com/yashbhutwala/kubectl-df-pv";
+    changelog = "https://github.com/yashbhutwala/kubectl-df-pv/releases/tag/v${version}";
     license = lib.licenses.asl20;
     maintainers = [ ];
     mainProgram = "df-pv";

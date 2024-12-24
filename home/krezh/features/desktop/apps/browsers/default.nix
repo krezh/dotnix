@@ -2,12 +2,13 @@
   pkgs,
   inputs,
   config,
+  lib,
   ...
 }:
 {
   home = {
     sessionVariables = {
-      DEFAULT_BROWSER = "${config.programs.vivaldi.package}/bin/vivaldi";
+      DEFAULT_BROWSER = lib.getExe config.programs.vivaldi.package;
     };
   };
 

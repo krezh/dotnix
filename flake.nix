@@ -210,6 +210,11 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
+    zjstatus = {
+      url = "github:dj95/zjstatus";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
     ssh-keys = {
       url = "https://github.com/krezh.keys";
       flake = false;
@@ -234,6 +239,7 @@
       ];
 
       systems = [ "x86_64-linux" ];
+      debug = true;
 
       flake = {
         nixosConfigurations = flakeLib.mkSystems [

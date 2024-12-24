@@ -5,20 +5,42 @@
   ...
 }:
 let
-  packageNames = map (p: p.pname or p.name or null) config.home.packages;
-  hasPackage = name: lib.elem name packageNames;
-  createAlias = name: lib.mkIf (hasPackage name) name;
+  condDef =
+    name:
+    let
+      packageNames = map (p: p.pname or p.name or null) config.home.packages;
+      hasPackage = lib.elem name packageNames;
+    in
+    lib.mkIf hasPackage name;
 in
 {
   programs.fish = {
     enable = true;
-    shellAbbrs = { };
+    shellAbbrs = {
+      # git
+      gs = "git status";
+      gc = "git commit";
+      gcm = "git ci -m";
+      gco = "git co";
+      ga = "git add -A";
+      gm = "git merge";
+      gl = "git l";
+      gd = "git diff";
+      gb = "git b";
+      gpl = "git pull";
+      gp = "git push";
+      gpc = "git push -u origin (git rev-parse --abbrev-ref HEAD)";
+      gpf = "git push --force-with-lease";
+      gbc = "git nb";
+
+      k = condDef "kubectl";
+    };
     shellAliases = {
       # Clear screen and scrollback
       clear = "printf '\\033[2J\\033[3J\\033[1;1H'";
-      k = createAlias "kubectl";
-      ls = createAlias "eza";
-      cat = createAlias "bat";
+      kubectl = condDef "kubecolor";
+      ls = condDef "eza";
+      cat = condDef "bat";
     };
     plugins = [
       {
@@ -36,6 +58,10 @@ in
       {
         name = "forgit";
         src = pkgs.fishPlugins.forgit.src;
+      }
+      {
+        name = "zellij-update-tabname";
+        src = pkgs.zellij-update-tabname.src;
       }
       {
         name = "abbreviation-tips";
@@ -61,8 +87,9 @@ in
       fish_greeting = "";
     };
     interactiveShellInit = ''
+      ${lib.getExe pkgs.nitch}
       ${lib.optionalString config.programs.tmux.enable "set fish_tmux_autostart true"}
-      ${pkgs.nitch}/bin/nitch
+      ${lib.getExe pkgs.any-nix-shell} fish | source
     '';
   };
 }

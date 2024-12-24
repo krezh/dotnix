@@ -1,4 +1,3 @@
-{ ... }:
 {
   programs.tmux = {
     enable = true;
@@ -9,6 +8,7 @@
     keyMode = "vi";
     baseIndex = 1;
     terminal = "screen-256color";
+    escapeTime = 0;
   };
   programs.fzf.tmux.enableShellIntegration = true;
 }

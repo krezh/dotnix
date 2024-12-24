@@ -1,4 +1,7 @@
 { inputs, ... }:
+let
+  lib = inputs.nixpkgs.lib;
+in
 {
   toList =
     {
@@ -7,50 +10,45 @@
     }:
     builtins.map (f: (path + "/${f}")) (
       builtins.attrNames (
-        inputs.nixpkgs.lib.attrsets.filterAttrs (
+        lib.attrsets.filterAttrs (
           path: _type:
           !(builtins.elem path ([ "default.nix" ] ++ excludeFiles)) # ignore default.nix
           && (
             (_type == "directory") # include directories
-            || (inputs.nixpkgs.lib.strings.hasSuffix ".nix" path) # include .nix files
+            || (lib.strings.hasSuffix ".nix" path) # include .nix files
           )
         ) (builtins.readDir path)
       )
     );
   toAttrs =
     {
-      func ? { },
-      path,
+      paths,
       excludeFiles ? [ ],
       args ? { },
     }:
     let
-      paths = if builtins.isList path then path else [ path ];
+      pathsList = if builtins.isList paths then paths else [ paths ];
     in
     builtins.listToAttrs (
       builtins.concatMap (
         p:
         builtins.map
           (f: {
-            name =
-              if inputs.nixpkgs.lib.strings.hasSuffix ".nix" f then
-                inputs.nixpkgs.lib.strings.removeSuffix ".nix" f
-              else
-                f;
-            value = func (p + "/${f}") args;
+            name = if lib.strings.hasSuffix ".nix" f then lib.strings.removeSuffix ".nix" f else f;
+            value = p.func (p.path + "/${f}") args;
           })
           (
             builtins.attrNames (
-              inputs.nixpkgs.lib.attrsets.filterAttrs (
+              lib.attrsets.filterAttrs (
                 path: _type:
                 !(builtins.elem path ([ "default.nix" ] ++ excludeFiles)) # ignore default.nix
                 && (
                   (_type == "directory") # include directories
-                  || (inputs.nixpkgs.lib.strings.hasSuffix ".nix" path) # include .nix files
+                  || (lib.strings.hasSuffix ".nix" path) # include .nix files
                 )
-              ) (builtins.readDir p)
+              ) (builtins.readDir p.path)
             )
           )
-      ) paths
+      ) pathsList
     );
 }

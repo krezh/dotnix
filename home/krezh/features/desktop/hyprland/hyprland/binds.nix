@@ -2,49 +2,50 @@
   inputs,
   pkgs,
   config,
+  lib,
   ...
 }:
 let
-  defaultTerminal = "${pkgs.xdg-terminal-exec}/bin/xdg-terminal-exec";
+  defaultTerminal = lib.getExe pkgs.xdg-terminal-exec;
 
   hyprlock = {
     pkg = config.programs.hyprlock.package;
-    bin = "${hyprlock.pkg}/bin/hyprlock";
+    bin = lib.getExe hyprlock.pkg;
   };
 
   anyrun = {
     pkg = inputs.anyrun.packages.${pkgs.system};
     stdin = "${anyrun.pkg.stdin}/lib/libstdin.so";
     apps = "${anyrun.pkg.applications}/lib/libapplications.so";
-    bin = "${anyrun.pkg.default}/bin/anyrun";
+    bin = lib.getExe anyrun.pkg.default;
   };
 
   walker = {
     pkg = config.programs.walker.package;
-    bin = "${walker.pkg}/bin/walker";
+    bin = lib.getExe walker.pkg;
   };
 
   chrome = {
     pkg = inputs.browser-previews.packages.${pkgs.system}.google-chrome;
-    bin = "${chrome.pkg}/bin/google-chrome-stable";
+    bin = lib.getExe chrome.pkg;
   };
 
   hyprkeys = {
     pkg = inputs.hyprkeys.packages.${pkgs.system}.hyprkeys;
-    bin = "${hyprkeys.pkg}/bin/hyprkeys";
+    bin = lib.getExe hyprkeys.pkg;
   };
 
   volume_script =
     if config.hmModules.desktop.hyprpanel.enable then
-      "${pkgs.volume_script_hyprpanel}/bin/volume_script_hyprpanel"
+      lib.getExe pkgs.volume_script_hyprpanel
     else
-      "${pkgs.volume_script}/bin/volume_script";
+      lib.getExe pkgs.volume_script;
 
   brightness_script =
     if config.hmModules.desktop.hyprpanel.enable then
-      "${pkgs.brightness_script_hyprpanel}/bin/brightness_script_hyprpanel"
+      lib.getExe pkgs.brightness_script_hyprpanel
     else
-      "${pkgs.brightness_script}/bin/brightness_script";
+      lib.getExe pkgs.brightness_script;
 
   grimblast = {
     pkg = inputs.hyprland-contrib.packages.${pkgs.system}.grimblast;

@@ -17,7 +17,7 @@ in
 {
   imports =
     [
-      ./features/cli
+      ./features/shell
       inputs.nix-index.hmModules.nix-index
       inputs.catppuccin.homeManagerModules.catppuccin
     ]
@@ -67,7 +67,6 @@ in
       "$CARGO_HOME/bin"
     ];
     sessionVariables = {
-      #FLAKE = "$HOME/nix-config";
       NH_FLAKE = "${config.home.homeDirectory}/nix-config";
       GOPATH = "${config.xdg.dataHome}/go";
       CARGO_HOME = "${config.xdg.dataHome}/cargo";
@@ -89,7 +88,6 @@ in
       bottom
       ffmpeg
       yt-dlp
-      nitch
       earthly
       gowall
       await
@@ -107,10 +105,11 @@ in
       up
       retry
       cue
+      minio-client
+      any-nix-shell
 
       # Secrets
       age-plugin-yubikey
-      gpg-tui
       yubikey-manager
       sops
       age
@@ -134,6 +133,7 @@ in
       comma
       nix-tree
       nixos-anywhere
+      nixos-shell
 
       # Kubernetes
       talosctl
@@ -142,6 +142,8 @@ in
       kubectl-cnpg
       kubectl-node-shell
       kubectl-klock
+      kubectl-df-pv
+      unstable.kubecolor
       kustomize
       fluxcd
       stern
@@ -151,7 +153,6 @@ in
       kind
       unstable.teleport
       tlk
-      minio-client
     ];
   };
 
@@ -159,33 +160,10 @@ in
   hmModules.shell.kubectx.enable = true;
   hmModules.shell.aria2.enable = true;
 
-  services.gpg-agent = {
-    enable = true;
-    enableBashIntegration = true;
-    enableFishIntegration = true;
-    enableSshSupport = true;
-    enableScDaemon = true;
-    pinentryPackage = pkgs.pinentry-tty;
-    enableExtraSocket = true;
-  };
-
   programs = {
-    gpg = {
-      enable = true;
-      scdaemonSettings = {
-        disable-ccid = true;
-        reader-port = "Yubico Yubi";
-      };
-    };
     home-manager.enable = true;
     neomutt.enable = true;
     yazi.enable = true;
-    fzf.enable = true;
-    direnv = {
-      enable = true;
-      nix-direnv.enable = true;
-      silent = true;
-    };
   };
 
   nix = {

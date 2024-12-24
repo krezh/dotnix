@@ -3,9 +3,11 @@
   programs.starship = {
     enable = true;
     enableFishIntegration = true;
+    enableBashIntegration = true;
+    enableZshIntegration = true;
     settings = {
-      add_newline = false;
-      format = "\n$username$hostname$kubernetes$git_branch$git_commit$git_state$git_metrics$git_status\n$all\n";
+      add_newline = true;
+      format = "$username$hostname$kubernetes$git_branch$git_commit$git_state$git_metrics$git_status$fill$cmd_duration$time\n$all";
       kubernetes = {
         format = "[$symbol$context:$namespace](bold blue) ";
         symbol = "⎈";
@@ -22,6 +24,25 @@
             context_alias = "teleport-talos";
           }
         ];
+      };
+      fill = {
+        symbol = " ";
+      };
+      direnv = {
+        disabled = false;
+      };
+      time = {
+        disabled = false;
+        style = "bold bright-black";
+        format = "[$time]($style)";
+      };
+      nix_shell = {
+        disabled = false;
+        impure_msg = "[$name](bold red)";
+        pure_msg = "[$name](bold green)";
+        unknown_msg = "[$name](bold yellow)";
+        format = "\\[[$state](bold blue)\\] ";
+        heuristic = true;
       };
       cmd_duration = {
         format = "took [$duration]($style) ";
@@ -47,7 +68,7 @@
         style = "bold blue";
       };
       sudo = {
-        format = "[as $symbol ]()";
+        format = "[$symbol ]()";
         symbol = "💀";
         disabled = false;
       };
