@@ -28,6 +28,7 @@
   xdg.terminal-exec.enable = true;
   xdg.terminal-exec.settings = {
     default = [
+      "ghostty.desktop"
       "kitty.desktop"
     ];
   };
