@@ -20,19 +20,9 @@ let
     bin = lib.getExe anyrun.pkg.default;
   };
 
-  walker = {
-    pkg = config.programs.walker.package;
-    bin = lib.getExe walker.pkg;
-  };
-
   chrome = {
     pkg = inputs.browser-previews.packages.${pkgs.system}.google-chrome;
     bin = lib.getExe chrome.pkg;
-  };
-
-  hyprkeys = {
-    pkg = inputs.hyprkeys.packages.${pkgs.system}.hyprkeys;
-    bin = lib.getExe hyprkeys.pkg;
   };
 
   volume_script =
@@ -49,7 +39,7 @@ let
 
   grimblast = {
     pkg = inputs.hyprland-contrib.packages.${pkgs.system}.grimblast;
-    bin = "${grimblast.pkg}/bin/grimblast";
+    bin = "${lib.getExe grimblast.pkg}";
   };
 
   mainMod = "SUPER";
@@ -65,18 +55,17 @@ in
       ];
 
       bind = [
-        "${mainMod},ESCAPE,exec,${pkgs.wlogout}/bin/wlogout"
+        "${mainMod},ESCAPE,exec,${lib.getExe pkgs.wlogout}"
         "${mainMod},L,exec,${hyprlock.bin} --immediate"
-        "${mainMod},R,exec,${walker.bin}"
-        "${mainMod},K,exec,${hyprkeys.bin} -b -r | ${anyrun.bin} --plugins ${anyrun.stdin}"
+        "${mainMod},R,exec,${anyrun.apps}"
         # Applications
         "${mainMod},B,exec,${chrome.bin}"
-        "${mainMod},E,exec,${pkgs.nemo}/bin/nemo"
+        "${mainMod},E,exec,${lib.getExe pkgs.nemo}"
         "${mainMod},RETURN,exec,${defaultTerminal}"
         "${mainModShift},RETURN,exec,[floating] ${defaultTerminal}"
-        "${mainMod},O,exec,${pkgs.obsidian}/bin/obsidian"
-        "CTRL SHIFT,ESCAPE,exec,${pkgs.resources}/bin/resources"
-        "${mainMod},C,exec,${defaultTerminal} --class clipse ${config.hmModules.desktop.clipse.package}/bin/clipse"
+        "${mainMod},O,exec,${lib.getExe pkgs.obsidian}"
+        "CTRL SHIFT,ESCAPE,exec,${lib.getExe pkgs.resources}"
+        "${mainMod},C,exec,${defaultTerminal} --class clipse ${lib.getExe config.hmModules.desktop.clipse.package}"
 
         # Printscreen
         "ALT,P,exec,${grimblast.bin} --notify copy"

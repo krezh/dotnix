@@ -18,8 +18,6 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  ATTIC_ENDPOINT: "https://nix-cache.plexuz.xyz"
-  ATTIC_CACHE: "krezh"
   EXCLUDED_HOSTS: '["nixos-livecd"]'
   TMPDIR: /tmp
 
@@ -93,14 +91,6 @@ jobs:
 
       - name: Set up Magic Nix Cache
         uses: DeterminateSystems/magic-nix-cache-action@v8
-
-      # - name: Set up Attic
-      #   uses: ryanccn/attic-action@v0.3.0
-      #   if: ${{ !github.event.pull_request.head.repo.fork }}
-      #   with:
-      #     endpoint: "${{ env.ATTIC_ENDPOINT }}"
-      #     cache: "${{ env.ATTIC_CACHE }}"
-      #     token: "${{ secrets.ATTIC_TOKEN }}"
 
       - name: Set up Cachix
         uses: cachix/cachix-action@v15

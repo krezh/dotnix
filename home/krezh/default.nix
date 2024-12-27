@@ -53,7 +53,6 @@ in
       "tlk/proxy" = {
         path = "${config.xdg.configHome}/tlk/proxy";
       };
-      #"attic/netrc" = { };
     };
   };
 
@@ -67,7 +66,7 @@ in
       "$CARGO_HOME/bin"
     ];
     sessionVariables = {
-      NH_FLAKE = "${config.home.homeDirectory}/nix-config";
+      FLAKE = "${config.home.homeDirectory}/nix-config";
       GOPATH = "${config.xdg.dataHome}/go";
       CARGO_HOME = "${config.xdg.dataHome}/cargo";
       SOPS_AGE_KEY_FILE = "${config.sops.age.keyFile}";
@@ -106,7 +105,6 @@ in
       retry
       cue
       minio-client
-      any-nix-shell
 
       # Secrets
       age-plugin-yubikey
@@ -116,12 +114,10 @@ in
       doppler
       infisical
 
-      # JSON
+      # Processors
       jq
       jc
       jnv
-
-      # YAML
       yq-go
 
       # Nix
@@ -134,6 +130,7 @@ in
       nix-tree
       nixos-anywhere
       nixos-shell
+      any-nix-shell
 
       # Kubernetes
       talosctl
@@ -180,7 +177,6 @@ in
       ];
       builders-use-substitutes = true;
       warn-dirty = false;
-      #netrc-file = config.sops.secrets."attic/netrc".path;
       extra-substituters = [
         "https://cache.garnix.io"
         "https://krezh.cachix.org"
@@ -188,8 +184,6 @@ in
         "https://nix-community.cachix.org"
         "https://hyprland.cachix.org"
         "https://anyrun.cachix.org"
-        #"https://walker.cachix.org"
-        "https://walker-git.cachix.org"
         "https://cosmic.cachix.org"
       ];
       extra-trusted-public-keys = [
@@ -199,8 +193,6 @@ in
         "nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs="
         "hyprland.cachix.org-1:a7pgxzMz7+chwVL3/pzj6jIBMioiJM7ypFP8PwtkuGc="
         "anyrun.cachix.org-1:pqBobmOjI7nKlsUMV25u9QHa9btJK65/C8vnO3p346s="
-        #"walker.cachix.org-1:fG8q+uAaMqhsMxWjwvk0IMb4mFPFLqHjuvfwQxE4oJM="
-        "walker-git.cachix.org-1:vmC0ocfPWh0S/vRAQGtChuiZBTAe4wiKDeyyXM0/7pM="
         "cosmic.cachix.org-1:Dya9IyXD4xdBehWjrkPv6rtxpmMdRel02smYzA85dPE="
       ];
     };
