@@ -6,7 +6,8 @@
   ...
 }:
 let
-  defaultTerminal = lib.getExe pkgs.xdg-terminal-exec;
+  ghostty = inputs.ghostty.packages.${pkgs.system}.ghostty;
+  defaultTerminal = lib.getExe ghostty;
 
   hyprlock = {
     pkg = config.programs.hyprlock.package;
@@ -57,7 +58,7 @@ in
       bind = [
         "${mainMod},ESCAPE,exec,${lib.getExe pkgs.wlogout}"
         "${mainMod},L,exec,${hyprlock.bin} --immediate"
-        "${mainMod},R,exec,${anyrun.apps}"
+        "${mainMod},R,exec,${anyrun.bin} --plugin ${anyrun.apps}"
         # Applications
         "${mainMod},B,exec,${chrome.bin}"
         "${mainMod},E,exec,${lib.getExe pkgs.nemo}"

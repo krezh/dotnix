@@ -197,14 +197,17 @@
   };
 
   outputs =
-    inputs@{ flake-parts, self, ... }:
+    inputs@{
+      flake-parts,
+      self,
+      ...
+    }:
     let
       inherit (self) outputs;
 
       lib = inputs.nixpkgs.lib // import ./lib { inherit inputs; };
 
       flakeLib = import ./lib/flakeLib.nix { inherit inputs outputs lib; };
-
     in
     flake-parts.lib.mkFlake { inherit inputs; } {
       imports = [
@@ -226,10 +229,7 @@
           {
             hostname = "odin";
             system = "x86_64-linux";
-            homeUsers = [
-              "krezh"
-              "dummy"
-            ];
+            homeUsers = [ "krezh" ];
           }
           {
             hostname = "thor-wsl";
@@ -267,7 +267,11 @@
       };
 
       perSystem =
-        { pkgs, config, ... }:
+        {
+          pkgs,
+          config,
+          ...
+        }:
         {
           pre-commit = import ./pre-commit.nix { inherit pkgs; };
           devshells = import ./shell.nix { inherit inputs pkgs config; };
@@ -281,5 +285,4 @@
           };
         };
     };
-
 }
