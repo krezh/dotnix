@@ -41,7 +41,13 @@
           enableFormat = true;
           enableTreesitter = true;
           enableExtraDiagnostics = true;
-          nix.enable = true;
+          nix = {
+            enable = true;
+            # format.enable = true;
+            # format.type = "nixpkgs-fmt";
+            # lsp.enable = true;
+            # lsp.server = "nixd";
+          };
           markdown.enable = true;
           html.enable = true;
           css.enable = true;
