@@ -105,6 +105,7 @@ in
       retry
       cue
       minio-client
+      just
 
       # Secrets
       age-plugin-yubikey
