@@ -12,6 +12,8 @@ let
     !(builtins.elem hostname) [
       "thor-wsl"
       "steamdeck"
+      "rpi-01"
+      "rpi-02"
     ];
 in
 {

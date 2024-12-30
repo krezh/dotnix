@@ -37,6 +37,7 @@
     };
 
     hardware.url = "github:nixos/nixos-hardware";
+
     nixos-facter-modules.url = "github:numtide/nixos-facter-modules";
 
     lix-module = {
@@ -131,11 +132,6 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    # ags = {
-    #   url = "github:Aylur/ags";
-    #   inputs.nixpkgs.follows = "nixpkgs";
-    # };
-
     hyprpanel = {
       url = "github:Jas-SinghFSU/HyprPanel";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -216,7 +212,11 @@
         inputs.treefmt-nix.flakeModule
       ];
 
-      systems = [ "x86_64-linux" ];
+      systems = [
+        "x86_64-linux"
+        "aarch64-linux"
+      ];
+
       debug = true;
 
       flake = {
@@ -234,6 +234,16 @@
           {
             hostname = "thor-wsl";
             system = "x86_64-linux";
+            homeUsers = [ "krezh" ];
+          }
+          {
+            hostname = "rpi-01";
+            system = "aarch64-linux";
+            homeUsers = [ "krezh" ];
+          }
+          {
+            hostname = "rpi-02";
+            system = "aarch64-linux";
             homeUsers = [ "krezh" ];
           }
           {

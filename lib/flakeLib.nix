@@ -15,6 +15,7 @@ let
         allowUnfree = true;
         allowUnfreePredicate = _: true;
       };
+      hostPlatform = system;
     };
   mkSystem =
     config:

@@ -2,37 +2,23 @@
 # and may be overwritten by future invocations.  Please make changes
 # to /etc/nixos/configuration.nix instead.
 {
-  config,
-  lib,
   modulesPath,
+  inputs,
   ...
 }:
 
 {
   imports = [
     (modulesPath + "/installer/scan/not-detected.nix")
+    inputs.hardware.nixosModules.raspberry-pi-4
   ];
 
-  boot.initrd.availableKernelModules = [
-    "vmd"
-    "xhci_pci"
-    "ahci"
-    "nvme"
-    "usbhid"
-    "usb_storage"
-    "sd_mod"
-  ];
+  boot.initrd.availableKernelModules = [ ];
 
   boot.initrd.kernelModules = [ ];
   boot.kernelParams = [ "ipv6.disable=1" ];
-  boot.kernelModules = [
-    "kvm-intel"
-    "nvidia"
-    "module_blacklist=i915"
-  ];
+  boot.kernelModules = [ ];
   boot.extraModulePackages = [ ];
 
   swapDevices = [ ];
-
-  hardware.cpu.intel.updateMicrocode = lib.mkDefault config.hardware.enableRedistributableFirmware;
 }
