@@ -30,12 +30,18 @@ main() {
   if [ -n "$USER" ]; then
     tsh login --proxy="$TELEPORT_PROXY" --auth=local --user="$USER"
     local CLUSTER
-    CLUSTER="$(gum choose --header="Select Kubernetes Cluster:" "$(tsh kube ls -q | awk '{print $1}')" )"
+    local CLUSTERS
+    CLUSTERS=$(tsh kube ls -q -f json | jq -r '.[].kube_cluster_name' | tr '\n' ' ')
+    # shellcheck disable=SC2086
+    CLUSTER=$(gum choose --header="Select Kubernetes Cluster:" $CLUSTERS)
     tsh kube login "$CLUSTER"
   else
     tsh login --proxy="$TELEPORT_PROXY" --auth=github
     local CLUSTER
-    CLUSTER="$(gum choose --header="Select Kubernetes Cluster:" "$(tsh kube ls -q | awk '{print $1}')" )"
+    local CLUSTERS
+    CLUSTERS=$(tsh kube ls -q -f json | jq -r '.[].kube_cluster_name' | tr '\n' ' ')
+    # shellcheck disable=SC2086
+    CLUSTER=$(gum choose --header="Select Kubernetes Cluster:" $CLUSTERS)
     tsh kube login "$CLUSTER"
   fi
 }
