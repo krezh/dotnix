@@ -13,7 +13,7 @@ let
 in
 {
   programs.zellij = {
-    enable = true;
+    enable = false;
     enableFishIntegration = true;
   };
 

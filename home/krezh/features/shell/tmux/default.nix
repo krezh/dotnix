@@ -1,6 +1,6 @@
 {
   programs.tmux = {
-    enable = true;
+    enable = false;
     clock24 = true;
     newSession = true;
     mouse = true;
