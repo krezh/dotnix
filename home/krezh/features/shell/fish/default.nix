@@ -87,7 +87,7 @@ in
       fish_greeting = "";
     };
     interactiveShellInit = ''
-      ${lib.getExe pkgs.nitch}
+      ${lib.getExe pkgs.fastfetch}
       ${lib.optionalString config.programs.tmux.enable "set fish_tmux_autostart true"}
       ${lib.getExe pkgs.any-nix-shell} fish | source
     '';

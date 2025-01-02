@@ -15,5 +15,6 @@
     ./zoxide
     ./tmux
     ./zellij
+    ./fastfetch
   ];
 }
