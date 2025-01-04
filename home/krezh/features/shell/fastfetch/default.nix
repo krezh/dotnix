@@ -53,7 +53,7 @@
           {
             type = "uptime";
             key = "│ {#blue} {#} uptime │";
-            format = "{#blue}{?1}{1}d {?}{?2}{2}h {?}{?3}{3}m{?}{#}";
+            format = "{#blue}{?1}{1}d {?}{?2}{2}h {?}{?3}{3}m {?}{?4}{4}s{?}{#}";
             keyColor = "white";
           }
           {
