@@ -16,5 +16,6 @@
     ./tmux
     ./zellij
     ./fastfetch
+    ./helix
   ];
 }
