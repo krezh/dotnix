@@ -116,6 +116,7 @@ in
       age
       doppler
       infisical
+      doggo
 
       # Processors
       jq

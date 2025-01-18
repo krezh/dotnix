@@ -13,8 +13,8 @@
       "ubuntu-latest"
     else if system == "x86_64-darwin" then
       "ubuntu-latest"
-    else if system == "aarch64-darwin" then
-      "macos-14.0"
+    else if system == "aarch64-linux" then
+      "ubuntu-24.04-arm"
     else
       system;
 }

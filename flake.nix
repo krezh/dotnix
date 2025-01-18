@@ -186,6 +186,9 @@
       url = "github:ghostty-org/ghostty";
     };
 
+    nix-github-actions.url = "github:nix-community/nix-github-actions";
+    nix-github-actions.inputs.nixpkgs.follows = "nixpkgs";
+
     ssh-keys = {
       url = "https://github.com/krezh.keys";
       flake = false;
@@ -196,6 +199,7 @@
     inputs@{
       flake-parts,
       self,
+      nix-github-actions,
       ...
     }:
     let
@@ -237,6 +241,16 @@
             homeUsers = [ "krezh" ];
           }
           {
+            hostname = "rpi-01";
+            system = "aarch64-linux";
+            homeUsers = [ "krezh" ];
+          }
+          {
+            hostname = "rpi-02";
+            system = "aarch64-linux";
+            homeUsers = [ "krezh" ];
+          }
+          {
             hostname = "nixos-livecd";
             system = "x86_64-linux";
             homeUsers = [ ];
@@ -256,6 +270,8 @@
             runner = lib.mapToGha self.nixosConfigurations.${host}.pkgs.system;
           }) (builtins.attrNames self.nixosConfigurations);
         };
+
+        githubActions = nix-github-actions.lib.mkGithubMatrix { checks = self.packages; };
 
         overlays = import ./overlays { inherit inputs lib; };
 
