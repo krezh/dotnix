@@ -154,6 +154,7 @@ in
       kind
       unstable.teleport
       tlk
+      kubestr
     ];
   };
 
