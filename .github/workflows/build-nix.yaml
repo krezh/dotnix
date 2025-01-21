@@ -3,7 +3,7 @@ name: Build and diff Nix systems
 
 on:
   pull_request:
-    paths-ignore: ["pkgs/**"]
+    paths-ignore: ["pkgs/**", ".github"]
   workflow_dispatch:
   workflow_call:
   push:
