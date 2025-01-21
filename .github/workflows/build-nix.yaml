@@ -90,7 +90,7 @@ jobs:
             builders-use-substitutes = true
 
       - name: Set up Magic Nix Cache
-        uses: DeterminateSystems/magic-nix-cache-action@v8
+        uses: DeterminateSystems/magic-nix-cache-action@v9
 
       - name: Set up Cachix
         uses: cachix/cachix-action@v15
