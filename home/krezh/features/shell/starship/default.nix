@@ -1,4 +1,3 @@
-{ ... }:
 {
   programs.starship = {
     enable = true;
@@ -19,9 +18,9 @@
             context_alias = "talos";
           }
           {
-            context_pattern = "teleport.talos.plexuz.xyz-talos-plexuz";
+            context_pattern = "^(?<url>[^-]+)-(?<cluster>.+)$";
             symbol = "⎈";
-            context_alias = "teleport-talos";
+            context_alias = "tp-$cluster";
           }
         ];
       };

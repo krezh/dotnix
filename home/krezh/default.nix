@@ -108,6 +108,7 @@ in
       cue
       minio-client
       just
+      terraform
 
       # Secrets
       age-plugin-yubikey
