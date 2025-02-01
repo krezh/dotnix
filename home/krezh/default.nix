@@ -157,6 +157,7 @@ in
       unstable.teleport
       tlk
       kubestr
+      kubectl-pgo
     ];
   };
 
