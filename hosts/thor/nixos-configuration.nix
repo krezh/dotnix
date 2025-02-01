@@ -25,7 +25,7 @@
       "quiet"
       "udev.log_level=0"
     ];
-    kernelPackages = pkgs.linuxPackages_latest;
+    #kernelPackages = pkgs.linuxPackages_latest;
     loader = {
       systemd-boot = {
         enable = true;

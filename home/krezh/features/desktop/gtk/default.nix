@@ -16,6 +16,7 @@
   catppuccin.cursors.accent = "light";
   catppuccin.hyprland.enable = true;
   catppuccin.gtk.icon.enable = true;
+  catppuccin.rofi.enable = true;
 
   dconf.settings = {
     "org/gnome/desktop/interface" = {
