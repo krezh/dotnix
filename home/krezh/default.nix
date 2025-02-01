@@ -109,6 +109,7 @@ in
       minio-client
       just
       terraform
+      minijinja
 
       # Secrets
       age-plugin-yubikey

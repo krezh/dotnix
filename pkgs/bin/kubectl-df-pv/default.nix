@@ -6,6 +6,7 @@
 
 buildGoModule rec {
   pname = "kubectl-df-pv";
+  # renovate: datasource=github-tag depName=yashbhutwala/kubectl-df-pv
   version = "0.3.0";
 
   src = fetchFromGitHub {
