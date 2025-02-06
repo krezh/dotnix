@@ -22,7 +22,7 @@
         lol = "log --graph --decorate --pretty=oneline --abbrev-commit";
         lola = "log --graph --decorate --pretty=oneline --abbrev-commit --all";
       };
-      difftastic.enable = true;
+      difftastic.enable = false;
       difftastic.display = "inline";
     };
     lazygit.enable = true;
