@@ -110,6 +110,7 @@ in
       just
       terraform
       minijinja
+      gh-poi
 
       # Secrets
       age-plugin-yubikey
