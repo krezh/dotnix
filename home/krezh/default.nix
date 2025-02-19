@@ -159,6 +159,7 @@ in
       tlk
       kubestr
       kubectl-pgo
+      cilium-cli
     ];
   };
 
