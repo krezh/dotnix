@@ -160,6 +160,7 @@ in
       kubestr
       kubectl-pgo
       cilium-cli
+      kubectl-rook-ceph
     ];
   };
 
