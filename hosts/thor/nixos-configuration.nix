@@ -2,7 +2,6 @@
   inputs,
   pkgs,
   lib,
-  config,
   hostname,
   ...
 }:
@@ -25,7 +24,7 @@
       "quiet"
       "udev.log_level=0"
     ];
-    #kernelPackages = pkgs.linuxPackages_latest;
+    kernelPackages = pkgs.linuxPackages_zen;
     loader = {
       systemd-boot = {
         enable = true;
@@ -56,7 +55,6 @@
   programs.gamemode.enable = true;
 
   nixosModules.desktop = {
-    battery.enable = true;
     openssh.enable = true;
     fonts.enable = true;
   };
@@ -76,6 +74,7 @@
         autoNumlock = true;
         package = pkgs.kdePackages.sddm;
       };
+      cosmic-greeter.enable = false;
       defaultSession = "hyprland";
     };
     gnome.gnome-keyring.enable = true;
@@ -127,14 +126,9 @@
     graphics = {
       enable = true;
     };
-    nvidia.package = config.boot.kernelPackages.nvidiaPackages.stable;
-    nvidia.modesetting.enable = true;
-    nvidia.powerManagement.enable = false;
-    nvidia.powerManagement.finegrained = false;
-    nvidia.open = true;
-    nvidia.nvidiaSettings = true;
   };
-  services.xserver.videoDrivers = [ "nvidia" ];
+
+  services.xserver.videoDrivers = [ "amdgpu" ];
 
   security.rtkit.enable = true;
 
@@ -148,8 +142,6 @@
       NIXOS_OZONE_WL = "1";
       STEAM_EXTRA_COMPAT_TOOLS_PATHS = "$HOME/.steam/root/compatibilitytools.d";
       WLR_BACKEND = "vulkan";
-      LIBVA_DRIVER_NAME = "nvidia";
-      __GLX_VENDOR_LIBRARY_NAME = "nvidia";
     };
     systemPackages = with pkgs; [
       age-plugin-yubikey
@@ -158,6 +150,7 @@
       lutris
       protonup
       heroic
+      lact
       # Steam
       mangohud
       gamemode

@@ -27,8 +27,8 @@
   boot.kernelParams = [ "ipv6.disable=1" ];
   boot.kernelModules = [
     "kvm-intel"
-    "nvidia"
     "module_blacklist=i915"
+    "amdgpu"
   ];
   boot.extraModulePackages = [ ];
 
