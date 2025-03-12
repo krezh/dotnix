@@ -32,6 +32,10 @@
     };
   };
 
+  nixosModules.desktop = {
+    openssh.enable = true;
+  };
+
   services.udev.enable = lib.mkForce true;
 
   programs.nix-ld = {
