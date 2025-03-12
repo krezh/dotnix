@@ -5,9 +5,7 @@
   ...
 }:
 {
-  imports = [
-    # inputs.lix-module.nixosModules.default
-  ];
+  imports = [];
 
   nix = {
     extraOptions = ''
