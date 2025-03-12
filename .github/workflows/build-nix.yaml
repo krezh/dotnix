@@ -111,6 +111,7 @@ jobs:
             "github:krezh/nix-config#top.${{ matrix.host }}" \
             --log-format raw \
             --fallback \
+            --no-write-lock-file \
             -o result-previous \
             > >(tee stdout.log) 2> >(tee /tmp/nix-build-err.log >&2)
 
@@ -121,6 +122,7 @@ jobs:
             ".#top.${{ matrix.host }}" \
             -o result-new \
             --fallback \
+            --no-write-lock-file \
             --log-format raw \
             > >(tee stdout.log) 2> >(tee /tmp/nix-build-err.log >&2)
 
