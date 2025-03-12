@@ -5,7 +5,6 @@
     extra-trusted-substituters = [
       "https://krezh.cachix.org"
       "https://cache.garnix.io"
-      "https://cache.lix.systems"
       "https://nix-community.cachix.org"
       "https://hyprland.cachix.org"
       "https://anyrun.cachix.org"
@@ -40,11 +39,6 @@
     hardware.url = "github:nixos/nixos-hardware";
 
     nixos-facter-modules.url = "github:numtide/nixos-facter-modules";
-
-    lix-module = {
-      url = "https://git.lix.systems/lix-project/nixos-module/archive/2.91.1-2.tar.gz";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
 
     devshell = {
       url = "github:numtide/devshell";
