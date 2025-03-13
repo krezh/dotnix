@@ -89,9 +89,6 @@ jobs:
             always-allow-substitutes = true
             builders-use-substitutes = true
 
-      - name: Set up Magic Nix Cache
-        uses: DeterminateSystems/magic-nix-cache-action@v9
-
       - name: Set up Cachix
         uses: cachix/cachix-action@v16
         if: ${{ !github.event.pull_request.head.repo.fork }}
