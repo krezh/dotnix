@@ -216,8 +216,6 @@
         "aarch64-linux"
       ];
 
-      debug = true;
-
       flake = {
         nixosConfigurations = flakeLib.mkSystems [
           {
