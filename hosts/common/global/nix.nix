@@ -5,7 +5,7 @@
   ...
 }:
 {
-  imports = [];
+  imports = [ ];
 
   nix = {
     extraOptions = ''
