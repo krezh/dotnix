@@ -8,7 +8,7 @@
 {
   imports = [
     inputs.nix-index.hmModules.nix-index
-    inputs.catppuccin.homeManagerModules.catppuccin
+    inputs.catppuccin.homeModules.catppuccin
   ] ++ outputs.homeManagerModules;
 
   nixpkgs = {

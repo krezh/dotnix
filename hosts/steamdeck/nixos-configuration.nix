@@ -67,8 +67,6 @@
 
   programs.hyprland = {
     enable = true;
-    #package = inputs.hyprland.packages.${pkgs.system}.hyprland;
-    #portalPackage = inputs.xdg-portal-hyprland.packages.${pkgs.system}.default;
   };
 
   security.rtkit.enable = true;

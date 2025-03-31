@@ -1,6 +1,4 @@
 {
-  pkgs,
-  inputs,
   config,
   lib,
   ...
@@ -24,5 +22,5 @@
     };
   };
 
-  home.packages = [ inputs.browser-previews.packages.${pkgs.system}.google-chrome ];
+  home.packages = [ ];
 }

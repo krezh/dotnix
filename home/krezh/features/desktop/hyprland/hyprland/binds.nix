@@ -21,9 +21,9 @@ let
     bin = lib.getExe anyrun.pkg.default;
   };
 
-  chrome = {
-    pkg = inputs.browser-previews.packages.${pkgs.system}.google-chrome;
-    bin = lib.getExe chrome.pkg;
+  vivaldi = {
+    pkg = config.programs.vivaldi.package;
+    bin = lib.getExe config.programs.vivaldi.package;
   };
 
   volume_script =
@@ -40,7 +40,7 @@ let
 
   grimblast = {
     pkg = inputs.hyprland-contrib.packages.${pkgs.system}.grimblast;
-    bin = "${lib.getExe grimblast.pkg}";
+    bin = lib.getExe grimblast.pkg;
   };
 
   mainMod = "SUPER";
@@ -60,7 +60,7 @@ in
         "${mainMod},L,exec,${hyprlock.bin} --immediate"
         "${mainMod},R,exec,${anyrun.bin} --plugin ${anyrun.apps}"
         # Applications
-        "${mainMod},B,exec,${chrome.bin}"
+        "${mainMod},B,exec,${vivaldi.bin}"
         "${mainMod},E,exec,${lib.getExe pkgs.nemo}"
         "${mainMod},RETURN,exec,${defaultTerminal}"
         "${mainModShift},RETURN,exec,[floating] ${defaultTerminal}"

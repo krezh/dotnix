@@ -21,7 +21,7 @@ in
     [
       ./features/shell
       inputs.nix-index.hmModules.nix-index
-      inputs.catppuccin.homeManagerModules.catppuccin
+      inputs.catppuccin.homeModules.catppuccin
     ]
     ++ (if isDesktop then [ ./features/desktop ] else [ ])
     ++ outputs.homeManagerModules;
