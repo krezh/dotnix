@@ -1,5 +1,4 @@
 {
-  inputs,
   pkgs,
   lib,
   hostname,
@@ -7,10 +6,7 @@
 }:
 {
   imports =
-    [
-      #inputs.hyprland.nixosModules.default
-      inputs.nixos-cosmic.nixosModules.default
-    ]
+    [ ]
     ++ (lib.scanPath.toList { path = ../common/users; })
     ++ (lib.scanPath.toList { path = ../common/global; });
 
@@ -61,8 +57,6 @@
 
   security.pam.services.hyprlock = { };
 
-  services.desktopManager.cosmic.enable = false;
-
   catppuccin.plymouth.enable = true;
   catppuccin.sddm.enable = true;
 
@@ -74,7 +68,6 @@
         autoNumlock = true;
         package = pkgs.kdePackages.sddm;
       };
-      cosmic-greeter.enable = false;
       defaultSession = "hyprland";
     };
     gnome.gnome-keyring.enable = true;

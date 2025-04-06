@@ -14,12 +14,12 @@ let
     bin = lib.getExe hyprlock.pkg;
   };
 
-  anyrun = {
-    pkg = inputs.anyrun.packages.${pkgs.system};
-    stdin = "${anyrun.pkg.stdin}/lib/libstdin.so";
-    apps = "${anyrun.pkg.applications}/lib/libapplications.so";
-    bin = lib.getExe anyrun.pkg.default;
-  };
+  # anyrun = {
+  #   pkg = inputs.anyrun.packages.${pkgs.system};
+  #   stdin = "${anyrun.pkg.stdin}/lib/libstdin.so";
+  #   apps = "${anyrun.pkg.applications}/lib/libapplications.so";
+  #   bin = lib.getExe anyrun.pkg.default;
+  # };
 
   vivaldi = {
     pkg = config.programs.vivaldi.package;
@@ -58,7 +58,7 @@ in
       bind = [
         "${mainMod},ESCAPE,exec,${lib.getExe pkgs.wlogout}"
         "${mainMod},L,exec,${hyprlock.bin} --immediate"
-        "${mainMod},R,exec,${anyrun.bin} --plugin ${anyrun.apps}"
+        #"${mainMod},R,exec,${anyrun.bin} --plugin ${anyrun.apps}"
         # Applications
         "${mainMod},B,exec,${vivaldi.bin}"
         "${mainMod},E,exec,${lib.getExe pkgs.nemo}"

@@ -111,6 +111,7 @@ in
       terraform
       minijinja
       gh-poi
+      xxd
 
       # Secrets
       age-plugin-yubikey
@@ -194,8 +195,6 @@ in
         "https://cache.lix.systems"
         "https://nix-community.cachix.org"
         "https://hyprland.cachix.org"
-        "https://anyrun.cachix.org"
-        "https://cosmic.cachix.org"
       ];
       extra-trusted-public-keys = [
         "cache.garnix.io:CTFPyKSLcx5RMJKfLo5EEPUObbA78b0YQ2DTCJXqr9g="
@@ -203,8 +202,6 @@ in
         "cache.lix.systems:aBnZUw8zA7H35Cz2RyKFVs3H4PlGTLawyY5KRbvJR8o="
         "nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs="
         "hyprland.cachix.org-1:a7pgxzMz7+chwVL3/pzj6jIBMioiJM7ypFP8PwtkuGc="
-        "anyrun.cachix.org-1:pqBobmOjI7nKlsUMV25u9QHa9btJK65/C8vnO3p346s="
-        "cosmic.cachix.org-1:Dya9IyXD4xdBehWjrkPv6rtxpmMdRel02smYzA85dPE="
       ];
     };
   };

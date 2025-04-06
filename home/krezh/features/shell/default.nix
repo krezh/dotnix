@@ -13,8 +13,6 @@
     ./neovim
     ./starship
     ./zoxide
-    ./tmux
-    ./zellij
     ./fastfetch
     ./helix
   ];
