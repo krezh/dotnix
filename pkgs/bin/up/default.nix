@@ -7,13 +7,13 @@
 buildGoModule rec {
   pname = "up";
   # renovate: datasource=github-releases depName=jesusprubio/up
-  version = "1.2.1";
+  version = "1.3.0";
 
   src = fetchFromGitHub {
     owner = "jesusprubio";
     repo = "up";
     rev = "v${version}";
-    hash = "sha256-H5JACzdbIAlc38oTX8uv8YnLZhgsJlFcQeB2RoJkfpg=";
+    hash = "sha256-fXg+fU7wCirJ1pGpahCjeYVUQukmTlnorS2F5eCcXCI=";
   };
 
   vendorHash = "sha256-/Gsqc8rEptMBItqeb/N/gE4V3iUGZa8k1GqUR1+togY=";
