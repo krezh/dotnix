@@ -28,7 +28,6 @@
 
     flake-parts = {
       url = "github:hercules-ci/flake-parts";
-      inputs.nixpkgs-lib.follows = "nixpkgs";
     };
 
     hardware.url = "github:nixos/nixos-hardware";
@@ -109,26 +108,6 @@
 
     nixos-wsl = {
       url = "github:nix-community/NixOS-WSL";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-
-    nixos-grub-themes = {
-      url = "github:jeslie0/nixos-grub-themes";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-
-    browser-previews = {
-      url = "github:nix-community/browser-previews";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-
-    jovian = {
-      url = "github:Jovian-Experiments/Jovian-NixOS";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-
-    zjstatus = {
-      url = "github:dj95/zjstatus";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 

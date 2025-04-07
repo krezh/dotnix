@@ -12,10 +12,10 @@ lib.scanPath.toAttrs {
       func = pkgs.callPackage;
       args = { };
     }
-    {
-      path = ./fish-plugins;
-      func = pkgs.fishPlugins.callPackage;
-      args = { };
-    }
+    # {
+    #   path = ./fish-plugins;
+    #   func = pkgs.fishPlugins.callPackage;
+    #   args = { };
+    # }
   ];
 }

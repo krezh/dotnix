@@ -60,10 +60,6 @@ in
         src = pkgs.fishPlugins.forgit.src;
       }
       {
-        name = "zellij-update-tabname";
-        src = pkgs.zellij-update-tabname.src;
-      }
-      {
         name = "abbreviation-tips";
         src = pkgs.fetchFromGitHub {
           owner = "gazorby";
