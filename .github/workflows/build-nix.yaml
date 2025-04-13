@@ -83,7 +83,7 @@ jobs:
           fetch-depth: 0
 
       - name: Install Nix
-        uses: DeterminateSystems/nix-installer-action@ # v31
+        uses: DeterminateSystems/nix-installer-action@v16 # v16
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           extra-conf: |
