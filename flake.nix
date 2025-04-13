@@ -170,6 +170,16 @@
             homeUsers = [ "krezh" ];
           }
           {
+            hostname = "rpi-01";
+            system = "aarch64-linux";
+            homeUsers = [ "krezh" ];
+          }
+          {
+            hostname = "rpi-02";
+            system = "aarch64-linux";
+            homeUsers = [ "krezh" ];
+          }
+          {
             hostname = "nixos-livecd";
             system = "x86_64-linux";
             homeUsers = [ ];
