@@ -105,6 +105,7 @@ jobs:
         run: nix-collect-garbage
 
       - name: Build previous ${{ matrix.host }} system
+        if: ${{ github.ref_name != 'main' }}
         run: |
           nix build \
             "github:krezh/nix-config#top.${{ matrix.host }}" \
@@ -136,6 +137,7 @@ jobs:
           exit 1
 
       - name: Diff profile
+        if: ${{ github.ref_name != 'main' }}
         id: diff
         run: |
           delimiter="$(openssl rand -hex 16)"
@@ -144,6 +146,7 @@ jobs:
           echo "${delimiter}" >> "${GITHUB_OUTPUT}"
 
       - name: Comment report in pr
+        if: ${{ github.ref_name != 'main' }}
         uses: marocchino/sticky-pull-request-comment@52423e01640425a022ef5fd42c6fb5f633a02728 # v2
         with:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
