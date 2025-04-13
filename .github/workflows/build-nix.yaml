@@ -56,23 +56,23 @@ jobs:
       matrix: ${{ fromJSON(needs.nix-matrix.outputs.matrix) }}
     runs-on: ${{ matrix.runner }}
     steps:
-      # - name: maximize build space
-      #   uses: easimon/maximize-build-space@fc881a613ad2a34aca9c9624518214ebc21dfc0c # v10
-      #   with:
-      #     root-reserve-mb: 16384
-      #     swap-size-mb: 4096
-      #     remove-dotnet: true
-      #     remove-android: true
-      #     remove-haskell: true
-      #     remove-docker-images: true
-      #     remove-codeql: true
-      #     build-mount-path: "/nix"
+      - name: maximize build space
+        uses: easimon/maximize-build-space@fc881a613ad2a34aca9c9624518214ebc21dfc0c # v10
+        with:
+          root-reserve-mb: 1024
+          swap-size-mb: 1024
+          remove-dotnet: true
+          remove-android: true
+          remove-haskell: true
+          remove-docker-images: true
+          remove-codeql: true
+          build-mount-path: "/nix"
 
-      # - name: Change /nix owner
-      #   run: |
-      #     ls -la /nix
-      #     sudo chown -R root /nix
-      #     ls -la /nix
+      - name: Change /nix owner
+        run: |
+          ls -la /nix
+          sudo chown -R root /nix
+          ls -la /nix
 
       - name: Checkout repository
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4

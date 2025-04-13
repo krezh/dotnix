@@ -62,6 +62,24 @@
         "type": "github"
       }
     },
+    "conflake": {
+      "inputs": {
+        "nixpkgs": "nixpkgs_2"
+      },
+      "locked": {
+        "lastModified": 1740807744,
+        "narHash": "sha256-h1OnnM26wrKG3G6rk7GKOsKqi7woMdm+uNmDuBEwe9I=",
+        "owner": "ratson",
+        "repo": "conflake",
+        "rev": "b4aaca82fe0b9509f30c86349d1f4707785dd40b",
+        "type": "github"
+      },
+      "original": {
+        "owner": "ratson",
+        "repo": "conflake",
+        "type": "github"
+      }
+    },
     "crane": {
       "locked": {
         "lastModified": 1742394900,
@@ -447,7 +465,7 @@
     },
     "naersk": {
       "inputs": {
-        "nixpkgs": "nixpkgs_2"
+        "nixpkgs": "nixpkgs_3"
       },
       "locked": {
         "lastModified": 1742901344,
@@ -752,6 +770,22 @@
     },
     "nixpkgs_2": {
       "locked": {
+        "lastModified": 1740547748,
+        "narHash": "sha256-Ly2fBL1LscV+KyCqPRufUBuiw+zmWrlJzpWOWbahplg=",
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "3a05eebede89661660945da1f151959900903b6a",
+        "type": "github"
+      },
+      "original": {
+        "owner": "NixOS",
+        "ref": "nixpkgs-unstable",
+        "repo": "nixpkgs",
+        "type": "github"
+      }
+    },
+    "nixpkgs_3": {
+      "locked": {
         "lastModified": 1743320628,
         "narHash": "sha256-FurMxmjEEqEMld11eX2vgfAx0Rz0JhoFm8UgxbfCZa8=",
         "owner": "NixOS",
@@ -764,7 +798,7 @@
         "type": "indirect"
       }
     },
-    "nixpkgs_3": {
+    "nixpkgs_4": {
       "locked": {
         "lastModified": 1743703532,
         "narHash": "sha256-s1KLDALEeqy+ttrvqV3jx9mBZEvmthQErTVOAzbjHZs=",
@@ -830,6 +864,7 @@
     "root": {
       "inputs": {
         "catppuccin": "catppuccin",
+        "conflake": "conflake",
         "devshell": "devshell",
         "disko": "disko",
         "flake-parts": "flake-parts",
@@ -846,7 +881,7 @@
         "nixos-facter-modules": "nixos-facter-modules",
         "nixos-generators": "nixos-generators",
         "nixos-wsl": "nixos-wsl",
-        "nixpkgs": "nixpkgs_3",
+        "nixpkgs": "nixpkgs_4",
         "nixpkgs-unstable": "nixpkgs-unstable_2",
         "nvf": "nvf",
         "pre-commit-hooks": "pre-commit-hooks",
