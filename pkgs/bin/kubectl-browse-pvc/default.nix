@@ -6,7 +6,7 @@
 
 buildGoModule rec {
   pname = "kubectl-browse-pvc";
-  # renovate: datasource=github-tag depName=clbx/kubectl-browse-pvc
+  # renovate: datasource=github-release depName=clbx/kubectl-browse-pvc
   version = "1.1.0";
 
   src = fetchFromGitHub {
