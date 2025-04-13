@@ -56,8 +56,8 @@ jobs:
       matrix: ${{ fromJSON(needs.nix-matrix.outputs.matrix) }}
     runs-on: ${{ matrix.runner }}
     steps:
-      - name: maximize build space
-        uses: jlumbroso/free-disk-space@54081f138730dfa15788a46383842cd2f914a1be # v10
+      - name: Maximize build space 1
+        uses: jlumbroso/free-disk-space@54081f138730dfa15788a46383842cd2f914a1be
         with:
           tool-cache: true
           android: true
@@ -66,7 +66,7 @@ jobs:
           large-packages: true
           docker-images: true
           swap-storage: true
-      - name: maximize build space
+      - name: Maximize build space 2
         uses: easimon/maximize-build-space@fc881a613ad2a34aca9c9624518214ebc21dfc0c # v10
         with:
           root-reserve-mb: 4096
@@ -77,17 +77,12 @@ jobs:
           remove-docker-images: true
           remove-codeql: true
           build-mount-path: "/nix"
-
-      - name: Change /nix owner
-        run: |
-          ls -la /nix
-          sudo chown -R root /nix
-          ls -la /nix
+          build-mount-path-ownership: root
 
       - name: Checkout repository
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
         with:
-          fetch-depth: 0
+          fetch-depth: 1
 
       - name: Install Nix
         uses: DeterminateSystems/nix-installer-action@v16 # v16
