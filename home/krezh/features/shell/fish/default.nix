@@ -16,6 +16,7 @@ in
 {
   programs.fish = {
     enable = true;
+    package = pkgs.unstable.fish;
     shellAbbrs = {
       # git
       gs = "git status";
