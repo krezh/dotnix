@@ -77,7 +77,7 @@ in
       curl
       ripgrep
       gh
-      go
+      unstable.go
       dyff
       go-task
       opentofu
