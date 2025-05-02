@@ -13,10 +13,10 @@ buildGo124Module rec {
     owner = "siderolabs";
     repo = "talos";
     rev = "v${version}";
-    hash = "sha256-T/iFzMl3+tZu3EFNyof+QIywJA7ZTLm1asvy/q97Dus=";
+    hash = "sha256-2YKZfW62yOA8uV3bn6at/9YV3OHjiMuqA1SUupyAAx4=";
   };
 
-  vendorHash = "sha256-aFxeKyBcMdw5WOTRvXRofO2jA7rrQNaJGrZw3mcqvXE=";
+  vendorHash = "sha256-f2hOAF746nMAZe1KEopdpFHfRMEZQdy4VoVUi49CBJo=";
 
   ldflags = [
     "-s"
