@@ -7,7 +7,7 @@
 buildGo124Module rec {
   pname = "talosctl";
   # renovate: datasource=github-releases depName=siderolabs/talos
-  version = "1.10.0";
+  version = "1.9.5";
 
   src = fetchFromGitHub {
     owner = "siderolabs";
