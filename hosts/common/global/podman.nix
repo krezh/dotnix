@@ -4,7 +4,7 @@ let
 in
 {
   virtualisation.podman = {
-    enable = true;
+    enable = !dockerEnabled;
     dockerCompat = !dockerEnabled;
     dockerSocket.enable = !dockerEnabled;
     defaultNetwork.settings.dns_enabled = true;
