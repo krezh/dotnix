@@ -5,5 +5,6 @@
     ./krew
     ./kubectx
     ./aria2
+    ./tlk
   ];
 }

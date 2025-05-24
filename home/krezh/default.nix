@@ -52,9 +52,6 @@ in
       "atuin/key" = {
         path = "${config.xdg.configHome}/atuin/key";
       };
-      "tlk/proxy" = {
-        path = "${config.xdg.configHome}/tlk/proxy";
-      };
     };
   };
 
@@ -157,7 +154,6 @@ in
       kubernetes-helmPlugins.helm-diff
       kind
       unstable.teleport
-      tlk
       kubestr
       kubectl-pgo
       cilium-cli

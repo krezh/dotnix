@@ -15,5 +15,6 @@
     ./zoxide
     ./fastfetch
     ./helix
+    ./tlk
   ];
 }
