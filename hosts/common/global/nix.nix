@@ -5,7 +5,7 @@
   ...
 }:
 {
-  imports = [ ];
+  imports = [ inputs.determinate.nixosModules.default ];
 
   nix = {
     extraOptions = ''

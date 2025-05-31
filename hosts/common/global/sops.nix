@@ -16,9 +16,6 @@
       "passwords/krezh" = {
         neededForUsers = true;
       };
-      "passwords/dummy" = {
-        neededForUsers = true;
-      };
       "github/token" = { };
       "wifi/Plexuz" = { };
       "wifi/Flyn" = { };
