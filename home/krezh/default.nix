@@ -77,7 +77,7 @@ in
       unstable.go
       dyff
       go-task
-      opentofu
+      unstable.opentofu
       ncdu
       fd
       httpie
