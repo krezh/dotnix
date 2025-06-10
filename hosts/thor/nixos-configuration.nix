@@ -134,7 +134,7 @@
       STEAM_EXTRA_COMPAT_TOOLS_PATHS = "$HOME/.steam/root/compatibilitytools.d";
       WLR_BACKEND = "vulkan";
     };
-    systemPackages = with pkgs; [
+    systemPackages = with pkgs.unstable; [
       age-plugin-yubikey
       headsetcontrol
       mangohud
