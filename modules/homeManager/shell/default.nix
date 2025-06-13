@@ -6,5 +6,6 @@
     ./kubectx
     ./aria2
     ./tlk
+    ./talswitcher
   ];
 }

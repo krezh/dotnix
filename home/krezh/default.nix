@@ -69,6 +69,7 @@ in
       GOPATH = "${config.xdg.dataHome}/go";
       CARGO_HOME = "${config.xdg.dataHome}/cargo";
       SOPS_AGE_KEY_FILE = "${config.sops.age.keyFile}";
+      TALOSCONFIG_DIR = "${config.home.homeDirectory}/.talos/configs";
     };
     packages = with pkgs; [
       curl
@@ -164,6 +165,7 @@ in
   hmModules.shell.krew.enable = true;
   hmModules.shell.kubectx.enable = true;
   hmModules.shell.aria2.enable = true;
+  hmModules.shell.talswitcher.enable = true;
 
   programs = {
     home-manager.enable = true;
