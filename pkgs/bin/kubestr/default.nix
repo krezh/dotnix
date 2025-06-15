@@ -7,16 +7,16 @@
 buildGoModule rec {
   pname = "kubestr";
   # renovate: datasource=github-releases depName=kastenhq/kubestr
-  version = "0.4.48";
+  version = "0.4.49";
 
   src = fetchFromGitHub {
     owner = "kastenhq";
     repo = "kubestr";
     rev = "v${version}";
-    hash = "sha256-mSqiz6rK88JJ7wXw4RIqx5EvKIPCNnZerFhtDuysyWQ=";
+    hash = "sha256-paBewecIv3LiSSwaLZKHXcT7jOjIcgIURcJEcz1KNtE=";
   };
 
-  vendorHash = "sha256-zD7uTx6vobjdjGAU7LLxmRgEaQIpVLKw3SGL2wbptYg=";
+  vendorHash = "sha256-A/id2ut4CHNa1Q59Az0VuyC/PbF2jsa1sMdDsuRemKM=";
 
   ldflags = [
     "-s"
