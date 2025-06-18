@@ -2,6 +2,7 @@
   config,
   lib,
   inputs,
+  pkgs,
   ...
 }:
 let
@@ -32,5 +33,8 @@ in
       ];
       authorizedKeysFiles = [ "${inputs.ssh-keys.outPath}" ];
     };
+    environment.systemPackages = with pkgs; [
+      openssl
+    ];
   };
 }
