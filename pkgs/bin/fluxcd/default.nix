@@ -9,16 +9,16 @@
 buildGo124Module rec {
   pname = "fluxcd";
   # renovate: datasource=github-releases depName=fluxcd/flux2
-  version = "2.6.3";
+  version = "2.6.4";
 
   src = fetchFromGitHub {
     owner = "fluxcd";
     repo = "flux2";
     rev = "v${version}";
-    hash = "sha256-0VCeQ3duUzwyjgGIcx0DYXbaPFZXLgw199h9f0sYgCQ=";
+    hash = "sha256-uUjdS0vcg6XgHBGEr2A+nc9y0QS7cuMLiOckKm+eio4=";
   };
 
-  vendorHash = "sha256-RUEl7o1vxzzkL8UAV9E+ozz+fXF6GaxL4ci2MBbEG0o=";
+  vendorHash = "sha256-U37QdGfj7+YXIARORo0AHqgdzrODyUe5DA+eefxzTWA=";
 
   manifests = fetchzip {
     url = "https://github.com/fluxcd/flux2/releases/download/v${version}/manifests.tar.gz";
