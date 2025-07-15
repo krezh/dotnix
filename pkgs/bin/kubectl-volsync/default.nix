@@ -7,16 +7,16 @@
 buildGoModule rec {
   pname = "kubectl-volsync";
   # renovate: datasource=github-releases depName=backube/volsync
-  version = "0.12.1";
+  version = "0.13.0";
 
   src = fetchFromGitHub {
     owner = "backube";
     repo = "volsync";
     rev = "v${version}";
-    hash = "sha256-8aqZakHtqFII+7NxAFjQuaJtAAhrZubEvJIQe5COqJ8=";
+    hash = "sha256-c9p2XANrJrU9PITB1AlBtpA5Td+684Qj5GMWtMMsiXQ=";
   };
 
-  vendorHash = "sha256-5IDIaqJKsWYqA9KHGZ5lbzt3UaEACkVoWoj8HDBhc5g=";
+  vendorHash = "sha256-okhKVf+cz/KGV5iKGf/JtFlNzKYJlMwqCa9iGiTtFv4=";
 
   ldflags = [
     "-s"
