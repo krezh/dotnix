@@ -1,7 +1,6 @@
 {
   config,
   lib,
-  inputs,
   pkgs,
   ...
 }:
@@ -31,7 +30,7 @@ in
           type = "ed25519";
         }
       ];
-      authorizedKeysFiles = [ "${inputs.ssh-keys.outPath}" ];
+      #authorizedKeysFiles = [ "${inputs.ssh-keys.outPath}" ];
     };
     environment.systemPackages = with pkgs; [
       openssl

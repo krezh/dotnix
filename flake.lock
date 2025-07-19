@@ -934,7 +934,6 @@
         "nvf": "nvf",
         "pre-commit-hooks": "pre-commit-hooks",
         "sops-nix": "sops-nix",
-        "ssh-keys": "ssh-keys",
         "swww": "swww",
         "treefmt-nix": "treefmt-nix_2"
       }
@@ -978,18 +977,6 @@
         "owner": "Mic92",
         "repo": "sops-nix",
         "type": "github"
-      }
-    },
-    "ssh-keys": {
-      "flake": false,
-      "locked": {
-        "narHash": "sha256-ShsZCtSaHV+aQpVU+viXBmodc5QklPQSgvax1Zqzc7k=",
-        "type": "file",
-        "url": "https://github.com/krezh.keys"
-      },
-      "original": {
-        "type": "file",
-        "url": "https://github.com/krezh.keys"
       }
     },
     "swww": {

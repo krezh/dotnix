@@ -2,7 +2,6 @@
   modulesPath,
   pkgs,
   hostname,
-  inputs,
   ...
 }:
 {
@@ -14,7 +13,10 @@
 
     # enable SSH in the boot process
     systemd.services.sshd.wantedBy = pkgs.lib.mkForce [ "multi-user.target" ];
-    users.users.nixos.openssh.authorizedKeys.keyFiles = [ inputs.ssh-keys.outPath ];
+    users.users.nixos.openssh.authorizedKeys.keys = [
+      "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIANNodE0rg2XalK+tfsqfPwLdBRJIx15IjGwkr5Bud+W"
+      "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEMe4X4oNA8PRUHrOk5RIrpxpzzcBvJyQa8PyaQj3BPp"
+    ];
 
     environment.systemPackages = [
       pkgs.neovim

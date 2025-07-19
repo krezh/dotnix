@@ -123,11 +123,6 @@
 
     nix-github-actions.url = "github:nix-community/nix-github-actions";
     nix-github-actions.inputs.nixpkgs.follows = "nixpkgs";
-
-    ssh-keys = {
-      url = "https://github.com/krezh.keys";
-      flake = false;
-    };
   };
 
   outputs =
