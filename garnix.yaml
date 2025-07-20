@@ -1,8 +1,14 @@
 ---
-# Config for garnix.io builds & caching
+# yaml-language-server: $schema=https://garnix.io/api/garnix-config-schema.json
 builds:
-  exclude: ["nixosConfigurations.nixos-livecd"]
-  include:
-    - "*.x86_64-linux.*"
-    - homeConfigurations.*
-    - nixosConfigurations.*
+  - exclude: ["*.nixos-livecd.*"]
+    include:
+      - "*.x86_64-linux.*"
+      - "homeConfigurations.*"
+      - "nixosConfigurations.*"
+  - exclude:
+      - "*.x86_64-linux.*"
+      - "homeConfigurations.*"
+      - "nixosConfigurations.*"
+    include: []
+    branch: test-build

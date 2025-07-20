@@ -42,7 +42,7 @@ jobs:
         name: Generate Nix Matrix
         run: |
           set -Eeu
-          matrix="$(nix eval --json '.#evalHosts' | jq -cM --argjson include_hosts '${{ env.INCLUDED_HOSTS }}' '.include |= map(select(.host as $host | $include_hosts | index($host)))')"
+          matrix="$(nix eval --json '.#evalHosts' | jq -cM --argjson include_hosts "$INCLUDED_HOSTS" '.include |= map(select(.host as $host | $include_hosts | index($host)))')"
           echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
 
       - name: show output
@@ -87,7 +87,7 @@ jobs:
             ".#nixosConfigurations.${{ matrix.host }}.config.system.build.isoImage" \
             --fallback \
             --log-format raw \
-             > >(tee stdout.log) 2> >(tee /tmp/nix-build-err.log >&2)
+            > >(tee stdout.log) 2> >(tee /tmp/nix-build-err.log >&2)
 
       - name: Create tag
         id: tag
