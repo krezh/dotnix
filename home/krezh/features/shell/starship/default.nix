@@ -1,3 +1,4 @@
+{ pkgs, lib, ... }:
 {
   programs.starship = {
     enable = true;
@@ -6,9 +7,9 @@
     enableZshIntegration = true;
     settings = {
       add_newline = true;
-      format = "$username$hostname$kubernetes$git_branch$git_commit$git_state$git_metrics$git_status$fill$cmd_duration$time\n$all";
+      format = "$kubernetes\${custom.talos}\n$username$hostname$git_branch$git_commit$git_state$git_metrics$git_status$fill$cmd_duration$time\n$all";
       kubernetes = {
-        format = "[$symbol$context:$namespace](bold blue) ";
+        format = "\\[[$context:$namespace](bold blue)\\] ";
         symbol = "⎈";
         disabled = false;
         contexts = [
@@ -23,6 +24,12 @@
             context_alias = "tp-$cluster";
           }
         ];
+      };
+      custom.talos = {
+        command = "${lib.getExe pkgs.talosctl} config info --output json | ${lib.getExe pkgs.jq} --raw-output '.context'";
+        format = "\\[[$output](bold blue)\\] ";
+        when = "command -v ${lib.getExe pkgs.talosctl} &>/dev/null";
+        disabled = false;
       };
       fill = {
         symbol = " ";
