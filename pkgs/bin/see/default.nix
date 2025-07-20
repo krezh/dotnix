@@ -44,6 +44,6 @@ rustPlatform.buildRustPackage rec {
     homepage = "https://github.com/guilhermeprokisch/see";
     license = lib.licenses.mit;
     maintainers = [ ];
-    mainProgram = "see";
+    mainProgram = pname;
   };
 }

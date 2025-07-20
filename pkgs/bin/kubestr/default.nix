@@ -28,6 +28,6 @@ buildGoModule rec {
     homepage = "https://github.com/kastenhq/kubestr";
     license = lib.licenses.asl20;
     maintainers = [ ];
-    mainProgram = "kubestr";
+    mainProgram = pname;
   };
 }

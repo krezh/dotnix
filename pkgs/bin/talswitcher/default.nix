@@ -37,6 +37,6 @@ buildGo124Module rec {
     description = "A simple tool to help manage multiple talosconfig files";
     homepage = "https://github.com/mirceanton/talswitcher";
     license = lib.licenses.mit;
-    mainProgram = "talswitcher";
+    mainProgram = pname;
   };
 }

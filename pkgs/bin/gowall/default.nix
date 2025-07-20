@@ -37,6 +37,6 @@ buildGoModule rec {
     description = "A tool to convert a Wallpaper's color scheme / palette";
     homepage = "https://github.com/Achno/gowall";
     license = licenses.mit;
-    mainProgram = "gowall";
+    mainProgram = pname;
   };
 }

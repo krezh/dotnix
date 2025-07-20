@@ -31,7 +31,7 @@ buildGoModule rec {
     homepage = "https://github.com/clbx/kubectl-browse-pvc";
     license = lib.licenses.mit;
     maintainers = [ ];
-    mainProgram = "kubectl-browse-pvc";
+    mainProgram = pname;
     platforms = lib.platforms.all;
   };
 }

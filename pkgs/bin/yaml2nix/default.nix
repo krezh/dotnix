@@ -27,6 +27,6 @@ rustPlatform.buildRustPackage rec {
     homepage = "https://github.com/euank/yaml2nix";
     license = lib.licenses.gpl3Only;
     maintainers = [ ];
-    mainProgram = "yaml2nix";
+    mainProgram = pname;
   };
 }

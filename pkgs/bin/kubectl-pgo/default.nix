@@ -29,6 +29,6 @@ buildGoModule rec {
     homepage = "https://github.com/CrunchyData/postgres-operator-client";
     license = lib.licenses.asl20;
     maintainers = [ ];
-    mainProgram = "kubectl-pgo";
+    mainProgram = pname;
   };
 }

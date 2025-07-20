@@ -30,6 +30,6 @@ buildGoModule rec {
     homepage = "https://github.com/jesusprubio/up";
     license = lib.licenses.mit;
     maintainers = [ ];
-    mainProgram = "up";
+    mainProgram = pname;
   };
 }

@@ -31,6 +31,6 @@ buildGoModule rec {
     changelog = "https://github.com/backube/volsync/blob/${src.rev}/CHANGELOG.md";
     license = lib.licenses.agpl3Only;
     maintainers = [ ];
-    mainProgram = "kubectl-volsync";
+    mainProgram = pname;
   };
 }

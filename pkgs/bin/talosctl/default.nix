@@ -45,5 +45,6 @@ buildGo124Module rec {
     homepage = "https://www.talos.dev/";
     license = licenses.mpl20;
     maintainers = [ ];
+    mainProgram = pname;
   };
 }
