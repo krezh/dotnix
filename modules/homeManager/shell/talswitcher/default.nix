@@ -27,6 +27,7 @@ in
     programs = {
       fish.shellInit = mkIf cfg.enableFishIntegration (mkAfter ''
         alias ts '${lib.getExe cfg.package}'
+        alias tsc '${lib.getExe cfg.package} ctx'
       '');
     };
   };
