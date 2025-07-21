@@ -20,15 +20,11 @@ in
   imports =
     [
       ./features/shell
-      inputs.nix-index.hmModules.nix-index
+      inputs.nix-index.homeModules.nix-index
       inputs.catppuccin.homeModules.catppuccin
     ]
     ++ (if isDesktop then [ ./features/desktop ] else [ ])
     ++ outputs.homeManagerModules;
-
-  nixpkgs = {
-    overlays = builtins.attrValues outputs.overlays;
-  };
 
   programs.nix-index.enable = true;
 
