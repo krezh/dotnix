@@ -17,6 +17,7 @@
       warn-dirty = false;
       flake-registry = ""; # Disable global flake registry
       use-xdg-base-directories = true;
+      download-buffer-size = 524288000;
       trusted-users = [
         "root"
         "@wheel"

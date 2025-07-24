@@ -43,16 +43,12 @@ in
         mplus-outline-fonts.githubRelease
         dina-font
         proggyfonts
-        (nerdfonts.override {
-          fonts = [
-            "CascadiaCode"
-            "CascadiaMono"
-            "DroidSansMono"
-            "Ubuntu"
-            "UbuntuMono"
-            "UbuntuSans"
-          ];
-        })
+        nerd-fonts.caskaydia-cove
+        nerd-fonts.caskaydia-mono
+        nerd-fonts.droid-sans-mono
+        nerd-fonts.ubuntu
+        nerd-fonts.ubuntu-mono
+        nerd-fonts.ubuntu-sans
       ];
     };
   };

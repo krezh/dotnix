@@ -6,8 +6,7 @@
 }:
 {
   imports =
-    [ ]
-    ++ (lib.scanPath.toList { path = ../common/users; })
+    (lib.scanPath.toList { path = ../common/users; })
     ++ (lib.scanPath.toList { path = ../common/global; });
 
   boot = {

@@ -62,10 +62,10 @@ in
     ];
     sessionVariables = {
       FLAKE = "${config.home.homeDirectory}/nix-config";
+      NH_FLAKE = "${config.home.homeDirectory}/nix-config";
       GOPATH = "${config.xdg.dataHome}/go";
       CARGO_HOME = "${config.xdg.dataHome}/cargo";
       SOPS_AGE_KEY_FILE = "${config.sops.age.keyFile}";
-      TALOSCONFIG_DIR = "${config.home.homeDirectory}/.talos/configs";
     };
     packages = with pkgs; [
       curl

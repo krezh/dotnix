@@ -1,6 +1,8 @@
 {
   config,
   lib,
+  inputs,
+  pkgs,
   ...
 }:
 {
@@ -11,16 +13,10 @@
   };
 
   programs = {
-    firefox = {
-      enable = true;
-    };
-  };
-
-  programs = {
     vivaldi = {
       enable = true;
     };
   };
 
-  home.packages = [ ];
+  home.packages = [ inputs.zen-browser.packages.${pkgs.system}.default ];
 }

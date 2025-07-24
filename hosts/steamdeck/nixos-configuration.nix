@@ -7,7 +7,6 @@
 {
   imports =
     [
-      #inputs.hyprland.nixosModules.default
       inputs.jovian.nixosModules.default
     ]
     ++ (lib.scanPath.toList { path = ../common/users; })
