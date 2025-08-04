@@ -94,7 +94,6 @@ in
       tldr
       sd
       act
-      see
       btop
       flyctl
       up
