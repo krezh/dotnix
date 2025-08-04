@@ -5,12 +5,11 @@
   ...
 }:
 {
-  imports =
-    [
-      inputs.jovian.nixosModules.default
-    ]
-    ++ (lib.scanPath.toList { path = ../common/users; })
-    ++ (lib.scanPath.toList { path = ../common/global; });
+  imports = [
+    inputs.jovian.nixosModules.default
+  ]
+  ++ (lib.scanPath.toList { path = ../common/users; })
+  ++ (lib.scanPath.toList { path = ../common/global; });
 
   jovian = {
     devices.steamdeck = {

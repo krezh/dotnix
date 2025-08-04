@@ -17,14 +17,13 @@ let
     ];
 in
 {
-  imports =
-    [
-      ./features/shell
-      inputs.nix-index.homeModules.nix-index
-      inputs.catppuccin.homeModules.catppuccin
-    ]
-    ++ (if isDesktop then [ ./features/desktop ] else [ ])
-    ++ outputs.homeManagerModules;
+  imports = [
+    ./features/shell
+    inputs.nix-index.homeModules.nix-index
+    inputs.catppuccin.homeModules.catppuccin
+  ]
+  ++ (if isDesktop then [ ./features/desktop ] else [ ])
+  ++ outputs.homeManagerModules;
 
   programs.nix-index.enable = true;
 

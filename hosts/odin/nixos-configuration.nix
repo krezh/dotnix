@@ -6,12 +6,11 @@
   ...
 }:
 {
-  imports =
-    [
-      inputs.nixos-facter-modules.nixosModules.facter
-    ]
-    ++ (lib.scanPath.toList { path = ../common/users; })
-    ++ (lib.scanPath.toList { path = ../common/global; });
+  imports = [
+    inputs.nixos-facter-modules.nixosModules.facter
+  ]
+  ++ (lib.scanPath.toList { path = ../common/users; })
+  ++ (lib.scanPath.toList { path = ../common/global; });
 
   boot = {
     plymouth = {
