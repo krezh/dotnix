@@ -7,13 +7,13 @@
 buildGoModule rec {
   pname = "kubectl-browse-pvc";
   # renovate: datasource=github-release depName=clbx/kubectl-browse-pvc
-  version = "1.1.0";
+  version = "1.3.0";
 
   src = fetchFromGitHub {
     owner = "clbx";
     repo = "kubectl-browse-pvc";
     rev = "v${version}";
-    hash = "sha256-BkLcS4FFSkYG+NQW956RaLievD+GdOMjQ62tIi6J+MM=";
+    hash = "sha256-8O36JLNfrh+/9JqJjeeSEO88uYkoo6OXCraK385tGvM=";
   };
 
   sourceRoot = "${src.name}/src";
@@ -24,7 +24,7 @@ buildGoModule rec {
     "-X main.Version=${version}"
   ];
 
-  vendorHash = "sha256-kalnhBWVZaStdUeTiKln0mVow4x1K2+BZPXG+5/YRVM=";
+  vendorHash = "sha256-WwEFtiWP9rQnOjMNnY8nFBKvw0Gp29wcKrLrUqOr7DQ=";
 
   meta = {
     description = "Kubectl plugin for browsing PVCs on the command line";
