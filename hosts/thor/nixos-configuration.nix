@@ -137,7 +137,6 @@
     systemPackages = with pkgs.unstable; [
       age-plugin-yubikey
       headsetcontrol
-      mangohud
       lutris
       protonup
       heroic
