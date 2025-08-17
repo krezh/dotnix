@@ -129,9 +129,10 @@
 
   environment = {
     sessionVariables = {
-      NIXOS_OZONE_WL = "1";
+      NIXOS_OZONE_WL = 1;
       STEAM_EXTRA_COMPAT_TOOLS_PATHS = "$HOME/.steam/root/compatibilitytools.d";
       WLR_BACKEND = "vulkan";
+      PROTON_FSR4_UPGRADE = 1;
     };
     systemPackages = with pkgs.unstable; [
       age-plugin-yubikey

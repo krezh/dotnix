@@ -104,6 +104,7 @@ in
       minijinja
       gh-poi
       xxd
+      pre-commit
 
       # Secrets
       age-plugin-yubikey
