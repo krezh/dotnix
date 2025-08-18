@@ -8,6 +8,7 @@
     ./notes
     ./mail
     ./media
+    ./misc
   ];
   home.packages = with pkgs; [
     resources

@@ -1,6 +1,0 @@
-{
-  imports = [
-    ./wayfire
-    ./ironbar
-  ];
-}
