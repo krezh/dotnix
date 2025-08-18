@@ -2,6 +2,7 @@
   modulesPath,
   pkgs,
   hostname,
+  inputs,
   ...
 }:
 {
@@ -21,6 +22,10 @@
     environment.systemPackages = [
       pkgs.neovim
       pkgs.gitMinimal
+      pkgs.sops
+      pkgs.age-plugin-yubikey
+      inputs.disko.packages.${pkgs.system}.disko-install
+      inputs.disko.packages.${pkgs.system}.disko
     ];
 
     networking.hostName = hostname;

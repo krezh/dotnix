@@ -222,14 +222,17 @@
       };
 
       perSystem =
-        {
-          pkgs,
-          config,
-          ...
-        }:
+        { pkgs, config, ... }:
         {
           pre-commit = import ./pre-commit.nix { inherit pkgs; };
-          devshells = import ./shell.nix { inherit inputs pkgs config; };
+          devshells = import ./shell.nix {
+            inherit
+              inputs
+              pkgs
+              config
+              lib
+              ;
+          };
           packages = import ./pkgs { inherit pkgs lib; };
           treefmt = {
             projectRootFile = "flake.nix";

@@ -135,6 +135,7 @@
       PROTON_FSR4_UPGRADE = 1;
     };
     systemPackages = with pkgs.unstable; [
+      mesa
       age-plugin-yubikey
       headsetcontrol
       lutris

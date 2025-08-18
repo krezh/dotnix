@@ -1,13 +1,11 @@
 ---
 keys:
   - &user_krezh age1el5jq43hnhq8uzyfruretlrxk0ch8xvykdzu94cfsu5tyywwga3qy3f46h
-  - &user_krezh_yubikey age1yubikey1qdwwcxxstqw9kwgw37xuf3lc3ua2ql7cphgwnkv6udm9zavj0ndgug3ades # Requires https://github.com/getsops/sops/pull/1641
-  - &user_krezh_gpg 0x84F12006E01998E5
+  - &user_krezh_yubikey age1yubikey1qt83fjzawhcmxn7duntq30u67etg2t2y0fmu6d9z3cgh2q7ff7dn5xrpzdk
 
 creation_rules:
   - path_regex: ^[^.].*\.sops\.ya?ml$
     key_groups:
       - age:
           - *user_krezh
-      # - pgp:
-      #     - *user_krezh_gpg
+          #- *user_krezh_yubikey

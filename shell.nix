@@ -1,4 +1,9 @@
-{ config, pkgs, ... }:
+{
+  config,
+  pkgs,
+  lib,
+  ...
+}:
 {
   default = {
     devshell.startup.pre-commit-hook.text = config.pre-commit.installationScript;
@@ -11,7 +16,7 @@
     commands = [
       {
         name = "gpa";
-        command = "${pkgs.git}/bin/git pull --autostash && ${pkgs.nh}/bin/nh os switch --ask --no-specialisation";
+        command = "${lib.getExe pkgs.git}/bin/git pull --autostash && ${lib.getExe pkgs.nh} os switch --ask --no-specialisation";
         help = "git pull and os switch";
         category = "Nix";
       }
