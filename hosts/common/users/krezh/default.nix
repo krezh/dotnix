@@ -11,7 +11,7 @@ in
     mutableUsers = false;
     users = {
       krezh = {
-        hashedPasswordFile = config.sops.secrets."passwords/krezh".path;
+        #hashedPasswordFile = config.sops.secrets."passwords/krezh".path;
         isNormalUser = true;
         shell = pkgs.fish;
         openssh.authorizedKeys.keys = [
