@@ -13,9 +13,6 @@
     defaultSopsFile = ../secrets.sops.yaml;
 
     secrets = {
-      "passwords/krezh" = {
-        neededForUsers = true;
-      };
       "github/token" = { };
       "wifi/Plexuz" = { };
       "wifi/Flyn" = { };

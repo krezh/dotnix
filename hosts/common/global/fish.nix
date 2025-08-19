@@ -1,4 +1,7 @@
 {
+  lib, ...
+}:
+{
   programs.fish = {
     enable = true;
     vendor = {
@@ -7,4 +10,5 @@
       functions.enable = true;
     };
   };
+  documentation.man.generateCaches = lib.mkForce false;
 }

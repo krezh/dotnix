@@ -39,6 +39,11 @@
     };
   };
 
+  security.pam.services.krezh.enableGnomeKeyring = true;
+  programs.seahorse.enable = true;
+  services.gnome.gnome-keyring.enable = true;
+  services.dbus.packages = [ pkgs.gnome-keyring pkgs.gcr ];
+
   programs.steam = {
     enable = true;
     remotePlay.openFirewall = true; # Open ports in the firewall for Steam Remote Play
@@ -69,7 +74,6 @@
       };
       defaultSession = "hyprland";
     };
-    gnome.gnome-keyring.enable = true;
 
     fstrim.enable = true;
 
@@ -136,6 +140,7 @@
     };
     systemPackages = with pkgs.unstable; [
       mesa
+      amdgpu_top
       age-plugin-yubikey
       headsetcontrol
       lutris

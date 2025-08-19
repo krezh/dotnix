@@ -23,16 +23,15 @@
     "sd_mod"
   ];
 
-  boot.initrd.kernelModules = [ ];
-  boot.kernelParams = [ "ipv6.disable=1" ];
+  boot.initrd.kernelModules = [ "amdgpu"];
+  boot.kernelParams = [
+    "ipv6.disable=1" 
+    "amdgpu.ppfeaturemask=0xfffd3fff"
+    "split_lock_detect=off"
+    ];
   boot.kernelModules = [
-    "kvm-intel"
-    "module_blacklist=i915"
     "amdgpu"
   ];
-  boot.extraModulePackages = [ ];
-
-  swapDevices = [ ];
 
   hardware.cpu.intel.updateMicrocode = lib.mkDefault config.hardware.enableRedistributableFirmware;
 }
