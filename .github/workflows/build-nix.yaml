@@ -99,7 +99,7 @@ jobs:
         if: ${{ github.ref_name != 'main' }}
         run: |
           nix build \
-            "github:krezh/nix-config#top.${{ matrix.host }}" \
+            "github:${{ github.repository }}#top.${{ matrix.host }}" \
             --log-format raw \
             --fallback \
             --no-write-lock-file \
