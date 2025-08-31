@@ -29,6 +29,10 @@ generate_file_name() {
   date +%Y-%m-%d_%H-%M-%S
 }
 
+create_save_path() {
+  mkdir -p "${SAVE_PATH}"
+}
+
 notify() { notify-send -t 5000 "Zipline Recshot" "$@"; }
 
 upload_to_zipline() {
@@ -87,7 +91,7 @@ active_monitor() {
     jq -r '.monitor'
 }
 
-check_recording() {
+check_if_recording() {
   local file
 	if pgrep -x "wl-screenrec" > /dev/null; then
       file=$(pgrep -a "wl-screenrec" | awk -F'-f ' '{print $2}')
@@ -160,9 +164,10 @@ done
 
 check_var
 check_dependencies
+create_save_path
 
 if [[ "${MODE}" == video-* ]]; then
-  check_recording
+  check_if_recording
 fi
 
 filePath="${SAVE_PATH}/$(generate_file_name)"

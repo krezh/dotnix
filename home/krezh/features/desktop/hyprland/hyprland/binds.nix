@@ -59,11 +59,14 @@ in
         "${mainMod},ESCAPE,exec,${lib.getExe pkgs.wlogout}"
         "${mainMod},L,exec,${hyprlock.bin} --immediate"
         "${mainMod},R,exec,${rofi.bin} -show drun"
+
         # Applications
         "${mainMod},B,exec,${config.home.sessionVariables.DEFAULT_BROWSER}"
         "${mainMod},E,exec,${lib.getExe pkgs.nautilus}"
         "${mainMod},RETURN,exec,${defaultTerminal}"
         "${mainModShift},RETURN,exec,[float] ${defaultTerminal}"
+        "${mainMod},T,exec,${defaultTerminal}"
+        "${mainModShift},T,exec,[float] ${defaultTerminal}"
         "${mainMod},O,exec,${lib.getExe pkgs.gnome-calculator}"
         "CTRL SHIFT,ESCAPE,exec,${lib.getExe pkgs.resources}"
         "${mainMod},C,exec,${defaultTerminal} --class clipse ${lib.getExe config.hmModules.desktop.clipse.package}"

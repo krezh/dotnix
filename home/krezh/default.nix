@@ -60,7 +60,7 @@ in
         path = "${config.xdg.configHome}/atuin/key";
       };
       "zipline/token" = {
-        path = "${config.xdg.configHome}/flameshot/zipline-token";
+        path = "${config.xdg.configHome}/zipline/token";
       };
     };
   };
@@ -98,7 +98,6 @@ in
       bottom
       ffmpeg
       yt-dlp
-      earthly
       gowall
       await
       ntfy-sh
@@ -108,13 +107,9 @@ in
       gopls
       tldr
       sd
-      act
       btop
       flyctl
-      up
       retry
-      cue
-      minio-client
       just
       terraform
       minijinja
