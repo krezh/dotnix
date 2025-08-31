@@ -25,7 +25,6 @@
           ts.enable = true;
           go.enable = true;
           lua.enable = false;
-          python.enable = true;
           bash.enable = true;
           rust = {
             enable = true;

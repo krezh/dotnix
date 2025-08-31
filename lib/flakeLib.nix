@@ -2,6 +2,7 @@
   inputs,
   outputs,
   lib,
+  self,
   ...
 }:
 let
@@ -81,4 +82,18 @@ in
         value = mkSystem config;
       }) hosts
     );
+
+  # Used by CI
+  top = lib.genAttrs (builtins.attrNames self.nixosConfigurations) (
+    attr: self.nixosConfigurations.${attr}.config.system.build.toplevel
+  );
+
+  # Lists hosts with their system kind for use in github actions
+  evalHosts = {
+    include = builtins.map (host: {
+      inherit host;
+      system = self.nixosConfigurations.${host}.pkgs.system;
+      runner = lib.mapToGha self.nixosConfigurations.${host}.pkgs.system;
+    }) (builtins.attrNames self.nixosConfigurations);
+  };
 }

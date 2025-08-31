@@ -14,4 +14,7 @@
   };
 
   hmModules.desktop.upower-notify.enable = false;
+  services.udiskie = {
+    enable = true;
+  };
 }

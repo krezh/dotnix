@@ -1,7 +1,11 @@
 {
   config,
+  lib,
   ...
 }:
+let
+  hyprlock = lib.getExe config.programs.hyprlock.package;
+in
 {
   services.hypridle = {
     enable = true;
@@ -9,12 +13,12 @@
       general = {
         after_sleep_cmd = "hyprctl dispatch dpms on";
         ignore_dbus_inhibit = false;
-        lock_cmd = "${config.programs.hyprlock.package}/bin/hyprlock";
+        lock_cmd = "${hyprlock}";
       };
       listener = [
         {
           timeout = 5 * 60;
-          on-timeout = "${config.programs.hyprlock.package}/bin/hyprlock";
+          on-timeout = "${hyprlock}";
         }
         {
           timeout = 10 * 60;

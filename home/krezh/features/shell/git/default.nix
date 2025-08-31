@@ -26,6 +26,5 @@
       difftastic.display = "inline";
     };
     lazygit.enable = true;
-    gitui.enable = true;
   };
 }

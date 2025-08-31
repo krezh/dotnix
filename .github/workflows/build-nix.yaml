@@ -1,6 +1,4 @@
----
 name: Build and diff Nix systems
-
 on:
   pull_request:
     paths-ignore: ["pkgs/**", ".github"]
@@ -9,15 +7,12 @@ on:
   push:
     branches: ["main"]
     paths: ["**.nix", "flake.nix"]
-
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.number || github.ref }}
   cancel-in-progress: true
-
 env:
   EXCLUDED_HOSTS: '["nixos-livecd"]'
   TMPDIR: /tmp
-
 jobs:
   nix-matrix:
     runs-on: ubuntu-latest
@@ -25,7 +20,6 @@ jobs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
-
       - name: Install Nix
         uses: DeterminateSystems/nix-installer-action@21a544727d0c62386e78b4befe52d19ad12692e3 # v17
         with:
@@ -34,18 +28,15 @@ jobs:
             accept-flake-config = true
             always-allow-substitutes = true
             builders-use-substitutes = true
-
       - id: set-matrix
         name: Generate Nix Matrix
         run: |
           set -Eeu
           matrix="$(nix eval --json '.#evalHosts' | jq -cM --argjson exclude_hosts '${{ env.EXCLUDED_HOSTS }}' 'del(.include[] | select(.host as $host | $exclude_hosts | index($host)))')"
           echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
-
       - name: show output
         run: |
           echo "${{ toJson(steps.set-matrix.outputs.matrix) }}" >> "${GITHUB_STEP_SUMMARY}"
-
   nix-build:
     if: github.event.pull_request.draft == false
     needs: nix-matrix
@@ -56,34 +47,36 @@ jobs:
       matrix: ${{ fromJSON(needs.nix-matrix.outputs.matrix) }}
     runs-on: ${{ matrix.runner }}
     steps:
-      - name: Maximize build space 1
-        uses: jlumbroso/free-disk-space@54081f138730dfa15788a46383842cd2f914a1be
-        with:
-          tool-cache: true
-          android: true
-          dotnet: true
-          haskell: true
-          large-packages: true
-          docker-images: true
-          swap-storage: true
-      - name: Maximize build space 2
-        uses: easimon/maximize-build-space@fc881a613ad2a34aca9c9624518214ebc21dfc0c # v10
-        with:
-          root-reserve-mb: 4096
-          swap-size-mb: 4096
-          remove-dotnet: true
-          remove-android: true
-          remove-haskell: true
-          remove-docker-images: true
-          remove-codeql: true
-          build-mount-path: "/nix"
-          build-mount-path-ownership: root
-
+      # - name: Maximize build space 1
+      #   uses: jlumbroso/free-disk-space@54081f138730dfa15788a46383842cd2f914a1be
+      #   with:
+      #     tool-cache: true
+      #     android: true
+      #     dotnet: true
+      #     haskell: true
+      #     large-packages: true
+      #     docker-images: true
+      #     swap-storage: true
+      # - name: Maximize build space 2
+      #   uses: easimon/maximize-build-space@fc881a613ad2a34aca9c9624518214ebc21dfc0c # v10
+      #   with:
+      #     root-reserve-mb: 4096
+      #     swap-size-mb: 4096
+      #     remove-dotnet: true
+      #     remove-android: true
+      #     remove-haskell: true
+      #     remove-docker-images: true
+      #     remove-codeql: true
+      #     build-mount-path: "/nix"
+      #     build-mount-path-ownership: root
       - name: Checkout repository
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
         with:
           fetch-depth: 1
-
+      - uses: wimpysworld/nothing-but-nix@main
+        with:
+          hatchet-protocol: "cleave"
+          witness-carnage: true
       - name: Install Nix
         uses: DeterminateSystems/nix-installer-action@21a544727d0c62386e78b4befe52d19ad12692e3 # v17
         with:
@@ -92,20 +85,16 @@ jobs:
             accept-flake-config = true
             always-allow-substitutes = true
             builders-use-substitutes = true
-
       - name: Set up Cachix
         uses: cachix/cachix-action@0fc020193b5a1fa3ac4575aa3a7d3aa6a35435ad # v16
         if: ${{ !github.event.pull_request.head.repo.fork }}
         with:
           name: krezh
           authToken: "${{ secrets.CACHIX_AUTH_TOKEN }}"
-
       - name: Install NVD
         run: nix profile install nixpkgs#nvd
-
       - name: Garbage collect build dependencies
         run: nix-collect-garbage
-
       - name: Build previous ${{ matrix.host }} system
         if: ${{ github.ref_name != 'main' }}
         run: |
@@ -116,7 +105,6 @@ jobs:
             --no-write-lock-file \
             -o result-previous \
             > >(tee stdout.log) 2> >(tee /tmp/nix-build-err.log >&2)
-
       - name: Build new ${{ matrix.host }} system
         run: |
           set -o pipefail
@@ -127,7 +115,6 @@ jobs:
             --no-write-lock-file \
             --log-format raw \
             > >(tee stdout.log) 2> >(tee /tmp/nix-build-err.log >&2)
-
       - name: Output build failure
         if: failure()
         run: |
@@ -137,7 +124,6 @@ jobs:
             echo "$drv"
           fi
           exit 1
-
       - name: Diff profile
         if: ${{ github.ref_name != 'main' }}
         id: diff
@@ -146,7 +132,6 @@ jobs:
           echo "diff<<${delimiter}" >> "${GITHUB_OUTPUT}"
           nvd --color never diff ./result-previous ./result-new | sed '/<<</d; />>>/d' >> "${GITHUB_OUTPUT}"
           echo "${delimiter}" >> "${GITHUB_OUTPUT}"
-
       - name: Comment report in pr
         if: ${{ github.ref_name != 'main' }}
         uses: marocchino/sticky-pull-request-comment@52423e01640425a022ef5fd42c6fb5f633a02728 # v2
@@ -158,13 +143,12 @@ jobs:
             ```
             ${{ steps.diff.outputs.diff }}
             ```
-
   nix-build-success:
     if: ${{ always() }}
     needs:
       - nix-build
     name: Nix Build Successful
-    runs-on: ubuntu-latest
+    runs-on: nix-config-runner
     steps:
       - if: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}
         name: Check matrix status

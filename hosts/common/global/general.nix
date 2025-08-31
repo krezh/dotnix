@@ -18,23 +18,16 @@
     enable = true;
     flavor = "mocha";
     accent = "lavender";
+    cache.enable = true;
   };
 
-  # Fix for qt6 plugins
-  environment.profileRelativeSessionVariables = {
-    QT_PLUGIN_PATH = [ "/lib/qt-6/plugins" ];
+  environment.variables = {
+    QT_QPA_PLATFORM = "wayland";
   };
 
   hardware.enableRedistributableFirmware = true;
   xdg.terminal-exec.enable = true;
-  xdg.terminal-exec.settings = {
-    default = [
-      "ghostty"
-      # "kitty.desktop"
-    ];
-  };
-
-  zramSwap.enable = true;
+  xdg.terminal-exec.settings.default = [ "kitty" ];
 
   services.pcscd.enable = true;
 

@@ -8,4 +8,4 @@ creation_rules:
     key_groups:
       - age:
           - *user_krezh
-          #- *user_krezh_yubikey
+          - *user_krezh_yubikey

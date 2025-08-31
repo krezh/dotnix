@@ -1,5 +1,4 @@
 {
-  inputs,
   pkgs,
   lib,
   hostname,
@@ -7,7 +6,6 @@
 }:
 {
   imports = [
-    inputs.nixos-facter-modules.nixosModules.facter
   ]
   ++ (lib.scanPath.toList { path = ../common/users; })
   ++ (lib.scanPath.toList { path = ../common/global; });
@@ -24,6 +22,7 @@
     ];
     kernelPackages = pkgs.linuxPackages_zen;
     loader = {
+      timeout = 1;
       systemd-boot = {
         enable = true;
         configurationLimit = 5;
@@ -42,6 +41,8 @@
     };
   };
 
+  zramSwap.enable = true;
+
   nixosModules.desktop = {
     battery.enable = true;
     openssh.enable = true;
@@ -57,9 +58,6 @@
   };
 
   security.pam.services.hyprlock = { };
-
-  catppuccin.plymouth.enable = true;
-  catppuccin.sddm.enable = true;
 
   services = {
     displayManager = {

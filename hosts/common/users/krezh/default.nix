@@ -35,6 +35,7 @@ in
           "git"
           "libvirtd"
           "deluge"
+          "gamemode"
         ];
       };
     };

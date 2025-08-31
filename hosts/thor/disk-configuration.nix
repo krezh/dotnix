@@ -1,4 +1,3 @@
-# This is your system's configuration file.
 { inputs, ... }:
 {
   imports = [ inputs.disko.nixosModules.disko ];

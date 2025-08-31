@@ -1,13 +1,17 @@
 {
-  inputs,
   pkgs,
   config,
   lib,
   ...
 }:
 let
-  ghostty = inputs.ghostty.packages.${pkgs.system}.ghostty;
-  defaultTerminal = lib.getExe ghostty;
+
+  kitty = {
+    pkg = pkgs.kitty;
+    bin = lib.getExe kitty.pkg;
+  };
+
+  defaultTerminal = kitty.bin;
 
   hyprlock = {
     pkg = config.programs.hyprlock.package;
@@ -19,27 +23,21 @@ let
     bin = lib.getExe rofi.pkg;
   };
 
-  vivaldi = {
-    pkg = config.programs.vivaldi.package;
-    bin = lib.getExe config.programs.vivaldi.package;
-  };
-
   volume_script =
-    if config.hmModules.desktop.hyprpanel.enable then
+    if config.programs.hyprpanel.enable then
       lib.getExe pkgs.volume_script_hyprpanel
     else
       lib.getExe pkgs.volume_script;
 
   brightness_script =
-    if config.hmModules.desktop.hyprpanel.enable then
+    if config.programs.hyprpanel.enable then
       lib.getExe pkgs.brightness_script_hyprpanel
     else
       lib.getExe pkgs.brightness_script;
 
-  grimblast = {
-    pkg = inputs.hyprland-contrib.packages.${pkgs.system}.grimblast;
-    bin = lib.getExe grimblast.pkg;
-  };
+  recShot = "${lib.getExe pkgs.zipline-recshot} -t ${
+    config.sops.secrets."zipline/token".path
+  } -u https://zipline.talos.plexuz.xyz -p ~/Pictures/Screenshots";
 
   mainMod = "SUPER";
   mainModShift = "${mainMod} SHIFT";
@@ -51,6 +49,10 @@ in
       windowrulev2 = [
         "float,class:(clipse)"
         "size 622 652,class:(clipse)"
+        "stayfocused, class:(clipse)"
+        "stayfocused, class:(Rofi)"
+        "workspace 4 silent, class:^(legcord)$"
+        "workspace 3, class:^(steam_app_[0-9]+)$"
       ];
 
       bind = [
@@ -58,20 +60,20 @@ in
         "${mainMod},L,exec,${hyprlock.bin} --immediate"
         "${mainMod},R,exec,${rofi.bin} -show drun"
         # Applications
-        "${mainMod},B,exec,${vivaldi.bin}"
-        "${mainMod},E,exec,${lib.getExe pkgs.nemo}"
+        "${mainMod},B,exec,${config.home.sessionVariables.DEFAULT_BROWSER}"
+        "${mainMod},E,exec,${lib.getExe pkgs.nautilus}"
         "${mainMod},RETURN,exec,${defaultTerminal}"
-        "${mainModShift},RETURN,exec,[floating] ${defaultTerminal}"
-        "${mainMod},O,exec,${lib.getExe pkgs.obsidian}"
+        "${mainModShift},RETURN,exec,[float] ${defaultTerminal}"
+        "${mainMod},O,exec,${lib.getExe pkgs.gnome-calculator}"
         "CTRL SHIFT,ESCAPE,exec,${lib.getExe pkgs.resources}"
         "${mainMod},C,exec,${defaultTerminal} --class clipse ${lib.getExe config.hmModules.desktop.clipse.package}"
 
         # Printscreen
-        "ALT,P,exec,${grimblast.bin} --notify copy"
-        "ALT SHIFT,P,exec,${grimblast.bin} --notify --freeze copy area || notify-send 'Grimblast'"
-
-        # Audio
-        ",XF86AudioMute,exec,${volume_script} mute"
+        "${mainModShift},S,exec,${recShot} -m image-area"
+        ",PRINT,exec,${recShot} -m image-full"
+        "ALT,PRINT,exec,${recShot} -m image-window"
+        "SHIFT ALT,S,exec,${recShot} -m video-area"
+        "SHIFT,PRINT,exec,${recShot} -m video-window"
 
         # Hyprland binds
         "${mainMod},Q,killactive"
@@ -104,8 +106,8 @@ in
         "${mainMod},0,workspace,10"
 
         # Scratchpad
-        "${mainMod},S,togglespecialworkspace"
-        "${mainModShift},S,movetoworkspace,special"
+        "${mainMod},W,togglespecialworkspace"
+        "${mainModShift},W,movetoworkspace,special"
 
         # Move active window to a workspace with mainMod + SHIFT + [0-9]
         "${mainModShift},1,movetoworkspace,1"
@@ -124,7 +126,16 @@ in
         "${mainMod},mouse_up,workspace,e-1"
       ];
 
-      binde = [
+      bindl = [
+        # Audio
+        ",XF86AudioMute,exec,${volume_script} mute"
+        # Media keys
+        ",XF86AudioPlay,exec,${lib.getExe pkgs.playerctl} play-pause"
+        ",XF86AudioPrev,exec,${lib.getExe pkgs.playerctl} previous"
+        ",XF86AudioNext,exec,${lib.getExe pkgs.playerctl} next"
+      ];
+
+      bindel = [
         # Brightness
         ",XF86MonBrightnessUp,   exec, ${brightness_script} up"
         ",XF86MonBrightnessDown, exec, ${brightness_script} down"

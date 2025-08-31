@@ -1,1 +1,5 @@
-{ imports = [ ./discord ]; }
+{
+  imports = [
+    ./discord
+  ];
+}

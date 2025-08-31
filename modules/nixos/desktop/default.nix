@@ -5,5 +5,7 @@
     ./openssh
     ./fonts
     ./steam
+    ./openrgb
+    ./bluetooth
   ];
 }

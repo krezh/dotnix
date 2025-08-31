@@ -13,13 +13,22 @@ in
   };
 
   config = lib.mkIf cfg.enable {
+    environment = {
+      sessionVariables = {
+        FREETYPE_PROPERTIES = "truetype:interpreter-version=35 cff:no-stem-darkening=0 autofitter:no-stem-darkening=0";
+      };
+    };
     fonts = {
       fontconfig = {
         antialias = true;
         cache32Bit = true;
         hinting.enable = true;
-        hinting.autohint = true;
-        subpixel.rgba = "rgb";
+        hinting.autohint = false;
+        subpixel = {
+          rgba = "rgb";
+          lcdfilter = "default";
+        };
+        useEmbeddedBitmaps = true;
       };
       fontDir.enable = true;
       enableDefaultPackages = true;
@@ -28,6 +37,7 @@ in
         dejavu_fonts
         fira
         fira-mono
+        cantarell-fonts
         google-fonts
         source-code-pro
         source-sans-pro
@@ -43,12 +53,14 @@ in
         mplus-outline-fonts.githubRelease
         dina-font
         proggyfonts
+        inter
         nerd-fonts.caskaydia-cove
         nerd-fonts.caskaydia-mono
         nerd-fonts.droid-sans-mono
         nerd-fonts.ubuntu
         nerd-fonts.ubuntu-mono
         nerd-fonts.ubuntu-sans
+        nerd-fonts.jetbrains-mono
       ];
     };
   };

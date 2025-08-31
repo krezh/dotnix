@@ -3,9 +3,25 @@
   #   ", preferred, auto, 1"
   # ];
 
-  env = [ "QT_WAYLAND_DISABLE_WINDOWDECORATION,1" ];
+  env = [
+    "QT_WAYLAND_DISABLE_WINDOWDECORATION,1"
+    "QT_QPA_PLATFORM=wayland"
+  ];
 
   source = [ "~/.config/hypr/monitors.conf" ]; # nwg displays
+
+  workspace = [
+    "1,monitor:DP-1"
+    "2,monitor:DP-1"
+    "3,monitor:DP-1"
+    "4,monitor:DP-2"
+    "5,monitor:DP-2"
+    "6,monitor:DP-2"
+  ];
+
+  xwayland = {
+    force_zero_scaling = true;
+  };
 
   cursor = {
     enable_hyprcursor = true;
@@ -14,7 +30,9 @@
   misc = {
     enable_swallow = true;
     mouse_move_enables_dpms = true;
+    key_press_enables_dpms = true;
     animate_manual_resizes = false;
+    middle_click_paste = false;
   };
 
   gestures = {
@@ -26,6 +44,7 @@
     kb_layout = "se";
     follow_mouse = 2;
     accel_profile = "flat";
+    numlock_by_default = true;
     touchpad = {
       natural_scroll = false;
     };
@@ -60,21 +79,27 @@
 
   animations = {
     enabled = true;
-    bezier = [ "1, 0.23, 1, 0.32, 1" ];
+    bezier = [
+      "wind, 0.05, 0.9, 0.1, 1.05"
+      "winIn, 0.1, 1.1, 0.1, 1.1"
+      "winOut, 0.3, -0.3, 0, 1"
+      "liner, 1, 1, 1, 1"
+    ];
     animation = [
-      "windows, 1, 5, 1"
-      "windowsIn, 1, 5, 1, slide"
-      "windowsOut, 1, 5, 1, slide"
-      "border, 1, 5, default"
-      "borderangle, 1, 5, default"
-      "fade, 1, 5, default"
-      "workspaces, 1, 5, 1, slidefade 30%"
+      "windows, 1, 6, wind, slide"
+      "windowsIn, 1, 6, winIn, slide"
+      "windowsOut, 1, 5, winOut, slide"
+      "windowsMove, 1, 5, wind, slide"
+      "border, 1, 1, liner"
+      "borderangle, 1, 30, liner, loop"
+      "fade, 1, 10, default"
+      "workspaces, 1, 5, wind"
     ];
   };
 
   misc = {
     vfr = true; # misc:no_vfr -> misc:vfr. bool, heavily recommended to leave at default on. Saves on CPU usage.
-    vrr = false; # misc:vrr -> Adaptive sync of your monitor. 0 (off), 1 (on), 2 (fullscreen only). Default 0 to avoid white flashes on select hardware.
+    vrr = 2; # misc:vrr -> Adaptive sync of your monitor. 0 (off), 1 (on), 2 (fullscreen only). Default 0 to avoid white flashes on select hardware.
     disable_hyprland_logo = true;
     disable_splash_rendering = true;
   };

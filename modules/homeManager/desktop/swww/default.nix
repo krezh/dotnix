@@ -17,6 +17,7 @@ in
 
     interval = lib.mkOption {
       type = lib.types.ints.positive;
+      description = "The interval in seconds between wallpaper changes";
       default = 300;
     };
 
@@ -49,6 +50,9 @@ in
       Unit = {
         Description = "A Solution to your Wayland Wallpaper Woes";
         Documentation = "https://github.com/Horus645/swww";
+        Requires = [
+          "graphical-session.target"
+        ];
       };
       Service = {
         PassEnvironment = [
@@ -59,8 +63,9 @@ in
           "SWWW_TRANSITION_FPS"
           "SWWW_TRANSITION_BEZIER"
         ];
-        ExecStart = "${swww}/bin/swww-daemon";
+        ExecStart = "${swww}/bin/swww-daemon -q";
         Restart = "on-failure";
+        RestartSec = 5;
       };
       Install.WantedBy = [
         (lib.mkIf config.wayland.windowManager.hyprland.systemd.enable "hyprland-session.target")
@@ -80,6 +85,7 @@ in
         PassEnvironment = [ "PATH" ];
         ExecStart = "${swww-random}/bin/swww-random ${cfg.path} ${toString cfg.interval}";
         Restart = "on-failure";
+        RestartSec = 5;
       };
       Install.WantedBy = [
         (lib.mkIf config.wayland.windowManager.hyprland.systemd.enable "hyprland-session.target")

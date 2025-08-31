@@ -19,8 +19,10 @@
   };
 
   inputs = {
-    nixpkgs.url = "github:nixos/nixpkgs/nixos-25.05";
+    nixpkgs.url = "github:nixos/nixpkgs/nixpkgs-unstable";
     nixpkgs-unstable.url = "github:nixos/nixpkgs/nixpkgs-unstable";
+    hardware.url = "github:nixos/nixos-hardware";
+    chaotic.url = "github:chaotic-cx/nyx/nyxpkgs-unstable";
 
     lix-module = {
       url = "git+https://git.lix.systems/lix-project/lix?ref=refs/tags/2.93.3";
@@ -28,17 +30,13 @@
     };
 
     home-manager = {
-      url = "github:nix-community/home-manager/release-25.05";
+      url = "github:nix-community/home-manager";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
     flake-parts = {
       url = "github:hercules-ci/flake-parts";
     };
-
-    hardware.url = "github:nixos/nixos-hardware";
-
-    nixos-facter-modules.url = "github:numtide/nixos-facter-modules";
 
     devshell = {
       url = "github:numtide/devshell";
@@ -47,11 +45,6 @@
 
     treefmt-nix = {
       url = "github:numtide/treefmt-nix";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-
-    nixos-generators = {
-      url = "github:nix-community/nixos-generators";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
@@ -71,6 +64,7 @@
     };
 
     catppuccin.url = "github:catppuccin/nix";
+    catppuccin.inputs.nixpkgs.follows = "nixpkgs";
 
     nix-index = {
       url = "github:nix-community/nix-index-database";
@@ -84,11 +78,6 @@
 
     hyprland-contrib = {
       url = "github:hyprwm/contrib";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-
-    swww = {
-      url = "github:LGFae/swww";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
@@ -106,7 +95,7 @@
       url = "github:Mic92/sops-nix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-
+    # NeoVIM
     nvf = {
       url = "github:notashelf/nvf";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -117,30 +106,31 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    ghostty = {
-      url = "github:ghostty-org/ghostty";
+    zen-browser = {
+      url = "github:0xc000022070/zen-browser-flake";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    zen-browser = {
-      url = "github:youwen5/zen-browser-flake";
-      inputs.nixpkgs.follows = "nixpkgs";
+    zen-browser-catppuccin = {
+      url = "github:catppuccin/zen-browser";
+      flake = false;
+    };
+
+    betterfox = {
+      url = "github:yokoffing/Betterfox";
+      flake = false;
     };
 
     sherlock = {
       url = "github:Skxxtz/sherlock";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-
-    nix-github-actions.url = "github:nix-community/nix-github-actions";
-    nix-github-actions.inputs.nixpkgs.follows = "nixpkgs";
   };
 
   outputs =
     inputs@{
       flake-parts,
       self,
-      nix-github-actions,
       ...
     }:
     let
@@ -148,7 +138,14 @@
 
       lib = inputs.nixpkgs.lib // import ./lib { inherit inputs; };
 
-      flakeLib = import ./lib/flakeLib.nix { inherit inputs outputs lib; };
+      flakeLib = import ./lib/flakeLib.nix {
+        inherit
+          inputs
+          outputs
+          lib
+          self
+          ;
+      };
     in
     flake-parts.lib.mkFlake { inherit inputs; } {
       imports = [
@@ -157,10 +154,7 @@
         inputs.treefmt-nix.flakeModule
       ];
 
-      systems = [
-        "x86_64-linux"
-        "aarch64-linux"
-      ];
+      systems = [ "x86_64-linux" ];
 
       flake = {
         nixosConfigurations = flakeLib.mkSystems [
@@ -179,43 +173,17 @@
             system = "x86_64-linux";
             homeUsers = [ "krezh" ];
           }
-          # {
-          #   hostname = "rpi-01";
-          #   system = "aarch64-linux";
-          #   homeUsers = [ "krezh" ];
-          # }
-          # {
-          #   hostname = "rpi-02";
-          #   system = "aarch64-linux";
-          #   homeUsers = [ "krezh" ];
-          # }
           {
             hostname = "nixos-livecd";
             system = "x86_64-linux";
             homeUsers = [ ];
           }
         ];
-
-        # Used by CI
-        top = lib.genAttrs (builtins.attrNames self.nixosConfigurations) (
-          attr: self.nixosConfigurations.${attr}.config.system.build.toplevel
-        );
-
-        # Lists hosts with their system kind for use in github actions
-        evalHosts = {
-          include = builtins.map (host: {
-            inherit host;
-            system = self.nixosConfigurations.${host}.pkgs.system;
-            runner = lib.mapToGha self.nixosConfigurations.${host}.pkgs.system;
-          }) (builtins.attrNames self.nixosConfigurations);
-        };
-
-        githubActions = nix-github-actions.lib.mkGithubMatrix { checks = self.packages; };
+        evalHosts = flakeLib.evalHosts;
+        top = flakeLib.top;
 
         overlays = import ./overlays { inherit inputs lib; };
-
         homeManagerModules = lib.scanPath.toList { path = ./modules/homeManager; };
-
         nixosModules.default = {
           imports = lib.scanPath.toList { path = ./modules/nixos; };
         };
@@ -234,13 +202,7 @@
               ;
           };
           packages = import ./pkgs { inherit pkgs lib; };
-          treefmt = {
-            projectRootFile = "flake.nix";
-            programs.nixfmt.enable = pkgs.lib.meta.availableOn pkgs.stdenv.buildPlatform pkgs.nixfmt-rfc-style.compiler;
-            programs.nixfmt.package = pkgs.nixfmt-rfc-style;
-            programs.shellcheck.enable = true;
-            programs.deadnix.enable = true;
-          };
+          treefmt = import ./treefmt.nix { inherit pkgs; };
         };
     };
 }

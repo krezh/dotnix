@@ -1,6 +1,6 @@
-{ inputs, ... }:
+{ ... }:
 {
-  imports = [ inputs.sherlock.homeModules.default ];
-
   programs.sherlock.enable = true;
+  programs.sherlock.systemd.enable = true;
+  programs.sherlock.settings = { };
 }

@@ -1,10 +1,6 @@
 { ... }:
 
 {
-  catppuccin.k9s.enable = true;
-  catppuccin.k9s.flavor = "mocha";
-  catppuccin.k9s.transparent = true;
-
   programs.k9s = {
     enable = true;
     aliases = {
@@ -19,7 +15,7 @@
         np = "networkpolicies";
       };
     };
-    plugin = import ./plugin.nix;
+    plugins = import ./plugins.nix;
     settings = {
       k9s = {
         liveViewAutoRefresh = true;
