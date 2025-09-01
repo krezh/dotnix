@@ -1,14 +1,9 @@
 {
-  # monitor = [
-  #   ", preferred, auto, 1"
-  # ];
 
   env = [
     "QT_WAYLAND_DISABLE_WINDOWDECORATION,1"
     "QT_QPA_PLATFORM=wayland"
   ];
-
-  source = [ "~/.config/hypr/monitors.conf" ]; # nwg displays
 
   workspace = [
     "1,monitor:DP-1"

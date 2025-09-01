@@ -39,6 +39,12 @@
     };
   };
 
+  services.colord = {
+    enable = true;
+  };
+
+  services.fwupd.enable = true;
+
   services.scx.enable = true;
 
   xdg.mime.enable = true;

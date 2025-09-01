@@ -2,6 +2,7 @@
 {
   imports = [
     ./binds.nix
+    ./monitors.nix
   ];
 
   wayland.windowManager.hyprland = {
@@ -20,7 +21,6 @@
 
   home.packages = with pkgs; [
     brightnessctl
-    #nwg-displays
     grim
     slurp
     wl-screenrec
