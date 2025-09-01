@@ -51,14 +51,14 @@
   general = {
     gaps_in = 3;
     gaps_out = 3;
-    border_size = 1;
+    border_size = 2;
     "col.active_border" = "$blue";
     "col.inactive_border" = "$base";
     layout = "dwindle";
   };
 
   decoration = {
-    rounding = 15;
+    rounding = 0; # 15;
     blur = {
       enabled = true;
       size = 4;
