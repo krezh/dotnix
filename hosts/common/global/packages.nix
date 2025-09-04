@@ -1,4 +1,4 @@
-{ pkgs, inputs, ... }:
+{ pkgs, ... }:
 {
   imports = [ ];
   environment.systemPackages = with pkgs; [
@@ -8,7 +8,7 @@
     usbutils
     nix-init
     nix-update
-    inputs.nixd.packages.${pkgs.system}.nixd
+    nixd
     nil
     nix-inspect
     # Thumbnails

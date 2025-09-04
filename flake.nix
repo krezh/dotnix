@@ -36,7 +36,6 @@
 
     flake-parts = {
       url = "github:hercules-ci/flake-parts";
-      inputs.nixpkgs-lib.url = "github:nix-community/nixpkgs.lib";
     };
 
     devshell = {
@@ -72,11 +71,6 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    nixd = {
-      url = "github:nix-community/nixd";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-
     hyprland-contrib = {
       url = "github:hyprwm/contrib";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -96,6 +90,7 @@
       url = "github:Mic92/sops-nix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+
     # NeoVIM
     nvf = {
       url = "github:notashelf/nvf";
@@ -103,7 +98,7 @@
     };
 
     nixos-wsl = {
-      url = "github:nix-community/nixos-wsl/release-25.05";
+      url = "github:nix-community/nixos-wsl";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
