@@ -5,10 +5,7 @@
   },
   lockFileMaintenance: {
     enabled: true,
-    schedule: ["after 1am and before 2am"],
-    //extends: ["schedule:daily"],
-    //recreateWhen: "always",
-    //rebaseWhen: "behind-base-branch",
+    schedule: ["after 1am and before 3am"],
     automerge: true,
     automergeType: "pr",
     ignoreTests: false,
