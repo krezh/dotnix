@@ -1,31 +1,56 @@
 #!/usr/bin/env bash
+set -euo pipefail
 
-# This script will randomly go through the files of a directory, setting it
-# up as the wallpaper at regular intervals
-#
-# NOTE: this script is in bash (not posix shell), because the RANDOM variable
-# we use is not defined in posix
+show_help() {
+  cat <<EOF
+Usage: $0 -d <image-directory> -i <interval>
+  -d, --image-directory  directory containing images
+  -i, --interval         seconds to wait between images
+  -h, --help             show this help
+EOF
+}
 
-if [[ $# -lt 1 ]] || [[ ! -d $1 ]]; then
-	echo "Usage:
-	$1 <dir containg images>
-	$2 <interval in seconds>"
-	exit 1
+IMAGE_DIRECTORY=""
+INTERVAL=""
+
+while [[ "$#" -gt 0 ]]; do
+  case $1 in
+    -d|--image-directory) IMAGE_DIRECTORY="$2"; shift ;;
+    -i|--interval) INTERVAL="$2"; shift ;;
+    -h|--help) show_help; exit 0 ;;
+    *) echo "Unknown parameter passed: $1"; show_help; exit 1 ;;
+  esac
+  shift
+done
+
+if [[ -z "${IMAGE_DIRECTORY:-}" || -z "${INTERVAL:-}" ]]; then
+  echo "Usage: $0 -d <image-directory> -i <interval>"
+  exit 1
 fi
 
-echo "$1" "$2"
+echo "Image directory: $IMAGE_DIRECTORY"
+echo "Interval: $INTERVAL"
 
-# This controls (in seconds) when to switch to the next image
-INTERVAL=$2
+echo "Transition FPS: $SWWW_TRANSITION_FPS"
+echo "Transition Step: $SWWW_TRANSITION_STEP"
+echo "Transition Type: $SWWW_TRANSITION_TYPE"
+echo "Transition Position: $SWWW_TRANSITION_POS"
 
+IMAGE_EXTENSIONS="jpg jpeg png bmp gif webp pnm tga tiff farbfeld svg"
+
+find_args=( -type f \( )
+for ext in $IMAGE_EXTENSIONS; do
+  find_args+=( -iname "*.${ext}" -o )
+done
+unset 'find_args[${#find_args[@]}-1]'
+find_args+=( \) -print0 )
+
+# main loop: find -> shuffle -> display
 while true; do
-	find "$1" \
-		| while read -r img; do
-			echo "$((RANDOM % 1000)):$img"
-		done \
-		| sort -n | cut -d':' -f2- \
-		| while read -r img; do
-			swww img "$img"
-			sleep "$INTERVAL"
-		done
+  find "$IMAGE_DIRECTORY" "${find_args[@]}" \
+    | shuf -z \
+    | while IFS= read -r -d '' img; do
+        swww img "$img"
+        sleep "$INTERVAL"
+      done
 done

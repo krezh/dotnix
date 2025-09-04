@@ -9,6 +9,8 @@
       "toml"
       "dockerfile"
       "jinja2"
+      "just"
+      "just-ls"
     ];
 
     # This is the actual zed configuration
@@ -20,6 +22,20 @@
       buffer_font_size = 15;
       buffer_font_family = "JetBrainsMono Nerd Font";
       relative_line_numbers = false;
+      tab_size = 2;
+
+      context_servers = {
+        nixos = {
+          source = "custom";
+          enabled = true;
+          command = "nix";
+          args = [
+            "run"
+            "github:utensils/mcp-nixos"
+            "--"
+          ];
+        };
+      };
 
       # Enable copilot
       edit_predictions = {

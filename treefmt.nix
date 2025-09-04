@@ -42,8 +42,5 @@
         endOfLine = "lf";
       };
     };
-    just = {
-      enable = true;
-    };
   };
 }

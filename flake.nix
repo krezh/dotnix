@@ -125,6 +125,7 @@
       url = "github:Skxxtz/sherlock";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    swww.url = "github:LGFae/swww";
   };
 
   outputs =

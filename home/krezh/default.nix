@@ -118,6 +118,7 @@ in
       p7zip
       unzip
       shellcheck
+      gum
 
       # Secrets
       age-plugin-yubikey

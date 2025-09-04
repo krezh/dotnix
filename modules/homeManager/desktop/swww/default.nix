@@ -7,18 +7,17 @@
 let
   cfg = config.hmModules.desktop.swww;
   swww-random = pkgs.writeScriptBin "swww-random" (builtins.readFile ./scripts/swww-random);
-  inherit (pkgs) swww;
 in
 {
   options.hmModules.desktop.swww = {
     enable = lib.mkEnableOption "swww";
 
-    package = lib.mkPackageOption pkgs swww { };
-
-    interval = lib.mkOption {
-      type = lib.types.ints.positive;
-      description = "The interval in seconds between wallpaper changes";
-      default = 300;
+    package = lib.mkOption {
+      type = lib.types.package;
+      default = pkgs.swww;
+      description = ''
+        swww derivation to use.
+      '';
     };
 
     path = lib.mkOption {
@@ -28,21 +27,24 @@ in
 
     settings = lib.mkOption {
       type = lib.types.attrs;
-      default = { };
+      default = {
+        transitionFPS = 60;
+        transitionStep = 120;
+        transition = "grow";
+        transitionPos = "center";
+        interval = 300;
+      };
     };
   };
 
   config = lib.mkIf cfg.enable {
     home = {
-      packages = [
-        swww
-        swww-random
-      ];
+      packages = [ cfg.package ];
       sessionVariables = {
-        SWWW_TRANSITION_FPS = 60;
-        SWWW_TRANSITION_STEP = 2;
-        SWWW_TRANSITION_TYPE = "grow";
-        SWWW_TRANSITION_POS = "center";
+        SWWW_TRANSITION_FPS = "${toString cfg.settings.transitionFPS}";
+        SWWW_TRANSITION_STEP = "${toString cfg.settings.transitionStep}";
+        SWWW_TRANSITION = "${cfg.settings.transition}";
+        SWWW_TRANSITION_POS = "${cfg.settings.transitionPos}";
       };
     };
 
@@ -50,20 +52,11 @@ in
       Unit = {
         Description = "A Solution to your Wayland Wallpaper Woes";
         Documentation = "https://github.com/Horus645/swww";
-        Requires = [
-          "graphical-session.target"
-        ];
+        After = [ "graphical-session.target" ];
+        Requires = [ "graphical-session.target" ];
       };
       Service = {
-        PassEnvironment = [
-          "PATH"
-          "XDG_RUNTIME_DIR"
-          "SWWW_TRANSITION_TYPE"
-          "SWWW_TRANSITION_STEP"
-          "SWWW_TRANSITION_FPS"
-          "SWWW_TRANSITION_BEZIER"
-        ];
-        ExecStart = "${swww}/bin/swww-daemon -q";
+        ExecStart = "${cfg.package}/bin/swww-daemon -q";
         Restart = "on-failure";
         RestartSec = 5;
       };
@@ -76,14 +69,20 @@ in
       Unit = {
         Description = "A Solution to your Wayland Wallpaper Woes";
         Documentation = "https://github.com/Horus645/swww";
+        After = [ "swww-daemon.service" ];
         Requires = [
           "swww-daemon.service"
           "graphical-session.target"
         ];
       };
       Service = {
-        PassEnvironment = [ "PATH" ];
-        ExecStart = "${swww-random}/bin/swww-random ${cfg.path} ${toString cfg.interval}";
+        Environment = [
+          "SWWW_TRANSITION_FPS=${toString cfg.settings.transitionFPS}"
+          "SWWW_TRANSITION_STEP=${toString cfg.settings.transitionStep}"
+          "SWWW_TRANSITION=${cfg.settings.transition}"
+          "SWWW_TRANSITION_POS=${cfg.settings.transitionPos}"
+        ];
+        ExecStart = "${swww-random}/bin/swww-random -d ${cfg.path} -i ${toString cfg.settings.interval}";
         Restart = "on-failure";
         RestartSec = 5;
       };
@@ -91,6 +90,5 @@ in
         (lib.mkIf config.wayland.windowManager.hyprland.systemd.enable "hyprland-session.target")
       ];
     };
-
   };
 }

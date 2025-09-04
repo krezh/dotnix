@@ -2,5 +2,5 @@
 {
   services.kdeconnect.enable = true;
   services.kdeconnect.indicator = true;
-  services.kdeconnect.package = pkgs.kdePackages.kdeconnect-kde; # pkgs.valent;
+  services.kdeconnect.package = pkgs.kdePackages.kdeconnect-kde;
 }

@@ -3,6 +3,7 @@
   imports = [
     ./binds.nix
     ./monitors.nix
+    ./smartgaps.nix
   ];
 
   wayland.windowManager.hyprland = {

@@ -27,7 +27,6 @@ rustPlatform.buildRustPackage rec {
     description = "Parses your hyprland keybindings configs and displays as a fuzzy searchable TUI";
     homepage = "https://github.com/cubismod/hypr-showkey";
     license = lib.licenses.asl20;
-    maintainers = with lib.maintainers; [ ];
     mainProgram = "hypr-showkey";
   };
 }

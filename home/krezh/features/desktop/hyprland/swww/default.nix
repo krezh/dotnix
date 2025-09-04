@@ -1,8 +1,13 @@
-{ config, ... }:
+{
+  config,
+  pkgs,
+  inputs,
+  ...
+}:
 {
   hmModules.desktop.swww = {
     enable = true;
-    interval = 5 * 60;
+    package = inputs.swww.packages.${pkgs.system}.swww;
     path = "${config.home.file.wallpapers.source}";
   };
 }
