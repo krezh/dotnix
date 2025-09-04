@@ -23,17 +23,8 @@ let
     bin = lib.getExe rofi.pkg;
   };
 
-  volume_script =
-    if config.programs.hyprpanel.enable then
-      lib.getExe pkgs.volume_script_hyprpanel
-    else
-      lib.getExe pkgs.volume_script;
-
-  brightness_script =
-    if config.programs.hyprpanel.enable then
-      lib.getExe pkgs.brightness_script_hyprpanel
-    else
-      lib.getExe pkgs.brightness_script;
+  volume_script = lib.getExe pkgs.volume_script_hyprpanel;
+  brightness_script = lib.getExe pkgs.brightness_script_hyprpanel;
 
   recShot = "${lib.getExe pkgs.zipline-recshot} -t ${
     config.sops.secrets."zipline/token".path
@@ -61,7 +52,7 @@ in
         "${mainMod},R,exec,${rofi.bin} -show drun"
 
         # Applications
-        "${mainMod},B,exec,${config.home.sessionVariables.DEFAULT_BROWSER}"
+        "${mainMod},B,exec,${lib.getExe config.programs.zen-browser.package}"
         "${mainMod},E,exec,${lib.getExe pkgs.nautilus}"
         "${mainMod},RETURN,exec,${defaultTerminal}"
         "${mainModShift},RETURN,exec,[float] ${defaultTerminal}"

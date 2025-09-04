@@ -1,12 +1,9 @@
 {
-  lib,
   inputs,
-  pkgs,
   config,
   ...
 }:
 let
-  zen = inputs.zen-browser.packages.${pkgs.system}.default;
   catppuccin = {
     source = "${inputs.zen-browser-catppuccin}/themes/Mocha/Lavender/";
     recursive = true;
@@ -15,12 +12,6 @@ let
 in
 {
   imports = [ inputs.zen-browser.homeModules.default ];
-
-  home = {
-    sessionVariables = {
-      DEFAULT_BROWSER = lib.getExe zen;
-    };
-  };
 
   programs.zen-browser = {
     enable = true;

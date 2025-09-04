@@ -1,4 +1,3 @@
-{ pkgs, ... }:
 {
   imports = [
     ./terminal
@@ -9,9 +8,6 @@
     ./mail
     ./media
     ./misc
-  ];
-  home.packages = with pkgs; [
-    resources
-    seabird
+    ./documents
   ];
 }

@@ -4,5 +4,7 @@
     ./spotify
     ./vlc
     ./plex
+    ./celluloid
+    ./vipsdisp
   ];
 }

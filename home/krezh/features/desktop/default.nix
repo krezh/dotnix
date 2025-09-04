@@ -5,6 +5,7 @@
     ./gtk
     ./apps
     ./runners
+    ./xdg
   ];
 
   # Import wallpapers into $HOME/wallpapers

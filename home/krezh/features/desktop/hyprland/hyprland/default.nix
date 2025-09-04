@@ -26,5 +26,6 @@
     slurp
     wl-screenrec
     hyprpicker
+    resources
   ];
 }
