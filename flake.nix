@@ -36,6 +36,7 @@
 
     flake-parts = {
       url = "github:hercules-ci/flake-parts";
+      inputs.nixpkgs-lib.url = "github:nix-community/nixpkgs.lib";
     };
 
     devshell = {
