@@ -34,7 +34,7 @@ jobs:
             builders-use-substitutes = true
 
       - name: Check Flake Inputs
-        uses: DeterminateSystems/flake-checker-action@v12
+        uses: DeterminateSystems/flake-checker-action@3164002371bc90729c68af0e24d5aacf20d7c9f6 # v12
 
       - id: set-matrix
         name: Generate Nix Matrix
@@ -63,7 +63,7 @@ jobs:
           fetch-depth: 1
 
       - name: Nothing but Nix
-        uses: wimpysworld/nothing-but-nix@v6
+        uses: wimpysworld/nothing-but-nix@6af122a9403f936ef689e44cc013ae3f3e2f1c3b # v6
         with:
           hatchet-protocol: "cleave"
           witness-carnage: true
@@ -85,7 +85,7 @@ jobs:
           authToken: "${{ secrets.CACHIX_AUTH_TOKEN }}"
 
       - name: Setup FlakeHub Cache
-        uses: DeterminateSystems/flakehub-cache-action@v2
+        uses: DeterminateSystems/flakehub-cache-action@134cf641155463d87d343c6cb2b7970089967b99 # v2
 
       - name: Install NVD
         run: nix profile install nixpkgs#nvd
