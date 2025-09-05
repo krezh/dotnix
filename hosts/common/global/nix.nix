@@ -2,12 +2,26 @@
   inputs,
   lib,
   config,
+  pkgs,
   ...
 }:
 {
   imports = [ ];
 
+  nixpkgs.overlays = [
+    (final: _prev: {
+      inherit (final.lixPackageSets.stable)
+        nixpkgs-review
+        nix-direnv
+        nix-eval-jobs
+        nix-fast-build
+        colmena
+        ;
+    })
+  ];
+
   nix = {
+    package = pkgs.lixPackageSets.stable.lix;
     extraOptions = ''
       !include ${config.sops.templates."nix_access_token.conf".path}
     '';
@@ -17,7 +31,6 @@
       warn-dirty = false;
       flake-registry = ""; # Disable global flake registry
       use-xdg-base-directories = true;
-      download-buffer-size = 524288000;
       trusted-users = [
         "root"
         "@wheel"

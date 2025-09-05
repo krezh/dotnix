@@ -7,6 +7,9 @@ on:
   push:
     branches: ["main"]
     paths: ["**.nix", "flake.nix"]
+permissions:
+  id-token: "write"
+  contents: "read"
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.number || github.ref }}
   cancel-in-progress: true
@@ -20,6 +23,7 @@ jobs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
+
       - name: Install Nix
         uses: DeterminateSystems/nix-installer-action@90bb610b90bf290cad97484ba341453bd1cbefea # v19
         with:
@@ -28,15 +32,21 @@ jobs:
             accept-flake-config = true
             always-allow-substitutes = true
             builders-use-substitutes = true
+
+      - name: Check Flake Inputs
+        uses: DeterminateSystems/flake-checker-action@v12
+
       - id: set-matrix
         name: Generate Nix Matrix
         run: |
           set -Eeu
           matrix="$(nix eval --json '.#evalHosts' | jq -cM --argjson exclude_hosts '${{ env.EXCLUDED_HOSTS }}' 'del(.include[] | select(.host as $host | $exclude_hosts | index($host)))')"
           echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+
       - name: show output
         run: |
           echo "${{ toJson(steps.set-matrix.outputs.matrix) }}" >> "${GITHUB_STEP_SUMMARY}"
+
   nix-build:
     if: github.event.pull_request.draft == false
     needs: nix-matrix
@@ -51,10 +61,13 @@ jobs:
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
         with:
           fetch-depth: 1
-      - uses: wimpysworld/nothing-but-nix@main
+
+      - name: Nothing but Nix
+        uses: wimpysworld/nothing-but-nix@v6
         with:
           hatchet-protocol: "cleave"
           witness-carnage: true
+
       - name: Install Nix
         uses: DeterminateSystems/nix-installer-action@90bb610b90bf290cad97484ba341453bd1cbefea # v19
         with:
@@ -63,16 +76,23 @@ jobs:
             accept-flake-config = true
             always-allow-substitutes = true
             builders-use-substitutes = true
-      - name: Set up Cachix
+
+      - name: Setup Cachix
         uses: cachix/cachix-action@0fc020193b5a1fa3ac4575aa3a7d3aa6a35435ad # v16
         if: ${{ !github.event.pull_request.head.repo.fork }}
         with:
           name: krezh
           authToken: "${{ secrets.CACHIX_AUTH_TOKEN }}"
+
+      - name: Setup FlakeHub Cache
+        uses: DeterminateSystems/flakehub-cache-action@v2
+
       - name: Install NVD
         run: nix profile install nixpkgs#nvd
+
       - name: Garbage collect build dependencies
         run: nix-collect-garbage
+
       - name: Build previous ${{ matrix.host }} system
         if: ${{ github.ref_name != 'main' }}
         run: |
@@ -83,6 +103,7 @@ jobs:
             --no-write-lock-file \
             -o result-previous \
             > >(tee stdout.log) 2> >(tee /tmp/nix-build-err.log >&2)
+
       - name: Build new ${{ matrix.host }} system
         run: |
           set -o pipefail
@@ -93,6 +114,7 @@ jobs:
             --no-write-lock-file \
             --log-format raw \
             > >(tee stdout.log) 2> >(tee /tmp/nix-build-err.log >&2)
+
       - name: Output build failure
         if: failure()
         run: |
@@ -102,6 +124,7 @@ jobs:
             echo "$drv"
           fi
           exit 1
+
       - name: Diff profile
         if: ${{ github.ref_name != 'main' }}
         id: diff
@@ -110,6 +133,7 @@ jobs:
           echo "diff<<${delimiter}" >> "${GITHUB_OUTPUT}"
           nvd --color never diff ./result-previous ./result-new | sed '/<<</d; />>>/d' >> "${GITHUB_OUTPUT}"
           echo "${delimiter}" >> "${GITHUB_OUTPUT}"
+
       - name: Comment report in pr
         if: ${{ github.ref_name != 'main' }}
         uses: marocchino/sticky-pull-request-comment@773744901bac0e8cbb5a0dc842800d45e9b2b405 # v2

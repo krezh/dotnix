@@ -24,11 +24,6 @@
     hardware.url = "github:nixos/nixos-hardware";
     chaotic.url = "github:chaotic-cx/nyx/nyxpkgs-unstable";
 
-    lix-module = {
-      url = "git+https://git.lix.systems/lix-project/lix?ref=refs/tags/2.93.3";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-
     home-manager = {
       url = "github:nix-community/home-manager";
       inputs.nixpkgs.follows = "nixpkgs";
