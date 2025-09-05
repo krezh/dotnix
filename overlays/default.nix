@@ -17,4 +17,13 @@
       config.allowUnfree = true;
     };
   };
+  overrideNix = _final: prev: {
+    inherit (prev.lixPackageSets.stable)
+      #nixpkgs-review #TODO Broken atm https://git.lix.systems/lix-project/lix/issues/980
+      #nix-direnv #TODO Broken atm https://git.lix.systems/lix-project/lix/issues/980
+      nix-eval-jobs
+      nix-fast-build
+      colmena
+      ;
+  };
 }
