@@ -19,7 +19,7 @@
       base_keymap = "VSCode";
       ui_font_size = 15;
       ui_font_family = "Inter";
-      buffer_font_size = 15;
+      buffer_font_size = 14;
       buffer_font_family = "JetBrainsMono Nerd Font";
       relative_line_numbers = false;
       tab_size = 2;

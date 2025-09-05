@@ -22,6 +22,7 @@ let
     config:
     let
       hostname = config.hostname;
+      homeUsers = config.homeUsers or [ ];
     in
     lib.nixosSystem {
       pkgs = mkPkgsWithSystem config.system;
@@ -31,56 +32,44 @@ let
           outputs
           lib
           hostname
+          homeUsers
           ;
       };
       modules =
         lib.scanPath.toList { path = (lib.relativeToRoot "hosts/${hostname}"); }
         ++ (config.extraModules or [ ])
         ++ mkHomeUsers {
-          users = config.homeUsers or [ ];
-          hostname = config.hostname;
+          users = homeUsers;
+          inherit hostname;
         };
     };
   mkHomeUsers =
     { users, hostname }:
-    if users == [ ] then
-      users
-    else
-      [
-        {
-          config.home-manager = {
-            users = builtins.listToAttrs (
-              builtins.map (name: {
-                name = name;
-                value = {
-                  imports = [ (lib.relativeToRoot "home/${name}") ];
-                  config.home = {
-                    username = name;
-                  };
-                };
-              }) users
-            );
-            backupFileExtension = "bk";
-            useGlobalPkgs = true;
-            useUserPackages = true;
-            extraSpecialArgs = {
-              inherit inputs outputs hostname;
-            };
-            sharedModules = [
-              inputs.sops-nix.homeManagerModules.sops
-            ];
+    lib.optionals (users != [ ]) [
+      {
+        config.home-manager = {
+          users = lib.genAttrs users (name: {
+            imports = [ (lib.relativeToRoot "home/${name}") ];
+            config.home.username = name;
+          });
+          backupFileExtension = "bk";
+          useGlobalPkgs = true;
+          useUserPackages = true;
+          extraSpecialArgs = {
+            inherit inputs outputs hostname;
           };
-        }
-      ];
+          sharedModules = [
+            inputs.sops-nix.homeManagerModules.sops
+          ];
+        };
+      }
+    ];
 in
 {
   mkSystems =
     hosts:
-    builtins.listToAttrs (
-      builtins.map (config: {
-        name = config.hostname;
-        value = mkSystem config;
-      }) hosts
+    lib.genAttrs (map (c: c.hostname) hosts) (
+      hostname: mkSystem (lib.findFirst (c: c.hostname == hostname) null hosts)
     );
 
   # Used by CI
