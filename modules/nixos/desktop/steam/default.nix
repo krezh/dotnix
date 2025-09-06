@@ -45,7 +45,7 @@ in
     programs = {
       gamescope = {
         enable = true;
-        capSysNice = true;
+        capSysNice = false;
       };
       steam = {
         enable = true;
@@ -53,8 +53,12 @@ in
         dedicatedServer.openFirewall = true; # Open ports in the firewall for Source Dedicated Server
         localNetworkGameTransfers.openFirewall = true; # Open ports in the firewall for Steam Local Network Game Transfers
         gamescopeSession.enable = true;
+        extraCompatPackages = with pkgs; [
+          proton-ge-bin
+        ];
       };
     };
+
     systemd.user.services.steam = {
       enable = true;
       description = "Steam (no-GUI background startup)";
@@ -67,8 +71,12 @@ in
         ExecStart = "${lib.getExe pkgs.steam} -nochatui -nofriendsui -silent %U";
         Restart = "on-failure";
         RestartSec = "5s";
+        Environment = [
+          "STEAM_EXTRA_COMPAT_TOOLS_PATHS=$HOME/.steam/root/compatibilitytools.d"
+        ];
       };
     };
+
     home-manager.users = lib.genAttrs homeUsers (_user: {
       catppuccin.mangohud.enable = false;
       programs.mangohud = {
