@@ -24,11 +24,11 @@ in
         };
       };
     };
+
     environment = {
       systemPackages = with pkgs; [
         wine
         winetricks
-        protontricks
         vulkan-tools
         sgdboop
         lsfg-vk
@@ -44,14 +44,14 @@ in
     };
     programs = {
       gamescope = {
-        enable = true;
+        enable = false;
         capSysNice = false;
       };
       steam = {
         enable = true;
-        remotePlay.openFirewall = true; # Open ports in the firewall for Steam Remote Play
-        localNetworkGameTransfers.openFirewall = true; # Open ports in the firewall for Steam Local Network Game Transfers
-        gamescopeSession.enable = true;
+        remotePlay.openFirewall = true;
+        localNetworkGameTransfers.openFirewall = true;
+        protontricks.enable = true;
         extraCompatPackages = with pkgs; [
           proton-ge-bin
         ];

@@ -17,7 +17,7 @@
     userSettings = {
       auto_update = false;
       base_keymap = "VSCode";
-      ui_font_size = 15;
+      ui_font_size = 16;
       ui_font_family = "Inter";
       buffer_font_size = 14;
       buffer_font_family = "JetBrainsMono Nerd Font";
@@ -55,8 +55,8 @@
         };
 
         inline_assistant_model = {
-          provider = "anthropic";
-          model = "claude-3-5-sonnet";
+          provider = "copilot_chat";
+          model = "claude-4-sonnet";
         };
       };
 

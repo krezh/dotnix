@@ -23,6 +23,7 @@ in
           "video"
           "audio"
           "sshusers"
+          "input"
         ]
         ++ ifTheyExist [
           "network"
@@ -39,5 +40,12 @@ in
         ];
       };
     };
+  };
+  nixosModules.desktop.smb-mount = {
+    enable = true;
+    server = "jotunheim.srv.plexuz.xyz";
+    share = "homes"; # The SMB share name
+    mountPoint = "/mnt/home";
+    credentialsFile = config.sops.templates."jotunheim_homes_creds".path;
   };
 }

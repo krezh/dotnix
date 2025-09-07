@@ -6,18 +6,6 @@
   ...
 }:
 {
-  imports = [ ];
-
-  # nixpkgs.overlays = [
-  #   (final: prev: {
-  #     inherit (prev.lixPackageSets.stable)
-  #       nix-eval-jobs
-  #       nix-fast-build
-  #       colmena
-  #       ;
-  #   })
-  # ];
-
   nix = {
     package = pkgs.lixPackageSets.stable.lix;
     extraOptions = ''

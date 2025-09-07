@@ -5,7 +5,7 @@
     ./openssh
     ./fonts
     ./steam
-    ./openrgb
     ./bluetooth
+    ./smb-mount
   ];
 }

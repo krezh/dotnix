@@ -80,7 +80,12 @@
     fonts.enable = true;
     steam.enable = true;
     bluetooth.enable = true;
-    openrgb.enable = false;
+  };
+
+  services.hardware.openrgb = {
+    enable = true;
+    package = pkgs.openrgb-with-all-plugins;
+    motherboard = "intel";
   };
 
   services = {
@@ -162,7 +167,7 @@
     };
     amdgpu = {
       opencl.enable = true;
-      initrd.enable = lib.mkDefault true;
+      initrd.enable = true;
       overdrive.enable = true;
     };
   };
