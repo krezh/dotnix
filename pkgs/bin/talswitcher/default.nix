@@ -13,7 +13,7 @@ buildGo124Module rec {
     owner = "mirceanton";
     repo = "talswitcher";
     rev = "v${version}";
-    hash = "sha256-v7o1cBYTOwYJjqOfVZjbr6UR5InCQESfGVy/fdwP1bU=";
+    hash = "sha256-V5jxAexoYHCw6e7Gg8K126ey40Q17DIhYG47z1L5LAw=";
   };
 
   vendorHash = "sha256-p49+l1HFbhnrLyyB2d1fPPEF2LSzgJMNFrB3RhehiKM=";
