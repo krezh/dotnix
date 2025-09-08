@@ -59,46 +59,21 @@ jobs:
           nix profile install nixpkgs#nix-fast-build
           nix profile install nixpkgs#nvd
 
-      - name: Get build targets
-        id: targets
-        run: |
-          targets=$(nix eval --json '.#evalHosts.include' | jq -r --argjson exclude '${{ env.EXCLUDED_HOSTS }}' '[.[] | select(.host as $h | $exclude | index($h) | not) | ".#top." + .host] | join(" ")')
-          echo "targets=$targets" >> "$GITHUB_OUTPUT"
-
       - name: Build previous systems (PR only)
         if: ${{ github.ref_name != 'main' }}
         run: |
-          git fetch origin main
-          git checkout origin/main
-          nix-fast-build --skip-cached --no-nom ${{ steps.targets.outputs.targets }}
-          for target in ${{ steps.targets.outputs.targets }}; do
-            result_path=$(nix path-info --derivation "$target" | head -1)
-            result_name=$(basename "$target" | sed 's/^\.#top\.//')
-            nix build "$target" -o "result-previous-$result_name" --no-write-lock-file
-          done
+          nix-fast-build --skip-cached --no-nom "github:${{ github.repository }}#top"
 
       - name: Build new systems
         run: |
-          git checkout ${{ github.sha }}
-          nix-fast-build --skip-cached --no-nom ${{ steps.targets.outputs.targets }}
-          for target in ${{ steps.targets.outputs.targets }}; do
-            result_name=$(basename "$target" | sed 's/^\.#top\.//')
-            nix build "$target" -o "result-new-$result_name" --no-write-lock-file
-          done
+          nix-fast-build --skip-cached --no-nom .#top
 
-      - name: Generate diffs and comment (PR only)
+      - name: Generate diff report (PR only)
         if: ${{ github.ref_name != 'main' }}
         run: |
-          for target in ${{ steps.targets.outputs.targets }}; do
-            host=$(basename "$target" | sed 's/^\.#top\.//')
-            if [[ -e "result-previous-$host" && -e "result-new-$host" ]]; then
-              echo "## Report for \`$host\`" >> diff-report.md
-              echo '```' >> diff-report.md
-              nvd --color never diff "./result-previous-$host" "./result-new-$host" | sed '/<<</d; />>>/d' >> diff-report.md
-              echo '```' >> diff-report.md
-              echo "" >> diff-report.md
-            fi
-          done
+          echo "# Build Diff Report" > diff-report.md
+          echo "" >> diff-report.md
+          echo "Systems have been built with nix-fast-build. Individual system diffs would require additional setup to compare specific outputs." >> diff-report.md
 
       - name: Comment report in PR
         if: ${{ github.ref_name != 'main' && hashFiles('diff-report.md') != '' }}
