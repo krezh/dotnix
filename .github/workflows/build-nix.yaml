@@ -51,6 +51,14 @@ jobs:
           name: krezh
           authToken: "${{ secrets.CACHIX_AUTH_TOKEN }}"
 
+      - name: Setup Attic
+        uses: ryanccn/attic-action@v0.4.0
+        if: ${{ !github.event.pull_request.head.repo.fork }}
+        with:
+          endpoint: ${{ secrets.ATTIC_ENDPOINT }}
+          cache: ${{ secrets.ATTIC_CACHE }}
+          token: ${{ secrets.ATTIC_TOKEN }}
+
       - name: Setup FlakeHub Cache
         uses: DeterminateSystems/flakehub-cache-action@134cf641155463d87d343c6cb2b7970089967b99 # v2
 
