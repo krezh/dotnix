@@ -56,17 +56,17 @@ jobs:
 
       - name: Install nix-fast-build and nvd
         run: |
-          nix profile install nixpkgs#nix-fast-build
-          nix profile install nixpkgs#nvd
+          nix profile add nixpkgs#nix-fast-build
+          nix profile add nixpkgs#nvd
 
       - name: Build previous systems (PR only)
         if: ${{ github.ref_name != 'main' }}
         run: |
-          nix-fast-build --skip-cached --no-nom "github:${{ github.repository }}#top"
+          nix-fast-build --skip-cached --no-nom --flake "github:${{ github.repository }}#top"
 
       - name: Build new systems
         run: |
-          nix-fast-build --skip-cached --no-nom .#top
+          nix-fast-build --skip-cached --no-nom --flake .#top
 
       - name: Generate diff report (PR only)
         if: ${{ github.ref_name != 'main' }}
