@@ -7,5 +7,7 @@
     ./steam
     ./bluetooth
     ./smb-mount
+    ./ldap-auth
+    ./kopia
   ];
 }
