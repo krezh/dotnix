@@ -34,7 +34,7 @@
         "big-parallel"
       ];
       extra-substituters = [
-        "https://nix-cache.plexuz.xyz"
+        "https://nix-cache.plexuz.xyz/krezh"
         "https://cache.garnix.io"
         "https://krezh.cachix.org"
         "https://nix-community.cachix.org"

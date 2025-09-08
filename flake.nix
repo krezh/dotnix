@@ -3,7 +3,7 @@
 
   nixConfig = {
     extra-trusted-substituters = [
-      "https://nix-cache.plexuz.xyz"
+      "https://nix-cache.plexuz.xyz/krezh"
       "https://krezh.cachix.org"
       "https://cache.garnix.io"
       "https://nix-community.cachix.org"
