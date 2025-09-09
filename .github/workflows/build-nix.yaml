@@ -59,9 +59,6 @@ jobs:
           cache: ${{ secrets.ATTIC_CACHE }}
           token: ${{ secrets.ATTIC_TOKEN }}
 
-      - name: Setup FlakeHub Cache
-        uses: DeterminateSystems/flakehub-cache-action@134cf641155463d87d343c6cb2b7970089967b99 # v2
-
       - name: Install nix-fast-build and nvd
         run: |
           nix profile add nixpkgs#nix-fast-build
