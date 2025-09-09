@@ -2,6 +2,8 @@
 {
   imports = [ inputs.disko.nixosModules.disko ];
 
+  fileSystems."/home".neededForBoot = true; # Make sure home is mounted before user services
+
   disko.devices = {
     disk = {
       main = {
