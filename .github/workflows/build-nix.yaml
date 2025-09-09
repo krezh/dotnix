@@ -52,7 +52,7 @@ jobs:
           authToken: "${{ secrets.CACHIX_AUTH_TOKEN }}"
 
       - name: Setup Attic
-        uses: ryanccn/attic-action@v0.4.0
+        uses: ryanccn/attic-action@7fbafba3978e86e585cb68a82c08b30f3672b62d # v0.4.0
         if: ${{ !github.event.pull_request.head.repo.fork }}
         with:
           endpoint: ${{ secrets.ATTIC_ENDPOINT }}
