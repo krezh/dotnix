@@ -1,7 +1,6 @@
 { config, lib, ... }:
 
 {
-  fileSystems."/home".neededForBoot = true; # Make sure home is mounted before user services
   sops = {
     age = {
       keyFile = lib.mkDefault "/home/krezh/.config/sops/age/keys.txt";
