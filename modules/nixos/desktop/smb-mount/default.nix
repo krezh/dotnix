@@ -52,7 +52,11 @@ in
         type = "cifs";
         what = "//${cfg.server}/${cfg.share}";
         where = cfg.mountPoint;
-        mountConfig.Options = "credentials=${cfg.credentialsFile},uid=1000,gid=100,iocharset=utf8,file_mode=0644,dir_mode=0755,sec=${cfg.securityMethod},nobrl";
+        mountConfig.Options =
+          let
+            automount_opts = "_netdev,x-systemd.automount,noauto,x-systemd.idle-timeout=60,x-systemd.device-timeout=5s,x-systemd.mount-timeout=5s,nofail";
+          in
+          [ "${automount_opts},credentials=${cfg.credentialsFile},uid=1000,gid=100" ];
       }
     ];
 

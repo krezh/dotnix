@@ -1,6 +1,7 @@
 { pkgs, ... }:
 {
   imports = [
+    ./settings.nix
     ./binds.nix
     ./monitors.nix
     ./smartgaps.nix
@@ -16,7 +17,6 @@
         "--all"
       ]; # https://wiki.hyprland.org/Nix/Hyprland-on-Home-Manager/#programs-dont-work-in-systemd-services-but-do-on-the-terminal
     };
-    settings = import ./settings.nix;
     plugins = [ ];
   };
 

@@ -1,10 +1,11 @@
-{ config, ... }:
+{ config, lib, ... }:
 
 {
-  imports = [ ];
+  fileSystems."/home".neededForBoot = true; # Make sure home is mounted before user services
   sops = {
     age = {
-      keyFile = "/home/krezh/.config/sops/age/keys.txt";
+      keyFile = lib.mkDefault "/home/krezh/.config/sops/age/keys.txt";
+      sshKeyPaths = [ "/etc/ssh/ssh_host_ed25519_key" ];
     };
     defaultSopsFile = ../secrets.sops.yaml;
 
@@ -26,6 +27,7 @@
           username=${config.sops.placeholder."smb/user"}
           password=${config.sops.placeholder."smb/pass"}
         '';
+        path = "/etc/nixos/smb-secrets";
       };
     };
   };

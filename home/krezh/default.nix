@@ -50,7 +50,6 @@ in
   sops = {
     age.keyFile = "${config.xdg.configHome}/sops/age/keys.txt";
     defaultSopsFile = ./secrets.sops.yaml;
-    gnupg.sshKeyPaths = [ ];
     secrets = {
       "ssh/privkey" = {
         path = "/home/${config.home.username}/.ssh/id_ed25519";
