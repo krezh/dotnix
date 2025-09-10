@@ -26,9 +26,9 @@ let
   volume_script = lib.getExe pkgs.volume_script_hyprpanel;
   brightness_script = lib.getExe pkgs.brightness_script_hyprpanel;
 
-  recShot = "${lib.getExe pkgs.zipline-recshot} -t ${
+  recShot = "${lib.getExe pkgs.recshot} -t ${
     config.sops.secrets."zipline/token".path
-  } -u https://zipline.talos.plexuz.xyz -p ~/Pictures/Screenshots";
+  } -u https://zipline.talos.plexuz.xyz -p ~/Pictures/Screenshots --zipline";
 
   mainMod = "SUPER";
   mainModShift = "${mainMod} SHIFT";
@@ -42,7 +42,7 @@ in
         "size 622 652,class:(clipse)"
         "stayfocused, class:(clipse)"
         "stayfocused, class:(Rofi)"
-        "workspace 4 silent, class:^(legcord)$"
+        "workspace 4 silent, class:^(vesktop|legcord)$"
         "workspace 3, class:^(steam_app_[0-9]+)$"
       ];
 

@@ -6,7 +6,20 @@
 }:
 let
   cfg = config.hmModules.desktop.swww;
-  swww-random = pkgs.writeScriptBin "swww-random" (builtins.readFile ./scripts/swww-random);
+
+  swww-random = pkgs.buildGoModule rec {
+    pname = "swww-random";
+    version = "1.0.0";
+    src = ./src;
+    vendorHash = null;
+    meta = with lib; {
+      description = "Random wallpaper setter for swww";
+      homepage = "https://github.com/Horus645/swww";
+      license = licenses.gpl3;
+      platforms = platforms.linux;
+      mainProgram = pname;
+    };
+  };
 in
 {
   options.hmModules.desktop.swww = {
@@ -39,7 +52,10 @@ in
 
   config = lib.mkIf cfg.enable {
     home = {
-      packages = [ cfg.package ];
+      packages = [
+        cfg.package
+        swww-random
+      ];
       sessionVariables = {
         SWWW_TRANSITION_FPS = "${toString cfg.settings.transitionFPS}";
         SWWW_TRANSITION_STEP = "${toString cfg.settings.transitionStep}";
@@ -67,7 +83,7 @@ in
 
     systemd.user.services.swww-random = {
       Unit = {
-        Description = "A Solution to your Wayland Wallpaper Woes";
+        Description = "Random wallpaper setter for swww";
         Documentation = "https://github.com/Horus645/swww";
         After = [ "swww-daemon.service" ];
         Requires = [
@@ -82,7 +98,7 @@ in
           "SWWW_TRANSITION=${cfg.settings.transition}"
           "SWWW_TRANSITION_POS=${cfg.settings.transitionPos}"
         ];
-        ExecStart = "${swww-random}/bin/swww-random -d ${cfg.path} -i ${toString cfg.settings.interval}";
+        ExecStart = "${lib.getExe swww-random} -d ${cfg.path} -i ${toString cfg.settings.interval}";
         Restart = "on-failure";
         RestartSec = 5;
       };

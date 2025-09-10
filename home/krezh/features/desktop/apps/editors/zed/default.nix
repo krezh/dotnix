@@ -11,6 +11,8 @@
       "jinja2"
       "just"
       "just-ls"
+      "golangci-lint"
+      "go-snippets"
     ];
 
     # This is the actual zed configuration

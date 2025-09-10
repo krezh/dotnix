@@ -6,7 +6,6 @@
 }:
 let
   cfg = config.hmModules.desktop.vesktop;
-  json = pkgs.formats.json { };
   inherit (lib) mkEnableOption mkOption mkIf;
 in
 {
@@ -18,55 +17,49 @@ in
       default = pkgs.vesktop;
     };
 
-    arrpc.enable = mkOption {
-      type = pkgs.lib.types.bool;
-      default = true;
-    };
-
-    arrpc = {
-      package = mkOption {
-        type = pkgs.lib.types.package;
-        default = pkgs.arrpc;
-      };
-    };
-
     settings = mkOption {
-      type = json.type;
+      type = lib.types.attrs;
       default = { };
     };
-    extraConfig = mkOption {
-      type = json.type;
+
+    vencord.settings = mkOption {
+      type = lib.types.attrs;
       default = { };
     };
   };
 
   config = mkIf cfg.enable {
-    home.packages = [
-      cfg.package
-      pkgs.arrpc
-    ];
-    xdg.configFile."vesktop/settings.json" = mkIf (cfg.settings != { }) {
-      source = json.generate "settings.json" cfg.settings;
-    };
-    xdg.configFile."vesktop/settings/settings.json" = mkIf (cfg.extraConfig != { }) {
-      source = json.generate "settings.json" cfg.extraConfig;
-    };
 
-    systemd.user.services.vesktop = {
-      Install = {
-        WantedBy = [
-          (lib.mkIf config.wayland.windowManager.hyprland.systemd.enable "hyprland-session.target")
-        ];
-      };
-      Unit = {
-        Description = "A Custom Discord Client";
-      };
-      Service = {
-        ExecStart = lib.getExe cfg.package;
-        Restart = "on-failure";
-        RestartSec = 5;
-      };
-    };
+    programs.vesktop.enable = true;
+    programs.vesktop.package = cfg.package;
+    programs.vesktop.settings = cfg.settings;
+    programs.vesktop.vencord.settings = cfg.vencord.settings;
+    programs.vesktop.vencord.useSystem = true;
+
+    services.arrpc.enable = true;
+
+    # xdg.configFile."vesktop/settings.json" = mkIf (cfg.settings != { }) {
+    # source = json.generate "settings.json" cfg.settings;
+    # };
+    # xdg.configFile."vesktop/settings/settings.json" = mkIf (cfg.extraConfig != { }) {
+    # source = json.generate "settings.json" cfg.extraConfig;
+    # };
+
+    # systemd.user.services.vesktop = {
+    #   Install = {
+    #     WantedBy = [
+    #       (lib.mkIf config.wayland.windowManager.hyprland.systemd.enable "hyprland-session.target")
+    #     ];
+    #   };
+    #   Unit = {
+    #     Description = "A Custom Discord Client";
+    #   };
+    #   Service = {
+    #     ExecStart = lib.getExe cfg.package;
+    #     Restart = "on-failure";
+    #     RestartSec = 5;
+    #   };
+    # };
 
     # systemd.user.services.arRPC = mkIf cfg.arrpc.enable {
     #   Install = {

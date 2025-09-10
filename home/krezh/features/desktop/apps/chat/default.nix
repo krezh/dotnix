@@ -1,5 +1,7 @@
 {
   imports = [
     ./discord
+    ./vesktop
+    ./nixcord
   ];
 }
