@@ -28,8 +28,8 @@ type Config struct {
 // New creates a new configuration with default values
 func New() *Config {
 	return &Config{
-		ZiplineURL:      "https://zipline.talos.plexuz.xyz",
-		TokenFile:       filepath.Join(os.Getenv("HOME"), ".config/flameshot/zipline-token"),
+		ZiplineURL:      "",
+		TokenFile:       filepath.Join(os.Getenv("HOME"), ".config/zipline/token"),
 		SavePath:        "/tmp",
 		UseOriginalName: true,
 		Zipline:         false,

@@ -26,4 +26,9 @@
       colmena
       ;
   };
+
+  # Override swww to use flake input when available
+  swww-flake = _final: prev: {
+    swww = if (inputs ? swww) then inputs.swww.packages.${prev.system}.swww else prev.swww;
+  };
 }

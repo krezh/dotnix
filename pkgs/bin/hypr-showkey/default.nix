@@ -6,6 +6,7 @@
 
 rustPlatform.buildRustPackage rec {
   pname = "hypr-showkey";
+  # renovate: datasource=github-releases depName=cubismod/hypr-showkey
   version = "0.1.0";
 
   src = fetchFromGitHub {

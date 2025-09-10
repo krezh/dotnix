@@ -72,9 +72,13 @@ in
         Requires = [ "graphical-session.target" ];
       };
       Service = {
-        ExecStart = "${cfg.package}/bin/swww-daemon -q";
+        Type = "simple";
+        ExecStartPre = "${pkgs.bash}/bin/bash -c '${cfg.package}/bin/swww kill 2>/dev/null || true'";
+        ExecStart = "${cfg.package}/bin/swww-daemon";
+        ExecStop = "${cfg.package}/bin/swww kill";
         Restart = "on-failure";
         RestartSec = 5;
+        RemainAfterExit = false;
       };
       Install.WantedBy = [
         (lib.mkIf config.wayland.windowManager.hyprland.systemd.enable "hyprland-session.target")
