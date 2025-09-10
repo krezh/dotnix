@@ -7,5 +7,6 @@
     ./shikane
     ./thunderbird
     ./discord
+    ./kopia
   ];
 }
