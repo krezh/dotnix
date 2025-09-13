@@ -1,4 +1,9 @@
-{ ... }:
+{
+  hostname,
+  lib,
+  pkgs,
+  ...
+}:
 {
   programs.zed-editor = {
     enable = true;
@@ -13,6 +18,8 @@
       "just-ls"
       "golangci-lint"
       "go-snippets"
+      "scss"
+      "basher"
     ];
 
     # This is the actual zed configuration
@@ -67,7 +74,7 @@
         "Nix" = {
           language_servers = [
             "nixd"
-            "!nil"
+            "nil"
           ];
         };
       };
@@ -80,13 +87,35 @@
       # Configure LSPs
       lsp = {
         nixd = {
+          args = [
+            "--inlay-hints"
+            "--semantic-tokens"
+            "--log=verbose"
+          ];
           initialization_options = {
             formatting = {
-              command = [ "nixfmt" ];
+              command = [ "${lib.getExe pkgs.nixfmt-rfc-style}" ];
+            };
+            nixpkgs = {
+              expr = "import (builtins.getFlake(builtins.toString ./.)).inputs.nixpkgs { }";
+            };
+            options = rec {
+              nixos = {
+                expr = "(builtins.getFlake(builtins.toString ./.)).nixosConfigurations.${hostname}.options";
+              };
+              home-manager = {
+                expr = "${nixos.expr}.home-manager.users.type.getSubOptions []";
+              };
             };
           };
         };
-
+        nil = {
+          initialization_options = {
+            formatting = {
+              command = [ "${lib.getExe pkgs.nixfmt-rfc-style}" ];
+            };
+          };
+        };
         yaml-language-server = {
           settings = {
             yaml = {
@@ -99,6 +128,7 @@
             };
           };
         };
+        just = { };
       };
 
       # Disable telemetry

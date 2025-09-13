@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -55,24 +56,115 @@ var listCmd = &cobra.Command{
 			return
 		}
 
-		fmt.Printf("%-20s %-30s %-20s %-15s\n", "ID", "Path", "Time", "Size")
-		fmt.Println(strings.Repeat("-", 85))
+		// Helper to extract backup name from tags, then description, then path
+		getBackupName := func(snap KopiaSnapshot) string {
+			// Try to extract from description: "Automated backup: <name>" or tag "name:<name>"
+			// (If you add tags to Kopia, you can parse them here)
+			desc := snap.Description
+			if strings.HasPrefix(desc, "Automated backup: ") {
+				return strings.TrimPrefix(desc, "Automated backup: ")
+			}
+			if strings.HasPrefix(desc, "Manual backup: ") {
+				return strings.TrimPrefix(desc, "Manual backup: ")
+			}
+			// fallback: use description or path
+			if desc != "" {
+				return desc
+			}
+			return snap.Source.Path
+		}
 
+		// Group snapshots by backup name
+		groups := make(map[string][]KopiaSnapshot)
 		for _, snap := range snapshots {
-			sizeStr := formatSize(snap.Stats.TotalSize)
-			shortID := snap.ID
-			if len(shortID) > 20 {
-				shortID = shortID[:20]
+			name := getBackupName(snap)
+			groups[name] = append(groups[name], snap)
+		}
+
+		// Sort group names
+		var groupNames []string
+		for name := range groups {
+			groupNames = append(groupNames, name)
+		}
+		sort.Strings(groupNames)
+
+		// Box drawing characters and fixed widths
+		// Fixed column widths
+		idWidth := 20
+		pathWidth := 30
+		timeWidth := 19
+		sizeWidth := 15
+		vertical := "│"
+		// Build a sample row to determine box width
+		sampleRow := fmt.Sprintf("%s %-*s %s %-*s %s %-*s %s %-*s %s",
+			vertical, idWidth, "ID", vertical, pathWidth, "Path", vertical, timeWidth, "Time", vertical, sizeWidth, "Size", vertical)
+		boxWidth := len([]rune(sampleRow))
+		topLeft, topRight := "╭", "╮"
+		bottomLeft, bottomRight := "╰", "╯"
+		horizontal := "─"
+		// Build header separator to match boxWidth
+		headerSep := "├"
+		headerSep += strings.Repeat(horizontal, idWidth+2) + "┬"
+		headerSep += strings.Repeat(horizontal, pathWidth+2) + "┬"
+		headerSep += strings.Repeat(horizontal, timeWidth+2) + "┬"
+		headerSep += strings.Repeat(horizontal, sizeWidth+2) + "┤"
+		// Pad headerSep to boxWidth
+		if l := len([]rune(headerSep)); l < boxWidth {
+			headerSep += strings.Repeat(horizontal, boxWidth-l)
+		} else if l > boxWidth {
+			headerSep = string([]rune(headerSep)[:boxWidth])
+		}
+		colHeader := sampleRow
+
+		for _, name := range groupNames {
+			snaps := groups[name]
+			// Sort by time descending
+			sort.Slice(snaps, func(i, j int) bool {
+				return snaps[i].StartTime.After(snaps[j].StartTime)
+			})
+			// Section header with count
+			title := fmt.Sprintf(" %s (%d snapshot%s) ", name, len(snaps), func() string {
+				if len(snaps) == 1 {
+					return ""
+				} else {
+					return "s"
+				}
+			}())
+			pad := boxWidth - len([]rune(title))
+			leftPad := pad / 2
+			rightPad := pad - leftPad
+			// Build top border to match boxWidth and always end with topRight
+			topBorder := fmt.Sprintf("%s%s%s%s%s", topLeft, strings.Repeat(horizontal, leftPad), title, strings.Repeat(horizontal, rightPad), topRight)
+			runes := []rune(topBorder)
+			if len(runes) < boxWidth {
+				// pad with horizontal, then add topRight
+				topBorder = string(runes[:len(runes)-1]) + strings.Repeat(horizontal, boxWidth-len(runes)) + topRight
+			} else if len(runes) > boxWidth {
+				// truncate and ensure last char is topRight
+				topBorder = string(runes[:boxWidth-1]) + topRight
 			}
-			shortPath := snap.Source.Path
-			if len(shortPath) > 30 {
-				shortPath = shortPath[:27] + "..."
+			fmt.Println(topBorder)
+			fmt.Println(colHeader)
+			fmt.Println(headerSep)
+			for _, snap := range snaps {
+				shortID := snap.ID
+				if len(shortID) > idWidth {
+					shortID = shortID[:idWidth]
+				}
+				shortPath := snap.Source.Path
+				if len(shortPath) > pathWidth {
+					shortPath = shortPath[:pathWidth-3] + "..."
+				}
+				fmt.Printf("%s %-*s %s %-*s %s %-*s %s %-*s %s\n",
+					vertical, idWidth, shortID,
+					vertical, pathWidth, shortPath,
+					vertical, timeWidth, snap.StartTime.Format("2006-01-02 15:04:05"),
+					vertical, sizeWidth, formatSize(snap.Stats.TotalSize),
+					vertical)
 			}
-			fmt.Printf("%-20s %-30s %-20s %s\n",
-				shortID,
-				shortPath,
-				snap.StartTime.Format("2006-01-02 15:04:05"),
-				sizeStr)
+			// Build bottom border to match boxWidth
+			bottomBorder := fmt.Sprintf("%s%s%s", bottomLeft, strings.Repeat(horizontal, boxWidth-2), bottomRight)
+			fmt.Printf("%s\n\n", bottomBorder)
 		}
 	},
 }
@@ -117,29 +209,35 @@ var restoreCmd = &cobra.Command{
 }
 
 // Delete command
+var deleteAll bool
 var deleteCmd = &cobra.Command{
 	Use:   "delete [snapshot-id]",
-	Short: "Delete a specific snapshot",
-	Args:  cobra.ExactArgs(1),
+	Short: "Delete a specific snapshot or all snapshots with --all",
+	Args:  cobra.MaximumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		km := NewKopiaManager()
+		if deleteAll {
+			if err := km.DeleteSnapshot("", true); err != nil {
+				logger.Fatal("Delete all failed", "error", err)
+			}
+			return
+		}
+		if len(args) != 1 {
+			fmt.Fprintln(os.Stderr, "You must specify a snapshot ID.")
+			os.Exit(2)
+		}
 		snapshotID := args[0]
-
 		fmt.Printf("Are you sure you want to delete snapshot %s? (y/N): ", snapshotID)
 		var response string
 		fmt.Scanln(&response)
-
 		if strings.ToLower(response) != "y" {
 			fmt.Println("Operation cancelled.")
 			return
 		}
-
 		logger.Info("Deleting snapshot", "snapshot", snapshotID)
-
-		if err := km.DeleteSnapshot(snapshotID); err != nil {
+		if err := km.DeleteSnapshot(snapshotID, false); err != nil {
 			logger.Fatal("Delete failed", "error", err)
 		}
-
 		logger.Info("Snapshot deleted successfully")
 	},
 }
@@ -370,47 +468,9 @@ var logsCmd = &cobra.Command{
 
 // Completion command
 var completionCmd = &cobra.Command{
-	Use:   "completion [bash|zsh|fish|powershell]",
-	Short: "Generate completion script",
-	Long: `To load completions:
-
-Bash:
-
-  $ source <(kopia-manager completion bash)
-
-  # To load completions for each session, execute once:
-  # Linux:
-  $ kopia-manager completion bash > /etc/bash_completion.d/kopia-manager
-  # macOS:
-  $ kopia-manager completion bash > $(brew --prefix)/etc/bash_completion.d/kopia-manager
-
-Zsh:
-
-  # If shell completion is not already enabled in your environment,
-  # you will need to enable it.  You can execute the following once:
-
-  $ echo "autoload -U compinit; compinit" >> ~/.zshrc
-
-  # To load completions for each session, execute once:
-  $ kopia-manager completion zsh > "${fpath[1]}/_kopia-manager"
-
-  # You will need to start a new shell for this setup to take effect.
-
-fish:
-
-  $ kopia-manager completion fish | source
-
-  # To load completions for each session, execute once:
-  $ kopia-manager completion fish > ~/.config/fish/completions/kopia-manager.fish
-
-PowerShell:
-
-  PS> kopia-manager completion powershell | Out-String | Invoke-Expression
-
-  # To load completions for every new session, run:
-  PS> kopia-manager completion powershell > kopia-manager.ps1
-  # and source this file from your PowerShell profile.
-`,
+	Use:                   "completion [bash|zsh|fish|powershell]",
+	Short:                 "Generate completion script",
+	Long:                  "",
 	DisableFlagsInUseLine: true,
 	ValidArgs:             []string{"bash", "zsh", "fish", "powershell"},
 	Args:                  cobra.MatchAll(cobra.ExactArgs(1), cobra.OnlyValidArgs),
@@ -422,13 +482,30 @@ PowerShell:
 			cmd.Root().GenZshCompletion(os.Stdout)
 		case "fish":
 			cmd.Root().GenFishCompletion(os.Stdout, true)
-		case "powershell":
-			cmd.Root().GenPowerShellCompletionWithDesc(os.Stdout)
 		}
 	},
 }
 
 // Initialize commands and flags
+func getAvailableBackupNames() []string {
+	// Look for systemd user service files matching kopia-backup-*.service
+	userSystemdDir := filepath.Join(os.Getenv("HOME"), ".config", "systemd", "user")
+	files, err := os.ReadDir(userSystemdDir)
+	if err != nil {
+		return nil
+	}
+	var names []string
+	for _, f := range files {
+		name := f.Name()
+		if strings.HasPrefix(name, "kopia-backup-") && strings.HasSuffix(name, ".service") {
+			// Extract backup name
+			base := strings.TrimSuffix(strings.TrimPrefix(name, "kopia-backup-"), ".service")
+			names = append(names, base)
+		}
+	}
+	return names
+}
+
 func initCommands() {
 	homeDir, _ := os.UserHomeDir()
 
@@ -480,11 +557,19 @@ func initCommands() {
 	}
 
 	infoCmd.ValidArgsFunction = deleteCmd.ValidArgsFunction
+
 	mountCmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) == 0 {
 			return deleteCmd.ValidArgsFunction(cmd, args, toComplete)
 		}
 		return nil, cobra.ShellCompDirectiveFilterDirs
+	}
+
+	startBackupCmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) == 0 {
+			return getAvailableBackupNames(), cobra.ShellCompDirectiveNoFileComp
+		}
+		return nil, cobra.ShellCompDirectiveNoFileComp
 	}
 
 	unmountCmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
@@ -499,6 +584,7 @@ func initCommands() {
 	rootCmd.AddCommand(listCmd)
 	rootCmd.AddCommand(backupCmd)
 	rootCmd.AddCommand(restoreCmd)
+	deleteCmd.Flags().BoolVar(&deleteAll, "all", false, "Delete all snapshots (requires confirmation)")
 	rootCmd.AddCommand(deleteCmd)
 	rootCmd.AddCommand(infoCmd)
 	rootCmd.AddCommand(diffCmd)

@@ -40,7 +40,6 @@ in
   catppuccin.cursors.accent = "light";
   catppuccin.hyprland.enable = true;
   catppuccin.gtk.icon.enable = true;
-  catppuccin.rofi.enable = true;
   catppuccin.vesktop.enable = true;
   catppuccin.vscode.profiles.default.enable = false;
   catppuccin.k9s.enable = true;
@@ -60,6 +59,9 @@ in
       };
       "zipline/token" = {
         path = "${config.xdg.configHome}/zipline/token";
+      };
+      "kopia/password" = {
+        path = "${config.xdg.configHome}/kopia/repository.password";
       };
     };
   };
@@ -118,6 +120,7 @@ in
       unzip
       shellcheck
       gum
+      cava
 
       # Secrets
       age-plugin-yubikey

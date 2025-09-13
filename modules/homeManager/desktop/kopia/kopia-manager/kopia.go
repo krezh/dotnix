@@ -126,14 +126,45 @@ func (km *KopiaManager) RestoreSnapshot(snapshotID, targetDir string) error {
 	return km.runKopiaCommandInteractive("snapshot", "restore", snapshotID, targetDir)
 }
 
-// DeleteSnapshot deletes a specific snapshot
-func (km *KopiaManager) DeleteSnapshot(snapshotID string) error {
+// DeleteSnapshot deletes a specific snapshot or all snapshots if allFlag is true
+func (km *KopiaManager) DeleteSnapshot(snapshotID string, allFlag bool) error {
+	if allFlag {
+		// List all snapshots
+		snapshots, err := km.ListSnapshots()
+		if err != nil {
+			return fmt.Errorf("failed to list snapshots: %w", err)
+		}
+		if len(snapshots) == 0 {
+			fmt.Println("No snapshots to delete.")
+			return nil
+		}
+		fmt.Println("The following snapshots will be deleted:")
+		for _, snap := range snapshots {
+			fmt.Printf("- %s (%s)\n", snap.ID, snap.Source)
+		}
+		fmt.Print("Are you sure you want to delete ALL snapshots? Type 'yes' to confirm: ")
+		var input string
+		fmt.Scanln(&input)
+		if input != "yes" {
+			fmt.Println("Aborted.")
+			return nil
+		}
+		// Delete all snapshots
+		for _, snap := range snapshots {
+			err := km.runKopiaCommandInteractive("snapshot", "delete", "--delete", snap.ID)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Failed to delete snapshot %s: %v\n", snap.ID, err)
+			} else {
+				fmt.Printf("Deleted snapshot %s\n", snap.ID)
+			}
+		}
+		return nil
+	}
 	// If snapshotID is partial, find the full ID
 	fullID, err := km.resolveSnapshotID(snapshotID)
 	if err != nil {
 		return fmt.Errorf("failed to resolve snapshot ID: %w", err)
 	}
-
 	return km.runKopiaCommandInteractive("snapshot", "delete", "--delete", fullID)
 }
 

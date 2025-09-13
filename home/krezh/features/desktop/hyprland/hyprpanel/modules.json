@@ -1,0 +1,36 @@
+{
+  "custom/wallpaper": {
+    "icon": "󰸉",
+    "label": "",
+    "tooltip": "Click to change wallpaper",
+    "truncationSize": -1,
+    "hideOnEmpty": false,
+    "actions": {
+      "onLeftClick": "swww-random -d ~/wallpapers -o"
+    }
+  },
+  "custom/steelseries": {
+    "icon": "󰋎",
+    "label": "{percentage}%",
+    "tooltip": "Current Battery: {percentage}%",
+    "truncationSize": -1,
+    "hideOnEmpty": true,
+    "interval": 60000,
+    "execute": "headsetcontrol -d 0x1038:0x1290 -b | awk -F': ' '/Level/ {print $2}' | sed 's/[^0-9]*//g' | xargs -I{} echo '{\"percentage\": {}}' || echo ''",
+    "actions": {
+      "onLeftClick": "headsetcontrol -d 0x1038:0x1290 -b | awk -F': ' '/Level/ {print $2}' || echo ''"
+    }
+  },
+  "custom/github": {
+    "icon": "󰊤",
+    "label": "{count}",
+    "tooltip": "GitHub notifications: {count}",
+    "hideOnEmpty": true,
+    "interval": 300000,
+    "execute": "gh api notifications --jq 'length' 2>/dev/null | xargs -I{} echo '{\"count\": {}}' || echo ''",
+    "actions": {
+      "onLeftClick": "xdg-open https://github.com/notifications",
+      "onRightClick": "gh api notifications -X PUT"
+    }
+  }
+}

@@ -1,40 +1,50 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Kopia backup script
-
 BACKUP_NAME="$1"
 CONFIG_FILE="$2"
 PASSWORD_FILE="$3"
-shift 3
-BACKUP_PATHS=("$@")
+JSON_CONFIG="$4"
 
-echo "Starting backup: $BACKUP_NAME"
-echo "Paths: ${BACKUP_PATHS[*]}"
 
-# Set environment variables
 KOPIA_PASSWORD="$(cat "$PASSWORD_FILE")"
 export KOPIA_PASSWORD
-export KOPIA_CONFIG_PATH="$CONFIG_FILE"
+KOPIA_PARALLEL=4
 
-# Send start notification
-notify-send "Kopia Backup" "Starting backup: $BACKUP_NAME" --icon=document-save --urgency=low
+mapfile -t BACKUP_PATHS < <(jq -r '.paths[]' "$JSON_CONFIG")
+mapfile -t EXCLUDES < <(jq -r '.exclude[]?' "$JSON_CONFIG")
+COMPRESSION=$(jq -r '.compression' "$JSON_CONFIG")
+RETENTION_DAILY=$(jq -r '.retentionPolicy.keepDaily // empty' "$JSON_CONFIG")
+RETENTION_WEEKLY=$(jq -r '.retentionPolicy.keepWeekly // empty' "$JSON_CONFIG")
+RETENTION_MONTHLY=$(jq -r '.retentionPolicy.keepMonthly // empty' "$JSON_CONFIG")
+RETENTION_ANNUAL=$(jq -r '.retentionPolicy.keepAnnual // empty' "$JSON_CONFIG")
 
-# Create snapshot
-echo "Creating snapshot..."
-kopia snapshot create "${BACKUP_PATHS[@]}" \
-    --description="Automated backup: $BACKUP_NAME" \
-    --tags="type:automated,name:$BACKUP_NAME" \
-    --config-file="$CONFIG_FILE"
+KOPIA_POLICY_ARGS=()
+[[ -n "$COMPRESSION" && "$COMPRESSION" != "null" ]] && KOPIA_POLICY_ARGS+=("--compression=$COMPRESSION")
+[[ -n "$RETENTION_DAILY" ]] && KOPIA_POLICY_ARGS+=("--keep-daily=$RETENTION_DAILY")
+[[ -n "$RETENTION_WEEKLY" ]] && KOPIA_POLICY_ARGS+=("--keep-weekly=$RETENTION_WEEKLY")
+[[ -n "$RETENTION_MONTHLY" ]] && KOPIA_POLICY_ARGS+=("--keep-monthly=$RETENTION_MONTHLY")
+[[ -n "$RETENTION_ANNUAL" ]] && KOPIA_POLICY_ARGS+=("--keep-annual=$RETENTION_ANNUAL")
+for pattern in "${EXCLUDES[@]}"; do [[ -n "$pattern" ]] && KOPIA_POLICY_ARGS+=("--add-ignore=$pattern"); done
 
-BACKUP_STATUS=$?
+notify() {
+  local title="$1" message="$2" urgency="${3:-normal}"
+  if [[ $urgency == "critical" ]]; then
+    notify-send "$title" "❌ $message" --icon=dialog-error --urgency="$urgency"
+  else
+    notify-send -t 5000 "$title" "✅ $message" --icon=dialog-information --urgency="$urgency"
+  fi
+}
 
-if [ $BACKUP_STATUS -eq 0 ]; then
-    echo "Backup completed successfully"
-    notify-send "Kopia Backup" "✅ Backup completed successfully: $BACKUP_NAME" --icon=dialog-ok --urgency=normal
+if kopia policy set "${KOPIA_POLICY_ARGS[@]}" --config-file="$CONFIG_FILE" "${BACKUP_PATHS[@]}" \
+  && kopia snapshot create "${BACKUP_PATHS[@]}" \
+      --description="Automated backup: $BACKUP_NAME" \
+      --tags="type:automated,name:$BACKUP_NAME" \
+      --config-file="$CONFIG_FILE" \
+      --parallel="$KOPIA_PARALLEL"; then
+  notify "Kopia Backup" "Backup completed successfully: $BACKUP_NAME"
+  exit 0
 else
-    echo "Backup failed with status: $BACKUP_STATUS"
-    notify-send "Kopia Backup" "❌ Backup failed: $BACKUP_NAME" --icon=dialog-error --urgency=critical
+  notify "Kopia Backup" "Backup failed: $BACKUP_NAME" "critical"
+  exit 1
 fi
-
-exit $BACKUP_STATUS

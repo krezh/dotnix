@@ -12,6 +12,9 @@
       motd = ''
         ❄️ Welcome to the {14}{bold}Default{reset} shell ❄️
       '';
+      packages = [
+        "nix-fast-build"
+      ];
     };
     commands = [
       {

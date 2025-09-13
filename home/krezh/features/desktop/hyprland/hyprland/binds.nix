@@ -6,6 +6,23 @@
 }:
 let
 
+  clipboardScript = pkgs.writeScriptBin "clippaste" ''
+    #!/bin/sh
+    activeWindow=$(${pkgs.hyprland}/bin/hyprctl activewindow -j | ${pkgs.jq} -r '.class') # -r strips quotes
+    shiftPasteClasses=(kitty)
+    echo "Active window class: $activeWindow"
+    contains_element() {
+      local e
+      for e in "$@:2"; do [[ "$e" == "$1" ]] && return 0; done
+      return 1
+    }
+    if contains_element "$activeWindow" "$shiftPasteClasses[@]"; then
+        ${pkgs.hyprland}/bin/hyprctl dispatch sendshortcut "CTRL SHIFT,V,"
+    else
+        ${pkgs.hyprland}/bin/hyprctl dispatch sendshortcut "CTRL,V,"
+    fi
+  '';
+
   kitty = {
     pkg = pkgs.kitty;
     bin = lib.getExe kitty.pkg;
@@ -37,15 +54,6 @@ in
 {
   wayland.windowManager.hyprland = {
     settings = {
-      windowrulev2 = [
-        "float,class:(clipse)"
-        "size 622 652,class:(clipse)"
-        "stayfocused, class:(clipse)"
-        "stayfocused, class:(Rofi)"
-        "workspace 4 silent, class:^(vesktop|legcord)$"
-        "workspace 3, class:^(steam_app_[0-9]+)$"
-      ];
-
       bind = [
         "${mainMod},ESCAPE,exec,${lib.getExe pkgs.wlogout}"
         "${mainMod},L,exec,${hyprlock.bin} --immediate"
@@ -60,7 +68,7 @@ in
         "${mainModShift},T,exec,[float] ${defaultTerminal}"
         "${mainMod},O,exec,${lib.getExe pkgs.gnome-calculator}"
         "CTRL SHIFT,ESCAPE,exec,${lib.getExe pkgs.resources}"
-        "${mainMod},C,exec,${defaultTerminal} --class clipse ${lib.getExe config.hmModules.desktop.clipse.package}"
+        "${mainMod},C,exec,${defaultTerminal} --class clipse -e ${lib.getExe config.hmModules.desktop.clipse.package} && ${lib.getExe clipboardScript}"
 
         # Printscreen
         "${mainModShift},S,exec,${recShot} -m image-area"

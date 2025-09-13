@@ -1,5 +1,8 @@
 { pkgs, config, ... }:
 {
+  home.file.".config/hyprpanel/modules.json".source = ./modules.json;
+  home.file.".config/hyprpanel/modules.scss".source = ./modules.scss;
+
   programs.hyprpanel = {
     enable = true;
     settings = {
@@ -11,7 +14,7 @@
             "/mnt/secondary"
           ];
           round = true;
-          pollingInterval = 10000;
+          pollingInterval = 60000;
         };
         battery = {
           label = false;
@@ -35,8 +38,11 @@
             ];
             middle = [ "media" ];
             right = [
+              "custom/steelseries"
+              "custom/github"
               "hypridle"
               "storage"
+              "custom/wallpaper"
               "volume"
               "network"
               "bluetooth"
@@ -115,7 +121,7 @@
           };
           floating = false;
           menus = {
-            enableShadow = false;
+            enableShadow = true;
             menu.notifications.height = "60em";
           };
           border.location = "none";
@@ -123,8 +129,9 @@
           enableShadow = false;
         };
         font.size = "1.0rem";
+        font.family = "Inter Display Bold";
         notification.enableShadow = true;
-        osd.enableShadow = false;
+        osd.enableShadow = true;
         matugen = false;
       };
 
@@ -138,5 +145,7 @@
     };
   };
 
-  home.packages = [ pkgs.hyprpanel ];
+  home.packages = [
+    pkgs.hyprpanel
+  ];
 }

@@ -1,4 +1,4 @@
-{ ... }:
+{ config, ... }:
 {
   imports = [
     ./hyprland
@@ -16,13 +16,13 @@
 
   hmModules.desktop.kopia = {
     enable = true;
-    gui.enable = true;
     repository = {
       type = "filesystem";
-      path = "/home/krezh/.local/share/kopia-repository";
+      path = "/run/media/krezh/Ventoy/Backup";
+      passwordFile = "${config.sops.secrets."kopia/password".path}";
     };
     backups = {
-      downloads-backup = {
+      downloads = {
         paths = [ "/home/krezh/Downloads" ];
         schedule = "daily";
         exclude = [
@@ -32,13 +32,41 @@
         ];
         compression = "zstd";
         retentionPolicy = {
-          keepDaily = 7;
-          keepWeekly = 4;
-          keepMonthly = 3;
+          keepDaily = 2;
+        };
+      };
+      pictures = {
+        paths = [ "/home/krezh/Pictures" ];
+        schedule = "daily";
+        exclude = [
+          "**/*.tmp"
+          "**/*.log"
+          "**/Trash/**"
+        ];
+        compression = "zstd";
+        retentionPolicy = {
+          keepDaily = 2;
+        };
+      };
+      wow = {
+        paths = [
+          "/home/krezh/.steam/steam/steamapps/compatdata/3300595845/pfx/drive_c/Program Files (x86)/World of Warcraft/_retail_/Interface"
+          "/home/krezh/.steam/steam/steamapps/compatdata/3300595845/pfx/drive_c/Program Files (x86)/World of Warcraft/_retail_/WTF"
+        ];
+        schedule = "daily";
+        exclude = [
+          "**/*.tmp"
+          "**/*.log"
+          "**/Trash/**"
+        ];
+        compression = "zstd";
+        retentionPolicy = {
+          keepDaily = 2;
         };
       };
     };
   };
+
   services.udiskie = {
     enable = true;
   };

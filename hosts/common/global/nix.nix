@@ -2,12 +2,11 @@
   inputs,
   lib,
   config,
-  pkgs,
   ...
 }:
 {
   nix = {
-    package = pkgs.lixPackageSets.stable.lix;
+    # package = pkgs.lixPackageSets.stable.lix;
     extraOptions = ''
       !include ${config.sops.templates."nix_access_token.conf".path}
     '';

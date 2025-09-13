@@ -1,0 +1,31 @@
+/* ##################################
+ * #  Custom Wallpaper Module Styling  #
+ * ################################## */
+@include styleModule(
+  // class name
+  "cmodule-wallpaper",
+  (
+    "text-color": #cdd6f4,
+    "icon-color": #a6e3a1,
+    "icon-size": 1.2em,
+    "inner-spacing": 0,
+    "padding": 0,
+    "margin": 0,
+  )
+);
+@include styleModule(
+  "cmodule-steelseries",
+  (
+    "text-color": #cdd6f4,
+    "icon-color": #a6e3a1,
+    "icon-size": 1.2em,
+  )
+);
+@include styleModule(
+  "cmodule-github",
+  (
+    "text-color": #cdd6f4,
+    "icon-color": #cdd6f4,
+    "icon-size": 1.2em,
+  )
+);

@@ -6,46 +6,72 @@
 }:
 let
   cfg = config.hmModules.desktop.kopia;
-
-  # Script files
-  initScript = pkgs.writeShellScript "kopia-init" (builtins.readFile ./scripts/init-repository.sh);
-  backupScript = pkgs.writeShellScript "kopia-backup" (builtins.readFile ./scripts/backup.sh);
-  maintenanceScript = pkgs.writeShellScript "kopia-maintenance" (
-    builtins.readFile ./scripts/maintenance.sh
-  );
-  managerScript = pkgs.buildGoModule {
+  kopiaManager = pkgs.buildGoModule {
     pname = "kopia-manager";
-    version = "1.0.0";
+    version = "0.0.0";
     src = ./kopia-manager;
     vendorHash = "sha256-Ki9MKnuqVf079sLud0f1+tvp40IoUsUxkH4862zGg4I=";
-
-    buildInputs = with pkgs; [
-      kopia
-    ];
-
+    buildInputs = [ pkgs.kopia ];
     postInstall = ''
-      # Install shell completions
       installShellCompletion --cmd kopia-manager \
         --bash <($out/bin/kopia-manager completion bash) \
         --zsh <($out/bin/kopia-manager completion zsh) \
         --fish <($out/bin/kopia-manager completion fish)
     '';
-
-    nativeBuildInputs = with pkgs; [
-      installShellFiles
-    ];
-
-    meta = with lib; {
-      description = "Kopia backup manager with CLI";
-      license = licenses.mit;
-      maintainers = [ ];
-    };
+    nativeBuildInputs = with pkgs; [ installShellFiles ];
   };
+  configFile = "${config.xdg.configHome}/kopia/repository.config";
+  defaultPasswordFile = "${config.xdg.configHome}/kopia/repository.password";
+  repositoryPath = "${config.xdg.dataHome}/kopia-repository";
 
-  # Configuration paths
-  configFile = "${config.home.homeDirectory}/.config/kopia/repository.config";
-  passwordFile = "${config.home.homeDirectory}/.config/kopia/repository.password";
-  repositoryPath = "${config.home.homeDirectory}/.local/share/kopia-repository";
+  mkBackupService =
+    name: backup:
+    let
+      configJson = mkBackupConfigJson name backup;
+      passwordFile = cfg.repository.passwordFile;
+    in
+    {
+      Unit = {
+        Description = "Kopia backup: ${name}";
+        After = [ "kopia-init.service" ];
+        Requires = [ "kopia-init.service" ];
+      };
+      Service = {
+        Type = "oneshot";
+        ExecStart = "${pkgs.writeShellScript "kopia-backup" (builtins.readFile ./scripts/backup.sh)} ${name} ${configFile} ${passwordFile} ${configJson}";
+        Environment = [
+          "KOPIA_CHECK_FOR_UPDATES=false"
+        ];
+      };
+    };
+
+  mkBackupConfigJson =
+    name: backup:
+    let
+      json = builtins.toJSON {
+        name = name;
+        paths = backup.paths;
+        exclude = backup.exclude;
+        compression = backup.compression;
+        retentionPolicy = backup.retentionPolicy;
+      };
+    in
+    pkgs.writeTextFile {
+      name = "kopia-backup-${name}-config.json";
+      text = json;
+    };
+
+  mkBackupTimer = name: backup: {
+    Unit = {
+      Description = "Timer for Kopia backup: ${name}";
+    };
+    Timer = {
+      OnCalendar = backup.schedule;
+      Persistent = true;
+      RandomizedDelaySec = backup.jitter;
+    };
+    Install.WantedBy = [ "timers.target" ];
+  };
 in
 {
   options.hmModules.desktop.kopia = {
@@ -69,6 +95,12 @@ in
         type = lib.types.str;
         default = repositoryPath;
         description = "Path to repository (for filesystem type) or endpoint URL";
+      };
+
+      passwordFile = lib.mkOption {
+        type = lib.types.path;
+        default = defaultPasswordFile;
+        description = "Path to repository password file";
       };
     };
 
@@ -95,22 +127,11 @@ in
 
             compression = lib.mkOption {
               type = lib.types.enum [
-                "inherit"
                 "none"
-                "deflate-best-compression"
-                "deflate-best-speed"
-                "deflate-default"
                 "gzip"
                 "gzip-best-compression"
                 "gzip-best-speed"
                 "lz4"
-                "pgzip"
-                "pgzip-best-compression"
-                "pgzip-best-speed"
-                "s2-better"
-                "s2-default"
-                "s2-parallel-4"
-                "s2-parallel-8"
                 "zstd"
                 "zstd-best-compression"
                 "zstd-better-compression"
@@ -120,28 +141,34 @@ in
               description = "Compression algorithm to use";
             };
 
+            jitter = lib.mkOption {
+              type = lib.types.str;
+              default = "15m";
+              description = "Randomized delay to avoid all backups running at the same time";
+            };
+
             retentionPolicy = {
               keepDaily = lib.mkOption {
                 type = lib.types.nullOr lib.types.int;
-                default = 30;
+                default = null;
                 description = "Number of daily snapshots to keep";
               };
 
               keepWeekly = lib.mkOption {
                 type = lib.types.nullOr lib.types.int;
-                default = 12;
+                default = null;
                 description = "Number of weekly snapshots to keep";
               };
 
               keepMonthly = lib.mkOption {
                 type = lib.types.nullOr lib.types.int;
-                default = 12;
+                default = null;
                 description = "Number of monthly snapshots to keep";
               };
 
               keepAnnual = lib.mkOption {
                 type = lib.types.nullOr lib.types.int;
-                default = 3;
+                default = null;
                 description = "Number of annual snapshots to keep";
               };
             };
@@ -152,10 +179,24 @@ in
       description = "Backup configurations";
     };
 
+    maintenance = {
+      schedule = lib.mkOption {
+        type = lib.types.str;
+        default = "weekly";
+        description = "Maintenance schedule (systemd timer format)";
+      };
+
+      jitter = lib.mkOption {
+        type = lib.types.str;
+        default = "1h";
+        description = "Randomized delay for maintenance to avoid resource conflicts";
+      };
+    };
+
     gui = {
       enable = lib.mkOption {
         type = lib.types.bool;
-        default = true;
+        default = false;
         description = "Enable Kopia desktop GUI";
       };
     };
@@ -164,16 +205,11 @@ in
   config = lib.mkIf cfg.enable {
     home.packages = [
       pkgs.kopia
-      pkgs.libnotify
-      managerScript
+      kopiaManager
     ]
-    ++ lib.optionals cfg.gui.enable [
-      pkgs.kopia-ui
-    ];
+    ++ lib.optionals cfg.gui.enable [ pkgs.kopia-ui ];
 
-    # Services
     systemd.user.services = {
-      # Initialize repository service
       kopia-init = {
         Unit = {
           Description = "Initialize Kopia repository";
@@ -182,12 +218,14 @@ in
         Service = {
           Type = "oneshot";
           RemainAfterExit = true;
-          ExecStart = "${initScript} ${cfg.repository.type} ${cfg.repository.path} ${configFile} ${passwordFile}";
+          ExecStart = "${pkgs.writeShellScript "kopia-init" (builtins.readFile ./scripts/init-repository.sh)} ${cfg.repository.type} ${cfg.repository.path} ${configFile} ${cfg.repository.passwordFile}";
+          Environment = [
+            "KOPIA_REPO_CONFIG=${cfg.repository.type}:${cfg.repository.path}"
+            "KOPIA_CHECK_FOR_UPDATES=false"
+          ];
         };
         Install.WantedBy = [ "default.target" ];
       };
-
-      # Maintenance service
       kopia-maintenance = {
         Unit = {
           Description = "Kopia repository maintenance";
@@ -196,74 +234,30 @@ in
         };
         Service = {
           Type = "oneshot";
-          ExecStart = "${maintenanceScript} ${configFile} ${passwordFile}";
+          ExecStart = "${pkgs.writeShellScript "kopia-maintenance" (builtins.readFile ./scripts/maintenance.sh)} ${configFile} ${cfg.repository.passwordFile}";
+          Environment = "KOPIA_CHECK_FOR_UPDATES=false";
         };
       };
     }
-    // (lib.mapAttrs' (
-      name: backup:
-      lib.nameValuePair "kopia-backup-${name}" {
-        Unit = {
-          Description = "Kopia backup: ${name}";
-          After = [ "kopia-init.service" ];
-          Requires = [ "kopia-init.service" ];
-        };
-        Service = {
-          Type = "oneshot";
-          ExecStartPre = [
-            "${pkgs.kopia}/bin/kopia policy set --compression=${backup.compression} --config-file='${configFile}' ${lib.concatStringsSep " " backup.paths}"
-          ]
-          ++ (lib.map (
-            pattern:
-            "${pkgs.kopia}/bin/kopia policy set --add-ignore='${pattern}' --config-file='${configFile}' ${lib.concatStringsSep " " backup.paths}"
-          ) backup.exclude)
-          ++ (
-            lib.optionals (backup.retentionPolicy.keepDaily != null) [
-              "${pkgs.kopia}/bin/kopia policy set --keep-daily=${toString backup.retentionPolicy.keepDaily} --config-file='${configFile}' ${lib.concatStringsSep " " backup.paths}"
-            ]
-            ++ lib.optionals (backup.retentionPolicy.keepWeekly != null) [
-              "${pkgs.kopia}/bin/kopia policy set --keep-weekly=${toString backup.retentionPolicy.keepWeekly} --config-file='${configFile}' ${lib.concatStringsSep " " backup.paths}"
-            ]
-            ++ lib.optionals (backup.retentionPolicy.keepMonthly != null) [
-              "${pkgs.kopia}/bin/kopia policy set --keep-monthly=${toString backup.retentionPolicy.keepMonthly} --config-file='${configFile}' ${lib.concatStringsSep " " backup.paths}"
-            ]
-            ++ lib.optionals (backup.retentionPolicy.keepAnnual != null) [
-              "${pkgs.kopia}/bin/kopia policy set --keep-annual=${toString backup.retentionPolicy.keepAnnual} --config-file='${configFile}' ${lib.concatStringsSep " " backup.paths}"
-            ]
-          );
-          ExecStart = "${backupScript} ${name} ${configFile} ${passwordFile} ${lib.concatStringsSep " " backup.paths}";
-        };
-      }
-    ) cfg.backups);
+    // lib.mapAttrs' (
+      name: backup: lib.nameValuePair "kopia-backup-${name}" (mkBackupService name backup)
+    ) cfg.backups;
 
-    # Timers
     systemd.user.timers = {
-      # Maintenance timer
       kopia-maintenance = {
         Unit = {
           Description = "Timer for Kopia repository maintenance";
         };
         Timer = {
-          OnCalendar = "weekly";
+          OnCalendar = cfg.maintenance.schedule;
           Persistent = true;
-          RandomizedDelaySec = "2h";
+          RandomizedDelaySec = cfg.maintenance.jitter;
         };
         Install.WantedBy = [ "timers.target" ];
       };
     }
-    // (lib.mapAttrs' (
-      name: backup:
-      lib.nameValuePair "kopia-backup-${name}" {
-        Unit = {
-          Description = "Timer for Kopia backup: ${name}";
-        };
-        Timer = {
-          OnCalendar = backup.schedule;
-          Persistent = true;
-          RandomizedDelaySec = "1h";
-        };
-        Install.WantedBy = [ "timers.target" ];
-      }
-    ) cfg.backups);
+    // lib.mapAttrs' (
+      name: backup: lib.nameValuePair "kopia-backup-${name}" (mkBackupTimer name backup)
+    ) cfg.backups;
   };
 }

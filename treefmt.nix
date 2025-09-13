@@ -11,26 +11,11 @@
       enable = pkgs.lib.meta.availableOn pkgs.stdenv.buildPlatform pkgs.nixfmt-rfc-style.compiler;
       package = pkgs.nixfmt-rfc-style;
     };
-    shellcheck = {
-      enable = true;
-    };
-    deadnix = {
-      enable = true;
-    };
-    jsonfmt = {
-      enable = true;
-    };
-    yamlfmt = {
-      enable = false;
-      settings = {
-        formatter = {
-          eof_newline = true;
-          include_document_start = true;
-          retain_line_breaks_single = true;
-          trim_trailing_whitespace = true;
-        };
-      };
-    };
+    shellcheck.enable = true;
+    deadnix.enable = true;
+    jsonfmt.enable = true;
+    gofmt.enable = true;
+    terraform.enable = true;
     prettier = {
       enable = true;
       settings = {

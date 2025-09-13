@@ -5,6 +5,7 @@
     ./binds.nix
     ./monitors.nix
     ./smartgaps.nix
+    ./rules.nix
   ];
 
   wayland.windowManager.hyprland = {

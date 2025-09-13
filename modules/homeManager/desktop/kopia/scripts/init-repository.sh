@@ -32,21 +32,19 @@ KOPIA_PASSWORD="$(cat "$PASSWORD_FILE")"
 export KOPIA_PASSWORD
 export KOPIA_CONFIG_PATH="$CONFIG_FILE"
 
-# Check if repository is already connected
+# Always disconnect and reconnect to ensure we're using the correct repository
 if kopia repository status &>/dev/null; then
-    echo "Repository already connected"
-    exit 0
+    echo "Disconnecting from current repository..."
+    kopia repository disconnect || true
 fi
 
 case "$REPO_TYPE" in
     filesystem)
-        if [ ! -f "$REPO_PATH/kopia.repository" ]; then
-            echo "Creating new filesystem repository at $REPO_PATH"
+        echo "Connecting to filesystem repository at $REPO_PATH"
+        kopia repository connect filesystem --path="$REPO_PATH" --config-file="$CONFIG_FILE" || {
+            echo "Failed to connect to existing repository, creating new one..."
             kopia repository create filesystem --path="$REPO_PATH" --config-file="$CONFIG_FILE"
-        else
-            echo "Connecting to existing filesystem repository at $REPO_PATH"
-            kopia repository connect filesystem --path="$REPO_PATH" --config-file="$CONFIG_FILE"
-        fi
+        }
         ;;
     *)
         echo "Repository type $REPO_TYPE requires manual setup"

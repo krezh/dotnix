@@ -17,6 +17,7 @@ import (
 var (
 	imageDirectory = flag.String("d", "", "directory containing images")
 	interval       = flag.Int("i", 0, "seconds to wait between images")
+	oneshot        = flag.Bool("o", false, "run once and exit")
 	help           = flag.Bool("h", false, "show this help")
 )
 
@@ -28,6 +29,7 @@ var imageExtensions = []string{
 func init() {
 	flag.StringVar(imageDirectory, "image-directory", "", "directory containing images")
 	flag.IntVar(interval, "interval", 0, "seconds to wait between images")
+	flag.BoolVar(oneshot, "oneshot", false, "run once and exit")
 	flag.BoolVar(help, "help", false, "show this help")
 }
 
@@ -35,15 +37,21 @@ func main() {
 	flag.Parse()
 
 	if *help {
-		fmt.Printf("Usage: %s -d <image-directory> -i <interval>\n", os.Args[0])
+		fmt.Printf("Usage: %s -d <image-directory> [-i <interval>] [-o]\n", os.Args[0])
 		fmt.Println("  -d, --image-directory  directory containing images")
-		fmt.Println("  -i, --interval         seconds to wait between images")
+		fmt.Println("  -i, --interval         seconds to wait between images (required for slideshow mode)")
+		fmt.Println("  -o, --oneshot          run once and exit")
 		fmt.Println("  -h, --help             show this help")
 		return
 	}
 
-	if *imageDirectory == "" || *interval <= 0 {
-		fmt.Println("Error: Both image directory and interval are required")
+	if *imageDirectory == "" {
+		fmt.Println("Error: Image directory is required")
+		os.Exit(1)
+	}
+
+	if !*oneshot && *interval <= 0 {
+		fmt.Println("Error: Interval is required for slideshow mode")
 		os.Exit(1)
 	}
 
@@ -63,11 +71,22 @@ func main() {
 	}
 
 	fmt.Printf("Image directory: %s\n", *imageDirectory)
-	fmt.Printf("Interval: %d seconds\n", *interval)
+	if *oneshot {
+		fmt.Println("Mode: Oneshot")
+	} else {
+		fmt.Printf("Interval: %d seconds\n", *interval)
+		fmt.Println("Mode: Slideshow")
+	}
 	fmt.Printf("Transition FPS: %s\n", getEnvWithDefault("SWWW_TRANSITION_FPS", "30"))
 	fmt.Printf("Transition Step: %s\n", getEnvWithDefault("SWWW_TRANSITION_STEP", "90"))
 	fmt.Printf("Transition Type: %s\n", getEnvWithDefault("SWWW_TRANSITION", "any"))
 	fmt.Printf("Transition Position: %s\n", getEnvWithDefault("SWWW_TRANSITION_POS", "center"))
+
+	if *oneshot {
+		runOneshot()
+		return
+	}
+
 	fmt.Println("Starting slideshow...")
 
 	// Set up graceful shutdown
@@ -83,6 +102,18 @@ func main() {
 	}()
 
 	runSlideshow(ctx)
+}
+
+func runOneshot() {
+	images, err := findImages(*imageDirectory)
+	if err != nil || len(images) == 0 {
+		fmt.Printf("Error: No images found in %s\n", *imageDirectory)
+		os.Exit(1)
+	}
+
+	// Select random image
+	randomImage := images[rand.Intn(len(images))]
+	displayImage(randomImage)
 }
 
 func runSlideshow(ctx context.Context) {

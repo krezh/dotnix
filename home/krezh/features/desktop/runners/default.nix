@@ -1,7 +1,6 @@
 {
   imports = [
     ./rofi
-    ./sherlock
     ./walker
   ];
 }

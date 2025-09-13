@@ -20,9 +20,21 @@
 
   gtk = {
     enable = true;
+    font = {
+      name = "Inter";
+      size = 11;
+    };
     theme = {
-      name = "Fluent-Dark";
-      package = pkgs.fluent-gtk-theme;
+      name = "Colloid-Teal-Dark-Catppuccin";
+      package = pkgs.colloid-gtk-theme.override {
+        colorVariants = [ "dark" ];
+        themeVariants = [ "teal" ];
+        tweaks = [
+          "catppuccin"
+          "rimless"
+          "float"
+        ];
+      };
     };
 
     gtk4.extraConfig = {

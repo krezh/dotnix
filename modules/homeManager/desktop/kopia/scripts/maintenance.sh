@@ -13,16 +13,21 @@ KOPIA_PASSWORD="$(cat "$PASSWORD_FILE")"
 export KOPIA_PASSWORD
 export KOPIA_CONFIG_PATH="$CONFIG_FILE"
 
+notify() {
+  local title="$1" message="$2" urgency="${3:-normal}"
+  if [[ $urgency == "critical" ]]; then
+    notify-send "$title" "❌ $message" --icon=dialog-error --urgency="$urgency"
+  else
+    notify-send -t 5000 "$title" "✅ $message" --icon=dialog-information --urgency="$urgency"
+  fi
+}
+
 # Run full maintenance
 echo "Running full maintenance..."
-kopia maintenance run --full --safety=none --config-file="$CONFIG_FILE"
 
-MAINTENANCE_STATUS=$?
-
-if [ $MAINTENANCE_STATUS -eq 0 ]; then
+if kopia maintenance run --full --safety=full --config-file="$CONFIG_FILE"; then
     echo "Maintenance completed successfully"
 else
-    echo "Maintenance failed with status: $MAINTENANCE_STATUS"
+    echo "Maintenance failed"
+    notify "Kopia Maintenance" "Maintenance failed" "critical"
 fi
-
-exit $MAINTENANCE_STATUS
