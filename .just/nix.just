@@ -47,11 +47,11 @@ apply: build
 fast-build-pr pr:
     #!/usr/bin/env bash
     set -euo pipefail
-    nix run nixpkgs#nix-fast-build -- --skip-cached --flake "github:krezh/nix-config/pull/{{ pr }}/head#top" --attic-cache krezh
+    nix run nixpkgs#nix-fast-build -- --skip-cached --flake "github:krezh/nix-config/pull/{{ pr }}/head#top"
 
 # Build a specific pull request from GitHub
 [no-cd]
 fast-build:
     #!/usr/bin/env bash
     set -euo pipefail
-    nix run nixpkgs#nix-fast-build -- --skip-cached --flake ".#top" --attic-cache krezh
+    nix run nixpkgs#nix-fast-build -- --skip-cached --flake ".#top"

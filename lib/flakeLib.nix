@@ -37,13 +37,20 @@ let
           ;
       };
       modules =
-        lib.scanPath.toList { path = (lib.relativeToRoot "hosts/${hostname}"); }
+        (getHostModules hostname)
         ++ (config.extraModules or [ ])
         ++ mkHomeUsers {
           users = homeUsers;
           inherit hostname;
         };
     };
+  getHostModules =
+    hostname:
+    let
+      hostPath = lib.relativeToRoot "hosts/${hostname}";
+    in
+    if lib.pathExists hostPath then [ hostPath ] else [ ];
+
   mkHomeUsers =
     { users, hostname }:
     lib.optionals (users != [ ]) [

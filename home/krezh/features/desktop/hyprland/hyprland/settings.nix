@@ -67,8 +67,8 @@
       rounding_power = 3;
 
       # Global transparency settings
-      active_opacity = 0.90;
-      inactive_opacity = 0.90;
+      active_opacity = 0.85;
+      inactive_opacity = 0.85;
 
       blur = {
         enabled = true;

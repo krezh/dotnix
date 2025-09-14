@@ -8,8 +8,8 @@
 {
   imports = [
     (modulesPath + "/installer/scan/not-detected.nix")
-    ./udev-rules
   ];
+
   console = {
     earlySetup = false;
   };

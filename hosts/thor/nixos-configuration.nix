@@ -1,6 +1,5 @@
 {
   pkgs,
-  lib,
   inputs,
   hostname,
   ...
@@ -10,9 +9,9 @@
     inputs.chaotic.nixosModules.nyx-cache
     inputs.chaotic.nixosModules.nyx-overlay
     inputs.chaotic.nixosModules.nyx-registry
-  ]
-  ++ (lib.scanPath.toList { path = ../common/users; })
-  ++ (lib.scanPath.toList { path = ../common/global; });
+    ../common/users
+    ../common/global
+  ];
 
   boot = {
     plymouth = {

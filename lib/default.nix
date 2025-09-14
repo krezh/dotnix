@@ -3,8 +3,6 @@
   ...
 }:
 {
-  scanPath = import ./scanPath.nix { inherit inputs; };
-
   relativeToRoot = inputs.nixpkgs.lib.path.append ../.;
 
   mapToGha =

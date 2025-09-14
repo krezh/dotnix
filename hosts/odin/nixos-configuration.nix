@@ -1,14 +1,13 @@
 {
   pkgs,
-  lib,
   hostname,
   ...
 }:
 {
   imports = [
-  ]
-  ++ (lib.scanPath.toList { path = ../common/users; })
-  ++ (lib.scanPath.toList { path = ../common/global; });
+    ../common/users
+    ../common/global
+  ];
 
   boot = {
     plymouth = {

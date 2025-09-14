@@ -174,10 +174,15 @@
         top = flakeLib.top;
 
         overlays = import ./overlays { inherit inputs lib; };
-        homeManagerModules = lib.scanPath.toList { path = ./modules/homeManager; };
+        homeManagerModules = [
+          ./modules/homeManager
+        ];
         nixosModules.default = {
-          imports = lib.scanPath.toList { path = ./modules/nixos; };
+          imports = [
+            ./modules/nixos
+          ];
         };
+        om.ci.default.root.dir = ".";
       };
 
       perSystem =

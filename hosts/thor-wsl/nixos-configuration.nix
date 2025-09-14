@@ -10,9 +10,9 @@
   imports = [
     inputs.nixos-wsl.nixosModules.wsl
     (modulesPath + "/profiles/minimal.nix")
-  ]
-  ++ (lib.scanPath.toList { path = ../common/users; })
-  ++ (lib.scanPath.toList { path = ../common/global; });
+    ../common/users
+    ../common/global
+  ];
 
   wsl = {
     enable = true;
