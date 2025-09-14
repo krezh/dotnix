@@ -76,11 +76,6 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    ironbar = {
-      url = "github:JakeStanger/ironbar";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-
     sops-nix = {
       url = "github:Mic92/sops-nix";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -116,6 +111,7 @@
       url = "github:Skxxtz/sherlock";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+
     swww.url = "github:LGFae/swww";
     swww.inputs.nixpkgs.follows = "nixpkgs";
 

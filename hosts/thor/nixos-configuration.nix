@@ -82,7 +82,7 @@
   };
 
   services.hardware.openrgb = {
-    enable = true;
+    enable = false;
     package = pkgs.openrgb-with-all-plugins;
     motherboard = "intel";
   };
