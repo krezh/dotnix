@@ -47,7 +47,7 @@
         impure_msg = "[$name](bold red)";
         pure_msg = "[$name](bold green)";
         unknown_msg = "[$name](bold yellow)";
-        format = "\\[[$state](bold blue)\\] ";
+        format = "[$state](bold blue) ";
         heuristic = true;
       };
       cmd_duration = {

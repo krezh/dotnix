@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -51,8 +52,19 @@ func (c *Config) Validate() error {
 	}
 
 	if c.Zipline {
+		if c.ZiplineURL == "" {
+			return &ValidationError{Field: "url", Message: "Zipline URL is required when --zipline is enabled. Use -u/--url to specify it"}
+		}
+
 		if _, err := os.Stat(c.TokenFile); os.IsNotExist(err) {
-			return &ValidationError{Field: "token", Message: "token file not found: " + c.TokenFile}
+			return &ValidationError{Field: "token", Message: fmt.Sprintf("token file not found: %s. Use -t/--token to specify a different path", c.TokenFile)}
+		}
+
+		// Check if token file is readable and not empty
+		if data, err := os.ReadFile(c.TokenFile); err != nil {
+			return &ValidationError{Field: "token", Message: fmt.Sprintf("cannot read token file: %s", err)}
+		} else if len(strings.TrimSpace(string(data))) == 0 {
+			return &ValidationError{Field: "token", Message: "token file is empty: " + c.TokenFile}
 		}
 	}
 

@@ -2,7 +2,10 @@
 let
   defaultBrowser = "zen-beta.desktop";
   defaultImageViewer = "org.libvips.vipsdisp.desktop";
-  defaultVideoPlayer = "io.github.celluloid_player.Celluloid.desktop";
+  defaultVideoPlayer = "mpv.desktop";
+  defaultTextEditor = "dev.zed.Zed.desktop";
+  defaultFileManager = "org.gnome.Nautilus.desktop";
+  defaultArchiveManager = "org.gnome.FileRoller.desktop";
 
   # Path to the freedesktop.org MIME type list
   mimeList = builtins.readFile "${pkgs.shared-mime-info}/share/mime/types";
@@ -20,16 +23,38 @@ let
 
   manualDefaults = {
     "application/pdf" = "org.gnome.Evince.desktop";
-    "application/json" = defaultBrowser;
+    # Browser
     "text/html" = defaultBrowser;
     "x-scheme-handler/http" = defaultBrowser;
     "x-scheme-handler/https" = defaultBrowser;
     "x-scheme-handler/ftp" = defaultBrowser;
-    "x-scheme-handler/file" = defaultBrowser;
     "x-scheme-handler/mailto" = defaultBrowser;
     "x-scheme-handler/webcal" = defaultBrowser;
     "x-scheme-handler/about" = defaultBrowser;
     "x-scheme-handler/unknown" = defaultBrowser;
+    # Editor
+    "text/plain" = defaultTextEditor;
+    "text/markdown" = defaultTextEditor;
+    "application/json" = defaultTextEditor;
+    "application/xml" = defaultTextEditor;
+    "application/x-yaml" = defaultTextEditor;
+    # File manager
+    "inode/directory" = defaultFileManager;
+    # Archive
+    "application/zip" = defaultArchiveManager;
+    "application/x-tar" = defaultArchiveManager;
+    "application/x-7z-compressed" = defaultArchiveManager;
+    "application/x-rar" = defaultArchiveManager;
+    "application/gzip" = defaultArchiveManager;
+    "application/x-bzip2" = defaultArchiveManager;
+    "application/x-xz" = defaultArchiveManager;
+    "application/x-lzip" = defaultArchiveManager;
+    "application/x-lzma" = defaultArchiveManager;
+    "application/x-zstd" = defaultArchiveManager;
+    "application/x-compress" = defaultArchiveManager;
+    "application/x-bzip" = defaultArchiveManager;
+    "application/x-lzop" = defaultArchiveManager;
+    "application/x-lz4" = defaultArchiveManager;
   };
 
 in

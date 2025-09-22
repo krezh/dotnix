@@ -60,14 +60,14 @@ func main() {
 		fmt.Fprintf(os.Stderr, "  -h, --help             Show this help message\n\n")
 
 		fmt.Fprintf(os.Stderr, "ZIPLINE OPTIONS:\n")
-		fmt.Fprintf(os.Stderr, "      --zipline          Upload to Zipline after capture\n")
-		fmt.Fprintf(os.Stderr, "  -u, --url URL          Zipline server URL\n")
-		fmt.Fprintf(os.Stderr, "  -t, --token FILE       Zipline token file path\n\n")
+		fmt.Fprintf(os.Stderr, "      --zipline          Upload to Zipline after capture (requires --url and token file)\n")
+		fmt.Fprintf(os.Stderr, "  -u, --url URL          Zipline server URL (required with --zipline)\n")
+		fmt.Fprintf(os.Stderr, "  -t, --token FILE       Zipline token file path (default: ~/.config/zipline/token)\n\n")
 
 		fmt.Fprintf(os.Stderr, "EXAMPLES:\n")
 		fmt.Fprintf(os.Stderr, "  %s -m image-area                    # Select area to screenshot\n", os.Args[0])
 		fmt.Fprintf(os.Stderr, "  %s -m image-full -p ~/Pictures     # Full screenshot to ~/Pictures\n", os.Args[0])
-		fmt.Fprintf(os.Stderr, "  %s -m video-area --zipline          # Record area and upload\n", os.Args[0])
+		fmt.Fprintf(os.Stderr, "  %s -m video-area --zipline -u https://your.zipline.com  # Record area and upload\n", os.Args[0])
 		fmt.Fprintf(os.Stderr, "  %s --status                         # Check recording status\n", os.Args[0])
 	}
 

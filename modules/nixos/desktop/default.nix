@@ -6,7 +6,6 @@
     ./fonts
     ./steam
     ./bluetooth
-    ./smb-mount
-    ./ldap-auth
+    ./mount
   ];
 }

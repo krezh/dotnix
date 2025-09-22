@@ -18,25 +18,12 @@
     enable = true;
     repository = {
       type = "filesystem";
-      path = "/run/media/krezh/Ventoy/Backup";
+      path = "/mnt/kopia";
       passwordFile = "${config.sops.secrets."kopia/password".path}";
     };
     backups = {
       downloads = {
         paths = [ "/home/krezh/Downloads" ];
-        schedule = "daily";
-        exclude = [
-          "**/*.tmp"
-          "**/*.log"
-          "**/Trash/**"
-        ];
-        compression = "zstd";
-        retentionPolicy = {
-          keepDaily = 2;
-        };
-      };
-      pictures = {
-        paths = [ "/home/krezh/Pictures" ];
         schedule = "daily";
         exclude = [
           "**/*.tmp"

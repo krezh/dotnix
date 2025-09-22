@@ -25,10 +25,11 @@
       size = 11;
     };
     theme = {
-      name = "Colloid-Teal-Dark-Catppuccin";
+      name = "Colloid-Dark-Compact-Catppuccin";
       package = pkgs.colloid-gtk-theme.override {
         colorVariants = [ "dark" ];
-        themeVariants = [ "teal" ];
+        themeVariants = [ "default" ];
+        sizeVariants = [ "compact" ];
         tweaks = [
           "catppuccin"
           "rimless"

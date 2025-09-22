@@ -1,5 +1,6 @@
 {
   config,
+  inputs,
   lib,
   pkgs,
   homeUsers,
@@ -7,27 +8,22 @@
 }:
 let
   cfg = config.nixosModules.desktop.steam;
+  defaultSteamCompatToolsPath = "$HOME/.steam/root/compatibilitytools.d";
 in
 {
   options.nixosModules.desktop.steam = {
     enable = lib.mkEnableOption "steam";
   };
 
-  config = lib.mkIf cfg.enable {
-    programs.gamemode = {
-      enable = true;
-      enableRenice = true;
-      settings = {
-        custom = {
-          start = "${pkgs.libnotify}/bin/notify-send -t 5000 'GameMode' 'Started'";
-          end = "${pkgs.libnotify}/bin/notify-send -t 5000 'GameMode' 'Ended'";
-        };
-      };
-    };
+  imports = [
+    inputs.nix-gaming.nixosModules.platformOptimizations
+    inputs.nix-gaming.nixosModules.wine
+    inputs.nix-gaming.nixosModules.pipewireLowLatency
+  ];
 
+  config = lib.mkIf cfg.enable {
     environment = {
       systemPackages = with pkgs; [
-        wine
         winetricks
         vulkan-tools
         sgdboop
@@ -39,13 +35,29 @@ in
         lact
       ];
       sessionVariables = {
-        STEAM_EXTRA_COMPAT_TOOLS_PATHS = "$HOME/.steam/root/compatibilitytools.d";
+        STEAM_EXTRA_COMPAT_TOOLS_PATHS = "${defaultSteamCompatToolsPath}";
       };
     };
+
     programs = {
       gamescope = {
-        enable = false;
-        capSysNice = false;
+        enable = true;
+        capSysNice = true;
+      };
+      gamemode = {
+        enable = true;
+        enableRenice = true;
+        settings = {
+          custom = {
+            start = "${pkgs.libnotify}/bin/notify-send -t 5000 'GameMode' 'Started'";
+            end = "${pkgs.libnotify}/bin/notify-send -t 5000 'GameMode' 'Ended'";
+          };
+        };
+      };
+      wine = {
+        enable = true;
+        ntsync = true;
+        binfmt = true;
       };
       steam = {
         enable = true;
@@ -55,7 +67,12 @@ in
         extraCompatPackages = with pkgs; [
           proton-ge-bin
         ];
+        platformOptimizations.enable = true;
       };
+    };
+
+    services.pipewire.lowLatency = {
+      enable = true;
     };
 
     systemd.user.services.steam = {
@@ -71,7 +88,7 @@ in
         Restart = "on-failure";
         RestartSec = "5s";
         Environment = [
-          "STEAM_EXTRA_COMPAT_TOOLS_PATHS=$HOME/.steam/root/compatibilitytools.d"
+          "STEAM_EXTRA_COMPAT_TOOLS_PATHS=${defaultSteamCompatToolsPath}"
         ];
       };
     };

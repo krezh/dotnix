@@ -24,19 +24,23 @@ in
         cache32Bit = true;
         hinting.enable = true;
         hinting.autohint = false;
+        hinting.style = "slight";
         subpixel = {
           rgba = "rgb";
           lcdfilter = "default";
         };
         useEmbeddedBitmaps = true;
+        defaultFonts = {
+          monospace = [ "Source Code Pro" ];
+          sansSerif = [ "Source Sans Pro" ];
+          serif = [ "Source Serif Pro" ];
+        };
       };
       fontDir.enable = true;
       enableDefaultPackages = true;
       packages = with pkgs; [
         corefonts # Microsoft free fonts
         dejavu_fonts
-        fira
-        fira-mono
         cantarell-fonts
         google-fonts
         source-code-pro
@@ -48,15 +52,11 @@ in
         noto-fonts-cjk-sans
         noto-fonts-emoji
         liberation_ttf
-        fira-code
-        fira-code-symbols
-        mplus-outline-fonts.githubRelease
         dina-font
         proggyfonts
         inter
         nerd-fonts.caskaydia-cove
         nerd-fonts.caskaydia-mono
-        nerd-fonts.droid-sans-mono
         nerd-fonts.ubuntu
         nerd-fonts.ubuntu-mono
         nerd-fonts.ubuntu-sans

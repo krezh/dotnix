@@ -6,5 +6,8 @@
     ./plex
     ./celluloid
     ./vipsdisp
+    ./mpv
+    ./tsukimi
+    ./showtime
   ];
 }

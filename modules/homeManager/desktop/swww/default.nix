@@ -10,7 +10,7 @@ let
   swww-random = pkgs.buildGoModule rec {
     pname = "swww-random";
     version = "1.0.0";
-    src = ./src;
+    src = ./swww-random;
     vendorHash = null;
     meta = with lib; {
       description = "Random wallpaper setter for swww";

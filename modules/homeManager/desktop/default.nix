@@ -8,5 +8,6 @@
     ./thunderbird
     ./discord
     ./kopia
+    ./mpv
   ];
 }

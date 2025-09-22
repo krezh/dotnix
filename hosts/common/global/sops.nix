@@ -12,6 +12,7 @@
       "github/token" = { };
       "smb/user" = { };
       "smb/pass" = { };
+      "ldap/password" = { };
     };
     templates = {
       "nix_access_token.conf" = {

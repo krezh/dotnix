@@ -121,6 +121,10 @@ in
       shellcheck
       gum
       cava
+      duf
+      systemctl-tui
+      isd
+      doggo
 
       # Secrets
       age-plugin-yubikey
@@ -129,7 +133,6 @@ in
       age
       doppler
       infisical
-      doggo
 
       # Processors
       jq
@@ -184,8 +187,6 @@ in
     neomutt.enable = true;
     yazi.enable = true;
   };
-
-  nix = { };
 
   # Nicely reload system units when changing configs
   systemd.user.startServices = "sd-switch";

@@ -59,13 +59,13 @@
       agent = {
         enabled = true;
         default_model = {
-          model = "GPT-4.1";
           provider = "copilot_chat";
+          model = "gpt-4";
         };
 
         inline_assistant_model = {
           provider = "copilot_chat";
-          model = "claude-4-sonnet";
+          model = "gpt-4";
         };
       };
 
@@ -87,7 +87,7 @@
       # Configure LSPs
       lsp = {
         nixd = {
-          args = [
+          arguments = [
             "--inlay-hints"
             "--semantic-tokens"
             "--log=verbose"

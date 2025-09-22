@@ -6,7 +6,7 @@
     "truncationSize": -1,
     "hideOnEmpty": false,
     "actions": {
-      "onLeftClick": "swww-random -d ~/wallpapers -o"
+      "onLeftClick": "swww-random -d ~/wallpapers --fps 60 --step 120 --transition grow --pos mouse -o"
     }
   },
   "custom/steelseries": {

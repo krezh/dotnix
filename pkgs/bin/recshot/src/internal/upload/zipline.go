@@ -60,8 +60,13 @@ func NewZiplineUploader(cfg *config.Config, notifier *notify.Notifier) *ZiplineU
 // Upload uploads a file to Zipline and returns the URL
 func (z *ZiplineUploader) Upload(filename string) (string, error) {
 	if z.token == "" {
-		z.notifier.SendError("Upload failed")
+		z.notifier.SendError("Upload failed - no token")
 		return "", fmt.Errorf("token not available")
+	}
+
+	if z.config.ZiplineURL == "" {
+		z.notifier.SendError("Upload failed - no URL")
+		return "", fmt.Errorf("Zipline URL not configured")
 	}
 
 	file, err := os.Open(filename)
@@ -105,19 +110,19 @@ func (z *ZiplineUploader) Upload(filename string) (string, error) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		z.notifier.SendError("Upload failed")
+		z.notifier.SendError("Upload failed - server error")
 		return "", fmt.Errorf("upload failed with status %d", resp.StatusCode)
 	}
 
 	var response ZiplineResponse
 	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil || len(response.Files) == 0 {
-		z.notifier.SendError("Upload failed")
+		z.notifier.SendError("Upload failed - invalid response")
 		return "", fmt.Errorf("invalid response")
 	}
 
 	url := response.Files[0].URL
 	go z.copyToClipboard(url)
-	z.notifier.SendSuccess("Upload successful")
+	z.notifier.SendSuccessWithAction("Upload successful", url)
 	return url, nil
 }
 

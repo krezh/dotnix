@@ -19,7 +19,7 @@
     };
     kernelPackages = pkgs.linuxPackages_cachyos;
     loader = {
-      timeout = 1;
+      timeout = 0;
       systemd-boot = {
         enable = false;
         configurationLimit = 5;
@@ -47,15 +47,6 @@
   services.scx.enable = true;
 
   xdg.mime.enable = true;
-  xdg.mime = {
-    addedAssociations = {
-      # This shouldn't be necessary, but just for good measure...
-      "inode/directory" = "org.gnome.Nautilus.desktop";
-    };
-    defaultApplications = {
-      "inode/directory" = "org.gnome.Nautilus.desktop";
-    };
-  };
 
   security.pam.services.krezh.enableGnomeKeyring = true;
   security.pam.services.gdm-password.enableGnomeKeyring = true;
@@ -90,14 +81,14 @@
   services = {
     displayManager = {
       sddm = {
-        enable = true;
+        enable = false;
         wayland.enable = true;
         wayland.compositor = "kwin";
         autoNumlock = true;
         package = pkgs.kdePackages.sddm;
       };
       gdm = {
-        enable = false;
+        enable = true;
         wayland = true;
       };
       defaultSession = "hyprland";
@@ -136,6 +127,9 @@
     enable = true;
     binfmt = true;
   };
+
+  programs.evolution.enable = true;
+  programs.sniffnet.enable = true;
 
   services.udev.packages = [ pkgs.headsetcontrol ];
 
