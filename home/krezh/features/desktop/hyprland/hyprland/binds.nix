@@ -35,9 +35,14 @@ let
     bin = lib.getExe hyprlock.pkg;
   };
 
-  rofi = {
-    pkg = pkgs.rofi;
-    bin = lib.getExe rofi.pkg;
+  # rofi = {
+  #   pkg = pkgs.rofi;
+  #   bin = lib.getExe rofi.pkg;
+  # };
+
+  walker = {
+    pkg = config.programs.walker.package;
+    bin = lib.getExe walker.pkg;
   };
 
   volume_script = lib.getExe pkgs.volume_script_hyprpanel;
@@ -57,7 +62,8 @@ in
       bindd = [
         "${mainMod},ESCAPE,Show logout menu,exec,${lib.getExe pkgs.wlogout}"
         "${mainMod},L,Lock the screen immediately,exec,${hyprlock.bin} --immediate"
-        "${mainMod},R,Launch application launcher,exec,${rofi.bin} -show drun"
+        #"${mainMod},R,Launch application launcher,exec,${rofi.bin} -show drun"
+        "${mainMod},R,Launch application launcher,exec,${walker.bin}"
         "${mainMod},B,Launch Zen Browser,exec,${lib.getExe config.programs.zen-browser.package}"
         "${mainMod},E,Launch Nautilus file manager,exec,${lib.getExe pkgs.nautilus}"
         "${mainMod},RETURN,Launch terminal,exec,${defaultTerminal}"

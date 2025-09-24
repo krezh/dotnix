@@ -81,14 +81,14 @@
   services = {
     displayManager = {
       sddm = {
-        enable = false;
+        enable = true;
         wayland.enable = true;
         wayland.compositor = "kwin";
         autoNumlock = true;
         package = pkgs.kdePackages.sddm;
       };
       gdm = {
-        enable = true;
+        enable = false;
         wayland = true;
       };
       defaultSession = "hyprland";

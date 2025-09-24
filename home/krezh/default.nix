@@ -125,6 +125,7 @@ in
       systemctl-tui
       isd
       doggo
+      dig
 
       # Secrets
       age-plugin-yubikey

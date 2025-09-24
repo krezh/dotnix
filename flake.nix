@@ -117,10 +117,9 @@
     swww.url = "github:LGFae/swww";
     swww.inputs.nixpkgs.follows = "nixpkgs";
 
-    nixcord.url = "github:kaylorben/nixcord";
-    nixcord.inputs.nixpkgs.follows = "nixpkgs";
-
     nix-gaming.url = "github:fufexan/nix-gaming";
+    walker.url = "github:abenz1267/walker";
+    walker.inputs.nixpkgs.follows = "nixpkgs";
   };
 
   outputs =
