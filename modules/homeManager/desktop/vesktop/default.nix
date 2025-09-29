@@ -36,19 +36,17 @@ in
   };
 
   config = mkIf cfg.enable {
-
     programs.vesktop.enable = true;
     programs.vesktop.package = cfg.package;
     programs.vesktop.settings = cfg.settings;
     programs.vesktop.vencord.settings = cfg.vencord.settings;
     programs.vesktop.vencord.useSystem = false;
-
     services.arrpc.enable = true;
 
     systemd.user.services.vesktop = lib.mkIf cfg.service.enable {
       Install = {
         WantedBy = [
-          (lib.mkIf config.wayland.windowManager.hyprland.systemd.enable "hyprland-session.target")
+          "graphical-session.target"
         ];
       };
       Unit = {
@@ -60,22 +58,5 @@ in
         RestartSec = 5;
       };
     };
-
-    # systemd.user.services.arRPC = mkIf cfg.arrpc.enable {
-    #   Install = {
-    #     WantedBy = [
-    #       "graphical-session.target"
-    #       "vesktop.service"
-    #     ];
-    #   };
-    #   Unit = {
-    #     Description = "Discord Rich Presence for browsers, and some custom clients";
-    #   };
-    #   Service = {
-    #     ExecStart = lib.getExe cfg.arrpc.package;
-    #     Restart = "on-failure";
-    #     RestartSec = 5;
-    #   };
-    # };
   };
 }

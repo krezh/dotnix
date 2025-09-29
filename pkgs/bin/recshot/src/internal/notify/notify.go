@@ -26,7 +26,6 @@ func findIcon() string {
 	if err != nil {
 		return ""
 	}
-
 	paths := []string{
 		filepath.Join(filepath.Dir(execPath), "recshot.png"),
 		filepath.Join(filepath.Dir(execPath), "..", "share", "recshot", "recshot.png"),
@@ -34,7 +33,6 @@ func findIcon() string {
 		"/usr/share/pixmaps/recshot.png",
 		"/usr/local/share/pixmaps/recshot.png",
 	}
-
 	for _, path := range paths {
 		if _, err := os.Stat(path); err == nil {
 			return path

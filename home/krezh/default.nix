@@ -126,6 +126,8 @@ in
       isd
       doggo
       dig
+      wowup-cf
+      lazysql
 
       # Secrets
       age-plugin-yubikey

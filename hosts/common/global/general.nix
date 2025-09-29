@@ -61,6 +61,15 @@
           ];
           groups = [ "wheel" ];
         }
+        {
+          commands = [
+            {
+              command = "/run/current-system/sw/bin/true";
+              options = [ "NOPASSWD" ];
+            }
+          ];
+          users = [ "root" ];
+        }
       ];
       extraConfig = ''
         # Show feedback when typing password

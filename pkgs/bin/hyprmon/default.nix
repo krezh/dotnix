@@ -6,6 +6,7 @@
 
 buildGoModule rec {
   pname = "hyprmon";
+  # renovate: datasource=github-releases depName=erans/hyprmon
   version = "0.0.8";
 
   src = fetchFromGitHub {
@@ -26,7 +27,6 @@ buildGoModule rec {
     description = "TUI monitor configuration tool for Hyprland with visual layout, drag-and-drop, and profile management";
     homepage = "https://github.com/erans/hyprmon/";
     license = lib.licenses.asl20;
-    maintainers = with lib.maintainers; [ ];
     mainProgram = "hyprmon";
   };
 }

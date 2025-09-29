@@ -3,6 +3,7 @@
   imports = [ inputs.nvf.homeManagerModules.default ];
   programs.nvf = {
     enable = true;
+    defaultEditor = true;
     settings = {
       vim = {
         viAlias = true;
@@ -20,16 +21,9 @@
             # lsp.server = "nixd";
           };
           markdown.enable = true;
-          html.enable = true;
-          css.enable = true;
-          ts.enable = true;
           go.enable = true;
           lua.enable = false;
           bash.enable = true;
-          rust = {
-            enable = true;
-            crates.enable = true;
-          };
         };
 
         visuals = {

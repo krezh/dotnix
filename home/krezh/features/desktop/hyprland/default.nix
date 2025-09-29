@@ -7,5 +7,6 @@
     ./hyprlock
     ./clipse
     ./wlogout
+    #./bar
   ];
 }

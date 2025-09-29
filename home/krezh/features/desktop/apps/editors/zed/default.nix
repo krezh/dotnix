@@ -2,6 +2,7 @@
   hostname,
   lib,
   pkgs,
+  inputs,
   ...
 }:
 {
@@ -87,25 +88,14 @@
       # Configure LSPs
       lsp = {
         nixd = {
-          arguments = [
-            "--inlay-hints"
-            "--semantic-tokens"
-            "--log=verbose"
-          ];
-          initialization_options = {
+          settings = {
             formatting = {
               command = [ "${lib.getExe pkgs.nixfmt-rfc-style}" ];
             };
-            nixpkgs = {
-              expr = "import (builtins.getFlake(builtins.toString ./.)).inputs.nixpkgs { }";
-            };
+            nixpkgs.expr = "import (builtins.getFlake \"${inputs.self}\").inputs.nixpkgs { }";
             options = rec {
-              nixos = {
-                expr = "(builtins.getFlake(builtins.toString ./.)).nixosConfigurations.${hostname}.options";
-              };
-              home-manager = {
-                expr = "${nixos.expr}.home-manager.users.type.getSubOptions []";
-              };
+              nixos.expr = "(builtins.getFlake \"${inputs.self}\").nixosConfigurations.${hostname}.options";
+              home-manager.expr = "${nixos.expr}.home-manager.users.type.getSubOptions []";
             };
           };
         };

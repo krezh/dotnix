@@ -13,13 +13,13 @@ let
 in
 {
   i18n = {
-    defaultLocale = lib.mkDefault "en_SE.UTF-8";
+    defaultLocale = lib.mkDefault "en_US.UTF-8";
     supportedLocales = lib.mkDefault [
       "en_US.UTF-8/UTF-8"
       "en_SE.UTF-8/UTF-8"
     ];
     extraLocaleSettings = {
-      LC_TIME = "en_SE.UTF-8";
+      LC_TIME = "en_US.UTF-8";
     };
     glibcLocales =
       (pkgs.glibcLocales.override {
@@ -33,6 +33,9 @@ in
           '';
         });
   };
-  console.keyMap = lib.mkDefault "sv-latin1";
-  time.timeZone = lib.mkDefault "Europe/Stockholm";
+  console.keyMap = "sv-latin1";
+  time.timeZone = "Europe/Stockholm";
+  environment.variables = {
+    TZ = "Europe/Stockholm";
+  };
 }

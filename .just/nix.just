@@ -29,13 +29,16 @@ update-packages: deps
     done
 
 # Build nix configuration
+[no-cd]
 build: deps
     #!/usr/bin/env bash
     set -euo pipefail
+    git pull
     nixos-rebuild build --flake "{{ ROOT_DIR }}/#{{ HOST }}"
     nvd diff /run/current-system result
 
 # Build and apply nix configuration
+[no-cd]
 apply: build
     #!/usr/bin/env bash
     set -euo pipefail
@@ -49,7 +52,7 @@ fast-build-pr pr:
     set -euo pipefail
     nix run nixpkgs#nix-fast-build -- --skip-cached --flake "github:krezh/nix-config/pull/{{ pr }}/head#top"
 
-# Build a specific pull request from GitHub
+# Build the top-level flake
 [no-cd]
 fast-build:
     #!/usr/bin/env bash

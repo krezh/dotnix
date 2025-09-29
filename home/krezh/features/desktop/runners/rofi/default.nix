@@ -16,6 +16,8 @@
       display-window = "󱬀 window:";
       display-combi = "󰕘 combi:";
       display-filebrowser = "󰉋 filebrowser:";
+      font = "Inter 13";
+
     };
 
   };

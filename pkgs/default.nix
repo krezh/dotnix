@@ -17,7 +17,6 @@
   fluxcd = pkgs.callPackage ./bin/fluxcd { };
   kubestr = pkgs.callPackage ./bin/kubestr { };
   hyprmon = pkgs.callPackage ./bin/hyprmon { };
-  wowup = pkgs.callPackage ./bin/wowup { };
 
   # script packages
   volume_script_hyprpanel = pkgs.callPackage ./scripts/volume_script_hyprpanel { };

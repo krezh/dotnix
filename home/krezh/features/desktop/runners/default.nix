@@ -2,5 +2,6 @@
   imports = [
     ./rofi
     ./walker
+    ./fuzzel
   ];
 }

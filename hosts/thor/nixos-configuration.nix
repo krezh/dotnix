@@ -183,7 +183,6 @@
       libnotify
       # Audio
       pwvucontrol
-      better-control
     ];
   };
   networking.hostName = "${hostname}";

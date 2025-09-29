@@ -142,6 +142,12 @@ func (c *Capturer) captureArea() (string, error) {
 	exec.Command("hyprpicker", "-r", "-z").Start()
 	time.Sleep(200 * time.Millisecond)
 	geometry, err := c.runCommand("slurp")
+	if err != nil {
+		fmt.Println("Area selection cancelled")
+		c.notifier.Send("Area selection cancelled")
+		c.procMgr.KillByName("hyprpicker", syscall.SIGTERM)
+		syscall.Exit(1)
+	}
 	c.procMgr.KillByName("hyprpicker", syscall.SIGTERM)
 	return geometry, err
 }

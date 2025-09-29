@@ -22,6 +22,7 @@ let
         ${pkgs.hyprland}/bin/hyprctl dispatch sendshortcut "CTRL,V,"
     fi
   '';
+  getBinaryName = pkg: pkg.meta.mainProgram or pkg.pname or pkg.name;
 
   kitty = {
     pkg = pkgs.kitty;
@@ -35,14 +36,21 @@ let
     bin = lib.getExe hyprlock.pkg;
   };
 
-  # rofi = {
-  #   pkg = pkgs.rofi;
-  #   bin = lib.getExe rofi.pkg;
-  # };
+  launcher = {
+    pkg = pkgs.fuzzel;
+    bin = lib.getExe launcher.pkg;
+    name = getBinaryName launcher.pkg;
+  };
 
-  walker = {
-    pkg = config.programs.walker.package;
-    bin = lib.getExe walker.pkg;
+  showkey = {
+    pkg = pkgs.hypr-showkey;
+    bin = lib.getExe showkey.pkg;
+  };
+
+  audioControl = {
+    pkg = pkgs.wiremix;
+    bin = lib.getExe audioControl.pkg;
+    name = getBinaryName audioControl.pkg;
   };
 
   volume_script = lib.getExe pkgs.volume_script_hyprpanel;
@@ -62,8 +70,7 @@ in
       bindd = [
         "${mainMod},ESCAPE,Show logout menu,exec,${lib.getExe pkgs.wlogout}"
         "${mainMod},L,Lock the screen immediately,exec,${hyprlock.bin} --immediate"
-        #"${mainMod},R,Launch application launcher,exec,${rofi.bin} -show drun"
-        "${mainMod},R,Launch application launcher,exec,${walker.bin}"
+        "${mainMod},R,Launch application launcher,exec,pkill ${launcher.name} || ${launcher.bin}"
         "${mainMod},B,Launch Zen Browser,exec,${lib.getExe config.programs.zen-browser.package}"
         "${mainMod},E,Launch Nautilus file manager,exec,${lib.getExe pkgs.nautilus}"
         "${mainMod},RETURN,Launch terminal,exec,${defaultTerminal}"
@@ -71,8 +78,10 @@ in
         "${mainMod},T,Launch terminal,exec,${defaultTerminal}"
         "${mainModShift},T,Launch terminal (floating),exec,[float] ${defaultTerminal}"
         "${mainMod},O,Launch calculator,exec,${lib.getExe pkgs.gnome-calculator}"
-        "CTRL SHIFT,ESCAPE,Launch system resources monitor,exec,${lib.getExe pkgs.resources}"
+        "CTRL SHIFT,ESCAPE,Launch system resources monitor (floating),exec,[float] ${lib.getExe pkgs.resources}"
         "${mainMod},C,Launch Clipse clipboard manager in terminal and run clipboard script,exec,${defaultTerminal} --class clipse -e ${lib.getExe config.hmModules.desktop.clipse.package} && ${lib.getExe clipboardScript}"
+        "${mainMod},K,Show keybinds (floating),exec,[float] ${defaultTerminal} --class showkey -e ${showkey.bin}"
+        "${mainMod},G,Launch Audio Control (floating),exec,[float] pkill ${audioControl.name} || ${defaultTerminal} --class audioControl -e ${audioControl.bin} -m 100 "
 
         "${mainModShift},S,Area screenshot,exec,${recShot} -m image-area"
         ",PRINT,Fullscreen screenshot,exec,${recShot} -m image-full"

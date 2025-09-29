@@ -80,6 +80,8 @@
         size = 7;
         popups = true;
         popups_ignorealpha = 0.2;
+        xray = false;
+        ignore_opacity = true;
       };
 
       shadow = {
@@ -96,16 +98,24 @@
     animations = {
       enabled = true;
       bezier = [
-        "b0,0,1,0,1.025"
-        "b1,0,1.1,0,1.05"
+        "specialWorkSwitch, 0.05, 0.7, 0.1, 1"
+        "emphasizedAccel, 0.3, 0, 0.8, 0.15"
+        "emphasizedDecel, 0.05, 0.7, 0.1, 1"
+        "standard, 0.2, 0, 0, 1"
       ];
       animation = [
-        "windows,1,4,b1,slide"
-        "windowsIn,1,4,b0,popin 88%"
-        "windowsOut,1,4,b0,slide"
-        "workspaces,1,3,default,slide"
+        "layersIn, 1, 5, emphasizedDecel, slide"
+        "layersOut, 1, 4, emphasizedAccel, slide"
+        "fadeLayers, 1, 5, standard"
+        "windowsIn, 1, 5, emphasizedDecel"
+        "windowsOut, 1, 3, emphasizedAccel"
+        "windowsMove, 1, 6, standard"
+        "workspaces, 1, 5, standard"
+        "specialWorkspace, 1, 4, specialWorkSwitch, slidefadevert 15%"
+        "fade, 1, 6, standard"
+        "fadeDim, 1, 6, standard"
+        "border, 1, 6, standard"
       ];
-
     };
 
     misc = {
@@ -114,6 +124,8 @@
       disable_hyprland_logo = true;
       disable_splash_rendering = true;
       disable_autoreload = true;
+      session_lock_xray = true;
+      new_window_takes_over_fullscreen = 2;
     };
 
     dwindle = {

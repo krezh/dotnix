@@ -109,25 +109,21 @@
       flake = false;
     };
 
-    sherlock = {
-      url = "github:Skxxtz/sherlock";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-
     swww.url = "github:LGFae/swww";
     swww.inputs.nixpkgs.follows = "nixpkgs";
 
     nix-gaming.url = "github:fufexan/nix-gaming";
     walker.url = "github:abenz1267/walker";
     walker.inputs.nixpkgs.follows = "nixpkgs";
+
+    dankMaterialShell = {
+      url = "github:AvengeMedia/DankMaterialShell";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs =
-    inputs@{
-      flake-parts,
-      self,
-      ...
-    }:
+    inputs@{ flake-parts, self, ... }:
     let
       inherit (self) outputs;
 

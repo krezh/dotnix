@@ -24,6 +24,20 @@ in
       search.engines = {
         wikipedia.hidden = true;
         ecosia.metaData.hidden = true;
+        "Searchix" = {
+          urls = [
+            {
+              template = "https://searchix.ovh";
+              params = [
+                {
+                  name = "query";
+                  value = "{searchTerms}";
+                }
+              ];
+            }
+          ];
+          definedAliases = [ "si" ];
+        };
         "Home Manager" = {
           urls = [
             {

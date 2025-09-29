@@ -61,6 +61,11 @@ in
       };
       steam = {
         enable = true;
+        package = pkgs.steam.override {
+          extraProfile = ''
+            unset TZ
+          '';
+        };
         remotePlay.openFirewall = true;
         localNetworkGameTransfers.openFirewall = true;
         protontricks.enable = true;

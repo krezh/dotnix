@@ -76,7 +76,7 @@
       sudo = {
         format = "[$symbol ]()";
         symbol = "💀";
-        disabled = false;
+        disabled = true;
       };
       container = {
         disabled = true;
