@@ -7,16 +7,16 @@
 buildGo124Module rec {
   pname = "talswitcher";
   # renovate: datasource=github-releases depName=mirceanton/talswitcher
-  version = "2.1.8";
+  version = "2.1.9";
 
   src = fetchFromGitHub {
     owner = "mirceanton";
     repo = "talswitcher";
     rev = "v${version}";
-    hash = "sha256-KaqRqJN5s1DHa+g8a3gRYhXnznuVy4sohC/we62bBSA=";
+    hash = "sha256-hMPGjzuTuM6FeQJfmxCyTTWKG6K9RLOoMuzdVBTU2Mc=";
   };
 
-  vendorHash = "sha256-UtW09qNt2Fa3wilnLZ8XMK/Vxpk5a+OvbVY3RkrDo+I=";
+  vendorHash = "sha256-SIQHkmNChttaEdIyofm4QVSN/Vr6O6Lu0W7z9atJscs=";
 
   ldflags = [
     "-s"
