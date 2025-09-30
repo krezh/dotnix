@@ -143,11 +143,12 @@ jobs:
             --print-out-paths)
           echo "result=$result" >> $GITHUB_OUTPUT
 
-      - name: Push to Cachix
-        run: cachix push krezh "${{ steps.build.outputs.result }}"
-
-      - name: Push to Attic
-        run: attic push krezh "${{ steps.build.outputs.result }}" || true
+      - name: Push to caches
+        continue-on-error: true
+        run: |
+          cachix push krezh "${{ steps.build.outputs.result }}" &
+          attic push krezh "${{ steps.build.outputs.result }}" &
+          wait
 
       - name: Diff profile
         if: ${{ github.ref_name != 'main' }}
