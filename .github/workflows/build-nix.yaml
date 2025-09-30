@@ -134,6 +134,7 @@ jobs:
             -o result-previous
 
       - name: Build new ${{ matrix.host }} system
+        id: build
         run: |
           set -o pipefail
           result=$(nix build \
@@ -146,10 +147,10 @@ jobs:
           echo "result=$result" >> $GITHUB_OUTPUT
 
       - name: Push to Cachix
-        run: attic push krezh ${{ steps.build.outputs.result }}
+        run: attic push krezh "${{ steps.build.outputs.result }}"
 
       - name: Push to Attic
-        run: cachix push krezh ${{ steps.build.outputs.result }}
+        run: cachix push krezh "${{ steps.build.outputs.result }}"
 
       - name: Diff profile
         if: ${{ github.ref_name != 'main' }}
