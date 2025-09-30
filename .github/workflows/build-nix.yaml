@@ -146,9 +146,35 @@ jobs:
       - name: Push to caches
         continue-on-error: true
         run: |
-          cachix push krezh "${{ steps.build.outputs.result }}" &
-          attic push krezh "${{ steps.build.outputs.result }}" &
+          result_path="${{ steps.build.outputs.result }}"
+
+          cachix push krezh "$result_path" &
+
+          # Push to Attic with size check (skip files > 400MB)
+          {
+            if [ -d "$result_path" ]; then
+              # Find all store paths and filter by size
+              nix path-info --json "$result_path" --recursive | \
+                jq -r '.[] | select(.narSize < 419430400) | .path' | \
+                xargs -r attic push krezh
+            else
+              # Single path - check size
+              size=$(nix path-info --json "$result_path" | jq '.[].narSize')
+              if [ "$size" -lt 419430400 ]; then
+                attic push krezh "$result_path"
+              else
+                echo "Skipping Attic push: closure exceeds 400MB ($size bytes)"
+              fi
+            fi
+          } &
           wait
+
+      - name: Add build summary
+        if: ${{ github.ref_name == 'main' }}
+        run: |
+          echo "### ✅ Built ${{ matrix.host }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Commit: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Result: ${{ steps.build.outputs.result }}" >> $GITHUB_STEP_SUMMARY
 
       - name: Diff profile
         if: ${{ github.ref_name != 'main' }}
