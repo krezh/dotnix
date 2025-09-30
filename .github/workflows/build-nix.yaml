@@ -20,11 +20,8 @@ concurrency:
   cancel-in-progress: true
 env:
   EXCLUDED_HOSTS: '["nixos-livecd"]'
-  TMPDIR: /tmp
   CACHE_NAME: krezh
   NIX_CONFIG: |
-    lazy-trees = true
-    eval-cores = 0
     accept-flake-config = true
     always-allow-substitutes = true
     builders-use-substitutes = true
@@ -126,7 +123,6 @@ jobs:
         with:
           name: ${{ env.CACHE_NAME }}
           authToken: "${{ secrets.CACHIX_AUTH_TOKEN }}"
-          skipPush: true
 
       - name: Setup Attic
         uses: ryanccn/attic-action@7fbafba3978e86e585cb68a82c08b30f3672b62d # v0.4.0
@@ -135,7 +131,6 @@ jobs:
           endpoint: ${{ secrets.ATTIC_ENDPOINT }}
           cache: ${{ secrets.ATTIC_CACHE }}
           token: ${{ secrets.ATTIC_TOKEN }}
-          skip-push: true
 
       - name: Install NVD
         run: nix profile install nixpkgs#nvd
@@ -186,14 +181,17 @@ jobs:
               jq -r 'to_entries[] | select(.value.narSize >= 419430400) | "\(.key) (\(.value.narSize) bytes)"')
 
             if [ -n "$skipped" ]; then
-              echo "⚠️ Skipping large files for Attic:"
+              echo "⚠️ Skipping $(echo "$skipped" | wc -l) large files for Attic:"
               echo "$skipped"
             fi
 
-            # Push filtered paths to Attic
+            # Push filtered paths to Attic one by one to avoid dependencies
             if [ -s attic_paths.txt ]; then
-              echo "Pushing $(wc -l < attic_paths.txt) paths to Attic..."
-              xargs -r attic push "${{ secrets.ATTIC_CACHE }}" < attic_paths.txt
+              total=$(wc -l < attic_paths.txt)
+              echo "Pushing $total paths to Attic (files under 400MB only)..."
+              while IFS= read -r path; do
+                attic push "${{ secrets.ATTIC_CACHE }}" "$path" || true
+              done < attic_paths.txt
             else
               echo "⚠️ No paths under 400MB to push to Attic"
             fi
