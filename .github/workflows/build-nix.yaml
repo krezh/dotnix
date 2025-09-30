@@ -168,42 +168,9 @@ jobs:
         if: ${{ github.event_name != 'pull_request' || !github.event.pull_request.head.repo.fork }}
         continue-on-error: true
         run: |
-          result_path="${{ steps.build.outputs.result }}"
-
-          # Push to Cachix (handles everything) in background
-          cachix push "${{ env.CACHE_NAME }}" "$result_path" &
-          cachix_pid=$!
-
-          # Push to Attic - filter out individual files > 400MB
-          {
-            echo "Filtering paths for Attic (max file size: 400MB)..."
-
-            # Get all store paths and filter by size
-            nix path-info --json "$result_path" --recursive | \
-              jq -r 'to_entries[] | select(.value.narSize < 419430400) | .key' > attic_paths.txt
-
-            # Show skipped large files with their names
-            skipped=$(nix path-info --json "$result_path" --recursive | \
-              jq -r 'to_entries[] | select(.value.narSize >= 419430400) | "\(.key) (\(.value.narSize) bytes)"')
-
-            if [ -n "$skipped" ]; then
-              echo "⚠️ Skipping large files for Attic:"
-              echo "$skipped"
-            fi
-
-            # Push filtered paths to Attic
-            if [ -s attic_paths.txt ]; then
-              echo "Pushing $(wc -l < attic_paths.txt) paths to Attic..."
-              xargs -r attic push "${{ secrets.ATTIC_CACHE }}" < attic_paths.txt
-            else
-              echo "⚠️ No paths under 400MB to push to Attic"
-            fi
-          } &
-          attic_pid=$!
-
-          # Wait for both to complete
-          wait $cachix_pid || echo "⚠️ Cachix push failed"
-          wait $attic_pid || echo "⚠️ Attic push failed or skipped"
+          cachix push "${{ env.CACHE_NAME }}" "${{ steps.build.outputs.result }}" &
+          attic push "${{ secret.ATTIC_CACHE }}" "${{ steps.build.outputs.result }}" &
+          wait
 
       - name: Diff profile
         if: ${{ github.ref_name != 'main' }}
