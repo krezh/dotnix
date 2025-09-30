@@ -7,7 +7,11 @@ on:
   workflow_call:
   push:
     branches: ["main"]
-    paths: ["**.nix", "flake.nix"]
+    paths:
+      - "**.nix"
+      - "flake.lock"
+      - "modules/**"
+      - "hosts/**"
 permissions:
   id-token: "write"
   contents: "read"
@@ -17,6 +21,13 @@ concurrency:
 env:
   EXCLUDED_HOSTS: '["nixos-livecd"]'
   TMPDIR: /tmp
+  CACHE_NAME: krezh
+  NIX_CONFIG: |
+    lazy-trees = true
+    eval-cores = 0
+    accept-flake-config = true
+    always-allow-substitutes = true
+    builders-use-substitutes = true
 jobs:
   nix-matrix:
     runs-on: ubuntu-latest
@@ -29,12 +40,7 @@ jobs:
         uses: nixbuild/nix-quick-install-action@2c9db80fb984ceb1bcaa77cdda3fdf8cfba92035 # v34
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          nix_conf: |
-            lazy-trees = true
-            eval-cores = 0
-            accept-flake-config = true
-            always-allow-substitutes = true
-            builders-use-substitutes = true
+          nix_conf: ${{ env.NIX_CONFIG }}
 
       - uses: nix-community/cache-nix-action@135667ec418502fa5a3598af6fb9eb733888ce6a # v6.1.3
         id: cache
@@ -56,6 +62,13 @@ jobs:
         run: |
           set -Eeu
           matrix="$(nix eval --json '.#evalHosts' | jq -cM --argjson exclude_hosts '${{ env.EXCLUDED_HOSTS }}' 'del(.include[] | select(.host as $host | $exclude_hosts | index($host)))')"
+
+          # Validate matrix isn't empty
+          if [ "$(echo "$matrix" | jq '.include | length')" -eq 0 ]; then
+            echo "Error: No hosts to build"
+            exit 1
+          fi
+
           echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
 
       - name: show output
@@ -63,10 +76,13 @@ jobs:
           echo "${{ toJson(steps.set-matrix.outputs.matrix) }}" >> "${GITHUB_STEP_SUMMARY}"
 
   nix-build:
+    name: Build ${{ matrix.host }}
     if: github.event.pull_request.draft == false
     needs: nix-matrix
+    timeout-minutes: 60
     permissions:
       pull-requests: write
+      contents: read
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.nix-matrix.outputs.matrix) }}
@@ -75,7 +91,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
         with:
-          fetch-depth: 1
+          fetch-depth: ${{ github.event_name == 'pull_request' && 2 || 1 }}
 
       - name: Nothing but Nix
         uses: wimpysworld/nothing-but-nix@6af122a9403f936ef689e44cc013ae3f3e2f1c3b # v6
@@ -88,33 +104,36 @@ jobs:
         uses: nixbuild/nix-quick-install-action@2c9db80fb984ceb1bcaa77cdda3fdf8cfba92035 # v34
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          nix_conf: |
-            lazy-trees = true
-            eval-cores = 0
-            accept-flake-config = true
-            always-allow-substitutes = true
-            builders-use-substitutes = true
+          nix_conf: ${{ env.NIX_CONFIG }}
 
       - uses: nix-community/cache-nix-action/restore@135667ec418502fa5a3598af6fb9eb733888ce6a # v6.1.3
         with:
           primary-key: nix-flake-inputs-${{ hashFiles('**/*.nix', '**/flake.lock') }}
 
+      - name: Cache built systems
+        uses: actions/cache@v4
+        with:
+          path: |
+            result-previous
+            result-new
+          key: nix-build-${{ matrix.host }}-${{ github.sha }}
+          restore-keys: |
+            nix-build-${{ matrix.host }}-
+
       - name: Setup Cachix
         uses: cachix/cachix-action@0fc020193b5a1fa3ac4575aa3a7d3aa6a35435ad # v16
-        if: ${{ !github.event.pull_request.head.repo.fork }}
+        if: ${{ github.event_name != 'pull_request' || !github.event.pull_request.head.repo.fork }}
         with:
-          name: krezh
+          name: ${{ env.CACHE_NAME }}
           authToken: "${{ secrets.CACHIX_AUTH_TOKEN }}"
-          skipPush: true
 
       - name: Setup Attic
         uses: ryanccn/attic-action@7fbafba3978e86e585cb68a82c08b30f3672b62d # v0.4.0
-        if: ${{ !github.event.pull_request.head.repo.fork }}
+        if: ${{ github.event_name != 'pull_request' || !github.event.pull_request.head.repo.fork }}
         with:
           endpoint: ${{ secrets.ATTIC_ENDPOINT }}
           cache: ${{ secrets.ATTIC_CACHE }}
           token: ${{ secrets.ATTIC_TOKEN }}
-          skip-push: true
 
       - name: Install NVD
         run: nix profile install nixpkgs#nvd
@@ -144,46 +163,58 @@ jobs:
           echo "result=$result" >> $GITHUB_OUTPUT
 
       - name: Push to caches
-        continue-on-error: true
+        if: ${{ github.event_name != 'pull_request' || !github.event.pull_request.head.repo.fork }}
         run: |
           result_path="${{ steps.build.outputs.result }}"
 
-          cachix push krezh "$result_path" &
+          # Push to Cachix (handles everything) in background
+          cachix push "${{ env.CACHE_NAME }}" "$result_path" &
+          cachix_pid=$!
 
-          # Push to Attic with size check (skip files > 400MB)
+          # Push to Attic - filter out individual files > 400MB
           {
-            if [ -d "$result_path" ]; then
-              # Find all store paths and filter by size
-              nix path-info --json "$result_path" --recursive | \
-                jq -r '.[] | select(.narSize < 419430400) | .path' | \
-                xargs -r attic push krezh
+            echo "Filtering paths for Attic (max file size: 400MB)..."
+
+            # Get all store paths with their sizes
+            nix path-info --json "$result_path" --recursive | \
+              jq -r '.[] | select(.narSize < 419430400) | .path' > attic_paths.txt
+
+            skipped=$(nix path-info --json "$result_path" --recursive | \
+              jq -r '.[] | select(.narSize >= 419430400) | "\(.path) (\(.narSize) bytes)"')
+
+            if [ -n "$skipped" ]; then
+              echo "⚠️ Skipping large files for Attic:"
+              echo "$skipped"
+            fi
+
+            # Push filtered paths to Attic
+            if [ -s attic_paths.txt ]; then
+              echo "Pushing $(wc -l < attic_paths.txt) paths to Attic..."
+              cat attic_paths.txt | xargs -r attic push "${{ secrets.ATTIC_CACHE }}"
             else
-              # Single path - check size
-              size=$(nix path-info --json "$result_path" | jq '.[].narSize')
-              if [ "$size" -lt 419430400 ]; then
-                attic push krezh "$result_path"
-              else
-                echo "Skipping Attic push: closure exceeds 400MB ($size bytes)"
-              fi
+              echo "⚠️ No paths under 400MB to push to Attic"
             fi
           } &
-          wait
+          attic_pid=$!
 
-      - name: Add build summary
-        if: ${{ github.ref_name == 'main' }}
-        run: |
-          echo "### ✅ Built ${{ matrix.host }}" >> $GITHUB_STEP_SUMMARY
-          echo "- Commit: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
-          echo "- Result: ${{ steps.build.outputs.result }}" >> $GITHUB_STEP_SUMMARY
+          # Wait for both to complete
+          wait $cachix_pid || echo "⚠️ Cachix push failed"
+          wait $attic_pid || echo "⚠️ Attic push failed or skipped"
 
       - name: Diff profile
         if: ${{ github.ref_name != 'main' }}
         id: diff
         run: |
           delimiter="$(openssl rand -hex 16)"
-          echo "diff<<${delimiter}" >> "${GITHUB_OUTPUT}"
-          nvd --color never diff ./result-previous ./result-new | sed '/<<</d; />>>/d' >> "${GITHUB_OUTPUT}"
-          echo "${delimiter}" >> "${GITHUB_OUTPUT}"
+          {
+            echo "diff<<${delimiter}"
+            if nvd --color never diff ./result-previous ./result-new > diff.txt 2>&1; then
+              sed '/<<</d; />>>/d' diff.txt
+            else
+              echo "⚠️ No differences found or diff failed"
+            fi
+            echo "${delimiter}"
+          } >> "${GITHUB_OUTPUT}"
 
       - name: Comment report in pr
         if: ${{ github.ref_name != 'main' }}
@@ -196,3 +227,21 @@ jobs:
             ```
             ${{ steps.diff.outputs.diff }}
             ```
+
+      - name: Add build summary
+        if: ${{ github.ref_name == 'main' }}
+        run: |
+          echo "### ✅ Built ${{ matrix.host }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Commit: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Result: ${{ steps.build.outputs.result }}" >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload build logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-logs-${{ matrix.host }}
+          path: |
+            *.log
+            diff.txt
+          retention-days: 7
+          if-no-files-found: ignore
