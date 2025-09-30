@@ -147,7 +147,7 @@ jobs:
         run: cachix push krezh "${{ steps.build.outputs.result }}"
 
       - name: Push to Attic
-        run: attic push krezh "${{ steps.build.outputs.result }} || true"
+        run: attic push krezh "${{ steps.build.outputs.result }}" || true
 
       - name: Diff profile
         if: ${{ github.ref_name != 'main' }}
