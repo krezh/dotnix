@@ -23,6 +23,9 @@ in
         # copyq
         "float,class:(com.github.hluk.copyq)"
         "size 50% 50%,class:(com.github.hluk.copyq)"
+        # copyq
+        "float,class:(com.github.hluk.copyq)"
+        "size 50% 50%,class:(com.github.hluk.copyq)"
         # Rofi
         "stayfocused, class:(Rofi)"
         "workspace 4 silent, class:(vesktop|legcord|discord)"

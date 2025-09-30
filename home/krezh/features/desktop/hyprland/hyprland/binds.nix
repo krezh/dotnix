@@ -62,10 +62,10 @@ in
         "${mainModShift},T,Launch terminal (floating),exec,[float] ${defaultTerminal}"
         "${mainMod},O,Launch calculator,exec,${lib.getExe pkgs.gnome-calculator}"
         "CTRL SHIFT,ESCAPE,Launch system resources monitor (floating),exec,[float] ${lib.getExe pkgs.resources}"
-        "${mainMod},V,Launch clipboard manager,exec,${lib.getExe config.services.copyq.package} show"
+        "${mainMod},V,Launch clipboard manager,exec,${lib.getExe config.services.copyq.package} toggle"
         "${mainMod},K,Show keybinds (floating),exec,[float] ${defaultTerminal} --class showkey -e ${showkey.bin}"
         "${mainMod},G,Launch Audio Control (floating),exec,[float] pkill ${audioControl.name} || ${defaultTerminal} --class audioControl -e ${audioControl.bin} -m 100 "
-
+        # Screenshots and screen recordings
         "${mainModShift},S,Area screenshot,exec,${recShot} -m image-area"
         ",PRINT,Fullscreen screenshot,exec,${recShot} -m image-full"
         "ALT,PRINT,Window screenshot,exec,${recShot} -m image-window"

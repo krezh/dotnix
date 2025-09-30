@@ -22,6 +22,7 @@
       "scss"
       "basher"
       "qml"
+      "github-actions"
     ];
 
     # This is the actual zed configuration
