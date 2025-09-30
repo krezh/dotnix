@@ -169,7 +169,7 @@ jobs:
         continue-on-error: true
         run: |
           cachix push "${{ env.CACHE_NAME }}" "${{ steps.build.outputs.result }}" &
-          attic push "${{ secret.ATTIC_CACHE }}" "${{ steps.build.outputs.result }}" &
+          attic push "${{ secrets.ATTIC_CACHE }}" "${{ steps.build.outputs.result }}" &
           wait
 
       - name: Diff profile
