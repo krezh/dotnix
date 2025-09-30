@@ -114,6 +114,7 @@ jobs:
           endpoint: ${{ secrets.ATTIC_ENDPOINT }}
           cache: ${{ secrets.ATTIC_CACHE }}
           token: ${{ secrets.ATTIC_TOKEN }}
+          skip-push: true
 
       - name: Install NVD
         run: nix profile install nixpkgs#nvd
@@ -144,7 +145,10 @@ jobs:
             --print-out-paths)
           echo "result=$result" >> $GITHUB_OUTPUT
 
-      - name: Push
+      - name: Push to Cachix
+        run: attic push krezh ${{ steps.build.outputs.result }}
+
+      - name: Push to Attic
         run: cachix push krezh ${{ steps.build.outputs.result }}
 
       - name: Diff profile
@@ -167,13 +171,3 @@ jobs:
             ```
             ${{ steps.diff.outputs.diff }}
             ```
-  nix-build-success:
-    if: ${{ always() }}
-    needs:
-      - nix-build
-    name: Nix Build Successful
-    runs-on: nix-config-runner
-    steps:
-      - if: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}
-        name: Check matrix status
-        run: exit 1
