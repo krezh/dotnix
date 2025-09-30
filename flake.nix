@@ -120,6 +120,11 @@
       url = "github:AvengeMedia/DankMaterialShell";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+
+    cache-nix-action = {
+      url = "github:nix-community/cache-nix-action";
+      flake = false;
+    };
   };
 
   outputs =
@@ -180,13 +185,24 @@
           pre-commit = import ./pre-commit.nix { inherit pkgs; };
           devshells = import ./shell.nix {
             inherit
-              inputs
               pkgs
               config
               lib
               ;
           };
-          packages = import ./pkgs { inherit pkgs lib; };
+          packages = (import ./pkgs { inherit pkgs lib; }) // {
+            # this is for cache-nix-action so stuff don't get garbage collected
+            # before I cache the nix store, mostly to not redownload inputs a lot
+            gc-keep =
+              (import "${inputs.cache-nix-action}/saveFromGC.nix" {
+                inherit pkgs inputs;
+                inputsExclude = [
+                  # TODO: errors from nixpkgs.lib that I can't fix
+                  inputs.flake-parts
+                ];
+              }).saveFromGC;
+          };
+
           treefmt = import ./treefmt.nix { inherit pkgs; };
         };
     };
