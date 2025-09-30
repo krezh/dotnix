@@ -126,6 +126,7 @@ jobs:
         with:
           name: ${{ env.CACHE_NAME }}
           authToken: "${{ secrets.CACHIX_AUTH_TOKEN }}"
+          skipPush: true
 
       - name: Setup Attic
         uses: ryanccn/attic-action@7fbafba3978e86e585cb68a82c08b30f3672b62d # v0.4.0
@@ -134,6 +135,7 @@ jobs:
           endpoint: ${{ secrets.ATTIC_ENDPOINT }}
           cache: ${{ secrets.ATTIC_CACHE }}
           token: ${{ secrets.ATTIC_TOKEN }}
+          skip-push: true
 
       - name: Install NVD
         run: nix profile install nixpkgs#nvd
