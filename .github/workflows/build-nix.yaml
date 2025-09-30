@@ -177,12 +177,13 @@ jobs:
           {
             echo "Filtering paths for Attic (max file size: 400MB)..."
 
-            # Get all store paths with their sizes
+            # Get all store paths and filter by size
             nix path-info --json "$result_path" --recursive | \
-              jq -r '.[] | select(.narSize < 419430400) | .path' > attic_paths.txt
+              jq -r 'to_entries[] | select(.value.narSize < 419430400) | .key' > attic_paths.txt
 
+            # Show skipped large files with their names
             skipped=$(nix path-info --json "$result_path" --recursive | \
-              jq -r '.[] | select(.narSize >= 419430400) | "\(.path) (\(.narSize) bytes)"')
+              jq -r 'to_entries[] | select(.value.narSize >= 419430400) | "\(.key) (\(.value.narSize) bytes)"')
 
             if [ -n "$skipped" ]; then
               echo "⚠️ Skipping large files for Attic:"
@@ -192,7 +193,7 @@ jobs:
             # Push filtered paths to Attic
             if [ -s attic_paths.txt ]; then
               echo "Pushing $(wc -l < attic_paths.txt) paths to Attic..."
-              cat attic_paths.txt | xargs -r attic push "${{ secrets.ATTIC_CACHE }}"
+              xargs -r attic push "${{ secrets.ATTIC_CACHE }}" < attic_paths.txt
             else
               echo "⚠️ No paths under 400MB to push to Attic"
             fi
