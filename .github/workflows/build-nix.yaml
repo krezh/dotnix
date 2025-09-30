@@ -119,9 +119,6 @@ jobs:
       - name: Install NVD
         run: nix profile install nixpkgs#nvd
 
-      - name: Garbage collect build dependencies
-        run: nix-collect-garbage
-
       - name: Build previous ${{ matrix.host }} system
         if: ${{ github.ref_name != 'main' }}
         run: |
@@ -147,10 +144,10 @@ jobs:
           echo "result=$result" >> $GITHUB_OUTPUT
 
       - name: Push to Cachix
-        run: attic push krezh "${{ steps.build.outputs.result }}"
+        run: cachix push krezh "${{ steps.build.outputs.result }}"
 
       - name: Push to Attic
-        run: cachix push krezh "${{ steps.build.outputs.result }}"
+        run: attic push krezh "${{ steps.build.outputs.result }} || true"
 
       - name: Diff profile
         if: ${{ github.ref_name != 'main' }}
