@@ -28,5 +28,6 @@
     wl-screenrec
     hyprpicker
     resources
+    hyprmon
   ];
 }

@@ -21,6 +21,7 @@
       "go-snippets"
       "scss"
       "basher"
+      "qml"
     ];
 
     # This is the actual zed configuration
@@ -70,6 +71,11 @@
         };
       };
 
+      tabs = {
+        file_icons = true;
+        git_status = true;
+      };
+
       # Configure languages
       languages = {
         "Nix" = {
@@ -80,9 +86,9 @@
         };
       };
 
-      tabs = {
-        file_icons = true;
-        git_status = true;
+      file_types = {
+        "OpenTofu" = [ "tf" ];
+        "OpenTofu Vars" = [ "tfvars" ];
       };
 
       # Configure LSPs
@@ -100,7 +106,7 @@
           };
         };
         nil = {
-          initialization_options = {
+          settings = {
             formatting = {
               command = [ "${lib.getExe pkgs.nixfmt-rfc-style}" ];
             };

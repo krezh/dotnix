@@ -5,8 +5,7 @@
     ./swww
     ./hypridle
     ./hyprlock
-    ./clipse
     ./wlogout
-    #./bar
+    ./copyq
   ];
 }

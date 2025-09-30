@@ -7,16 +7,16 @@
 buildGoModule rec {
   pname = "hyprmon";
   # renovate: datasource=github-releases depName=erans/hyprmon
-  version = "0.0.10";
+  version = "0.0.8";
 
   src = fetchFromGitHub {
     owner = "erans";
     repo = "hyprmon";
     rev = "v${version}";
-    hash = "";
+    hash = "sha256-woe2FzFKGBhh65eCBplKEpks4BsBVdt35P31HqosxN8=";
   };
 
-  vendorHash = "";
+  vendorHash = "sha256-GawRPqgG0vqIDZig837g5bEU94Dv03lU2vTeSs5xx5E=";
 
   ldflags = [
     "-s"

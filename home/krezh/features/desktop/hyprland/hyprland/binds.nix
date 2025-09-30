@@ -5,23 +5,6 @@
   ...
 }:
 let
-
-  clipboardScript = pkgs.writeScriptBin "clippaste" ''
-    #!/bin/sh
-    activeWindow=$(${pkgs.hyprland}/bin/hyprctl activewindow -j | ${pkgs.jq} -r '.class') # -r strips quotes
-    shiftPasteClasses=(kitty)
-    echo "Active window class: $activeWindow"
-    contains_element() {
-      local e
-      for e in "$@:2"; do [[ "$e" == "$1" ]] && return 0; done
-      return 1
-    }
-    if contains_element "$activeWindow" "$shiftPasteClasses[@]"; then
-        ${pkgs.hyprland}/bin/hyprctl dispatch sendshortcut "CTRL SHIFT,V,"
-    else
-        ${pkgs.hyprland}/bin/hyprctl dispatch sendshortcut "CTRL,V,"
-    fi
-  '';
   getBinaryName = pkg: pkg.meta.mainProgram or pkg.pname or pkg.name;
 
   kitty = {
@@ -79,7 +62,7 @@ in
         "${mainModShift},T,Launch terminal (floating),exec,[float] ${defaultTerminal}"
         "${mainMod},O,Launch calculator,exec,${lib.getExe pkgs.gnome-calculator}"
         "CTRL SHIFT,ESCAPE,Launch system resources monitor (floating),exec,[float] ${lib.getExe pkgs.resources}"
-        "${mainMod},C,Launch Clipse clipboard manager in terminal and run clipboard script,exec,${defaultTerminal} --class clipse -e ${lib.getExe config.hmModules.desktop.clipse.package} && ${lib.getExe clipboardScript}"
+        "${mainMod},V,Launch clipboard manager,exec,${lib.getExe config.services.copyq.package} show"
         "${mainMod},K,Show keybinds (floating),exec,[float] ${defaultTerminal} --class showkey -e ${showkey.bin}"
         "${mainMod},G,Launch Audio Control (floating),exec,[float] pkill ${audioControl.name} || ${defaultTerminal} --class audioControl -e ${audioControl.bin} -m 100 "
 
@@ -90,7 +73,7 @@ in
         "SHIFT,PRINT,Window screen recording,exec,${recShot} -m video-window"
 
         "${mainMod},Q,Close active window,killactive"
-        "${mainMod},V,Toggle floating mode,togglefloating"
+        "${mainMod},C,Toggle floating mode,togglefloating"
         "${mainMod},P,Toggle pseudo tiling,pseudo"
         "${mainMod},J,Toggle split layout,togglesplit"
         "${mainMod},F,Toggle fullscreen,fullscreen,1"
