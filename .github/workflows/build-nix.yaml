@@ -111,7 +111,7 @@ jobs:
           primary-key: nix-flake-inputs-${{ hashFiles('**/*.nix', '**/flake.lock') }}
 
       - name: Cache built systems
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: |
             result-previous
@@ -208,7 +208,7 @@ jobs:
 
       - name: Upload build logs
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: build-logs-${{ matrix.host }}
           path: |
