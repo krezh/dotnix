@@ -1,5 +1,6 @@
 {
   pkgs,
+  lib,
   hostname,
   ...
 }:
@@ -98,6 +99,8 @@
   services.udev.packages = [ pkgs.headsetcontrol ];
 
   networking.networkmanager.enable = true;
+  networking.networkmanager.wifi.backend = "iwd";
+  networking.wireless.enable = lib.mkForce false;
 
   programs.gdk-pixbuf.modulePackages = [ pkgs.librsvg ];
 

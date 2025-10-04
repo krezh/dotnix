@@ -6,7 +6,7 @@
     enableFishIntegration = true;
     installBatSyntax = true;
     settings = {
-      font-family = "CaskaydiaCove Nerd Font";
+      font-family = "JetBrainsMono Nerd Font";
       font-size = 12;
       copy-on-select = "clipboard";
       right-click-action = "paste";
