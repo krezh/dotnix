@@ -87,10 +87,10 @@ in
       curl
       ripgrep
       gh
-      unstable.go
+      go
       dyff
       go-task
-      unstable.opentofu
+      opentofu
       ncdu
       fd
       httpie
@@ -158,13 +158,13 @@ in
 
       # Kubernetes
       talosctl
-      unstable.kubectl
+      kubectl
       kubeswitch
       kubectl-cnpg
       kubectl-node-shell
       kubectl-klock
       kubectl-df-pv
-      unstable.kubecolor
+      kubecolor
       kustomize
       fluxcd
       stern
@@ -172,7 +172,7 @@ in
       kubernetes-helm
       kubernetes-helmPlugins.helm-diff
       kind
-      unstable.teleport
+      teleport
       kubestr
       kubectl-pgo
       cilium-cli

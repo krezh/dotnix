@@ -10,7 +10,8 @@ let
   inherit (lib) mkEnableOption mkOption mkIf;
 
   uuidFile = "${config.xdg.stateHome}/jellyfin-mpv-shim/client-uuid";
-  clientUUID = if builtins.pathExists uuidFile then builtins.readFile uuidFile else null;
+  # Remove runtime path check during evaluation - will be handled at runtime
+  clientUUID = null;
   defaultPlayerName =
     if cfg.jellyfinMpvShim.playerName != null then
       cfg.jellyfinMpvShim.playerName

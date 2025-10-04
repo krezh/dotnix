@@ -2,12 +2,13 @@
   inputs,
   lib,
   config,
+  pkgs,
   ...
 }:
 {
   imports = [ ];
   nix = {
-    # package = pkgs.lixPackageSets.stable.lix;
+    package = pkgs.lixPackageSets.stable.lix;
     extraOptions = ''
       !include ${config.sops.templates."nix_access_token.conf".path}
     '';
@@ -29,10 +30,7 @@
         "nix-command"
         "flakes"
       ];
-      system-features = [
-        "kvm"
-        "big-parallel"
-      ];
+      system-features = [ ];
       extra-substituters = [
         "https://nix-cache.plexuz.xyz/krezh"
         "https://krezh.cachix.org"
