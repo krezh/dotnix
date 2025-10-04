@@ -11,7 +11,6 @@
 
   overrideNix = _final: prev: {
     inherit (prev.lixPackageSets.stable)
-      nix-direnv
       nix-eval-jobs
       nix-fast-build
       colmena
