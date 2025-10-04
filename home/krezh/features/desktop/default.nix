@@ -4,7 +4,7 @@
     ./hyprland
     ./gtk
     ./apps
-    ./runners
+    ./launchers
     ./xdg
   ];
 

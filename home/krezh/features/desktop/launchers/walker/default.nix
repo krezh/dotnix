@@ -3,7 +3,7 @@
   imports = [ inputs.walker.homeManagerModules.default ];
 
   programs.walker = {
-    enable = false;
+    enable = true;
     runAsService = true;
     #   config = {
     #     providers.prefixes = [

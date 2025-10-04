@@ -66,10 +66,7 @@ in
         "${mainMod},K,Show keybinds (floating),exec,[float] ${defaultTerminal} --class showkey -e ${showkey.bin}"
         "${mainMod},G,Launch Audio Control (floating),exec,[float] pkill ${audioControl.name} || ${defaultTerminal} --class audioControl -e ${audioControl.bin} -m 100 "
         # Audio device switching
-        "${mainMod},F1,Switch to A50 Game Audio,exec,audio-switch headset"
-        "${mainMod},F2,Switch to Argon Speakers,exec,audio-switch speakers"
-        "${mainMod},F3,Toggle between A50 Game Audio and Argon Speakers,exec,audio-switch toggle"
-        "${mainMod},F4,Auto-select best audio device,exec,audio-switch auto"
+        "${mainMod},F3,Toggle between audio devices,exec,audio-switch toggle"
         # Screenshots and screen recordings
         "${mainModShift},S,Area screenshot,exec,${recShot} -m image-area"
         ",PRINT,Fullscreen screenshot,exec,${recShot} -m image-full"

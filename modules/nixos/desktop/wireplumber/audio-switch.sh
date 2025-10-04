@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# Audio switching script for Argon Speakers and A50 Game Audio
+# Audio switching script for toggling between audio devices
 # Uses wpctl (WirePlumber control) to switch between audio devices
 
 set -euo pipefail
@@ -45,8 +45,6 @@ switch_to_sink() {
         echo "Switching to $sink_name (ID: $node_id)..."
         wpctl set-default "$node_id"
 
-        echo "Successfully switched to $sink_name"
-
         # Send notification if available
         if command -v notify-send &> /dev/null; then
             notify-send "Audio Switched" "Now using: $sink_name" -t 2000
@@ -55,21 +53,6 @@ switch_to_sink() {
         echo "Error: $sink_name is not available"
         if command -v notify-send &> /dev/null; then
             notify-send "Audio Switch Failed" "$sink_name is not available" -t 3000
-        fi
-        return 1
-    fi
-}
-
-# Function to auto-switch based on availability
-auto_switch() {
-    if is_sink_available "$HEADSET_NAME"; then
-        switch_to_sink "$HEADSET_NAME"
-    elif is_sink_available "$SPEAKERS_NAME"; then
-        switch_to_sink "$SPEAKERS_NAME"
-    else
-        echo "Error: No audio devices available"
-        if command -v notify-send &> /dev/null; then
-            notify-send "Audio Error" "No audio devices available" -t 3000
         fi
         return 1
     fi
@@ -89,89 +72,35 @@ toggle() {
         if is_sink_available "$HEADSET_NAME"; then
             switch_to_sink "$HEADSET_NAME"
         else
-            echo "@PRIMARY_DEVICE_NAME@ not available, staying on @SECONDARY_DEVICE_NAME@"
+            echo "@PRIMARY_DEVICE_NAME@ not available, staying on current device"
         fi
     fi
-}
-
-# Function to show current status
-status() {
-    echo "=== Audio Device Status ==="
-    echo
-
-    local current_info
-    current_info=$(get_default_sink)
-    if [[ -n "$current_info" ]]; then
-        local current_id="${current_info%:*}"
-        local current_name="${current_info#*:}"
-        echo "Current default sink: $current_name (ID: $current_id)"
-    else
-        echo "Current default sink: unknown"
-    fi
-    echo
-
-    echo "Device availability:"
-    local headset_id speakers_id
-    headset_id=$(get_node_id "$HEADSET_NAME")
-    speakers_id=$(get_node_id "$SPEAKERS_NAME")
-
-    if [[ -n "$headset_id" ]]; then
-        echo "  ✓ $HEADSET_NAME (ID: $headset_id)"
-    else
-        echo "  ✗ $HEADSET_NAME (unavailable)"
-    fi
-
-    if [[ -n "$speakers_id" ]]; then
-        echo "  ✓ $SPEAKERS_NAME (ID: $speakers_id)"
-    else
-        echo "  ✗ $SPEAKERS_NAME (unavailable)"
-    fi
-    echo
-
-    echo "Full audio status:"
-    wpctl status
 }
 
 # Function to show help
 show_help() {
     cat << EOF
-Audio Switch Script - Control audio output devices
+Audio Switch Script - Toggle between audio output devices
 
 Usage: $0 [COMMAND]
 
 Commands:
-    headset         Switch to @PRIMARY_DEVICE_NAME@
-    speakers        Switch to @SECONDARY_DEVICE_NAME@
-    toggle          Toggle between @PRIMARY_DEVICE_NAME@ and @SECONDARY_DEVICE_NAME@
-    auto            Auto-switch to best available device
-    status          Show current audio status
-    help            Show this help message
+    toggle, t       Toggle between @PRIMARY_DEVICE_NAME@ and @SECONDARY_DEVICE_NAME@
+    help, -h        Show this help message
+
+Default action (no arguments): toggle
 
 Examples:
-    $0 headset      # Switch to @PRIMARY_DEVICE_NAME@
-    $0 speakers     # Switch to @SECONDARY_DEVICE_NAME@
+    $0              # Toggle between devices
     $0 toggle       # Toggle between devices
-    $0 auto         # Auto-select best device
-    $0 status       # Show current status
+    $0 t            # Toggle between devices (short form)
 EOF
 }
 
 # Main command handling
-case "${1:-auto}" in
-    "headset"|"h")
-        switch_to_sink "$HEADSET_NAME"
-        ;;
-    "speakers"|"s")
-        switch_to_sink "$SPEAKERS_NAME"
-        ;;
-    "toggle"|"t")
+case "${1:-toggle}" in
+    "toggle"|"t"|"")
         toggle
-        ;;
-    "auto"|"a")
-        auto_switch
-        ;;
-    "status")
-        status
         ;;
     "help"|"--help"|"-h")
         show_help
