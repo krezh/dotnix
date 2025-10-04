@@ -126,6 +126,7 @@
       disable_autoreload = true;
       session_lock_xray = true;
       new_window_takes_over_fullscreen = 2;
+      render_unfocused_fps = 30;
     };
 
     dwindle = {
@@ -147,6 +148,7 @@
 
     debug = {
       damage_tracking = 2; # leave it on 2 (full) unless you hate your GPU and want to make it suffer!
+      # full_cm_proto = true;
     };
   };
 }

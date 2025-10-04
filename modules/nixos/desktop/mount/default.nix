@@ -58,6 +58,12 @@ let
           description = "Security method for SMB (ntlmssp, ntlm, krb5, etc.)";
         };
 
+        smbVersion = mkOption {
+          type = types.nullOr types.str;
+          default = "3.1.1";
+          description = "SMB protocol version (1.0, 2.0, 2.1, 3.0, 3.1.1).";
+        };
+
         uid = mkOption {
           type = types.int;
           default = 1000;
@@ -106,6 +112,7 @@ let
         "gid=${toString mount.gid}"
         "sec=${mount.securityMethod}"
       ]
+      ++ (optional (mount.smbVersion != null) "vers=${mount.smbVersion}")
       ++ (optional (mount.credentialsFile != null) "credentials=${mount.credentialsFile}")
       ++ (optional (mount.domain != null) "domain=${mount.domain}")
       ++ mount.extraOptions;
@@ -121,7 +128,6 @@ let
           "rsize=1048576"
           "wsize=1048576"
           "hard"
-          "intr"
           "timeo=10"
           "retrans=2"
           "noatime"
@@ -142,7 +148,6 @@ let
     mountConfig.Options = [
       (if mount.type == "smb" then mkSmbOptions mount else mkNfsOptions mount)
     ];
-    # Do not set 'options' or 'fstabOptions' here!
   };
 
   mkSystemdAutoMount = _name: mount: {

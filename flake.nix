@@ -25,6 +25,7 @@
     nixpkgs-unstable.url = "github:nixos/nixpkgs/nixpkgs-unstable";
     hardware.url = "github:nixos/nixos-hardware";
     chaotic.url = "github:chaotic-cx/nyx/nyxpkgs-unstable";
+    determinate.url = "https://flakehub.com/f/DeterminateSystems/determinate/*";
 
     home-manager = {
       url = "github:nix-community/home-manager";

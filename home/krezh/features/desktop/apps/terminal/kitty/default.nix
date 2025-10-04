@@ -19,6 +19,7 @@
       enable_audio_bell = "no";
       sync_to_monitor = "yes";
       scrollback_lines = 10000;
+      confirm_os_window_close = 0;
     };
     extraConfig = ''
       mouse_map right click grabbed,ungrabbed no-op

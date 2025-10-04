@@ -7,5 +7,6 @@
     ./steam
     ./bluetooth
     ./mount
+    ./wireplumber
   ];
 }

@@ -3,6 +3,7 @@
   outputs,
   lib,
   config,
+  osConfig,
   pkgs,
   hostname,
   ...
@@ -32,7 +33,7 @@ in
   catppuccin = {
     enable = true;
     flavor = "mocha";
-    accent = "lavender";
+    accent = "blue";
   };
 
   catppuccin.cursors.enable = true;
@@ -43,7 +44,6 @@ in
   catppuccin.vesktop.enable = true;
   catppuccin.vscode.profiles.default.enable = false;
   catppuccin.k9s.enable = true;
-  catppuccin.k9s.flavor = "mocha";
   catppuccin.k9s.transparent = true;
 
   sops = {
@@ -68,7 +68,7 @@ in
 
   home = {
     homeDirectory = lib.mkDefault "/home/${config.home.username}";
-    stateVersion = lib.mkDefault "24.05";
+    stateVersion = osConfig.system.stateVersion;
     preferXdgDirectories = true;
     sessionPath = [
       "$HOME/.local/bin"

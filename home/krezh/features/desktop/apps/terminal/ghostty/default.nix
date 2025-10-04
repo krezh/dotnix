@@ -11,6 +11,7 @@
       copy-on-select = "clipboard";
       right-click-action = "paste";
       auto-update = "off";
+      gtk-single-instance = true;
     };
   };
 }

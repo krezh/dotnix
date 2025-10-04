@@ -15,21 +15,22 @@
 
   boot = {
     plymouth = {
-      enable = true;
+      enable = false;
     };
     kernelPackages = pkgs.linuxPackages_cachyos;
     loader = {
       timeout = 0;
       systemd-boot = {
-        enable = false;
+        enable = true;
         configurationLimit = 5;
+        netbootxyz.enable = true;
       };
       efi = {
         canTouchEfiVariables = true;
         efiSysMountPoint = "/boot";
       };
       grub = {
-        enable = true;
+        enable = false;
         device = "nodev";
         efiSupport = true;
         useOSProber = true;
@@ -38,13 +39,9 @@
     };
   };
 
-  services.colord = {
-    enable = true;
-  };
-
   services.fwupd.enable = true;
 
-  services.scx.enable = true;
+  services.scx.enable = false;
 
   xdg.mime.enable = true;
 
@@ -64,6 +61,8 @@
     libsecret
     libgnome-keyring
   ];
+
+  services.irqbalance.enable = true;
 
   nixosModules.desktop = {
     openssh.enable = true;
@@ -183,6 +182,9 @@
       libnotify
       # Audio
       pwvucontrol
+      alsa-utils
+      pavucontrol
+      pulseaudio
     ];
   };
   networking.hostName = "${hostname}";

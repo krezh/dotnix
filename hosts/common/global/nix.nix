@@ -5,12 +5,14 @@
   ...
 }:
 {
+  imports = [ inputs.determinate.nixosModules.default ];
   nix = {
     # package = pkgs.lixPackageSets.stable.lix;
     extraOptions = ''
       !include ${config.sops.templates."nix_access_token.conf".path}
     '';
     settings = {
+      eval-cores = 0;
       keep-outputs = true;
       keep-derivations = true;
       warn-dirty = false;
@@ -62,4 +64,5 @@
 
     nixPath = lib.mkForce [ "nixpkgs=${inputs.nixpkgs}" ];
   };
+  system.stateVersion = lib.mkDefault "24.05";
 }

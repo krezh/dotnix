@@ -2,7 +2,6 @@
 {
   inputs,
   pkgs,
-  lib,
   outputs,
   ...
 }:
@@ -17,7 +16,7 @@
   catppuccin = {
     enable = true;
     flavor = "mocha";
-    accent = "lavender";
+    accent = "blue";
     cache.enable = true;
   };
 
@@ -32,22 +31,6 @@
   services.pcscd.enable = true;
 
   security = {
-    doas = {
-      enable = false;
-      wheelNeedsPassword = true;
-      extraRules = [
-        {
-          cmd = "${pkgs.systemd}/bin/reboot";
-          groups = [ "wheel" ];
-          noPass = true;
-        }
-        {
-          groups = [ "wheel" ];
-          keepEnv = true;
-          persist = true;
-        }
-      ];
-    };
     sudo = {
       enable = true;
       wheelNeedsPassword = true;
@@ -96,6 +79,4 @@
       }
     ];
   };
-
-  system.stateVersion = lib.mkDefault "24.05";
 }

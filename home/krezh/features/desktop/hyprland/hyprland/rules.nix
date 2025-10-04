@@ -1,7 +1,36 @@
 let
-  # Simple helper to create opacity rules for a list of app classes
-  opaque = apps: map (app: "opacity 1.0 override,class:^(${app})$") apps;
-  opacity = value: apps: map (app: "opacity ${toString value} override,class:^(${app})$") apps;
+  opacity =
+    value: items:
+    map (
+      item:
+      if builtins.match "^tag:(.+)" item != null then
+        "opacity ${toString value} override,tag:${builtins.elemAt (builtins.match "^tag:(.+)" item) 0}"
+      else
+        "opacity ${toString value} override,class:^(${item})$"
+    ) items;
+
+  tags = tag: apps: map (app: "tag +${tag}, class:^(${app})$") apps;
+
+  noblur =
+    items:
+    map (
+      item:
+      if builtins.match "^tag:(.+)" item != null then
+        "noblur,tag:${builtins.elemAt (builtins.match "^tag:(.+)" item) 0}"
+      else
+        "noblur,class:^(${item})$"
+    ) items;
+
+  renderunfocused =
+    items:
+    map (
+      item:
+      if builtins.match "^tag:(.+)" item != null then
+        "renderunfocused,tag:${builtins.elemAt (builtins.match "^tag:(.+)" item) 0}"
+      else
+        "renderunfocused,class:^(${item})$"
+    ) items;
+
 in
 {
   wayland.windowManager.hyprland = {
@@ -17,30 +46,24 @@ in
         "animation fade, wayfreeze"
       ];
       windowrule = [
-        "float,class:(clipse)"
-        "size 45% 40%,class:(clipse)"
-        "stayfocused, class:(clipse)"
-        # copyq
-        "float,class:(com.github.hluk.copyq)"
-        "size 50% 50%,class:(com.github.hluk.copyq)"
         # copyq
         "float,class:(com.github.hluk.copyq)"
         "size 50% 50%,class:(com.github.hluk.copyq)"
         # Rofi
         "stayfocused, class:(Rofi)"
-        "workspace 4 silent, class:(vesktop|legcord|discord)"
-
+        # Chat
+        "workspace 4 silent, tag:chat"
         # Fullscreen windows should be opaque
         "opacity 1.0 override,fullscreen:1"
-
-        # Steam
-        "workspace 3, class:steam_app_[0-9]+" # Move all steam games to workspace 3
-        "idleinhibit always, class:steam_app_[0-9]+" # Always idle inhibit when playing a steam game
+        # Games
+        "workspace 3, tag:games" # Move all games to workspace 3
+        "idleinhibit always, tag:games" # Always idle inhibit when playing a game
+        "idleinhibit fullscreen, fullscreen:1"
         # xwayland popups
         "nodim, xwayland:1, title:win[0-9]+"
         "noshadow, xwayland:1, title:win[0-9]+"
         "rounding 10, xwayland:1, title:win[0-9]+"
-        # Dialogs
+        # Dialogues
         "float, title:(Select|Open)( a)? (File|Folder)(s)?"
         "float, title:File (Operation|Upload)( Progress)?"
         "float, title:.* Properties"
@@ -55,20 +78,38 @@ in
         "size 60% 70%,class:mpv"
         "float, class:mpv"
       ]
-      ++ opaque [
+      ++ tags "games" [
+        "gamescope"
+        "steam_app_[0-9]+"
+      ]
+      ++ tags "browsers" [
         "zen-beta"
         "firefox"
         "chromium"
         "chrome"
+      ]
+      ++ tags "media" [
         "mpv"
         "vlc"
         "youtube"
-        "steam_app_[0-9]+"
-        "lutris"
-        "heroic"
         "plex"
       ]
-      ++ opacity 0.9 [ ];
+      ++ tags "chat" [
+        "vesktop"
+        "legcord"
+        "discord"
+      ]
+      ++ opacity 1.0 [
+        "tag:games"
+        "tag:browsers"
+        "tag:media"
+      ]
+      ++ noblur [
+        "tag:games"
+      ]
+      ++ renderunfocused [
+        "tag:games"
+      ];
     };
   };
 }

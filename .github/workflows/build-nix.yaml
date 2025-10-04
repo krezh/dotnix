@@ -20,11 +20,8 @@ concurrency:
   cancel-in-progress: true
 env:
   EXCLUDED_HOSTS: '["nixos-livecd"]'
-  TMPDIR: /tmp
   CACHE_NAME: krezh
   NIX_CONFIG: |
-    lazy-trees = true
-    eval-cores = 0
     accept-flake-config = true
     always-allow-substitutes = true
     builders-use-substitutes = true
@@ -62,13 +59,11 @@ jobs:
         run: |
           set -Eeu
           matrix="$(nix eval --json '.#evalHosts' | jq -cM --argjson exclude_hosts '${{ env.EXCLUDED_HOSTS }}' 'del(.include[] | select(.host as $host | $exclude_hosts | index($host)))')"
-
           # Validate matrix isn't empty
           if [ "$(echo "$matrix" | jq '.include | length')" -eq 0 ]; then
             echo "Error: No hosts to build"
             exit 1
           fi
-
           echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
 
       - name: show output
