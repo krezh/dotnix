@@ -1,5 +1,5 @@
 ---
-name: Build Nix checks
+name: Build Nix
 on:
   pull_request:
     paths-ignore: ["pkgs/**", ".github/**"]
@@ -50,7 +50,7 @@ jobs:
           purge-last-accessed: 0
           purge-primary-key: never
 
-      - run: nix build .#gc-keep # this keeps stuffs from getting garbage collected
+      - run: nix build .#gc-keep
         if: steps.cache.outputs.hit-primary-key != 'true'
 
       - id: set-matrix
@@ -74,7 +74,6 @@ jobs:
     name: Build ${{ matrix.check }}
     if: github.event.pull_request.draft == false
     needs: nix-matrix
-    timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.nix-matrix.outputs.matrix) }}

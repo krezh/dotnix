@@ -207,7 +207,7 @@
                 }) filteredHosts
               );
             in
-            systemChecks // config.packages;
+            systemChecks;
         };
     };
 }
