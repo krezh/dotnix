@@ -2,7 +2,7 @@
 keys:
   - &user_krezh age1el5jq43hnhq8uzyfruretlrxk0ch8xvykdzu94cfsu5tyywwga3qy3f46h
   - &user_krezh_yubikey age1yubikey1qt83fjzawhcmxn7duntq30u67etg2t2y0fmu6d9z3cgh2q7ff7dn5xrpzdk
-  - &thor_system age1la8yyuay3f6jzkfggmqsl5dekfe56lk0w83z8x93lyf7k6lf9asskczezw
+  - &system_thor age1la8yyuay3f6jzkfggmqsl5dekfe56lk0w83z8x93lyf7k6lf9asskczezw
 
 creation_rules:
   - path_regex: ^[^.].*\.sops\.ya?ml$
@@ -10,4 +10,4 @@ creation_rules:
       - age:
           - *user_krezh
           - *user_krezh_yubikey
-          - *thor_system
+          - *system_thor

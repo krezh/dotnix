@@ -85,9 +85,17 @@
             "nil"
           ];
         };
+        "Just" = {
+          tab_size = 2;
+          hard_tabs = false;
+        };
       };
 
       file_types = {
+        "Just" = [
+          "just"
+          "justfile"
+        ];
         "OpenTofu" = [ "tf" ];
         "OpenTofu Vars" = [ "tfvars" ];
       };
@@ -125,7 +133,19 @@
             };
           };
         };
-        just = { };
+        just-lsp = {
+          # Custom binary configuration (optional)
+          # binary = {
+          #   path = "/path/to/custom/just-lsp";
+          #   arguments = ["--custom-arg"];
+          # };
+
+          # Language server settings (optional)
+          # These settings are passed directly to just-lsp
+          # Currently just-lsp doesn't expose configuration options,
+          # but this structure is ready if they add any in the future
+          settings = { };
+        };
       };
 
       # Disable telemetry

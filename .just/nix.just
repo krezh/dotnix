@@ -21,12 +21,43 @@ deps:
 update-packages: deps
     #!/usr/bin/env bash
     set -euo pipefail
+    VERSION_REGEX='^v?([0-9]+)\.([0-9]+)\.([0-9]+)(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$'
     PKGS=$(ls -1 {{ ROOT_DIR }}/pkgs/bin -I default.nix)
     cd {{ ROOT_DIR }}
+    # Count packages for progress tracking
+    TOTAL_PKGS=$(echo "$PKGS" | wc -l)
+    CURRENT=0
     for pkg in $PKGS; do
-      just log info "Updating package: $pkg"
-      nix-update --flake --commit --format --generate-lockfile "$pkg"
+      CURRENT=$((CURRENT + 1))
+      PKG_NIX="{{ ROOT_DIR }}/pkgs/bin/${pkg}/default.nix"
+      # Check for remote fetchers
+      if grep -Eq 'fetchFromGitHub|fetchFromGitLab|fetchurl' "$PKG_NIX"; then
+        just log info "[$CURRENT/$TOTAL_PKGS] Updating remote package: $pkg"
+        # Get current version before update
+        OLD_VERSION=$(nix eval ".#$pkg.version" --raw 2>/dev/null || echo "unknown")
+        # Capture output and only show on error
+        if ! nix-update "$pkg" \
+          --quiet --flake \
+          --commit --format \
+          --generate-lockfile \
+          --version-regex "$VERSION_REGEX" \
+          >/dev/null 2>&1; then
+          just log error "Failed to update $pkg"
+        else
+          # Get new version after update
+          NEW_VERSION=$(nix eval ".#$pkg.version" --raw 2>/dev/null || echo "unknown")
+
+          if [ "$OLD_VERSION" != "$NEW_VERSION" ]; then
+            just log info "Updated $pkg: $OLD_VERSION → $NEW_VERSION"
+          else
+            just log info "Updated $pkg (no version change)"
+          fi
+        fi
+      else
+        just log info "[$CURRENT/$TOTAL_PKGS] Skipping local package: $pkg"
+      fi
     done
+    just log info "Package update completed!"
 
 # Build nix configuration
 [no-cd]
