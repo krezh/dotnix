@@ -1,24 +1,24 @@
 {
-  buildGo124Module,
+  buildGo125Module,
   fetchFromGitHub,
   fetchzip,
   installShellFiles,
   lib,
   stdenv,
 }:
-buildGo124Module rec {
+buildGo125Module rec {
   pname = "fluxcd";
   # renovate: datasource=github-releases depName=fluxcd/flux2
-  version = "2.6.4";
+  version = "2.7.0";
 
   src = fetchFromGitHub {
     owner = "fluxcd";
     repo = "flux2";
     rev = "v${version}";
-    hash = "sha256-uUjdS0vcg6XgHBGEr2A+nc9y0QS7cuMLiOckKm+eio4=";
+    hash = "sha256-m8DY0W9lC4QGlBuTBtAmNq3usdpjh1yQM3+AjHsJfOQ=";
   };
 
-  vendorHash = "sha256-U37QdGfj7+YXIARORo0AHqgdzrODyUe5DA+eefxzTWA=";
+  vendorHash = "sha256-P7d+sljzPa4qNVc5U9bqaMz4LvDYQqHFVl/tahftyz4=";
 
   manifests = fetchzip {
     url = "https://github.com/fluxcd/flux2/releases/download/v${version}/manifests.tar.gz";
