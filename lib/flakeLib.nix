@@ -7,7 +7,6 @@
 }:
 
 let
-  # function to make `pkgs` for defined system with my overlays
   mkPkgsWithSystem =
     system:
     import inputs.nixpkgs {
@@ -72,6 +71,14 @@ let
         };
       }
     ];
+  mapToGha =
+    system:
+    {
+      "x86_64-linux" = "ubuntu-latest";
+      "x86_64-darwin" = "ubuntu-latest";
+      "aarch64-linux" = "ubuntu-24.04-arm";
+    }
+    .${system} or system;
 in
 {
   mkSystems =
@@ -86,11 +93,18 @@ in
   );
 
   # Lists hosts with their system kind for use in github actions
-  evalHosts = {
-    include = builtins.map (host: {
-      inherit host;
-      system = self.nixosConfigurations.${host}.pkgs.system;
-      runner = lib.mapToGha self.nixosConfigurations.${host}.pkgs.system;
-    }) (builtins.attrNames self.nixosConfigurations);
-  };
+  ghMatrix =
+    {
+      exclude ? [ ],
+    }:
+    {
+      include =
+        builtins.map
+          (host: {
+            inherit host;
+            system = self.nixosConfigurations.${host}.pkgs.system;
+            runner = mapToGha self.nixosConfigurations.${host}.pkgs.system;
+          })
+          (builtins.filter (host: !builtins.elem host exclude) (builtins.attrNames self.nixosConfigurations));
+    };
 }

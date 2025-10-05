@@ -25,7 +25,7 @@ env:
     always-allow-substitutes = true
     builders-use-substitutes = true
 jobs:
-  nix-matrix:
+  ghMatrix:
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
@@ -35,7 +35,6 @@ jobs:
       - name: Install Nix
         uses: nixbuild/nix-quick-install-action@2c9db80fb984ceb1bcaa77cdda3fdf8cfba92035 # v34
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
           nix_conf: ${{ env.NIX_CONFIG }}
 
       - uses: nix-community/cache-nix-action@135667ec418502fa5a3598af6fb9eb733888ce6a # v6.1.3
@@ -50,33 +49,48 @@ jobs:
           purge-last-accessed: 0
           purge-primary-key: never
 
-      - run: nix build .#gc-keep
+      - run: nix build .#top
         if: steps.cache.outputs.hit-primary-key != 'true'
 
       - id: set-matrix
-        name: Generate Checks Matrix
+        name: Generate Hosts Matrix
         run: |
           set -Eeu
-          checks=$(nix eval --json '.#checks.x86_64-linux' --apply 'builtins.attrNames')
-          matrix=$(echo "$checks" | jq -c '{include: [.[] | {check: ., runner: "ubuntu-latest"}]}')
+          matrix=$(nix eval --json '.#ghMatrix')
           # Validate matrix isn't empty
           if [ "$(echo "$matrix" | jq '.include | length')" -eq 0 ]; then
-            echo "Error: No checks to build"
+            echo "Error: No hosts to build"
             exit 1
           fi
           echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
 
-      - name: show output
+      - name: Show matrix summary
         run: |
-          echo "${{ toJson(steps.set-matrix.outputs.matrix) }}" >> "${GITHUB_STEP_SUMMARY}"
+          matrix='${{ steps.set-matrix.outputs.matrix }}'
+          {
+            echo "## 🔍 Build Matrix Generated"
+            echo ""
+            echo "**Total hosts to build:** $(echo "$matrix" | jq '.include | length')"
+            echo ""
+            echo "### Hosts:"
+            echo "$matrix" | jq -r '.include[] | "- \`" + .host + "\`"'
+            echo ""
+            echo "<details>"
+            echo "<summary>View raw matrix JSON</summary>"
+            echo ""
+            echo '```json'
+            echo '${{ toJson(steps.set-matrix.outputs.matrix) }}'
+            echo '```'
+            echo "</details>"
+          } >> "${GITHUB_STEP_SUMMARY}"
 
   nix-build:
-    name: Build ${{ matrix.check }}
+    name: Build ${{ matrix.host }}
     if: github.event.pull_request.draft == false
-    needs: nix-matrix
+    needs: ghMatrix
     strategy:
       fail-fast: false
-      matrix: ${{ fromJSON(needs.nix-matrix.outputs.matrix) }}
+      matrix: ${{ fromJSON(needs.ghMatrix.outputs.matrix) }}
     runs-on: ${{ matrix.runner }}
     steps:
       - name: Checkout repository
@@ -85,7 +99,7 @@ jobs:
       - name: Nothing but Nix
         uses: wimpysworld/nothing-but-nix@6af122a9403f936ef689e44cc013ae3f3e2f1c3b # v6
         with:
-          hatchet-protocol: "cleave"
+          hatchet-protocol: cleave
           nix-permission-edict: true
 
       - name: Install Nix
@@ -113,12 +127,12 @@ jobs:
           cache: ${{ secrets.ATTIC_CACHE }}
           token: ${{ secrets.ATTIC_TOKEN }}
 
-      - name: Build ${{ matrix.check }}
+      - name: Build ${{ matrix.host }}
         id: build
         run: |
           set -o pipefail
           result=$(nix build \
-            ".#checks.x86_64-linux.${{ matrix.check }}" \
+            ".#top.${{ matrix.host }}" \
             -o result \
             --fallback \
             --no-write-lock-file \
@@ -128,6 +142,21 @@ jobs:
 
       - name: Add build summary
         run: |
-          echo "### ✅ Built ${{ matrix.check }}" >> $GITHUB_STEP_SUMMARY
-          echo "- Commit: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
-          echo "- Result: ${{ steps.build.outputs.result }}" >> $GITHUB_STEP_SUMMARY
+          {
+            echo "## ✅ Build Successful: \`${{ matrix.host }}\`"
+            echo ""
+            echo "| Property | Value |"
+            echo "|----------|--------|"
+            echo "| **Host** | \`${{ matrix.host }}\` |"
+            echo "| **Commit** | \`${{ github.sha }}\` |"
+            echo "| **Runner** | \`${{ matrix.runner }}\` |"
+            echo "| **Result Path** | \`${{ steps.build.outputs.result }}\` |"
+            echo "| **Workflow** | [\`${{ github.workflow }}\`](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) |"
+            echo ""
+            echo "### 🎯 Build Details"
+            echo "- **Event:** ${{ github.event_name }}"
+            echo "- **Ref:** ${{ github.ref }}"
+            if [ "${{ github.event_name }}" == "pull_request" ]; then
+              echo "- **PR:** [#${{ github.event.number }}](${{ github.event.pull_request.html_url }})"
+            fi
+          } >> "${GITHUB_STEP_SUMMARY}"

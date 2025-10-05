@@ -158,13 +158,12 @@
             homeUsers = [ ];
           }
         ];
-        evalHosts = flakeLib.evalHosts;
+        ghMatrix = flakeLib.ghMatrix { exclude = [ "nixos-livecd" ]; };
         top = flakeLib.top;
 
         overlays = import ./overlays { inherit inputs lib; };
         homeManagerModules = [ ./modules/homeManager ];
         nixosModules.default.imports = [ ./modules/nixos ];
-        om.ci.default.root.dir = ".";
       };
 
       perSystem =
@@ -191,23 +190,6 @@
               }).saveFromGC;
           };
           treefmt = import ./treefmt.nix { inherit pkgs; };
-
-          checks =
-            let
-              # Filter out excluded hosts
-              excludedHosts = [ "nixos-livecd" ];
-              allHosts = builtins.attrNames self.nixosConfigurations;
-              filteredHosts = builtins.filter (host: !(builtins.elem host excludedHosts)) allHosts;
-
-              # System configurations as checks
-              systemChecks = builtins.listToAttrs (
-                builtins.map (host: {
-                  name = host;
-                  value = self.nixosConfigurations.${host}.config.system.build.toplevel;
-                }) filteredHosts
-              );
-            in
-            systemChecks;
         };
     };
 }
