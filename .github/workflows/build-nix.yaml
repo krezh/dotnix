@@ -73,7 +73,7 @@ jobs:
             echo "**Total hosts to build:** $(echo "$matrix" | jq '.include | length')"
             echo ""
             echo "### Hosts:"
-            echo "$matrix" | jq -r '.include[] | "- \`" + .host + "\`"'
+            echo "$matrix" | jq -r '.include[] | "- `" + .host + "`"'
             echo ""
             echo "<details>"
             echo "<summary>View raw matrix JSON</summary>"
