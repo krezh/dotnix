@@ -49,7 +49,7 @@ jobs:
           purge-last-accessed: 0
           purge-primary-key: never
 
-      - run: nix build .#top
+      - run: nix build .#gc-keep
         if: steps.cache.outputs.hit-primary-key != 'true'
 
       - id: set-matrix
