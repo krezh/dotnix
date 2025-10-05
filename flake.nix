@@ -191,6 +191,23 @@
               }).saveFromGC;
           };
           treefmt = import ./treefmt.nix { inherit pkgs; };
+
+          checks =
+            let
+              # Filter out excluded hosts
+              excludedHosts = [ "nixos-livecd" ];
+              allHosts = builtins.attrNames self.nixosConfigurations;
+              filteredHosts = builtins.filter (host: !(builtins.elem host excludedHosts)) allHosts;
+
+              # System configurations as checks
+              systemChecks = builtins.listToAttrs (
+                builtins.map (host: {
+                  name = host;
+                  value = self.nixosConfigurations.${host}.config.system.build.toplevel;
+                }) filteredHosts
+              );
+            in
+            systemChecks // config.packages;
         };
     };
 }

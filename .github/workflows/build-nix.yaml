@@ -1,5 +1,5 @@
 ---
-name: Build and diff Nix systems
+name: Build Nix systems
 on:
   pull_request:
     paths-ignore: ["pkgs/**", ".github/**"]
@@ -19,68 +19,16 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.event.number || github.ref }}
   cancel-in-progress: true
 env:
-  EXCLUDED_HOSTS: '["nixos-livecd"]'
   CACHE_NAME: krezh
   NIX_CONFIG: |
     accept-flake-config = true
     always-allow-substitutes = true
     builders-use-substitutes = true
+
 jobs:
-  nix-matrix:
+  build-systems:
     runs-on: ubuntu-latest
-    outputs:
-      matrix: ${{ steps.set-matrix.outputs.matrix }}
-    steps:
-      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
-
-      - name: Install Nix
-        uses: nixbuild/nix-quick-install-action@2c9db80fb984ceb1bcaa77cdda3fdf8cfba92035 # v34
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          nix_conf: ${{ env.NIX_CONFIG }}
-
-      - uses: nix-community/cache-nix-action@135667ec418502fa5a3598af6fb9eb733888ce6a # v6.1.3
-        id: cache
-        with:
-          primary-key: nix-flake-inputs-${{ hashFiles('**/*.nix', '**/flake.lock') }}
-          restore-prefixes-first-match: nix-flake-inputs-
-          gc-max-store-size-linux: 1G
-          purge: true
-          purge-prefixes: nix-flake-inputs-
-          purge-created: 0
-          purge-last-accessed: 0
-          purge-primary-key: never
-
-      - run: nix build .#gc-keep # this keeps stuffs from getting garbage collected
-        if: steps.cache.outputs.hit-primary-key != 'true'
-
-      - id: set-matrix
-        name: Generate Nix Matrix
-        run: |
-          set -Eeu
-          matrix="$(nix eval --json '.#evalHosts' | jq -cM --argjson exclude_hosts '${{ env.EXCLUDED_HOSTS }}' 'del(.include[] | select(.host as $host | $exclude_hosts | index($host)))')"
-          # Validate matrix isn't empty
-          if [ "$(echo "$matrix" | jq '.include | length')" -eq 0 ]; then
-            echo "Error: No hosts to build"
-            exit 1
-          fi
-          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
-
-      - name: show output
-        run: |
-          echo "${{ toJson(steps.set-matrix.outputs.matrix) }}" >> "${GITHUB_STEP_SUMMARY}"
-
-  nix-build:
-    name: Build ${{ matrix.host }}
     if: github.event.pull_request.draft == false
-    needs: nix-matrix
-    permissions:
-      pull-requests: write
-      contents: read
-    strategy:
-      fail-fast: false
-      matrix: ${{ fromJSON(needs.nix-matrix.outputs.matrix) }}
-    runs-on: ${{ matrix.runner }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
@@ -97,22 +45,22 @@ jobs:
       - name: Install Nix
         uses: nixbuild/nix-quick-install-action@2c9db80fb984ceb1bcaa77cdda3fdf8cfba92035 # v34
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
           nix_conf: ${{ env.NIX_CONFIG }}
 
-      - uses: nix-community/cache-nix-action/restore@135667ec418502fa5a3598af6fb9eb733888ce6a # v6.1.3
+      - uses: nix-community/cache-nix-action@135667ec418502fa5a3598af6fb9eb733888ce6a # v6.1.3
+        id: cache
         with:
           primary-key: nix-flake-inputs-${{ hashFiles('**/*.nix', '**/flake.lock') }}
+          restore-prefixes-first-match: nix-flake-inputs-
+          gc-max-store-size-linux: 1G
+          purge: true
+          purge-prefixes: nix-flake-inputs-
+          purge-created: 0
+          purge-last-accessed: 0
+          purge-primary-key: never
 
-      - name: Cache built systems
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
-        with:
-          path: |
-            result-previous
-            result-new
-          key: nix-build-${{ matrix.host }}-${{ github.sha }}
-          restore-keys: |
-            nix-build-${{ matrix.host }}-
+      - run: nix build .#gc-keep # this keeps stuffs from getting garbage collected
+        if: steps.cache.outputs.hit-primary-key != 'true'
 
       - name: Setup Cachix
         uses: cachix/cachix-action@0fc020193b5a1fa3ac4575aa3a7d3aa6a35435ad # v16
@@ -131,82 +79,109 @@ jobs:
           token: ${{ secrets.ATTIC_TOKEN }}
           skip-push: true
 
-      - name: Install NVD
-        run: nix profile install nixpkgs#nvd
+      - name: Install nix-fast-build
+        run: nix profile install github:Mic92/nix-fast-build
 
-      - name: Build previous ${{ matrix.host }} system
-        if: ${{ github.ref_name != 'main' }}
+      - name: Get buildable checks
+        id: get-checks
         run: |
-          set -o pipefail
-          nix build \
-            "github:${{ github.repository }}#top.${{ matrix.host }}" \
-            --log-format raw \
-            --fallback \
-            --no-write-lock-file \
-            -o result-previous
+          available_checks=$(nix eval --json '.#checks.x86_64-linux' --apply 'builtins.attrNames' | jq -r 'join(" ")')
+          echo "checks=$available_checks" >> $GITHUB_OUTPUT
 
-      - name: Build new ${{ matrix.host }} system
+      - name: Build systems
         id: build
         run: |
-          set -o pipefail
-          result=$(nix build \
-            ".#top.${{ matrix.host }}" \
-            -o result-new \
-            --fallback \
-            --no-write-lock-file \
-            --log-format raw \
-            --print-out-paths)
-          echo "result=$result" >> $GITHUB_OUTPUT
+          if nix-fast-build \
+            --flake ".#checks" \
+            --no-nom \
+            --skip-cached \
+            --result-file build-results.json \
+            --result-format json; then
+            echo "build_success=true" >> $GITHUB_OUTPUT
+          else
+            echo "build_success=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Generate build summary
+        if: always()
+        run: |
+          echo "# 🏗️ Build Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [[ "${{ steps.build.outputs.build_success }}" == "true" ]]; then
+            echo "## ✅ All builds succeeded!" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "## ❌ Some builds failed" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Count results from JSON
+          if [[ -f "build-results.json" ]]; then
+            total_builds=$(jq '[.results[] | select(.type == "BUILD")] | length' build-results.json)
+            successful_builds=$(jq '[.results[] | select(.type == "BUILD" and .success == true)] | length' build-results.json)
+            failed_builds=$(jq '[.results[] | select(.type == "BUILD" and .success == false)] | length' build-results.json)
+
+            echo "### 📊 Build Statistics" >> $GITHUB_STEP_SUMMARY
+            echo "- **Total builds:** $total_builds" >> $GITHUB_STEP_SUMMARY
+            echo "- **Successful:** $successful_builds" >> $GITHUB_STEP_SUMMARY
+            echo "- **Failed:** $failed_builds" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+
+            # List what was built
+            echo "### 📦 Items Built" >> $GITHUB_STEP_SUMMARY
+            jq -r '.results[] | select(.type == "BUILD") | "- " + .attr + (if .success then " ✅" else " ❌" end)' build-results.json >> $GITHUB_STEP_SUMMARY
+          fi
 
       - name: Push to caches
-        if: ${{ github.event_name != 'pull_request' || !github.event.pull_request.head.repo.fork }}
+        if: steps.build.outputs.build_success == 'true' && (github.event_name != 'pull_request' || !github.event.pull_request.head.repo.fork)
         continue-on-error: true
         run: |
-          cachix push "${{ env.CACHE_NAME }}" "${{ steps.build.outputs.result }}" &
-          attic push "${{ secrets.ATTIC_CACHE }}" "${{ steps.build.outputs.result }}" &
-          wait
-
-      - name: Diff profile
-        if: ${{ github.ref_name != 'main' }}
-        id: diff
-        run: |
-          delimiter="$(openssl rand -hex 16)"
-          {
-            echo "diff<<${delimiter}"
-            if nvd --color never diff ./result-previous ./result-new > diff.txt 2>&1; then
-              sed '/<<</d; />>>/d' diff.txt
-            else
-              echo "⚠️ No differences found or diff failed"
+          # Get store paths from result symlinks
+          store_paths=""
+          for result in result*; do
+            if [[ -L "$result" ]]; then
+              store_path=$(readlink "$result")
+              if [[ -n "$store_path" ]]; then
+                store_paths="$store_paths $store_path"
+              fi
             fi
-            echo "${delimiter}"
-          } >> "${GITHUB_OUTPUT}"
+          done
 
-      - name: Comment report in pr
-        if: ${{ github.ref_name != 'main' }}
-        uses: marocchino/sticky-pull-request-comment@773744901bac0e8cbb5a0dc842800d45e9b2b405 # v2
-        with:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          header: ".#top.${{ matrix.host }}"
-          message: |
-            ### Report for `${{ matrix.host }}`
-            ```
-            ${{ steps.diff.outputs.diff }}
-            ```
+          if [[ -n "$store_paths" ]]; then
+            # Push to cachix
+            if [[ -n "${{ env.CACHE_NAME }}" ]]; then
+              echo "Pushing to cachix: ${{ env.CACHE_NAME }}"
+              for path in $store_paths; do
+                cachix push "${{ env.CACHE_NAME }}" "$path" &
+              done
+            fi
 
-      - name: Add build summary
-        if: ${{ github.ref_name == 'main' }}
-        run: |
-          echo "### ✅ Built ${{ matrix.host }}" >> $GITHUB_STEP_SUMMARY
-          echo "- Commit: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
-          echo "- Result: ${{ steps.build.outputs.result }}" >> $GITHUB_STEP_SUMMARY
+            # Push to attic
+            if [[ -n "${{ secrets.ATTIC_CACHE }}" ]]; then
+              echo "Pushing to attic: ${{ secrets.ATTIC_CACHE }}"
+              for path in $store_paths; do
+                attic push "${{ secrets.ATTIC_CACHE }}" "$path" &
+              done
+            fi
 
-      - name: Upload build logs
-        if: failure()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
-        with:
-          name: build-logs-${{ matrix.host }}
-          path: |
-            *.log
-            diff.txt
-          retention-days: 7
-          if-no-files-found: ignore
+            # Wait for all pushes to complete
+            wait
+
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### 📤 Cache Status" >> $GITHUB_STEP_SUMMARY
+            if [[ -n "${{ env.CACHE_NAME }}" ]]; then
+              echo "- **Cachix:** Pushed to ${{ env.CACHE_NAME }} ✅" >> $GITHUB_STEP_SUMMARY
+            fi
+            if [[ -n "${{ secrets.ATTIC_CACHE }}" ]]; then
+              echo "- **Attic:** Pushed to ${{ secrets.ATTIC_CACHE }} ✅" >> $GITHUB_STEP_SUMMARY
+            fi
+          else
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### 📤 Cache Status" >> $GITHUB_STEP_SUMMARY
+            echo "- **Skipped:** No cache push (fork or cache failure)" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Fail if builds failed
+        if: steps.build.outputs.build_success != 'true'
+        run: exit 1
