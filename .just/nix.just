@@ -81,7 +81,8 @@ apply: build
 fast-build-pr pr:
     #!/usr/bin/env bash
     set -euo pipefail
-    nix run nixpkgs#nix-fast-build -- --skip-cached --flake "github:krezh/nix-config/pull/{{ pr }}/head#top"
+    nix run nixpkgs#nix-fast-build -- \
+      --skip-cached --flake "github:krezh/nix-config/pull/{{ pr }}/head#top"
 
 # Build the top-level flake
 [no-cd]

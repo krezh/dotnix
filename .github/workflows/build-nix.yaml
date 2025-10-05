@@ -74,7 +74,6 @@ jobs:
     name: Build ${{ matrix.host }}
     if: github.event.pull_request.draft == false
     needs: nix-matrix
-    timeout-minutes: 60
     permissions:
       pull-requests: write
       contents: read
