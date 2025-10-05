@@ -58,10 +58,7 @@ jobs:
         run: |
           set -Eeu
           checks=$(nix eval --json '.#checks.x86_64-linux' --apply 'builtins.attrNames')
-          matrix_items=$(echo "$checks" | jq -r '.[] | @json' | while read -r check; do
-            echo "{\"check\": $check, \"runner\": \"ubuntu-latest\"}"
-          done | jq -s '.')
-          matrix="{\"include\": $matrix_items}"
+          matrix=$(echo "$checks" | jq -c '{include: [.[] | {check: ., runner: "ubuntu-latest"}]}')
           # Validate matrix isn't empty
           if [ "$(echo "$matrix" | jq '.include | length')" -eq 0 ]; then
             echo "Error: No checks to build"
