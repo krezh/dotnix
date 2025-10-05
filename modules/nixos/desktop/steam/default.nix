@@ -68,9 +68,9 @@ in
         };
         remotePlay.openFirewall = true;
         localNetworkGameTransfers.openFirewall = true;
-        protontricks.enable = true;
+        #protontricks.enable = true;
         extraCompatPackages = with pkgs; [
-          proton-ge-bin
+          #proton-ge-bin
         ];
         platformOptimizations.enable = true;
       };
