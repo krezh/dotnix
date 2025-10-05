@@ -17,8 +17,10 @@
       display-combi = "󰕘 combi:";
       display-filebrowser = "󰉋 filebrowser:";
       font = "Inter 13";
-
     };
+    plugins = with pkgs; [
+      rofi-games
+    ];
 
   };
   xdg.dataFile = {
