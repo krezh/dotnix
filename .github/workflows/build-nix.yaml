@@ -24,6 +24,22 @@ env:
     accept-flake-config = true
     always-allow-substitutes = true
     builders-use-substitutes = true
+  FORMAT_DURATION: |
+    format_duration() {
+      local duration_seconds=$1
+      if [ $duration_seconds -ge 3600 ]; then
+        hours=$((duration_seconds / 3600))
+        minutes=$(((duration_seconds % 3600) / 60))
+        seconds=$((duration_seconds % 60))
+        echo "${hours}h${minutes}m${seconds}s"
+      elif [ $duration_seconds -ge 60 ]; then
+        minutes=$((duration_seconds / 60))
+        seconds=$((duration_seconds % 60))
+        echo "${minutes}m${seconds}s"
+      else
+        echo "${duration_seconds}s"
+      fi
+    }
 jobs:
   ghMatrix:
     runs-on: ubuntu-latest
@@ -53,7 +69,7 @@ jobs:
         if: steps.cache.outputs.hit-primary-key != 'true'
 
       - id: set-matrix
-        name: Generate Hosts Matrix
+        name: Generate Matrix
         run: |
           set -Eeu
           matrix=$(nix eval --json '.#ghMatrix')
@@ -64,7 +80,7 @@ jobs:
           fi
           echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
 
-      - name: Show matrix summary
+      - name: Show Summary
         run: |
           matrix='${{ steps.set-matrix.outputs.matrix }}'
           {
@@ -112,10 +128,10 @@ jobs:
       matrix: ${{ fromJSON(needs.ghMatrix.outputs.matrix) }}
     runs-on: ${{ matrix.runner }}
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
 
-      - name: Nothing but Nix
+      - name: Setup Environment
         uses: wimpysworld/nothing-but-nix@6af122a9403f936ef689e44cc013ae3f3e2f1c3b # v6
         with:
           hatchet-protocol: cleave
@@ -145,7 +161,7 @@ jobs:
           cache: ${{ secrets.ATTIC_CACHE }}
           token: ${{ secrets.ATTIC_TOKEN }}
 
-      - name: Build ${{ matrix.host }}
+      - name: Build System
         id: build
         run: |
           set -o pipefail
@@ -165,12 +181,20 @@ jobs:
           echo "result=$result" >> $GITHUB_OUTPUT
           echo "build_duration=$build_duration" >> $GITHUB_OUTPUT
 
-      - name: Add build summary
+      - name: Success Summary
+        if: success()
         run: |
+          # Load duration formatting function
+          eval "$FORMAT_DURATION"
+
           # Get build size and timing info
           build_size="Unknown"
           if [ -e "${{ steps.build.outputs.result }}" ]; then
-            build_size=$(du -sh "${{ steps.build.outputs.result }}" 2>/dev/null | cut -f1 || echo "Unknown")
+            store_path=$(readlink "${{ steps.build.outputs.result }}" 2>/dev/null || echo "")
+            if [ -n "$store_path" ]; then
+              # Get total closure size (most accurate for system builds)
+              build_size=$(nix path-info --closure-size --human-readable "$store_path" 2>/dev/null | awk '{print $2}' || echo "Unknown")
+            fi
           fi
 
           {
@@ -199,29 +223,15 @@ jobs:
               fi
             fi
             echo ""
-            echo "### 🏗️ Build Environment"
-            echo "- **Cachix Cache:** ${{ env.CACHE_NAME }}"
-            if [ "${{ github.event_name }}" != "pull_request" ] || [ "${{ github.event.pull_request.head.repo.fork }}" != "true" ]; then
-              echo "- **Cache Available:** ✅ Yes"
-            else
-              echo "- **Cache Available:** ❌ No (fork/external PR)"
-            fi
-            echo "- **Fallback Enabled:** ✅ Yes"
-            if [ "${{ steps.build.outcome }}" = "success" ]; then
-              echo "- **Lock File Modified:** ❌ No"
-            else
-              echo "- **Lock File Modified:** ⚠️ Maybe"
-            fi
-            echo ""
-            echo "### 📊 Timing"
-            echo "- **Build Duration:** ${{ steps.build.outputs.build_duration }}s"
-            echo "- **Build Started:** $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
-            echo "- **Job URL:** [View Job](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})"
+            echo "**Build Duration:** $(format_duration ${{ steps.build.outputs.build_duration }})"
           } >> "${GITHUB_STEP_SUMMARY}"
 
-      - name: Add failure summary
+      - name: Failure Summary
         if: failure()
         run: |
+          # Load duration formatting function
+          eval "$FORMAT_DURATION"
+
           {
             echo "## ❌ Build Failed: \`${{ matrix.host }}\`"
             echo ""
@@ -250,7 +260,7 @@ jobs:
             echo "- **Build Command:** \`nix build .#top.${{ matrix.host }} -o result --fallback --no-write-lock-file\`"
             echo "- **Job Status:** Failed"
             if [ -n "${{ steps.build.outputs.build_duration }}" ]; then
-              echo "- **Time to Failure:** ${{ steps.build.outputs.build_duration }}s"
+              echo "- **Time to Failure:** $(format_duration ${{ steps.build.outputs.build_duration }})"
             fi
             echo ""
             echo "### 💡 Next Steps"
