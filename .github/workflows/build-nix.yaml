@@ -191,24 +191,10 @@ jobs:
             store_path=$(readlink "result" 2>/dev/null || echo "")
             if [ -n "$store_path" ]; then
               # Get total closure size with human readable format
-              size_output=$(nix path-info --closure-size --human-readable "$store_path" 2>/dev/null || echo "")
-              echo "Debug: size_output='$size_output'" >&2
+              size_output="$(nix path-info --closure-size --human-readable "$store_path" 2>/dev/null || echo "")"
               if [ -n "$size_output" ]; then
-                # Try multiple extraction methods
-                build_size=$(echo "$size_output" | awk '{print $NF}' | tr -d '[:space:]')
-                echo "Debug: build_size='$build_size'" >&2
-
-                # Fallback if extraction failed or only shows unit
-                if [ -z "$build_size" ] || [[ "$build_size" =~ ^[KMGT]i?B?$ ]]; then
-                  build_size=$(echo "$size_output" | awk '{print $2}' | tr -d '[:space:]')
-                  echo "Debug: fallback build_size='$build_size'" >&2
-                fi
-
-                # Final fallback - extract size with regex
-                if [ -z "$build_size" ] || [[ "$build_size" =~ ^[KMGT]i?B?$ ]]; then
-                  build_size=$(echo "$size_output" | sed -n 's/.*[[:space:]]\([0-9.]*[KMGT]i\?B\?\).*/\1/p')
-                  echo "Debug: regex build_size='$build_size'" >&2
-                fi
+                # Extract the size part (last field which contains the unit)
+                build_size="$(echo "$size_output" | awk '{print $NF}')"
               fi
             fi
           fi
