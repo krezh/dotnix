@@ -168,17 +168,15 @@ jobs:
           build_start=$(date +%s)
           echo "build_start=$build_start" >> $GITHUB_OUTPUT
 
-          result=$(nix build \
+          nix build \
             ".#top.${{ matrix.host }}" \
             -o result \
             --fallback \
             --no-write-lock-file \
-            --log-format raw \
-            --print-out-paths)
+            --log-format raw
 
           build_end=$(date +%s)
           build_duration=$((build_end - build_start))
-          echo "result=$result" >> $GITHUB_OUTPUT
           echo "build_duration=$build_duration" >> $GITHUB_OUTPUT
 
       - name: Success Summary
@@ -189,8 +187,8 @@ jobs:
 
           # Get build size and timing info
           build_size="Unknown"
-          if [ -e "${{ steps.build.outputs.result }}" ]; then
-            store_path=$(readlink "${{ steps.build.outputs.result }}" 2>/dev/null || echo "")
+          if [ -L "result" ]; then
+            store_path=$(readlink "result" 2>/dev/null || echo "")
             if [ -n "$store_path" ]; then
               # Get total closure size (most accurate for system builds)
               build_size=$(nix path-info --closure-size --human-readable "$store_path" 2>/dev/null | awk '{print $2}' || echo "Unknown")
@@ -202,12 +200,9 @@ jobs:
             echo ""
             echo "| Property | Value |"
             echo "|----------|--------|"
-            echo "| **Host** | \`${{ matrix.host }}\` |"
-            echo "| **Commit** | [\`${{ github.sha }}\`](${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}) |"
             echo "| **Runner** | \`${{ matrix.runner }}\` |"
             echo "| **Build Size** | \`${build_size}\` |"
-            echo "| **Result Path** | \`${{ steps.build.outputs.result }}\` |"
-            echo "| **Workflow** | [\`${{ github.workflow }}\`](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) |"
+            echo "| **Result Path** | \`$(readlink result 2>/dev/null || echo "Unknown")\` |"
             echo ""
             echo "### 🎯 Build Details"
             echo "- **Event:** ${{ github.event_name }}"
@@ -237,10 +232,7 @@ jobs:
             echo ""
             echo "| Property | Value |"
             echo "|----------|--------|"
-            echo "| **Host** | \`${{ matrix.host }}\` |"
-            echo "| **Commit** | [\`${{ github.sha }}\`](${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}) |"
             echo "| **Runner** | \`${{ matrix.runner }}\` |"
-            echo "| **Workflow** | [\`${{ github.workflow }}\`](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) |"
             echo ""
             echo "### 🔍 Failure Details"
             echo "- **Event:** ${{ github.event_name }}"
