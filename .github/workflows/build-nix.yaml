@@ -190,8 +190,10 @@ jobs:
           if [ -L "result" ]; then
             store_path=$(readlink "result" 2>/dev/null || echo "")
             if [ -n "$store_path" ]; then
-              # Get total closure size (most accurate for system builds)
-              build_size=$(nix path-info --closure-size --human-readable "$store_path" 2>/dev/null | awk '{print $2}' || echo "Unknown")
+              size_output=$(nix path-info --closure-size --human-readable "$store_path" 2>/dev/null || echo "")
+              if [ -n "$size_output" ]; then
+                build_size=$(echo "$size_output" | awk '{print $NF}')
+              fi
             fi
           fi
 
