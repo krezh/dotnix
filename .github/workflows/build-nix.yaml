@@ -193,8 +193,14 @@ jobs:
               # Get total closure size with human readable format
               size_output="$(nix path-info --closure-size --human-readable "$store_path" 2>/dev/null || echo "")"
               if [ -n "$size_output" ]; then
-                # Extract the size part (last field which contains the unit)
-                build_size="$(echo "$size_output" | awk '{print $NF}')"
+                # Extract size and unit - handle both "20.9G" and "20.9 GiB" formats
+                build_size="$(echo "$size_output" | awk '{
+                  if (NF == 2) {
+                    print $2
+                  } else if (NF >= 3) {
+                    print $(NF-1) $NF
+                  }
+                }')"
               fi
             fi
           fi
