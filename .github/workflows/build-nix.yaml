@@ -176,39 +176,37 @@ jobs:
         continue-on-error: true
         with:
           name: pkg-list-${{ matrix.host }}
-          path: old-artifact.zip
+          path: .
           github-token: ${{ secrets.GITHUB_TOKEN }}
           repository: ${{ github.repository }}
           run-id: ${{ steps.find-run.outputs.run_id }}
           merge-multiple: false
 
-      # Unzip and rename previous package list artifact
+      # Find and unzip previous package list artifact
       - name: Find and unzip previous package list artifact
         run: |
           echo "Searching for ZIP files recursively in workspace:"
-          found_zip=$(find . -type f -name '*.zip')
-          if [ -z "$found_zip" ]; then
+          zip_file=$(find . -type f -name '*.zip' | head -n 1)
+          if [ -z "$zip_file" ]; then
             echo "No ZIP files found in workspace."
             exit 0
           fi
-          echo "Found ZIP files:"
-          echo "$found_zip"
-          # Use the first found ZIP file
-          zip_file=$(echo "$found_zip" | head -n 1)
-          echo "Unzipping $zip_file to old-artifact/"
-          unzip -o "$zip_file" -d old-artifact
-          echo "Contents of old-artifact after unzip:"
-          ls -l old-artifact
-          if [ -f old-artifact/new-pkg-list.json ]; then
+          echo "Found ZIP file: $zip_file"
+          echo "Listing contents of ZIP file:"
+          unzip -l "$zip_file"
+          echo "Unzipping $zip_file to workspace root"
+          unzip -o "$zip_file" -d .
+          echo "Contents of workspace after unzip:"
+          ls -l
+          if [ -f new-pkg-list.json ]; then
             echo "Renaming new-pkg-list.json to pkg-list.json"
-            mv old-artifact/new-pkg-list.json old-artifact/pkg-list.json
+            mv new-pkg-list.json pkg-list.json
           else
             echo "new-pkg-list.json not found after unzip!"
-            echo "Files in old-artifact:"
-            ls -l old-artifact
+            ls -l
           fi
-          echo "Final contents of old-artifact:"
-          ls -l old-artifact
+          echo "Final contents of workspace:"
+          ls -l
 
       - name: Build System
         id: build
@@ -282,8 +280,8 @@ jobs:
             echo "**Build Duration:** $(format_duration ${{ steps.build.outputs.build_duration }})"
             echo ""
             echo "### 📦 Package Diff"
-            if [ -f old-artifact/pkg-list.json ]; then
-              python3 .github/pkg-tool.py diff old-artifact/pkg-list.json new-pkg-list.json --github
+            if [ -f pkg-list.json ]; then
+              python3 .github/pkg-tool.py diff pkg-list.json new-pkg-list.json --github
             else
               echo "_No previous package list found; skipping diff._"
             fi
