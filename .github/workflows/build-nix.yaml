@@ -13,8 +13,9 @@ on:
       - "modules/**"
       - "hosts/**"
 permissions:
-  id-token: "write"
-  contents: "read"
+  id-token: write
+  contents: read
+  actions: read
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.number || github.ref }}
   cancel-in-progress: true
@@ -161,13 +162,24 @@ jobs:
           cache: ${{ secrets.ATTIC_CACHE }}
           token: ${{ secrets.ATTIC_TOKEN }}
 
+      - name: Find previous run ID
+        id: find-run
+        run: |
+          # Find the last successful run for the workflow on main
+          run_id=$(gh run list --workflow build-nix.yaml --branch main --status success --limit 1 --json databaseId -q '.[0].databaseId')
+          echo "run_id=$run_id" >> $GITHUB_OUTPUT
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       # Download previous package list artifact (if any)
       - name: Download previous package list artifact
         uses: actions/download-artifact@v4
+        continue-on-error: true
         with:
           name: pkg-list-${{ matrix.host }}
           path: old-artifact
-        continue-on-error: true
+          repository: ${{ github.repository }}
+          run-id: ${{ steps.find-run.outputs.run_id }}
 
       - name: Build System
         id: build
