@@ -173,6 +173,7 @@ jobs:
       # Download previous package list artifact (if any)
       - name: Download previous package list artifact
         uses: actions/download-artifact@v5
+        id: download-artifact
         continue-on-error: true
         with:
           name: pkg-list-${{ matrix.host }}
