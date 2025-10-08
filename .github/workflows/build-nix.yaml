@@ -1,5 +1,5 @@
-# .github/workflows/build-nix.yaml
 ---
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
 name: Build Nix
 on:
   pull_request:
@@ -183,28 +183,15 @@ jobs:
           merge-multiple: false
 
       # Find and unzip previous package list artifact
-      - name: Find and unzip previous package list artifact
+      - name: Find and move previous package list JSON
         run: |
-          echo "Searching for ZIP files recursively in workspace:"
-          zip_file=$(find . -type f -name '*.zip' | head -n 1)
-          if [ -z "$zip_file" ]; then
-            echo "No ZIP files found in workspace."
+          found_json=$(find . -type f -name 'new-pkg-list.json' | head -n 1)
+          if [ -z "$found_json" ]; then
+            echo "No new-pkg-list.json found in workspace."
             exit 0
           fi
-          echo "Found ZIP file: $zip_file"
-          echo "Listing contents of ZIP file:"
-          unzip -l "$zip_file"
-          echo "Unzipping $zip_file to workspace root"
-          unzip -o "$zip_file" -d .
-          echo "Contents of workspace after unzip:"
-          ls -l
-          if [ -f new-pkg-list.json ]; then
-            echo "Renaming new-pkg-list.json to pkg-list.json"
-            mv new-pkg-list.json pkg-list.json
-          else
-            echo "new-pkg-list.json not found after unzip!"
-            ls -l
-          fi
+          echo "Found previous package list: $found_json"
+          mv "$found_json" pkg-list.json
           echo "Final contents of workspace:"
           ls -l
 
