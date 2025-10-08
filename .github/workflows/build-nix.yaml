@@ -183,11 +183,12 @@ jobs:
           merge-multiple: false
 
       # Find and unzip previous package list artifact
-      - name: Find and move previous package list JSON (any name, flat structure)
+      - name: Find and move previous package list JSON (artifact only)
         run: |
-          found_json=$(find . -type f -name '*.json' | head -n 1)
+          artifact_dir="pkg-list-${{ matrix.host }}"
+          found_json=$(find "$artifact_dir" -type f -name '*.json' | head -n 1)
           if [ -z "$found_json" ]; then
-            echo "No .json file found in workspace."
+            echo "No .json file found in $artifact_dir."
             exit 0
           fi
           echo "Found previous package list: $found_json"
