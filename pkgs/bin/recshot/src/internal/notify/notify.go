@@ -1,22 +1,28 @@
 package notify
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
+	"time"
 )
 
 // Notifier handles desktop notifications
 type Notifier struct {
-	iconPath string
+	iconPath   string
+	execCache  map[string]bool
+	cacheMutex sync.RWMutex
 }
 
 // New creates a new notifier
 func New() *Notifier {
 	return &Notifier{
-		iconPath: findIcon(),
+		iconPath:  findIcon(),
+		execCache: make(map[string]bool),
 	}
 }
 
@@ -26,6 +32,7 @@ func findIcon() string {
 	if err != nil {
 		return ""
 	}
+
 	paths := []string{
 		filepath.Join(filepath.Dir(execPath), "recshot.png"),
 		filepath.Join(filepath.Dir(execPath), "..", "share", "recshot", "recshot.png"),
@@ -33,16 +40,22 @@ func findIcon() string {
 		"/usr/share/pixmaps/recshot.png",
 		"/usr/local/share/pixmaps/recshot.png",
 	}
+
+	// Check paths sequentially
 	for _, path := range paths {
 		if _, err := os.Stat(path); err == nil {
 			return path
 		}
 	}
+
 	return ""
 }
 
 // send sends a desktop notification with optional action button
 func (n *Notifier) send(urgency, message, url string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
 	args := []string{"-t", "5000"}
 	if n.iconPath != "" {
 		args = append(args, "-i", n.iconPath)
@@ -55,35 +68,65 @@ func (n *Notifier) send(urgency, message, url string) error {
 	}
 	args = append(args, "Recshot", message)
 
-	cmd := exec.Command("notify-send", args...)
+	cmd := exec.CommandContext(ctx, "notify-send", args...)
 
 	if url != "" {
 		output, err := cmd.Output()
 		if err == nil {
 			response := strings.TrimSpace(string(output))
 			if response == "open" {
-				fmt.Println("Opening URL:", url)
 				n.openURL(url)
 			}
 		}
-		return nil
+		return err
 	}
+
 	return cmd.Run()
 }
 
 // openURL attempts to open a URL using available system commands
 func (n *Notifier) openURL(url string) {
-	// Try different commands in order of preference
 	commands := []string{"xdg-open", "open", "firefox", "chromium", "google-chrome"}
 
-	fmt.Println(url)
+	// Check cache first to avoid repeated lookups
+	for _, cmdName := range commands {
+		if n.isCommandAvailable(cmdName) {
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
 
-	for _, cmd := range commands {
-		if _, err := exec.LookPath(cmd); err == nil {
-			exec.Command(cmd, url).Start()
+			cmd := exec.CommandContext(ctx, cmdName, url)
+			// Detach from current process so browser can outlive the notification
+			if err := cmd.Start(); err != nil {
+				continue
+			}
+
+			// Don't wait for browser to finish, just start it
+
+			fmt.Printf("✓ Opened URL with %s\n", cmdName)
 			return
 		}
 	}
+}
+
+// isCommandAvailable checks if a command is available, with simple caching
+func (n *Notifier) isCommandAvailable(cmdName string) bool {
+	n.cacheMutex.RLock()
+	if available, cached := n.execCache[cmdName]; cached {
+		n.cacheMutex.RUnlock()
+		return available
+	}
+	n.cacheMutex.RUnlock()
+
+	// Check if command exists
+	_, err := exec.LookPath(cmdName)
+	available := err == nil
+
+	// Cache the result
+	n.cacheMutex.Lock()
+	n.execCache[cmdName] = available
+	n.cacheMutex.Unlock()
+
+	return available
 }
 
 // Send sends a basic notification

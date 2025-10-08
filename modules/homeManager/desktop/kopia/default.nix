@@ -10,7 +10,7 @@ let
     pname = "kopia-manager";
     version = "0.0.0";
     src = ./kopia-manager;
-    vendorHash = "sha256-Ki9MKnuqVf079sLud0f1+tvp40IoUsUxkH4862zGg4I=";
+    vendorHash = "sha256-lxkd/FeeFstpr4LqMEWsECak27/i2k93faZTlXnT+jA=";
     buildInputs = [ pkgs.kopia ];
     postInstall = ''
       installShellCompletion --cmd kopia-manager \
@@ -149,27 +149,45 @@ in
 
             retentionPolicy = {
               keepDaily = lib.mkOption {
-                type = lib.types.nullOr lib.types.int;
-                default = null;
+                type = lib.types.int;
+                default = 0;
                 description = "Number of daily snapshots to keep";
               };
 
               keepWeekly = lib.mkOption {
-                type = lib.types.nullOr lib.types.int;
-                default = null;
+                type = lib.types.int;
+                default = 0;
                 description = "Number of weekly snapshots to keep";
               };
 
               keepMonthly = lib.mkOption {
-                type = lib.types.nullOr lib.types.int;
-                default = null;
+                type = lib.types.int;
+                default = 0;
                 description = "Number of monthly snapshots to keep";
               };
 
               keepAnnual = lib.mkOption {
-                type = lib.types.nullOr lib.types.int;
-                default = null;
+                type = lib.types.int;
+                default = 0;
                 description = "Number of annual snapshots to keep";
+              };
+
+              keepHourly = lib.mkOption {
+                type = lib.types.int;
+                default = 0;
+                description = "Number of hourly snapshots to keep";
+              };
+
+              keepLatest = lib.mkOption {
+                type = lib.types.int;
+                default = 0;
+                description = "Number of latest snapshots to keep";
+              };
+
+              ignoreIdenticalSnapshots = lib.mkOption {
+                type = lib.types.bool;
+                default = false;
+                description = "Ignore identical snapshots";
               };
             };
           };

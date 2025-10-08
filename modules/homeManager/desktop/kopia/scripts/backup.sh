@@ -18,6 +18,9 @@ RETENTION_DAILY=$(jq -r '.retentionPolicy.keepDaily // empty' "$JSON_CONFIG")
 RETENTION_WEEKLY=$(jq -r '.retentionPolicy.keepWeekly // empty' "$JSON_CONFIG")
 RETENTION_MONTHLY=$(jq -r '.retentionPolicy.keepMonthly // empty' "$JSON_CONFIG")
 RETENTION_ANNUAL=$(jq -r '.retentionPolicy.keepAnnual // empty' "$JSON_CONFIG")
+RETENTION_HOURLY=$(jq -r '.retentionPolicy.keepHourly // empty' "$JSON_CONFIG")
+RETENTION_LATEST=$(jq -r '.retentionPolicy.keepLatest // empty' "$JSON_CONFIG")
+IGNORE_IDENTICAL=$(jq -r '.retentionPolicy.ignoreIdenticalSnapshots // empty' "$JSON_CONFIG")
 
 KOPIA_POLICY_ARGS=()
 [[ -n "$COMPRESSION" && "$COMPRESSION" != "null" ]] && KOPIA_POLICY_ARGS+=("--compression=$COMPRESSION")
@@ -25,6 +28,9 @@ KOPIA_POLICY_ARGS=()
 [[ -n "$RETENTION_WEEKLY" ]] && KOPIA_POLICY_ARGS+=("--keep-weekly=$RETENTION_WEEKLY")
 [[ -n "$RETENTION_MONTHLY" ]] && KOPIA_POLICY_ARGS+=("--keep-monthly=$RETENTION_MONTHLY")
 [[ -n "$RETENTION_ANNUAL" ]] && KOPIA_POLICY_ARGS+=("--keep-annual=$RETENTION_ANNUAL")
+[[ -n "$RETENTION_HOURLY" ]] && KOPIA_POLICY_ARGS+=("--keep-hourly=$RETENTION_HOURLY")
+[[ -n "$RETENTION_LATEST" ]] && KOPIA_POLICY_ARGS+=("--keep-latest=$RETENTION_LATEST")
+[[ -n "$IGNORE_IDENTICAL" ]] && KOPIA_POLICY_ARGS+=("--ignore-identical-snapshots=$IGNORE_IDENTICAL")
 for pattern in "${EXCLUDES[@]}"; do [[ -n "$pattern" ]] && KOPIA_POLICY_ARGS+=("--add-ignore=$pattern"); done
 
 notify() {

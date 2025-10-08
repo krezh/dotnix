@@ -1,8 +1,11 @@
 package capture
 
 import (
+	"bufio"
+	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	"os/exec"
 	"strings"
 	"syscall"
@@ -115,7 +118,7 @@ func (c *Capturer) getGeometry(mode string) (string, error) {
 		return c.captureArea()
 	case "image-window":
 		return c.getActiveWindow()
-	case "image-full":
+	case "image-screen":
 		return "", nil
 	default:
 		return "", fmt.Errorf("invalid mode: %s", mode)
@@ -129,7 +132,7 @@ func (c *Capturer) getRecordingParams(mode string) (geometry, monitor string, er
 		geometry, err = c.runCommand("slurp")
 	case "video-window":
 		geometry, err = c.getActiveWindow()
-	case "video-full":
+	case "video-screen":
 		monitor, err = c.getActiveMonitor()
 	default:
 		err = fmt.Errorf("invalid mode: %s", mode)
@@ -139,58 +142,84 @@ func (c *Capturer) getRecordingParams(mode string) (geometry, monitor string, er
 
 // captureArea handles area selection with hyprpicker
 func (c *Capturer) captureArea() (string, error) {
-	exec.Command("hyprpicker", "-r", "-z").Start()
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, "hyprpicker", "-r", "-z")
+	if err := cmd.Start(); err != nil {
+		return "", fmt.Errorf("failed to start hyprpicker: %w", err)
+	}
+
 	time.Sleep(200 * time.Millisecond)
-	geometry, err := c.runCommand("slurp")
+	geometry, err := c.runCommandWithContext(ctx, "slurp")
+
+	// Always cleanup hyprpicker
+	c.procMgr.KillByName("hyprpicker", syscall.SIGTERM)
+
 	if err != nil {
 		fmt.Println("Area selection cancelled")
 		c.notifier.Send("Area selection cancelled")
-		c.procMgr.KillByName("hyprpicker", syscall.SIGTERM)
-		syscall.Exit(1)
+		os.Exit(1)
 	}
-	c.procMgr.KillByName("hyprpicker", syscall.SIGTERM)
+
 	return geometry, err
 }
 
 // getActiveWindow gets the geometry of the active window
 func (c *Capturer) getActiveWindow() (string, error) {
-	cmd := exec.Command("hyprctl", "-j", "activewindow")
-	output, err := cmd.StdoutPipe()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, "hyprctl", "-j", "activewindow")
+	stdout, err := cmd.StdoutPipe()
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("failed to create stdout pipe: %w", err)
 	}
 
 	if err := cmd.Start(); err != nil {
-		return "", err
+		return "", fmt.Errorf("failed to start hyprctl: %w", err)
 	}
 
 	var window HyprctlWindow
-	if err := json.NewDecoder(output).Decode(&window); err != nil {
-		return "", err
+	reader := bufio.NewReader(stdout)
+	if err := json.NewDecoder(reader).Decode(&window); err != nil {
+		cmd.Wait()
+		return "", fmt.Errorf("failed to decode window data: %w", err)
 	}
 
-	cmd.Wait()
+	if err := cmd.Wait(); err != nil {
+		return "", fmt.Errorf("hyprctl command failed: %w", err)
+	}
+
 	return fmt.Sprintf("%d,%d %dx%d", window.At[0], window.At[1], window.Size[0], window.Size[1]), nil
 }
 
 // getActiveMonitor gets the name of the active monitor
 func (c *Capturer) getActiveMonitor() (string, error) {
-	cmd := exec.Command("hyprctl", "-j", "activeworkspace")
-	output, err := cmd.StdoutPipe()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, "hyprctl", "-j", "activeworkspace")
+	stdout, err := cmd.StdoutPipe()
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("failed to create stdout pipe: %w", err)
 	}
 
 	if err := cmd.Start(); err != nil {
-		return "", err
+		return "", fmt.Errorf("failed to start hyprctl: %w", err)
 	}
 
 	var workspace HyprctlWorkspace
-	if err := json.NewDecoder(output).Decode(&workspace); err != nil {
-		return "", err
+	reader := bufio.NewReader(stdout)
+	if err := json.NewDecoder(reader).Decode(&workspace); err != nil {
+		cmd.Wait()
+		return "", fmt.Errorf("failed to decode workspace data: %w", err)
 	}
 
-	cmd.Wait()
+	if err := cmd.Wait(); err != nil {
+		return "", fmt.Errorf("hyprctl command failed: %w", err)
+	}
+
 	return workspace.Monitor, nil
 }
 
@@ -217,6 +246,17 @@ func (c *Capturer) executeWlScreenrec(geometry, monitor, filename string) error 
 
 // runCommand executes a command and returns its output
 func (c *Capturer) runCommand(name string, args ...string) (string, error) {
-	output, err := exec.Command(name, args...).Output()
-	return strings.TrimSpace(string(output)), err
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	return c.runCommandWithContext(ctx, name, args...)
+}
+
+// runCommandWithContext executes a command with context and returns its output
+func (c *Capturer) runCommandWithContext(ctx context.Context, name string, args ...string) (string, error) {
+	cmd := exec.CommandContext(ctx, name, args...)
+	output, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("command %s failed: %w", name, err)
+	}
+	return strings.TrimSpace(string(output)), nil
 }

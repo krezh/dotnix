@@ -1,10 +1,13 @@
 package main
 
-func main() {
-	// Initialize commands
-	initCommands()
+import (
+	"kopia-manager/cmd"
 
-	if err := rootCmd.Execute(); err != nil {
-		logger.Fatal("Command failed", "error", err)
+	"github.com/charmbracelet/log"
+)
+
+func main() {
+	if err := cmd.Execute(); err != nil {
+		log.Fatal("Command failed", "error", err)
 	}
 }

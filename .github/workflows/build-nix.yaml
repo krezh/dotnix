@@ -161,6 +161,14 @@ jobs:
           cache: ${{ secrets.ATTIC_CACHE }}
           token: ${{ secrets.ATTIC_TOKEN }}
 
+      # Download previous package list artifact (if any)
+      - name: Download previous package list artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: pkg-list-${{ matrix.host }}
+          path: old-artifact
+        continue-on-error: true
+
       - name: Build System
         id: build
         run: |
@@ -179,32 +187,29 @@ jobs:
           build_duration=$((build_end - build_start))
           echo "build_duration=$build_duration" >> $GITHUB_OUTPUT
 
+      - name: Generate new package list
+        run: python3 .github/pkg-tool.py list result new-pkg-list.json
+
+      - name: Upload new package list artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: pkg-list-${{ matrix.host }}
+          path: new-pkg-list.json
+
       - name: Success Summary
         if: success()
         run: |
-          # Load duration formatting function
           eval "$FORMAT_DURATION"
-
-          # Get build size and timing info
           build_size="Unknown"
           if [ -L "result" ]; then
             store_path=$(readlink "result" 2>/dev/null || echo "")
             if [ -n "$store_path" ]; then
-              # Get total closure size with human readable format
               size_output="$(nix path-info --closure-size --human-readable "$store_path" 2>/dev/null || echo "")"
               if [ -n "$size_output" ]; then
-                # Extract size and unit - handle both "20.9G" and "20.9 GiB" formats
-                build_size="$(echo "$size_output" | awk '{
-                  if (NF == 2) {
-                    print $2
-                  } else if (NF >= 3) {
-                    print $(NF-1) $NF
-                  }
-                }')"
+                build_size="$(echo "$size_output" | awk '{ if (NF == 2) { print $2 } else if (NF >= 3) { print $(NF-1) $NF } }')"
               fi
             fi
           fi
-
           {
             echo "## ✅ Build Successful: \`${{ matrix.host }}\`"
             echo ""
@@ -229,14 +234,19 @@ jobs:
             fi
             echo ""
             echo "**Build Duration:** $(format_duration ${{ steps.build.outputs.build_duration }})"
+            echo ""
+            echo "### 📦 Package Diff"
+            if [ -f old-artifact/pkg-list.json ]; then
+              python3 .github/pkg-tool.py diff old-artifact/pkg-list.json new-pkg-list.json --github
+            else
+              echo "_No previous package list found; skipping diff._"
+            fi
           } >> "${GITHUB_STEP_SUMMARY}"
 
       - name: Failure Summary
         if: failure()
         run: |
-          # Load duration formatting function
           eval "$FORMAT_DURATION"
-
           {
             echo "## ❌ Build Failed: \`${{ matrix.host }}\`"
             echo ""

@@ -46,6 +46,7 @@ in
         "animation fade, wayfreeze"
       ];
       windowrule = [
+        "noshadow, focus:0"
         # copyq
         "float,class:(com.github.hluk.copyq)"
         "size 50% 50%,class:(com.github.hluk.copyq)"
@@ -63,7 +64,7 @@ in
         "nodim, xwayland:1, title:win[0-9]+"
         "noshadow, xwayland:1, title:win[0-9]+"
         "rounding 10, xwayland:1, title:win[0-9]+"
-        # Dialogues
+        # Dialogs
         "float, title:(Select|Open)( a)? (File|Folder)(s)?"
         "float, title:File (Operation|Upload)( Progress)?"
         "float, title:.* Properties"

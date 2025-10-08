@@ -1,7 +1,6 @@
 {
   imports = [
     ./docker.nix
-    ./podman.nix
     ./nix.nix
     ./locale.nix
     ./packages.nix

@@ -23,7 +23,7 @@
         lola = "log --graph --decorate --pretty=oneline --abbrev-commit --all";
       };
       difftastic.enable = false;
-      difftastic.display = "inline";
+      difftastic.options.display = "inline";
     };
     lazygit.enable = true;
   };

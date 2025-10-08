@@ -57,7 +57,7 @@
       "col.inactive_border" = "$base";
       layout = "dwindle";
 
-      allow_tearing = true;
+      allow_tearing = false;
       resize_on_border = true;
     };
 
@@ -74,8 +74,8 @@
         brightness = 1.0;
         contrast = 1.0;
         noise = 0.01;
-        vibrancy = 0.2;
-        vibrancy_darkness = 0.5;
+        vibrancy = 0.8;
+        vibrancy_darkness = 0.6;
         passes = 4;
         size = 7;
         popups = true;
@@ -90,7 +90,7 @@
         ignore_window = true;
         offset = "0 15";
         range = 100;
-        render_power = 2;
+        render_power = 3;
         scale = 0.97;
       };
     };

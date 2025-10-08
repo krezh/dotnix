@@ -21,10 +21,7 @@
       accept-flake-config = true;
       always-allow-substitutes = true;
       builders-use-substitutes = true;
-      trusted-users = [
-        "root"
-        "@wheel"
-      ];
+      trusted-users = [ "@wheel" ];
       auto-optimise-store = true;
       experimental-features = [
         "nix-command"

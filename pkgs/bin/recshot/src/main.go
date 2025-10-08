@@ -25,7 +25,7 @@ func main() {
 	flag.StringVar(&cfg.ZiplineURL, "u", cfg.ZiplineURL, "Zipline URL (short)")
 	flag.StringVar(&cfg.TokenFile, "token", cfg.TokenFile, "Token file path")
 	flag.StringVar(&cfg.TokenFile, "t", cfg.TokenFile, "Token file path (short)")
-	flag.StringVar(&cfg.Mode, "mode", cfg.Mode, "Mode: image-area, image-window, image-full, video-area, video-window, video-full")
+	flag.StringVar(&cfg.Mode, "mode", cfg.Mode, "Mode: image-area, image-window, image-screen, video-area, video-window, video-screen")
 	flag.StringVar(&cfg.Mode, "m", cfg.Mode, "Mode (short)")
 	flag.StringVar(&cfg.SavePath, "path", cfg.SavePath, "Save path")
 	flag.StringVar(&cfg.SavePath, "p", cfg.SavePath, "Save path (short)")
@@ -46,11 +46,11 @@ func main() {
 		fmt.Fprintf(os.Stderr, "  Image modes:\n")
 		fmt.Fprintf(os.Stderr, "    image-area     Select area to screenshot\n")
 		fmt.Fprintf(os.Stderr, "    image-window   Screenshot active window\n")
-		fmt.Fprintf(os.Stderr, "    image-full     Screenshot entire screen\n\n")
+		fmt.Fprintf(os.Stderr, "    image-screen   Screenshot entire screen\n\n")
 		fmt.Fprintf(os.Stderr, "  Video modes:\n")
 		fmt.Fprintf(os.Stderr, "    video-area     Record selected area\n")
 		fmt.Fprintf(os.Stderr, "    video-window   Record active window\n")
-		fmt.Fprintf(os.Stderr, "    video-full     Record entire screen\n\n")
+		fmt.Fprintf(os.Stderr, "    video-screen   Record entire screen\n\n")
 
 		fmt.Fprintf(os.Stderr, "OPTIONS:\n")
 		fmt.Fprintf(os.Stderr, "  -m, --mode MODE        Capture mode (required, see modes above)\n")
@@ -66,7 +66,7 @@ func main() {
 
 		fmt.Fprintf(os.Stderr, "EXAMPLES:\n")
 		fmt.Fprintf(os.Stderr, "  %s -m image-area                    # Select area to screenshot\n", os.Args[0])
-		fmt.Fprintf(os.Stderr, "  %s -m image-full -p ~/Pictures     # Full screenshot to ~/Pictures\n", os.Args[0])
+		fmt.Fprintf(os.Stderr, "  %s -m image-screen -p ~/Pictures   # Full screenshot to ~/Pictures\n", os.Args[0])
 		fmt.Fprintf(os.Stderr, "  %s -m video-area --zipline -u https://your.zipline.com  # Record area and upload\n", os.Args[0])
 		fmt.Fprintf(os.Stderr, "  %s --status                         # Check recording status\n", os.Args[0])
 	}
@@ -163,12 +163,11 @@ func run(cfg *config.Config) {
 
 func handleUpload(cfg *config.Config, notifier *notify.Notifier, filename string) {
 	uploader := upload.NewZiplineUploader(cfg, notifier)
-	url, err := uploader.Upload(filename)
+	_, err := uploader.Upload(filename)
 	if err != nil {
 		log.Printf("Upload failed: %v", err)
 		return
 	}
-	fmt.Printf("Uploaded: %s\n", url)
 }
 
 func checkDependencies(deps []string) error {
@@ -199,5 +198,6 @@ func getRecordingStatus() (bool, string) {
 			}
 		}
 	}
+
 	return true, ""
 }

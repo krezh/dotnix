@@ -145,15 +145,27 @@ let
       else
         "${mount.server}:${mount.share}";
     where = mount.mountPoint;
-    mountConfig.Options = [
-      (if mount.type == "smb" then mkSmbOptions mount else mkNfsOptions mount)
-    ];
+    mountConfig = {
+      Options = [
+        (if mount.type == "smb" then mkSmbOptions mount else mkNfsOptions mount)
+      ];
+    };
+    unitConfig = {
+      Before = [ "remote-fs.target" ];
+    };
+    after = [ "network-online.target" ];
+    wants = [ "network-online.target" ];
   };
 
   mkSystemdAutoMount = _name: mount: {
-    wantedBy = [ "multi-user.target" ];
+    wantedBy = [ "remote-fs.target" ];
     where = mount.mountPoint;
-    automountConfig.TimeoutIdleSec = toString mount.timeoutIdleSec;
+    automountConfig = {
+      TimeoutIdleSec = toString mount.timeoutIdleSec;
+    };
+    unitConfig = {
+      DefaultDependencies = false;
+    };
     after = [ "network-online.target" ];
     wants = [ "network-online.target" ];
   };
@@ -196,5 +208,6 @@ in
         wantedBy = [ "multi-user.target" ];
       };
     };
+
   };
 }

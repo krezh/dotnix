@@ -9,5 +9,6 @@
     ./mpv
     ./tsukimi
     ./showtime
+    ./ncspot
   ];
 }

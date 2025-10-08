@@ -1,6 +1,5 @@
 {
   imports = [
     ./zen-browser
-    ./vivaldi
   ];
 }

@@ -24,6 +24,24 @@ in
       search.engines = {
         wikipedia.hidden = true;
         ecosia.metaData.hidden = true;
+        "Github Code Search" = {
+          urls = [
+            {
+              template = "https://github.com/search";
+              params = [
+                {
+                  name = "q";
+                  value = "{searchTerms}";
+                }
+                {
+                  name = "type";
+                  value = "Code";
+                }
+              ];
+            }
+          ];
+          definedAliases = [ "gh" ];
+        };
         "Searchix" = {
           urls = [
             {

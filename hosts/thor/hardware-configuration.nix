@@ -10,9 +10,7 @@
     (modulesPath + "/installer/scan/not-detected.nix")
   ];
 
-  console = {
-    earlySetup = false;
-  };
+  console.earlySetup = false;
 
   services.xserver.videoDrivers = [ "modesetting" ];
   boot = {
@@ -28,6 +26,10 @@
         "sd_mod"
       ];
     };
+    kernel.sysctl = {
+      "kernel.nmi_watchdog" = 0;
+      "kernel.sched_bore" = "1";
+    };
     consoleLogLevel = 0;
     kernelParams = [
       "ipv6.disable=1"
@@ -40,6 +42,7 @@
       "rd.udev.log_level=3"
       "vt.global_cursor_default=0"
       "module_blacklist=radeon"
+      "nvme_core.default_ps_max_latency_us=0"
     ];
   };
 

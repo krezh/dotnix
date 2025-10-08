@@ -1,6 +1,7 @@
 package config
 
 import (
+	"bufio"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -60,11 +61,9 @@ func (c *Config) Validate() error {
 			return &ValidationError{Field: "token", Message: fmt.Sprintf("token file not found: %s. Use -t/--token to specify a different path", c.TokenFile)}
 		}
 
-		// Check if token file is readable and not empty
-		if data, err := os.ReadFile(c.TokenFile); err != nil {
-			return &ValidationError{Field: "token", Message: fmt.Sprintf("cannot read token file: %s", err)}
-		} else if len(strings.TrimSpace(string(data))) == 0 {
-			return &ValidationError{Field: "token", Message: "token file is empty: " + c.TokenFile}
+		// Check if token file is readable and not empty using buffered I/O
+		if err := c.validateTokenFile(); err != nil {
+			return err
 		}
 	}
 
@@ -93,6 +92,31 @@ func (c *Config) GetFileExtension() string {
 type ValidationError struct {
 	Field   string
 	Message string
+}
+
+// validateTokenFile validates the token file using buffered I/O
+func (c *Config) validateTokenFile() error {
+	file, err := os.Open(c.TokenFile)
+	if err != nil {
+		return &ValidationError{Field: "token", Message: fmt.Sprintf("cannot read token file: %s", err)}
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	if !scanner.Scan() {
+		return &ValidationError{Field: "token", Message: "token file is empty: " + c.TokenFile}
+	}
+
+	token := strings.TrimSpace(scanner.Text())
+	if len(token) == 0 {
+		return &ValidationError{Field: "token", Message: "token file is empty: " + c.TokenFile}
+	}
+
+	if err := scanner.Err(); err != nil {
+		return &ValidationError{Field: "token", Message: fmt.Sprintf("error reading token file: %s", err)}
+	}
+
+	return nil
 }
 
 func (e *ValidationError) Error() string {

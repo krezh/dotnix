@@ -42,7 +42,13 @@
 
   services.fwupd.enable = true;
 
-  services.scx.enable = false;
+  services.scx.enable = true;
+  services.scx.scheduler = "scx_lavd";
+  services.irqbalance.enable = false;
+
+  systemd.services.irqbalance.serviceConfig = {
+    Environment = "IRQBALANCE_BANNED_CPULIST=16-23";
+  };
 
   xdg.mime.enable = true;
 
@@ -62,8 +68,6 @@
     libsecret
     libgnome-keyring
   ];
-
-  services.irqbalance.enable = true;
 
   nixosModules.desktop = {
     openssh.enable = true;

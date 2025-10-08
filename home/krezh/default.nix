@@ -120,7 +120,6 @@ in
       unzip
       shellcheck
       gum
-      cava
       duf
       systemctl-tui
       isd
