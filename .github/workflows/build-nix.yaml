@@ -185,9 +185,21 @@ jobs:
       # Unzip and rename previous package list artifact
       - name: Unzip previous package list artifact
         run: |
+          echo "Listing ZIP files in old-artifact:"
+          ls -l old-artifact/*.zip || echo "No ZIP files found."
           if ls old-artifact/*.zip 1> /dev/null 2>&1; then
+            echo "Unzipping artifact..."
             unzip -o old-artifact/*.zip -d old-artifact
-            mv old-artifact/new-pkg-list.json old-artifact/pkg-list.json
+            echo "Contents of old-artifact after unzip:"
+            ls -l old-artifact
+            if [ -f old-artifact/new-pkg-list.json ]; then
+              echo "Renaming new-pkg-list.json to pkg-list.json"
+              mv old-artifact/new-pkg-list.json old-artifact/pkg-list.json
+            else
+              echo "new-pkg-list.json not found after unzip!"
+            fi
+            echo "Final contents of old-artifact:"
+            ls -l old-artifact
           fi
 
       - name: Build System
