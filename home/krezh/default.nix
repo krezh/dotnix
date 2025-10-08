@@ -127,6 +127,7 @@ in
       dig
       wowup-cf
       lazysql
+      cava
 
       # Secrets
       age-plugin-yubikey
