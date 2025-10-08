@@ -176,25 +176,10 @@ jobs:
         continue-on-error: true
         with:
           name: pkg-list-${{ matrix.host }}
-          path: .
           github-token: ${{ secrets.GITHUB_TOKEN }}
           repository: ${{ github.repository }}
           run-id: ${{ steps.find-run.outputs.run_id }}
           merge-multiple: false
-
-      # Find and unzip previous package list artifact
-      - name: Find and move previous package list JSON (artifact only)
-        run: |
-          artifact_dir="pkg-list-${{ matrix.host }}"
-          found_json=$(find "$artifact_dir" -type f -name '*.json' | head -n 1)
-          if [ -z "$found_json" ]; then
-            echo "No .json file found in $artifact_dir."
-            exit 0
-          fi
-          echo "Found previous package list: $found_json"
-          mv "$found_json" pkg-list.json
-          echo "Final contents of workspace:"
-          ls -l
 
       - name: Build System
         id: build
@@ -242,6 +227,7 @@ jobs:
               fi
             fi
           fi
+          prev_json="${{ steps.download-artifact.outputs.download-path }}/pkg-list-${{ matrix.host }}.json"
           {
             echo "## ✅ Build Successful: \`${{ matrix.host }}\`"
             echo ""
@@ -268,8 +254,8 @@ jobs:
             echo "**Build Duration:** $(format_duration ${{ steps.build.outputs.build_duration }})"
             echo ""
             echo "### 📦 Package Diff"
-            if [ -f pkg-list.json ]; then
-              python3 .github/pkg-tool.py diff pkg-list.json new-pkg-list.json --github
+            if [ -f "$prev_json" ]; then
+              python3 .github/pkg-tool.py diff "$prev_json" new-pkg-list.json --github
             else
               echo "_No previous package list found; skipping diff._"
             fi
