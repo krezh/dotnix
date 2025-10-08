@@ -176,31 +176,39 @@ jobs:
         continue-on-error: true
         with:
           name: pkg-list-${{ matrix.host }}
-          path: old-artifact
+          path: old-artifact.zip
           github-token: ${{ secrets.GITHUB_TOKEN }}
           repository: ${{ github.repository }}
           run-id: ${{ steps.find-run.outputs.run_id }}
           merge-multiple: false
 
       # Unzip and rename previous package list artifact
-      - name: Unzip previous package list artifact
+      - name: Find and unzip previous package list artifact
         run: |
-          echo "Listing ZIP files in old-artifact:"
-          ls -l old-artifact/*.zip || echo "No ZIP files found."
-          if ls old-artifact/*.zip 1> /dev/null 2>&1; then
-            echo "Unzipping artifact..."
-            unzip -o old-artifact/*.zip -d old-artifact
-            echo "Contents of old-artifact after unzip:"
-            ls -l old-artifact
-            if [ -f old-artifact/new-pkg-list.json ]; then
-              echo "Renaming new-pkg-list.json to pkg-list.json"
-              mv old-artifact/new-pkg-list.json old-artifact/pkg-list.json
-            else
-              echo "new-pkg-list.json not found after unzip!"
-            fi
-            echo "Final contents of old-artifact:"
+          echo "Searching for ZIP files recursively in workspace:"
+          found_zip=$(find . -type f -name '*.zip')
+          if [ -z "$found_zip" ]; then
+            echo "No ZIP files found in workspace."
+            exit 0
+          fi
+          echo "Found ZIP files:"
+          echo "$found_zip"
+          # Use the first found ZIP file
+          zip_file=$(echo "$found_zip" | head -n 1)
+          echo "Unzipping $zip_file to old-artifact/"
+          unzip -o "$zip_file" -d old-artifact
+          echo "Contents of old-artifact after unzip:"
+          ls -l old-artifact
+          if [ -f old-artifact/new-pkg-list.json ]; then
+            echo "Renaming new-pkg-list.json to pkg-list.json"
+            mv old-artifact/new-pkg-list.json old-artifact/pkg-list.json
+          else
+            echo "new-pkg-list.json not found after unzip!"
+            echo "Files in old-artifact:"
             ls -l old-artifact
           fi
+          echo "Final contents of old-artifact:"
+          ls -l old-artifact
 
       - name: Build System
         id: build
