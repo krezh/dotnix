@@ -3,33 +3,124 @@ import json
 import subprocess
 import sys
 import os
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import cast
+import re
+from collections import defaultdict, Counter
+from typing import TypedDict, override, cast
 
-GREEN = "\033[32m"
-RED   = "\033[31m"
-BLUE  = "\033[34m"
-YELLOW = "\033[33m"
-BOLD  = "\033[1m"
-RESET = "\033[0m"
+debug_logging: bool = False
 
-def c(txt: str, col: str, github: bool = False) -> str:
-    if github:
-        return str(txt)
-    return f"{col}{txt}{RESET}"
+# SGR integer codes for nvd-style coloring
+SGR_RESET: str = "\033[0m"
+SGR_BOLD: str = "\033[1m"
+SGR_FG: int = 30
+SGR_BG: int = 40
+SGR_BRIGHT: int = 60
+SGR_BLACK: int = 0
+SGR_RED: int = 1
+SGR_GREEN: int = 2
+SGR_YELLOW: int = 3
+SGR_BLUE: int = 4
+SGR_MAGENTA: int = 5
+SGR_CYAN: int = 6
+SGR_WHITE: int = 7
 
-def load_json(path: str) -> dict[str, object]:
+def sgr(*args: int) -> str:
+    return "\033[" + ";".join(str(a) for a in args) + "m"
+
+def color(txt: str, fg: int, bright: bool = False, bold: bool = False) -> str:
+    codes: list[int] = [SGR_FG + fg]
+    if bright:
+        codes[0] += SGR_BRIGHT
+    if bold:
+        codes.insert(0, 1)
+    return f"{sgr(*codes)}{SGR_BOLD if bold else ''}{txt}{SGR_RESET}"
+
+def status_color(code: str) -> str:
+    # nvd-style status coloring
+    if code == "U":
+        return color(f"[U]", SGR_CYAN, bright=True, bold=True)
+    elif code == "D":
+        return color(f"[D]", SGR_YELLOW, bright=True, bold=True)
+    elif code == "A":
+        return color(f"[A]", SGR_GREEN, bright=True, bold=True)
+    elif code == "R":
+        return color(f"[R]", SGR_RED, bright=True, bold=True)
+    elif code == "C":
+        return color(f"[C]", SGR_MAGENTA, bright=True, bold=True)
+    else:
+        return color(f"[{code}]", SGR_WHITE, bright=True, bold=True)
+
+def sel_color(sel: str) -> str:
+    # nvd-style selection state coloring
+    if sel == "*":
+        return color("*", SGR_GREEN, bright=True, bold=True)
+    elif sel == ".":
+        return color(".", SGR_WHITE)
+    elif sel == "+":
+        return color("+", SGR_GREEN, bright=True, bold=True)
+    elif sel == "-":
+        return color("-", SGR_RED, bright=True, bold=True)
+    else:
+        return color(sel, SGR_WHITE)
+
+NIX_STORE_PATH_REGEX: re.Pattern[str] = re.compile(r"^/nix/store/[a-z0-9]+-(.+?)(-([0-9].*?))?(\.drv)?$")
+
+class PkgVersionEntry(TypedDict):
+    version: str
+    selected: bool
+
+class GroupedVersionEntry(TypedDict):
+    version: str
+    selected: bool
+    count: int
+
+class PackagesJson(TypedDict):
+    packages: dict[str, list[PkgVersionEntry]]
+    derivations_without_pname: list[str]
+
+class Version:
+    def __init__(self, version_str: str) -> None:
+        self.original: str = version_str
+        self.chunks: list[int | str] = self._parse(version_str)
+
+    def _parse(self, s: str) -> list[int | str]:
+        # Split into numeric and non-numeric chunks
+        chunks: list[str] = re.findall(r'\d+|[a-zA-Z]+|[^a-zA-Z\d]+', s)
+        return [int(x) if x.isdigit() else x for x in chunks]
+
+    @override
+    def __eq__(self, other: object) -> bool:
+        return isinstance(other, Version) and self.chunks == other.chunks
+
+
+    def __lt__(self, other: object) -> bool:
+        if not isinstance(other, Version):
+            return NotImplemented
+        for a, b in zip(self.chunks, other.chunks):
+            if a == b:
+                continue
+            if isinstance(a, int) and isinstance(b, int):
+                return a < b
+            if isinstance(a, int):
+                return True
+            if isinstance(b, int):
+                return False
+            return str(a) < str(b)
+        return len(self.chunks) < len(other.chunks)
+
+
+    def __gt__(self, other: object) -> bool:
+        return not (self == other or self < other)
+    @override
+    def __repr__(self) -> str:
+        return f"Version({self.original})"
+
+def load_json(path: str) -> PackagesJson:
     with open(path) as f:
-        return cast(dict[str, object], json.load(f))
-
-def drv_role(drv_path: str) -> str:
-    return drv_path.split('-', 1)[-1]
-
-def drv_hash(drv_path: str) -> str:
-    return drv_path.split('/')[-1].split('-', 1)[0]
+        return cast(PackagesJson, json.load(f))
 
 def get_store_paths(path: str) -> list[str]:
-    proc = subprocess.run(
+    proc: subprocess.CompletedProcess[str] = subprocess.run(
         ["nix-store", "--query", "--requisites", path],
         stdout=subprocess.PIPE,
         stderr=subprocess.DEVNULL,
@@ -37,95 +128,122 @@ def get_store_paths(path: str) -> list[str]:
     )
     return [line.strip() for line in proc.stdout.splitlines() if line.strip()]
 
-def get_derivers(paths: list[str]) -> list[str]:
-    proc = subprocess.run(
-        ["nix-store", "--query", "--deriver"] + paths,
+def get_selected_paths(path: str) -> list[str]:
+    proc: subprocess.CompletedProcess[str] = subprocess.run(
+        ["nix-store", "--query", "--references", path],
         stdout=subprocess.PIPE,
         stderr=subprocess.DEVNULL,
         text=True
     )
-    return [line.strip() for line in proc.stdout.splitlines() if line.strip() and line.strip() != "unknown"]
+    return [line.strip() for line in proc.stdout.splitlines() if line.strip()]
 
-def get_meta_from_drv(drv_path: str) -> tuple[str, str]:
-    proc = subprocess.run(
-        ["nix", "derivation", "show", drv_path],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.DEVNULL,
-        text=True
-    )
-    try:
-        data: dict[str, dict[str, object]] = json.loads(proc.stdout)
-    except Exception:
+def parse_pname_version(store_path: str) -> tuple[str, str]:
+    match: re.Match[str] | None = NIX_STORE_PATH_REGEX.match(store_path)
+    if not match:
         return "", ""
-    meta: dict[str, object] = data.get(drv_path, {})
-    env: dict[str, object] = meta.get("env", {}) if isinstance(meta.get("env", {}), dict) else {}
-    pname: str = str(env.get("pname", "")) if env.get("pname", "") is not None else ""
-    version: str = str(env.get("version", "")) if env.get("version", "") is not None else ""
-    if pname:
-        if version:
-            return pname, version
-        base = os.path.basename(drv_path)
-        hash_part = base.split('-')[0] if '-' in base else ""
-        return pname, hash_part
-    return "", ""
-
-def parallel_pkg_list(derivers: list[str]) -> tuple[dict[str, str], list[str]]:
-    results: list[tuple[str, str, str]] = []
-    max_workers = min(32, os.cpu_count() or 4)
-    with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        future_to_drv = {executor.submit(get_meta_from_drv, drv): drv for drv in derivers}
-        for future in as_completed(future_to_drv):
-            name, version = future.result()
-            drv = future_to_drv[future]
-            results.append((drv, name, version))
-    results.sort()
-    pkgs: dict[str, str] = {}
-    derivations_without_pname: list[str] = []
-    for drv, name, version in results:
-        if name:
-            if name not in pkgs:
-                pkgs[name] = version
-        else:
-            derivations_without_pname.append(drv)
-    return pkgs, derivations_without_pname
+    pname: str = match.group(1) or ""
+    version: str = match.group(3) or ""
+    return pname, version
 
 def pkg_list_main(result_path: str, output_json: str) -> None:
-    store_paths = get_store_paths(result_path)
-    derivers = sorted(set(get_derivers(store_paths)))
-    pkgs, derivations_without_pname = parallel_pkg_list(derivers)
-    output = {
+    closure_paths: list[str] = get_store_paths(result_path)
+    selected_paths: set[str] = set(get_selected_paths(result_path))
+
+    pkgs: dict[str, list[PkgVersionEntry]] = defaultdict(list)
+    derivations_without_pname: list[str] = []
+
+    for path in closure_paths:
+        pname, version = parse_pname_version(path)
+        selected: bool = path in selected_paths
+        if pname:
+            pkgs[pname].append({
+                "version": version,
+                "selected": selected
+            })
+        else:
+            derivations_without_pname.append(path)
+
+    output: PackagesJson = {
         "packages": pkgs,
         "derivations_without_pname": derivations_without_pname
     }
     with open(output_json, "w") as f:
         json.dump(output, f, indent=2)
-    print(f"Wrote {len(pkgs)} packages and {len(derivations_without_pname)} non-package derivations to {output_json}")
 
-def pkg_diff_main(old_path: str, new_path: str, github: bool = False) -> None:
-    old = load_json(old_path)
-    new = load_json(new_path)
+def group_versions(pkg_versions: list[PkgVersionEntry]) -> list[GroupedVersionEntry]:
+    # Returns a sorted list of (version, count, selected) using semantic version sorting
+    counter: Counter[tuple[str, bool]] = Counter((v["version"], v["selected"]) for v in pkg_versions)
+    def version_key(item: tuple[tuple[str, bool], int]) -> tuple[Version | str, bool]:
+        version, selected = item[0]
+        try:
+            return (Version(version), selected)
+        except Exception:
+            return (version, selected)
+    result: list[GroupedVersionEntry] = []
+    for (version, selected), count in sorted(counter.items(), key=version_key):
+        result.append({"version": version, "selected": selected, "count": count})
+    return result
 
-    old_pkgs = cast(dict[str, str], old.get("packages", {}))
-    new_pkgs = cast(dict[str, str], new.get("packages", {}))
-    old_keys: set[str] = set(old_pkgs.keys())
-    new_keys: set[str] = set(new_pkgs.keys())
+def pkg_diff_main(
+    old_path: str,
+    new_path: str,
+    github: bool = False,
+    diff_output_path: str = "pkg-diff.json"
+) -> None:
+    old: PackagesJson = load_json(old_path)
+    new: PackagesJson = load_json(new_path)
 
-    pkg_added: list[str] = sorted(new_keys - old_keys)
-    pkg_removed: list[str] = sorted(old_keys - new_keys)
-    pkg_changed: list[str] = sorted(k for k in old_keys & new_keys if old_pkgs[k] != new_pkgs[k])
+    old_pkgs: dict[str, list[PkgVersionEntry]] = old.get("packages", {})
+    new_pkgs: dict[str, list[PkgVersionEntry]] = new.get("packages", {})
+    all_keys: set[str] = set(old_pkgs.keys()) | set(new_pkgs.keys())
 
-    old_drvs_list = cast(list[str], old.get("derivations_without_pname", []))
-    new_drvs_list = cast(list[str], new.get("derivations_without_pname", []))
-    old_drvs: set[str] = set(old_drvs_list)
-    new_drvs: set[str] = set(new_drvs_list)
-    drv_added: list[str] = sorted(new_drvs - old_drvs)
-    drv_removed: list[str] = sorted(old_drvs - new_drvs)
+    pkg_added: list[tuple[str, list[GroupedVersionEntry]]] = []
+    pkg_removed: list[tuple[str, list[GroupedVersionEntry]]] = []
+    pkg_changed: list[tuple[str, list[GroupedVersionEntry], list[GroupedVersionEntry], str]] = []
+    pkg_sel_changed: list[tuple[str, list[GroupedVersionEntry], list[GroupedVersionEntry]]] = []
 
-    added_roles: dict[str, str] = {drv_role(d): d for d in drv_added}
-    removed_roles: dict[str, str] = {drv_role(d): d for d in drv_removed}
-    drv_changed: set[str] = set(added_roles) & set(removed_roles)
-    drv_added = [added_roles[r] for r in added_roles if r not in drv_changed]
-    drv_removed = [removed_roles[r] for r in removed_roles if r not in drv_changed]
+    for k in sorted(all_keys):
+        old_versions: list[GroupedVersionEntry] = group_versions(old_pkgs.get(k, []))
+        new_versions: list[GroupedVersionEntry] = group_versions(new_pkgs.get(k, []))
+
+        old_set: set[tuple[str, bool, int]] = {(v["version"], v["selected"], v["count"]) for v in old_versions}
+        new_set: set[tuple[str, bool, int]] = {(v["version"], v["selected"], v["count"]) for v in new_versions}
+
+        if not old_versions and new_versions:
+            pkg_added.append((k, new_versions))
+        elif old_versions and not new_versions:
+            pkg_removed.append((k, old_versions))
+        elif old_set != new_set:
+            old_versions_sorted: list[GroupedVersionEntry] = sorted([v for v in old_versions if v["version"]], key=lambda v: Version(v["version"]), reverse=True)
+            new_versions_sorted: list[GroupedVersionEntry] = sorted([v for v in new_versions if v["version"]], key=lambda v: Version(v["version"]), reverse=True)
+            change_code: str = "[C*]"
+            if old_versions_sorted and new_versions_sorted:
+                old_ver: Version = Version(old_versions_sorted[0]["version"])
+                new_ver: Version = Version(new_versions_sorted[0]["version"])
+                if new_ver > old_ver:
+                    change_code = "[C+]"  # Upgrade
+                elif new_ver < old_ver:
+                    change_code = "[C-]"  # Downgrade
+            pkg_changed.append((k, old_versions, new_versions, change_code))
+        else:
+            old_sel: list[tuple[str, bool]] = sorted((v["version"], v["selected"]) for v in old_versions)
+            new_sel: list[tuple[str, bool]] = sorted((v["version"], v["selected"]) for v in new_versions)
+            if old_sel != new_sel:
+                pkg_sel_changed.append((k, old_versions, new_versions))
+
+    def render_versions(version_list: list[GroupedVersionEntry], use_color: bool = True) -> str:
+        items: list[str] = []
+        for v in version_list:
+            text: str = v["version"] if v["version"] else "<none>"
+            count: str = f" x{v['count']}" if v["count"] > 1 else ""
+            if text == "<none>":
+                items.append(f"{text}{count}")
+            else:
+                if use_color:
+                    items.append(f"{color(text, SGR_YELLOW)}{count}")
+                else:
+                    items.append(f"{text}{count}")
+        return ", ".join(items)
 
     if github:
         print(f"### Package Diff\n")
@@ -135,129 +253,176 @@ def pkg_diff_main(old_path: str, new_path: str, github: bool = False) -> None:
         print(f"**Summary:** {len(pkg_added)} added, {len(pkg_removed)} removed, {len(pkg_changed)} changed\n")
 
         print("```diff")
-        # Markdown-style header for packages
-        print("# --- Packages ---")
-        # Packages
-        for k in pkg_added:
-            print(f"+ [A+] {k} {new_pkgs[k]}")
-        for k in pkg_removed:
-            print(f"- [R-] {k} {old_pkgs[k]}")
-        for k in pkg_changed:
-            print(f"! [C*] {k} {old_pkgs[k]} -> {new_pkgs[k]}")
-        # Markdown-style header for derivations
-        print("# --- Derivations ---")
-        # Derivations
-        for r in sorted(drv_changed):
-            old_hash = drv_hash(removed_roles[r])
-            new_hash = drv_hash(added_roles[r])
-            print(f"! [DC] {r}: {old_hash} -> {new_hash}")
-        for d in drv_added:
-            role = drv_role(d)
-            hash_ = drv_hash(d)
-            print(f"+ [DA+] {role}: {hash_}")
-        for d in drv_removed:
-            role = drv_role(d)
-            hash_ = drv_hash(d)
-            print(f"- [DR-] {role}: {hash_}")
+        if pkg_added:
+            print("# --- Added Packages ---")
+            for k, new_versions in pkg_added:
+                print(f"+ [A+] {k} {render_versions(new_versions, use_color=False)}")
+        if pkg_changed:
+            print("# --- Changed Packages ---")
+            for k, old_versions, new_versions, change_code in pkg_changed:
+                print(f"! {change_code} {k} {render_versions(old_versions, use_color=False)} -> {render_versions(new_versions, use_color=False)}")
+        if pkg_removed:
+            print("# --- Removed Packages ---")
+            for k, old_versions in pkg_removed:
+                print(f"- [R-] {k} {render_versions(old_versions, use_color=False)}")
+        if pkg_sel_changed:
+            print("# --- Selection State Changes ---")
+            for k, old_versions, new_versions in pkg_sel_changed:
+                print(f"! [S*] {k} selection changed {render_versions(old_versions, use_color=False)} -> {render_versions(new_versions, use_color=False)}")
         print("```\n")
 
-        if not (pkg_added or pkg_removed or pkg_changed or drv_changed or drv_added or drv_removed):
+        if not (pkg_added or pkg_removed or pkg_changed or pkg_sel_changed):
             print("No changes.\n")
 
-        print(f"Structured diff written to `pkg-diff.json`")
+        print(f"Structured diff written to `{diff_output_path}`")
     else:
         print(f"<<< {os.path.abspath(old_path)}")
         print(f">>> {os.path.abspath(new_path)}\n")
 
-        num: int = 1
+        # Calculate column widths for alignment
+        pkg_name_width: int = max(
+            [len(k) for k, *_ in pkg_changed]
+            + [len(k) for k, *_ in pkg_sel_changed]
+            + [len(k) for k, *_ in pkg_added]
+            + [len(k) for k, *_ in pkg_removed]
+        ) if (pkg_changed or pkg_sel_changed or pkg_added or pkg_removed) else 30
 
+        num: int = 1
         if pkg_changed:
-            print("Package version changes:")
-            for k in pkg_changed:
-                print(f"[C*] #{num} {c(k, GREEN, github)} {c(old_pkgs[k], YELLOW, github)} -> {c(new_pkgs[k], YELLOW, github)}")
+            print("Version changes:")
+            count_width: int = len(str(len(pkg_changed)))
+            count_format_str: str = "#{:0" + str(count_width) + "d}"
+            pkg_name_format_str: str = "{:" + str(pkg_name_width) + "}"
+            for k, old_versions, new_versions, change_code in sorted(pkg_changed, key=lambda x: x[0].lower()):
+                old_versions_sorted = sorted(old_versions, key=lambda v: Version(v["version"]) if v["version"] else Version("0"), reverse=True)
+                new_versions_sorted = sorted(new_versions, key=lambda v: Version(v["version"]) if v["version"] else Version("0"), reverse=True)
+                if change_code == "[C+]":
+                    status: str = "U"
+                elif change_code == "[C-]":
+                    status = "D"
+                elif change_code == "[C*]":
+                    status = "C"
+                else:
+                    status = "C"
+                sel: str = "*" if any(v["selected"] for v in new_versions_sorted) else "."
+                status_str: str = status_color(status) + sel_color(sel)
+                count_str: str = count_format_str.format(num)
+                pkg_str: str = color(pkg_name_format_str.format(k), SGR_GREEN, bright=True, bold=True)
+                old_ver_str: str = render_versions(old_versions_sorted, use_color=True)
+                new_ver_str: str = render_versions(new_versions_sorted, use_color=True)
+                print(f"{status_str}  {count_str}  {pkg_str}  {old_ver_str} -> {new_ver_str}")
                 num += 1
             print()
 
+        # Selection state changes
+        if pkg_sel_changed:
+            print("Selection state changes:")
+            count_width = len(str(len(pkg_sel_changed)))
+            count_format_str = "#{:0" + str(count_width) + "d}"
+            pkg_name_format_str = "{:" + str(pkg_name_width) + "}"
+            num = 1
+            for k, old_versions, new_versions in sorted(pkg_sel_changed, key=lambda x: x[0].lower()):
+                old_versions_sorted = sorted(old_versions, key=lambda v: Version(v["version"]) if v["version"] else Version("0"), reverse=True)
+                new_versions_sorted = sorted(new_versions, key=lambda v: Version(v["version"]) if v["version"] else Version("0"), reverse=True)
+                status_str = status_color("C") + sel_color("*" if any(v["selected"] for v in new_versions_sorted) else ".")
+                count_str = count_format_str.format(num)
+                pkg_str = color(pkg_name_format_str.format(k), SGR_GREEN, bright=True, bold=True)
+                old_ver_str = render_versions(old_versions_sorted, use_color=True)
+                new_ver_str = render_versions(new_versions_sorted, use_color=True)
+                print(f"{status_str}  {count_str}  {pkg_str}  {old_ver_str} -> {new_ver_str}")
+                num += 1
+            print()
+
+        # Added packages
         if pkg_added:
             print("Added packages:")
-            for k in pkg_added:
-                print(f"[A+] #{num} {c(k, GREEN, github)} {c(new_pkgs[k], YELLOW, github)}")
+            count_width = len(str(len(pkg_added)))
+            count_format_str = "#{:0" + str(count_width) + "d}"
+            pkg_name_format_str = "{:" + str(pkg_name_width) + "}"
+            num = 1
+            for k, new_versions in sorted(pkg_added, key=lambda x: x[0].lower()):
+                new_versions_sorted = sorted(new_versions, key=lambda v: Version(v["version"]) if v["version"] else Version("0"), reverse=True)
+                status_str = status_color("A") + sel_color("*" if any(v["selected"] for v in new_versions_sorted) else ".")
+                count_str = count_format_str.format(num)
+                pkg_str = color(pkg_name_format_str.format(k), SGR_GREEN, bright=True, bold=True)
+                ver_str: str = render_versions(new_versions_sorted, use_color=True)
+                print(f"{status_str}  {count_str}  {pkg_str}  {ver_str}")
                 num += 1
             print()
 
+        # Removed packages
         if pkg_removed:
             print("Removed packages:")
-            for k in pkg_removed:
-                print(f"[R-] #{num} {c(k, GREEN, github)} {c(old_pkgs[k], YELLOW, github)}")
+            count_width = len(str(len(pkg_removed)))
+            count_format_str = "#{:0" + str(count_width) + "d}"
+            pkg_name_format_str = "{:" + str(pkg_name_width) + "}"
+            num = 1
+            for k, old_versions in sorted(pkg_removed, key=lambda x: x[0].lower()):
+                old_versions_sorted = sorted(old_versions, key=lambda v: Version(v["version"]) if v["version"] else Version("0"), reverse=True)
+                status_str = status_color("R") + sel_color("*" if any(v["selected"] for v in old_versions_sorted) else ".")
+                count_str = count_format_str.format(num)
+                pkg_str = color(pkg_name_format_str.format(k), SGR_GREEN, bright=True, bold=True)
+                ver_str = render_versions(old_versions_sorted, use_color=True)
+                print(f"{status_str}  {count_str}  {pkg_str}  {ver_str}")
                 num += 1
             print()
 
-        if drv_changed or drv_added or drv_removed:
-            print("Derivations:")
-            for r in sorted(drv_changed):
-                old_hash = drv_hash(removed_roles[r])
-                new_hash = drv_hash(added_roles[r])
-                prefix = f"[DC] {r}:"
-                print(prefix)
-                print(f"{' ' * 5}{c(old_hash, RED, github)} -> {c(new_hash, GREEN, github)}")
-            for d in drv_added:
-                role = drv_role(d)
-                hash_ = drv_hash(d)
-                print(f"[DA+] {role}: {c(hash_, GREEN, github)}")
-            for d in drv_removed:
-                role = drv_role(d)
-                hash_ = drv_hash(d)
-                print(f"[DR-] {role}: {c(hash_, RED, github)}")
-            print()
-
-        if num == 1 and not (drv_changed or drv_added or drv_removed):
+        if num == 1:
             print("No changes.")
 
-        print("Structured diff written to pkg-diff.json")
+        print(f"Structured diff written to `{diff_output_path}`")
 
-    with open("pkg-diff.json", "w") as f:
+    # Write structured diff to JSON (grouped outputs)
+    with open(diff_output_path, "w") as f:
         json.dump({
-            "added": pkg_added,
-            "removed": pkg_removed,
-            "changed": [
-                {"key": k, "old": old_pkgs[k], "new": new_pkgs[k]} for k in pkg_changed
+            "added": [
+                {"key": k, "versions": new_versions} for k, new_versions in pkg_added
             ],
-            "derivations": {
-                "changed": [
-                    {"role": r, "old": drv_hash(removed_roles[r]), "new": drv_hash(added_roles[r])}
-                    for r in sorted(drv_changed)
-                ],
-                "added": [
-                    {"role": drv_role(d), "hash": drv_hash(d)} for d in drv_added
-                ],
-                "removed": [
-                    {"role": drv_role(d), "hash": drv_hash(d)} for d in drv_removed
-                ]
-            }
+            "removed": [
+                {"key": k, "versions": old_versions} for k, old_versions in pkg_removed
+            ],
+            "changed": [
+                {"key": k, "old": old_versions, "new": new_versions, "code": change_code} for k, old_versions, new_versions, change_code in pkg_changed
+            ],
+            "selection_changed": [
+                {"key": k, "old": old_versions, "new": new_versions} for k, old_versions, new_versions in pkg_sel_changed
+            ]
         }, f, indent=2)
 
 def main() -> None:
+    global debug_logging
     if len(sys.argv) < 2:
         print("Usage:")
-        print("  pkg-tool.py list <result-symlink> <output.json>")
-        print("  pkg-tool.py diff <old.json> <new.json> [--github]")
+        print("  pkg-tool.py list <result-symlink> <output.json> [--debug]")
+        print("  pkg-tool.py diff <old.json> <new.json> [--github] [--debug] [--out <diff.json>]")
         sys.exit(1)
-    mode = sys.argv[1]
+    mode: str = sys.argv[1]
+    args: list[str] = sys.argv[2:]
+    if "--debug" in args:
+        debug_logging = True
+        args.remove("--debug")
+    diff_output_path = "pkg-diff.json"
     if mode == "list":
-        if len(sys.argv) != 4:
-            print("Usage: pkg-tool.py list <result-symlink> <output.json>")
+        if len(args) != 2:
+            print("Usage: pkg-tool.py list <result-symlink> <output.json> [--debug]")
             sys.exit(1)
-        pkg_list_main(sys.argv[2], sys.argv[3])
+        pkg_list_main(args[0], args[1])
     elif mode == "diff":
-        github = False
-        args = sys.argv[2:]
+        github: bool = False
         if "--github" in args:
             github = True
             args.remove("--github")
+        if "--out" in args:
+            out_idx = args.index("--out")
+            if out_idx + 1 >= len(args):
+                print("Usage: pkg-tool.py diff <old.json> <new.json> [--github] [--debug] [--out <diff.json>]")
+                sys.exit(1)
+            diff_output_path = args[out_idx + 1]
+            del args[out_idx:out_idx+2]
         if len(args) != 2:
-            print("Usage: pkg-tool.py diff <old.json> <new.json> [--github]")
+            print("Usage: pkg-tool.py diff <old.json> <new.json> [--github] [--debug] [--out <diff.json>]")
             sys.exit(1)
-        pkg_diff_main(args[0], args[1], github)
+        pkg_diff_main(args[0], args[1], github, diff_output_path)
     else:
         print("Unknown mode:", mode)
         sys.exit(1)
