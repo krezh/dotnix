@@ -121,13 +121,13 @@ in
       shellcheck
       gum
       duf
-      systemctl-tui
       isd
       doggo
       dig
       wowup-cf
       lazysql
       cava
+      glow
 
       # Secrets
       age-plugin-yubikey

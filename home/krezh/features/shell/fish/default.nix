@@ -34,6 +34,9 @@ in
       gpf = "git push --force-with-lease";
       gbc = "git nb";
 
+      curl = "curlie";
+
+      # kubernetes
       k = condDef "kubectl";
     };
     shellAliases = {

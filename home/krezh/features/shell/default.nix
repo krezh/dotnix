@@ -16,5 +16,6 @@
     ./fastfetch
     ./helix
     ./tlk
+    ./curlie
   ];
 }
