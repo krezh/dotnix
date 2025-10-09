@@ -172,11 +172,10 @@ def pkg_list_main(result_path: str, output_json: str) -> None:
 
 def group_versions(pkg_versions: list[PkgVersionEntry]) -> list[GroupedVersionEntry]:
     # Returns a sorted list of (version, count, selected) using semantic version sorting
-    # Only process dicts with the expected keys
     counter: Counter[tuple[str, bool]] = Counter(
         (v["version"], v["selected"])
         for v in pkg_versions
-        if isinstance(v, dict) and "version" in v and "selected" in v
+        if "version" in v and "selected" in v
     )
     def version_key(item: tuple[tuple[str, bool], int]) -> tuple[Version | str, bool]:
         version, selected = item[0]

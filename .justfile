@@ -30,7 +30,7 @@ ensure-env:
   fi
 
 
-test-pkg-diff:
+test-pkg-diff *args:
   #!/usr/bin/env bash
   set -euo pipefail
 
@@ -63,7 +63,7 @@ test-pkg-diff:
 
   echo "🧩 Diffing package lists..."
   if [[ -f "${pkg_lists[0]}" && -f "${pkg_lists[1]}" ]]; then
-    diff_output=$(python3 .github/pkg-tool.py diff "${pkg_lists[0]}" "${pkg_lists[1]}" || true)
+      diff_output=$(python3 .github/pkg-tool.py diff "${pkg_lists[0]}" "${pkg_lists[1]}" {{ args }} || true)
     if [[ -z "$diff_output" ]]; then
       echo "✅ No differences found."
     else
