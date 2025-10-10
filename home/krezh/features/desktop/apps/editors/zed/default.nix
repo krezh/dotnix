@@ -10,7 +10,6 @@
     enable = true;
     extensions = [
       "nix"
-      "git-firefly"
       "opentofu"
       "toml"
       "dockerfile"
@@ -24,22 +23,22 @@
       "qml"
       "github-actions"
     ];
-
-    # This is the actual zed configuration
     userSettings = {
       auto_update = false;
       base_keymap = "VSCode";
-      ui_font_size = 16;
+      ui_font_size = 17;
       ui_font_family = "Inter";
       buffer_font_size = 14;
       buffer_font_family = "JetBrainsMono Nerd Font";
       relative_line_numbers = false;
       tab_size = 2;
-
+      minimap = {
+        show = "always";
+      };
       context_servers = {
         nixos = {
-          source = "custom";
           enabled = true;
+          source = "custom";
           command = "nix";
           args = [
             "run"
@@ -48,36 +47,18 @@
           ];
         };
       };
-
-      # Enable copilot
-      edit_predictions = {
-        mode = "eager";
-      };
-
-      features = {
-        edit_prediction_provider = "copilot";
-      };
-
-      # Configure the default assistant
+      edit_predictions.mode = "eager";
       agent = {
         enabled = true;
         default_model = {
           provider = "copilot_chat";
-          model = "gpt-4";
-        };
-
-        inline_assistant_model = {
-          provider = "copilot_chat";
-          model = "gpt-4";
+          model = "gpt-4.1";
         };
       };
-
       tabs = {
         file_icons = true;
         git_status = true;
       };
-
-      # Configure languages
       languages = {
         "Nix" = {
           language_servers = [
@@ -90,7 +71,6 @@
           hard_tabs = false;
         };
       };
-
       file_types = {
         "Just" = [
           "just"
@@ -99,14 +79,10 @@
         "OpenTofu" = [ "tf" ];
         "OpenTofu Vars" = [ "tfvars" ];
       };
-
-      # Configure LSPs
       lsp = {
         nixd = {
           settings = {
-            formatting = {
-              command = [ "${lib.getExe pkgs.nixfmt-rfc-style}" ];
-            };
+            formatting.command = [ "${lib.getExe pkgs.nixfmt-rfc-style}" ];
             nixpkgs.expr = "import (builtins.getFlake \"${inputs.self}\").inputs.nixpkgs { }";
             options = rec {
               nixos.expr = "(builtins.getFlake \"${inputs.self}\").nixosConfigurations.${hostname}.options";
@@ -114,38 +90,36 @@
             };
           };
         };
-        nil = {
-          settings = {
-            formatting = {
-              command = [ "${lib.getExe pkgs.nixfmt-rfc-style}" ];
+        nil.settings.formatting = {
+          command = [ "${lib.getExe pkgs.nixfmt-rfc-style}" ];
+        };
+        yaml-language-server.settings = {
+          yaml = {
+            schemas = {
+              "https://taskfile.dev/schema.json" = [
+                "Taskfile*.yml"
+                "Taskfile*.yaml"
+              ];
             };
           };
         };
-        yaml-language-server = {
+        just-lsp.settings = { };
+        pyright = {
           settings = {
-            yaml = {
-              schemas = {
-                "https://taskfile.dev/schema.json" = [
-                  "Taskfile*.yml"
-                  "Taskfile*.yaml"
-                ];
-              };
+            "python.analysis" = {
+              typeCheckingMode = "off";
             };
           };
         };
-        just-lsp = {
-          # Custom binary configuration (optional)
-          # binary = {
-          #   path = "/path/to/custom/just-lsp";
-          #   arguments = ["--custom-arg"];
-          # };
+      };
 
-          # Language server settings (optional)
-          # These settings are passed directly to just-lsp
-          # Currently just-lsp doesn't expose configuration options,
-          # but this structure is ready if they add any in the future
-          settings = { };
-        };
+      inlay_hints = {
+        enabled = true;
+        show_type_hints = true;
+        show_parameter_hints = true;
+        show_other_hints = true;
+        edit_debounce_ms = 700;
+        scroll_debounce_ms = 50;
       };
 
       # Disable telemetry

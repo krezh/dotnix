@@ -1,3 +1,4 @@
+{ pkgs, ... }:
 let
   opacity =
     value: items:
@@ -30,10 +31,34 @@ let
       else
         "renderunfocused,class:^(${item})$"
     ) items;
-
+  #from https://github.com/hyprwm/Hyprland/issues/3835
+  float_script = pkgs.writeShellScriptBin "hyprland-bitwarden-float" ''
+    handle() {
+      case $1 in
+        windowtitle*)
+          window_id=''${1#*>>}
+          [[ "$window_id" =~ ^0x ]] || window_id="0x$window_id"
+          window_title=$(hyprctl clients -j | ${pkgs.jq}/bin/jq --arg id "$window_id" -r '.[] | select(.address == $id) | .title')
+          if [[ "$window_title" == "Extension: (Bitwarden Password Manager) - Bitwarden — Zen Browser" ]]; then
+            hyprctl --batch "
+              dispatch togglefloating address:$window_id ;
+              dispatch resizewindowpixel exact 20% 40%,address:$window_id ;
+              dispatch movewindowpixel exact 40% 30%,address:$window_id
+            "
+          fi
+          ;;
+      esac
+    }
+    # Listen to the Hyprland socket for events and process each line with the handle function
+    ${pkgs.socat}/bin/socat -U - UNIX-CONNECT:$XDG_RUNTIME_DIR/hypr/$HYPRLAND_INSTANCE_SIGNATURE/.socket2.sock | while read -r line; do handle "$line"; done
+  '';
 in
 {
+  home.packages = [ float_script ];
   wayland.windowManager.hyprland = {
+    extraConfig = ''
+      exec-once = ${float_script}/bin/hyprland-bitwarden-float
+    '';
     settings = {
       layerrule = [
         "blur,rofi"
@@ -75,12 +100,15 @@ in
         # Float
         "float, class:org\.gnome\.FileRoller"
         "float, class:file-roller"
-        "float, class:org.libvips.vipsdisp"
+        "float, class:org\.libvips\.vipsdisp"
+        "float, title:^(.*Bitwarden Password Manager.*)$"
+        "size 50% 50%,title:^(.*Bitwarden Password Manager.*)$"
         "size 60% 70%,class:mpv"
         "float, class:mpv"
       ]
       ++ tags "games" [
         "gamescope"
+        "steam_app_default"
         "steam_app_[0-9]+"
       ]
       ++ tags "browsers" [

@@ -25,12 +25,6 @@
       downloads = {
         paths = [ "/home/krezh/Downloads" ];
         schedule = "daily";
-        exclude = [
-          "**/*.tmp"
-          "**/*.log"
-          "**/Trash/**"
-        ];
-        compression = "zstd";
         retentionPolicy = {
           keepDaily = 2;
         };
@@ -41,12 +35,16 @@
           "/home/krezh/.steam/steam/steamapps/compatdata/3300595845/pfx/drive_c/Program Files (x86)/World of Warcraft/_retail_/WTF"
         ];
         schedule = "daily";
-        exclude = [
-          "**/*.tmp"
-          "**/*.log"
-          "**/Trash/**"
+        retentionPolicy = {
+          keepDaily = 2;
+        };
+      };
+      wow-lutris = {
+        paths = [
+          "/home/krezh/Games/battlenet/drive_c/Program Files (x86)/World of Warcraft/_retail_/Interface"
+          "/home/krezh/Games/battlenet/drive_c/Program Files (x86)/World of Warcraft/_retail_/WTF"
         ];
-        compression = "zstd";
+        schedule = "daily";
         retentionPolicy = {
           keepDaily = 2;
         };

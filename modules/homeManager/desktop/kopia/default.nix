@@ -121,7 +121,11 @@ in
 
             exclude = lib.mkOption {
               type = lib.types.listOf lib.types.str;
-              default = [ ];
+              default = [
+                "**/*.tmp"
+                "**/*.log"
+                "**/Trash/**"
+              ];
               description = "List of patterns to exclude from backup";
             };
 
