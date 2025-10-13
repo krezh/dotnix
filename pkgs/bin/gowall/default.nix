@@ -19,6 +19,10 @@ buildGoModule rec {
 
   vendorHash = "sha256-H2Io1K2LEFmEPJYVcEaVAK2ieBrkV6u+uX82XOvNXj4=";
 
+  buildPhase = ''
+    export HOME=$(pwd)
+  '';
+
   ldflags = [
     "-s"
     "-w"
