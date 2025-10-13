@@ -47,7 +47,7 @@ jobs:
 
       - name: Get changed files
         id: changed-files
-        uses: bjw-s-labs/action-changed-files@e03a5a5aecec9ba06e3f13e5d8ec76b05a50a3dd # v0.6.1
+        uses: bjw-s-labs/action-changed-files@v0.3.3
 
       - name: Detect what changed
         id: detect
