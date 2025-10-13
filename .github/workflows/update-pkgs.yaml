@@ -5,7 +5,6 @@ on:
   workflow_dispatch: {}
   pull_request:
     paths: ["pkgs/**"]
-    types: [opened, reopened]
     branches: ["main"]
 
 concurrency:
