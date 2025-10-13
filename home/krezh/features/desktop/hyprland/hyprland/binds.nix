@@ -20,9 +20,8 @@ let
   };
 
   launcher = {
-    pkg = pkgs.fuzzel;
+    pkg = config.programs.walker.package;
     bin = lib.getExe launcher.pkg;
-    name = getBinaryName launcher.pkg;
   };
 
   showkey = {
@@ -34,6 +33,11 @@ let
     pkg = pkgs.wiremix;
     bin = lib.getExe audioControl.pkg;
     name = getBinaryName audioControl.pkg;
+  };
+
+  clipboardMgr = {
+    pkg = config.programs.walker.package;
+    bin = "${lib.getExe clipboardMgr.pkg} -m clipboard";
   };
 
   volume_script = lib.getExe pkgs.volume_script_hyprpanel;
@@ -53,7 +57,7 @@ in
       bindd = [
         "${mainMod},ESCAPE,Show logout menu,exec,${lib.getExe pkgs.wlogout}"
         "${mainMod},L,Lock the screen immediately,exec,${hyprlock.bin} --immediate"
-        "${mainMod},R,Launch application launcher,exec,pkill ${launcher.name} || ${launcher.bin}"
+        "${mainMod},R,Launch application launcher,exec,${launcher.bin}"
         "${mainMod},B,Launch Zen Browser,exec,${lib.getExe config.programs.zen-browser.package}"
         "${mainMod},E,Launch Nautilus file manager,exec,${lib.getExe pkgs.nautilus}"
         "${mainMod},RETURN,Launch terminal,exec,${defaultTerminal}"
@@ -62,7 +66,7 @@ in
         "${mainModShift},T,Launch terminal (floating),exec,[float] ${defaultTerminal}"
         "${mainMod},O,Launch calculator,exec,${lib.getExe pkgs.gnome-calculator}"
         "CTRL SHIFT,ESCAPE,Launch system resources monitor (floating),exec,[float] ${lib.getExe pkgs.resources}"
-        "${mainMod},V,Launch clipboard manager,exec,${lib.getExe config.services.copyq.package} toggle"
+        "${mainMod},V,Launch clipboard manager,exec,${clipboardMgr.bin}"
         "${mainMod},K,Show keybinds (floating),exec,[float] ${defaultTerminal} --class showkey -e ${showkey.bin}"
         "${mainMod},G,Launch Audio Control (floating),exec,[float] pkill ${audioControl.name} || ${defaultTerminal} --class audioControl -e ${audioControl.bin} -m 100 "
         # Audio device switching

@@ -25,6 +25,7 @@
     brightnessctl
     grim
     slurp
+    wl-clipboard
     wl-screenrec
     hyprpicker
     resources

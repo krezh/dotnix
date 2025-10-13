@@ -6,6 +6,5 @@
     ./hypridle
     ./hyprlock
     ./wlogout
-    ./copyq
   ];
 }

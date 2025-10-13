@@ -39,12 +39,7 @@ in
   catppuccin.cursors.enable = true;
   catppuccin.cursors.flavor = "mocha";
   catppuccin.cursors.accent = "light";
-  catppuccin.hyprland.enable = true;
-  catppuccin.gtk.icon.enable = true;
-  catppuccin.vesktop.enable = true;
   catppuccin.vscode.profiles.default.enable = false;
-  catppuccin.k9s.enable = true;
-  catppuccin.k9s.transparent = true;
 
   sops = {
     age.keyFile = "${config.xdg.configHome}/sops/age/keys.txt";
@@ -96,13 +91,11 @@ in
       httpie
       diffsitter
       timer
-      bottom
       ffmpeg
       yt-dlp
       gowall
       await
       ntfy-sh
-      procs
       hwatch
       envsubst
       gopls
@@ -112,7 +105,6 @@ in
       flyctl
       retry
       just
-      terraform
       minijinja
       gh-poi
       pre-commit
@@ -128,6 +120,7 @@ in
       lazysql
       cava
       glow
+      rust-analyzer
 
       # Secrets
       age-plugin-yubikey
@@ -135,59 +128,20 @@ in
       sops
       age
       doppler
-      infisical
 
       # Processors
       jq
       jc
       jnv
       yq-go
-
-      # Nix
-      cachix
-      nixfmt-rfc-style
-      nvd
-      nix-output-monitor
-      niv
-      comma
-      nix-tree
-      nixos-anywhere
-      nixos-shell
-      any-nix-shell
-      attic-client
-
-      # Kubernetes
-      talosctl
-      kubectl
-      kubeswitch
-      kubectl-cnpg
-      kubectl-node-shell
-      kubectl-klock
-      kubectl-df-pv
-      kubecolor
-      kustomize
-      fluxcd
-      stern
-      helmfile
-      kubernetes-helm
-      kubernetes-helmPlugins.helm-diff
-      kind
-      teleport
-      kubestr
-      kubectl-pgo
-      cilium-cli
-      kubectl-rook-ceph
     ];
   };
 
-  hmModules.shell.krew.enable = true;
-  hmModules.shell.kubectx.enable = true;
   hmModules.shell.aria2.enable = true;
-  hmModules.shell.talswitcher.enable = true;
+  hmModules.shell.kubernetes.enable = true;
 
   programs = {
     home-manager.enable = true;
-    neomutt.enable = true;
     yazi.enable = true;
   };
 

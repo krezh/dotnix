@@ -52,7 +52,7 @@
     general = {
       gaps_in = 5;
       gaps_out = 5;
-      border_size = 1;
+      border_size = 2;
       "col.active_border" = "$blue";
       "col.inactive_border" = "$base";
       layout = "dwindle";

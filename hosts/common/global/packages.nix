@@ -11,6 +11,14 @@
     nixd
     nil
     nix-inspect
+    cachix
+    nixfmt-rfc-style
+    nvd
+    nix-output-monitor
+    comma
+    nix-tree
+    nixos-anywhere
+    attic-client
     # Thumbnails
     ffmpeg-headless
     ffmpegthumbnailer

@@ -50,6 +50,7 @@
       edit_predictions.mode = "eager";
       agent = {
         enabled = true;
+        always_allow_tool_actions = true;
         default_model = {
           provider = "copilot_chat";
           model = "gpt-4.1";

@@ -6,4 +6,7 @@
       style = "plain";
     };
   };
+  programs.fish.shellAliases = {
+    cat = "bat";
+  };
 }

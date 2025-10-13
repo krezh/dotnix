@@ -8,14 +8,13 @@
     ./fzf
     ./git
     ./gpg
-    ./k9s
     ./mise
     ./neovim
     ./starship
     ./zoxide
     ./fastfetch
     ./helix
-    ./tlk
     ./curlie
+    ./claude
   ];
 }

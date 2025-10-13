@@ -34,16 +34,11 @@ in
       gpf = "git push --force-with-lease";
       gbc = "git nb";
 
-      curl = "curlie";
-
-      # kubernetes
-      k = condDef "kubectl";
+      curl = condDef "curlie";
     };
     shellAliases = {
       # Clear screen and scrollback
       clear = "printf '\\033[2J\\033[3J\\033[1;1H'";
-      kubectl = condDef "kubecolor";
-      cat = condDef "bat";
     };
     plugins = [
       {
@@ -62,24 +57,6 @@ in
         name = "forgit";
         src = pkgs.fishPlugins.forgit.src;
       }
-      {
-        name = "abbreviation-tips";
-        src = pkgs.fetchFromGitHub {
-          owner = "gazorby";
-          repo = "fish-abbreviation-tips";
-          rev = "v0.7.0";
-          sha256 = "sha256-F1t81VliD+v6WEWqj1c1ehFBXzqLyumx5vV46s/FZRU=";
-        };
-      }
-      (lib.mkIf (config.programs.tmux.enable && !config.programs.zellij.enable) {
-        name = "tmux";
-        src = pkgs.fetchFromGitHub {
-          owner = "budimanjojo";
-          repo = "tmux.fish";
-          rev = "v2.0.1";
-          sha256 = "sha256-ynhEhrdXQfE1dcYsSk2M2BFScNXWPh3aws0U7eDFtv4=";
-        };
-      })
     ];
     functions = {
       # Disable greeting
@@ -87,8 +64,7 @@ in
     };
     interactiveShellInit = ''
       ${lib.getExe pkgs.fastfetch}
-      ${lib.optionalString config.programs.tmux.enable "set fish_tmux_autostart true"}
-      ${lib.getExe pkgs.any-nix-shell} fish | source
+      ${lib.getExe pkgs.any-nix-shell} fish --info-right | source
     '';
   };
 }

@@ -7,5 +7,6 @@
     ./aria2
     ./tlk
     ./talswitcher
+    ./kubernetes
   ];
 }

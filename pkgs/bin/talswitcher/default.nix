@@ -16,6 +16,10 @@ buildGo124Module rec {
     hash = "sha256-wQQtOA8GAJ1cxKAbAcsBWXHAXJB6TcgCaFQBv0brOO0=";
   };
 
+  # Required to workaround test error:
+  #   Error: talosconfig directory does not exist: /homeless-shelter/.talos/configs
+  HOME = "$TMPDIR";
+
   vendorHash = "sha256-SIQHkmNChttaEdIyofm4QVSN/Vr6O6Lu0W7z9atJscs=";
 
   ldflags = [
