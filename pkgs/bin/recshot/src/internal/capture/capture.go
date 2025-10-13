@@ -233,7 +233,7 @@ func (c *Capturer) executeGrim(geometry, filename string) error {
 
 // executeWlScreenrec runs wl-screenrec with the specified parameters
 func (c *Capturer) executeWlScreenrec(geometry, monitor, filename string) error {
-	args := []string{"wl-screenrec", "--low-power=off"}
+	args := []string{"wl-screenrec", "--low-power=off", "--max-fps=60", "--encode-resolution=1920x1080"}
 	if geometry != "" {
 		args = append(args, "-g", geometry)
 	}
