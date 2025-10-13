@@ -18,8 +18,10 @@ buildGo124Module rec {
 
   vendorHash = "sha256-SIQHkmNChttaEdIyofm4QVSN/Vr6O6Lu0W7z9atJscs=";
 
-  buildPhase = ''
-    export HOME=$(pwd)
+  # Required to workaround test error:
+  #   panic: mkdir /homeless-shelter: permission denied
+  HOME = "$TMPDIR";
+  preBuild = ''
     mkdir -p $HOME/.talos/configs
   '';
 
