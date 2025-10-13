@@ -3,10 +3,17 @@
 name: Build Nix
 on:
   pull_request:
+    branches: ["main"]
+    paths:
+      - "**.nix"
+      - "flake.lock"
   workflow_dispatch:
   workflow_call:
   push:
     branches: ["main"]
+    paths:
+      - "**.nix"
+      - "flake.lock"
 permissions:
   id-token: write
   contents: read
