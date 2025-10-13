@@ -12,7 +12,10 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  TMPDIR: /tmp
+  NIX_CONFIG: |
+    accept-flake-config = true
+    always-allow-substitutes = true
+    builders-use-substitutes = true
 
 jobs:
   # Job to generate the matrix of packages to update
@@ -25,8 +28,10 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
 
-      - name: Install dependencies
-        run: sudo apt-get update && sudo apt-get install -y jq
+      - name: Install Nix
+        uses: nixbuild/nix-quick-install-action@2c9db80fb984ceb1bcaa77cdda3fdf8cfba92035 # v34
+        with:
+          nix_conf: ${{ env.NIX_CONFIG }}
 
       - name: Generate package matrix
         id: set-matrix
@@ -67,22 +72,15 @@ jobs:
           fetch-depth: 0
 
       - name: Install Nix
-        uses: DeterminateSystems/nix-installer-action@786fff0690178f1234e4e1fe9b536e94f5433196 # v20
+        uses: nixbuild/nix-quick-install-action@2c9db80fb984ceb1bcaa77cdda3fdf8cfba92035 # v34
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          extra-conf: |
-            accept-flake-config = true
-            always-allow-substitutes = true
-            builders-use-substitutes = true
+          nix_conf: ${{ env.NIX_CONFIG }}
 
       - name: Set up Cachix
         uses: cachix/cachix-action@0fc020193b5a1fa3ac4575aa3a7d3aa6a35435ad # v16
         with:
           name: krezh
           authToken: "${{ secrets.CACHIX_AUTH_TOKEN }}"
-
-      - name: Garbage collect build dependencies
-        run: nix-collect-garbage
 
       - name: Get current version
         id: current-version
@@ -114,19 +112,23 @@ jobs:
             echo "repo=${{ matrix.package }}" >> $GITHUB_OUTPUT
           fi
 
+      - name: Configure git for bot
+        run: |
+          git config --global user.name "${{ secrets.BOT_USERNAME }}"
+          git config --global user.email "${{ secrets.BOT_USER_EMAIL }}"
+
       - name: Update package with nix-update
         id: update
         continue-on-error: true
         run: |
           VERSION_REGEX='^v?([0-9]+)\.([0-9]+)\.([0-9]+)(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$'
 
-          # Run nix-update
           nix run github:Mic92/nix-update -- "${{ matrix.package }}" \
             --flake \
+            --commit \
             --version-regex "$VERSION_REGEX" 2>&1 | tee update.log
 
-          # Check if there were any changes
-          if git diff --quiet; then
+          if git diff --quiet HEAD~1 2>/dev/null && [ "$(git rev-list --count HEAD^..HEAD 2>/dev/null || echo 0)" -eq 0 ]; then
             echo "has-changes=false" >> $GITHUB_OUTPUT
             echo "No changes detected for ${{ matrix.package }}"
           else
@@ -153,8 +155,6 @@ jobs:
         if: steps.update.outputs.has-changes == 'true'
         id: codeowners
         run: |
-          # Extract reviewers from CODEOWNERS file
-          # Handle both user (@username) and team (@org/team) formats
           REVIEWERS=$(grep -E '^\*\s+@' .github/CODEOWNERS | sed 's/^\*\s\+//' | sed 's/@//g' | tr '\n' ',' | sed 's/,$//')
           echo "reviewers=$REVIEWERS" >> $GITHUB_OUTPUT
           echo "Found reviewers: $REVIEWERS"
