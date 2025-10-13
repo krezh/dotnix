@@ -26,5 +26,8 @@
       difftastic.options.display = "inline";
     };
     lazygit.enable = true;
+    fish.shellAbbrs = {
+      lg = "lazygit";
+    };
   };
 }

@@ -6,11 +6,10 @@ in
   # bin packages
   talswitcher = callPackage ./bin/talswitcher { };
   gowall = callPackage ./bin/gowall { };
-  yaml2nix = callPackage ./bin/yaml2nix { };
   kubectl-df-pv = callPackage ./bin/kubectl-df-pv { };
   gh-poi = callPackage ./bin/gh-poi { };
   recshot = callPackage ./bin/recshot { };
-  #talosctl = callPackage ./bin/talosctl { };
+  talosctl = callPackage ./bin/talosctl { };
   kubectl-pgo = callPackage ./bin/kubectl-pgo { };
   kubectl-volsync = callPackage ./bin/kubectl-volsync { };
   kubectl-rook-ceph = callPackage ./bin/kubectl-rook-ceph { };

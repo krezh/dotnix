@@ -54,7 +54,7 @@ test-pkg-diff *args:
       fi
 
       echo "📦 Listing packages for $target..."
-      python3 .github/pkg-tool.py list "$out_link" "$pkg_json"
+      python3 .github/scripts/pkg-tool.py list "$out_link" "$pkg_json"
     ) &
   done
 
@@ -63,7 +63,7 @@ test-pkg-diff *args:
 
   echo "🧩 Diffing package lists..."
   if [[ -f "${pkg_lists[0]}" && -f "${pkg_lists[1]}" ]]; then
-      diff_output=$(python3 .github/pkg-tool.py diff "${pkg_lists[0]}" "${pkg_lists[1]}" {{ args }} || true)
+      diff_output=$(python3 .github/scripts/pkg-tool.py diff "${pkg_lists[0]}" "${pkg_lists[1]}" {{ args }} || true)
     if [[ -z "$diff_output" ]]; then
       echo "✅ No differences found."
     else

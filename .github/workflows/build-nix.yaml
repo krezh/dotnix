@@ -204,7 +204,7 @@ jobs:
           echo "build_duration=$build_duration" >> $GITHUB_OUTPUT
 
       - name: Generate new package list
-        run: python3 .github/pkg-tool.py list result pkg-list.json
+        run: python3 .github/scripts/pkg-tool.py list result pkg-list.json
 
       - name: Upload new package list artifact
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
@@ -259,7 +259,7 @@ jobs:
             echo ""
             echo "### 📦 Package Diff"
             if [ -f "$prev_json" ]; then
-              python3 .github/pkg-tool.py diff "$prev_json" pkg-list.json --github
+              python3 .github/scripts/pkg-tool.py diff "$prev_json" pkg-list.json --github
             else
               echo "_No previous package list found; skipping diff._"
             fi

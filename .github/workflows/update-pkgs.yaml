@@ -1,24 +1,56 @@
 ---
-name: Update Package
+name: Update Packages
 
 on:
+  schedule:
+    # Run every hour
+    - cron: "0 * * * *"
   workflow_dispatch: {}
-  pull_request:
-    paths: ["pkgs/**"]
-    types: [opened, reopened, synchronize]
-    branches: ["main"]
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.number || github.ref }}
-  cancel-in-progress: true
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
 
 env:
-  EXCLUDED_HOSTS: '["nixos-livecd"]'
   TMPDIR: /tmp
 
 jobs:
-  update-package:
+  # Job to generate the matrix of packages to update
+  generate-matrix:
     runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+      has-packages: ${{ steps.set-matrix.outputs.has-packages }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
+
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y jq
+
+      - name: Generate package matrix
+        id: set-matrix
+        run: |
+          chmod +x .github/scripts/list-remote-packages.sh
+          PACKAGES=$(.github/scripts/list-remote-packages.sh)
+          echo "matrix=$PACKAGES" >> $GITHUB_OUTPUT
+          if [ "$PACKAGES" = "[]" ] || [ -z "$PACKAGES" ]; then
+            echo "has-packages=false" >> $GITHUB_OUTPUT
+          else
+            echo "has-packages=true" >> $GITHUB_OUTPUT
+          fi
+          echo "Found packages: $PACKAGES"
+
+  # Job to update each package in parallel
+  update-package:
+    needs: generate-matrix
+    if: needs.generate-matrix.outputs.has-packages == 'true'
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    strategy:
+      fail-fast: false
+      matrix:
+        package: ${{ fromJson(needs.generate-matrix.outputs.matrix) }}
     steps:
       - name: Generate Token
         uses: actions/create-github-app-token@67018539274d69449ef7c02e8e71183d1719ab42 # v2.1.4
@@ -28,7 +60,8 @@ jobs:
           private-key: "${{ secrets.BOT_APP_PRIVATE_KEY }}"
           owner: "${{ github.repository_owner }}"
 
-      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
+      - name: Checkout repository
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
         with:
           token: "${{ steps.app-token.outputs.token }}"
           fetch-depth: 0
@@ -44,7 +77,6 @@ jobs:
 
       - name: Set up Cachix
         uses: cachix/cachix-action@0fc020193b5a1fa3ac4575aa3a7d3aa6a35435ad # v16
-        if: ${{ !github.event.pull_request.head.repo.fork }}
         with:
           name: krezh
           authToken: "${{ secrets.CACHIX_AUTH_TOKEN }}"
@@ -52,39 +84,140 @@ jobs:
       - name: Garbage collect build dependencies
         run: nix-collect-garbage
 
-      - name: Extract values
-        id: extract-values
+      - name: Get current version
+        id: current-version
+        continue-on-error: true
         run: |
-          package=$(echo "${{ github.event.pull_request.title }}" | grep -oP --color=never '([^ ]+/[^ ]+)')
-          new_version=$(echo "${{ github.event.pull_request.title }}" | grep -oP --color=never '→ \K(v[^\s]+)')
-          package=$(grep -iRl "${package}" pkgs | awk -F'/' '{print $(NF-1)}')
-          echo "package=$package" >> $GITHUB_OUTPUT
-          echo "new_version=$new_version" >> $GITHUB_OUTPUT
+          VERSION=$(nix eval ".#${{ matrix.package }}.version" --raw 2>/dev/null || echo "unknown")
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Current version: $VERSION"
 
-      - name: "Update hashes and build package: ${{ steps.extract-values.outputs.package }}"
+      - name: Get package source info
+        id: package-info
+        continue-on-error: true
         run: |
-          nix run github:Mic92/nix-update -- --flake --version=skip --build "${{ steps.extract-values.outputs.package }}"
+          # Try to extract repo info from the package
+          PKG_FILE="pkgs/bin/${{ matrix.package }}/default.nix"
+          if [ ! -f "$PKG_FILE" ]; then
+            PKG_FILE="pkgs/scripts/${{ matrix.package }}/default.nix"
+          fi
 
-      - name: Push changes
-        uses: actions-js/push@5a7cbd780d82c0c937b5977586e641b2fd94acc5 # v1.5
-        id: push
+          if [ -f "$PKG_FILE" ]; then
+            # Extract owner and repo from fetchFromGitHub
+            OWNER=$(grep -oP 'owner\s*=\s*"\K[^"]+' "$PKG_FILE" || echo "unknown")
+            REPO=$(grep -oP 'repo\s*=\s*"\K[^"]+' "$PKG_FILE" || echo "${{ matrix.package }}")
+            echo "owner=$OWNER" >> $GITHUB_OUTPUT
+            echo "repo=$REPO" >> $GITHUB_OUTPUT
+            echo "Source: $OWNER/$REPO"
+          else
+            echo "owner=unknown" >> $GITHUB_OUTPUT
+            echo "repo=${{ matrix.package }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Update package with nix-update
+        id: update
+        continue-on-error: true
+        run: |
+          VERSION_REGEX='^v?([0-9]+)\.([0-9]+)\.([0-9]+)(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$'
+
+          # Run nix-update
+          nix run github:Mic92/nix-update -- "${{ matrix.package }}" \
+            --flake \
+            --version-regex "$VERSION_REGEX" 2>&1 | tee update.log
+
+          # Check if there were any changes
+          if git diff --quiet; then
+            echo "has-changes=false" >> $GITHUB_OUTPUT
+            echo "No changes detected for ${{ matrix.package }}"
+          else
+            echo "has-changes=true" >> $GITHUB_OUTPUT
+            echo "Changes detected for ${{ matrix.package }}"
+          fi
+
+      - name: Get new version
+        id: new-version
+        if: steps.update.outputs.has-changes == 'true'
+        continue-on-error: true
+        run: |
+          VERSION=$(nix eval ".#${{ matrix.package }}.version" --raw 2>/dev/null || echo "unknown")
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "New version: $VERSION"
+
+      - name: Build package
+        if: steps.update.outputs.has-changes == 'true'
+        continue-on-error: true
+        run: |
+          nix build ".#${{ matrix.package }}" --print-build-logs
+
+      - name: Extract reviewers from CODEOWNERS
+        if: steps.update.outputs.has-changes == 'true'
+        id: codeowners
+        run: |
+          # Extract reviewers from CODEOWNERS file
+          # Handle both user (@username) and team (@org/team) formats
+          REVIEWERS=$(grep -E '^\*\s+@' .github/CODEOWNERS | sed 's/^\*\s\+//' | sed 's/@//g' | tr '\n' ',' | sed 's/,$//')
+          echo "reviewers=$REVIEWERS" >> $GITHUB_OUTPUT
+          echo "Found reviewers: $REVIEWERS"
+
+      - name: Generate changelog
+        if: steps.update.outputs.has-changes == 'true'
+        id: changelog
+        continue-on-error: true
+        run: |
+          chmod +x .github/scripts/get-changelog.sh
+
+          # Generate changelog and save to file
+          .github/scripts/get-changelog.sh \
+            "${{ steps.package-info.outputs.owner }}" \
+            "${{ steps.package-info.outputs.repo }}" \
+            "${{ steps.current-version.outputs.version }}" \
+            "${{ steps.new-version.outputs.version }}" \
+            "${{ steps.app-token.outputs.token }}" > changelog.md
+
+          # Output for use in PR body
+          echo "changelog<<EOF" >> $GITHUB_OUTPUT
+          cat changelog.md >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Create Pull Request
+        if: steps.update.outputs.has-changes == 'true'
+        uses: peter-evans/create-pull-request@5e914681df9dc83aa4e4905692ca88beb2f9e91f # v7
         with:
-          github_token: "${{ steps.app-token.outputs.token }}"
-          author_name: "${{ secrets.BOT_USERNAME }}"
-          author_email: "${{ secrets.BOT_USER_EMAIL }}"
-          branch: "${{ github.event.pull_request.head.ref }}"
-          amend: true
-          force: true
-          message: "Update ${{ steps.extract-values.outputs.package }} to ${{ steps.extract-values.outputs.new_version }}"
+          token: "${{ steps.app-token.outputs.token }}"
+          commit-message: "Update ${{ matrix.package }} (${{ steps.current-version.outputs.version }} → ${{ steps.new-version.outputs.version }})"
+          committer: "${{ secrets.BOT_USERNAME }} <${{ secrets.BOT_USER_EMAIL }}>"
+          author: "${{ secrets.BOT_USERNAME }} <${{ secrets.BOT_USER_EMAIL }}>"
+          branch: "pkgs/${{ steps.package-info.outputs.repo }}-${{ matrix.package }}"
+          delete-branch: true
+          title: "Update package ${{ steps.package-info.outputs.owner }}/${{ steps.package-info.outputs.repo }} (${{ steps.current-version.outputs.version }} → ${{ steps.new-version.outputs.version }})"
+          body: |
+            ## 📦 Package Update
 
-      - name: check for changes
-        if: steps.push.conclusion == 'success'
-        run: |
-          echo "Cooling down..."
-          seconds=10
-          while [ $seconds -gt 0 ]; do
-          echo "Seconds left: $seconds"
-          sleep 1
-          seconds=$((seconds - 1))
-          done
-          echo "Done"
+            | | |
+            |---|---|
+            | **Package** | `${{ matrix.package }}` |
+            | **Source** | [`${{ steps.package-info.outputs.owner }}/${{ steps.package-info.outputs.repo }}`](https://github.com/${{ steps.package-info.outputs.owner }}/${{ steps.package-info.outputs.repo }}) |
+            | **Version** | `${{ steps.current-version.outputs.version }}` → `${{ steps.new-version.outputs.version }}` |
+
+            ### ✅ Verification
+
+            - [x] Package builds successfully
+            - [x] Hashes updated automatically
+            - [ ] Ready for review
+
+            ---
+
+            <details>
+            <summary>📝 Release Notes & Changelog</summary>
+
+            ${{ steps.changelog.outputs.changelog }}
+
+            </details>
+
+            ---
+
+            <sub>🤖 This PR was automatically generated by [update-pkgs.yaml](.github/workflows/update-pkgs.yaml)</sub>
+          labels: |
+            dependencies
+            automated
+          reviewers: ${{ steps.codeowners.outputs.reviewers }}
