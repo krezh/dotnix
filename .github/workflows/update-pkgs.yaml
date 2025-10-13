@@ -3,7 +3,6 @@ name: Update Packages
 
 on:
   schedule:
-    # Run every hour
     - cron: "0 * * * *"
   workflow_dispatch: {}
 
@@ -11,51 +10,40 @@ concurrency:
   group: ${{ github.workflow }}
   cancel-in-progress: false
 
-env:
-  NIX_CONFIG: |
-    accept-flake-config = true
-    always-allow-substitutes = true
-    builders-use-substitutes = true
-
 jobs:
-  # Job to generate the matrix of packages to update
-  generate-matrix:
+  detect-packages:
     runs-on: ubuntu-latest
     outputs:
-      matrix: ${{ steps.set-matrix.outputs.matrix }}
-      has-packages: ${{ steps.set-matrix.outputs.has-packages }}
+      matrix: ${{ steps.packages.outputs.matrix }}
+      reviewers: ${{ steps.codeowners.outputs.reviewers }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
 
       - name: Install Nix
-        uses: nixbuild/nix-quick-install-action@2c9db80fb984ceb1bcaa77cdda3fdf8cfba92035 # v34
-        with:
-          nix_conf: ${{ env.NIX_CONFIG }}
+        uses: DeterminateSystems/nix-installer-action@786fff0690178f1234e4e1fe9b536e94f5433196 # v20
 
-      - name: Generate package matrix
-        id: set-matrix
+      - name: Get package list
+        id: packages
         run: |
           chmod +x .github/scripts/list-remote-packages.sh
           PACKAGES=$(.github/scripts/list-remote-packages.sh)
-          echo "matrix=$PACKAGES" >> $GITHUB_OUTPUT
-          if [ "$PACKAGES" = "[]" ] || [ -z "$PACKAGES" ]; then
-            echo "has-packages=false" >> $GITHUB_OUTPUT
-          else
-            echo "has-packages=true" >> $GITHUB_OUTPUT
-          fi
+          echo "matrix={\"package\":$PACKAGES}" >> $GITHUB_OUTPUT
           echo "Found packages: $PACKAGES"
 
-  # Job to update each package in parallel
+      - name: Extract reviewers from CODEOWNERS
+        id: codeowners
+        run: |
+          REVIEWERS=$(grep -E '^\*\s+@' .github/CODEOWNERS | sed 's/^\*\s\+//' | sed 's/@//g' | tr '\n' ',' | sed 's/,$//')
+          echo "reviewers=$REVIEWERS" >> $GITHUB_OUTPUT
+
   update-package:
-    needs: generate-matrix
-    if: needs.generate-matrix.outputs.has-packages == 'true'
+    needs: detect-packages
+    if: needs.detect-packages.outputs.matrix != '{"package":[]}'
     runs-on: ubuntu-latest
-    continue-on-error: true
     strategy:
       fail-fast: false
-      matrix:
-        package: ${{ fromJson(needs.generate-matrix.outputs.matrix) }}
+      matrix: ${{ fromJSON(needs.detect-packages.outputs.matrix) }}
     steps:
       - name: Generate Token
         uses: actions/create-github-app-token@67018539274d69449ef7c02e8e71183d1719ab42 # v2.1.4
@@ -69,140 +57,119 @@ jobs:
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
         with:
           token: "${{ steps.app-token.outputs.token }}"
-          fetch-depth: 0
 
       - name: Install Nix
-        uses: nixbuild/nix-quick-install-action@2c9db80fb984ceb1bcaa77cdda3fdf8cfba92035 # v34
+        uses: ./.github/actions/setup-nix
         with:
-          nix_conf: ${{ env.NIX_CONFIG }}
-
-      - name: Set up Cachix
-        uses: cachix/cachix-action@0fc020193b5a1fa3ac4575aa3a7d3aa6a35435ad # v16
-        with:
-          name: krezh
-          authToken: "${{ secrets.CACHIX_AUTH_TOKEN }}"
+          caches: false
 
       - name: Get current version
-        id: current-version
+        id: version
         run: |
           VERSION=$(nix eval ".#${{ matrix.package }}.version" --raw 2>/dev/null || echo "unknown")
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "current=$VERSION" >> $GITHUB_OUTPUT
           echo "Current version: $VERSION"
 
-      - name: Get package source info
-        id: package-info
+      - name: Get package info
+        id: info
         run: |
-          # Try to extract repo info from the package
-          PKG_FILE="pkgs/bin/${{ matrix.package }}/default.nix"
-          if [ ! -f "$PKG_FILE" ]; then
-            PKG_FILE="pkgs/scripts/${{ matrix.package }}/default.nix"
-          fi
+          chmod +x .github/scripts/get-package-info.sh
+          PKG_INFO=$(.github/scripts/get-package-info.sh "${{ matrix.package }}")
+          OWNER=$(echo "$PKG_INFO" | grep "^owner=" | cut -d= -f2)
+          REPO=$(echo "$PKG_INFO" | grep "^repo=" | cut -d= -f2)
+          echo "owner=$OWNER" >> $GITHUB_OUTPUT
+          echo "repo=$REPO" >> $GITHUB_OUTPUT
+          echo "branch=pkgs/${REPO}-${{ matrix.package }}" >> $GITHUB_OUTPUT
 
-          if [ -f "$PKG_FILE" ]; then
-            # Extract owner and repo from fetchFromGitHub
-            OWNER=$(grep -oP 'owner\s*=\s*"\K[^"]+' "$PKG_FILE" || echo "unknown")
-            REPO=$(grep -oP 'repo\s*=\s*"\K[^"]+' "$PKG_FILE" || echo "${{ matrix.package }}")
-            echo "owner=$OWNER" >> $GITHUB_OUTPUT
-            echo "repo=$REPO" >> $GITHUB_OUTPUT
-            echo "Source: $OWNER/$REPO"
+      - name: Check for existing PR
+        id: check-pr
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          EXISTING_PR=$(gh pr list --head "${{ steps.info.outputs.branch }}" --state open --json number --jq '.[0].number' || echo "")
+          if [ -n "$EXISTING_PR" ]; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+            echo "⚠️  PR #$EXISTING_PR already exists, skipping"
           else
-            echo "owner=unknown" >> $GITHUB_OUTPUT
-            echo "repo=${{ matrix.package }}" >> $GITHUB_OUTPUT
+            echo "exists=false" >> $GITHUB_OUTPUT
           fi
 
-      - name: Configure git for bot
-        run: |
-          git config --global user.name "${{ secrets.BOT_USERNAME }}"
-          git config --global user.email "${{ secrets.BOT_USER_EMAIL }}"
-
-      - name: Update package with nix-update
-        id: update
+      - name: Update package
+        if: steps.check-pr.outputs.exists == 'false'
         run: |
           VERSION_REGEX='^v?([0-9]+)\.([0-9]+)\.([0-9]+)(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$'
-
-          BEFORE_COMMIT=$(git rev-parse HEAD)
-
           nix run github:Mic92/nix-update -- "${{ matrix.package }}" \
             --flake \
-            --commit \
-            --version-regex "$VERSION_REGEX" 2>&1 | tee update.log
-
-          AFTER_COMMIT=$(git rev-parse HEAD)
-
-          if [ "$BEFORE_COMMIT" = "$AFTER_COMMIT" ]; then
-            echo "✓ ${{ matrix.package }} is up to date"
-            exit 0
-          else
-            echo "⬆ Update available for ${{ matrix.package }}"
-          fi
+            --version-regex "$VERSION_REGEX" || {
+            echo "❌ nix-update failed for ${{ matrix.package }}"
+            exit 1
+          }
 
       - name: Get new version
+        if: steps.check-pr.outputs.exists == 'false'
         id: new-version
         run: |
           VERSION=$(nix eval ".#${{ matrix.package }}.version" --raw 2>/dev/null || echo "unknown")
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "New version: $VERSION"
 
-      - name: Extract reviewers from CODEOWNERS
-        id: codeowners
+      - name: Check if version changed
+        if: steps.check-pr.outputs.exists == 'false'
+        id: version-check
         run: |
-          REVIEWERS=$(grep -E '^\*\s+@' .github/CODEOWNERS | sed 's/^\*\s\+//' | sed 's/@//g' | tr '\n' ',' | sed 's/,$//')
-          echo "reviewers=$REVIEWERS" >> $GITHUB_OUTPUT
-          echo "Found reviewers: $REVIEWERS"
+          if [ "${{ steps.version.outputs.current }}" = "${{ steps.new-version.outputs.version }}" ]; then
+            echo "changed=false" >> $GITHUB_OUTPUT
+            echo "✓ Package is up to date"
+          else
+            echo "changed=true" >> $GITHUB_OUTPUT
+          fi
 
-      - name: Generate changelog
+      - name: Get changelog
+        if: steps.check-pr.outputs.exists == 'false' && steps.version-check.outputs.changed == 'true'
         id: changelog
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
           chmod +x .github/scripts/get-changelog.sh
-
-          .github/scripts/get-changelog.sh \
-            "${{ steps.package-info.outputs.owner }}" \
-            "${{ steps.package-info.outputs.repo }}" \
-            "${{ steps.current-version.outputs.version }}" \
+          CHANGELOG=$(.github/scripts/get-changelog.sh \
+            "${{ steps.info.outputs.owner }}" \
+            "${{ steps.info.outputs.repo }}" \
+            "${{ steps.version.outputs.current }}" \
             "${{ steps.new-version.outputs.version }}" \
-            "${{ steps.app-token.outputs.token }}" > changelog.md
-
+            "$GH_TOKEN" || echo "")
           echo "changelog<<EOF" >> $GITHUB_OUTPUT
-          cat changelog.md >> $GITHUB_OUTPUT
+          echo "$CHANGELOG" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Generate PR body
+        if: steps.check-pr.outputs.exists == 'false' && steps.version-check.outputs.changed == 'true'
+        id: pr-body
+        run: |
+          chmod +x .github/scripts/create-pr-body.sh
+          PR_BODY=$(.github/scripts/create-pr-body.sh \
+            "${{ matrix.package }}" \
+            "${{ steps.info.outputs.owner }}" \
+            "${{ steps.info.outputs.repo }}" \
+            "${{ steps.version.outputs.current }}" \
+            "${{ steps.new-version.outputs.version }}" \
+            "${{ steps.changelog.outputs.changelog }}")
+          echo "body<<EOF" >> $GITHUB_OUTPUT
+          echo "$PR_BODY" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
 
       - name: Create Pull Request
-        uses: peter-evans/create-pull-request@5e914681df9dc83aa4e4905692ca88beb2f9e91f # v7
+        if: steps.check-pr.outputs.exists == 'false' && steps.version-check.outputs.changed == 'true'
+        uses: peter-evans/create-pull-request@271a8d0340265f705b14b6d32b9829c1cb33d45e # v7.0.8
         with:
-          token: "${{ steps.app-token.outputs.token }}"
-          commit-message: "Update ${{ matrix.package }} (${{ steps.current-version.outputs.version }} → ${{ steps.new-version.outputs.version }})"
+          token: ${{ steps.app-token.outputs.token }}
+          commit-message: "Update ${{ steps.info.outputs.owner }}/${{ steps.info.outputs.repo }} (${{ steps.version.outputs.current }} → ${{ steps.new-version.outputs.version }})"
           committer: "${{ secrets.BOT_USERNAME }} <${{ secrets.BOT_USER_EMAIL }}>"
           author: "${{ secrets.BOT_USERNAME }} <${{ secrets.BOT_USER_EMAIL }}>"
-          branch: "pkgs/${{ steps.package-info.outputs.repo }}-${{ matrix.package }}"
+          branch: ${{ steps.info.outputs.branch }}
           delete-branch: true
-          title: "Update package ${{ steps.package-info.outputs.owner }}/${{ steps.package-info.outputs.repo }} (${{ steps.current-version.outputs.version }} → ${{ steps.new-version.outputs.version }})"
-          body: |
-            ## 📦 Package Update
-
-            | | |
-            |---|---|
-            | **Package** | `${{ matrix.package }}` |
-            | **Source** | [`${{ steps.package-info.outputs.owner }}/${{ steps.package-info.outputs.repo }}`](https://github.com/${{ steps.package-info.outputs.owner }}/${{ steps.package-info.outputs.repo }}) |
-            | **Version** | `${{ steps.current-version.outputs.version }}` → `${{ steps.new-version.outputs.version }}` |
-
-            ### ✅ Verification
-
-            - [x] Hashes updated automatically
-            - [ ] Ready for review
-
-            ---
-
-            <details>
-            <summary>📝 Release Notes & Changelog</summary>
-
-            ${{ steps.changelog.outputs.changelog }}
-
-            </details>
-
-            ---
-
-            <sub>🤖 This PR was automatically generated by [update-pkgs.yaml](.github/workflows/update-pkgs.yaml)</sub>
+          title: "Update package ${{ steps.info.outputs.owner }}/${{ steps.info.outputs.repo }} (${{ steps.version.outputs.current }} → ${{ steps.new-version.outputs.version }})"
+          body: ${{ steps.pr-body.outputs.body }}
           labels: |
             dependencies
             automated
-          reviewers: ${{ steps.codeowners.outputs.reviewers }}
+          reviewers: ${{ needs.detect-packages.outputs.reviewers }}
