@@ -84,7 +84,6 @@ jobs:
 
       - name: Get current version
         id: current-version
-        continue-on-error: true
         run: |
           VERSION=$(nix eval ".#${{ matrix.package }}.version" --raw 2>/dev/null || echo "unknown")
           echo "version=$VERSION" >> $GITHUB_OUTPUT
@@ -92,7 +91,6 @@ jobs:
 
       - name: Get package source info
         id: package-info
-        continue-on-error: true
         run: |
           # Try to extract repo info from the package
           PKG_FILE="pkgs/bin/${{ matrix.package }}/default.nix"
@@ -119,40 +117,33 @@ jobs:
 
       - name: Update package with nix-update
         id: update
-        continue-on-error: true
         run: |
           VERSION_REGEX='^v?([0-9]+)\.([0-9]+)\.([0-9]+)(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$'
+
+          BEFORE_COMMIT=$(git rev-parse HEAD)
 
           nix run github:Mic92/nix-update -- "${{ matrix.package }}" \
             --flake \
             --commit \
             --version-regex "$VERSION_REGEX" 2>&1 | tee update.log
 
-          if git diff --quiet HEAD~1 2>/dev/null && [ "$(git rev-list --count HEAD^..HEAD 2>/dev/null || echo 0)" -eq 0 ]; then
-            echo "has-changes=false" >> $GITHUB_OUTPUT
-            echo "No changes detected for ${{ matrix.package }}"
+          AFTER_COMMIT=$(git rev-parse HEAD)
+
+          if [ "$BEFORE_COMMIT" = "$AFTER_COMMIT" ]; then
+            echo "✓ ${{ matrix.package }} is up to date"
+            exit 0
           else
-            echo "has-changes=true" >> $GITHUB_OUTPUT
-            echo "Changes detected for ${{ matrix.package }}"
+            echo "⬆ Update available for ${{ matrix.package }}"
           fi
 
       - name: Get new version
         id: new-version
-        if: steps.update.outputs.has-changes == 'true'
-        continue-on-error: true
         run: |
           VERSION=$(nix eval ".#${{ matrix.package }}.version" --raw 2>/dev/null || echo "unknown")
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "New version: $VERSION"
 
-      - name: Build package
-        if: steps.update.outputs.has-changes == 'true'
-        continue-on-error: true
-        run: |
-          nix build ".#${{ matrix.package }}" --print-build-logs
-
       - name: Extract reviewers from CODEOWNERS
-        if: steps.update.outputs.has-changes == 'true'
         id: codeowners
         run: |
           REVIEWERS=$(grep -E '^\*\s+@' .github/CODEOWNERS | sed 's/^\*\s\+//' | sed 's/@//g' | tr '\n' ',' | sed 's/,$//')
@@ -160,13 +151,10 @@ jobs:
           echo "Found reviewers: $REVIEWERS"
 
       - name: Generate changelog
-        if: steps.update.outputs.has-changes == 'true'
         id: changelog
-        continue-on-error: true
         run: |
           chmod +x .github/scripts/get-changelog.sh
 
-          # Generate changelog and save to file
           .github/scripts/get-changelog.sh \
             "${{ steps.package-info.outputs.owner }}" \
             "${{ steps.package-info.outputs.repo }}" \
@@ -174,13 +162,11 @@ jobs:
             "${{ steps.new-version.outputs.version }}" \
             "${{ steps.app-token.outputs.token }}" > changelog.md
 
-          # Output for use in PR body
           echo "changelog<<EOF" >> $GITHUB_OUTPUT
           cat changelog.md >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
 
       - name: Create Pull Request
-        if: steps.update.outputs.has-changes == 'true'
         uses: peter-evans/create-pull-request@5e914681df9dc83aa4e4905692ca88beb2f9e91f # v7
         with:
           token: "${{ steps.app-token.outputs.token }}"
@@ -201,7 +187,6 @@ jobs:
 
             ### ✅ Verification
 
-            - [x] Package builds successfully
             - [x] Hashes updated automatically
             - [ ] Ready for review
 
