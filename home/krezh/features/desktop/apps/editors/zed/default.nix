@@ -22,6 +22,7 @@
       "basher"
       "qml"
       "github-actions"
+      "json5"
     ];
     userSettings = {
       auto_update = false;

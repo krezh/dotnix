@@ -6,6 +6,7 @@
 
 buildGoModule rec {
   pname = "kubectl-rook-ceph";
+  # renovate: datasource=github-releases depName=rook/kubectl-rook-ceph
   version = "0.9.4";
 
   src = fetchFromGitHub {

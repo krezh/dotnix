@@ -52,7 +52,8 @@ jobs:
       build-type: ${{ steps.detect.outputs.build-type }}
       changed-packages: ${{ steps.detect.outputs.changed-packages }}
     steps:
-      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
+      - name: Checkout
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
 
       - name: Get changed files
         id: changed-files

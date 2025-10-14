@@ -6,6 +6,7 @@
 }:
 buildGo124Module rec {
   pname = "talswitcher";
+  # renovate: datasource=github-releases depName=mirceanton/talswitcher
   version = "2.1.10";
 
   src = fetchFromGitHub {

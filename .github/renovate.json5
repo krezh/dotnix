@@ -13,4 +13,21 @@
     automergeType: "pr",
     ignoreTests: false,
   },
+  regexManagers: [
+    {
+      fileMatch: ["\\.nix$"],
+      matchStrings: [
+        '# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)( versioning=(?<versioning>\\S+))?\n.*version = "(?<currentValue>.*)"',
+      ],
+      datasourceTemplate: "{{#if datasource}}{{{datasource}}}{{else}}github-releases{{/if}}",
+      versioningTemplate: "{{#if versioning}}{{{versioning}}}{{else}}semver{{/if}}",
+    },
+  ],
+  postUpgradeTasks: {
+    commands: [
+      "nix run github:Mic92/nix-update -- {{{depName}}} --flake --version={{{newValue}}}",
+    ],
+    fileFilters: ["**/*.nix"],
+    executionMode: "update",
+  },
 }

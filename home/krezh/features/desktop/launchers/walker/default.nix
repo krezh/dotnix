@@ -6,7 +6,7 @@
     enable = true;
     runAsService = true;
     config = {
-      force_keyboard_focus = false;
+      force_keyboard_focus = true;
       close_when_open = true;
       click_to_close = true;
       selection_wrap = false;
@@ -43,8 +43,10 @@
       providers = {
         default = [
           "desktopapplications"
+          "runner"
           "calc"
           "menus"
+          "websearch"
         ];
         empty = [ "desktopapplications" ];
         max_results = 50;

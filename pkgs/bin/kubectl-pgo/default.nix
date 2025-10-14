@@ -6,6 +6,7 @@
 
 buildGoModule rec {
   pname = "kubectl-pgo";
+  # renovate: datasource=github-releases depName=CrunchyData/postgres-operator-client
   version = "0.5.3";
 
   src = fetchFromGitHub {
