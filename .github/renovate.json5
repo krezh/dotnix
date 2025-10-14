@@ -37,8 +37,4 @@
       },
     },
   ],
-  allowedCommands: [
-    "^nix run github:Mic92/nix-update -- .+",
-    "^bash -c 'PKG=\\$\\(grep -oP .+",
-  ],
 }
