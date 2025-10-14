@@ -7,14 +7,14 @@
 buildGoModule rec {
   pname = "hyprmon";
   # renovate: datasource=github-releases depName=erans/hyprmon
-  version = "0.0.11";
+  version = "0.0.12";
   src = fetchFromGitHub {
     owner = "erans";
     repo = "hyprmon";
     rev = "v${version}";
-    hash = "sha256-TuxBdN8sjj0lH4DCPtj83HI9FlBaqAmPlpttnKuf+9Y=";
+    hash = "sha256-jZUtdOMmpd75CyjaXdrqXcYxcQ9q7G2YGBHoUUvycX8=";
   };
-  vendorHash = "sha256-sD+zpHg7hrsmosledXJ17bdFk+dSVTYitzJ7RuYJAIQ=";
+  vendorHash = "sha256-THfdsr8jSvbcV1C2C2IJNvjeeonSZDfmCo6Ws2WreBA=";
 
   # Automatically patch go.mod to use the available Go version
   postPatch = ''
