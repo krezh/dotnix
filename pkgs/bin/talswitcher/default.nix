@@ -21,6 +21,10 @@ buildGo124Module rec {
   # Required to workaround test error:
   #   panic: mkdir /homeless-shelter: permission denied
   HOME = "$TMPDIR";
+
+  # Apply HOME env var to vendor hash build as well
+  proxyVendor = true;
+
   preBuild = ''
     mkdir -p $HOME/.talos/configs
   '';
