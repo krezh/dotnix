@@ -8,16 +8,16 @@
 buildGoModule rec {
   pname = "gowall";
   # renovate: datasource=github-releases depName=Achno/gowall
-  version = "0.2.1";
+  version = "0.2.3";
 
   src = fetchFromGitHub {
     owner = "Achno";
     repo = "gowall";
     rev = "v${version}";
-    hash = "sha256-QKukWA8TB0FoNHu0Wyco55x4oBY+E33qdoT/SaXW6DE=";
+    hash = "sha256-HZEVH3T4dmBE4OMPjtHj3qdeT4i27+YhZWJgYqbg5ss=";
   };
 
-  vendorHash = "sha256-H2Io1K2LEFmEPJYVcEaVAK2ieBrkV6u+uX82XOvNXj4=";
+  vendorHash = "sha256-zQoXrQnejng1jBKRMaQzQaZYKWxJPXjgdplnuVhazuM=";
 
   # Required to workaround test error:
   #   panic: mkdir /homeless-shelter: permission denied
