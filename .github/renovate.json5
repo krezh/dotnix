@@ -15,11 +15,12 @@
       customType: "regex",
       managerFilePatterns: ["/\\.nix$/"],
       matchStrings: [
-        'pname = "(?<packageName>[^"]+)";\\s*\\n\\s*# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)( versioning=(?<versioning>\\S+))?\\s*\\n\\s*version = "(?<currentValue>[^"]+)"',
+        'pname = "(?<pname>[^"]+)";\\s*\\n\\s*# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)( versioning=(?<versioning>\\S+))?\\s*\\n\\s*version = "(?<currentValue>[^"]+)"',
       ],
       datasourceTemplate: "{{#if datasource}}{{{datasource}}}{{else}}github-releases{{/if}}",
       versioningTemplate: "{{#if versioning}}{{{versioning}}}{{else}}semver{{/if}}",
       packageNameTemplate: "{{{depName}}}",
+      extractVersionTemplate: "^v?(?<version>.*)$",
     },
   ],
   packageRules: [
@@ -28,7 +29,7 @@
       matchFileNames: ["pkgs/**/*.nix"],
       postUpgradeTasks: {
         commands: [
-          "nix run github:Mic92/nix-update -- {{{packageName}}} --flake --version={{{newValue}}}",
+          "nix run github:Mic92/nix-update -- {{{pname}}} --flake --version={{{newValue}}}",
         ],
         fileFilters: ["**/*.nix"],
         executionMode: "update",
