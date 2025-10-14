@@ -21,12 +21,18 @@
       versioningTemplate: "{{#if versioning}}{{{versioning}}}{{else}}semver{{/if}}",
     },
   ],
-  postUpgradeTasks: {
-    commands: [
-      "nix run github:Mic92/nix-update -- {{{packageName}}} --flake --version={{{newValue}}}",
-    ],
-    fileFilters: ["**/*.nix"],
-    executionMode: "update",
-  },
+  packageRules: [
+    {
+      matchManagers: ["regex"],
+      matchFileNames: ["pkgs/**/*.nix"],
+      postUpgradeTasks: {
+        commands: [
+          "nix run github:Mic92/nix-update -- {{{packageName}}} --flake --version={{{newValue}}}",
+        ],
+        fileFilters: ["**/*.nix"],
+        executionMode: "update",
+      },
+    },
+  ],
   allowedCommands: ["^nix run github:Mic92/nix-update -- .+"],
 }
