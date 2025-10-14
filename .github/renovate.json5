@@ -15,7 +15,7 @@
       customType: "regex",
       managerFilePatterns: ["/\\.nix$/"],
       matchStrings: [
-        'pname = "(?<pname>[^"]+)";\\s*\\n\\s*# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)( versioning=(?<versioning>\\S+))?\\s*\\n\\s*version = "(?<currentValue>[^"]+)"',
+        'pname = "(?<packageName>[^"]+)";\\s*\\n\\s*# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)( versioning=(?<versioning>\\S+))?\\s*\\n\\s*version = "(?<currentValue>[^"]+)"',
       ],
       datasourceTemplate: "{{#if datasource}}{{{datasource}}}{{else}}github-releases{{/if}}",
       versioningTemplate: "{{#if versioning}}{{{versioning}}}{{else}}semver{{/if}}",
@@ -27,14 +27,18 @@
     {
       matchManagers: ["regex"],
       matchFileNames: ["pkgs/**/*.nix"],
+      extractVersion: "^(?<version>.+)$",
       postUpgradeTasks: {
         commands: [
-          "nix run github:Mic92/nix-update -- {{{pname}}} --flake --version={{{newValue}}}",
+          'bash -c \'PKG=$(grep -oP "^\\s*pname = \\"\\K[^\\"]+" {{{packageFile}}}); nix run github:Mic92/nix-update -- $PKG --flake --version={{{newValue}}}\'',
         ],
         fileFilters: ["**/*.nix"],
         executionMode: "update",
       },
     },
   ],
-  allowedCommands: ["^nix run github:Mic92/nix-update -- .+"],
+  allowedCommands: [
+    "^nix run github:Mic92/nix-update -- .+",
+    "^bash -c 'PKG=\\$\\(grep -oP .+",
+  ],
 }
