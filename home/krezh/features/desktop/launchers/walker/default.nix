@@ -43,7 +43,7 @@
       providers = {
         default = [
           "desktopapplications"
-          "runner"
+          #"runner"
           "calc"
           "menus"
           "websearch"
