@@ -1,37 +1,32 @@
 {
-  $schema: 'https://docs.renovatebot.com/renovate-schema.json',
+  $schema: "https://docs.renovatebot.com/renovate-schema.json",
   nix: {
     enabled: true,
   },
   lockFileMaintenance: {
     enabled: true,
-    schedule: [
-      'after 1am and before 2am',
-    ],
+    schedule: ["after 1am and before 2am"],
     automerge: true,
-    automergeType: 'pr',
+    automergeType: "pr",
     ignoreTests: false,
   },
   customManagers: [
     {
-      customType: 'regex',
-      managerFilePatterns: [
-        '/\\.nix$/',
-      ],
+      customType: "regex",
+      managerFilePatterns: ["/\\.nix$/"],
       matchStrings: [
         '# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)( versioning=(?<versioning>\\S+))?\n.*version = "(?<currentValue>.*)"',
       ],
-      datasourceTemplate: '{{#if datasource}}{{{datasource}}}{{else}}github-releases{{/if}}',
-      versioningTemplate: '{{#if versioning}}{{{versioning}}}{{else}}semver{{/if}}',
+      datasourceTemplate: "{{#if datasource}}{{{datasource}}}{{else}}github-releases{{/if}}",
+      versioningTemplate: "{{#if versioning}}{{{versioning}}}{{else}}semver{{/if}}",
     },
   ],
   postUpgradeTasks: {
     commands: [
-      'nix run github:Mic92/nix-update -- {{{depName}}} --flake --version={{{newValue}}}',
+      "nix run github:Mic92/nix-update -- {{{depName}}} --flake --version={{{newValue}}}",
     ],
-    fileFilters: [
-      '**/*.nix',
-    ],
-    executionMode: 'update',
+    fileFilters: ["**/*.nix"],
+    executionMode: "update",
   },
+  allowedCommands: ["^nix run github:Mic92/nix-update -- .+"],
 }
