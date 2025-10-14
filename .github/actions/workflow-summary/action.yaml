@@ -1,0 +1,359 @@
+---
+name: "Workflow Summary"
+description: "Generate standardized workflow summaries with consistent formatting"
+author: "krezh"
+
+inputs:
+  type:
+    description: "Type of summary (detect-changes, matrix, build-success, build-failure, package-success, package-failure)"
+    required: true
+  title:
+    description: "Summary title"
+    required: false
+    default: ""
+  host:
+    description: "Host name (for build summaries)"
+    required: false
+    default: ""
+  package:
+    description: "Package name (for package summaries)"
+    required: false
+    default: ""
+  runner:
+    description: "Runner type used"
+    required: false
+    default: ""
+  build-type:
+    description: "Build type (full, packages, skip)"
+    required: false
+    default: ""
+  changed-files:
+    description: "JSON array of changed files"
+    required: false
+    default: "[]"
+  changed-packages:
+    description: "JSON array of changed packages"
+    required: false
+    default: "[]"
+  matrix:
+    description: "Build matrix JSON"
+    required: false
+    default: "{}"
+  build-size:
+    description: "Build size in human readable format"
+    required: false
+    default: "Unknown"
+  build-duration:
+    description: "Build duration in seconds"
+    required: false
+    default: "0"
+  result-path:
+    description: "Nix store result path"
+    required: false
+    default: ""
+  cache-hit:
+    description: "Whether cache was hit"
+    required: false
+    default: "false"
+  flake-target:
+    description: "Flake build target"
+    required: false
+    default: ""
+  event-name:
+    description: "GitHub event name"
+    required: false
+    default: ${{ github.event_name }}
+  ref:
+    description: "GitHub ref"
+    required: false
+    default: ${{ github.ref }}
+  sha:
+    description: "Commit SHA"
+    required: false
+    default: ${{ github.sha }}
+  pr-number:
+    description: "PR number"
+    required: false
+    default: ${{ github.event.number }}
+  pr-title:
+    description: "PR title"
+    required: false
+    default: ${{ github.event.pull_request.title }}
+  pr-author:
+    description: "PR author"
+    required: false
+    default: ${{ github.event.pull_request.user.login }}
+  pr-url:
+    description: "PR URL"
+    required: false
+    default: ${{ github.event.pull_request.html_url }}
+  pr-draft:
+    description: "Is PR draft"
+    required: false
+    default: ${{ github.event.pull_request.draft }}
+  cache-name:
+    description: "Cache name"
+    required: false
+    default: ""
+  flake-lock-hash:
+    description: "Flake lock hash"
+    required: false
+    default: ""
+  fork-pr:
+    description: "Is this a fork PR (no cache access)"
+    required: false
+    default: "false"
+
+runs:
+  using: "composite"
+  steps:
+    - name: Generate Summary
+      shell: bash
+      run: |
+        format_duration() {
+          local duration_seconds=$1
+          if [ "$duration_seconds" -ge 3600 ]; then
+            hours=$((duration_seconds / 3600))
+            minutes=$(((duration_seconds % 3600) / 60))
+            seconds=$((duration_seconds % 60))
+            echo "${hours}h${minutes}m${seconds}s"
+          elif [ "$duration_seconds" -ge 60 ]; then
+            minutes=$((duration_seconds / 60))
+            seconds=$((duration_seconds % 60))
+            echo "${minutes}m${seconds}s"
+          else
+            echo "${duration_seconds}s"
+          fi
+        }
+
+        add_metadata() {
+          echo "### 📋 Metadata"
+          echo ""
+          echo "| Property | Value |"
+          echo "|----------|-------|"
+          echo "| **Event** | \`${{ inputs.event-name }}\` |"
+          echo "| **Ref** | \`${{ inputs.ref }}\` |"
+          echo "| **Commit** | [\`${GITHUB_SHA:0:7}\`](${{ github.server_url }}/${{ github.repository }}/commit/${{ inputs.sha }}) |"
+          if [ "${{ inputs.event-name }}" = "pull_request" ] && [ -n "${{ inputs.pr-number }}" ]; then
+            echo "| **PR** | [#${{ inputs.pr-number }}](${{ inputs.pr-url }}) |"
+            echo "| **Author** | @${{ inputs.pr-author }} |"
+            if [ "${{ inputs.pr-draft }}" = "true" ]; then
+              echo "| **Draft** | Yes |"
+            fi
+          fi
+          echo ""
+        }
+
+        case "${{ inputs.type }}" in
+          detect-changes)
+            {
+              echo "## 🔍 Change Detection Results"
+              echo ""
+              add_metadata
+              echo "### 🎯 Detection Result"
+              echo ""
+              case "${{ inputs.build-type }}" in
+                full)
+                  echo "**Build Type:** 🔄 Full Build"
+                  echo ""
+                  if [ "${{ inputs.event-name }}" = "workflow_dispatch" ]; then
+                    echo "**Reason:** Manual workflow trigger"
+                  elif [ -z '${{ inputs.changed-files }}' ] || [ '${{ inputs.changed-files }}' = "[]" ]; then
+                    echo "**Reason:** No changed files detected (fallback)"
+                  else
+                    echo "**Reason:** Changes detected outside pkgs/ directory"
+                    echo ""
+                    echo "<details>"
+                    echo "<summary>View changed files</summary>"
+                    echo ""
+                    echo '${{ inputs.changed-files }}' | jq -r '.[] | "- `" + . + "`"'
+                    echo ""
+                    echo "</details>"
+                  fi
+                  ;;
+                packages)
+                  echo "**Build Type:** 📦 Package Build"
+                  echo ""
+                  echo "**Packages to build:**"
+                  echo '${{ inputs.changed-packages }}' | jq -r '.[] | "- `" + . + "`"'
+                  echo ""
+                  echo "<details>"
+                  echo "<summary>View changed files</summary>"
+                  echo ""
+                  echo '${{ inputs.changed-files }}' | jq -r '.[] | select(startswith("pkgs/")) | "- `" + . + "`"'
+                  echo ""
+                  echo "</details>"
+                  ;;
+                skip)
+                  echo "**Build Type:** ⏭️ Build Skipped"
+                  echo ""
+                  echo "**Reason:** No relevant changes detected"
+                  echo ""
+                  echo "<details>"
+                  echo "<summary>View changed files</summary>"
+                  echo ""
+                  echo '${{ inputs.changed-files }}' | jq -r '.[] | "- `" + . + "`"'
+                  echo ""
+                  echo "</details>"
+                  ;;
+              esac
+            } >> "${GITHUB_STEP_SUMMARY}"
+            ;;
+
+          matrix)
+            {
+              echo "## 🏗️ Build Matrix Generated"
+              echo ""
+              add_metadata
+              echo "### 📊 Matrix Details"
+              echo ""
+              MATRIX='${{ inputs.matrix }}'
+              HOST_COUNT=$(echo "$MATRIX" | jq '.include | length')
+              echo "**Total hosts to build:** $HOST_COUNT"
+              echo ""
+              echo "$MATRIX" | jq -r '.include[] | "- **\`" + .host + "\`** (runner: \`" + .runner + "\`)"'
+              echo ""
+              echo "### ⚙️ Configuration"
+              echo ""
+              echo "| Setting | Value |"
+              echo "|---------|-------|"
+              if [ -n "${{ inputs.cache-name }}" ]; then
+                echo "| **Cache** | \`${{ inputs.cache-name }}\` |"
+              fi
+              if [ "${{ inputs.cache-hit }}" = "true" ]; then
+                echo "| **Cache Hit** | ✅ Yes |"
+              else
+                echo "| **Cache Hit** | ❌ No (rebuilding inputs) |"
+              fi
+              if [ -n "${{ inputs.flake-lock-hash }}" ]; then
+                echo "| **Flake Lock Hash** | \`${{ inputs.flake-lock-hash }}\` |"
+              fi
+              echo ""
+              echo "<details>"
+              echo "<summary>View raw matrix JSON</summary>"
+              echo ""
+              echo '```json'
+              echo "$MATRIX" | jq '.'
+              echo '```'
+              echo ""
+              echo "</details>"
+            } >> "${GITHUB_STEP_SUMMARY}"
+            ;;
+
+          build-success)
+            {
+              echo "## ✅ Build Successful: \`${{ inputs.host }}\`"
+              echo ""
+              echo "| Property | Value |"
+              echo "|----------|-------|"
+              echo "| **Host** | \`${{ inputs.host }}\` |"
+              echo "| **Runner** | \`${{ inputs.runner }}\` |"
+              echo "| **Build Size** | \`${{ inputs.build-size }}\` |"
+              echo "| **Duration** | $(format_duration ${{ inputs.build-duration }}) |"
+              if [ -n "${{ inputs.result-path }}" ]; then
+                echo "| **Store Path** | \`${{ inputs.result-path }}\` |"
+              fi
+              echo ""
+              add_metadata
+              if [ -n "${{ inputs.flake-target }}" ]; then
+                echo "**Flake Target:** \`${{ inputs.flake-target }}\`"
+                echo ""
+              fi
+            } >> "${GITHUB_STEP_SUMMARY}"
+            ;;
+
+          build-failure)
+            {
+              echo "## ❌ Build Failed: \`${{ inputs.host }}\`"
+              echo ""
+              echo "| Property | Value |"
+              echo "|----------|-------|"
+              echo "| **Host** | \`${{ inputs.host }}\` |"
+              echo "| **Runner** | \`${{ inputs.runner }}\` |"
+              if [ "${{ inputs.build-duration }}" != "0" ]; then
+                echo "| **Time to Failure** | $(format_duration ${{ inputs.build-duration }}) |"
+              fi
+              echo ""
+              add_metadata
+              echo "### 🛠️ Debugging"
+              echo ""
+              if [ -n "${{ inputs.flake-target }}" ]; then
+                echo "**Flake Target:** \`${{ inputs.flake-target }}\`"
+                echo ""
+              fi
+              echo "**Cache Status:**"
+              if [ "${{ inputs.fork-pr }}" = "true" ]; then
+                echo "- ❌ No cache access (fork/external PR)"
+              else
+                echo "- ✅ Cache available"
+              fi
+              echo ""
+              echo "**Reproduce locally:**"
+              echo '```bash'
+              echo "nix build ${{ inputs.flake-target }}"
+              echo '```'
+              echo ""
+              echo "### 💡 Next Steps"
+              echo "1. Check the build logs above for specific error messages"
+              echo "2. Verify the flake configuration for \`${{ inputs.host }}\`"
+              echo "3. Test locally with the command above"
+              echo "4. Check if recent changes broke the build"
+            } >> "${GITHUB_STEP_SUMMARY}"
+            ;;
+
+          package-success)
+            {
+              echo "## ✅ Package Build Successful: \`${{ inputs.package }}\`"
+              echo ""
+              echo "| Property | Value |"
+              echo "|----------|-------|"
+              echo "| **Package** | \`${{ inputs.package }}\` |"
+              if [ "${{ inputs.build-duration }}" != "0" ]; then
+                echo "| **Duration** | $(format_duration ${{ inputs.build-duration }}) |"
+              fi
+              echo ""
+              add_metadata
+              if [ -n "${{ inputs.flake-target }}" ]; then
+                echo "**Flake Target:** \`${{ inputs.flake-target }}\`"
+                echo ""
+              fi
+            } >> "${GITHUB_STEP_SUMMARY}"
+            ;;
+
+          package-failure)
+            {
+              echo "## ❌ Package Build Failed: \`${{ inputs.package }}\`"
+              echo ""
+              echo "| Property | Value |"
+              echo "|----------|-------|"
+              echo "| **Package** | \`${{ inputs.package }}\` |"
+              if [ "${{ inputs.build-duration }}" != "0" ]; then
+                echo "| **Time to Failure** | $(format_duration ${{ inputs.build-duration }}) |"
+              fi
+              echo ""
+              add_metadata
+              echo "### 🛠️ Debugging"
+              echo ""
+              if [ -n "${{ inputs.flake-target }}" ]; then
+                echo "**Flake Target:** \`${{ inputs.flake-target }}\`"
+                echo ""
+              fi
+              echo "**Reproduce locally:**"
+              echo '```bash'
+              echo "nix build ${{ inputs.flake-target }}"
+              echo '```'
+            } >> "${GITHUB_STEP_SUMMARY}"
+            ;;
+
+          *)
+            {
+              echo "## ⚠️ Unknown Summary Type"
+              echo ""
+              echo "**Type:** ${{ inputs.type }}"
+              echo ""
+              if [ -n "${{ inputs.title }}" ]; then
+                echo "**Title:** ${{ inputs.title }}"
+              fi
+            } >> "${GITHUB_STEP_SUMMARY}"
+            ;;
+        esac

@@ -54,43 +54,40 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
+        with:
+          fetch-depth: 0
 
-      - name: Get changed files
-        id: changed-files
+      - name: Get changed pkgs files
+        id: pkg-files
         uses: bjw-s-labs/action-changed-files@930cef8463348e168cab7235c47fe95a7a235f65 # v0.3.3
+        with:
+          patterns: pkgs/**/*
 
       - name: Detect what changed
         id: detect
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+          PKGS='${{ steps.pkg-files.outputs.changed_files }}'
+
+          # Manual trigger or no pkg changes = full build
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] || [ -z "$PKGS" ] || [ "$PKGS" = "[]" ]; then
             echo "build-type=full" >> $GITHUB_OUTPUT
-            echo "Manual trigger - building everything"
+            echo "🔄 Full build"
             exit 0
           fi
 
-          ALL_CHANGED='${{ steps.changed-files.outputs.all_changed_files }}'
+          # Only pkgs/ changes = selective package build
+          PACKAGES=$(echo "$PKGS" | jq -r '.[]' | sed -n 's|^pkgs/[^/]*/\([^/]*\).*|\1|p' | sort -u | jq -R -s -c 'split("\n") | map(select(length > 0))')
+          echo "build-type=packages" >> $GITHUB_OUTPUT
+          echo "changed-packages=$PACKAGES" >> $GITHUB_OUTPUT
+          echo "📦 Package build: $PACKAGES"
 
-          if [ -z "$ALL_CHANGED" ] || [ "$ALL_CHANGED" = "[]" ]; then
-            echo "build-type=full" >> $GITHUB_OUTPUT
-            echo "No changed files detected - building everything"
-            exit 0
-          fi
-
-          PKG_CHANGES=$(echo "$ALL_CHANGED" | jq -r '.[] | select(startswith("pkgs/"))')
-          SYSTEM_CHANGES=$(echo "$ALL_CHANGED" | jq -r '.[] | select(test("^(modules|hosts|flake\\.nix|flake\\.lock)"))')
-
-          if [ -n "$SYSTEM_CHANGES" ]; then
-            echo "build-type=full" >> $GITHUB_OUTPUT
-            echo "System/module changes detected - building all hosts"
-          elif [ -n "$PKG_CHANGES" ]; then
-            echo "build-type=packages" >> $GITHUB_OUTPUT
-            PACKAGES=$(echo "$PKG_CHANGES" | grep -oP 'pkgs/(bin|scripts)/\K[^/]+' | sort -u | jq -R -s -c 'split("\n") | map(select(length > 0))')
-            echo "changed-packages=$PACKAGES" >> $GITHUB_OUTPUT
-            echo "Package changes detected: $PACKAGES"
-          else
-            echo "build-type=skip" >> $GITHUB_OUTPUT
-            echo "No relevant changes - skipping builds"
-          fi
+      - name: Show Summary
+        uses: ./.github/actions/workflow-summary
+        with:
+          type: detect-changes
+          build-type: ${{ steps.detect.outputs.build-type }}
+          changed-files: ${{ steps.pkg-files.outputs.changed_files }}
+          changed-packages: ${{ steps.detect.outputs.changed-packages }}
 
   ghMatrix:
     runs-on: ubuntu-latest
@@ -134,43 +131,13 @@ jobs:
           echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
 
       - name: Show Summary
-        run: |
-          matrix='${{ steps.set-matrix.outputs.matrix }}'
-          {
-            echo "## 🔍 Build Matrix Generated"
-            echo ""
-            echo "**Event:** ${{ github.event_name }}"
-            echo "**Branch/Ref:** ${{ github.ref }}"
-            echo "**Commit:** [\`${{ github.sha }}\`](${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }})"
-            echo ""
-            echo "**Total hosts to build:** $(echo "$matrix" | jq '.include | length')"
-            echo ""
-            echo "### 🏗️ Hosts to Build:"
-            echo "$matrix" | jq -r '.include[] | "- **`" + .host + "`** (runner: `" + .runner + "`)"'
-            echo ""
-            if [ "${{ github.event_name }}" = "pull_request" ]; then
-              echo "**PR:** [#${{ github.event.number }}](${{ github.event.pull_request.html_url }}) - ${{ github.event.pull_request.title }}"
-              echo "**Author:** @${{ github.event.pull_request.user.login }}"
-              echo ""
-            fi
-            echo "### ⚙️ Configuration"
-            echo "- **Cache:** ${{ env.CACHE_NAME }}"
-            cache_hit="${{ steps.cache.outputs.hit-primary-key }}"
-            if [ "$cache_hit" = "true" ]; then
-              echo "- **Cache Hit:** ✅ Yes"
-            else
-              echo "- **Cache Hit:** ❌ No (rebuilding inputs)"
-            fi
-            echo "- **Flake Lock Hash:** \`${{ hashFiles('**/*.nix', '**/flake.lock') }}\`"
-            echo ""
-            echo "<details>"
-            echo "<summary>View raw matrix JSON</summary>"
-            echo ""
-            echo '```json'
-            echo '${{ toJson(steps.set-matrix.outputs.matrix) }}'
-            echo '```'
-            echo "</details>"
-          } >> "${GITHUB_STEP_SUMMARY}"
+        uses: ./.github/actions/workflow-summary
+        with:
+          type: matrix
+          matrix: ${{ steps.set-matrix.outputs.matrix }}
+          cache-hit: ${{ steps.cache.outputs.hit-primary-key }}
+          cache-name: ${{ env.CACHE_NAME }}
+          flake-lock-hash: ${{ hashFiles('**/*.nix', '**/flake.lock') }}
 
   build-packages:
     name: Build package ${{ matrix.package }}
@@ -200,21 +167,19 @@ jobs:
 
       - name: Success Summary
         if: success()
-        run: |
-          {
-            echo "## ✅ Package Build Successful: \`${{ matrix.package }}\`"
-            echo ""
-            echo "**Flake Target:** \`.#${{ matrix.package }}\`"
-          } >> "${GITHUB_STEP_SUMMARY}"
+        uses: ./.github/actions/workflow-summary
+        with:
+          type: package-success
+          package: ${{ matrix.package }}
+          flake-target: .#${{ matrix.package }}
 
       - name: Failure Summary
         if: failure()
-        run: |
-          {
-            echo "## ❌ Package Build Failed: \`${{ matrix.package }}\`"
-            echo ""
-            echo "**Flake Target:** \`.#${{ matrix.package }}\`"
-          } >> "${GITHUB_STEP_SUMMARY}"
+        uses: ./.github/actions/workflow-summary
+        with:
+          type: package-failure
+          package: ${{ matrix.package }}
+          flake-target: .#${{ matrix.package }}
 
   nix-build:
     name: Build ${{ matrix.host }}
@@ -301,46 +266,41 @@ jobs:
           overwrite: true
           include-hidden-files: false
 
-      - name: Success Summary
+      - name: Calculate build size
+        id: build-info
         if: success()
         run: |
-          eval "$FORMAT_DURATION"
           build_size="Unknown"
+          result_path=""
           if [ -L "result" ]; then
-            store_path=$(readlink "result" 2>/dev/null || echo "")
-            if [ -n "$store_path" ]; then
-              size_output="$(nix path-info --closure-size --human-readable "$store_path" 2>/dev/null || echo "")"
+            result_path=$(readlink "result" 2>/dev/null || echo "")
+            if [ -n "$result_path" ]; then
+              size_output="$(nix path-info --closure-size --human-readable "$result_path" 2>/dev/null || echo "")"
               if [ -n "$size_output" ]; then
                 build_size="$(echo "$size_output" | awk '{ if (NF == 2) { print $2 } else if (NF >= 3) { print $(NF-1) $NF } }')"
               fi
             fi
           fi
+          echo "build-size=$build_size" >> $GITHUB_OUTPUT
+          echo "result-path=$result_path" >> $GITHUB_OUTPUT
+
+      - name: Success Summary
+        if: success()
+        uses: ./.github/actions/workflow-summary
+        with:
+          type: build-success
+          host: ${{ matrix.host }}
+          runner: ${{ matrix.runner }}
+          build-size: ${{ steps.build-info.outputs.build-size }}
+          build-duration: ${{ steps.build.outputs.build_duration }}
+          result-path: ${{ steps.build-info.outputs.result-path }}
+          flake-target: .#top.${{ matrix.host }}
+
+      - name: Package Diff
+        if: success()
+        run: |
           prev_json="${{ steps.download-artifact.outputs.download-path }}/pkg-list.json"
           {
-            echo "## ✅ Build Successful: \`${{ matrix.host }}\`"
-            echo ""
-            echo "| Property | Value |"
-            echo "|----------|--------|"
-            echo "| **Runner** | \`${{ matrix.runner }}\` |"
-            echo "| **Build Size** | \`${build_size}\` |"
-            echo "| **Result Path** | \`$(readlink result 2>/dev/null || echo "Unknown")\` |"
-            echo ""
-            echo "### 🎯 Build Details"
-            echo "- **Event:** ${{ github.event_name }}"
-            echo "- **Ref:** ${{ github.ref }}"
-            echo "- **Flake Target:** \`.#top.${{ matrix.host }}\`"
-            if [ "${{ github.event_name }}" = "pull_request" ]; then
-              echo "- **PR:** [#${{ github.event.number }}](${{ github.event.pull_request.html_url }}) - ${{ github.event.pull_request.title }}"
-              echo "- **Author:** @${{ github.event.pull_request.user.login }}"
-              if [ "${{ github.event.pull_request.draft }}" = "true" ]; then
-                echo "- **Draft:** Yes"
-              else
-                echo "- **Draft:** No"
-              fi
-            fi
-            echo ""
-            echo "**Build Duration:** $(format_duration ${{ steps.build.outputs.build_duration }})"
-            echo ""
             echo "### 📦 Package Diff"
             if [ -f "$prev_json" ]; then
               python3 .github/scripts/pkg-tool.py diff "$prev_json" pkg-list.json --github
@@ -351,39 +311,11 @@ jobs:
 
       - name: Failure Summary
         if: failure()
-        run: |
-          eval "$FORMAT_DURATION"
-          {
-            echo "## ❌ Build Failed: \`${{ matrix.host }}\`"
-            echo ""
-            echo "| Property | Value |"
-            echo "|----------|--------|"
-            echo "| **Runner** | \`${{ matrix.runner }}\` |"
-            echo ""
-            echo "### 🔍 Failure Details"
-            echo "- **Event:** ${{ github.event_name }}"
-            echo "- **Ref:** ${{ github.ref }}"
-            echo "- **Flake Target:** \`.#top.${{ matrix.host }}\`"
-            if [ "${{ github.event_name }}" = "pull_request" ]; then
-              echo "- **PR:** [#${{ github.event.number }}](${{ github.event.pull_request.html_url }}) - ${{ github.event.pull_request.title }}"
-              echo "- **Author:** @${{ github.event.pull_request.user.login }}"
-            fi
-            echo ""
-            echo "### 🛠️ Debugging Information"
-            if [ "${{ github.event_name }}" != "pull_request" ] || [ "${{ github.event.pull_request.head.repo.fork }}" != "true" ]; then
-              echo "- **Cache Available:** ✅ Yes"
-            else
-              echo "- **Cache Available:** ❌ No (fork/external PR)"
-            fi
-            echo "- **Build Command:** \`nix build .#top.${{ matrix.host }} -o result --fallback --no-write-lock-file\`"
-            echo "- **Job Status:** Failed"
-            if [ -n "${{ steps.build.outputs.build_duration }}" ]; then
-              echo "- **Time to Failure:** $(format_duration ${{ steps.build.outputs.build_duration }})"
-            fi
-            echo ""
-            echo "### 💡 Next Steps"
-            echo "1. Check the build logs above for specific error messages"
-            echo "2. Verify the flake configuration for \`${{ matrix.host }}\`"
-            echo "3. Test locally with: \`nix build .#top.${{ matrix.host }}\`"
-            echo "4. Check if recent changes broke the build"
-          } >> "${GITHUB_STEP_SUMMARY}"
+        uses: ./.github/actions/workflow-summary
+        with:
+          type: build-failure
+          host: ${{ matrix.host }}
+          runner: ${{ matrix.runner }}
+          build-duration: ${{ steps.build.outputs.build_duration }}
+          flake-target: .#top.${{ matrix.host }}
+          fork-pr: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork }}
