@@ -30,7 +30,7 @@
       extractVersion: "^(?<version>.+)$",
       postUpgradeTasks: {
         commands: [
-          'bash -c \'PKG=$(grep -oP "^\\s*pname = " {{{packageFile}}} | cut -d\\" -f2); nix run github:Mic92/nix-update -- $PKG --flake --version={{{newValue}}}\'',
+          'bash -c \'PKG=$(grep -P "^\\s*pname = " {{{packageFile}}} | cut -d\\" -f2); nix run github:Mic92/nix-update -- $PKG --flake --version={{{newValue}}}\'',
         ],
         fileFilters: ["**/*.nix"],
         executionMode: "update",
