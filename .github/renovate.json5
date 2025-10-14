@@ -38,7 +38,7 @@
       extractVersion: '^(?<version>.+)$',
       postUpgradeTasks: {
         commands: [
-          'bash -c \'PKG=$(grep -oP "^\\s*pname = \\"\\K[^\\"]+" {{{packageFile}}}); nix run github:Mic92/nix-update -- $PKG --flake --version={{{newValue}}}\'',
+          'bash -c \'PKG=$(grep -oP "^\\s*pname = \\"\\K[^\"]+" {{{packageFile}}}); nix run github:Mic92/nix-update -- $PKG --flake --version={{{newValue}}}\'',
         ],
         fileFilters: [
           '**/*.nix',
