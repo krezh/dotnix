@@ -211,7 +211,7 @@ runs:
               HOST_COUNT=$(echo "$MATRIX" | jq '.include | length')
               echo "**Total hosts to build:** $HOST_COUNT"
               echo ""
-              echo "$MATRIX" | jq -r '.include[] | "- **\`" + .host + "\`** (runner: \`" + .runner + "\`)"'
+              echo "$MATRIX" | jq -r '.include[] | "- **`" + .host + "`** (runner: `" + .runner + "`)"'
               echo ""
               echo "### ⚙️ Configuration"
               echo ""
