@@ -15,7 +15,7 @@
       customType: "regex",
       managerFilePatterns: ["/\\.nix$/"],
       matchStrings: [
-        '# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)( versioning=(?<versioning>\\S+))?\n.*version = "(?<currentValue>.*)"',
+        '# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)( versioning=(?<versioning>\\S+))?\n\\s*pname = "(?<packageName>[^"]+)";\\s*\n.*\n\\s*version = "(?<currentValue>[^"]+)"',
       ],
       datasourceTemplate: "{{#if datasource}}{{{datasource}}}{{else}}github-releases{{/if}}",
       versioningTemplate: "{{#if versioning}}{{{versioning}}}{{else}}semver{{/if}}",
@@ -23,7 +23,7 @@
   ],
   postUpgradeTasks: {
     commands: [
-      "nix run github:Mic92/nix-update -- {{{depName}}} --flake --version={{{newValue}}}",
+      "nix run github:Mic92/nix-update -- {{{packageName}}} --flake --version={{{newValue}}}",
     ],
     fileFilters: ["**/*.nix"],
     executionMode: "update",
