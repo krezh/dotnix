@@ -121,6 +121,7 @@ in
       cava
       glow
       rust-analyzer
+      hyperfine
 
       # Secrets
       age-plugin-yubikey

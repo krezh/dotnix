@@ -68,16 +68,16 @@ in
         };
         remotePlay.openFirewall = true;
         localNetworkGameTransfers.openFirewall = true;
-        #protontricks.enable = true;
-        extraCompatPackages = with pkgs; [
-          #proton-ge-bin
+        protontricks.enable = true;
+        extraCompatPackages = [
+          # pkgs.proton-ge-bin
         ];
         platformOptimizations.enable = true;
       };
     };
 
     services.pipewire.lowLatency = {
-      enable = true;
+      enable = false;
     };
 
     systemd.user.services.steam = {
