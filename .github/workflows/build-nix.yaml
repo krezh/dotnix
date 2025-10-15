@@ -8,6 +8,12 @@ on:
       - "**.nix"
       - "flake.lock"
   workflow_dispatch:
+    inputs:
+      skip-cache:
+        description: "Skip restoring Nix cache"
+        type: boolean
+        default: false
+        required: false
   workflow_call:
   push:
     branches: ["main"]
@@ -30,22 +36,6 @@ env:
     accept-flake-config = true
     always-allow-substitutes = true
     builders-use-substitutes = true
-  FORMAT_DURATION: |
-    format_duration() {
-      local duration_seconds=$1
-      if [ $duration_seconds -ge 3600 ]; then
-        hours=$((duration_seconds / 3600))
-        minutes=$(((duration_seconds % 3600) / 60))
-        seconds=$((duration_seconds % 60))
-        echo "${hours}h${minutes}m${seconds}s"
-      elif [ $duration_seconds -ge 60 ]; then
-        minutes=$((duration_seconds / 60))
-        seconds=$((duration_seconds % 60))
-        echo "${minutes}m${seconds}s"
-      else
-        echo "${duration_seconds}s"
-      fi
-    }
 jobs:
   detect-changes:
     runs-on: ubuntu-latest
@@ -229,6 +219,7 @@ jobs:
           skip-cache: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork }}
 
       - name: Restore Nix Cache
+        if: github.event_name != 'workflow_dispatch' || !inputs.skip-cache
         uses: nix-community/cache-nix-action/restore@135667ec418502fa5a3598af6fb9eb733888ce6a # v6.1.3
         with:
           primary-key: nix-flake-inputs-${{ hashFiles('**/*.nix', '**/flake.lock') }}
