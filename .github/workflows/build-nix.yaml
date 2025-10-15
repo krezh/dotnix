@@ -19,6 +19,7 @@ permissions:
   id-token: write
   contents: read
   actions: read
+  pull-requests: write
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.number || github.ref }}
@@ -162,8 +163,27 @@ jobs:
           skip-cache: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork }}
 
       - name: Build package
+        id: build
         run: |
-          nix build ".#${{ matrix.package }}" --print-build-logs
+          set -o pipefail
+          nix build ".#${{ matrix.package }}" --print-build-logs 2>&1 | tee build.log || {
+            {
+              echo 'error-log<<EOF_ERROR_LOG'
+              grep -iE 'error|failed|cannot|fatal|panic' build.log | tail -n 100 || tail -n 50 build.log
+              echo 'EOF_ERROR_LOG'
+            } >> $GITHUB_OUTPUT
+            exit 1
+          }
+
+      - name: Post build errors
+        if: failure() && github.event_name == 'pull_request'
+        uses: ./.github/actions/post-build-error
+        with:
+          build-type: package
+          build-name: ${{ matrix.package }}
+          flake-target: .#${{ matrix.package }}
+          error-log: ${{ steps.build.outputs.error-log }}
+          pr-number: ${{ github.event.pull_request.number }}
 
       - name: Success Summary
         if: success()
@@ -246,16 +266,30 @@ jobs:
             -o result \
             --fallback \
             --no-write-lock-file \
-            --log-format raw
+            --log-format raw 2>&1 | tee build.log || {
+            {
+              echo 'error-log<<EOF_ERROR_LOG'
+              grep -iE 'error|failed|cannot|fatal|panic' build.log | tail -n 100 || tail -n 50 build.log
+              echo 'EOF_ERROR_LOG'
+            } >> $GITHUB_OUTPUT
+
+            build_end=$(date +%s)
+            build_duration=$((build_end - build_start))
+            echo "build_duration=$build_duration" >> $GITHUB_OUTPUT
+
+            exit 1
+          }
 
           build_end=$(date +%s)
           build_duration=$((build_end - build_start))
           echo "build_duration=$build_duration" >> $GITHUB_OUTPUT
 
       - name: Generate new package list
+        if: success()
         run: python3 .github/scripts/pkg-tool.py list result pkg-list.json
 
       - name: Upload new package list artifact
+        if: success()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: pkg-list-${{ matrix.host }}
@@ -308,6 +342,18 @@ jobs:
               echo "_No previous package list found; skipping diff._"
             fi
           } >> "${GITHUB_STEP_SUMMARY}"
+
+      - name: Post build errors
+        if: failure() && github.event_name == 'pull_request'
+        uses: ./.github/actions/post-build-error
+        with:
+          build-type: system
+          build-name: ${{ matrix.host }}
+          flake-target: .#top.${{ matrix.host }}
+          error-log: ${{ steps.build.outputs.error-log }}
+          build-duration: ${{ steps.build.outputs.build_duration }}
+          runner: ${{ matrix.runner }}
+          pr-number: ${{ github.event.pull_request.number }}
 
       - name: Failure Summary
         if: failure()

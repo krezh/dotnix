@@ -1,0 +1,64 @@
+---
+name: "Post Build Error Comment"
+description: "Posts build error logs to PR comments"
+author: "krezh"
+
+inputs:
+  build-type:
+    description: "Type of build (package or system)"
+    required: true
+  build-name:
+    description: "Name of package or host"
+    required: true
+  flake-target:
+    description: "Flake target that failed"
+    required: true
+  error-log:
+    description: "Error log content"
+    required: true
+  build-duration:
+    description: "Build duration in seconds (optional, for system builds)"
+    required: false
+    default: ""
+  runner:
+    description: "Runner type (optional, for system builds)"
+    required: false
+    default: ""
+  pr-number:
+    description: "PR number"
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: Comment build errors on PR
+      uses: peter-evans/create-or-update-comment@71345be0265236311c031f5c7866368bd1eff043 # v4
+      shell: bash
+      with:
+        issue-number: ${{ inputs.pr-number }}
+        body: |
+          ## ❌ ${{ inputs.build-type == 'package' && 'Package' || 'System' }} Build Failed: `${{ inputs.build-name }}`
+
+          **Flake Target:** `${{ inputs.flake-target }}`${{ inputs.runner && format('
+          **Runner:** `{0}`', inputs.runner) || '' }}${{ inputs.build-duration && format('
+          **Time to Failure:** {0}s', inputs.build-duration) || '' }}
+
+          ### Build Errors (last 100 error lines)
+
+          <details>
+          <summary>Click to expand error log</summary>
+
+          ```
+          ${{ inputs.error-log }}
+          ```
+
+          </details>
+
+          ### Reproduce Locally
+          ```bash
+          nix build ${{ inputs.flake-target }}
+          ```
+
+          ---
+          <sub>🤖 [View full logs](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})</sub>
+        comment-tag: build-${{ inputs.build-type }}-${{ inputs.build-name }}
