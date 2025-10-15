@@ -103,6 +103,18 @@ inputs:
     description: "Is this a fork PR (no cache access)"
     required: false
     default: "false"
+  iso-size:
+    description: "ISO file size (for ISO builds)"
+    required: false
+    default: ""
+  iso-tag:
+    description: "ISO release tag (for ISO builds)"
+    required: false
+    default: ""
+  iso-name:
+    description: "ISO file name (for ISO builds)"
+    required: false
+    default: ""
 
 runs:
   using: "composite"

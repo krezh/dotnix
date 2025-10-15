@@ -5,7 +5,7 @@ author: "krezh"
 
 inputs:
   build-type:
-    description: "Type of build (package or system)"
+    description: "Type of build (package, system, or iso)"
     required: true
   build-name:
     description: "Name of package or host"
@@ -33,7 +33,6 @@ runs:
   steps:
     - name: Comment build errors on PR
       uses: peter-evans/create-or-update-comment@71345be0265236311c031f5c7866368bd1eff043 # v4
-      shell: bash
       with:
         issue-number: ${{ inputs.pr-number }}
         body: |
