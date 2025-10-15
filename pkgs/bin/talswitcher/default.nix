@@ -1,32 +1,27 @@
 {
   lib,
-  buildGo124Module,
+  buildGoModule,
   fetchFromGitHub,
   installShellFiles,
 }:
-buildGo124Module rec {
+buildGoModule rec {
   pname = "talswitcher";
   # renovate: datasource=github-releases depName=mirceanton/talswitcher
-  version = "2.1.10";
+  version = "2.2.0";
 
   src = fetchFromGitHub {
     owner = "mirceanton";
     repo = "talswitcher";
     rev = "v${version}";
-    hash = "sha256-wQQtOA8GAJ1cxKAbAcsBWXHAXJB6TcgCaFQBv0brOO0=";
+    hash = "sha256-3++3eoMGszlyrRYYJLu4wjUoywhvCOWTUOZEzPfknaI=";
   };
 
-  vendorHash = "sha256-SIQHkmNChttaEdIyofm4QVSN/Vr6O6Lu0W7z9atJscs=";
+  vendorHash = "sha256-+ct7HdQSKttocngrhprJgTwbb6kYQGicMBwdf2pYNcY=";
 
-  # Required to workaround test error:
-  #   panic: mkdir /homeless-shelter: permission denied
-  HOME = "$TMPDIR";
-
-  # Apply HOME env var to vendor hash build as well
-  proxyVendor = true;
-
+  # Make build write to a writable tempdir instead of /homeless-shelter
   preBuild = ''
-    mkdir -p $HOME/.talos/configs
+    export HOME="$TMPDIR"
+    mkdir -p "$HOME/.talos/configs"
   '';
 
   ldflags = [
