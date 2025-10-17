@@ -29,6 +29,13 @@
           keepDaily = 2;
         };
       };
+      obsidian = {
+        paths = [ "/home/krezh/Obsidian" ];
+        schedule = "daily";
+        retentionPolicy = {
+          keepDaily = 2;
+        };
+      };
       wow-lutris = {
         paths = [
           "/home/krezh/Games/battlenet/drive_c/Program Files (x86)/World of Warcraft/_retail_/Interface"
