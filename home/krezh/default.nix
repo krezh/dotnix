@@ -122,6 +122,7 @@ in
       glow
       rust-analyzer
       hyperfine
+      antares
 
       # Secrets
       age-plugin-yubikey
