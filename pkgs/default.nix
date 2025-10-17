@@ -1,6 +1,6 @@
 { pkgs, ... }:
 let
-  inherit (pkgs) callPackage buildGoModule;
+  inherit (pkgs) callPackage;
 in
 {
   # bin packages
@@ -11,15 +11,12 @@ in
   recshot = callPackage ./bin/recshot { };
   talosctl = callPackage ./bin/talosctl { };
   kubectl-pgo = callPackage ./bin/kubectl-pgo { };
-  kubectl-volsync = callPackage ./bin/kubectl-volsync { };
   kubectl-rook-ceph = callPackage ./bin/kubectl-rook-ceph { };
   kubectl-browse-pvc = callPackage ./bin/kubectl-browse-pvc { };
   hypr-showkey = callPackage ./bin/hypr-showkey { };
   fluxcd = callPackage ./bin/fluxcd { };
   kubestr = callPackage ./bin/kubestr { };
-  hyprmon = callPackage ./bin/hyprmon {
-    buildGoModule = buildGoModule.override { go = pkgs.go_1_25; };
-  };
+  hyprmon = callPackage ./bin/hyprmon { };
 
   # script packages
   volume_script_hyprpanel = callPackage ./scripts/volume_script_hyprpanel { };
