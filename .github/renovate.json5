@@ -36,5 +36,10 @@
         executionMode: "update",
       },
     },
+    {
+      description: "Separate PRs for pkgs",
+      matchFileNames: ["pkgs/**"],
+      additionalBranchPrefix: "pkgs-",
+    },
   ],
 }
