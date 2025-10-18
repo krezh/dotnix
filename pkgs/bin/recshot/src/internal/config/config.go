@@ -37,7 +37,7 @@ func New() *Config {
 		Zipline:         false,
 		Status:          false,
 		Dependencies: []string{
-			"hyprctl", "slurp", "wl-screenrec", "grim", "wl-copy", "notify-send", "hyprpicker",
+			"hyprctl", "hypr-slurp", "wl-screenrec", "grim", "wl-copy", "notify-send", "hyprpicker",
 		},
 	}
 }

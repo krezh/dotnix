@@ -123,6 +123,7 @@ in
       rust-analyzer
       hyperfine
       antares
+      hypr-slurp
 
       # Secrets
       age-plugin-yubikey

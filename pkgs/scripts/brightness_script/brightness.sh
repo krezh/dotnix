@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 icon_dir="$XDG_CONFIG_HOME/dunst/icons"
 steps=5
