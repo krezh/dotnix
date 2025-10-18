@@ -11,7 +11,7 @@ smithay-client-toolkit = { version = "0.20", default-features = false, features 
 cairo-rs = { version = "0.21", features = ["png"] }
 image = "0.25"
 memmap2 = "0.9"
-nix = { version = "0.29", features = ["fs", "mman"] }
+nix = { version = "0.30", features = ["fs", "mman"] }
 anyhow = "1.0"
 clap = { version = "4.5", features = ["derive"] }
 calloop = "0.14"
