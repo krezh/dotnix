@@ -82,7 +82,7 @@
       sddm = {
         enable = true;
         wayland.enable = true;
-        # wayland.compositor = "kwin";
+        #  wayland.compositor = "kwin";
         autoNumlock = true;
         package = pkgs.kdePackages.sddm;
       };
