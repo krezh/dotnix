@@ -92,10 +92,10 @@
       flake = false;
     };
 
-    swww = {
-      url = "github:LGFae/swww";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
+    # swww = {
+    #   url = "github:LGFae/swww";
+    #   inputs.nixpkgs.follows = "nixpkgs";
+    # };
 
     nix-gaming.url = "github:fufexan/nix-gaming";
 
