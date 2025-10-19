@@ -44,11 +44,6 @@
 
   services.scx.enable = true;
   services.scx.scheduler = "scx_lavd";
-  services.irqbalance.enable = false;
-
-  systemd.services.irqbalance.serviceConfig = {
-    Environment = "IRQBALANCE_BANNED_CPULIST=16-23";
-  };
 
   xdg.mime.enable = true;
 
@@ -87,7 +82,7 @@
       sddm = {
         enable = true;
         wayland.enable = true;
-        wayland.compositor = "kwin";
+        #wayland.compositor = "kwin";
         autoNumlock = true;
         package = pkgs.kdePackages.sddm;
       };
@@ -135,8 +130,6 @@
   programs.evolution.enable = true;
   programs.sniffnet.enable = true;
 
-  services.udev.packages = [ pkgs.headsetcontrol ];
-
   networking.networkmanager.enable = true;
   networking.networkmanager.wifi.backend = "iwd";
   networking.wireless.enable = lib.mkForce false;
@@ -183,7 +176,6 @@
     systemPackages = with pkgs; [
       amdgpu_top
       age-plugin-yubikey
-      headsetcontrol
       wootility
       nautilus
       libnotify
