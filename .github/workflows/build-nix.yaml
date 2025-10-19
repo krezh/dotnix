@@ -7,6 +7,7 @@ on:
     paths:
       - "**.nix"
       - "flake.lock"
+      - "pkgs/**"
   workflow_dispatch:
     inputs:
       skip-cache:
@@ -20,6 +21,7 @@ on:
     paths:
       - "**.nix"
       - "flake.lock"
+      - "pkgs/**"
 
 permissions:
   id-token: write
