@@ -78,11 +78,11 @@ jobs:
         if: steps.manual-trigger.outputs.is-manual == 'false'
         run: |
           CHANGED_FILES='${{ steps.changed-files.outputs.changed_files }}'
-          PACKAGES=$(echo "$CHANGED_FILES" | jq -r '.[]' | grep '^pkgs/' | sed -n 's|^pkgs/[^/]*/\([^/]*\).*|\1|p' | sort -u | jq -R -s -c 'split("\n") | map(select(length > 0))')
+          PACKAGES=$(echo "$CHANGED_FILES" | jq -c '[.[] | select(startswith("pkgs/")) | split("/")[2]] | unique')
 
           echo "list=$PACKAGES" >> $GITHUB_OUTPUT
 
-          if [ -n "$PACKAGES" ] && [ "$PACKAGES" != "[]" ]; then
+          if [ "$PACKAGES" != "[]" ]; then
             echo "has-changes=true" >> $GITHUB_OUTPUT
             echo "📦 Package changes detected: $PACKAGES"
           else
@@ -95,13 +95,13 @@ jobs:
         run: |
           CHANGED_FILES='${{ steps.changed-files.outputs.changed_files }}'
 
-          # Check for flake.lock
-          FLAKE_LOCK=$(echo "$CHANGED_FILES" | jq -r '.[]' | grep -E '^flake\.lock$' | head -1)
-          echo "flake-lock-changed=$( [ -n "$FLAKE_LOCK" ] && echo "true" || echo "false" )" >> $GITHUB_OUTPUT
+          # Check for flake.lock (pure jq)
+          FLAKE_LOCK_CHANGED=$(echo "$CHANGED_FILES" | jq -r 'any(. == "flake.lock")')
+          echo "flake-lock-changed=$FLAKE_LOCK_CHANGED" >> $GITHUB_OUTPUT
 
           # Check for any system changes (hosts/, modules/, home/, or top-level .nix files)
-          SYSTEM_CHANGES=$(echo "$CHANGED_FILES" | jq -r '.[]' | grep -E '^(hosts/|modules/|home/|[^/]*\.nix$)' | head -1)
-          echo "has-changes=$( [ -n "$SYSTEM_CHANGES" ] && echo "true" || echo "false" )" >> $GITHUB_OUTPUT
+          HAS_SYSTEM_CHANGES=$(echo "$CHANGED_FILES" | jq -r 'any(test("^(hosts/|modules/|home/|[^/]*\\.nix$)"))')
+          echo "has-changes=$HAS_SYSTEM_CHANGES" >> $GITHUB_OUTPUT
 
       - name: Determine affected systems
         id: systems
@@ -111,14 +111,14 @@ jobs:
         run: |
           CHANGED_FILES='${{ steps.changed-files.outputs.changed_files }}'
 
-          # Extract host-specific changes
-          AFFECTED_SYSTEMS=$(echo "$CHANGED_FILES" | jq -r '.[]' | sed -n 's|^hosts/\([^/]*\).*|\1|p' | sort -u | jq -R -s -c 'split("\n") | map(select(length > 0))')
+          # Extract host-specific changes (pure jq)
+          AFFECTED_SYSTEMS=$(echo "$CHANGED_FILES" | jq -c '[.[] | select(startswith("hosts/")) | split("/")[1]] | unique')
 
           # Check for changes that affect all systems (modules/, home/, top-level .nix)
-          NON_HOST_CHANGES=$(echo "$CHANGED_FILES" | jq -r '.[]' | grep -E '^(modules/|home/|[^/]*\.nix$)' | head -1)
+          HAS_NON_HOST_CHANGES=$(echo "$CHANGED_FILES" | jq -r 'any(test("^(modules/|home/|[^/]*\\.nix$)"))')
 
           # Determine if we should build all systems or just specific ones
-          if [ -n "$NON_HOST_CHANGES" ] || [ "${{ steps.system-files.outputs.flake-lock-changed }}" = "true" ] || [ "$AFFECTED_SYSTEMS" = "[]" ]; then
+          if [ "$HAS_NON_HOST_CHANGES" = "true" ] || [ "${{ steps.system-files.outputs.flake-lock-changed }}" = "true" ] || [ "$AFFECTED_SYSTEMS" = "[]" ]; then
             echo "list=[]" >> $GITHUB_OUTPUT
             echo "build-all=true" >> $GITHUB_OUTPUT
 
@@ -148,7 +148,7 @@ jobs:
           # Set package outputs
           if [ "${{ steps.packages.outputs.has-changes }}" = "true" ]; then
             echo "build-packages=true" >> $GITHUB_OUTPUT
-            echo "changed-packages=${{ steps.packages.outputs.list }}" >> $GITHUB_OUTPUT
+            echo 'changed-packages=${{ steps.packages.outputs.list }}' >> $GITHUB_OUTPUT
           else
             echo "build-packages=false" >> $GITHUB_OUTPUT
             echo "changed-packages=[]" >> $GITHUB_OUTPUT
@@ -157,7 +157,7 @@ jobs:
           # Set system outputs
           if [ "${{ steps.system-files.outputs.has-changes }}" = "true" ] || [ "${{ steps.system-files.outputs.flake-lock-changed }}" = "true" ]; then
             echo "build-systems=true" >> $GITHUB_OUTPUT
-            echo "changed-systems=${{ steps.systems.outputs.list }}" >> $GITHUB_OUTPUT
+            echo 'changed-systems=${{ steps.systems.outputs.list }}' >> $GITHUB_OUTPUT
           else
             echo "build-systems=false" >> $GITHUB_OUTPUT
             echo "changed-systems=[]" >> $GITHUB_OUTPUT
