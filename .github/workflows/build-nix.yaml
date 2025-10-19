@@ -202,7 +202,7 @@ jobs:
         name: Generate Matrix
         run: |
           set -Eeu
-          matrix=$(nix eval --json '.#ghMatrix')
+          matrix=$(nix eval --json '.#ghMatrix' | jq -c)
           changed_systems='${{ needs.detect-changes.outputs.changed-systems }}'
 
           # Filter matrix if specific systems changed
@@ -215,7 +215,7 @@ jobs:
 
             # Validate JSON before passing to jq
             if echo "$changed_systems" | jq empty 2>/dev/null; then
-              filtered_matrix=$(echo "$matrix" | jq --argjson systems "$changed_systems" '{include: [.include[] | select(.host as $h | $systems | index($h))]}')
+              filtered_matrix=$(echo "$matrix" | jq -c --argjson systems "$changed_systems" '{include: [.include[] | select(.host as $h | $systems | index($h))]}')
 
               # Verify the filter produced results
               filtered_count=$(echo "$filtered_matrix" | jq '.include | length')
