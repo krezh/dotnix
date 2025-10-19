@@ -208,12 +208,33 @@ jobs:
           # Filter matrix if specific systems changed
           if [ -n "$changed_systems" ] && [ "$changed_systems" != "[]" ]; then
             echo "🎯 Filtering matrix for systems: $changed_systems"
-            filtered_matrix=$(echo "$matrix" | jq --argjson systems "$changed_systems" '{include: [.include[] | select(.host as $h | $systems | index($h))]}')
-            matrix="$filtered_matrix"
+
+            # Remove any surrounding quotes that GitHub Actions might add
+            changed_systems="${changed_systems#\"}"
+            changed_systems="${changed_systems%\"}"
+
+            # Validate JSON before passing to jq
+            if echo "$changed_systems" | jq empty 2>/dev/null; then
+              filtered_matrix=$(echo "$matrix" | jq --argjson systems "$changed_systems" '{include: [.include[] | select(.host as $h | $systems | index($h))]}')
+
+              # Verify the filter produced results
+              filtered_count=$(echo "$filtered_matrix" | jq '.include | length')
+              if [ "$filtered_count" -gt 0 ]; then
+                matrix="$filtered_matrix"
+                echo "   ✅ Filtered to $filtered_count system(s)"
+              else
+                echo "   ⚠️  Filter produced no results, building all systems"
+              fi
+            else
+              echo "   ⚠️  Warning: changed-systems is not valid JSON, building all systems"
+              echo "   Raw value: '$changed_systems'"
+            fi
+          else
+            echo "🏗️  Building all systems (no filter)"
           fi
 
           if [ "$(echo "$matrix" | jq '.include | length')" -eq 0 ]; then
-            echo "Error: No hosts to build"
+            echo "❌ Error: No hosts to build"
             exit 1
           fi
 
