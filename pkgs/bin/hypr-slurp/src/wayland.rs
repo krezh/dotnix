@@ -152,6 +152,7 @@ pub struct App {
     exit: bool,
     loop_signal: LoopSignal,
     last_frame_time: Instant,
+    needs_redraw: bool,
 }
 
 // ============================================================================
@@ -232,6 +233,7 @@ impl App {
             exit: false,
             loop_signal,
             last_frame_time: Instant::now(),
+            needs_redraw: false,
         };
 
         // Dispatch any pending events
@@ -272,6 +274,12 @@ impl App {
                 app.update_animation();
             }
 
+            // Render if needed (throttled by frame rate limiting in redraw_all)
+            if app.needs_redraw {
+                app.needs_redraw = false;
+                app.redraw_all();
+            }
+
             if app.exit {
                 break;
             }
@@ -302,8 +310,9 @@ impl App {
 
                 surface.commit();
 
-                // Create a dedicated pool for this output
-                let pool_size = (width * height * 4) as usize;
+                // Create a dedicated pool for this output with space for double buffering
+                // Double the size to allow for two buffers (reduces flickering)
+                let pool_size = (width * height * 4 * 2) as usize;
                 let pool = SlotPool::new(pool_size, &self.shm_state).ok();
 
                 // Create a dedicated renderer for this output
@@ -409,7 +418,7 @@ impl App {
         }
     }
 
-    /// Updates spring animation state and triggers redraw
+    /// Updates spring animation state and marks for redraw
     ///
     /// Called each event loop iteration when animation is active.
     /// Uses delta time for frame-rate independent animation.
@@ -423,7 +432,8 @@ impl App {
             let animated_rect = anim.current();
             self.selection.set_animated_snap_target(Some(animated_rect));
 
-            self.redraw_all();
+            // Mark for redraw instead of drawing immediately
+            self.needs_redraw = true;
         }
     }
 
@@ -498,8 +508,23 @@ impl App {
             }
 
             let pool = output_surface.pool.as_mut().unwrap();
+
+            // Use double buffering to prevent flickering
+            // The pool automatically manages multiple buffer slots
             let (buf, canv) =
-                pool.create_buffer(width, height, stride, wl_shm::Format::Argb8888)?;
+                match pool.create_buffer(width, height, stride, wl_shm::Format::Argb8888) {
+                    Ok(buffer) => buffer,
+                    Err(e) => {
+                        log::warn!(
+                            "Failed to create buffer for output {}: {}. Resizing pool.",
+                            index,
+                            e
+                        );
+                        // Pool might be exhausted, resize it
+                        pool.resize((width * height * 4 * 2) as usize)?;
+                        pool.create_buffer(width, height, stride, wl_shm::Format::Argb8888)?
+                    }
+                };
 
             log::debug!(
                 "Output {} got buffer, canvas ptr: {:p}",
@@ -647,7 +672,8 @@ impl App {
             if let Some((start_x, start_y)) = self.selection_start {
                 self.selection
                     .update_drag(start_x, start_y, global_x as i32, global_y as i32);
-                self.redraw_all();
+                // Mark for redraw instead of drawing immediately
+                self.needs_redraw = true;
             }
         } else {
             // Only check for window snapping when not actively selecting
@@ -726,7 +752,8 @@ impl App {
                 self.complete_selection();
             }
         }
-        self.redraw_all();
+        // Mark for redraw instead of drawing immediately
+        self.needs_redraw = true;
     }
 
     fn complete_selection(&mut self) {
