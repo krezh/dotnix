@@ -134,7 +134,6 @@
     systemPackages = with pkgs; [
       age-plugin-yubikey
       intel-gpu-tools
-      headsetcontrol
     ];
   };
   networking.hostName = "${hostname}";
