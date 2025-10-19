@@ -110,7 +110,7 @@ impl Renderer {
         let stride = self.width * 4;
 
         // Create Cairo surface wrapping the existing buffer (NO allocation!)
-        let mut surface = unsafe {
+        let surface = unsafe {
             ImageSurface::create_for_data_unsafe(
                 buffer.as_mut_ptr(),
                 Format::ARgb32,
@@ -312,13 +312,6 @@ impl Renderer {
             ctx.show_text(&text)?;
         }
 
-        Ok(())
-    }
-
-    /// Write the surface data to a Wayland buffer
-    pub fn write_to_buffer(&self, surface: &mut ImageSurface, buffer: &mut [u8]) -> Result<()> {
-        let data = surface.data()?;
-        buffer.copy_from_slice(&data);
         Ok(())
     }
 }
