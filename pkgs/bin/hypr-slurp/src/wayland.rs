@@ -547,9 +547,8 @@ impl App {
                     local_rect_y + rect.height,
                 );
 
-                // Render with the full selection - Cairo will clip what's outside
-                let mut surface = renderer.render(&local_selection)?;
-                renderer.write_to_buffer(&mut surface, canvas)?;
+                // Render directly to buffer - NO surface allocation!
+                renderer.render_to_buffer(&local_selection, canvas)?;
                 true
             } else {
                 log::debug!("SKIPPING output {} - no intersection", index);
@@ -595,14 +594,14 @@ impl App {
                     snap_rect.height,
                 )));
 
-                let mut surface = renderer.render(&local_selection)?;
-                renderer.write_to_buffer(&mut surface, canvas)?;
+                // Render directly to buffer - NO surface allocation!
+                renderer.render_to_buffer(&local_selection, canvas)?;
             } else {
                 // Render dimmed overlay (whether there's a selection elsewhere or not)
                 log::debug!("RENDERING DIMMED ONLY on output {}", index);
                 let empty_selection = Selection::new(self.args.point, None);
-                let mut surface = renderer.render(&empty_selection)?;
-                renderer.write_to_buffer(&mut surface, canvas)?;
+                // Render directly to buffer - NO surface allocation!
+                renderer.render_to_buffer(&empty_selection, canvas)?;
             }
         }
 

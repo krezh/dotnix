@@ -105,16 +105,28 @@ impl Renderer {
         })
     }
 
-    /// Render the current frame - optimized for speed
-    pub fn render(&self, selection: &Selection) -> Result<ImageSurface> {
-        let surface = ImageSurface::create(Format::ARgb32, self.width, self.height)
-            .context("Failed to create Cairo surface")?;
+    /// Render directly to provided buffer - optimized for speed
+    pub fn render_to_buffer(&self, selection: &Selection, buffer: &mut [u8]) -> Result<()> {
+        let stride = self.width * 4;
+
+        // Create Cairo surface wrapping the existing buffer (NO allocation!)
+        let mut surface = unsafe {
+            ImageSurface::create_for_data_unsafe(
+                buffer.as_mut_ptr(),
+                Format::ARgb32,
+                self.width,
+                self.height,
+                stride,
+            )?
+        };
 
         let ctx = CairoContext::new(&surface).context("Failed to create Cairo context")?;
 
-        // Fast path: just black background with dimming
+        // Paint dimmed background - use Source operator to replace buffer contents
+        ctx.set_operator(cairo::Operator::Source);
         ctx.set_source_rgba(0.0, 0.0, 0.0, self.config.dim_opacity);
         ctx.paint()?;
+        ctx.set_operator(cairo::Operator::Over);
 
         // Clear the selection area (punch hole in dimming) - only when user is selecting
         if let Some(rect) = selection.get_rect() {
@@ -195,7 +207,11 @@ impl Renderer {
             self.draw_selection_border(&ctx, rect)?;
         }
 
-        Ok(surface)
+        // Ensure all drawing is flushed to the buffer
+        drop(ctx);
+        surface.flush();
+
+        Ok(())
     }
 
     fn draw_rounded_rectangle(
