@@ -1,15 +1,15 @@
-///! Configuration file handling for hypr-slurp
-///!
-///! Supports loading from JSON files in XDG-compliant locations:
-///! - $XDG_CONFIG_HOME/hypr-slurp/config.json
-///! - ~/.config/hypr-slurp/config.json (fallback)
+//! Configuration file handling for hypr-slurp
+//!
+//! Supports loading from JSON files in XDG-compliant locations:
+//! - $XDG_CONFIG_HOME/hypr-slurp/config.json
+//! - ~/.config/hypr-slurp/config.json (fallback)
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
 
 /// Main configuration structure with nested groups
-#[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone, Default)]
 #[serde(default)]
 pub struct Config {
     /// Text/font configuration
@@ -64,22 +64,11 @@ pub struct DisplayConfig {
     pub log: String,
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone, Default)]
 #[serde(default)]
 pub struct FeatureConfig {
     /// Disable window snapping
     pub no_snap: bool,
-}
-
-impl Default for Config {
-    fn default() -> Self {
-        Self {
-            font: FontConfig::default(),
-            border: BorderConfig::default(),
-            display: DisplayConfig::default(),
-            features: FeatureConfig::default(),
-        }
-    }
 }
 
 impl Default for FontConfig {
@@ -109,12 +98,6 @@ impl Default for DisplayConfig {
             fps: 0,
             log: "off".to_string(),
         }
-    }
-}
-
-impl Default for FeatureConfig {
-    fn default() -> Self {
-        Self { no_snap: false }
     }
 }
 

@@ -105,6 +105,42 @@ impl Renderer {
         })
     }
 
+    /// Helper to execute operation with temporary operator setting
+    #[inline]
+    fn with_operator<F>(&self, ctx: &CairoContext, operator: cairo::Operator, f: F) -> Result<()>
+    where
+        F: FnOnce(&CairoContext) -> Result<()>,
+    {
+        ctx.set_operator(operator);
+        f(ctx)?;
+        ctx.set_operator(cairo::Operator::Over);
+        Ok(())
+    }
+
+    /// Clear area (punch hole in dimming) with optional rounded corners
+    fn clear_area(&self, ctx: &CairoContext, rect: Rect) -> Result<()> {
+        let radius = self.config.border_radius as f64;
+        if radius > 0.0 {
+            self.draw_rounded_rectangle(
+                ctx,
+                rect.x as f64,
+                rect.y as f64,
+                rect.width as f64,
+                rect.height as f64,
+                radius,
+            )?;
+        } else {
+            ctx.rectangle(
+                rect.x as f64,
+                rect.y as f64,
+                rect.width as f64,
+                rect.height as f64,
+            );
+        }
+        ctx.fill()?;
+        Ok(())
+    }
+
     /// Render directly to provided buffer - optimized for speed
     pub fn render_to_buffer(&self, selection: &Selection, buffer: &mut [u8]) -> Result<()> {
         let stride = self.width * 4;
@@ -123,10 +159,11 @@ impl Renderer {
         let ctx = CairoContext::new(&surface).context("Failed to create Cairo context")?;
 
         // Paint dimmed background - use Source operator to replace buffer contents
-        ctx.set_operator(cairo::Operator::Source);
-        ctx.set_source_rgba(0.0, 0.0, 0.0, self.config.dim_opacity);
-        ctx.paint()?;
-        ctx.set_operator(cairo::Operator::Over);
+        self.with_operator(&ctx, cairo::Operator::Source, |ctx| {
+            ctx.set_source_rgba(0.0, 0.0, 0.0, self.config.dim_opacity);
+            ctx.paint()?;
+            Ok(())
+        })?;
 
         // Clear the selection area (punch hole in dimming) - only when user is selecting
         if let Some(rect) = selection.get_rect() {
@@ -140,62 +177,23 @@ impl Renderer {
                     self.width,
                     self.height
                 );
-                ctx.set_operator(cairo::Operator::Clear);
-
-                let radius = self.config.border_radius as f64;
-                if radius > 0.0 {
-                    self.draw_rounded_rectangle(
-                        &ctx,
-                        rect.x as f64,
-                        rect.y as f64,
-                        rect.width as f64,
-                        rect.height as f64,
-                        radius,
-                    )?;
-                } else {
-                    ctx.rectangle(
-                        rect.x as f64,
-                        rect.y as f64,
-                        rect.width as f64,
-                        rect.height as f64,
-                    );
-                }
-                ctx.fill()?;
-                ctx.set_operator(cairo::Operator::Over);
+                self.with_operator(&ctx, cairo::Operator::Clear, |ctx| {
+                    self.clear_area(ctx, rect)
+                })?;
             }
         }
 
         // Clear dimming and draw snap target preview (when hovering, not selecting)
         if selection.get_rect().is_none() {
             // Use animated snap target if available, otherwise fall back to static
-            let snap_rect = selection
+            if let Some(snap_rect) = selection
                 .get_animated_snap_target()
-                .or_else(|| selection.get_snap_target());
-
-            if let Some(snap_rect) = snap_rect {
+                .or_else(|| selection.get_snap_target())
+            {
                 // Clear the snap target area (punch hole in dimming)
-                ctx.set_operator(cairo::Operator::Clear);
-
-                let radius = self.config.border_radius as f64;
-                if radius > 0.0 {
-                    self.draw_rounded_rectangle(
-                        &ctx,
-                        snap_rect.x as f64,
-                        snap_rect.y as f64,
-                        snap_rect.width as f64,
-                        snap_rect.height as f64,
-                        radius,
-                    )?;
-                } else {
-                    ctx.rectangle(
-                        snap_rect.x as f64,
-                        snap_rect.y as f64,
-                        snap_rect.width as f64,
-                        snap_rect.height as f64,
-                    );
-                }
-                ctx.fill()?;
-                ctx.set_operator(cairo::Operator::Over);
+                self.with_operator(&ctx, cairo::Operator::Clear, |ctx| {
+                    self.clear_area(ctx, snap_rect)
+                })?;
 
                 // Draw the border
                 self.draw_snap_target(&ctx, snap_rect)?;

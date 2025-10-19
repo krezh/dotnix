@@ -96,17 +96,13 @@ impl WindowManager {
             active_workspaces
         );
 
+        let wm = Self {
+            windows,
+            active_workspaces,
+        };
+
         // Log snappable windows on active workspaces for debugging
-        let snappable: Vec<_> = windows
-            .iter()
-            .filter(|w| {
-                w.is_snappable()
-                    && active_workspaces
-                        .get(&w.monitor)
-                        .map(|ws_id| w.workspace.id == *ws_id)
-                        .unwrap_or(false)
-            })
-            .collect();
+        let snappable: Vec<_> = wm.snappable_windows().collect();
         log::info!(
             "WindowManager: {} snappable windows on active workspaces",
             snappable.len()
@@ -125,10 +121,7 @@ impl WindowManager {
             );
         }
 
-        Ok(Self {
-            windows,
-            active_workspaces,
-        })
+        Ok(wm)
     }
 
     /// Get current cursor position from Hyprland via socket IPC
@@ -184,22 +177,46 @@ impl WindowManager {
         Ok(active_workspaces)
     }
 
+    /// Filter for windows that are snappable on their monitor's active workspace
+    fn snappable_windows(&self) -> impl Iterator<Item = &HyprlandWindow> {
+        self.windows.iter().filter(|w| {
+            w.is_snappable()
+                && self
+                    .active_workspaces
+                    .get(&w.monitor)
+                    .map(|ws_id| w.workspace.id == *ws_id)
+                    .unwrap_or(false)
+        })
+    }
+
+    /// Calculate distance from point to rectangle edge
+    #[inline]
+    fn distance_to_rect(x: i32, y: i32, rect: &Rect) -> i32 {
+        let dx = if x < rect.x {
+            rect.x - x
+        } else if x > rect.x + rect.width {
+            x - (rect.x + rect.width)
+        } else {
+            0
+        };
+
+        let dy = if y < rect.y {
+            rect.y - y
+        } else if y > rect.y + rect.height {
+            y - (rect.y + rect.height)
+        } else {
+            0
+        };
+
+        ((dx * dx + dy * dy) as f64).sqrt() as i32
+    }
+
     /// Find the window at a specific point (x, y) on the active workspace of its monitor
     pub fn find_window_at_point(&self, x: i32, y: i32) -> Option<&HyprlandWindow> {
-        self.windows
-            .iter()
-            .filter(|w| {
-                w.is_snappable()
-                    && self
-                        .active_workspaces
-                        .get(&w.monitor)
-                        .map(|ws_id| w.workspace.id == *ws_id)
-                        .unwrap_or(false)
-            })
-            .find(|w| {
-                let rect = w.to_rect();
-                x >= rect.x && x < rect.x + rect.width && y >= rect.y && y < rect.y + rect.height
-            })
+        self.snappable_windows().find(|w| {
+            let rect = w.to_rect();
+            x >= rect.x && x < rect.x + rect.width && y >= rect.y && y < rect.y + rect.height
+        })
     }
 
     /// Find the nearest window within a threshold distance on the active workspace of its monitor
@@ -210,48 +227,13 @@ impl WindowManager {
         }
 
         // Find the nearest window within threshold on active workspaces
-        let mut nearest: Option<(&HyprlandWindow, i32)> = None;
-
-        for window in self.windows.iter().filter(|w| {
-            w.is_snappable()
-                && self
-                    .active_workspaces
-                    .get(&w.monitor)
-                    .map(|ws_id| w.workspace.id == *ws_id)
-                    .unwrap_or(false)
-        }) {
-            let rect = window.to_rect();
-
-            // Calculate distance to window rectangle
-            let dx = if x < rect.x {
-                rect.x - x
-            } else if x > rect.x + rect.width {
-                x - (rect.x + rect.width)
-            } else {
-                0
-            };
-
-            let dy = if y < rect.y {
-                rect.y - y
-            } else if y > rect.y + rect.height {
-                y - (rect.y + rect.height)
-            } else {
-                0
-            };
-
-            let distance = ((dx * dx + dy * dy) as f64).sqrt() as i32;
-
-            if distance <= threshold {
-                if let Some((_, nearest_dist)) = nearest {
-                    if distance < nearest_dist {
-                        nearest = Some((window, distance));
-                    }
-                } else {
-                    nearest = Some((window, distance));
-                }
-            }
-        }
-
-        nearest.map(|(w, _)| w)
+        self.snappable_windows()
+            .filter_map(|window| {
+                let rect = window.to_rect();
+                let distance = Self::distance_to_rect(x, y, &rect);
+                (distance <= threshold).then_some((window, distance))
+            })
+            .min_by_key(|(_, distance)| *distance)
+            .map(|(w, _)| w)
     }
 }

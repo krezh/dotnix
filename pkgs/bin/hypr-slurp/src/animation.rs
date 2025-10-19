@@ -90,34 +90,24 @@ impl SpringAnimation {
         self.height += self.vh * dt;
     }
 
+    /// Snap value to target if within threshold (prevents sub-pixel jitter)
+    #[inline]
+    fn snap_to_target(current: f64, target: f64, threshold: f64) -> f64 {
+        if (current - target).abs() < threshold {
+            target
+        } else {
+            current
+        }
+    }
+
     /// Get the current animated rectangle
     pub fn current(&self) -> Rect {
-        // Snap to target if very close (prevents sub-pixel jitter)
-        let snap_threshold = 0.5;
+        const SNAP_THRESHOLD: f64 = 0.5;
 
-        let x = if (self.x - self.target_x).abs() < snap_threshold {
-            self.target_x
-        } else {
-            self.x
-        };
-
-        let y = if (self.y - self.target_y).abs() < snap_threshold {
-            self.target_y
-        } else {
-            self.y
-        };
-
-        let width = if (self.width - self.target_width).abs() < snap_threshold {
-            self.target_width
-        } else {
-            self.width
-        };
-
-        let height = if (self.height - self.target_height).abs() < snap_threshold {
-            self.target_height
-        } else {
-            self.height
-        };
+        let x = Self::snap_to_target(self.x, self.target_x, SNAP_THRESHOLD);
+        let y = Self::snap_to_target(self.y, self.target_y, SNAP_THRESHOLD);
+        let width = Self::snap_to_target(self.width, self.target_width, SNAP_THRESHOLD);
+        let height = Self::snap_to_target(self.height, self.target_height, SNAP_THRESHOLD);
 
         Rect::new(
             x.round() as i32,

@@ -19,6 +19,15 @@ impl Rect {
         }
     }
 
+    /// Check if this rectangle intersects with another rectangle
+    #[inline]
+    pub const fn intersects(&self, other: &Rect) -> bool {
+        self.x < other.x + other.width
+            && self.x + self.width > other.x
+            && self.y < other.y + other.height
+            && self.y + self.height > other.y
+    }
+
     /// Creates a rectangle from two corner points
     ///
     /// Automatically normalizes so top-left is at (min_x, min_y)
@@ -128,6 +137,14 @@ impl Selection {
 
             self.rect = Some(rect);
         }
+    }
+
+    /// Create a selection from a rect (convenience method for local coordinate translation)
+    pub fn from_rect(rect: Rect, point_mode: bool) -> Self {
+        let mut selection = Self::new(point_mode, None);
+        selection.start_selection(rect.x, rect.y);
+        selection.update_drag(rect.x, rect.y, rect.x + rect.width, rect.y + rect.height);
+        selection
     }
 
     /// Returns the selection rectangle if it has non-zero area

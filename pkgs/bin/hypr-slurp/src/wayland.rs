@@ -73,21 +73,28 @@ fn parse_aspect_ratio(ar: &str) -> Option<f64> {
     }
 }
 
+/// Convert FPS to frame Duration
+#[inline]
+fn fps_to_duration(fps: u32) -> Duration {
+    Duration::from_micros(1_000_000 / fps.max(1) as u64)
+}
+
 /// Creates a renderer with the given dimensions and styling from Args
 ///
 /// Returns None if renderer creation fails (e.g., invalid color values)
+/// Note: Args should be merged with config before calling this, ensuring all Options are Some
 #[inline]
 fn create_renderer(width: i32, height: i32, args: &Args) -> Option<Renderer> {
     Renderer::new(
         width,
         height,
-        args.border_color.as_ref().unwrap(),
-        args.border_thickness.unwrap(),
-        args.border_rounding.unwrap(),
-        args.dim_opacity.unwrap(),
-        args.font_family.as_ref().unwrap().clone(),
-        args.font_size.unwrap(),
-        args.font_weight.as_ref().unwrap(),
+        args.border_color.as_ref()?,
+        args.border_thickness?,
+        args.border_rounding?,
+        args.dim_opacity?,
+        args.font_family.as_ref()?.clone(),
+        args.font_size?,
+        args.font_weight.as_ref()?,
     )
     .ok()
 }
@@ -303,10 +310,10 @@ impl App {
                 let renderer = create_renderer(width, height, &self.args);
 
                 // Calculate frame time for this specific output
-                let fps = self.args.fps.unwrap();
+                let fps = self.args.fps.unwrap_or(0);
                 let frame_time = if fps > 0 {
                     // User specified FPS - use it for all monitors
-                    Duration::from_micros(1_000_000 / fps.max(1) as u64)
+                    fps_to_duration(fps)
                 } else {
                     // Auto-detect: use this monitor's refresh rate
                     let refresh_rate = info
@@ -326,7 +333,7 @@ impl App {
                         y,
                         fps
                     );
-                    Duration::from_micros(1_000_000 / fps.max(1) as u64)
+                    fps_to_duration(fps)
                 };
 
                 self.output_surfaces.push(OutputSurface {
@@ -446,6 +453,29 @@ impl App {
     // Rendering
     // ------------------------------------------------------------------------
 
+    /// Translate global rect to local output coordinates
+    #[inline]
+    fn translate_rect_to_local(rect: Rect, offset_x: i32, offset_y: i32) -> Rect {
+        Rect::new(
+            rect.x - offset_x,
+            rect.y - offset_y,
+            rect.width,
+            rect.height,
+        )
+    }
+
+    /// Create a local selection from a global rect
+    #[inline]
+    fn create_local_selection(
+        global_rect: Rect,
+        offset_x: i32,
+        offset_y: i32,
+        point_mode: bool,
+    ) -> Selection {
+        let local_rect = Self::translate_rect_to_local(global_rect, offset_x, offset_y);
+        Selection::from_rect(local_rect, point_mode)
+    }
+
     fn draw_index(&mut self, index: usize) -> Result<()> {
         if !self.output_surfaces[index].configured {
             return Ok(());
@@ -482,23 +512,14 @@ impl App {
 
         // Check if we need to render a selection on this output
         let has_selection = if let Some(rect) = self.selection.get_rect() {
-            // Check if selection intersects with this output
-            let output_right = offset_x + width;
-            let output_bottom = offset_y + height;
-            let rect_right = rect.x + rect.width;
-            let rect_bottom = rect.y + rect.height;
+            let output_rect = Rect::new(offset_x, offset_y, width, height);
 
-            let intersects = rect.x < output_right
-                && rect_right > offset_x
-                && rect.y < output_bottom
-                && rect_bottom > offset_y;
-
-            if intersects {
+            if rect.intersects(&output_rect) {
                 // Calculate the intersection rectangle (clipped to this output)
                 let clip_x = rect.x.max(offset_x);
                 let clip_y = rect.y.max(offset_y);
-                let clip_right = rect_right.min(output_right);
-                let clip_bottom = rect_bottom.min(output_bottom);
+                let clip_right = (rect.x + rect.width).min(offset_x + width);
+                let clip_bottom = (rect.y + rect.height).min(offset_y + height);
                 let clip_width = clip_right - clip_x;
                 let clip_height = clip_bottom - clip_y;
 
@@ -526,26 +547,13 @@ impl App {
 
                 log::debug!(
                     "Creating local selection for output {}: global rect ({},{}) {}x{} -> local rect ({},{}) {}x{}",
-                    index,
-                    rect.x,
-                    rect.y,
-                    rect.width,
-                    rect.height,
-                    local_rect_x,
-                    local_rect_y,
-                    rect.width,
-                    rect.height
+                    index, rect.x, rect.y, rect.width, rect.height,
+                    local_rect_x, local_rect_y, rect.width, rect.height
                 );
 
                 // Create a selection with the full rectangle translated to local coords
-                let mut local_selection = Selection::new(self.args.point, None);
-                local_selection.start_selection(local_rect_x, local_rect_y);
-                local_selection.update_drag(
-                    local_rect_x,
-                    local_rect_y,
-                    local_rect_x + rect.width,
-                    local_rect_y + rect.height,
-                );
+                let local_selection =
+                    Self::create_local_selection(rect, offset_x, offset_y, self.args.point);
 
                 // Render directly to buffer - NO surface allocation!
                 renderer.render_to_buffer(&local_selection, canvas)?;
@@ -568,31 +576,16 @@ impl App {
                 .or_else(|| self.selection.get_snap_target());
 
             if let Some(snap_rect) = snap_rect {
-                // Translate snap target to local coordinates
-                let local_snap_x = snap_rect.x - offset_x;
-                let local_snap_y = snap_rect.y - offset_y;
+                let local_snap = Self::translate_rect_to_local(snap_rect, offset_x, offset_y);
 
                 log::debug!(
                     "RENDERING SNAP TARGET on output {}: global ({},{}) {}x{} -> local ({},{}) {}x{}",
-                    index,
-                    snap_rect.x,
-                    snap_rect.y,
-                    snap_rect.width,
-                    snap_rect.height,
-                    local_snap_x,
-                    local_snap_y,
-                    snap_rect.width,
-                    snap_rect.height
+                    index, snap_rect.x, snap_rect.y, snap_rect.width, snap_rect.height,
+                    local_snap.x, local_snap.y, local_snap.width, local_snap.height
                 );
 
                 let mut local_selection = Selection::new(self.args.point, None);
-                // Set the animated snap target so the renderer uses it
-                local_selection.set_animated_snap_target(Some(Rect::new(
-                    local_snap_x,
-                    local_snap_y,
-                    snap_rect.width,
-                    snap_rect.height,
-                )));
+                local_selection.set_animated_snap_target(Some(local_snap));
 
                 // Render directly to buffer - NO surface allocation!
                 renderer.render_to_buffer(&local_selection, canvas)?;
