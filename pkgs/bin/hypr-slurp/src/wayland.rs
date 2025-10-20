@@ -432,8 +432,11 @@ impl App {
             let animated_rect = anim.current();
             self.selection.set_animated_snap_target(Some(animated_rect));
 
-            // Mark for redraw instead of drawing immediately
-            self.needs_redraw = true;
+            // Only request redraw if animation is still moving
+            // This prevents unnecessary redraws once animation has settled
+            if !anim.is_settled() {
+                self.needs_redraw = true;
+            }
         }
     }
 
@@ -705,13 +708,18 @@ impl App {
                             anim.set_target(rect);
                             self.snap_animation = Some(anim);
                         }
+                        // Only request redraw when snap target changes
+                        self.needs_redraw = true;
                     } else {
                         log::info!("Snap target: None");
-                        // Keep the animation running - it will continue towards last target
+                        // Target cleared - request one final redraw to clear the snap highlight
+                        self.needs_redraw = true;
                     }
 
                     self.selection.set_snap_target(snap_target);
                 }
+                // Note: If snap target hasn't changed and animation is settled,
+                // we don't request a redraw - this prevents flickering on mouse movement
             }
         }
     }

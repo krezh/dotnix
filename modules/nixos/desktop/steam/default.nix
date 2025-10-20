@@ -33,6 +33,7 @@ in
         protonup
         heroic
         lact
+        bottles
       ];
       sessionVariables = {
         STEAM_EXTRA_COMPAT_TOOLS_PATHS = "${defaultSteamCompatToolsPath}";
