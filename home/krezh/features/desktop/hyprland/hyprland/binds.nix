@@ -45,7 +45,7 @@ let
 
   recShot = "${lib.getExe pkgs.recshot} -t ${
     config.sops.secrets."zipline/token".path
-  } -u https://zipline.talos.plexuz.xyz -p ~/Pictures/Screenshots --zipline";
+  } -u https://zipline.talos.plexuz.xyz --zipline";
 
   mainMod = "SUPER";
   mainModShift = "${mainMod} SHIFT";
