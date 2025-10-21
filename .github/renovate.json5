@@ -35,11 +35,15 @@
         fileFilters: ["**/*.nix"],
         executionMode: "update",
       },
+      automerge: true,
+      automergeType: "pr"
     },
     {
       description: "Separate PRs for pkgs",
       matchFileNames: ["pkgs/**"],
       additionalBranchPrefix: "pkgs-",
+      automerge: true,
+      automergeType: "pr"
     },
   ],
 }
