@@ -1,50 +1,33 @@
 name: Prune Workflows
+
 on:
   schedule:
-    - cron: "0 0 * * *"
+    - cron: "0 0 * * *" # Daily at midnight UTC
   push:
     branches: ["main"]
     paths: [".github/workflows/prune-workflows.yaml"]
   workflow_dispatch:
     inputs:
-      days:
-        description: "Days-worth of runs to keep for each workflow"
-        required: true
-        default: "0"
-      minimum_runs:
-        description: "Minimum runs to keep for each workflow"
-        required: true
-        default: "6"
+      successful_runs_to_keep:
+        description: "Number of successful runs to keep"
+        required: false
+        default: 6
+      failed_runs_to_keep:
+        description: "Number of failed runs to keep"
+        required: false
+        default: 2
       delete_workflow_pattern:
         description: "Name or filename of the workflow (if not set, all workflows are targeted)"
         required: false
-      delete_workflow_by_state_pattern:
-        description: "Filter workflows by state: active, deleted, disabled_fork, disabled_inactivity, disabled_manually"
-        required: true
-        default: "ALL"
-        type: choice
-        options:
-          - "ALL"
-          - active
-          - deleted
-          - disabled_inactivity
-          - disabled_manually
-      delete_run_by_conclusion_pattern:
-        description: "Remove runs based on conclusion: action_required, cancelled, failure, skipped, success"
-        required: true
-        default: "ALL"
-        type: choice
-        options:
-          - "ALL"
-          - "Unsuccessful: action_required,cancelled,failure,skipped"
-          - action_required
-          - cancelled
-          - failure
-          - skipped
-          - success
       dry_run:
         description: "Logs simulated changes, no deletions are performed"
         required: false
+        type: boolean
+        default: false
+
+concurrency:
+  group: prune-workflows
+  cancel-in-progress: false
 
 jobs:
   del_runs:
@@ -59,13 +42,24 @@ jobs:
           app-id: "${{ secrets.BOT_APP_ID }}"
           private-key: "${{ secrets.BOT_APP_PRIVATE_KEY }}"
 
-      - name: Delete workflow runs
+      - name: Delete old successful workflow runs
         uses: Mattraks/delete-workflow-runs@39f0bbed25d76b34de5594dceab824811479e5de # v2.0.6
         with:
           token: "${{ steps.app-token.outputs.token }}"
           repository: ${{ github.repository }}
-          retain_days: ${{ github.event.inputs.days }}
-          keep_minimum_runs: ${{ github.event.inputs.minimum_runs || 6 }}
-          delete_workflow_pattern: ${{ github.event.inputs.delete_workflow_pattern }}
-          delete_workflow_by_state_pattern: ${{ github.event.inputs.delete_workflow_by_state_pattern }}
-          dry_run: ${{ github.event.inputs.dry_run }}
+          retain_days: 0
+          keep_minimum_runs: ${{ inputs.successful_runs_to_keep || 6 }}
+          delete_workflow_pattern: ${{ inputs.delete_workflow_pattern || '' }}
+          delete_run_by_conclusion_pattern: success
+          dry_run: ${{ inputs.dry_run || false }}
+
+      - name: Delete old failed workflow runs
+        uses: Mattraks/delete-workflow-runs@39f0bbed25d76b34de5594dceab824811479e5de # v2.0.6
+        with:
+          token: "${{ steps.app-token.outputs.token }}"
+          repository: ${{ github.repository }}
+          retain_days: 0
+          keep_minimum_runs: ${{ inputs.failed_runs_to_keep || 2 }}
+          delete_workflow_pattern: ${{ inputs.delete_workflow_pattern || '' }}
+          delete_run_by_conclusion_pattern: failure
+          dry_run: ${{ inputs.dry_run || false }}
