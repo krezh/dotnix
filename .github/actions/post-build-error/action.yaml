@@ -55,7 +55,7 @@ runs:
 
           ### Reproduce Locally
           ```bash
-          nix build ${{ inputs.flake-target }}
+          nix build github:${{ github.repository }}/pull/${{ inputs.pr-number }}/head${{ inputs.flake-target }}
           ```
 
           ---
