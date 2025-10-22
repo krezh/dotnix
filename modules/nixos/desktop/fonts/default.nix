@@ -15,7 +15,7 @@ in
   config = lib.mkIf cfg.enable {
     environment = {
       sessionVariables = {
-        FREETYPE_PROPERTIES = "truetype:interpreter-version=35 cff:no-stem-darkening=0 autofitter:no-stem-darkening=0";
+        FREETYPE_PROPERTIES = "truetype:interpreter-version=38";
       };
     };
     fonts = {
@@ -31,15 +31,26 @@ in
         };
         useEmbeddedBitmaps = true;
         defaultFonts = {
-          monospace = [ "Source Code Pro" ];
-          sansSerif = [ "Source Sans Pro" ];
-          serif = [ "Source Serif Pro" ];
+          serif = [
+            "Noto Serif"
+            "Noto Color Emoji"
+          ];
+          sansSerif = [
+            "Noto Sans"
+            "Noto Color Emoji"
+          ];
+          monospace = [
+            "JetBrainsMono Nerd Font"
+            "Noto Color Emoji"
+          ];
+          emoji = [ "Noto Color Emoji" ];
         };
       };
       fontDir.enable = true;
       enableDefaultPackages = true;
       packages = with pkgs; [
         corefonts # Microsoft free fonts
+        gyre-fonts
         dejavu_fonts
         cantarell-fonts
         google-fonts

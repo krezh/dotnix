@@ -82,15 +82,14 @@
       sddm = {
         enable = true;
         wayland.enable = true;
-        wayland.compositor = "kwin";
+        wayland.compositor = "weston";
         autoNumlock = true;
-        package = pkgs.kdePackages.sddm;
       };
       gdm = {
         enable = false;
         wayland = true;
       };
-      defaultSession = "hyprland";
+      defaultSession = "hyprland-uwsm";
     };
 
     fstrim.enable = true;
@@ -150,6 +149,7 @@
 
   programs.hyprland = {
     enable = true;
+    withUWSM = true;
   };
 
   hardware = {

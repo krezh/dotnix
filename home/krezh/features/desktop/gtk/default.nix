@@ -21,7 +21,7 @@
   gtk = {
     enable = true;
     font = {
-      name = "Inter";
+      name = "Noto Sans Medium";
       size = 11;
     };
     theme = {
