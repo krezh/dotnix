@@ -43,7 +43,7 @@ jobs:
           private-key: "${{ secrets.BOT_APP_PRIVATE_KEY }}"
 
       - name: Delete old successful workflow runs
-        uses: Mattraks/delete-workflow-runs@3d9fb231aa52470f6bbda413c24b62d0f5983fae # v2.1.0
+        uses: Mattraks/delete-workflow-runs@eccaeac8e3534d4eb7fe34988b2c91030dc073d0 # v2.1.0
         with:
           token: "${{ steps.app-token.outputs.token }}"
           repository: ${{ github.repository }}
@@ -54,7 +54,7 @@ jobs:
           dry_run: ${{ inputs.dry_run || false }}
 
       - name: Delete old failed workflow runs
-        uses: Mattraks/delete-workflow-runs@3d9fb231aa52470f6bbda413c24b62d0f5983fae # v2.1.0
+        uses: Mattraks/delete-workflow-runs@eccaeac8e3534d4eb7fe34988b2c91030dc073d0 # v2.1.0
         with:
           token: "${{ steps.app-token.outputs.token }}"
           repository: ${{ github.repository }}
