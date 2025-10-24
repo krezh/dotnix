@@ -17,15 +17,14 @@
     initrd = {
       verbose = false;
       availableKernelModules = [
-        "vmd"
-        "xhci_pci"
-        "ahci"
         "nvme"
+        "ahci"
+        "xhci_pci"
+        "thunderbolt"
         "usbhid"
-        "usb_storage"
-        "sd_mod"
       ];
     };
+    kernelModules = [ "kvm-amd" ];
     kernel.sysctl = {
       "kernel.nmi_watchdog" = 0;
       "kernel.sched_bore" = "1";
@@ -33,7 +32,6 @@
     consoleLogLevel = 0;
     kernelParams = [
       "ipv6.disable=1"
-      "intel_pstate=disable"
       "split_lock_detect=off"
       "quiet"
       "loglevel=3"
@@ -46,5 +44,5 @@
     ];
   };
 
-  hardware.cpu.intel.updateMicrocode = lib.mkDefault config.hardware.enableRedistributableFirmware;
+  hardware.cpu.amd.updateMicrocode = lib.mkDefault config.hardware.enableRedistributableFirmware;
 }

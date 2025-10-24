@@ -1,4 +1,4 @@
-{ config, ... }:
+{ config, pkgs, ... }:
 {
   programs = {
     git = {
@@ -23,6 +23,7 @@
         tag.forceSignAnnotated = true;
         init.defaultBranch = "main";
         url."ssh://git@github.com/".pushInsteadOf = "https://github.com/";
+        merge.tool = "meld";
       };
     };
     lazygit.enable = true;
@@ -30,4 +31,7 @@
       lg = "lazygit";
     };
   };
+  home.packages = with pkgs; [
+    meld
+  ];
 }

@@ -74,7 +74,7 @@
   services.hardware.openrgb = {
     enable = false;
     package = pkgs.openrgb-with-all-plugins;
-    motherboard = "intel";
+    motherboard = "amd";
   };
 
   services = {
@@ -129,6 +129,7 @@
   programs.evolution.enable = true;
   programs.sniffnet.enable = true;
 
+  services.timesyncd.servers = [ ];
   networking.networkmanager.enable = true;
   networking.networkmanager.wifi.backend = "iwd";
   networking.wireless.enable = lib.mkForce false;
