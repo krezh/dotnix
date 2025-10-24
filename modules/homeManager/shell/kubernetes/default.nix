@@ -2,6 +2,7 @@
   pkgs,
   lib,
   config,
+  inputs,
   ...
 }:
 with lib;
@@ -34,6 +35,7 @@ in
       cilium-cli
       kubectl-rook-ceph
       kubelogin-oidc
+      inputs.kauth.packages.${pkgs.system}.kauth
     ];
 
     programs.fish = {

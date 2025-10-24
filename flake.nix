@@ -92,11 +92,6 @@
       flake = false;
     };
 
-    # swww = {
-    #   url = "github:LGFae/swww";
-    #   inputs.nixpkgs.follows = "nixpkgs";
-    # };
-
     nix-gaming.url = "github:fufexan/nix-gaming";
 
     elephant = {
@@ -114,6 +109,9 @@
       url = "github:nix-community/cache-nix-action";
       flake = false;
     };
+
+    kauth.url = "github:krezh/kauth";
+    kauth.inputs.nixpkgs.follows = "nixpkgs";
   };
 
   outputs =
