@@ -29,6 +29,7 @@
     wl-screenrec
     hyprpicker
     resources
+    mission-center
     hyprmon
   ];
 }

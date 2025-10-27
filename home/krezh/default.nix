@@ -39,7 +39,6 @@ in
   catppuccin.cursors.enable = true;
   catppuccin.cursors.flavor = "mocha";
   catppuccin.cursors.accent = "light";
-  catppuccin.vscode.profiles.default.enable = false;
 
   sops = {
     age.keyFile = "${config.xdg.configHome}/sops/age/keys.txt";

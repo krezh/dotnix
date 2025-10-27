@@ -2,6 +2,7 @@ package snapshot
 
 import (
 	"fmt"
+	"os"
 	"sort"
 	"strings"
 
@@ -15,16 +16,34 @@ import (
 // ListCmd lists all snapshots grouped by backup name
 var ListCmd = &cobra.Command{
 	Use:   "list",
-	Short: "List all snapshots",
+	Short: "List snapshots from this computer (use --all for all hosts)",
 	Run: func(cmd *cobra.Command, args []string) {
+		all, _ := cmd.Flags().GetBool("all")
 		km := manager.NewKopiaManager()
-		snapshots, err := km.ListSnapshots()
+
+		// Determine which hostname to filter by
+		hostname := ""
+		if !all {
+			var err error
+			hostname, err = os.Hostname()
+			if err != nil {
+				log.Warn("Could not get hostname, showing all snapshots", "error", err)
+				hostname = "" // Show all if we can't determine hostname
+			}
+		}
+
+		// List snapshots with optional hostname filter
+		snapshots, err := km.ListSnapshots(hostname)
 		if err != nil {
 			log.Fatal("Failed to list snapshots", "error", err)
 		}
 
 		if len(snapshots) == 0 {
-			fmt.Println("No snapshots found.")
+			if hostname != "" {
+				ui.Infof("No snapshots found for host '%s'. Use --all to see snapshots from other hosts.", hostname)
+			} else {
+				ui.Info("No snapshots found.")
+			}
 			return
 		}
 
@@ -65,47 +84,30 @@ var ListCmd = &cobra.Command{
 			})
 
 			// Create table for this group
-			title := fmt.Sprintf(" %s (%d snapshot%s) ", name, len(snaps), func() string {
+			title := fmt.Sprintf("%s (%d snapshot%s)", name, len(snaps), func() string {
 				if len(snaps) == 1 {
 					return ""
 				}
 				return "s"
 			}())
 
-			table := ui.NewTableBuilder(title)
-			table.AddColumn("ID", ui.Dynamic)
-			table.AddColumn("Path", 30)
-			table.AddColumn("Time", 19)
-			table.AddColumn("Size", ui.Dynamic)
+			headers := []string{"ID", "Path", "Time", "Size"}
+			var rows [][]string
 
 			for _, snap := range snaps {
-				table.AddRow(
+				rows = append(rows, []string{
 					snap.ID,
-					snap.Source,
+					ui.ShortenPath(snap.Source),
 					snap.StartTime.Format("2006-01-02 15:04:05"),
-					formatSize(snap.TotalSize),
-				)
+					ui.FormatSize(snap.TotalSize),
+				})
 			}
 
-			fmt.Print(table.Build())
+			fmt.Println(ui.RenderTable(title, headers, rows))
 		}
 	},
 }
 
-// local size formatter to avoid depending on unexported internals
-func formatSize(bytes int64) string {
-	if bytes == 0 {
-		return "0 B"
-	}
-	const unit = 1024
-	if bytes < unit {
-		return fmt.Sprintf("%d B", bytes)
-	}
-	div, exp := int64(unit), 0
-	for n := bytes / unit; n >= unit; n /= unit {
-		div *= unit
-		exp++
-	}
-	units := []string{"KB", "MB", "GB", "TB", "PB"}
-	return fmt.Sprintf("%.2f %s", float64(bytes)/float64(div), units[exp])
+func init() {
+	ListCmd.Flags().BoolP("all", "A", false, "Show snapshots from all hosts")
 }

@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"kopia-manager/internal/ui"
@@ -26,27 +27,6 @@ import (
 	"github.com/kopia/kopia/snapshot/snapshotfs"
 	"github.com/kopia/kopia/snapshot/upload"
 )
-
-// formatSize formats bytes into human-readable size with appropriate units
-func formatSize(bytes int64) string {
-	if bytes == 0 {
-		return "0 B"
-	}
-
-	const unit = 1024
-	if bytes < unit {
-		return fmt.Sprintf("%d B", bytes)
-	}
-
-	div, exp := int64(unit), 0
-	for n := bytes / unit; n >= unit; n /= unit {
-		div *= unit
-		exp++
-	}
-
-	units := []string{"KB", "MB", "GB", "TB", "PB"}
-	return fmt.Sprintf("%.2f %s", float64(bytes)/float64(div), units[exp])
-}
 
 // NewKopiaManager creates a new KopiaManager instance
 func NewKopiaManager() *KopiaManager {
@@ -100,23 +80,23 @@ func (km *KopiaManager) GetStatus() (string, error) {
 	}
 
 	// Create table with repository status
-	table := ui.NewTableBuilder(" Repository Status ")
-	table.AddColumn("Property", ui.Dynamic)
-	table.AddColumn("Value", ui.Dynamic)
+	headers := []string{"Property", "Value"}
+	rows := [][]string{
+		{"Config file", km.ConfigPath},
+		{"Description", clientOpts.Description},
+		{"Hostname", clientOpts.Hostname},
+		{"Username", clientOpts.Username},
+		{"Read-only", fmt.Sprintf("%v", clientOpts.ReadOnly)},
+		{"Sources", fmt.Sprintf("%d", len(sources))},
+		{"Snapshots", fmt.Sprintf("%d", totalSnapshots)},
+	}
 
-	table.AddRow("Config file", km.ConfigPath)
-	table.AddRow("Description", clientOpts.Description)
-	table.AddRow("Hostname", clientOpts.Hostname)
-	table.AddRow("Username", clientOpts.Username)
-	table.AddRow("Read-only", fmt.Sprintf("%v", clientOpts.ReadOnly))
-	table.AddRow("Sources", fmt.Sprintf("%d", len(sources)))
-	table.AddRow("Snapshots", fmt.Sprintf("%d", totalSnapshots))
-
-	return table.Build(), nil
+	return ui.RenderTable("Repository Status", headers, rows), nil
 }
 
-// ListSnapshots returns all snapshots
-func (km *KopiaManager) ListSnapshots() ([]SnapshotSummary, error) {
+// ListSnapshots returns snapshots, optionally filtered by hostname
+// If hostname is empty, returns snapshots from all hosts
+func (km *KopiaManager) ListSnapshots(hostname string) ([]SnapshotSummary, error) {
 	ctx := context.Background()
 	r, err := km.openRepository(ctx)
 	if err != nil {
@@ -130,18 +110,48 @@ func (km *KopiaManager) ListSnapshots() ([]SnapshotSummary, error) {
 		return nil, fmt.Errorf("failed to list sources: %w", err)
 	}
 
-	var allSnapshots []SnapshotSummary
-
-	for _, source := range sources {
-		snapshots, err := snapshot.ListSnapshots(ctx, r, source)
-		if err != nil {
-			continue
-		}
-
-		for _, snap := range snapshots {
-			allSnapshots = append(allSnapshots, manifestToSummary(snap))
+	// Filter sources by hostname first
+	filteredSources := sources
+	if hostname != "" {
+		filteredSources = make([]snapshot.SourceInfo, 0, len(sources))
+		for _, source := range sources {
+			if source.Host == hostname {
+				filteredSources = append(filteredSources, source)
+			}
 		}
 	}
+
+	// Fetch snapshots in parallel for better performance
+	var (
+		mu           sync.Mutex
+		wg           sync.WaitGroup
+		allSnapshots = make([]SnapshotSummary, 0, len(filteredSources)*10)
+	)
+
+	for _, source := range filteredSources {
+		wg.Add(1)
+		go func(src snapshot.SourceInfo) {
+			defer wg.Done()
+
+			snapshots, err := snapshot.ListSnapshots(ctx, r, src)
+			if err != nil {
+				return
+			}
+
+			// Convert snapshots for this source
+			localSnapshots := make([]SnapshotSummary, 0, len(snapshots))
+			for _, snap := range snapshots {
+				localSnapshots = append(localSnapshots, manifestToSummary(snap))
+			}
+
+			// Append to shared slice with mutex protection
+			mu.Lock()
+			allSnapshots = append(allSnapshots, localSnapshots...)
+			mu.Unlock()
+		}(source)
+	}
+
+	wg.Wait()
 
 	// Sort by start time (newest first)
 	sort.Slice(allSnapshots, func(i, j int) bool {
@@ -177,7 +187,7 @@ func (km *KopiaManager) GetSnapshotInfo(snapshotID string) (string, error) {
 	result.WriteString(fmt.Sprintf("Source:              %s@%s:%s\n", snap.Source.UserName, snap.Source.Host, snap.Source.Path))
 	result.WriteString(fmt.Sprintf("Start Time:          %s\n", snap.StartTime.ToTime().Format(time.RFC3339)))
 	result.WriteString(fmt.Sprintf("End Time:            %s\n", snap.EndTime.ToTime().Format(time.RFC3339)))
-	result.WriteString(fmt.Sprintf("Total Size:          %s\n", formatSize(snap.Stats.TotalFileSize)))
+	result.WriteString(fmt.Sprintf("Total Size:          %s\n", ui.FormatSize(snap.Stats.TotalFileSize)))
 	result.WriteString(fmt.Sprintf("File Count:          %d\n", snap.Stats.TotalFileCount))
 	result.WriteString(fmt.Sprintf("Directory Count:     %d\n", snap.Stats.TotalDirectoryCount))
 	result.WriteString(fmt.Sprintf("Cached Files:        %d\n", snap.Stats.CachedFiles))
@@ -249,7 +259,7 @@ func (km *KopiaManager) CreateBackup(paths []string, description string) error {
 				return fmt.Errorf("failed to save snapshot: %w", err)
 			}
 
-			fmt.Printf("Snapshot created: %s\n", manifest.ID)
+			ui.Successf("Snapshot created: %s", manifest.ID)
 		}
 
 		return nil
@@ -303,21 +313,29 @@ func (km *KopiaManager) RestoreSnapshot(snapshotID, targetDir string) error {
 	}
 	defer rootEntry.Close()
 
+	// Create progress bar
+	totalSize := snap.Stats.TotalFileSize
+	progressBar := ui.NewSimpleProgressBar(fmt.Sprintf("Restoring snapshot %s", snapshotID), totalSize)
+
 	// Restore with options for full deep restore (no placeholders)
 	stats, err := restore.Entry(ctx, r, output, rootEntry, restore.Options{
 		Parallel:               4,
 		RestoreDirEntryAtDepth: math.MaxInt32, // Unlimited depth for full restore
 		MinSizeForPlaceholder:  0,             // Default value - not used when depth is unlimited
 		ProgressCallback: func(ctx context.Context, s restore.Stats) {
-			fmt.Printf("Restored %d files, %s\n", s.RestoredFileCount, formatSize(s.RestoredTotalFileSize))
+			progressBar.Update(s.RestoredTotalFileSize)
+			progressBar.Print()
 		},
 	})
 	if err != nil {
 		return fmt.Errorf("failed to restore: %w", err)
 	}
 
-	fmt.Printf("Restore completed: %d files, %d directories, %s\n",
-		stats.RestoredFileCount, stats.RestoredDirCount, formatSize(stats.RestoredTotalFileSize))
+	// Finish the progress bar
+	progressBar.Finish()
+
+	ui.Summaryf("Restore completed: %d files, %d directories, %s",
+		stats.RestoredFileCount, stats.RestoredDirCount, ui.FormatSize(stats.RestoredTotalFileSize))
 	return nil
 }
 
@@ -350,20 +368,20 @@ func (km *KopiaManager) DeleteSnapshot(snapshotID string, allFlag bool) error {
 			}
 
 			if len(allSnapshots) == 0 {
-				fmt.Println("No snapshots to delete.")
+				ui.Info("No snapshots to delete.")
 				return nil
 			}
 
-			fmt.Println("The following snapshots will be deleted:")
+			ui.Warning("The following snapshots will be deleted:")
 			for _, snap := range allSnapshots {
-				fmt.Printf("- %s (%s)\n", snap.ID, snap.Source.Path)
+				ui.Itemf("- %s (%s)", snap.ID, snap.Source.Path)
 			}
 
-			fmt.Print("Are you sure you want to delete ALL snapshots? Type 'yes' to confirm: ")
+			fmt.Print(ui.Prompt("Are you sure you want to delete ALL snapshots? Type 'yes' to confirm: "))
 			var input string
 			fmt.Scanln(&input)
 			if input != "yes" {
-				fmt.Println("Aborted.")
+				ui.Info("Aborted.")
 				return nil
 			}
 
@@ -371,9 +389,9 @@ func (km *KopiaManager) DeleteSnapshot(snapshotID string, allFlag bool) error {
 			for _, snap := range allSnapshots {
 				err := w.DeleteManifest(ctx, snap.ID)
 				if err != nil {
-					fmt.Fprintf(os.Stderr, "Failed to delete snapshot %s: %v\n", snap.ID, err)
+					ui.Errorf("Failed to delete snapshot %s: %v", snap.ID, err)
 				} else {
-					fmt.Printf("Deleted snapshot %s\n", snap.ID)
+					ui.Successf("Deleted snapshot %s", snap.ID)
 				}
 			}
 			return nil
@@ -390,7 +408,7 @@ func (km *KopiaManager) DeleteSnapshot(snapshotID string, allFlag bool) error {
 			return fmt.Errorf("failed to delete snapshot: %w", err)
 		}
 
-		fmt.Printf("Deleted snapshot %s\n", manifestID)
+		ui.Successf("Deleted snapshot %s", manifestID)
 		return nil
 	})
 }
@@ -474,7 +492,7 @@ func (km *KopiaManager) VerifyRepository() error {
 	for _, source := range sources {
 		snapshots, err := snapshot.ListSnapshots(ctx, r, source)
 		if err != nil {
-			fmt.Printf("Warning: failed to list snapshots for source %s: %v\n", source, err)
+			ui.Warningf("Warning: failed to list snapshots for source %s: %v", source, err)
 			continue
 		}
 
@@ -482,27 +500,23 @@ func (km *KopiaManager) VerifyRepository() error {
 			totalSnapshots++
 			_, err := r.VerifyObject(ctx, snap.RootObjectID())
 			if err != nil {
-				fmt.Printf("Error verifying snapshot %s: %v\n", snap.ID, err)
+				ui.Errorf("Error verifying snapshot %s: %v", snap.ID, err)
 			} else {
 				verifiedSnapshots++
-				fmt.Printf("Verified snapshot %s\n", snap.ID)
+				ui.Successf("Verified snapshot %s", snap.ID)
 			}
 		}
 	}
 
-	fmt.Printf("Verification completed: %d/%d snapshots verified successfully\n", verifiedSnapshots, totalSnapshots)
+	ui.Summaryf("Verification completed: %d/%d snapshots verified successfully", verifiedSnapshots, totalSnapshots)
 	return nil
 }
 
 // EstimateBackupSize estimates the size of a backup for given paths
 func (km *KopiaManager) EstimateBackupSize(paths []string, uploadSpeed int) (string, error) {
 	ctx := context.Background()
-	table := ui.NewTableBuilder(" Backup Size Estimates ")
-	table.AddColumn("Path", ui.Dynamic)
-	table.AddColumn("Files", 8)
-	table.AddColumn("Size", ui.Dynamic)
-	table.AddColumn("Est. Upload", ui.Dynamic)
-	table.AddColumn("Est. Time", ui.Dynamic)
+	headers := []string{"Path", "Files", "Size", "Est. Upload", "Est. Time"}
+	var rows [][]string
 
 	for _, path := range paths {
 		log.Info("Calculating size for path", "path", path)
@@ -511,13 +525,7 @@ func (km *KopiaManager) EstimateBackupSize(paths []string, uploadSpeed int) (str
 			log.Warn("Failed to fully calculate size for path", "path", path, "error", err)
 			log.Info("Continuing with partial results")
 			// Add a row with error indication
-			table.AddRow(
-				path,
-				"Error",
-				"N/A",
-				"N/A",
-				"N/A",
-			)
+			rows = append(rows, []string{path, "Error", "N/A", "N/A", "N/A"})
 			continue
 		}
 
@@ -528,16 +536,16 @@ func (km *KopiaManager) EstimateBackupSize(paths []string, uploadSpeed int) (str
 			estimatedTime = time.Duration(estimatedSeconds) * time.Second
 		}
 
-		table.AddRow(
+		rows = append(rows, []string{
 			path,
 			fmt.Sprintf("%d", totalFiles),
-			formatSize(totalSize),
-			formatSize(totalSize)+" (no dedup)",
+			ui.FormatSize(totalSize),
+			ui.FormatSize(totalSize) + " (no dedup)",
 			fmt.Sprintf("%v", estimatedTime),
-		)
+		})
 	}
 
-	return table.Build(), nil
+	return ui.RenderTable("Backup Size Estimates", headers, rows), nil
 }
 
 // calculatePathSize recursively calculates the total size and file count for a path
@@ -638,12 +646,10 @@ func (km *KopiaManager) ShowPolicy(path string) (string, error) {
 		return defSource.Path == sourceInfo.Path && defSource.Host == sourceInfo.Host && defSource.UserName == sourceInfo.UserName
 	}
 
-	// Create table using TableBuilder
-	title := fmt.Sprintf(" Policy for %s@%s:%s ", sourceInfo.UserName, sourceInfo.Host, sourceInfo.Path)
-	table := ui.NewTableBuilder(title)
-	table.AddColumn("Setting", 18)
-	table.AddColumn("Value", 45)
-	table.AddColumn("Source", 9)
+	// Create table
+	title := fmt.Sprintf("Policy for %s@%s:%s", sourceInfo.UserName, sourceInfo.Host, sourceInfo.Path)
+	headers := []string{"Setting", "Value", "Source"}
+	var rows [][]string
 
 	// Compression
 	compSource := "Inherited"
@@ -652,7 +658,7 @@ func (km *KopiaManager) ShowPolicy(path string) (string, error) {
 			compSource = "Defined"
 		}
 	}
-	table.AddRow("Compression", string(effective.CompressionPolicy.CompressorName), compSource)
+	rows = append(rows, []string{"Compression", string(effective.CompressionPolicy.CompressorName), compSource})
 
 	// Retention policy
 	annual := 0
@@ -687,7 +693,7 @@ func (km *KopiaManager) ShowPolicy(path string) (string, error) {
 		}
 	}
 	retentionValue := fmt.Sprintf("%dy/%dm/%dw/%dd/%dh/%dl", annual, monthly, weekly, daily, hourly, latest)
-	table.AddRow("Retention", retentionValue, retentionSource)
+	rows = append(rows, []string{"Retention", retentionValue, retentionSource})
 
 	// Files policy
 	if len(effective.FilesPolicy.IgnoreRules) > 0 {
@@ -707,11 +713,11 @@ func (km *KopiaManager) ShowPolicy(path string) (string, error) {
 			if i > 0 {
 				source = "" // Empty for continuation rows
 			}
-			table.AddRow(setting, rule, source)
+			rows = append(rows, []string{setting, rule, source})
 		}
 	}
 
-	return table.Build(), nil
+	return ui.RenderTable(title, headers, rows), nil
 }
 
 // DiffSnapshots compares two snapshots (simplified implementation)
@@ -749,11 +755,11 @@ func (km *KopiaManager) DiffSnapshots(snapshot1, snapshot2 string) (string, erro
 	result.WriteString(fmt.Sprintf("Comparing snapshots %s and %s:\n\n", snap1.ID, snap2.ID))
 	result.WriteString(fmt.Sprintf("Snapshot 1: %s (%s)\n", snap1.ID, snap1.StartTime.ToTime().Format(time.RFC3339)))
 	result.WriteString(fmt.Sprintf("  Size: %s, Files: %d, Dirs: %d\n",
-		formatSize(snap1.Stats.TotalFileSize), snap1.Stats.TotalFileCount, snap1.Stats.TotalDirectoryCount))
+		ui.FormatSize(snap1.Stats.TotalFileSize), snap1.Stats.TotalFileCount, snap1.Stats.TotalDirectoryCount))
 
 	result.WriteString(fmt.Sprintf("Snapshot 2: %s (%s)\n", snap2.ID, snap2.StartTime.ToTime().Format(time.RFC3339)))
 	result.WriteString(fmt.Sprintf("  Size: %s, Files: %d, Dirs: %d\n",
-		formatSize(snap2.Stats.TotalFileSize), snap2.Stats.TotalFileCount, snap2.Stats.TotalDirectoryCount))
+		ui.FormatSize(snap2.Stats.TotalFileSize), snap2.Stats.TotalFileCount, snap2.Stats.TotalDirectoryCount))
 
 	// Calculate differences
 	sizeDiff := snap2.Stats.TotalFileSize - snap1.Stats.TotalFileSize
@@ -761,7 +767,7 @@ func (km *KopiaManager) DiffSnapshots(snapshot1, snapshot2 string) (string, erro
 	dirsDiff := int64(snap2.Stats.TotalDirectoryCount) - int64(snap1.Stats.TotalDirectoryCount)
 
 	result.WriteString(fmt.Sprintf("\nDifferences:\n"))
-	result.WriteString(fmt.Sprintf("  Size: %+d bytes (%s)\n", sizeDiff, formatSize(sizeDiff)))
+	result.WriteString(fmt.Sprintf("  Size: %+d bytes (%s)\n", sizeDiff, ui.FormatSize(sizeDiff)))
 	result.WriteString(fmt.Sprintf("  Files: %+d\n", filesDiff))
 	result.WriteString(fmt.Sprintf("  Directories: %+d\n", dirsDiff))
 
@@ -1037,10 +1043,10 @@ func (km *KopiaManager) MountSnapshot(snapshotID, mountPoint string) error {
 		}
 	}
 
-	fmt.Printf("Mounting snapshot %s at %s...\n", snapshotID, mountPoint)
-	fmt.Printf("Command: kopia %s\n", strings.Join(args, " "))
-	fmt.Println("Note: This will start the mount process in the background.")
-	fmt.Println("Use 'kopia-manager unmount' to unmount when done.")
+	ui.Infof("Mounting snapshot %s at %s...", snapshotID, mountPoint)
+	ui.Infof("Command: kopia %s", strings.Join(args, " "))
+	ui.Note("Note: This will start the mount process in the background.")
+	ui.Help("Use 'kopia-manager unmount' to unmount when done.")
 
 	// Execute kopia mount command with proper process handling
 	cmd := exec.Command("kopia", args...)
@@ -1060,11 +1066,11 @@ func (km *KopiaManager) MountSnapshot(snapshotID, mountPoint string) error {
 
 	// Try to verify mount status, but don't fail if we can't verify
 	if err := km.checkMountStatus(mountPoint); err != nil {
-		fmt.Printf("Warning: Could not verify mount status: %v\n", err)
-		fmt.Printf("The mount process (PID %d) has been started.\n", cmd.Process.Pid)
-		fmt.Println("Check mount status manually with 'mount | grep kopia' or 'mountpoint <path>'")
+		ui.Warningf("Warning: Could not verify mount status: %v", err)
+		ui.Warningf("The mount process (PID %d) has been started.", cmd.Process.Pid)
+		ui.Help("Check mount status manually with 'mount | grep kopia' or 'mountpoint <path>'")
 	} else {
-		fmt.Printf("Successfully mounted snapshot %s at %s\n", snapshotID, mountPoint)
+		ui.Successf("Successfully mounted snapshot %s at %s", snapshotID, mountPoint)
 	}
 
 	return nil
@@ -1086,7 +1092,7 @@ func (km *KopiaManager) UnmountSnapshot(mountPoint string) error {
 		}
 	}
 
-	fmt.Printf("Successfully unmounted %s\n", mountPoint)
+	ui.Successf("Successfully unmounted %s", mountPoint)
 	return nil
 }
 
@@ -1180,7 +1186,13 @@ func (km *KopiaManager) RestoreBackupGroup(backupName, targetDir string) error {
 		return fmt.Errorf("failed to create target directory: %w", err)
 	}
 
-	// Restore latest snapshot for each path
+	// Calculate total size for progress tracking
+	totalSize := int64(0)
+	var restoreList []struct {
+		snapshot *snapshot.Manifest
+		target   string
+	}
+
 	for sourcePath, pathSnaps := range pathGroups {
 		// Sort by time and get the latest
 		sort.Slice(pathSnaps, func(i, j int) bool {
@@ -1188,21 +1200,77 @@ func (km *KopiaManager) RestoreBackupGroup(backupName, targetDir string) error {
 		})
 
 		latest := pathSnaps[0]
+		totalSize += latest.Stats.TotalFileSize
+
 		baseName := filepath.Base(sourcePath)
 		if baseName == "." || baseName == "/" {
 			baseName = "root"
 		}
 
 		restoreTarget := filepath.Join(targetDir, baseName)
-		fmt.Printf("Restoring snapshot %s (%s) to %s...\n", latest.ID, sourcePath, restoreTarget)
-
-		err := km.RestoreSnapshot(string(latest.ID), restoreTarget)
-		if err != nil {
-			return fmt.Errorf("failed to restore snapshot %s: %w", latest.ID, err)
-		}
+		restoreList = append(restoreList, struct {
+			snapshot *snapshot.Manifest
+			target   string
+		}{latest, restoreTarget})
 	}
 
-	fmt.Printf("Successfully restored backup group '%s' to %s\n", backupName, targetDir)
+	// Create overall progress bar for the entire backup group
+	progressBar := ui.NewSimpleProgressBar(fmt.Sprintf("Restoring backup group '%s'", backupName), totalSize)
+	restoredSize := int64(0)
+
+	// Restore latest snapshot for each path
+	for _, item := range restoreList {
+		snap := item.snapshot
+		restoreTarget := item.target
+
+		// Create filesystem output
+		output := &restore.FilesystemOutput{
+			TargetPath:           restoreTarget,
+			OverwriteDirectories: true,
+			OverwriteFiles:       true,
+			OverwriteSymlinks:    true,
+			SkipOwners:           true,
+			SkipPermissions:      true,
+		}
+
+		err := output.Init(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to initialize output: %w", err)
+		}
+
+		// Create a filesystem entry from the snapshot
+		rootEntry, err := snapshotfs.SnapshotRoot(r, snap)
+		if err != nil {
+			return fmt.Errorf("failed to create snapshot root entry: %w", err)
+		}
+
+		// Restore with progress tracking
+		_, err = restore.Entry(ctx, r, output, rootEntry, restore.Options{
+			Parallel:               4,
+			RestoreDirEntryAtDepth: math.MaxInt32,
+			MinSizeForPlaceholder:  0,
+			ProgressCallback: func(ctx context.Context, s restore.Stats) {
+				progressBar.Update(restoredSize + s.RestoredTotalFileSize)
+				progressBar.Print()
+			},
+		})
+
+		rootEntry.Close()
+
+		if err != nil {
+			return fmt.Errorf("failed to restore snapshot %s: %w", snap.ID, err)
+		}
+
+		// Update total restored size
+		restoredSize += snap.Stats.TotalFileSize
+		progressBar.Update(restoredSize)
+		progressBar.Print()
+	}
+
+	// Finish the progress bar
+	progressBar.Finish()
+
+	ui.Successf("Successfully restored backup group '%s' to %s", backupName, targetDir)
 	return nil
 }
 

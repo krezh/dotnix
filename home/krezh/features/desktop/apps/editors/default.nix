@@ -1,5 +1,6 @@
 {
   imports = [
     ./zed
+    ./vscode
   ];
 }

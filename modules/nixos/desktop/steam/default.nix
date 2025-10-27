@@ -84,7 +84,7 @@ in
     systemd.user.services.steam = {
       enable = true;
       description = "Steam (no-GUI background startup)";
-      wantedBy = [ "graphical-session.target" ];
+      wantedBy = [ "hyprland-session.target" ];
       path = [
         "/run/current-system/sw"
         "/run/wrappers/bin"
@@ -93,9 +93,7 @@ in
         ExecStart = "${lib.getExe pkgs.steam} -nochatui -nofriendsui -silent %U";
         Restart = "on-failure";
         RestartSec = "5s";
-        Environment = [
-          "STEAM_EXTRA_COMPAT_TOOLS_PATHS=${defaultSteamCompatToolsPath}"
-        ];
+        Environment = [ "STEAM_EXTRA_COMPAT_TOOLS_PATHS=${defaultSteamCompatToolsPath}" ];
       };
     };
 

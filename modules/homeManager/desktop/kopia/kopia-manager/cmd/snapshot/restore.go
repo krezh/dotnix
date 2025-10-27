@@ -32,22 +32,14 @@ Tab completion:
 
 		if restoreAll {
 			// Restore all snapshots from a backup group
-			log.Info("Starting restore of backup group", "group", identifier, "target", targetDir)
-
 			if err := km.RestoreBackupGroup(identifier, targetDir); err != nil {
 				log.Fatal("Restore failed", "error", err)
 			}
-
-			log.Info("Backup group restore completed successfully")
 		} else {
 			// Restore single snapshot
-			log.Info("Starting restore", "snapshot", identifier, "target", targetDir)
-
 			if err := km.RestoreSnapshot(identifier, targetDir); err != nil {
 				log.Fatal("Restore failed", "error", err)
 			}
-
-			log.Info("Restore completed successfully")
 		}
 	},
 }

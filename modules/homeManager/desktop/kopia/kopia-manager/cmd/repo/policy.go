@@ -28,7 +28,7 @@ var PolicyCmd = &cobra.Command{
 	},
 	ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		km := manager.NewKopiaManager()
-		snapshots, err := km.ListSnapshots()
+		snapshots, err := km.ListSnapshots("")
 		if err != nil {
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}

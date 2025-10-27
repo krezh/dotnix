@@ -6,12 +6,16 @@
 }:
 let
   cfg = config.hmModules.desktop.kopia;
-  kopiaManager = pkgs.buildGoModule {
+  kopiaManager = pkgs.buildGoApplication {
     pname = "kopia-manager";
-    version = "0.0.0";
+    version = "0.1.0";
     src = ./kopia-manager;
-    vendorHash = "sha256-lxkd/FeeFstpr4LqMEWsECak27/i2k93faZTlXnT+jA=";
+    modules = ./kopia-manager/gomod2nix.toml;
     buildInputs = [ pkgs.kopia ];
+    ldflags = [
+      "-s"
+      "-w"
+    ];
     postInstall = ''
       installShellCompletion --cmd kopia-manager \
         --bash <($out/bin/kopia-manager completion bash) \
@@ -39,9 +43,7 @@ let
       Service = {
         Type = "oneshot";
         ExecStart = "${pkgs.writeShellScript "kopia-backup" (builtins.readFile ./scripts/backup.sh)} ${name} ${configFile} ${passwordFile} ${configJson}";
-        Environment = [
-          "KOPIA_CHECK_FOR_UPDATES=false"
-        ];
+        Environment = [ "KOPIA_CHECK_FOR_UPDATES=false" ];
       };
     };
 

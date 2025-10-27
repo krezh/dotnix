@@ -44,6 +44,7 @@ type BackupEstimate struct {
 type SnapshotSummary struct {
 	ID          string
 	Source      string
+	Hostname    string
 	Description string
 	StartTime   time.Time
 	EndTime     time.Time
@@ -63,6 +64,7 @@ func manifestToSummary(m *snapshot.Manifest) SnapshotSummary {
 	return SnapshotSummary{
 		ID:          string(m.ID),
 		Source:      m.Source.Path,
+		Hostname:    m.Source.Host,
 		Description: m.Description,
 		StartTime:   m.StartTime.ToTime(),
 		EndTime:     m.EndTime.ToTime(),

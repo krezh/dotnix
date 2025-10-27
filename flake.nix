@@ -110,8 +110,15 @@
       flake = false;
     };
 
-    kauth.url = "github:krezh/kauth";
-    kauth.inputs.nixpkgs.follows = "nixpkgs";
+    kauth = {
+      url = "github:krezh/kauth";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
+    gomod2nix = {
+      url = "github:nix-community/gomod2nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs =
@@ -183,7 +190,6 @@
               (import "${inputs.cache-nix-action}/saveFromGC.nix" {
                 inherit pkgs inputs;
                 inputsExclude = [
-                  # TODO: errors from nixpkgs.lib that I can't fix
                   inputs.flake-parts
                 ];
               }).saveFromGC;

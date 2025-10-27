@@ -32,8 +32,6 @@ Examples:
 		mountPoint := args[1]
 		browse, _ := cmd.Flags().GetBool("browse")
 
-		log.Info("Mounting snapshot", "snapshot", snapshotID, "mountPoint", mountPoint)
-
 		if err := km.MountSnapshot(snapshotID, mountPoint); err != nil {
 			log.Fatal("Mount failed", "error", err)
 		}
@@ -60,8 +58,6 @@ Examples:
 		km := manager.NewKopiaManager()
 		mountPoint := args[0]
 
-		log.Info("Unmounting", "mountPoint", mountPoint)
-
 		if err := km.UnmountSnapshot(mountPoint); err != nil {
 			log.Fatal("Unmount failed", "error", err)
 		}
@@ -79,20 +75,18 @@ var ListMountsCmd = &cobra.Command{
 		}
 
 		if len(mounts) == 0 {
-			fmt.Println("No active kopia mounts found.")
+			ui.Info("No active kopia mounts found.")
 			return
 		}
 
-		table := ui.NewTableBuilder(" Active Kopia Mounts ")
-		table.AddColumn("Mount Point", ui.Dynamic)
-		table.AddColumn("Source", ui.Dynamic)
-		table.AddColumn("Type", ui.Dynamic)
+		headers := []string{"Mount Point", "Source", "Type"}
+		var rows [][]string
 
 		for _, mount := range mounts {
-			table.AddRow(mount.MountPoint, mount.Source, mount.Type)
+			rows = append(rows, []string{mount.MountPoint, mount.Source, mount.Type})
 		}
 
-		fmt.Print(table.Build())
+		fmt.Print(ui.RenderTable("Active Kopia Mounts", headers, rows))
 	},
 }
 

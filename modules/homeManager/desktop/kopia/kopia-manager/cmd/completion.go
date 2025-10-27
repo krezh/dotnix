@@ -48,7 +48,7 @@ PS> kopia-manager completion powershell | Out-String | Invoke-Expression
 // getAvailableBackupNames returns unique backup names extracted from snapshot descriptions.
 func getAvailableBackupNames() []string {
 	km := manager.NewKopiaManager()
-	snapshots, err := km.ListSnapshots()
+	snapshots, err := km.ListSnapshots("")
 	if err != nil {
 		return []string{}
 	}
@@ -78,7 +78,7 @@ func getAvailableBackupNames() []string {
 // getAvailableSnapshotIDs returns all snapshot IDs for completion.
 func getAvailableSnapshotIDs() []string {
 	km := manager.NewKopiaManager()
-	snapshots, err := km.ListSnapshots()
+	snapshots, err := km.ListSnapshots("")
 	if err != nil {
 		return []string{}
 	}
@@ -94,7 +94,7 @@ func getAvailableSnapshotIDs() []string {
 // getAvailableBackupGroups groups snapshots by their logical backup name.
 func getAvailableBackupGroups() []string {
 	km := manager.NewKopiaManager()
-	snapshots, err := km.ListSnapshots()
+	snapshots, err := km.ListSnapshots("")
 	if err != nil {
 		return []string{}
 	}

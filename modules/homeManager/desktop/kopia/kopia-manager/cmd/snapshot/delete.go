@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"kopia-manager/internal/manager"
+	"kopia-manager/internal/ui"
 
 	"github.com/charmbracelet/log"
 
@@ -30,26 +31,22 @@ var DeleteCmd = &cobra.Command{
 		}
 
 		if len(args) != 1 {
-			fmt.Fprintln(os.Stderr, "You must specify a snapshot ID.")
+			fmt.Fprintln(os.Stderr, ui.ErrorStyle.Render("You must specify a snapshot ID."))
 			os.Exit(2)
 		}
 
 		snapshotID := args[0]
-		fmt.Printf("Are you sure you want to delete snapshot %s? (y/N): ", snapshotID)
+		fmt.Print(ui.Promptf("Are you sure you want to delete snapshot %s? (y/N): ", snapshotID))
 		var response string
 		fmt.Scanln(&response)
 		if strings.ToLower(response) != "y" {
-			fmt.Println("Operation cancelled.")
+			ui.Info("Operation cancelled.")
 			return
 		}
-
-		log.Info("Deleting snapshot", "snapshot", snapshotID)
 
 		if err := km.DeleteSnapshot(snapshotID, false); err != nil {
 			log.Fatal("Delete failed", "error", err)
 		}
-
-		log.Info("Snapshot deleted successfully")
 	},
 }
 

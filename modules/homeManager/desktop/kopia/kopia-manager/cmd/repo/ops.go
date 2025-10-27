@@ -15,13 +15,9 @@ var MaintenanceCmd = &cobra.Command{
 		km := manager.NewKopiaManager()
 		unsafe, _ := cmd.Flags().GetBool("unsafe")
 
-		log.Info("Starting maintenance", "unsafe", unsafe)
-
 		if err := km.RunMaintenance(unsafe); err != nil {
 			log.Fatal("Maintenance failed", "error", err)
 		}
-
-		log.Info("Maintenance completed successfully")
 	},
 }
 
@@ -32,13 +28,9 @@ var VerifyCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		km := manager.NewKopiaManager()
 
-		log.Info("Starting verification")
-
 		if err := km.VerifyRepository(); err != nil {
 			log.Fatal("Verification failed", "error", err)
 		}
-
-		log.Info("Verification completed")
 	},
 }
 

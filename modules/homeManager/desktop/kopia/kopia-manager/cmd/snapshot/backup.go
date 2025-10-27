@@ -19,12 +19,8 @@ var BackupCmd = &cobra.Command{
 		km := manager.NewKopiaManager()
 		description := fmt.Sprintf("Manual backup: %s", time.Now().Format("2006-01-02 15:04:05"))
 
-		log.Info("Starting backup", "paths", args)
-
 		if err := km.CreateBackup(args, description); err != nil {
 			log.Fatal("Backup failed", "error", err)
 		}
-
-		log.Info("Backup completed successfully")
 	},
 }

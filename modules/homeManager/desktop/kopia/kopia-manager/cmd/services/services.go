@@ -44,17 +44,13 @@ Use 'kopia-manager services' to see available backup services.`,
 		km := manager.NewKopiaManager()
 		backupName := args[0]
 
-		log.Info("Triggering backup service", "backup", backupName)
-
 		if err := km.TriggerBackupService(backupName); err != nil {
 			log.Fatal("Failed to start backup service", "error", err, "backup", backupName)
 		}
 
-		fmt.Printf("Started systemd service: kopia-backup-%s.service\n", backupName)
-		fmt.Println("Use 'kopia-manager services' to check status")
-		fmt.Println("Use 'kopia-manager logs' to view backup logs")
-
-		log.Info("Backup service triggered successfully", "backup", backupName)
+		ui.Successf("Started systemd service: kopia-backup-%s.service", backupName)
+		ui.Help("Use 'kopia-manager services' to check status")
+		ui.Help("Use 'kopia-manager logs' to view backup logs")
 	},
 }
 
@@ -87,15 +83,12 @@ var ListServicesCmd = &cobra.Command{
 		}
 
 		if len(services) == 0 {
-			fmt.Println("No backup services found.")
+			ui.Info("No backup services found.")
 			return
 		}
 
-		table := ui.NewTableBuilder(" Available Backup Services ")
-		table.AddColumn("Service Name", ui.Dynamic)
-		table.AddColumn("Timer Status", ui.Dynamic)
-		table.AddColumn("Last Run", ui.Dynamic)
-		table.AddColumn("Next Run", ui.Dynamic)
+		headers := []string{"Service Name", "Timer Status", "Last Run", "Next Run"}
+		var rows [][]string
 
 		for _, service := range services {
 			// Get last run time
@@ -106,11 +99,10 @@ var ListServicesCmd = &cobra.Command{
 			timerStatus := getServiceActiveStatus(timerName)
 			nextRun := getTimerNextRun(timerName)
 
-			// Note: Column ordering mirrors original behavior
-			table.AddRow(service, lastRun, timerStatus, nextRun)
+			rows = append(rows, []string{service, lastRun, timerStatus, nextRun})
 		}
 
-		fmt.Print(table.Build())
+		fmt.Print(ui.RenderTable("Available Backup Services", headers, rows))
 	},
 }
 
