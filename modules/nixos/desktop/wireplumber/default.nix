@@ -210,5 +210,18 @@ in
     environment.systemPackages = lib.optionals cfg.audioSwitching.enable [
       (pkgs.writeShellScriptBin "audio-switch" (builtins.readFile audio-switch-script))
     ];
+
+    # Automatically restart wireplumber and pipewire when configuration changes
+    systemd.user.services.wireplumber = {
+      restartTriggers = [
+        (builtins.toJSON (builtins.listToAttrs (map generateDeviceConfig allDevices)))
+      ];
+    };
+
+    systemd.user.services.pipewire = {
+      restartTriggers = [
+        (builtins.toJSON (builtins.listToAttrs (map generateDeviceConfig allDevices)))
+      ];
+    };
   };
 }

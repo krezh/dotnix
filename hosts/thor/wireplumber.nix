@@ -4,7 +4,7 @@
     enable = true;
     audioSwitching = {
       enable = true;
-      primary = "A50 Game Audio";
+      primary = "A50";
       secondary = "Argon Speakers";
     };
     hideNodes = [
@@ -21,24 +21,14 @@
         nick = "Argon Speakers";
       }
       {
-        nodeName = "alsa_output.usb-Logitech_A50-00.pro-output-0";
-        description = "A50 Chat Audio";
-        nick = "A50 Chat";
+        nodeName = "alsa_output.usb-Logitech_A50-00.iec958-stereo";
+        description = "A50";
+        nick = "A50";
       }
       {
-        nodeName = "alsa_output.usb-Logitech_A50-00.pro-output-1";
-        description = "A50 Game Audio";
-        nick = "A50 Game";
-      }
-      {
-        nodeName = "alsa_input.usb-Logitech_A50-00.pro-input-0";
-        description = "A50 Microphone";
-        nick = "A50 Mic";
-      }
-      {
-        nodeName = "alsa_input.usb-Logitech_A50-00.pro-input-1";
-        description = "A50 Chat Input";
-        nick = "A50 Chat Mic";
+        nodeName = "alsa_input.usb-Logitech_A50-00.mono-fallback";
+        description = "A50";
+        nick = "A50";
       }
     ];
     deviceSettings = {
@@ -52,7 +42,7 @@
         priority = 51;
         deviceProps = {
           "api.acp.auto-profile" = "false";
-          "device.profile" = "pro-audio";
+          "device.profile" = "iec958-stereo";
         };
       };
     };

@@ -12,7 +12,9 @@ SPEAKERS_NAME="@SECONDARY_DEVICE_NAME@"
 # Function to get node ID by display name
 get_node_id() {
     local display_name="$1"
-    wpctl status | grep "$display_name" | grep -o "[0-9]\+" | head -1
+    # Extract sink ID from the Sinks section only
+    # Use awk to extract only the Sinks section, then grep for the display name
+    wpctl status | awk '/├─ Sinks:/,/├─ (Sources|Filters|$)/ {if (/├─ Sinks:/) next; if (/├─ (Sources|Filters)/) exit; print}' | grep "$display_name" | grep -oP '\s+\K[0-9]+(?=\.\s+\w)' | head -1
 }
 
 # Function to get current default sink ID and name

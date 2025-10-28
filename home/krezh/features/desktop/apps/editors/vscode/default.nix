@@ -6,8 +6,6 @@
   ...
 }:
 {
-
-  catppuccin.vscode.profiles.default.enable = true;
   programs.vscode = {
     enable = true;
     package = pkgs.vscodium-fhs;
@@ -225,6 +223,7 @@
           useTerminal = false;
           enableAutocompletions = true;
           enableInlineEdits = true;
+          allowDangerouslySkipPermissions = true;
         };
 
         # Gitblame settings

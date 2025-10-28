@@ -34,7 +34,7 @@
       relative_line_numbers = false;
       tab_size = 2;
       minimap = {
-        show = "always";
+        show = "never";
       };
       context_servers = {
         nixos = {

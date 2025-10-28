@@ -123,6 +123,7 @@ in
       hyperfine
       antares
       hypr-slurp
+      vdhcoapp
 
       # Secrets
       age-plugin-yubikey

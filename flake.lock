@@ -523,11 +523,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1761501962,
-        "narHash": "sha256-Fti3MKkYbWJ5+YcKfT+fFhiFTp94PVbwB9Q+qmQtFSA=",
+        "lastModified": 1761654929,
+        "narHash": "sha256-wS82hdZ9RKhhzyPvfS1jRQsYnbkeMR1BS5D4h1Ws00c=",
         "owner": "krezh",
         "repo": "kauth",
-        "rev": "ed1a71b1bedfe86d07dec844002f61e0850cc5d7",
+        "rev": "aab9e07950cb47851108d0c383de526ad1c49a52",
         "type": "github"
       },
       "original": {
