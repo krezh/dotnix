@@ -11,318 +11,351 @@
   programs.vscode = {
     enable = true;
     package = pkgs.vscodium-fhs;
-    profiles.default.enableExtensionUpdateCheck = false;
-    profiles.default.enableUpdateCheck = false;
-    profiles.default.extensions = with pkgs.vscode-extensions; [
-      esbenp.prettier-vscode
-      redhat.vscode-yaml
-      signageos.signageos-vscode-sops
-      golang.go
-      rust-lang.rust-analyzer
-      jnoortheen.nix-ide
-      nefrob.vscode-just-syntax
-      docker.docker
-      github.vscode-github-actions
-      gruntfuggly.todo-tree
-      timonwong.shellcheck
-      anthropic.claude-code
-      tamasfe.even-better-toml
-      mads-hartmann.bash-ide-vscode
-      bmalehorn.vscode-fish
-      waderyan.gitblame
-    ];
-    profiles.default.userSettings = {
-      # Telemetry and updates
-      telemetry.telemetryLevel = "off";
-      update.mode = "none";
-      extensions.autoUpdate = false;
-      redhat.telemetry.enabled = false;
-
-      # Window settings
-      window.titleBarStyle = "custom";
-
-      # Workbench settings
-      workbench = {
-        startupEditor = "none";
-        editor = {
-          showTabs = "single";
-          empty.hint = "hidden";
-          autoLockGroups."mainThreadWebview-markdown.preview" = true;
-        };
-      };
-
-      # Breadcrumbs
-      breadcrumbs.enabled = true;
-
-      # Editor settings
-      editor = {
-        fontLigatures = true;
-        minimap.enabled = false;
-        fontFamily = "'JetBrainsMono Nerd Font','CaskaydiaCove NFM','Cascadia Code',  monospace";
-        defaultFormatter = "esbenp.prettier-vscode";
-        formatOnPaste = true;
-        formatOnSave = true;
-        linkedEditing = true;
-        tabCompletion = "on";
-        cursorSmoothCaretAnimation = "on";
-        renderControlCharacters = false;
-        smoothScrolling = true;
-        cursorStyle = "block";
-        cursorBlinking = "phase";
-        find.cursorMoveOnType = true;
-        suggest.preview = true;
-        fontSize = 15;
-        tabSize = 2;
-        accessibilitySupport = "off";
-        bracketPairColorization.independentColorPoolPerBracketType = true;
-        renderWhitespace = "none";
-        inlayHints.enabled = "on";
-        stickyScroll.enabled = true;
-      };
-
-      # Search settings
-      search.exclude = {
-        "**/.direnv" = true;
-        "**/.git" = true;
-        "**/node_modules" = true;
-        "*.lock" = true;
-        dist = true;
-        tmp = true;
-      };
-
-      # Terminal settings
-      terminal.integrated = {
-        copyOnSelection = true;
-        cursorBlinking = true;
-        enablePersistentSessions = false;
-        hideOnStartup = "whenEmpty";
-      };
-
-      # Git settings
-      git = {
-        autofetch = true;
-        enableSmartCommit = true;
-        confirmSync = false;
-        autoStash = true;
-        closeDiffOnOperation = true;
-        fetchOnPull = true;
-        mergeEditor = true;
-        pruneOnFetch = true;
-        pullBeforeCheckout = true;
-        rebaseWhenSync = true;
-        ignoreRebaseWarning = true;
-      };
-
-      # GitHub settings
-      github.gitProtocol = "ssh";
-      githubPullRequests = {
-        fileListLayout = "flat";
-        pullBranch = "never";
-      };
-      githubIssues.queries = [
-        {
-          label = "My Issues";
-          query = "default";
-        }
-        {
-          label = "Created Issues";
-          query = "author:\${user} state:open repo:\${owner}/\${repository} sort:created-desc";
-        }
-        {
-          label = "Recent Issues";
-          query = "state:open repo:\${owner}/\${repository} sort:updated-desc";
-        }
+    profiles.default = {
+      enableExtensionUpdateCheck = false;
+      enableUpdateCheck = false;
+      extensions = with pkgs.vscode-extensions; [
+        esbenp.prettier-vscode
+        redhat.vscode-yaml
+        signageos.signageos-vscode-sops
+        golang.go
+        rust-lang.rust-analyzer
+        jnoortheen.nix-ide
+        nefrob.vscode-just-syntax
+        docker.docker
+        github.vscode-github-actions
+        gruntfuggly.todo-tree
+        timonwong.shellcheck
+        anthropic.claude-code
+        tamasfe.even-better-toml
+        mads-hartmann.bash-ide-vscode
+        bmalehorn.vscode-fish
+        waderyan.gitblame
+        alefragnani.project-manager
       ];
+      userSettings = {
+        # Telemetry and updates
+        telemetry.telemetryLevel = "off";
+        update.mode = "none";
+        extensions.autoUpdate = false;
+        redhat.telemetry.enabled = false;
 
-      # Explorer settings
-      explorer = {
-        confirmDelete = false;
-        confirmDragAndDrop = false;
-      };
-
-      # SCM settings
-      scm = {
-        alwaysShowActions = true;
-        defaultViewMode = "tree";
-      };
-
-      # Files settings
-      files = {
-        associations = {
-          "*.tf" = "opentofu";
-          CODEOWNERS = "plaintext";
-        };
-        exclude = {
-          "**/.trunk/*actions/" = true;
-          "**/.trunk/*logs/" = true;
-          "**/.trunk/*notifications/" = true;
-          "**/.trunk/*out/" = true;
-          "**/.trunk/*plugins/" = true;
-        };
-        watcherExclude = {
-          "**/.trunk/*actions/" = true;
-          "**/.trunk/*logs/" = true;
-          "**/.trunk/*notifications/" = true;
-          "**/.trunk/*out/" = true;
-          "**/.trunk/*plugins/" = true;
-        };
-      };
-
-      # Prettier settings
-      prettier = {
-        tabWidth = 2;
-        singleAttributePerLine = true;
-        bracketSameLine = true;
-      };
-
-      # Security settings
-      security.workspace.trust.untrustedFiles = "open";
-
-      # Settings sync
-      settingsSync = {
-        ignoredSettings = [ ];
-        ignoredExtensions = [ ];
-      };
-
-      # Diff editor
-      diffEditor = {
-        ignoreTrimWhitespace = false;
-        hideUnchangedRegions.enabled = true;
-      };
-
-      # Remote settings
-      remote.autoForwardPortsSource = "hybrid";
-
-      # Cron settings
-      cron-explained = {
-        cronstrueOptions.verbose = false;
-        codeLens.showTranscript = false;
-      };
-
-      # Chat settings
-      chat = {
-        editing.confirmEditRequestRemoval = false;
-        commandCenter.enabled = true;
-      };
-
-      # GitHub Copilot settings
-      github.copilot = {
-        editor.enableAutoCompletions = false;
-        enable."*" = false;
-      };
-
-      # Claude Code settings
-      claude = {
-        enableAutocompletions = true;
-        enableInlineEdits = true;
-      };
-
-      # Gitblame settings
-      gitblame = {
-        ignoreWhitespace = true;
-        inlineMessageEnabled = true;
-      };
-
-      # Language-specific: Nix
-      nix = {
-        enableLanguageServer = true;
-        serverPath = "nixd";
-        serverSettings.nixd = {
-          formatting.command = [ "${lib.getExe pkgs.nixfmt-rfc-style}" ];
-          nixpkgs.expr = "import (builtins.getFlake \"${inputs.self}\").inputs.nixpkgs { }";
-          options = rec {
-            nixos.expr = "(builtins.getFlake \"${inputs.self}\").nixosConfigurations.${hostname}.options";
-            home-manager.expr = "${nixos.expr}.home-manager.users.type.getSubOptions []";
+        # Window settings
+        window.titleBarStyle = "custom";
+        window.density.editorTabHeight = "default";
+        # Workbench settings
+        workbench = {
+          startupEditor = "none";
+          workbench.list.smoothScrolling = true;
+          editor = {
+            empty.hint = "hidden";
+            autoLockGroups."mainThreadWebview-markdown.preview" = true;
           };
-          diagnostic.suppress = [
-            "sema-extra-with"
+        };
+
+        # Breadcrumbs
+        breadcrumbs.enabled = true;
+
+        # Editor settings
+        editor = {
+          fontLigatures = true;
+          minimap.enabled = false;
+          fontFamily = "'JetBrainsMono Nerd Font',monospace";
+          defaultFormatter = "esbenp.prettier-vscode";
+          formatOnPaste = true;
+          formatOnSave = true;
+          linkedEditing = true;
+          tabCompletion = "on";
+          cursorSmoothCaretAnimation = "on";
+          renderControlCharacters = false;
+          smoothScrolling = true;
+          cursorStyle = "block";
+          cursorBlinking = "phase";
+          find.cursorMoveOnType = true;
+          suggest.preview = true;
+          fontSize = 15;
+          tabSize = 2;
+          accessibilitySupport = "off";
+          bracketPairColorization.independentColorPoolPerBracketType = true;
+          renderWhitespace = "none";
+          inlayHints.enabled = "on";
+          stickyScroll.enabled = true;
+          selectionClipboard = false;
+          autoIndentOnPaste = false;
+          guides.bracketPairs = false;
+        };
+
+        # Search settings
+        search.exclude = {
+          "**/.direnv" = true;
+          "**/.git" = true;
+          "**/node_modules" = true;
+          "*.lock" = true;
+          dist = true;
+          tmp = true;
+        };
+
+        # Terminal settings
+        terminal.integrated = {
+          copyOnSelection = true;
+          cursorBlinking = true;
+          enablePersistentSessions = false;
+          hideOnStartup = "whenEmpty";
+        };
+
+        # Git settings
+        git = {
+          autofetch = true;
+          enableSmartCommit = true;
+          confirmSync = false;
+          autoStash = true;
+          closeDiffOnOperation = true;
+          fetchOnPull = true;
+          mergeEditor = true;
+          pruneOnFetch = true;
+          pullBeforeCheckout = true;
+          rebaseWhenSync = true;
+          ignoreRebaseWarning = true;
+          blame = {
+            statusBarItem.enabled = true;
+            editorDecoration.enabled = true;
+          };
+        };
+
+        # GitHub settings
+        github.gitProtocol = "ssh";
+        githubPullRequests = {
+          fileListLayout = "flat";
+          pullBranch = "never";
+        };
+        githubIssues.queries = [
+          {
+            label = "My Issues";
+            query = "default";
+          }
+          {
+            label = "Created Issues";
+            query = "author:\${user} state:open repo:\${owner}/\${repository} sort:created-desc";
+          }
+          {
+            label = "Recent Issues";
+            query = "state:open repo:\${owner}/\${repository} sort:updated-desc";
+          }
+        ];
+
+        # Explorer settings
+        explorer = {
+          confirmDelete = false;
+          confirmDragAndDrop = false;
+        };
+
+        # SCM settings
+        scm = {
+          alwaysShowActions = true;
+          defaultViewMode = "tree";
+        };
+
+        # Files settings
+        files = {
+          associations = {
+            "*.tf" = "opentofu";
+            CODEOWNERS = "plaintext";
+          };
+          exclude = {
+            "**/.trunk/*actions/" = true;
+            "**/.trunk/*logs/" = true;
+            "**/.trunk/*notifications/" = true;
+            "**/.trunk/*out/" = true;
+            "**/.trunk/*plugins/" = true;
+          };
+          watcherExclude = {
+            "**/.trunk/*actions/" = true;
+            "**/.trunk/*logs/" = true;
+            "**/.trunk/*notifications/" = true;
+            "**/.trunk/*out/" = true;
+            "**/.trunk/*plugins/" = true;
+          };
+        };
+
+        # Prettier settings
+        prettier = {
+          tabWidth = 2;
+          singleAttributePerLine = true;
+          bracketSameLine = true;
+        };
+
+        # Security settings
+        security.workspace.trust.untrustedFiles = "open";
+
+        # Settings sync
+        settingsSync = {
+          ignoredSettings = [ ];
+          ignoredExtensions = [ ];
+        };
+
+        # Diff editor
+        diffEditor = {
+          ignoreTrimWhitespace = false;
+          hideUnchangedRegions.enabled = true;
+        };
+
+        # Remote settings
+        remote.autoForwardPortsSource = "hybrid";
+
+        # Cron settings
+        cron-explained = {
+          cronstrueOptions.verbose = false;
+          codeLens.showTranscript = false;
+        };
+
+        # Chat settings
+        chat = {
+          editing.confirmEditRequestRemoval = false;
+          commandCenter.enabled = true;
+        };
+
+        # GitHub Copilot settings
+        github.copilot = {
+          editor.enableAutoCompletions = false;
+          enable."*" = false;
+        };
+
+        # Claude Code settings
+        claudeCode = {
+          useTerminal = false;
+          enableAutocompletions = true;
+          enableInlineEdits = true;
+        };
+
+        # Gitblame settings
+        gitblame = {
+          ignoreWhitespace = true;
+          inlineMessageEnabled = false;
+          statusBarMessageEnabled = true;
+        };
+
+        # Language-specific: Nix
+        nix = {
+          enableLanguageServer = true;
+          serverPath = "nixd";
+          serverSettings.nixd = {
+            formatting.command = [ "${lib.getExe pkgs.nixfmt-rfc-style}" ];
+            nixpkgs.expr = "import (builtins.getFlake \"${inputs.self}\").inputs.nixpkgs { }";
+            options = rec {
+              nixos.expr = "(builtins.getFlake \"${inputs.self}\").nixosConfigurations.${hostname}.options";
+              home-manager.expr = "${nixos.expr}.home-manager.users.type.getSubOptions []";
+            };
+            diagnostic.suppress = [
+              "sema-extra-with"
+            ];
+          };
+          hiddenLanguageServerErrors = [
+            "textDocument/definition"
+            "unknown node type for definition"
           ];
         };
-        hiddenLanguageServerErrors = [
-          "textDocument/definition"
-          "unknown node type for definition"
-        ];
-      };
-      "[nix]".editor.defaultFormatter = "jnoortheen.nix-ide";
+        "[nix]".editor.defaultFormatter = "jnoortheen.nix-ide";
 
-      # Language-specific: Rust
-      rust-analyzer.server.path = "rust-analyzer";
+        # Language-specific: Rust
+        rust-analyzer.server.path = "rust-analyzer";
 
-      # Language-specific: Go
-      go = {
-        toolsManagement.autoUpdate = true;
-        inlayHints.assignVariableTypes = true;
-      };
-      gopls."ui.documentation.hoverKind" = "FullDocumentation";
-      "[go]".editor.defaultFormatter = "golang.go";
-
-      # Language-specific: YAML
-      yaml = {
-        format.enable = true;
-        validate = true;
-      };
-      "[yaml]" = {
-        editor = {
-          defaultFormatter = "redhat.vscode-yaml";
-          autoIndent = "full";
-          detectIndentation = true;
+        # Language-specific: Go
+        go = {
+          toolsManagement.autoUpdate = true;
+          inlayHints.assignVariableTypes = true;
         };
-        diffEditor.ignoreTrimWhitespace = true;
-      };
+        gopls."ui.documentation.hoverKind" = "FullDocumentation";
+        "[go]".editor.defaultFormatter = "golang.go";
 
-      # Language-specific: JSON
-      "[json]".editor.defaultFormatter = "vscode.json-language-features";
-      "[jsonc]" = {
-        editor = {
-          quickSuggestions.strings = true;
-          suggest.insertMode = "replace";
+        # Language-specific: YAML
+        yaml = {
+          format.enable = true;
+          validate = true;
         };
-      };
-
-      # Language-specific: Fish
-      "[fish]".editor.defaultFormatter = "bmalehorn.vscode-fish";
-
-      # Language-specific: Shell
-      "[shellscript]".editor.defaultFormatter = "mads-hartmann.bash-ide-vscode";
-
-      # Language-specific: OpenTofu
-      opentofu = {
-        codelens.referenceCount = true;
-        experimentalFeatures.prefillRequiredFields = true;
-      };
-      "[opentofu]".editor.defaultFormatter = "opentofu.vscode-opentofu";
-
-      # Language-specific: Docker
-      "[dockerbake]".editor.defaultFormatter = "docker.docker";
-      "[dockercompose]" = {
-        editor = {
-          insertSpaces = true;
-          tabSize = 2;
-          autoIndent = "advanced";
-          defaultFormatter = "redhat.vscode-yaml";
+        "[yaml]" = {
+          editor = {
+            defaultFormatter = "redhat.vscode-yaml";
+            autoIndent = "full";
+            detectIndentation = true;
+          };
+          diffEditor.ignoreTrimWhitespace = true;
         };
-      };
 
-      # Language-specific: GitHub Actions
-      "[github-actions-workflow]".editor.defaultFormatter = "redhat.vscode-yaml";
-
-      # Todo-tree settings
-      todo-tree = {
-        general.showActivityBarBadge = true;
-        filtering = {
-          ignoreGitSubmodules = true;
-          useBuiltInExcludes = "file and search excludes";
+        # Language-specific: JSON
+        "[json]".editor.defaultFormatter = "vscode.json-language-features";
+        "[jsonc]" = {
+          editor = {
+            quickSuggestions.strings = true;
+            suggest.insertMode = "replace";
+          };
         };
-        tree = {
-          showCountsInTree = true;
-          buttons.scanMode = true;
-        };
-      };
 
-      # SOPS settings
-      sops = {
-        configPath = "./.sops.yaml";
-        creationEnabled = true;
+        # Language-specific: Fish
+        "[fish]".editor.defaultFormatter = "bmalehorn.vscode-fish";
+
+        # Language-specific: Shell
+        "[shellscript]".editor.defaultFormatter = "mads-hartmann.bash-ide-vscode";
+
+        # Language-specific: OpenTofu
+        opentofu = {
+          codelens.referenceCount = true;
+          experimentalFeatures.prefillRequiredFields = true;
+        };
+        "[opentofu]".editor.defaultFormatter = "opentofu.vscode-opentofu";
+
+        # Language-specific: Docker
+        "[dockerbake]".editor.defaultFormatter = "docker.docker";
+        "[dockercompose]" = {
+          editor = {
+            insertSpaces = true;
+            tabSize = 2;
+            autoIndent = "advanced";
+            defaultFormatter = "redhat.vscode-yaml";
+          };
+        };
+
+        # Language-specific: GitHub Actions
+        "[github-actions-workflow]".editor.defaultFormatter = "redhat.vscode-yaml";
+
+        # Todo-tree settings
+        todo-tree = {
+          general.showActivityBarBadge = true;
+          filtering = {
+            ignoreGitSubmodules = true;
+            useBuiltInExcludes = "file and search excludes";
+          };
+          tree = {
+            showCountsInTree = true;
+            buttons.scanMode = true;
+          };
+        };
+
+        # Project Manager settings
+        projectManager = {
+          git.baseFolders = [
+            "~/"
+          ];
+          git.ignoredFolders = [
+            "node_modules"
+            "out"
+            "typings"
+            "test"
+            "fork*"
+            ".cache"
+          ];
+          sortList = "Recent";
+          showProjectNameInStatusBar = true;
+          openInNewWindowWhenClickingInStatusBar = false;
+        };
+
+        # SOPS settings
+        sops = {
+          configPath = "./.sops.yaml";
+          creationEnabled = false;
+          defaults = {
+            ageKeyFile = "~/.config/sops/age/keys.txt";
+          };
+        };
       };
     };
   };

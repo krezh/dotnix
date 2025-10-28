@@ -28,6 +28,7 @@
     kernel.sysctl = {
       "kernel.nmi_watchdog" = 0;
       "kernel.sched_bore" = "1";
+      "vm.swappiness" = 1;
     };
     consoleLogLevel = 0;
     kernelParams = [
