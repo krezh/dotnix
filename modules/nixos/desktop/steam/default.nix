@@ -30,7 +30,7 @@ in
         lsfg-vk
         lsfg-vk-ui
         lutris
-        protonup
+        protonup-ng
         heroic
         lact
         bottles

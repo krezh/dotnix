@@ -113,6 +113,11 @@
             };
           };
         };
+        qml = {
+          binary = {
+            arguments = [ "-E" ];
+          };
+        };
       };
 
       inlay_hints = {

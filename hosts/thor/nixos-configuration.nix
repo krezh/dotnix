@@ -72,7 +72,7 @@
   };
 
   services.hardware.openrgb = {
-    enable = true;
+    enable = false;
     package = pkgs.openrgb-with-all-plugins;
     motherboard = "amd";
   };
@@ -89,7 +89,7 @@
         enable = false;
         wayland = true;
       };
-      defaultSession = "hyprland-uwsm";
+      defaultSession = "hyprland";
     };
 
     fstrim.enable = true;
@@ -150,7 +150,6 @@
 
   programs.hyprland = {
     enable = true;
-    withUWSM = true;
   };
 
   hardware = {

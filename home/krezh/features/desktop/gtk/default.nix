@@ -21,8 +21,8 @@
   gtk = {
     enable = true;
     font = {
-      name = "Noto Sans Medium";
-      size = 11;
+      name = "Inter Bold";
+      size = 11.5;
     };
     theme = {
       name = "Colloid-Dark-Compact-Catppuccin";

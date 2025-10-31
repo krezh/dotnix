@@ -51,6 +51,11 @@ in
       };
       Unit = {
         Description = "A Custom Discord Client";
+        After = [
+          "graphical-session.target"
+          "caelestia.service"
+        ];
+        Wants = [ "caelestia.service" ];
       };
       Service = {
         ExecStart = lib.getExe cfg.package;

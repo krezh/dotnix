@@ -1,10 +1,11 @@
 {
   imports = [
     ./hyprland
-    ./hyprpanel
+    #./hyprpanel
     ./swww
     ./hypridle
     ./hyprlock
     ./wlogout
+    ./caelestia
   ];
 }

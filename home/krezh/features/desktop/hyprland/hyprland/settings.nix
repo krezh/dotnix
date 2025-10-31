@@ -30,6 +30,7 @@
       key_press_enables_dpms = true;
       animate_manual_resizes = false;
       middle_click_paste = false;
+      focus_on_activate = true;
     };
 
     gestures = {

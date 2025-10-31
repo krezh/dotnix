@@ -13,11 +13,11 @@ in
   };
 
   config = lib.mkIf cfg.enable {
-    environment = {
-      sessionVariables = {
-        FREETYPE_PROPERTIES = "truetype:interpreter-version=38";
-      };
-    };
+    # environment = {
+    #   sessionVariables = {
+    #     FREETYPE_PROPERTIES = "truetype:interpreter-version=38";
+    #   };
+    # };
     fonts = {
       fontconfig = {
         antialias = true;
@@ -32,15 +32,15 @@ in
         useEmbeddedBitmaps = true;
         defaultFonts = {
           serif = [
-            "Noto Serif"
+            "Inter"
             "Noto Color Emoji"
           ];
           sansSerif = [
-            "Noto Sans"
+            "Inter"
             "Noto Color Emoji"
           ];
           monospace = [
-            "JetBrainsMono Nerd Font"
+            "Inter Nerd Font"
             "Noto Color Emoji"
           ];
           emoji = [ "Noto Color Emoji" ];
@@ -59,7 +59,7 @@ in
         source-code-pro
         source-sans-pro
         source-serif-pro
-        ubuntu_font_family # Ubuntu fonts
+        ubuntu-classic # Ubuntu fonts
         unifont # some international languages
         noto-fonts
         noto-fonts-cjk-sans
@@ -69,6 +69,7 @@ in
         proggyfonts
         inter
         inter-nerdfont
+        rubik
         nerd-fonts.caskaydia-cove
         nerd-fonts.caskaydia-mono
         nerd-fonts.ubuntu

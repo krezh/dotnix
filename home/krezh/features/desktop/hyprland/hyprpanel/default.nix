@@ -110,6 +110,7 @@
 
       theme = {
         bar = {
+          scaling = 90;
           buttons = {
             enableBorders = false;
             clock.enableBorder = false;
@@ -129,7 +130,7 @@
           enableShadow = false;
         };
         font.size = "1.0rem";
-        font.family = "Inter Display Bold";
+        font.name = "Inter Nerd Font Regular";
         notification.enableShadow = true;
         osd.enableShadow = true;
         matugen = false;

@@ -108,6 +108,7 @@ in
       ]
       ++ tags "games" [
         "gamescope"
+        "steam_proton"
         "steam_app_default"
         "steam_app_[0-9]+"
       ]
