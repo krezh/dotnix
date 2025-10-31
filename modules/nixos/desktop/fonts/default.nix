@@ -63,7 +63,7 @@ in
         unifont # some international languages
         noto-fonts
         noto-fonts-cjk-sans
-        noto-fonts-emoji
+        noto-fonts-color-emoji
         liberation_ttf
         dina-font
         proggyfonts
