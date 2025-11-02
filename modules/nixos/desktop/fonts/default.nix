@@ -54,8 +54,6 @@ in
         dejavu_fonts
         cantarell-fonts
         google-fonts
-        fira
-        fira-mono
         source-code-pro
         source-sans-pro
         source-serif-pro
@@ -70,13 +68,7 @@ in
         inter
         inter-nerdfont
         rubik
-        nerd-fonts.caskaydia-cove
-        nerd-fonts.caskaydia-mono
-        nerd-fonts.ubuntu
-        nerd-fonts.ubuntu-mono
-        nerd-fonts.ubuntu-sans
         nerd-fonts.jetbrains-mono
-        nerd-fonts.zed-mono
       ];
     };
   };

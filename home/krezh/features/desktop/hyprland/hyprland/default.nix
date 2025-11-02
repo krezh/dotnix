@@ -18,7 +18,9 @@
         "--all"
       ]; # https://wiki.hyprland.org/Nix/Hyprland-on-Home-Manager/#programs-dont-work-in-systemd-services-but-do-on-the-terminal
     };
-    plugins = [ ];
+    plugins = [
+      pkgs.hyprview
+    ];
   };
 
   home.packages = with pkgs; [
@@ -31,5 +33,6 @@
     resources
     mission-center
     hyprmon
+    hyprshade # For display color/gamma adjustments
   ];
 }

@@ -6,6 +6,7 @@
     ./hypridle
     ./hyprlock
     ./wlogout
-    ./caelestia
+    #./caelestia
+    ./dms
   ];
 }

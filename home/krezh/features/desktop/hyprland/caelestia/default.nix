@@ -4,9 +4,15 @@
   programs.caelestia = {
     enable = true;
     systemd = {
-      enable = true; # if you prefer starting from your compositor;
+      enable = true;
       target = "graphical-session.target";
       environment = [ ];
+    };
+    cli = {
+      enable = true;
+      settings = {
+        theme.enableGtk = false;
+      };
     };
     settings = {
       appearance = {
@@ -18,7 +24,7 @@
         font = {
           family = {
             material = "Material Symbols Rounded";
-            mono = "Inter Nerd Font";
+            mono = "Inter Nerd Font ExtraBold";
             sans = "Inter ExtraBold";
           };
           size = {
@@ -35,7 +41,7 @@
           scale = 1;
         };
         transparency = {
-          enabled = true;
+          enabled = false;
           base = 0.85;
           layers = 0.4;
         };
@@ -438,12 +444,6 @@
           gameModeChanged = true;
           numLockChanged = true;
         };
-      };
-    };
-    cli = {
-      enable = true; # Also add caelestia-cli to path;
-      settings = {
-        theme.enableGtk = false;
       };
     };
   };

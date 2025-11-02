@@ -18,6 +18,7 @@ in
   kubestr = callPackage ./bin/kubestr { };
   hyprmon = callPackage ./bin/hyprmon { };
   hypr-slurp = callPackage ./bin/hypr-slurp { };
+  hyprview = callPackage ./bin/hyprview { };
 
   # script packages
   volume_script_hyprpanel = callPackage ./scripts/volume_script_hyprpanel { };

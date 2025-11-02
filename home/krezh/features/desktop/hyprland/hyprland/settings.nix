@@ -48,7 +48,22 @@
       sensitivity = "0.4"; # -1.0 - 1.0, 0 means no modification.
     };
 
-    plugins = { };
+    plugin = {
+      hyprview = {
+        active_border_color = "$blue";
+        inactive_border_color = "$base";
+        bg_dim = "0.4";
+        border_radius = 10;
+        border_width = 2;
+        margin = 10;
+        gesture_distance = 200;
+        workspace_indicator_enabled = 1;
+        window_name_enabled = 1;
+        window_name_font_size = 20;
+        window_name_bg_opacity = "0.85";
+        window_text_color = "0xFFFFFFFF";
+      };
+    };
 
     general = {
       gaps_in = 5;
@@ -70,19 +85,21 @@
       active_opacity = 0.85;
       inactive_opacity = 0.85;
 
+      #screen_shader = "${./brightness.glsl}";
+
       blur = {
         enabled = true;
-        brightness = 1.0;
-        contrast = 1.0;
-        noise = 0.01;
-        vibrancy = 0.8;
-        vibrancy_darkness = 0.6;
         passes = 4;
         size = 7;
-        popups = true;
-        popups_ignorealpha = 0.2;
-        xray = false;
+        noise = 0.01;
         ignore_opacity = true;
+        # brightness = 1.0;
+        # contrast = 1.0;
+        # vibrancy = 0.8;
+        # vibrancy_darkness = 0.6;
+        # popups = true;
+        # popups_ignorealpha = 0.2;
+        # xray = false;
       };
 
       shadow = {

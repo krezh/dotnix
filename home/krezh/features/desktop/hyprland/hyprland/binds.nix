@@ -2,6 +2,7 @@
   pkgs,
   config,
   lib,
+  inputs,
   ...
 }:
 let
@@ -25,8 +26,13 @@ let
   };
 
   launcher = {
-    pkg = config.programs.walker.package;
-    bin = lib.getExe launcher.pkg;
+    pkg = inputs.dms-cli.packages.${pkgs.system}.default;
+    bin = "${lib.getExe launcher.pkg} ipc call spotlight toggle";
+  };
+
+  shell = {
+    pkg = inputs.dms-cli.packages.${pkgs.system}.default;
+    bin = "${lib.getExe shell.pkg}";
   };
 
   showkey = {
@@ -63,6 +69,7 @@ in
         "${mainMod},ESCAPE,Show logout menu,exec,${lib.getExe pkgs.wlogout}"
         "${mainMod},L,Lock the screen immediately,exec,${hyprlock.bin} --immediate"
         "${mainMod},R,Launch application launcher,exec,${launcher.bin}"
+        "${mainMod},N,Launch notifications,exec,${shell.bin} ipc call notifications toggle"
         "${mainMod},B,Launch Zen Browser,exec,${lib.getExe config.programs.zen-browser.package}"
         "${mainMod},E,Launch Nautilus file manager,exec,${lib.getExe pkgs.nautilus}"
         "${mainMod},RETURN,Launch terminal,exec,${defaultTerminal}"
@@ -74,6 +81,8 @@ in
         "${mainMod},V,Launch clipboard manager,exec,${clipboardMgr.bin}"
         "${mainMod},K,Show keybinds (floating),exec,[float] ${defaultTerminal} --class showkey -e ${showkey.bin}"
         "${mainMod},G,Launch Audio Control (floating),exec,[float] pkill ${audioControl.name} || ${defaultTerminal} --class audioControl -e ${audioControl.bin} -m 100 "
+        # Hyprview workspace overview
+        "${mainMod},TAB,Toggle workspace overview,hyprview:toggle,all placement:adaptive"
         # Audio device switching
         "${mainMod},F3,Toggle between audio devices,exec,audio-switch toggle"
         # Screenshots and screen recordings

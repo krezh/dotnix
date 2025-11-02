@@ -69,6 +69,8 @@ in
         "animation fade, logout_dialog" # wlogout
         "animation fade, selection" # slurp
         "animation fade, wayfreeze"
+        # DankMaterialShell
+        "noanim, quickshell:modal"
       ];
       windowrule = [
         "noshadow, focus:0"
