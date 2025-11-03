@@ -5,10 +5,7 @@
   ...
 }:
 {
-  imports = [
-    ../common/users
-    ../common/global
-  ];
+  imports = [ ];
 
   boot = {
     plymouth = {

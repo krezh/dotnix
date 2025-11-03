@@ -6,7 +6,7 @@
 }:
 let
   cfg = config.hmModules.shell.atuin;
-  defaultConfig = import ./defaultConfig.nix { sync_address = cfg.sync_address; };
+  defaultConfig = import ./_defaultConfig.nix { sync_address = cfg.sync_address; };
 in
 {
   options.hmModules.shell.atuin = {

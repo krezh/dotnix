@@ -1,6 +1,7 @@
+{ inputs, ... }:
 {
   imports = [
-    ./desktop
-    ./shell
+    (inputs.import-tree ./desktop)
+    (inputs.import-tree ./shell)
   ];
 }

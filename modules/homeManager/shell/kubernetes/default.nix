@@ -35,7 +35,7 @@ in
       cilium-cli
       kubectl-rook-ceph
       kubelogin-oidc
-      inputs.kauth.packages.${pkgs.system}.kauth
+      inputs.kauth.packages.${pkgs.stdenv.hostPlatform.system}.kauth
     ];
 
     programs.fish = {

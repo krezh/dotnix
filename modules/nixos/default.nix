@@ -1,5 +1,4 @@
+{ lib, ... }:
 {
-  imports = [
-    ./desktop
-  ];
+  imports = [ (lib.importTree ./desktop) ];
 }

@@ -36,7 +36,10 @@ let
           ;
       };
       modules =
-        (getHostModules hostname)
+        (getHostModules {
+          inherit hostname;
+          importCommon = config.importCommon or true;
+        })
         ++ (config.extraModules or [ ])
         ++ mkHomeUsers {
           users = homeUsers;
@@ -44,11 +47,20 @@ let
         };
     };
   getHostModules =
-    hostname:
+    {
+      hostname,
+      importCommon ? true,
+    }:
     let
       hostPath = lib.relativeToRoot "hosts/${hostname}";
+      commonPath = lib.relativeToRoot "hosts/common";
+      commonModules = if importCommon then [ (lib.importTree commonPath) ] else [ ];
     in
-    if lib.pathExists hostPath then [ hostPath ] else [ ];
+    if lib.pathExists hostPath then
+      # Use import-tree for common modules (unless disabled), plus import-tree for host-specific modules
+      commonModules ++ [ (lib.importTree hostPath) ]
+    else
+      [ ];
 
   mkHomeUsers =
     { users, hostname }:
@@ -102,8 +114,8 @@ in
         builtins.map
           (host: {
             inherit host;
-            system = self.nixosConfigurations.${host}.pkgs.system;
-            runner = mapToGha self.nixosConfigurations.${host}.pkgs.system;
+            system = self.nixosConfigurations.${host}.pkgs.stdenv.hostPlatform.system;
+            runner = mapToGha self.nixosConfigurations.${host}.pkgs.stdenv.hostPlatform.system;
           })
           (builtins.filter (host: !builtins.elem host exclude) (builtins.attrNames self.nixosConfigurations));
     };

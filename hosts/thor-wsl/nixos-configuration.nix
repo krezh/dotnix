@@ -10,8 +10,6 @@
   imports = [
     inputs.nixos-wsl.nixosModules.wsl
     (modulesPath + "/profiles/minimal.nix")
-    ../common/users
-    ../common/global
   ];
 
   wsl = {

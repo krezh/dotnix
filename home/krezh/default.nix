@@ -19,7 +19,7 @@ let
 in
 {
   imports = [
-    ./features/shell
+    (inputs.import-tree ./features/shell)
     inputs.nix-index.homeModules.nix-index
     inputs.catppuccin.homeModules.catppuccin
   ]

@@ -24,8 +24,8 @@
       pkgs.gitMinimal
       pkgs.sops
       pkgs.age-plugin-yubikey
-      inputs.disko.packages.${pkgs.system}.disko-install
-      inputs.disko.packages.${pkgs.system}.disko
+      inputs.disko.packages.${pkgs.stdenv.hostPlatform.system}.disko-install
+      inputs.disko.packages.${pkgs.stdenv.hostPlatform.system}.disko
     ];
 
     networking.hostName = hostname;

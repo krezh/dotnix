@@ -26,6 +26,8 @@
 
     flake-parts.url = "github:hercules-ci/flake-parts";
 
+    import-tree.url = "github:vic/import-tree";
+
     devshell = {
       url = "github:numtide/devshell";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -183,6 +185,7 @@
             hostname = "nixos-livecd";
             system = "x86_64-linux";
             homeUsers = [ ];
+            importCommon = false;
           }
         ];
         ghMatrix = flakeLib.ghMatrix { exclude = [ "nixos-livecd" ]; };

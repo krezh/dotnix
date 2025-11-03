@@ -13,23 +13,78 @@ in
   };
 
   config = lib.mkIf cfg.enable {
-    # environment = {
-    #   sessionVariables = {
-    #     FREETYPE_PROPERTIES = "truetype:interpreter-version=38";
-    #   };
-    # };
+    environment = {
+      sessionVariables = {
+        # Enable macOS-like rendering with interpreter version 40
+        FREETYPE_PROPERTIES = "truetype:interpreter-version=40";
+      };
+    };
     fonts = {
       fontconfig = {
+        enable = true;
         antialias = true;
         cache32Bit = true;
-        hinting.enable = true;
-        hinting.autohint = false;
-        hinting.style = "slight";
+        hinting = {
+          enable = true;
+          autohint = false;
+          # "slight" is closer to macOS, "none" is even closer but less sharp
+          style = "slight";
+        };
         subpixel = {
           rgba = "rgb";
-          lcdfilter = "default";
+          # "light" gives a macOS-like appearance, "default" is also good
+          lcdfilter = "light";
         };
         useEmbeddedBitmaps = true;
+        allowBitmaps = true;
+        localConf = ''
+          <?xml version="1.0"?>
+          <!DOCTYPE fontconfig SYSTEM "fonts.dtd">
+          <fontconfig>
+            <!-- Enable LCD filter -->
+            <match target="font">
+              <edit name="lcdfilter" mode="assign">
+                <const>lcdlight</const>
+              </edit>
+            </match>
+
+            <!-- Disable hinting for fonts that look better without it -->
+            <match target="font">
+              <test name="family" compare="eq" ignore-blanks="true">
+                <string>Inter</string>
+              </test>
+              <edit name="hintstyle" mode="assign">
+                <const>hintslight</const>
+              </edit>
+            </match>
+
+            <!-- Better emoji rendering -->
+            <match target="pattern">
+              <test name="family" compare="contains">
+                <string>Emoji</string>
+              </test>
+              <edit name="hinting" mode="assign">
+                <bool>false</bool>
+              </edit>
+              <edit name="antialias" mode="assign">
+                <bool>true</bool>
+              </edit>
+            </match>
+
+            <!-- Target macOS-like rendering for sans-serif fonts -->
+            <match target="font">
+              <test name="family" compare="contains">
+                <string>Sans</string>
+              </test>
+              <edit name="rgba" mode="assign">
+                <const>rgb</const>
+              </edit>
+              <edit name="lcdfilter" mode="assign">
+                <const>lcdlight</const>
+              </edit>
+            </match>
+          </fontconfig>
+        '';
         defaultFonts = {
           serif = [
             "Inter"

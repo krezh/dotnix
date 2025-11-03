@@ -1,11 +1,11 @@
-{ config, ... }:
+{ config, inputs, ... }:
 {
   imports = [
-    ./hyprland
+    (inputs.import-tree ./hyprland)
     ./gtk
-    ./apps
-    ./launchers
-    ./xdg
+    (inputs.import-tree ./apps)
+    (inputs.import-tree ./launchers)
+    (inputs.import-tree ./xdg)
   ];
 
   # Import wallpapers into $HOME/wallpapers

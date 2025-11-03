@@ -647,6 +647,21 @@
         "type": "github"
       }
     },
+    "import-tree": {
+      "locked": {
+        "lastModified": 1761120675,
+        "narHash": "sha256-TEbh9zISiQcU82VwVoEbmXHnSGlUxTwvjJA9g9ErSDA=",
+        "owner": "vic",
+        "repo": "import-tree",
+        "rev": "a037ed2a58fc0ebed9e93b9ef79b0646e648f719",
+        "type": "github"
+      },
+      "original": {
+        "owner": "vic",
+        "repo": "import-tree",
+        "type": "github"
+      }
+    },
     "jovian": {
       "inputs": {
         "nix-github-actions": "nix-github-actions",
@@ -951,6 +966,7 @@
         "hardware": "hardware",
         "home-manager": "home-manager_2",
         "hyprpanel": "hyprpanel",
+        "import-tree": "import-tree",
         "kauth": "kauth",
         "nix-gaming": "nix-gaming",
         "nix-index": "nix-index",

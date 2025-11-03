@@ -26,12 +26,12 @@ let
   };
 
   launcher = {
-    pkg = inputs.dms-cli.packages.${pkgs.system}.default;
+    pkg = inputs.dms-cli.packages.${pkgs.stdenv.hostPlatform.system}.default;
     bin = "${lib.getExe launcher.pkg} ipc call spotlight toggle";
   };
 
   shell = {
-    pkg = inputs.dms-cli.packages.${pkgs.system}.default;
+    pkg = inputs.dms-cli.packages.${pkgs.stdenv.hostPlatform.system}.default;
     bin = "${lib.getExe shell.pkg}";
   };
 
