@@ -29,3 +29,8 @@ var DiffCmd = &cobra.Command{
 		fmt.Print(diff)
 	},
 }
+
+func init() {
+	DiffCmd.Flags().StringP("host", "H", "", "Filter snapshots by hostname")
+	DiffCmd.Flags().StringP("user", "U", "", "Filter snapshots by username")
+}

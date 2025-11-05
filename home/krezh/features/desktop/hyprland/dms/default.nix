@@ -7,7 +7,7 @@
     # Core features
     enableSystemd = true; # Systemd service for auto-start
     enableSystemMonitoring = true; # System monitoring widgets (dgop)
-    enableClipboard = true; # Clipboard history manager
+    enableClipboard = false; # Clipboard history manager
     enableVPN = true; # VPN management widget
     enableBrightnessControl = true; # Backlight/brightness controls
     enableColorPicker = true; # Color picker tool

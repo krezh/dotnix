@@ -1,15 +1,24 @@
 package manager
 
 import (
+	"context"
+	"sync"
 	"time"
 
+	"github.com/kopia/kopia/repo"
 	"github.com/kopia/kopia/snapshot"
 )
 
-// KopiaManager handles Kopia operations using the official library
+// KopiaManager is the main entry point for Kopia operations
+// It coordinates access to specialized managers for different operation types
 type KopiaManager struct {
 	ConfigPath   string
 	PasswordPath string
+
+	// Connection caching - shared across all managers
+	mu         sync.Mutex
+	cachedRepo repo.Repository
+	cachedCtx  context.Context
 }
 
 // ServiceStatus represents the status of a systemd service
@@ -45,6 +54,7 @@ type SnapshotSummary struct {
 	ID          string
 	Source      string
 	Hostname    string
+	Username    string
 	Description string
 	StartTime   time.Time
 	EndTime     time.Time
@@ -55,7 +65,7 @@ type SnapshotSummary struct {
 
 // Constants
 const (
-	AppName    = "kopia-manager"
+	AppName    = "km"
 	AppVersion = "1.0.0"
 )
 
@@ -65,6 +75,7 @@ func manifestToSummary(m *snapshot.Manifest) SnapshotSummary {
 		ID:          string(m.ID),
 		Source:      m.Source.Path,
 		Hostname:    m.Source.Host,
+		Username:    m.Source.UserName,
 		Description: m.Description,
 		StartTime:   m.StartTime.ToTime(),
 		EndTime:     m.EndTime.ToTime(),

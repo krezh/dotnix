@@ -27,3 +27,8 @@ var InfoCmd = &cobra.Command{
 		fmt.Print(info)
 	},
 }
+
+func init() {
+	InfoCmd.Flags().StringP("host", "H", "", "Filter snapshots by hostname")
+	InfoCmd.Flags().StringP("user", "U", "", "Filter snapshots by username")
+}

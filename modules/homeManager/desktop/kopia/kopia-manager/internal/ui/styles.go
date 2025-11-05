@@ -9,54 +9,101 @@ import (
 // Centralized lipgloss styles for consistent UI
 // Using Catppuccin Mocha color palette
 
+// Catppuccin Mocha color palette
+const (
+	ColorMauve    = "#cba6f7"
+	ColorGreen    = "#a6e3a1"
+	ColorRed      = "#f38ba8"
+	ColorPeach    = "#fab387"
+	ColorYellow   = "#f9e2af"
+	ColorBlue     = "#89b4fa"
+	ColorSky      = "#89dceb"
+	ColorSapphire = "#74c7ec"
+	ColorText     = "#cdd6f4"
+	ColorSubtext1 = "#bac2de"
+)
+
 var (
 	// Message styles
 	SuccessStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#a6e3a1")). // Green
+			Foreground(lipgloss.Color(ColorGreen)).
 			Bold(true)
 
 	ErrorStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#f38ba8")). // Red
+			Foreground(lipgloss.Color(ColorRed)).
 			Bold(true)
 
 	WarningStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#fab387")). // Peach
+			Foreground(lipgloss.Color(ColorPeach)).
 			Bold(true)
 
 	InfoStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#f9e2af")). // Yellow
+			Foreground(lipgloss.Color(ColorYellow)).
 			Italic(true)
 
 	PromptStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#f38ba8")). // Red
+			Foreground(lipgloss.Color(ColorRed)).
 			Bold(true)
 
 	SummaryStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#89b4fa")). // Blue
+			Foreground(lipgloss.Color(ColorBlue)).
 			Bold(true)
 
 	NoteStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#f9e2af")). // Yellow
+			Foreground(lipgloss.Color(ColorYellow)).
 			Italic(true)
 
 	HelpStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#89dceb")). // Sky
+			Foreground(lipgloss.Color(ColorSky)).
 			Italic(true)
 
 	// List item style
 	ItemStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#fab387")). // Peach
+			Foreground(lipgloss.Color(ColorPeach)).
 			PaddingLeft(2)
 
 	// Highlight style for IDs, paths, etc.
 	HighlightStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#cba6f7")). // Mauve
+			Foreground(lipgloss.Color(ColorMauve)).
 			Bold(true)
 
 	// Command style
 	CommandStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#74c7ec")). // Sapphire
+			Foreground(lipgloss.Color(ColorSapphire)).
 			Bold(true)
+
+	// Table styles
+	TableTitleStyle = lipgloss.NewStyle().
+			Bold(true).
+			Foreground(lipgloss.Color(ColorMauve))
+
+	TableHeaderStyle = lipgloss.NewStyle().
+				Bold(true).
+				Foreground(lipgloss.Color(ColorMauve)).
+				Align(lipgloss.Center).
+				Padding(0, 1)
+
+	TableEvenRowStyle = lipgloss.NewStyle().
+				Foreground(lipgloss.Color(ColorText)).
+				Padding(0, 1)
+
+	TableOddRowStyle = lipgloss.NewStyle().
+				Foreground(lipgloss.Color(ColorSubtext1)).
+				Padding(0, 1)
+
+	TableBorderStyle = lipgloss.NewStyle().
+				Foreground(lipgloss.Color(ColorBlue))
+
+	// Progress indicator styles
+	ProgressTitleStyle = lipgloss.NewStyle().
+				Foreground(lipgloss.Color(ColorMauve)).
+				Bold(true)
+
+	ProgressInfoStyle = lipgloss.NewStyle().
+				Foreground(lipgloss.Color(ColorSubtext1))
+
+	SpinnerStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color(ColorGreen))
 )
 
 // Helper functions for common message patterns

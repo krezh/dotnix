@@ -44,8 +44,8 @@ schema = 3
     version = "v0.0.13"
     hash = "sha256-ubgBd82jcS5L4i6rCFLOB1BXGrDEu6wWlciJA0gsH2g="
   [mod."github.com/charmbracelet/x/term"]
-    version = "v0.2.1"
-    hash = "sha256-VBkCZLI90PhMasftGw3403IqoV7d3E5WEGAIVrN5xQM="
+    version = "v0.2.2"
+    hash = "sha256-KF7IU1Luxl/sZP6XjomWB2e3lxSUS4/5AahhapGir/4="
   [mod."github.com/chmduquesne/rollinghash"]
     version = "v4.0.0+incompatible"
     hash = "sha256-5TAGwWBRPFitrQGJRQpYK3Vx13X+FaPrGRveslNebjI="

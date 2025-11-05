@@ -4,10 +4,12 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/charmbracelet/bubbles/progress"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/ansi"
 )
 
 // SimpleProgressBar is a progress bar using bubbles/progress
@@ -22,15 +24,7 @@ type SimpleProgressBar struct {
 	lastPercent  float64
 }
 
-// Progress bar styles using Catppuccin Mocha palette
-var (
-	progressTitleStyle = lipgloss.NewStyle().
-				Foreground(lipgloss.Color("#cba6f7")). // Mauve
-				Bold(true)
-
-	progressInfoStyle = lipgloss.NewStyle().
-				Foreground(lipgloss.Color("#bac2de")) // Subtext1
-)
+// (Styles now centralized in styles.go)
 
 // FormatSize formats bytes into human-readable size
 func FormatSize(bytes int64) string {
@@ -113,8 +107,8 @@ func (spb *SimpleProgressBar) Update(current int64) {
 func (spb *SimpleProgressBar) Print() {
 	// Print title once at the beginning
 	if !spb.titlePrinted && spb.title != "" {
-		fmt.Print("\033[?25l") // Hide cursor
-		fmt.Println(progressTitleStyle.Render(spb.title))
+		fmt.Print(ansi.HideCursor)
+		fmt.Println(ProgressTitleStyle.Render(spb.title))
 		spb.titlePrinted = true
 	}
 
@@ -164,7 +158,7 @@ func (spb *SimpleProgressBar) Print() {
 	}
 
 	// Clear entire line and print progress bar with info
-	fmt.Printf("\r\033[K%s %s", progressBar, progressInfoStyle.Render(info))
+	fmt.Printf("\r%s%s %s", ansi.EraseLine(0), progressBar, ProgressInfoStyle.Render(info))
 }
 
 // Finish completes the progress bar and adds a newline
@@ -173,8 +167,8 @@ func (spb *SimpleProgressBar) Finish() {
 
 	// Print title if not yet printed
 	if !spb.titlePrinted && spb.title != "" {
-		fmt.Print("\033[?25l") // Hide cursor
-		fmt.Println(progressTitleStyle.Render(spb.title))
+		fmt.Print(ansi.HideCursor)
+		fmt.Println(ProgressTitleStyle.Render(spb.title))
 		spb.titlePrinted = true
 	}
 
@@ -183,6 +177,195 @@ func (spb *SimpleProgressBar) Finish() {
 	info := fmt.Sprintf("%s / %s", FormatSize(spb.total), FormatSize(spb.total))
 
 	// Print final progress bar with newline
-	fmt.Printf("\r\033[K%s %s\n", progressBar, progressInfoStyle.Render(info))
-	fmt.Print("\033[?25h") // Show cursor
+	fmt.Printf("\r%s%s %s\n", ansi.EraseLine(0), progressBar, ProgressInfoStyle.Render(info))
+	fmt.Print(ansi.ShowCursor)
+}
+
+// Spinner represents a simple spinner for indeterminate operations
+type Spinner struct {
+	message     string
+	done        chan bool
+	running     bool
+	mu          sync.Mutex
+	startTime   time.Time
+	showElapsed bool
+	frame       int
+	logMode     bool
+	logs        []string
+	maxLogs     int
+	lineCount   int // Track lines for clearing
+}
+
+// Spinner frames - simple animated dots
+var spinnerFrames = []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
+
+// newSpinnerBase creates a spinner with common initialization
+func newSpinnerBase(message string, logMode bool, maxLogs int) *Spinner {
+	return &Spinner{
+		message:     message,
+		done:        make(chan bool),
+		startTime:   time.Now(),
+		showElapsed: true,
+		logMode:     logMode,
+		logs:        make([]string, 0),
+		maxLogs:     maxLogs,
+	}
+}
+
+// NewSpinner creates a new spinner with the given message
+func NewSpinner(message string) *Spinner {
+	return newSpinnerBase(message, false, 5)
+}
+
+// NewSpinnerWithLogs creates a spinner with scrolling log functionality
+func NewSpinnerWithLogs(message string, maxLogs int) *Spinner {
+	return newSpinnerBase(message, true, maxLogs)
+}
+
+// Start begins the spinner animation
+func (s *Spinner) Start() {
+	s.mu.Lock()
+	if s.running {
+		s.mu.Unlock()
+		return
+	}
+	s.running = true
+	s.startTime = time.Now()
+	s.mu.Unlock()
+
+	fmt.Print(ansi.HideCursor)
+	go s.spin()
+}
+
+// buildOutput creates the spinner output string
+func (s *Spinner) buildOutput() string {
+	spinnerChar := spinnerFrames[s.frame]
+	styledSpinner := SpinnerStyle.Render(spinnerChar)
+	output := fmt.Sprintf("%s %s", styledSpinner, ProgressTitleStyle.Render(s.message))
+
+	if s.showElapsed {
+		elapsed := time.Since(s.startTime)
+		output += " " + ProgressInfoStyle.Render(fmt.Sprintf("(%s)", FormatDuration(elapsed)))
+	}
+
+	return output
+}
+
+// clearLines clears n lines from the terminal
+func clearLines(n int) {
+	for i := 0; i < n; i++ {
+		if i == 0 {
+			fmt.Print("\r" + ansi.EraseLine(2)) // Erase entire line
+		} else {
+			fmt.Print(ansi.CursorUp(1) + ansi.EraseLine(2)) // Move up and erase
+		}
+	}
+	fmt.Print("\r")
+}
+
+// spin is the internal goroutine that animates the spinner
+func (s *Spinner) spin() {
+	ticker := time.NewTicker(100 * time.Millisecond)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-s.done:
+			return
+		case <-ticker.C:
+			s.mu.Lock()
+
+			// Advance frame and render
+			s.frame = (s.frame + 1) % len(spinnerFrames)
+			s.render()
+
+			s.mu.Unlock()
+		}
+	}
+}
+
+// render outputs the spinner to the terminal
+func (s *Spinner) render() {
+	// In log mode, we need to clear all lines when logs change
+	// In simple mode, use in-place update to avoid flicker
+	if s.logMode && s.lineCount > 0 {
+		clearLines(s.lineCount)
+	}
+
+	// Print spinner line
+	output := s.buildOutput()
+	if s.logMode {
+		fmt.Print(output)
+	} else {
+		// In simple mode, use carriage return for smoother updates
+		fmt.Print("\r" + output)
+	}
+
+	// Print logs in log mode
+	if s.logMode {
+		for _, log := range s.logs {
+			fmt.Print("\n  " + ProgressInfoStyle.Render(log))
+		}
+		s.lineCount = len(s.logs) + 1
+	} else {
+		s.lineCount = 1
+	}
+}
+
+// UpdateMessage updates the spinner message
+func (s *Spinner) UpdateMessage(message string) {
+	s.mu.Lock()
+	s.message = message
+	s.mu.Unlock()
+}
+
+// AddLog adds a log entry to the scrolling log (only works in log mode)
+func (s *Spinner) AddLog(logEntry string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if !s.logMode {
+		return
+	}
+
+	s.logs = append(s.logs, logEntry)
+
+	// Keep only the last maxLogs entries
+	if len(s.logs) > s.maxLogs {
+		s.logs = s.logs[len(s.logs)-s.maxLogs:]
+	}
+}
+
+// Stop stops the spinner
+func (s *Spinner) Stop() {
+	s.mu.Lock()
+	if !s.running {
+		s.mu.Unlock()
+		return
+	}
+	s.running = false
+	s.mu.Unlock()
+
+	s.done <- true
+	clearLines(s.lineCount)
+	fmt.Print(ansi.ShowCursor)
+}
+
+// printCompletionMessage formats and prints a completion message with elapsed time
+func (s *Spinner) printCompletionMessage(icon, message string, style lipgloss.Style) {
+	elapsed := time.Since(s.startTime)
+	msg := fmt.Sprintf("%s (%s)", message, FormatDuration(elapsed))
+	fmt.Printf("%s %s\n", style.Render(icon), ProgressInfoStyle.Render(msg))
+}
+
+// Success stops the spinner and prints a success message
+func (s *Spinner) Success(message string) {
+	s.Stop()
+	s.printCompletionMessage("✓", message, SuccessStyle)
+}
+
+// Fail stops the spinner and prints an error message
+func (s *Spinner) Fail(message string) {
+	s.Stop()
+	s.printCompletionMessage("✗", message, ErrorStyle)
 }

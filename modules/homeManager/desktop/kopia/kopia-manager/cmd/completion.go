@@ -2,10 +2,9 @@ package cmd
 
 import (
 	"os"
-	"sort"
-	"strings"
 
 	"kopia-manager/internal/manager"
+	"kopia-manager/internal/util"
 
 	"github.com/spf13/cobra"
 )
@@ -17,16 +16,16 @@ var completionCmd = &cobra.Command{
 	Long: `To load completions:
 
 Bash:
-$ source <(kopia-manager completion bash)
+$ source <(km completion bash)
 
 Zsh:
-$ source <(kopia-manager completion zsh)
+$ source <(km completion zsh)
 
 Fish:
-$ kopia-manager completion fish | source
+$ km completion fish | source
 
 PowerShell:
-PS> kopia-manager completion powershell | Out-String | Invoke-Expression
+PS> km completion powershell | Out-String | Invoke-Expression
 `,
 	DisableFlagsInUseLine: true,
 	ValidArgs:             []string{"bash", "zsh", "fish", "powershell"},
@@ -45,81 +44,38 @@ PS> kopia-manager completion powershell | Out-String | Invoke-Expression
 	},
 }
 
-// getAvailableBackupNames returns unique backup names extracted from snapshot descriptions.
 func getAvailableBackupNames() []string {
 	km := manager.NewKopiaManager()
-	snapshots, err := km.ListSnapshots("")
-	if err != nil {
-		return []string{}
-	}
-
-	backupNames := make(map[string]bool)
-	for _, snap := range snapshots {
-		desc := snap.Description
-		if strings.HasPrefix(desc, "Automated backup: ") {
-			name := strings.TrimPrefix(desc, "Automated backup: ")
-			backupNames[name] = true
-		} else if strings.HasPrefix(desc, "Manual backup: ") {
-			name := strings.TrimPrefix(desc, "Manual backup: ")
-			backupNames[name] = true
-		} else if desc != "" {
-			backupNames[desc] = true
-		}
-	}
-
-	var names []string
-	for name := range backupNames {
-		names = append(names, name)
-	}
-	sort.Strings(names)
-	return names
+	return util.GetAvailableBackupNames(km, "", "")
 }
 
-// getAvailableSnapshotIDs returns all snapshot IDs for completion.
 func getAvailableSnapshotIDs() []string {
 	km := manager.NewKopiaManager()
-	snapshots, err := km.ListSnapshots("")
-	if err != nil {
-		return []string{}
-	}
-
-	var ids []string
-	for _, snap := range snapshots {
-		ids = append(ids, snap.ID)
-	}
-	sort.Strings(ids)
-	return ids
+	return util.GetAvailableSnapshotIDs(km, "", "")
 }
 
-// getAvailableBackupGroups groups snapshots by their logical backup name.
 func getAvailableBackupGroups() []string {
 	km := manager.NewKopiaManager()
-	snapshots, err := km.ListSnapshots("")
-	if err != nil {
-		return []string{}
-	}
+	return util.GetAvailableBackupGroups(km, "", "")
+}
 
-	groups := make(map[string]bool)
-	for _, snap := range snapshots {
-		desc := snap.Description
-		if strings.HasPrefix(desc, "Automated backup: ") {
-			name := strings.TrimPrefix(desc, "Automated backup: ")
-			groups[name] = true
-		} else if strings.HasPrefix(desc, "Manual backup: ") {
-			name := strings.TrimPrefix(desc, "Manual backup: ")
-			groups[name] = true
-		} else if desc != "" {
-			groups[desc] = true
-		} else {
-			// Use source path as fallback
-			groups[snap.Source] = true
-		}
-	}
+func getAvailableBackupNamesWithFlags(cmd *cobra.Command) []string {
+	km := manager.NewKopiaManager()
+	host, _ := cmd.Flags().GetString("host")
+	user, _ := cmd.Flags().GetString("user")
+	return util.GetAvailableBackupNames(km, host, user)
+}
 
-	var groupNames []string
-	for name := range groups {
-		groupNames = append(groupNames, name)
-	}
-	sort.Strings(groupNames)
-	return groupNames
+func getAvailableSnapshotIDsWithFlags(cmd *cobra.Command) []string {
+	km := manager.NewKopiaManager()
+	host, _ := cmd.Flags().GetString("host")
+	user, _ := cmd.Flags().GetString("user")
+	return util.GetAvailableSnapshotIDs(km, host, user)
+}
+
+func getAvailableBackupGroupsWithFlags(cmd *cobra.Command) []string {
+	km := manager.NewKopiaManager()
+	host, _ := cmd.Flags().GetString("host")
+	user, _ := cmd.Flags().GetString("user")
+	return util.GetAvailableBackupGroups(km, host, user)
 }

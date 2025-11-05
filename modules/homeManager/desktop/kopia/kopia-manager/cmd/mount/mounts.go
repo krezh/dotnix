@@ -23,8 +23,8 @@ The snapshot-id can be:
 - 'all' to mount all snapshots in a unified view
 
 Examples:
-  kopia-manager mount k1a2b3c4d5e6f7g8h9i0 /mnt/backup
-  kopia-manager mount all /mnt/all-backups`,
+  km mount k1a2b3c4d5e6f7g8h9i0 /mnt/backup
+  km mount all /mnt/all-backups`,
 	Args: cobra.ExactArgs(2),
 	Run: func(cmd *cobra.Command, args []string) {
 		km := manager.NewKopiaManager()
@@ -51,8 +51,8 @@ var UnmountCmd = &cobra.Command{
 	Long: `Unmount a previously mounted snapshot filesystem.
 
 Examples:
-  kopia-manager unmount /mnt/backup
-  kopia-manager unmount /mnt/all-backups`,
+  km unmount /mnt/backup
+  km unmount /mnt/all-backups`,
 	Args: cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		km := manager.NewKopiaManager()

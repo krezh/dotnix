@@ -30,10 +30,10 @@ in
         lsfg-vk
         lsfg-vk-ui
         lutris
-        protonup-ng
-        heroic
+        protonplus
         lact
         bottles
+        faugus-launcher
       ];
       sessionVariables = {
         STEAM_EXTRA_COMPAT_TOOLS_PATHS = "${defaultSteamCompatToolsPath}";
@@ -70,15 +70,12 @@ in
         remotePlay.openFirewall = true;
         localNetworkGameTransfers.openFirewall = true;
         protontricks.enable = true;
-        extraCompatPackages = [
-          # pkgs.proton-ge-bin
-        ];
         platformOptimizations.enable = true;
       };
     };
 
     services.pipewire.lowLatency = {
-      enable = false;
+      enable = true;
     };
 
     systemd.user.services.steam = {

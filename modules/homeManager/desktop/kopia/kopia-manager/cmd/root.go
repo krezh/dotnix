@@ -84,22 +84,77 @@ func init() {
 		completionCmd,
 	)
 
-	// Context-aware completion for restore (only set if not already set elsewhere)
+	// Completion for restore command
 	if snapshot.RestoreCmd != nil && snapshot.RestoreCmd.ValidArgsFunction == nil {
 		snapshot.RestoreCmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 			if len(args) == 0 {
 				restoreAll, _ := cmd.Flags().GetBool("all")
 				if restoreAll {
-					return getAvailableBackupGroups(), cobra.ShellCompDirectiveNoFileComp
+					return getAvailableBackupGroupsWithFlags(cmd), cobra.ShellCompDirectiveNoFileComp
 				}
-				return getAvailableSnapshotIDs(), cobra.ShellCompDirectiveNoFileComp
+				return getAvailableSnapshotIDsWithFlags(cmd), cobra.ShellCompDirectiveNoFileComp
 			}
 			// Second arg is target directory
 			return nil, cobra.ShellCompDirectiveDefault
 		}
 	}
 
-	// Completion for start-backup (only set if not already set elsewhere)
+	// Completion for delete command (snapshot IDs or backup groups with --all)
+	if snapshot.DeleteCmd != nil && snapshot.DeleteCmd.ValidArgsFunction == nil {
+		snapshot.DeleteCmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+			if len(args) == 0 {
+				deleteAll, _ := cmd.Flags().GetBool("all")
+				if deleteAll {
+					return getAvailableBackupGroupsWithFlags(cmd), cobra.ShellCompDirectiveNoFileComp
+				}
+				return getAvailableSnapshotIDsWithFlags(cmd), cobra.ShellCompDirectiveNoFileComp
+			}
+			return nil, cobra.ShellCompDirectiveNoFileComp
+		}
+	}
+
+	// Completion for info command (snapshot IDs)
+	if snapshot.InfoCmd != nil && snapshot.InfoCmd.ValidArgsFunction == nil {
+		snapshot.InfoCmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+			if len(args) == 0 {
+				return getAvailableSnapshotIDsWithFlags(cmd), cobra.ShellCompDirectiveNoFileComp
+			}
+			return nil, cobra.ShellCompDirectiveNoFileComp
+		}
+	}
+
+	// Completion for diff command (snapshot IDs for both arguments)
+	if snapshot.DiffCmd != nil && snapshot.DiffCmd.ValidArgsFunction == nil {
+		snapshot.DiffCmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+			if len(args) < 2 {
+				return getAvailableSnapshotIDsWithFlags(cmd), cobra.ShellCompDirectiveNoFileComp
+			}
+			return nil, cobra.ShellCompDirectiveNoFileComp
+		}
+	}
+
+	// Completion for mount command (snapshot IDs + special "all")
+	if mount.MountCmd != nil && mount.MountCmd.ValidArgsFunction == nil {
+		mount.MountCmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+			if len(args) == 0 {
+				// First arg: snapshot ID or "all"
+				snapshots := getAvailableSnapshotIDs()
+				return append([]string{"all"}, snapshots...), cobra.ShellCompDirectiveNoFileComp
+			}
+			// Second arg is mount point (directory)
+			return nil, cobra.ShellCompDirectiveDefault
+		}
+	}
+
+	// Completion for unmount command (directory paths)
+	if mount.UnmountCmd != nil && mount.UnmountCmd.ValidArgsFunction == nil {
+		mount.UnmountCmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+			// Suggest directories for unmount
+			return nil, cobra.ShellCompDirectiveDefault
+		}
+	}
+
+	// Completion for start-backup command (backup service names)
 	if services.StartBackupCmd != nil && services.StartBackupCmd.ValidArgsFunction == nil {
 		services.StartBackupCmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 			if len(args) == 0 {
@@ -110,6 +165,22 @@ func init() {
 				}
 				return svcs, cobra.ShellCompDirectiveNoFileComp
 			}
+			return nil, cobra.ShellCompDirectiveDefault
+		}
+	}
+
+	// Completion for backup command (paths)
+	if snapshot.BackupCmd != nil && snapshot.BackupCmd.ValidArgsFunction == nil {
+		snapshot.BackupCmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+			// Suggest directories/files for backup
+			return nil, cobra.ShellCompDirectiveDefault
+		}
+	}
+
+	// Completion for estimate command (paths)
+	if snapshot.EstimateCmd != nil && snapshot.EstimateCmd.ValidArgsFunction == nil {
+		snapshot.EstimateCmd.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+			// Suggest directories/files for estimation
 			return nil, cobra.ShellCompDirectiveDefault
 		}
 	}

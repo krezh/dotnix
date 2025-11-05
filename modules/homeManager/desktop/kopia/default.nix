@@ -7,7 +7,7 @@
 let
   cfg = config.hmModules.desktop.kopia;
   kopiaManager = pkgs.buildGoApplication {
-    pname = "kopia-manager";
+    pname = "km";
     version = "0.1.0";
     src = ./kopia-manager;
     modules = ./kopia-manager/gomod2nix.toml;
@@ -17,10 +17,13 @@ let
       "-w"
     ];
     postInstall = ''
-      installShellCompletion --cmd kopia-manager \
-        --bash <($out/bin/kopia-manager completion bash) \
-        --zsh <($out/bin/kopia-manager completion zsh) \
-        --fish <($out/bin/kopia-manager completion fish)
+      # Rename the binary from kopia-manager to km
+      mv $out/bin/kopia-manager $out/bin/km
+
+      installShellCompletion --cmd km \
+        --bash <($out/bin/km completion bash) \
+        --zsh <($out/bin/km completion zsh) \
+        --fish <($out/bin/km completion fish)
     '';
     nativeBuildInputs = with pkgs; [ installShellFiles ];
   };

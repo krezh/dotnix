@@ -17,8 +17,8 @@ Without --all flag: Restores a specific snapshot by ID
 With --all flag: Restores all snapshots from a backup group
 
 Examples:
-  kopia-manager restore 12e9406f405955816e93 /restore/path    # Restore specific snapshot
-  kopia-manager restore --all downloads /restore/path        # Restore backup group
+  km restore 12e9406f405955816e93 /restore/path    # Restore specific snapshot
+  km restore --all downloads /restore/path        # Restore backup group
 
 Tab completion:
   - Without --all: Shows snapshot IDs
@@ -45,6 +45,7 @@ Tab completion:
 }
 
 func init() {
-	// Minimal local flag wiring for this command
 	RestoreCmd.Flags().BoolP("all", "a", false, "Restore all snapshots from backup group")
+	RestoreCmd.Flags().StringP("host", "H", "", "Filter snapshots by hostname")
+	RestoreCmd.Flags().StringP("user", "U", "", "Filter snapshots by username")
 }

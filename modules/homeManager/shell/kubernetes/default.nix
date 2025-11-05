@@ -29,12 +29,10 @@ in
       kubernetes-helm
       kubernetes-helmPlugins.helm-diff
       kind
-      teleport
       kubestr
       kubectl-pgo
       cilium-cli
       kubectl-rook-ceph
-      kubelogin-oidc
       inputs.kauth.packages.${pkgs.stdenv.hostPlatform.system}.kauth
     ];
 
@@ -100,16 +98,6 @@ in
     hmModules.shell.talswitcher.enable = true;
     catppuccin.k9s.enable = true;
     catppuccin.k9s.transparent = true;
-    hmModules.shell.tlk = {
-      enable = true;
-      package = pkgs.tlk;
-      config = {
-        proxy = {
-          url = "teleport.talos.plexuz.xyz";
-          ttl = "1d";
-        };
-      };
-    };
 
     programs = {
       kubecolor = {

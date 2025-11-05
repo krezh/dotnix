@@ -3,60 +3,96 @@ package ui
 import (
 	"os"
 	"strings"
+	"sync"
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/lipgloss/table"
 	"github.com/charmbracelet/x/term"
 )
 
-// Table styles using Catppuccin Mocha palette
+// Cache terminal width to avoid repeated system calls
 var (
-	tableTitleStyle = lipgloss.NewStyle().
-			Bold(true).
-			Foreground(lipgloss.Color("#cba6f7")) // Mauve
-
-	tableHeaderStyle = lipgloss.NewStyle().
-				Bold(true).
-				Foreground(lipgloss.Color("#cba6f7")). // Mauve
-				Align(lipgloss.Center).
-				Padding(0, 1)
-
-	tableEvenRowStyle = lipgloss.NewStyle().
-				Foreground(lipgloss.Color("#cdd6f4")). // Text
-				Padding(0, 1)
-
-	tableOddRowStyle = lipgloss.NewStyle().
-				Foreground(lipgloss.Color("#bac2de")). // Subtext1
-				Padding(0, 1)
-
-	tableBorderStyle = lipgloss.NewStyle().
-				Foreground(lipgloss.Color("#89b4fa")) // Blue
+	cachedTermWidth int
+	termWidthOnce   sync.Once
 )
+
+// getTerminalWidth returns the cached terminal width
+func getTerminalWidth() int {
+	termWidthOnce.Do(func() {
+		width, _, err := term.GetSize(os.Stdout.Fd())
+		if err != nil || width <= 0 {
+			cachedTermWidth = 120 // Default fallback width
+		} else {
+			cachedTermWidth = width
+		}
+	})
+	return cachedTermWidth
+}
+
+// calculateNaturalTableWidth estimates the natural width a table would take
+// based on the longest cell in each column
+func calculateNaturalTableWidth(headers []string, rows [][]string) int {
+	if len(headers) == 0 {
+		return 0
+	}
+
+	// Track max width per column
+	colWidths := make([]int, len(headers))
+
+	// Check header widths
+	for i, header := range headers {
+		colWidths[i] = lipgloss.Width(header)
+	}
+
+	// Check each row's cell widths
+	for _, row := range rows {
+		for i, cell := range row {
+			if i < len(colWidths) {
+				cellWidth := lipgloss.Width(cell)
+				if cellWidth > colWidths[i] {
+					colWidths[i] = cellWidth
+				}
+			}
+		}
+	}
+
+	// Calculate total table width:
+	// sum of column widths + padding (2 per column) + borders (1 per column + 1 final)
+	totalWidth := 1 // Start with left border
+	for _, width := range colWidths {
+		totalWidth += width + 2 + 1 // content + padding + border
+	}
+
+	return totalWidth
+}
 
 // RenderTable creates a styled table with optional title embedded in the top border
 func RenderTable(title string, headers []string, rows [][]string) string {
-	// Get terminal width for auto-sizing
-	width, _, err := term.GetSize(os.Stdout.Fd())
-	if err != nil || width <= 0 {
-		width = 120 // Default fallback width
-	}
+	// Calculate what the natural table width would be
+	naturalWidth := calculateNaturalTableWidth(headers, rows)
+	termWidth := getTerminalWidth()
 
-	// Create table with lipgloss/table package
+	// Build the table with smart width handling
 	t := table.New().
 		Border(lipgloss.ThickBorder()).
-		BorderStyle(tableBorderStyle).
-		Width(width). // Auto-size columns to fit terminal width
+		BorderStyle(TableBorderStyle).
 		StyleFunc(func(row, col int) lipgloss.Style {
 			if row == table.HeaderRow {
-				return tableHeaderStyle
+				return TableHeaderStyle
 			}
 			if row%2 == 0 {
-				return tableEvenRowStyle
+				return TableEvenRowStyle
 			}
-			return tableOddRowStyle
+			return TableOddRowStyle
 		}).
 		Headers(headers...).
 		Rows(rows...)
+
+	// If the natural width would exceed terminal width, constrain and enable wrapping
+	// Otherwise, let it size naturally to content
+	if naturalWidth > termWidth {
+		t = t.Width(termWidth).Wrap(true)
+	}
 
 	tableOutput := t.Render()
 
@@ -74,8 +110,9 @@ func RenderTable(title string, headers []string, rows [][]string) string {
 	// Get the original top border and its width
 	borderWidth := lipgloss.Width(lines[0])
 
-	// Create title
-	titleStyled := tableTitleStyle.Render(title)
+	// Add spacing around title for consistency
+	titleWithSpaces := " " + title + " "
+	titleStyled := TableTitleStyle.Render(titleWithSpaces)
 	titleWidth := lipgloss.Width(titleStyled)
 
 	// Calculate how many dashes on each side
@@ -88,9 +125,9 @@ func RenderTable(title string, headers []string, rows [][]string) string {
 	rightDashes := remainingWidth - leftDashes
 
 	// Build new top border with thick characters: ┏━━━ title ━━━┓
-	newTopBorder := tableBorderStyle.Render("┏"+strings.Repeat("━", leftDashes)) +
+	newTopBorder := TableBorderStyle.Render("┏"+strings.Repeat("━", leftDashes)) +
 		titleStyled +
-		tableBorderStyle.Render(strings.Repeat("━", rightDashes)+"┓")
+		TableBorderStyle.Render(strings.Repeat("━", rightDashes)+"┓")
 
 	// Replace the first line
 	lines[0] = newTopBorder
