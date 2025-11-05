@@ -36,10 +36,10 @@
           keepDaily = 2;
         };
       };
-      wow-lutris = {
+      wow = {
         paths = [
-          "/home/krezh/Games/battlenet/drive_c/Program Files (x86)/World of Warcraft/_retail_/Interface"
-          "/home/krezh/Games/battlenet/drive_c/Program Files (x86)/World of Warcraft/_retail_/WTF"
+          "/home/krezh/Games/Faugus/battlenet/drive_c/Program Files (x86)/World of Warcraft/_retail_/Interface"
+          "/home/krezh/Games/Faugus/battlenet/drive_c/Program Files (x86)/World of Warcraft/_retail_/WTF"
         ];
         schedule = "daily";
         retentionPolicy = {
