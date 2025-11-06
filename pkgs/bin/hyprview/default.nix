@@ -21,7 +21,7 @@
 stdenv.mkDerivation {
   pname = "hyprview";
   # renovate: datasource=github-releases depName=yz778/hyprview
-  version = "0.1.0";
+  version = "v0.1.6";
 
   src = fetchFromGitHub {
     owner = "yz778";
