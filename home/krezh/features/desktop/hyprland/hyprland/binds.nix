@@ -26,8 +26,8 @@ let
   };
 
   launcher = {
-    pkg = inputs.dms-cli.packages.${pkgs.stdenv.hostPlatform.system}.default;
-    bin = "${lib.getExe launcher.pkg} ipc call spotlight toggle";
+    pkg = config.programs.walker.package;
+    bin = "${lib.getExe launcher.pkg}";
   };
 
   shell = {

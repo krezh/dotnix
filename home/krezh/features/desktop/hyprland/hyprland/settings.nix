@@ -80,7 +80,7 @@
 
     decoration = {
       rounding = 10;
-      rounding_power = 3;
+      rounding_power = 4;
 
       # Global transparency settings
       active_opacity = 0.85;
@@ -94,12 +94,12 @@
         size = 7;
         noise = 0.01;
         ignore_opacity = true;
-        # brightness = 1.0;
-        # contrast = 1.0;
-        # vibrancy = 0.8;
-        # vibrancy_darkness = 0.6;
-        # popups = true;
-        # popups_ignorealpha = 0.2;
+        brightness = 1.0;
+        contrast = 1.0;
+        vibrancy = 0.8;
+        vibrancy_darkness = 0.6;
+        popups = true;
+        popups_ignorealpha = 0.2;
         # xray = false;
       };
 

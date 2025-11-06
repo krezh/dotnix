@@ -21,7 +21,7 @@
   gtk = {
     enable = true;
     font = {
-      name = "Inter Bold";
+      name = "Rubik";
       size = 11.5;
     };
     theme = {

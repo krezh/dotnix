@@ -30,9 +30,9 @@
     wl-clipboard
     wl-screenrec
     hyprpicker
-    resources
     mission-center
     hyprmon
     hyprshade # For display color/gamma adjustments
+    hyprdynamicmonitors
   ];
 }

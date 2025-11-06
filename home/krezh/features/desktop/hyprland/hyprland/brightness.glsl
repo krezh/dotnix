@@ -1,4 +1,4 @@
-// Screen shader to make display brighter and more vibrant (like Windows)
+// Screen shader to make display brighter and more vibrant
 #version 300 es
 
 precision highp float;
@@ -11,7 +11,7 @@ void main() {
     vec4 pixColor = texture(tex, v_texcoord);
 
     // Adjust these values to tune the display
-    float brightness = 1.2;  // 1.0 = normal, higher = brighter
+    float brightness = 1.0;  // 1.0 = normal, higher = brighter
     float gamma = 1.00;        // higher = lighter midtones
     float saturation = 1.1;   // higher = more vibrant colors
 
