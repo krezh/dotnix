@@ -8,17 +8,12 @@
 let
   getBinaryName = pkg: pkg.meta.mainProgram or pkg.pname or pkg.name;
 
-  # kitty = {
-  #   pkg = pkgs.kitty;
-  #   bin = lib.getExe kitty.pkg;
-  # };
-
-  ghostty = {
-    pkg = pkgs.ghostty;
-    bin = lib.getExe ghostty.pkg;
+  kitty = {
+    pkg = pkgs.kitty;
+    bin = lib.getExe kitty.pkg;
   };
 
-  defaultTerminal = ghostty.bin;
+  defaultTerminal = kitty.bin;
 
   hyprlock = {
     pkg = config.programs.hyprlock.package;
