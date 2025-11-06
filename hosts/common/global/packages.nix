@@ -27,6 +27,7 @@
     nufraw
     nufraw-thumbnailer
     gdk-pixbuf
+    nixos-update
   ];
 
   programs.gdk-pixbuf.modulePackages = [ pkgs.librsvg ];

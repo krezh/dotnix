@@ -197,8 +197,19 @@
       };
 
       perSystem =
-        { pkgs, config, ... }:
         {
+          pkgs,
+          config,
+          system,
+          ...
+        }:
+        {
+          _module.args.pkgs = import inputs.nixpkgs {
+            inherit system;
+            overlays = builtins.attrValues (import ./overlays { inherit inputs lib; });
+            config = { };
+          };
+
           pre-commit = import ./pre-commit.nix { inherit pkgs; };
           devshells = import ./shell.nix {
             inherit
