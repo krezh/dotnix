@@ -45,5 +45,18 @@
       automerge: true,
       automergeType: "pr",
     },
+    {
+      description: "Update gomod2nix.toml when go.mod changes",
+      matchManagers: ["gomod"],
+      postUpgradeTasks: {
+        commands: [
+          "cd {{{packageFileDir}}} && nix run github:nix-community/gomod2nix",
+        ],
+        fileFilters: ["**/gomod2nix.toml", "**/go.sum"],
+        executionMode: "update",
+      },
+      automerge: true,
+      automergeType: "pr",
+    },
   ],
 }
