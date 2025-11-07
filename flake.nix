@@ -1,6 +1,5 @@
 {
   description = "Krezh's NixOS Flake";
-
   nixConfig = {
     extra-trusted-substituters = [
       "https://nix-cache.plexuz.xyz/krezh"
@@ -58,11 +57,6 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    hyprpanel = {
-      url = "github:Jas-SinghFSU/HyprPanel";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-
     sops-nix = {
       url = "github:Mic92/sops-nix";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -107,11 +101,6 @@
       inputs.elephant.follows = "elephant";
     };
 
-    cache-nix-action = {
-      url = "github:nix-community/cache-nix-action";
-      flake = false;
-    };
-
     kauth = {
       url = "github:krezh/kauth";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -126,6 +115,7 @@
       url = "github:caelestia-dots/shell";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+
     dgop = {
       url = "github:AvengeMedia/dgop";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -145,91 +135,14 @@
   };
 
   outputs =
-    inputs@{ flake-parts, self, ... }:
-    let
-      inherit (self) outputs;
-
-      lib = inputs.nixpkgs.lib // import ./lib { inherit inputs; };
-
-      flakeLib = import ./lib/flakeLib.nix {
-        inherit
-          inputs
-          outputs
-          lib
-          self
-          ;
-      };
-    in
+    inputs@{ flake-parts, import-tree, ... }:
     flake-parts.lib.mkFlake { inherit inputs; } {
       imports = [
         inputs.pre-commit-hooks.flakeModule
         inputs.devshell.flakeModule
         inputs.treefmt-nix.flakeModule
+        (import-tree ./flake-parts)
       ];
-
       systems = [ "x86_64-linux" ];
-
-      flake = {
-        nixosConfigurations = flakeLib.mkSystems [
-          {
-            hostname = "thor";
-            system = "x86_64-linux";
-            homeUsers = [ "krezh" ];
-          }
-          {
-            hostname = "odin";
-            system = "x86_64-linux";
-            homeUsers = [ "krezh" ];
-          }
-          {
-            hostname = "nixos-livecd";
-            system = "x86_64-linux";
-            homeUsers = [ ];
-            importCommon = false;
-          }
-        ];
-        ghMatrix = flakeLib.ghMatrix { exclude = [ "nixos-livecd" ]; };
-        top = flakeLib.top;
-
-        overlays = import ./overlays { inherit inputs lib; };
-        homeManagerModules = [ ./modules/homeManager ];
-        nixosModules.default.imports = [ ./modules/nixos ];
-      };
-
-      perSystem =
-        {
-          pkgs,
-          config,
-          system,
-          ...
-        }:
-        {
-          _module.args.pkgs = import inputs.nixpkgs {
-            inherit system;
-            overlays = builtins.attrValues (import ./overlays { inherit inputs lib; });
-            config = { };
-          };
-
-          pre-commit = import ./pre-commit.nix { inherit pkgs; };
-          devshells = import ./shell.nix {
-            inherit
-              pkgs
-              config
-              lib
-              ;
-          };
-          packages = (import ./pkgs { inherit pkgs lib; }) // {
-            # this is for cache-nix-action so stuff don't get garbage collected
-            # before I cache the nix store, mostly to not redownload inputs a lot
-            gc-keep =
-              (import "${inputs.cache-nix-action}/saveFromGC.nix" {
-                inherit pkgs inputs;
-                inputsExclude = [
-                  inputs.flake-parts
-                ];
-              }).saveFromGC;
-          };
-          treefmt = import ./treefmt.nix { inherit pkgs; };
-        };
     };
 }

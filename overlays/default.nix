@@ -9,13 +9,15 @@
       inherit lib;
     };
 
-  overrideNix = _final: prev: {
-    inherit (prev.lixPackageSets.stable)
-      nix-eval-jobs
-      nix-fast-build
-      colmena
-      ;
-  };
+  overrideNix =
+    _final: prev:
+    let
+      lix = prev.lixPackageSets.stable;
+    in
+    {
+      inherit (lix) nix-eval-jobs colmena;
+      nix-fast-build = prev.nix-fast-build.override { nix-eval-jobs = lix.nix-eval-jobs; };
+    };
 
   gomod2nix = inputs.gomod2nix.overlays.default;
 

@@ -75,7 +75,7 @@ in
     };
 
     services.pipewire.lowLatency = {
-      enable = true;
+      enable = false;
     };
 
     systemd.user.services.steam = {

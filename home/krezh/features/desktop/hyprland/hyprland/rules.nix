@@ -65,18 +65,17 @@ in
         # Fuzzel
         "animation popin 80%, launcher"
         "blur, launcher"
+        # Walker
+        "animation popin 80%, walker"
         "animation fade, hyprpicker" # Colour picker out animation
         "animation fade, logout_dialog" # wlogout
         "animation fade, selection" # slurp
         "animation fade, wayfreeze"
         # DankMaterialShell
-        "noanim, quickshell:modal"
+        "noanim, (dms:.*)"
       ];
       windowrule = [
         "noshadow, focus:0"
-        # copyq
-        "float,class:(com.github.hluk.copyq)"
-        "size 50% 50%,class:(com.github.hluk.copyq)"
         # Rofi
         "stayfocused, class:(Rofi)"
         # Chat

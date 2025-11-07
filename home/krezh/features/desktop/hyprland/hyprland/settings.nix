@@ -86,8 +86,6 @@
       active_opacity = 0.85;
       inactive_opacity = 0.85;
 
-      #screen_shader = "${./brightness.glsl}";
-
       blur = {
         enabled = true;
         passes = 4;

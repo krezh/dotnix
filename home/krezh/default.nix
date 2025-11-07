@@ -40,11 +40,6 @@ in
   catppuccin.cursors.flavor = "mocha";
   catppuccin.cursors.accent = "light";
 
-  programs.nix-search-tv.enableTelevisionIntegration = true;
-  programs.nix-search-tv.enable = true;
-  programs.television.enable = true;
-  programs.television.enableFishIntegration = true;
-
   sops = {
     age.keyFile = "${config.xdg.configHome}/sops/age/keys.txt";
     defaultSopsFile = ./secrets.sops.yaml;
