@@ -18,30 +18,28 @@ let
 in
 {
   flake = {
-    nixosConfigurations = flakeLib.mkSystems [
-      {
-        hostname = "thor";
+    nixosConfigurations = flakeLib.mkSystems {
+      thor = {
         system = "x86_64-linux";
         homeUsers = [ "krezh" ];
-      }
-      {
-        hostname = "odin";
+      };
+      odin = {
         system = "x86_64-linux";
         homeUsers = [ "krezh" ];
-      }
-      {
-        hostname = "nixos-livecd";
+      };
+      nixos-livecd = {
         system = "x86_64-linux";
         homeUsers = [ ];
-        importCommon = false;
-      }
-    ];
+        commonHost = false;
+        desktop = false;
+      };
+    };
 
     ghMatrix = flakeLib.ghMatrix { exclude = [ "nixos-livecd" ]; };
     top = flakeLib.top;
 
     overlays = import ../overlays { inherit inputs lib; };
-    homeManagerModules = [ ../modules/homeManager ];
-    nixosModules.default.imports = [ ../modules/nixos ];
+    homeManagerModules = [ (inputs.import-tree ../modules/homeManager) ];
+    nixosModules.default.imports = [ (inputs.import-tree ../modules/nixos) ];
   };
 }

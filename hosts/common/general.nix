@@ -13,6 +13,8 @@
   ]
   ++ (builtins.attrValues outputs.nixosModules);
 
+  system.stateVersion = "24.05";
+
   catppuccin = {
     enable = true;
     flavor = "mocha";

@@ -32,7 +32,7 @@
     };
     consoleLogLevel = 0;
     kernelParams = [
-      "ipv6.disable=1"
+      # "ipv6.disable=1"
       "split_lock_detect=off"
       "quiet"
       "loglevel=3"

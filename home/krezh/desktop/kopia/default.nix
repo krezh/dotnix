@@ -1,18 +1,5 @@
-{ config, inputs, ... }:
+{ config, ... }:
 {
-  imports = [
-    (inputs.import-tree ./hyprland)
-    ./gtk
-    (inputs.import-tree ./apps)
-    (inputs.import-tree ./launchers)
-    (inputs.import-tree ./xdg)
-  ];
-
-  # Import wallpapers into $HOME/wallpapers
-  home.file."wallpapers" = {
-    recursive = true;
-    source = ./wallpapers;
-  };
 
   hmModules.desktop.kopia = {
     enable = true;
@@ -47,9 +34,5 @@
         };
       };
     };
-  };
-
-  services.udiskie = {
-    enable = true;
   };
 }

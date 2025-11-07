@@ -19,10 +19,10 @@ let
       hostPlatform = system;
     };
   mkSystem =
-    config:
+    hostname: config:
     let
-      hostname = config.hostname;
       homeUsers = config.homeUsers or [ ];
+      desktop = config.desktop or true;
     in
     lib.nixosSystem {
       pkgs = mkPkgsWithSystem config.system;
@@ -38,23 +38,23 @@ let
       modules =
         (getHostModules {
           inherit hostname;
-          importCommon = config.importCommon or true;
+          commonHost = config.commonHost or true;
         })
         ++ (config.extraModules or [ ])
         ++ mkHomeUsers {
           users = homeUsers;
-          inherit hostname;
+          inherit hostname desktop;
         };
     };
   getHostModules =
     {
       hostname,
-      importCommon ? true,
+      commonHost ? true,
     }:
     let
       hostPath = lib.relativeToRoot "hosts/${hostname}";
       commonPath = lib.relativeToRoot "hosts/common";
-      commonModules = if importCommon then [ (lib.importTree commonPath) ] else [ ];
+      commonModules = if commonHost then [ (lib.importTree commonPath) ] else [ ];
     in
     if lib.pathExists hostPath then
       # Use import-tree for common modules (unless disabled), plus import-tree for host-specific modules
@@ -63,12 +63,20 @@ let
       [ ];
 
   mkHomeUsers =
-    { users, hostname }:
+    {
+      users,
+      hostname,
+      desktop ? true,
+    }:
     lib.optionals (users != [ ]) [
       {
         config.home-manager = {
           users = lib.genAttrs users (name: {
-            imports = [ (lib.relativeToRoot "home/${name}") ];
+            imports = [
+              (inputs.import-tree (lib.relativeToRoot "home/${name}/common"))
+            ]
+            ++ (if desktop then [ (inputs.import-tree (lib.relativeToRoot "home/${name}/desktop")) ] else [ ])
+            ++ outputs.homeManagerModules;
             config.home.username = name;
           });
           backupFileExtension = "bk";
@@ -93,11 +101,7 @@ let
     .${system} or system;
 in
 {
-  mkSystems =
-    hosts:
-    lib.genAttrs (map (c: c.hostname) hosts) (
-      hostname: mkSystem (lib.findFirst (c: c.hostname == hostname) null hosts)
-    );
+  mkSystems = hosts: lib.mapAttrs (hostname: config: mkSystem hostname config) hosts;
 
   # Used by CI
   top = lib.genAttrs (builtins.attrNames self.nixosConfigurations) (
