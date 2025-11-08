@@ -1,4 +1,7 @@
-{ inputs, ... }:
+{ inputs, config, ... }:
+let
+  themeName = config.programs.walker.config.theme;
+in
 {
   imports = [ inputs.walker.homeManagerModules.default ];
 
@@ -12,14 +15,14 @@
       selection_wrap = false;
       global_argument_delimiter = "#";
       exact_search_prefix = "'";
-      theme = "default";
+      theme = "catppuccin";
       disable_mouse = false;
       debug = false;
       shell = {
-        anchor_top = true;
-        anchor_bottom = true;
-        anchor_left = true;
-        anchor_right = true;
+        anchor_top = false;
+        anchor_bottom = false;
+        anchor_left = false;
+        anchor_right = false;
       };
       placeholders = {
         default = {
@@ -338,4 +341,13 @@
       };
     };
   };
+
+  xdg.configFile."walker/themes/${themeName}" =
+    if themeName != "default" then
+      {
+        source = ./themes/${themeName};
+        recursive = true;
+      }
+    else
+      null;
 }

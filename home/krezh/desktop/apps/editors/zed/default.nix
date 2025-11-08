@@ -28,14 +28,12 @@
       auto_update = false;
       base_keymap = "VSCode";
       ui_font_size = 17;
-      ui_font_family = "Inter";
+      ui_font_family = "Rubik";
       buffer_font_size = 14;
       buffer_font_family = "JetBrainsMono Nerd Font";
       relative_line_numbers = false;
       tab_size = 2;
-      minimap = {
-        show = "never";
-      };
+      minimap.show = "never";
       context_servers = {
         nixos = {
           enabled = true;
@@ -52,6 +50,7 @@
       agent = {
         enabled = true;
         always_allow_tool_actions = true;
+        use_modifier_to_send = false;
         default_model = {
           provider = "copilot_chat";
           model = "gpt-4.1";

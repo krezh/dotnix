@@ -5,7 +5,7 @@
 }:
 
 rustPlatform.buildRustPackage {
-  pname = "hypr-slurp";
+  pname = "gulp";
   version = "0.1.0";
 
   src = ./.;
@@ -28,11 +28,11 @@ rustPlatform.buildRustPackage {
   ];
 
   meta = {
-    description = "A slurp-like region selector for Hyprland";
+    description = "A playful, compositor-agnostic Wayland screen selection tool";
     platforms = [
       "x86_64-linux"
       "aarch64-linux"
     ];
-    mainProgram = "hypr-slurp";
+    mainProgram = "gulp";
   };
 }

@@ -1,13 +1,17 @@
 //! Wayland client implementation for screen region selection
 //!
 //! This module handles:
-//! - Layer shell surface creation for fullscreen overlay
+//! - Layer shell surface creation for fullscreen overlay (works above fullscreen windows)
 //! - Pointer and keyboard event handling
 //! - Multi-monitor rendering and synchronization
-//! - Window snapping with smooth spring animations
+//! - Compositor-agnostic window snapping with smooth spring animations
 //! - Frame-rate limiting per monitor
 //!
+//! The window snapping system uses a trait-based backend approach that supports:
+//! - Hyprland (via IPC socket)
+//! - Other compositors can be added by implementing the WindowBackend trait
 //!
+//! Module organization:
 //! 1. **Helper Functions** - Utility functions for parsing and rendering
 //! 2. **Data Structures** - `OutputSurface` and `App` structs
 //! 3. **App Implementation**:
@@ -378,15 +382,15 @@ impl App {
 
     fn initialize_snap_animation(&mut self) {
         if let Some(ref window_manager) = self.window_manager {
-            // Get actual cursor position from Hyprland via socket IPC
-            let (px, py) = match WindowManager::get_cursor_position() {
+            // Get actual cursor position from compositor backend
+            let (px, py) = match window_manager.get_cursor_position() {
                 Ok((x, y)) => {
-                    log::info!("Got cursor position from Hyprland socket: ({}, {})", x, y);
+                    log::info!("Got cursor position from backend: ({}, {})", x, y);
                     (x as f64, y as f64)
                 }
                 Err(e) => {
                     log::warn!(
-                        "Failed to get cursor position from Hyprland: {}. Using fallback.",
+                        "Failed to get cursor position from backend: {}. Using fallback.",
                         e
                     );
                     // Fallback to stored pointer position or screen center
@@ -399,7 +403,7 @@ impl App {
             };
 
             if let Some(window) = window_manager.find_nearest_window(px as i32, py as i32, 50) {
-                let rect = window.to_rect();
+                let rect = window.rect;
                 log::info!(
                     "Initial snap target: {}x{} at ({}, {})",
                     rect.width,
@@ -684,7 +688,7 @@ impl App {
                 // Use nearest window within 50px threshold to handle fast cursor movement
                 let snap_target = window_manager
                     .find_nearest_window(global_x as i32, global_y as i32, 50)
-                    .map(|w| w.to_rect());
+                    .map(|w| w.rect);
 
                 // Only log and update animation when snap target changes
                 if snap_target != self.selection.get_snap_target() {

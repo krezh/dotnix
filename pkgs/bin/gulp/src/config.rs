@@ -1,8 +1,8 @@
-//! Configuration file handling for hypr-slurp
+//! Configuration file handling for gulp
 //!
 //! Supports loading from JSON files in XDG-compliant locations:
-//! - $XDG_CONFIG_HOME/hypr-slurp/config.json
-//! - ~/.config/hypr-slurp/config.json (fallback)
+//! - $XDG_CONFIG_HOME/gulp/config.json
+//! - ~/.config/gulp/config.json (fallback)
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use std::fs;
@@ -153,10 +153,10 @@ impl Config {
     /// Searches for config file in XDG-compliant locations
     ///
     /// Priority order:
-    /// 1. $XDG_CONFIG_HOME/hypr-slurp/config.json
-    /// 2. ~/.config/hypr-slurp/config.json
+    /// 1. $XDG_CONFIG_HOME/gulp/config.json
+    /// 2. ~/.config/gulp/config.json
     fn find_config_file() -> Option<PathBuf> {
-        const CONFIG_FILE: &str = "hypr-slurp/config.json";
+        const CONFIG_FILE: &str = "gulp/config.json";
 
         // Try XDG_CONFIG_HOME first
         std::env::var("XDG_CONFIG_HOME")
@@ -176,7 +176,7 @@ impl Config {
     ///
     /// Uses XDG_CONFIG_HOME if set, otherwise ~/.config
     pub fn default_config_path() -> PathBuf {
-        const CONFIG_FILE: &str = "hypr-slurp/config.json";
+        const CONFIG_FILE: &str = "gulp/config.json";
 
         std::env::var("XDG_CONFIG_HOME")
             .ok()
@@ -186,7 +186,7 @@ impl Config {
                     .ok()
                     .map(|home| PathBuf::from(home).join(".config").join(CONFIG_FILE))
             })
-            .unwrap_or_else(|| PathBuf::from("~/.config/hypr-slurp/config.json"))
+            .unwrap_or_else(|| PathBuf::from("~/.config/gulp/config.json"))
     }
 }
 

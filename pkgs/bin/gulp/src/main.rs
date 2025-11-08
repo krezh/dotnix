@@ -1,7 +1,8 @@
-//! hypr-slurp: Enhanced region selector for Wayland
+//! gulp: Enhanced region selector for Wayland
 //!
-//! A screen selection tool with features like:
-//! - Window snapping and hover detection
+//! A compositor-agnostic screen selection tool with features like:
+//! - Window snapping and hover detection (works with Hyprland, Niri, and other compositors)
+//! - Fullscreen window support (can select windows even in fullscreen mode)
 //! - Smooth animations
 //! - Configurable appearance
 //! - Multi-monitor support
@@ -17,7 +18,7 @@ use anyhow::Result;
 use clap::Parser;
 use config::Config;
 
-/// Command-line arguments for hypr-slurp
+/// Command-line arguments for gulp
 ///
 /// These override config file settings when specified.
 #[derive(Parser, Debug, Clone)]
@@ -156,7 +157,7 @@ fn main() -> Result<()> {
         .filter_level(parse_log_level(log_level))
         .init();
 
-    log::info!("Starting hypr-slurp with args: {:?}", args);
+    log::info!("Starting gulp with args: {:?}", args);
 
     // Run the Wayland application (blocks until selection or cancel)
     wayland::App::new(args)?;

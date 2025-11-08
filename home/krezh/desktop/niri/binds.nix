@@ -2,13 +2,12 @@
   pkgs,
   config,
   lib,
-  inputs,
   ...
 }:
 let
   kittyBin = lib.getExe pkgs.kitty;
   launcherBin = lib.getExe config.programs.walker.package;
-  shellBin = lib.getExe inputs.dms-cli.packages.${pkgs.stdenv.hostPlatform.system}.default;
+  shellBin = "${lib.getExe config.programs.noctalia-shell.package} ipc call";
   clipboardBin = "${lib.getExe config.programs.walker.package} -m clipboard";
   recShot = "${lib.getExe pkgs.recshot} -t ${
     config.sops.secrets."zipline/token".path
@@ -66,7 +65,8 @@ in
     "Mod+E".action = spawn (lib.getExe pkgs.nautilus);
     "Mod+O".action = spawn (lib.getExe pkgs.gnome-calculator);
     "Mod+V".action = spawn "sh" "-c" clipboardBin;
-    "Mod+N".action = spawn shellBin "ipc" "call" "notifications" "toggle";
+    "Mod+N".action = spawn shellBin "notifications" "toggleHistory";
+    "Mod+Ctrl+N".action = spawn shellBin "notifications" "clear";
     "Mod+Escape".action = spawn (lib.getExe pkgs.wlogout);
     "Ctrl+Shift+Escape".action = spawn (lib.getExe pkgs.resources);
     "Mod+G".action =

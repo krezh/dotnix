@@ -66,13 +66,13 @@ in
         "animation popin 80%, launcher"
         "blur, launcher"
         # Walker
-        "animation popin 80%, walker"
+        #"animation popin 80%, walker"
         "animation fade, hyprpicker" # Colour picker out animation
         "animation fade, logout_dialog" # wlogout
         "animation fade, selection" # slurp
         "animation fade, wayfreeze"
-        # DankMaterialShell
-        "noanim, (dms:.*)"
+        # Noctalia Shell
+        "noanim, (noctalia:.*)"
       ];
       windowrule = [
         "noshadow, focus:0"

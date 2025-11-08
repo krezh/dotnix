@@ -1,11 +1,14 @@
 {
   pkgs,
+  inputs,
   lib,
   hostname,
   ...
 }:
 {
-  imports = [ ];
+  imports = [
+    inputs.niri.nixosModules.niri
+  ];
 
   boot = {
     plymouth = {

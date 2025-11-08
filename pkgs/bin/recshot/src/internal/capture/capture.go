@@ -129,7 +129,7 @@ func (c *Capturer) getGeometry(mode string) (string, error) {
 func (c *Capturer) getRecordingParams(mode string) (geometry, monitor string, err error) {
 	switch mode {
 	case "video-area":
-		geometry, err = c.runCommand("hypr-slurp")
+		geometry, err = c.runCommand("gulp")
 	case "video-window":
 		geometry, err = c.getActiveWindow()
 	case "video-screen":
@@ -151,7 +151,7 @@ func (c *Capturer) captureArea() (string, error) {
 	}
 
 	time.Sleep(200 * time.Millisecond)
-	geometry, err := c.runCommandWithContext(ctx, "hypr-slurp")
+	geometry, err := c.runCommandWithContext(ctx, "gulp")
 
 	// Always cleanup hyprpicker
 	c.procMgr.KillByName("hyprpicker", syscall.SIGTERM)

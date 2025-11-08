@@ -45,7 +45,7 @@
     rust-analyzer
     hyperfine
     antares
-    hypr-slurp
+    gulp
     vdhcoapp
 
     # Secrets

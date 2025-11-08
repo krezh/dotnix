@@ -2,7 +2,6 @@
   pkgs,
   config,
   lib,
-  inputs,
   ...
 }:
 let
@@ -26,13 +25,13 @@ let
   };
 
   shell = {
-    pkg = inputs.dms-cli.packages.${pkgs.stdenv.hostPlatform.system}.default;
-    bin = "${lib.getExe shell.pkg}";
+    pkg = config.programs.noctalia-shell.package;
+    bin = "${lib.getExe shell.pkg} ipc call";
   };
 
-  showkey = {
-    pkg = pkgs.hypr-showkey;
-    bin = lib.getExe showkey.pkg;
+  keybinds = {
+    pkg = pkgs.hyprland_keybinds;
+    bin = lib.getExe keybinds.pkg;
   };
 
   audioControl = {
@@ -64,7 +63,8 @@ in
         "${mainMod},ESCAPE,Show logout menu,exec,${lib.getExe pkgs.wlogout}"
         "${mainMod},L,Lock the screen immediately,exec,${hyprlock.bin} --immediate"
         "${mainMod},R,Launch application launcher,exec,${launcher.bin}"
-        "${mainMod},N,Launch notifications,exec,${shell.bin} ipc call notifications toggle"
+        "${mainMod},N,Launch notifications,exec,${shell.bin} notifications toggleHistory"
+        "${mainMod} CTRL,N,Clear notifications,exec,${shell.bin} notifications clear"
         "${mainMod},B,Launch Zen Browser,exec,${lib.getExe config.programs.zen-browser.package}"
         "${mainMod},E,Launch Nautilus file manager,exec,${lib.getExe pkgs.nautilus}"
         "${mainMod},RETURN,Launch terminal,exec,${defaultTerminal}"
@@ -74,7 +74,7 @@ in
         "${mainMod},O,Launch calculator,exec,${lib.getExe pkgs.gnome-calculator}"
         "CTRL SHIFT,ESCAPE,Launch system resources monitor (floating),exec,[float] ${lib.getExe pkgs.resources}"
         "${mainMod},V,Launch clipboard manager,exec,${clipboardMgr.bin}"
-        "${mainMod},K,Show keybinds (floating),exec,[float] ${defaultTerminal} --class showkey -e ${showkey.bin}"
+        "${mainMod},K,Show keybinds,exec,${keybinds.bin}"
         "${mainMod},G,Launch Audio Control (floating),exec,[float] pkill ${audioControl.name} || ${defaultTerminal} --class audioControl -e ${audioControl.bin} -m 100 "
         # Hyprview workspace overview
         "${mainMod},TAB,Toggle workspace overview,hyprview:toggle,all placement:adaptive"

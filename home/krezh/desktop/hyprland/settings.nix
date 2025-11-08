@@ -25,15 +25,6 @@
       no_warps = true;
     };
 
-    misc = {
-      enable_swallow = true;
-      mouse_move_enables_dpms = true;
-      key_press_enables_dpms = true;
-      animate_manual_resizes = false;
-      middle_click_paste = false;
-      focus_on_activate = true;
-    };
-
     gestures = {
       workspace_swipe_cancel_ratio = 0.15;
     };
@@ -49,26 +40,26 @@
       sensitivity = "0.4"; # -1.0 - 1.0, 0 means no modification.
     };
 
-    plugin = {
-      hyprview = {
-        active_border_color = "$blue";
-        inactive_border_color = "$base";
-        bg_dim = "0.4";
-        border_radius = 10;
-        border_width = 2;
-        margin = 10;
-        gesture_distance = 200;
-        workspace_indicator_enabled = 1;
-        window_name_enabled = 1;
-        window_name_font_size = 20;
-        window_name_bg_opacity = "0.85";
-        window_text_color = "0xFFFFFFFF";
-      };
-    };
+    # plugin = {
+    #   hyprview = {
+    #     active_border_color = "$blue";
+    #     inactive_border_color = "$base";
+    #     bg_dim = "0.4";
+    #     border_radius = 10;
+    #     border_width = 2;
+    #     margin = 10;
+    #     gesture_distance = 200;
+    #     workspace_indicator_enabled = 1;
+    #     window_name_enabled = 1;
+    #     window_name_font_size = 20;
+    #     window_name_bg_opacity = "0.85";
+    #     window_text_color = "0xFFFFFFFF";
+    #   };
+    # };
 
     general = {
       gaps_in = 5;
-      gaps_out = 5;
+      gaps_out = 10;
       border_size = 2;
       "col.active_border" = "$blue";
       "col.inactive_border" = "$base";
@@ -79,15 +70,15 @@
     };
 
     decoration = {
-      rounding = 10;
+      rounding = 0;
       rounding_power = 4;
 
       # Global transparency settings
-      active_opacity = 0.85;
-      inactive_opacity = 0.85;
+      active_opacity = 0.98;
+      inactive_opacity = 0.98;
 
       blur = {
-        enabled = true;
+        enabled = false;
         passes = 4;
         size = 7;
         noise = 0.01;
@@ -115,29 +106,42 @@
     animations = {
       enabled = true;
       bezier = [
+        "easeOutQuint,0.23,1,0.32,1"
+        "easeInOutCubic,0.65,0.05,0.36,1"
+        "linear,0,0,1,1"
+        "almostLinear,0.5,0.5,0.75,1.0"
+        "quick,0.15,0,0.1,1"
         "specialWorkSwitch, 0.05, 0.7, 0.1, 1"
-        "emphasizedAccel, 0.3, 0, 0.8, 0.15"
-        "emphasizedDecel, 0.05, 0.7, 0.1, 1"
-        "standard, 0.2, 0, 0, 1"
       ];
+
       animation = [
-        "layersIn, 1, 5, emphasizedDecel, slide"
-        "layersOut, 1, 4, emphasizedAccel, slide"
-        "fadeLayers, 1, 5, standard"
-        "windowsIn, 1, 5, emphasizedDecel"
-        "windowsOut, 1, 3, emphasizedAccel"
-        "windowsMove, 1, 6, standard"
-        "workspaces, 1, 5, standard"
-        "specialWorkspace, 1, 4, specialWorkSwitch, slidefadevert 15%"
-        "fade, 1, 6, standard"
-        "fadeDim, 1, 6, standard"
-        "border, 1, 6, standard"
+        "global, 1, 10, default"
+        "border, 1, 5.39, easeOutQuint"
+        "windows, 1, 4.79, easeOutQuint"
+        "windowsIn, 1, 4.1, easeOutQuint, popin 87%"
+        "windowsOut, 1, 1.49, linear, popin 87%"
+        "fadeIn, 1, 1.73, almostLinear"
+        "fadeOut, 1, 1.46, almostLinear"
+        "fade, 1, 3.03, quick"
+        "layers, 1, 3.81, easeOutQuint"
+        "layersIn, 1, 4, easeOutQuint, fade"
+        "layersOut, 1, 1.5, linear, fade"
+        "fadeLayersIn, 1, 1.79, almostLinear"
+        "fadeLayersOut, 1, 1.39, almostLinear"
+        "workspaces, 1, 2, quick"
+        "specialWorkspace, 1, 4, specialWorkSwitch, slidevert"
       ];
     };
 
     misc = {
-      vfr = true; # misc:no_vfr -> misc:vfr. bool, heavily recommended to leave at default on. Saves on CPU usage.
-      vrr = 2; # misc:vrr -> Adaptive sync of your monitor. 0 (off), 1 (on), 2 (fullscreen only). Default 0 to avoid white flashes on select hardware.
+      vfr = true;
+      vrr = 2;
+      enable_swallow = true;
+      mouse_move_enables_dpms = true;
+      key_press_enables_dpms = true;
+      animate_manual_resizes = false;
+      middle_click_paste = false;
+      focus_on_activate = true;
       disable_hyprland_logo = true;
       disable_splash_rendering = true;
       disable_autoreload = true;
@@ -158,9 +162,9 @@
 
     master = {
       mfact = 0.5;
-      orientation = "right";
+      orientation = "left";
       special_scale_factor = 0.8;
-      new_status = "slave";
+      new_status = "master";
     };
 
     debug = {

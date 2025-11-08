@@ -3,7 +3,7 @@
 }:
 
 pkgs.mkShell {
-  name = "hypr-slurp";
+  name = "gulp";
 
   buildInputs = with pkgs; [
     cargo
