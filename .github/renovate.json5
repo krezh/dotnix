@@ -46,6 +46,12 @@
       automergeType: "pr",
     },
     {
+      description: "Enable indirect Go dependency updates",
+      matchManagers: ["gomod"],
+      matchDepTypes: ["indirect"],
+      enabled: true,
+    },
+    {
       description: "Update gomod2nix.toml when go.mod changes",
       matchManagers: ["gomod"],
       postUpgradeTasks: {
