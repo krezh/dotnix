@@ -6,27 +6,6 @@
 }:
 let
   cfg = config.hmModules.desktop.kopia;
-  kopiaManager = pkgs.buildGoApplication {
-    pname = "km";
-    version = "0.1.0";
-    src = ./kopia-manager;
-    modules = ./kopia-manager/gomod2nix.toml;
-    buildInputs = [ pkgs.kopia ];
-    ldflags = [
-      "-s"
-      "-w"
-    ];
-    postInstall = ''
-      # Rename the binary from kopia-manager to km
-      mv $out/bin/kopia-manager $out/bin/km
-
-      installShellCompletion --cmd km \
-        --bash <($out/bin/km completion bash) \
-        --zsh <($out/bin/km completion zsh) \
-        --fish <($out/bin/km completion fish)
-    '';
-    nativeBuildInputs = with pkgs; [ installShellFiles ];
-  };
   configFile = "${config.xdg.configHome}/kopia/repository.config";
   defaultPasswordFile = "${config.xdg.configHome}/kopia/repository.password";
   repositoryPath = "${config.xdg.dataHome}/kopia-repository";
@@ -232,7 +211,7 @@ in
   config = lib.mkIf cfg.enable {
     home.packages = [
       pkgs.kopia
-      kopiaManager
+      pkgs.kopia-manager
     ]
     ++ lib.optionals cfg.gui.enable [ pkgs.kopia-ui ];
 
