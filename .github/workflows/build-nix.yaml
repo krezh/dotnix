@@ -435,7 +435,7 @@ jobs:
           build-size: ${{ steps.build-info.outputs.build-size }}
           build-duration: ${{ steps.build.outputs.build_duration }}
           result-path: ${{ steps.build-info.outputs.result-path }}
-          flake-target: .#top.${{ matrix.host }}
+          flake-target: top.${{ matrix.host }}
 
       - name: Package Diff
         if: success()
