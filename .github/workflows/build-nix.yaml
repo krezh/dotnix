@@ -291,7 +291,7 @@ jobs:
         with:
           build-type: package
           build-name: ${{ matrix.package }}
-          flake-target: .#${{ matrix.package }}
+          flake-target: ${{ matrix.package }}
           error-log: ${{ steps.build.outputs.error-log }}
           pr-number: ${{ github.event.pull_request.number }}
 
@@ -301,7 +301,7 @@ jobs:
         with:
           type: package-success
           package: ${{ matrix.package }}
-          flake-target: .#${{ matrix.package }}
+          flake-target: ${{ matrix.package }}
 
       - name: Failure Summary
         if: failure()
@@ -309,7 +309,7 @@ jobs:
         with:
           type: package-failure
           package: ${{ matrix.package }}
-          flake-target: .#${{ matrix.package }}
+          flake-target: ${{ matrix.package }}
 
   nix-build:
     name: Build ${{ matrix.host }}
