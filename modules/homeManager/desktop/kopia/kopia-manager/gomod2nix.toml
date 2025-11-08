@@ -215,7 +215,7 @@ schema = 3
     version = "v0.30.0"
     hash = "sha256-VPT1Y2zzgdk+Q3Gx8hdwKdxbVh0/Zn/HwDpILCW3ZNA="
   [mod."google.golang.org/genproto/googleapis/rpc"]
-    version = "v0.0.0-20251006185510-65f7160b3a87"
+    version = "v0.0.0-20251103181224-f26f9409b101"
     hash = "sha256-I3ZNpNjKKvTq4DVNw3wLKrCuORabZ0oYj0KKhOMI/MA="
   [mod."google.golang.org/grpc"]
     version = "v1.76.0"
