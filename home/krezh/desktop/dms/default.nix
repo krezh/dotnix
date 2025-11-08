@@ -6,7 +6,7 @@
 
     # Core features
     systemd.enable = true; # Systemd service for auto-start
-    enableSystemMonitoring = true; # System monitoring widgets (dgop)
+    enableSystemMonitoring = false; # System monitoring widgets (dgop)
     enableClipboard = false; # Clipboard history manager
     enableVPN = true; # VPN management widget
     enableBrightnessControl = true; # Backlight/brightness controls

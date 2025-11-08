@@ -45,12 +45,12 @@ in
 
     systemd.user.services.vesktop = lib.mkIf cfg.service.enable {
       Install = {
-        WantedBy = [ "hyprland-session.target" ];
+        WantedBy = [ "graphical-session.target" ];
       };
       Unit = {
         Description = "A Custom Discord Client";
-        After = [ "hyprland-session.target" ];
-        PartOf = [ "hyprland-session.target" ];
+        After = [ "graphical-session.target" ];
+        PartOf = [ "graphical-session.target" ];
       };
       Service = {
         ExecStart = lib.getExe cfg.package;

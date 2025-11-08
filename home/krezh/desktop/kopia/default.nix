@@ -1,6 +1,5 @@
 { config, ... }:
 {
-
   hmModules.desktop.kopia = {
     enable = true;
     repository = {

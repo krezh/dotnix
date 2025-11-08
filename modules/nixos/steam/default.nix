@@ -81,7 +81,7 @@ in
     systemd.user.services.steam = {
       enable = true;
       description = "Steam (no-GUI background startup)";
-      wantedBy = [ "hyprland-session.target" ];
+      wantedBy = [ "graphical-session.target" ];
       path = [
         "/run/current-system/sw"
         "/run/wrappers/bin"

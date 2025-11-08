@@ -115,7 +115,7 @@ in
         RemainAfterExit = false;
       };
       Install.WantedBy = [
-        (lib.mkIf config.wayland.windowManager.hyprland.systemd.enable "hyprland-session.target")
+        "graphical-session.target"
       ];
     };
 
@@ -141,7 +141,7 @@ in
         RestartSec = 5;
       };
       Install.WantedBy = [
-        (lib.mkIf config.wayland.windowManager.hyprland.systemd.enable "hyprland-session.target")
+        "graphical-session.target"
       ];
     };
   };
