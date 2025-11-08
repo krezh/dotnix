@@ -38,6 +38,7 @@
       },
       automerge: true,
       automergeType: "pr",
+      ignoreTests: false,
     },
     {
       description: "Separate PRs for pkgs",
@@ -45,6 +46,7 @@
       additionalBranchPrefix: "pkgs-",
       automerge: true,
       automergeType: "pr",
+      ignoreTests: false,
     },
     {
       description: "Update gomod2nix.toml when go.mod changes",
@@ -58,6 +60,7 @@
       },
       automerge: true,
       automergeType: "pr",
+      ignoreTests: false,
     },
   ],
 }
