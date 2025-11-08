@@ -2,21 +2,8 @@
   lib,
   stdenv,
   fetchFromGitHub,
-  hyprland,
-  hyprutils,
-  hyprgraphics,
-  hyprlang,
-  aquamarine,
   pkg-config,
-  pixman,
-  libdrm,
-  libglvnd,
-  pango,
-  cairo,
-  libinput,
-  systemd,
-  wayland,
-  libxkbcommon,
+  pkgs,
 }:
 stdenv.mkDerivation {
   pname = "hyprview";
@@ -34,7 +21,7 @@ stdenv.mkDerivation {
     pkg-config
   ];
 
-  buildInputs = [
+  buildInputs = with pkgs; [
     hyprland
     hyprutils
     hyprgraphics
