@@ -38,8 +38,8 @@ schema = 3
     version = "v0.4.2"
     hash = "sha256-3w1PCM/c4JvVEh2d0sMfv4C77Xs1bPa1Ea84zdynC7I="
   [mod."github.com/charmbracelet/x/ansi"]
-    version = "v0.11.0"
-    hash = "sha256-P3jCKqEem/gW8dUWiol7K1cZe1Zr2UE2jNe9j884+nk="
+    version = "v0.10.3"
+    hash = "sha256-bSv0OAESuOuXXUIWHLvR/VBnk2gbogSGhDsFDLyDObw="
   [mod."github.com/charmbracelet/x/cellbuf"]
     version = "v0.0.13-0.20250311204145-2c3ea96c31dd"
     hash = "sha256-XAhCOt8qJ2vR77lH1ez0IVU1/2CaLTq9jSmrHVg5HHU="
