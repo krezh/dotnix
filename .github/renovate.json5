@@ -3,6 +3,7 @@
   nix: {
     enabled: true,
   },
+  postUpdateOptions: ["gomodTidy"],
   lockFileMaintenance: {
     enabled: true,
     schedule: ["after 1am and before 2am"],
@@ -44,12 +45,6 @@
       additionalBranchPrefix: "pkgs-",
       automerge: true,
       automergeType: "pr",
-    },
-    {
-      description: "Enable indirect Go dependency updates",
-      matchManagers: ["gomod"],
-      matchDepTypes: ["indirect"],
-      enabled: true,
     },
     {
       description: "Update gomod2nix.toml when go.mod changes",
