@@ -51,10 +51,7 @@ inputs:
     description: "Nix store result path"
     required: false
     default: ""
-  cache-hit:
-    description: "Whether cache was hit"
-    required: false
-    default: "false"
+
   flake-target:
     description: "Flake build target"
     required: false
@@ -231,11 +228,6 @@ runs:
               echo "|---------|-------|"
               if [ -n "${{ inputs.cache-name }}" ]; then
                 echo "| **Cache** | \`${{ inputs.cache-name }}\` |"
-              fi
-              if [ "${{ inputs.cache-hit }}" = "true" ]; then
-                echo "| **Cache Hit** | ✅ Yes |"
-              else
-                echo "| **Cache Hit** | ❌ No (rebuilding inputs) |"
               fi
               if [ -n "${{ inputs.flake-lock-hash }}" ]; then
                 echo "| **Flake Lock Hash** | \`${{ inputs.flake-lock-hash }}\` |"

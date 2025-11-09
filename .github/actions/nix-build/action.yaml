@@ -1,0 +1,77 @@
+---
+name: "Nix Build"
+description: "Build a Nix flake target with standardized error capture and logging"
+author: "krezh"
+
+inputs:
+  target:
+    description: "Flake target to build (e.g., package-name or top.hostname)"
+    required: true
+  build-type:
+    description: "Type of build (package or system)"
+    required: true
+  extra-args:
+    description: "Extra nix build arguments"
+    required: false
+    default: ""
+  output-link:
+    description: "Path for the result symlink (-o flag)"
+    required: false
+    default: ""
+
+outputs:
+  success:
+    description: "Whether the build succeeded"
+    value: ${{ steps.build.outcome == 'success' }}
+  error-log:
+    description: "Extracted error log content"
+    value: ${{ steps.build.outputs.error-log }}
+  build_duration:
+    description: "Build duration in seconds"
+    value: ${{ steps.build.outputs.build_duration }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Build ${{ inputs.build-type }}
+      id: build
+      shell: bash
+      run: |
+        set -o pipefail
+        build_start=$(date +%s)
+
+        # Construct nix build command
+        nix_cmd="nix build \".#${{ inputs.target }}\""
+
+        # Add output link if specified
+        if [ -n "${{ inputs.output-link }}" ]; then
+          nix_cmd="$nix_cmd -o ${{ inputs.output-link }}"
+        fi
+
+        # Add extra args based on build type or custom args
+        if [ -n "${{ inputs.extra-args }}" ]; then
+          nix_cmd="$nix_cmd ${{ inputs.extra-args }}"
+        elif [ "${{ inputs.build-type }}" = "system" ]; then
+          nix_cmd="$nix_cmd --fallback --no-write-lock-file --log-format raw"
+        else
+          nix_cmd="$nix_cmd --print-build-logs"
+        fi
+
+        # Execute build with error capture
+        eval "$nix_cmd" 2>&1 | tee build.log || {
+          {
+            echo 'error-log<<EOF_ERROR_LOG'
+            grep -iE 'error|failed|cannot|fatal|panic' build.log | tail -n 100 || tail -n 50 build.log
+            echo 'EOF_ERROR_LOG'
+          } >> $GITHUB_OUTPUT
+
+          build_end=$(date +%s)
+          build_duration=$((build_end - build_start))
+          echo "build_duration=$build_duration" >> $GITHUB_OUTPUT
+
+          exit 1
+        }
+
+        build_end=$(date +%s)
+        build_duration=$((build_end - build_start))
+        echo "build_duration=$build_duration" >> $GITHUB_OUTPUT
