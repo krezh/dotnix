@@ -204,7 +204,17 @@ jobs:
         name: Generate Matrix
         run: |
           set -Eeu
-          matrix=$(nix eval --json '.#ghMatrix' | jq -c)
+          matrix=$(nix eval --json '.#ghMatrix' | jq -c) || {
+            echo "❌ Error: Failed to evaluate ghMatrix"
+            exit 1
+          }
+
+          # Validate matrix is not empty
+          if [ -z "$matrix" ] || [ "$matrix" = "null" ]; then
+            echo "❌ Error: Matrix is empty or null"
+            exit 1
+          fi
+
           changed_systems='${{ needs.detect-changes.outputs.changed-systems }}'
 
           # Filter matrix if specific systems changed
