@@ -51,7 +51,6 @@ inputs:
     description: "Nix store result path"
     required: false
     default: ""
-
   flake-target:
     description: "Flake build target"
     required: false

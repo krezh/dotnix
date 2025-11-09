@@ -1,10 +1,6 @@
 name: Setup Nix with Caching
 description: Install Nix and configure Cachix + Attic caches
 inputs:
-  caches:
-    description: Enable cache setup (Cachix + Attic)
-    required: false
-    default: "true"
   cachix-auth-token:
     description: Cachix authentication token
     required: false
@@ -37,14 +33,14 @@ runs:
           builders-use-substitutes = true
 
     - name: Setup Cachix
-      if: inputs.caches == 'true' && inputs.skip-cache != 'true'
+      if: inputs.skip-cache != 'true'
       uses: cachix/cachix-action@0fc020193b5a1fa3ac4575aa3a7d3aa6a35435ad # v16
       with:
         name: ${{ inputs.cache-name }}
         authToken: ${{ inputs.cachix-auth-token }}
 
     - name: Setup Attic
-      if: inputs.caches == 'true' && inputs.skip-cache != 'true'
+      if: inputs.skip-cache != 'true'
       uses: ryanccn/attic-action@7fbafba3978e86e585cb68a82c08b30f3672b62d # v0.4.0
       with:
         endpoint: ${{ inputs.attic-endpoint }}

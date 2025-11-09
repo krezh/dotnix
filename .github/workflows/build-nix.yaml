@@ -81,10 +81,10 @@ jobs:
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
 
-      - name: Install Nix
-        uses: nixbuild/nix-quick-install-action@2c9db80fb984ceb1bcaa77cdda3fdf8cfba92035 # v34
+      - name: Setup Nix with caching
+        uses: ./.github/actions/setup-nix
         with:
-          nix_conf: ${{ env.NIX_CONFIG }}
+          skip-cache: true
 
       - id: set-matrix
         name: Generate Matrix
@@ -92,7 +92,6 @@ jobs:
           set -Eeu
           matrix=$(nix eval --json '.#ghMatrix' | jq -c) || exit 1
           systems='${{ needs.detect-changes.outputs.changed-systems }}'
-
           if [ -n "$systems" ] && [ "$systems" != "[]" ]; then
             changed_hosts=$(echo "$systems" | jq -r '[.[] | select(startswith("hosts/")) | split("/")[1]] | unique')
             has_shared=$(echo "$systems" | jq -r 'any(startswith("hosts/") | not)')
@@ -101,7 +100,6 @@ jobs:
               matrix=$(echo "$matrix" | jq -c --argjson hosts "$changed_hosts" '{include: [.include[] | select(.host as $h | $hosts | index($h))]}')
             fi
           fi
-
           echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
 
       - name: Show Summary
