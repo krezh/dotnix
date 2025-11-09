@@ -77,7 +77,7 @@ in
         "${mainMod},K,Show keybinds,exec,${keybinds.bin}"
         "${mainMod},G,Launch Audio Control (floating),exec,[float] pkill ${audioControl.name} || ${defaultTerminal} --class audioControl -e ${audioControl.bin} -m 100 "
         # Hyprview workspace overview
-        "${mainMod},TAB,Toggle workspace overview,hyprview:toggle,all placement:adaptive"
+        #"${mainMod},TAB,Toggle workspace overview,hyprview:toggle,all placement:adaptive"
         # Audio device switching
         "${mainMod},F3,Toggle between audio devices,exec,audio-switch toggle"
         # Screenshots and screen recordings

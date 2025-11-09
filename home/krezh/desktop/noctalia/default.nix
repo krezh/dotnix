@@ -44,7 +44,7 @@
               characterCount = 2;
               hideUnoccupied = false;
               id = "Workspace";
-              labelMode = "name";
+              labelMode = "none";
             }
           ];
           left = [

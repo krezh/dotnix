@@ -33,6 +33,7 @@ in
       kubectl-pgo
       cilium-cli
       kubectl-rook-ceph
+      k8s-format
       inputs.kauth.packages.${pkgs.stdenv.hostPlatform.system}.kauth
     ];
 

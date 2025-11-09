@@ -36,12 +36,7 @@ in
         previous = [ "Up" ];
         toggle_exact = [ "ctrl e" ];
         resume_last_query = [ "ctrl r" ];
-        quick_activate = [
-          "F1"
-          "F2"
-          "F3"
-          "F4"
-        ];
+        quick_activate = [ ];
       };
       providers = {
         default = [
@@ -347,6 +342,7 @@ in
       {
         source = ./themes/${themeName};
         recursive = true;
+        force = true;
       }
     else
       null;
