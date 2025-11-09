@@ -111,7 +111,7 @@ jobs:
   build-packages:
     name: Build package ${{ matrix.package }}
     needs: detect-changes
-    if: ${{ needs.detect-changes.outputs.changed-packages != '[]' }}
+    if: ${{ needs.detect-changes.outputs.changed-packages != '' }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
