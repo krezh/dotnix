@@ -48,7 +48,7 @@ in
             "Noto Color Emoji"
           ];
           monospace = [
-            "JetBrains Nerd Font"
+            "JetBrainsMono Nerd Font"
             "Noto Color Emoji"
           ];
           emoji = [ "Noto Color Emoji" ];
