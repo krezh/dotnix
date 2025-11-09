@@ -64,6 +64,7 @@ jobs:
 
       - name: Extract package names
         id: extract-packages
+        if: steps.changed-packages.outputs.changed_files != '[]'
         run: |
           files='${{ steps.changed-packages.outputs.changed_files }}'
           pkgs=$(echo "$files" | jq -c '[.[] | split("/")[1]] | unique')
@@ -92,9 +93,13 @@ jobs:
           matrix=$(nix eval --json '.#ghMatrix' | jq -c) || exit 1
           systems='${{ needs.detect-changes.outputs.changed-systems }}'
 
-          # Filter to specific systems if provided
           if [ -n "$systems" ] && [ "$systems" != "[]" ]; then
-            matrix=$(echo "$matrix" | jq -c --argjson s "$systems" '{include: [.include[] | select(.host as $h | $s | index($h))]}')
+            changed_hosts=$(echo "$systems" | jq -r '[.[] | select(startswith("hosts/")) | split("/")[1]] | unique')
+            has_shared=$(echo "$systems" | jq -r 'any(startswith("hosts/") | not)')
+
+            if [ "$has_shared" = "false" ] && [ "$changed_hosts" != "[]" ]; then
+              matrix=$(echo "$matrix" | jq -c --argjson hosts "$changed_hosts" '{include: [.include[] | select(.host as $h | $hosts | index($h))]}')
+            fi
           fi
 
           echo "matrix=$matrix" >> "$GITHUB_OUTPUT"

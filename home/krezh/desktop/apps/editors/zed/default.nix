@@ -23,6 +23,7 @@
       "qml"
       "github-actions"
       "json5"
+      "log"
     ];
     userSettings = {
       auto_update = false;
