@@ -1,26 +1,21 @@
 { lib, ... }:
 let
-  # Pattern matching - glob patterns with * wildcard support
-  matchesGlob =
-    pattern: str:
-    let
-      regexPattern = builtins.replaceStrings [ "*" ] [ ".*" ] pattern;
-    in
-    (builtins.match regexPattern str) != null;
+  # Pattern matching - regex patterns
+  matchesRegex = pattern: str: (builtins.match pattern str) != null;
 
-  matchesAny = patterns: name: builtins.any (p: matchesGlob p name) patterns;
+  matchesAny = patterns: name: builtins.any (p: matchesRegex p name) patterns;
 
-  # Check if name starts with underscore (import-tree compatible)
+  # Check if name starts with underscore
   startsWithUnderscore = name: builtins.substring 0 1 name == "_";
 
   # Multi-stage filtering: cheap checks first, expensive checks last
   shouldExclude =
     cfg: name:
-    # Stage 0: Underscore prefix check (cheapest) - matches import-tree behavior
+    # Stage 0: Underscore prefix check
     startsWithUnderscore name
-    # Stage 1: Direct name match (cheap)
+    # Stage 1: Direct name match
     || builtins.elem name cfg.excludeFiles
-    # Stage 2: Pattern matching (more expensive)
+    # Stage 2: Pattern matching
     || matchesAny cfg.excludePatterns name;
 
   shouldInclude = cfg: name: cfg.includePatterns == [ ] || matchesAny cfg.includePatterns name;
@@ -139,7 +134,6 @@ let
       result;
 in
 {
-  # Return module with imports (import-tree compatible)
   # Simple form: just pass a path directly
   # Uses lazy evaluation to avoid self-import issues
   toImports = path: {

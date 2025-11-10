@@ -6,6 +6,7 @@
     ./monitors.nix
     ./smartgaps.nix
     ./rules.nix
+    #./scrolling.nix
   ];
 
   wayland.windowManager.hyprland = {
@@ -20,7 +21,6 @@
     };
     plugins = with pkgs.hyprlandPlugins; [
       hyprexpo
-      hyprscrolling
     ];
   };
 

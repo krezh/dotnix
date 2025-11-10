@@ -1,4 +1,4 @@
-{ ... }:
+{ var, ... }:
 {
   wayland.windowManager.hyprland.settings = {
 
@@ -52,19 +52,19 @@
     };
 
     general = {
+      layout = "dwindle";
       gaps_in = 5;
       gaps_out = 10;
       border_size = 2;
       "col.active_border" = "$blue";
       "col.inactive_border" = "$base";
-      layout = "dwindle";
 
       allow_tearing = false;
       resize_on_border = true;
     };
 
     decoration = {
-      rounding = 0;
+      rounding = var.rounding;
       rounding_power = 4;
 
       # Global transparency settings
