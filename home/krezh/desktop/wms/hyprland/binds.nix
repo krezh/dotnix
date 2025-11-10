@@ -20,8 +20,7 @@ let
   };
 
   launcher = {
-    pkg = config.programs.walker.package;
-    bin = "${lib.getExe launcher.pkg}";
+    bin = "${pkgs.netcat}/bin/nc -U /run/user/$(id -u)/walker/walker.sock";
   };
 
   shell = {
