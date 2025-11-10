@@ -144,9 +144,9 @@ runs:
           echo ""
           echo "| Property | Value |"
           echo "|----------|-------|"
-          echo "| **Event** | \\\`${{ inputs.event-name }}\\\` |"
-          echo "| **Ref** | \\\`${{ inputs.ref }}\\\` |"
-          echo "| **Commit** | [\\\`${GITHUB_SHA:0:7}\\\`](${{ github.server_url }}/${{ github.repository }}/commit/${{ inputs.sha }}) |"
+          echo "| **Event** | \`${{ inputs.event-name }}\` |"
+          echo "| **Ref** | \`${{ inputs.ref }}\` |"
+          echo "| **Commit** | [\`${GITHUB_SHA:0:7}\`](${{ github.server_url }}/${{ github.repository }}/commit/${{ inputs.sha }}) |"
           if [ "${{ inputs.event-name }}" = "pull_request" ] && [ -n "${{ inputs.pr-number }}" ]; then
             echo "| **PR** | [#${{ inputs.pr-number }}](${{ inputs.pr-url }}) |"
             echo "| **Author** | @${{ inputs.pr-author }} |"

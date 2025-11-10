@@ -6,14 +6,12 @@ on:
   workflow_call:
   pull_request:
     branches: ["main"]
-    paths:
+    paths: &paths
       - "pkgs/**"
       - "flake.lock"
   push:
     branches: ["main"]
-    paths:
-      - "pkgs/**"
-      - "flake.lock"
+    paths: *paths
 
 permissions:
   contents: read
