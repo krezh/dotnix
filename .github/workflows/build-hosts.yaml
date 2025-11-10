@@ -96,7 +96,6 @@ jobs:
     if: ${{ github.event.pull_request.draft == false && (github.event_name == 'workflow_dispatch' || needs.detect-changes.outputs.changed-systems != '[]') }}
     needs: [detect-changes, ghMatrix]
     strategy:
-      fail-fast: false
       matrix: ${{ fromJSON(needs.ghMatrix.outputs.matrix) }}
     runs-on: ${{ matrix.runner }}
     steps:
