@@ -31,7 +31,7 @@
         backgroundOpacity = 1;
         density = "compact";
         exclusive = true;
-        floating = true;
+        floating = false;
         marginHorizontal = 0.25;
         marginVertical = 0.25;
         monitors = [ ];

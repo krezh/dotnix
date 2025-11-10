@@ -1,10 +1,8 @@
 {
   inputs,
+  lib,
   ...
 }:
-let
-  lib = inputs.nixpkgs.lib // import ../lib { inherit inputs; };
-in
 {
   perSystem =
     {
@@ -19,6 +17,10 @@ in
         config = { };
       };
 
-      packages = import ../pkgs { inherit pkgs lib; };
+      packages = lib.scanPath.toAttrs {
+        path = ../pkgs;
+        func = pkgs.callPackage;
+        useBaseName = true;
+      };
     };
 }

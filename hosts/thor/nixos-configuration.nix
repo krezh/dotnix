@@ -10,7 +10,6 @@
     inputs.chaotic.nixosModules.nyx-cache
     inputs.chaotic.nixosModules.nyx-overlay
     inputs.chaotic.nixosModules.nyx-registry
-    inputs.niri.nixosModules.niri
   ];
 
   boot = {
@@ -150,17 +149,6 @@
   programs.hyprland = {
     enable = true;
   };
-
-  programs.niri = {
-    enable = true;
-    package = pkgs.niri-unstable;
-  };
-
-  # Enable niri binary cache
-  niri-flake.cache.enable = true;
-
-  # Add niri overlay for packages
-  nixpkgs.overlays = [ inputs.niri.overlays.niri ];
 
   hardware = {
     graphics = {

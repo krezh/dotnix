@@ -12,6 +12,7 @@
         y = 0;
       };
       variable-refresh-rate = true;
+      scale = 1;
     };
 
     "DP-2" = {
@@ -24,7 +25,7 @@
         x = 2560;
         y = 0;
       };
-      variable-refresh-rate = true;
+      scale = 1;
     };
   };
 }

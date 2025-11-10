@@ -7,6 +7,11 @@
 }:
 
 let
+  # Load and merge all .nix files from vars/ directory using import-tree
+  var = (inputs.import-tree.withLib lib).pipeTo (
+    files: builtins.foldl' lib.recursiveUpdate { } (map import files)
+  ) (lib.relativeToRoot "vars");
+
   mkPkgsWithSystem =
     system:
     import inputs.nixpkgs {
@@ -33,6 +38,7 @@ let
           lib
           hostname
           homeUsers
+          var
           ;
       };
       modules =
@@ -54,13 +60,9 @@ let
     let
       hostPath = lib.relativeToRoot "hosts/${hostname}";
       commonPath = lib.relativeToRoot "hosts/common";
-      commonModules = if commonHost then [ (lib.importTree commonPath) ] else [ ];
+      commonModules = if commonHost then [ (lib.scanPath.toImports commonPath) ] else [ ];
     in
-    if lib.pathExists hostPath then
-      # Use import-tree for common modules (unless disabled), plus import-tree for host-specific modules
-      commonModules ++ [ (lib.importTree hostPath) ]
-    else
-      [ ];
+    if lib.pathExists hostPath then commonModules ++ [ (lib.scanPath.toImports hostPath) ] else [ ];
 
   mkHomeUsers =
     {
@@ -73,9 +75,11 @@ let
         config.home-manager = {
           users = lib.genAttrs users (name: {
             imports = [
-              (inputs.import-tree (lib.relativeToRoot "home/${name}/common"))
+              (lib.scanPath.toImports (lib.relativeToRoot "home/${name}/common"))
             ]
-            ++ (if desktop then [ (inputs.import-tree (lib.relativeToRoot "home/${name}/desktop")) ] else [ ])
+            ++ (
+              if desktop then [ (lib.scanPath.toImports (lib.relativeToRoot "home/${name}/desktop")) ] else [ ]
+            )
             ++ outputs.homeManagerModules;
             config.home.username = name;
           });
@@ -83,7 +87,12 @@ let
           useGlobalPkgs = true;
           useUserPackages = true;
           extraSpecialArgs = {
-            inherit inputs outputs hostname;
+            inherit
+              inputs
+              outputs
+              hostname
+              var
+              ;
           };
           sharedModules = [
             inputs.sops-nix.homeManagerModules.sops

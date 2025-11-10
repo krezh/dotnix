@@ -1,13 +1,11 @@
 {
   pkgs,
-  inputs,
   lib,
   hostname,
   ...
 }:
 {
   imports = [
-    inputs.niri.nixosModules.niri
   ];
 
   boot = {

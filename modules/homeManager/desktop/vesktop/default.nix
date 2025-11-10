@@ -50,9 +50,10 @@ in
       Unit = {
         Description = "A Custom Discord Client";
         After = [ "graphical-session.target" ];
-        PartOf = [ "graphical-session.target" ];
+        requires = [ "graphical-session.target" ];
       };
       Service = {
+        ExecStartPre = "${pkgs.coreutils}/bin/sleep 1";
         ExecStart = lib.getExe cfg.package;
         Restart = "on-failure";
         RestartSec = 5;

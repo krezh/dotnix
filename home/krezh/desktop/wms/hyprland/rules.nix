@@ -1,4 +1,4 @@
-{ pkgs, ... }:
+{ pkgs, var, ... }:
 let
   opacity =
     value: items:
@@ -75,7 +75,6 @@ in
         "noanim, (noctalia:.*)"
       ];
       windowrule = [
-        "noshadow, focus:0"
         # Rofi
         "stayfocused, class:(Rofi)"
         # Chat
@@ -89,7 +88,7 @@ in
         # xwayland popups
         "nodim, xwayland:1, title:win[0-9]+"
         "noshadow, xwayland:1, title:win[0-9]+"
-        "rounding 10, xwayland:1, title:win[0-9]+"
+        "rounding ${toString var.rounding}, xwayland:1, title:win[0-9]+"
         # Dialogs
         "float, title:(Select|Open)( a)? (File|Folder)(s)?"
         "float, title:File (Operation|Upload)( Progress)?"

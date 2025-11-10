@@ -1,11 +1,11 @@
 {
   inputs,
   self,
+  lib,
   ...
 }:
 let
   inherit (self) outputs;
-  lib = inputs.nixpkgs.lib // import ../lib { inherit inputs; };
 
   flakeLib = import ../lib/flakeLib.nix {
     inherit
@@ -39,7 +39,7 @@ in
     top = flakeLib.top;
 
     overlays = import ../overlays { inherit inputs lib; };
-    homeManagerModules = [ (inputs.import-tree ../modules/homeManager) ];
-    nixosModules.default.imports = [ (inputs.import-tree ../modules/nixos) ];
+    homeManagerModules = lib.scanPath.toList { path = ../modules/homeManager; };
+    nixosModules.default = lib.scanPath.toImports ../modules/nixos;
   };
 }

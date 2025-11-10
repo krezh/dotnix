@@ -40,22 +40,16 @@
       sensitivity = "0.4"; # -1.0 - 1.0, 0 means no modification.
     };
 
-    # plugin = {
-    #   hyprview = {
-    #     active_border_color = "$blue";
-    #     inactive_border_color = "$base";
-    #     bg_dim = "0.4";
-    #     border_radius = 10;
-    #     border_width = 2;
-    #     margin = 10;
-    #     gesture_distance = 200;
-    #     workspace_indicator_enabled = 1;
-    #     window_name_enabled = 1;
-    #     window_name_font_size = 20;
-    #     window_name_bg_opacity = "0.85";
-    #     window_text_color = "0xFFFFFFFF";
-    #   };
-    # };
+    plugin = {
+      hyprexpo = {
+        columns = 3;
+        gap_size = 5;
+        bg_col = "rgb(111111)";
+        workspace_method = "center current"; # [center/first] [workspace] e.g. first 1 or center m+1
+        gesture_distance = 300; # how far is the "max" for the gesture
+        skip_empty = true;
+      };
+    };
 
     general = {
       gaps_in = 5;

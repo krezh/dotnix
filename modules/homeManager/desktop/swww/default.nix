@@ -102,7 +102,6 @@ in
       Unit = {
         Description = "A Solution to your Wayland Wallpaper Woes";
         Documentation = "https://github.com/Horus645/swww";
-        After = [ "graphical-session.target" ];
         Requires = [ "graphical-session.target" ];
       };
       Service = {
@@ -114,20 +113,13 @@ in
         RestartSec = 5;
         RemainAfterExit = false;
       };
-      Install.WantedBy = [
-        "graphical-session.target"
-      ];
+      Install.WantedBy = [ "graphical-session.target" ];
     };
 
     systemd.user.services.swww-random = {
       Unit = {
         Description = "Random wallpaper setter for swww";
-        Documentation = "https://github.com/Horus645/swww";
-        After = [ "swww-daemon.service" ];
-        Requires = [
-          "swww-daemon.service"
-          "graphical-session.target"
-        ];
+        Requires = [ "swww-daemon.service" ];
       };
       Service = {
         Environment = [
@@ -140,9 +132,7 @@ in
         Restart = "on-failure";
         RestartSec = 5;
       };
-      Install.WantedBy = [
-        "graphical-session.target"
-      ];
+      Install.WantedBy = [ "swww-daemon.service" ];
     };
   };
 }

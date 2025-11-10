@@ -82,6 +82,7 @@ in
       enable = true;
       description = "Steam (no-GUI background startup)";
       wantedBy = [ "graphical-session.target" ];
+      requires = [ "graphical-session.target" ];
       path = [
         "/run/current-system/sw"
         "/run/wrappers/bin"

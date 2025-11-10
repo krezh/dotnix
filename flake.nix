@@ -115,44 +115,38 @@
       url = "github:outfoxxed/quickshell";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+
     noctalia = {
       url = "github:noctalia-dev/noctalia-shell";
       inputs.nixpkgs.follows = "nixpkgs";
       inputs.quickshell.follows = "quickshell";
     };
 
-    niri = {
-      url = "github:sodiboo/niri-flake";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-
-    dgop = {
-      url = "github:AvengeMedia/dgop";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-
-    dms-cli = {
-      url = "github:AvengeMedia/danklinux";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-
-    dankMaterialShell = {
-      url = "github:AvengeMedia/DankMaterialShell";
-      inputs.nixpkgs.follows = "nixpkgs";
-      inputs.dgop.follows = "dgop";
-      inputs.dms-cli.follows = "dms-cli";
-    };
+    # niri = {
+    #   url = "github:sodiboo/niri-flake";
+    #   inputs.nixpkgs.follows = "nixpkgs";
+    # };
   };
 
   outputs =
-    inputs@{ flake-parts, import-tree, ... }:
-    flake-parts.lib.mkFlake { inherit inputs; } {
-      imports = [
-        inputs.pre-commit-hooks.flakeModule
-        inputs.devshell.flakeModule
-        inputs.treefmt-nix.flakeModule
-        (import-tree ./flake-parts)
-      ];
-      systems = [ "x86_64-linux" ];
-    };
+    inputs@{ flake-parts, ... }:
+    flake-parts.lib.mkFlake
+      {
+        inherit inputs;
+        specialArgs = {
+          lib = import ./lib { inherit inputs; };
+        };
+      }
+      (
+        { lib, ... }:
+        {
+          imports = [
+            inputs.pre-commit-hooks.flakeModule
+            inputs.devshell.flakeModule
+            inputs.treefmt-nix.flakeModule
+            (lib.scanPath.toImports ./flake-parts)
+          ];
+          systems = [ "x86_64-linux" ];
+        }
+      );
 }

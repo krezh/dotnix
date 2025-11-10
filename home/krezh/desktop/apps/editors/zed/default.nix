@@ -85,7 +85,7 @@
         nixd = {
           settings = {
             formatting.command = [ "${lib.getExe pkgs.nixfmt-rfc-style}" ];
-            nixpkgs.expr = "import (builtins.getFlake \"${inputs.self}\").inputs.nixpkgs { }";
+            nixpkgs.expr = "import (builtins.getFlake \"${inputs.self}\").inputs.nixpkgs { overlays = [ (final: prev: { lib = prev.lib // (import (builtins.getFlake \"${inputs.self}\").outPath + \"/lib\") { inputs = (builtins.getFlake \"${inputs.self}\").inputs; }); }) ]; }";
             options = rec {
               nixos.expr = "(builtins.getFlake \"${inputs.self}\").nixosConfigurations.${hostname}.options";
               home-manager.expr = "${nixos.expr}.home-manager.users.type.getSubOptions []";

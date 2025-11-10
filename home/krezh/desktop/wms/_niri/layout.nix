@@ -29,8 +29,6 @@
       size = 24;
     };
 
-    prefer-no-csd = true;
-
     screenshot-path = "~/Pictures/Screenshots/Screenshot-%Y-%m-%d-%H-%M-%S.png";
 
     overview = {

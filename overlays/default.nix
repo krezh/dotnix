@@ -4,9 +4,10 @@
   # This one brings our custom packages from the 'packages' directory
   pkgs =
     final: _prev:
-    import ../pkgs {
-      pkgs = final;
-      inherit lib;
+    lib.scanPath.toAttrs {
+      path = ../pkgs;
+      func = final.callPackage;
+      useBaseName = true;
     };
 
   overrideNix =

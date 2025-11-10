@@ -76,8 +76,8 @@ in
         "${mainMod},V,Launch clipboard manager,exec,${clipboardMgr.bin}"
         "${mainMod},K,Show keybinds,exec,${keybinds.bin}"
         "${mainMod},G,Launch Audio Control (floating),exec,[float] pkill ${audioControl.name} || ${defaultTerminal} --class audioControl -e ${audioControl.bin} -m 100 "
-        # Hyprview workspace overview
-        #"${mainMod},TAB,Toggle workspace overview,hyprview:toggle,all placement:adaptive"
+        # HyprExpo workspace overview
+        "${mainMod},TAB,Toggle workspace overview, hyprexpo:expo, toggle"
         # Audio device switching
         "${mainMod},F3,Toggle between audio devices,exec,audio-switch toggle"
         # Screenshots and screen recordings

@@ -9,6 +9,7 @@
     ./binds.nix
     ./startup.nix
     ./workspaces.nix
+    ./general.nix
   ];
 
   programs.niri.settings = {
