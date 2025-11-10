@@ -25,6 +25,7 @@ env:
 
 jobs:
   detect-packages:
+    name: Detect Changed Packages
     runs-on: ubuntu-latest
     outputs:
       changed-packages: ${{ steps.extract-packages.outputs.packages }}

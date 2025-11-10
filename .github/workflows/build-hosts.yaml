@@ -31,6 +31,7 @@ env:
 
 jobs:
   detect-changes:
+    name: Detect Changed Systems
     runs-on: ubuntu-latest
     outputs:
       changed-systems: ${{ steps.changed-systems.outputs.changed_files }}
@@ -53,6 +54,7 @@ jobs:
             flake.lock
 
   ghMatrix:
+    name: Generate Build Matrix
     runs-on: ubuntu-latest
     needs: detect-changes
     if: ${{ github.event_name == 'workflow_dispatch' || needs.detect-changes.outputs.changed-systems != '[]' }}
