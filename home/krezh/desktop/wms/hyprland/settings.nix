@@ -55,7 +55,7 @@
       layout = "dwindle";
       gaps_in = 5;
       gaps_out = 10;
-      border_size = 2;
+      border_size = var.borderSize;
       "col.active_border" = "$blue";
       "col.inactive_border" = "$base";
 
@@ -68,8 +68,8 @@
       rounding_power = 4;
 
       # Global transparency settings
-      active_opacity = 0.98;
-      inactive_opacity = 0.98;
+      active_opacity = var.opacity;
+      inactive_opacity = var.opacity;
 
       blur = {
         enabled = false;

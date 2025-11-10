@@ -1,4 +1,4 @@
-{ pkgs, ... }:
+{ pkgs, var, ... }:
 
 {
   home = {
@@ -21,7 +21,7 @@
   gtk = {
     enable = true;
     font = {
-      name = "Rubik";
+      name = var.fonts.sans;
       size = 11.5;
     };
     theme = {

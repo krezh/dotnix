@@ -67,14 +67,14 @@ in
         "${mainMod},B,Launch Zen Browser,exec,${lib.getExe config.programs.zen-browser.package}"
         "${mainMod},E,Launch Nautilus file manager,exec,${lib.getExe pkgs.nautilus}"
         "${mainMod},RETURN,Launch terminal,exec,${defaultTerminal}"
-        "${mainModShift},RETURN,Launch terminal (floating),exec,[float] ${defaultTerminal}"
+        "${mainModShift},RETURN,Launch terminal,exec,[float] ${defaultTerminal}"
         "${mainMod},T,Launch terminal,exec,${defaultTerminal}"
-        "${mainModShift},T,Launch terminal (floating),exec,[float] ${defaultTerminal}"
+        "${mainModShift},T,Launch terminal,exec,[float] ${defaultTerminal}"
         "${mainMod},O,Launch calculator,exec,${lib.getExe pkgs.gnome-calculator}"
-        "CTRL SHIFT,ESCAPE,Launch system resources monitor (floating),exec,[float] ${lib.getExe pkgs.resources}"
+        "CTRL SHIFT,ESCAPE,Launch system resources monitor,exec,[float] ${lib.getExe pkgs.mission-center}"
         "${mainMod},V,Launch clipboard manager,exec,${clipboardMgr.bin}"
         "${mainMod},K,Show keybinds,exec,${keybinds.bin}"
-        "${mainMod},G,Launch Audio Control (floating),exec,[float] pkill ${audioControl.name} || ${defaultTerminal} --class audioControl -e ${audioControl.bin} -m 100 "
+        "${mainMod},G,Launch Audio Control,exec,[float] pkill ${audioControl.name} || ${defaultTerminal} --class audioControl -e ${audioControl.bin} -m 100 "
         # HyprExpo workspace overview
         "${mainMod},TAB,Toggle workspace overview, hyprexpo:expo, toggle"
         # Audio device switching

@@ -1,4 +1,4 @@
-{ ... }:
+{ var, ... }:
 {
   programs.niri.settings = {
     layout = {
@@ -16,7 +16,7 @@
       };
 
       focus-ring = {
-        width = 2;
+        width = var.borderSize;
         active.color = "#89b4faff";
         inactive.color = "#1e1e2eff";
       };

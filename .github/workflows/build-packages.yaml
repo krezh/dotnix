@@ -62,6 +62,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
 
+      - name: Connect to Netbird VPN
+        if: ${{ !(github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork) }}
+        uses: Alemiz112/netbird-connect@v1.0.1
+        with:
+          setup-key: ${{ secrets.NETBIRD_SETUP_KEY }}
+          hostname: "gh-runner-${{ github.run_id }}"
+
       - name: Setup Nix with caching
         uses: ./.github/actions/setup-nix
         with:
