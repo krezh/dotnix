@@ -39,7 +39,7 @@ in
     top = flakeLib.top;
 
     overlays = import ../overlays { inherit inputs lib; };
-    homeManagerModules = lib.scanPath.toList { path = ../modules/homeManager; };
-    nixosModules.default = lib.scanPath.toImports ../modules/nixos;
+    homeManagerModules = lib.scanPath.toList { path = ../home/modules; };
+    nixosModules.default = lib.scanPath.toImports ../hosts/modules;
   };
 }

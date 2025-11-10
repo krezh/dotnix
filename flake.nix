@@ -25,6 +25,8 @@
 
     flake-parts.url = "github:hercules-ci/flake-parts";
 
+    flake-schemas.url = "github:DeterminateSystems/flake-schemas";
+
     import-tree.url = "github:vic/import-tree";
 
     devshell = {

@@ -239,6 +239,21 @@
         "url": "https://flakehub.com/f/DeterminateSystems/flake-schemas/%3D0.1.5.tar.gz"
       }
     },
+    "flake-schemas_2": {
+      "locked": {
+        "lastModified": 1761577921,
+        "narHash": "sha256-eK3/xbUOrxp9fFlei09XNjqcdiHXxndzrTXp7jFpOk8=",
+        "owner": "DeterminateSystems",
+        "repo": "flake-schemas",
+        "rev": "47849c7625e223d36766968cc6dc23ba0e135922",
+        "type": "github"
+      },
+      "original": {
+        "owner": "DeterminateSystems",
+        "repo": "flake-schemas",
+        "type": "github"
+      }
+    },
     "flake-utils": {
       "inputs": {
         "systems": "systems_2"
@@ -749,6 +764,7 @@
         "disko": "disko",
         "elephant": "elephant",
         "flake-parts": "flake-parts",
+        "flake-schemas": "flake-schemas_2",
         "gomod2nix": "gomod2nix",
         "hardware": "hardware",
         "home-manager": "home-manager_2",
