@@ -60,6 +60,8 @@ jobs:
             home/**/*
             flake.nix
             flake.lock
+            **.nix
+            !pkgs/**/*
 
       - name: Extract package names
         id: extract-packages
