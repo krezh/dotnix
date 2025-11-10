@@ -1,21 +1,22 @@
 ---
 # yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
-name: Build Nix
+name: Build Hosts
 on:
-  pull_request:
-    branches: ["main"]
-    paths:
-      - "**.nix"
-      - "flake.lock"
-      - "pkgs/**"
   workflow_dispatch:
   workflow_call:
+  pull_request:
+    branches: ["main"]
+    paths: &paths
+      - "hosts/**"
+      - "modules/**"
+      - "home/**"
+      - "flake.nix"
+      - "flake.lock"
+      - "**.nix"
+      - "!pkgs/"
   push:
     branches: ["main"]
-    paths:
-      - "**.nix"
-      - "flake.lock"
-      - "pkgs/**"
+    paths: *paths
 
 permissions:
   contents: read
@@ -27,29 +28,17 @@ concurrency:
   cancel-in-progress: true
 env:
   CACHE_NAME: krezh
-  NIX_CONFIG: |
-    accept-flake-config = true
-    always-allow-substitutes = true
-    builders-use-substitutes = true
 
 jobs:
   detect-changes:
     runs-on: ubuntu-latest
     outputs:
-      changed-packages: ${{ steps.extract-packages.outputs.packages }}
       changed-systems: ${{ steps.changed-systems.outputs.changed_files }}
     steps:
       - name: Checkout
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
         with:
           fetch-depth: 0
-
-      - name: Get changed packages
-        id: changed-packages
-        uses: bjw-s-labs/action-changed-files@1a5aeab1bfa64d0c4e786f501d5a3f1fad4a24da # v0.4.1
-        with:
-          patterns: pkgs/**/*
-          include_only_directories: true
 
       - name: Get changed systems
         id: changed-systems
@@ -59,18 +48,9 @@ jobs:
             hosts/**
             modules/**
             home/**
+            lib/**
             flake.nix
             flake.lock
-            **.nix
-            !pkgs/**
-
-      - name: Extract package names
-        id: extract-packages
-        if: ${{ steps.changed-packages.outputs.changed_files != '[]' }}
-        run: |
-          files='${{ steps.changed-packages.outputs.changed_files }}'
-          pkgs=$(echo "$files" | jq -c '[.[] | split("/") | last] | unique')
-          echo "packages=$pkgs" >> $GITHUB_OUTPUT
 
   ghMatrix:
     runs-on: ubuntu-latest
@@ -101,6 +81,7 @@ jobs:
             fi
           fi
           echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+          echo "$matrix"
 
       - name: Show Summary
         uses: ./.github/actions/workflow-summary
@@ -109,61 +90,6 @@ jobs:
           matrix: ${{ steps.set-matrix.outputs.matrix }}
           cache-name: ${{ env.CACHE_NAME }}
           flake-lock-hash: ${{ hashFiles('**/*.nix', '**/flake.lock') }}
-
-  build-packages:
-    name: Build package ${{ matrix.package }}
-    needs: detect-changes
-    if: ${{ needs.detect-changes.outputs.changed-packages != '' }}
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        package: ${{ fromJson(needs.detect-changes.outputs.changed-packages) }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
-
-      - name: Setup Nix with caching
-        uses: ./.github/actions/setup-nix
-        with:
-          cachix-auth-token: ${{ secrets.CACHIX_AUTH_TOKEN }}
-          attic-endpoint: ${{ secrets.ATTIC_ENDPOINT }}
-          attic-cache: ${{ secrets.ATTIC_CACHE }}
-          attic-token: ${{ secrets.ATTIC_TOKEN }}
-          skip-cache: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork }}
-
-      - name: Build package
-        id: build
-        uses: ./.github/actions/nix-build
-        with:
-          target: ${{ matrix.package }}
-          build-type: package
-
-      - name: Post build errors
-        if: ${{ failure() && github.event_name == 'pull_request' }}
-        uses: ./.github/actions/post-build-error
-        with:
-          build-type: package
-          build-name: ${{ matrix.package }}
-          flake-target: ${{ matrix.package }}
-          error-log: ${{ steps.build.outputs.error-log }}
-          pr-number: ${{ github.event.pull_request.number }}
-
-      - name: Success Summary
-        if: ${{ success() }}
-        uses: ./.github/actions/workflow-summary
-        with:
-          type: package-success
-          package: ${{ matrix.package }}
-          flake-target: ${{ matrix.package }}
-
-      - name: Failure Summary
-        if: ${{ failure() }}
-        uses: ./.github/actions/workflow-summary
-        with:
-          type: package-failure
-          package: ${{ matrix.package }}
-          flake-target: ${{ matrix.package }}
 
   nix-build:
     name: Build ${{ matrix.host }}
@@ -195,7 +121,7 @@ jobs:
       - name: Find previous run ID
         id: find-run
         run: |
-          run_id=$(gh run list --workflow build-nix.yaml --branch main --status success --limit 1 --json databaseId -q '.[0].databaseId' || echo "")
+          run_id=$(gh run list --workflow build-hosts.yaml --branch main --status success --limit 1 --json databaseId -q '.[0].databaseId' || echo "")
           if [ -z "$run_id" ]; then
             echo "No previous successful run found, skipping artifact download"
             echo "run_id=" >> $GITHUB_OUTPUT
