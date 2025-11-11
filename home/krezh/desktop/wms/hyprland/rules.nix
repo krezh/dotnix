@@ -1,37 +1,6 @@
 { pkgs, var, ... }:
 let
-  opacity =
-    value: items:
-    map (
-      item:
-      if builtins.match "^tag:(.+)" item != null then
-        "opacity ${toString value} override,tag:${builtins.elemAt (builtins.match "^tag:(.+)" item) 0}"
-      else
-        "opacity ${toString value} override,class:^(${item})$"
-    ) items;
-
-  tags = tag: apps: map (app: "tag +${tag}, class:^(${app})$") apps;
-
-  noblur =
-    items:
-    map (
-      item:
-      if builtins.match "^tag:(.+)" item != null then
-        "noblur,tag:${builtins.elemAt (builtins.match "^tag:(.+)" item) 0}"
-      else
-        "noblur,class:^(${item})$"
-    ) items;
-
-  renderunfocused =
-    items:
-    map (
-      item:
-      if builtins.match "^tag:(.+)" item != null then
-        "renderunfocused,tag:${builtins.elemAt (builtins.match "^tag:(.+)" item) 0}"
-      else
-        "renderunfocused,class:^(${item})$"
-    ) items;
-  #from https://github.com/hyprwm/Hyprland/issues/3835
+  # Script to auto-float Bitwarden extension popup in Zen Browser
   float_script = pkgs.writeShellScriptBin "hyprland-bitwarden-float" ''
     handle() {
       case $1 in
@@ -49,7 +18,6 @@ let
           ;;
       esac
     }
-    # Listen to the Hyprland socket for events and process each line with the handle function
     ${pkgs.socat}/bin/socat -U - UNIX-CONNECT:$XDG_RUNTIME_DIR/hypr/$HYPRLAND_INSTANCE_SIGNATURE/.socket2.sock | while read -r line; do handle "$line"; done
   '';
 in
@@ -61,15 +29,20 @@ in
     '';
     settings = {
       layerrule = [
+        # Rofi
         "blur,rofi"
         # Fuzzel
         "animation popin 80%, launcher"
         "blur, launcher"
         # Walker
         "animation popin 80%, walker"
-        "animation fade, hyprpicker" # Colour picker out animation
-        "animation fade, logout_dialog" # wlogout
-        "animation fade, selection" # slurp
+        # Hyprpicker
+        "animation fade, hyprpicker"
+        # Wlogout
+        "animation fade, logout_dialog"
+        # Slurp
+        "animation fade, selection"
+        # Wayfreeze
         "animation fade, wayfreeze"
         # Noctalia Shell
         "noanim, (noctalia:.*)"
@@ -77,19 +50,19 @@ in
       windowrule = [
         # Rofi
         "stayfocused, class:(Rofi)"
-        # Chat
+        # Chat workspace
         "workspace 4 silent, tag:chat"
-        # Fullscreen windows should be opaque
+        # Fullscreen opacity
         "opacity 1.0 override,fullscreen:1"
-        # Games
-        "workspace 3, tag:games" # Move all games to workspace 3
-        "idleinhibit always, tag:games" # Always idle inhibit when playing a game
+        # Games workspace and idle inhibit
+        "workspace 3, tag:games"
+        "idleinhibit always, tag:games"
         "idleinhibit fullscreen, fullscreen:1"
-        # xwayland popups
+        # XWayland popups
         "nodim, xwayland:1, title:win[0-9]+"
         "noshadow, xwayland:1, title:win[0-9]+"
         "rounding ${toString var.rounding}, xwayland:1, title:win[0-9]+"
-        # Dialogs
+        # Dialog windows
         "float, title:(Select|Open)( a)? (File|Folder)(s)?"
         "float, title:File (Operation|Upload)( Progress)?"
         "float, title:.* Properties"
@@ -97,48 +70,45 @@ in
         "float, title:GIMP Crash Debug"
         "float, title:Save As"
         "float, title:Library"
-        # Float
+        # File managers
         "float, class:org\.gnome\.FileRoller"
         "float, class:file-roller"
+        # Vips image viewer
         "float, class:org\.libvips\.vipsdisp"
+        # Bitwarden
         "float, title:^(.*Bitwarden Password Manager.*)$"
         "size 50% 50%,title:^(.*Bitwarden Password Manager.*)$"
-        "size 60% 70%,class:mpv"
+        # MPV
         "float, class:mpv"
-      ]
-      ++ tags "games" [
-        "gamescope"
-        "steam_proton"
-        "steam_app_default"
-        "steam_app_[0-9]+"
-      ]
-      ++ tags "browsers" [
-        "zen-beta"
-        "firefox"
-        "chromium"
-        "chrome"
-      ]
-      ++ tags "media" [
-        "mpv"
-        "vlc"
-        "youtube"
-        "plex"
-      ]
-      ++ tags "chat" [
-        "vesktop"
-        "legcord"
-        "discord"
-      ]
-      ++ opacity 1.0 [
-        "tag:games"
-        "tag:browsers"
-        "tag:media"
-      ]
-      ++ noblur [
-        "tag:games"
-      ]
-      ++ renderunfocused [
-        "tag:games"
+        "size 60% 70%,class:mpv"
+        # Tag games
+        "tag +games, class:^(gamescope)$"
+        "tag +games, class:^(steam_proton)$"
+        "tag +games, class:^(steam_app_default)$"
+        "tag +games, class:^(steam_app_[0-9]+)$"
+        # Tag browsers
+        "tag +browsers, class:^(zen-beta)$"
+        "tag +browsers, class:^(firefox)$"
+        "tag +browsers, class:^(chromium)$"
+        "tag +browsers, class:^(chrome)$"
+        # Tag media
+        "tag +media, class:^(mpv)$"
+        "tag +media, class:^(vlc)$"
+        "tag +media, class:^(youtube)$"
+        "tag +media, class:^(plex)$"
+        # Tag chat
+        "tag +chat, class:^(vesktop)$"
+        "tag +chat, class:^(legcord)$"
+        "tag +chat, class:^(discord)$"
+        # Opacity overrides
+        "opacity 1.0 override,tag:games"
+        "opacity 1.0 override,tag:browsers"
+        "opacity 1.0 override,tag:media"
+        "opacity 1.0 override,initialTitle:^(Discord Popout)$"
+        # Blur exceptions
+        "noblur,tag:games"
+        # Render unfocused
+        "renderunfocused,tag:games"
       ];
     };
   };
