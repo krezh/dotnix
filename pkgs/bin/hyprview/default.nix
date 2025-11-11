@@ -8,7 +8,7 @@
 stdenv.mkDerivation {
   pname = "hyprview";
   # renovate: datasource=github-releases depName=yz778/hyprview
-  version = "v0.1.6";
+  version = "v0.1.7";
 
   src = fetchFromGitHub {
     owner = "yz778";
