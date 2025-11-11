@@ -9,6 +9,8 @@
     #./scrolling.nix
   ];
 
+  services.polkit-gnome.enable = true;
+
   wayland.windowManager.hyprland = {
     enable = true;
     xwayland.enable = true;
@@ -35,5 +37,6 @@
     hyprmon
     hyprshade # For display color/gamma adjustments
     hyprdynamicmonitors
+    bww
   ];
 }

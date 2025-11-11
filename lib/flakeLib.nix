@@ -7,10 +7,10 @@
 }:
 
 let
-  # Load and merge all .nix files from vars/ directory using import-tree
-  var = (inputs.import-tree.withLib lib).pipeTo (
-    files: builtins.foldl' lib.recursiveUpdate { } (map import files)
-  ) (lib.relativeToRoot "vars");
+  # Load and merge all .nix files from vars/ directory using lib.scanPath
+  var = builtins.foldl' lib.recursiveUpdate { } (
+    map import (lib.scanPath.toList { path = lib.relativeToRoot "vars"; })
+  );
 
   mkPkgsWithSystem =
     system:

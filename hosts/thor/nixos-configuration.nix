@@ -67,6 +67,7 @@
     fonts.enable = true;
     steam.enable = true;
     bluetooth.enable = true;
+    netbird.enable = true;
   };
 
   services.hardware.openrgb = {

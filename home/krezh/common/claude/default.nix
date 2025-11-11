@@ -1,7 +1,8 @@
-{ ... }:
+{ inputs, pkgs, ... }:
 {
   programs.claude-code = {
     enable = true;
+    package = inputs.nix-ai-tools.packages.${pkgs.stdenv.hostPlatform.system}.claude-code;
     settings = {
       hooks = {
         PostToolUse = [
@@ -48,7 +49,7 @@
         disableBypassPermissionsMode = "disable";
       };
       statusLine = {
-        command = "input=$(cat); echo \"[$(echo \"$input\" | jq -r '.model.display_name')] 📁 $(basename \"$(echo \"$input\" | jq -r '.workspace.current_dir')\")\"";
+        command = "${pkgs.bun}/bin/bunx ccusage statusline";
         padding = 0;
         type = "command";
       };

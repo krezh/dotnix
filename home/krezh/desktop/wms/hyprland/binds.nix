@@ -66,6 +66,8 @@ in
         "${mainMod} CTRL,N,Clear notifications,exec,${shell.bin} notifications clear"
         "${mainMod},B,Launch Zen Browser,exec,${lib.getExe config.programs.zen-browser.package}"
         "${mainMod},E,Launch Nautilus file manager,exec,${lib.getExe pkgs.nautilus}"
+        "${mainModShift},E,Launch Nautilus file manager in floating mode,exec,[float] ${lib.getExe pkgs.nautilus}"
+        "${mainModShift}, P,Launch bitwarden,exec,[float] ${lib.getExe pkgs.bww}"
         "${mainMod},RETURN,Launch terminal,exec,${defaultTerminal}"
         "${mainModShift},RETURN,Launch terminal,exec,[float] ${defaultTerminal}"
         "${mainMod},T,Launch terminal,exec,${defaultTerminal}"
@@ -74,7 +76,7 @@ in
         "CTRL SHIFT,ESCAPE,Launch system resources monitor,exec,[float] ${lib.getExe pkgs.mission-center}"
         "${mainMod},V,Launch clipboard manager,exec,${clipboardMgr.bin}"
         "${mainMod},K,Show keybinds,exec,${keybinds.bin}"
-        "${mainMod},G,Launch Audio Control,exec,[float] pkill ${audioControl.name} || ${defaultTerminal} --class audioControl -e ${audioControl.bin} -m 100 "
+        "${mainMod},G,Launch Audio Control,exec,[float] pkill ${audioControl.name} || ${defaultTerminal} --class audioControl -e ${audioControl.bin} -m 100"
         # HyprExpo workspace overview
         "${mainMod},TAB,Toggle workspace overview, hyprexpo:expo, toggle"
         # Audio device switching

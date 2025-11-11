@@ -25,10 +25,6 @@
 
     flake-parts.url = "github:hercules-ci/flake-parts";
 
-    flake-schemas.url = "github:DeterminateSystems/flake-schemas";
-
-    import-tree.url = "github:vic/import-tree";
-
     devshell = {
       url = "github:numtide/devshell";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -122,6 +118,12 @@
       url = "github:noctalia-dev/noctalia-shell";
       inputs.nixpkgs.follows = "nixpkgs";
       inputs.quickshell.follows = "quickshell";
+    };
+
+    nix-ai-tools = {
+      url = "github:numtide/nix-ai-tools";
+      inputs.nixpkgs.follows = "nixpkgs";
+      inputs.treefmt-nix.follows = "treefmt-nix";
     };
 
     # niri = {
