@@ -73,7 +73,7 @@ build: deps
 apply: build
     #!/usr/bin/env bash
     set -euo pipefail
-    just prompt-to-continue "Do you want to continue applying this configuration?"
+    just confirm "Do you want to continue applying this configuration?"
     sudo nixos-rebuild switch --flake "{{ ROOT_DIR }}/#{{ HOST }}"
 
 # Build a specific pull request from GitHub

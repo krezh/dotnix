@@ -71,8 +71,6 @@ pub enum SelectionMode {
     Hover,
     /// Actively dragging to create a selection
     Selecting,
-    /// Selection complete
-    Complete,
 }
 
 #[derive(Clone)]

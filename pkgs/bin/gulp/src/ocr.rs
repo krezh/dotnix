@@ -1,7 +1,6 @@
 //! OCR functionality using Wayland screencopy protocols and Tesseract
 
 use anyhow::{Context, Result};
-use image::{ImageBuffer, Rgba};
 use wayland_client::{
     protocol::{wl_buffer, wl_output, wl_registry, wl_shm, wl_shm_pool},
     Connection, Dispatch, QueueHandle,
@@ -85,18 +84,16 @@ impl CapturedImage {
             );
         }
 
-        let img = ImageBuffer::<Rgba<u8>, _>::from_raw(self.width, self.height, rgba_buffer)
-            .context("Failed to create image from buffer")?;
-
-        // Save to temporary file for Tesseract
-        let temp_path = "/tmp/gulp_ocr.png";
-        img.save(temp_path)?;
-
+        // Pass image data directly to Tesseract
         let mut tess = tesseract::Tesseract::new(None, Some("eng"))?;
-        tess = tess.set_image(temp_path)?;
+        tess = tess.set_frame(
+            &rgba_buffer,
+            self.width as i32,
+            self.height as i32,
+            4, // bytes per pixel (RGBA)
+            (self.width * 4) as i32, // bytes per line
+        )?;
         let text = tess.get_text()?.trim().to_string();
-
-        let _ = std::fs::remove_file(temp_path);
 
         log::info!("OCR completed, extracted {} characters", text.len());
 

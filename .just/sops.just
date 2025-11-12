@@ -22,3 +22,11 @@ update-keys:
     for file in $SECRET_FILES; do
       sops updatekeys "$file"
     done
+
+# Show list of sops files to edit
+edit:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    mapfile -t SECRET_FILES < <(find {{ ROOT_DIR }} -type f -name '*.sops.yaml' ! -name ".sops.yaml")
+    FILE="$(just choose "Select a sops file to edit" "${SECRET_FILES[@]}")"
+    sops "$FILE"

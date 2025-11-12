@@ -19,7 +19,7 @@
           "stdio"
         ];
         env = {
-          GITHUB_PERSONAL_ACCESS_TOKEN = "$(cat ${config.sops.secrets."github/token".path})";
+          GITHUB_PERSONAL_ACCESS_TOKEN = "$(cat ${config.sops.secrets."github/mcp_token".path})";
         };
       };
       nixos = {
