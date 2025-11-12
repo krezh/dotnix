@@ -82,10 +82,6 @@ pub struct Selection {
     hover_pos: (i32, i32),
     /// Selection rectangle (if any)
     rect: Option<Rect>,
-    /// Point mode - select a single point instead of region
-    point_mode: bool,
-    /// Aspect ratio constraint (if any)
-    aspect_ratio: Option<f64>,
     /// Snap target window rectangle (when hovering over a window)
     snap_target: Option<Rect>,
     /// Animated snap target rectangle (for smooth transitions)
@@ -93,13 +89,11 @@ pub struct Selection {
 }
 
 impl Selection {
-    pub fn new(point_mode: bool, aspect_ratio: Option<f64>) -> Self {
+    pub fn new() -> Self {
         Self {
             mode: SelectionMode::Hover,
             hover_pos: (0, 0),
             rect: None,
-            point_mode,
-            aspect_ratio,
             snap_target: None,
             animated_snap_target: None,
         }
@@ -108,40 +102,19 @@ impl Selection {
     pub fn start_selection(&mut self, x: i32, y: i32) {
         self.mode = SelectionMode::Selecting;
         self.hover_pos = (x, y);
-
-        if self.point_mode {
-            // In point mode, immediately create a 1x1 selection
-            self.rect = Some(Rect::new(x, y, 1, 1));
-            self.mode = SelectionMode::Complete;
-        } else {
-            self.rect = Some(Rect::new(x, y, 0, 0));
-        }
+        self.rect = Some(Rect::new(x, y, 0, 0));
     }
 
     pub fn update_drag(&mut self, start_x: i32, start_y: i32, current_x: i32, current_y: i32) {
         if self.mode == SelectionMode::Selecting {
-            let mut rect = Rect::from_points(start_x, start_y, current_x, current_y);
-
-            // Apply aspect ratio constraint if specified
-            if let Some(ratio) = self.aspect_ratio {
-                let current_ratio = rect.width as f64 / rect.height as f64;
-
-                if current_ratio > ratio {
-                    // Width is too large, adjust it
-                    rect.width = (rect.height as f64 * ratio) as i32;
-                } else if current_ratio < ratio {
-                    // Height is too large, adjust it
-                    rect.height = (rect.width as f64 / ratio) as i32;
-                }
-            }
-
+            let rect = Rect::from_points(start_x, start_y, current_x, current_y);
             self.rect = Some(rect);
         }
     }
 
-    /// Create a selection from a rect (convenience method for local coordinate translation)
-    pub fn from_rect(rect: Rect, point_mode: bool) -> Self {
-        let mut selection = Self::new(point_mode, None);
+    /// Create a selection from a rect
+    pub fn from_rect(rect: Rect) -> Self {
+        let mut selection = Self::new();
         selection.start_selection(rect.x, rect.y);
         selection.update_drag(rect.x, rect.y, rect.x + rect.width, rect.y + rect.height);
         selection
@@ -197,9 +170,10 @@ mod tests {
     }
 
     #[test]
-    fn test_selection_point_mode() {
-        let mut sel = Selection::new(true, None);
+    fn test_selection_single_point() {
+        let mut sel = Selection::new();
         sel.start_selection(100, 200);
+        sel.update_drag(100, 200, 101, 201);
 
         let rect = sel.get_selection().expect("Selection should be valid");
         assert_eq!(rect.x, 100);
@@ -209,8 +183,8 @@ mod tests {
     }
 
     #[test]
-    fn test_selection_region_mode() {
-        let mut sel = Selection::new(false, None);
+    fn test_selection_region() {
+        let mut sel = Selection::new();
         sel.start_selection(10, 10);
 
         sel.update_drag(10, 10, 50, 40);

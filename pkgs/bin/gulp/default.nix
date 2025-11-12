@@ -1,6 +1,9 @@
 {
+  lib,
   rustPlatform,
   pkgs,
+  makeWrapper,
+  llvmPackages,
   ...
 }:
 
@@ -16,6 +19,8 @@ rustPlatform.buildRustPackage {
 
   nativeBuildInputs = with pkgs; [
     pkg-config
+    makeWrapper
+    llvmPackages.clang
   ];
 
   buildInputs = with pkgs; [
@@ -25,10 +30,23 @@ rustPlatform.buildRustPackage {
     cairo
     pango
     libxkbcommon
+    tesseract
+    leptonica
+    llvmPackages.libclang.lib
   ];
 
+  env = {
+    LIBCLANG_PATH = "${llvmPackages.libclang.lib}/lib";
+    BINDGEN_EXTRA_CLANG_ARGS = "-isystem ${llvmPackages.libclang.lib}/lib/clang/${llvmPackages.libclang.version}/include";
+  };
+
+  postInstall = ''
+    wrapProgram $out/bin/gulp \
+      --prefix PATH : ${lib.makeBinPath [ pkgs.tesseract ]}
+  '';
+
   meta = {
-    description = "A playful, compositor-agnostic Wayland screen selection tool";
+    description = "A playful, compositor-agnostic Wayland screen selection tool with OCR support";
     platforms = [
       "x86_64-linux"
       "aarch64-linux"

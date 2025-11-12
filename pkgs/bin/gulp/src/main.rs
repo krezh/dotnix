@@ -9,14 +9,17 @@
 
 mod animation;
 mod config;
+mod ocr;
 mod render;
 mod selection;
 mod wayland;
 mod windows;
 
 use anyhow::Result;
-use clap::Parser;
+use clap::{CommandFactory, Parser};
+use clap_complete::{generate, Shell};
 use config::Config;
+use std::io;
 
 /// Command-line arguments for gulp
 ///
@@ -52,18 +55,6 @@ pub struct Args {
     #[arg(short, long)]
     pub dim_opacity: Option<f64>,
 
-    /// Point mode (select a single point instead of a region)
-    #[arg(short, long)]
-    pub point: bool,
-
-    /// Display aspect ratio (width:height)
-    #[arg(short = 'a', long)]
-    pub aspect_ratio: Option<String>,
-
-    /// Output name to select (restrict to specific output)
-    #[arg(short, long)]
-    pub output: Option<String>,
-
     /// Log level (off, info, debug, warn, error)
     #[arg(short = 'l', long)]
     pub log: Option<String>,
@@ -76,9 +67,17 @@ pub struct Args {
     #[arg(long)]
     pub no_snap: bool,
 
+    /// Enable OCR mode (extract text from selected region)
+    #[arg(long)]
+    pub ocr: bool,
+
     /// Generate default config file and exit
     #[arg(long)]
     pub generate_config: bool,
+
+    /// Generate shell completion script and exit
+    #[arg(long, value_name = "SHELL", value_enum)]
+    pub generate_completions: Option<Shell>,
 }
 
 impl Args {
@@ -134,6 +133,14 @@ fn parse_log_level(level: &str) -> log::LevelFilter {
 
 fn main() -> Result<()> {
     let args = Args::parse();
+
+    // Handle shell completion generation
+    if let Some(shell) = args.generate_completions {
+        let mut cmd = Args::command();
+        let bin_name = cmd.get_name().to_string();
+        generate(shell, &mut cmd, bin_name, &mut io::stdout());
+        return Ok(());
+    }
 
     // Handle config generation early (doesn't need the rest of the setup)
     if args.generate_config {

@@ -52,6 +52,7 @@ use wayland_client::{
 
 use crate::{
     animation::SpringAnimation,
+    ocr,
     render::Renderer,
     selection::{Rect, Selection},
     windows::WindowManager,
@@ -64,18 +65,6 @@ use std::time::{Duration, Instant};
 // Helper Functions
 // ============================================================================
 
-/// Parses aspect ratio string like "16:9" into a float ratio
-#[inline]
-fn parse_aspect_ratio(ar: &str) -> Option<f64> {
-    let parts: Vec<&str> = ar.split(':').collect();
-    if parts.len() == 2 {
-        let w: f64 = parts[0].parse().ok()?;
-        let h: f64 = parts[1].parse().ok()?;
-        Some(w / h)
-    } else {
-        None
-    }
-}
 
 /// Convert FPS to frame Duration
 #[inline]
@@ -179,8 +168,7 @@ impl App {
         let layer_shell =
             LayerShell::bind(&globals, &qh).context("zwlr_layer_shell not available")?;
 
-        let aspect_ratio = args.aspect_ratio.as_deref().and_then(parse_aspect_ratio);
-        let selection = Selection::new(args.point, aspect_ratio);
+        let selection = Selection::new();
 
         // Initialize window manager if snapping is enabled
         let window_manager = if !args.no_snap {
@@ -487,10 +475,9 @@ impl App {
         global_rect: Rect,
         offset_x: i32,
         offset_y: i32,
-        point_mode: bool,
     ) -> Selection {
         let local_rect = Self::translate_rect_to_local(global_rect, offset_x, offset_y);
-        Selection::from_rect(local_rect, point_mode)
+        Selection::from_rect(local_rect)
     }
 
     fn draw_index(&mut self, index: usize) -> Result<()> {
@@ -585,7 +572,7 @@ impl App {
 
                 // Create a selection with the full rectangle translated to local coords
                 let local_selection =
-                    Self::create_local_selection(rect, offset_x, offset_y, self.args.point);
+                    Self::create_local_selection(rect, offset_x, offset_y);
 
                 // Render directly to buffer - NO surface allocation!
                 renderer.render_to_buffer(&local_selection, canvas)?;
@@ -616,7 +603,7 @@ impl App {
                     local_snap.x, local_snap.y, local_snap.width, local_snap.height
                 );
 
-                let mut local_selection = Selection::new(self.args.point, None);
+                let mut local_selection = Selection::new();
                 local_selection.set_animated_snap_target(Some(local_snap));
 
                 // Render directly to buffer - NO surface allocation!
@@ -624,7 +611,7 @@ impl App {
             } else {
                 // Render dimmed overlay (whether there's a selection elsewhere or not)
                 log::debug!("RENDERING DIMMED ONLY on output {}", index);
-                let empty_selection = Selection::new(self.args.point, None);
+                let empty_selection = Selection::new();
                 // Render directly to buffer - NO surface allocation!
                 renderer.render_to_buffer(&empty_selection, canvas)?;
             }
@@ -783,9 +770,37 @@ impl App {
             // Roundtrip ensures compositor has processed the detachment
             let _ = self.conn.roundtrip();
 
-            // Output the coordinates
-            let output = self.format_output(rect.x, rect.y, rect.width, rect.height);
-            println!("{}", output);
+            // Add small delay to ensure compositor has fully processed the changes
+            std::thread::sleep(std::time::Duration::from_millis(100));
+
+            if self.args.ocr {
+                // OCR mode: capture and extract text
+                // Collect outputs with their names and positions
+                let outputs_list: Vec<(wl_output::WlOutput, String, i32, i32, u32, u32)> = self
+                    .output_surfaces
+                    .iter()
+                    .map(|surf| {
+                        let info = self.outputs.get(&surf._output);
+                        let name = info.and_then(|i| i.name.clone()).unwrap_or_default();
+                        (surf._output.clone(), name, surf.x, surf.y, surf.width, surf.height)
+                    })
+                    .collect();
+
+                match ocr::capture_and_ocr(&self.conn, &outputs_list, rect) {
+                    Ok(text) => {
+                        println!("{}", text);
+                    }
+                    Err(e) => {
+                        eprintln!("OCR failed: {}", e);
+                        std::process::exit(1);
+                    }
+                }
+            } else {
+                // Normal mode: output coordinates
+                let output = self.format_output(rect.x, rect.y, rect.width, rect.height);
+                println!("{}", output);
+            }
+
             self.exit = true;
             self.loop_signal.stop();
         }

@@ -60,6 +60,9 @@
     jc
     jnv
     yq-go
+
+    gnome-clocks
+    mpris-timer
   ];
 
   hmModules.shell.aria2.enable = true;
