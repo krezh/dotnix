@@ -1,6 +1,7 @@
 {
   config,
   lib,
+  pkgs,
   ...
 }:
 let
@@ -18,10 +19,14 @@ in
       listener = [
         {
           timeout = 5 * 60;
-          on-timeout = "${hyprlock}";
+          on-timeout = "${lib.getExe pkgs.hyprdvd} -s";
         }
         {
           timeout = 10 * 60;
+          on-timeout = "${hyprlock}";
+        }
+        {
+          timeout = 15 * 60;
           on-timeout = "hyprctl dispatch dpms off";
           on-resume = "hyprctl dispatch dpms on";
         }

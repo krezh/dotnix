@@ -15,18 +15,21 @@
         };
       };
     };
-    fish = {
-      functions = {
-        _launch_nix_search = ''
-          commandline -f repaint
-          tv nix-search-tv
-          commandline -f repaint
-        '';
-      };
-      interactiveShellInit = ''
-        # Bind CTRL+N to launch nix-search-tv
-        bind \cn _launch_nix_search
-      '';
+  };
+
+  xdg.desktopEntries = {
+    nix-search-tv = {
+      name = "Nix Search TV";
+      genericName = "Package Search";
+      comment = "Search NixOS packages with Television";
+      exec = "tv nix-search-tv";
+      icon = "system-search";
+      terminal = true;
+      type = "Application";
+      categories = [
+        "System"
+        "Utility"
+      ];
     };
   };
 }

@@ -1,3 +1,6 @@
+# Provides a set of helper functions to abstract away the complexity of
+# building NixOS and home-manager configurations. This library is designed for
+# a directory-based, modular configuration structure.
 {
   inputs,
   outputs,
@@ -7,11 +10,14 @@
 }:
 
 let
-  # Load and merge all .nix files from vars/ directory using lib.scanPath
+  # Loads and recursively merges all .nix files from the `vars/` directory.
+  # This provides a centralized place for common variables.
   var = builtins.foldl' lib.recursiveUpdate { } (
     map import (lib.scanPath.toList { path = lib.relativeToRoot "vars"; })
   );
 
+  # Creates a `nixpkgs` instance for a given system.
+  # Applies the flake's overlays and a default configuration.
   mkPkgsWithSystem =
     system:
     import inputs.nixpkgs {
@@ -23,6 +29,13 @@ let
       };
       hostPlatform = system;
     };
+
+  # Constructs a full NixOS system configuration.
+  #
+  # Args:
+  #   - `hostname`: The name of the host.
+  #   - `config`: An attribute set defining the system's properties, such as
+  #     `system`, `homeUsers`, `desktop`, and `extraModules`.
   mkSystem =
     hostname: config:
     let
@@ -42,16 +55,22 @@ let
           ;
       };
       modules =
+        # Discovers and imports modules from the host's directory.
         (getHostModules {
           inherit hostname;
           commonHost = config.commonHost or true;
         })
+        # Appends any extra modules defined in the host's configuration.
         ++ (config.extraModules or [ ])
+        # Generates and appends the home-manager configuration.
         ++ mkHomeUsers {
           users = homeUsers;
           inherit hostname desktop;
         };
     };
+
+  # Discovers and returns a list of modules for a given host.
+  # Includes modules from `hosts/common` if `commonHost` is true.
   getHostModules =
     {
       hostname,
@@ -64,6 +83,9 @@ let
     in
     if lib.pathExists hostPath then commonModules ++ [ (lib.scanPath.toImports hostPath) ] else [ ];
 
+  # Generates the home-manager configuration for a list of users.
+  # Automatically imports modules from `home/<username>/common` and
+  # `home/<username>/desktop` (if `desktop` is true).
   mkHomeUsers =
     {
       users,
@@ -100,6 +122,8 @@ let
         };
       }
     ];
+
+  # Maps a Nix system string to a GitHub Actions runner label.
   mapToGha =
     system:
     {
@@ -110,14 +134,18 @@ let
     .${system} or system;
 in
 {
+  # Creates the final `nixosConfigurations` attribute set for the flake.
+  # Takes an attribute set of hosts and their configurations.
   mkSystems = hosts: lib.mapAttrs (hostname: config: mkSystem hostname config) hosts;
 
-  # Used by CI
+  # Generates an attribute set of the top-level build derivations for each
+  # NixOS configuration. Used by CI to build all systems.
   top = lib.genAttrs (builtins.attrNames self.nixosConfigurations) (
     attr: self.nixosConfigurations.${attr}.config.system.build.toplevel
   );
 
-  # Lists hosts with their system kind for use in github actions
+  # Generates a GitHub Actions matrix for all NixOS configurations.
+  # Used to dynamically create CI jobs for each host.
   ghMatrix =
     {
       exclude ? [ ],

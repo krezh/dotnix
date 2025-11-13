@@ -1,0 +1,4 @@
+{ ... }:
+{
+  programs.mise.enable = true;
+}

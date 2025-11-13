@@ -19,18 +19,18 @@
     };
     vencord.settings = {
       autoUpdate = false;
-      autoUpdateNotification = true;
+      autoUpdateNotification = false;
       frameless = true;
-      notifyAboutUpdates = true;
-      transparent = false;
+      notifyAboutUpdates = false;
+      transparent = true;
       useQuickCss = true;
       winCtrlQ = false;
       winNativeTitleBar = false;
+      eagerPatches = false;
       plugins = {
         # https://vencord.dev/plugins
         GameActivityToggle.enabled = true;
         NoF1.enabled = true;
-        FakeNitro.enabled = true;
         "WebRichPresence (arRPC)".enabled = true;
         WebScreenShareFixes.enabled = true;
       };

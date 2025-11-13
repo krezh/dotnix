@@ -6,6 +6,7 @@ let
   defaultTextEditor = "dev.zed.Zed.desktop";
   defaultFileManager = "org.gnome.Nautilus.desktop";
   defaultArchiveManager = "org.gnome.FileRoller.desktop";
+  defaultMailClient = "org.gnome.Geary.desktop";
 
   # Path to the freedesktop.org MIME type list
   mimeList = builtins.readFile "${pkgs.shared-mime-info}/share/mime/types";
@@ -28,7 +29,7 @@ let
     "x-scheme-handler/http" = defaultBrowser;
     "x-scheme-handler/https" = defaultBrowser;
     "x-scheme-handler/ftp" = defaultBrowser;
-    "x-scheme-handler/mailto" = defaultBrowser;
+    "x-scheme-handler/mailto" = defaultMailClient;
     "x-scheme-handler/webcal" = defaultBrowser;
     "x-scheme-handler/about" = defaultBrowser;
     "x-scheme-handler/unknown" = defaultBrowser;

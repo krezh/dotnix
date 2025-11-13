@@ -25,35 +25,28 @@ use anyhow::{Context, Result};
 use smithay_client_toolkit::reexports::calloop::{EventLoop, LoopSignal};
 use smithay_client_toolkit::reexports::calloop_wayland_source::WaylandSource;
 use smithay_client_toolkit::{
-    compositor::{CompositorHandler, CompositorState},
-    delegate_compositor, delegate_keyboard, delegate_layer, delegate_output, delegate_pointer,
-    delegate_registry, delegate_seat, delegate_shm,
-    output::{OutputHandler, OutputInfo, OutputState},
-    registry::{ProvidesRegistryState, RegistryState},
-    registry_handlers,
+    compositor::CompositorState,
+    output::{OutputInfo, OutputState},
+    registry::RegistryState,
     seat::{
-        keyboard::{KeyEvent, KeyboardHandler, Keysym, Modifiers},
-        pointer::{
-            CursorIcon, PointerEvent, PointerEventKind, PointerHandler, ThemeSpec, ThemedPointer,
-        },
-        Capability, SeatHandler, SeatState,
+        pointer::ThemedPointer,
+        SeatState,
     },
     shell::wlr_layer::{
-        Anchor, KeyboardInteractivity, Layer, LayerShell, LayerShellHandler, LayerSurface,
-        LayerSurfaceConfigure,
+        Anchor, KeyboardInteractivity, Layer, LayerShell, LayerSurface,
     },
-    shm::{slot::SlotPool, Shm, ShmHandler},
+    shm::{slot::SlotPool, Shm},
 };
 use wayland_client::{
     globals::registry_queue_init,
-    protocol::{wl_output, wl_pointer, wl_seat, wl_shm, wl_surface},
+    protocol::{wl_output, wl_shm, wl_surface},
     Connection, QueueHandle,
 };
 
 use crate::{
     animation::SpringAnimation,
     ocr,
-    render::Renderer,
+    render::{Renderer, RenderConfig},
     selection::{Rect, Selection},
     windows::WindowManager,
     Args,
@@ -61,26 +54,35 @@ use crate::{
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
 
+mod handlers;
+mod input;
+
+use input::InputState;
+
+// Frame timing constants
+const IDLE_FRAME_TIMEOUT_MS: u64 = 33; // ~30 FPS when idle
+const ANIMATION_FRAME_TIMEOUT_MS: u64 = 8; // ~120 FPS when animating
+const DEFAULT_REFRESH_RATE_MHZ: i32 = 60000;
+const REFRESH_RATE_DIVIDER: i32 = 1000;
+
 // ============================================================================
 // Helper Functions
 // ============================================================================
 
 
-/// Convert FPS to frame Duration
+/// Converts FPS to frame duration in microseconds.
 #[inline]
 fn fps_to_duration(fps: u32) -> Duration {
     Duration::from_micros(1_000_000 / fps.max(1) as u64)
 }
 
-/// Creates a renderer with the given dimensions and styling from Args
+/// Creates a renderer with the specified dimensions and styling configuration.
 ///
-/// Returns None if renderer creation fails (e.g., invalid color values)
-/// Note: Args should be merged with config before calling this, ensuring all Options are Some
+/// Returns `None` if renderer creation fails due to invalid color values or other configuration errors.
+/// Expects all `Option` fields in args to be populated after merging with config.
 #[inline]
 fn create_renderer(width: i32, height: i32, args: &Args) -> Option<Renderer> {
-    Renderer::new(
-        width,
-        height,
+    let config = RenderConfig::new(
         args.border_color.as_ref()?,
         args.border_thickness?,
         args.border_rounding?,
@@ -89,7 +91,9 @@ fn create_renderer(width: i32, height: i32, args: &Args) -> Option<Renderer> {
         args.font_size?,
         args.font_weight.as_ref()?,
     )
-    .ok()
+    .ok()?;
+
+    Some(Renderer::new(width, height, config))
 }
 
 // ============================================================================
@@ -97,55 +101,49 @@ fn create_renderer(width: i32, height: i32, args: &Args) -> Option<Renderer> {
 // ============================================================================
 
 /// Represents a single monitor's overlay surface
-struct OutputSurface {
-    _output: wl_output::WlOutput,
-    layer_surface: LayerSurface,
-    surface: wl_surface::WlSurface,
-    width: u32,
-    height: u32,
-    x: i32,
-    y: i32,
-    configured: bool,
-    pool: Option<SlotPool>,
-    renderer: Option<Renderer>,
-    last_render: Instant,
-    frame_time: Duration,
+pub(super) struct OutputSurface {
+    pub(super) _output: wl_output::WlOutput,
+    pub(super) layer_surface: LayerSurface,
+    pub(super) surface: wl_surface::WlSurface,
+    pub(super) width: u32,
+    pub(super) height: u32,
+    pub(super) x: i32,
+    pub(super) y: i32,
+    pub(super) configured: bool,
+    pub(super) pool: Option<SlotPool>,
+    pub(super) renderer: Option<Renderer>,
+    pub(super) last_render: Instant,
+    pub(super) frame_time: Duration,
 }
 
 /// Main application state managing Wayland connection and surfaces
 pub struct App {
     // Wayland state
-    conn: Connection,
-    registry_state: RegistryState,
-    seat_state: SeatState,
-    output_state: OutputState,
-    compositor_state: CompositorState,
-    shm_state: Shm,
-    layer_shell: LayerShell,
-    themed_pointer: Option<ThemedPointer>,
+    pub(super) conn: Connection,
+    pub(super) registry_state: RegistryState,
+    pub(super) seat_state: SeatState,
+    pub(super) output_state: OutputState,
+    pub(super) compositor_state: CompositorState,
+    pub(super) shm_state: Shm,
+    pub(super) layer_shell: LayerShell,
+    pub(super) themed_pointer: Option<ThemedPointer>,
 
     // Application state
-    outputs: HashMap<wl_output::WlOutput, OutputInfo>,
-    output_surfaces: Vec<OutputSurface>,
-    renderer: Option<Renderer>,
-    selection: Selection,
-    args: Args,
-    window_manager: Option<WindowManager>,
-    snap_animation: Option<SpringAnimation>,
-    snap_initialized: bool,
+    pub(super) outputs: HashMap<wl_output::WlOutput, OutputInfo>,
+    pub(super) output_surfaces: Vec<OutputSurface>,
+    pub(super) renderer: Option<Renderer>,
+    pub(super) selection: Selection,
+    pub(super) args: Args,
+    pub(super) window_manager: Option<WindowManager>,
 
     // Input state
-    pointer_position: (f64, f64),
-    mouse_pressed: bool,
-    selection_start: Option<(i32, i32)>,
-    current_surface: Option<wl_surface::WlSurface>,
-    _active_output_index: Option<usize>,
+    pub(super) input: InputState,
 
     // Loop control
-    exit: bool,
-    loop_signal: LoopSignal,
-    last_frame_time: Instant,
-    needs_redraw: bool,
+    pub(super) exit: bool,
+    pub(super) loop_signal: LoopSignal,
+    pub(super) last_frame_time: Instant,
+    pub(super) needs_redraw: bool,
 }
 
 // ============================================================================
@@ -153,7 +151,7 @@ pub struct App {
 // ============================================================================
 
 impl App {
-    pub fn new(args: Args) -> Result<()> {
+    pub fn run(args: Args) -> Result<()> {
         let conn = Connection::connect_to_env().context("Failed to connect to Wayland")?;
         let (globals, mut event_queue) =
             registry_queue_init::<Self>(&conn).context("Failed to init registry")?;
@@ -215,13 +213,7 @@ impl App {
             selection,
             args,
             window_manager,
-            snap_animation: None,
-            snap_initialized: false,
-            pointer_position: (0.0, 0.0),
-            mouse_pressed: false,
-            selection_start: None,
-            current_surface: None,
-            _active_output_index: None,
+            input: InputState::new(),
             exit: false,
             loop_signal,
             last_frame_time: Instant::now(),
@@ -239,30 +231,23 @@ impl App {
         // Create layer surfaces for each output
         app.create_layer_surfaces(&qh)?;
 
-        // Initialize snap animation with actual cursor position from Hyprland
         app.initialize_snap_animation();
-        app.snap_initialized = true;
+        app.input.snap_initialized = true;
 
-        // Run the event loop
         loop {
-            // Dynamic FPS based on animation state
-            let timeout = if let Some(ref anim) = app.snap_animation {
+            let timeout = if let Some(ref anim) = app.input.snap_animation {
                 if anim.is_settled() {
-                    // Animation settled - use lower FPS to save CPU/power
-                    Some(Duration::from_millis(33)) // ~30 FPS when idle
+                    Some(Duration::from_millis(IDLE_FRAME_TIMEOUT_MS))
                 } else {
-                    // Animation active - use high FPS for smooth motion
-                    Some(Duration::from_millis(8)) // ~120 FPS when animating
+                    Some(Duration::from_millis(ANIMATION_FRAME_TIMEOUT_MS))
                 }
             } else {
-                // No animation - block indefinitely
                 None
             };
 
             event_loop.dispatch(timeout, &mut app)?;
 
-            // Update animations if active
-            if app.snap_animation.is_some() {
+            if app.input.snap_animation.is_some() {
                 app.update_animation();
             }
 
@@ -322,9 +307,9 @@ impl App {
                         .iter()
                         .find(|m| m.current)
                         .map(|m| m.refresh_rate)
-                        .unwrap_or(60000); // Default to 60Hz
+                        .unwrap_or(DEFAULT_REFRESH_RATE_MHZ);
 
-                    let fps = (refresh_rate / 1000) as u32;
+                    let fps = (refresh_rate / REFRESH_RATE_DIVIDER) as u32;
                     log::info!(
                         "Output {:?}: {}x{} at ({}, {}) @ {}Hz",
                         info.name,
@@ -382,8 +367,8 @@ impl App {
                         e
                     );
                     // Fallback to stored pointer position or screen center
-                    if self.pointer_position != (0.0, 0.0) {
-                        self.pointer_position
+                    if self.input.pointer_position != (0.0, 0.0) {
+                        self.input.pointer_position
                     } else {
                         (1280.0, 720.0)
                     }
@@ -392,50 +377,40 @@ impl App {
 
             if let Some(window) = window_manager.find_nearest_window(px as i32, py as i32, 50) {
                 let rect = window.rect;
-                log::info!(
-                    "Initial snap target: {}x{} at ({}, {})",
-                    rect.width,
-                    rect.height,
-                    rect.x,
-                    rect.y
-                );
+                log::info!("Initial snap target: {}", rect.describe());
 
                 // Start animation from cursor position
                 let start_rect = Rect::new(px as i32, py as i32, 1, 1);
                 let mut anim = SpringAnimation::new(start_rect);
                 anim.set_target(rect);
-                self.snap_animation = Some(anim);
+                self.input.snap_animation = Some(anim);
                 self.selection.set_snap_target(Some(rect));
             }
         }
     }
 
-    /// Updates spring animation state and marks for redraw
+    /// Updates spring animation state and marks surfaces for redraw if needed.
     ///
-    /// Called each event loop iteration when animation is active.
-    /// Uses delta time for frame-rate independent animation.
+    /// Uses delta time for frame-rate independent animation physics.
     fn update_animation(&mut self) {
         let now = Instant::now();
         let dt = now.duration_since(self.last_frame_time).as_secs_f64();
         self.last_frame_time = now;
 
-        if let Some(ref mut anim) = self.snap_animation {
+        if let Some(ref mut anim) = self.input.snap_animation {
             anim.update(dt);
             let animated_rect = anim.current();
             self.selection.set_animated_snap_target(Some(animated_rect));
 
-            // Only request redraw if animation is still moving
-            // This prevents unnecessary redraws once animation has settled
             if !anim.is_settled() {
                 self.needs_redraw = true;
             }
         }
     }
 
-    /// Redraws all monitors with per-monitor FPS throttling
+    /// Redraws all monitors with independent per-monitor FPS throttling.
     ///
-    /// Each monitor is independently throttled based on its refresh rate
-    /// to avoid unnecessary rendering and reduce CPU/GPU usage.
+    /// Throttles each monitor independently based on its refresh rate to reduce CPU and GPU usage.
     fn redraw_all(&mut self) {
         let now = Instant::now();
         let len = self.output_surfaces.len();
@@ -458,7 +433,7 @@ impl App {
     // Rendering
     // ------------------------------------------------------------------------
 
-    /// Translate global rect to local output coordinates
+    /// Translates global rectangle coordinates to local output coordinates.
     #[inline]
     fn translate_rect_to_local(rect: Rect, offset_x: i32, offset_y: i32) -> Rect {
         Rect::new(
@@ -469,7 +444,7 @@ impl App {
         )
     }
 
-    /// Create a local selection from a global rect
+    /// Creates a local selection from a global rectangle by translating coordinates.
     #[inline]
     fn create_local_selection(
         global_rect: Rect,
@@ -480,7 +455,7 @@ impl App {
         Selection::from_rect(local_rect)
     }
 
-    fn draw_index(&mut self, index: usize) -> Result<()> {
+    pub(super) fn draw_index(&mut self, index: usize) -> Result<()> {
         if !self.output_surfaces[index].configured {
             return Ok(());
         }
@@ -587,12 +562,7 @@ impl App {
 
         // If no selection on this output, render dimmed overlay only (or snap target if present)
         if !has_selection {
-            // Check if we need to render a snap target on this output
-            // Use animated snap target if available, otherwise fall back to static
-            let snap_rect = self
-                .selection
-                .get_animated_snap_target()
-                .or_else(|| self.selection.get_snap_target());
+            let snap_rect = self.selection.get_current_snap_target();
 
             if let Some(snap_rect) = snap_rect {
                 let local_snap = Self::translate_rect_to_local(snap_rect, offset_x, offset_y);
@@ -621,18 +591,15 @@ impl App {
         log::debug!(
             "Committing buffer to output {} surface at offset ({},{}) with damage {}x{}",
             index,
-            self.output_surfaces[index].x,
-            self.output_surfaces[index].y,
+            offset_x,
+            offset_y,
             width,
             height
         );
-        self.output_surfaces[index]
-            .surface
-            .attach(Some(buffer.wl_buffer()), 0, 0);
-        self.output_surfaces[index]
-            .surface
-            .damage_buffer(0, 0, width, height);
-        self.output_surfaces[index].surface.commit();
+        let output = &self.output_surfaces[index];
+        output.surface.attach(Some(buffer.wl_buffer()), 0, 0);
+        output.surface.damage_buffer(0, 0, width, height);
+        output.surface.commit();
 
         Ok(())
     }
@@ -641,8 +608,7 @@ impl App {
     // Event Handling
     // ------------------------------------------------------------------------
 
-    fn handle_pointer_move(&mut self, surface: &wl_surface::WlSurface, x: f64, y: f64) {
-        // Find which output surface this is and convert to global coordinates
+    pub(super) fn handle_pointer_move(&mut self, surface: &wl_surface::WlSurface, x: f64, y: f64) {
         let mut global_x = x;
         let mut global_y = y;
 
@@ -654,93 +620,64 @@ impl App {
             }
         }
 
-        self.pointer_position = (global_x, global_y);
+        self.input.pointer_position = (global_x, global_y);
 
-        // Initialize snap animation on first pointer movement
-        if !self.snap_initialized && self.window_manager.is_some() {
-            self.snap_initialized = true;
+        if !self.input.snap_initialized && self.window_manager.is_some() {
+            self.input.snap_initialized = true;
             self.initialize_snap_animation();
         }
 
-        if self.mouse_pressed {
-            if let Some((start_x, start_y)) = self.selection_start {
+        if self.input.mouse_pressed {
+            if let Some((start_x, start_y)) = self.input.selection_start {
                 self.selection
                     .update_drag(start_x, start_y, global_x as i32, global_y as i32);
-                // Mark for redraw instead of drawing immediately
                 self.needs_redraw = true;
             }
-        } else {
-            // Only check for window snapping when not actively selecting
-            if let Some(ref window_manager) = self.window_manager {
-                // Use nearest window within 50px threshold to handle fast cursor movement
-                let snap_target = window_manager
-                    .find_nearest_window(global_x as i32, global_y as i32, 50)
-                    .map(|w| w.rect);
+        } else if let Some(ref window_manager) = self.window_manager {
+            let snap_target = window_manager
+                .find_nearest_window(global_x as i32, global_y as i32, 50)
+                .map(|w| w.rect);
 
-                // Only log and update animation when snap target changes
-                if snap_target != self.selection.get_snap_target() {
-                    if let Some(rect) = snap_target {
-                        log::info!(
-                            "Snap target: {}x{} at ({}, {})",
-                            rect.width,
-                            rect.height,
-                            rect.x,
-                            rect.y
-                        );
+            if snap_target != self.selection.get_snap_target() {
+                if let Some(rect) = snap_target {
+                    log::info!("Snap target: {}", rect.describe());
 
-                        // Initialize or update animation
-                        if let Some(ref mut anim) = self.snap_animation {
-                            // Changing target - animate to new position
-                            anim.set_target(rect);
-                        } else {
-                            // First snap - start animation from a small rect at cursor position
-                            let start_rect = Rect::new(global_x as i32, global_y as i32, 1, 1);
-                            let mut anim = SpringAnimation::new(start_rect);
-                            anim.set_target(rect);
-                            self.snap_animation = Some(anim);
-                        }
-                        // Only request redraw when snap target changes
-                        self.needs_redraw = true;
+                    if let Some(ref mut anim) = self.input.snap_animation {
+                        anim.set_target(rect);
                     } else {
-                        log::info!("Snap target: None");
-                        // Target cleared - request one final redraw to clear the snap highlight
-                        self.needs_redraw = true;
+                        let start_rect = Rect::new(global_x as i32, global_y as i32, 1, 1);
+                        let mut anim = SpringAnimation::new(start_rect);
+                        anim.set_target(rect);
+                        self.input.snap_animation = Some(anim);
                     }
-
-                    self.selection.set_snap_target(snap_target);
+                    self.needs_redraw = true;
+                } else {
+                    log::info!("Snap target: None");
+                    self.needs_redraw = true;
                 }
-                // Note: If snap target hasn't changed and animation is settled,
-                // we don't request a redraw - this prevents flickering on mouse movement
+
+                self.selection.set_snap_target(snap_target);
             }
         }
     }
 
-    fn handle_pointer_button(&mut self, pressed: bool) {
+    pub(super) fn handle_pointer_button(&mut self, pressed: bool) {
         if pressed {
-            self.mouse_pressed = true;
-            self.selection_start = Some((
-                self.pointer_position.0 as i32,
-                self.pointer_position.1 as i32,
+            self.input.mouse_pressed = true;
+            self.input.selection_start = Some((
+                self.input.pointer_position.0 as i32,
+                self.input.pointer_position.1 as i32,
             ));
             self.selection.start_selection(
-                self.pointer_position.0 as i32,
-                self.pointer_position.1 as i32,
+                self.input.pointer_position.0 as i32,
+                self.input.pointer_position.1 as i32,
             );
         } else {
-            self.mouse_pressed = false;
-            // Check if we have a valid dragged selection
+            self.input.mouse_pressed = false;
             if self.selection.get_selection().is_some() {
                 self.complete_selection();
             } else if let Some(snap_rect) = self.selection.get_snap_target() {
-                // If we clicked without dragging but there's a snap target, use it
-                log::info!(
-                    "Using snap target on click: {}x{} at ({}, {})",
-                    snap_rect.width,
-                    snap_rect.height,
-                    snap_rect.x,
-                    snap_rect.y
-                );
-                // Set the selection to the snap target
+                log::info!("Using snap target on click: {}", snap_rect.describe());
                 self.selection.start_selection(snap_rect.x, snap_rect.y);
                 self.selection.update_drag(
                     snap_rect.x,
@@ -751,13 +688,12 @@ impl App {
                 self.complete_selection();
             }
         }
-        // Mark for redraw instead of drawing immediately
         self.needs_redraw = true;
     }
 
     fn complete_selection(&mut self) {
         if let Some(rect) = self.selection.get_selection() {
-            // Hide all overlays so grim captures a clean screenshot
+            // Hide all overlays before screencopy
             // Detach buffers from all surfaces to make them invisible
             for output_surface in &mut self.output_surfaces {
                 output_surface.surface.attach(None, 0, 0);
@@ -816,318 +752,9 @@ impl App {
             .replace("%Y", &(y + height).to_string())
     }
 
-    fn cancel_selection(&mut self) {
+    pub(super) fn cancel_selection(&mut self) {
         eprintln!("Selection cancelled by user");
         log::debug!("Selection cancelled by user");
         std::process::exit(1);
     }
 }
-
-// ============================================================================
-// Wayland Protocol Handler Implementations
-// ============================================================================
-
-impl CompositorHandler for App {
-    fn scale_factor_changed(
-        &mut self,
-        _conn: &Connection,
-        _qh: &QueueHandle<Self>,
-        _surface: &wl_surface::WlSurface,
-        _new_factor: i32,
-    ) {
-    }
-
-    fn frame(
-        &mut self,
-        _conn: &Connection,
-        _qh: &QueueHandle<Self>,
-        _surface: &wl_surface::WlSurface,
-        _time: u32,
-    ) {
-        // Frame callbacks not used - we render immediately on changes
-    }
-
-    fn transform_changed(
-        &mut self,
-        _conn: &Connection,
-        _qh: &QueueHandle<Self>,
-        _surface: &wl_surface::WlSurface,
-        _new_transform: wayland_client::protocol::wl_output::Transform,
-    ) {
-    }
-
-    fn surface_enter(
-        &mut self,
-        _conn: &Connection,
-        _qh: &QueueHandle<Self>,
-        surface: &wl_surface::WlSurface,
-        _output: &wl_output::WlOutput,
-    ) {
-        self.current_surface = Some(surface.clone());
-    }
-
-    fn surface_leave(
-        &mut self,
-        _conn: &Connection,
-        _qh: &QueueHandle<Self>,
-        _surface: &wl_surface::WlSurface,
-        _output: &wl_output::WlOutput,
-    ) {
-    }
-}
-
-impl OutputHandler for App {
-    fn output_state(&mut self) -> &mut OutputState {
-        &mut self.output_state
-    }
-
-    fn new_output(
-        &mut self,
-        _conn: &Connection,
-        _qh: &QueueHandle<Self>,
-        output: wl_output::WlOutput,
-    ) {
-        log::debug!("New output detected");
-        if let Some(info) = self.output_state.info(&output) {
-            self.outputs.insert(output, info.clone());
-        }
-    }
-
-    fn update_output(
-        &mut self,
-        _conn: &Connection,
-        _qh: &QueueHandle<Self>,
-        output: wl_output::WlOutput,
-    ) {
-        if let Some(info) = self.output_state.info(&output) {
-            self.outputs.insert(output, info.clone());
-        }
-    }
-
-    fn output_destroyed(
-        &mut self,
-        _conn: &Connection,
-        _qh: &QueueHandle<Self>,
-        output: wl_output::WlOutput,
-    ) {
-        self.outputs.remove(&output);
-    }
-}
-
-impl LayerShellHandler for App {
-    fn closed(&mut self, _conn: &Connection, _qh: &QueueHandle<Self>, _layer: &LayerSurface) {
-        self.exit = true;
-        self.loop_signal.stop();
-    }
-
-    fn configure(
-        &mut self,
-        _conn: &Connection,
-        _qh: &QueueHandle<Self>,
-        layer: &LayerSurface,
-        configure: LayerSurfaceConfigure,
-        _serial: u32,
-    ) {
-        // Find the surface and mark it as configured
-        for i in 0..self.output_surfaces.len() {
-            if &self.output_surfaces[i].layer_surface == layer {
-                self.output_surfaces[i].configured = true;
-                self.output_surfaces[i].width = configure.new_size.0;
-                self.output_surfaces[i].height = configure.new_size.1;
-
-                // Render initial frame
-                let _ = self.draw_index(i);
-                break;
-            }
-        }
-    }
-}
-
-impl SeatHandler for App {
-    fn seat_state(&mut self) -> &mut SeatState {
-        &mut self.seat_state
-    }
-
-    fn new_seat(&mut self, _: &Connection, _: &QueueHandle<Self>, _: wl_seat::WlSeat) {}
-
-    fn new_capability(
-        &mut self,
-        _conn: &Connection,
-        qh: &QueueHandle<Self>,
-        seat: wl_seat::WlSeat,
-        capability: Capability,
-    ) {
-        if capability == Capability::Pointer && self.themed_pointer.is_none() {
-            // Create a themed pointer with the system theme
-            let surface = self.compositor_state.create_surface(qh);
-            let themed_pointer = self.seat_state.get_pointer_with_theme(
-                qh,
-                &seat,
-                self.shm_state.wl_shm(),
-                surface,
-                ThemeSpec::System,
-            );
-            if let Ok(pointer) = themed_pointer {
-                self.themed_pointer = Some(pointer);
-            }
-        }
-
-        if capability == Capability::Keyboard {
-            let _ = self.seat_state.get_keyboard(qh, &seat, None);
-        }
-    }
-
-    fn remove_capability(
-        &mut self,
-        _conn: &Connection,
-        _qh: &QueueHandle<Self>,
-        _seat: wl_seat::WlSeat,
-        _capability: Capability,
-    ) {
-    }
-
-    fn remove_seat(&mut self, _: &Connection, _: &QueueHandle<Self>, _: wl_seat::WlSeat) {}
-}
-
-impl PointerHandler for App {
-    fn pointer_frame(
-        &mut self,
-        conn: &Connection,
-        _qh: &QueueHandle<Self>,
-        _pointer: &wl_pointer::WlPointer,
-        events: &[PointerEvent],
-    ) {
-        for event in events {
-            match event.kind {
-                PointerEventKind::Enter { .. } => {
-                    self.current_surface = Some(event.surface.clone());
-
-                    // Set crosshair cursor using ThemedPointer
-                    if let Some(themed_pointer) = &self.themed_pointer {
-                        let _ = themed_pointer.set_cursor(conn, CursorIcon::Crosshair);
-                    }
-                }
-                PointerEventKind::Leave { .. } => {}
-                PointerEventKind::Motion { .. } => {
-                    if let Some(surface) = self.current_surface.clone() {
-                        self.handle_pointer_move(&surface, event.position.0, event.position.1);
-                    }
-                }
-                PointerEventKind::Press { button, .. } => {
-                    if button == 0x110 {
-                        // BTN_LEFT
-                        self.handle_pointer_button(true);
-                    } else if button == 0x111 {
-                        // BTN_RIGHT - cancel
-                        self.cancel_selection();
-                    }
-                }
-                PointerEventKind::Release { button, .. } => {
-                    if button == 0x110 {
-                        // BTN_LEFT
-                        self.handle_pointer_button(false);
-                    }
-                }
-                PointerEventKind::Axis { .. } => {}
-            }
-        }
-    }
-}
-
-impl ShmHandler for App {
-    fn shm_state(&mut self) -> &mut Shm {
-        &mut self.shm_state
-    }
-}
-
-impl KeyboardHandler for App {
-    fn enter(
-        &mut self,
-        _conn: &Connection,
-        _qh: &QueueHandle<Self>,
-        _keyboard: &wayland_client::protocol::wl_keyboard::WlKeyboard,
-        _surface: &wl_surface::WlSurface,
-        _serial: u32,
-        _raw: &[u32],
-        _keysyms: &[Keysym],
-    ) {
-        // We don't need to do anything on keyboard focus enter
-    }
-
-    fn leave(
-        &mut self,
-        _conn: &Connection,
-        _qh: &QueueHandle<Self>,
-        _keyboard: &wayland_client::protocol::wl_keyboard::WlKeyboard,
-        _surface: &wl_surface::WlSurface,
-        _serial: u32,
-    ) {
-        // We don't need to do anything on keyboard focus leave
-    }
-
-    fn press_key(
-        &mut self,
-        _conn: &Connection,
-        _qh: &QueueHandle<Self>,
-        _keyboard: &wayland_client::protocol::wl_keyboard::WlKeyboard,
-        _serial: u32,
-        event: KeyEvent,
-    ) {
-        // Handle Escape key to cancel
-        if event.keysym == Keysym::Escape {
-            self.cancel_selection();
-        }
-    }
-
-    fn release_key(
-        &mut self,
-        _conn: &Connection,
-        _qh: &QueueHandle<Self>,
-        _keyboard: &wayland_client::protocol::wl_keyboard::WlKeyboard,
-        _serial: u32,
-        _event: KeyEvent,
-    ) {
-        // We don't need to handle key releases
-    }
-
-    fn update_modifiers(
-        &mut self,
-        _conn: &Connection,
-        _qh: &QueueHandle<Self>,
-        _keyboard: &wayland_client::protocol::wl_keyboard::WlKeyboard,
-        _serial: u32,
-        _modifiers: Modifiers,
-        _raw_modifiers: smithay_client_toolkit::seat::keyboard::RawModifiers,
-        _layout: u32,
-    ) {
-        // We don't need to track modifiers
-    }
-
-    fn repeat_key(
-        &mut self,
-        _conn: &Connection,
-        _qh: &QueueHandle<Self>,
-        _keyboard: &wayland_client::protocol::wl_keyboard::WlKeyboard,
-        _serial: u32,
-        _event: KeyEvent,
-    ) {
-        // We don't need to handle key repeats
-    }
-}
-
-impl ProvidesRegistryState for App {
-    fn registry(&mut self) -> &mut RegistryState {
-        &mut self.registry_state
-    }
-
-    registry_handlers![OutputState];
-}
-
-delegate_compositor!(App);
-delegate_output!(App);
-delegate_shm!(App);
-delegate_seat!(App);
-delegate_pointer!(App);
-delegate_keyboard!(App);
-delegate_layer!(App);
-delegate_registry!(App);

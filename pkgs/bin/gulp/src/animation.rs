@@ -1,5 +1,12 @@
 use crate::selection::Rect;
 
+// Spring physics constants
+const SPRING_STIFFNESS: f64 = 400.0;
+const MAX_TIME_STEP: f64 = 0.016; // 16ms prevents physics instability
+const SNAP_ANIMATION_THRESHOLD: f64 = 0.5;
+const POSITION_SETTLE_THRESHOLD: f64 = 5.0;
+const VELOCITY_SETTLE_THRESHOLD: f64 = 50.0;
+
 /// Critically damped spring animation (smooth motion, no overshoot/bounce)
 #[derive(Debug, Clone)]
 pub struct SpringAnimation {
@@ -29,25 +36,24 @@ pub struct SpringAnimation {
 impl SpringAnimation {
     /// Create a new spring animation starting at the given rectangle
     pub fn new(initial: Rect) -> Self {
-        // Higher stiffness = faster settling time
-        let stiffness: f64 = 400.0;
-        // Critical damping = 2 * sqrt(stiffness)
-        // Using slightly more than critical to ensure no overshoot
+        let stiffness = SPRING_STIFFNESS;
         let damping: f64 = 2.0 * (stiffness.sqrt()) * 1.1;
 
+        let (x, y, width, height) = initial.as_f64_tuple();
+
         Self {
-            x: initial.x as f64,
-            y: initial.y as f64,
-            width: initial.width as f64,
-            height: initial.height as f64,
+            x,
+            y,
+            width,
+            height,
             vx: 0.0,
             vy: 0.0,
             vw: 0.0,
             vh: 0.0,
-            target_x: initial.x as f64,
-            target_y: initial.y as f64,
-            target_width: initial.width as f64,
-            target_height: initial.height as f64,
+            target_x: x,
+            target_y: y,
+            target_width: width,
+            target_height: height,
             stiffness,
             damping,
         }
@@ -55,16 +61,16 @@ impl SpringAnimation {
 
     /// Set a new target rectangle
     pub fn set_target(&mut self, target: Rect) {
-        self.target_x = target.x as f64;
-        self.target_y = target.y as f64;
-        self.target_width = target.width as f64;
-        self.target_height = target.height as f64;
+        let (x, y, width, height) = target.as_f64_tuple();
+        self.target_x = x;
+        self.target_y = y;
+        self.target_width = width;
+        self.target_height = height;
     }
 
     /// Update the animation by the given time delta (in seconds)
     pub fn update(&mut self, dt: f64) {
-        // Clamp dt to prevent instability from large time steps
-        let dt = dt.min(0.016); // Max 16ms per step
+        let dt = dt.min(MAX_TIME_STEP);
 
         // Spring physics: F = -k * x - d * v
         // Using semi-implicit Euler integration for stability
@@ -102,7 +108,7 @@ impl SpringAnimation {
 
     /// Get the current animated rectangle
     pub fn current(&self) -> Rect {
-        const SNAP_THRESHOLD: f64 = 0.5;
+        const SNAP_THRESHOLD: f64 = SNAP_ANIMATION_THRESHOLD;
 
         let x = Self::snap_to_target(self.x, self.target_x, SNAP_THRESHOLD);
         let y = Self::snap_to_target(self.y, self.target_y, SNAP_THRESHOLD);
@@ -121,8 +127,8 @@ impl SpringAnimation {
     pub fn is_settled(&self) -> bool {
         // Conservative thresholds for FPS reduction - we want smooth animation
         // but also want to save CPU when mostly idle
-        let position_threshold = 5.0; // Within 5 pixels (still animating smoothly)
-        let velocity_threshold = 50.0; // Slowing down significantly
+        let position_threshold = POSITION_SETTLE_THRESHOLD;
+        let velocity_threshold = VELOCITY_SETTLE_THRESHOLD;
 
         let dx = (self.x - self.target_x).abs();
         let dy = (self.y - self.target_y).abs();

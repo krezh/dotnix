@@ -46,7 +46,7 @@ pub struct WindowInfo {
 }
 
 impl WindowInfo {
-    /// Check if this window should be considered for snapping
+    /// Checks if this window should be considered for snap targeting.
     pub fn is_snappable(&self) -> bool {
         // Allow fullscreen windows to be snapped to
         self.mapped && !self.hidden
@@ -279,7 +279,9 @@ impl HyprlandBackend {
 
 impl WindowBackend for HyprlandBackend {
     fn fetch_windows(&mut self) -> Result<Vec<WindowInfo>> {
-        let response = self.socket_command("clients")?;
+        let response = self
+            .socket_command("clients")
+            .context("Failed to fetch window list from Hyprland")?;
         let windows: Vec<HyprlandWindow> =
             serde_json::from_str(&response).context("Failed to parse clients JSON response")?;
 
@@ -297,7 +299,9 @@ impl WindowBackend for HyprlandBackend {
     }
 
     fn get_cursor_position(&self) -> Result<(i32, i32)> {
-        let response = self.socket_command("cursorpos")?;
+        let response = self
+            .socket_command("cursorpos")
+            .context("Failed to fetch cursor position from Hyprland")?;
 
         #[derive(Deserialize)]
         struct CursorPos {

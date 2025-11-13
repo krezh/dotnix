@@ -44,6 +44,11 @@ let
     bin = "${lib.getExe clipboardMgr.pkg} -m clipboard";
   };
 
+  mail = {
+    pkg = pkgs.geary;
+    bin = "${mail.pkg}/bin/geary";
+  };
+
   volume_script = lib.getExe pkgs.volume_script_hyprpanel;
   brightness_script = lib.getExe pkgs.brightness_script_hyprpanel;
 
@@ -67,16 +72,15 @@ in
         "${mainMod},B,Launch Zen Browser,exec,${lib.getExe config.programs.zen-browser.package}"
         "${mainMod},E,Launch Nautilus file manager,exec,${lib.getExe pkgs.nautilus}"
         "${mainModShift},E,Launch Nautilus file manager in floating mode,exec,[float] ${lib.getExe pkgs.nautilus}"
-        "${mainModShift}, P,Launch bitwarden,exec,[float] ${lib.getExe pkgs.bww}"
+        "${mainMod},P,Launch bitwarden,exec,${lib.getExe pkgs.bww}"
         "${mainMod},RETURN,Launch terminal,exec,${defaultTerminal}"
         "${mainModShift},RETURN,Launch terminal,exec,[float] ${defaultTerminal}"
-        "${mainMod},T,Launch terminal,exec,${defaultTerminal}"
-        "${mainModShift},T,Launch terminal,exec,[float] ${defaultTerminal}"
-        "${mainMod},O,Launch calculator,exec,${lib.getExe pkgs.gnome-calculator}"
+        "${mainMod},T,Launch tray-tui,exec,[float] ${defaultTerminal} --class floatTerm -e ${lib.getExe pkgs.tray-tui}"
         "CTRL SHIFT,ESCAPE,Launch system resources monitor,exec,[float] ${lib.getExe pkgs.mission-center}"
         "${mainMod},V,Launch clipboard manager,exec,${clipboardMgr.bin}"
         "${mainMod},K,Show keybinds,exec,${keybinds.bin}"
         "${mainMod},G,Launch Audio Control,exec,[float] pkill ${audioControl.name} || ${defaultTerminal} --class audioControl -e ${audioControl.bin} -m 100"
+        "${mainMod},M,Launch Default Mail Client,exec,${mail.bin}"
         # HyprExpo workspace overview
         "${mainMod},TAB,Toggle workspace overview, hyprexpo:expo, toggle"
         # Audio device switching
@@ -88,9 +92,9 @@ in
         "SHIFT ALT,S,Area screen recording,exec,${recShot} -m video-area"
         "SHIFT,PRINT,Window screen recording,exec,${recShot} -m video-window"
 
+        # Window management
         "${mainMod},Q,Close active window,killactive"
         "${mainMod},C,Toggle floating mode,togglefloating"
-        "${mainMod},P,Toggle pseudo tiling,pseudo"
         "${mainMod},J,Toggle split layout,togglesplit"
         "${mainMod},F,Toggle fullscreen,fullscreen,1"
         "${mainModShift},F,Toggle fullscreen,fullscreen,2"
@@ -98,7 +102,6 @@ in
         "${mainModShift},RIGHT,Move window right,movewindow,r"
         "${mainModShift},UP,Move window up,movewindow,u"
         "${mainModShift},DOWN,Move window down,movewindow,d"
-
         "${mainMod},left,Move focus left,movefocus,l"
         "${mainMod},right,Move focus right,movefocus,r"
         "${mainMod},up,Move focus up,movefocus,u"
@@ -149,7 +152,7 @@ in
 
       binddm = [
         "${mainMod},mouse:272,Move window with ${mainMod} + left mouse drag,movewindow"
-        "${mainModShift},mouse:272,Resize window with ${mainMod} + SHIFT + left mouse drag,resizewindow"
+        "${mainMod},mouse:273,Resize window with ${mainMod} + right mouse drag,resizewindow"
       ];
     };
   };

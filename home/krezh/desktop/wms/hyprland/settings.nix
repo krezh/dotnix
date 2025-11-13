@@ -60,7 +60,6 @@
       "col.inactive_border" = "$base";
 
       allow_tearing = false;
-      resize_on_border = true;
     };
 
     decoration = {
@@ -138,7 +137,7 @@
       focus_on_activate = true;
       disable_hyprland_logo = true;
       disable_splash_rendering = true;
-      disable_autoreload = true;
+      disable_autoreload = false;
       session_lock_xray = true;
       new_window_takes_over_fullscreen = 2;
       render_unfocused_fps = 30;

@@ -5,22 +5,65 @@
   lib,
   ...
 }:
+let
+  nix-ai-tools = inputs.nix-ai-tools.packages.${pkgs.stdenv.hostPlatform.system};
+  github-mcp-wrapper = pkgs.writeShellScript "github-mcp-wrapper" ''
+    export GITHUB_PERSONAL_ACCESS_TOKEN="$(cat ${config.sops.secrets."github/mcp_token".path})"
+    exec ${lib.getExe pkgs.github-mcp-server} "$@"
+  '';
+in
 {
+  home.packages = [
+    nix-ai-tools.claude-desktop
+  ];
+
+  xdg.desktopEntries = {
+    claude-desktop = {
+      name = "Claude Desktop";
+      comment = "AI assistant with advanced reasoning capabilities";
+      exec = "${lib.getExe nix-ai-tools.claude-desktop}";
+      icon = "${nix-ai-tools.claude-desktop}/lib/claude-desktop/resources/claude-screen.png";
+      terminal = false;
+      categories = [
+        "Development"
+        "Chat"
+        "Network"
+      ];
+      settings = {
+        Keywords = "ai;assistant;chat;claude;anthropic;";
+        StartupWMClass = "claude-desktop";
+      };
+    };
+
+    claude = {
+      name = "Claude Code";
+      comment = "Claude CLI for code assistance";
+      exec = "${lib.getExe nix-ai-tools.claude-code}";
+      icon = "${nix-ai-tools.claude-desktop}/lib/claude-desktop/resources/claude-screen.png";
+      terminal = true;
+      categories = [
+        "Development"
+        "ConsoleOnly"
+      ];
+      settings = {
+        Keywords = "ai;assistant;cli;claude;code;terminal;";
+        StartupWMClass = "claude";
+      };
+    };
+  };
+
   programs.claude-code = {
     enable = true;
-    package = inputs.nix-ai-tools.packages.${pkgs.stdenv.hostPlatform.system}.claude-code;
+    package = nix-ai-tools.claude-code;
 
     mcpServers = {
       github = {
         type = "stdio";
-        command = lib.getExe pkgs.github-mcp-server;
+        command = "${github-mcp-wrapper}";
         args = [
           "--read-only"
           "stdio"
         ];
-        env = {
-          GITHUB_PERSONAL_ACCESS_TOKEN = "$(cat ${config.sops.secrets."github/mcp_token".path})";
-        };
       };
       nixos = {
         type = "stdio";
@@ -29,6 +72,34 @@
       socket = {
         type = "http";
         url = "https://mcp.socket.dev/";
+      };
+      rust-analyzer = {
+        type = "stdio";
+        command = lib.getExe pkgs.rust-analyzer-mcp;
+      };
+      gopls = {
+        type = "stdio";
+        command = lib.getExe pkgs.mcp-gopls;
+      };
+      grafana = {
+        type = "stdio";
+        command = lib.getExe pkgs.mcp-grafana;
+      };
+      sequential-thinking = {
+        type = "stdio";
+        command = "${pkgs.bun}/bin/bunx";
+        args = [
+          "@modelcontextprotocol/server-sequential-thinking"
+        ];
+      };
+      filesystem = {
+        type = "stdio";
+        command = "${pkgs.bun}/bin/bunx";
+        args = [
+          "@modelcontextprotocol/server-filesystem"
+          # "${config.home.homeDirectory}/nix-config"
+          # "${config.home.homeDirectory}/repos"
+        ];
       };
     };
 
@@ -86,6 +157,11 @@
           "mcp__github"
           "mcp__nixos"
           "mcp__socket"
+          "mcp__rust-analyzer"
+          "mcp__gopls"
+          "mcp__sequential-thinking"
+          "mcp__filesystem"
+          "mcp__grafana"
 
           # Safe web fetch from trusted domains
           "WebFetch(domain:wiki.hyprland.org)"

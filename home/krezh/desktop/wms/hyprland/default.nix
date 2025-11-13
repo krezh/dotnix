@@ -17,9 +17,7 @@
     systemd = {
       enable = true;
       enableXdgAutostart = false;
-      variables = [
-        "--all"
-      ]; # https://wiki.hyprland.org/Nix/Hyprland-on-Home-Manager/#programs-dont-work-in-systemd-services-but-do-on-the-terminal
+      variables = [ "--all" ];
     };
     plugins = with pkgs.hyprlandPlugins; [
       hyprexpo

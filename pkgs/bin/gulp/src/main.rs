@@ -81,10 +81,10 @@ pub struct Args {
 }
 
 impl Args {
-    /// Merges CLI arguments with config file settings
+    /// Merges CLI arguments with config file settings.
     ///
-    /// Priority order: CLI args > config file > hardcoded defaults
-    /// This ensures all Option fields are populated with actual values.
+    /// Applies priority order: CLI args > config file > hardcoded defaults.
+    /// Ensures all `Option` fields are populated with concrete values.
     pub fn merge_with_config(mut self, config: Config) -> Self {
         // Helper macro to reduce repetition
         macro_rules! merge_option {
@@ -119,7 +119,7 @@ impl Args {
     }
 }
 
-/// Parses log level string into appropriate filter level
+/// Parses a log level string into the corresponding filter level.
 fn parse_log_level(level: &str) -> log::LevelFilter {
     match level.to_lowercase().as_str() {
         "off" => log::LevelFilter::Off,
@@ -167,7 +167,7 @@ fn main() -> Result<()> {
     log::info!("Starting gulp with args: {:?}", args);
 
     // Run the Wayland application (blocks until selection or cancel)
-    wayland::App::new(args)?;
+    wayland::App::run(args)?;
 
     Ok(())
 }

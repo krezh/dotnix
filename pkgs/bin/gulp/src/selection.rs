@@ -8,7 +8,7 @@ pub struct Rect {
 }
 
 impl Rect {
-    /// Creates a new rectangle
+    /// Creates a new rectangle with the specified position and dimensions.
     #[inline]
     pub const fn new(x: i32, y: i32, width: i32, height: i32) -> Self {
         Self {
@@ -19,7 +19,7 @@ impl Rect {
         }
     }
 
-    /// Check if this rectangle intersects with another rectangle
+    /// Checks if this rectangle intersects with another rectangle.
     #[inline]
     pub const fn intersects(&self, other: &Rect) -> bool {
         self.x < other.x + other.width
@@ -28,9 +28,9 @@ impl Rect {
             && self.y + self.height > other.y
     }
 
-    /// Creates a rectangle from two corner points
+    /// Creates a rectangle from two corner points.
     ///
-    /// Automatically normalizes so top-left is at (min_x, min_y)
+    /// Normalizes the coordinates so that the top-left corner is at the minimum x and y values.
     #[inline]
     pub fn from_points(x1: i32, y1: i32, x2: i32, y2: i32) -> Self {
         let x = x1.min(x2);
@@ -58,10 +58,22 @@ impl Rect {
         }
     }
 
-    /// Checks if this rectangle has non-zero area
+    /// Checks if this rectangle has non-zero area.
     #[inline]
     pub const fn is_valid(&self) -> bool {
         self.width > 0 && self.height > 0
+    }
+
+    /// Converts rectangle coordinates to an f64 tuple for rendering and animation.
+    #[inline]
+    pub fn as_f64_tuple(&self) -> (f64, f64, f64, f64) {
+        (self.x as f64, self.y as f64, self.width as f64, self.height as f64)
+    }
+
+    /// Formats rectangle as a string for logging purposes.
+    #[inline]
+    pub fn describe(&self) -> String {
+        format!("{}x{} at ({}, {})", self.width, self.height, self.x, self.y)
     }
 }
 
@@ -110,7 +122,7 @@ impl Selection {
         }
     }
 
-    /// Create a selection from a rect
+    /// Creates a selection from an existing rectangle.
     pub fn from_rect(rect: Rect) -> Self {
         let mut selection = Self::new();
         selection.start_selection(rect.x, rect.y);
@@ -118,13 +130,13 @@ impl Selection {
         selection
     }
 
-    /// Returns the selection rectangle if it has non-zero area
+    /// Returns the selection rectangle if it has non-zero area.
     #[inline]
     pub fn get_selection(&self) -> Option<Rect> {
         self.rect.filter(|r| r.is_valid())
     }
 
-    /// Returns the current rectangle (may be zero-sized during dragging)
+    /// Returns the current rectangle, which may have zero size during active dragging.
     #[inline]
     pub const fn get_rect(&self) -> Option<Rect> {
         self.rect
@@ -144,6 +156,12 @@ impl Selection {
 
     pub fn get_animated_snap_target(&self) -> Option<Rect> {
         self.animated_snap_target
+    }
+
+    /// Returns the current snap target, preferring animated over static.
+    pub fn get_current_snap_target(&self) -> Option<Rect> {
+        self.get_animated_snap_target()
+            .or_else(|| self.get_snap_target())
     }
 }
 

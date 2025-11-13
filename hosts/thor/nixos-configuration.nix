@@ -39,6 +39,8 @@
   };
 
   services.fwupd.enable = true;
+  services.accounts-daemon.enable = true;
+  services.gnome.gnome-online-accounts.enable = true;
 
   services.scx.enable = true;
   services.scx.scheduler = "scx_lavd";

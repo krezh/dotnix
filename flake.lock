@@ -468,11 +468,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1762993924,
-        "narHash": "sha256-BDlm2uarRA1PJnIAzriYrj6+7BIZSTK9U0JMasEbuRo=",
+        "lastModified": 1762997786,
+        "narHash": "sha256-Ge+Hx/EmjGg41UmC6WsIgqIyUEA/SH1K/e2sE/e73HU=",
         "owner": "krezh",
         "repo": "kauth",
-        "rev": "706daf301c92a1305cd2db7bea3b2ae9015d859c",
+        "rev": "5ba0a69cf36686d087434d38512fb0674544faa8",
         "type": "github"
       },
       "original": {
@@ -526,11 +526,11 @@
         "nixpkgs": "nixpkgs_2"
       },
       "locked": {
-        "lastModified": 1762826226,
-        "narHash": "sha256-M4rbwlO4peCHRvA+WNYCmg8je4YBF7kSY9tG+p1kEKo=",
+        "lastModified": 1762999310,
+        "narHash": "sha256-G1GAqeJPD3ILR2ahmU++r1RscTTpjba/uURYITi6x5c=",
         "owner": "fufexan",
         "repo": "nix-gaming",
-        "rev": "eefca17cb40462878ee1c46ac6910b2ec21adaa8",
+        "rev": "4e7b35681a36b19f8dd40b15993869a479da17e4",
         "type": "github"
       },
       "original": {
@@ -692,11 +692,11 @@
         "systems": "systems_5"
       },
       "locked": {
-        "lastModified": 1762975931,
-        "narHash": "sha256-Hdl2huagXFtzVQlQGExq3BQa/gPtNzHYnIYyofdm6fg=",
+        "lastModified": 1763001296,
+        "narHash": "sha256-5d25jDYvvWqMr6nSF+ewj6bq+G9qAUEPPA/jwRTEXzE=",
         "owner": "noctalia-dev",
         "repo": "noctalia-shell",
-        "rev": "0db78a0abeff2aa00dcd9e380d5874d9be309f56",
+        "rev": "632280a470bd4b8809beaf358191f027c10207ee",
         "type": "github"
       },
       "original": {

@@ -35,7 +35,7 @@ in
         "animation popin 80%, launcher"
         "blur, launcher"
         # Walker
-        "animation popin 80%, walker"
+        "animation popin 60%, walker"
         # Hyprpicker
         "animation fade, hyprpicker"
         # Wlogout
@@ -70,6 +70,8 @@ in
         "float, title:GIMP Crash Debug"
         "float, title:Save As"
         "float, title:Library"
+        "float, title:Install, class:steam"
+        "size 50% 50%, title:Install, class:steam"
         # File managers
         "float, class:org\.gnome\.FileRoller"
         "float, class:file-roller"
@@ -81,6 +83,9 @@ in
         # MPV
         "float, class:mpv"
         "size 60% 70%,class:mpv"
+        # Float Terminal
+        "float, class:floatTerm"
+        "size 60% 60%, class:floatTerm"
         # Tag games
         "tag +games, class:^(gamescope)$"
         "tag +games, class:^(steam_proton)$"

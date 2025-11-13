@@ -13,6 +13,10 @@ use wayland_protocols_wlr::screencopy::v1::client::{
 
 use crate::selection::Rect;
 
+// Capture timing constants
+const MAX_CAPTURE_ATTEMPTS: u32 = 100;
+const CAPTURE_SLEEP_MS: u64 = 10;
+
 /// Represents captured image data with metadata
 pub struct CapturedImage {
     pub data: Vec<u8>,
@@ -23,17 +27,24 @@ pub struct CapturedImage {
 }
 
 impl CapturedImage {
-    /// Crop the image to a specific region
+    /// Crops the image to the specified rectangular region.
+    ///
+    /// Returns a new `CapturedImage` containing only the pixels within the given rectangle.
+    /// Adjusts dimensions automatically if the rectangle extends beyond image boundaries.
     pub fn crop(&self, rect: Rect) -> Result<CapturedImage> {
         let rect_width = rect.width.min((self.width as i32) - rect.x) as u32;
         let rect_height = rect.height.min((self.height as i32) - rect.y) as u32;
 
         log::debug!(
-            "Cropping {}x{} region from {}x{} image (stride: {})",
-            rect_width, rect_height, self.width, self.height, self.stride
+            "Cropping {}x{} region from {}x{} image (stride: {}, format: {:?})",
+            rect_width, rect_height, self.width, self.height, self.stride, self.format
         );
 
-        let expected_size = (rect_width * rect_height * 4) as usize;
+        let expected_size = rect_width
+            .checked_mul(rect_height)
+            .and_then(|pixels| pixels.checked_mul(4))
+            .ok_or_else(|| anyhow::anyhow!("Crop region size overflow: {}x{}", rect_width, rect_height))?
+            as usize;
         let mut cropped_data = Vec::with_capacity(expected_size);
 
         for y in 0..rect_height {
@@ -64,7 +75,10 @@ impl CapturedImage {
         })
     }
 
-    /// Perform OCR on this image
+    /// Extracts text from the image using Tesseract OCR.
+    ///
+    /// Converts the image data to RGBA format and processes it with Tesseract's English language model.
+    /// Returns the extracted text as a trimmed string.
     pub fn ocr(&self) -> Result<String> {
         log::info!("Running OCR on {}x{} image", self.width, self.height);
 
@@ -129,10 +143,14 @@ impl CaptureState {
 
     fn to_result(&self) -> Result<()> {
         if self.failed {
-            anyhow::bail!("Screen capture failed");
+            anyhow::bail!("Screen capture failed - compositor rejected the capture request");
         }
         if !self.ready {
-            anyhow::bail!("Screen capture timed out");
+            anyhow::bail!(
+                "Screen capture timed out after {} attempts ({} ms)",
+                MAX_CAPTURE_ATTEMPTS,
+                MAX_CAPTURE_ATTEMPTS as u64 * CAPTURE_SLEEP_MS
+            );
         }
         Ok(())
     }
@@ -201,7 +219,10 @@ delegate_noop!(CaptureState: ignore wl_shm_pool::WlShmPool);
 delegate_noop!(CaptureState: ignore wl_buffer::WlBuffer);
 delegate_noop!(CaptureState: ignore ZwlrScreencopyManagerV1);
 
-/// Main entry point: captures a screen region and performs OCR
+/// Captures a screen region and extracts text from it using OCR.
+///
+/// Identifies which output contains the specified region, captures that output,
+/// crops to the selection area, and performs OCR on the resulting image.
 pub fn capture_and_ocr(
     conn: &Connection,
     outputs: &[(wl_output::WlOutput, String, i32, i32, u32, u32)],
@@ -255,7 +276,7 @@ pub fn capture_and_ocr(
     cropped.ocr()
 }
 
-/// Captures an entire output using zwlr-screencopy-v1 protocol
+/// Captures the entire content of a Wayland output using the zwlr-screencopy-v1 protocol.
 fn capture_output(conn: &Connection, output: &wl_output::WlOutput) -> Result<CapturedImage> {
     let mut event_queue = conn.new_event_queue::<CaptureState>();
     let qh = event_queue.handle();
@@ -304,7 +325,7 @@ fn capture_output(conn: &Connection, output: &wl_output::WlOutput) -> Result<Cap
     })
 }
 
-/// Binds required Wayland protocols
+/// Binds the required Wayland protocols for screen capture.
 fn bind_protocols(
     conn: &Connection,
     qh: &QueueHandle<CaptureState>,
@@ -324,7 +345,7 @@ fn bind_protocols(
     Ok((screencopy_manager, shm))
 }
 
-/// Creates a Wayland buffer backed by shared memory
+/// Creates a Wayland buffer backed by shared memory.
 fn create_wl_buffer(
     shm: &wl_shm::WlShm,
     qh: &QueueHandle<CaptureState>,
@@ -353,13 +374,13 @@ fn create_wl_buffer(
     Ok((buffer, pool, shm_fd))
 }
 
-/// Waits for the capture to complete
+/// Waits for the screen capture operation to complete or timeout.
 fn wait_for_capture(
     event_queue: &mut wayland_client::EventQueue<CaptureState>,
     capture_state: &mut CaptureState,
 ) -> Result<()> {
-    const MAX_ATTEMPTS: u32 = 100;
-    const SLEEP_MS: u64 = 10;
+    const MAX_ATTEMPTS: u32 = MAX_CAPTURE_ATTEMPTS;
+    const SLEEP_MS: u64 = CAPTURE_SLEEP_MS;
 
     for _ in 0..MAX_ATTEMPTS {
         if capture_state.is_complete() {
@@ -372,15 +393,14 @@ fn wait_for_capture(
     capture_state.to_result()
 }
 
-/// Creates a sealed shared memory file descriptor
+/// Creates a sealed shared memory file descriptor for the given size.
 fn create_shm_fd(size: usize) -> Result<i32> {
     use nix::fcntl::{FcntlArg, SealFlag};
     use nix::sys::memfd::{memfd_create, MFdFlags};
     use nix::unistd::ftruncate;
-    use std::ffi::CStr;
     use std::os::fd::IntoRawFd;
 
-    let name = CStr::from_bytes_with_nul(b"gulp-capture\0")?;
+    let name = c"gulp-capture";
     let fd = memfd_create(
         name,
         MFdFlags::MFD_CLOEXEC | MFdFlags::MFD_ALLOW_SEALING,
@@ -399,7 +419,7 @@ fn create_shm_fd(size: usize) -> Result<i32> {
     Ok(fd.into_raw_fd())
 }
 
-/// Reads data from a shared memory file descriptor
+/// Reads data from a shared memory file descriptor into a buffer.
 fn read_shm_buffer(fd: i32, size: usize) -> Result<Vec<u8>> {
     use nix::unistd::{lseek, read, Whence};
     use std::os::fd::BorrowedFd;
@@ -407,12 +427,11 @@ fn read_shm_buffer(fd: i32, size: usize) -> Result<Vec<u8>> {
     let mut buffer = vec![0u8; size];
     let borrowed_fd = unsafe { BorrowedFd::borrow_raw(fd) };
 
-    // Seek to beginning
-    lseek(&borrowed_fd, 0, Whence::SeekSet)?;
+    lseek(borrowed_fd, 0, Whence::SeekSet)?;
 
     let mut total_read = 0;
     while total_read < size {
-        match read(&borrowed_fd, &mut buffer[total_read..]) {
+        match read(borrowed_fd, &mut buffer[total_read..]) {
             Ok(0) => break, // EOF
             Ok(n) => total_read += n,
             Err(e) => return Err(anyhow::anyhow!("Failed to read from shm fd: {}", e)),
@@ -426,7 +445,7 @@ fn read_shm_buffer(fd: i32, size: usize) -> Result<Vec<u8>> {
     Ok(buffer)
 }
 
-/// Converts ARGB8888 pixel data to RGBA8888
+/// Converts ARGB8888 pixel data to RGBA8888 format.
 fn convert_argb_to_rgba(buffer: &[u8]) -> Vec<u8> {
     let mut rgba_buffer = Vec::with_capacity(buffer.len());
     for chunk in buffer.chunks_exact(4) {

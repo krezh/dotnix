@@ -1,4 +1,9 @@
-{ inputs, config, ... }:
+{
+  inputs,
+  config,
+  pkgs,
+  ...
+}:
 let
   themeName = config.programs.walker.config.theme;
 in
@@ -306,4 +311,9 @@ in
       }
     else
       null;
+
+  # Restart walker and elephant services after home-manager activation to detect new .desktop files
+  home.activation.restartWalker = config.lib.dag.entryAfter [ "writeBoundary" ] ''
+    $DRY_RUN_CMD ${pkgs.systemd}/bin/systemctl --user restart elephant.service walker.service 2>/dev/null || true
+  '';
 }

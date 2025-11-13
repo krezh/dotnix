@@ -4,6 +4,10 @@ use cairo::{Context as CairoContext, Format, ImageSurface};
 use crate::selection::Rect;
 use crate::selection::Selection;
 
+// Text display thresholds
+const MIN_TEXT_WIDTH: i32 = 80;
+const MIN_TEXT_HEIGHT: i32 = 40;
+
 /// Color representation
 #[derive(Debug, Clone, Copy)]
 pub struct Color {
@@ -50,6 +54,35 @@ pub struct RenderConfig {
     pub font_weight: cairo::FontWeight,
 }
 
+impl RenderConfig {
+    pub fn new(
+        border_color: &str,
+        border_weight: u32,
+        border_radius: u32,
+        dim_opacity: f64,
+        font_family: String,
+        font_size: u32,
+        font_weight: &str,
+    ) -> Result<Self> {
+        let border_color = Color::from_hex(border_color)?;
+        let font_weight = match font_weight {
+            "Normal" => cairo::FontWeight::Normal,
+            "Bold" => cairo::FontWeight::Bold,
+            _ => cairo::FontWeight::Bold,
+        };
+
+        Ok(Self {
+            border_color,
+            border_weight,
+            border_radius,
+            dim_opacity,
+            font_family,
+            font_size: font_size as f64,
+            font_weight,
+        })
+    }
+}
+
 impl Default for RenderConfig {
     fn default() -> Self {
         Self {
@@ -71,41 +104,15 @@ pub struct Renderer {
 }
 
 impl Renderer {
-    pub fn new(
-        width: i32,
-        height: i32,
-        border_color: &str,
-        border_weight: u32,
-        border_radius: u32,
-        dim_opacity: f64,
-        font_family: String,
-        font_size: u32,
-        font_weight: &str,
-    ) -> Result<Self> {
-        let border_color = Color::from_hex(border_color)?;
-
-        let font_weight = match font_weight {
-            "Normal" => cairo::FontWeight::Normal,
-            "Bold" => cairo::FontWeight::Bold,
-            _ => cairo::FontWeight::Bold,
-        };
-
-        Ok(Self {
-            config: RenderConfig {
-                border_color,
-                border_weight,
-                border_radius,
-                dim_opacity,
-                font_family,
-                font_size: font_size as f64,
-                font_weight,
-            },
+    pub fn new(width: i32, height: i32, config: RenderConfig) -> Self {
+        Self {
+            config,
             width,
             height,
-        })
+        }
     }
 
-    /// Helper to execute operation with temporary operator setting
+    /// Executes a drawing operation with a temporary Cairo operator setting.
     #[inline]
     fn with_operator<F>(&self, ctx: &CairoContext, operator: cairo::Operator, f: F) -> Result<()>
     where
@@ -117,31 +124,21 @@ impl Renderer {
         Ok(())
     }
 
-    /// Clear area (punch hole in dimming) with optional rounded corners
+    /// Clears a rectangular area in the dimming layer with optional rounded corners.
     fn clear_area(&self, ctx: &CairoContext, rect: Rect) -> Result<()> {
         let radius = self.config.border_radius as f64;
+        let (x, y, w, h) = rect.as_f64_tuple();
+
         if radius > 0.0 {
-            self.draw_rounded_rectangle(
-                ctx,
-                rect.x as f64,
-                rect.y as f64,
-                rect.width as f64,
-                rect.height as f64,
-                radius,
-            )?;
+            self.draw_rounded_rectangle(ctx, x, y, w, h, radius)?;
         } else {
-            ctx.rectangle(
-                rect.x as f64,
-                rect.y as f64,
-                rect.width as f64,
-                rect.height as f64,
-            );
+            ctx.rectangle(x, y, w, h);
         }
         ctx.fill()?;
         Ok(())
     }
 
-    /// Render directly to provided buffer - optimized for speed
+    /// Renders the selection overlay directly to the provided buffer with zero-copy optimization.
     pub fn render_to_buffer(&self, selection: &Selection, buffer: &mut [u8]) -> Result<()> {
         let stride = self.width * 4;
 
@@ -169,11 +166,8 @@ impl Renderer {
         if let Some(rect) = selection.get_rect() {
             if rect.width > 0 && rect.height > 0 {
                 log::debug!(
-                    "Renderer drawing selection rect at ({},{}) size {}x{} on surface {}x{}",
-                    rect.x,
-                    rect.y,
-                    rect.width,
-                    rect.height,
+                    "Renderer drawing selection rect {} on surface {}x{}",
+                    rect.describe(),
                     self.width,
                     self.height
                 );
@@ -185,11 +179,7 @@ impl Renderer {
 
         // Clear dimming and draw snap target preview (when hovering, not selecting)
         if selection.get_rect().is_none() {
-            // Use animated snap target if available, otherwise fall back to static
-            if let Some(snap_rect) = selection
-                .get_animated_snap_target()
-                .or_else(|| selection.get_snap_target())
-            {
+            if let Some(snap_rect) = selection.get_current_snap_target() {
                 // Clear the snap target area (punch hole in dimming)
                 self.with_operator(&ctx, cairo::Operator::Clear, |ctx| {
                     self.clear_area(ctx, snap_rect)
@@ -267,29 +257,16 @@ impl Renderer {
         );
         ctx.set_line_width(weight);
 
+        let (x, y, w, h) = rect.as_f64_tuple();
+
         if radius > 0.0 {
-            // Draw rounded rectangle
-            self.draw_rounded_rectangle(
-                ctx,
-                rect.x as f64,
-                rect.y as f64,
-                rect.width as f64,
-                rect.height as f64,
-                radius,
-            )?;
+            self.draw_rounded_rectangle(ctx, x, y, w, h, radius)?;
         } else {
-            // Draw regular rectangle
-            ctx.rectangle(
-                rect.x as f64,
-                rect.y as f64,
-                rect.width as f64,
-                rect.height as f64,
-            );
+            ctx.rectangle(x, y, w, h);
         }
         ctx.stroke()?;
 
-        // Draw dimensions text if big enough
-        if rect.width > 80 && rect.height > 40 {
+        if rect.width > MIN_TEXT_WIDTH && rect.height > MIN_TEXT_HEIGHT {
             let text = format!("{}×{}", rect.width, rect.height);
             ctx.select_font_face(
                 &self.config.font_family,
@@ -299,8 +276,8 @@ impl Renderer {
             ctx.set_font_size(self.config.font_size);
 
             let extents = ctx.text_extents(&text)?;
-            let text_x = rect.x as f64 + (rect.width as f64 - extents.width()) / 2.0;
-            let text_y = rect.y as f64 + (rect.height as f64 + extents.height()) / 2.0;
+            let text_x = x + (w - extents.width()) / 2.0;
+            let text_y = y + (h + extents.height()) / 2.0;
 
             ctx.fill()?;
 
@@ -333,9 +310,7 @@ mod tests {
 
     #[test]
     fn test_renderer_creation() {
-        let renderer = Renderer::new(
-            1920,
-            1080,
+        let config = RenderConfig::new(
             "#FFFFFF",
             2,
             0,
@@ -343,7 +318,10 @@ mod tests {
             "Inter Nerd Font".to_string(),
             18,
             "Bold",
-        );
-        assert!(renderer.is_ok());
+        )
+        .unwrap();
+        let renderer = Renderer::new(1920, 1080, config);
+        assert_eq!(renderer.width, 1920);
+        assert_eq!(renderer.height, 1080);
     }
 }
