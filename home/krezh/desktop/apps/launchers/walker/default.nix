@@ -34,9 +34,6 @@ in
         close = [ "Escape" ];
         next = [ "Down" ];
         previous = [ "Up" ];
-        toggle_exact = [ "ctrl e" ];
-        resume_last_query = [ "ctrl r" ];
-        quick_activate = [ ];
       };
       providers = {
         default = [
@@ -54,10 +51,6 @@ in
           {
             prefix = ";";
             provider = "providerlist";
-          }
-          {
-            prefix = "/";
-            provider = "files";
           }
           {
             prefix = ".";
@@ -150,17 +143,6 @@ in
               after = "AsyncReload";
             }
           ];
-          archlinuxpkgs = [
-            {
-              action = "install";
-              bind = "Return";
-              default = true;
-            }
-            {
-              action = "remove";
-              bind = "Return";
-            }
-          ];
           calc = [
             {
               action = "copy";
@@ -216,28 +198,6 @@ in
               action = "pindown";
               bind = "ctrl m";
               after = "AsyncReload";
-            }
-          ];
-          files = [
-            {
-              action = "open";
-              default = true;
-              bind = "Return";
-            }
-            {
-              action = "opendir";
-              label = "open dir";
-              bind = "ctrl Return";
-            }
-            {
-              action = "copypath";
-              label = "copy path";
-              bind = "ctrl shift c";
-            }
-            {
-              action = "copyfile";
-              label = "copy file";
-              bind = "ctrl c";
             }
           ];
           todo = [
