@@ -6,7 +6,7 @@
     ./monitors.nix
     ./smartgaps.nix
     ./rules.nix
-    #./scrolling.nix
+    # ./scrolling.nix
   ];
 
   services.polkit-gnome.enable = true;
@@ -33,7 +33,7 @@
     hyprpicker
     mission-center
     hyprmon
-    hyprshade # For display color/gamma adjustments
+    hyprshade
     hyprdynamicmonitors
     bww
   ];

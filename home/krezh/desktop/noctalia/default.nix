@@ -1,4 +1,4 @@
-{ inputs, ... }:
+{ inputs, var, ... }:
 {
   imports = [ inputs.noctalia.homeModules.default ];
 
@@ -6,18 +6,6 @@
     enable = true;
     systemd.enable = true;
     settings = {
-      appLauncher = {
-        backgroundOpacity = 1;
-        customLaunchPrefix = "";
-        customLaunchPrefixEnabled = false;
-        enableClipboardHistory = false;
-        pinnedExecs = [ ];
-        position = "center";
-        sortByMostUsed = true;
-        terminalCommand = "xterm -e";
-        useApp2Unit = false;
-      };
-
       audio = {
         cavaFrameRate = 60;
         mprisBlacklist = [ ];
@@ -35,7 +23,7 @@
         marginHorizontal = 0.25;
         marginVertical = 0.25;
         monitors = [ ];
-        outerCorners = true;
+        outerCorners = false;
         position = "top";
         showCapsule = false;
         widgets = {
@@ -218,7 +206,7 @@
         avatarImage = "/home/krezh/.face";
         compactLockScreen = true;
         dimDesktop = false;
-        enableShadows = false;
+        enableShadows = true;
         forceBlackScreenCorners = false;
         language = "";
         lockOnSuspend = false;
@@ -264,7 +252,7 @@
       };
 
       notifications = {
-        backgroundOpacity = 1;
+        backgroundOpacity = var.opacity;
         criticalUrgencyDuration = 15;
         doNotDisturb = false;
         enabled = true;

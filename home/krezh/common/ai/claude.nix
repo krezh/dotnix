@@ -119,6 +119,10 @@ in
           # Safe Nix commands (mostly read-only)
           "Bash(nix:*)"
 
+          # Safe programming language tools
+          "Bash(cargo:*)"
+          "Bash(go:*)"
+
           # Safe file system operations
           "Bash(ls:*)"
           "Bash(find:*)"

@@ -160,7 +160,7 @@
     };
     amdgpu = {
       opencl.enable = true;
-      initrd.enable = true;
+      # initrd.enable = true;
       overdrive.enable = true;
     };
   };

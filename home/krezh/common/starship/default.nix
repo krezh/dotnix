@@ -14,14 +14,9 @@
         disabled = false;
         contexts = [
           {
-            context_pattern = "admin@talos-plexuz";
-            symbol = "⎈";
-            context_alias = "talos";
-          }
-          {
             context_pattern = "^(?<url>[^-]+)-(?<cluster>.+)$";
             symbol = "⎈";
-            context_alias = "tp-$cluster";
+            context_alias = "$cluster";
           }
         ];
       };

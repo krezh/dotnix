@@ -1,32 +1,6 @@
-{ pkgs, var, ... }:
-let
-  # Script to auto-float Bitwarden extension popup in Zen Browser
-  float_script = pkgs.writeShellScriptBin "hyprland-bitwarden-float" ''
-    handle() {
-      case $1 in
-        windowtitle*)
-          window_id=''${1#*>>}
-          [[ "$window_id" =~ ^0x ]] || window_id="0x$window_id"
-          window_title=$(hyprctl clients -j | ${pkgs.jq}/bin/jq --arg id "$window_id" -r '.[] | select(.address == $id) | .title')
-          if [[ "$window_title" == "Extension: (Bitwarden Password Manager) - Bitwarden — Zen Browser" ]]; then
-            hyprctl --batch "
-              dispatch togglefloating address:$window_id ;
-              dispatch resizewindowpixel exact 20% 40%,address:$window_id ;
-              dispatch movewindowpixel exact 40% 30%,address:$window_id
-            "
-          fi
-          ;;
-      esac
-    }
-    ${pkgs.socat}/bin/socat -U - UNIX-CONNECT:$XDG_RUNTIME_DIR/hypr/$HYPRLAND_INSTANCE_SIGNATURE/.socket2.sock | while read -r line; do handle "$line"; done
-  '';
-in
+{ var, ... }:
 {
-  home.packages = [ float_script ];
   wayland.windowManager.hyprland = {
-    extraConfig = ''
-      exec-once = ${float_script}/bin/hyprland-bitwarden-float
-    '';
     settings = {
       layerrule = [
         # Rofi
@@ -77,9 +51,6 @@ in
         "float, class:file-roller"
         # Vips image viewer
         "float, class:org\.libvips\.vipsdisp"
-        # Bitwarden
-        "float, title:^(.*Bitwarden Password Manager.*)$"
-        "size 50% 50%,title:^(.*Bitwarden Password Manager.*)$"
         # MPV
         "float, class:mpv"
         "size 60% 70%,class:mpv"
