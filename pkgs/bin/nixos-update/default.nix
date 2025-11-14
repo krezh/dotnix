@@ -6,7 +6,10 @@
 buildGoApplication {
   pname = "nixos-update";
   version = "0.1.0";
-  src = ./.;
+  src = builtins.path {
+    path = ./.;
+    name = "nixos-update-source";
+  };
   modules = ./gomod2nix.toml;
   ldflags = [
     "-s"
