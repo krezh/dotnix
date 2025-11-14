@@ -32,11 +32,9 @@ in
         homeUsers = [ ];
         commonHost = false;
         desktop = false;
+        ci = false;
       };
     };
-
-    ghMatrix = flakeLib.ghMatrix { exclude = [ "nixos-livecd" ]; };
-    top = flakeLib.top;
 
     overlays = import ../overlays { inherit inputs lib; };
     homeManagerModules = lib.scanPath.toList { path = ../home/modules; };

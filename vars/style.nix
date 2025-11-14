@@ -6,6 +6,7 @@
     mono = "JetBrainsMono Nerd Font";
     serif = "Rubik";
   };
+  # Opacity
   opacity = 0.98;
   borderSize = 2;
   rounding = 0;

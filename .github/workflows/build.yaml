@@ -1,6 +1,6 @@
 ---
 # yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
-name: Build Hosts
+name: Build
 on:
   workflow_dispatch:
   workflow_call:
@@ -9,10 +9,10 @@ on:
     paths: &paths
       - "hosts/**"
       - "home/**"
+      - "pkgs/**"
       - "flake.nix"
       - "flake.lock"
       - "**.nix"
-      - "!pkgs/**"
   push:
     branches: ["main"]
     paths: *paths
@@ -29,59 +29,69 @@ env:
   CACHE_NAME: krezh
 
 jobs:
-  detect-changes:
-    name: Detect Changed Systems
-    runs-on: ubuntu-latest
-    outputs:
-      changed-systems: ${{ steps.changed-systems.outputs.changed_files }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
-        with:
-          fetch-depth: 0
-
-      - name: Get changed systems
-        id: changed-systems
-        uses: bjw-s-labs/action-changed-files@1a5aeab1bfa64d0c4e786f501d5a3f1fad4a24da # v0.4.1
-        with:
-          patterns: |
-            hosts/**
-            home/**
-            lib/**
-            flake.nix
-            flake.lock
-
   ghMatrix:
     name: Generate Build Matrix
     runs-on: ubuntu-latest
-    needs: detect-changes
-    if: ${{ github.event_name == 'workflow_dispatch' || needs.detect-changes.outputs.changed-systems != '[]' }}
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
+      has-builds: ${{ steps.set-matrix.outputs.has-builds }}
+    env:
+      IS_FORK_PR: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork }}
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
 
       - name: Setup Nix with caching
         uses: ./.github/actions/setup-nix
         with:
-          skip-cache: true
+          cachix-auth-token: ${{ secrets.CACHIX_AUTH_TOKEN }}
+          attic-endpoint: ${{ secrets.ATTIC_ENDPOINT }}
+          attic-cache: ${{ secrets.ATTIC_CACHE }}
+          attic-token: ${{ secrets.ATTIC_TOKEN }}
+          skip-cache: ${{ env.IS_FORK_PR }}
 
-      - id: set-matrix
-        name: Generate Matrix
+      - name: Evaluate and generate build matrix
+        id: set-matrix
         run: |
-          set -Eeu
-          matrix=$(nix eval --json '.#ghMatrix' | jq -c) || exit 1
-          systems='${{ needs.detect-changes.outputs.changed-systems }}'
-          if [ -n "$systems" ] && [ "$systems" != "[]" ]; then
-            changed_hosts=$(echo "$systems" | jq -r '[.[] | select(startswith("hosts/")) | split("/")[1]] | unique')
-            has_shared=$(echo "$systems" | jq -r 'any(startswith("hosts/") | not)')
-
-            if [ "$has_shared" = "false" ] && [ "$changed_hosts" != "[]" ]; then
-              matrix=$(echo "$matrix" | jq -c --argjson hosts "$changed_hosts" '{include: [.include[] | select(.host as $h | $hosts | index($h))]}')
-            fi
-          fi
+          matrix=$(nix run nixpkgs#nix-eval-jobs -- \
+            --flake ".#checks" \
+            --workers $(nproc) \
+            --check-cache-status \
+            --force-recurse | jq -sc '
+            . as $all |
+            {
+              build: [.[] | select(.neededBuilds | length > 0)],
+              download: [.[] | select((.neededBuilds | length == 0) and (.neededSubstitutes | length > 0))],
+              cached: [.[] | select((.neededBuilds | length == 0) and (.neededSubstitutes | length == 0))]
+            } |
+            "📊 \($all | length) total: \(.build | length) build, \(.download | length) download, \(.cached | length) cached" | debug |
+            $all |
+            map(select(.neededBuilds | length > 0) |
+              (.attrPath[-1]) as $name |
+              {
+                name: $name,
+                type: (if (.name | startswith("nixos-system-")) then "host" else "package" end),
+                system: .system,
+                runner: (
+                  if .system == "x86_64-linux" then "ubuntu-latest"
+                  elif .system == "aarch64-linux" then "ubuntu-24.04-arm"
+                  else error("Unsupported system: \(.system)")
+                  end
+                )
+              }
+            ) |
+            if (. | length) > 256 then
+              error("Matrix too large: \(. | length) items (max 256)")
+            else
+              {include: .}
+            end
+          ')
           echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
-          echo "$matrix"
+          # Set flag for whether matrix is empty
+          if [ "$(echo "$matrix" | jq '.include | length')" -eq 0 ]; then
+            echo "has-builds=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "has-builds=true" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Show Summary
         uses: ./.github/actions/workflow-summary
@@ -92,12 +102,16 @@ jobs:
           flake-lock-hash: ${{ hashFiles('**/*.nix', '**/flake.lock') }}
 
   nix-build:
-    name: Build ${{ matrix.host }}
-    if: ${{ github.event.pull_request.draft == false && (github.event_name == 'workflow_dispatch' || needs.detect-changes.outputs.changed-systems != '[]') }}
-    needs: [detect-changes, ghMatrix]
+    name: Build ${{ matrix.type }} ${{ matrix.name }}
+    if: ${{ !cancelled() && needs.ghMatrix.outputs.has-builds == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.draft == false) }}
+    needs: ghMatrix
     strategy:
       matrix: ${{ fromJSON(needs.ghMatrix.outputs.matrix) }}
     runs-on: ${{ matrix.runner }}
+    env:
+      IS_FORK_PR: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork }}
+      IS_HOST: ${{ matrix.type == 'host' }}
+      FLAKE_TARGET: checks.${{ matrix.system }}.${{ matrix.name }}
     steps:
       - name: Checkout
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
@@ -109,7 +123,7 @@ jobs:
           nix-permission-edict: true
 
       - name: Connect to Netbird VPN
-        if: ${{ !(github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork) }}
+        if: ${{ env.IS_FORK_PR != 'true' }}
         uses: Alemiz112/netbird-connect@175ca0487002e6d4d96d16da5f4b91f639e8a765 # v1.0.1
         with:
           setup-key: ${{ secrets.NETBIRD_SETUP_KEY }}
@@ -122,12 +136,13 @@ jobs:
           attic-endpoint: ${{ secrets.ATTIC_ENDPOINT }}
           attic-cache: ${{ secrets.ATTIC_CACHE }}
           attic-token: ${{ secrets.ATTIC_TOKEN }}
-          skip-cache: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork }}
+          skip-cache: ${{ env.IS_FORK_PR }}
 
       - name: Find previous run ID
+        if: ${{ env.IS_HOST == 'true' }}
         id: find-run
         run: |
-          run_id=$(gh run list --workflow build-hosts.yaml --branch main --status success --limit 1 --json databaseId -q '.[0].databaseId' || echo "")
+          run_id=$(gh run list --workflow build.yaml --branch main --status success --limit 1 --json databaseId -q '.[0].databaseId' || echo "")
           if [ -z "$run_id" ]; then
             echo "No previous successful run found, skipping artifact download"
             echo "run_id=" >> $GITHUB_OUTPUT
@@ -137,37 +152,36 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # Download previous package list artifact (if any)
       - name: Download previous package list artifact
-        if: ${{ steps.find-run.outputs.run_id != '' }}
+        if: ${{ env.IS_HOST == 'true' && steps.find-run.outputs.run_id != '' }}
         uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
         id: download-artifact
         continue-on-error: true
         with:
-          name: pkg-list-${{ matrix.host }}
+          name: pkg-list-${{ matrix.name }}
           path: previous-artifact
           github-token: ${{ secrets.GITHUB_TOKEN }}
           repository: ${{ github.repository }}
           run-id: ${{ steps.find-run.outputs.run_id }}
           merge-multiple: false
 
-      - name: Build System
+      - name: Build
         id: build
         uses: ./.github/actions/nix-build
         with:
-          target: top.${{ matrix.host }}
-          build-type: system
+          target: ${{ env.FLAKE_TARGET }}
+          build-type: ${{ matrix.type }}
           output-link: result
 
       - name: Generate new package list
-        if: ${{ success() }}
+        if: ${{ success() && env.IS_HOST == 'true' }}
         run: python3 .github/scripts/pkg-tool.py list result pkg-list.json
 
       - name: Upload new package list artifact
-        if: ${{ success() }}
+        if: ${{ success() && env.IS_HOST == 'true' }}
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
         with:
-          name: pkg-list-${{ matrix.host }}
+          name: pkg-list-${{ matrix.name }}
           path: pkg-list.json
           if-no-files-found: error
           retention-days: 30
@@ -197,16 +211,29 @@ jobs:
         if: ${{ success() }}
         uses: ./.github/actions/workflow-summary
         with:
-          type: build-success
-          host: ${{ matrix.host }}
+          type: ${{ env.IS_HOST == 'true' && 'build-success' || 'package-success' }}
+          host: ${{ env.IS_HOST == 'true' && matrix.name || '' }}
+          package: ${{ env.IS_HOST != 'true' && matrix.name || '' }}
           runner: ${{ matrix.runner }}
           build-size: ${{ steps.build-info.outputs.build-size }}
           build-duration: ${{ steps.build.outputs.build_duration }}
           result-path: ${{ steps.build-info.outputs.result-path }}
-          flake-target: top.${{ matrix.host }}
+          flake-target: ${{ env.FLAKE_TARGET }}
+
+      - name: Post build success on PR
+        if: ${{ success() && github.event_name == 'pull_request' }}
+        uses: ./.github/actions/post-build-success
+        with:
+          build-type: ${{ matrix.type }}
+          build-name: ${{ matrix.name }}
+          flake-target: ${{ env.FLAKE_TARGET }}
+          build-duration: ${{ steps.build.outputs.build_duration }}
+          build-size: ${{ steps.build-info.outputs.build-size }}
+          runner: ${{ matrix.runner }}
+          pr-number: ${{ github.event.pull_request.number }}
 
       - name: Package Diff
-        if: ${{ success() }}
+        if: ${{ success() && env.IS_HOST == 'true' }}
         run: |
           prev_json="previous-artifact/pkg-list.json"
           {
@@ -222,9 +249,9 @@ jobs:
         if: ${{ failure() && github.event_name == 'pull_request' }}
         uses: ./.github/actions/post-build-error
         with:
-          build-type: system
-          build-name: ${{ matrix.host }}
-          flake-target: top.${{ matrix.host }}
+          build-type: ${{ matrix.type }}
+          build-name: ${{ matrix.name }}
+          flake-target: ${{ env.FLAKE_TARGET }}
           error-log: ${{ steps.build.outputs.error-log }}
           build-duration: ${{ steps.build.outputs.build_duration }}
           runner: ${{ matrix.runner }}
@@ -234,9 +261,10 @@ jobs:
         if: ${{ failure() }}
         uses: ./.github/actions/workflow-summary
         with:
-          type: build-failure
-          host: ${{ matrix.host }}
+          type: ${{ env.IS_HOST == 'true' && 'build-failure' || 'package-failure' }}
+          host: ${{ env.IS_HOST == 'true' && matrix.name || '' }}
+          package: ${{ env.IS_HOST != 'true' && matrix.name || '' }}
           runner: ${{ matrix.runner }}
           build-duration: ${{ steps.build.outputs.build_duration }}
-          flake-target: top.${{ matrix.host }}
-          fork-pr: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork }}
+          flake-target: ${{ env.FLAKE_TARGET }}
+          fork-pr: ${{ env.IS_FORK_PR }}

@@ -5,7 +5,6 @@
   inputs,
   outputs,
   lib,
-  self,
   ...
 }:
 
@@ -35,39 +34,42 @@ let
   # Args:
   #   - `hostname`: The name of the host.
   #   - `config`: An attribute set defining the system's properties, such as
-  #     `system`, `homeUsers`, `desktop`, and `extraModules`.
+  #     `system`, `homeUsers`, `desktop`, `ci`, and `extraModules`.
   mkSystem =
     hostname: config:
     let
       homeUsers = config.homeUsers or [ ];
       desktop = config.desktop or true;
-    in
-    lib.nixosSystem {
-      pkgs = mkPkgsWithSystem config.system;
-      specialArgs = {
-        inherit
-          inputs
-          outputs
-          lib
-          hostname
-          homeUsers
-          var
-          ;
-      };
-      modules =
-        # Discovers and imports modules from the host's directory.
-        (getHostModules {
-          inherit hostname;
-          commonHost = config.commonHost or true;
-        })
-        # Appends any extra modules defined in the host's configuration.
-        ++ (config.extraModules or [ ])
-        # Generates and appends the home-manager configuration.
-        ++ mkHomeUsers {
-          users = homeUsers;
-          inherit hostname desktop;
+      ci = config.ci or true;
+      system = lib.nixosSystem {
+        pkgs = mkPkgsWithSystem config.system;
+        specialArgs = {
+          inherit
+            inputs
+            outputs
+            lib
+            hostname
+            homeUsers
+            var
+            ;
         };
-    };
+        modules =
+          # Discovers and imports modules from the host's directory.
+          (getHostModules {
+            inherit hostname;
+            commonHost = config.commonHost or true;
+          })
+          # Appends any extra modules defined in the host's configuration.
+          ++ (config.extraModules or [ ])
+          # Generates and appends the home-manager configuration.
+          ++ mkHomeUsers {
+            users = homeUsers;
+            inherit hostname desktop;
+          };
+      };
+    in
+    # Add ci flag as an accessible attribute
+    system // { inherit ci; };
 
   # Discovers and returns a list of modules for a given host.
   # Includes modules from `hosts/common` if `commonHost` is true.
@@ -123,41 +125,9 @@ let
       }
     ];
 
-  # Maps a Nix system string to a GitHub Actions runner label.
-  mapToGha =
-    system:
-    {
-      "x86_64-linux" = "ubuntu-latest";
-      "x86_64-darwin" = "ubuntu-latest";
-      "aarch64-linux" = "ubuntu-24.04-arm";
-    }
-    .${system} or system;
 in
 {
   # Creates the final `nixosConfigurations` attribute set for the flake.
   # Takes an attribute set of hosts and their configurations.
   mkSystems = hosts: lib.mapAttrs (hostname: config: mkSystem hostname config) hosts;
-
-  # Generates an attribute set of the top-level build derivations for each
-  # NixOS configuration. Used by CI to build all systems.
-  top = lib.genAttrs (builtins.attrNames self.nixosConfigurations) (
-    attr: self.nixosConfigurations.${attr}.config.system.build.toplevel
-  );
-
-  # Generates a GitHub Actions matrix for all NixOS configurations.
-  # Used to dynamically create CI jobs for each host.
-  ghMatrix =
-    {
-      exclude ? [ ],
-    }:
-    {
-      include =
-        builtins.map
-          (host: {
-            inherit host;
-            system = self.nixosConfigurations.${host}.pkgs.stdenv.hostPlatform.system;
-            runner = mapToGha self.nixosConfigurations.${host}.pkgs.stdenv.hostPlatform.system;
-          })
-          (builtins.filter (host: !builtins.elem host exclude) (builtins.attrNames self.nixosConfigurations));
-    };
 }
