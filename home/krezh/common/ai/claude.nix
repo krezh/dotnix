@@ -13,28 +13,7 @@ let
   '';
 in
 {
-  home.packages = [
-    nix-ai-tools.claude-desktop
-  ];
-
   xdg.desktopEntries = {
-    claude-desktop = {
-      name = "Claude Desktop";
-      comment = "AI assistant with advanced reasoning capabilities";
-      exec = "${lib.getExe nix-ai-tools.claude-desktop}";
-      icon = "${nix-ai-tools.claude-desktop}/lib/claude-desktop/resources/claude-screen.png";
-      terminal = false;
-      categories = [
-        "Development"
-        "Chat"
-        "Network"
-      ];
-      settings = {
-        Keywords = "ai;assistant;chat;claude;anthropic;";
-        StartupWMClass = "claude-desktop";
-      };
-    };
-
     claude = {
       name = "Claude Code";
       comment = "Claude CLI for code assistance";

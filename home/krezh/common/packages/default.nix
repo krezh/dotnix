@@ -24,7 +24,6 @@
     tldr
     sd
     btop
-    flyctl
     retry
     just
     minijinja
