@@ -5,10 +5,10 @@ author: "krezh"
 
 inputs:
   target:
-    description: "Flake target to build (e.g., checks.x86_64-linux.thor)"
+    description: "Flake target to build (e.g., package-name or top.hostname)"
     required: true
   build-type:
-    description: "Type of build (host or package)"
+    description: "Type of build (package or system)"
     required: true
   extra-args:
     description: "Extra nix build arguments"
@@ -51,13 +51,10 @@ runs:
         # Add extra args based on build type or custom args
         if [ -n "${{ inputs.extra-args }}" ]; then
           nix_cmd="$nix_cmd ${{ inputs.extra-args }}"
-        elif [ "${{ inputs.build-type }}" = "host" ]; then
+        elif [ "${{ inputs.build-type }}" = "system" ]; then
           nix_cmd="$nix_cmd --fallback --no-write-lock-file --log-format raw"
-        elif [ "${{ inputs.build-type }}" = "package" ]; then
-          nix_cmd="$nix_cmd --print-build-logs"
         else
-          echo "Error: Invalid build-type '${{ inputs.build-type }}'. Must be 'host' or 'package'."
-          exit 1
+          nix_cmd="$nix_cmd --print-build-logs"
         fi
 
         # Execute build with error capture
