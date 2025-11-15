@@ -63,7 +63,7 @@
         "tag +games, class:^(steam_app_default)$"
         "tag +games, class:^(steam_app_[0-9]+)$"
         # Tag browsers
-        "tag +browsers, class:^(zen-beta)$"
+        "tag +browsers, class:^(zen.*)$"
         "tag +browsers, class:^(firefox)$"
         "tag +browsers, class:^(chromium)$"
         "tag +browsers, class:^(chrome)$"

@@ -245,7 +245,7 @@
                   pkgs = import ${inputs.nixpkgs} { };
                 in (pkgs.lib.evalModules {
                   modules = (import ${inputs.nixpkgs}/nixos/modules/module-list.nix) ++ [
-                    ({...}: { nixpkgs.hostPlatform = "${pkgs.system}"; })
+                    ({...}: { nixpkgs.hostPlatform = "${pkgs.stdenv.hostPlatform.system}"; })
                   ];
                 })).options
               '';

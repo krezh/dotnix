@@ -17,7 +17,7 @@
 
       bar = {
         backgroundOpacity = 1;
-        density = "compact";
+        density = "default";
         exclusive = true;
         floating = false;
         marginHorizontal = 0.25;
@@ -50,12 +50,12 @@
               hideMode = "hidden";
               hideWhenIdle = false;
               id = "MediaMini";
-              maxWidth = 145;
+              maxWidth = 200;
               scrollingMode = "always";
               showAlbumArt = false;
               showVisualizer = true;
               useFixedWidth = true;
-              visualizerType = "linear";
+              visualizerType = "wave";
             }
             {
               colorizeIcons = true;

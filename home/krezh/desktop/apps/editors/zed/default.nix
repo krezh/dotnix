@@ -83,7 +83,9 @@
       lsp = {
         nixd = {
           settings = {
-            formatting.command = [ "${lib.getExe pkgs.nixfmt-rfc-style}" ];
+            formatting = {
+              command = [ "${lib.getExe pkgs.nixfmt-rfc-style}" ];
+            };
             nixpkgs.expr = "import ${inputs.nixpkgs} { }";
             options = {
               nixos.expr = ''
@@ -91,7 +93,7 @@
                   pkgs = import ${inputs.nixpkgs} { };
                 in (pkgs.lib.evalModules {
                   modules = (import ${inputs.nixpkgs}/nixos/modules/module-list.nix) ++ [
-                    ({...}: { nixpkgs.hostPlatform = "${pkgs.system}"; })
+                    ({...}: { nixpkgs.hostPlatform = "${pkgs.stdenv.hostPlatform.system}"; })
                   ];
                 })).options
               '';
@@ -111,6 +113,10 @@
         };
         nil.settings.formatting = {
           command = [ "${lib.getExe pkgs.nixfmt-rfc-style}" ];
+          args = [
+            "-w"
+            "300"
+          ];
         };
         yaml-language-server.settings = {
           yaml = {

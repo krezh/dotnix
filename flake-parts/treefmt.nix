@@ -20,6 +20,7 @@
           jsonfmt.enable = true;
           gofmt.enable = true;
           terraform.enable = true;
+          actionlint.enable = false;
           prettier = {
             enable = true;
             settings = {

@@ -24,15 +24,22 @@ let
 
   manualDefaults = {
     "application/pdf" = "org.gnome.Evince.desktop";
+    "x-scheme-handler/mailto" = defaultMailClient;
     # Browser
     "text/html" = defaultBrowser;
     "x-scheme-handler/http" = defaultBrowser;
     "x-scheme-handler/https" = defaultBrowser;
-    "x-scheme-handler/ftp" = defaultBrowser;
-    "x-scheme-handler/mailto" = defaultMailClient;
-    "x-scheme-handler/webcal" = defaultBrowser;
+    "x-scheme-handler/chrome" = defaultBrowser;
     "x-scheme-handler/about" = defaultBrowser;
+    "x-scheme-handler/ftp" = defaultBrowser;
     "x-scheme-handler/unknown" = defaultBrowser;
+    "x-scheme-handler/webcal" = defaultBrowser;
+    "application/x-extension-htm" = defaultBrowser;
+    "application/x-extension-html" = defaultBrowser;
+    "application/x-extension-shtml" = defaultBrowser;
+    "application/x-extension-xht" = defaultBrowser;
+    "application/x-extension-xhtml" = defaultBrowser;
+    "application/xhtml+xml" = defaultBrowser;
     # Editor
     "text/plain" = defaultTextEditor;
     "text/markdown" = defaultTextEditor;
