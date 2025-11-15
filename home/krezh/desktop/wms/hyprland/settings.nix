@@ -56,7 +56,7 @@
       gaps_in = 5;
       gaps_out = 10;
       border_size = var.borderSize;
-      "col.active_border" = "$blue";
+      "col.active_border" = "$blue $mauve 125deg";
       "col.inactive_border" = "$base";
 
       allow_tearing = false;
@@ -137,7 +137,7 @@
       focus_on_activate = true;
       disable_hyprland_logo = true;
       disable_splash_rendering = true;
-      disable_autoreload = false;
+      disable_autoreload = true;
       session_lock_xray = true;
       new_window_takes_over_fullscreen = 2;
       render_unfocused_fps = 30;
