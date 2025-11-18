@@ -197,68 +197,85 @@ func HandleSync(client *bw.Client) error {
 }
 
 func HandleItemSearch(client *bw.Client) error {
-	// Try to get items with existing session (if any)
-	items, err := client.GetItems()
-	if err != nil {
-		// If failed, likely need to unlock
-		if err := HandleUnlock(client); err != nil {
-			return err
-		}
-		// Try again after unlock
-		items, err = client.GetItems()
+	for {
+		// Try to get items with existing session (if any)
+		items, err := client.GetItems()
 		if err != nil {
-			Notify("Failed to fetch items")
-			return err
-		}
-	}
-
-	// Filter login items only
-	var loginItems []bw.Item
-	for _, item := range items {
-		if item.Type == 1 && item.Login != nil {
-			loginItems = append(loginItems, item)
-		}
-	}
-
-	if len(loginItems) == 0 {
-		Notify("No items found in vault")
-		return nil
-	}
-
-	// Format items for display
-	itemMap := make(map[string]bw.Item)
-	var displayItems []string
-
-	for _, item := range loginItems {
-		display := item.Name
-
-		if item.Login.Username != "" {
-			display += " (" + item.Login.Username + ")"
-		}
-
-		if len(item.Login.URIs) > 0 && item.Login.URIs[0].URI != "" {
-			// Extract domain from URI
-			re := regexp.MustCompile(`([a-zA-Z0-9.-]+\.[a-zA-Z]{2,})`)
-			if matches := re.FindStringSubmatch(item.Login.URIs[0].URI); len(matches) > 0 {
-				display += " [" + matches[0] + "]"
+			// If failed, likely need to unlock
+			if err := HandleUnlock(client); err != nil {
+				return err
+			}
+			// Try again after unlock
+			items, err = client.GetItems()
+			if err != nil {
+				Notify("Failed to fetch items")
+				return err
 			}
 		}
 
-		displayItems = append(displayItems, display)
-		itemMap[display] = item
-	}
+		// Filter login items only
+		var loginItems []bw.Item
+		for _, item := range items {
+			if item.Type == 1 && item.Login != nil {
+				loginItems = append(loginItems, item)
+			}
+		}
 
-	selected, err := WalkerSelect("Bitwarden Items", displayItems)
-	if err != nil || selected == "" {
-		return nil
-	}
+		if len(loginItems) == 0 {
+			Notify("No items found in vault")
+			return nil
+		}
 
-	item, ok := itemMap[selected]
-	if !ok {
-		return nil
-	}
+		// Format items for display
+		itemMap := make(map[string]bw.Item)
+		var displayItems []string
 
-	return HandleItemAction(client, item)
+		// Add refresh option at the top
+		refreshOption := "🔄 Refresh Items"
+		displayItems = append(displayItems, refreshOption)
+
+		for _, item := range loginItems {
+			display := item.Name
+
+			if item.Login.Username != "" {
+				display += " (" + item.Login.Username + ")"
+			}
+
+			if len(item.Login.URIs) > 0 && item.Login.URIs[0].URI != "" {
+				// Extract domain from URI
+				re := regexp.MustCompile(`([a-zA-Z0-9.-]+\.[a-zA-Z]{2,})`)
+				if matches := re.FindStringSubmatch(item.Login.URIs[0].URI); len(matches) > 0 {
+					display += " [" + matches[0] + "]"
+				}
+			}
+
+			displayItems = append(displayItems, display)
+			itemMap[display] = item
+		}
+
+		selected, err := WalkerSelect("Bitwarden Items", displayItems)
+		if err != nil || selected == "" {
+			return nil
+		}
+
+		// Handle refresh option
+		if selected == refreshOption {
+			Notify("Syncing vault...")
+			if err := client.Sync(); err != nil {
+				Notify("Failed to sync vault")
+			} else {
+				Notify("Vault synced successfully")
+			}
+			continue
+		}
+
+		item, ok := itemMap[selected]
+		if !ok {
+			return nil
+		}
+
+		return HandleItemAction(client, item)
+	}
 }
 
 func HandleItemAction(client *bw.Client, item bw.Item) error {

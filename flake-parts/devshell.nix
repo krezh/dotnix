@@ -4,7 +4,6 @@
     {
       config,
       pkgs,
-      lib,
       ...
     }:
     {
@@ -20,12 +19,6 @@
           ];
         };
         commands = [
-          {
-            name = "gpa";
-            command = "${lib.getExe pkgs.git}/bin/git pull --autostash && ${lib.getExe pkgs.nh} os switch --ask --no-specialisation";
-            help = "git pull and os switch";
-            category = "Nix";
-          }
           {
             name = "partition";
             command = "sudo nix --experimental-features 'nix-command flakes' run github:nix-community/disko -- --mode disko --flake github:krezh/nix-config#thor";

@@ -127,6 +127,8 @@ in
         "browser.search.defaultenginename" = "Kagi";
         "browser.search.order.1" = "Kagi";
 
+        "permissions.default.desktop-notification" = 0; # 0=ask, 1=allow, 2=block
+
         "privacy.resistFingerprinting" = false;
         "privacy.resistFingerprinting.randomization.canvas.use_siphash" = true;
         "privacy.resistFingerprinting.randomization.daily_reset.enabled" = true;
@@ -161,6 +163,7 @@ in
         "zen.theme.border-radius" = 0;
         "zen.theme.gradient" = false;
         "zen.mediacontrols.enabled" = false;
+        "zen.splitView.enable-tab-drop" = false;
       };
       AutofillAddressEnabled = true;
       AutofillCreditCardEnabled = false;

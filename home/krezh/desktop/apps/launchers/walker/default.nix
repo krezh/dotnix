@@ -17,7 +17,7 @@ in
       force_keyboard_focus = true;
       close_when_open = true;
       click_to_close = true;
-      selection_wrap = false;
+      selection_wrap = true;
       global_argument_delimiter = "#";
       exact_search_prefix = "'";
       theme = "catppuccin";
@@ -39,14 +39,13 @@ in
         close = [ "Escape" ];
         next = [ "Down" ];
         previous = [ "Up" ];
+        quick_activate = [ ];
+
       };
       providers = {
         default = [
           "desktopapplications"
-          #"runner"
           "calc"
-          "menus"
-          "websearch"
         ];
         empty = [ "desktopapplications" ];
         max_results = 50;
@@ -62,25 +61,10 @@ in
             provider = "symbols";
           }
           {
-            prefix = "!";
-            provider = "todo";
-          }
-          {
             prefix = "=";
             provider = "calc";
           }
-          {
-            prefix = "@";
-            provider = "websearch";
-          }
-          {
-            prefix = ":";
-            provider = "clipboard";
-          }
         ];
-        clipboard = {
-          time_format = "%d.%m. - %H:%M";
-        };
         actions = {
           fallback = [
             {
@@ -110,44 +94,6 @@ in
               after = "ClearReload";
             }
           ];
-          bluetooth = [
-            {
-              action = "find";
-              global = true;
-              bind = "ctrl f";
-              after = "AsyncClearReload";
-            }
-            {
-              action = "trust";
-              bind = "ctrl t";
-              after = "AsyncReload";
-            }
-            {
-              action = "untrust";
-              bind = "ctrl t";
-              after = "AsyncReload";
-            }
-            {
-              action = "pair";
-              bind = "Return";
-              after = "AsyncReload";
-            }
-            {
-              action = "remove";
-              bind = "ctrl d";
-              after = "AsyncReload";
-            }
-            {
-              action = "connect";
-              bind = "Return";
-              after = "AsyncReload";
-            }
-            {
-              action = "disconnect";
-              bind = "Return";
-              after = "AsyncReload";
-            }
-          ];
           calc = [
             {
               action = "copy";
@@ -165,96 +111,9 @@ in
               after = "AsyncClearReload";
             }
           ];
-          websearch = [
-            {
-              action = "search";
-              default = true;
-              bind = "Return";
-            }
-          ];
           desktopapplications = [
             {
               action = "start";
-              default = true;
-              bind = "Return";
-            }
-            {
-              action = "start:keep";
-              label = "open+next";
-              bind = "shift Return";
-              after = "KeepOpen";
-            }
-            {
-              action = "pin";
-              bind = "ctrl p";
-              after = "AsyncReload";
-            }
-            {
-              action = "unpin";
-              bind = "ctrl p";
-              after = "AsyncReload";
-            }
-            {
-              action = "pinup";
-              bind = "ctrl n";
-              after = "AsyncReload";
-            }
-            {
-              action = "pindown";
-              bind = "ctrl m";
-              after = "AsyncReload";
-            }
-          ];
-          todo = [
-            {
-              action = "save";
-              default = true;
-              bind = "Return";
-              after = "ClearReload";
-            }
-            {
-              action = "delete";
-              bind = "ctrl d";
-              after = "ClearReload";
-            }
-            {
-              action = "active";
-              bind = "Return";
-              after = "ClearReload";
-            }
-            {
-              action = "inactive";
-              bind = "Return";
-              after = "ClearReload";
-            }
-            {
-              action = "done";
-              bind = "ctrl f";
-              after = "ClearReload";
-            }
-            {
-              action = "clear";
-              bind = "ctrl x";
-              after = "ClearReload";
-              global = true;
-            }
-          ];
-          runner = [
-            {
-              action = "run";
-              default = true;
-              bind = "Return";
-            }
-            {
-              action = "runterminal";
-              label = "run in terminal";
-              bind = "shift Return";
-            }
-          ];
-          symbols = [
-            {
-              action = "run_cmd";
-              label = "select";
               default = true;
               bind = "Return";
             }

@@ -31,7 +31,7 @@
       ui_font_family = "Rubik";
       buffer_font_size = 14;
       buffer_font_family = "JetBrainsMono Nerd Font";
-      relative_line_numbers = false;
+      relative_line_numbers = "disabled";
       tab_size = 2;
       minimap.show = "never";
       context_servers = {
