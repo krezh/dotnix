@@ -71,6 +71,10 @@ pub struct Args {
     #[arg(long)]
     pub ocr: bool,
 
+    /// Screenshot output file path (use '-' for stdout in PNG format)
+    #[arg(short = 'o', long)]
+    pub output: Option<String>,
+
     /// Generate default config file and exit
     #[arg(long)]
     pub generate_config: bool,

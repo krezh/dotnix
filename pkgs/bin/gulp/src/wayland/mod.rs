@@ -693,35 +693,50 @@ impl App {
 
     fn complete_selection(&mut self) {
         if let Some(rect) = self.selection.get_selection() {
-            // Hide all overlays before screencopy
-            // Detach buffers from all surfaces to make them invisible
+            // Render fully transparent overlays before screencopy
+            // This is faster than detaching and waiting for compositor
             for output_surface in &mut self.output_surfaces {
-                output_surface.surface.attach(None, 0, 0);
-                output_surface.surface.commit();
+                let width = output_surface.width as i32;
+                let height = output_surface.height as i32;
+                let stride = width * 4;
+
+                if let Some(pool) = output_surface.pool.as_mut() {
+                    if let Ok((buffer, canvas)) = pool.create_buffer(
+                        width,
+                        height,
+                        stride,
+                        wayland_client::protocol::wl_shm::Format::Argb8888,
+                    ) {
+                        // Fill with fully transparent pixels
+                        canvas.iter_mut().for_each(|byte| *byte = 0);
+
+                        output_surface.surface.attach(Some(buffer.wl_buffer()), 0, 0);
+                        output_surface.surface.damage_buffer(0, 0, width, height);
+                        output_surface.surface.commit();
+                    }
+                }
             }
 
-            // Flush and wait for compositor to process
+            // Flush and single roundtrip to ensure transparent frames are committed
             let _ = self.conn.flush();
-
-            // Roundtrip ensures compositor has processed the detachment
             let _ = self.conn.roundtrip();
 
-            // Add small delay to ensure compositor has fully processed the changes
-            std::thread::sleep(std::time::Duration::from_millis(100));
+            // Minimal delay for compositor to render the transparent frame
+            std::thread::sleep(std::time::Duration::from_millis(16)); // One frame at 60fps
+
+            // Collect outputs with their names and positions
+            let outputs_list: Vec<(wl_output::WlOutput, String, i32, i32, u32, u32)> = self
+                .output_surfaces
+                .iter()
+                .map(|surf| {
+                    let info = self.outputs.get(&surf._output);
+                    let name = info.and_then(|i| i.name.clone()).unwrap_or_default();
+                    (surf._output.clone(), name, surf.x, surf.y, surf.width, surf.height)
+                })
+                .collect();
 
             if self.args.ocr {
                 // OCR mode: capture and extract text
-                // Collect outputs with their names and positions
-                let outputs_list: Vec<(wl_output::WlOutput, String, i32, i32, u32, u32)> = self
-                    .output_surfaces
-                    .iter()
-                    .map(|surf| {
-                        let info = self.outputs.get(&surf._output);
-                        let name = info.and_then(|i| i.name.clone()).unwrap_or_default();
-                        (surf._output.clone(), name, surf.x, surf.y, surf.width, surf.height)
-                    })
-                    .collect();
-
                 match ocr::capture_and_ocr(&self.conn, &outputs_list, rect) {
                     Ok(text) => {
                         println!("{}", text);
@@ -731,8 +746,19 @@ impl App {
                         std::process::exit(1);
                     }
                 }
+            } else if let Some(ref output_path) = self.args.output {
+                // Screenshot mode: capture and save to file or stdout
+                match ocr::capture_and_save(&self.conn, &outputs_list, rect, Some(output_path)) {
+                    Ok(()) => {
+                        // Success - file saved or written to stdout
+                    }
+                    Err(e) => {
+                        eprintln!("Screenshot capture failed: {}", e);
+                        std::process::exit(1);
+                    }
+                }
             } else {
-                // Normal mode: output coordinates
+                // Coordinate output mode: output coordinates only
                 let output = self.format_output(rect.x, rect.y, rect.width, rect.height);
                 println!("{}", output);
             }

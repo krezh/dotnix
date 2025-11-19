@@ -70,7 +70,7 @@
           right = [
             {
               blacklist = [ ];
-              colorizeIcons = false;
+              colorizeIcons = true;
               drawerEnabled = false;
               favorites = [ ];
               id = "Tray";
@@ -89,7 +89,7 @@
               warningThreshold = 30;
             }
             {
-              displayMode = "onhover";
+              displayMode = "alwaysShow";
               id = "Volume";
             }
             {

@@ -276,6 +276,94 @@ pub fn capture_and_ocr(
     cropped.ocr()
 }
 
+/// Captures a screen region and saves it to a file or stdout.
+///
+/// Identifies which output contains the specified region, captures that output,
+/// crops to the selection area, and saves it as a PNG image.
+pub fn capture_and_save(
+    conn: &Connection,
+    outputs: &[(wl_output::WlOutput, String, i32, i32, u32, u32)],
+    rect: Rect,
+    output_path: Option<&str>,
+) -> Result<()> {
+    log::info!(
+        "Capturing region: {}x{} at ({},{})",
+        rect.width,
+        rect.height,
+        rect.x,
+        rect.y
+    );
+
+    // Find which output contains the selection
+    let (output, _name, offset_x, offset_y, width, height) = outputs
+        .iter()
+        .find(|(_, _, x, y, w, h)| {
+            let output_rect = Rect::new(*x, *y, *w as i32, *h as i32);
+            rect.intersects(&output_rect)
+        })
+        .context("Selection is not on any output")?;
+
+    log::info!(
+        "Selection is on output at ({},{}) {}x{}",
+        offset_x, offset_y, width, height
+    );
+
+    // Capture the output
+    let captured = capture_output(conn, output)?;
+
+    // Translate global coordinates to local coordinates
+    let local_rect = Rect::new(
+        rect.x - offset_x,
+        rect.y - offset_y,
+        rect.width,
+        rect.height,
+    );
+
+    log::info!(
+        "Translated to local coordinates: {}x{} at ({},{})",
+        local_rect.width,
+        local_rect.height,
+        local_rect.x,
+        local_rect.y
+    );
+
+    // Crop to the selected region
+    let cropped = captured.crop(local_rect)?;
+
+    // Convert ARGB to RGBA for image library
+    let rgba_buffer = convert_argb_to_rgba(&cropped.data);
+
+    // Create image from buffer
+    let img = image::RgbaImage::from_raw(cropped.width, cropped.height, rgba_buffer)
+        .context("Failed to create image from buffer")?;
+
+    // Save or write to stdout
+    match output_path {
+        Some("-") => {
+            use image::{codecs::png::PngEncoder, ImageEncoder};
+
+            let mut stdout = std::io::stdout().lock();
+            let encoder = PngEncoder::new(&mut stdout);
+            encoder.write_image(
+                img.as_raw(),
+                cropped.width,
+                cropped.height,
+                image::ExtendedColorType::Rgba8,
+            ).context("Failed to write image to stdout")?;
+        }
+        Some(path) => {
+            img.save(path)
+                .with_context(|| format!("Failed to save screenshot to {}", path))?;
+            log::info!("Screenshot saved to {}", path);
+        }
+        None => {
+            anyhow::bail!("No output path specified for screenshot");
+        }
+    }
+
+    Ok(())
+}
+
 /// Captures the entire content of a Wayland output using the zwlr-screencopy-v1 protocol.
 fn capture_output(conn: &Connection, output: &wl_output::WlOutput) -> Result<CapturedImage> {
     let mut event_queue = conn.new_event_queue::<CaptureState>();
