@@ -97,6 +97,7 @@ jobs:
     needs: [detect-changes, ghMatrix]
     strategy:
       matrix: ${{ fromJSON(needs.ghMatrix.outputs.matrix) }}
+      fail-fast: false
     runs-on: ${{ matrix.runner }}
     steps:
       - name: Checkout
