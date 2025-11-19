@@ -13,28 +13,9 @@ let
   '';
 in
 {
-  xdg.desktopEntries = {
-    claude = {
-      name = "Claude Code";
-      comment = "Claude CLI for code assistance";
-      exec = "${lib.getExe nix-ai-tools.claude-code}";
-      icon = "${nix-ai-tools.claude-desktop}/lib/claude-desktop/resources/claude-screen.png";
-      terminal = true;
-      categories = [
-        "Development"
-        "ConsoleOnly"
-      ];
-      settings = {
-        Keywords = "ai;assistant;cli;claude;code;terminal;";
-        StartupWMClass = "claude";
-      };
-    };
-  };
-
   programs.claude-code = {
     enable = true;
     package = nix-ai-tools.claude-code;
-
     mcpServers = {
       github = {
         type = "stdio";
@@ -76,8 +57,6 @@ in
         command = "${pkgs.bun}/bin/bunx";
         args = [
           "@modelcontextprotocol/server-filesystem"
-          # "${config.home.homeDirectory}/nix-config"
-          # "${config.home.homeDirectory}/repos"
         ];
       };
     };
@@ -200,8 +179,9 @@ in
           "Bash(curl:*)"
           "Read(./.env)"
           "Read(./.env.*)"
-          "Read(./secrets/**)"
-          "Read(./secrets/**)"
+          "Read(**/.secret*)"
+          "Read(**/secret)"
+          "Read(**/secret.*)"
           "Bash(sudo:*)"
         ];
         defaultMode = "acceptEdits";

@@ -23,6 +23,7 @@
       "github-actions"
       "json5"
       "log"
+      "wakatime"
     ];
     userSettings = {
       auto_update = false;

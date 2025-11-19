@@ -1,6 +1,6 @@
 {
   hmModules.desktop.webapps = {
-    enable = false;
+    enable = true;
     apps = {
       "Claude" = {
         url = "https://claude.ai";

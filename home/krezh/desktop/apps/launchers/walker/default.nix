@@ -4,9 +4,6 @@
   pkgs,
   ...
 }:
-let
-  themeName = config.programs.walker.config.theme;
-in
 {
   imports = [ inputs.walker.homeManagerModules.default ];
 
@@ -159,17 +156,17 @@ in
         };
       };
     };
-  };
 
-  xdg.configFile."walker/themes/${themeName}" =
-    if themeName != "default" then
-      {
-        source = ./themes/${themeName};
-        recursive = true;
-        force = true;
-      }
-    else
-      null;
+    themes = {
+      catppuccin = {
+        style =
+          builtins.readFile ./themes/catppuccin/colors.css + builtins.readFile ./themes/catppuccin/style.css;
+        layouts = {
+          layout = builtins.readFile ./themes/catppuccin/layout.xml;
+        };
+      };
+    };
+  };
 
   # Restart walker and elephant services after home-manager activation to detect new .desktop files
   home.activation.restartWalker = config.lib.dag.entryAfter [ "writeBoundary" ] ''
