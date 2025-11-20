@@ -73,6 +73,7 @@ in
     };
   };
   xdg = {
+    xdg.autostart.enable = true;
     mimeApps = {
       enable = true;
       defaultApplications = lib.mkMerge [
