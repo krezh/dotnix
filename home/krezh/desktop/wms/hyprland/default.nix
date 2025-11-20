@@ -16,7 +16,7 @@
     xwayland.enable = true;
     systemd = {
       enable = true;
-      enableXdgAutostart = false;
+      enableXdgAutostart = true;
       variables = [ "--all" ];
     };
     plugins = with pkgs.hyprlandPlugins; [

@@ -149,6 +149,7 @@ in
         "browser.newtabpage.activity-stream.feeds.topsites" = false;
         "browser.topsites.contile.enabled" = false;
         "browser.formfill.enable" = false;
+        "browser.download.useDownloadDir" = true;
 
         "permissions.default.desktop-notification" = 0; # 0=ask, 1=allow, 2=block
 

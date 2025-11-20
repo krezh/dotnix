@@ -13,7 +13,7 @@
       plugins = { };
     };
     dorion = {
-      enable = true;
+      enable = false;
       theme = "dark";
       zoom = "1.0";
       blur = "none"; # "none", "blur", or "acrylic"

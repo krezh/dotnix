@@ -817,26 +817,6 @@
         "type": "github"
       }
     },
-    "quickshell": {
-      "inputs": {
-        "nixpkgs": [
-          "nixpkgs"
-        ]
-      },
-      "locked": {
-        "lastModified": 1763446574,
-        "narHash": "sha256-7Xu61mmAjQb1usfIg096VIh6f26fFYd0Z9e6tNdII0w=",
-        "owner": "outfoxxed",
-        "repo": "quickshell",
-        "rev": "1ddb355121484bcac70f49edd4bd006b1d3a753e",
-        "type": "github"
-      },
-      "original": {
-        "owner": "outfoxxed",
-        "repo": "quickshell",
-        "type": "github"
-      }
-    },
     "root": {
       "inputs": {
         "betterfox": "betterfox",
@@ -859,7 +839,6 @@
         "noctalia": "noctalia",
         "nvf": "nvf",
         "pre-commit-hooks": "pre-commit-hooks",
-        "quickshell": "quickshell",
         "sops-nix": "sops-nix",
         "treefmt-nix": "treefmt-nix",
         "walker": "walker",

@@ -69,6 +69,31 @@ const REFRESH_RATE_DIVIDER: i32 = 1000;
 // Helper Functions
 // ============================================================================
 
+/// Copies text to the Wayland clipboard using wl-copy.
+fn copy_to_clipboard(text: &str) -> Result<()> {
+    use std::io::Write;
+    use std::process::{Command, Stdio};
+
+    let mut child = Command::new("wl-copy")
+        .stdin(Stdio::piped())
+        .spawn()
+        .context("Failed to spawn wl-copy process")?;
+
+    if let Some(mut stdin) = child.stdin.take() {
+        stdin
+            .write_all(text.as_bytes())
+            .context("Failed to write to wl-copy stdin")?;
+    }
+
+    let status = child.wait().context("Failed to wait for wl-copy")?;
+
+    if status.success() {
+        log::info!("Text copied to clipboard ({} bytes)", text.len());
+        Ok(())
+    } else {
+        anyhow::bail!("wl-copy exited with status: {}", status)
+    }
+}
 
 /// Converts FPS to frame duration in microseconds.
 #[inline]
@@ -740,6 +765,11 @@ impl App {
                 match ocr::capture_and_ocr(&self.conn, &outputs_list, rect) {
                     Ok(text) => {
                         println!("{}", text);
+
+                        // Copy to clipboard using wl-copy
+                        if let Err(e) = copy_to_clipboard(&text) {
+                            log::warn!("Failed to copy to clipboard: {}", e);
+                        }
                     }
                     Err(e) => {
                         eprintln!("OCR failed: {}", e);
