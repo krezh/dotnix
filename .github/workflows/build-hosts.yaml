@@ -110,12 +110,18 @@ jobs:
           nix-permission-edict: true
 
       - name: Connect to Netbird VPN
+        id: netbird
         if: ${{ !(github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork) }}
         uses: Alemiz112/netbird-connect@175ca0487002e6d4d96d16da5f4b91f639e8a765 # v1.0.1
         with:
           setup-key: "${{ secrets.NETBIRD_SETUP_KEY }}"
           hostname: "gh-runner-${{ github.run_id }}"
           management-url: "https://api.netbird.io:443"
+
+      - name: Check connectivity
+        if: ${{ steps.netbird.outcome == 'success' }}
+        run: |
+          timeout 60 bash -c 'while ! curl -f -s -o /dev/null "${{ secrets.ATTIC_ENDPOINT }}"; do sleep 2; done'
 
       - name: Setup Nix with caching
         uses: ./.github/actions/setup-nix
