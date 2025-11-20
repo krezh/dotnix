@@ -42,6 +42,7 @@ in
     programs.vesktop.vencord.settings = cfg.vencord.settings;
     programs.vesktop.vencord.useSystem = false;
     services.arrpc.enable = true;
+    services.arrpc.package = pkgs.rsrpc;
 
     systemd.user.services.vesktop = lib.mkIf cfg.service.enable {
       Install = {

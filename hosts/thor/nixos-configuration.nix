@@ -14,7 +14,7 @@
 
   boot = {
     plymouth = {
-      enable = false;
+      enable = true;
     };
     kernelPackages = pkgs.linuxPackages_cachyos;
     loader = {
