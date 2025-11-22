@@ -119,7 +119,6 @@ jobs:
           management-url: "https://api.netbird.io:443"
 
       - name: Check connectivity
-        if: ${{ steps.netbird.outcome == 'success' }}
         run: |
           timeout 60 bash -c 'while ! curl -f -s -o /dev/null "${{ secrets.ATTIC_ENDPOINT }}"; do sleep 2; done'
 
