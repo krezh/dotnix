@@ -18,7 +18,7 @@ let
   mapToGha =
     system:
     {
-      "x86_64-linux" = "ubuntu-latest";
+      "x86_64-linux" = "nix-config-runner";
       "x86_64-darwin" = "ubuntu-latest";
       "aarch64-linux" = "ubuntu-24.04-arm";
     }
