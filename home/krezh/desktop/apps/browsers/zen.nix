@@ -52,6 +52,18 @@ in
           position = 105;
           isEssential = true;
         };
+        "ChatGPT" = {
+          id = "chatgpt";
+          url = "https.//chat.openai.com";
+          position = 106;
+          isEssential = false;
+        };
+        "Claude" = {
+          id = "claude";
+          url = "https://claude.ai";
+          position = 106;
+          isEssential = false;
+        };
       };
       search = {
         force = true;

@@ -47,15 +47,17 @@ in
       };
       sequential-thinking = {
         type = "stdio";
-        command = "${pkgs.bun}/bin/bunx";
+        command = "${pkgs.nodejs}/bin/npx";
         args = [
+          "-y"
           "@modelcontextprotocol/server-sequential-thinking"
         ];
       };
       filesystem = {
         type = "stdio";
-        command = "${pkgs.bun}/bin/bunx";
+        command = "${pkgs.nodejs}/bin/npx";
         args = [
+          "-y"
           "@modelcontextprotocol/server-filesystem"
         ];
       };

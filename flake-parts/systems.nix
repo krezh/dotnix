@@ -40,6 +40,11 @@ in
         system = "x86_64-linux";
         homeUsers = [ "krezh" ];
       };
+      steamdeck = {
+        system = "x86_64-linux";
+        homeUsers = [ "krezh" ];
+        extraModules = [ inputs.jovian.nixosModules.default ];
+      };
       nixos-livecd = {
         system = "x86_64-linux";
         homeUsers = [ ];
