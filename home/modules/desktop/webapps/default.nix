@@ -17,7 +17,7 @@ let
       iconPath = if app.icon != null then app.icon else "${iconDir}/${sanitized}.png";
 
       exec =
-        "${pkgs.chromium}/bin/chromium "
+        "helium "
         + "--app=${app.url} "
         + "--class=${sanitized} "
         + "--user-data-dir=${desktopDataDir}/${sanitized} "

@@ -32,12 +32,12 @@ runs:
           always-allow-substitutes = true
           builders-use-substitutes = true
 
-    - name: Setup Cachix
-      if: inputs.skip-cache != 'true'
-      uses: cachix/cachix-action@0fc020193b5a1fa3ac4575aa3a7d3aa6a35435ad # v16
-      with:
-        name: ${{ inputs.cache-name }}
-        authToken: ${{ inputs.cachix-auth-token }}
+    # - name: Setup Cachix
+    #   if: inputs.skip-cache != 'true'
+    #   uses: cachix/cachix-action@0fc020193b5a1fa3ac4575aa3a7d3aa6a35435ad # v16
+    #   with:
+    #     name: ${{ inputs.cache-name }}
+    #     authToken: ${{ inputs.cachix-auth-token }}
 
     - name: Setup Attic
       if: inputs.skip-cache != 'true'
