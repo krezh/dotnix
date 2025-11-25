@@ -21,9 +21,6 @@ let
   '';
 in
 {
-  home.packages = [
-    inputs.nix-ai-tools.packages.${pkgs.stdenv.hostPlatform.system}.claude-desktop
-  ];
   programs.claude-code = {
     enable = true;
     package = nix-ai-tools.claude-code;
