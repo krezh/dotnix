@@ -103,20 +103,20 @@ jobs:
       - name: Checkout
         uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6
 
-      # - name: Nothing but Nix
-      #   uses: wimpysworld/nothing-but-nix@6af122a9403f936ef689e44cc013ae3f3e2f1c3b # v6
-      #   with:
-      #     hatchet-protocol: cleave
-      #     nix-permission-edict: true
+       - name: Nothing but Nix
+         uses: wimpysworld/nothing-but-nix@6af122a9403f936ef689e44cc013ae3f3e2f1c3b # v6
+         with:
+           hatchet-protocol: cleave
+           nix-permission-edict: true
 
-      # - name: Connect to Netbird VPN
-      #   id: netbird
-      #   if: ${{ !(github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork) }}
-      #   uses: Alemiz112/netbird-connect@175ca0487002e6d4d96d16da5f4b91f639e8a765 # v1.0.1
-      #   with:
-      #     setup-key: "${{ secrets.NETBIRD_SETUP_KEY }}"
-      #     hostname: "gh-runner-${{ github.run_id }}"
-      #     management-url: "https://api.netbird.io:443"
+       - name: Connect to Netbird VPN
+         id: netbird
+         if: ${{ !(github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork) }}
+         uses: Alemiz112/netbird-connect@175ca0487002e6d4d96d16da5f4b91f639e8a765 # v1.0.1
+         with:
+           setup-key: "${{ secrets.NETBIRD_SETUP_KEY }}"
+           hostname: "gh-runner-${{ github.run_id }}"
+           management-url: "https://api.netbird.io:443"
 
       - name: Check connectivity
         run: |
