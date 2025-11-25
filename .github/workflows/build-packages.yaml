@@ -62,16 +62,16 @@ jobs:
       - name: Checkout
         uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6
 
-      - name: Connect to Netbird VPN
-        if: ${{ !(github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork) }}
-        uses: Alemiz112/netbird-connect@175ca0487002e6d4d96d16da5f4b91f639e8a765 # v1.0.1
-        with:
-          setup-key: ${{ secrets.NETBIRD_SETUP_KEY }}
-          hostname: "gh-runner-${{ github.run_id }}"
+      # - name: Connect to Netbird VPN
+      #   if: ${{ !(github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork) }}
+      #   uses: Alemiz112/netbird-connect@175ca0487002e6d4d96d16da5f4b91f639e8a765 # v1.0.1
+      #   with:
+      #     setup-key: ${{ secrets.NETBIRD_SETUP_KEY }}
+      #     hostname: "gh-runner-${{ github.run_id }}"
 
-      - name: Check connectivity
-        run: |
-          timeout 60 bash -c 'while ! curl -f -s -o /dev/null "${{ secrets.ATTIC_ENDPOINT }}"; do sleep 2; done'
+      # - name: Check connectivity
+      #   run: |
+      #     timeout 60 bash -c 'while ! curl -f -s -o /dev/null "${{ secrets.ATTIC_ENDPOINT }}"; do sleep 2; done'
 
       - name: Setup Nix with caching
         uses: ./.github/actions/setup-nix

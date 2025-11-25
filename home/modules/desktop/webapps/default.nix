@@ -72,7 +72,7 @@ in
       let
         scriptDeps = with pkgs; [ curl ];
         scriptPath = lib.makeBinPath scriptDeps;
-        scriptFile = ./fetch-icons.sh;
+        scriptFile = pkgs.writeShellScript "fetch-webapp-icon" (builtins.readFile ./fetch-icons.sh);
 
         scriptCalls = lib.concatStringsSep "\n" (
           lib.attrsets.mapAttrsToList (
