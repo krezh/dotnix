@@ -1,5 +1,4 @@
 {
-  inputs,
   config,
   ...
 }:
@@ -12,9 +11,6 @@
     profiles.${config.home.username} = {
       isDefault = true;
       extensions.force = true;
-      extraConfig = ''
-        ${builtins.readFile "${inputs.betterfox}/user.js"}
-      '';
       search.force = true;
       search.default = "google";
       search.engines = {

@@ -89,4 +89,4 @@ fast-build-pr pr:
 fast-build:
     #!/usr/bin/env bash
     set -euo pipefail
-    nix run nixpkgs#nix-fast-build -- --skip-cached --flake ".#top"
+    nix run nixpkgs#nix-fast-build -- --skip-cached --flake ".#top" --attic-cache krezh

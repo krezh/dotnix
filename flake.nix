@@ -81,11 +81,6 @@
       flake = false;
     };
 
-    betterfox = {
-      url = "github:yokoffing/Betterfox";
-      flake = false;
-    };
-
     nix-gaming.url = "github:fufexan/nix-gaming";
 
     jovian = {
@@ -125,10 +120,6 @@
       inputs.treefmt-nix.follows = "treefmt-nix";
     };
 
-    nixcord = {
-      url = "github:kaylorben/nixcord";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
     helium = {
       url = "github:AlvaroParker/helium-nix";
       inputs.nixpkgs.follows = "nixpkgs";
