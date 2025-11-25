@@ -5,7 +5,12 @@ import sys
 import os
 import re
 from collections import defaultdict, Counter
-from typing import TypedDict, override, cast
+from typing import TypedDict, cast
+
+if sys.version_info >= (3, 12):
+    from typing import override
+else:
+    from typing_extensions import override
 
 debug_logging: bool = False
 
