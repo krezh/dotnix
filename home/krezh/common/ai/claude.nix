@@ -11,6 +11,14 @@ let
     export GITHUB_PERSONAL_ACCESS_TOKEN="$(cat ${config.sops.secrets."github/mcp_token".path})"
     exec ${lib.getExe pkgs.github-mcp-server} "$@"
   '';
+  filesystem-mcp-wrapper = pkgs.writeShellScript "filesystem-mcp-wrapper" ''
+    export PATH="${pkgs.nodejs}/bin:$PATH"
+    exec ${pkgs.nodejs}/bin/npx -y @modelcontextprotocol/server-filesystem "$@"
+  '';
+  sequential-thinking-mcp-wrapper = pkgs.writeShellScript "sequential-thinking-mcp-wrapper" ''
+    export PATH="${pkgs.nodejs}/bin:$PATH"
+    exec ${pkgs.nodejs}/bin/npx -y @modelcontextprotocol/server-sequential-thinking "$@"
+  '';
 in
 {
   programs.claude-code = {
@@ -47,19 +55,11 @@ in
       };
       sequential-thinking = {
         type = "stdio";
-        command = "${pkgs.nodejs}/bin/npx";
-        args = [
-          "-y"
-          "@modelcontextprotocol/server-sequential-thinking"
-        ];
+        command = "${sequential-thinking-mcp-wrapper}";
       };
       filesystem = {
         type = "stdio";
-        command = "${pkgs.nodejs}/bin/npx";
-        args = [
-          "-y"
-          "@modelcontextprotocol/server-filesystem"
-        ];
+        command = "${filesystem-mcp-wrapper}";
       };
     };
 

@@ -21,14 +21,28 @@
         commands = [
           {
             name = "partition";
-            command = "sudo nix --experimental-features 'nix-command flakes' run github:nix-community/disko -- --mode disko --flake github:krezh/nix-config#thor";
-            help = "Will partition the disk (Thor)";
+            command = ''
+              if [ $# -eq 0 ]; then
+                echo "Usage: partition <hostname>"
+                echo "Available hosts: thor, odin, steamdeck, thor-wsl, nixos-livecd"
+                exit 1
+              fi
+              sudo nix --experimental-features 'nix-command flakes' run github:nix-community/disko -- --mode disko --flake github:krezh/nix-config#"$1"
+            '';
+            help = "Partition disk for specified host";
             category = "Nix";
           }
           {
             name = "install";
-            command = "sudo nixos-install --flake github:krezh/nix-config#thor";
-            help = "Will install (Thor)";
+            command = ''
+              if [ $# -eq 0 ]; then
+                echo "Usage: install <hostname>"
+                echo "Available hosts: thor, odin, steamdeck, thor-wsl, nixos-livecd"
+                exit 1
+              fi
+              sudo nixos-install --flake github:krezh/nix-config#"$1"
+            '';
+            help = "Install NixOS for specified host";
             category = "Nix";
           }
         ];
