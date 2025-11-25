@@ -3,13 +3,10 @@
   pkgs,
   ...
 }:
-let
-  nix-ai-tools = inputs.nix-ai-tools.packages.${pkgs.stdenv.hostPlatform.system};
-in
 {
   programs.claude-code = {
     enable = true;
-    package = nix-ai-tools.claude-code;
+    package = inputs.nix-ai-tools.packages.${pkgs.stdenv.hostPlatform.system};
     mcpServers = { };
 
     settings = {
