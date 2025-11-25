@@ -166,10 +166,6 @@ jobs:
           build-type: system
           output-link: result
 
-      - name: Install typing_extensions for Python < 3.12
-        if: ${{ success() }}
-        run: pip install --user typing_extensions
-
       - name: Generate new package list
         if: ${{ success() }}
         run: python3 .github/scripts/pkg-tool.py list result pkg-list.json
