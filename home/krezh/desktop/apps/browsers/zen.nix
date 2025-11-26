@@ -169,9 +169,53 @@ in
         "privacy.firstparty.isolate" = true;
         "network.cookie.cookieBehavior" = 5;
         "dom.battery.enabled" = false;
-
-        "gfx.webrender.all" = true;
         "network.http.http3.enabled" = true;
+
+        # Performance tuning
+        "gfx.webrender.all" = true;
+        "gfx.webrender.enabled" = true;
+        "gfx.webrender.compositor" = true;
+        "gfx.webrender.precache-shaders" = true;
+        "gfx.webrender.software" = false;
+        "layers.acceleration.force-enabled" = true;
+        "dom.element.animate.enabled" = true;
+        "apz.overscroll.enabled" = false;
+        "widget.wayland.opaque-region.enabled" = true;
+        "widget.wayland.fractional-scale.enabled" = true;
+        "media.ffmpeg.vaapi.enabled" = true;
+        "network.http.max-connections" = 1200;
+        "network.http.max-persistent-connections-per-server" = 8;
+        "network.http.max-urgent-start-excessive-connections-per-host" = 5;
+        "network.http.request.max-start-delay" = 5;
+        "network.http.pacing.requests.enabled" = false;
+        "network.http.pacing.requests.burst" = 32;
+        "network.http.pacing.requests.min-parallelism" = 10;
+        "network.ssl_tokens_cache_capacity" = 32768;
+        "network.http.speculative-parallel-limit" = 0;
+        "network.dns.disablePrefetch" = true;
+        "network.dns.disablePrefetchFromHTTPS" = true;
+        "network.prefetch-next" = false;
+        "network.predictor.enabled" = false;
+        "network.predictor.enable-prefetch" = false;
+        "browser.urlbar.speculativeConnect.enabled" = false;
+        "browser.places.speculativeConnect.enabled" = false;
+        "browser.cache.disk.enable" = false;
+        "browser.cache.disk.capacity" = 0;
+        "browser.cache.memory.capacity" = 131072; # 128 MB
+        "browser.cache.disk.smart_size.enabled" = false;
+        "browser.cache.memory.max_entry_size" = 32768;
+        "browser.cache.disk.metadata_memory_limit" = 16384; # 16 MB
+        "browser.cache.max_shutdown_io_lag" = 100;
+        "image.mem.max_decoded_image_kb" = 512000; # 500 MB
+        "image.cache.size" = 10485760; # 10 MB
+        "image.mem.decode_bytes_at_a_time" = 65536; # 64 KB
+        "image.mem.shared.unmap.min_expiration_ms" = 90000; # 90 seconds
+        "media.memory_cache_max_size" = 1048576; # 1 GB
+        "media.memory_caches_combined_limit_kb" = 4194304; # 4 GB
+        "media.cache_readahead_limit" = 600;
+        "media.cache_resume_threshold" = 300;
+        "dom.storage.shadow_writes" = true;
+
         "toolkit.legacyUserProfileCustomizations.stylesheets" = true; # enable userChrome.css
 
         "widget.gtk.rounded-bottom-corners.enabled" = false; # https://github.com/zen-browser/desktop/issues/6302
