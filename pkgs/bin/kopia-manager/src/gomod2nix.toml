@@ -101,8 +101,8 @@ schema = 3
     version = "v1.12.5"
     hash = "sha256-6gv1YMh1LPHgp1y+9bPOpLY9GNqePG4DR+Ry+lex9tc="
   [mod."github.com/kopia/kopia"]
-    version = "v0.22.1"
-    hash = "sha256-FVmOAuEDY7B36Vk36BR9Y5TSKxACiEYeSk/6XTWH9vY="
+    version = "v0.22.2"
+    hash = "sha256-InolN0Qjuiv3KQwNOTMJldJ0X4bMYocClEtTbcN76+I="
   [mod."github.com/lucasb-eyer/go-colorful"]
     version = "v1.3.0"
     hash = "sha256-6BKrJsfmxie+YFAWzTYVPQfrwjQEXRo+J8LY+50C1BU="

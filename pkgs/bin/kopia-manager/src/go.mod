@@ -8,7 +8,7 @@ require (
 	github.com/charmbracelet/log v0.4.2
 	github.com/charmbracelet/x/ansi v0.10.3
 	github.com/charmbracelet/x/term v0.2.2
-	github.com/kopia/kopia v0.22.1
+	github.com/kopia/kopia v0.22.2
 	github.com/spf13/cobra v1.10.1
 )
 
