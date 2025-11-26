@@ -54,7 +54,7 @@ jobs:
     name: Build package ${{ matrix.package }}
     needs: detect-packages
     if: ${{ needs.detect-packages.outputs.changed-packages != '' }}
-    runs-on: ubuntu-latest
+    runs-on: nix-config-runner
     strategy:
       matrix:
         package: ${{ fromJson(needs.detect-packages.outputs.changed-packages) }}
