@@ -28,7 +28,6 @@
   home = {
     sessionVariables = {
       SOPS_AGE_KEY_FILE = "${config.sops.age.keyFile}";
-      SOPS_AGE_KEY_CMD = "age-plugin-yubikey --identity";
     };
   };
 }

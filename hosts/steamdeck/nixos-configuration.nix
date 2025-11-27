@@ -31,6 +31,12 @@
     networkmanager.enable = true;
   };
 
+  nixosModules.desktop = {
+    battery.enable = true;
+    openssh.enable = true;
+    fonts.enable = true;
+  };
+
   # Jovian handles: audio, graphics, steam, kernel params, bluetooth, SD card automount
   jovian = {
     devices.steamdeck.enable = true;

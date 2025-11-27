@@ -27,6 +27,16 @@
           scale = 1;
         }
       ]
+    else if osConfig.networking.hostName == "steamdeck" then
+      [
+        {
+          output = "eDP-1";
+          mode = "800x1280@90";
+          position = "0x0";
+          transform = 3;
+          scale = 1;
+        }
+      ]
     else
       [
         {
