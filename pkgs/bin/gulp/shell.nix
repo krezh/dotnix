@@ -5,12 +5,15 @@
 pkgs.mkShell {
   name = "gulp";
 
+  nativeBuildInputs = with pkgs; [
+    pkg-config
+  ];
+
   buildInputs = with pkgs; [
     cargo
     rustc
     rustfmt
     clippy
-    pkg-config
     wayland
     wayland-protocols
     wayland-scanner

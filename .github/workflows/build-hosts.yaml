@@ -83,14 +83,6 @@ jobs:
           echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
           echo "$matrix"
 
-      - name: Show Summary
-        uses: ./.github/actions/workflow-summary
-        with:
-          type: matrix
-          matrix: ${{ steps.set-matrix.outputs.matrix }}
-          cache-name: ${{ env.CACHE_NAME }}
-          flake-lock-hash: ${{ hashFiles('**/*.nix', '**/flake.lock') }}
-
   nix-build:
     name: Build ${{ matrix.host }}
     if: ${{ github.event.pull_request.draft == false && (github.event_name == 'workflow_dispatch' || needs.detect-changes.outputs.changed-systems != '[]') }}
@@ -103,60 +95,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6
 
-      # - name: Nothing but Nix
-      #   uses: wimpysworld/nothing-but-nix@6af122a9403f936ef689e44cc013ae3f3e2f1c3b # v6
-      #   with:
-      #     hatchet-protocol: cleave
-      #     nix-permission-edict: true
-
-      # - name: Connect to Netbird VPN
-      #   id: netbird
-      #   if: ${{ !(github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork) }}
-      #   uses: Alemiz112/netbird-connect@175ca0487002e6d4d96d16da5f4b91f639e8a765 # v1.0.1
-      #   with:
-      #     setup-key: "${{ secrets.NETBIRD_SETUP_KEY }}"
-      #     hostname: "gh-runner-${{ github.run_id }}"
-      #     management-url: "https://api.netbird.io:443"
-
-      # - name: Check connectivity
-      #   run: |
-      #     timeout 60 bash -c 'while ! curl -f -s -o /dev/null "${{ secrets.ATTIC_ENDPOINT }}"; do sleep 2; done'
-
       - name: Setup Nix with caching
         uses: ./.github/actions/setup-nix
         with:
-          cachix-auth-token: ${{ secrets.CACHIX_AUTH_TOKEN }}
           attic-endpoint: ${{ secrets.ATTIC_ENDPOINT }}
           attic-cache: ${{ secrets.ATTIC_CACHE }}
           attic-token: ${{ secrets.ATTIC_TOKEN }}
           skip-cache: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork }}
-
-      - name: Find previous run ID
-        id: find-run
-        run: |
-          run_id=$(gh run list --workflow build-hosts.yaml --branch main --status success --limit 1 --json databaseId -q '.[0].databaseId' || echo "")
-          if [ -z "$run_id" ]; then
-            echo "No previous successful run found, skipping artifact download"
-            echo "run_id=" >> $GITHUB_OUTPUT
-          else
-            echo "run_id=$run_id" >> $GITHUB_OUTPUT
-          fi
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      # Download previous package list artifact (if any)
-      - name: Download previous package list artifact
-        if: ${{ steps.find-run.outputs.run_id != '' }}
-        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
-        id: download-artifact
-        continue-on-error: true
-        with:
-          name: pkg-list-${{ matrix.host }}
-          path: previous-artifact
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          repository: ${{ github.repository }}
-          run-id: ${{ steps.find-run.outputs.run_id }}
-          merge-multiple: false
 
       - name: Build System
         id: build
@@ -165,22 +110,6 @@ jobs:
           target: top.${{ matrix.host }}
           build-type: system
           output-link: result
-
-      - name: Generate new package list
-        if: ${{ success() }}
-        run: python3 .github/scripts/pkg-tool.py list result pkg-list.json
-
-      - name: Upload new package list artifact
-        if: ${{ success() }}
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5
-        with:
-          name: pkg-list-${{ matrix.host }}
-          path: pkg-list.json
-          if-no-files-found: error
-          retention-days: 30
-          compression-level: 6
-          overwrite: true
-          include-hidden-files: false
 
       - name: Calculate build size
         id: build-info
@@ -200,44 +129,6 @@ jobs:
           echo "build-size=$build_size" >> $GITHUB_OUTPUT
           echo "result-path=$result_path" >> $GITHUB_OUTPUT
 
-      - name: Success Summary
-        if: ${{ success() }}
-        uses: ./.github/actions/workflow-summary
-        with:
-          type: build-success
-          host: ${{ matrix.host }}
-          runner: ${{ matrix.runner }}
-          build-size: ${{ steps.build-info.outputs.build-size }}
-          build-duration: ${{ steps.build.outputs.build_duration }}
-          result-path: ${{ steps.build-info.outputs.result-path }}
-          flake-target: top.${{ matrix.host }}
-
-      - name: Package Diff
-        if: ${{ success() }}
-        run: |
-          prev_json="previous-artifact/pkg-list.json"
-          {
-            echo "### 📦 Package Diff"
-            if [ -f "$prev_json" ]; then
-              python3 .github/scripts/pkg-tool.py diff "$prev_json" pkg-list.json --github
-            else
-              echo "_No previous package list found; skipping diff._"
-            fi
-          } >> "${GITHUB_STEP_SUMMARY}"
-
-      - name: Post build success comment
-        if: ${{ success() && github.event_name == 'pull_request' }}
-        uses: ./.github/actions/post-build-success
-        with:
-          build-type: system
-          build-name: ${{ matrix.host }}
-          flake-target: top.${{ matrix.host }}
-          build-duration: ${{ steps.build.outputs.build_duration }}
-          build-size: ${{ steps.build-info.outputs.build-size }}
-          result-path: ${{ steps.build-info.outputs.result-path }}
-          runner: ${{ matrix.runner }}
-          pr-number: ${{ github.event.pull_request.number }}
-
       - name: Post build failure comment
         if: ${{ failure() && github.event_name == 'pull_request' }}
         uses: ./.github/actions/post-build-error
@@ -249,14 +140,3 @@ jobs:
           build-duration: ${{ steps.build.outputs.build_duration }}
           runner: ${{ matrix.runner }}
           pr-number: ${{ github.event.pull_request.number }}
-
-      - name: Failure Summary
-        if: ${{ failure() }}
-        uses: ./.github/actions/workflow-summary
-        with:
-          type: build-failure
-          host: ${{ matrix.host }}
-          runner: ${{ matrix.runner }}
-          build-duration: ${{ steps.build.outputs.build_duration }}
-          flake-target: top.${{ matrix.host }}
-          fork-pr: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork }}

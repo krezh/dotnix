@@ -62,21 +62,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6
 
-      # - name: Connect to Netbird VPN
-      #   if: ${{ !(github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork) }}
-      #   uses: Alemiz112/netbird-connect@175ca0487002e6d4d96d16da5f4b91f639e8a765 # v1.0.1
-      #   with:
-      #     setup-key: ${{ secrets.NETBIRD_SETUP_KEY }}
-      #     hostname: "gh-runner-${{ github.run_id }}"
-
-      # - name: Check connectivity
-      #   run: |
-      #     timeout 60 bash -c 'while ! curl -f -s -o /dev/null "${{ secrets.ATTIC_ENDPOINT }}"; do sleep 2; done'
-
       - name: Setup Nix with caching
         uses: ./.github/actions/setup-nix
         with:
-          cachix-auth-token: ${{ secrets.CACHIX_AUTH_TOKEN }}
           attic-endpoint: ${{ secrets.ATTIC_ENDPOINT }}
           attic-cache: ${{ secrets.ATTIC_CACHE }}
           attic-token: ${{ secrets.ATTIC_TOKEN }}
@@ -98,19 +86,3 @@ jobs:
           flake-target: ${{ matrix.package }}
           error-log: ${{ steps.build.outputs.error-log }}
           pr-number: ${{ github.event.pull_request.number }}
-
-      - name: Success Summary
-        if: ${{ success() }}
-        uses: ./.github/actions/workflow-summary
-        with:
-          type: package-success
-          package: ${{ matrix.package }}
-          flake-target: ${{ matrix.package }}
-
-      - name: Failure Summary
-        if: ${{ failure() }}
-        uses: ./.github/actions/workflow-summary
-        with:
-          type: package-failure
-          package: ${{ matrix.package }}
-          flake-target: ${{ matrix.package }}

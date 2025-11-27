@@ -1,9 +1,6 @@
 name: Setup Nix with Caching
-description: Install Nix and configure Cachix + Attic caches
+description: Install Nix and configure Attic cache
 inputs:
-  cachix-auth-token:
-    description: Cachix authentication token
-    required: false
   attic-endpoint:
     description: Attic cache endpoint
     required: false
@@ -13,10 +10,6 @@ inputs:
   attic-token:
     description: Attic authentication token
     required: false
-  cache-name:
-    description: Cachix cache name
-    required: false
-    default: krezh
   skip-cache:
     description: Skip cache setup (for forks/external PRs)
     required: false
@@ -31,13 +24,6 @@ runs:
           accept-flake-config = true
           always-allow-substitutes = true
           builders-use-substitutes = true
-
-    # - name: Setup Cachix
-    #   if: inputs.skip-cache != 'true'
-    #   uses: cachix/cachix-action@0fc020193b5a1fa3ac4575aa3a7d3aa6a35435ad # v16
-    #   with:
-    #     name: ${{ inputs.cache-name }}
-    #     authToken: ${{ inputs.cachix-auth-token }}
 
     - name: Setup Attic
       if: inputs.skip-cache != 'true'

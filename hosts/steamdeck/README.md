@@ -27,11 +27,16 @@ sudo pacman -S galileo-mura
 sudo steamos-readonly enable
 
 galileo-mura-extractor
-# Creates /tmp/mura/blob.tar - backup this file!
+# Creates /tmp/mura/blob.tar
 cp /tmp/mura/blob.tar ~/Desktop/
 ```
 
-Copy `blob.tar` to USB drive or cloud storage before proceeding.
+Copy the file to your nix-config:
+
+```bash
+# home/modules/steamdeck-mura/24F70865C8.tar
+# (Replace with your actual serial number from galileo-mura-extractor)
+```
 
 ## Step 2: Update BIOS
 

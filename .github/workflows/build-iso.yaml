@@ -99,26 +99,3 @@ jobs:
           generate_release_notes: true
           make_latest: true
           tag_name: ${{ env.HOST }}-${{ steps.tag.outputs.tag }}
-
-      - name: Success Summary
-        if: success()
-        uses: ./.github/actions/workflow-summary
-        with:
-          type: iso-success
-          host: ${{ env.HOST }}
-          runner: ubuntu-latest
-          iso-size: ${{ steps.iso-info.outputs.size }}
-          build-duration: ${{ steps.build.outputs.build_duration }}
-          iso-tag: ${{ steps.tag.outputs.tag }}
-          iso-name: ${{ steps.iso-info.outputs.name }}
-          flake-target: .#nixosConfigurations.${{ env.HOST }}.config.system.build.isoImage
-
-      - name: Failure Summary
-        if: failure()
-        uses: ./.github/actions/workflow-summary
-        with:
-          type: iso-failure
-          host: ${{ env.HOST }}
-          runner: ubuntu-latest
-          build-duration: ${{ steps.build.outputs.build_duration }}
-          flake-target: .#nixosConfigurations.${{ env.HOST }}.config.system.build.isoImage

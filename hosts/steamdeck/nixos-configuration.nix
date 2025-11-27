@@ -60,7 +60,7 @@
   };
 
   # Optional: Additional Proton versions
-  programs.steam.extraCompatPackages = with pkgs; [
-    proton-ge-bin
+  programs.steam.extraCompatPackages = [
+    pkgs.proton-ge-bin
   ];
 }
