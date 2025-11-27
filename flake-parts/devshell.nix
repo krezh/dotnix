@@ -54,6 +54,20 @@
             help = "Partition and install NixOS in one step";
             category = "Nix";
           }
+          {
+            name = "wipe-disk";
+            command = ''
+              if [ $# -eq 0 ]; then
+                echo "Usage: wipe-disk <device>"
+                echo "Example: wipe-disk /dev/nvme0n1"
+                exit 1
+              fi
+              sudo wipefs -a "$1"
+              sudo sgdisk --zap-all "$1"
+            '';
+            help = "Remove all partitions from specified disk";
+            category = "Nix";
+          }
         ];
       };
     };
