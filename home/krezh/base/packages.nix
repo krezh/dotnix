@@ -37,20 +37,15 @@
     isd
     doggo
     dig
-    wowup-cf
     lazysql
     cava
     glow
     rust-analyzer
     hyperfine
-    antares
-    gulp
-    vdhcoapp
     curlie
 
     # Secrets
     age-plugin-yubikey
-    yubikey-manager
     sops
     age
     doppler

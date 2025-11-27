@@ -3,20 +3,19 @@
   perSystem =
     {
       config,
-      pkgs,
       ...
     }:
     {
       devshells.default = {
         devshell.startup.pre-commit-hook.text = config.pre-commit.installationScript;
+        devshell.startup.a-welcome.text = ''
+          echo "❄️ Welcome to the Default shell ❄️"
+        '';
+        devshell.startup.z-menu.text = "menu";
         devshell = {
           name = "Default";
-          motd = ''
-            ❄️ Welcome to the {14}{bold}Default{reset} shell ❄️
-          '';
-          packages = [
-            pkgs.nix-fast-build
-          ];
+          motd = "";
+          packages = [ ];
         };
         commands = [
           {
@@ -24,7 +23,6 @@
             command = ''
               if [ $# -eq 0 ]; then
                 echo "Usage: partition <hostname>"
-                echo "Available hosts: thor, odin, steamdeck, thor-wsl, nixos-livecd"
                 exit 1
               fi
               sudo nix --experimental-features 'nix-command flakes' run github:nix-community/disko -- --mode disko --flake github:krezh/nix-config#"$1"
@@ -37,12 +35,23 @@
             command = ''
               if [ $# -eq 0 ]; then
                 echo "Usage: install <hostname>"
-                echo "Available hosts: thor, odin, steamdeck, thor-wsl, nixos-livecd"
                 exit 1
               fi
               sudo nixos-install --flake github:krezh/nix-config#"$1"
             '';
             help = "Install NixOS for specified host";
+            category = "Nix";
+          }
+          {
+            name = "disko-install";
+            command = ''
+              if [ $# -eq 0 ]; then
+                echo "Usage: disko-install <hostname>"
+                exit 1
+              fi
+              sudo disko-install --flake github:krezh/nix-config#"$1"
+            '';
+            help = "Partition and install NixOS in one step";
             category = "Nix";
           }
         ];
