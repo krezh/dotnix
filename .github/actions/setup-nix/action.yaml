@@ -18,10 +18,10 @@ runs:
   using: composite
   steps:
     - name: Install Nix
-      uses: cachix/install-nix-action@0b0e072294b088b73964f1d72dfdac0951439dbd # v31.8.4
+      uses: DeterminateSystems/determinate-nix-action@v3.13.2
       with:
-        install_options: --no-daemon
-        extra_nix_config: |
+        init: none
+        extra-conf: |
           accept-flake-config = true
           always-allow-substitutes = true
           builders-use-substitutes = true

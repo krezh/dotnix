@@ -270,7 +270,7 @@ in
         "general.autoScroll" = true; # Auto scroll
 
         # PROCESS MANAGEMENT
-        "dom.ipc.processCount" = 8; # Content processes for 32-thread CPU
+        "dom.ipc.processCount" = 8; # Content processes
         "dom.ipc.keepProcessesAlive.web" = 4; # Keep processes alive for fast tabs
         "accessibility.force_disabled" = 1; # Disable accessibility (saves resources)
 
@@ -279,8 +279,8 @@ in
 
         # MEDIA - CODECS
         "dom.media.webcodecs.h265.enabled" = true; # H.265/HEVC in WebCodecs
-        "media.videocontrols.picture-in-picture.video-toggle.enabled" = true; # PiP toggle
-        "media.videocontrols.picture-in-picture.enable-when-switching-tabs.enabled" = true; # Auto-PiP on tab switch
+        "media.videocontrols.picture-in-picture.video-toggle.enabled" = false; # PiP toggle
+        "media.videocontrols.picture-in-picture.enable-when-switching-tabs.enabled" = false; # Auto-PiP on tab switch
 
         # MEDIA - LINUX HARDWARE ACCELERATION
         "media.ffmpeg.vaapi.enabled" = true; # VAAPI hardware decoding (Linux)
