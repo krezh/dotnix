@@ -21,6 +21,7 @@ runs:
       uses: DeterminateSystems/determinate-nix-action@v3.13.2
       with:
         init: none
+        force-no-systemd: true
         extra-conf: |
           accept-flake-config = true
           always-allow-substitutes = true
