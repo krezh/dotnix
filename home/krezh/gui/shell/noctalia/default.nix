@@ -252,11 +252,11 @@
       };
 
       notifications = {
+        enabled = true;
         backgroundOpacity = var.opacity;
         criticalUrgencyDuration = 15;
         doNotDisturb = false;
-        enabled = true;
-        location = "top-right";
+        location = "top_right";
         lowUrgencyDuration = 3;
         monitors = [ ];
         normalUrgencyDuration = 8;
@@ -311,7 +311,7 @@
       ui = {
         fontDefault = "Rubik Medium";
         fontDefaultScale = 1.1;
-        fontFixed = "JetBrainsMono Nerd Font";
+        fontFixed = "${var.fonts.mono}";
         fontFixedScale = 1.1;
         panelsAttachedToBar = true;
         settingsPanelAttachToBar = false;

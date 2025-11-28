@@ -2,6 +2,7 @@
   config,
   lib,
   pkgs,
+  var,
   ...
 }:
 let
@@ -48,7 +49,7 @@ in
             "Noto Color Emoji"
           ];
           monospace = [
-            "JetBrainsMono Nerd Font"
+            "${var.fonts.mono}"
             "Noto Color Emoji"
           ];
           emoji = [ "Noto Color Emoji" ];
@@ -77,6 +78,7 @@ in
         inter-nerdfont
         rubik
         nerd-fonts.jetbrains-mono
+        nerd-fonts.caskaydia-cove
       ];
     };
   };

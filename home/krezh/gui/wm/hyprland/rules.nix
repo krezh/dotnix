@@ -57,6 +57,8 @@
         # Float Terminal
         "float, class:floatTerm"
         "size 60% 60%, class:floatTerm"
+        "float, class:com.example.floatterm"
+        "size 60% 60%, class:com.example.floatterm"
         # Tag games
         "tag +games, class:^(gamescope)$"
         "tag +games, class:^(steam_proton)$"

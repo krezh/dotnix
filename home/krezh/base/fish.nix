@@ -53,14 +53,6 @@ in
         name = "bass";
         src = pkgs.fishPlugins.bass.src;
       }
-      {
-        name = "forgit";
-        src = pkgs.fishPlugins.forgit.src;
-      }
-      {
-        name = "z";
-        src = pkgs.fishPlugins.z.src;
-      }
     ];
     functions = {
       # Disable greeting

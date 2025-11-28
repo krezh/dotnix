@@ -1,4 +1,4 @@
-{ pkgs, ... }:
+{ pkgs, var, ... }:
 {
   programs.ghostty = {
     enable = true;
@@ -6,7 +6,7 @@
     enableFishIntegration = true;
     installBatSyntax = true;
     settings = {
-      font-family = "JetBrainsMono Nerd Font";
+      font-family = "${var.fonts.mono}";
       font-size = 12;
       font-style = "Bold";
       font-thicken = true;

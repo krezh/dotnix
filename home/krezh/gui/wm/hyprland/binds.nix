@@ -7,12 +7,12 @@
 let
   getBinaryName = pkg: pkg.meta.mainProgram or pkg.pname or pkg.name;
 
-  kitty = {
-    pkg = pkgs.kitty;
-    bin = lib.getExe kitty.pkg;
+  ghostty = {
+    pkg = pkgs.ghostty;
+    bin = lib.getExe ghostty.pkg;
   };
 
-  defaultTerminal = kitty.bin;
+  defaultTerminal = ghostty.bin;
 
   hyprlock = {
     pkg = config.programs.hyprlock.package;
@@ -33,10 +33,16 @@ let
     bin = lib.getExe keybinds.pkg;
   };
 
-  audioControl = {
+  audioControl = rec {
     pkg = pkgs.wiremix;
-    bin = lib.getExe audioControl.pkg;
-    name = getBinaryName audioControl.pkg;
+    bin = lib.getExe pkg;
+    name = getBinaryName pkg;
+  };
+
+  trayTui = rec {
+    pkg = pkgs.tray-tui;
+    bin = lib.getExe pkg;
+    name = getBinaryName pkg;
   };
 
   clipboardMgr = {
@@ -75,11 +81,11 @@ in
         "${mainMod},P,Launch bitwarden,exec,${lib.getExe pkgs.bww}"
         "${mainMod},RETURN,Launch terminal,exec,${defaultTerminal}"
         "${mainModShift},RETURN,Launch terminal,exec,[float] ${defaultTerminal}"
-        "${mainMod},T,Launch tray-tui,exec,[float] ${defaultTerminal} --class floatTerm -e ${lib.getExe pkgs.tray-tui}"
+        "${mainMod},T,Launch tray-tui,exec,[float] pkill ${trayTui.name} || ${defaultTerminal} --class=com.example.floatterm -e ${trayTui.bin}"
         "CTRL SHIFT,ESCAPE,Launch system resources monitor,exec,[float] ${lib.getExe pkgs.mission-center}"
         "${mainMod},V,Launch clipboard manager,exec,${clipboardMgr.bin}"
         "${mainMod},K,Show keybinds,exec,${keybinds.bin}"
-        "${mainMod},G,Launch Audio Control,exec,[float] pkill ${audioControl.name} || ${defaultTerminal} --class audioControl -e ${audioControl.bin} -m 100"
+        "${mainMod},G,Launch Audio Control,exec,[float] pkill ${audioControl.name} || ${defaultTerminal} --class=com.example.floatterm -e ${audioControl.bin} -m 100"
         "${mainMod},M,Launch Default Mail Client,exec,${mail.bin}"
         # HyprExpo workspace overview
         "${mainMod},TAB,Toggle workspace overview, hyprexpo:expo, toggle"

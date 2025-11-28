@@ -2,6 +2,7 @@
   lib,
   pkgs,
   inputs,
+  var,
   ...
 }:
 {
@@ -31,8 +32,8 @@
       base_keymap = "VSCode";
       ui_font_size = 17;
       ui_font_family = "Rubik";
-      buffer_font_size = 14;
-      buffer_font_family = "JetBrainsMono Nerd Font";
+      buffer_font_size = 15;
+      buffer_font_family = "${var.fonts.mono}";
       relative_line_numbers = "disabled";
       tab_size = 2;
       minimap.show = "never";

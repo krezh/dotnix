@@ -1,4 +1,4 @@
-{ ... }:
+{ var, ... }:
 {
   catppuccin.hyprlock.enable = false;
   programs.hyprlock = {
@@ -85,7 +85,7 @@
       $accent = $blue
       $accentAlpha = $blueAlpha
 
-      $font = JetBrainsMono Nerd Font
+      $font = ${var.fonts.mono}
 
       # GENERAL
       general {

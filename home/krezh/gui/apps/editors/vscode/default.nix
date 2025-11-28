@@ -2,6 +2,7 @@
   pkgs,
   lib,
   inputs,
+  var,
   ...
 }:
 {
@@ -57,7 +58,7 @@
         editor = {
           fontLigatures = true;
           minimap.enabled = false;
-          fontFamily = "'JetBrainsMono Nerd Font',monospace";
+          fontFamily = "'${var.fonts.mono}',monospace";
           defaultFormatter = "esbenp.prettier-vscode";
           formatOnPaste = true;
           formatOnSave = true;

@@ -1,4 +1,4 @@
-{ pkgs, ... }:
+{ pkgs, var, ... }:
 {
   programs.kitty = {
     enable = true;
@@ -10,7 +10,7 @@
       shell_integration = "no-cursor";
       input_delay = 2;
       font_size = 12;
-      font_family = "family=\"JetBrainsMono Nerd Font\"";
+      font_family = "family=\"${var.fonts.mono}\"";
       bold_font = "auto";
       italic_font = "auto";
       bold_italic_font = "auto";
@@ -20,6 +20,8 @@
       sync_to_monitor = "yes";
       scrollback_lines = 10000;
       confirm_os_window_close = 0;
+      window_padding_width = 3;
+      hide_window_decorations = "yes";
     };
     extraConfig = ''
       mouse_map right click grabbed,ungrabbed no-op

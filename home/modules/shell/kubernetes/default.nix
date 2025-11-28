@@ -94,7 +94,6 @@ in
       };
     };
 
-    hmModules.shell.krew.enable = true;
     hmModules.shell.kubectx.enable = true;
     hmModules.shell.talswitcher.enable = true;
     catppuccin.k9s.enable = true;
