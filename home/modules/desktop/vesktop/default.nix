@@ -20,13 +20,18 @@ in
     service = mkOption {
       type = lib.types.attrsOf lib.types.bool;
       default = {
-        enable = true;
+        enable = false;
       };
     };
 
     settings = mkOption {
       type = lib.types.attrs;
       default = { };
+    };
+
+    vencord.useSystem = mkOption {
+      type = lib.types.bool;
+      default = true;
     };
 
     vencord.settings = mkOption {
@@ -40,9 +45,12 @@ in
     programs.vesktop.package = cfg.package;
     programs.vesktop.settings = cfg.settings;
     programs.vesktop.vencord.settings = cfg.vencord.settings;
-    programs.vesktop.vencord.useSystem = false;
+    programs.vesktop.vencord.useSystem = cfg.vencord.useSystem;
+
     services.arrpc.enable = true;
     services.arrpc.package = pkgs.rsrpc;
+
+    home.packages = lib.mkIf cfg.vencord.useSystem [ pkgs.vencord ];
 
     systemd.user.services.vesktop = lib.mkIf cfg.service.enable {
       Install = {

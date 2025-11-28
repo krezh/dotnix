@@ -8,24 +8,17 @@
       vim = {
         viAlias = true;
         vimAlias = true;
-
         languages = {
           enableFormat = false;
           enableTreesitter = true;
           enableExtraDiagnostics = false;
           nix = {
             enable = true;
-            # format.enable = true;
-            # format.type = "nixpkgs-fmt";
-            # lsp.enable = true;
-            # lsp.server = "nixd";
           };
           markdown.enable = true;
           go.enable = true;
-          lua.enable = false;
           bash.enable = true;
         };
-
         visuals = {
           nvim-web-devicons.enable = true;
           nvim-scrollbar.enable = true;
@@ -33,63 +26,49 @@
           cellular-automaton.enable = false;
           fidget-nvim.enable = true;
           highlight-undo.enable = true;
-
           indent-blankline.enable = true;
-
           nvim-cursorline = {
             enable = true;
             setupOpts.line_timeout = 0;
           };
         };
-
         statusline = {
           lualine = {
             enable = true;
             theme = "catppuccin";
           };
         };
-
         theme = {
           enable = true;
           name = "catppuccin";
           style = "mocha";
           transparent = false;
         };
-
         autopairs.nvim-autopairs.enable = true;
-
         autocomplete.nvim-cmp = {
           enable = true;
         };
-
         tabline = {
           nvimBufferline.enable = true;
         };
-
         treesitter.context.enable = true;
-
         binds = {
           whichKey.enable = true;
           cheatsheet.enable = true;
         };
-
         telescope.enable = true;
-
         git = {
           enable = true;
           gitsigns.enable = true;
           gitsigns.codeActions.enable = false; # throws an annoying debug message
         };
-
         dashboard = {
           dashboard-nvim.enable = false;
           alpha.enable = true;
         };
-
         notify = {
           nvim-notify.enable = true;
         };
-
         ui = {
           borders.enable = true;
           noice.enable = true;
@@ -102,7 +81,6 @@
           };
           fastaction.enable = true;
         };
-
         comments = {
           comment-nvim.enable = true;
         };

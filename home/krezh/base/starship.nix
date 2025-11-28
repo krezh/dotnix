@@ -7,9 +7,9 @@
     enableZshIntegration = true;
     settings = {
       add_newline = true;
-      format = "$kubernetes\${custom.talos}\n$username$hostname$git_branch$git_commit$git_state$git_metrics$git_status$fill$cmd_duration$time\n$all";
+      format = "$username$hostname$git_branch$git_commit$git_state$git_metrics$git_status$fill$cmd_duration$time\n$directory$fill$kubernetes\${custom.talos}\n$character";
       kubernetes = {
-        format = "\\[[$context:$namespace](bold blue)\\] ";
+        format = "[$context](bold blue) • ";
         symbol = "⎈";
         disabled = false;
         contexts = [
@@ -21,8 +21,8 @@
         ];
       };
       custom.talos = {
-        command = "${lib.getExe pkgs.talosctl} config info --output json | ${lib.getExe pkgs.jq} --raw-output '.context'";
-        format = "\\[[$output](bold blue)\\] ";
+        command = "${lib.getExe pkgs.talosctl} config info --output json | ${lib.getExe pkgs.jq} --raw-output '.context' | tr -d '\\n'";
+        format = "[$output](bold blue)";
         when = "command -v ${lib.getExe pkgs.talosctl} &>/dev/null";
         disabled = false;
       };
@@ -48,8 +48,8 @@
       cmd_duration = {
         format = "took [$duration]($style) ";
         style = "yellow bold";
-        show_notifications = false;
-        min_time_to_notify = 45000;
+        show_notifications = true;
+        min_time_to_notify = 60000;
       };
       username = {
         style_user = "green bold";
@@ -79,6 +79,10 @@
       git_branch = {
         symbol = " ";
         format = "[$symbol$branch(:$remote_branch)]($style) ";
+      };
+      character = {
+        success_symbol = "[❯](bold green)";
+        error_symbol = "[❯](bold red)";
       };
     };
   };

@@ -2,7 +2,7 @@
 {
   hmModules.desktop.vesktop = {
     enable = true;
-    service.enable = true;
+    service.enable = false;
     settings = {
       appBadge = true;
       arRPC = true;
@@ -33,6 +33,11 @@
         NoF1.enabled = true;
         "WebRichPresence (arRPC)".enabled = true;
         WebScreenShareFixes.enabled = true;
+        ReplaceGoogleSearch = {
+          enabled = true;
+          customEngineName = "Kagi";
+          customEngineURL = "https://kagi.com/search?q=";
+        };
       };
       # themeLinks = [
       #   "https://catppuccin.github.io/discord/dist/catppuccin-mocha-lavender.theme.css"

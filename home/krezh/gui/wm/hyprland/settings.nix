@@ -56,7 +56,7 @@
       gaps_in = 5;
       gaps_out = 10;
       border_size = var.borderSize;
-      "col.active_border" = "$blue $mauve 125deg";
+      "col.active_border" = "$blue $green 125deg";
       "col.inactive_border" = "$base";
 
       allow_tearing = false;

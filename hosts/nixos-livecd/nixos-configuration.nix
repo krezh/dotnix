@@ -26,6 +26,17 @@
       pkgs.age-plugin-yubikey
       inputs.disko.packages.${pkgs.stdenv.hostPlatform.system}.disko-install
       inputs.disko.packages.${pkgs.stdenv.hostPlatform.system}.disko
+      pkgs.nvme-cli
+      pkgs.smartmontools
+      pkgs.pciutils
+      pkgs.usbutils
+      pkgs.gptfdisk
+      pkgs.iw
+      pkgs.tcpdump
+      pkgs.wireguard-tools
+      pkgs.tmux
+      pkgs.btop
+      pkgs.rsync
     ];
 
     networking.hostName = hostname;

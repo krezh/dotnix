@@ -66,6 +66,7 @@
 
   nixosModules.desktop = {
     openssh.enable = true;
+    battery.enable = true;
     fonts.enable = true;
     steam.enable = true;
     bluetooth.enable = true;

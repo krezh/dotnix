@@ -57,6 +57,10 @@ in
         name = "forgit";
         src = pkgs.fishPlugins.forgit.src;
       }
+      {
+        name = "z";
+        src = pkgs.fishPlugins.z.src;
+      }
     ];
     functions = {
       # Disable greeting

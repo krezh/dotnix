@@ -78,23 +78,6 @@ in
       enable = false;
     };
 
-    # systemd.user.services.steam = {
-    #   enable = true;
-    #   description = "Steam (no-GUI background startup)";
-    #   wantedBy = [ "graphical-session.target" ];
-    #   requires = [ "graphical-session.target" ];
-    #   path = [
-    #     "/run/current-system/sw"
-    #     "/run/wrappers/bin"
-    #   ];
-    #   serviceConfig = {
-    #     ExecStart = "${lib.getExe pkgs.steam} -nochatui -nofriendsui -silent %U";
-    #     Restart = "on-failure";
-    #     RestartSec = "5s";
-    #     Environment = [ "STEAM_EXTRA_COMPAT_TOOLS_PATHS=${defaultSteamCompatToolsPath}" ];
-    #   };
-    # };
-
     home-manager.users = lib.genAttrs homeUsers (_user: {
       catppuccin.mangohud.enable = false;
       programs.mangohud = {
