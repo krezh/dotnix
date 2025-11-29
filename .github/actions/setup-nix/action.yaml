@@ -25,7 +25,6 @@ runs:
           accept-flake-config = true
           always-allow-substitutes = true
           builders-use-substitutes = true
-          sandbox = false
 
     - name: Setup Attic
       if: inputs.skip-cache != 'true'
