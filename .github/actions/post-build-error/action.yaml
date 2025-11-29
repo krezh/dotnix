@@ -84,11 +84,5 @@ runs:
 
           </details>
 
-          ### 💡 Next Steps
-          1. Check the build logs above for specific error messages
-          2. Verify the flake configuration for `${{ inputs.build-name }}`
-          3. Test locally with the command above
-          4. Check if recent changes broke the build
-
           ---
           <sub>🤖 [View full logs](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})</sub>
