@@ -25,7 +25,7 @@ runs:
           accept-flake-config = true
           always-allow-substitutes = true
           builders-use-substitutes = true
-          build-dir = /tmp/nix-build
+          sandbox = false
 
     - name: Setup Attic
       if: inputs.skip-cache != 'true'
