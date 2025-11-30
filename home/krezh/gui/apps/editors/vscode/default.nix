@@ -71,7 +71,7 @@
           cursorBlinking = "phase";
           find.cursorMoveOnType = true;
           suggest.preview = true;
-          fontSize = 15;
+          fontSize = 16;
           tabSize = 2;
           accessibilitySupport = "off";
           bracketPairColorization.independentColorPoolPerBracketType = true;
