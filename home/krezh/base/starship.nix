@@ -9,7 +9,7 @@
       add_newline = true;
       format = "$username$hostname$git_branch$git_commit$git_state$git_metrics$git_status$fill$cmd_duration$time\n$directory$fill$kubernetes\${custom.talos}\n$character";
       kubernetes = {
-        format = "[$context](bold blue) • ";
+        format = "[$context](bold blue) $symbol ";
         symbol = "⎈";
         disabled = false;
         contexts = [

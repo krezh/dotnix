@@ -31,7 +31,9 @@
 
     input = {
       kb_layout = "se";
+      kb_variant = "nodeadkeys";
       follow_mouse = 2;
+      float_switch_override_focus = 0;
       accel_profile = "flat";
       numlock_by_default = true;
       touchpad = {
@@ -42,7 +44,7 @@
 
     plugin = {
       hyprexpo = {
-        columns = 3;
+        columns = 2;
         gap_size = 5;
         bg_col = "rgb(111111)";
         workspace_method = "center current"; # [center/first] [workspace] e.g. first 1 or center m+1
@@ -55,10 +57,9 @@
       layout = "dwindle";
       gaps_in = 5;
       gaps_out = 10;
-      border_size = var.borderSize;
+      border_size = 3;
       "col.active_border" = "$blue $green 125deg";
       "col.inactive_border" = "$base";
-
       allow_tearing = false;
     };
 

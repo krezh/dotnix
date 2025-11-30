@@ -34,6 +34,7 @@ in
       cilium-cli
       kubectl-rook-ceph
       k8s-format
+      kubevirt
       inputs.kauth.packages.${pkgs.stdenv.hostPlatform.system}.kauth
     ];
 

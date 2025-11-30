@@ -10,6 +10,7 @@
     inputs.chaotic.nixosModules.nyx-cache
     inputs.chaotic.nixosModules.nyx-overlay
     inputs.chaotic.nixosModules.nyx-registry
+    inputs.niri.nixosModules.niri
   ];
 
   boot = {
@@ -154,6 +155,10 @@
     enable = true;
   };
 
+  programs.niri.enable = true;
+  programs.niri.package = pkgs.niri-unstable;
+  nixpkgs.overlays = [ inputs.niri.overlays.niri ];
+
   hardware = {
     graphics = {
       enable = true;
@@ -161,7 +166,7 @@
     };
     amdgpu = {
       opencl.enable = true;
-      # initrd.enable = true;
+      initrd.enable = true;
       overdrive.enable = true;
     };
   };
