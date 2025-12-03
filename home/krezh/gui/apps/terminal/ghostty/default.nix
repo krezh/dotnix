@@ -14,8 +14,16 @@
       right-click-action = "paste";
       auto-update = "off";
       gtk-single-instance = true;
-      custom-shader-animation = true;
-      custom-shader = "${./shaders/cursor.glsl}";
+      # custom-shader-animation = true;
+      # custom-shader = "${./shaders/cursor.glsl}";
+      shell-integration-features = true;
+      app-notifications = "no-clipboard-copy";
+      keybind = [
+        "ctrl+g>r=reload_config"
+        "ctrl+g>g=toggle_tab_overview"
+        "ctrl+l=clear_screen"
+      ];
+      confirm-close-surface = "false";
     };
   };
 }

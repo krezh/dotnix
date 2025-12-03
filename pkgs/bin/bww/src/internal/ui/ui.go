@@ -12,7 +12,7 @@ import (
 )
 
 func Notify(message string) {
-	exec.Command("notify-send", "-u", "normal", "-a", "Bitwarden", message).Run()
+	exec.Command("notify-send", "--transient", "-t", "2000", "-u", "normal", "-a", "Bitwarden", message).Run()
 }
 
 func GetPassphrase(prompt string) (string, error) {

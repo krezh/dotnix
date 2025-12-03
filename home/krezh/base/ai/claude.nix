@@ -1,59 +1,16 @@
 {
   inputs,
   pkgs,
-  config,
-  lib,
   ...
 }:
 let
   nix-ai-tools = inputs.nix-ai-tools.packages.${pkgs.stdenv.hostPlatform.system};
-  github-mcp-wrapper = pkgs.writeShellScript "github-mcp-wrapper" ''
-    export GITHUB_PERSONAL_ACCESS_TOKEN="$(cat ${config.sops.secrets."github/mcp_token".path})"
-    exec ${lib.getExe pkgs.github-mcp-server} "$@"
-  '';
-  filesystem-mcp-wrapper = pkgs.writeShellScript "filesystem-mcp-wrapper" ''
-    export PATH="${pkgs.nodejs}/bin:$PATH"
-    exec ${pkgs.nodejs}/bin/npx -y @modelcontextprotocol/server-filesystem "$@"
-  '';
-  sequential-thinking-mcp-wrapper = pkgs.writeShellScript "sequential-thinking-mcp-wrapper" ''
-    export PATH="${pkgs.nodejs}/bin:$PATH"
-    exec ${pkgs.nodejs}/bin/npx -y @modelcontextprotocol/server-sequential-thinking "$@"
-  '';
 in
 {
   programs.claude-code = {
     enable = true;
     package = nix-ai-tools.claude-code;
-    mcpServers = {
-      github = {
-        type = "stdio";
-        command = "${github-mcp-wrapper}";
-        args = [
-          "--read-only"
-          "stdio"
-        ];
-      };
-      nixos = {
-        type = "stdio";
-        command = lib.getExe pkgs.mcp-nixos;
-      };
-      rust-analyzer = {
-        type = "stdio";
-        command = lib.getExe pkgs.rust-analyzer-mcp;
-      };
-      gopls = {
-        type = "stdio";
-        command = lib.getExe pkgs.mcp-gopls;
-      };
-      sequential-thinking = {
-        type = "stdio";
-        command = "${sequential-thinking-mcp-wrapper}";
-      };
-      filesystem = {
-        type = "stdio";
-        command = "${filesystem-mcp-wrapper}";
-      };
-    };
+    mcpServers = { };
 
     settings = {
       theme = "dark";

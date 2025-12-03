@@ -1,9 +1,9 @@
 { config, lib, ... }:
 let
-  cfg = config.nixosModules.desktop.battery;
+  cfg = config.nixosModules.battery;
 in
 {
-  options.nixosModules.desktop.battery = {
+  options.nixosModules.battery = {
     enable = lib.mkEnableOption "battery";
   };
 

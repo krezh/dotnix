@@ -8,7 +8,7 @@
 with lib;
 
 let
-  cfg = config.nixosModules.desktop.mount;
+  cfg = config.nixosModules.mount;
 
   mountOptions =
     { name, ... }:
@@ -172,7 +172,7 @@ let
 
 in
 {
-  options.nixosModules.desktop.mount = {
+  options.nixosModules.mount = {
     enable = mkEnableOption "SMB/CIFS and NFS mount service";
 
     mounts = mkOption {

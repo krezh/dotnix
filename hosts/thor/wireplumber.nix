@@ -1,6 +1,6 @@
 {
 
-  nixosModules.desktop.wireplumber = {
+  nixosModules.wireplumber = {
     enable = true;
     audioSwitching = {
       enable = true;

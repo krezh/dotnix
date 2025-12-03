@@ -29,7 +29,7 @@
     };
   };
 
-  nixosModules.desktop = {
+  nixosModules = {
     openssh.enable = true;
   };
 

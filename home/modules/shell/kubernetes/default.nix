@@ -5,16 +5,33 @@
   inputs,
   ...
 }:
-with lib;
 let
   cfg = config.hmModules.shell.kubernetes;
+  system = pkgs.stdenv.hostPlatform.system;
 in
 {
   options.hmModules.shell.kubernetes = {
-    enable = mkEnableOption "kubernetes";
+    enable = lib.mkEnableOption "kubernetes";
   };
 
-  config = mkIf cfg.enable {
+  config = lib.mkIf cfg.enable {
+
+    home.file.".kube/kuberc".text = lib.generators.toYAML { } {
+      apiVersion = "kubectl.config.k8s.io/v1beta1";
+      kind = "Preference";
+      defaults = [
+        {
+          command = "apply";
+          options = [
+            {
+              name = "server-side";
+              default = "true";
+            }
+          ];
+        }
+      ];
+    };
+
     home.packages = with pkgs; [
       talosctl
       kubectl
@@ -35,8 +52,13 @@ in
       kubectl-rook-ceph
       k8s-format
       kubevirt
-      inputs.kauth.packages.${pkgs.stdenv.hostPlatform.system}.kauth
+      inputs.kauth.packages.${system}.kauth
     ];
+
+    catppuccin = {
+      k9s.enable = true;
+      k9s.transparent = true;
+    };
 
     programs.fish = {
       shellAbbrs = {
@@ -46,61 +68,17 @@ in
         kubectl = "kubecolor";
       };
     };
-    programs.k9s = {
-      enable = true;
-      aliases = {
-        aliases = {
-          dp = "deployments";
-          sec = "v1/secrets";
-          cm = "configmaps";
-          ns = "namespaces";
-          sv = "serviceaccounts";
-          jo = "jobs";
-          cr = "clusterroles";
-          crb = "clusterrolebindings";
-          ro = "roles";
-          rb = "rolebindings";
-          np = "networkpolicies";
-          ing = "ingresses";
-          po = "pods";
-          svc = "services";
-          no = "nodes";
-          ds = "daemonsets";
-          sts = "statefulsets";
-          cj = "cronjobs";
-          ep = "endpoints";
-          htr = "httproutes";
-          gw = "gateway";
-          psp = "podsecuritypolicies";
-          sp = "securitypolicies";
-        };
-      };
-      plugins = { };
-      settings = {
-        k9s = {
-          liveViewAutoRefresh = true;
-          refreshRate = 2;
-          skipLatestRevCheck = true;
-          disablePodCounting = false;
-          ui = {
-            enableMouse = true;
-            headless = true;
-            logoless = true;
-            crumbsless = true;
-            reactive = true;
-            noIcons = false;
-            defaultsToFullScreen = true;
-          };
-        };
-      };
-    };
 
     hmModules.shell.kubectx.enable = true;
     hmModules.shell.talswitcher.enable = true;
-    catppuccin.k9s.enable = true;
-    catppuccin.k9s.transparent = true;
 
     programs = {
+      k9s = {
+        enable = true;
+        settings = import ./k9s/settings.nix;
+        plugins = import ./k9s/plugins.nix;
+        aliases = import ./k9s/aliases.nix;
+      };
       kubecolor = {
         enable = true;
         package = pkgs.kubecolor;

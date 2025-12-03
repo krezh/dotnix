@@ -3,7 +3,7 @@
   ...
 }:
 {
-  nixosModules.desktop.mount = {
+  nixosModules.mount = {
     enable = true;
     mounts = {
       "jotunheim-homes" = {

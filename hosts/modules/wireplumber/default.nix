@@ -12,7 +12,7 @@ let
     mkIf
     types
     ;
-  cfg = config.nixosModules.desktop.wireplumber;
+  cfg = config.nixosModules.wireplumber;
 
   # Helper function to extract device name from node names
   extractDeviceName =
@@ -130,7 +130,7 @@ let
 in
 
 {
-  options.nixosModules.desktop.wireplumber = {
+  options.nixosModules.wireplumber = {
     enable = mkEnableOption "custom audio device configuration";
 
     audioSwitching = {

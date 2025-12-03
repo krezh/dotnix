@@ -7,11 +7,11 @@
   ...
 }:
 let
-  cfg = config.nixosModules.desktop.steam;
+  cfg = config.nixosModules.steam;
   defaultSteamCompatToolsPath = "$HOME/.steam/root/compatibilitytools.d";
 in
 {
-  options.nixosModules.desktop.steam = {
+  options.nixosModules.steam = {
     enable = lib.mkEnableOption "steam";
   };
 
@@ -50,8 +50,8 @@ in
         enableRenice = true;
         settings = {
           custom = {
-            start = "${pkgs.libnotify}/bin/notify-send -t 5000 'GameMode' 'Started'";
-            end = "${pkgs.libnotify}/bin/notify-send -t 5000 'GameMode' 'Ended'";
+            start = "${pkgs.libnotify}/bin/notify-send --transient -t 5000 'GameMode' 'Started'";
+            end = "${pkgs.libnotify}/bin/notify-send --transient -t 5000 'GameMode' 'Ended'";
           };
         };
       };

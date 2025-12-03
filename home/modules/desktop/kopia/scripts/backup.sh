@@ -9,7 +9,7 @@ JSON_CONFIG="$4"
 
 KOPIA_PASSWORD="$(cat "$PASSWORD_FILE")"
 export KOPIA_PASSWORD
-KOPIA_PARALLEL=4
+KOPIA_PARALLEL=8
 
 mapfile -t BACKUP_PATHS < <(jq -r '.paths[]' "$JSON_CONFIG")
 mapfile -t EXCLUDES < <(jq -r '.exclude[]?' "$JSON_CONFIG")
@@ -38,7 +38,7 @@ notify() {
   if [[ $urgency == "critical" ]]; then
     notify-send "$title" "❌ $message" --icon=dialog-error --urgency="$urgency"
   else
-    notify-send -t 5000 "$title" "✅ $message" --icon=dialog-information --urgency="$urgency"
+    notify-send --transient -t 5000 "$title" "✅ $message" --icon=dialog-information --urgency="$urgency"
   fi
 }
 

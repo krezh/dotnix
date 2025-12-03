@@ -6,5 +6,6 @@
     gulp
     wowup-cf
     yubikey-manager
+    qbittorrent
   ];
 }

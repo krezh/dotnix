@@ -18,7 +18,7 @@ notify() {
   if [[ $urgency == "critical" ]]; then
     notify-send "$title" "❌ $message" --icon=dialog-error --urgency="$urgency"
   else
-    notify-send -t 5000 "$title" "✅ $message" --icon=dialog-information --urgency="$urgency"
+    notify-send --transient -t 5000 "$title" "✅ $message" --icon=dialog-information --urgency="$urgency"
   fi
 }
 

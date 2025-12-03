@@ -3,9 +3,11 @@ package notify
 import (
 	"context"
 	"fmt"
+	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -56,12 +58,21 @@ func (n *Notifier) send(urgency, message, url string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
+	validUrgency := []string{"low", "normal", "critical"}
+
+	if !slices.Contains(validUrgency, urgency) {
+		log.Fatal("Invalid Urgency: " + urgency)
+	}
+
 	args := []string{"-t", "5000"}
 	if n.iconPath != "" {
 		args = append(args, "-i", n.iconPath)
 	}
 	if urgency != "" {
 		args = append(args, "-u", urgency)
+		if urgency == "normal" {
+			args = append(args, "--transient")
+		}
 	}
 	if url != "" {
 		args = append(args, "-A", "open=Open URL")
@@ -100,8 +111,6 @@ func (n *Notifier) openURL(url string) {
 				continue
 			}
 
-			// Don't wait for browser to finish, just start it
-
 			fmt.Printf("✓ Opened URL with %s\n", cmdName)
 			return
 		}
@@ -131,17 +140,17 @@ func (n *Notifier) isCommandAvailable(cmdName string) bool {
 
 // Send sends a basic notification
 func (n *Notifier) Send(message string) error {
-	return n.send("", message, "")
+	return n.send("normal", message, "")
 }
 
 // SendSuccess sends a success notification
 func (n *Notifier) SendSuccess(message string) error {
-	return n.send("", "✓ "+message, "")
+	return n.send("normal", "✓ "+message, "")
 }
 
 // SendSuccessWithAction sends a success notification with an action button
 func (n *Notifier) SendSuccessWithAction(message, url string) error {
-	return n.send("", "✓ "+message, url)
+	return n.send("normal", "✓ "+message, url)
 }
 
 // SendError sends an error notification

@@ -5,10 +5,10 @@
   ...
 }:
 let
-  cfg = config.nixosModules.desktop.openssh;
+  cfg = config.nixosModules.openssh;
 in
 {
-  options.nixosModules.desktop.openssh = {
+  options.nixosModules.openssh = {
     enable = lib.mkEnableOption "openssh";
   };
 

@@ -49,12 +49,12 @@ switch_to_sink() {
 
         # Send notification if available
         if command -v notify-send &> /dev/null; then
-            notify-send "Audio Switched" "Now using: $sink_name" -t 2000
+            notify-send --transient "Audio Switched" "Now using: $sink_name" -t 2000
         fi
     else
         echo "Error: $sink_name is not available"
         if command -v notify-send &> /dev/null; then
-            notify-send "Audio Switch Failed" "$sink_name is not available" -t 3000
+            notify-send --transient "Audio Switch Failed" "$sink_name is not available" -t 3000
         fi
         return 1
     fi

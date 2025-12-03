@@ -90,3 +90,10 @@ fast-build:
     #!/usr/bin/env bash
     set -euo pipefail
     nix run nixpkgs#nix-fast-build -- --skip-cached --flake ".#top" --attic-cache krezh
+
+# Initialize a new nix package
+[no-cd]
+init package:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    nix-init pkgs/bin/{{ package }}/default.nix

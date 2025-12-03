@@ -65,12 +65,13 @@
     libgnome-keyring
   ];
 
-  nixosModules.desktop = {
+  nixosModules = {
     openssh.enable = true;
     battery.enable = true;
     fonts.enable = true;
     steam.enable = true;
     bluetooth.enable = true;
+    claude-code.enable = true;
   };
 
   services.hardware.openrgb = {

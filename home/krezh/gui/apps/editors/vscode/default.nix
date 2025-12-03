@@ -6,9 +6,24 @@
   ...
 }:
 {
+  catppuccin.vscode = {
+    profiles.default = {
+      accent = "blue";
+      settings = {
+        boldKeywords = true;
+        italicComments = true;
+        italicKeywords = true;
+        colorOverrides = { };
+        customUIColors = { };
+        workbenchMode = "minimal";
+        bracketMode = "rainbow";
+        extraBordersEnabled = false;
+      };
+    };
+  };
   programs.vscode = {
     enable = true;
-    package = pkgs.vscodium-fhs;
+    package = pkgs.vscodium;
     profiles.default = {
       enableExtensionUpdateCheck = false;
       enableUpdateCheck = false;
@@ -379,6 +394,6 @@
   home.file.".vscode-oss/argv.json".text = builtins.toJSON {
     password-store = "gnome-libsecret";
     enable-crash-reporter = false;
-    crash-reporter-id = "38bde5df-002a-4f24-8170-ad11452b15a4";
+    #crash-reporter-id = "38bde5df-002a-4f24-8170-ad11452b15a4";
   };
 }

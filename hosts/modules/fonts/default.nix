@@ -6,10 +6,10 @@
   ...
 }:
 let
-  cfg = config.nixosModules.desktop.fonts;
+  cfg = config.nixosModules.fonts;
 in
 {
-  options.nixosModules.desktop.fonts = {
+  options.nixosModules.fonts = {
     enable = lib.mkEnableOption "fonts";
   };
 

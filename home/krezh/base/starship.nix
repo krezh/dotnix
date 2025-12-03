@@ -21,7 +21,7 @@
         ];
       };
       custom.talos = {
-        command = "${lib.getExe pkgs.talosctl} config info --output json | ${lib.getExe pkgs.jq} --raw-output '.context' | tr -d '\\n'";
+        command = "${lib.getExe pkgs.talosctl} config info --output json | ${lib.getExe pkgs.jq} --raw-output '.context'";
         format = "[$output](bold blue)";
         when = "command -v ${lib.getExe pkgs.talosctl} &>/dev/null";
         disabled = false;

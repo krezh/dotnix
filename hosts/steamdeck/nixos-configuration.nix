@@ -31,7 +31,7 @@
     networkmanager.enable = true;
   };
 
-  nixosModules.desktop = {
+  nixosModules = {
     battery.enable = true;
     openssh.enable = true;
     fonts.enable = true;
