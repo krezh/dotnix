@@ -52,18 +52,13 @@ in
           inputs.niri.nixosModules.niri
         ];
       };
-      nixos-livecd = {
-        system = "x86_64-linux";
-        includeCommon = false;
-        ci = false;
-      };
     };
 
     overlays = import ../overlays { inherit inputs lib; };
     homeManagerModules = lib.scanPath.toList { path = ../home/modules; };
     nixosModules.default = lib.scanPath.toImports ../hosts/modules;
 
-    top = lib.mapAttrs (_name: config: config.config.system.build.toplevel) (
+    hosts = lib.mapAttrs (_name: config: config.config.system.build.toplevel) (
       lib.filterAttrs (_name: config: (config.ci or true)) self.nixosConfigurations
     );
 

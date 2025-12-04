@@ -30,7 +30,7 @@ Settings → System → Check for updates
 Download latest ISO from [releases](https://github.com/krezh/nix-config/releases)
 
 ```bash
-sudo dd if=nixos-livecd-*.iso of=/dev/sdX bs=4M status=progress oflag=sync
+sudo dd if=livecd-*.iso of=/dev/sdX bs=4M status=progress oflag=sync
 ```
 
 ## Step 4: Boot from USB

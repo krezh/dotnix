@@ -82,14 +82,14 @@ fast-build-pr pr:
     #!/usr/bin/env bash
     set -euo pipefail
     nix run nixpkgs#nix-fast-build -- \
-      --skip-cached --flake "github:krezh/nix-config/pull/{{ pr }}/head#top" --attic-cache krezh
+      --skip-cached --flake "github:krezh/nix-config/pull/{{ pr }}/head#hosts" --attic-cache krezh
 
-# Build the top-level flake
+# Build all hosts
 [no-cd]
 fast-build:
     #!/usr/bin/env bash
     set -euo pipefail
-    nix run nixpkgs#nix-fast-build -- --skip-cached --flake ".#top" --attic-cache krezh
+    nix run nixpkgs#nix-fast-build -- --skip-cached --flake ".#hosts" --attic-cache krezh
 
 # Initialize a new nix package
 [no-cd]

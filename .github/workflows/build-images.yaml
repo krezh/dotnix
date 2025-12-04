@@ -1,0 +1,136 @@
+---
+name: Build Images
+
+on:
+  pull_request:
+    branches:
+      - "test-**"
+    branches-ignore:
+      - "main"
+  push:
+    branches:
+      - "test-**"
+    branches-ignore:
+      - "main"
+  schedule:
+    - cron: "0 0 * * 0"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  NIX_CONFIG: |
+    accept-flake-config = true
+    always-allow-substitutes = true
+    builders-use-substitutes = true
+
+jobs:
+  setup:
+    name: Setup Build Matrix
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
+
+      - name: Install Nix
+        uses: nixbuild/nix-quick-install-action@2c9db80fb984ceb1bcaa77cdda3fdf8cfba92035 # v34
+        with:
+          nix_conf: ${{ env.NIX_CONFIG }}
+
+      - name: Get image list
+        id: set-matrix
+        run: |
+          images=$(nix eval --json '.#images' --apply 'builtins.attrNames' | jq -c '{include: map({image: .})}')
+          echo "matrix=$images" >> $GITHUB_OUTPUT
+
+  build:
+    name: Build ${{ matrix.image }}
+    needs: setup
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.setup.outputs.matrix) }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
+        with:
+          fetch-depth: 0
+
+      - name: Install Nix
+        uses: nixbuild/nix-quick-install-action@2c9db80fb984ceb1bcaa77cdda3fdf8cfba92035 # v34
+        with:
+          nix_conf: ${{ env.NIX_CONFIG }}
+
+      - name: Garbage collect build dependencies
+        run: nix-collect-garbage
+
+      - name: Build ${{ matrix.image }} image
+        id: build
+        run: |
+          set -o pipefail
+          build_start=$(date +%s)
+
+          nix build \
+            ".#images.${{ matrix.image }}" \
+            --fallback \
+            --log-format raw \
+            --print-build-logs 2>&1 | tee build.log || {
+            {
+              echo 'error-log<<EOF_ERROR_LOG'
+              grep -iE 'error|failed|cannot|fatal|panic' build.log | tail -n 100 || tail -n 50 build.log
+              echo 'EOF_ERROR_LOG'
+            } >> $GITHUB_OUTPUT
+            exit 1
+          }
+
+          build_end=$(date +%s)
+          build_duration=$((build_end - build_start))
+          echo "build_duration=$build_duration" >> $GITHUB_OUTPUT
+
+      - name: Create tag
+        if: success()
+        id: tag
+        run: echo tag="$(date -u +"%Y-%m-%d")-$(openssl rand -hex 5)" >> "${GITHUB_OUTPUT}"
+
+      - name: Get image info
+        if: success()
+        id: image-info
+        run: |
+          # Find the image file (could be .iso, .qcow2, etc.)
+          image_path=$(find ./result -type f \( -name "*.iso" -o -name "*.qcow2" -o -name "*.img" -o -name "*.raw" \) | head -1)
+          if [ -z "$image_path" ]; then
+            echo "No image file found in result/"
+            ls -la result/
+            exit 1
+          fi
+
+          image_size=$(du -h "$image_path" | cut -f1)
+          extension="${image_path##*.}"
+
+          echo "path=$image_path" >> $GITHUB_OUTPUT
+          echo "size=$image_size" >> $GITHUB_OUTPUT
+          echo "extension=$extension" >> $GITHUB_OUTPUT
+          echo "name=nixos-${{ matrix.image }}-${{ steps.tag.outputs.tag }}.$extension" >> $GITHUB_OUTPUT
+
+      - name: Copy image
+        if: success()
+        run: |
+          cp "${{ steps.image-info.outputs.path }}" "/tmp/${{ steps.image-info.outputs.name }}"
+
+      - name: Release image
+        if: success()
+        uses: softprops/action-gh-release@a06a81a03ee405af7f2048a818ed3f03bbf83c7b # v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          name: "${{ matrix.image }}: ${{ steps.tag.outputs.tag }}"
+          files: /tmp/${{ steps.image-info.outputs.name }}
+          generate_release_notes: true
+          make_latest: true
+          tag_name: ${{ matrix.image }}-${{ steps.tag.outputs.tag }}

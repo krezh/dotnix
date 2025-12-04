@@ -107,7 +107,7 @@ jobs:
         id: build
         uses: ./.github/actions/nix-build
         with:
-          target: top.${{ matrix.host }}
+          target: hosts.${{ matrix.host }}
           build-type: system
           output-link: result
 
@@ -135,7 +135,7 @@ jobs:
         with:
           build-type: system
           build-name: ${{ matrix.host }}
-          flake-target: top.${{ matrix.host }}
+          flake-target: hosts.${{ matrix.host }}
           error-log: ${{ steps.build.outputs.error-log }}
           build-duration: ${{ steps.build.outputs.build_duration }}
           runner: ${{ matrix.runner }}

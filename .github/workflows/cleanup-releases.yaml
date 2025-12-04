@@ -1,0 +1,46 @@
+---
+name: Cleanup Old Releases
+
+on:
+  schedule:
+    - cron: "0 2 * * 0" # Weekly on Sunday at 2 AM UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup:
+    name: Cleanup old releases
+    runs-on: ubuntu-latest
+    steps:
+      - name: Delete old releases
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Get all releases and extract unique image prefixes
+          image_types=$(gh release list --repo ${{ github.repository }} --limit 1000 --json tagName \
+            --jq '[.[].tagName | match("^(.+)-[0-9]{4}-[0-9]{2}-[0-9]{2}-[a-f0-9]+$").captures[0].string] | unique | .[]')
+
+          if [ -z "$image_types" ]; then
+            echo "No releases found"
+            exit 0
+          fi
+
+          # Process each image type
+          echo "$image_types" | while read -r image_type; do
+            echo "Processing releases for: $image_type"
+
+            releases=$(gh release list --repo ${{ github.repository }} --limit 1000 --json tagName,createdAt \
+              --jq "[.[] | select(.tagName | startswith(\"$image_type-\"))] | sort_by(.createdAt) | reverse | .[10:] | .[].tagName")
+
+            if [ -z "$releases" ]; then
+              echo "No old releases to delete for $image_type"
+              continue
+            fi
+
+            echo "$releases" | while read -r tag; do
+              echo "Deleting release: $tag"
+              gh release delete "$tag" --repo ${{ github.repository }} --yes --cleanup-tag
+            done
+          done
