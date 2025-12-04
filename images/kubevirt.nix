@@ -1,10 +1,21 @@
 {
   pkgs,
   hostname,
+  lib,
+  modulesPath,
+  config,
   ...
 }:
 {
   nixpkgs.hostPlatform = "x86_64-linux";
+
+  system.build.kubevirtImage = lib.mkForce (
+    import "${toString modulesPath}/../lib/make-disk-image.nix" {
+      inherit lib config pkgs;
+      inherit (config.image) baseName;
+      format = "qcow2-compressed";
+    }
+  );
 
   users.users.root.openssh.authorizedKeys.keys = [
     "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIANNodE0rg2XalK+tfsqfPwLdBRJIx15IjGwkr5Bud+W"
