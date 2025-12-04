@@ -99,7 +99,7 @@ jobs:
         if: success()
         id: image-info
         run: |
-          image_path=$(find result -type f \( -name "*.iso" -o -name "*.qcow2" -o -name "*.img" -o -name "*.raw" \))
+          image_path=$(find -L result -type f \( -name "*.iso" -o -name "*.qcow2" -o -name "*.img" -o -name "*.raw" \))
 
           if [ -z "$image_path" ]; then
             echo "No image file found"
