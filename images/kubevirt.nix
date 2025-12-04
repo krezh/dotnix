@@ -1,6 +1,5 @@
 {
   pkgs,
-  hostname,
   lib,
   modulesPath,
   config,
@@ -26,6 +25,10 @@
     trusted-users = [ "root" ];
     max-jobs = "auto";
     builders-use-substitutes = true;
+    experimental-features = [
+      "nix-command"
+      "flakes"
+    ];
   };
 
   environment.systemPackages = [
@@ -33,7 +36,6 @@
     pkgs.gitMinimal
   ];
 
-  networking.hostName = hostname;
   time.timeZone = "Europe/Stockholm";
   console.keyMap = "sv-latin1";
 

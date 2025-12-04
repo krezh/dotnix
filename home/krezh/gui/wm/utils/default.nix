@@ -6,6 +6,8 @@
     grim
     wl-clipboard
     wl-screenrec
+    recshot
+    gulp
 
     # Hyprland-specific
     hyprpicker

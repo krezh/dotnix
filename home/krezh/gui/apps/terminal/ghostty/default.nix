@@ -2,6 +2,7 @@
 {
   programs.ghostty = {
     enable = true;
+
     package = pkgs.ghostty;
     enableFishIntegration = true;
     installBatSyntax = true;
@@ -13,7 +14,8 @@
       copy-on-select = "clipboard";
       right-click-action = "paste";
       auto-update = "off";
-      gtk-single-instance = true;
+      quit-after-last-window-closed = false;
+      # gtk-single-instance = true;
       # custom-shader-animation = true;
       # custom-shader = "${./shaders/cursor.glsl}";
       shell-integration-features = true;

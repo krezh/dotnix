@@ -45,6 +45,7 @@
         bmalehorn.vscode-fish
         waderyan.gitblame
         alefragnani.project-manager
+        wakatime.vscode-wakatime
       ];
       userSettings = {
         # Telemetry and updates

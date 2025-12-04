@@ -8,6 +8,6 @@
   };
   # Opacity
   opacity = 0.98;
-  borderSize = 2;
+  borderSize = 3;
   rounding = 0;
 }

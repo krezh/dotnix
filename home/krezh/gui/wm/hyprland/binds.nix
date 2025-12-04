@@ -5,88 +5,68 @@
   ...
 }:
 let
-  getBinaryName = pkg: pkg.meta.mainProgram or pkg.pname or pkg.name;
-
-  ghostty = {
-    pkg = pkgs.ghostty;
-    bin = lib.getExe ghostty.pkg;
+  # Creates a program definition with run command and process name for toggling.
+  mkProg = pkg: {
+    run = lib.getExe pkg;
+    name = pkg.meta.mainProgram or pkg.pname or pkg.name;
   };
+  mkProgWith = pkg: args: mkProg pkg // { run = "${lib.getExe pkg} ${args}"; };
 
-  defaultTerminal = ghostty.bin;
+  term =
+    let
+      base = lib.getExe pkgs.ghostty;
+    in
+    {
+      run = "${base} +new-window";
+      float = cmd: "${base} --class=com.example.floatterm -e ${cmd} +new-window";
+      toggle = proc: cmd: "pkill ${proc} || ${base} --class=com.example.floatterm -e ${cmd} +new-window";
+    };
 
-  hyprlock = {
-    pkg = config.programs.hyprlock.package;
-    bin = lib.getExe hyprlock.pkg;
-  };
-
-  launcher = {
-    bin = "${pkgs.netcat}/bin/nc -U /run/user/$(id -u)/walker/walker.sock";
-  };
-
-  shell = {
-    pkg = config.programs.noctalia-shell.package;
-    bin = "${lib.getExe shell.pkg} ipc call";
-  };
-
-  keybinds = {
-    pkg = pkgs.hyprland_keybinds;
-    bin = lib.getExe keybinds.pkg;
-  };
-
-  audioControl = rec {
-    pkg = pkgs.wiremix;
-    bin = lib.getExe pkg;
-    name = getBinaryName pkg;
-  };
-
-  trayTui = rec {
-    pkg = pkgs.tray-tui;
-    bin = lib.getExe pkg;
-    name = getBinaryName pkg;
-  };
-
-  clipboardMgr = {
-    pkg = config.programs.walker.package;
-    bin = "${lib.getExe clipboardMgr.pkg} -m clipboard";
-  };
-
-  mail = {
-    pkg = pkgs.geary;
-    bin = "${mail.pkg}/bin/geary";
-  };
-
+  browser = mkProg config.programs.zen-browser.package;
+  fileManager = mkProg pkgs.nautilus;
+  passwords = mkProg pkgs.bww;
+  sysMonitor = mkProg pkgs.mission-center;
+  logout = mkProg pkgs.wlogout;
+  hyprlock.run = "${lib.getExe config.programs.hyprlock.package} --immediate";
+  launcher.run = "${pkgs.netcat}/bin/nc -U /run/user/$(id -u)/walker/walker.sock";
+  shell.run = lib.getExe config.programs.noctalia-shell.package;
+  keybinds.run = lib.getExe pkgs.hyprland_keybinds;
+  clipboardMgr.run = "${lib.getExe config.programs.walker.package} -m clipboard";
+  mail.run = lib.getExe' pkgs.geary "geary";
+  audioControl = mkProgWith pkgs.wiremix "-m 100";
+  trayTui = mkProg pkgs.tray-tui;
   volume_script = lib.getExe pkgs.volume_script_hyprpanel;
   brightness_script = lib.getExe pkgs.brightness_script_hyprpanel;
 
   recShot = "${lib.getExe pkgs.recshot} -t ${
     config.sops.secrets."zipline/token".path
-  } -u https://zipline.talos.plexuz.xyz --zipline";
+  } -u https://zipline.talos.plexuz.xyz";
 
   mainMod = "SUPER";
   mainModShift = "${mainMod} SHIFT";
-
 in
 {
   wayland.windowManager.hyprland = {
     settings = {
+      "$mainMod" = "${mainMod}";
       bindd = [
-        "${mainMod},ESCAPE,Show logout menu,exec,${lib.getExe pkgs.wlogout}"
-        "${mainMod},L,Lock the screen immediately,exec,${hyprlock.bin} --immediate"
-        "${mainMod},R,Launch application launcher,exec,${launcher.bin}"
-        "${mainMod},N,Launch notifications,exec,${shell.bin} notifications toggleHistory"
-        "${mainMod} CTRL,N,Clear notifications,exec,${shell.bin} notifications clear"
-        "${mainMod},B,Launch Zen Browser,exec,${lib.getExe config.programs.zen-browser.package}"
-        "${mainMod},E,Launch Nautilus file manager,exec,${lib.getExe pkgs.nautilus}"
-        "${mainModShift},E,Launch Nautilus file manager in floating mode,exec,[float] ${lib.getExe pkgs.nautilus}"
-        "${mainMod},P,Launch bitwarden,exec,${lib.getExe pkgs.bww}"
-        "${mainMod},RETURN,Launch terminal,exec,${defaultTerminal}"
-        "${mainModShift},RETURN,Launch terminal,exec,[float] ${defaultTerminal}"
-        "${mainMod},T,Launch tray-tui,exec,[float] pkill ${trayTui.name} || ${defaultTerminal} --class=com.example.floatterm -e ${trayTui.bin}"
-        "CTRL SHIFT,ESCAPE,Launch system resources monitor,exec,[float] ${lib.getExe pkgs.mission-center}"
-        "${mainMod},V,Launch clipboard manager,exec,${clipboardMgr.bin}"
-        "${mainMod},K,Show keybinds,exec,${keybinds.bin}"
-        "${mainMod},G,Launch Audio Control,exec,[float] pkill ${audioControl.name} || ${defaultTerminal} --class=com.example.floatterm -e ${audioControl.bin} -m 100"
-        "${mainMod},M,Launch Default Mail Client,exec,${mail.bin}"
+        "${mainMod},ESCAPE,Logout Menu,exec,${logout.run}"
+        "${mainMod},L,Lockscreen,exec,${hyprlock.run}"
+        "${mainMod},R,Application launcher,exec,${launcher.run}"
+        "${mainMod},N,Notifications,exec,${shell.run} ipc call notifications toggleHistory"
+        "${mainModShift},N,Clear notifications,exec,${shell.run} ipc call notifications clear"
+        "${mainMod},B,Browser,exec,${browser.run}"
+        "${mainMod},E,File Manager,exec,${fileManager.run}"
+        "${mainModShift},E,Floating File Manager,exec,[float] ${fileManager.run}"
+        "${mainMod},P,Passwords,exec,${passwords.run}"
+        "${mainMod},RETURN,Terminal,exec,${term.run}"
+        "${mainModShift},RETURN,Terminal,exec,[float] ${term.run}"
+        "${mainMod},T,Tray-Tui,exec,[float] ${term.toggle trayTui.name trayTui.run}"
+        "CTRL SHIFT,ESCAPE,System Monitor,exec,[float] ${sysMonitor.run}"
+        "${mainMod},V,Clipboard Manager,exec,${clipboardMgr.run}"
+        "${mainMod},K,Show keybinds,exec,${keybinds.run}"
+        "${mainMod},G,Audio Control,exec,[float] ${term.toggle audioControl.name audioControl.run}"
+        "${mainMod},M,Mail Client,exec,${mail.run}"
         # HyprExpo workspace overview
         "${mainMod},TAB,Toggle workspace overview, hyprexpo:expo, toggle"
         # Audio device switching
@@ -97,6 +77,7 @@ in
         "ALT,PRINT,Window screenshot,exec,${recShot} -m image-window"
         "SHIFT ALT,S,Area screen recording,exec,${recShot} -m video-area"
         "SHIFT,PRINT,Window screen recording,exec,${recShot} -m video-window"
+        "${mainModShift},C,Gulp OCR,exec,${lib.getExe pkgs.gulp} --ocr --no-snap"
 
         # Window management
         "${mainMod},Q,Close active window,killactive"

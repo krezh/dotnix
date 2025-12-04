@@ -9,9 +9,9 @@
 
     # https://github.com/hyprwm/hyprland-plugins/tree/main/hyprscrolling
     plugin.hyprscrolling = {
-      fullscreen_on_one_column = false;
-      column_width = 1.0;
-      explicit_column_widths = "0.25, 0.5, 1.0";
+      fullscreen_on_one_column = true;
+      column_width = 1;
+      explicit_column_widths = "0.333, 0.5, 0.667, 1.0";
       focus_fit_method = 1;
       follow_focus = true;
     };

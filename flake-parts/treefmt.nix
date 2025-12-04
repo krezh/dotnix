@@ -6,9 +6,7 @@
       treefmt = {
         projectRootFile = "flake.nix";
         settings = {
-          global.excludes = [
-            "*.sops.yaml"
-          ];
+          global.excludes = [ "*.sops.yaml" ];
         };
         programs = {
           nixfmt = {

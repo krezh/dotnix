@@ -123,10 +123,10 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    niri = {
-      url = "github:sodiboo/niri-flake";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
+    # niri = {
+    #   url = "github:sodiboo/niri-flake";
+    #   inputs.nixpkgs.follows = "nixpkgs";
+    # };
 
     nixos-generators = {
       url = "github:nix-community/nixos-generators";

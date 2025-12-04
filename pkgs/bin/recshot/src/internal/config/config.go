@@ -53,12 +53,8 @@ func (c *Config) Validate() error {
 	}
 
 	if c.Zipline {
-		if c.ZiplineURL == "" {
-			return &ValidationError{Field: "url", Message: "Zipline URL is required when --zipline is enabled. Use -u/--url to specify it"}
-		}
-
 		if _, err := os.Stat(c.TokenFile); os.IsNotExist(err) {
-			return &ValidationError{Field: "token", Message: fmt.Sprintf("token file not found: %s. Use -t/--token to specify a different path", c.TokenFile)}
+			return &ValidationError{Field: "token", Message: fmt.Sprintf("token file not found: %s", c.TokenFile)}
 		}
 
 		// Check if token file is readable and not empty using buffered I/O

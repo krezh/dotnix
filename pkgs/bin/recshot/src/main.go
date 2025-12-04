@@ -20,6 +20,10 @@ import (
 func main() {
 	cfg := config.New()
 
+	// Track which flags were explicitly set
+	urlSet := false
+	tokenSet := false
+
 	// Define flags
 	flag.StringVar(&cfg.ZiplineURL, "url", cfg.ZiplineURL, "Zipline URL")
 	flag.StringVar(&cfg.ZiplineURL, "u", cfg.ZiplineURL, "Zipline URL (short)")
@@ -31,7 +35,6 @@ func main() {
 	flag.StringVar(&cfg.SavePath, "p", cfg.SavePath, "Save path (short)")
 	flag.BoolVar(&cfg.UseOriginalName, "original-name", cfg.UseOriginalName, "Use original filename")
 	flag.BoolVar(&cfg.UseOriginalName, "o", cfg.UseOriginalName, "Use original filename (short)")
-	flag.BoolVar(&cfg.Zipline, "zipline", cfg.Zipline, "Upload to Zipline")
 	flag.BoolVar(&cfg.Status, "status", cfg.Status, "Show recording status")
 
 	help := flag.Bool("help", false, "Show help")
@@ -60,18 +63,27 @@ func main() {
 		fmt.Fprintf(os.Stderr, "  -h, --help             Show this help message\n\n")
 
 		fmt.Fprintf(os.Stderr, "ZIPLINE OPTIONS:\n")
-		fmt.Fprintf(os.Stderr, "      --zipline          Upload to Zipline after capture (requires --url and token file)\n")
-		fmt.Fprintf(os.Stderr, "  -u, --url URL          Zipline server URL (required with --zipline)\n")
+		fmt.Fprintf(os.Stderr, "  -u, --url URL          Zipline server URL (both --url and --token are required for upload)\n")
 		fmt.Fprintf(os.Stderr, "  -t, --token FILE       Zipline token file path (default: ~/.config/zipline/token)\n\n")
 
 		fmt.Fprintf(os.Stderr, "EXAMPLES:\n")
 		fmt.Fprintf(os.Stderr, "  %s -m image-area                    # Select area to screenshot\n", os.Args[0])
 		fmt.Fprintf(os.Stderr, "  %s -m image-screen -p ~/Pictures   # Full screenshot to ~/Pictures\n", os.Args[0])
-		fmt.Fprintf(os.Stderr, "  %s -m video-area --zipline -u https://your.zipline.com  # Record area and upload\n", os.Args[0])
+		fmt.Fprintf(os.Stderr, "  %s -m video-area -u https://your.zipline.com -t ~/.config/zipline/token  # Record and upload\n", os.Args[0])
 		fmt.Fprintf(os.Stderr, "  %s --status                         # Check recording status\n", os.Args[0])
 	}
 
 	flag.Parse()
+
+	// Check which flags were actually set
+	flag.Visit(func(f *flag.Flag) {
+		if f.Name == "url" || f.Name == "u" {
+			urlSet = true
+		}
+		if f.Name == "token" || f.Name == "t" {
+			tokenSet = true
+		}
+	})
 
 	if *help {
 		flag.Usage()
@@ -83,6 +95,19 @@ func main() {
 		fmt.Fprintf(os.Stderr, "Error: mode is required when not using status\n\n")
 		flag.Usage()
 		os.Exit(1)
+	}
+
+	// Check if both URL and token are provided when either is set
+	if urlSet || tokenSet {
+		if !urlSet {
+			fmt.Fprintf(os.Stderr, "Error: Both --url and --token are required for Zipline upload. Missing --url\n\n")
+			os.Exit(1)
+		}
+		if !tokenSet {
+			fmt.Fprintf(os.Stderr, "Error: Both --url and --token are required for Zipline upload. Missing --token\n\n")
+			os.Exit(1)
+		}
+		cfg.Zipline = true
 	}
 
 	run(cfg)

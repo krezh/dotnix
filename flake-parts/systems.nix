@@ -41,16 +41,12 @@ in
         system = "x86_64-linux";
         homeUsers = [ "krezh" ];
         profiles = [ "gui" ];
-        extraModules = [ inputs.niri.nixosModules.niri ];
       };
       steamdeck = {
         system = "x86_64-linux";
         homeUsers = [ "krezh" ];
         profiles = [ "gui" ];
-        extraModules = [
-          inputs.jovian.nixosModules.default
-          inputs.niri.nixosModules.niri
-        ];
+        extraModules = [ inputs.jovian.nixosModules.default ];
       };
     };
 

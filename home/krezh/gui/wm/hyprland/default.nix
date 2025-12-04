@@ -7,6 +7,7 @@
     ./smartgaps.nix
     ./rules.nix
     # ./scrolling.nix
+    ./animations.nix
   ];
 
   services.polkit-gnome.enable = true;
