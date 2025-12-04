@@ -99,14 +99,16 @@ jobs:
         if: success()
         id: image-info
         run: |
-          # Find the image file (could be .iso, .qcow2, etc.)
-          image_path=$(find ./result -type f \( -name "*.iso" -o -name "*.qcow2" -o -name "*.img" -o -name "*.raw" \) | head -1)
+          image_path=$(find result -type f \( -name "*.iso" -o -name "*.qcow2" -o -name "*.img" -o -name "*.raw" \))
+
           if [ -z "$image_path" ]; then
-            echo "No image file found in result/"
-            ls -la result/
+            echo "No image file found"
+            echo "Contents:"
+            ls -lR result/
             exit 1
           fi
 
+          echo "Found image: $image_path"
           image_size=$(du -h "$image_path" | cut -f1)
           extension="${image_path##*.}"
 
