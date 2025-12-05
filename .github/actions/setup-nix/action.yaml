@@ -14,10 +14,6 @@ inputs:
     description: Skip cache setup (for forks/external PRs)
     required: false
     default: "false"
-  remote-builders:
-    description: Remote Nix builders configuration (comma-separated)
-    required: false
-    default: ""
   remote-builders-ssh-key:
     description: SSH private key for remote builders
     required: false
@@ -25,17 +21,8 @@ inputs:
 runs:
   using: composite
   steps:
-    - name: Install Nix
-      uses: cachix/install-nix-action@0b0e072294b088b73964f1d72dfdac0951439dbd # v31.8.4
-      with:
-        install_options: --no-daemon
-        extra_nix_config: |
-          accept-flake-config = true
-          always-allow-substitutes = true
-          builders-use-substitutes = true
-
     - name: Setup SSH Key for Remote Builders
-      if: inputs.remote-builders != '' && inputs.remote-builders-ssh-key != ''
+      if: inputs.remote-builders-ssh-key != ''
       shell: bash
       run: |
         mkdir -p ~/.ssh
@@ -47,17 +34,17 @@ runs:
           IdentityFile ~/.ssh/nix-builder-key
         EOF
         chmod 600 ~/.ssh/config
-        echo "SSH key configured for remote builders"
 
-    - name: Configure Remote Builders
-      if: inputs.remote-builders != ''
-      shell: bash
-      run: |
-        mkdir -p ~/.config/nix
-        echo "builders = ${{ inputs.remote-builders }}" >> ~/.config/nix/nix.conf
-        echo "max-jobs = 0" >> ~/.config/nix/nix.conf
-        echo "Remote builders configured:"
-        cat ~/.config/nix/nix.conf
+    - name: Install Nix
+      uses: cachix/install-nix-action@0b0e072294b088b73964f1d72dfdac0951439dbd # v31.8.4
+      with:
+        install_options: --no-daemon
+        extra_nix_config: |
+          accept-flake-config = true
+          always-allow-substitutes = true
+          builders-use-substitutes = true
+          max-jobs = 0
+          builders = @${{ github.workspace }}/.github/nix-builders.conf
 
     - name: Setup Attic
       if: inputs.skip-cache != 'true'
