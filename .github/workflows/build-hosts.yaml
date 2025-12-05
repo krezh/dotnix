@@ -28,7 +28,10 @@ concurrency:
   cancel-in-progress: true
 env:
   CACHE_NAME: krezh
-  REMOTE_BUILDERS: "ssh://root@build-1.example.com x86_64-linux; ssh://root@build-2.example.com x86_64-linux; ssh://root@build-3.example.com x86_64-linux"
+  REMOTE_BUILDERS: |
+    ssh://root@nix-builder-pool-0.nix-builder-pool.kubevirt.svc.cluster.local x86_64-linux;
+    ssh://root@nix-builder-pool-1.nix-builder-pool.kubevirt.svc.cluster.local x86_64-linux;
+    ssh://root@nix-builder-pool-2.nix-builder-pool.kubevirt.svc.cluster.local x86_64-linux"
 
 jobs:
   detect-changes:
