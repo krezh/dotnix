@@ -7,6 +7,8 @@ on:
     branches:
       - "test-**"
   push:
+    paths:
+      - "images"
     branches:
       - "test-**"
   schedule:
