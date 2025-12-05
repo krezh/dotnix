@@ -19,6 +19,7 @@
   users.users.root.openssh.authorizedKeys.keys = [
     "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIANNodE0rg2XalK+tfsqfPwLdBRJIx15IjGwkr5Bud+W"
     "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEMe4X4oNA8PRUHrOk5RIrpxpzzcBvJyQa8PyaQj3BPp"
+    "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIBGOPhmqeY3GmqXDK2XHXM6csikAIVzBL+zziXB6LR2F remote-build"
   ];
 
   nix.settings = {
