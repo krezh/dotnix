@@ -28,6 +28,7 @@ concurrency:
   cancel-in-progress: true
 env:
   CACHE_NAME: krezh
+  REMOTE_BUILDERS: "ssh://root@build-1.example.com x86_64-linux; ssh://root@build-2.example.com x86_64-linux; ssh://root@build-3.example.com x86_64-linux"
 
 jobs:
   detect-changes:
@@ -103,6 +104,8 @@ jobs:
           attic-cache: ${{ secrets.ATTIC_CACHE }}
           attic-token: ${{ secrets.ATTIC_TOKEN }}
           skip-cache: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork }}
+          remote-builders: ${{ env.REMOTE_BUILDERS }}
+          remote-builders-ssh-key: ${{ secrets.REMOTE_BUILDERS_SSH_KEY }}
 
       - name: Build System
         id: build

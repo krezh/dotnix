@@ -15,7 +15,7 @@
         "windowsMove,1,3,spring"
         "workspaces,1,3,spring,slidevert"
         "border,1,3,spring"
-        "fade,0"
+        "fade,1,1,spring"
         "layers,1,3,easeOutQuad"
       ];
     };

@@ -14,6 +14,14 @@ inputs:
     description: Skip cache setup (for forks/external PRs)
     required: false
     default: "false"
+  remote-builders:
+    description: Remote Nix builders configuration (comma-separated)
+    required: false
+    default: ""
+  remote-builders-ssh-key:
+    description: SSH private key for remote builders
+    required: false
+    default: ""
 runs:
   using: composite
   steps:
@@ -25,6 +33,31 @@ runs:
           accept-flake-config = true
           always-allow-substitutes = true
           builders-use-substitutes = true
+
+    - name: Setup SSH Key for Remote Builders
+      if: inputs.remote-builders != '' && inputs.remote-builders-ssh-key != ''
+      shell: bash
+      run: |
+        mkdir -p ~/.ssh
+        echo "${{ inputs.remote-builders-ssh-key }}" > ~/.ssh/nix-builder-key
+        chmod 600 ~/.ssh/nix-builder-key
+        cat >> ~/.ssh/config <<EOF
+        Host *
+          StrictHostKeyChecking accept-new
+          IdentityFile ~/.ssh/nix-builder-key
+        EOF
+        chmod 600 ~/.ssh/config
+        echo "SSH key configured for remote builders"
+
+    - name: Configure Remote Builders
+      if: inputs.remote-builders != ''
+      shell: bash
+      run: |
+        mkdir -p ~/.config/nix
+        echo "builders = ${{ inputs.remote-builders }}" >> ~/.config/nix/nix.conf
+        echo "max-jobs = 0" >> ~/.config/nix/nix.conf
+        echo "Remote builders configured:"
+        cat ~/.config/nix/nix.conf
 
     - name: Setup Attic
       if: inputs.skip-cache != 'true'
