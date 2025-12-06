@@ -43,21 +43,21 @@ runs:
       if: inputs.use-remote-builders == 'true'
       uses: cachix/install-nix-action@0b0e072294b088b73964f1d72dfdac0951439dbd # v31.8.4
       with:
+        install_options: --no-daemon
         extra_nix_config: |
           accept-flake-config = true
           always-allow-substitutes = true
           builders-use-substitutes = true
-          sandbox = false
+          max-jobs = 0
+          builders = @${{ github.workspace }}/.github/nix-builders.conf
 
     - name: Install Nix (local)
       if: inputs.use-remote-builders != 'true'
       uses: nixbuild/nix-quick-install-action@2c9db80fb984ceb1bcaa77cdda3fdf8cfba92035 # v34
       with:
-        #install_options: --no-daemon
         nix_conf: |
           accept-flake-config = true
           always-allow-substitutes = true
-          sandbox = false
 
     - name: Setup Attic
       if: inputs.skip-cache != 'true'
