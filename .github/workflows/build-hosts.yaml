@@ -141,6 +141,8 @@ jobs:
           echo
           echo "=== /proc/mounts line for /nix (raw) ==="
           grep ' /nix ' /proc/mounts || true
+          echo "=== ls -la for /nix-build ==="
+          ls -la /nix-build
 
       - name: Build System
         id: build
