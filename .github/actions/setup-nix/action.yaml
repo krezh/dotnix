@@ -47,6 +47,7 @@ runs:
         extra_nix_config: |
           accept-flake-config = true
           always-allow-substitutes = true
+          builders-use-substitutes = true
           max-jobs = 0
           builders = @${{ github.workspace }}/.github/nix-builders.conf
 
