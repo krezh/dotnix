@@ -41,7 +41,7 @@ runs:
         build_start=$(date +%s)
 
         # Construct nix build command
-        nix_cmd="nix build \".#${{ inputs.target }}\""
+        nix_cmd="nix build --fallback --no-write-lock-file --log-format raw \".#${{ inputs.target }}\""
 
         # Add output link if specified
         if [ -n "${{ inputs.output-link }}" ]; then
@@ -51,10 +51,6 @@ runs:
         # Add extra args based on build type or custom args
         if [ -n "${{ inputs.extra-args }}" ]; then
           nix_cmd="$nix_cmd ${{ inputs.extra-args }}"
-        elif [ "${{ inputs.build-type }}" = "system" ]; then
-          nix_cmd="$nix_cmd --fallback --repair --no-write-lock-file --log-format raw"
-        else
-          nix_cmd="$nix_cmd --fallback --repair --print-build-logs"
         fi
 
         # Execute build with error capture
