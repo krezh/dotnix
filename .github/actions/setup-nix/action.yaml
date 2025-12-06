@@ -53,10 +53,10 @@ runs:
 
     - name: Install Nix (local)
       if: inputs.use-remote-builders != 'true'
-      uses: cachix/install-nix-action@0b0e072294b088b73964f1d72dfdac0951439dbd # v31.8.4
+      uses: nixbuild/nix-quick-install-action@v34
       with:
-        install_options: --no-daemon
-        extra_nix_config: |
+        #install_options: --no-daemon
+        nix_conf: |
           accept-flake-config = true
           always-allow-substitutes = true
 
