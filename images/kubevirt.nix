@@ -53,6 +53,7 @@
       experimental-features = [
         "nix-command"
         "flakes"
+        "cgroups"
       ];
       substituters = [
         "https://cache.nixos.org"
