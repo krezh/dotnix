@@ -39,7 +39,7 @@
         github.vscode-github-actions
         gruntfuggly.todo-tree
         timonwong.shellcheck
-        anthropic.claude-code
+        # anthropic.claude-code
         tamasfe.even-better-toml
         mads-hartmann.bash-ide-vscode
         bmalehorn.vscode-fish
