@@ -99,6 +99,7 @@ jobs:
       - name: Brutally add more storage to our runner
         uses: wimpysworld/nothing-but-nix@v6
         with:
+          nix-permission-edict: true
           hatchet-protocol: carve
 
       - name: Setup Nix with caching
