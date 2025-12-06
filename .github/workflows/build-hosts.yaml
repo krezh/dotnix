@@ -106,43 +106,112 @@ jobs:
           use-remote-builders: false
           # remote-builders-ssh-key: ${{ secrets.REMOTE_BUILDERS_SSH_KEY }}
 
-      - name: Debug Nix store permissions
+      - name: Debug Nix store & build environment (extended)
         run: |
+          set -euo pipefail
           echo "=== user / env ==="
           id
           echo
+              
           echo "=== nix version / daemon socket ==="
           nix --version 2>/dev/null || echo "nix not found"
           test -S /nix/var/nix/daemon-socket/socket && echo "Nix daemon socket: present" || echo "Nix daemon socket: absent"
           echo
-          echo "=== mounts and fs type for /nix ==="
-          findmnt -no TARGET,FSTYPE,OPTIONS /nix || mount | grep ' /nix ' || true
-          stat -f -c "fs_type=%T" /nix 2>/dev/null || true
+              
+          echo "=== Nix config / build dirs (TMPDIR / NIX_BUILD_TOP) ==="
+          echo "env TMPDIR=${TMPDIR:-<unset>}  NIX_BUILD_TOP=${NIX_BUILD_TOP:-<unset>}"
+          echo "nix.conf files:"
+          grep -Hn 'build-dir\|sandbox' /etc/nix/nix.conf /home/runner/.config/nix/nix.conf 2>/dev/null || true
           echo
+              
+          echo "=== mounts and fs type for /nix, /nix-build, /tmp ==="
+          findmnt -no TARGET,SOURCE,FSTYPE,OPTIONS /nix || true
+          findmnt -no TARGET,SOURCE,FSTYPE,OPTIONS /nix-build || true
+          findmnt -no TARGET,SOURCE,FSTYPE,OPTIONS /tmp || true
+          echo
+          echo "=== raw /proc/self/mountinfo (near /nix and /nix-build) ==="
+          awk '/ \/nix($|\/)/ || / \/nix-build($|\/)/ { for(i=NR-3;i<=NR+3;i++) print "LINE:" i }' /proc/self/mountinfo 2>/dev/null || true
+          grep -n -C2 ' /nix ' /proc/self/mountinfo || true
+          grep -n -C2 ' /nix-build ' /proc/self/mountinfo || true
+          echo
+              
           echo "=== sample /nix and /nix/store listing (numeric owners) ==="
           ls -ldn /nix /nix/store || true
-          ls -ln /nix/store | head -n 20 || true
+          ls -ln /nix/store | head -n 50 || true
           echo
-          echo "=== sample store entry stat and a chmod test (non-root) ==="
-          sample=$(ls -1 /nix/store 2>/dev/null | head -n1 || true)
-          if [ -n "$sample" ]; then
-            stat -c "%n %U %G %a" "/nix/store/$sample" || true
-            echo "Attempting chmod u+w on /nix/store/$sample as current user..."
-            chmod u+w "/nix/store/$sample" 2>&1 || echo "chmod failed (expected if not owner / FS forbids): $?"
-            echo "stat after chmod attempt:"
-            stat -c "%n %U %G %a" "/nix/store/$sample" || true
-          else
-            echo "no entries found in /nix/store"
-          fi
+              
+          echo "=== /nix-build listing & ownership ==="
+          ls -ladn /nix-build /nix-build/* 2>/dev/null || true
           echo
+              
           echo "=== process capabilities & fsGroup hint ==="
           awk '/CapEff/ {print "CapEff (hex): "$2}' /proc/self/status || true
           echo "groups: $(id -G) ; gid names: $(id -Gn)"
           echo
-          echo "=== /proc/mounts line for /nix (raw) ==="
-          grep ' /nix ' /proc/mounts || true
-          echo "=== ls -la for /nix-build ==="
-          ls -la /nix-build
+              
+          echo "=== check immutable attrs (lsattr) on /nix, /nix-build ==="
+          which lsattr >/dev/null 2>&1 && lsattr -Rd /nix /nix-build 2>/dev/null || echo "lsattr not available or failed"
+          echo
+              
+          echo "=== kernel logs for denials (dmesg) ==="
+          dmesg | tail -n 200 | grep -i -E 'denied|avc|apparmor|denial|operation not permitted' || true
+          echo
+              
+          echo "=== find candidate builder paths that match build/scripts/mod ==="
+          find /nix-build /tmp -maxdepth 6 -type f -path '*/build/scripts/mod' -print 2>/dev/null || true
+          echo
+              
+          # If we find a candidate, run diagnostics against the first one found.
+          candidate="$(find /nix-build /tmp -maxdepth 6 -type f -path '*/build/scripts/mod' -print 2>/dev/null | head -n1 || true)"
+          if [ -n "$candidate" ]; then
+            echo "Found candidate failing path: $candidate"
+            echo "stat (numeric):"
+            stat -c "%n %U %G %a %F" "$candidate" || true
+            echo "parent dirs (numeric):"
+            stat -c "%n %U %G %a %F" "$(dirname "$candidate")" || true
+            echo
+            echo "Attempt chmod directly (no strace):"
+            chmod u+w "$candidate" 2>&1 || echo "chmod exit:$?"
+            stat -c "%n %U %G %a" "$candidate" || true
+              
+            if command -v strace >/dev/null 2>&1; then
+              echo "Running strace wrapper on chmod to capture syscall+errno..."
+              strace -o /tmp/strace-chmod -s 200 -e trace=chmod,fchmod,fchmodat -f chmod 755 "$candidate" || true
+              echo "Saved strace to /tmp/strace-chmod"
+              echo "Showing last lines of /tmp/strace-chmod:"
+              tail -n 40 /tmp/strace-chmod || true
+            else
+              echo "strace not found; to capture the failing syscall run on the node/pod:"
+              echo "  apt-get update && apt-get install -y strace  # or use your distro package manager"
+              echo "  strace -o /tmp/strace -ff -e trace=chmod,fchmod,fchmodat -s 200 chmod 755 $candidate"
+            fi
+          else
+            echo "No existing build/scripts/mod found yet under /nix-build or /tmp."
+            echo "If this failure happens during a build you can capture the failing syscall by running the build under strace like this (example):"
+            echo "  # install strace if missing, then:"
+            echo "  strace -o /tmp/strace-nix -ff -e trace=chmod,fchmod,fchmodat -s 200 nix build --show-trace hosts.<your-host> || true"
+            echo "After build fails, check /tmp/strace-nix.* for the syscall that returned EPERM/EROFS/etc."
+          fi
+              
+          echo
+          echo "=== small chmod reproducibility test in TMPDIR (/nix-build) ==="
+          mkdir -p /nix-build/x-test || true
+          touch /nix-build/x-test/h && chown $(id -u):$(id -g) /nix-build/x-test/h || true
+          echo "Before chmod:"
+          ls -ln /nix-build/x-test/h || true
+          if command -v strace >/dev/null 2>&1; then
+            strace -o /tmp/strace-test -s 200 -e trace=chmod,fchmod,fchmodat -f chmod 755 /nix-build/x-test/h || true
+            echo "chmod (strace) exit; tail /tmp/strace-test:"
+            tail -n 40 /tmp/strace-test || true
+          else
+            chmod 755 /nix-build/x-test/h 2>&1 || echo "chmod exit:$?"
+          fi
+          echo "After chmod:"
+          ls -ln /nix-build/x-test/h || true
+              
+          echo
+          echo "=== end of diagnostics ==="
+        shell: bash
 
       - name: Build System
         id: build
