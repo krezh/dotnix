@@ -59,6 +59,7 @@ runs:
         nix_conf: |
           accept-flake-config = true
           always-allow-substitutes = true
+          sandbox = false
 
     - name: Setup Attic
       if: inputs.skip-cache != 'true'
