@@ -54,7 +54,7 @@ runs:
         elif [ "${{ inputs.build-type }}" = "system" ]; then
           nix_cmd="$nix_cmd --fallback --repair --no-write-lock-file --log-format raw"
         else
-          nix_cmd="$nix_cmd --repair --print-build-logs"
+          nix_cmd="$nix_cmd --fallback --repair --print-build-logs"
         fi
 
         # Execute build with error capture
