@@ -106,6 +106,42 @@ jobs:
           use-remote-builders: false
           # remote-builders-ssh-key: ${{ secrets.REMOTE_BUILDERS_SSH_KEY }}
 
+      - name: Debug Nix store permissions
+        run: |
+          echo "=== user / env ==="
+          id
+          echo
+          echo "=== nix version / daemon socket ==="
+          nix --version 2>/dev/null || echo "nix not found"
+          test -S /nix/var/nix/daemon-socket/socket && echo "Nix daemon socket: present" || echo "Nix daemon socket: absent"
+          echo
+          echo "=== mounts and fs type for /nix ==="
+          findmnt -no TARGET,FSTYPE,OPTIONS /nix || mount | grep ' /nix ' || true
+          stat -f -c "fs_type=%T" /nix 2>/dev/null || true
+          echo
+          echo "=== sample /nix and /nix/store listing (numeric owners) ==="
+          ls -ldn /nix /nix/store || true
+          ls -ln /nix/store | head -n 20 || true
+          echo
+          echo "=== sample store entry stat and a chmod test (non-root) ==="
+          sample=$(ls -1 /nix/store 2>/dev/null | head -n1 || true)
+          if [ -n "$sample" ]; then
+            stat -c "%n %U %G %a" "/nix/store/$sample" || true
+            echo "Attempting chmod u+w on /nix/store/$sample as current user..."
+            chmod u+w "/nix/store/$sample" 2>&1 || echo "chmod failed (expected if not owner / FS forbids): $?"
+            echo "stat after chmod attempt:"
+            stat -c "%n %U %G %a" "/nix/store/$sample" || true
+          else
+            echo "no entries found in /nix/store"
+          fi
+          echo
+          echo "=== process capabilities & fsGroup hint ==="
+          awk '/CapEff/ {print "CapEff (hex): "$2}' /proc/self/status || true
+          echo "groups: $(id -G) ; gid names: $(id -Gn)"
+          echo
+          echo "=== /proc/mounts line for /nix (raw) ==="
+          grep ' /nix ' /proc/mounts || true
+
       - name: Build System
         id: build
         uses: ./.github/actions/nix-build
