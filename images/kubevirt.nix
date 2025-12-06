@@ -48,6 +48,8 @@
       max-jobs = "auto";
       cores = 0;
       builders-use-substitutes = true;
+      use-cgroups = true;
+      system-features = [ "big-parallel" ];
       experimental-features = [
         "nix-command"
         "flakes"
