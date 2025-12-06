@@ -43,13 +43,11 @@ runs:
       if: inputs.use-remote-builders == 'true'
       uses: cachix/install-nix-action@0b0e072294b088b73964f1d72dfdac0951439dbd # v31.8.4
       with:
-        install_options: --no-daemon
         extra_nix_config: |
           accept-flake-config = true
           always-allow-substitutes = true
           builders-use-substitutes = true
-          max-jobs = 0
-          builders = @${{ github.workspace }}/.github/nix-builders.conf
+          sandbox = false
 
     - name: Install Nix (local)
       if: inputs.use-remote-builders != 'true'
