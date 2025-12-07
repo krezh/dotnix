@@ -10,6 +10,35 @@
     ../../images/buildbot-master.nix
   ];
 
+  # Configure sops-nix for secrets management
+  sops = {
+    defaultSopsFile = ./secrets.sops.yaml;
+    age.keyFile = "/var/lib/sops-nix/key.txt";
+
+    secrets = {
+      buildbot-workers = {
+        owner = "root";
+        mode = "0400";
+        path = "/var/lib/secrets/buildbot-workers.json";
+      };
+      github-buildbot-app-secret = {
+        owner = "root";
+        mode = "0400";
+        path = "/var/lib/secrets/github-app-secret";
+      };
+      github-buildbot-webhook-secret = {
+        owner = "root";
+        mode = "0400";
+        path = "/var/lib/secrets/github-webhook-secret";
+      };
+      github-buildbot-oauth-secret = {
+        owner = "root";
+        mode = "0400";
+        path = "/var/lib/secrets/github-oauth-secret";
+      };
+    };
+  };
+
   networking.hostName = "buildbot-master";
 
   # Auto-upgrade from main branch
@@ -27,7 +56,7 @@
     # Workers configuration from secrets
     # For KubeVirt pool, create a JSON with workers named buildbot-worker-0, buildbot-worker-1, etc.
     # Format: [{ "name": "buildbot-worker-0", "pass": "password", "cores": 8 }, ...]
-    workersFile = config.age.secrets.buildbot-workers.path or "/var/lib/secrets/buildbot-workers.json";
+    workersFile = config.sops.secrets.buildbot-workers.path;
 
     # Admin users who can reload projects
     admins = [ "krezh" ];
@@ -36,13 +65,10 @@
     authBackend = "github";
     github = {
       appId = 0; # TODO: Set GitHub App ID
-      appSecretKeyFile =
-        config.age.secrets.github-buildbot-app-secret.path or "/var/lib/secrets/github-app-secret";
-      webhookSecretFile =
-        config.age.secrets.github-buildbot-webhook-secret.path or "/var/lib/secrets/github-webhook-secret";
+      appSecretKeyFile = config.sops.secrets.github-buildbot-app-secret.path;
+      webhookSecretFile = config.sops.secrets.github-buildbot-webhook-secret.path;
       oauthId = ""; # TODO: Set OAuth client ID
-      oauthSecretFile =
-        config.age.secrets.github-buildbot-oauth-secret.path or "/var/lib/secrets/github-oauth-secret";
+      oauthSecretFile = config.sops.secrets.github-buildbot-oauth-secret.path;
       topic = "buildbot-nix";
     };
 

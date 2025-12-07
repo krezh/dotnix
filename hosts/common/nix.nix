@@ -9,7 +9,7 @@
   imports = [ ];
   nix = {
     package = pkgs.lixPackageSets.stable.lix;
-    extraOptions = ''
+    extraOptions = lib.optionalString (config.sops.templates ? "nix_access_token.conf") ''
       !include ${config.sops.templates."nix_access_token.conf".path}
     '';
     settings = {

@@ -10,6 +10,26 @@
     ../../images/buildbot-worker.nix
   ];
 
+  # Configure sops-nix for secrets management
+  sops = {
+    defaultSopsFile = ./secrets.sops.yaml;
+    age.keyFile = "/var/lib/sops-nix/key.txt";
+
+    secrets = {
+      buildbot-worker-password = {
+        owner = "root";
+        mode = "0400";
+        path = "/var/lib/secrets/buildbot-worker-password";
+      };
+      attic-token = {
+        owner = "root";
+        mode = "0400";
+        path = "/var/lib/secrets/attic-token";
+      };
+    };
+  };
+
+  networking.hostName = "buildbot-worker";
   # Auto-upgrade from main branch
   system.autoUpgrade = {
     enable = true;
@@ -20,8 +40,7 @@
 
   services.buildbot-nix.worker = {
     enable = true;
-    workerPasswordFile =
-      config.age.secrets.buildbot-worker-password.path or "/var/lib/secrets/buildbot-worker-password";
+    workerPasswordFile = config.sops.secrets.buildbot-worker-password.path;
     # Number of workers (0 = number of CPU cores)
     workers = 0;
   };
@@ -88,9 +107,7 @@
       DynamicUser = true;
       MemoryHigh = "5%";
       MemoryMax = "10%";
-      LoadCredential = "attic-token:${
-        config.age.secrets.attic-token.path or "/var/lib/secrets/attic-token"
-      }";
+      LoadCredential = "attic-token:${config.sops.secrets.attic-token.path}";
       StateDirectory = "attic-watch-store";
     };
     path = [ pkgs.attic-client ];

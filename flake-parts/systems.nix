@@ -29,36 +29,36 @@ in
     nixosConfigurations = flakeLib.mkSystems {
       thor = {
         system = "x86_64-linux";
-        homeUsers = [ "krezh" ];
+        users = [ "krezh" ];
         profiles = [ "gui" ];
       };
       thor-wsl = {
         system = "x86_64-linux";
-        homeUsers = [ "krezh" ];
+        users = [ "krezh" ];
         profiles = [ ];
       };
       odin = {
         system = "x86_64-linux";
-        homeUsers = [ "krezh" ];
+        users = [ "krezh" ];
         profiles = [ "gui" ];
       };
       steamdeck = {
         system = "x86_64-linux";
-        homeUsers = [ "krezh" ];
+        users = [ "krezh" ];
         profiles = [ "gui" ];
         extraModules = [ inputs.jovian.nixosModules.default ];
       };
       buildbot-master = {
         system = "x86_64-linux";
-        homeUsers = [ ];
+        users = [ ];
         profiles = [ ];
-        ci = false;
+        # ci = false;
       };
       buildbot-worker = {
         system = "x86_64-linux";
-        homeUsers = [ ];
+        users = [ ];
         profiles = [ ];
-        ci = false;
+        # ci = false;
       };
     };
 

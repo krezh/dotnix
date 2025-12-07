@@ -24,12 +24,12 @@ let
   mkSystem =
     hostname: config:
     let
-      homeUsers = config.homeUsers or [ ];
+      users = config.users or [ ];
       userProfiles = config.profiles or [ ];
       ci = config.ci or true;
     in
-    if (homeUsers == [ ] || homeUsers == null) && userProfiles != [ ] && userProfiles != null then
-      throw "Host '${hostname}': profiles cannot be set when homeUsers is empty or null"
+    if (users == [ ] || users == null) && userProfiles != [ ] && userProfiles != null then
+      throw "Host '${hostname}': profiles cannot be set when users is empty or null"
     else
       lib.nixosSystem {
         pkgs = mkPkgsWithSystem config.system;
@@ -39,18 +39,18 @@ let
             outputs
             lib
             hostname
-            homeUsers
+            users
             var
             ;
         };
         modules =
           (getHostModules {
-            inherit hostname;
+            inherit hostname users;
             includeCommon = config.includeCommon or true;
           })
           ++ (config.extraModules or [ ])
           ++ mkHomeUsers {
-            users = homeUsers;
+            inherit users;
             profiles = userProfiles;
             inherit hostname;
           };
@@ -62,13 +62,30 @@ let
   getHostModules =
     {
       hostname,
+      users ? [ ],
       includeCommon ? true,
     }:
     let
       hostPath = lib.relativeToRoot "hosts/${hostname}";
       commonPath = lib.relativeToRoot "hosts/common";
+      commonUsersPath = lib.path.append commonPath "users";
+
+      # Scan and filter common modules
+      allCommonPaths = lib.scanPath.toList { path = commonPath; };
+
+      # Filter function to exclude user directories if users is empty
+      filteredCommonPaths =
+        if users == [ ] || users == null then
+          lib.filter (path: !(lib.hasPrefix (toString commonUsersPath) (toString path))) allCommonPaths
+        else
+          allCommonPaths;
+
+      # Create imports structure
+      commonImports = {
+        imports = filteredCommonPaths;
+      };
     in
-    lib.optionals includeCommon [ (lib.scanPath.toImports commonPath) ]
+    lib.optionals includeCommon [ commonImports ]
     ++ lib.optionals (builtins.pathExists hostPath) [ (lib.scanPath.toImports hostPath) ];
 
   mkHomeUsers =

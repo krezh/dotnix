@@ -3,7 +3,7 @@
   inputs,
   lib,
   pkgs,
-  homeUsers,
+  users,
   ...
 }:
 let
@@ -78,7 +78,7 @@ in
       enable = false;
     };
 
-    home-manager.users = lib.genAttrs homeUsers (_user: {
+    home-manager.users = lib.genAttrs users (_user: {
       catppuccin.mangohud.enable = false;
       programs.mangohud = {
         enable = true;
