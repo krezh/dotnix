@@ -27,6 +27,28 @@ let
         ../images/kubevirt.nix
       ];
     };
+
+    buildbot-worker = {
+      format = "kubevirt";
+      system = "x86_64-linux";
+      specialArgs = {
+        hostname = "kubevirt";
+      };
+      modules = [
+        ../images/buildbot-worker.nix
+      ];
+    };
+
+    buildbot-master = {
+      format = "kubevirt";
+      system = "x86_64-linux";
+      specialArgs = {
+        hostname = "kubevirt";
+      };
+      modules = [
+        ../images/buildbot-master.nix
+      ];
+    };
   };
 in
 {

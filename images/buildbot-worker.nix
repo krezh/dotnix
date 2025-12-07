@@ -8,13 +8,6 @@
 {
   nixpkgs.hostPlatform = "x86_64-linux";
 
-  boot.loader.grub.device = "nodev";
-
-  fileSystems."/" = {
-    device = "/dev/vda";
-    fsType = "ext4";
-  };
-
   system.build.kubevirtImage = lib.mkForce (
     import "${toString modulesPath}/../lib/make-disk-image.nix" {
       inherit lib config pkgs;
@@ -24,6 +17,11 @@
   );
 
   boot.kernelModules = [ "virtio_balloon" ];
+
+  users.users.root.openssh.authorizedKeys.keys = [
+    "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIANNodE0rg2XalK+tfsqfPwLdBRJIx15IjGwkr5Bud+W"
+    "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEMe4X4oNA8PRUHrOk5RIrpxpzzcBvJyQa8PyaQj3BPp"
+  ];
 
   nix.gc = {
     automatic = true;
@@ -56,4 +54,5 @@
   };
 
   security.sudo.wheelNeedsPassword = false;
+  system.stateVersion = "24.05";
 }
