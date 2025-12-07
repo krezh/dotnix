@@ -4,7 +4,6 @@ name: Build Hosts
 
 on:
   workflow_dispatch:
-  workflow_call:
   pull_request:
     branches: ["main"]
     paths: &paths
@@ -18,132 +17,62 @@ on:
     branches: ["main"]
     paths: *paths
 
-permissions:
-  contents: read
-  actions: read
-  pull-requests: write
-
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.number || github.ref }}
   cancel-in-progress: true
-env:
-  CACHE_NAME: krezh
 
 jobs:
-  detect-changes:
-    name: Detect Changed Systems
-    runs-on: ubuntu-latest
-    outputs:
-      changed-systems: ${{ steps.changed-systems.outputs.changed_files }}
+  build:
+    name: Build Hosts
+    runs-on: nix-config-runner
+    if: ${{ github.event.pull_request.draft == false }}
     steps:
       - name: Checkout
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
-        with:
-          fetch-depth: 0
 
-      - name: Get changed systems
-        id: changed-systems
-        uses: bjw-s-labs/action-changed-files@1a5aeab1bfa64d0c4e786f501d5a3f1fad4a24da # v0.4.1
-        with:
-          patterns: |
-            hosts/**
-            home/**
-            lib/**
-            flake.nix
-            flake.lock
-
-  ghMatrix:
-    name: Generate Build Matrix
-    runs-on: ubuntu-latest
-    needs: detect-changes
-    if: ${{ github.event_name == 'workflow_dispatch' || needs.detect-changes.outputs.changed-systems != '[]' }}
-    outputs:
-      matrix: ${{ steps.set-matrix.outputs.matrix }}
-    steps:
-      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
-
-      - name: Setup Nix with caching
-        uses: ./.github/actions/setup-nix
-        with:
-          skip-cache: true
-
-      - id: set-matrix
-        name: Generate Matrix
+      - name: Setup SSH for remote builders
         run: |
-          set -Eeu
-          matrix=$(nix eval --json '.#ghMatrix' | jq -c) || exit 1
-          systems='${{ needs.detect-changes.outputs.changed-systems }}'
-          if [ -n "$systems" ] && [ "$systems" != "[]" ]; then
-            changed_hosts=$(echo "$systems" | jq -r '[.[] | select(startswith("hosts/")) | split("/")[1]] | unique')
-            has_shared=$(echo "$systems" | jq -r 'any(startswith("hosts/") | not)')
+          mkdir -p ~/.ssh
+          echo "${{ secrets.REMOTE_BUILDERS_SSH_KEY }}" > ~/.ssh/nix-builder-key
+          chmod 600 ~/.ssh/nix-builder-key
+          cat >> ~/.ssh/config <<EOF
+          Host *
+            StrictHostKeyChecking accept-new
+            IdentityFile ~/.ssh/nix-builder-key
+          EOF
+          chmod 600 ~/.ssh/config
 
-            if [ "$has_shared" = "false" ] && [ "$changed_hosts" != "[]" ]; then
-              matrix=$(echo "$matrix" | jq -c --argjson hosts "$changed_hosts" '{include: [.include[] | select(.host as $h | $hosts | index($h))]}')
-            fi
-          fi
-          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
-          echo "$matrix"
-
-  nix-build:
-    name: Build ${{ matrix.host }}
-    if: ${{ github.event.pull_request.draft == false && (github.event_name == 'workflow_dispatch' || needs.detect-changes.outputs.changed-systems != '[]') }}
-    needs: [detect-changes, ghMatrix]
-    strategy:
-      matrix: ${{ fromJSON(needs.ghMatrix.outputs.matrix) }}
-      fail-fast: false
-    runs-on: ${{ matrix.runner }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
-
-      - name: Brutally add more storage to our runner
-        uses: wimpysworld/nothing-but-nix@v6
+      - name: Install Nix
+        uses: cachix/install-nix-action@0b0e072294b088b73964f1d72dfdac0951439dbd # v31.8.4
         with:
-          nix-permission-edict: true
-          hatchet-protocol: carve
+          extra_nix_config: |
+            accept-flake-config = true
+            always-allow-substitutes = true
+            builders-use-substitutes = true
+            experimental-features = nix-command flakes cgroups
+            max-jobs = 0
+            builders = @${{ github.workspace }}/.github/nix-builders.conf
 
-      - name: Setup Nix with caching
-        uses: ./.github/actions/setup-nix
+      - name: Setup Attic cache
+        if: ${{ !(github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork) }}
+        uses: ryanccn/attic-action@7fbafba3978e86e585cb68a82c08b30f3672b62d # v0.4.0
         with:
-          attic-endpoint: ${{ secrets.ATTIC_ENDPOINT }}
-          attic-cache: ${{ secrets.ATTIC_CACHE }}
-          attic-token: ${{ secrets.ATTIC_TOKEN }}
-          skip-cache: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork }}
+          endpoint: ${{ secrets.ATTIC_ENDPOINT }}
+          cache: ${{ secrets.ATTIC_CACHE }}
+          token: ${{ secrets.ATTIC_TOKEN }}
+          skip-push: true
 
-      - name: Build System
+      - name: Build all hosts
         id: build
-        uses: ./.github/actions/nix-build
-        with:
-          target: hosts.${{ matrix.host }}
-          build-type: system
-          output-link: result
-
-      - name: Calculate build size
-        id: build-info
-        if: ${{ success() }}
         run: |
-          build_size="Unknown"
-          result_path=""
-          if [ -L "result" ]; then
-            result_path=$(readlink "result" 2>/dev/null || echo "")
-            if [ -n "$result_path" ]; then
-              size_output="$(nix path-info --closure-size --human-readable "$result_path" 2>/dev/null || echo "")"
-              if [ -n "$size_output" ]; then
-                build_size="$(echo "$size_output" | awk '{ if (NF == 2) { print $2 } else if (NF >= 3) { print $(NF-1) $NF } }')"
-              fi
-            fi
-          fi
-          echo "build-size=$build_size" >> $GITHUB_OUTPUT
-          echo "result-path=$result_path" >> $GITHUB_OUTPUT
+          nix run nixpkgs#nix-eval-jobs -- \
+            --flake '.#hosts' \
+            --check-cache-status | \
+          jq -r '.neededBuilds[]' | \
+          sort -u | \
+          xargs -P 3 -I {} nix build --print-build-logs --eval-store auto --out-link result "{}^*"
 
-      - name: Post build failure comment
-        if: ${{ failure() && github.event_name == 'pull_request' }}
-        uses: ./.github/actions/post-build-error
-        with:
-          build-type: system
-          build-name: ${{ matrix.host }}
-          flake-target: hosts.${{ matrix.host }}
-          error-log: ${{ steps.build.outputs.error-log }}
-          build-duration: ${{ steps.build.outputs.build_duration }}
-          runner: ${{ matrix.runner }}
-          pr-number: ${{ github.event.pull_request.number }}
+      - name: Push to Attic
+        if: ${{ success() && !(github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork) }}
+        run: |
+          attic push ${{ secrets.ATTIC_CACHE }} result

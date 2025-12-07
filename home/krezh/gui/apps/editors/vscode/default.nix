@@ -37,6 +37,8 @@
         nefrob.vscode-just-syntax
         docker.docker
         github.vscode-github-actions
+        github.copilot
+        github.copilot-chat
         gruntfuggly.todo-tree
         timonwong.shellcheck
         # anthropic.claude-code
