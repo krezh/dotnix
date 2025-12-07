@@ -89,8 +89,8 @@ schema = 3
     version = "v1.1.0"
     hash = "sha256-XWlYH0c8IcxAwQTnIi6WYqq44nOKUylSWxWO/vi+8pE="
   [mod."github.com/klauspost/compress"]
-    version = "v1.18.1"
-    hash = "sha256-nkL7v2/C66brSfYRPN8FXLtUXN2I7VZ+Obvyc6be+GA="
+    version = "v1.18.2"
+    hash = "sha256-mRa+6qEi5joqQao13ZFogmq67rOQzHCVbCCjKA+HKEc="
   [mod."github.com/klauspost/cpuid/v2"]
     version = "v2.3.0"
     hash = "sha256-50JhbQyT67BK38HIdJihPtjV7orYp96HknI2VP7A9Yc="
@@ -98,11 +98,11 @@ schema = 3
     version = "v1.2.6"
     hash = "sha256-qA1hjnVW/tqxY48JIWQVulwEwY7fwyvnasymZk3mScg="
   [mod."github.com/klauspost/reedsolomon"]
-    version = "v1.12.5"
-    hash = "sha256-6gv1YMh1LPHgp1y+9bPOpLY9GNqePG4DR+Ry+lex9tc="
+    version = "v1.12.6"
+    hash = "sha256-JOhqh5Wg36pg8KNWmenvdwr6eerXKoDGCne2dluFZAE="
   [mod."github.com/kopia/kopia"]
-    version = "v0.22.2"
-    hash = "sha256-InolN0Qjuiv3KQwNOTMJldJ0X4bMYocClEtTbcN76+I="
+    version = "v0.22.3"
+    hash = "sha256-GUXdSRuZ4+dh6O7nBYSP4z18RU5vopFdZSZDPUxB2NY="
   [mod."github.com/lucasb-eyer/go-colorful"]
     version = "v1.3.0"
     hash = "sha256-6BKrJsfmxie+YFAWzTYVPQfrwjQEXRo+J8LY+50C1BU="

@@ -8,7 +8,7 @@ require (
 	github.com/charmbracelet/log v0.4.2
 	github.com/charmbracelet/x/ansi v0.10.3
 	github.com/charmbracelet/x/term v0.2.2
-	github.com/kopia/kopia v0.22.2
+	github.com/kopia/kopia v0.22.3
 	github.com/spf13/cobra v1.10.1
 )
 
@@ -37,10 +37,10 @@ require (
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/hashicorp/cronexpr v1.1.3 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
-	github.com/klauspost/compress v1.18.1 // indirect
+	github.com/klauspost/compress v1.18.2 // indirect
 	github.com/klauspost/cpuid/v2 v2.3.0 // indirect
 	github.com/klauspost/pgzip v1.2.6 // indirect
-	github.com/klauspost/reedsolomon v1.12.5 // indirect
+	github.com/klauspost/reedsolomon v1.12.6 // indirect
 	github.com/lucasb-eyer/go-colorful v1.3.0 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mattn/go-localereader v0.0.1 // indirect
