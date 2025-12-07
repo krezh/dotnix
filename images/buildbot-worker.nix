@@ -16,7 +16,18 @@
     }
   );
 
+  # Boot configuration
+  boot.loader.grub.device = "nodev";
   boot.kernelModules = [ "virtio_balloon" ];
+
+  # Root filesystem
+  fileSystems."/" = {
+    device = "/dev/vda";
+    fsType = "ext4";
+  };
+
+  # Enable cloud-init for initial configuration
+  services.cloud-init.enable = true;
 
   users.users.root.openssh.authorizedKeys.keys = [
     "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIANNodE0rg2XalK+tfsqfPwLdBRJIx15IjGwkr5Bud+W"
