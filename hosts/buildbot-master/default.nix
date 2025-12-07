@@ -52,6 +52,7 @@
   services.buildbot-nix.master = {
     enable = true;
     domain = "buildbot.plexuz.xyz";
+    useHTTPS = true;
 
     # Workers configuration from secrets
     # For KubeVirt pool, create a JSON with workers named buildbot-worker-0, buildbot-worker-1, etc.
