@@ -3,6 +3,7 @@
   inputs,
   pkgs,
   outputs,
+  lib,
   ...
 }:
 {
@@ -35,7 +36,7 @@
   security = {
     sudo = {
       enable = true;
-      wheelNeedsPassword = true;
+      wheelNeedsPassword = lib.mkDefault true;
       extraRules = [
         {
           commands = [

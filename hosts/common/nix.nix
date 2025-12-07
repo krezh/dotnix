@@ -39,7 +39,7 @@
     };
     gc = {
       automatic = true;
-      dates = "weekly";
+      dates = lib.mkDefault "weekly";
     };
 
     channel.enable = lib.mkForce false;

@@ -48,6 +48,18 @@ in
         profiles = [ "gui" ];
         extraModules = [ inputs.jovian.nixosModules.default ];
       };
+      buildbot-master = {
+        system = "x86_64-linux";
+        homeUsers = [ ];
+        profiles = [ ];
+        ci = false;
+      };
+      buildbot-worker = {
+        system = "x86_64-linux";
+        homeUsers = [ ];
+        profiles = [ ];
+        ci = false;
+      };
     };
 
     overlays = import ../overlays { inherit inputs lib; };
