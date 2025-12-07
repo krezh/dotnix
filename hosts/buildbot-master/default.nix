@@ -39,8 +39,6 @@
     };
   };
 
-  networking.hostName = "buildbot-master";
-
   # Auto-upgrade from main branch
   system.autoUpgrade = {
     enable = true;
@@ -95,6 +93,7 @@
   networking.firewall.allowedTCPPorts = [
     80
     443
+    9989
   ];
 
   nix.settings = {

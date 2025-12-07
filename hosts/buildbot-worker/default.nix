@@ -29,7 +29,6 @@
     };
   };
 
-  networking.hostName = "buildbot-worker";
   # Auto-upgrade from main branch
   system.autoUpgrade = {
     enable = true;
@@ -43,7 +42,7 @@
     workerPasswordFile = config.sops.secrets.buildbot-worker-password.path;
     # Number of workers (0 = number of CPU cores)
     workers = 0;
-    masterUrl = "tcp:host=buildbot-nix-master-pool-0:port=80";
+    masterUrl = "tcp:host=buildbot-nix-master-pool-0:port=9989";
   };
 
   # SSH for administration
