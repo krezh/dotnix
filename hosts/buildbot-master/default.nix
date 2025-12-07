@@ -64,10 +64,10 @@
     # GitHub configuration
     authBackend = "github";
     github = {
-      appId = 0; # TODO: Set GitHub App ID
+      appId = 2429109;
       appSecretKeyFile = config.sops.secrets.github-buildbot-app-secret.path;
       webhookSecretFile = config.sops.secrets.github-buildbot-webhook-secret.path;
-      oauthId = ""; # TODO: Set OAuth client ID
+      oauthId = "Iv23liKK17hfsMn4RnSK";
       oauthSecretFile = config.sops.secrets.github-buildbot-oauth-secret.path;
       topic = "buildbot-nix";
     };
