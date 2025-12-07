@@ -65,7 +65,7 @@ jobs:
       - name: Setup Nix with caching
         uses: ./.github/actions/setup-nix
         with:
-          attic-endpoint: ${{ secrets.ATTIC_ENDPOINT }}
+          attic-endpoint: https://nix-cache.plexuz.xyz
           attic-cache: ${{ secrets.ATTIC_CACHE }}
           attic-token: ${{ secrets.ATTIC_TOKEN }}
           skip-cache: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork }}
