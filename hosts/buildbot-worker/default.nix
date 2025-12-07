@@ -43,6 +43,7 @@
     workerPasswordFile = config.sops.secrets.buildbot-worker-password.path;
     # Number of workers (0 = number of CPU cores)
     workers = 0;
+    masterUrl = "tcp:host=buildbot-nix-master-pool-0:port=80";
   };
 
   # SSH for administration
