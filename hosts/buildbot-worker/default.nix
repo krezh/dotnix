@@ -1,7 +1,6 @@
 {
   config,
   pkgs,
-  lib,
   inputs,
   ...
 }:
@@ -44,13 +43,6 @@
     # Number of workers (0 = number of CPU cores)
     workers = 0;
     masterUrl = "tcp:host=buildbot-nix-master-pool-0:port=9989";
-  };
-
-  # Override the systemd service to use the runtime hostname as worker name
-  systemd.services.buildbot-worker = {
-    environment = {
-      WORKER_NAME = lib.mkForce "%H"; # %H expands to the actual hostname at runtime
-    };
   };
 
   # SSH for administration
