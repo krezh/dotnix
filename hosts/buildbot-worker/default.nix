@@ -53,6 +53,14 @@
   sops = {
     defaultSopsFile = ./secrets.sops.yaml;
     age.keyFile = "/var/lib/sops-nix/key.txt";
+    templates = {
+      "nix_access_token.conf" = {
+        owner = "root";
+        content = ''
+          access-tokens = github.com=${config.sops.placeholder.github-token}
+        '';
+      };
+    };
 
     secrets = {
       buildbot-worker-password = {
@@ -129,8 +137,10 @@
         "nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs="
         "catppuccin.cachix.org-1:noG/4HkbhJb+lUAdKrph6LaozJvAeEEZj4N732IysmU="
       ];
-      access-tokens = "github.com=${config.sops.secrets.github-token.path}";
     };
+    extraOptions = ''
+      !include ${config.sops.templates."nix_access_token.conf".path}
+    '';
     gc = {
       automatic = true;
       dates = "daily";

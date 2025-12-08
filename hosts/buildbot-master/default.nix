@@ -36,6 +36,14 @@
   sops = {
     defaultSopsFile = ./secrets.sops.yaml;
     age.keyFile = "/var/lib/sops-nix/key.txt";
+    templates = {
+      "nix_access_token.conf" = {
+        owner = "root";
+        content = ''
+          access-tokens = github.com=${config.sops.placeholder.github-token}
+        '';
+      };
+    };
 
     secrets = {
       buildbot-workers = {
@@ -144,7 +152,7 @@
       trusted-users = [ "buildbot" ];
     };
     extraOptions = ''
-      !include ${config.sops.secrets.github-token.path}
+      !include ${config.sops.templates."nix_access_token.conf".path}
     '';
   };
 
