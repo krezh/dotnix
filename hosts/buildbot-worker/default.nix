@@ -22,6 +22,13 @@
     }
   );
 
+  # Boot and filesystem configuration
+  boot.loader.grub.device = lib.mkDefault "/dev/vda";
+  fileSystems."/" = lib.mkDefault {
+    device = "/dev/vda";
+    fsType = "ext4";
+  };
+
   # Enable cloud-init for initial configuration
   services.cloud-init.enable = true;
 
