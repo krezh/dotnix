@@ -65,6 +65,11 @@
         mode = "0400";
         path = "/var/lib/secrets/attic-token";
       };
+      github-token = {
+        owner = "root";
+        mode = "0400";
+        path = "/var/lib/secrets/github-token";
+      };
     };
   };
 
@@ -124,6 +129,7 @@
         "nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs="
         "catppuccin.cachix.org-1:noG/4HkbhJb+lUAdKrph6LaozJvAeEEZj4N732IysmU="
       ];
+      access-tokens = "github.com=${config.sops.secrets.github-token.path}";
     };
     gc = {
       automatic = true;
