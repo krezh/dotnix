@@ -10,6 +10,23 @@
     ../../images/buildbot-worker.nix
   ];
 
+  # Override nix-eval-jobs to use standard nixpkgs version instead of Lix
+  nixpkgs.overlays = [
+    (_final: prev: {
+      nix-eval-jobs =
+        prev.nixpkgs-unstable.nix-eval-jobs or (
+          # Fallback: get nix-eval-jobs without the Lix overlay applied
+          let
+            cleanNixpkgs = import inputs.nixpkgs {
+              system = prev.system;
+              config = prev.config;
+            };
+          in
+          cleanNixpkgs.nix-eval-jobs
+        );
+    })
+  ];
+
   # Configure sops-nix for secrets management
   sops = {
     defaultSopsFile = ./secrets.sops.yaml;
