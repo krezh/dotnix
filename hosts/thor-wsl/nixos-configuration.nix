@@ -60,5 +60,6 @@
     apparmor.enable = false;
     audit.enable = false;
     auditd.enable = false;
+    sudo.wheelNeedsPassword = false;
   };
 }
