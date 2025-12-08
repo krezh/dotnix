@@ -161,7 +161,7 @@
     script = ''
       set -eux -o pipefail
       ATTIC_TOKEN=$(< $CREDENTIALS_DIRECTORY/attic-token)
-      attic login krezh https://nix-cache.plexuz.xyz/krezh $ATTIC_TOKEN
+      attic login krezh http://attic.default.svc.cluster.local/krezh:8080 $ATTIC_TOKEN
       attic use krezh
       exec attic watch-store krezh:krezh
     '';
