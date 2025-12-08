@@ -2,13 +2,28 @@
   config,
   pkgs,
   inputs,
+  lib,
+  modulesPath,
   ...
 }:
 {
   imports = [
     inputs.buildbot-nix.nixosModules.buildbot-master
-    ../../images/buildbot-master.nix
   ];
+
+  # Image configuration for kubevirt
+  nixpkgs.hostPlatform = "x86_64-linux";
+
+  system.build.kubevirtImage = lib.mkForce (
+    import "${toString modulesPath}/../lib/make-disk-image.nix" {
+      inherit lib config pkgs;
+      inherit (config.image) baseName;
+      format = "qcow2-compressed";
+    }
+  );
+
+  # Enable cloud-init for initial configuration
+  services.cloud-init.enable = true;
 
   # Configure sops-nix for secrets management
   sops = {
@@ -42,7 +57,7 @@
   # Auto-upgrade from main branch
   system.autoUpgrade = {
     enable = true;
-    flake = "github:krezh/nix-config";
+    flake = "github:krezh/nix-config#buildbot-master";
     dates = "hourly";
     allowReboot = false;
   };

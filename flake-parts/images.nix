@@ -33,9 +33,11 @@ let
       system = "x86_64-linux";
       specialArgs = {
         hostname = "kubevirt";
+        inherit inputs;
       };
       modules = [
-        ../images/buildbot-worker.nix
+        inputs.sops-nix.nixosModules.sops
+        ../hosts/buildbot-worker
       ];
     };
 
@@ -44,9 +46,11 @@ let
       system = "x86_64-linux";
       specialArgs = {
         hostname = "kubevirt";
+        inherit inputs;
       };
       modules = [
-        ../images/buildbot-master.nix
+        inputs.sops-nix.nixosModules.sops
+        ../hosts/buildbot-master
       ];
     };
   };

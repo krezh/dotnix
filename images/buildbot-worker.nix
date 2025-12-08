@@ -16,16 +16,6 @@
     }
   );
 
-  # Boot configuration
-  boot.loader.grub.device = "nodev";
-  boot.kernelModules = [ "virtio_balloon" ];
-
-  # Root filesystem
-  fileSystems."/" = {
-    device = "/dev/vda";
-    fsType = "ext4";
-  };
-
   # Enable cloud-init for initial configuration
   services.cloud-init.enable = true;
 
