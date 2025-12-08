@@ -48,10 +48,8 @@
 
   # Override the systemd service to use the runtime hostname as worker name
   systemd.services.buildbot-worker = {
-    serviceConfig = {
-      Environment = lib.mkForce [
-        "WORKER_NAME=%H" # %H expands to the actual hostname at runtime
-      ];
+    environment = {
+      WORKER_NAME = lib.mkForce "%H"; # %H expands to the actual hostname at runtime
     };
   };
 
