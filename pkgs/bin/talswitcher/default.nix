@@ -7,16 +7,16 @@
 buildGoModule rec {
   pname = "talswitcher";
   # renovate: datasource=github-releases depName=mirceanton/talswitcher
-  version = "2.2.5";
+  version = "2.2.6";
 
   src = fetchFromGitHub {
     owner = "mirceanton";
     repo = "talswitcher";
     rev = "v${version}";
-    hash = "sha256-8R4tq4s3Z/zNgGaoB96P2aP2I/Ngdgs4z/ICoOl9Vc4=";
+    hash = "sha256-uT0p9tlF/4WqqtOD3xUCZkJC2ULnYkoNz4y+M4xsxKw=";
   };
 
-  vendorHash = "sha256-uKX/bV46pW1wYDt1Oo5bHPd04f+tYoqGl43/+BA0RSA=";
+  vendorHash = "sha256-u5k61qKq6c63TjsaZ7oEdzL7ZUnLIVUHqxt2sUXWVo0=";
 
   # Make build write to a writable tempdir instead of /homeless-shelter
   preBuild = ''
