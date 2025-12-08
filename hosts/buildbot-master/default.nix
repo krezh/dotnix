@@ -99,8 +99,8 @@
     };
 
     # Evaluation settings
-    evalWorkerCount = 4;
-    evalMaxMemorySize = 2048;
+    # evalWorkerCount = 4;
+    # evalMaxMemorySize = 2048;
   };
 
   # SSH for administration
