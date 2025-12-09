@@ -10,16 +10,6 @@
       useBaseName = true;
     };
 
-  overrideNix =
-    _final: prev:
-    let
-      lix = prev.lixPackageSets.stable;
-    in
-    {
-      inherit (lix) nix-eval-jobs colmena;
-      nix-fast-build = prev.nix-fast-build.override { nix-eval-jobs = lix.nix-eval-jobs; };
-    };
-
   gomod2nix = inputs.gomod2nix.overlays.default;
 
   # Fix Weston DRM modifier assertion crash on AMD GPUs

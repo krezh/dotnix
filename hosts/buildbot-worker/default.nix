@@ -37,23 +37,6 @@
   };
   #networking.useDHCP = false;
 
-  # Override nix-eval-jobs to use standard nixpkgs version instead of Lix
-  nixpkgs.overlays = [
-    (_final: prev: {
-      nix-eval-jobs =
-        prev.nixpkgs-unstable.nix-eval-jobs or (
-          # Fallback: get nix-eval-jobs without the Lix overlay applied
-          let
-            cleanNixpkgs = import inputs.nixpkgs {
-              system = prev.system;
-              config = prev.config;
-            };
-          in
-          cleanNixpkgs.nix-eval-jobs
-        );
-    })
-  ];
-
   # Configure sops-nix for secrets management
   sops = {
     defaultSopsFile = ./secrets.sops.yaml;
@@ -129,6 +112,7 @@
         "flakes"
       ];
       trusted-users = [ "buildbot-worker" ];
+      keep-derivations = true;
       max-jobs = "auto";
       cores = 0;
       system-features = [
