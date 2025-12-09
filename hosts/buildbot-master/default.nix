@@ -33,10 +33,10 @@
   # Enable cloud-init for initial configuration
   services.cloud-init = {
     enable = true;
-    network.enable = true;
+    #network.enable = true;
   };
 
-  networking.useDHCP = false;
+  #networking.useDHCP = false;
 
   # Configure sops-nix for secrets management
   sops = {
