@@ -138,6 +138,7 @@
   ];
 
   nix = {
+    distributedBuilds = true;
     settings = {
       experimental-features = [
         "nix-command"
