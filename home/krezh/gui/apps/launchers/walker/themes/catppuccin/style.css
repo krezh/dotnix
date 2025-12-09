@@ -6,7 +6,7 @@
 
 * {
   font-family: "JetbrainsMono Nerd Font";
-  font-size: 18px;
+  font-size: 20px;
   color: @text;
 }
 
@@ -15,16 +15,16 @@ scrollbar {
 }
 
 .normal-icons {
-  -gtk-icon-size: 16px;
+  -gtk-icon-size: 20px;
 }
 
 .large-icons {
-  -gtk-icon-size: 32px;
+  -gtk-icon-size: 36px;
 }
 
 .box-wrapper {
   background: alpha(@base, 0.95);
-  border: 2px solid @border;
+  border: 3px solid @border;
 }
 
 .preview-box {

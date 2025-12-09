@@ -10,7 +10,7 @@
     enable = true;
     settings = {
       main = {
-        font = "Inter:weight=bold:size=14";
+        font = "${var.fonts.sans}:weight=bold:size=14";
         line-height = 28;
         fields = "name,generic,comment,categories,filename,keywords";
         terminal = lib.getExe pkgs.ghostty;
@@ -33,7 +33,7 @@
         placeholder = "7f849cff";
         input = "cdd6f4ff";
         match = "f38ba8ff";
-        selection = "585b70ff";
+        selection = "b4befeff";
         selection-text = "f38ba8ff";
         selection-match = "f38ba8ff";
         counter = "7f849cff";
@@ -41,7 +41,7 @@
       };
       border = {
         radius = var.rounding;
-        width = 2;
+        width = var.borderSize;
       };
     };
   };

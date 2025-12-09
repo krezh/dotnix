@@ -1,4 +1,4 @@
-{ pkgs, ... }:
+{ pkgs, var, ... }:
 {
   catppuccin.rofi.enable = false;
   programs.rofi = {
@@ -10,13 +10,13 @@
     };
     extraConfig = {
       show-icons = true;
-      display-ssh = "󰣀 ssh:";
-      display-run = "󱓞 run:";
-      display-drun = "󰣖 drun:";
-      display-window = "󱬀 window:";
-      display-combi = "󰕘 combi:";
-      display-filebrowser = "󰉋 filebrowser:";
-      font = "Inter 13";
+      # display-ssh = "󰣀 ssh:";
+      # display-run = "󱓞 run:";
+      # display-drun = "󰣖 drun:";
+      # display-window = "󱬀 window:";
+      # display-combi = "󰕘 combi:";
+      # display-filebrowser = "󰉋 filebrowser:";
+      font = "${var.fonts.sans} 13";
     };
     plugins = with pkgs; [
       rofi-games
