@@ -113,6 +113,7 @@
       ];
       trusted-users = [ "buildbot-worker" ];
       keep-derivations = true;
+      fallback = true;
       max-jobs = "auto";
       cores = 0;
       system-features = [
