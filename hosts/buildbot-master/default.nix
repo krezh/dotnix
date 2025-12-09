@@ -139,18 +139,6 @@
 
   nix = {
     settings = {
-      substituters = [
-        "https://cache.nixos.org"
-        "https://nix-cache.plexuz.xyz/krezh"
-        "https://nix-community.cachix.org"
-        "https://catppuccin.cachix.org"
-      ];
-      trusted-public-keys = [
-        "cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY="
-        "krezh:bCYQVVbREhrYgC42zUMf99dMtVXIATXMCcq+wRimqCc="
-        "nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs="
-        "catppuccin.cachix.org-1:noG/4HkbhJb+lUAdKrph6LaozJvAeEEZj4N732IysmU="
-      ];
       experimental-features = [
         "nix-command"
         "flakes"
