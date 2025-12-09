@@ -11,7 +11,6 @@
         x = 0;
         y = 0;
       };
-      variable-refresh-rate = true;
       scale = 1;
     };
 

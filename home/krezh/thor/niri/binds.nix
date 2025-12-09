@@ -60,7 +60,7 @@ in
     # Application Launchers
     "Mod+Return".action = spawn termBin;
     "Mod+T".action = spawn termBin;
-    "Mod+R".action = spawn launcherBin;
+    "Mod+R".action = spawn-sh launcherBin;
     "Mod+B".action = spawn (lib.getExe config.programs.zen-browser.package);
     "Mod+E".action = spawn (lib.getExe pkgs.nautilus);
     "Mod+O".action = spawn (lib.getExe pkgs.gnome-calculator);

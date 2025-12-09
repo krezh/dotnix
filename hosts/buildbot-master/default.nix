@@ -23,14 +23,20 @@
   );
 
   # Boot and filesystem configuration
-  boot.loader.grub.device = lib.mkDefault "/dev/vda";
-  fileSystems."/" = lib.mkDefault {
-    device = "/dev/vda";
+  boot.loader.grub.device = "/dev/vda";
+  fileSystems."/" = {
+    device = "/dev/disk/by-label/nixos";
     fsType = "ext4";
+    autoResize = true;
   };
 
   # Enable cloud-init for initial configuration
-  services.cloud-init.enable = true;
+  services.cloud-init = {
+    enable = true;
+    network.enable = true;
+  };
+
+  networking.useDHCP = false;
 
   # Configure sops-nix for secrets management
   sops = {

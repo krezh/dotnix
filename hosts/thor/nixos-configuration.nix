@@ -10,6 +10,7 @@
     inputs.chaotic.nixosModules.nyx-cache
     inputs.chaotic.nixosModules.nyx-overlay
     inputs.chaotic.nixosModules.nyx-registry
+    inputs.niri.nixosModules.niri
   ];
 
   boot = {
@@ -153,6 +154,10 @@
   programs.hyprland = {
     enable = true;
   };
+
+  programs.niri.enable = true;
+  nixpkgs.overlays = [ inputs.niri.overlays.niri ];
+  programs.niri.package = pkgs.niri-unstable;
 
   hardware = {
     graphics = {

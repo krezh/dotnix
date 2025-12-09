@@ -23,14 +23,19 @@
   );
 
   # Boot and filesystem configuration
-  boot.loader.grub.device = lib.mkDefault "/dev/vda";
-  fileSystems."/" = lib.mkDefault {
-    device = "/dev/vda";
+  boot.loader.grub.device = "/dev/vda";
+  fileSystems."/" = {
+    device = "/dev/disk/by-label/nixos";
     fsType = "ext4";
+    autoResize = true;
   };
 
   # Enable cloud-init for initial configuration
-  services.cloud-init.enable = true;
+  services.cloud-init = {
+    enable = true;
+    network.enable = true;
+  };
+  networking.useDHCP = false;
 
   # Override nix-eval-jobs to use standard nixpkgs version instead of Lix
   nixpkgs.overlays = [
@@ -96,6 +101,12 @@
     workers = 0;
     masterUrl = "tcp:host=buildbot-nix-master-pool-0:port=9989";
   };
+
+  systemd.services.buildbot-worker.serviceConfig.Environment = lib.mkForce [
+    "WORKER_PASSWORD_FILE=%d/worker-password-file"
+    # Use the runtime hostname instead of build-time config
+    "WORKER_NAME=%H" # %H is systemd specifier for hostname
+  ];
 
   # SSH for administration
   services.openssh = {

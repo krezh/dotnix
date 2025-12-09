@@ -8,5 +8,8 @@
     hotkey-overlay = {
       skip-at-startup = true;
     };
+    gestures = {
+      hot-corners.enable = false;
+    };
   };
 }
