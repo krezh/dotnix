@@ -66,6 +66,9 @@
         mode = "0400";
         path = "/var/lib/secrets/github-token";
       };
+      "attic/netrc-file-pull-push" = {
+        sopsFile = ../secrets.yaml;
+      };
     };
   };
 
@@ -139,6 +142,8 @@
     attic-client
   ];
 
+  nix.settings.netrc-file = config.sops.secrets."attic/netrc-file-pull-push".path;
+
   # Attic watch-store service to push builds to cache
   systemd.services.attic-watch-store = {
     wantedBy = [ "multi-user.target" ];
@@ -157,7 +162,6 @@
       set -eux -o pipefail
       ATTIC_TOKEN=$(< $CREDENTIALS_DIRECTORY/attic-token)
       attic login krezh http://attic.default.svc.cluster.local:8080/krezh $ATTIC_TOKEN
-      attic use krezh
       exec attic watch-store krezh:krezh
     '';
   };
