@@ -142,8 +142,6 @@
     attic-client
   ];
 
-  nix.settings.netrc-file = config.sops.secrets."attic/netrc-file-pull-push".path;
-
   # Attic watch-store service to push builds to cache
   systemd.services.attic-watch-store = {
     wantedBy = [ "multi-user.target" ];
