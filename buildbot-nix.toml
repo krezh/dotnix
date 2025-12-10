@@ -1,2 +1,1 @@
-# Configure buildbot to build the hosts attribute
 attribute = "hosts"
