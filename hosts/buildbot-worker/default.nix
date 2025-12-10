@@ -66,9 +66,6 @@
         mode = "0400";
         path = "/var/lib/secrets/github-token";
       };
-      "attic/netrc-file-pull-push" = {
-        sopsFile = ../secrets.yaml;
-      };
     };
   };
 
