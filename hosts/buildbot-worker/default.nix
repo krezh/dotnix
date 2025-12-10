@@ -74,6 +74,11 @@
         mode = "0400";
         path = "/var/lib/secrets/github-token";
       };
+      nixbuild-key = {
+        owner = "root";
+        mode = "0400";
+        path = "/var/lib/secrets/nixbuild-key";
+      };
     };
   };
 
@@ -115,6 +120,20 @@
 
   nix = {
     distributedBuilds = true;
+    buildMachines = [
+      {
+        hostName = "eu.nixbuild.net";
+        system = "x86_64-linux";
+        maxJobs = 100;
+        supportedFeatures = [
+          "benchmark"
+          "big-parallel"
+          "kvm"
+        ];
+        sshUser = "krezh";
+        sshKey = config.sops.secrets.nixbuild-key.path;
+      }
+    ];
     settings = {
       experimental-features = [
         "nix-command"
@@ -122,6 +141,7 @@
       ];
       trusted-users = [ "buildbot-worker" ];
       keep-derivations = true;
+      builders-use-substitutes = true;
       fallback = true;
       max-jobs = "auto";
       cores = 0;
