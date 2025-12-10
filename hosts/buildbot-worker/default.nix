@@ -33,11 +33,8 @@
   # Enable cloud-init for initial configuration
   services.cloud-init = {
     enable = true;
-    #network.enable = true;
   };
-  #networking.useDHCP = false;
 
-  # Configure sops-nix for secrets management
   sops = {
     defaultSopsFile = ./secrets.sops.yaml;
     age.keyFile = "/var/lib/sops-nix/key.txt";
