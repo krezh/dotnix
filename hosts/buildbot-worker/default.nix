@@ -48,6 +48,14 @@
           access-tokens = github.com=${config.sops.placeholder.github-token}
         '';
       };
+      "attic-netrc" = {
+        owner = "root";
+        mode = "0440";
+        content = ''
+          machine attic.default.svc.cluster.local
+            password ${config.sops.placeholder.attic-token}
+        '';
+      };
     };
 
     secrets = {
@@ -122,6 +130,7 @@
         "kvm"
         "benchmark"
       ];
+      netrc-file = config.sops.templates."attic-netrc".path;
     };
     extraOptions = ''
       !include ${config.sops.templates."nix_access_token.conf".path}
