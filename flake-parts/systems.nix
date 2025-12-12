@@ -52,13 +52,13 @@ in
         system = "x86_64-linux";
         users = [ ];
         profiles = [ ];
-        # ci = false;
+        ci = false;
       };
       buildbot-worker = {
         system = "x86_64-linux";
         users = [ ];
         profiles = [ ];
-        # ci = false;
+        ci = false;
       };
     };
 

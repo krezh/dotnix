@@ -13,5 +13,5 @@
   gomod2nix = inputs.gomod2nix.overlays.default;
 
   # Fix Weston DRM modifier assertion crash on AMD GPUs
-  weston-fix = import ./weston-fix.nix;
+  # weston-fix = import ./weston-fix.nix;
 }
