@@ -6,7 +6,7 @@
       "https://nix-community.cachix.org"
     ];
     extra-trusted-public-keys = [
-      "krezh:bCYQVVbREhrYgC42zUMf99dMtVXIATXMCcq+wRimqCc="
+      "krezh:adc/M3YDasyRetmBf00qt/A83GBG+bGzehg+CLKqvCI="
       "nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs="
     ];
   };
@@ -104,6 +104,11 @@
 
     kauth = {
       url = "github:krezh/kauth";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
+    binix = {
+      url = "github:krezh/binix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 

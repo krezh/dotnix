@@ -82,14 +82,14 @@ fast-build-pr pr:
     #!/usr/bin/env bash
     set -euo pipefail
     nix run nixpkgs#nix-fast-build -- \
-      --skip-cached --flake "github:krezh/nix-config/pull/{{ pr }}/head#hosts" --attic-cache krezh
+      --skip-cached --flake "github:krezh/nix-config/pull/{{ pr }}/head#hosts"
 
 # Build all hosts
 [no-cd]
 fast-build:
     #!/usr/bin/env bash
     set -euo pipefail
-    nix run nixpkgs#nix-fast-build -- --skip-cached --flake ".#hosts" --attic-cache krezh
+    nix run "nixpkgs#nix-fast-build" -- --skip-cached --flake ".#hosts"
 
 # Initialize a new nix package
 [no-cd]
@@ -101,43 +101,3 @@ init package:
 roots:
   #!/usr/bin/env bash
   nix-store --gc --print-roots
-
-# Test the KubeVirt image with QEMU
-[no-cd]
-test-kubevirt:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    just log info "Building KubeVirt image..."
-    nix build "{{ ROOT_DIR }}#images.kubevirt"
-    IMAGE=$(ls -1 result/*.qcow2)
-    TMPDIR=$(mktemp -d)
-    trap "rm -rf $TMPDIR" EXIT
-    echo "instance-id: test" > $TMPDIR/meta-data
-    echo "local-hostname: kubevirt" >> $TMPDIR/meta-data
-    echo "#cloud-config" > $TMPDIR/user-data
-    $(nix-build '<nixpkgs>' -A cdrkit --no-out-link)/bin/genisoimage \
-      -output $TMPDIR/seed.iso -volid cidata -joliet -rock \
-      $TMPDIR/user-data $TMPDIR/meta-data 2>/dev/null
-    just log info "Starting QEMU (SSH on port 2222, Ctrl+A then X to exit)"
-    $(nix-build '<nixpkgs>' -A qemu --no-out-link)/bin/qemu-system-x86_64 \
-      -m 2048 -enable-kvm \
-      -drive file=$IMAGE,format=qcow2,snapshot=on \
-      -drive file=$TMPDIR/seed.iso,format=raw \
-      -netdev user,id=net0,hostfwd=tcp::2222-:22 \
-      -device virtio-net-pci,netdev=net0 -nographic
-
-# SSH into the running KubeVirt test VM
-[no-cd]
-ssh-kubevirt:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    just log info "Connecting to SSH (waiting up to 30s)..."
-    for i in {1..30}; do
-      if ssh -p 2222 -o ConnectTimeout=2 -o StrictHostKeyChecking=no root@localhost true 2>/dev/null; then
-        ssh -p 2222 root@localhost
-        exit 0
-      fi
-      sleep 1
-    done
-    just log error "SSH connection timed out"
-    exit 1

@@ -1,4 +1,4 @@
-{ pkgs, ... }:
+{ pkgs, inputs, ... }:
 {
   imports = [ ];
   environment.systemPackages = with pkgs; [
@@ -28,6 +28,7 @@
     nufraw-thumbnailer
     gdk-pixbuf
     nixos-update
+    inputs.binix.packages.${pkgs.stdenv.hostPlatform.system}.binix-client
   ];
 
   programs.gdk-pixbuf.modulePackages = [ pkgs.librsvg ];
