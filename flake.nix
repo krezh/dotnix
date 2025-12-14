@@ -2,12 +2,12 @@
   description = "Krezh's NixOS Flake";
   nixConfig = {
     extra-trusted-substituters = [
-      "https://nix-cache.plexuz.xyz/krezh"
+      #"https://nix-cache.plexuz.xyz/krezh"
       "https://cache.garnix.io"
       "https://nix-community.cachix.org"
     ];
     extra-trusted-public-keys = [
-      "krezh:adc/M3YDasyRetmBf00qt/A83GBG+bGzehg+CLKqvCI="
+      #"krezh:adc/M3YDasyRetmBf00qt/A83GBG+bGzehg+CLKqvCI="
       "cache.garnix.io:CTFPyKSLcx5RMJKfLo5EEPUObbA78b0YQ2DTCJXqr9g="
       "nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs="
     ];
@@ -17,6 +17,7 @@
     nixpkgs.url = "github:nixos/nixpkgs/nixpkgs-unstable";
     hardware.url = "github:nixos/nixos-hardware";
     chaotic.url = "github:chaotic-cx/nyx/nyxpkgs-unstable";
+    nix-cachyos-kernel.url = "github:xddxdd/nix-cachyos-kernel";
 
     home-manager = {
       url = "github:nix-community/home-manager";

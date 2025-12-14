@@ -29,16 +29,16 @@
       ];
       system-features = [ ];
       extra-substituters = [
-        "https://nix-cache.plexuz.xyz/krezh"
+        #"https://nix-cache.plexuz.xyz/krezh"
+        "https://cache.garnix.io"
         "https://nix-community.cachix.org"
         "https://niri.cachix.org"
-        "https://chaotic-nyx.cachix.org/"
       ];
       extra-trusted-public-keys = [
-        "krezh:adc/M3YDasyRetmBf00qt/A83GBG+bGzehg+CLKqvCI="
+        #"krezh:adc/M3YDasyRetmBf00qt/A83GBG+bGzehg+CLKqvCI="
+        "cache.garnix.io:CTFPyKSLcx5RMJKfLo5EEPUObbA78b0YQ2DTCJXqr9g="
         "nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs="
         "niri.cachix.org-1:Wv0OmO7PsuocRKzfDoJ3mulSl7Z6oezYhGhR+3W2964="
-        "chaotic-nyx.cachix.org-1:HfnXSw4pj95iI/n17rIDy40agHj12WfF+Gqk6SonIT8="
       ];
     };
     gc = {

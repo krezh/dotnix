@@ -141,7 +141,10 @@ in
       includeCoAuthoredBy = false;
 
       statusLine = {
-        command = "${pkgs.bun}/bin/bunx ccusage statusline";
+        command = pkgs.writeShellScript "claude-powerline-wrapper" ''
+          export PATH="${pkgs.nodejs}/bin:$PATH"
+          ${pkgs.nodejs}/bin/npx -y @owloops/claude-powerline@latest --style=powerline
+        '';
         padding = 0;
         type = "command";
       };
