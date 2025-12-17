@@ -228,6 +228,7 @@
         chat = {
           editing.confirmEditRequestRemoval = false;
           commandCenter.enabled = true;
+          disableAIFeatures = false;
         };
 
         # GitHub Copilot settings

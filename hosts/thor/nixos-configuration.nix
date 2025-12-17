@@ -7,17 +7,26 @@
 }:
 {
   imports = [
-    inputs.chaotic.nixosModules.nyx-cache
-    inputs.chaotic.nixosModules.nyx-overlay
-    inputs.chaotic.nixosModules.nyx-registry
     inputs.niri.nixosModules.niri
   ];
+
+  nixpkgs.overlays = [
+    inputs.niri.overlays.niri
+    inputs.nix-cachyos-kernel.overlay
+  ];
+
+  programs.hyprland = {
+    enable = true;
+  };
+
+  programs.niri.enable = true;
+  programs.niri.package = pkgs.niri-unstable;
 
   boot = {
     plymouth = {
       enable = true;
     };
-    kernelPackages = pkgs.linuxPackages_cachyos;
+    kernelPackages = pkgs.cachyosKernels.linuxPackages-cachyos-bore-lto;
     loader = {
       timeout = 0;
       systemd-boot = {
@@ -43,18 +52,38 @@
   services.accounts-daemon.enable = true;
   services.gnome.gnome-online-accounts.enable = true;
 
-  services.scx.enable = true;
-  services.scx.scheduler = "scx_lavd";
+  services.scx.enable = false;
+  services.scx.scheduler = "scx_bpfland";
 
   xdg.mime.enable = true;
 
+  # Disable Coredump
+  systemd.coredump.enable = false;
+  boot.kernel.sysctl = {
+    "kernel.core_pattern" = "|/bin/false";
+    "kernel.core_uses_pid" = 0;
+  };
+
+  security.pam.loginLimits = [
+    {
+      domain = "*";
+      type = "hard";
+      item = "core";
+      value = "0";
+    }
+    {
+      domain = "*";
+      type = "soft";
+      item = "core";
+      value = "0";
+    }
+  ];
+
   security.pam.services.krezh.enableGnomeKeyring = true;
-  security.pam.services.gdm-password.enableGnomeKeyring = true;
-  security.pam.services.gdm.enableGnomeKeyring = true;
   security.pam.services.sddm.enableGnomeKeyring = true;
   security.pam.services.hyprlock.enableGnomeKeyring = true;
   security.pam.services.login.enableGnomeKeyring = true;
-  security.rtkit.enable = true;
+
   programs.seahorse.enable = true;
   services.gnome.gnome-keyring.enable = true;
   services.dbus.packages = with pkgs; [
@@ -122,6 +151,7 @@
     devmon.enable = true;
     gvfs.enable = true;
   };
+  security.rtkit.enable = true;
 
   programs.nix-ld.enable = true;
   programs.appimage = {
@@ -150,14 +180,6 @@
       allowedTCPPortRanges = kde-connect;
       allowedUDPPortRanges = kde-connect;
     };
-
-  programs.hyprland = {
-    enable = true;
-  };
-
-  programs.niri.enable = true;
-  nixpkgs.overlays = [ inputs.niri.overlays.niri ];
-  programs.niri.package = pkgs.niri-unstable;
 
   hardware = {
     graphics = {

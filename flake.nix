@@ -16,7 +16,6 @@
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixpkgs-unstable";
     hardware.url = "github:nixos/nixos-hardware";
-    chaotic.url = "github:chaotic-cx/nyx/nyxpkgs-unstable";
     nix-cachyos-kernel.url = "github:xddxdd/nix-cachyos-kernel";
 
     home-manager = {

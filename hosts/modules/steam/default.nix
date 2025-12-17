@@ -75,7 +75,7 @@ in
     };
 
     services.pipewire.lowLatency = {
-      enable = false;
+      enable = true;
     };
 
     home-manager.users = lib.genAttrs users (_user: {
