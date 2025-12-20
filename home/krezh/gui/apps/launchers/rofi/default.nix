@@ -1,34 +1,20 @@
-{ pkgs, var, ... }:
+{ pkgs, ... }:
 {
   catppuccin.rofi.enable = false;
   programs.rofi = {
     enable = true;
     package = pkgs.rofi;
-    theme = {
-      "@theme" = "catppuccin-default";
-      "@import" = "catppuccin";
-    };
+    theme = ./outer.rasi;
     extraConfig = {
       show-icons = true;
-      # display-ssh = "󰣀 ssh:";
-      # display-run = "󱓞 run:";
-      # display-drun = "󰣖 drun:";
-      # display-window = "󱬀 window:";
-      # display-combi = "󰕘 combi:";
-      # display-filebrowser = "󰉋 filebrowser:";
-      font = "${var.fonts.sans} 13";
     };
     plugins = with pkgs; [
       rofi-games
     ];
-
   };
   xdg.dataFile = {
-    "rofi/themes/catppuccin-default.rasi" = {
-      source = ./catppuccin-lavrent-mocha.rasi;
-    };
-    "rofi/themes/catppuccin.rasi" = {
-      source = ./catppuccin-lavrent-mocha.rasi;
+    "rofi/themes/searchicon_w.svg" = {
+      source = ./searchicon_w.svg;
     };
   };
 }

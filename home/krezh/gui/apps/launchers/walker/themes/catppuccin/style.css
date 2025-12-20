@@ -5,8 +5,8 @@
 }
 
 * {
-  font-family: "JetbrainsMono Nerd Font";
-  font-size: 20px;
+  font-family: monospace;
+  font-size: 18px;
   color: @text;
 }
 
@@ -15,23 +15,23 @@ scrollbar {
 }
 
 .normal-icons {
-  -gtk-icon-size: 20px;
+  -gtk-icon-size: 16px;
 }
 
 .large-icons {
-  -gtk-icon-size: 36px;
+  -gtk-icon-size: 32px;
 }
 
 .box-wrapper {
   background: alpha(@base, 0.95);
-  border: 3px solid @border;
+  padding: 20px;
+  border: 2px solid @border;
 }
 
 .preview-box {
 }
 
 .box {
-  background: @base;
 }
 
 .search-container {
@@ -44,22 +44,15 @@ scrollbar {
 }
 
 .input {
-  box-shadow:
-    inset 0 4px 6px rgba(0, 0, 0, 0.3),
-    inset 0 -2px 3px rgba(0, 0, 0, 0.1);
-  padding: 10px;
 }
 
 .input:focus,
 .input:active {
-  box-shadow:
-    inset 0 4px 6px rgba(0, 0, 0, 0.3),
-    inset 0 -2px 3px rgba(0, 0, 0, 0.1);
+  box-shadow: none;
   outline: none;
 }
 
 .content-container {
-  background: @base;
 }
 
 .placeholder {
@@ -76,11 +69,9 @@ child > * {
 }
 
 child:hover .item-box {
-  background: alpha(@border, 0.1);
 }
 
 child:selected .item-box {
-  background: alpha(@border, 0.2);
 }
 
 child:selected .item-box * {
@@ -89,12 +80,11 @@ child:selected .item-box * {
 
 .item-box {
   padding-left: 14px;
-  margin: 6px 12px;
 }
 
 .item-text-box {
   all: unset;
-  padding: 8px 0;
+  padding: 14px 0;
 }
 
 .item-text {
@@ -116,32 +106,11 @@ child:selected .item-box * {
   font-style: italic;
 }
 
-/* Hide keybinds completely and collapse spacing */
-.keybinds,
-.global-keybinds,
-.item-keybinds,
-#Keybinds,
-#GlobalKeybinds,
-#ItemKeybinds {
-  opacity: 0;
-  min-height: 0;
-  max-height: 0;
-  min-width: 0;
-  max-width: 0;
-  margin: 0;
-  margin-top: -20px; /* Counteract parent Box spacing */
-  padding: 0;
-  background: transparent;
-  border: none;
-  box-shadow: none;
+.keybind-hints {
+  background: @background;
+  padding: 10px;
+  margin-top: 10px;
 }
 
 .preview {
-  background: @background;
-  box-shadow:
-    inset 0 4px 6px rgba(0, 0, 0, 0.3),
-    inset 0 -2px 3px rgba(0, 0, 0, 0.1);
-  margin-bottom: 10px;
-  margin-right: 10px;
-  padding: 10px;
 }

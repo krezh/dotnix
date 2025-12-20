@@ -1,19 +1,18 @@
-<?xml version="1.0" encoding="UTF-8" ?>
+<?xml version="1.0" encoding="UTF-8"?>
 <interface>
-  <requires lib="gtk" version="4.0" />
+  <requires lib="gtk" version="4.0"></requires>
   <object class="GtkWindow" id="Window">
     <style>
-      <class name="window" />
+      <class name="window"></class>
     </style>
-    <property name="resizable">false</property>
+    <property name="resizable">true</property>
     <property name="title">Walker</property>
     <child>
       <object class="GtkBox" id="BoxWrapper">
         <style>
-          <class name="box-wrapper" />
+          <class name="box-wrapper"></class>
         </style>
         <property name="width-request">644</property>
-        <property name="height-request">600</property>
         <property name="overflow">hidden</property>
         <property name="orientation">horizontal</property>
         <property name="valign">center</property>
@@ -21,16 +20,16 @@
         <child>
           <object class="GtkBox" id="Box">
             <style>
-              <class name="box" />
+              <class name="box"></class>
             </style>
             <property name="orientation">vertical</property>
             <property name="hexpand-set">true</property>
             <property name="hexpand">true</property>
-            <property name="spacing">0</property>
+            <property name="spacing">10</property>
             <child>
               <object class="GtkBox" id="SearchContainer">
                 <style>
-                  <class name="search-container" />
+                  <class name="search-container"></class>
                 </style>
                 <property name="overflow">hidden</property>
                 <property name="orientation">horizontal</property>
@@ -40,7 +39,7 @@
                 <child>
                   <object class="GtkEntry" id="Input">
                     <style>
-                      <class name="input" />
+                      <class name="input"></class>
                     </style>
                     <property name="halign">fill</property>
                     <property name="hexpand-set">true</property>
@@ -52,17 +51,16 @@
             <child>
               <object class="GtkBox" id="ContentContainer">
                 <style>
-                  <class name="content-container" />
+                  <class name="content-container"></class>
                 </style>
                 <property name="orientation">horizontal</property>
                 <property name="spacing">10</property>
-                <property name="margin-top">10</property>
                 <property name="vexpand">true</property>
                 <property name="vexpand-set">true</property>
                 <child>
                   <object class="GtkLabel" id="ElephantHint">
                     <style>
-                      <class name="elephant-hint" />
+                      <class name="elephant-hint"></class>
                     </style>
                     <property name="hexpand">true</property>
                     <property name="height-request">100</property>
@@ -72,7 +70,7 @@
                 <child>
                   <object class="GtkLabel" id="Placeholder">
                     <style>
-                      <class name="placeholder" />
+                      <class name="placeholder"></class>
                     </style>
                     <property name="label">No Results</property>
                     <property name="yalign">0.0</property>
@@ -82,23 +80,22 @@
                 <child>
                   <object class="GtkScrolledWindow" id="Scroll">
                     <style>
-                      <class name="scroll" />
+                      <class name="scroll"></class>
                     </style>
                     <property name="hexpand">true</property>
                     <property name="can_focus">false</property>
                     <property name="overlay-scrolling">true</property>
                     <property name="max-content-width">600</property>
-                    <property name="min-content-width">500</property>
-                    <property name="max-content-height">500</property>
+                    <property name="max-content-height">300</property>
                     <property name="min-content-height">0</property>
                     <property name="propagate-natural-height">true</property>
-                    <property name="propagate-natural-width">false</property>
+                    <property name="propagate-natural-width">true</property>
                     <property name="hscrollbar-policy">automatic</property>
                     <property name="vscrollbar-policy">automatic</property>
                     <child>
                       <object class="GtkGridView" id="List">
                         <style>
-                          <class name="list" />
+                          <class name="list"></class>
                         </style>
                         <property name="max_columns">1</property>
                         <property name="can_focus">false</property>
@@ -109,7 +106,7 @@
                 <child>
                   <object class="GtkBox" id="Preview">
                     <style>
-                      <class name="preview" />
+                      <class name="preview"></class>
                     </style>
                   </object>
                 </child>
@@ -118,15 +115,15 @@
             <child>
               <object class="GtkBox" id="Keybinds">
                 <property name="hexpand">true</property>
-                <property name="margin-top">0</property>
+                <property name="margin-top">10</property>
                 <style>
-                  <class name="keybinds" />
+                  <class name="keybinds"></class>
                 </style>
                 <child>
                   <object class="GtkBox" id="GlobalKeybinds">
-                    <property name="spacing">0</property>
+                    <property name="spacing">10</property>
                     <style>
-                      <class name="global-keybinds" />
+                      <class name="global-keybinds"></class>
                     </style>
                   </object>
                 </child>
@@ -134,9 +131,9 @@
                   <object class="GtkBox" id="ItemKeybinds">
                     <property name="hexpand">true</property>
                     <property name="halign">end</property>
-                    <property name="spacing">0</property>
+                    <property name="spacing">10</property>
                     <style>
-                      <class name="item-keybinds" />
+                      <class name="item-keybinds"></class>
                     </style>
                   </object>
                 </child>
@@ -145,7 +142,7 @@
             <child>
               <object class="GtkLabel" id="Error">
                 <style>
-                  <class name="error" />
+                  <class name="error"></class>
                 </style>
                 <property name="xalign">0</property>
                 <property name="visible">false</property>

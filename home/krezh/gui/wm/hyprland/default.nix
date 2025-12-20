@@ -8,6 +8,7 @@
     ./rules.nix
     # ./scrolling.nix
     ./animations.nix
+    ./xdph.nix
   ];
 
   services.polkit-gnome.enable = true;

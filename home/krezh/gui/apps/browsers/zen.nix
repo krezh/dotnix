@@ -2,6 +2,7 @@
   pkgs,
   inputs,
   config,
+  var,
   ...
 }:
 let
@@ -319,7 +320,7 @@ in
 
         # ZEN - THEME & APPEARANCE
         "zen.theme.accent-color" = "#ffffff90"; # Accent color with transparency
-        "zen.theme.border-radius" = 0; # Sharp corners
+        "zen.theme.border-radius" = toString var.rounding; # Sharp corners
         "zen.theme.content-element-separation" = 0; # No separation
         "zen.theme.gradient" = true; # Gradient theme
         "zen.theme.gradient.show-custom-colors" = true; # Custom gradient colors

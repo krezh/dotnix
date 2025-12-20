@@ -228,4 +228,4 @@ fi
   parse_keycodes |
   parse_bindings |
   prioritize_entries |
-  walker --dmenu -p 'Keybindings' --width 800 --height "$menu_height"
+  rofi -dmenu -p 'Keybindings' --width 800 --height "$menu_height" -theme-str 'listview { require-input: false; }'

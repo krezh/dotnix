@@ -14,12 +14,12 @@ let
 
   term =
     let
-      base = lib.getExe pkgs.ghostty;
+      base = lib.getExe pkgs.kitty;
     in
     {
-      run = "${base} +new-window";
-      float = cmd: "${base} --class=com.example.floatterm -e ${cmd} +new-window";
-      toggle = proc: cmd: "pkill ${proc} || ${base} --class=com.example.floatterm -e ${cmd} +new-window";
+      run = "${base}";
+      float = cmd: "${base} --class floatTerm -e ${cmd}";
+      toggle = proc: cmd: "pkill ${proc} || ${base} --class floatTerm -e ${cmd}";
     };
 
   browser = mkProg config.programs.zen-browser.package;
@@ -28,7 +28,7 @@ let
   sysMonitor = mkProg pkgs.mission-center;
   logout = mkProg pkgs.wlogout;
   hyprlock.run = "${lib.getExe config.programs.hyprlock.package} --immediate";
-  launcher.run = "${pkgs.netcat}/bin/nc -U /run/user/$(id -u)/walker/walker.sock";
+  launcher.run = "${lib.getExe pkgs.rofi} -show drun";
   shell.run = lib.getExe config.programs.noctalia-shell.package;
   keybinds.run = lib.getExe pkgs.hyprland_keybinds;
   clipboardMgr.run = "${lib.getExe config.programs.walker.package} -m clipboard";

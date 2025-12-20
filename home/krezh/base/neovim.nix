@@ -10,7 +10,7 @@
         vimAlias = true;
         languages = {
           enableFormat = false;
-          enableTreesitter = true;
+          enableTreesitter = false;
           enableExtraDiagnostics = false;
           nix = {
             enable = true;
@@ -51,7 +51,7 @@
         tabline = {
           nvimBufferline.enable = true;
         };
-        treesitter.context.enable = true;
+        treesitter.context.enable = false;
         binds = {
           whichKey.enable = true;
           cheatsheet.enable = true;

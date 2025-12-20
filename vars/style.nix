@@ -9,5 +9,5 @@
   # Opacity
   opacity = 0.98;
   borderSize = 3;
-  rounding = 0;
+  rounding = 10;
 }

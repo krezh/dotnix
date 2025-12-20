@@ -167,7 +167,7 @@
         monitor =
         size = 300, 60
         outline_thickness = 4
-        rounding = 0
+        rounding = ${toString var.rounding}
         dots_size = 0.2
         dots_spacing = 0.2
         dots_center = true

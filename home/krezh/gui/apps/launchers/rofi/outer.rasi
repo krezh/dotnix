@@ -1,0 +1,156 @@
+/******************************************************************************
+ * OutTheme
+ * A Minimal Rofi Theme by Outer Frog
+ * Built for KDE Plasma 6 with Wayland (and probably works with other configurations)
+ * Requires Open Sans (Ubuntu/Debian: sudo apt install fonts-Rubik)
+ ******************************************************************************/
+
+configuration {
+  run,
+  drun {
+    fallback-icon: "application-x-addon";
+  }
+  show-icons: true;
+  me-select-entry: "";
+  me-accept-entry: "!MousePrimary"; 
+  kb-cancel: "MousePrimary";
+  hover-select: true;
+}
+
+* {
+  base: #1e1e2e;
+  surface0: #313244;
+  overlay0: #6c7086;
+  text: #cdd6f4;
+
+  mauve: #cba6f7;
+  red: #f38ba8;
+  peach: #fab387;
+  green: #a6e3a1;
+  lavender: #b4befe;
+
+  background-color: @base;
+}
+
+window {
+  width: 30%;
+
+  /* Ideally anchor should be north, 
+    but it doesn't work on Wayland as of rofi 2.0.0 */
+  location: center;
+  anchor: center;
+
+  /* General theming */
+  border-radius: 15px;
+  background-color: @background-color;
+  text-color: @text;
+  transparency: "screenshot";
+
+  /* Border */
+  border: 3px;
+  border-color: @lavender;
+}
+
+entry {
+  placeholder: "";
+  text-color: @text;
+  font: "Rubik Bold 20";
+  blink: true;
+  padding: 12 15px;
+}
+
+textbox-prompt-colon {
+  enabled: false;
+}
+
+prompt {
+  enabled: false;
+}
+
+message {
+  /* For errors */
+  content: "";
+  border: 0px;
+  text-color: red;
+  font: "Rubik Thin 12";
+}
+
+textbox {
+  text-color: inherit;
+  font: inherit;
+}
+
+listview {
+  spacing: 5px;
+  lines: 5;
+  fixed-height: false;
+  border: 0px;
+  padding: 0px 0px 10px 0px; /* top right bottom left */
+
+  dynamic: true;
+  require-input: true;
+}
+
+element {
+  orientation: horizontal;
+  children: [ element-icon, element-text];
+  spacing: 8px;
+  border-radius: 15px;
+  margin: 2px 12px;
+}
+
+/* icon: don't draw its own colored box */
+element-icon {
+  size: 40px;
+  padding: 10px 15px;
+  background-color: transparent;
+  border: 0px;
+}
+
+/* text: expand to take the rest of the row so selection covers whole width */
+element-text {
+  expand: true;
+  horizontal-align: 0;
+  vertical-align: 0.5;
+  margin: 0 6px 0 0;
+  background-color: transparent;
+  text-color: inherit;
+  highlight: None;
+  font: "Rubik Bold 16";
+}
+
+element.normal.normal,
+element.normal.urgent,
+element.normal.active {
+  background-color: transparent;
+  text-color: @text;
+}
+element.selected.normal,
+element.selected.active,
+element.selected.urgent {
+  background-color: rgba(180, 190, 254, 0.35); /* @lavender with ~35% opacity */
+  text-color: @text;
+}
+element.alternate.normal,
+element.alternate.urgent,
+element.alternate.active {
+  background-color: transparent;
+  text-color: @text;
+}
+
+scrollbar {
+  handle-color: @lavender;
+}
+
+inputbar {
+  children: [entry, case-indicator, icon-search];
+}
+
+/* Search icon on the right */
+icon-search {
+  expand: false;
+  filename: "searchicon_w.svg";
+  size: 30px;
+  padding: 12.5px 17.5px;
+  vertical-align: 0.5;
+}

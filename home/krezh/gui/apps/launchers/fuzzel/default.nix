@@ -13,7 +13,7 @@
         font = "${var.fonts.sans}:weight=bold:size=14";
         line-height = 28;
         fields = "name,generic,comment,categories,filename,keywords";
-        terminal = lib.getExe pkgs.ghostty;
+        terminal = lib.getExe pkgs.kitty;
         exit-on-keyboard-focus-loss = true;
         prompt = "'   '";
         icon-theme = "Papirus-Dark";

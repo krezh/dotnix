@@ -20,6 +20,7 @@
       theme = "catppuccin";
       disable_mouse = false;
       debug = false;
+      hide_action_hints = true;
       shell = {
         anchor_top = false;
         anchor_bottom = false;

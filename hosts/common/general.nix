@@ -29,7 +29,7 @@
 
   hardware.enableRedistributableFirmware = true;
   xdg.terminal-exec.enable = true;
-  xdg.terminal-exec.settings.default = [ "ghostty" ];
+  xdg.terminal-exec.settings.default = [ "kitty" ];
 
   services.pcscd.enable = true;
 
