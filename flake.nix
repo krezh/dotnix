@@ -109,11 +109,6 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    binix = {
-      url = "github:krezh/binix";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-
     gomod2nix = {
       url = "github:nix-community/gomod2nix";
       inputs.nixpkgs.follows = "nixpkgs";

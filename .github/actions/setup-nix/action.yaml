@@ -1,14 +1,11 @@
 name: Setup Nix with Caching
-description: Install Nix and configure Binix cache
+description: Install Nix and configure Cachix cache
 inputs:
-  binix-endpoint:
-    description: Binix cache endpoint
+  cachix-cache:
+    description: Cachix cache name
     required: false
-  binix-cache:
-    description: Binix cache name
-    required: false
-  binix-token:
-    description: Binix authentication token
+  cachix-token:
+    description: Cachix authentication token
     required: false
   skip-cache:
     description: Skip cache setup (for forks/external PRs)
@@ -59,10 +56,9 @@ runs:
           accept-flake-config = true
           always-allow-substitutes = true
 
-    - name: Setup Binix
+    - name: Setup Cachix
       if: inputs.skip-cache != 'true'
-      uses: krezh/binix/binix-action@main
+      uses: cachix/cachix-action@0fc020193b5a1fa3ac4575aa3a7d3aa6a35435ad # v16
       with:
-        endpoint: ${{ inputs.binix-endpoint }}
-        cache: ${{ inputs.binix-cache }}
-        token: ${{ inputs.binix-token }}
+        name: ${{ inputs.cachix-cache }}
+        authToken: ${{ inputs.cachix-token }}
