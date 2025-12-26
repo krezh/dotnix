@@ -30,18 +30,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
 
-      - name: Setup SSH for remote builders
-        run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.REMOTE_BUILDERS_SSH_KEY }}" > ~/.ssh/nix-builder-key
-          chmod 600 ~/.ssh/nix-builder-key
-          cat >> ~/.ssh/config <<EOF
-          Host *
-            StrictHostKeyChecking accept-new
-            IdentityFile ~/.ssh/nix-builder-key
-          EOF
-          chmod 600 ~/.ssh/config
-
       - name: Install Nix
         uses: cachix/install-nix-action@0b0e072294b088b73964f1d72dfdac0951439dbd # v31.8.4
         with:
@@ -50,8 +38,6 @@ jobs:
             always-allow-substitutes = true
             builders-use-substitutes = true
             experimental-features = nix-command flakes cgroups
-            max-jobs = 0
-            builders = @${{ github.workspace }}/.github/nix-builders.conf
 
       - name: Setup Attic cache
         if: ${{ !(github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork) }}
@@ -60,19 +46,10 @@ jobs:
           endpoint: ${{ secrets.ATTIC_ENDPOINT }}
           cache: ${{ secrets.ATTIC_CACHE }}
           token: ${{ secrets.ATTIC_TOKEN }}
-          skip-push: true
 
-      - name: Build all hosts
+      - name: Build system
         id: build
-        run: |
-          nix run nixpkgs#nix-eval-jobs -- \
-            --flake '.#hosts' \
-            --check-cache-status | \
-          jq -r '.neededBuilds[]' | \
-          sort -u | \
-          xargs -P 3 -I {} nix build --print-build-logs --eval-store auto --out-link result "{}^*"
-
-      - name: Push to Attic
-        if: ${{ success() && !(github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork) }}
-        run: |
-          attic push ${{ secrets.ATTIC_CACHE }} result
+        uses: ./.github/actions/nix-build
+        with:
+          target: .#hosts.thor
+          build-type: system
