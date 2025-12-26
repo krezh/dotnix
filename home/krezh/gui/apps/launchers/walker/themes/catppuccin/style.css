@@ -1,13 +1,25 @@
-@import "colors.css";
+@define-color selected-text #8caaee;
+@define-color text #c6d0f5;
+@define-color base #24273a;
+@define-color border #8caaee;
+@define-color foreground #c6d0f5;
+@define-color background #24273a;
 
 * {
   all: unset;
 }
 
 * {
-  font-family: monospace;
-  font-size: 18px;
+  font-family: "JetBrainsMono Nerd Font";
+  font-size: 20px;
   color: @text;
+}
+
+popover {
+  background: @background;
+  border: 3px @border;
+  border-radius: 15px;
+  padding: 10px;
 }
 
 scrollbar {
@@ -25,7 +37,8 @@ scrollbar {
 .box-wrapper {
   background: alpha(@base, 0.95);
   padding: 20px;
-  border: 2px solid @border;
+  border: 3px solid @border;
+  border-radius: 15px;
 }
 
 .preview-box {
@@ -37,6 +50,7 @@ scrollbar {
 .search-container {
   background: @base;
   padding: 10px;
+  border-radius: 15px;
 }
 
 .input placeholder {

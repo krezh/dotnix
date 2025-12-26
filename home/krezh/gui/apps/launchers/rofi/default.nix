@@ -5,9 +5,6 @@
     enable = true;
     package = pkgs.rofi;
     theme = ./outer.rasi;
-    extraConfig = {
-      show-icons = true;
-    };
     plugins = with pkgs; [
       rofi-games
     ];

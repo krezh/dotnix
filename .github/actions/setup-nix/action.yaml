@@ -1,14 +1,14 @@
 name: Setup Nix with Caching
-description: Install Nix and configure Attic cache
+description: Install Nix and configure Binix cache
 inputs:
-  attic-endpoint:
-    description: Attic cache endpoint
+  binix-endpoint:
+    description: Binix cache endpoint
     required: false
-  attic-cache:
-    description: Attic cache name
+  binix-cache:
+    description: Binix cache name
     required: false
-  attic-token:
-    description: Attic authentication token
+  binix-token:
+    description: Binix authentication token
     required: false
   skip-cache:
     description: Skip cache setup (for forks/external PRs)
@@ -59,10 +59,10 @@ runs:
           accept-flake-config = true
           always-allow-substitutes = true
 
-    - name: Setup Attic
+    - name: Setup Binix
       if: inputs.skip-cache != 'true'
-      uses: ryanccn/attic-action@7fbafba3978e86e585cb68a82c08b30f3672b62d # v0.4.0
+      uses: krezh/binix/binix-action@main
       with:
-        endpoint: ${{ inputs.attic-endpoint }}
-        cache: ${{ inputs.attic-cache }}
-        token: ${{ inputs.attic-token }}
+        endpoint: ${{ inputs.binix-endpoint }}
+        cache: ${{ inputs.binix-cache }}
+        token: ${{ inputs.binix-token }}

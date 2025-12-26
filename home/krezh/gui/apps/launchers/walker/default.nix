@@ -130,27 +130,11 @@
               bind = "Return";
             }
             {
-              action = "remove";
-              bind = "ctrl d";
-              after = "ClearReload";
-            }
-            {
-              action = "remove_all";
-              global = true;
-              label = "clear";
-              bind = "ctrl shift d";
-              after = "ClearReload";
-            }
-            {
               action = "toggle_images";
               global = true;
               label = "toggle images";
               bind = "ctrl i";
               after = "ClearReload";
-            }
-            {
-              action = "edit";
-              bind = "ctrl o";
             }
           ];
         };
@@ -159,11 +143,10 @@
 
     themes = {
       catppuccin = {
-        style =
-          builtins.readFile ./themes/catppuccin/colors.css + builtins.readFile ./themes/catppuccin/style.css;
-        layouts = {
-          layout = builtins.readFile ./themes/catppuccin/layout.xml;
-        };
+        style = builtins.readFile ./themes/catppuccin/style.css;
+        # layouts = {
+        #   layout = builtins.readFile ./themes/catppuccin/layout.xml;
+        # };
       };
     };
   };

@@ -1,5 +1,6 @@
 {
   config,
+  pkgs,
   ...
 }:
 {
@@ -14,4 +15,6 @@
     recursive = true;
     source = ../wallpapers;
   };
+
+  home.packages = [ pkgs.waypaper ];
 }

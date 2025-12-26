@@ -28,7 +28,7 @@ let
   sysMonitor = mkProg pkgs.mission-center;
   logout = mkProg pkgs.wlogout;
   hyprlock.run = "${lib.getExe config.programs.hyprlock.package} --immediate";
-  launcher.run = "${lib.getExe pkgs.rofi} -show drun";
+  launcher.run = "${pkgs.netcat}/bin/nc -U /run/user/$(id -u)/walker/walker.sock";
   shell.run = lib.getExe config.programs.noctalia-shell.package;
   keybinds.run = lib.getExe pkgs.hyprland_keybinds;
   clipboardMgr.run = "${lib.getExe config.programs.walker.package} -m clipboard";
