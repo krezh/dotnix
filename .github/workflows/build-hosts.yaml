@@ -42,5 +42,5 @@ jobs:
         id: build
         uses: ./.github/actions/nix-build
         with:
-          target: .#hosts.thor
+          target: hosts.thor
           build-type: system
