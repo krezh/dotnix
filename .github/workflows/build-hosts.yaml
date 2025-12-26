@@ -30,22 +30,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
 
-      - name: Install Nix
-        uses: cachix/install-nix-action@0b0e072294b088b73964f1d72dfdac0951439dbd # v31.8.4
+      - name: Setup Nix with caching
+        uses: ./.github/actions/setup-nix
         with:
-          extra_nix_config: |
-            accept-flake-config = true
-            always-allow-substitutes = true
-            builders-use-substitutes = true
-            experimental-features = nix-command flakes cgroups
-
-      - name: Setup Attic cache
-        if: ${{ !(github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork) }}
-        uses: ryanccn/attic-action@7fbafba3978e86e585cb68a82c08b30f3672b62d # v0.4.0
-        with:
-          endpoint: ${{ secrets.ATTIC_ENDPOINT }}
-          cache: ${{ secrets.ATTIC_CACHE }}
-          token: ${{ secrets.ATTIC_TOKEN }}
+          binix-endpoint: https://nix-cache.plexuz.xyz
+          binix-cache: ${{ secrets.BINIX_CACHE }}
+          binix-token: ${{ secrets.BINIX_TOKEN }}
+          skip-cache: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork }}
 
       - name: Build system
         id: build
