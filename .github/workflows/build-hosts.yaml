@@ -33,7 +33,7 @@ jobs:
       - uses: wimpysworld/nothing-but-nix@v6
         with:
           hatchet-protocol: cleave
-          nix-permission-edict: false
+          nix-permission-edict: true
 
       - name: Setup Nix with caching
         uses: ./.github/actions/setup-nix
