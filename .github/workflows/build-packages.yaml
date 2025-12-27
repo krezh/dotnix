@@ -47,7 +47,7 @@ jobs:
         if: ${{ steps.changed-packages.outputs.changed_files != '[]' }}
         run: |
           files='${{ steps.changed-packages.outputs.changed_files }}'
-          pkgs=$(echo "$files" | jq -c '[.[] | split("/") | select(length >= 3) | .[2]] | unique')
+          pkgs=$(echo "$files" | jq -c '[.[] | split("/") | .[-1]] | unique')
           echo "packages=$pkgs" >> $GITHUB_OUTPUT
 
   build-packages:
