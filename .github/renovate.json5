@@ -11,12 +11,23 @@
     automergeType: "pr",
     ignoreTests: false,
   },
+  customDatasources: {
+    "open-vsix": {
+      defaultRegistryUrlTemplate: "https://open-vsx.org/api/{{packageName}}",
+      format: "json",
+      transformTemplates: [
+        '{ "releases": [$keys(allVersions)[$match($, /^[0-9]/)].{ "version": $ }] }',
+      ],
+    },
+  },
   customManagers: [
     {
       customType: "regex",
       managerFilePatterns: ["/\\.nix$/"],
       matchStrings: [
         'pname = "(?<packageName>[^"]+)";\\s*\\n\\s*# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)( versioning=(?<versioning>\\S+))?\\s*\\n\\s*version = "(?<currentValue>[^"]+)"',
+        'name = "(?<packageName>[^"]+)";\\s*\\n\\s*# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)( versioning=(?<versioning>\\S+))?\\s*\\n\\s*version = "(?<currentValue>[^"]+)"',
+        'publisher = "(?<packageName>[^"]+)";\\s*\\n\\s*# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)( versioning=(?<versioning>\\S+))?\\s*\\n\\s*version = "(?<currentValue>[^"]+)"',
       ],
       datasourceTemplate: "{{#if datasource}}{{{datasource}}}{{else}}github-releases{{/if}}",
       versioningTemplate: "{{#if versioning}}{{{versioning}}}{{else}}semver{{/if}}",
@@ -26,8 +37,25 @@
   ],
   packageRules: [
     {
+      description: "Update hashes for vscode-extensions",
+      matchManagers: ["custom.regex"],
+      matchFileNames: ["pkgs/vscode-extensions/**/*.nix"],
+      matchDatasources: ["custom.open-vsix"],
+      postUpgradeTasks: {
+        commands: [
+          'bash -c \'PUBLISHER=$(grep -oP "publisher = \"\\K[^\"]+" {{{packageFile}}}); NAME=$(grep -oP "name = \"\\K[^\"]+" {{{packageFile}}}); VERSION=$(grep -oP "version = \"\\K[^\"]+" {{{packageFile}}}); URL="https://${PUBLISHER}.gallery.vsassets.io/_apis/public/gallery/publisher/${PUBLISHER}/extension/${NAME}/${VERSION}/assetbyname/Microsoft.VisualStudio.Services.VSIXPackage"; HASH=$(nix-prefetch-url "$URL" 2>/dev/null | xargs nix hash to-sri --type sha256); sed -i "s|hash = \"sha256-[^\"]*\"|hash = \"$HASH\"|" {{{packageFile}}}\'',
+        ],
+        fileFilters: ["**/*.nix"],
+        executionMode: "update",
+      },
+      automerge: true,
+      automergeType: "pr",
+      ignoreTests: false,
+    },
+    {
       matchManagers: ["custom.regex"],
       matchFileNames: ["pkgs/**/*.nix"],
+      excludeFileNames: ["pkgs/vscode-extensions/**/*.nix"],
       extractVersion: "^(?<version>.+)$",
       postUpgradeTasks: {
         commands: [

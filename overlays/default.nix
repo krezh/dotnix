@@ -14,4 +14,7 @@
 
   # Fix Weston DRM modifier assertion crash on AMD GPUs
   weston-fix = import ./weston-fix.nix;
+
+  # Custom VSCode extensions from Open VSX
+  vscode-extensions = import ./vscode-extensions.nix;
 }

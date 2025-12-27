@@ -23,7 +23,7 @@
   };
   programs.vscode = {
     enable = true;
-    package = pkgs.vscodium;
+    package = pkgs.vscodium-fhs;
     profiles.default = {
       enableExtensionUpdateCheck = false;
       enableUpdateCheck = false;
@@ -48,6 +48,9 @@
         waderyan.gitblame
         alefragnani.project-manager
         wakatime.vscode-wakatime
+        theqtcompany.qt-core
+        theqtcompany.qt-qml
+        theqtcompany.qt-ui
       ];
       userSettings = {
         # Telemetry and updates
