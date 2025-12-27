@@ -55,7 +55,6 @@
     {
       matchManagers: ["custom.regex"],
       matchFileNames: ["pkgs/**/*.nix"],
-      excludeFileNames: ["pkgs/vscode-extensions/**/*.nix"],
       extractVersion: "^(?<version>.+)$",
       postUpgradeTasks: {
         commands: [
