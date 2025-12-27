@@ -16,5 +16,5 @@
   weston-fix = import ./weston-fix.nix;
 
   # Custom VSCode extensions from Open VSX
-  vscode-extensions = import ./vscode-extensions.nix;
+  vscode-extensions = import ./vscode-extensions.nix { inherit lib; };
 }

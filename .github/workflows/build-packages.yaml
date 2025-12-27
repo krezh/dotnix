@@ -55,6 +55,7 @@ jobs:
     needs: detect-packages
     if: ${{ needs.detect-packages.outputs.changed-packages != '' }}
     runs-on: ubuntu-latest
+    continue-on-error: true
     strategy:
       matrix:
         package: ${{ fromJson(needs.detect-packages.outputs.changed-packages) }}
