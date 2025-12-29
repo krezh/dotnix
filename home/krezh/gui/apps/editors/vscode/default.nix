@@ -23,7 +23,7 @@
   };
   programs.vscode = {
     enable = true;
-    package = pkgs.vscodium-fhs;
+    package = pkgs.vscodium;
     profiles.default = {
       enableExtensionUpdateCheck = false;
       enableUpdateCheck = false;
@@ -51,6 +51,7 @@
         theqtcompany.qt-core
         theqtcompany.qt-qml
         theqtcompany.qt-ui
+        mkhl.direnv
       ];
       userSettings = {
         # Telemetry and updates
@@ -65,10 +66,17 @@
         # Workbench settings
         workbench = {
           startupEditor = "none";
-          workbench.list.smoothScrolling = true;
+          list.smoothScrolling = true;
           editor = {
             empty.hint = "hidden";
             autoLockGroups."mainThreadWebview-markdown.preview" = true;
+          };
+          editorAssociations = {
+            "*.copilotmd" = "vscode.markdown.preview.editor";
+            "*.qrc" = "qt-core.qrcEditor";
+            "{git,gitlens,chat-editing-snapshot-text-model,copilot,git-graph,git-graph-3}:/**/*.qrc" =
+              "default";
+            "{git,gitlens,chat-editing-snapshot-text-model,copilot,git-graph,git-graph-3}:/**/*.ui" = "default";
           };
         };
 
@@ -355,6 +363,23 @@
 
         # Language-specific: GitHub Actions
         "[github-actions-workflow]".editor.defaultFormatter = "redhat.vscode-yaml";
+
+        "[qml]".editor.defaultFormatter = "theqtcompany.qt-qml";
+
+        qt-core.additionalQtPaths = [
+          {
+            name = "Qt6-nix";
+            path = "${pkgs.qt6.qtbase}/bin/qtpaths";
+          }
+        ];
+
+        qt-qml = {
+          doNotAskForQmllsDownload = true;
+          qmlls = {
+            useQmlImportPathEnvVar = true;
+            customExePath = "${pkgs.qt6.qtdeclarative}/bin/qmlls";
+          };
+        };
 
         # Todo-tree settings
         todo-tree = {
