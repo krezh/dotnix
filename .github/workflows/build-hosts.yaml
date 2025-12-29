@@ -74,8 +74,9 @@ jobs:
           matrix=$(nix eval --json '.#ghMatrix' | jq -c) || exit 1
           systems='${{ needs.detect-changes.outputs.changed-systems }}'
           if [ -n "$systems" ] && [ "$systems" != "[]" ]; then
-            changed_hosts=$(echo "$systems" | jq -r '[.[] | select(startswith("hosts/")) | split("/")[1]] | unique')
-            has_shared=$(echo "$systems" | jq -r 'any(startswith("hosts/") | not)')
+            # Extract host-specific changes (exclude common/, modules/, and other shared directories)
+            changed_hosts=$(echo "$systems" | jq -r '[.[] | select(startswith("hosts/")) | split("/")[1] | select(. != "common" and . != "modules")] | unique')
+            has_shared=$(echo "$systems" | jq -r 'any((startswith("hosts/") | not) or startswith("hosts/common/") or startswith("hosts/modules/"))')
 
             if [ "$has_shared" = "false" ] && [ "$changed_hosts" != "[]" ]; then
               matrix=$(echo "$matrix" | jq -c --argjson hosts "$changed_hosts" '{include: [.include[] | select(.host as $h | $hosts | index($h))]}')
