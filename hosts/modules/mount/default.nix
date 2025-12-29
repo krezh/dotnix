@@ -61,7 +61,7 @@ let
         smbVersion = mkOption {
           type = types.nullOr types.str;
           default = "3.1.1";
-          description = "SMB protocol version (1.0, 2.0, 2.1, 3.0, 3.1.1).";
+          description = "SMB protocol version (1.0, 2.0, 2.1, 3.0, 3.1.1)";
         };
 
         uid = mkOption {

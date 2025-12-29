@@ -10,7 +10,7 @@
         enable = true;
         type = "smb";
         server = "jotunheim.srv.plexuz.xyz";
-        share = "homes";
+        share = "shares";
         mountPoint = "/mnt/home";
         credentialsFile = config.sops.templates."jotunheim_homes_creds".path;
       };
