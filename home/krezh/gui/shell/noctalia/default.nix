@@ -73,7 +73,7 @@
               showMemoryAsPercent = true;
               showMemoryUsage = true;
               showNetworkStats = false;
-              useMonospaceFont = true;
+              useMonospaceFont = false;
               usePrimaryColor = false;
             }
             {
