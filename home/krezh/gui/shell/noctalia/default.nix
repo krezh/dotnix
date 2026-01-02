@@ -63,16 +63,16 @@
           ];
           left = [
             {
-              compactMode = true;
+              compactMode = false;
               diskPath = "/";
               id = "SystemMonitor";
               showCpuTemp = true;
               showCpuUsage = true;
               showDiskUsage = true;
-              showGpuTemp = false;
+              showGpuTemp = true;
               showMemoryAsPercent = true;
               showMemoryUsage = true;
-              showNetworkStats = true;
+              showNetworkStats = false;
               useMonospaceFont = true;
               usePrimaryColor = false;
             }
