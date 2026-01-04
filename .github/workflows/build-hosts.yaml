@@ -136,12 +136,13 @@ jobs:
           echo "build-size=$build_size" >> $GITHUB_OUTPUT
           echo "result-path=$result_path" >> $GITHUB_OUTPUT
 
-      - name: Post build failure comment
-        if: ${{ failure() && github.event_name == 'pull_request' }}
-        uses: ./.github/actions/post-build-error
+      - name: Post build comment
+        if: ${{ always() && github.event_name == 'pull_request' }}
+        uses: ./.github/actions/post-build-comment
         with:
           build-type: system
           build-name: ${{ matrix.host }}
+          build-status: ${{ steps.build.outcome }}
           flake-target: hosts.${{ matrix.host }}
           error-log: ${{ steps.build.outputs.error-log }}
           build-duration: ${{ steps.build.outputs.build_duration }}

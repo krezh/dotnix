@@ -77,12 +77,13 @@ jobs:
           target: ${{ matrix.package }}
           build-type: package
 
-      - name: Post build errors
-        if: ${{ failure() && github.event_name == 'pull_request' }}
-        uses: ./.github/actions/post-build-error
+      - name: Post build comment
+        if: ${{ always() && github.event_name == 'pull_request' }}
+        uses: ./.github/actions/post-build-comment
         with:
           build-type: package
           build-name: ${{ matrix.package }}
+          build-status: ${{ steps.build.outcome }}
           flake-target: ${{ matrix.package }}
           error-log: ${{ steps.build.outputs.error-log }}
           pr-number: ${{ github.event.pull_request.number }}
