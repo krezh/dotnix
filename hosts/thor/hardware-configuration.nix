@@ -40,6 +40,7 @@
       "vt.global_cursor_default=0"
       "module_blacklist=radeon"
       "nvme_core.default_ps_max_latency_us=0"
+      "usbcore.autosuspend=-1"
     ];
   };
 

@@ -337,7 +337,7 @@
       };
       location = {
         analogClockInCalendar = false;
-        firstDayOfWeek = -1;
+        firstDayOfWeek = 1;
         name = "Sweden, Bålsta";
         showCalendarEvents = true;
         showCalendarWeather = true;
