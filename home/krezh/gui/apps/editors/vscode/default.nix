@@ -52,6 +52,7 @@
         theqtcompany.qt-qml
         theqtcompany.qt-ui
         mkhl.direnv
+        opentofu.opentofu
       ];
       userSettings = {
         # Telemetry and updates
@@ -347,6 +348,10 @@
         opentofu = {
           codelens.referenceCount = true;
           experimentalFeatures.prefillRequiredFields = true;
+          languageServer = {
+            path = lib.getExe pkgs.tofu-ls;
+            tofu.path = lib.getExe pkgs.opentofu;
+          };
         };
         "[opentofu]".editor.defaultFormatter = "opentofu.vscode-opentofu";
 

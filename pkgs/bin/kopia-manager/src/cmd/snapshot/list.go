@@ -13,7 +13,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// ListCmd lists all snapshots grouped by backup name
+// ListCmd lists all snapshots grouped by host+user combination
 var ListCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List snapshots from this computer (use --all for all hosts)",
@@ -25,15 +25,19 @@ var ListCmd = &cobra.Command{
 
 		// Determine which hostname to filter by
 		hostname := host
-		if !all && hostname == "" {
-			var err error
-			hostname, err = os.Hostname()
-			if err != nil {
-				log.Warn("Could not get hostname, showing all snapshots", "error", err)
+		if hostname == "" {
+			if all {
+				// --all specified without --host: show all hosts
 				hostname = ""
+			} else {
+				// No flags specified: use current system hostname
+				var err error
+				hostname, err = os.Hostname()
+				if err != nil {
+					log.Warn("Could not get hostname, showing all snapshots", "error", err)
+					hostname = ""
+				}
 			}
-		} else if all {
-			hostname = ""
 		}
 
 		snapshots, err := km.ListSnapshots(hostname, user)
@@ -50,10 +54,10 @@ var ListCmd = &cobra.Command{
 			return
 		}
 
-		// Group snapshots by backup name
+		// Group snapshots by host+user combination
 		groups := make(map[string][]manager.SnapshotSummary)
 		for _, snap := range snapshots {
-			name := util.ExtractBackupName(snap)
+			name := util.FormatHostUserGroupKey(snap.Hostname, snap.Username)
 			groups[name] = append(groups[name], snap)
 		}
 

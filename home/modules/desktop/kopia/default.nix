@@ -186,6 +186,12 @@ in
     };
 
     maintenance = {
+      enable = lib.mkOption {
+        type = lib.types.bool;
+        default = false;
+        description = "Enable repository maintenance";
+      };
+
       schedule = lib.mkOption {
         type = lib.types.str;
         default = "weekly";
@@ -232,7 +238,7 @@ in
         };
         Install.WantedBy = [ "default.target" ];
       };
-      kopia-maintenance = {
+      kopia-maintenance = lib.mkIf cfg.maintenance.enable {
         Unit = {
           Description = "Kopia repository maintenance";
           After = [ "kopia-init.service" ];
@@ -250,7 +256,7 @@ in
     ) cfg.backups;
 
     systemd.user.timers = {
-      kopia-maintenance = {
+      kopia-maintenance = lib.mkIf cfg.maintenance.enable {
         Unit = {
           Description = "Timer for Kopia repository maintenance";
         };

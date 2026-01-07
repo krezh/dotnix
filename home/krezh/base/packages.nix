@@ -8,6 +8,7 @@
     dyff
     go-task
     opentofu
+    tofu-ls
     ncdu
     fd
     httpie

@@ -8,6 +8,7 @@
       path = ../pkgs;
       func = final.callPackage;
       useBaseName = true;
+      excludeFiles = [ "vscode-extensions" ];
     };
 
   gomod2nix = inputs.gomod2nix.overlays.default;

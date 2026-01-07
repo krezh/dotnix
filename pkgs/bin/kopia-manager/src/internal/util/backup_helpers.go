@@ -1,6 +1,7 @@
 package util
 
 import (
+	"fmt"
 	"os"
 	"sort"
 	"strings"
@@ -21,6 +22,17 @@ func ExtractBackupName(snap manager.SnapshotSummary) string {
 		return desc
 	}
 	return snap.Source
+}
+
+// FormatHostUserGroupKey formats a hostname and username into a group key for display.
+func FormatHostUserGroupKey(hostname, username string) string {
+	if hostname == "" {
+		hostname = "unknown"
+	}
+	if username == "" {
+		username = "unknown"
+	}
+	return fmt.Sprintf("%s@%s", username, hostname)
 }
 
 // GetCurrentHostname returns the current system hostname

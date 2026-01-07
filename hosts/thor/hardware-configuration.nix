@@ -21,6 +21,7 @@
         "xhci_pci"
         "thunderbolt"
         "usbhid"
+        "i2c-dev"
       ];
     };
     kernelModules = [ "kvm-amd" ];
