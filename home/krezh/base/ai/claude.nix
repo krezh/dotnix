@@ -69,7 +69,6 @@ in
           # MCP servers (read-only)
           "mcp__github"
           "mcp__nixos"
-          "mcp__socket"
           "mcp__rust-analyzer"
           "mcp__gopls"
           "mcp__sequential-thinking"

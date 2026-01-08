@@ -26,7 +26,6 @@ in
       systemPackages = with pkgs; [
         winetricks
         vulkan-tools
-        sgdboop
         lsfg-vk
         lsfg-vk-ui
         lutris

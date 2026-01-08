@@ -69,11 +69,13 @@
         "tag +browsers, class:^(firefox)$"
         "tag +browsers, class:^(chromium)$"
         "tag +browsers, class:^(chrome)$"
+        "tag +browsers, class:^(vivaldi)$"
         # Tag media
         "tag +media, class:^(mpv)$"
         "tag +media, class:^(vlc)$"
         "tag +media, class:^(youtube)$"
         "tag +media, class:^(plex)$"
+        "tag +media, class:^(org.jellyfin.JellyfinDesktop)$"
         # Tag chat
         "tag +chat, class:^(vesktop)$"
         "tag +chat, class:^(legcord)$"
@@ -85,6 +87,7 @@
         "opacity 1.0 override,initialTitle:^(Discord Popout)$"
         # Blur exceptions
         "noblur,tag:games"
+        "noblur,tag:media"
         # Render unfocused
         "renderunfocused,tag:games"
       ];
