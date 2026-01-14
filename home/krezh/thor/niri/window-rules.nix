@@ -1,13 +1,32 @@
-{ ... }:
+{ var, ... }:
 {
   programs.niri.settings.window-rules = [
-    # Calculator
     {
-      matches = [ { "app-id" = "^org\\.gnome\\.Calculator$"; } ];
-      "default-column-width" = {
-        fixed = 400;
+      geometry-corner-radius = {
+        bottom-left = 15.0;
+        bottom-right = 15.0;
+        top-left = 15.0;
+        top-right = 15.0;
       };
-      "open-floating" = true;
+      clip-to-geometry = true;
+      draw-border-with-background = false;
+      opacity = var.opacity;
+      shadow = {
+        enable = true;
+      };
+    }
+    {
+      matches = [
+        {
+          app-id = "steam";
+          title = ''^notificationtoasts_\d+_desktop$'';
+        }
+      ];
+      default-floating-position = {
+        x = 10;
+        y = 10;
+        relative-to = "top-right";
+      };
     }
 
     # Showkey
@@ -19,43 +38,6 @@
     # Audio control
     {
       matches = [ { "app-id" = "^audioControl$"; } ];
-      "open-floating" = true;
-    }
-
-    # Nautilus
-    {
-      matches = [ { "app-id" = "^org\\.gnome\\.Nautilus$"; } ];
-      "default-column-width" = {
-        proportion = 0.5;
-      };
-    }
-
-    # Kitty with opacity
-    {
-      matches = [ { "app-id" = "^kitty$"; } ];
-      opacity = 0.85;
-    }
-
-    # Zenity
-    {
-      matches = [ { "app-id" = "^zenity$"; } ];
-      "open-floating" = true;
-    }
-
-    # Resources (Mission Center)
-    {
-      matches = [ { "app-id" = "^resources$"; } ];
-      "open-floating" = true;
-    }
-
-    # File Roller
-    {
-      matches = [ { "app-id" = "^file-roller$"; } ];
-      "open-floating" = true;
-    }
-
-    {
-      matches = [ { "app-id" = "^org\\.gnome\\.FileRoller$"; } ];
       "open-floating" = true;
     }
 

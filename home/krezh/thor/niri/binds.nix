@@ -7,11 +7,11 @@
 let
   termBin = lib.getExe pkgs.kitty;
   launcherBin = "${pkgs.netcat}/bin/nc -U /run/user/$(id -u)/walker/walker.sock";
-  shellBin = "sh -c ${lib.getExe config.programs.noctalia-shell.package} ipc call";
-  clipboardBin = "sh -c ${lib.getExe config.programs.walker.package} -m clipboard";
+  shellBin = "${lib.getExe config.programs.noctalia-shell.package} ipc call";
+  clipboardBin = "${lib.getExe config.programs.walker.package} -m clipboard";
   recShot = "${lib.getExe pkgs.recshot} -t ${
     config.sops.secrets."zipline/token".path
-  } -u https://zipline.talos.plexuz.xyz --zipline";
+  } -u https://zipline.talos.plexuz.xyz";
 
   getBinaryName = pkg: pkg.meta.mainProgram or pkg.pname or pkg.name;
   audioControlPkg = pkgs.wiremix;
@@ -21,7 +21,7 @@ let
   actions = config.lib.niri.actions;
 in
 {
-  programs.niri.settings.binds = with config.lib.niri.actions; {
+  programs.niri.settings.binds = with actions; {
     # Hotkey overlay
     "Mod+Shift+Slash".action = actions."show-hotkey-overlay";
     "Mod+Slash".action = actions."show-hotkey-overlay";
@@ -59,19 +59,17 @@ in
 
     # Application Launchers
     "Mod+Return".action = spawn termBin;
-    "Mod+T".action = spawn termBin;
     "Mod+R".action = spawn-sh launcherBin;
     "Mod+B".action = spawn (lib.getExe config.programs.zen-browser.package);
     "Mod+E".action = spawn (lib.getExe pkgs.nautilus);
     "Mod+O".action = spawn (lib.getExe pkgs.gnome-calculator);
     "Mod+V".action = spawn-sh clipboardBin;
-    "Mod+N".action = spawn shellBin "notifications" "toggleHistory";
-    "Mod+Ctrl+N".action = spawn shellBin "notifications" "clear";
+    "Mod+N".action = spawn-sh "${shellBin} notifications toggleHistory";
+    "Mod+Ctrl+N".action = spawn-sh "${shellBin} notifications clear";
     "Mod+Escape".action = spawn (lib.getExe pkgs.wlogout);
     "Ctrl+Shift+Escape".action = spawn (lib.getExe pkgs.resources);
     "Mod+G".action =
-      spawn "sh" "-c"
-        "pkill ${audioControlName} || ${termBin} --class audioControl -e ${audioControlBin} -m 100";
+      spawn-sh "pkill ${audioControlName} || ${termBin} --class audioControl -e ${audioControlBin} -m 100";
 
     # Window Management
     "Mod+Q".action = actions."close-window";
@@ -188,8 +186,5 @@ in
 
     # Audio Device Switching
     "Mod+F3".action = spawn "audio-switch" "toggle";
-
-    # System
-    "Mod+Shift+E".action = quit;
   };
 }
