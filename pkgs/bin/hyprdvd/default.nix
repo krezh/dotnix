@@ -6,14 +6,14 @@
 
 python3.pkgs.buildPythonApplication rec {
   pname = "hyprdvd";
-  version = "0.5.0";
+  version = "0.5.1";
   pyproject = true;
 
   src = fetchFromGitHub {
     owner = "nevimmu";
     repo = "hyprdvd";
     rev = version;
-    hash = "sha256-my33xuCtZLLOlFEiKUmMz3SLSVxtkrCSdvMSKAhaodM=";
+    hash = "sha256-oKSt6AaJcZlWyl8KAqcVUwJzT9vaqtAqLYic1bESpAM=";
   };
 
   build-system = [
