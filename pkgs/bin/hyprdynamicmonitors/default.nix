@@ -6,6 +6,7 @@
 
 buildGoModule rec {
   pname = "hyprdynamicmonitors";
+  # renovate: datasource=github-releases depName=fiffeek/hyprdynamicmonitors
   version = "1.4.0";
 
   src = fetchFromGitHub {
