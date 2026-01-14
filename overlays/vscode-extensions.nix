@@ -6,7 +6,7 @@ let
   mkPublisher =
     name: _:
     lib.scanPath.toAttrs {
-      path = extensionsPath + "/${name}";
+      basePath = extensionsPath + "/${name}";
       func = final.callPackage;
     };
 in

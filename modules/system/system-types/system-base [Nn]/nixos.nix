@@ -8,7 +8,7 @@ let
   pkgsOverlay =
     final: _prev:
     lib.scanPath.toAttrs {
-      path = lib.relativeToRoot "pkgs";
+      basePath = lib.relativeToRoot "pkgs";
       func = final.callPackage;
       useBaseName = true;
       excludeFiles = [ "vscode-extensions" ];

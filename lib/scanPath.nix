@@ -26,9 +26,9 @@ let
 
   # Memoized readDir - caches directory reads
   cachedReadDir =
-    cache: path:
+    cache: basePath:
     let
-      key = toString path;
+      key = toString basePath;
     in
     if cache ? ${key} then
       {
@@ -37,7 +37,7 @@ let
       }
     else
       let
-        entries = builtins.readDir path;
+        entries = builtins.readDir basePath;
       in
       {
         cache = cache // {
@@ -49,15 +49,15 @@ let
   # Core recursive scanner with all optimizations
   scan =
     {
-      path,
+      basePath,
       config,
       collected ? [ ],
       processed ? { },
       cache ? { },
-      rootPath ? path, # Track the original root path
+      rootPath ? basePath, # Track the original root path
     }:
     let
-      key = toString path;
+      key = toString basePath;
     in
     # Early termination: already processed
     if processed ? ${key} then
@@ -65,8 +65,8 @@ let
         paths = collected;
         inherit cache;
       }
-    # Validation: path must exist
-    else if !(builtins.pathExists path) then
+    # Validation: basePath must exist
+    else if !(builtins.pathExists basePath) then
       throw ''
         scanPath: Path not found
           Path: ${key}
@@ -77,7 +77,7 @@ let
     else
       let
         # Memoized directory read
-        readResult = cachedReadDir cache path;
+        readResult = cachedReadDir cache basePath;
         entries = readResult.entries;
         newCache = readResult.cache;
 
@@ -95,7 +95,7 @@ let
         processEntry =
           acc: name:
           let
-            entryPath = path + "/${name}";
+            entryPath = basePath + "/${name}";
             entryType = validEntries.${name};
           in
           if entryType == "directory" then
@@ -113,7 +113,7 @@ let
             else
               # Regular directory - recurse
               scan {
-                path = entryPath;
+                basePath = entryPath;
                 inherit config rootPath;
                 collected = acc.paths;
                 processed = newProcessed;
@@ -134,39 +134,32 @@ let
       result;
 in
 {
-  # Simple form: just pass a path directly
+  # Simple form: just pass a basePath directly
   # Uses lazy evaluation to avoid self-import issues
-  toImports = path: {
-    imports = [
-      (
-        { ... }:
-        {
-          imports =
-            (scan {
-              inherit path;
-              config = {
-                extensions = [ ".nix" ];
-                excludeFiles = [ ];
-                excludePatterns = [ ];
-                includePatterns = [ ];
-              };
-            }).paths;
-        }
-      )
-    ];
-  };
+  toImports =
+    basePath:
+    map (basePath: { imports = [ basePath ]; })
+      (scan {
+        inherit basePath;
+        config = {
+          extensions = [ ".nix" ];
+          excludeFiles = [ ];
+          excludePatterns = [ ];
+          includePatterns = [ ];
+        };
+      }).paths;
 
   # Return list of discovered paths
   toList =
     {
-      path,
+      basePath,
       extensions ? [ ".nix" ],
       excludeFiles ? [ ],
       excludePatterns ? [ ],
       includePatterns ? [ ],
     }:
     (scan {
-      inherit path;
+      inherit basePath;
       config = {
         inherit
           extensions
@@ -180,7 +173,7 @@ in
   # Return attribute set by calling func on each path
   toAttrs =
     {
-      path,
+      basePath,
       func,
       args ? { },
       useBaseName ? false,
@@ -192,7 +185,7 @@ in
     let
       paths =
         (scan {
-          inherit path;
+          inherit basePath;
           config = {
             inherit
               extensions
@@ -203,7 +196,7 @@ in
           };
         }).paths;
 
-      rootStr = toString path;
+      rootStr = toString basePath;
 
       # Remove any matching extension from a filename
       removeExtension =

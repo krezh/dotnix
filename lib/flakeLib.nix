@@ -8,7 +8,7 @@
 
 let
   var = builtins.foldl' lib.recursiveUpdate { } (
-    map import (lib.scanPath.toList { path = lib.relativeToRoot "vars"; })
+    map import (lib.scanPath.toList { basePath = lib.relativeToRoot "vars"; })
   );
 
   mkPkgsWithSystem =
@@ -71,7 +71,7 @@ let
       commonUsersPath = lib.path.append commonPath "users";
 
       # Scan and filter common modules
-      allCommonPaths = lib.scanPath.toList { path = commonPath; };
+      allCommonPaths = lib.scanPath.toList { basePath = commonPath; };
 
       # Filter function to exclude user directories if users is empty
       filteredCommonPaths =

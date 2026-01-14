@@ -27,8 +27,6 @@
 
     flake-parts.url = "github:hercules-ci/flake-parts";
 
-    import-tree.url = "github:vic/import-tree";
-
     devshell = {
       url = "github:numtide/devshell";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -157,16 +155,16 @@
   };
 
   outputs =
-    inputs@{ flake-parts, import-tree, ... }:
+    inputs@{ flake-parts, ... }:
+    let
+      lib = import ./lib { inherit inputs; };
+    in
     flake-parts.lib.mkFlake
       {
         inherit inputs;
-        specialArgs = {
-          lib = import ./lib { inherit inputs; };
-        };
+        specialArgs = { inherit lib; };
       }
       {
-        imports = (import-tree ./modules).imports;
-        systems = [ "x86_64-linux" ];
+        imports = lib.scanPath.toImports ./modules;
       };
 }

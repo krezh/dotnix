@@ -10,7 +10,7 @@
       };
 
       packages = lib.scanPath.toAttrs {
-        path = ../../../pkgs;
+        basePath = ../../../pkgs;
         func = pkgs.callPackage;
         useBaseName = true;
       };

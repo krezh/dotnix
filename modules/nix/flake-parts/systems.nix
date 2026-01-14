@@ -14,6 +14,7 @@ let
     .${system} or system;
 in
 {
+  systems = [ "x86_64-linux" ];
   flake = {
     hosts = lib.mapAttrs (_name: config: config.config.system.build.toplevel) (
       lib.filterAttrs (_name: config: (config.ci or true)) self.nixosConfigurations
