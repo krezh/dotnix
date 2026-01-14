@@ -1,37 +1,38 @@
 {
   lib,
+  stdenv,
   buildGoModule,
   fetchFromGitHub,
   installShellFiles,
+  versionCheckHook,
 }:
+
 buildGoModule rec {
   pname = "talosctl";
   # renovate: datasource=github-releases depName=siderolabs/talos
-  version = "1.12.0";
+  version = "1.12.1";
 
   src = fetchFromGitHub {
     owner = "siderolabs";
     repo = "talos";
     rev = "v${version}";
-    hash = "sha256-u8/T01PWBGH3bJCNoC+FIzp8aH05ci4Kr3eHHWPDRkI=";
+    hash = "sha256-N/kqQTlxpwI1vrCjhqtFe0YdyfxTzxIzoMsmPKwtaCM=";
   };
 
-  vendorHash = "sha256-LLtbdKq028EEs8lMt3uiwMo2KMJ6nJKf6xFyLJlg+oM=";
+  vendorHash = "";
 
   ldflags = [
     "-s"
     "-w"
   ];
 
-  # This is needed to deal with workspace issues during the build
-  overrideModAttrs = _: { GOWORK = "off"; };
-  GOWORK = "off";
+  env.GOWORK = "off";
 
   subPackages = [ "cmd/talosctl" ];
 
   nativeBuildInputs = [ installShellFiles ];
 
-  postInstall = ''
+  postInstall = lib.optionalString (stdenv.buildPlatform.canExecute stdenv.hostPlatform) ''
     installShellCompletion --cmd talosctl \
       --bash <($out/bin/talosctl completion bash) \
       --fish <($out/bin/talosctl completion fish) \
@@ -39,6 +40,10 @@ buildGoModule rec {
   '';
 
   doCheck = false; # no tests
+
+  doInstallCheck = true;
+  nativeInstallCheckInputs = [ versionCheckHook ];
+  versionCheckProgramArg = "version";
 
   meta = with lib; {
     description = "A CLI for out-of-band management of Kubernetes nodes created by Talos";
