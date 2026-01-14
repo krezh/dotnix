@@ -91,7 +91,7 @@
           lsp = {
             nixd = {
               settings = {
-                formatting.command = [ "${lib.getExe pkgs.nixfmt-rfc-style}" ];
+                formatting.command = [ "${lib.getExe pkgs.nixfmt}" ];
                 nixpkgs.expr = "import ${inputs.nixpkgs} { }";
                 options = {
                   nixos.expr = ''
@@ -118,7 +118,7 @@
               };
             };
             nil.settings.formatting = {
-              command = [ "${lib.getExe pkgs.nixfmt-rfc-style}" ];
+              command = [ "${lib.getExe pkgs.nixfmt}" ];
               args = [
                 "-w"
                 "300"

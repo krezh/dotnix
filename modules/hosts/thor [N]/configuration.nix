@@ -1,18 +1,12 @@
-{
-  inputs,
-  ...
-}:
+{ inputs, ... }:
 {
   flake.modules.nixos.thor =
-    {
-      pkgs,
-      lib,
-      ...
-    }:
+    { pkgs, lib, ... }:
     {
       imports = with inputs.self.modules.nixos; [
         system-desktop
         desktop-utils
+        amd
         openssh
         steam
         wireplumber
@@ -113,13 +107,6 @@
         libgnome-keyring
       ];
 
-      # OpenRGB
-      services.hardware.openrgb = {
-        enable = false;
-        package = pkgs.openrgb-with-all-plugins;
-        motherboard = "amd";
-      };
-
       # Misc services
       services.fstrim.enable = true;
       services.libinput = {
@@ -127,6 +114,7 @@
         mouse.accelProfile = "flat";
         touchpad.accelProfile = "flat";
       };
+
       security.rtkit.enable = true;
 
       # Programs
@@ -135,8 +123,6 @@
         enable = true;
         binfmt = true;
       };
-      programs.evolution.enable = true;
-      programs.sniffnet.enable = true;
 
       # Networking
       services.timesyncd.servers = [ ];
@@ -144,44 +130,11 @@
       networking.networkmanager.wifi.backend = "iwd";
       networking.wireless.enable = lib.mkForce false;
 
-      networking.firewall =
-        let
-          kde-connect = [
-            {
-              from = 1714;
-              to = 1764;
-            }
-          ];
-        in
-        {
-          allowedTCPPortRanges = kde-connect;
-          allowedUDPPortRanges = kde-connect;
-        };
-
-      # AMD GPU
-      hardware = {
-        graphics = {
-          enable = true;
-          enable32Bit = true;
-        };
-        amdgpu = {
-          opencl.enable = true;
-          initrd.enable = true;
-          overdrive.enable = true;
-        };
-      };
-
       environment = {
         sessionVariables = {
           NIXOS_OZONE_WL = 1;
-          WLR_BACKEND = "vulkan";
-          PROTON_FSR4_UPGRADE = 1;
-          AMD_VULKAN_ICD = "RADV";
-          MESA_SHADER_CACHE_MAX_SIZE = "50G";
-          __GL_SHADER_DISK_CACHE_SKIP_CLEANUP = 1;
         };
         systemPackages = with pkgs; [
-          amdgpu_top
           age-plugin-yubikey
           wootility
           nautilus
@@ -242,25 +195,25 @@
         };
       };
 
-      # Wooting keyboard udev rules
-      services.udev.extraRules = ''
-        # Wooting One Legacy
-        SUBSYSTEM=="hidraw", ATTRS{idVendor}=="03eb", ATTRS{idProduct}=="ff01", TAG+="uaccess"
-        SUBSYSTEM=="usb", ATTRS{idVendor}=="03eb", ATTRS{idProduct}=="ff01", TAG+="uaccess"
+      # # Wooting keyboard udev rules
+      # services.udev.extraRules = ''
+      #   # Wooting One Legacy
+      #   SUBSYSTEM=="hidraw", ATTRS{idVendor}=="03eb", ATTRS{idProduct}=="ff01", TAG+="uaccess"
+      #   SUBSYSTEM=="usb", ATTRS{idVendor}=="03eb", ATTRS{idProduct}=="ff01", TAG+="uaccess"
 
-        # Wooting One update mode
-        SUBSYSTEM=="hidraw", ATTRS{idVendor}=="03eb", ATTRS{idProduct}=="2402", TAG+="uaccess"
+      #   # Wooting One update mode
+      #   SUBSYSTEM=="hidraw", ATTRS{idVendor}=="03eb", ATTRS{idProduct}=="2402", TAG+="uaccess"
 
-        # Wooting Two Legacy
-        SUBSYSTEM=="hidraw", ATTRS{idVendor}=="03eb", ATTRS{idProduct}=="ff02", TAG+="uaccess"
-        SUBSYSTEM=="usb", ATTRS{idVendor}=="03eb", ATTRS{idProduct}=="ff02", TAG+="uaccess"
+      #   # Wooting Two Legacy
+      #   SUBSYSTEM=="hidraw", ATTRS{idVendor}=="03eb", ATTRS{idProduct}=="ff02", TAG+="uaccess"
+      #   SUBSYSTEM=="usb", ATTRS{idVendor}=="03eb", ATTRS{idProduct}=="ff02", TAG+="uaccess"
 
-        # Wooting Two update mode
-        SUBSYSTEM=="hidraw", ATTRS{idVendor}=="03eb", ATTRS{idProduct}=="2403", TAG+="uaccess"
+      #   # Wooting Two update mode
+      #   SUBSYSTEM=="hidraw", ATTRS{idVendor}=="03eb", ATTRS{idProduct}=="2403", TAG+="uaccess"
 
-        # Generic Wooting devices
-        SUBSYSTEM=="hidraw", ATTRS{idVendor}=="31e3", TAG+="uaccess"
-        SUBSYSTEM=="usb", ATTRS{idVendor}=="31e3", TAG+="uaccess"
-      '';
+      #   # Generic Wooting devices
+      #   SUBSYSTEM=="hidraw", ATTRS{idVendor}=="31e3", TAG+="uaccess"
+      #   SUBSYSTEM=="usb", ATTRS{idVendor}=="31e3", TAG+="uaccess"
+      # '';
     };
 }

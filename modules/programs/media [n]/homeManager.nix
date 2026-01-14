@@ -11,7 +11,6 @@
         tsukimi
         ueberzugpp
         jellyflix
-        ytmdesktop
         vipsdisp
         showtime
       ];

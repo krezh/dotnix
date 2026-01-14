@@ -10,8 +10,8 @@
         };
         programs = {
           nixfmt = {
-            enable = pkgs.lib.meta.availableOn pkgs.stdenv.buildPlatform pkgs.nixfmt-rfc-style.compiler;
-            package = pkgs.nixfmt-rfc-style;
+            enable = pkgs.lib.meta.availableOn pkgs.stdenv.buildPlatform pkgs.nixfmt.compiler;
+            package = pkgs.nixfmt;
           };
           shellcheck.enable = true;
           deadnix.enable = true;

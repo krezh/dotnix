@@ -17,7 +17,6 @@
         diffsitter
         timer
         ffmpeg
-        yt-dlp
         gowall
         await
         ntfy-sh

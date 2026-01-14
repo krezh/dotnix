@@ -200,7 +200,7 @@ in
         nil
         nix-inspect
         cachix
-        nixfmt-rfc-style
+        nixfmt
         dix
         nix-output-monitor
         comma

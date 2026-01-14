@@ -13,11 +13,11 @@
     let
       termBin = lib.getExe pkgs.kitty;
       launcherBin = "${pkgs.netcat}/bin/nc -U /run/user/$(id -u)/walker/walker.sock";
-      shellBin = "sh -c ${lib.getExe config.programs.noctalia-shell.package} ipc call";
-      clipboardBin = "sh -c ${lib.getExe config.programs.walker.package} -m clipboard";
+      shellBin = "${lib.getExe config.programs.noctalia-shell.package} ipc call";
+      clipboardBin = "${lib.getExe config.programs.walker.package} -m clipboard";
       recShot = "${lib.getExe pkgs.recshot} -t ${
         config.sops.secrets."zipline/token".path
-      } -u https://zipline.talos.plexuz.xyz --zipline";
+      } -u https://zipline.talos.plexuz.xyz";
 
       getBinaryName = pkg: pkg.meta.mainProgram or pkg.pname or pkg.name;
       audioControlPkg = pkgs.wiremix;

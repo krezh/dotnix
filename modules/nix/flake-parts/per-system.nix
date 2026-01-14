@@ -1,15 +1,7 @@
-{
-  inputs,
-  lib,
-  ...
-}:
+{ inputs, lib, ... }:
 {
   perSystem =
-    {
-      pkgs,
-      system,
-      ...
-    }:
+    { pkgs, system, ... }:
     {
       _module.args.pkgs = import inputs.nixpkgs {
         inherit system;

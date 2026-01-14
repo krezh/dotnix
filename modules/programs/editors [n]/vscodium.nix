@@ -230,7 +230,7 @@
               enableLanguageServer = true;
               serverPath = "nixd";
               serverSettings.nixd = {
-                formatting.command = [ "${lib.getExe pkgs.nixfmt-rfc-style}" ];
+                formatting.command = [ "${lib.getExe pkgs.nixfmt}" ];
                 nixpkgs.expr = "import ${inputs.nixpkgs} { }";
                 options = {
                   nixos.expr = ''

@@ -1,7 +1,4 @@
-{
-  inputs,
-  ...
-}:
+{ inputs, ... }:
 {
   flake.modules.nixos.thor = {
     imports = [ inputs.disko.nixosModules.disko ];
