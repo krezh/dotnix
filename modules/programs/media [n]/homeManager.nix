@@ -13,6 +13,7 @@
         jellyflix
         vipsdisp
         showtime
+        fladder
       ];
 
       programs.ncspot = {

@@ -33,7 +33,7 @@
           }
           {
             type = "title";
-            key = "│ {#yellow}{#}  user   │";
+            key = "│ {#yellow}{#}  user   │";
             keyColor = "white";
             color = {
               user = "red";
@@ -54,13 +54,13 @@
           }
           {
             type = "uptime";
-            key = "│ {#blue} {#} uptime │";
+            key = "│ {#blue} {#} uptime │";
             format = "{#blue}{?1}{1}d {?}{?2}{2}h {?}{?3}{3}m {?}{?4}{4}s{?}{#}";
             keyColor = "white";
           }
           {
             type = "shell";
-            key = "│ {#magenta} {#} shell  │";
+            key = "│ {#magenta} {#} shell  │";
             format = "{#magenta}{}{#}";
             keyColor = "white";
           }
