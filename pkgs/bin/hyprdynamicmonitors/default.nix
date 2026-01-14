@@ -6,13 +6,13 @@
 
 buildGoModule rec {
   pname = "hyprdynamicmonitors";
-  version = "1.3.8";
+  version = "1.4.0";
 
   src = fetchFromGitHub {
     owner = "fiffeek";
     repo = "hyprdynamicmonitors";
     rev = "v${version}";
-    hash = "sha256-R65HRJR+gJYa9b+2NelmKkzjRLn4RvOzZ6e05LIbnIQ=";
+    hash = "sha256-msAgix63TsGgETwJajdr//F19+UUhGCbrjinNbgMPHo=";
   };
 
   vendorHash = "sha256-WBK1PhhxaRa0FUAfSxtKOiesw71wy0753FYIgSlo0bE=";
