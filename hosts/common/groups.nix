@@ -1,8 +1,0 @@
-{ ... }:
-{
-  users = {
-    groups = {
-      sshusers = { };
-    };
-  };
-}

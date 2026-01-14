@@ -1,4 +1,0 @@
-{ ... }:
-{
-  programs.mise.enable = true;
-}

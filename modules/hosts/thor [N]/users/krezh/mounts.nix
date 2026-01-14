@@ -1,0 +1,32 @@
+{ inputs, ... }:
+{
+  flake.modules.nixos.thor =
+    { config, ... }:
+    {
+      imports = [ inputs.self.modules.nixos.mount ];
+      nixosModules.mount = {
+        enable = true;
+        mounts = {
+          "jotunheim-homes" = {
+            enable = true;
+            type = "smb";
+            server = "jotunheim.srv.plexuz.xyz";
+            share = "shares";
+            mountPoint = "/mnt/home";
+            credentialsFile = config.sops.templates."jotunheim_homes_creds".path;
+          };
+          "jotunheim-kopia" = {
+            enable = true;
+            type = "nfs";
+            server = "jotunheim.srv.plexuz.xyz";
+            share = "/mnt/tank/kopia";
+            mountPoint = "/mnt/kopia";
+            nfsVersion = "4.2";
+            autoMount = true;
+            uid = 1000;
+            gid = 100;
+          };
+        };
+      };
+    };
+}
