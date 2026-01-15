@@ -1,7 +1,4 @@
-{
-  inputs,
-  ...
-}:
+{ inputs, ... }:
 {
   flake.modules.homeManager.editors =
     {
@@ -58,6 +55,7 @@
             theqtcompany.qt-ui
             mkhl.direnv
             opentofu.opentofu
+            blueglassblock.better-json5
           ];
           userSettings = {
             telemetry.telemetryLevel = "off";
@@ -200,6 +198,7 @@
             diffEditor = {
               ignoreTrimWhitespace = false;
               hideUnchangedRegions.enabled = true;
+              renderSideBySide = false;
             };
             remote.autoForwardPortsSource = "hybrid";
             cron-explained = {

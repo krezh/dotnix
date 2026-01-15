@@ -43,7 +43,7 @@
       matchDatasources: ["custom.open-vsix"],
       postUpgradeTasks: {
         commands: [
-          'bash -c \'PUBLISHER=$(grep -oP "publisher = \"\\K[^\"]+" {{{packageFile}}}); NAME=$(grep -oP "name = \"\\K[^\"]+" {{{packageFile}}}); VERSION=$(grep -oP "version = \"\\K[^\"]+" {{{packageFile}}}); URL="https://${PUBLISHER}.gallery.vsassets.io/_apis/public/gallery/publisher/${PUBLISHER}/extension/${NAME}/${VERSION}/assetbyname/Microsoft.VisualStudio.Services.VSIXPackage"; HASH=$(nix-prefetch-url "$URL" 2>/dev/null | xargs nix hash to-sri --type sha256); sed -i "s|hash = \"sha256-[^\"]*\"|hash = \"$HASH\"|" {{{packageFile}}}\'',
+          'bash -c \'PUBLISHER=$(grep -oP "publisher = "\\K[^"]+" {{{packageFile}}}); NAME=$(grep -oP "name = "\\K[^"]+" {{{packageFile}}}); VERSION=$(grep -oP "version = "\\K[^"]+" {{{packageFile}}}); URL="https://${PUBLISHER}.gallery.vsassets.io/_apis/public/gallery/publisher/${PUBLISHER}/extension/${NAME}/${VERSION}/assetbyname/Microsoft.VisualStudio.Services.VSIXPackage"; HASH=$(nix-prefetch-url "$URL" 2>/dev/null | xargs nix hash to-sri --type sha256); sed -i "s|hash = "sha256-[^"]*"|hash = "$HASH"|" {{{packageFile}}}\'',
         ],
         fileFilters: ["**/*.nix"],
         executionMode: "update",

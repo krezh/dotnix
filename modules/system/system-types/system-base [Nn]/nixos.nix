@@ -1,34 +1,6 @@
+{ inputs, ... }:
 {
-  inputs,
-  lib,
-  ...
-}:
-let
-  # Compute the packages overlay at flake-parts level where we have access to custom lib
-  pkgsOverlay =
-    final: _prev:
-    lib.scanPath.toAttrs {
-      basePath = lib.relativeToRoot "pkgs";
-      func = final.callPackage;
-      useBaseName = true;
-      excludeFiles = [ "vscode-extensions" ];
-    };
 
-  # VSCode extensions overlay
-  vscodeExtensionsOverlay = final: prev: {
-    vscode-extensions = prev.vscode-extensions // {
-      theqtcompany = {
-        qt-core = final.callPackage (lib.relativeToRoot "pkgs/vscode-extensions/theqtcompany/qt-core") { };
-        qt-qml = final.callPackage (lib.relativeToRoot "pkgs/vscode-extensions/theqtcompany/qt-qml") { };
-        qt-ui = final.callPackage (lib.relativeToRoot "pkgs/vscode-extensions/theqtcompany/qt-ui") { };
-      };
-      opentofu = {
-        opentofu = final.callPackage (lib.relativeToRoot "pkgs/vscode-extensions/opentofu/opentofu") { };
-      };
-    };
-  };
-in
-{
   flake.modules.nixos.system-base =
     {
       lib,
@@ -50,11 +22,7 @@ in
       # Nixpkgs configuration
       nixpkgs = {
         config.allowUnfree = true;
-        overlays = [
-          inputs.gomod2nix.overlays.default
-          pkgsOverlay
-          vscodeExtensionsOverlay
-        ];
+        overlays = builtins.attrValues (import ../../../../overlays { inherit inputs lib; });
       };
 
       # Home-manager configuration
@@ -62,9 +30,7 @@ in
         useGlobalPkgs = true;
         useUserPackages = true;
         backupFileExtension = "bk";
-        extraSpecialArgs = {
-          inherit inputs;
-        };
+        extraSpecialArgs = { inherit inputs; };
         sharedModules = [ inputs.sops-nix.homeManagerModules.sops ];
       };
 
@@ -72,10 +38,10 @@ in
 
       # Locale settings
       i18n = {
-        defaultLocale = lib.mkDefault "en_SE.UTF-8";
+        defaultLocale = lib.mkDefault "en_US.UTF-8";
         # supportedLocales = lib.mkDefault [ "en_US.UTF-8" ];
         extraLocales = "all";
-        extraLocaleSettings.LC_TIME = "en_SE.UTF-8";
+        extraLocaleSettings.LC_TIME = "en_US.UTF-8";
       };
       console.keyMap = "sv-latin1";
       time.timeZone = "Europe/Stockholm";
@@ -95,11 +61,13 @@ in
           accept-flake-config = true;
           always-allow-substitutes = true;
           builders-use-substitutes = true;
+          # download-buffer-size = 1024 * 1024 * 1024;
+
+          auto-optimise-store = true;
           trusted-users = [
             "@wheel"
             "root"
           ];
-          auto-optimise-store = true;
           experimental-features = [
             "nix-command"
             "flakes"

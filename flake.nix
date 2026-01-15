@@ -152,6 +152,12 @@
       url = "github:utensils/mcp-nixos";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+
+    hyprshutdown = {
+      url = "github:hyprwm/hyprshutdown";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
   };
 
   outputs =

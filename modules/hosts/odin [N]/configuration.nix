@@ -27,12 +27,11 @@
       };
       imports = with inputs.self.modules.nixos; [
         system-desktop
+        intel
         desktop-utils
         openssh
-        steam
         wireplumber
         hyprland
-        niri
         ai
         docker
         krezh
@@ -71,15 +70,6 @@
       };
 
       zramSwap.enable = true;
-
-      # Steam
-      programs.steam = {
-        enable = true;
-        remotePlay.openFirewall = true;
-        dedicatedServer.openFirewall = true;
-        localNetworkGameTransfers.openFirewall = true;
-        gamescopeSession.enable = true;
-      };
 
       security.pam.services.hyprlock = { };
 
@@ -120,27 +110,14 @@
         allowedUDPPorts = [ ];
       };
 
-      # Intel GPU
-      hardware = {
-        graphics = {
-          enable = true;
-          extraPackages = with pkgs; [
-            intel-media-driver
-            libvdpau-va-gl
-          ];
-        };
-      };
-
       security.rtkit.enable = true;
 
       environment = {
         sessionVariables = {
           NIXOS_OZONE_WL = "1";
-          LIBVA_DRIVER_NAME = "iHD";
         };
         systemPackages = with pkgs; [
           age-plugin-yubikey
-          intel-gpu-tools
         ];
       };
     };

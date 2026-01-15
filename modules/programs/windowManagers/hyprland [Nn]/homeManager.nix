@@ -1,3 +1,4 @@
+{ inputs, ... }:
 {
   flake.modules.homeManager.hyprland =
     {
@@ -31,7 +32,7 @@
       logout = mkProg pkgs.wlogout;
       hyprlock.run = "${lib.getExe config.programs.hyprlock.package} --immediate";
       launcher.run = "${pkgs.netcat}/bin/nc -U /run/user/$(id -u)/walker/walker.sock";
-      shell.run = lib.getExe config.programs.noctalia-shell.package;
+      shell.run = "${lib.getExe config.programs.noctalia-shell.package} ipc call";
       keybinds.run = lib.getExe pkgs.hyprland_keybinds;
       clipboardMgr.run = "${lib.getExe config.programs.walker.package} -m clipboard";
       mail.run = lib.getExe' pkgs.geary "geary";
@@ -68,18 +69,6 @@
           env = [
             "QT_WAYLAND_DISABLE_WINDOWDECORATION,1"
             "QT_QPA_PLATFORM=wayland"
-          ];
-
-          workspace = [
-            "1,monitor:DP-1"
-            "2,monitor:DP-1"
-            "3,monitor:DP-1"
-            "4,monitor:DP-2"
-            "5,monitor:DP-2"
-            "6,monitor:DP-2"
-            # Smart gaps
-            "w[tv1]s[false], gapsout:0, gapsin:0"
-            "f[1]s[false], gapsout:0, gapsin:0"
           ];
 
           monitorv2 =
@@ -204,13 +193,14 @@
             mouse_move_enables_dpms = true;
             key_press_enables_dpms = true;
             animate_manual_resizes = false;
+            animate_mouse_windowdragging = false;
             middle_click_paste = false;
             focus_on_activate = true;
             disable_hyprland_logo = true;
             disable_splash_rendering = true;
             disable_autoreload = true;
             session_lock_xray = true;
-            new_window_takes_over_fullscreen = 2;
+            on_focus_under_fullscreen = 2;
             render_unfocused_fps = 30;
           };
 
@@ -243,103 +233,115 @@
             ];
           };
 
+          workspace = [
+            "1,monitor:DP-1"
+            "2,monitor:DP-1"
+            "3,monitor:DP-1"
+            "4,monitor:DP-2"
+            "5,monitor:DP-2"
+            "6,monitor:DP-2"
+            # Smart gaps
+            "workspace = w[tv1]s[false], gapsout:0, gapsin:0"
+            "workspace = f[1]s[false], gapsout:0, gapsin:0"
+          ];
+
           layerrule = [
-            "blur,rofi"
-            "animation popin 80%, launcher"
-            "blur, launcher"
-            "animation popin 60%, walker"
-            "animation fade, hyprpicker"
-            "animation fade, logout_dialog"
-            "animation fade, selection"
-            "animation fade, wayfreeze"
-            "noanim, (noctalia:.*)"
+            "match:class ^(rofi)$, blur on"
+            "match:class launcher, animation popin 80%"
+            "match:class launcher, blur on"
+            "match:class walker, animation popin 60%"
+            "match:class hyprpicker, animation fade"
+            "match:class logout_dialog, animation fade"
+            "match:class selection, animation fade"
+            "match:class wayfreeze, animation fade"
+            "match:class (noctalia:.*), no_anim on"
           ];
 
           windowrule = [
-            # Smart gaps
-            "bordersize 0, floating:0, onworkspace:w[tv1]s[false]"
-            "rounding 0, floating:0, onworkspace:w[tv1]s[false]"
-            "bordersize 0, floating:0, onworkspace:f[1]s[false]"
-            "rounding 0, floating:0, onworkspace:f[1]s[false]"
-            # Rofi
-            "stayfocused, class:(Rofi)"
-            # Chat workspace
-            "workspace 4 silent, tag:chat"
-            # Fullscreen opacity
-            "opacity 1.0 override,fullscreen:1"
-            # Games workspace and idle inhibit
-            "workspace 3, tag:games"
-            "idleinhibit always, tag:games"
-            "idleinhibit fullscreen, fullscreen:1"
-            # XWayland popups
-            "nodim, xwayland:1, title:win[0-9]+"
-            "noshadow, xwayland:1, title:win[0-9]+"
-            "rounding ${toString config.var.rounding}, xwayland:1, title:win[0-9]+"
-            # Dialog windows
-            "float, title:(Select|Open)( a)? (File|Folder)(s)?"
-            "float, title:File (Operation|Upload)( Progress)?"
-            "float, title:.* Properties"
-            "float, title:Export Image as PNG"
-            "float, title:GIMP Crash Debug"
-            "float, title:Save As"
-            "float, title:Library"
-            "float, title:Install, class:steam"
-            "size 50% 50%, title:Install, class:steam"
-            # File managers
-            "float, class:org\\.gnome\\.FileRoller"
-            "float, class:file-roller"
-            # Vips image viewer
-            "float, class:org\\.libvips\\.vipsdisp"
-            # MPV
-            "float, class:mpv"
-            "size 60% 70%,class:mpv"
-            # Float Terminal
-            "float, class:floatTerm"
-            "size 60% 60%, class:floatTerm"
-            "float, class:com.example.floatterm"
-            "size 60% 60%, class:com.example.floatterm"
             # Tag games
-            "tag +games, class:^(gamescope)$"
-            "tag +games, class:^(steam_proton)$"
-            "tag +games, class:^(steam_app_default)$"
-            "tag +games, class:^(steam_app_[0-9]+)$"
+            "tag +games, match:class ^(gamescope)$"
+            "tag +games, match:class ^(steam_proton)$"
+            "tag +games, match:class ^(steam_app_default)$"
+            "tag +games, match:class ^(steam_app_[0-9]+)$"
             # Tag browsers
-            "tag +browsers, class:^(zen.*)$"
-            "tag +browsers, class:^(firefox)$"
-            "tag +browsers, class:^(chromium)$"
-            "tag +browsers, class:^(chrome)$"
-            "tag +browsers, class:^(vivaldi)$"
+            "tag +browsers, match:class ^(zen.*)$"
+            "tag +browsers, match:class ^(firefox)$"
+            "tag +browsers, match:class ^(chromium)$"
+            "tag +browsers, match:class ^(chrome)$"
+            "tag +browsers, match:class ^(vivaldi)$"
             # Tag media
-            "tag +media, class:^(mpv)$"
-            "tag +media, class:^(vlc)$"
-            "tag +media, class:^(youtube)$"
-            "tag +media, class:^(plex)$"
-            "tag +media, class:^(org.jellyfin.JellyfinDesktop)$"
+            "tag +media, match:class ^(mpv)$"
+            "tag +media, match:class ^(vlc)$"
+            "tag +media, match:class ^(youtube)$"
+            "tag +media, match:class ^(plex)$"
+            "tag +media, match:class ^(org.jellyfin.JellyfinDesktop)$"
             # Tag chat
-            "tag +chat, class:^(vesktop)$"
-            "tag +chat, class:^(legcord)$"
-            "tag +chat, class:^(discord)$"
+            "tag +chat, match:class ^(vesktop)$"
+            "tag +chat, match:class ^(legcord)$"
+            "tag +chat, match:class ^(discord)$"
+
+            # Chat workspace
+            "match:tag chat,workspace 4 silent"
+            "match:tag browsers,opacity 1.0 override"
+            "match:tag media,opacity 1.0 override"
+            "match:tag media,no_blur on"
+            "match:tag games,workspace 3"
+            "match:tag games,idle_inhibit always"
+            "match:tag games,opacity 1.0 override"
+            "match:tag games,no_blur on"
+            "match:tag games,render_unfocused on"
+
+            "match:class (pinentry-)(.*), stay_focused on" # Fix pinentry losing focus
+            # Smart gaps
+            "border_size 0, match:float false, match:workspace w[tv1]s[false]"
+            "rounding 0, match:float false, match:workspace w[tv1]s[false]"
+            "border_size 0, match:float false, match:workspace f[1]s[false]"
+            "rounding 0, match:float false, match:workspace f[1]s[false]"
+            # Rofi
+            "stay_focused on,match:class (Rofi)"
+            # Fullscreen opacity
+            "opacity 1.0 override,match:fullscreen true"
+            # idle inhibit
+            "idle_inhibit fullscreen,match:fullscreen true"
+            # XWayland popups
+            "no_dim on, match:xwayland true, match:title win[0-9]+"
+            "no_shadow on, match:xwayland true, match:title win[0-9]+"
+            "rounding ${toString config.var.rounding}, match:xwayland true, match:title win[0-9]+"
+            # Dialog windows
+            "float on, match:title (Select|Open)( a)? (File|Folder)(s)?"
+            "float on, match:title File (Operation|Upload)( Progress)?"
+            "float on, match:title .* Properties"
+            "float on, match:title Export Image as PNG"
+            "float on, match:title GIMP Crash Debug"
+            "float on, match:title Save As"
+            "float on, match:title Library"
+            "float on, match:title Install, match:class steam"
+            "size 50% 50%, match:title Install, match:class steam"
+            # File managers
+            "float on, match:class org\\.gnome\\.FileRoller"
+            "float on, match:class file-roller"
+            # Vips image viewer
+            "float on, match:class org\\.libvips\\.vipsdisp"
+            # MPV
+            "float on, match:class mpv"
+            "size 60% 70%,match:class mpv"
+            # Float Terminal
+            "float on, match:class floatTerm"
+            "size 60% 60%, match:class floatTerm"
+            "float on, match:class com.example.floatterm"
+            "size 60% 60%, match:class com.example.floatterm"
             # Opacity overrides
-            "opacity 1.0 override,tag:games"
-            "opacity 1.0 override,tag:browsers"
-            "opacity 1.0 override,tag:media"
-            "opacity 1.0 override,initialTitle:^(Discord Popout)$"
-            # Blur exceptions
-            "noblur,tag:games"
-            "noblur,tag:media"
-            # Render unfocused
-            "renderunfocused,tag:games"
+            "opacity 1.0 override,match:initial_title ^(Discord Popout)$"
           ];
 
           bindd = [
             "${mainMod},ESCAPE,Logout Menu,exec,${logout.run}"
             "${mainMod},L,Lockscreen,exec,${hyprlock.run}"
             "${mainMod},R,Application launcher,exec,${launcher.run}"
-            "${mainMod},N,Notifications,exec,${shell.run} ipc call notifications toggleHistory"
-            "${mainModShift},N,Clear notifications,exec,${shell.run} ipc call notifications clear"
+            "${mainMod},N,Notifications,exec,${shell.run} notifications toggleHistory"
+            "${mainModShift},N,Clear notifications,exec,${shell.run} notifications clear"
             "${mainMod},B,Browser,exec,${browser.run}"
             "${mainMod},E,File Manager,exec,${fileManager.run}"
-            "${mainModShift},E,Floating File Manager,exec,[float] ${fileManager.run}"
             "${mainMod},P,Passwords,exec,${passwords.run}"
             "${mainMod},RETURN,Terminal,exec,${term.run}"
             "${mainModShift},RETURN,Terminal,exec,[float] ${term.run}"
@@ -432,10 +434,7 @@
         pkgs.hyprshade
         pkgs.hyprdynamicmonitors
         # Exit script
-        (pkgs.writeShellScriptBin "hyprexit" ''
-          ${pkgs.hyprland}/bin/hyprctl dispatch exit
-          ${pkgs.systemd}/bin/loginctl terminate-user ${config.home.username}
-        '')
+        inputs.hyprshutdown.packages.${pkgs.stdenv.hostPlatform.system}.default
       ];
     };
 }
