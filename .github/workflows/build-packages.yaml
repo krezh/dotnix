@@ -60,7 +60,7 @@ jobs:
                         elif .system == "aarch64-linux" then "ubuntu-24.04-arm"
                         elif .system == "x86_64-darwin" then "ubuntu-latest"
                         else .system end)
-              }) | {include: .}'
+              }) | {include: .}')
 
           echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
           echo "$matrix"
