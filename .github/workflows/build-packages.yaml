@@ -50,7 +50,8 @@ jobs:
 
           matrix=$(nix-eval-jobs --flake ".#packages" \
             --check-cache-status \
-            --force-recurse | \
+            --force-recurse \
+            --option substituters "https://krezh.cachix.org https://cache.nixos.org" | \
             jq -sc 'map(select(.isCached == false and .neededBuilds != [])) |
               map({
                 package: .attrPath[-1],
