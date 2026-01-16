@@ -4,6 +4,7 @@
   pkgs,
   makeWrapper,
   llvmPackages,
+  installShellFiles,
   ...
 }:
 
@@ -24,6 +25,7 @@ rustPlatform.buildRustPackage {
     pkg-config
     makeWrapper
     llvmPackages.clang
+    installShellFiles
   ];
 
   buildInputs = with pkgs; [
@@ -46,6 +48,11 @@ rustPlatform.buildRustPackage {
   postInstall = ''
     wrapProgram $out/bin/gulp \
       --prefix PATH : ${lib.makeBinPath [ pkgs.tesseract ]}
+
+    installShellCompletion --cmd gulp \
+      --bash <($out/bin/gulp --generate-completions bash) \
+      --fish <($out/bin/gulp --generate-completions fish) \
+      --zsh <($out/bin/gulp --generate-completions zsh)
   '';
 
   meta = {

@@ -28,7 +28,7 @@
         sddm = {
           enable = true;
           wayland.enable = true;
-          wayland.compositor = "kwin";
+          wayland.compositor = "weston";
           autoNumlock = true;
         };
         gdm = {

@@ -9,7 +9,7 @@
 
       config.var = {
         fonts = {
-          interfaceSize = 12;
+          interfaceSize = 15;
           codeSize = 12;
           sans = "Rubik";
           mono = "JetBrainsMono Nerd Font";

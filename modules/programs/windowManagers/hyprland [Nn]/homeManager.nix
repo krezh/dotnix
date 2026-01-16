@@ -258,80 +258,94 @@
           ];
 
           windowrule = [
-            # Tag games
+            # Tags
             "tag +games, match:class ^(gamescope)$"
             "tag +games, match:class ^(steam_proton)$"
             "tag +games, match:class ^(steam_app_default)$"
             "tag +games, match:class ^(steam_app_[0-9]+)$"
-            # Tag browsers
             "tag +browsers, match:class ^(zen.*)$"
             "tag +browsers, match:class ^(firefox)$"
             "tag +browsers, match:class ^(chromium)$"
             "tag +browsers, match:class ^(chrome)$"
             "tag +browsers, match:class ^(vivaldi)$"
-            # Tag media
             "tag +media, match:class ^(mpv)$"
             "tag +media, match:class ^(vlc)$"
             "tag +media, match:class ^(youtube)$"
             "tag +media, match:class ^(plex)$"
             "tag +media, match:class ^(org.jellyfin.JellyfinDesktop)$"
-            # Tag chat
             "tag +chat, match:class ^(vesktop)$"
             "tag +chat, match:class ^(legcord)$"
             "tag +chat, match:class ^(discord)$"
 
-            # Chat workspace
-            "match:tag chat,workspace 4 silent"
-            "match:tag browsers,opacity 1.0 override"
-            "match:tag media,opacity 1.0 override"
-            "match:tag media,no_blur on"
-            "match:tag games,workspace 3"
-            "match:tag games,idle_inhibit always"
-            "match:tag games,opacity 1.0 override"
-            "match:tag games,no_blur on"
-            "match:tag games,render_unfocused on"
+            # Tag rules
+            "match:tag chat, workspace 4 silent"
+            "match:tag browsers, opacity 1.0 override"
+            "match:tag media, opacity 1.0 override"
+            "match:tag media, no_blur on"
+            "match:tag games, workspace 3"
+            "match:tag games, idle_inhibit always"
+            "match:tag games, opacity 1.0 override"
+            "match:tag games, no_blur on"
+            "match:tag games, render_unfocused on"
 
-            "match:class (pinentry-)(.*), stay_focused on" # Fix pinentry losing focus
             # Smart gaps
-            "border_size 0, match:float false, match:workspace w[tv1]s[false]"
-            "rounding 0, match:float false, match:workspace w[tv1]s[false]"
-            "border_size 0, match:float false, match:workspace f[1]s[false]"
-            "rounding 0, match:float false, match:workspace f[1]s[false]"
-            # Rofi
-            "stay_focused on,match:class (Rofi)"
-            # Fullscreen opacity
-            "opacity 1.0 override,match:fullscreen true"
-            # idle inhibit
-            "idle_inhibit fullscreen,match:fullscreen true"
+            "match:float false, match:workspace w[tv1]s[false], border_size 0"
+            "match:float false, match:workspace w[tv1]s[false], rounding 0"
+            "match:float false, match:workspace f[1]s[false], border_size 0"
+            "match:float false, match:workspace f[1]s[false], rounding 0"
+
+            # Fullscreen
+            "match:fullscreen true, opacity 1.0 override"
+            "match:fullscreen true, idle_inhibit fullscreen"
+
             # XWayland popups
-            "no_dim on, match:xwayland true, match:title win[0-9]+"
-            "no_shadow on, match:xwayland true, match:title win[0-9]+"
-            "rounding ${toString config.var.rounding}, match:xwayland true, match:title win[0-9]+"
+            "match:xwayland true, match:title win[0-9]+, no_dim on"
+            "match:xwayland true, match:title win[0-9]+, no_shadow on"
+            "match:xwayland true, match:title win[0-9]+, rounding ${toString config.var.rounding}"
+
             # Dialog windows
-            "float on, match:title (Select|Open)( a)? (File|Folder)(s)?"
-            "float on, match:title File (Operation|Upload)( Progress)?"
-            "float on, match:title .* Properties"
-            "float on, match:title Export Image as PNG"
-            "float on, match:title GIMP Crash Debug"
-            "float on, match:title Save As"
-            "float on, match:title Library"
-            "float on, match:title Install, match:class steam"
-            "size 50% 50%, match:title Install, match:class steam"
-            # File managers
-            "float on, match:class org\\.gnome\\.FileRoller"
-            "float on, match:class file-roller"
-            # Vips image viewer
-            "float on, match:class org\\.libvips\\.vipsdisp"
-            # MPV
-            "float on, match:class mpv"
-            "size 60% 70%,match:class mpv"
-            # Float Terminal
-            "float on, match:class floatTerm"
-            "size 60% 60%, match:class floatTerm"
-            "float on, match:class com.example.floatterm"
-            "size 60% 60%, match:class com.example.floatterm"
+            "match:title (Select|Open)( a)? (File|Folder)(s)?, float on"
+            "match:title File (Operation|Upload)( Progress)?, float on"
+            "match:title .* Properties, float on"
+            "match:title Export Image as PNG, float on"
+            "match:title GIMP Crash Debug, float on"
+            "match:title Save As, float on"
+            "match:title Library, float on"
+            "match:title Install, match:class steam, float on"
+            "match:title Install, match:class steam, size 50% 50%"
+            "match:modal true, float on"
+
             # Opacity overrides
-            "opacity 1.0 override,match:initial_title ^(Discord Popout)$"
+            "match:initial_title ^(Discord Popout)$, opacity 1.0 override"
+
+            # pinentry
+            "match:class (pinentry-)(.*), stay_focused on"
+
+            # Rofi
+            "match:class (Rofi), stay_focused on"
+
+            # File managers
+            "match:class org.gnome.FileRoller, float on"
+            "match:class file-roller, float on"
+
+            # Vips
+            "match:class ^(org.libvips.vipsdisp)$, float on"
+
+            # MPV
+            "match:class mpv, float on"
+            "match:class mpv, size 60% 70%"
+
+            # Float Terminal
+            "match:class floatTerm, float on"
+            "match:class floatTerm, size 60% 60%"
+            "match:class com.floatterm.floatterm, float on"
+            "match:class com.floatterm.floatterm, size 60% 60%"
+
+            # Mission Center
+            "match:class (io.missioncenter.MissionCenter), float on"
+            "match:class (io.missioncenter.MissionCenter), pin on"
+            "match:class (io.missioncenter.MissionCenter), center on"
+            "match:class (io.missioncenter.MissionCenter), size 1200 800"
           ];
 
           bindd = [
@@ -433,7 +447,6 @@
         pkgs.hyprmon
         pkgs.hyprshade
         pkgs.hyprdynamicmonitors
-        # Exit script
         inputs.hyprshutdown.packages.${pkgs.stdenv.hostPlatform.system}.default
       ];
     };
