@@ -37,7 +37,6 @@ jobs:
         uses: ./.github/actions/setup-nix
         with:
           cachix-cache: ${{ env.CACHE_NAME }}
-          skip-cache: true
 
       - name: Install nix-eval-jobs
         run: |
