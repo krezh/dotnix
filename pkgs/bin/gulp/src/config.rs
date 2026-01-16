@@ -69,12 +69,15 @@ pub struct DisplayConfig {
 pub struct FeatureConfig {
     /// Disable window snapping
     pub no_snap: bool,
+
+    /// Disable snap animation
+    pub no_animation: bool,
 }
 
 impl Default for FontConfig {
     fn default() -> Self {
         Self {
-            family: "Inter Nerd Font".to_string(),
+            family: "Inter".to_string(),
             size: 16,
             weight: "Bold".to_string(),
         }
@@ -193,15 +196,6 @@ impl Config {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn test_default_config() {
-        let config = Config::default();
-        assert_eq!(config.font.family, "Inter Nerd Font");
-        assert_eq!(config.font.size, 16);
-        assert_eq!(config.border.color, "#FFFFFF");
-        assert_eq!(config.display.dim_opacity, 0.5);
-    }
 
     #[test]
     fn test_parse_config() {

@@ -4,8 +4,8 @@ use crate::selection::Rect;
 const SPRING_STIFFNESS: f64 = 400.0;
 const MAX_TIME_STEP: f64 = 0.016; // 16ms prevents physics instability
 const SNAP_ANIMATION_THRESHOLD: f64 = 0.5;
-const POSITION_SETTLE_THRESHOLD: f64 = 5.0;
-const VELOCITY_SETTLE_THRESHOLD: f64 = 50.0;
+const POSITION_SETTLE_THRESHOLD: f64 = 0.5;
+const VELOCITY_SETTLE_THRESHOLD: f64 = 10.0;
 
 /// Critically damped spring animation (smooth motion, no overshoot/bounce)
 #[derive(Debug, Clone)]
@@ -34,7 +34,7 @@ pub struct SpringAnimation {
 }
 
 impl SpringAnimation {
-    /// Create a new spring animation starting at the given rectangle
+    /// Creates a new spring animation starting at the given rectangle.
     pub fn new(initial: Rect) -> Self {
         let stiffness = SPRING_STIFFNESS;
         let damping: f64 = 2.0 * (stiffness.sqrt()) * 1.1;
@@ -59,7 +59,7 @@ impl SpringAnimation {
         }
     }
 
-    /// Set a new target rectangle
+    /// Sets a new target rectangle.
     pub fn set_target(&mut self, target: Rect) {
         let (x, y, width, height) = target.as_f64_tuple();
         self.target_x = x;
@@ -68,7 +68,7 @@ impl SpringAnimation {
         self.target_height = height;
     }
 
-    /// Update the animation by the given time delta (in seconds)
+    /// Updates the animation by the given time delta (in seconds).
     pub fn update(&mut self, dt: f64) {
         let dt = dt.min(MAX_TIME_STEP);
 
@@ -106,14 +106,25 @@ impl SpringAnimation {
         }
     }
 
-    /// Get the current animated rectangle
+    /// Gets the current animated rectangle.
     pub fn current(&self) -> Rect {
-        const SNAP_THRESHOLD: f64 = SNAP_ANIMATION_THRESHOLD;
+        let x;
+        let y;
+        let width;
+        let height;
 
-        let x = Self::snap_to_target(self.x, self.target_x, SNAP_THRESHOLD);
-        let y = Self::snap_to_target(self.y, self.target_y, SNAP_THRESHOLD);
-        let width = Self::snap_to_target(self.width, self.target_width, SNAP_THRESHOLD);
-        let height = Self::snap_to_target(self.height, self.target_height, SNAP_THRESHOLD);
+        if self.is_settled() {
+            x = self.target_x;
+            y = self.target_y;
+            width = self.target_width;
+            height = self.target_height;
+        } else {
+            const SNAP_THRESHOLD: f64 = SNAP_ANIMATION_THRESHOLD;
+            x = Self::snap_to_target(self.x, self.target_x, SNAP_THRESHOLD);
+            y = Self::snap_to_target(self.y, self.target_y, SNAP_THRESHOLD);
+            width = Self::snap_to_target(self.width, self.target_width, SNAP_THRESHOLD);
+            height = Self::snap_to_target(self.height, self.target_height, SNAP_THRESHOLD);
+        }
 
         Rect::new(
             x.round() as i32,
@@ -123,10 +134,8 @@ impl SpringAnimation {
         )
     }
 
-    /// Check if the animation has settled (for FPS optimization)
+    /// Checks if the animation has settled (for FPS optimization).
     pub fn is_settled(&self) -> bool {
-        // Conservative thresholds for FPS reduction - we want smooth animation
-        // but also want to save CPU when mostly idle
         let position_threshold = POSITION_SETTLE_THRESHOLD;
         let velocity_threshold = VELOCITY_SETTLE_THRESHOLD;
 

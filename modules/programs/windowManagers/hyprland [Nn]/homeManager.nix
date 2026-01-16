@@ -246,15 +246,15 @@
           ];
 
           layerrule = [
-            "match:class ^(rofi)$, blur on"
-            "match:class launcher, animation popin 80%"
-            "match:class launcher, blur on"
-            "match:class walker, animation popin 60%"
-            "match:class hyprpicker, animation fade"
-            "match:class logout_dialog, animation fade"
-            "match:class selection, animation fade"
-            "match:class wayfreeze, animation fade"
-            "match:class (noctalia:.*), no_anim on"
+            "match:namespace ^(rofi)$, blur on"
+            "match:namespace ^(launcher)$, animation popin 80%"
+            "match:namespace ^(launcher)$, blur on"
+            "match:namespace ^(walker)$, animation popin 60%"
+            "match:namespace ^(hyprpicker)$, animation fade"
+            "match:namespace ^(logout_dialog)$, animation fade"
+            "match:namespace ^(gulp-selection)$, animation fade"
+            "match:namespace ^(wayfreeze)$, animation fade"
+            "match:namespace (noctalia:.*), no_anim on"
           ];
 
           windowrule = [

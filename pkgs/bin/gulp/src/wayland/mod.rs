@@ -6,20 +6,6 @@
 //! - Multi-monitor rendering and synchronization
 //! - Compositor-agnostic window snapping with smooth spring animations
 //! - Frame-rate limiting per monitor
-//!
-//! The window snapping system uses a trait-based backend approach that supports:
-//! - Hyprland (via IPC socket)
-//! - Other compositors can be added by implementing the WindowBackend trait
-//!
-//! Module organization:
-//! 1. **Helper Functions** - Utility functions for parsing and rendering
-//! 2. **Data Structures** - `OutputSurface` and `App` structs
-//! 3. **App Implementation**:
-//!    - Initialization & Setup
-//!    - Animation & Snap Target Management
-//!    - Rendering
-//!    - Event Handling
-//! 4. **Wayland Protocol Handlers** - All trait implementations
 
 use anyhow::{Context, Result};
 use smithay_client_toolkit::reexports::calloop::{EventLoop, LoopSignal};
@@ -28,118 +14,36 @@ use smithay_client_toolkit::{
     compositor::CompositorState,
     output::{OutputInfo, OutputState},
     registry::RegistryState,
-    seat::{
-        pointer::ThemedPointer,
-        SeatState,
-    },
-    shell::wlr_layer::{
-        Anchor, KeyboardInteractivity, Layer, LayerShell, LayerSurface,
-    },
+    seat::{pointer::ThemedPointer, SeatState},
+    shell::wlr_layer::{Anchor, KeyboardInteractivity, Layer, LayerShell},
     shm::{slot::SlotPool, Shm},
 };
 use wayland_client::{
     globals::registry_queue_init,
-    protocol::{wl_output, wl_shm, wl_surface},
+    protocol::{wl_output, wl_surface},
     Connection, QueueHandle,
 };
 
 use crate::{
     animation::SpringAnimation,
-    ocr,
-    render::{Renderer, RenderConfig},
+    cli::Args,
+    render::Renderer,
     selection::{Rect, Selection},
     windows::WindowManager,
-    Args,
 };
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
 
+mod capture;
 mod handlers;
 mod input;
+mod output;
+mod rendering;
+mod utils;
 
 use input::InputState;
-
-// Frame timing constants
-const IDLE_FRAME_TIMEOUT_MS: u64 = 33; // ~30 FPS when idle
-const ANIMATION_FRAME_TIMEOUT_MS: u64 = 8; // ~120 FPS when animating
-const DEFAULT_REFRESH_RATE_MHZ: i32 = 60000;
-const REFRESH_RATE_DIVIDER: i32 = 1000;
-
-// ============================================================================
-// Helper Functions
-// ============================================================================
-
-/// Copies text to the Wayland clipboard using wl-copy.
-fn copy_to_clipboard(text: &str) -> Result<()> {
-    use std::io::Write;
-    use std::process::{Command, Stdio};
-
-    let mut child = Command::new("wl-copy")
-        .stdin(Stdio::piped())
-        .spawn()
-        .context("Failed to spawn wl-copy process")?;
-
-    if let Some(mut stdin) = child.stdin.take() {
-        stdin
-            .write_all(text.as_bytes())
-            .context("Failed to write to wl-copy stdin")?;
-    }
-
-    let status = child.wait().context("Failed to wait for wl-copy")?;
-
-    if status.success() {
-        log::info!("Text copied to clipboard ({} bytes)", text.len());
-        Ok(())
-    } else {
-        anyhow::bail!("wl-copy exited with status: {}", status)
-    }
-}
-
-/// Converts FPS to frame duration in microseconds.
-#[inline]
-fn fps_to_duration(fps: u32) -> Duration {
-    Duration::from_micros(1_000_000 / fps.max(1) as u64)
-}
-
-/// Creates a renderer with the specified dimensions and styling configuration.
-///
-/// Returns `None` if renderer creation fails due to invalid color values or other configuration errors.
-/// Expects all `Option` fields in args to be populated after merging with config.
-#[inline]
-fn create_renderer(width: i32, height: i32, args: &Args) -> Option<Renderer> {
-    let config = RenderConfig::new(
-        args.border_color.as_ref()?,
-        args.border_thickness?,
-        args.border_rounding?,
-        args.dim_opacity?,
-        args.font_family.as_ref()?.clone(),
-        args.font_size?,
-        args.font_weight.as_ref()?,
-    )
-    .ok()?;
-
-    Some(Renderer::new(width, height, config))
-}
-
-// ============================================================================
-// Data Structures
-// ============================================================================
-
-/// Represents a single monitor's overlay surface
-pub(super) struct OutputSurface {
-    pub(super) _output: wl_output::WlOutput,
-    pub(super) layer_surface: LayerSurface,
-    pub(super) surface: wl_surface::WlSurface,
-    pub(super) width: u32,
-    pub(super) height: u32,
-    pub(super) x: i32,
-    pub(super) y: i32,
-    pub(super) configured: bool,
-    pub(super) pool: Option<SlotPool>,
-    pub(super) renderer: Option<Renderer>,
-    pub(super) last_render: Instant,
-    pub(super) frame_time: Duration,
-}
+use output::OutputSurface;
+use utils::*;
 
 /// Main application state managing Wayland connection and surfaces
 pub struct App {
@@ -300,7 +204,7 @@ impl App {
                     qh,
                     surface.clone(),
                     Layer::Overlay,
-                    Some("selection"),
+                    Some("gulp-selection"),
                     Some(output),
                 );
 
@@ -404,11 +308,13 @@ impl App {
                 let rect = window.rect;
                 log::info!("Initial snap target: {}", rect.describe());
 
-                // Start animation from cursor position
-                let start_rect = Rect::new(px as i32, py as i32, 1, 1);
-                let mut anim = SpringAnimation::new(start_rect);
-                anim.set_target(rect);
-                self.input.snap_animation = Some(anim);
+                if !self.args.no_animation {
+                    // Start animation from cursor position
+                    let start_rect = Rect::new(px as i32, py as i32, 1, 1);
+                    let mut anim = SpringAnimation::new(start_rect);
+                    anim.set_target(rect);
+                    self.input.snap_animation = Some(anim);
+                }
                 self.selection.set_snap_target(Some(rect));
             }
         }
@@ -458,175 +364,8 @@ impl App {
     // Rendering
     // ------------------------------------------------------------------------
 
-    /// Translates global rectangle coordinates to local output coordinates.
-    #[inline]
-    fn translate_rect_to_local(rect: Rect, offset_x: i32, offset_y: i32) -> Rect {
-        Rect::new(
-            rect.x - offset_x,
-            rect.y - offset_y,
-            rect.width,
-            rect.height,
-        )
-    }
-
-    /// Creates a local selection from a global rectangle by translating coordinates.
-    #[inline]
-    fn create_local_selection(
-        global_rect: Rect,
-        offset_x: i32,
-        offset_y: i32,
-    ) -> Selection {
-        let local_rect = Self::translate_rect_to_local(global_rect, offset_x, offset_y);
-        Selection::from_rect(local_rect)
-    }
-
     pub(super) fn draw_index(&mut self, index: usize) -> Result<()> {
-        if !self.output_surfaces[index].configured {
-            return Ok(());
-        }
-
-        let width = self.output_surfaces[index].width as i32;
-        let height = self.output_surfaces[index].height as i32;
-        let offset_x = self.output_surfaces[index].x;
-        let offset_y = self.output_surfaces[index].y;
-
-        let stride = width * 4;
-
-        // Extract what we need from the output surface to avoid borrow issues
-        let (buffer, canvas, renderer) = {
-            let output_surface = &mut self.output_surfaces[index];
-
-            // Check if we have renderer and pool
-            if output_surface.renderer.is_none() || output_surface.pool.is_none() {
-                return Ok(());
-            }
-
-            let pool = output_surface.pool.as_mut().unwrap();
-
-            // Use double buffering to prevent flickering
-            // The pool automatically manages multiple buffer slots
-            let (buf, canv) =
-                match pool.create_buffer(width, height, stride, wl_shm::Format::Argb8888) {
-                    Ok(buffer) => buffer,
-                    Err(e) => {
-                        log::warn!(
-                            "Failed to create buffer for output {}: {}. Resizing pool.",
-                            index,
-                            e
-                        );
-                        // Pool might be exhausted, resize it
-                        pool.resize((width * height * 4 * 2) as usize)?;
-                        pool.create_buffer(width, height, stride, wl_shm::Format::Argb8888)?
-                    }
-                };
-
-            log::debug!(
-                "Output {} got buffer, canvas ptr: {:p}",
-                index,
-                canv.as_ptr()
-            );
-
-            (buf, canv, output_surface.renderer.as_ref().unwrap())
-        };
-
-        // Check if we need to render a selection on this output
-        let has_selection = if let Some(rect) = self.selection.get_rect() {
-            let output_rect = Rect::new(offset_x, offset_y, width, height);
-
-            if rect.intersects(&output_rect) {
-                // Calculate the intersection rectangle (clipped to this output)
-                let clip_x = rect.x.max(offset_x);
-                let clip_y = rect.y.max(offset_y);
-                let clip_right = (rect.x + rect.width).min(offset_x + width);
-                let clip_bottom = (rect.y + rect.height).min(offset_y + height);
-                let clip_width = clip_right - clip_x;
-                let clip_height = clip_bottom - clip_y;
-
-                log::debug!(
-                    "RENDERING SELECTION on output {} at ({},{}) {}x{} - global rect: ({},{}) {}x{}, clipped: ({},{}) {}x{}",
-                    index,
-                    offset_x,
-                    offset_y,
-                    width,
-                    height,
-                    rect.x,
-                    rect.y,
-                    rect.width,
-                    rect.height,
-                    clip_x,
-                    clip_y,
-                    clip_width,
-                    clip_height
-                );
-
-                // Translate the ENTIRE global selection to output-local coordinates
-                // This preserves the visual continuity across monitors
-                let local_rect_x = rect.x - offset_x;
-                let local_rect_y = rect.y - offset_y;
-
-                log::debug!(
-                    "Creating local selection for output {}: global rect ({},{}) {}x{} -> local rect ({},{}) {}x{}",
-                    index, rect.x, rect.y, rect.width, rect.height,
-                    local_rect_x, local_rect_y, rect.width, rect.height
-                );
-
-                // Create a selection with the full rectangle translated to local coords
-                let local_selection =
-                    Self::create_local_selection(rect, offset_x, offset_y);
-
-                // Render directly to buffer - NO surface allocation!
-                renderer.render_to_buffer(&local_selection, canvas)?;
-                true
-            } else {
-                log::debug!("SKIPPING output {} - no intersection", index);
-                false
-            }
-        } else {
-            false
-        };
-
-        // If no selection on this output, render dimmed overlay only (or snap target if present)
-        if !has_selection {
-            let snap_rect = self.selection.get_current_snap_target();
-
-            if let Some(snap_rect) = snap_rect {
-                let local_snap = Self::translate_rect_to_local(snap_rect, offset_x, offset_y);
-
-                log::debug!(
-                    "RENDERING SNAP TARGET on output {}: global ({},{}) {}x{} -> local ({},{}) {}x{}",
-                    index, snap_rect.x, snap_rect.y, snap_rect.width, snap_rect.height,
-                    local_snap.x, local_snap.y, local_snap.width, local_snap.height
-                );
-
-                let mut local_selection = Selection::new();
-                local_selection.set_animated_snap_target(Some(local_snap));
-
-                // Render directly to buffer - NO surface allocation!
-                renderer.render_to_buffer(&local_selection, canvas)?;
-            } else {
-                // Render dimmed overlay (whether there's a selection elsewhere or not)
-                log::debug!("RENDERING DIMMED ONLY on output {}", index);
-                let empty_selection = Selection::new();
-                // Render directly to buffer - NO surface allocation!
-                renderer.render_to_buffer(&empty_selection, canvas)?;
-            }
-        }
-
-        // Attach and commit
-        log::debug!(
-            "Committing buffer to output {} surface at offset ({},{}) with damage {}x{}",
-            index,
-            offset_x,
-            offset_y,
-            width,
-            height
-        );
-        let output = &self.output_surfaces[index];
-        output.surface.attach(Some(buffer.wl_buffer()), 0, 0);
-        output.surface.damage_buffer(0, 0, width, height);
-        output.surface.commit();
-
-        Ok(())
+        rendering::draw_output(&mut self.output_surfaces[index], &self.selection)
     }
 
     // ------------------------------------------------------------------------
@@ -667,13 +406,15 @@ impl App {
                 if let Some(rect) = snap_target {
                     log::info!("Snap target: {}", rect.describe());
 
-                    if let Some(ref mut anim) = self.input.snap_animation {
-                        anim.set_target(rect);
-                    } else {
-                        let start_rect = Rect::new(global_x as i32, global_y as i32, 1, 1);
-                        let mut anim = SpringAnimation::new(start_rect);
-                        anim.set_target(rect);
-                        self.input.snap_animation = Some(anim);
+                    if !self.args.no_animation {
+                        if let Some(ref mut anim) = self.input.snap_animation {
+                            anim.set_target(rect);
+                        } else {
+                            let start_rect = Rect::new(global_x as i32, global_y as i32, 1, 1);
+                            let mut anim = SpringAnimation::new(start_rect);
+                            anim.set_target(rect);
+                            self.input.snap_animation = Some(anim);
+                        }
                     }
                     self.needs_redraw = true;
                 } else {
@@ -718,94 +459,25 @@ impl App {
 
     fn complete_selection(&mut self) {
         if let Some(rect) = self.selection.get_selection() {
-            // Render fully transparent overlays before screencopy
-            // This is faster than detaching and waiting for compositor
-            for output_surface in &mut self.output_surfaces {
-                let width = output_surface.width as i32;
-                let height = output_surface.height as i32;
-                let stride = width * 4;
-
-                if let Some(pool) = output_surface.pool.as_mut() {
-                    if let Ok((buffer, canvas)) = pool.create_buffer(
-                        width,
-                        height,
-                        stride,
-                        wayland_client::protocol::wl_shm::Format::Argb8888,
-                    ) {
-                        // Fill with fully transparent pixels
-                        canvas.iter_mut().for_each(|byte| *byte = 0);
-
-                        output_surface.surface.attach(Some(buffer.wl_buffer()), 0, 0);
-                        output_surface.surface.damage_buffer(0, 0, width, height);
-                        output_surface.surface.commit();
-                    }
-                }
-            }
-
-            // Flush and single roundtrip to ensure transparent frames are committed
-            let _ = self.conn.flush();
-            let _ = self.conn.roundtrip();
-
-            // Minimal delay for compositor to render the transparent frame
-            std::thread::sleep(std::time::Duration::from_millis(16)); // One frame at 60fps
-
-            // Collect outputs with their names and positions
-            let outputs_list: Vec<(wl_output::WlOutput, String, i32, i32, u32, u32)> = self
-                .output_surfaces
+            // Collect outputs map for capture module
+            let outputs_map: Vec<(wl_output::WlOutput, String)> = self
+                .outputs
                 .iter()
-                .map(|surf| {
-                    let info = self.outputs.get(&surf._output);
-                    let name = info.and_then(|i| i.name.clone()).unwrap_or_default();
-                    (surf._output.clone(), name, surf.x, surf.y, surf.width, surf.height)
-                })
+                .map(|(output, info)| (output.clone(), info.name.clone().unwrap_or_default()))
                 .collect();
 
-            if self.args.ocr {
-                // OCR mode: capture and extract text
-                match ocr::capture_and_ocr(&self.conn, &outputs_list, rect) {
-                    Ok(text) => {
-                        println!("{}", text);
-
-                        // Copy to clipboard using wl-copy
-                        if let Err(e) = copy_to_clipboard(&text) {
-                            log::warn!("Failed to copy to clipboard: {}", e);
-                        }
-                    }
-                    Err(e) => {
-                        eprintln!("OCR failed: {}", e);
-                        std::process::exit(1);
-                    }
-                }
-            } else if let Some(ref output_path) = self.args.output {
-                // Screenshot mode: capture and save to file or stdout
-                match ocr::capture_and_save(&self.conn, &outputs_list, rect, Some(output_path)) {
-                    Ok(()) => {
-                        // Success - file saved or written to stdout
-                    }
-                    Err(e) => {
-                        eprintln!("Screenshot capture failed: {}", e);
-                        std::process::exit(1);
-                    }
-                }
-            } else {
-                // Coordinate output mode: output coordinates only
-                let output = self.format_output(rect.x, rect.y, rect.width, rect.height);
-                println!("{}", output);
-            }
+            // Handle selection completion
+            let _ = capture::complete_selection(
+                &self.conn,
+                &mut self.output_surfaces,
+                &outputs_map,
+                &self.args,
+                rect,
+            );
 
             self.exit = true;
             self.loop_signal.stop();
         }
-    }
-
-    fn format_output(&self, x: i32, y: i32, width: i32, height: i32) -> String {
-        "%x,%y %wx%h"
-            .replace("%x", &x.to_string())
-            .replace("%y", &y.to_string())
-            .replace("%w", &width.to_string())
-            .replace("%h", &height.to_string())
-            .replace("%X", &(x + width).to_string())
-            .replace("%Y", &(y + height).to_string())
     }
 
     pub(super) fn cancel_selection(&mut self) {
