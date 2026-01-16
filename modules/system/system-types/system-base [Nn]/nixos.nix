@@ -177,6 +177,8 @@
         nixos-anywhere
         attic-client
         nixos-update
+        nix-fast-build
+        nix-eval-jobs
       ];
 
       programs.nh.enable = true;
