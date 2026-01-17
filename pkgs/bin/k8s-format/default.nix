@@ -1,7 +1,5 @@
-{
-  buildGoApplication,
-}:
-buildGoApplication {
+{ pkgs, ... }:
+pkgs.buildGoApplication {
   pname = "k8s-format";
   version = "0.0.0";
   src = ./src;

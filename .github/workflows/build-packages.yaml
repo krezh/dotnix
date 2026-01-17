@@ -90,6 +90,7 @@ jobs:
         with:
           target: ${{ matrix.package }}
           build-type: package
+          output-link: "result"
 
       - name: Post build comment
         if: ${{ always() && github.event_name == 'pull_request' }}
