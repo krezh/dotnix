@@ -54,8 +54,8 @@
           !include ${config.sops.templates."nix_access_token.conf".path}
         '';
         settings = {
-          keep-outputs = true;
-          keep-derivations = true;
+          keep-outputs = false;
+          keep-derivations = false;
           warn-dirty = false;
           flake-registry = "";
           use-xdg-base-directories = true;
