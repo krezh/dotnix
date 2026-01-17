@@ -1,0 +1,6 @@
+pre-push:
+  parallel: true
+pre-commit:
+  jobs:
+    - name: Nix fmt
+      run: nix fmt
