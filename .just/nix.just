@@ -47,15 +47,12 @@ update-packages: deps
 
     just log info "Updating ${#REMOTE_PKGS[@]} remote packages with $JOBS parallel jobs..."
 
-    export VERSION_REGEX
-    export ROOT_DIR
-
     update_single_pkg() {
       local pkg=$1
       just log info "Updating: $pkg"
       local OLD_VERSION=$(nix eval ".#$pkg.version" --raw 2>/dev/null || echo "unknown")
       
-      local UPDATE_FLAGS="--quiet --flake --commit --format --generate-lockfile --version-regex \"$VERSION_REGEX\""
+      local UPDATE_FLAGS="--quiet --flake --commit --format --use-update-script --generate-lockfile --version-regex \"$VERSION_REGEX\""
       
       if ! eval "nix-update \"$pkg\" $UPDATE_FLAGS" >/dev/null 2>&1; then
         just log error "Failed: $pkg"

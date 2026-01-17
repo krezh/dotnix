@@ -13,9 +13,8 @@
 
   gomod2nix = inputs.gomod2nix.overlays.default;
 
+  nix4vscode = inputs.nix4vscode.overlays.default;
+
   # Fix Weston DRM modifier assertion crash on AMD GPUs
   weston-fix = import ./weston-fix.nix;
-
-  # Custom VSCode extensions from Open VSX
-  vscode-extensions = import ./vscode-extensions.nix { inherit lib; };
 }

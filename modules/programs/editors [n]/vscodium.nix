@@ -27,36 +27,42 @@
       programs.vscode = {
         enable = true;
         package = pkgs.vscodium;
+        mutableExtensionsDir = true;
         profiles.default = {
           enableExtensionUpdateCheck = false;
           enableUpdateCheck = false;
-          extensions = with pkgs.vscode-extensions; [
-            esbenp.prettier-vscode
-            redhat.vscode-yaml
-            signageos.signageos-vscode-sops
-            golang.go
-            rust-lang.rust-analyzer
-            jnoortheen.nix-ide
-            nefrob.vscode-just-syntax
-            docker.docker
-            github.vscode-github-actions
-            github.copilot
-            github.copilot-chat
-            gruntfuggly.todo-tree
-            timonwong.shellcheck
-            tamasfe.even-better-toml
-            mads-hartmann.bash-ide-vscode
-            bmalehorn.vscode-fish
-            waderyan.gitblame
-            alefragnani.project-manager
-            wakatime.vscode-wakatime
-            theqtcompany.qt-core
-            theqtcompany.qt-qml
-            theqtcompany.qt-ui
-            mkhl.direnv
-            opentofu.opentofu
-            blueglassblock.better-json5
-          ];
+          extensions = (
+            pkgs.nix4vscode.forVscodeVersion (config.programs.vscode.package.version) [
+              "esbenp.prettier-vscode"
+              "redhat.vscode-yaml"
+              "signageos.signageos-vscode-sops"
+              "golang.go"
+              "rust-lang.rust-analyzer"
+              "jnoortheen.nix-ide"
+              "nefrob.vscode-just-syntax"
+              "docker.docker"
+              "github.vscode-github-actions"
+              "github.copilot-chat"
+              "gruntfuggly.todo-tree"
+              "timonwong.shellcheck"
+              "tamasfe.even-better-toml"
+              "mads-hartmann.bash-ide-vscode"
+              "bmalehorn.vscode-fish"
+              "waderyan.gitblame"
+              "alefragnani.project-manager"
+              "wakatime.vscode-wakatime"
+              "theqtcompany.qt-core"
+              "theqtcompany.qt-qml"
+              "theqtcompany.qt-ui"
+              "mkhl.direnv"
+              "opentofu.vscode-opentofu"
+              "blueglassblock.better-json5"
+              "editorconfig.editorconfig"
+              "usernamehw.errorlens"
+              "oderwat.indent-rainbow"
+              "mhutchie.git-graph"
+            ]
+          );
           userSettings = {
             telemetry.telemetryLevel = "off";
             update.mode = "none";

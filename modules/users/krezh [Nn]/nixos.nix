@@ -1,17 +1,10 @@
-{
-  inputs,
-  ...
-}:
+{ inputs, ... }:
 let
   username = "krezh";
 in
 {
   flake.modules.nixos.${username} =
-    {
-      pkgs,
-      config,
-      ...
-    }:
+    { pkgs, config, ... }:
     let
       ifTheyExist = groups: builtins.filter (group: builtins.hasAttr group config.users.groups) groups;
     in
