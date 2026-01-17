@@ -44,6 +44,7 @@
         rust-analyzer
         hyperfine
         curlie
+        lefthook
 
         # Secrets
         age-plugin-yubikey
