@@ -20,7 +20,6 @@
         nixos.catppuccin
       ]);
 
-      # Nixpkgs configuration
       nixpkgs = {
         config.allowUnfree = true;
         overlays = builtins.attrValues (import (lib.relativeToRoot "overlays") { inherit inputs lib; });
@@ -40,7 +39,6 @@
       # Locale settings
       i18n = {
         defaultLocale = lib.mkDefault "en_US.UTF-8";
-        # supportedLocales = lib.mkDefault [ "en_US.UTF-8" ];
         extraLocales = "all";
         extraLocaleSettings.LC_TIME = "en_US.UTF-8";
       };
@@ -54,8 +52,8 @@
           !include ${config.sops.templates."nix_access_token.conf".path}
         '';
         settings = {
-          keep-outputs = false;
-          keep-derivations = false;
+          keep-outputs = lib.mkDefault false;
+          keep-derivations = lib.mkDefault false;
           warn-dirty = false;
           flake-registry = "";
           use-xdg-base-directories = true;
@@ -123,15 +121,6 @@
                 }
               ];
               groups = [ "wheel" ];
-            }
-            {
-              commands = [
-                {
-                  command = "/run/current-system/sw/bin/true";
-                  options = [ "NOPASSWD" ];
-                }
-              ];
-              users = [ "root" ];
             }
           ];
           extraConfig = ''

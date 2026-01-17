@@ -62,7 +62,7 @@
             disabled = false;
           };
           jobs = {
-            symbol = " ";
+            symbol = " ";
             format = "[$number$symbol]($style) ";
             style = "bold blue";
           };
@@ -73,7 +73,7 @@
           };
           container.disabled = true;
           git_branch = {
-            symbol = " ";
+            symbol = " ";
             format = "[$symbol$branch(:$remote_branch)]($style) ";
           };
           character = {

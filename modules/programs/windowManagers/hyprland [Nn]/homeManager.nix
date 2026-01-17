@@ -241,8 +241,8 @@
             "5,monitor:DP-2"
             "6,monitor:DP-2"
             # Smart gaps
-            "workspace = w[tv1]s[false], gapsout:0, gapsin:0"
-            "workspace = f[1]s[false], gapsout:0, gapsin:0"
+            # "workspace = w[tv1]s[false], gapsout:0, gapsin:0"
+            # "workspace = f[1]s[false], gapsout:0, gapsin:0"
           ];
 
           layerrule = [
@@ -290,9 +290,9 @@
 
             # Smart gaps
             "match:float false, match:workspace w[tv1]s[false], border_size 0"
-            "match:float false, match:workspace w[tv1]s[false], rounding 0"
+            # "match:float false, match:workspace w[tv1]s[false], rounding 0"
             "match:float false, match:workspace f[1]s[false], border_size 0"
-            "match:float false, match:workspace f[1]s[false], rounding 0"
+            # "match:float false, match:workspace f[1]s[false], rounding 0"
 
             # Fullscreen
             "match:fullscreen true, opacity 1.0 override"

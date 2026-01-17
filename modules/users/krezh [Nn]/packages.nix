@@ -30,7 +30,6 @@
         just
         minijinja
         gh-poi
-        pre-commit
         p7zip
         unzip
         shellcheck

@@ -5,8 +5,8 @@
       programs.bat = {
         enable = true;
         config = {
-          paging = "auto";
-          style = "auto";
+          paging = "never";
+          style = "plain";
         };
         syntaxes.hyprlang = {
           src = pkgs.fetchFromGitHub {
