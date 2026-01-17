@@ -50,7 +50,7 @@ jobs:
           matrix=$(nix-eval-jobs --flake ".#packages" \
             --check-cache-status \
             --force-recurse \
-            --option substituters "https://krezh.cachix.org https://cache.nixos.org" | \
+            --option substituters "https://${{ env.CACHE_NAME }}.cachix.org https://cache.nixos.org" | \
             jq -sc 'map(select(.isCached == false and .neededBuilds != [])) |
               map({
                 package: .attrPath[-1],
@@ -80,9 +80,10 @@ jobs:
       - name: Setup Nix with caching
         uses: ./.github/actions/setup-nix
         with:
-          cachix-cache: krezh
+          cachix-cache: ${{ env.CACHE_NAME }}
           cachix-token: "${{ secrets.CACHIX_AUTH_TOKEN }}"
           skip-cache: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork }}
+          skip-push: true
 
       - name: Build package
         id: build
@@ -90,7 +91,11 @@ jobs:
         with:
           target: ${{ matrix.package }}
           build-type: package
-          output-link: "result"
+          output-link: result
+
+      - name: Push to cachix
+        run: |
+          nix-store -qR --include-outputs $(nix-store -qd result) | cachix push ${{ env.CACHE_NAME }}
 
       - name: Post build comment
         if: ${{ always() && github.event_name == 'pull_request' }}

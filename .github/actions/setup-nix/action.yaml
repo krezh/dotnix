@@ -8,7 +8,11 @@ inputs:
     description: Cachix authentication token
     required: false
   skip-cache:
-    description: Skip cache setup (for forks/external PRs)
+    description: Skip cache setup
+    required: false
+    default: "false"
+  skip-push:
+    description: Skip cache push
     required: false
     default: "false"
   use-remote-builders:
@@ -62,3 +66,4 @@ runs:
       with:
         name: ${{ inputs.cachix-cache }}
         authToken: ${{ inputs.cachix-token }}
+        skipPush: ${{ inputs.skip-push }}
