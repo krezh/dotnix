@@ -51,7 +51,7 @@ jobs:
             --check-cache-status \
             --force-recurse \
             --option substituters "https://${{ env.CACHE_NAME }}.cachix.org https://cache.nixos.org" | \
-            jq -sc 'map(select(.isCached == false and .neededBuilds != [])) |
+            jq -sc 'map(select(.cacheStatus == "notBuilt")) |
               map({
                 package: .attrPath[-1],
                 attr: .attr,
@@ -95,8 +95,7 @@ jobs:
 
       - name: Push to cachix
         run: |
-          drv=$(nix-store -qd result)
-          nix-store -q --references $drv | grep '\.drv$' | xargs -r nix-store -r | cachix push ${{ env.CACHE_NAME }}
+          nix-store -q --references $(nix-store -qd result) | grep '\.drv$' | xargs -r nix-store -r | cachix push ${{ env.CACHE_NAME }}
 
       - name: Post build comment
         if: ${{ always() && github.event_name == 'pull_request' }}
