@@ -50,11 +50,14 @@ jobs:
           matrix=$(nix-eval-jobs --flake ".#packages" \
             --check-cache-status \
             --force-recurse \
+            --gc-roots-dir /tmp/gcroot \
             --option substituters "https://${{ env.CACHE_NAME }}.cachix.org https://cache.nixos.org" | \
             jq -sc 'map(select(.cacheStatus == "notBuilt")) |
               map({
                 package: .attrPath[-1],
                 attr: .attr,
+                cacheStatus: .cacheStatus,
+                isCached: .isCached,
                 system: .system,
                 runner: (if .system == "x86_64-linux" then "ubuntu-latest"
                         elif .system == "aarch64-linux" then "ubuntu-24.04-arm"
