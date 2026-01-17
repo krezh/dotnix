@@ -38,8 +38,8 @@ schema = 3
     version = "v0.4.2"
     hash = "sha256-3w1PCM/c4JvVEh2d0sMfv4C77Xs1bPa1Ea84zdynC7I="
   [mod."github.com/charmbracelet/x/ansi"]
-    version = "v0.10.3"
-    hash = "sha256-bSv0OAESuOuXXUIWHLvR/VBnk2gbogSGhDsFDLyDObw="
+    version = "v0.11.4"
+    hash = "sha256-Q1mZjt5M0/cJY7zZH70bK4bzzRoBbUZepX81Xta00+w="
   [mod."github.com/charmbracelet/x/cellbuf"]
     version = "v0.0.13-0.20250311204145-2c3ea96c31dd"
     hash = "sha256-XAhCOt8qJ2vR77lH1ez0IVU1/2CaLTq9jSmrHVg5HHU="
@@ -50,8 +50,8 @@ schema = 3
     version = "v4.0.0+incompatible"
     hash = "sha256-5TAGwWBRPFitrQGJRQpYK3Vx13X+FaPrGRveslNebjI="
   [mod."github.com/clipperhouse/displaywidth"]
-    version = "v0.4.1"
-    hash = "sha256-Cchc3GXYSn4eVbsY4DdqeCL0KAh1mYS/mMQnAzeVSBw="
+    version = "v0.7.0"
+    hash = "sha256-bnsjBvPO3diMQaQY0+0Jh+zAcBjDfQ1ek5u9iLPPfgA="
   [mod."github.com/clipperhouse/stringish"]
     version = "v0.1.1"
     hash = "sha256-Mp8M1CRbwr6dcJ4BD9tXD5I78ZgCFEm0GDxJv0GYReg="
