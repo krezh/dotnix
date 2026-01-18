@@ -27,6 +27,7 @@ func main() {
 		fmt.Fprintf(os.Stderr, "  --lock      Lock the vault\n")
 		fmt.Fprintf(os.Stderr, "  --sync      Sync vault with server\n")
 		fmt.Fprintf(os.Stderr, "  --help      Show this help message\n\n")
+		fmt.Fprintf(os.Stderr, "When run without options, opens the item search interface.\n")
 	}
 
 	flag.Parse()

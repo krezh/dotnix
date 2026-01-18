@@ -14,12 +14,12 @@ buildGoApplication rec {
   pname = "bww";
   version = "0.1.0";
 
-  src = lib.fileset.toSource {
-    root = ./src;
-    fileset = ./src;
+  src = builtins.path {
+    path = ./src;
+    name = "bww-src";
   };
 
-  modules = "${src}/gomod2nix.toml";
+  modules = ./src/gomod2nix.toml;
 
   nativeBuildInputs = [ makeWrapper ];
 

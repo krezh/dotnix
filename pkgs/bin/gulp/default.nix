@@ -12,17 +12,13 @@ rustPlatform.buildRustPackage rec {
   pname = "gulp";
   version = "0.1.0";
 
-  src = lib.fileset.toSource {
-    root = ./.;
-    fileset = lib.fileset.unions [
-      ./Cargo.toml
-      ./Cargo.lock
-      ./src
-    ];
+  src = builtins.path {
+    path = ./.;
+    name = "gulp-src";
   };
 
   cargoLock = {
-    lockFile = "${src}/Cargo.lock";
+    lockFile = ./Cargo.lock;
   };
 
   nativeBuildInputs = with pkgs; [

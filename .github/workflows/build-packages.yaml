@@ -24,73 +24,51 @@ env:
   CACHE_NAME: krezh
 
 jobs:
-  generate-matrix:
-    name: Generate Build Matrix
+  detect-packages:
+    name: Detect Changed Packages
     runs-on: ubuntu-latest
     outputs:
-      matrix: ${{ steps.set-matrix.outputs.matrix }}
+      changed-packages: ${{ steps.extract-packages.outputs.packages }}
     steps:
       - name: Checkout
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
         with:
           fetch-depth: 0
 
-      - name: Setup Nix with caching
-        uses: ./.github/actions/setup-nix
+      - name: Get changed packages
+        id: changed-packages
+        uses: bjw-s-labs/action-changed-files@1a5aeab1bfa64d0c4e786f501d5a3f1fad4a24da # v0.4.1
         with:
-          cachix-cache: ${{ env.CACHE_NAME }}
+          patterns: pkgs/**
+          include_only_directories: true
 
-      - name: Install nix-eval-jobs
+      - name: Extract package names
+        id: extract-packages
+        if: ${{ steps.changed-packages.outputs.changed_files != '[]' }}
         run: |
-          nix profile install nixpkgs#nix-eval-jobs
-
-      - name: Generate Matrix with nix-eval-jobs
-        id: set-matrix
-        run: |
-          set -Eeu
-
-          matrix=$(nix-eval-jobs --flake ".#packages" \
-            --check-cache-status \
-            --force-recurse \
-            --gc-roots-dir /tmp/gcroot \
-            --option substituters "https://${{ env.CACHE_NAME }}.cachix.org https://cache.nixos.org" | \
-            jq -sc 'map(select((.neededBuilds | length) > 0)) |
-              map({
-                package: .attrPath[-1],
-                attr: .attr,
-                cacheStatus: .cacheStatus,
-                isCached: .isCached,
-                system: .system,
-                runner: (if .system == "x86_64-linux" then "ubuntu-latest"
-                        elif .system == "aarch64-linux" then "ubuntu-24.04-arm"
-                        elif .system == "x86_64-darwin" then "ubuntu-latest"
-                        else .system end)
-              }) | {include: .}')
-
-          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
-          echo "$matrix"
+          files='${{ steps.changed-packages.outputs.changed_files }}'
+          pkgs=$(echo "$files" | jq -c '[.[] | split("/") | .[2]] | unique')
+          echo "packages=$pkgs" >> $GITHUB_OUTPUT
 
   build-packages:
     name: Build package ${{ matrix.package }}
-    needs: generate-matrix
-    if: ${{ needs.generate-matrix.outputs.matrix != '' && needs.generate-matrix.outputs.matrix != '{"include":[]}' }}
-    runs-on: ${{ matrix.runner }}
+    needs: detect-packages
+    if: ${{ needs.detect-packages.outputs.changed-packages != '' }}
+    runs-on: ubuntu-latest
     continue-on-error: true
     strategy:
-      matrix: ${{ fromJson(needs.generate-matrix.outputs.matrix) }}
+      matrix:
+        package: ${{ fromJson(needs.detect-packages.outputs.changed-packages) }}
     steps:
       - name: Checkout
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
-        with:
-          fetch-depth: 0
 
       - name: Setup Nix with caching
         uses: ./.github/actions/setup-nix
         with:
-          cachix-cache: ${{ env.CACHE_NAME }}
+          cachix-cache: krezh
           cachix-token: "${{ secrets.CACHIX_AUTH_TOKEN }}"
           skip-cache: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork }}
-          skip-push: true
 
       - name: Build package
         id: build
@@ -98,11 +76,6 @@ jobs:
         with:
           target: ${{ matrix.package }}
           build-type: package
-          output-link: result
-
-      - name: Push to cachix
-        run: |
-          nix-store -qR result | cachix push ${{ env.CACHE_NAME }}
 
       - name: Post build comment
         if: ${{ always() && github.event_name == 'pull_request' }}
