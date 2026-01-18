@@ -8,11 +8,11 @@ on:
   pull_request:
     branches: ["main"]
     paths: &paths
-      - "hosts/**"
-      - "home/**"
+      - "modules/**"
+      - "lib/**"
+      - "overlays/**"
       - "flake.nix"
       - "flake.lock"
-      - "**.nix"
       - "!pkgs/**"
   push:
     branches: ["main"]
@@ -46,9 +46,9 @@ jobs:
         uses: bjw-s-labs/action-changed-files@1a5aeab1bfa64d0c4e786f501d5a3f1fad4a24da # v0.4.1
         with:
           patterns: |
-            hosts/**
-            home/**
+            modules/**
             lib/**
+            overlays/**
             flake.nix
             flake.lock
 
@@ -74,9 +74,9 @@ jobs:
           matrix=$(nix eval --json '.#ghMatrix' | jq -c) || exit 1
           systems='${{ needs.detect-changes.outputs.changed-systems }}'
           if [ -n "$systems" ] && [ "$systems" != "[]" ]; then
-            # Extract host-specific changes (exclude common/, modules/, and other shared directories)
-            changed_hosts=$(echo "$systems" | jq -r '[.[] | select(startswith("hosts/")) | split("/")[1] | select(. != "common" and . != "modules")] | unique')
-            has_shared=$(echo "$systems" | jq -r 'any((startswith("hosts/") | not) or startswith("hosts/common/") or startswith("hosts/modules/"))')
+            # Extract host-specific changes (exclude shared modules directories)
+            changed_hosts=$(echo "$systems" | jq -r '[.[] | select(startswith("modules/hosts/")) | split("/")[2] | select(length > 0)] | unique')
+            has_shared=$(echo "$systems" | jq -r 'any((startswith("modules/hosts/") | not) or (startswith("modules/hosts/") and (split("/") | length) == 2))')
 
             if [ "$has_shared" = "false" ] && [ "$changed_hosts" != "[]" ]; then
               matrix=$(echo "$matrix" | jq -c --argjson hosts "$changed_hosts" '{include: [.include[] | select(.host as $h | $hosts | index($h))]}')
