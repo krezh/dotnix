@@ -58,18 +58,13 @@ runs:
           # Extract derivation paths from build log
           derivation_paths=$(grep -oE '/nix/store/[a-z0-9]+-[^'"'"'[:space:]]+\.drv' build.log | sort -u)
 
-          # Find primary failing derivation - prioritize "Cannot build" over dependencies
-          primary_drv=$(grep "^error: Cannot build" build.log | grep -oE '/nix/store/[a-z0-9]+-[^'"'"'[:space:]]+\.drv' | head -1)
-
-          # Fallback to any error line
-          if [ -z "$primary_drv" ]; then
-            primary_drv=$(grep "^error:" build.log | grep -v "dependencies of" | grep -oE '/nix/store/[a-z0-9]+-[^'"'"'[:space:]]+\.drv' | head -1)
-          fi
-
-          # Fallback to first derivation if no primary found
-          if [ -z "$primary_drv" ]; then
-            primary_drv=$(echo "$derivation_paths" | head -1)
-          fi
+          # Find primary failing derivation - try multiple patterns
+          primary_drv=$(
+            grep -oE "builder for '(/nix/store/[^']+\.drv)'" build.log | head -1 | grep -oE '/nix/store/[^'"'"']+' ||
+            grep -oE "building '(/nix/store/[^']+\.drv)'" build.log | head -1 | grep -oE '/nix/store/[^'"'"']+' ||
+            grep -oE "error:.*'(/nix/store/[^']+\.drv)'" build.log | head -1 | grep -oE '/nix/store/[^'"'"']+' ||
+            echo "$derivation_paths" | head -1
+          )
 
           # Helper function to retrieve nix log
           get_nix_log() {
@@ -85,10 +80,7 @@ runs:
           }
 
           # Try to retrieve full build log from primary derivation
-          full_build_log=""
-          if [ -n "$primary_drv" ]; then
-            full_build_log=$(get_nix_log "$primary_drv")
-          fi
+          full_build_log=$(get_nix_log "$primary_drv")
 
           # If primary failed, try all discovered derivations
           if [ -z "$full_build_log" ] && [ -n "$derivation_paths" ]; then
@@ -98,32 +90,31 @@ runs:
             done <<< "$derivation_paths"
           fi
 
-          # Write multiline output
-          echo "error-log<<EOF_ERROR_LOG" >> "$GITHUB_OUTPUT"
+          {
+            echo 'error-log<<EOF_ERROR_LOG'
 
-          # Output nix log if available, otherwise use build.log
-          if [ -n "$full_build_log" ]; then
-            char_count=${#full_build_log}
-            if [ $char_count -gt 50000 ]; then
-              line_count=$(echo "$full_build_log" | wc -l)
-              echo "⚠️ Build log truncated: showing last 2000 of $line_count total lines" >> "$GITHUB_OUTPUT"
-              echo "" >> "$GITHUB_OUTPUT"
-              echo "$full_build_log" | tail -n 2000 >> "$GITHUB_OUTPUT"
+            # Output log with truncation if needed
+            if [ -n "$full_build_log" ]; then
+              char_count=${#full_build_log}
+              if [ $char_count -gt 50000 ]; then
+                line_count=$(echo "$full_build_log" | wc -l)
+                echo "⚠️ Build log truncated: showing last 2000 of $line_count total lines"
+                echo ""
+                echo "$full_build_log" | tail -n 2000
+              else
+                echo "$full_build_log"
+              fi
             else
-              echo "$full_build_log" >> "$GITHUB_OUTPUT"
+              # Fallback: show error lines with context (3 lines before/after each error)
+              grep -iE 'error|failed|cannot|fatal|panic' build.log -B 3 -A 3 | tail -n 200 || tail -n 100 build.log
             fi
-          elif [ -f build.log ] && [ -s build.log ]; then
-            # Use build.log as fallback if it exists and is not empty
-            cat build.log >> "$GITHUB_OUTPUT"
-          else
-            echo "No build log available" >> "$GITHUB_OUTPUT"
-          fi
 
-          echo "EOF_ERROR_LOG" >> "$GITHUB_OUTPUT"
+            echo 'EOF_ERROR_LOG'
+          } >> $GITHUB_OUTPUT
 
           build_end=$(date +%s)
           build_duration=$((build_end - build_start))
-          echo "build_duration=$build_duration" >> "$GITHUB_OUTPUT"
+          echo "build_duration=$build_duration" >> $GITHUB_OUTPUT
 
           exit 1
         }
