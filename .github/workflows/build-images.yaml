@@ -81,11 +81,9 @@ jobs:
             --fallback \
             --log-format raw \
             --print-build-logs 2>&1 | tee build.log || {
-            {
-              echo 'error-log<<EOF_ERROR_LOG'
-              grep -iE 'error|failed|cannot|fatal|panic' build.log | tail -n 100 || tail -n 50 build.log
-              echo 'EOF_ERROR_LOG'
-            } >> $GITHUB_OUTPUT
+            echo 'error-log<<EOF_ERROR_LOG' >> $GITHUB_OUTPUT
+            grep -iE 'error|failed|cannot|fatal|panic' build.log | tail -n 100 || tail -n 50 build.log >> $GITHUB_OUTPUT
+            echo 'EOF_ERROR_LOG' >> $GITHUB_OUTPUT
             exit 1
           }
 
