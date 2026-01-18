@@ -58,11 +58,11 @@ runs:
           # Extract derivation paths from build log
           derivation_paths=$(grep -oE '/nix/store/[a-z0-9]+-[^'"'"'[:space:]]+\.drv' build.log | sort -u)
 
-          # Find primary failing derivation - try multiple patterns
+          # Find primary failing derivation - prioritize actual build failures over dependencies
           primary_drv=$(
-            grep -oE "builder for '(/nix/store/[^']+\.drv)'" build.log | head -1 | grep -oE '/nix/store/[^'"'"']+' ||
-            grep -oE "building '(/nix/store/[^']+\.drv)'" build.log | head -1 | grep -oE '/nix/store/[^'"'"']+' ||
-            grep -oE "error:.*'(/nix/store/[^']+\.drv)'" build.log | head -1 | grep -oE '/nix/store/[^'"'"']+' ||
+            grep "^building '" build.log | tail -1 | grep -oE '/nix/store/[^'"'"']+\.drv' ||
+            grep "^error: hash mismatch" build.log | grep -oE '/nix/store/[^'"'"']+\.drv' | head -1 ||
+            grep "^builder for '" build.log | head -1 | grep -oE '/nix/store/[^'"'"']+\.drv' ||
             echo "$derivation_paths" | head -1
           )
 
