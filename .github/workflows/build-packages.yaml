@@ -54,7 +54,7 @@ jobs:
             --force-recurse \
             --gc-roots-dir /tmp/gcroot \
             --option substituters "https://${{ env.CACHE_NAME }}.cachix.org https://cache.nixos.org" | \
-            jq -sc 'map(select(.cacheStatus == "notBuilt")) |
+            jq -sc 'map(select((.neededBuilds | length) > 0)) |
               map({
                 package: .attrPath[-1],
                 attr: .attr,
@@ -102,7 +102,7 @@ jobs:
 
       - name: Push to cachix
         run: |
-          nix-store -q --references $(nix-store -qd result) | grep '\.drv$' | xargs -r nix-store -r | cachix push ${{ env.CACHE_NAME }}
+          nix-store -qR result | cachix push ${{ env.CACHE_NAME }}
 
       - name: Post build comment
         if: ${{ always() && github.event_name == 'pull_request' }}
