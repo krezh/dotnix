@@ -15,7 +15,7 @@ buildGoApplication rec {
   version = "0.1.0";
 
   src = lib.fileset.toSource {
-    root = ./.;
+    root = ./src;
     fileset = ./src;
   };
 

@@ -3,7 +3,7 @@ pkgs.buildGoApplication {
   pname = "k8s-format";
   version = "0.0.0";
   src = lib.fileset.toSource {
-    root = ./.;
+    root = ./src;
     fileset = ./src;
   };
   modules = ./src/gomod2nix.toml;
