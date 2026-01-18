@@ -36,7 +36,7 @@ func main() {
 		flag.Usage()
 		return
 	}
-
+	// test
 	client := bw.NewClient()
 
 	if *loginFlag {
