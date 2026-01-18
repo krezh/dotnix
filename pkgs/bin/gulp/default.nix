@@ -8,7 +8,7 @@
   ...
 }:
 
-rustPlatform.buildRustPackage {
+rustPlatform.buildRustPackage rec {
   pname = "gulp";
   version = "0.1.0";
 
@@ -22,7 +22,7 @@ rustPlatform.buildRustPackage {
   };
 
   cargoLock = {
-    lockFile = ./Cargo.lock;
+    lockFile = "${src}/Cargo.lock";
   };
 
   nativeBuildInputs = with pkgs; [

@@ -1,12 +1,12 @@
 { pkgs, lib, ... }:
-pkgs.buildGoApplication {
+pkgs.buildGoApplication rec {
   pname = "km";
   version = "0.1.0";
   src = lib.fileset.toSource {
     root = ./src;
     fileset = ./src;
   };
-  modules = ./src/gomod2nix.toml;
+  modules = "${src}/gomod2nix.toml";
   buildInputs = [ pkgs.kopia ];
   ldflags = [
     "-s"

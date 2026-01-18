@@ -3,7 +3,7 @@
   buildGoApplication,
 }:
 
-buildGoApplication {
+buildGoApplication rec {
   pname = "nixos-update";
   version = "0.1.0";
   src = lib.fileset.toSource {
@@ -15,7 +15,7 @@ buildGoApplication {
       ./main.go
     ];
   };
-  modules = ./gomod2nix.toml;
+  modules = "${src}/gomod2nix.toml";
   ldflags = [
     "-s"
     "-w"

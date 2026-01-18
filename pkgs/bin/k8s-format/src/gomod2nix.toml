@@ -1,4 +1,5 @@
 schema = 3
+cachePackages = ["gopkg.in/yaml.v3"]
 
 [mod]
   [mod."gopkg.in/yaml.v3"]
