@@ -1,6 +1,8 @@
 pre-push:
   parallel: true
 pre-commit:
-  jobs:
-    - name: Nix fmt
-      run: nix fmt
+  parallel: true
+  commands:
+    "Nix Format":
+      run: nix fmt {staged_files}
+      stage_fixed: true
