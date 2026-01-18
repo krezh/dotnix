@@ -118,24 +118,6 @@ jobs:
           build-type: system
           output-link: result
 
-      - name: Calculate build size
-        id: build-info
-        if: ${{ success() }}
-        run: |
-          build_size="Unknown"
-          result_path=""
-          if [ -L "result" ]; then
-            result_path=$(readlink "result" 2>/dev/null || echo "")
-            if [ -n "$result_path" ]; then
-              size_output="$(nix path-info --closure-size --human-readable "$result_path" 2>/dev/null || echo "")"
-              if [ -n "$size_output" ]; then
-                build_size="$(echo "$size_output" | awk '{ if (NF == 2) { print $2 } else if (NF >= 3) { print $(NF-1) $NF } }')"
-              fi
-            fi
-          fi
-          echo "build-size=$build_size" >> $GITHUB_OUTPUT
-          echo "result-path=$result_path" >> $GITHUB_OUTPUT
-
       - name: Post build comment
         if: ${{ always() && github.event_name == 'pull_request' }}
         uses: ./.github/actions/post-build-comment
