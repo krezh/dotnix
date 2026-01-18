@@ -2,6 +2,7 @@
   lib,
   buildGoModule,
   fetchFromGitHub,
+  go-bin,
 }:
 
 buildGoModule rec {
@@ -17,6 +18,7 @@ buildGoModule rec {
     fetchSubmodules = true;
   };
 
+  go = go-bin.latestStable;
   vendorHash = "sha256-2w3pccBAYwj1ucEAIr+31xWdxJBz3P9HrsIamTmBJXU=";
 
   ldflags = [

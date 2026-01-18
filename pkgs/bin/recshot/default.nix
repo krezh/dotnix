@@ -1,6 +1,7 @@
 {
   lib,
   buildGoModule,
+  go-bin,
 }:
 
 buildGoModule rec {
@@ -12,6 +13,7 @@ buildGoModule rec {
     name = "recshot-src";
   };
 
+  go = go-bin.latestStable;
   vendorHash = null;
 
   ldflags = [

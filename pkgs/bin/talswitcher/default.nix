@@ -2,6 +2,7 @@
   lib,
   buildGoModule,
   fetchFromGitHub,
+  go-bin,
   installShellFiles,
 }:
 buildGoModule rec {
@@ -16,6 +17,7 @@ buildGoModule rec {
     hash = "sha256-bn2SSXlZlfvCMan0oy/dHpMp5VxwLuEKBmWNhQlneEc=";
   };
 
+  go = go-bin.latestStable;
   vendorHash = "sha256-tKc2T2DIXafLtLswSA2e/bdjkQW/2m7eW8Rt+aCJ/X4=";
 
   # Make build write to a writable tempdir instead of /homeless-shelter

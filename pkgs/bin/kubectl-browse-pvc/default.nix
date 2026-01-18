@@ -2,6 +2,7 @@
   lib,
   buildGoModule,
   fetchFromGitHub,
+  go-bin,
 }:
 
 buildGoModule rec {
@@ -18,6 +19,7 @@ buildGoModule rec {
 
   sourceRoot = "${src.name}/src";
 
+  go = go-bin.latestStable;
   ldflags = [
     "-s"
     "-w"

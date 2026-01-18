@@ -2,6 +2,7 @@
   buildGoModule,
   fetchFromGitHub,
   fetchzip,
+  go-bin,
   installShellFiles,
   lib,
   stdenv,
@@ -16,6 +17,8 @@ buildGoModule rec {
     rev = "v${version}";
     hash = "sha256-vTb1YE73xxCC4GlR6UW5Ibu+ck+N+KKYUg50csb7eUA=";
   };
+
+  go = go-bin.latestStable;
   vendorHash = "sha256-AgWDvlXVZXXprWCeoNeAMDb6LeYfa9yG5afc7TNISQs=";
   manifests = fetchzip {
     url = "https://github.com/fluxcd/flux2/releases/download/v${version}/manifests.tar.gz";

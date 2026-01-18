@@ -105,8 +105,8 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    gomod2nix = {
-      url = "github:nix-community/gomod2nix";
+    go-overlay = {
+      url = "github:purpleclay/go-overlay";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 

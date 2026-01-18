@@ -10,7 +10,7 @@
       useBaseName = true;
     };
 
-  gomod2nix = inputs.gomod2nix.overlays.default;
+  go-overlay = inputs.go-overlay.overlays.default;
 
   nix4vscode = inputs.nix4vscode.overlays.default;
 

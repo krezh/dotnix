@@ -1,4 +1,8 @@
-{ pkgs, ... }:
+{
+  pkgs,
+  go-bin,
+  ...
+}:
 pkgs.buildGoApplication rec {
   pname = "km";
   version = "0.1.0";
@@ -6,7 +10,9 @@ pkgs.buildGoApplication rec {
     path = ./src;
     name = "kopia-manager-src";
   };
-  modules = "${src}/gomod2nix.toml";
+
+  go = go-bin.latestStable;
+  modules = "${src}/govendor.toml";
   buildInputs = [ pkgs.kopia ];
   ldflags = [
     "-s"

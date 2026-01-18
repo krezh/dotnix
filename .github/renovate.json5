@@ -76,13 +76,13 @@
       ignoreTests: false,
     },
     {
-      description: "Update gomod2nix.toml when go.mod changes",
+      description: "Update govendor.toml when go.mod changes",
       matchManagers: ["gomod"],
       postUpgradeTasks: {
         commands: [
-          "nix run github:nix-community/gomod2nix -- --dir {{{packageFileDir}}}",
+          "nix run github:purpleclay/go-overlay#govendor -- {{{packageFileDir}}}",
         ],
-        fileFilters: ["**/gomod2nix.toml", "**/go.sum"],
+        fileFilters: ["**/govendor.toml", "**/go.sum"],
         executionMode: "update",
       },
       automerge: true,

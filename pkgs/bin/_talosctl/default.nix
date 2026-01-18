@@ -3,6 +3,7 @@
   stdenv,
   buildGoModule,
   fetchFromGitHub,
+  go-bin,
   installShellFiles,
   versionCheckHook,
 }:
@@ -19,6 +20,7 @@ buildGoModule rec {
     hash = "sha256-N/kqQTlxpwI1vrCjhqtFe0YdyfxTzxIzoMsmPKwtaCM=";
   };
 
+  go = go-bin.latestStable;
   vendorHash = "";
 
   ldflags = [

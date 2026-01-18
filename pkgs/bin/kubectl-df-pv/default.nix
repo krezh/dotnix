@@ -2,6 +2,7 @@
   lib,
   buildGoModule,
   fetchFromGitHub,
+  go-bin,
 }:
 
 buildGoModule rec {
@@ -16,6 +17,7 @@ buildGoModule rec {
     hash = "sha256-dGWGPamVD/26iEgKQcWGKpFIMMlDivFpD/XzmjCr8pQ=";
   };
 
+  go = go-bin.latestStable;
   vendorHash = "sha256-J15tCwYiVSPa2hSB3DMFtVW9Uer7pFMCD1OpCobnYMc=";
 
   postInstall = ''

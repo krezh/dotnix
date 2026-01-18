@@ -1,6 +1,7 @@
 {
   lib,
   buildGoApplication,
+  go-bin,
   makeWrapper,
   bitwarden-cli,
   walker,
@@ -19,7 +20,8 @@ buildGoApplication rec {
     name = "bww-src";
   };
 
-  modules = "${src}/gomod2nix.toml";
+  go = go-bin.latestStable;
+  modules = "${src}/govendor.toml";
 
   nativeBuildInputs = [ makeWrapper ];
 

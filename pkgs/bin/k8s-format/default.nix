@@ -1,4 +1,8 @@
-{ pkgs, ... }:
+{
+  pkgs,
+  go-bin,
+  ...
+}:
 pkgs.buildGoApplication rec {
   pname = "k8s-format";
   version = "0.0.0";
@@ -6,7 +10,9 @@ pkgs.buildGoApplication rec {
     path = ./src;
     name = "k8s-format-src";
   };
-  modules = "${src}/gomod2nix.toml";
+
+  go = go-bin.latestStable;
+  modules = "${src}/govendor.toml";
 
   ldflags = [
     "-s"

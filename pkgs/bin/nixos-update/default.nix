@@ -1,6 +1,7 @@
 {
   lib,
   buildGoApplication,
+  go-bin,
 }:
 
 buildGoApplication rec {
@@ -10,7 +11,9 @@ buildGoApplication rec {
     path = ./.;
     name = "nixos-update-src";
   };
-  modules = "${src}/gomod2nix.toml";
+
+  go = go-bin.latestStable;
+  modules = "${src}/govendor.toml";
   ldflags = [
     "-s"
     "-w"
