@@ -7,7 +7,10 @@ buildGoModule rec {
   pname = "recshot";
   version = "0.1.0";
 
-  src = ./src;
+  src = builtins.path {
+    path = ./src;
+    name = "recshot-src";
+  };
 
   vendorHash = null;
 

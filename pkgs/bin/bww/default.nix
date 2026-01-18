@@ -14,7 +14,10 @@ buildGoApplication rec {
   pname = "bww";
   version = "0.1.0";
 
-  src = ./src;
+  src = builtins.path {
+    path = ./src;
+    name = "bww-src";
+  };
 
   modules = ./src/gomod2nix.toml;
 

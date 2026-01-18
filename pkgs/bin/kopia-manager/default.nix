@@ -2,7 +2,10 @@
 pkgs.buildGoApplication {
   pname = "km";
   version = "0.1.0";
-  src = ./src;
+  src = builtins.path {
+    path = ./src;
+    name = "kopia-manager-src";
+  };
   modules = ./src/gomod2nix.toml;
   buildInputs = [ pkgs.kopia ];
   ldflags = [

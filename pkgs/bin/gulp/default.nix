@@ -14,7 +14,7 @@ rustPlatform.buildRustPackage {
 
   src = builtins.path {
     path = ./.;
-    name = "gulp-source";
+    name = "gulp-src";
   };
 
   cargoLock = {
