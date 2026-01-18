@@ -20,9 +20,6 @@
     hardware.url = "github:nixos/nixos-hardware";
     nix-cachyos-kernel.url = "github:xddxdd/nix-cachyos-kernel";
 
-    determinate.url = "https://flakehub.com/f/DeterminateSystems/determinate/*";
-    determinate.inputs.nixpkgs.follows = "nixpkgs";
-
     home-manager = {
       url = "github:nix-community/home-manager";
       inputs.nixpkgs.follows = "nixpkgs";

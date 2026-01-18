@@ -12,7 +12,6 @@
       imports = [
         inputs.sops-nix.nixosModules.sops
         inputs.home-manager.nixosModules.home-manager
-        inputs.determinate.nixosModules.default
       ]
       ++ (with inputs.self.modules; [
         generic.var
@@ -47,7 +46,7 @@
 
       # Nix settings
       nix = {
-        # package = pkgs.lixPackageSets.stable.lix;
+        package = pkgs.lixPackageSets.stable.lix;
         extraOptions = ''
           !include ${config.sops.templates."nix_access_token.conf".path}
         '';
@@ -60,8 +59,6 @@
           accept-flake-config = true;
           always-allow-substitutes = true;
           builders-use-substitutes = true;
-          download-buffer-size = 1024 * 1024 * 1024;
-          eval-cores = 0;
           auto-optimise-store = true;
           trusted-users = [
             "@wheel"
