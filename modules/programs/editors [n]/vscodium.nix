@@ -339,6 +339,8 @@
                 buttons.scanMode = true;
               };
             };
+            indentRainbow.indicatorStyle = "light";
+            indentRainbow.lightIndicatorStyleLineWidth = 2;
             projectManager = {
               git.baseFolders = [ "~/" ];
               git.ignoredFolders = [

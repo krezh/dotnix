@@ -8,12 +8,22 @@
       basePath = lib.relativeToRoot "pkgs";
       func = final.callPackage;
       useBaseName = true;
-      excludeFiles = [ "vscode-extensions" ];
     };
 
   gomod2nix = inputs.gomod2nix.overlays.default;
 
   nix4vscode = inputs.nix4vscode.overlays.default;
+
+  lix = (
+    _final: prev: {
+      inherit (prev.lixPackageSets.latest)
+        # nixpkgs-review
+        nix-eval-jobs
+        # nix-fast-build
+        colmena
+        ;
+    }
+  );
 
   # Fix Weston DRM modifier assertion crash on AMD GPUs
   weston-fix = import ./weston-fix.nix;

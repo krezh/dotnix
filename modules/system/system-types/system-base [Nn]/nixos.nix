@@ -46,7 +46,7 @@
 
       # Nix settings
       nix = {
-        package = pkgs.lixPackageSets.stable.lix;
+        package = pkgs.lixPackageSets.latest.lix;
         extraOptions = ''
           !include ${config.sops.templates."nix_access_token.conf".path}
         '';
