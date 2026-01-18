@@ -3,6 +3,7 @@
   pkgs,
   hostname,
   inputs,
+  system,
   ...
 }:
 {
@@ -25,8 +26,8 @@
     pkgs.gitMinimal
     pkgs.sops
     pkgs.age-plugin-yubikey
-    inputs.disko.packages.${pkgs.stdenv.hostPlatform.system}.disko-install
-    inputs.disko.packages.${pkgs.stdenv.hostPlatform.system}.disko
+    inputs.disko.packages.${system}.disko-install
+    inputs.disko.packages.${system}.disko
     pkgs.nvme-cli
     pkgs.smartmontools
     pkgs.pciutils

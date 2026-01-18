@@ -1,13 +1,7 @@
-{
-  inputs,
-  ...
-}:
+{ inputs, ... }:
 {
   flake.modules.homeManager.kubernetes =
     { pkgs, lib, ... }:
-    let
-      system = pkgs.stdenv.hostPlatform.system;
-    in
     {
       home.file.".kube/kuberc".text = lib.generators.toYAML { } {
         apiVersion = "kubectl.config.k8s.io/v1beta1";
@@ -47,7 +41,7 @@
         kubevirt
         kubectx
         talswitcher
-        inputs.kauth.packages.${system}.kauth
+        inputs.kauth.packages.${pkgs.stdenv.hostPlatform.system}.kauth
       ];
 
       catppuccin = {

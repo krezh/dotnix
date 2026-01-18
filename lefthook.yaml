@@ -6,3 +6,7 @@ pre-commit:
     "Nix Format":
       run: nix fmt {staged_files}
       stage_fixed: true
+    "Go Vendor Check":
+      glob: "**/{go.mod,go.work}"
+      run: govendor --check
+      stage_fixed: true
