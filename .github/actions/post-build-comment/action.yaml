@@ -99,5 +99,4 @@ runs:
           </details>
 
           ---
-          <sub>💡 Tip: Reproduce locally with `nix build github:${{ github.repository }}/pull/${{ inputs.pr-number }}/head#${{ inputs.flake-target }}`</sub>
           <sub>🤖 [View full logs](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})</sub>
