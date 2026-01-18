@@ -55,61 +55,9 @@ runs:
 
         # Execute build with error capture
         eval "$nix_cmd" 2>&1 | tee build.log || {
-          # Extract derivation paths from build log
-          derivation_paths=$(grep -oE '/nix/store/[a-z0-9]+-[^'"'"'[:space:]]+\.drv' build.log | sort -u)
-
-          # Find primary failing derivation - prioritize the "Cannot build" error
-          primary_drv=$(
-            grep "^error: Cannot build" build.log | grep -oE '/nix/store/[^'"'"']+\.drv' | head -1 ||
-            grep "^error: hash mismatch in fixed-output derivation" build.log | grep -oE '/nix/store/[^'"'"']+\.drv' | head -1 ||
-            grep "^builder for '" build.log | head -1 | grep -oE '/nix/store/[^'"'"']+\.drv' ||
-            grep "^building '" build.log | tail -1 | grep -oE '/nix/store/[^'"'"']+\.drv' ||
-            echo "$derivation_paths" | head -1
-          )
-
-          # Helper function to retrieve nix log
-          get_nix_log() {
-            local drv="$1"
-            if [ -n "$drv" ]; then
-              local log_out=$(nix log "$drv" 2>&1)
-              if [ $? -eq 0 ] && [ -n "$log_out" ] && ! echo "$log_out" | grep -q "is not available"; then
-                echo "$log_out"
-                return 0
-              fi
-            fi
-            return 1
-          }
-
-          # Try to retrieve full build log from primary derivation
-          full_build_log=$(get_nix_log "$primary_drv")
-
-          # If primary failed, try all discovered derivations
-          if [ -z "$full_build_log" ] && [ -n "$derivation_paths" ]; then
-            while IFS= read -r drv; do
-              full_build_log=$(get_nix_log "$drv")
-              [ -n "$full_build_log" ] && break
-            done <<< "$derivation_paths"
-          fi
-
           {
             echo 'error-log<<EOF_ERROR_LOG'
-
-            # Output log with truncation if needed
-            if [ -n "$full_build_log" ]; then
-              char_count=${#full_build_log}
-              if [ $char_count -gt 50000 ]; then
-                line_count=$(echo "$full_build_log" | wc -l)
-                echo "⚠️ Build log truncated: showing last 2000 of $line_count total lines"
-                echo ""
-                echo "$full_build_log" | tail -n 2000
-              else
-                echo "$full_build_log"
-              fi
-            else
-              # Fallback: show error lines with context (3 lines before/after each error)
-              grep -iE 'error|failed|cannot|fatal|panic' build.log -B 3 -A 3 | tail -n 200 || tail -n 100 build.log
-            fi
-
+            grep -iE 'error|failed|cannot|fatal|panic' build.log | tail -n 100 || tail -n 50 build.log
             echo 'EOF_ERROR_LOG'
           } >> $GITHUB_OUTPUT
 
