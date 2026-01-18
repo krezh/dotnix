@@ -87,10 +87,10 @@ runs:
           nix build github:${{ github.repository }}/pull/${{ inputs.pr-number }}/head#${{ inputs.flake-target }}
           ```
 
-          ### Build Errors (last 100 error lines)
+          ### Build Errors
 
           <details>
-          <summary>Click to expand error log</summary>
+          <summary>Click to expand build log</summary>
 
           ```
           ${{ inputs.error-log }}
@@ -99,4 +99,5 @@ runs:
           </details>
 
           ---
+          <sub>💡 Tip: Reproduce locally with `nix build github:${{ github.repository }}/pull/${{ inputs.pr-number }}/head#${{ inputs.flake-target }}`</sub>
           <sub>🤖 [View full logs](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})</sub>
