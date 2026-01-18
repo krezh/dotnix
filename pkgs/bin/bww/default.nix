@@ -19,7 +19,7 @@ buildGoApplication rec {
     name = "bww-src";
   };
 
-  modules = ./src/gomod2nix.toml;
+  modules = "${src}/gomod2nix.toml";
 
   nativeBuildInputs = [ makeWrapper ];
 

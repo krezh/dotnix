@@ -3,14 +3,14 @@
   buildGoApplication,
 }:
 
-buildGoApplication {
+buildGoApplication rec {
   pname = "nixos-update";
   version = "0.1.0";
   src = builtins.path {
     path = ./.;
     name = "nixos-update-src";
   };
-  modules = ./gomod2nix.toml;
+  modules = "${src}/gomod2nix.toml";
   ldflags = [
     "-s"
     "-w"

@@ -61,6 +61,8 @@
               "usernamehw.errorlens"
               "oderwat.indent-rainbow"
               "mhutchie.git-graph"
+              "anthropic.claude-code"
+              "sst-dev.opencode"
             ]
           );
           userSettings = {
