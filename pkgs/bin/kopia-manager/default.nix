@@ -1,10 +1,10 @@
-{ pkgs, ... }:
+{ pkgs, lib, ... }:
 pkgs.buildGoApplication {
   pname = "km";
   version = "0.1.0";
-  src = builtins.path {
-    path = ./src;
-    name = "kopia-manager-src";
+  src = lib.fileset.toSource {
+    root = ./.;
+    fileset = ./src;
   };
   modules = ./src/gomod2nix.toml;
   buildInputs = [ pkgs.kopia ];

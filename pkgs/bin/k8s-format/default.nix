@@ -1,10 +1,10 @@
-{ pkgs, ... }:
+{ pkgs, lib, ... }:
 pkgs.buildGoApplication {
   pname = "k8s-format";
   version = "0.0.0";
-  src = builtins.path {
-    path = ./src;
-    name = "k8s-format-src";
+  src = lib.fileset.toSource {
+    root = ./.;
+    fileset = ./src;
   };
   modules = ./src/gomod2nix.toml;
 

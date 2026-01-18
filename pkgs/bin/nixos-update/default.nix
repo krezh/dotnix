@@ -6,9 +6,14 @@
 buildGoApplication {
   pname = "nixos-update";
   version = "0.1.0";
-  src = builtins.path {
-    path = ./.;
-    name = "nixos-update-src";
+  src = lib.fileset.toSource {
+    root = ./.;
+    fileset = lib.fileset.unions [
+      ./go.mod
+      ./go.sum
+      ./gomod2nix.toml
+      ./main.go
+    ];
   };
   modules = ./gomod2nix.toml;
   ldflags = [

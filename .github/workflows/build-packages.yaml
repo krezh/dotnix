@@ -98,7 +98,7 @@ jobs:
 
       - name: Push to cachix
         run: |
-          cachix push ${{ env.CACHE_NAME }} result
+          nix-store -q --references $(nix-store -qd result) | grep '\.drv$' | xargs -r nix-store -r | cachix push ${{ env.CACHE_NAME }}
 
       - name: Post build comment
         if: ${{ always() && github.event_name == 'pull_request' }}

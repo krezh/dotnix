@@ -7,9 +7,9 @@ buildGoModule rec {
   pname = "recshot";
   version = "0.1.0";
 
-  src = builtins.path {
-    path = ./src;
-    name = "recshot-src";
+  src = lib.fileset.toSource {
+    root = ./.;
+    fileset = ./src;
   };
 
   vendorHash = null;
