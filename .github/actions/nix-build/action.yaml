@@ -99,25 +99,29 @@ runs:
           fi
 
           # Write multiline output
-          echo "error-log<<EOF_ERROR_LOG" >> "$GITHUB_OUTPUT"
+          {
+            echo "error-log<<EOF_ERROR_LOG"
 
-          # Output nix log if available, otherwise use build.log
-          if [ -n "$full_build_log" ]; then
-            char_count=${#full_build_log}
-            if [ $char_count -gt 50000 ]; then
-              line_count=$(echo "$full_build_log" | wc -l)
-              echo "⚠️ Build log truncated: showing last 2000 of $line_count total lines" >> "$GITHUB_OUTPUT"
-              echo "" >> "$GITHUB_OUTPUT"
-              echo "$full_build_log" | tail -n 2000 >> "$GITHUB_OUTPUT"
+            # Output nix log if available, otherwise use build.log
+            if [ -n "$full_build_log" ]; then
+              char_count=${#full_build_log}
+              if [ $char_count -gt 50000 ]; then
+                line_count=$(echo "$full_build_log" | wc -l)
+                echo "⚠️ Build log truncated: showing last 2000 of $line_count total lines"
+                echo ""
+                echo "$full_build_log" | tail -n 2000
+              else
+                echo "$full_build_log"
+              fi
+            elif [ -f build.log ] && [ -s build.log ]; then
+              # Use build.log as fallback if it exists and is not empty
+              cat build.log
             else
-              echo "$full_build_log" >> "$GITHUB_OUTPUT"
+              echo "No build log available"
             fi
-          else
-            # Use build.log as fallback
-            tail -n 200 build.log >> "$GITHUB_OUTPUT"
-          fi
 
-          echo "EOF_ERROR_LOG" >> "$GITHUB_OUTPUT"
+            echo "EOF_ERROR_LOG"
+          } >> "$GITHUB_OUTPUT"
 
           build_end=$(date +%s)
           build_duration=$((build_end - build_start))
