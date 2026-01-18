@@ -61,8 +61,13 @@ runs:
             # Extract derivation paths from build log
             derivation_paths=$(grep -oE '/nix/store/[a-z0-9]+-[^'"'"'[:space:]]+\.drv' build.log | sort -u)
 
-            # Find primary failing derivation from error messages (not dependency failures)
-            primary_drv=$(grep "^error:" build.log | grep -oE '/nix/store/[a-z0-9]+-[^'"'"'[:space:]]+\.drv' | head -1)
+            # Find primary failing derivation - prioritize "Cannot build" over dependencies
+            primary_drv=$(grep "^error: Cannot build" build.log | grep -oE '/nix/store/[a-z0-9]+-[^'"'"'[:space:]]+\.drv' | head -1)
+
+            # Fallback to any error line
+            if [ -z "$primary_drv" ]; then
+              primary_drv=$(grep "^error:" build.log | grep -v "dependencies of" | grep -oE '/nix/store/[a-z0-9]+-[^'"'"'[:space:]]+\.drv' | head -1)
+            fi
 
             # Fallback to first derivation if no primary found
             if [ -z "$primary_drv" ]; then
