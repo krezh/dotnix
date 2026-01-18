@@ -111,7 +111,13 @@ runs:
             fi
           else
             # Fallback: nix log unavailable, show error context from build.log
-            grep -iE 'error|failed|cannot|fatal|panic' build.log | tail -n 100 >> "$GITHUB_OUTPUT"
+            error_context=$(grep -iE 'error|failed|cannot|fatal|panic' build.log | tail -n 100)
+            if [ -n "$error_context" ]; then
+              echo "$error_context" >> "$GITHUB_OUTPUT"
+            else
+              # Last resort: show end of build log
+              tail -n 50 build.log >> "$GITHUB_OUTPUT"
+            fi
           fi
 
           echo "EOF_ERROR_LOG" >> "$GITHUB_OUTPUT"
