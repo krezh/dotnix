@@ -5,7 +5,7 @@
   pkgs =
     final: _prev:
     lib.scanPath.toAttrs {
-      basePath = ../pkgs;
+      basePath = lib.relativeToRoot "pkgs";
       func = final.callPackage;
       useBaseName = true;
       excludeFiles = [ "vscode-extensions" ];
