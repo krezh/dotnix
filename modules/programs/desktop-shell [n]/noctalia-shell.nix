@@ -1,7 +1,4 @@
-{
-  inputs,
-  ...
-}:
+{ inputs, ... }:
 {
   flake.modules.homeManager.desktop-shell = {
     imports = [ inputs.noctalia.homeModules.default ];

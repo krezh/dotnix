@@ -1,7 +1,4 @@
-{
-  inputs,
-  ...
-}:
+{ inputs, ... }:
 {
   flake.modules.homeManager.editors.imports = [ inputs.nvf.homeManagerModules.default ];
 

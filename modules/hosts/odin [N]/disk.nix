@@ -1,7 +1,4 @@
-{
-  inputs,
-  ...
-}:
+{ inputs, ... }:
 {
   flake.modules.nixos.odin = {
     imports = [ inputs.disko.nixosModules.disko ];

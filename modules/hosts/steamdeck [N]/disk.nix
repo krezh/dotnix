@@ -1,7 +1,4 @@
-{
-  inputs,
-  ...
-}:
+{ inputs, ... }:
 {
   flake.modules.nixos.steamdeck = {
     imports = [ inputs.disko.nixosModules.disko ];
