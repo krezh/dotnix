@@ -27,6 +27,26 @@
     };
 
     config = lib.mkIf cfg.enable {
+      programs.jujutsu = {
+        enable = true;
+        settings = {
+          user = {
+            name = cfg.userName;
+            email = cfg.userEmail;
+          };
+          ui = {
+            editor = "nvim";
+            paginate = "never";
+            merge-editor = ":builtin";
+            default-command = ["log" "--reversed"];
+          };
+          signing = {
+            behavior = "own";
+            backend = "ssh";
+            key = cfg.signingKeyPath;
+          };
+        };
+      };
       programs.git = {
         enable = true;
         settings = {
