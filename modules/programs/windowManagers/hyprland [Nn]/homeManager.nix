@@ -256,6 +256,9 @@
           "tag +games, match:class ^(steam_proton)$"
           "tag +games, match:class ^(steam_app_default)$"
           "tag +games, match:class ^(steam_app_[0-9]+)$"
+          "tag +games, match:xdg_tag ^(proton-game)$"
+          "tag +games, match:content 3" # (none = 0, photo = 1, video = 2, game = 3)
+
           "tag +browsers, match:class ^(zen.*)$"
           "tag +browsers, match:class ^(firefox)$"
           "tag +browsers, match:class ^(chromium)$"
@@ -266,6 +269,8 @@
           "tag +media, match:class ^(youtube)$"
           "tag +media, match:class ^(plex)$"
           "tag +media, match:class ^(org.jellyfin.JellyfinDesktop)$"
+          "tag +media, match:content 2" # (none = 0, photo = 1, video = 2, game = 3)
+          "tag +media, match:content 1" # (none = 0, photo = 1, video = 2, game = 3)
           "tag +chat, match:class ^(vesktop)$"
           "tag +chat, match:class ^(legcord)$"
           "tag +chat, match:class ^(discord)$"
