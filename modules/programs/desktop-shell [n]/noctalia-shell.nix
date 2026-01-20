@@ -1,7 +1,6 @@
-{ inputs, ... }:
-{
+{inputs, ...}: {
   flake.modules.homeManager.desktop-shell = {
-    imports = [ inputs.noctalia.homeModules.default ];
+    imports = [inputs.noctalia.homeModules.default];
 
     programs.noctalia-shell = {
       enable = true;
@@ -14,7 +13,7 @@
           enableClipboardHistory = false;
           iconMode = "tabler";
           ignoreMouseInput = false;
-          pinnedExecs = [ ];
+          pinnedExecs = [];
           position = "center";
           showCategories = true;
           sortByMostUsed = true;
@@ -25,7 +24,7 @@
         audio = {
           cavaFrameRate = 60;
           externalMixer = "pwvucontrol || pavucontrol";
-          mprisBlacklist = [ ];
+          mprisBlacklist = [];
           preferredPlayer = "";
           visualizerType = "linear";
           volumeOverdrive = false;
@@ -39,7 +38,7 @@
           floating = false;
           marginHorizontal = 0.25;
           marginVertical = 0.25;
-          monitors = [ ];
+          monitors = [];
           outerCorners = false;
           position = "top";
           showCapsule = false;
@@ -102,12 +101,12 @@
             ];
             right = [
               {
-                blacklist = [ ];
+                blacklist = [];
                 colorizeIcons = true;
                 drawerEnabled = false;
                 hidePassive = false;
                 id = "Tray";
-                pinned = [ ];
+                pinned = [];
               }
               {
                 displayMode = "onhover";
@@ -227,14 +226,14 @@
           position = "close_to_bar_button";
           shortcuts = {
             left = [
-              { id = "WiFi"; }
-              { id = "Bluetooth"; }
-              { id = "KeepAwake"; }
+              {id = "WiFi";}
+              {id = "Bluetooth";}
+              {id = "KeepAwake";}
             ];
             right = [
-              { id = "PowerProfile"; }
-              { id = "NightLight"; }
-              { id = "Notifications"; }
+              {id = "PowerProfile";}
+              {id = "NightLight";}
+              {id = "Notifications";}
             ];
           };
         };
@@ -286,9 +285,9 @@
           enabled = false;
           floatingRatio = 1;
           inactiveIndicators = false;
-          monitors = [ ];
+          monitors = [];
           onlySameOutput = true;
-          pinnedApps = [ ];
+          pinnedApps = [];
           pinnedStatic = false;
           size = 1;
         };
@@ -355,7 +354,7 @@
           enabled = true;
           location = "top_right";
           lowUrgencyDuration = 3;
-          monitors = [ ];
+          monitors = [];
           normalUrgencyDuration = 8;
           overlayLayer = true;
           respectExpireTimeout = true;
@@ -386,7 +385,7 @@
             3
           ];
           location = "right";
-          monitors = [ ];
+          monitors = [];
           overlayLayer = true;
         };
         screenRecorder = {
@@ -519,7 +518,7 @@
           fillColor = "#000000";
           fillMode = "crop";
           hideWallpaperFilenames = false;
-          monitorDirectories = [ ];
+          monitorDirectories = [];
           overviewEnabled = true;
           panelPosition = "follow_bar";
           randomEnabled = false;

@@ -157,17 +157,15 @@
     nix4vscode.inputs.nixpkgs.follows = "nixpkgs";
   };
 
-  outputs =
-    inputs@{ flake-parts, ... }:
-    let
-      lib = import ./lib { inherit inputs; };
-    in
+  outputs = inputs @ {flake-parts, ...}: let
+    lib = import ./lib {inherit inputs;};
+  in
     flake-parts.lib.mkFlake
-      {
-        inherit inputs;
-        specialArgs = { inherit lib; };
-      }
-      {
-        imports = lib.scanPath.toImports ./modules;
-      };
+    {
+      inherit inputs;
+      specialArgs = {inherit lib;};
+    }
+    {
+      imports = lib.scanPath.toImports ./modules;
+    };
 }

@@ -7,7 +7,6 @@
   installShellFiles,
   ...
 }:
-
 rustPlatform.buildRustPackage rec {
   pname = "gulp";
   version = "0.1.0";
@@ -47,7 +46,7 @@ rustPlatform.buildRustPackage rec {
 
   postInstall = ''
     wrapProgram $out/bin/gulp \
-      --prefix PATH : ${lib.makeBinPath [ pkgs.tesseract ]}
+      --prefix PATH : ${lib.makeBinPath [pkgs.tesseract]}
 
     installShellCompletion --cmd gulp \
       --bash <($out/bin/gulp --generate-completions bash) \

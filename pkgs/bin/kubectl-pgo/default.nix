@@ -4,7 +4,6 @@
   fetchFromGitHub,
   go-bin,
 }:
-
 buildGoModule rec {
   pname = "kubectl-pgo";
   # renovate: datasource=github-releases depName=CrunchyData/postgres-operator-client
@@ -30,7 +29,7 @@ buildGoModule rec {
     description = "";
     homepage = "https://github.com/CrunchyData/postgres-operator-client";
     license = lib.licenses.asl20;
-    maintainers = [ ];
+    maintainers = [];
     mainProgram = pname;
   };
 }

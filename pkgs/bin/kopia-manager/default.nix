@@ -13,7 +13,7 @@ pkgs.buildGoApplication rec {
 
   go = go-bin.latestStable;
   modules = "${src}/govendor.toml";
-  buildInputs = [ pkgs.kopia ];
+  buildInputs = [pkgs.kopia];
   ldflags = [
     "-s"
     "-w"
@@ -27,5 +27,5 @@ pkgs.buildGoApplication rec {
       --zsh <($out/bin/km completion zsh) \
       --fish <($out/bin/km completion fish)
   '';
-  nativeBuildInputs = with pkgs; [ installShellFiles ];
+  nativeBuildInputs = with pkgs; [installShellFiles];
 }

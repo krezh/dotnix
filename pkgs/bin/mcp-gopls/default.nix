@@ -4,7 +4,6 @@
   fetchFromGitHub,
   go-bin,
 }:
-
 buildGoModule rec {
   pname = "mcp-gopls";
   # renovate: datasource=github-releases depName=Yantrio/mcp-gopls

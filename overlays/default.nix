@@ -1,9 +1,11 @@
 # This file defines overlays
-{ lib, inputs, ... }:
 {
+  lib,
+  inputs,
+  ...
+}: {
   # This one brings our custom packages from the 'packages' directory
-  pkgs =
-    final: _prev:
+  pkgs = final: _prev:
     lib.scanPath.toAttrs {
       basePath = lib.relativeToRoot "pkgs";
       func = final.callPackage;
@@ -16,7 +18,8 @@
 
   lix = (
     _final: prev: {
-      inherit (prev.lixPackageSets.latest)
+      inherit
+        (prev.lixPackageSets.latest)
         # nixpkgs-review
         nix-eval-jobs
         # nix-fast-build

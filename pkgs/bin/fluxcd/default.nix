@@ -37,11 +37,11 @@ buildGoModule rec {
     "-w"
     "-X main.VERSION=${version}"
   ];
-  subPackages = [ "cmd/flux" ];
+  subPackages = ["cmd/flux"];
   # Required to workaround test error:
   #   panic: mkdir /homeless-shelter: permission denied
   HOME = "$TMPDIR";
-  nativeBuildInputs = [ installShellFiles ];
+  nativeBuildInputs = [installShellFiles];
   doInstallCheck = true;
   installCheckPhase = ''
     $out/bin/flux --version | grep ${version} > /dev/null
@@ -64,7 +64,7 @@ buildGoModule rec {
     '';
     homepage = "https://fluxcd.io";
     license = lib.licenses.asl20;
-    maintainers = [ ];
+    maintainers = [];
     mainProgram = "flux";
   };
 }

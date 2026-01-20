@@ -4,7 +4,6 @@
   fetchFromGitHub,
   go-bin,
 }:
-
 buildGoModule rec {
   pname = "kubestr";
   # renovate: datasource=github-releases depName=kastenhq/kubestr
@@ -29,7 +28,7 @@ buildGoModule rec {
     description = "";
     homepage = "https://github.com/kastenhq/kubestr";
     license = lib.licenses.asl20;
-    maintainers = [ ];
+    maintainers = [];
     mainProgram = pname;
   };
 }

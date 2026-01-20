@@ -1,5 +1,4 @@
-{ inputs, ... }:
-{
+{inputs, ...}: {
   flake.modules.nixos.thor = {
     home-manager.users.krezh = {
       imports = with inputs.self.modules.homeManager; [

@@ -4,7 +4,6 @@
   fetchFromGitHub,
   go-bin,
 }:
-
 buildGoModule rec {
   pname = "kubectl-rook-ceph";
   # renovate: datasource=github-releases depName=rook/kubectl-rook-ceph
@@ -34,7 +33,7 @@ buildGoModule rec {
     homepage = "https://github.com/rook/kubectl-rook-ceph";
     changelog = "https://github.com/rook/kubectl-rook-ceph/releases/tag/v${version}";
     license = lib.licenses.asl20;
-    maintainers = [ ];
+    maintainers = [];
     mainProgram = "kubectl-rook";
   };
 }

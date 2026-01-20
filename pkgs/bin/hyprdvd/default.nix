@@ -3,7 +3,6 @@
   python3,
   fetchFromGitHub,
 }:
-
 python3.pkgs.buildPythonApplication rec {
   pname = "hyprdvd";
   version = "0.5.1";
@@ -24,7 +23,7 @@ python3.pkgs.buildPythonApplication rec {
     argcomplete
   ];
 
-  pythonImportsCheck = [ ];
+  pythonImportsCheck = [];
 
   meta = {
     description = "Bounce your terminal like a DVD screen";

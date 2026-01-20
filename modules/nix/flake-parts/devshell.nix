@@ -8,7 +8,7 @@
       devshell = {
         name = "Default";
         motd = "";
-        packages = [ ];
+        packages = [];
       };
       commands = [
         {

@@ -1,7 +1,5 @@
 {
-  flake.modules.homeManager.mail =
-    { pkgs, ... }:
-    {
-      home.packages = [ pkgs.protonmail-desktop ];
-    };
+  flake.modules.homeManager.mail = {pkgs, ...}: {
+    home.packages = [pkgs.protonmail-desktop];
+  };
 }

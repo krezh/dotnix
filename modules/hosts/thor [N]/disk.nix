@@ -1,7 +1,6 @@
-{ inputs, ... }:
-{
+{inputs, ...}: {
   flake.modules.nixos.thor = {
-    imports = [ inputs.disko.nixosModules.disko ];
+    imports = [inputs.disko.nixosModules.disko];
 
     fileSystems."/home".neededForBoot = true;
 

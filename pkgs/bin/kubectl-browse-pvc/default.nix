@@ -4,7 +4,6 @@
   fetchFromGitHub,
   go-bin,
 }:
-
 buildGoModule rec {
   pname = "kubectl-browse-pvc";
   # renovate: datasource=github-releases depName=clbx/kubectl-browse-pvc
@@ -32,7 +31,7 @@ buildGoModule rec {
     description = "Kubectl plugin for browsing PVCs on the command line";
     homepage = "https://github.com/clbx/kubectl-browse-pvc";
     license = lib.licenses.mit;
-    maintainers = [ ];
+    maintainers = [];
     mainProgram = pname;
     platforms = lib.platforms.all;
   };

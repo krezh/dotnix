@@ -1,7 +1,5 @@
 {
-  flake.modules.homeManager.ai =
-    { pkgs, ... }:
-    {
-      home.packages = [ pkgs.gemini-cli ];
-    };
+  flake.modules.homeManager.ai = {
+    programs.gemini-cli.enable = true;
+  };
 }

@@ -3,7 +3,6 @@
   buildGoApplication,
   go-bin,
 }:
-
 buildGoApplication rec {
   pname = "nixos-update";
   version = "0.1.0";
@@ -27,7 +26,7 @@ buildGoApplication rec {
     description = "A stylish NixOS system updater using nh os switch";
     homepage = "https://github.com/krezh/nix-config";
     license = licenses.mit;
-    maintainers = [ ];
+    maintainers = [];
     mainProgram = "nu";
   };
 }

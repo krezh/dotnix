@@ -3,7 +3,6 @@
   buildGoModule,
   go-bin,
 }:
-
 buildGoModule rec {
   pname = "recshot";
   version = "0.1.0";

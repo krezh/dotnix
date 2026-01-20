@@ -11,7 +11,7 @@
         settings = {
           shell_integration = {
             channel_triggers = {
-              nix-search-tv = [ "ns" ];
+              nix-search-tv = ["ns"];
             };
           };
         };

@@ -4,7 +4,7 @@
       enable = true;
       daemon.settings = {
         log-driver = "journald";
-        registry-mirrors = [ "https://mirror.gcr.io" ];
+        registry-mirrors = ["https://mirror.gcr.io"];
         storage-driver = "overlay2";
       };
       rootless = {

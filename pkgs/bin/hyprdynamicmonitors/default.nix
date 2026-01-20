@@ -4,7 +4,6 @@
   fetchFromGitHub,
   go-bin,
 }:
-
 buildGoModule rec {
   pname = "hyprdynamicmonitors";
   # renovate: datasource=github-releases depName=fiffeek/hyprdynamicmonitors

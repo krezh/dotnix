@@ -3,7 +3,6 @@
   rustPlatform,
   fetchFromGitHub,
 }:
-
 rustPlatform.buildRustPackage rec {
   pname = "rust-analyzer-mcp";
   # renovate: datasource=github-releases depName=zeenix/rust-analyzer-mcp
