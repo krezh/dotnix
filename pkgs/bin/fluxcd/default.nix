@@ -52,7 +52,6 @@ buildGoModule rec {
       installShellCompletion flux.$shell
     done
   '';
-  passthru.updateScript = ./update.sh;
   meta = {
     changelog = "https://github.com/fluxcd/flux2/releases/tag/v${version}";
     description = "Open and extensible continuous delivery solution for Kubernetes";

@@ -21,7 +21,6 @@ deps:
 update-packages: deps
     #!/usr/bin/env bash
     set -euo pipefail
-    VERSION_REGEX='^v?([0-9]+)\.([0-9]+)\.([0-9]+)(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$'
     JOBS=8
     cd {{ ROOT_DIR }}
     PKGS=$(ls -1 {{ ROOT_DIR }}/pkgs/bin -I default.nix)
@@ -51,9 +50,9 @@ update-packages: deps
       local pkg=$1
       just log info "Updating: $pkg"
       local OLD_VERSION=$(nix eval ".#$pkg.version" --raw 2>/dev/null || echo "unknown")
-      
-      local UPDATE_FLAGS="--quiet --flake --commit --format --use-update-script --generate-lockfile --version-regex \"$VERSION_REGEX\""
-      
+
+      local UPDATE_FLAGS="--quiet --flake --use-update-script --generate-lockfile"
+
       if ! eval "nix-update \"$pkg\" $UPDATE_FLAGS" >/dev/null 2>&1; then
         just log error "Failed: $pkg"
         return 1
