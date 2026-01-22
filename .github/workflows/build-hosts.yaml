@@ -98,7 +98,7 @@ jobs:
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
 
       - name: Nothing But Nix
-        uses: wimpysworld/nothing-but-nix@a77b09ee91691223ff188d8fb6a87d699d457b4f # v7
+        uses: wimpysworld/nothing-but-nix@b1f25dc23e36f5c9ce4956828cf3a3108d73eb1c # v8
         with:
           hatchet-protocol: cleave
           nix-permission-edict: true
