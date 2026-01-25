@@ -191,6 +191,12 @@ func handleUpload(cfg *config.Config, notifier *notify.Notifier, filename string
 	_, err := uploader.Upload(filename)
 	if err != nil {
 		log.Printf("Upload failed: %v", err)
+		// Fallback to copying image to clipboard
+		if err := copyImageToClipboard(filename); err != nil {
+			log.Printf("Failed to copy image to clipboard: %v", err)
+		} else {
+			notifier.SendSuccess("Upload failed - image copied to clipboard")
+		}
 		return
 	}
 }

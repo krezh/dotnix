@@ -7,15 +7,20 @@
       systemd.enable = true;
       settings = {
         appLauncher = {
+          autoPasteClipboard = false;
+          clipboardWrapText = true;
           customLaunchPrefix = "";
           customLaunchPrefixEnabled = false;
           enableClipPreview = true;
           enableClipboardHistory = false;
           iconMode = "tabler";
           ignoreMouseInput = false;
-          pinnedExecs = [];
+          pinnedApps = [
+          ];
           position = "center";
+          screenshotAnnotationTool = "";
           showCategories = true;
+          showIconBackground = false;
           sortByMostUsed = true;
           terminalCommand = "xterm -e";
           useApp2Unit = false;
@@ -23,22 +28,24 @@
         };
         audio = {
           cavaFrameRate = 60;
-          externalMixer = "pwvucontrol || pavucontrol";
-          mprisBlacklist = [];
+          mprisBlacklist = [
+          ];
           preferredPlayer = "";
           visualizerType = "linear";
           volumeOverdrive = false;
           volumeStep = 5;
         };
         bar = {
-          backgroundOpacity = 0;
+          backgroundOpacity = 0.9500000000000001;
           capsuleOpacity = 1;
           density = "default";
           exclusive = true;
-          floating = false;
-          marginHorizontal = 0.25;
-          marginVertical = 0.25;
-          monitors = [];
+          floating = true;
+          hideOnOverview = false;
+          marginHorizontal = 10;
+          marginVertical = 5;
+          monitors = [
+          ];
           outerCorners = false;
           position = "top";
           showCapsule = false;
@@ -70,6 +77,7 @@
                 showCpuUsage = true;
                 showDiskUsage = true;
                 showGpuTemp = true;
+                showLoadAverage = false;
                 showMemoryAsPercent = true;
                 showMemoryUsage = true;
                 showNetworkStats = false;
@@ -77,10 +85,15 @@
                 usePrimaryColor = false;
               }
               {
+                compactMode = false;
+                compactShowAlbumArt = true;
+                compactShowVisualizer = false;
                 hideMode = "hidden";
                 hideWhenIdle = false;
                 id = "MediaMini";
                 maxWidth = 300;
+                panelShowAlbumArt = true;
+                panelShowVisualizer = true;
                 scrollingMode = "always";
                 showAlbumArt = false;
                 showArtistFirst = true;
@@ -101,22 +114,25 @@
             ];
             right = [
               {
-                blacklist = [];
+                blacklist = [
+                ];
                 colorizeIcons = true;
                 drawerEnabled = false;
                 hidePassive = false;
                 id = "Tray";
-                pinned = [];
+                pinned = [
+                ];
               }
               {
                 displayMode = "onhover";
-                id = "WiFi";
+                id = "Network";
               }
               {
                 displayMode = "onhover";
                 id = "Bluetooth";
               }
               {
+                deviceNativePath = "";
                 displayMode = "alwaysShow";
                 hideIfNotDetected = true;
                 id = "Battery";
@@ -127,6 +143,7 @@
               {
                 displayMode = "alwaysShow";
                 id = "Volume";
+                middleClickCommand = "pwvucontrol || pavucontrol";
               }
               {
                 displayMode = "onhover";
@@ -188,10 +205,9 @@
         };
         colorSchemes = {
           darkMode = true;
-          generateTemplatesForPredefined = true;
           manualSunrise = "06:30";
           manualSunset = "18:30";
-          matugenSchemeType = "scheme-fruit-salad";
+          matugenSchemeType = "scheme-content";
           predefinedScheme = "Tokyo Night";
           schedulingMode = "off";
           useWallpaperColors = false;
@@ -223,17 +239,30 @@
               id = "brightness-card";
             }
           ];
+          diskPath = "/";
           position = "close_to_bar_button";
           shortcuts = {
             left = [
-              {id = "WiFi";}
-              {id = "Bluetooth";}
-              {id = "KeepAwake";}
+              {
+                id = "Network";
+              }
+              {
+                id = "Bluetooth";
+              }
+              {
+                id = "KeepAwake";
+              }
             ];
             right = [
-              {id = "PowerProfile";}
-              {id = "NightLight";}
-              {id = "Notifications";}
+              {
+                id = "PowerProfile";
+              }
+              {
+                id = "NightLight";
+              }
+              {
+                id = "Notifications";
+              }
             ];
           };
         };
@@ -285,10 +314,13 @@
           enabled = false;
           floatingRatio = 1;
           inactiveIndicators = false;
-          monitors = [];
+          monitors = [
+          ];
           onlySameOutput = true;
-          pinnedApps = [];
+          pinnedApps = [
+          ];
           pinnedStatic = false;
+          position = "bottom";
           size = 1;
         };
         general = {
@@ -310,9 +342,11 @@
           shadowDirection = "bottom_right";
           shadowOffsetX = 2;
           shadowOffsetY = 3;
+          showChangelogOnStartup = true;
           showHibernateOnLockScreen = false;
           showScreenCorners = false;
           showSessionButtonsOnLockScreen = true;
+          telemetryEnabled = true;
         };
         hooks = {
           darkModeChange = "";
@@ -321,11 +355,14 @@
           performanceModeEnabled = "";
           screenLock = "";
           screenUnlock = "";
+          session = "";
           wallpaperChange = "";
         };
         location = {
           analogClockInCalendar = false;
           firstDayOfWeek = 1;
+          hideWeatherCityName = false;
+          hideWeatherTimezone = false;
           name = "Sweden, Bålsta";
           showCalendarEvents = true;
           showCalendarWeather = true;
@@ -336,6 +373,11 @@
           weatherShowEffects = true;
         };
         network = {
+          bluetoothDetailsViewMode = "grid";
+          bluetoothHideUnnamedDevices = false;
+          bluetoothRssiPollIntervalMs = 10000;
+          bluetoothRssiPollingEnabled = false;
+          wifiDetailsViewMode = "grid";
           wifiEnabled = true;
         };
         nightLight = {
@@ -354,7 +396,8 @@
           enabled = true;
           location = "top_right";
           lowUrgencyDuration = 3;
-          monitors = [];
+          monitors = [
+          ];
           normalUrgencyDuration = 8;
           overlayLayer = true;
           respectExpireTimeout = true;
@@ -383,26 +426,18 @@
             2
             4
             3
+            null
+            null
           ];
           location = "right";
-          monitors = [];
+          monitors = [
+          ];
           overlayLayer = true;
-        };
-        screenRecorder = {
-          audioCodec = "opus";
-          audioSource = "default_output";
-          colorRange = "limited";
-          copyToClipboard = false;
-          directory = "/home/krezh/Videos";
-          frameRate = 60;
-          quality = "very_high";
-          showCursor = true;
-          videoCodec = "h264";
-          videoSource = "portal";
         };
         sessionMenu = {
           countdownDuration = 10000;
           enableCountdown = true;
+          largeButtonsLayout = "grid";
           largeButtonsStyle = true;
           position = "center";
           powerOptions = [
@@ -446,14 +481,13 @@
           showHeader = true;
           showNumberLabels = true;
         };
-        settingsVersion = 35;
+        settingsVersion = 40;
         systemMonitor = {
           cpuCriticalThreshold = 90;
           cpuPollingInterval = 3000;
           cpuWarningThreshold = 80;
           criticalColor = "";
           diskCriticalThreshold = 90;
-          diskPath = "/";
           diskPollingInterval = 3000;
           diskWarningThreshold = 80;
           enableDgpuMonitoring = true;
@@ -461,6 +495,7 @@
           gpuCriticalThreshold = 90;
           gpuPollingInterval = 3000;
           gpuWarningThreshold = 80;
+          loadAvgPollingInterval = 3000;
           memCriticalThreshold = 90;
           memPollingInterval = 3000;
           memWarningThreshold = 80;
@@ -472,39 +507,19 @@
           warningColor = "";
         };
         templates = {
-          alacritty = false;
-          cava = false;
-          code = false;
-          discord = false;
-          emacs = false;
+          activeTemplates = [
+          ];
           enableUserTemplates = false;
-          foot = false;
-          fuzzel = false;
-          ghostty = false;
-          gtk = false;
-          helix = false;
-          hyprland = false;
-          kcolorscheme = false;
-          kitty = false;
-          mango = false;
-          niri = false;
-          pywalfox = false;
-          qt = false;
-          spicetify = false;
-          telegram = false;
-          vicinae = false;
-          walker = false;
-          wezterm = false;
-          yazi = false;
-          zed = false;
         };
         ui = {
           bluetoothDetailsViewMode = "grid";
           bluetoothHideUnnamedDevices = false;
+          boxBorderEnabled = false;
           fontDefault = "Rubik";
           fontDefaultScale = 1.1;
           fontFixed = "JetBrainsMono Nerd Font";
           fontFixedScale = 1.1;
+          networkPanelView = "wifi";
           panelBackgroundOpacity = 0.93;
           panelsAttachedToBar = true;
           settingsPanelMode = "centered";
@@ -518,16 +533,19 @@
           fillColor = "#000000";
           fillMode = "crop";
           hideWallpaperFilenames = false;
-          monitorDirectories = [];
+          monitorDirectories = [
+          ];
           overviewEnabled = true;
           panelPosition = "follow_bar";
           randomEnabled = false;
           randomIntervalSec = 300;
           recursiveSearch = false;
           setWallpaperOnAllMonitors = true;
+          solidColor = "#1a1a2e";
           transitionDuration = 1500;
           transitionEdgeSmoothness = 0.05;
           transitionType = "random";
+          useSolidColor = false;
           useWallhaven = false;
           wallhavenApiKey = "";
           wallhavenCategories = "111";

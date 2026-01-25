@@ -15,7 +15,6 @@
         lutris
         protonplus
         lact
-        bottles
         faugus-launcher
       ];
       sessionVariables = {

@@ -1,5 +1,5 @@
 {inputs, ...}: {
-  flake.modules.nixos.steamdeck = {pkgs, ...}: {
+  flake.modules.nixos.steamdeck = { ...}: {
     home-manager.users.krezh = {
       imports = with inputs.self.modules.homeManager; [
         system-desktop
@@ -55,10 +55,5 @@
       };
       decky-loader.enable = true;
     };
-
-    # Additional Proton versions
-    programs.steam.extraCompatPackages = [
-      pkgs.proton-ge-bin
-    ];
   };
 }
