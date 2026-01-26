@@ -66,6 +66,7 @@ jobs:
         uses: ./.github/actions/setup-nix
         with:
           skip-cache: true
+          nothing-but-nix: false
 
       - id: set-matrix
         name: Generate Matrix
@@ -96,12 +97,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
-
-      - name: Nothing But Nix
-        uses: wimpysworld/nothing-but-nix@dd6ef566962bfa4656301706035da97ebbe90e9b # v9
-        with:
-          hatchet-protocol: cleave
-          nix-permission-edict: true
 
       - name: Setup Nix with caching
         uses: ./.github/actions/setup-nix

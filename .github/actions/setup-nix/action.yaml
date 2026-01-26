@@ -23,9 +23,20 @@ inputs:
     description: SSH private key for remote builders
     required: false
     default: ""
+  nothing-but-nix:
+    description: Enable nothing-but-nix mode (uses /nix/build as build directory)
+    required: false
+    default: "true"
 runs:
   using: composite
   steps:
+    - name: Nothing But Nix
+      if: inputs.nothing-but-nix == 'true'
+      uses: wimpysworld/nothing-but-nix@dd6ef566962bfa4656301706035da97ebbe90e9b # v9
+      with:
+        hatchet-protocol: cleave
+        nix-permission-edict: true
+
     - name: Setup SSH Key for Remote Builders
       if: inputs.use-remote-builders == 'true' && inputs.remote-builders-ssh-key != ''
       shell: bash
@@ -51,7 +62,7 @@ runs:
           builders-use-substitutes = true
           max-jobs = 0
           builders = @${{ github.workspace }}/.github/nix-builders.conf
-          build-dir = /nix/build
+          ${{ inputs.nothing-but-nix == 'true' && 'build-dir = /nix/build' || '' }}
 
     - name: Install Nix (local)
       if: inputs.use-remote-builders != 'true'
@@ -60,7 +71,7 @@ runs:
         nix_conf: |
           accept-flake-config = true
           always-allow-substitutes = true
-          build-dir = /nix/build
+          ${{ inputs.nothing-but-nix == 'true' && 'build-dir = /nix/build' || '' }}
 
     - name: Setup Cachix
       if: inputs.skip-cache != 'true'
