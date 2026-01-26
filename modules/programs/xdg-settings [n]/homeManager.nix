@@ -6,7 +6,7 @@
   }: let
     defaultBrowser = "zen-beta.desktop";
     defaultImageViewer = "org.libvips.vipsdisp.desktop";
-    defaultVideoPlayer = "mpv.desktop";
+    defaultVideoPlayer = "org.gnome.Showtime.desktop";
     defaultTextEditor = "dev.zed.Zed.desktop";
     defaultFileManager = "org.gnome.Nautilus.desktop";
     defaultArchiveManager = "org.gnome.FileRoller.desktop";

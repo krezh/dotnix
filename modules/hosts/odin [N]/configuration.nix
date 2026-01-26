@@ -31,6 +31,10 @@
       krezh
     ];
 
+    nixpkgs.overlays = [
+      inputs.nix-cachyos-kernel.overlay
+    ];
+
     networking.hostName = "odin";
 
     # Boot configuration
@@ -42,7 +46,7 @@
         "quiet"
         "udev.log_level=0"
       ];
-      kernelPackages = pkgs.linuxPackages_zen;
+      kernelPackages = pkgs.cachyosKernels.linuxPackages-cachyos-bore-lto;
       loader = {
         timeout = 0;
         systemd-boot = {

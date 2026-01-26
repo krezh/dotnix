@@ -51,6 +51,7 @@ runs:
           builders-use-substitutes = true
           max-jobs = 0
           builders = @${{ github.workspace }}/.github/nix-builders.conf
+          build-dir = /nix/build
 
     - name: Install Nix (local)
       if: inputs.use-remote-builders != 'true'
@@ -59,6 +60,7 @@ runs:
         nix_conf: |
           accept-flake-config = true
           always-allow-substitutes = true
+          build-dir = /nix/build
 
     - name: Setup Cachix
       if: inputs.skip-cache != 'true'
