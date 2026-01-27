@@ -28,7 +28,7 @@ buildGoModule rec {
     homepage = "https://github.com/yashbhutwala/kubectl-df-pv";
     changelog = "https://github.com/yashbhutwala/kubectl-df-pv/releases/tag/v${version}";
     license = lib.licenses.asl20;
-    maintainers = [];
+    maintainers = [ ];
     mainProgram = "df-pv";
   };
 }

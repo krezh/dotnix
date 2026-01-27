@@ -64,18 +64,18 @@ python3Packages.buildPythonApplication rec {
     makeWrapperArgs+=(
       "''${gappsWrapperArgs[@]}"
       --suffix PATH : "${
-      lib.makeBinPath [
-        icoextract
-        imagemagick
-        libcanberra-gtk3
-        umu-launcher
-        xdg-utils
-      ]
-    }"
+        lib.makeBinPath [
+          icoextract
+          imagemagick
+          libcanberra-gtk3
+          umu-launcher
+          xdg-utils
+        ]
+      }"
     )
   '';
 
-  passthru.updateScript = nix-update-script {};
+  passthru.updateScript = nix-update-script { };
 
   meta = {
     description = "Simple and lightweight app for running Windows games using UMU-Launcher";

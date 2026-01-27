@@ -23,7 +23,7 @@ python3.pkgs.buildPythonApplication rec {
     argcomplete
   ];
 
-  pythonImportsCheck = [];
+  pythonImportsCheck = [ ];
 
   meta = {
     description = "Bounce your terminal like a DVD screen";

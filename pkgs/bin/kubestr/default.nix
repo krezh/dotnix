@@ -28,7 +28,7 @@ buildGoModule rec {
     description = "";
     homepage = "https://github.com/kastenhq/kubestr";
     license = lib.licenses.asl20;
-    maintainers = [];
+    maintainers = [ ];
     mainProgram = pname;
   };
 }

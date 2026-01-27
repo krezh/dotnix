@@ -1,5 +1,6 @@
-{inputs, ...}: {
-  flake.modules.homeManager.editors.imports = [inputs.nvf.homeManagerModules.default];
+{ inputs, ... }:
+{
+  flake.modules.homeManager.editors.imports = [ inputs.nvf.homeManagerModules.default ];
 
   flake.modules.homeManager.editors.programs.nvf = {
     enable = true;

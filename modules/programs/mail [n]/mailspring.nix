@@ -1,5 +1,7 @@
 {
-  flake.modules.homeManager.mail = {pkgs, ...}: {
-    home.packages = [pkgs.mailspring];
-  };
+  flake.modules.homeManager.mail =
+    { pkgs, ... }:
+    {
+      home.packages = [ pkgs.mailspring ];
+    };
 }

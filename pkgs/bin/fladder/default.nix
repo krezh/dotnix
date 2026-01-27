@@ -2,7 +2,8 @@
   lib,
   appimageTools,
   fetchurl,
-}: let
+}:
+let
   pname = "fladder";
   # renovate: datasource=github-releases depName=DonutWare/Fladder
   version = "0.9.0";
@@ -11,28 +12,28 @@
     hash = "sha256-L9dyqEGrMlGW6C7Jj4nhM5X/DlJ3vDNL4pSlsVel8Iw=";
   };
 
-  appimageContents = appimageTools.extractType2 {inherit pname version src;};
+  appimageContents = appimageTools.extractType2 { inherit pname version src; };
 in
-  appimageTools.wrapType2 {
-    inherit pname version src;
+appimageTools.wrapType2 {
+  inherit pname version src;
 
-    extraPkgs = pkgs: [
-      pkgs.mpv
-      pkgs.libepoxy
-    ];
+  extraPkgs = pkgs: [
+    pkgs.mpv
+    pkgs.libepoxy
+  ];
 
-    extraInstallCommands = ''
-      install -Dm444 ${appimageContents}/nl.jknaapen.fladder.desktop $out/share/applications/${pname}.desktop
-      substituteInPlace $out/share/applications/${pname}.desktop \
-        --replace-fail 'Exec=Fladder' 'Exec=${pname}'
-      install -Dm444 ${appimageContents}/fladder_icon_desktop.png $out/share/icons/hicolor/256x256/apps/fladder_icon_desktop.png
-    '';
+  extraInstallCommands = ''
+    install -Dm444 ${appimageContents}/nl.jknaapen.fladder.desktop $out/share/applications/${pname}.desktop
+    substituteInPlace $out/share/applications/${pname}.desktop \
+      --replace-fail 'Exec=Fladder' 'Exec=${pname}'
+    install -Dm444 ${appimageContents}/fladder_icon_desktop.png $out/share/icons/hicolor/256x256/apps/fladder_icon_desktop.png
+  '';
 
-    meta = with lib; {
-      description = "A cross-platform Jellyfin Frontend built on Flutter";
-      homepage = "https://github.com/DonutWare/Fladder";
-      license = licenses.gpl3Only;
-      platforms = ["x86_64-linux"];
-      mainProgram = pname;
-    };
-  }
+  meta = with lib; {
+    description = "A cross-platform Jellyfin Frontend built on Flutter";
+    homepage = "https://github.com/DonutWare/Fladder";
+    license = licenses.gpl3Only;
+    platforms = [ "x86_64-linux" ];
+    mainProgram = pname;
+  };
+}

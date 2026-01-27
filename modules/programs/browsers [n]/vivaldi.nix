@@ -1,5 +1,7 @@
 {
-  flake.modules.homeManager.browsers = {pkgs, ...}: {
-    home.packages = [pkgs.vivaldi];
-  };
+  flake.modules.homeManager.browsers =
+    { pkgs, ... }:
+    {
+      home.packages = [ pkgs.vivaldi ];
+    };
 }

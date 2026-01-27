@@ -1,8 +1,8 @@
-{writeShellApplication, ...}:
+{ writeShellApplication, ... }:
 writeShellApplication {
   name = "hyprland_keybinds";
 
-  runtimeInputs = [];
+  runtimeInputs = [ ];
 
   text = builtins.readFile ./script.sh;
 }

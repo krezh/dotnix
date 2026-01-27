@@ -1,227 +1,233 @@
 {
-  flake.modules.homeManager.kopia = {
-    config,
-    pkgs,
-    lib,
-    ...
-  }: let
-    cfg = config.services.kopia;
-    configFile = "${config.xdg.configHome}/kopia/repository.config";
-    defaultPasswordFile = "${config.xdg.configHome}/kopia/repository.password";
-    repositoryPath = "${config.xdg.dataHome}/kopia-repository";
+  flake.modules.homeManager.kopia =
+    {
+      config,
+      pkgs,
+      lib,
+      ...
+    }:
+    let
+      cfg = config.services.kopia;
+      configFile = "${config.xdg.configHome}/kopia/repository.config";
+      defaultPasswordFile = "${config.xdg.configHome}/kopia/repository.password";
+      repositoryPath = "${config.xdg.dataHome}/kopia-repository";
 
-    mkBackupService = name: backup: let
-      configJson = mkBackupConfigJson name backup;
-      passwordFile = cfg.repository.passwordFile;
-    in {
-      Unit = {
-        Description = "Kopia backup: ${name}";
-        After = ["kopia-init.service"];
-        Requires = ["kopia-init.service"];
-      };
-      Service = {
-        Type = "oneshot";
-        ExecStart = "${pkgs.writeShellScript "kopia-backup" (builtins.readFile ./scripts/backup.sh)} ${name} ${configFile} ${passwordFile} ${configJson}";
-        Environment = ["KOPIA_CHECK_FOR_UPDATES=false"];
-      };
-    };
+      mkBackupService =
+        name: backup:
+        let
+          configJson = mkBackupConfigJson name backup;
+          passwordFile = cfg.repository.passwordFile;
+        in
+        {
+          Unit = {
+            Description = "Kopia backup: ${name}";
+            After = [ "kopia-init.service" ];
+            Requires = [ "kopia-init.service" ];
+          };
+          Service = {
+            Type = "oneshot";
+            ExecStart = "${pkgs.writeShellScript "kopia-backup" (builtins.readFile ./scripts/backup.sh)} ${name} ${configFile} ${passwordFile} ${configJson}";
+            Environment = [ "KOPIA_CHECK_FOR_UPDATES=false" ];
+          };
+        };
 
-    mkBackupConfigJson = name: backup: let
-      json = builtins.toJSON {
-        name = name;
-        paths = backup.paths;
-        exclude = backup.exclude;
-        compression = backup.compression;
-        retentionPolicy = backup.retentionPolicy;
+      mkBackupConfigJson =
+        name: backup:
+        let
+          json = builtins.toJSON {
+            name = name;
+            paths = backup.paths;
+            exclude = backup.exclude;
+            compression = backup.compression;
+            retentionPolicy = backup.retentionPolicy;
+          };
+        in
+        pkgs.writeTextFile {
+          name = "kopia-backup-${name}-config.json";
+          text = json;
+        };
+
+      mkBackupTimer = name: backup: {
+        Unit = {
+          Description = "Timer for Kopia backup: ${name}";
+        };
+        Timer = {
+          OnCalendar = backup.schedule;
+          Persistent = true;
+          RandomizedDelaySec = backup.jitter;
+        };
+        Install.WantedBy = [ "timers.target" ];
       };
     in
-      pkgs.writeTextFile {
-        name = "kopia-backup-${name}-config.json";
-        text = json;
-      };
+    {
+      options.services.kopia = {
+        enable = lib.mkEnableOption "kopia backup service";
 
-    mkBackupTimer = name: backup: {
-      Unit = {
-        Description = "Timer for Kopia backup: ${name}";
-      };
-      Timer = {
-        OnCalendar = backup.schedule;
-        Persistent = true;
-        RandomizedDelaySec = backup.jitter;
-      };
-      Install.WantedBy = ["timers.target"];
-    };
-  in {
-    options.services.kopia = {
-      enable = lib.mkEnableOption "kopia backup service";
+        repository = {
+          type = lib.mkOption {
+            type = lib.types.enum [
+              "filesystem"
+              "s3"
+              "gcs"
+              "azure"
+              "sftp"
+              "webdav"
+            ];
+            default = "filesystem";
+            description = "Repository type for Kopia backups";
+          };
 
-      repository = {
-        type = lib.mkOption {
-          type = lib.types.enum [
-            "filesystem"
-            "s3"
-            "gcs"
-            "azure"
-            "sftp"
-            "webdav"
-          ];
-          default = "filesystem";
-          description = "Repository type for Kopia backups";
+          path = lib.mkOption {
+            type = lib.types.str;
+            default = repositoryPath;
+            description = "Path to repository (for filesystem type) or endpoint URL";
+          };
+
+          passwordFile = lib.mkOption {
+            type = lib.types.path;
+            default = defaultPasswordFile;
+            description = "Path to repository password file";
+          };
         };
 
-        path = lib.mkOption {
-          type = lib.types.str;
-          default = repositoryPath;
-          description = "Path to repository (for filesystem type) or endpoint URL";
-        };
-
-        passwordFile = lib.mkOption {
-          type = lib.types.path;
-          default = defaultPasswordFile;
-          description = "Path to repository password file";
-        };
-      };
-
-      backups = lib.mkOption {
-        type = lib.types.attrsOf (
-          lib.types.submodule {
-            options = {
-              paths = lib.mkOption {
-                type = lib.types.listOf lib.types.str;
-                description = "List of paths to backup";
-              };
-
-              schedule = lib.mkOption {
-                type = lib.types.str;
-                default = "daily";
-                description = "Backup schedule (systemd timer format)";
-              };
-
-              exclude = lib.mkOption {
-                type = lib.types.listOf lib.types.str;
-                default = [
-                  "**/*.tmp"
-                  "**/*.log"
-                  "**/Trash/**"
-                ];
-                description = "List of patterns to exclude from backup";
-              };
-
-              compression = lib.mkOption {
-                type = lib.types.enum [
-                  "none"
-                  "gzip"
-                  "gzip-best-compression"
-                  "gzip-best-speed"
-                  "lz4"
-                  "zstd"
-                  "zstd-best-compression"
-                  "zstd-better-compression"
-                  "zstd-fastest"
-                ];
-                default = "zstd";
-                description = "Compression algorithm to use";
-              };
-
-              jitter = lib.mkOption {
-                type = lib.types.str;
-                default = "15m";
-                description = "Randomized delay to avoid all backups running at the same time";
-              };
-
-              retentionPolicy = {
-                keepDaily = lib.mkOption {
-                  type = lib.types.int;
-                  default = 0;
-                  description = "Number of daily snapshots to keep";
+        backups = lib.mkOption {
+          type = lib.types.attrsOf (
+            lib.types.submodule {
+              options = {
+                paths = lib.mkOption {
+                  type = lib.types.listOf lib.types.str;
+                  description = "List of paths to backup";
                 };
 
-                keepWeekly = lib.mkOption {
-                  type = lib.types.int;
-                  default = 0;
-                  description = "Number of weekly snapshots to keep";
+                schedule = lib.mkOption {
+                  type = lib.types.str;
+                  default = "daily";
+                  description = "Backup schedule (systemd timer format)";
                 };
 
-                keepMonthly = lib.mkOption {
-                  type = lib.types.int;
-                  default = 0;
-                  description = "Number of monthly snapshots to keep";
+                exclude = lib.mkOption {
+                  type = lib.types.listOf lib.types.str;
+                  default = [
+                    "**/*.tmp"
+                    "**/*.log"
+                    "**/Trash/**"
+                  ];
+                  description = "List of patterns to exclude from backup";
                 };
 
-                keepAnnual = lib.mkOption {
-                  type = lib.types.int;
-                  default = 0;
-                  description = "Number of annual snapshots to keep";
+                compression = lib.mkOption {
+                  type = lib.types.enum [
+                    "none"
+                    "gzip"
+                    "gzip-best-compression"
+                    "gzip-best-speed"
+                    "lz4"
+                    "zstd"
+                    "zstd-best-compression"
+                    "zstd-better-compression"
+                    "zstd-fastest"
+                  ];
+                  default = "zstd";
+                  description = "Compression algorithm to use";
                 };
 
-                keepHourly = lib.mkOption {
-                  type = lib.types.int;
-                  default = 0;
-                  description = "Number of hourly snapshots to keep";
+                jitter = lib.mkOption {
+                  type = lib.types.str;
+                  default = "15m";
+                  description = "Randomized delay to avoid all backups running at the same time";
                 };
 
-                keepLatest = lib.mkOption {
-                  type = lib.types.int;
-                  default = 0;
-                  description = "Number of latest snapshots to keep";
-                };
+                retentionPolicy = {
+                  keepDaily = lib.mkOption {
+                    type = lib.types.int;
+                    default = 0;
+                    description = "Number of daily snapshots to keep";
+                  };
 
-                ignoreIdenticalSnapshots = lib.mkOption {
-                  type = lib.types.bool;
-                  default = false;
-                  description = "Ignore identical snapshots";
+                  keepWeekly = lib.mkOption {
+                    type = lib.types.int;
+                    default = 0;
+                    description = "Number of weekly snapshots to keep";
+                  };
+
+                  keepMonthly = lib.mkOption {
+                    type = lib.types.int;
+                    default = 0;
+                    description = "Number of monthly snapshots to keep";
+                  };
+
+                  keepAnnual = lib.mkOption {
+                    type = lib.types.int;
+                    default = 0;
+                    description = "Number of annual snapshots to keep";
+                  };
+
+                  keepHourly = lib.mkOption {
+                    type = lib.types.int;
+                    default = 0;
+                    description = "Number of hourly snapshots to keep";
+                  };
+
+                  keepLatest = lib.mkOption {
+                    type = lib.types.int;
+                    default = 0;
+                    description = "Number of latest snapshots to keep";
+                  };
+
+                  ignoreIdenticalSnapshots = lib.mkOption {
+                    type = lib.types.bool;
+                    default = false;
+                    description = "Ignore identical snapshots";
+                  };
                 };
               };
-            };
-          }
-        );
-        default = {};
-        description = "Backup configurations";
+            }
+          );
+          default = { };
+          description = "Backup configurations";
+        };
+
+        maintenance = {
+          enable = lib.mkOption {
+            type = lib.types.bool;
+            default = false;
+            description = "Enable repository maintenance";
+          };
+
+          schedule = lib.mkOption {
+            type = lib.types.str;
+            default = "weekly";
+            description = "Maintenance schedule (systemd timer format)";
+          };
+
+          jitter = lib.mkOption {
+            type = lib.types.str;
+            default = "1h";
+            description = "Randomized delay for maintenance to avoid resource conflicts";
+          };
+        };
+
+        gui = {
+          enable = lib.mkOption {
+            type = lib.types.bool;
+            default = false;
+            description = "Enable Kopia desktop GUI";
+          };
+        };
       };
 
-      maintenance = {
-        enable = lib.mkOption {
-          type = lib.types.bool;
-          default = false;
-          description = "Enable repository maintenance";
-        };
-
-        schedule = lib.mkOption {
-          type = lib.types.str;
-          default = "weekly";
-          description = "Maintenance schedule (systemd timer format)";
-        };
-
-        jitter = lib.mkOption {
-          type = lib.types.str;
-          default = "1h";
-          description = "Randomized delay for maintenance to avoid resource conflicts";
-        };
-      };
-
-      gui = {
-        enable = lib.mkOption {
-          type = lib.types.bool;
-          default = false;
-          description = "Enable Kopia desktop GUI";
-        };
-      };
-    };
-
-    config = lib.mkIf cfg.enable {
-      home.packages =
-        [
+      config = lib.mkIf cfg.enable {
+        home.packages = [
           pkgs.kopia
           pkgs.kopia-manager
         ]
-        ++ lib.optionals cfg.gui.enable [pkgs.kopia-ui];
+        ++ lib.optionals cfg.gui.enable [ pkgs.kopia-ui ];
 
-      systemd.user.services =
-        {
+        systemd.user.services = {
           kopia-init = {
             Unit = {
               Description = "Initialize Kopia repository";
-              After = ["graphical-session.target"];
+              After = [ "graphical-session.target" ];
             };
             Service = {
               Type = "oneshot";
@@ -232,13 +238,13 @@
                 "KOPIA_CHECK_FOR_UPDATES=false"
               ];
             };
-            Install.WantedBy = ["default.target"];
+            Install.WantedBy = [ "default.target" ];
           };
           kopia-maintenance = lib.mkIf cfg.maintenance.enable {
             Unit = {
               Description = "Kopia repository maintenance";
-              After = ["kopia-init.service"];
-              Requires = ["kopia-init.service"];
+              After = [ "kopia-init.service" ];
+              Requires = [ "kopia-init.service" ];
             };
             Service = {
               Type = "oneshot";
@@ -249,11 +255,9 @@
         }
         // lib.mapAttrs' (
           name: backup: lib.nameValuePair "kopia-backup-${name}" (mkBackupService name backup)
-        )
-        cfg.backups;
+        ) cfg.backups;
 
-      systemd.user.timers =
-        {
+        systemd.user.timers = {
           kopia-maintenance = lib.mkIf cfg.maintenance.enable {
             Unit = {
               Description = "Timer for Kopia repository maintenance";
@@ -263,13 +267,12 @@
               Persistent = true;
               RandomizedDelaySec = cfg.maintenance.jitter;
             };
-            Install.WantedBy = ["timers.target"];
+            Install.WantedBy = [ "timers.target" ];
           };
         }
         // lib.mapAttrs' (
           name: backup: lib.nameValuePair "kopia-backup-${name}" (mkBackupTimer name backup)
-        )
-        cfg.backups;
+        ) cfg.backups;
+      };
     };
-  };
 }

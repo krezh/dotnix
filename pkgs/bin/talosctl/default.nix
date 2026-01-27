@@ -29,9 +29,9 @@ buildGoModule rec {
 
   env.GOWORK = "off";
 
-  subPackages = ["cmd/talosctl"];
+  subPackages = [ "cmd/talosctl" ];
 
-  nativeBuildInputs = [installShellFiles];
+  nativeBuildInputs = [ installShellFiles ];
 
   postInstall = lib.optionalString (stdenv.buildPlatform.canExecute stdenv.hostPlatform) ''
     installShellCompletion --cmd talosctl \
@@ -43,14 +43,14 @@ buildGoModule rec {
   doCheck = false; # no tests
 
   doInstallCheck = true;
-  nativeInstallCheckInputs = [versionCheckHook];
+  nativeInstallCheckInputs = [ versionCheckHook ];
   versionCheckProgramArg = "version";
 
   meta = with lib; {
     description = "A CLI for out-of-band management of Kubernetes nodes created by Talos";
     homepage = "https://www.talos.dev/";
     license = licenses.mpl20;
-    maintainers = [];
+    maintainers = [ ];
     mainProgram = pname;
   };
 }

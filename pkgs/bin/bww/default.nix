@@ -22,7 +22,7 @@ buildGoApplication rec {
   go = go-bin.latestStable;
   modules = "${src}/govendor.toml";
 
-  nativeBuildInputs = [makeWrapper];
+  nativeBuildInputs = [ makeWrapper ];
 
   ldflags = [
     "-s"
@@ -32,15 +32,15 @@ buildGoApplication rec {
   postInstall = ''
     wrapProgram $out/bin/${pname} \
       --prefix PATH : ${
-      lib.makeBinPath [
-        bitwarden-cli
-        walker
-        wl-clipboard
-        libnotify
-        pinentry-gnome3
-        libsecret
-      ]
-    }
+        lib.makeBinPath [
+          bitwarden-cli
+          walker
+          wl-clipboard
+          libnotify
+          pinentry-gnome3
+          libsecret
+        ]
+      }
   '';
 
   meta = with lib; {

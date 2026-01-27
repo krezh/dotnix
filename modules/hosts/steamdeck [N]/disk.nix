@@ -1,6 +1,7 @@
-{inputs, ...}: {
+{ inputs, ... }:
+{
   flake.modules.nixos.steamdeck = {
-    imports = [inputs.disko.nixosModules.disko];
+    imports = [ inputs.disko.nixosModules.disko ];
 
     fileSystems."/home".neededForBoot = true;
 
@@ -19,7 +20,7 @@
                   type = "filesystem";
                   format = "vfat";
                   mountpoint = "/boot";
-                  mountOptions = ["umask=0077"];
+                  mountOptions = [ "umask=0077" ];
                 };
               };
               root = {

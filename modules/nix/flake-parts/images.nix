@@ -2,7 +2,8 @@
   inputs,
   lib,
   ...
-}: let
+}:
+let
   imageConfigs = {
     livecd = {
       format = "install-iso";
@@ -53,7 +54,8 @@
       ];
     };
   };
-in {
+in
+{
   flake = {
     images = lib.mapAttrs (_name: config: inputs.nixos-generators.nixosGenerate config) imageConfigs;
   };

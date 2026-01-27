@@ -33,7 +33,7 @@ buildGoModule rec {
     homepage = "https://github.com/rook/kubectl-rook-ceph";
     changelog = "https://github.com/rook/kubectl-rook-ceph/releases/tag/v${version}";
     license = lib.licenses.asl20;
-    maintainers = [];
+    maintainers = [ ];
     mainProgram = "kubectl-rook";
   };
 }

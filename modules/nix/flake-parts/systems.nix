@@ -2,18 +2,19 @@
   self,
   lib,
   ...
-}: let
-  mapToGha = system:
+}:
+let
+  mapToGha =
+    system:
     {
       "x86_64-linux" = "ubuntu-latest";
       "x86_64-darwin" = "ubuntu-latest";
       "aarch64-linux" = "ubuntu-24.04-arm";
     }
-    .${
-      system
-    } or system;
-in {
-  systems = ["x86_64-linux"];
+    .${system} or system;
+in
+{
+  systems = [ "x86_64-linux" ];
   flake = {
     hosts = lib.mapAttrs (_name: config: config.config.system.build.toplevel) (
       lib.filterAttrs (_name: config: (config.ci or true)) self.nixosConfigurations

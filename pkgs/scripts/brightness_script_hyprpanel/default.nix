@@ -6,7 +6,7 @@
 writeShellApplication {
   name = "brightness_script_hyprpanel";
 
-  runtimeInputs = [brightnessctl];
+  runtimeInputs = [ brightnessctl ];
 
   text = builtins.readFile ./brightness.sh;
 }

@@ -4,7 +4,8 @@
   modulesPath,
   config,
   ...
-}: {
+}:
+{
   nixpkgs.hostPlatform = "x86_64-linux";
 
   system.build.kubevirtImage = lib.mkForce (
@@ -27,7 +28,7 @@
     ];
   };
 
-  users.groups.remotebuild = {};
+  users.groups.remotebuild = { };
 
   users.users.root.openssh.authorizedKeys.keys = [
     "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIANNodE0rg2XalK+tfsqfPwLdBRJIx15IjGwkr5Bud+W"
@@ -48,7 +49,7 @@
       cores = 0;
       builders-use-substitutes = true;
       use-cgroups = true;
-      system-features = ["big-parallel"];
+      system-features = [ "big-parallel" ];
       experimental-features = [
         "nix-command"
         "flakes"
@@ -81,7 +82,7 @@
     options = "--delete-older-than 7d";
   };
 
-  boot.kernelModules = ["virtio_balloon"];
+  boot.kernelModules = [ "virtio_balloon" ];
 
   systemd.services.drop-caches = {
     description = "Drop memory caches after builds";
@@ -94,7 +95,7 @@
 
   systemd.timers.drop-caches = {
     description = "Periodically drop memory caches";
-    wantedBy = ["timers.target"];
+    wantedBy = [ "timers.target" ];
     timerConfig = {
       OnBootSec = "5min";
       OnUnitActiveSec = "30min";

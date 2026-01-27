@@ -32,7 +32,7 @@ buildGoModule rec {
     "-X=github.com/mirceanton/${pname}/cmd.version=${version}"
   ];
 
-  nativeBuildInputs = [installShellFiles];
+  nativeBuildInputs = [ installShellFiles ];
 
   postInstall = ''
     installShellCompletion --cmd talswitcher \

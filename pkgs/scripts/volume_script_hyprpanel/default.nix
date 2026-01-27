@@ -6,7 +6,7 @@
 writeShellApplication {
   name = "volume_script_hyprpanel";
 
-  runtimeInputs = [wireplumber];
+  runtimeInputs = [ wireplumber ];
 
   text = builtins.readFile ./volume.sh;
 }
