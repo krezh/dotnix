@@ -7,6 +7,7 @@
   perSystem = {
     pkgs,
     system,
+    config,
     ...
   }: {
     # Provides the nixpkgs package set with system-specific overlays applied
@@ -17,10 +18,15 @@
     };
 
     # Automatically discovers all packages from the pkgs directory
-    packages = lib.scanPath.toAttrs {
-      basePath = lib.relativeToRoot "pkgs";
-      func = pkgs.callPackage;
-      useBaseName = true;
-    };
+    packages =
+      (lib.scanPath.toAttrs {
+        basePath = lib.relativeToRoot "pkgs";
+        func = pkgs.callPackage;
+        useBaseName = true;
+      })
+      // {
+        # Expose treefmt wrapper to prevent GC
+        treefmt = config.treefmt.build.wrapper;
+      };
   };
 }

@@ -1,5 +1,5 @@
 {inputs, ...}: {
-  flake.modules.nixos.steamdeck = { ...}: {
+  flake.modules.nixos.steamdeck = {...}: {
     home-manager.users.krezh = {
       imports = with inputs.self.modules.homeManager; [
         system-desktop

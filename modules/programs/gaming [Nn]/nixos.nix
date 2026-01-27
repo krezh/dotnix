@@ -9,16 +9,20 @@
     environment = {
       systemPackages = with pkgs; [
         winetricks
+        protontricks
         vulkan-tools
         lsfg-vk
         lsfg-vk-ui
         protonplus
-        lact
         faugus-launcher
       ];
       sessionVariables = {
         STEAM_EXTRA_COMPAT_TOOLS_PATHS = "$HOME/.steam/root/compatibilitytools.d";
       };
+    };
+
+    services.lact = {
+      enable = true;
     };
 
     programs = {
