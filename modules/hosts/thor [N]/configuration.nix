@@ -9,7 +9,7 @@
       desktop-utils
       amd
       openssh
-      steam
+      gaming
       wireplumber
       hyprland
       niri
@@ -43,7 +43,7 @@
     boot = {
       plymouth.enable = true;
       kernelPackages = pkgs.cachyosKernels.linuxPackages-cachyos-bore-lto;
-      cleanTmpDir = true;
+      tmp.cleanOnBoot = true;
       loader = {
         timeout = 0;
         systemd-boot = {

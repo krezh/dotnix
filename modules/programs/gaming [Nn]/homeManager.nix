@@ -1,5 +1,5 @@
 {
-  flake.modules.homeManager.steam = {
+  flake.modules.homeManager.gaming = {
     catppuccin.mangohud.enable = false;
     programs.mangohud = {
       enable = true;

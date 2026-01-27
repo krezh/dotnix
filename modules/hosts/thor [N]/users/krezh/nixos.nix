@@ -20,7 +20,7 @@
         desktop-utils
 
         # Gaming
-        steam
+        gaming
       ];
     };
   };

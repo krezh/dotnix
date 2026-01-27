@@ -1,5 +1,5 @@
 {inputs, ...}: {
-  flake.modules.nixos.steam = {pkgs, ...}: {
+  flake.modules.nixos.gaming = {pkgs, ...}: {
     imports = [
       inputs.nix-gaming.nixosModules.platformOptimizations
       inputs.nix-gaming.nixosModules.wine
@@ -12,7 +12,6 @@
         vulkan-tools
         lsfg-vk
         lsfg-vk-ui
-        lutris
         protonplus
         lact
         faugus-launcher
