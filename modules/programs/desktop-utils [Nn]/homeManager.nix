@@ -12,20 +12,16 @@
         gulp
 
         mission-center
-        bww
 
         # Misc desktop apps
-        vdhcoapp
         wowup-cf
         yubikey-manager
         qbittorrent
         sqlit-tui
-        bitwarden-desktop
-        bitwarden-cli
+        mpris-timer
         gnome-calculator
         gnome-calendar
         gnome-clocks
-        mpris-timer
         gnome-bluetooth
         gnome-maps
         gnome-online-accounts-gtk
