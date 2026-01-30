@@ -236,8 +236,8 @@
             nix = {
               enableLanguageServer = true;
               serverPath = "nixd";
+              formatterPath = lib.getExe pkgs.nixfmt;
               serverSettings.nixd = {
-                formatting.command = [ "${lib.getExe pkgs.nixfmt}" ];
                 nixpkgs.expr = "import ${inputs.nixpkgs} { }";
                 options = {
                   nixos.expr = ''

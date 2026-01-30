@@ -1,7 +1,10 @@
 { inputs, ... }:
+let
+  user = "krezh";
+in
 {
   flake.modules.nixos.thor = {
-    home-manager.users.krezh = {
+    home-manager.users.${user} = {
       imports = [ inputs.self.modules.homeManager.webapps ];
       programs.webapps = {
         enable = true;

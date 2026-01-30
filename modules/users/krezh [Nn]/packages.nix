@@ -39,6 +39,7 @@
           lefthook
           rclone
           wakatime-cli
+          infisical
 
           # Networking
           speedtest-cli

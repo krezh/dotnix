@@ -66,6 +66,7 @@
           experimental-features = [
             "nix-command"
             "flakes"
+            "cgroups"
           ];
           system-features = [ ];
           extra-substituters = [

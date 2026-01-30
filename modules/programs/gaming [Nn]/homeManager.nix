@@ -6,21 +6,8 @@
       enableSessionWide = true;
       settings = {
         preset = 1;
-        #   # Default: FPS only (like Steam's FPS counter)
-        #   legacy_layout = false;
-        #   fps = true;
-        #   background_alpha = 0;
-
-        #   # Disable all other stats
-        #   gpu_stats = false;
-        #   cpu_stats = false;
-        #   frame_timing = false;
-
-        #   # Styling
-        #   font_size = 26;
-        #   text_color = "CDD6F4";
         position = "top-right";
-        #   fps_limit_method = "early";
+        blacklist = "zed-editor";
 
         # Keybinds
         toggle_fps_limit = "Shift_L+F3";

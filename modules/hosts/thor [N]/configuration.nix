@@ -1,11 +1,10 @@
 { inputs, ... }:
+let
+  user = "krezh";
+in
 {
   flake.modules.nixos.thor =
-    {
-      pkgs,
-      lib,
-      ...
-    }:
+    { pkgs, lib, ... }:
     {
       imports = with inputs.self.modules.nixos; [
         system-desktop
@@ -18,7 +17,7 @@
         niri
         ai
         docker
-        krezh
+        inputs.self.modules.nixos.${user}
       ];
 
       nixpkgs.overlays = [
@@ -98,7 +97,7 @@
       ];
 
       # GNOME keyring
-      security.pam.services.krezh.enableGnomeKeyring = true;
+      security.pam.services.${user}.enableGnomeKeyring = true;
       security.pam.services.sddm.enableGnomeKeyring = true;
       security.pam.services.hyprlock.enableGnomeKeyring = true;
       security.pam.services.login.enableGnomeKeyring = true;

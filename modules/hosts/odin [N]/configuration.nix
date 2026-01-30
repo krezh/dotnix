@@ -1,4 +1,7 @@
 { inputs, ... }:
+let
+  user = "krezh";
+in
 {
   flake.modules.nixos.odin =
     {
@@ -7,7 +10,7 @@
       ...
     }:
     {
-      home-manager.users.krezh = {
+      home-manager.users.${user} = {
         imports = with inputs.self.modules.homeManager; [
           system-desktop
           terminal
@@ -31,7 +34,7 @@
         hyprland
         ai
         docker
-        krezh
+        inputs.self.modules.nixos.${user}
       ];
 
       nixpkgs.overlays = [

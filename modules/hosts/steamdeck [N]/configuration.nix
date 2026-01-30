@@ -1,9 +1,12 @@
 { inputs, ... }:
+let
+  user = "krezh";
+in
 {
   flake.modules.nixos.steamdeck =
     { ... }:
     {
-      home-manager.users.krezh = {
+      home-manager.users.${user} = {
         imports = with inputs.self.modules.homeManager; [
           system-desktop
           hyprland
@@ -20,7 +23,7 @@
         openssh
         battery
         mount
-        krezh
+        inputs.self.modules.nixos.${user}
         inputs.jovian.nixosModules.default
       ];
 
@@ -53,7 +56,7 @@
         steam = {
           enable = true;
           autoStart = true;
-          user = "krezh";
+          user = user;
           desktopSession = "hyprland";
         };
         decky-loader.enable = true;

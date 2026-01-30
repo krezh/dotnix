@@ -1,10 +1,6 @@
 {
   flake.modules.homeManager.shell =
-    {
-      lib,
-      pkgs,
-      ...
-    }:
+    { lib, pkgs, ... }:
     {
       programs.starship = {
         enable = true;

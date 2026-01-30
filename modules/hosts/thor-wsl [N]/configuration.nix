@@ -1,4 +1,7 @@
 { inputs, ... }:
+let
+  user = "krezh";
+in
 {
   flake.modules.nixos.thor-wsl =
     {
@@ -8,7 +11,7 @@
       ...
     }:
     {
-      home-manager.users.krezh = {
+      home-manager.users.${user} = {
         imports = with inputs.self.modules.homeManager; [
           system-base
           ai
@@ -16,7 +19,7 @@
       };
       imports = with inputs.self.modules.nixos; [
         system-base
-        krezh
+        inputs.self.modules.nixos.${user}
         ai
         inputs.nixos-wsl.nixosModules.wsl
         (modulesPath + "/profiles/minimal.nix")
@@ -27,7 +30,7 @@
       # WSL configuration
       wsl = {
         enable = true;
-        defaultUser = "krezh";
+        defaultUser = user;
         wslConf.network = {
           hostname = "thor-wsl";
           generateResolvConf = true;

@@ -327,6 +327,7 @@
             # Dialog windows
             "match:title (Select|Open)( a)? (File|Folder)(s)?, float on"
             "match:title File (Operation|Upload)( Progress)?, float on"
+            "match:initial_class xdg-desktop-portal-gtk, float on"
             "match:title .* Properties, float on"
             "match:title Export Image as PNG, float on"
             "match:title GIMP Crash Debug, float on"

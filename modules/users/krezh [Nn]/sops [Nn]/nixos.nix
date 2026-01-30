@@ -1,11 +1,14 @@
+let
+  user = "krezh";
+in
 {
-  flake.modules.nixos.krezh =
+  flake.modules.nixos.${user} =
     { config, ... }:
     {
       # NixOS-level sops secrets
       sops = {
         age = {
-          keyFile = "/home/krezh/.config/sops/age/keys.txt";
+          keyFile = "/home/${user}/.config/sops/age/keys.txt";
           sshKeyPaths = [ "/etc/ssh/ssh_host_ed25519_key" ];
         };
         defaultSopsFile = ./secrets.sops.yaml;
@@ -16,13 +19,13 @@
         };
         templates = {
           "nix_access_token.conf" = {
-            owner = "krezh";
+            owner = user;
             content = ''
               access-tokens = github.com=${config.sops.placeholder."github/token"}
             '';
           };
           "jotunheim_homes_creds" = {
-            owner = "krezh";
+            owner = user;
             content = ''
               username=${config.sops.placeholder."smb/user"}
               password=${config.sops.placeholder."smb/pass"}

@@ -1,4 +1,7 @@
 { inputs, ... }:
+let
+  user = "krezh";
+in
 {
   flake.modules.nixos.buildbot-master =
     {
@@ -89,7 +92,7 @@
         domain = "buildbot.plexuz.xyz";
         useHTTPS = true;
         workersFile = config.sops.secrets.buildbot-workers.path;
-        admins = [ "krezh" ];
+        admins = [ user ];
         authBackend = "github";
         github = {
           appId = 2429109;
