@@ -1,9 +1,4 @@
-# This file defines overlays
-{
-  lib,
-  inputs,
-  ...
-}:
+{ lib, inputs, ... }:
 {
   # This one brings our custom packages from the 'packages' directory
   pkgs =

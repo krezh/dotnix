@@ -252,17 +252,17 @@
               "linear,0,0,1,1"
               "almostLinear,0.5,0.5,0.75,1.0"
               "quick,0.15,0,0.1,1"
-              "bounce,0.7,0.9,0.1,1.05"
+              "smooth,0.7,0.9,0.1,1.0"
             ];
             animation = [
-              "global, 1, 10, bounce"
+              "global, 1, 10, smooth"
               "border, 1, 2, quick"
-              "windows, 1, 3, bounce"
-              "fade, 1, 1.5, bounce"
-              "layers, 1, 4, bounce"
-              "fadeLayers, 1, 2, bounce"
-              "workspaces, 1, 3.5, bounce, slide"
-              "specialWorkspace, 1, 2.5, bounce, slidefadevert"
+              "windows, 1, 3, smooth"
+              "fade, 1, 1.5, smooth"
+              "layers, 1, 4, smooth"
+              "fadeLayers, 1, 2, smooth"
+              "workspaces, 1, 3.5, smooth, slidevert"
+              "specialWorkspace, 1, 2.5, smooth, slidevert"
             ];
           };
 
@@ -273,9 +273,6 @@
             "4,monitor:DP-2"
             "5,monitor:DP-2"
             "6,monitor:DP-2"
-            # Smart gaps
-            # "workspace = w[tv1]s[false], gapsout:0, gapsin:0"
-            # "workspace = f[1]s[false], gapsout:0, gapsin:0"
           ];
 
           layerrule = [

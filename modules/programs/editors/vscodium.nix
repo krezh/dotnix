@@ -235,8 +235,8 @@
             };
             nix = {
               enableLanguageServer = true;
-              serverPath = "nixd";
-              formatterPath = lib.getExe pkgs.nixfmt;
+              serverPath = lib.getExe pkgs.nixd;
+              formatterPath = lib.getExe pkgs.treefmt;
               serverSettings.nixd = {
                 nixpkgs.expr = "import ${inputs.nixpkgs} { }";
                 options = {
