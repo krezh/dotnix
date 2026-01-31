@@ -83,6 +83,7 @@
               perplexity.metaData.hidden = true;
               "Kagi" = {
                 urls = [ { template = "https://kagi.com/search?q={searchTerms}"; } ];
+                SuggestURLTemplate = "https://kagi.com/api/autosuggest?q=%s";
                 icon = "https://help.kagi.com/favicon-16x16.png";
                 updateInterval = 24 * 60 * 60 * 1000;
                 definedAliases = [ "!kg" ];
