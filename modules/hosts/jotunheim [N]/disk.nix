@@ -22,6 +22,7 @@
                   type = "filesystem";
                   format = "vfat";
                   mountpoint = "/boot/efi";
+                  mountOptions = [ "nofail" ];
                 };
               };
               zfs = {
@@ -51,6 +52,7 @@
                   type = "filesystem";
                   format = "vfat";
                   mountpoint = "/boot/efi-fallback";
+                  mountOptions = [ "nofail" ];
                 };
               };
               zfs = {
@@ -74,14 +76,12 @@
           };
           rootFsOptions = {
             compression = "on";
-            atime = "off";
             relatime = "on";
-            xattr = "on";
-            acltype = "nfsv4";
+            xattr = "sa";
+            acltype = "posixacl";
             recordsize = "128K";
             sync = "standard";
             dedup = "off";
-            logbias = "latency";
             canmount = "off";
             mountpoint = "none";
           };
@@ -95,34 +95,9 @@
                 canmount = "on";
               };
             };
-            boot = {
-              type = "zfs_fs";
-              mountpoint = "/boot";
-              options = {
-                mountpoint = "legacy";
-                canmount = "on";
-              };
-            };
             nix = {
               type = "zfs_fs";
               mountpoint = "/nix";
-              options = {
-                mountpoint = "legacy";
-                canmount = "on";
-                atime = "off";
-              };
-            };
-            home = {
-              type = "zfs_fs";
-              mountpoint = "/home";
-              options = {
-                mountpoint = "legacy";
-                canmount = "on";
-              };
-            };
-            var = {
-              type = "zfs_fs";
-              mountpoint = "/var";
               options = {
                 mountpoint = "legacy";
                 canmount = "on";

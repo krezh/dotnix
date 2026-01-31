@@ -169,5 +169,6 @@
 
       programs.nh.enable = true;
       documentation.man.generateCaches = lib.mkForce false;
+      documentation.enable = false;
     };
 }

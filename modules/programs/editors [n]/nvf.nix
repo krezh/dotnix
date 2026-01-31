@@ -9,11 +9,23 @@
       vim = {
         viAlias = true;
         vimAlias = true;
+        lsp.enable = true;
+        filetree.neo-tree.enable = true;
         languages = {
-          enableFormat = false;
-          enableTreesitter = false;
+          enableFormat = true;
+          enableTreesitter = true;
           enableExtraDiagnostics = false;
-          nix.enable = true;
+          nix = {
+            enable = true;
+            lsp = {
+              enable = true;
+              servers = [ "nixd" ];
+            };
+            format = {
+              enable = true;
+              type = [ "nixfmt" ];
+            };
+          };
           markdown.enable = true;
           go.enable = true;
           bash.enable = true;
@@ -22,7 +34,6 @@
           nvim-web-devicons.enable = true;
           nvim-scrollbar.enable = true;
           cinnamon-nvim.enable = true;
-          cellular-automaton.enable = false;
           fidget-nvim.enable = true;
           highlight-undo.enable = true;
           indent-blankline.enable = true;
@@ -44,7 +55,7 @@
         autopairs.nvim-autopairs.enable = true;
         autocomplete.nvim-cmp.enable = true;
         tabline.nvimBufferline.enable = true;
-        treesitter.context.enable = false;
+        treesitter.context.enable = true;
         binds = {
           whichKey.enable = true;
           cheatsheet.enable = true;
@@ -56,7 +67,7 @@
           gitsigns.codeActions.enable = false;
         };
         dashboard = {
-          dashboard-nvim.enable = false;
+          dashboard-nvim.enable = true;
           alpha.enable = true;
         };
         notify.nvim-notify.enable = true;
@@ -64,7 +75,6 @@
           borders.enable = true;
           noice.enable = true;
           colorizer.enable = true;
-          modes-nvim.enable = false;
           illuminate.enable = true;
           breadcrumbs = {
             enable = true;

@@ -233,19 +233,36 @@
 
           animations = {
             enabled = true;
+            # bezier = [
+            #   "easeOutExpo,0.16,1,0.3,1"
+            #   "easeOutQuad,0.25,0.46,0.45,0.94"
+            #   "spring,0.25,0.1,0.25,1"
+            # ];
+            # animation = [
+            #   "windowsIn,1,3,spring"
+            #   "windowsOut,1,2,easeOutQuad,popin 80%"
+            #   "windowsMove,1,3,spring"
+            #   "workspaces,1,3,spring,slidevert"
+            #   "border,1,3,spring"
+            #   "fade,1,1,spring"
+            #   "layers,1,3,easeOutQuad"
+            # ];
             bezier = [
-              "easeOutExpo,0.16,1,0.3,1"
-              "easeOutQuad,0.25,0.46,0.45,0.94"
-              "spring,0.25,0.1,0.25,1"
+              "easeOutQuint,0.23,1,0.32,1"
+              "linear,0,0,1,1"
+              "almostLinear,0.5,0.5,0.75,1.0"
+              "quick,0.15,0,0.1,1"
+              "bounce,0.7,0.9,0.1,1.05"
             ];
             animation = [
-              "windowsIn,1,3,spring"
-              "windowsOut,1,2,easeOutQuad,popin 80%"
-              "windowsMove,1,3,spring"
-              "workspaces,1,3,spring,slidevert"
-              "border,1,3,spring"
-              "fade,1,1,spring"
-              "layers,1,3,easeOutQuad"
+              "global, 1, 10, bounce"
+              "border, 1, 2, quick"
+              "windows, 1, 3, bounce"
+              "fade, 1, 1.5, bounce"
+              "layers, 1, 4, bounce"
+              "fadeLayers, 1, 2, bounce"
+              "workspaces, 1, 3.5, bounce, slide"
+              "specialWorkspace, 1, 2.5, bounce, slidefadevert"
             ];
           };
 
