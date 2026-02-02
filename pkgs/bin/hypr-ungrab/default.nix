@@ -6,7 +6,10 @@
 hyprlandPlugins.mkHyprlandPlugin {
   pluginName = "hypr-ungrab";
   version = "1.0.0";
-  src = ./.;
+  src = builtins.path {
+    path = ./.;
+    name = "hypr-ungrab-src";
+  };
 
   inherit (hyprland) nativeBuildInputs;
 

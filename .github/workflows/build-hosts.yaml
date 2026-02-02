@@ -68,6 +68,12 @@ jobs:
           skip-cache: true
           nothing-but-nix: false
 
+      - name: Run nix-eval-jobs
+        run: |
+          nix run nixpkgs#nix-eval-jobs -- --flake ".#hosts" \
+                  --check-cache-status \
+                  --force-recurse --gc-roots-dir /tmp/test | jq
+
       - id: set-matrix
         name: Generate Matrix
         run: |

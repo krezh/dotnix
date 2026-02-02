@@ -7,7 +7,7 @@
   installShellFiles,
   ...
 }:
-rustPlatform.buildRustPackage rec {
+rustPlatform.buildRustPackage {
   pname = "gulp";
   version = "0.1.0";
 
