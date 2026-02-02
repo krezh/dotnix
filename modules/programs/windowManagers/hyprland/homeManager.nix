@@ -75,8 +75,9 @@
           enableXdgAutostart = true;
           variables = [ "--all" ];
         };
-        plugins = with pkgs.hyprlandPlugins; [
-          hyprexpo
+        plugins = [
+          pkgs.hyprlandPlugins.hyprexpo
+          pkgs.hypr-ungrab
         ];
 
         settings = {
@@ -385,6 +386,7 @@
           ];
 
           bindd = [
+            "${mainMod},${mainMod}_L,Release mouse grab,releasepointer"
             "${mainMod},ESCAPE,Logout Menu,exec,${logout.run}"
             "${mainMod},L,Lockscreen,exec,${hyprlock.run}"
             "${mainMod},R,Application launcher,exec,${launcher.run}"

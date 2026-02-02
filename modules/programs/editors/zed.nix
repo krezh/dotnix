@@ -39,18 +39,6 @@
           relative_line_numbers = "disabled";
           tab_size = 2;
           minimap.show = "never";
-          context_servers = {
-            nixos = {
-              enabled = true;
-              source = "custom";
-              command = "nix";
-              args = [
-                "run"
-                "github:utensils/mcp-nixos"
-                "--"
-              ];
-            };
-          };
           edit_predictions.mode = "eager";
           agent = {
             enabled = true;
@@ -88,8 +76,8 @@
           lsp = {
             nixd = {
               settings = {
-                formatting.command = [ "${lib.getExe pkgs.nixfmt}" ];
                 nixpkgs.expr = "import ${inputs.nixpkgs} { }";
+                formatter.command = [ (lib.getExe pkgs.treefmt) ];
                 options = {
                   nixos.expr = ''
                     (let
@@ -115,7 +103,7 @@
               };
             };
             nil.settings.formatting = {
-              command = [ "${lib.getExe pkgs.nixfmt}" ];
+              command = [ (lib.getExe pkgs.treefmt) ];
             };
             yaml-language-server.settings = {
               yaml.schemas = {

@@ -1,16 +1,12 @@
 {
   flake.modules.homeManager.terminal =
-    {
-      pkgs,
-      config,
-      ...
-    }:
+    { pkgs, config, ... }:
     {
       programs.kitty = {
         enable = true;
         package = pkgs.kitty;
         settings = {
-          cursor_trail = 1;
+          cursor_trail = 0;
           cursor_shape = "block";
           shell_integration = "no-cursor";
           input_delay = 2;
