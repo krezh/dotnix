@@ -1,7 +1,4 @@
 { inputs, ... }:
-let
-  user = "krezh";
-in
 {
   flake.modules.nixos.thor =
     { pkgs, lib, ... }:
@@ -17,7 +14,7 @@ in
         niri
         ai
         docker
-        inputs.self.modules.nixos.${user}
+        wooting
       ];
 
       nixpkgs.overlays = [
@@ -97,7 +94,6 @@ in
       ];
 
       # GNOME keyring
-      security.pam.services.${user}.enableGnomeKeyring = true;
       security.pam.services.sddm.enableGnomeKeyring = true;
       security.pam.services.hyprlock.enableGnomeKeyring = true;
       security.pam.services.login.enableGnomeKeyring = true;
@@ -140,7 +136,6 @@ in
         };
         systemPackages = with pkgs; [
           age-plugin-yubikey
-          wootility
           nautilus
           libnotify
           pwvucontrol
@@ -206,26 +201,5 @@ in
         freeMemThreshold = 5;
         enableNotifications = true;
       };
-
-      # # Wooting keyboard udev rules
-      services.udev.extraRules = ''
-        # Wooting One Legacy
-        SUBSYSTEM=="hidraw", ATTRS{idVendor}=="03eb", ATTRS{idProduct}=="ff01", TAG+="uaccess"
-        SUBSYSTEM=="usb", ATTRS{idVendor}=="03eb", ATTRS{idProduct}=="ff01", TAG+="uaccess"
-
-        # Wooting One update mode
-        SUBSYSTEM=="hidraw", ATTRS{idVendor}=="03eb", ATTRS{idProduct}=="2402", TAG+="uaccess"
-
-        # Wooting Two Legacy
-        SUBSYSTEM=="hidraw", ATTRS{idVendor}=="03eb", ATTRS{idProduct}=="ff02", TAG+="uaccess"
-        SUBSYSTEM=="usb", ATTRS{idVendor}=="03eb", ATTRS{idProduct}=="ff02", TAG+="uaccess"
-
-        # Wooting Two update mode
-        SUBSYSTEM=="hidraw", ATTRS{idVendor}=="03eb", ATTRS{idProduct}=="2403", TAG+="uaccess"
-
-        # Generic Wooting devices
-        SUBSYSTEM=="hidraw", ATTRS{idVendor}=="31e3", TAG+="uaccess"
-        SUBSYSTEM=="usb", ATTRS{idVendor}=="31e3", TAG+="uaccess"
-      '';
     };
 }

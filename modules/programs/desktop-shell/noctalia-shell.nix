@@ -52,22 +52,6 @@
             showOutline = false;
             useSeparateOpacity = false;
             widgets = {
-              center = [
-                {
-                  characterCount = 2;
-                  colorizeIcons = false;
-                  enableScrollWheel = true;
-                  followFocusedScreen = false;
-                  groupedBorderOpacity = 1;
-                  hideUnoccupied = true;
-                  iconScale = 0.8;
-                  id = "Workspace";
-                  labelMode = "index";
-                  showApplications = false;
-                  showLabelsOnlyWhenOccupied = true;
-                  unfocusedIconsOpacity = 1;
-                }
-              ];
               left = [
                 {
                   compactMode = false;
@@ -85,11 +69,20 @@
                   usePrimaryColor = false;
                 }
                 {
+                  colorizeIcons = true;
+                  hideMode = "hidden";
+                  id = "ActiveWindow";
+                  maxWidth = 145;
+                  scrollingMode = "hover";
+                  showIcon = false;
+                  useFixedWidth = false;
+                }
+                {
                   compactMode = false;
                   compactShowAlbumArt = true;
                   compactShowVisualizer = false;
                   hideMode = "hidden";
-                  hideWhenIdle = false;
+                  hideWhenIdle = true;
                   id = "MediaMini";
                   maxWidth = 300;
                   panelShowAlbumArt = true;
@@ -102,14 +95,21 @@
                   useFixedWidth = true;
                   visualizerType = "linear";
                 }
+              ];
+              center = [
                 {
-                  colorizeIcons = true;
-                  hideMode = "hidden";
-                  id = "ActiveWindow";
-                  maxWidth = 145;
-                  scrollingMode = "hover";
-                  showIcon = false;
-                  useFixedWidth = false;
+                  characterCount = 2;
+                  colorizeIcons = false;
+                  enableScrollWheel = true;
+                  followFocusedScreen = false;
+                  groupedBorderOpacity = 1;
+                  hideUnoccupied = true;
+                  iconScale = 0.8;
+                  id = "Workspace";
+                  labelMode = "index";
+                  showApplications = false;
+                  showLabelsOnlyWhenOccupied = true;
+                  unfocusedIconsOpacity = 1;
                 }
               ];
               right = [

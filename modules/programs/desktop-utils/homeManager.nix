@@ -28,6 +28,7 @@
         geary
         file-roller
         proton-pass
+        proton-pass-cli
         evince
       ];
     };

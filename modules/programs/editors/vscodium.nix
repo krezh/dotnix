@@ -240,7 +240,7 @@
               serverSettings = {
                 nixd = {
                   nixpkgs.expr = "import ${inputs.nixpkgs} { }";
-                  formatter.command = [ (lib.getExe pkgs.treefmt) ];
+                  # formatter.command = [ (lib.getExe pkgs.treefmt) ];
                   options = {
                     nixos.expr = ''
                       (let

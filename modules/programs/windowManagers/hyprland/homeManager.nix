@@ -27,7 +27,7 @@
 
       browser = mkProg config.programs.zen-browser.package;
       fileManager = mkProg pkgs.nautilus;
-      passwords = mkProg pkgs.bww;
+      passwords = mkProg pkgs.proton-pass;
       sysMonitor = mkProg pkgs.mission-center;
       logout = mkProg pkgs.wlogout;
       hyprlock.run = "${lib.getExe config.programs.hyprlock.package} --immediate";
@@ -77,7 +77,6 @@
         };
         plugins = [
           pkgs.hyprlandPlugins.hyprexpo
-          pkgs.hypr-ungrab
         ];
 
         settings = {
@@ -302,6 +301,7 @@
             "tag +browsers, match:class ^(chromium)$"
             "tag +browsers, match:class ^(chrome)$"
             "tag +browsers, match:class ^(vivaldi)$"
+            "tag +browsers, match:class ^(helium)$"
             "tag +media, match:class ^(mpv)$"
             "tag +media, match:class ^(vlc)$"
             "tag +media, match:class ^(youtube)$"
@@ -386,7 +386,6 @@
           ];
 
           bindd = [
-            "${mainMod},${mainMod}_L,Release mouse grab,releasepointer"
             "${mainMod},ESCAPE,Logout Menu,exec,${logout.run}"
             "${mainMod},L,Lockscreen,exec,${hyprlock.run}"
             "${mainMod},R,Application launcher,exec,${launcher.run}"

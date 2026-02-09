@@ -4,6 +4,11 @@ let
 in
 {
   flake.modules.nixos.thor = {
+    imports = with inputs.self.modules.homeManager; [
+      inputs.self.modules.nixos.${user}
+    ];
+    security.pam.services.${user}.enableGnomeKeyring = true;
+
     home-manager.users.${user} = {
       imports = with inputs.self.modules.homeManager; [
         system-desktop

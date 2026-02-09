@@ -17,6 +17,10 @@
           auto-update = "off";
           gtk-single-instance = true;
           quit-after-last-window-closed = false;
+          selection-clear-on-copy = true;
+          shell-integration-features = "no-cursor";
+          cursor-style = "underline";
+          app-notifications = "no-clipboard-copy";
         };
       };
     };

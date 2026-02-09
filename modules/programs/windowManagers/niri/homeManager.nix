@@ -307,15 +307,6 @@
             "open-floating" = true;
           }
 
-          # Bitwarden extension popup
-          {
-            matches = [ { title = "^.*Bitwarden Password Manager.*$"; } ];
-            "open-floating" = true;
-            "default-column-width" = {
-              proportion = 0.5;
-            };
-          }
-
           # vipsdisp image viewer
           {
             matches = [ { "app-id" = "^org\\.libvips\\.vipsdisp$"; } ];

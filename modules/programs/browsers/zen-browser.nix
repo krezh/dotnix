@@ -82,8 +82,13 @@
               wikipedia.metaData.hidden = true;
               perplexity.metaData.hidden = true;
               "Kagi" = {
-                urls = [ { template = "https://kagi.com/search?q={searchTerms}"; } ];
-                SuggestURLTemplate = "https://kagi.com/api/autosuggest?q=%s";
+                urls = [
+                  { template = "https://kagi.com/search?q={searchTerms}"; }
+                  {
+                    type = "application/x-suggestions+json";
+                    template = "https://kagi.com/api/autosuggest?q={searchTerms}";
+                  }
+                ];
                 icon = "https://help.kagi.com/favicon-16x16.png";
                 updateInterval = 24 * 60 * 60 * 1000;
                 definedAliases = [ "!kg" ];
@@ -133,7 +138,7 @@
                     ];
                   }
                 ];
-                icon = "''${pkgs.nixos-icons}/share/icons/hicolor/scalable/apps/nix-snowflake.svg";
+                icon = "${pkgs.nixos-icons}/share/icons/hicolor/scalable/apps/nix-snowflake.svg";
                 definedAliases = [ "!hm" ];
               };
               "Github Code Search" = {
@@ -149,6 +154,20 @@
                   }
                 ];
                 definedAliases = [ "!gh" ];
+              };
+              "ProtonDB" = {
+                urls = [
+                  {
+                    template = "https://www.protondb.com/search";
+                    params = [
+                      {
+                        name = "q";
+                        value = "{searchTerms}";
+                      }
+                    ];
+                  }
+                ];
+                definedAliases = [ "!pd" ];
               };
             };
             order = [
@@ -280,11 +299,11 @@
             "privacy.partition.network_state" = false;
             "browser.safebrowsing.downloads.remote.enabled" = false;
 
-            # Disable AI & suggestions
+            # AI & suggestions
             "browser.ml.chat.enabled" = false;
-            "browser.search.suggest.enabled" = false;
-            "browser.urlbar.suggest.searches" = false;
-            "browser.findBar.suggest.enabled" = false;
+            "browser.search.suggest.enabled" = true;
+            "browser.urlbar.suggest.searches" = true;
+            "browser.findBar.suggest.enabled" = true;
 
             # Zen theme
             "zen.theme.accent-color" = "#ffffff90";
