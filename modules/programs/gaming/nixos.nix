@@ -18,21 +18,21 @@
           lsfg-vk-ui
           protonplus
           faugus-launcher
+          ps4-pkg-tools
+          shadps4-qtlauncher
+          bblauncher
         ];
         sessionVariables = {
           STEAM_EXTRA_COMPAT_TOOLS_PATHS = "$HOME/.steam/root/compatibilitytools.d";
         };
       };
 
-      services.lact = {
-        enable = true;
+      services = {
+        pipewire.lowLatency.enable = true;
+        lact.enable = true;
       };
 
       programs = {
-        gamescope = {
-          enable = true;
-          capSysNice = false;
-        };
         gamemode = {
           enable = true;
           enableRenice = true;
@@ -61,7 +61,5 @@
           platformOptimizations.enable = true;
         };
       };
-
-      services.pipewire.lowLatency.enable = true;
     };
 }

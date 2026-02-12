@@ -30,7 +30,6 @@ in
         intel
         desktop-utils
         openssh
-        wireplumber
         hyprland
         ai
         docker

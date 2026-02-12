@@ -1,5 +1,5 @@
 {
-  flake.modules.nixos.mount =
+  flake.modules.nixos.modules =
     {
       config,
       lib,

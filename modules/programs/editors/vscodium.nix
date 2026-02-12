@@ -42,7 +42,6 @@
               "nefrob.vscode-just-syntax"
               "docker.docker"
               "github.vscode-github-actions"
-              "github.copilot-chat"
               "gruntfuggly.todo-tree"
               "timonwong.shellcheck"
               "tamasfe.even-better-toml"
@@ -80,11 +79,9 @@
                 autoLockGroups."mainThreadWebview-markdown.preview" = true;
               };
               editorAssociations = {
-                "*.copilotmd" = "vscode.markdown.preview.editor";
                 "*.qrc" = "qt-core.qrcEditor";
-                "{git,gitlens,chat-editing-snapshot-text-model,copilot,git-graph,git-graph-3}:/**/*.qrc" =
-                  "default";
-                "{git,gitlens,chat-editing-snapshot-text-model,copilot,git-graph,git-graph-3}:/**/*.ui" = "default";
+                "{git,gitlens,chat-editing-snapshot-text-model,git-graph,git-graph-3}:/**/*.qrc" = "default";
+                "{git,gitlens,chat-editing-snapshot-text-model,git-graph,git-graph-3}:/**/*.ui" = "default";
               };
             };
             breadcrumbs.enabled = true;
@@ -217,10 +214,6 @@
               editing.confirmEditRequestRemoval = false;
               commandCenter.enabled = true;
               disableAIFeatures = false;
-            };
-            github.copilot = {
-              editor.enableAutoCompletions = false;
-              enable."*" = false;
             };
             claudeCode = {
               useTerminal = false;

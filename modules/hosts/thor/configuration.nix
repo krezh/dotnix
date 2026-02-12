@@ -9,7 +9,6 @@
         amd
         openssh
         gaming
-        wireplumber
         hyprland
         niri
         ai

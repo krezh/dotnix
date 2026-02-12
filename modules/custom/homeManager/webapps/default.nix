@@ -1,5 +1,5 @@
 {
-  flake.modules.homeManager.webapps =
+  flake.modules.homeManager.modules =
     {
       config,
       lib,

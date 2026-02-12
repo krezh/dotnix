@@ -1,11 +1,7 @@
 { inputs, ... }:
 {
   flake.modules.homeManager.kubernetes =
-    {
-      pkgs,
-      lib,
-      ...
-    }:
+    { pkgs, lib, ... }:
     {
       home.file.".kube/kuberc".text = lib.generators.toYAML { } {
         apiVersion = "kubectl.config.k8s.io/v1beta1";
@@ -25,11 +21,13 @@
 
       home.packages = with pkgs; [
         talosctl
+        talswitcher
         kubectl
-        kubectl-cnpg
         kubectl-node-shell
         kubectl-klock
         kubectl-df-pv
+        kubectl-pgo
+        kubectl-rook-ceph
         kustomize
         fluxcd
         stern
@@ -38,13 +36,10 @@
         kubernetes-helmPlugins.helm-diff
         kind
         kubestr
-        kubectl-pgo
         cilium-cli
-        kubectl-rook-ceph
         k8s-format
-        kubevirt
         kubectx
-        talswitcher
+        klim
         inputs.kauth.packages.${pkgs.stdenv.hostPlatform.system}.kauth
       ];
 

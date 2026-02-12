@@ -1,5 +1,5 @@
 {
-  flake.modules.homeManager.kopia =
+  flake.modules.homeManager.modules =
     {
       config,
       pkgs,

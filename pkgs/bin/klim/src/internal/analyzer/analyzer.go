@@ -286,7 +286,7 @@ func filterRunningPods(pods []corev1.Pod) ([]corev1.Pod, []skippedPod) {
 			continue
 		}
 
-		// Skip pods in crash loop or OOMKilled state
+		// Skip pods in crash loop state
 		isHealthy := true
 		skipReason := ""
 
@@ -296,14 +296,6 @@ func filterRunningPods(pods []corev1.Pod) ([]corev1.Pod, []skippedPod) {
 				if reason == "CrashLoopBackOff" {
 					isHealthy = false
 					skipReason = "CrashLoopBackOff"
-					break
-				}
-			}
-			if containerStatus.LastTerminationState.Terminated != nil {
-				reason := containerStatus.LastTerminationState.Terminated.Reason
-				if reason == "OOMKilled" {
-					isHealthy = false
-					skipReason = "Recently OOMKilled"
 					break
 				}
 			}

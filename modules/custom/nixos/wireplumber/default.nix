@@ -1,5 +1,5 @@
 {
-  flake.modules.nixos.wireplumber =
+  flake.modules.nixos.modules =
     {
       config,
       lib,

@@ -1,9 +1,7 @@
-{ inputs, ... }:
 {
   flake.modules.homeManager.krezh =
     { config, ... }:
     {
-      imports = [ inputs.self.modules.homeManager.git ];
       programs.git-config = {
         enable = true;
         userName = "Krezh";

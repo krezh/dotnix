@@ -1,4 +1,3 @@
-{ inputs, ... }:
 let
   user = "krezh";
 in
@@ -7,7 +6,6 @@ in
     home-manager.users.${user} =
       { config, ... }:
       {
-        imports = [ inputs.self.modules.homeManager.kopia ];
         services.kopia = {
           enable = true;
           repository = {

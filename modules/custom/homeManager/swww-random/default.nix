@@ -1,5 +1,5 @@
 {
-  flake.modules.homeManager.swww =
+  flake.modules.homeManager.modules =
     {
       config,
       pkgs,
@@ -12,7 +12,7 @@
       swww-random = pkgs.buildGoModule rec {
         pname = "swww-random";
         version = "1.0.0";
-        src = ./swww-random;
+        src = ./src;
         vendorHash = null;
         meta = with lib; {
           description = "Random wallpaper setter for swww";

@@ -25,7 +25,7 @@
           toggle = proc: cmd: "pkill ${proc} || ${base} --class floatTerm -e ${cmd}";
         };
 
-      browser = mkProg config.programs.zen-browser.package;
+      browser.run = "${lib.getExe config.programs.wlr-which-key.package} browser";
       fileManager = mkProg pkgs.nautilus;
       passwords = mkProg pkgs.proton-pass;
       sysMonitor = mkProg pkgs.mission-center;

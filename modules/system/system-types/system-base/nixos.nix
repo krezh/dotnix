@@ -16,6 +16,7 @@
         generic.var
         nixos.shell
         nixos.catppuccin
+        nixos.modules
       ]);
 
       nixpkgs = {

@@ -16,6 +16,7 @@
         generic.var
         homeManager.shell
         homeManager.catppuccin
+        homeManager.modules
       ]);
 
       home = {

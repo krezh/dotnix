@@ -1,9 +1,7 @@
-{ inputs, ... }:
 {
   flake.modules.nixos.thor =
     { config, ... }:
     {
-      imports = [ inputs.self.modules.nixos.mount ];
       nixosModules.mount = {
         enable = true;
         mounts = {
