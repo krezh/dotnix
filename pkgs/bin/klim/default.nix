@@ -1,29 +1,18 @@
-{
-  lib,
-  buildGoModule,
-}:
-
-buildGoModule {
+{ pkgs, go-bin, ... }:
+pkgs.buildGoApplication rec {
   pname = "klim";
   version = "0.1.0";
-
   src = builtins.path {
     path = ./src;
     name = "klim-src";
   };
 
-  vendorHash = "sha256-A9CEDNjPwNWaKv0ASKYdTPDZ+APv+dWn6dCY/EjLpT8=";
+  go = go-bin.latestStable;
+  modules = "${src}/govendor.toml";
 
   ldflags = [
     "-s"
     "-w"
-    "-X main.version=0.1.0"
+    "-X main.version=${version}"
   ];
-
-  meta = with lib; {
-    description = "Kubernetes Resource Recommender";
-    homepage = "https://github.com/krezh/klim";
-    license = licenses.mit;
-    mainProgram = "klim";
-  };
 }
