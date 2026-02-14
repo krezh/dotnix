@@ -32,7 +32,7 @@ runs:
   steps:
     - name: Nothing But Nix
       if: inputs.nothing-but-nix == 'true'
-      uses: wimpysworld/nothing-but-nix@dd6ef566962bfa4656301706035da97ebbe90e9b # v9
+      uses: wimpysworld/nothing-but-nix@687c797a730352432950c707ab493fcc951818d7 # v10
       with:
         hatchet-protocol: cleave
         nix-permission-edict: true
