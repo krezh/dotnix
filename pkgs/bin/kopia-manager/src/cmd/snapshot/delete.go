@@ -22,20 +22,24 @@ var DeleteCmd = &cobra.Command{
 	Long: `Delete snapshots from the repository.
 
 Without --all flag: Deletes a specific snapshot by ID
-With --all flag: Deletes all snapshots from a backup group
+With --all flag: Deletes all snapshots, optionally filtered by --host and --user
 
 Examples:
-  km delete 12e9406f405955816e93    # Delete specific snapshot
-  km delete --all downloads          # Delete all snapshots from "downloads" backup group
-  km delete --all                    # Delete ALL snapshots (requires confirmation)`,
+  km delete 12e9406f405955816e93                     # Delete specific snapshot
+  km delete --all downloads                          # Delete all snapshots from "downloads" backup group
+  km delete --all                                    # Delete ALL snapshots (requires confirmation)
+  km delete --all --host default --user attic        # Delete all snapshots for a specific host/user`,
 	Args: cobra.MaximumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		km := manager.NewKopiaManager()
 
 		if deleteAll {
+			hostname, _ := cmd.Flags().GetString("host")
+			username, _ := cmd.Flags().GetString("user")
+
 			if len(args) == 0 {
-				// Delete ALL snapshots
-				if err := km.DeleteSnapshot("", true); err != nil {
+				// Delete all snapshots, optionally filtered by host/user
+				if err := km.DeleteSnapshot("", true, hostname, username); err != nil {
 					log.Fatal("Delete all failed", "error", err)
 				}
 			} else {
@@ -62,7 +66,7 @@ Examples:
 			return
 		}
 
-		if err := km.DeleteSnapshot(snapshotID, false); err != nil {
+		if err := km.DeleteSnapshot(snapshotID, false, "", ""); err != nil {
 			log.Fatal("Delete failed", "error", err)
 		}
 	},

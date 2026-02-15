@@ -22,7 +22,6 @@ in
         hyprland
         openssh
         battery
-        mount
         inputs.self.modules.nixos.${user}
         inputs.jovian.nixosModules.default
       ];

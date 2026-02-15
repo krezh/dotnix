@@ -24,8 +24,8 @@ func (km *KopiaManager) RestoreSnapshot(snapshotID, targetDir string) error {
 }
 
 // DeleteSnapshot delegates to SnapshotManager
-func (km *KopiaManager) DeleteSnapshot(snapshotID string, allFlag bool) error {
-	return km.Snapshots().DeleteSnapshot(snapshotID, allFlag)
+func (km *KopiaManager) DeleteSnapshot(snapshotID string, allFlag bool, hostname, username string) error {
+	return km.Snapshots().DeleteSnapshot(snapshotID, allFlag, hostname, username)
 }
 
 // DeleteBackupGroup delegates to SnapshotManager

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"sort"
+	"strings"
 
 	"kopia-manager/internal/manager"
 	"kopia-manager/internal/ui"
@@ -54,42 +55,44 @@ var ListCmd = &cobra.Command{
 			return
 		}
 
-		// Group snapshots by host+user combination
+		// Group snapshots by backup name + host@user combination
 		groups := make(map[string][]manager.SnapshotSummary)
 		for _, snap := range snapshots {
-			name := util.FormatHostUserGroupKey(snap.Hostname, snap.Username)
-			groups[name] = append(groups[name], snap)
+			backupName := util.ExtractBackupName(snap)
+			hostUserKey := util.FormatHostUserGroupKey(snap.Hostname, snap.Username)
+			groupKey := backupName + "|" + hostUserKey
+			groups[groupKey] = append(groups[groupKey], snap)
 		}
 
-		// Sort group names
-		var groupNames []string
-		for name := range groups {
-			groupNames = append(groupNames, name)
+		// Sort group keys
+		var groupKeys []string
+		for key := range groups {
+			groupKeys = append(groupKeys, key)
 		}
-		sort.Strings(groupNames)
+		sort.Strings(groupKeys)
 
-		for _, name := range groupNames {
-			snaps := groups[name]
+		for _, key := range groupKeys {
+			snaps := groups[key]
 			// Sort by time descending
 			sort.Slice(snaps, func(i, j int) bool {
 				return snaps[i].StartTime.After(snaps[j].StartTime)
 			})
 
-			title := fmt.Sprintf("%s (%d snapshot%s)", name, len(snaps), func() string {
-				if len(snaps) == 1 {
-					return ""
-				}
-				return "s"
-			}())
+			parts := strings.SplitN(key, "|", 2)
+			backupName, hostUserKey := parts[0], parts[1]
 
-			headers := []string{"ID", "Host", "User", "Path", "Time", "Size"}
+			pluralSuffix := "s"
+			if len(snaps) == 1 {
+				pluralSuffix = ""
+			}
+			title := fmt.Sprintf("%s @ %s (%d snapshot%s)", backupName, hostUserKey, len(snaps), pluralSuffix)
+
+			headers := []string{"ID", "Path", "Time", "Size"}
 			var rows [][]string
 
 			for _, snap := range snaps {
 				rows = append(rows, []string{
 					snap.ID,
-					snap.Hostname,
-					snap.Username,
 					ui.ShortenPath(snap.Source),
 					snap.StartTime.Format("2006-01-02 15:04:05"),
 					ui.FormatSize(snap.TotalSize),

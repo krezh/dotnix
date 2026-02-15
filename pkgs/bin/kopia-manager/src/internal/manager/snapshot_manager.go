@@ -285,8 +285,10 @@ func (sm *SnapshotManager) RestoreSnapshot(snapshotID, targetDir string) error {
 	return nil
 }
 
-// DeleteSnapshot deletes a specific snapshot or all snapshots if allFlag is true
-func (sm *SnapshotManager) DeleteSnapshot(snapshotID string, allFlag bool) error {
+// DeleteSnapshot deletes a specific snapshot or all snapshots if allFlag is true.
+//
+// When allFlag is true, hostname and username optionally filter which snapshots are deleted.
+func (sm *SnapshotManager) DeleteSnapshot(snapshotID string, allFlag bool, hostname, username string) error {
 	ctx := context.Background()
 	r, err := sm.km.openRepository(ctx)
 	if err != nil {
@@ -302,6 +304,21 @@ func (sm *SnapshotManager) DeleteSnapshot(snapshotID string, allFlag bool) error
 			sources, err := snapshot.ListSources(ctx, r)
 			if err != nil {
 				return fmt.Errorf("failed to list sources: %w", err)
+			}
+
+			// Filter sources by hostname and username
+			if hostname != "" || username != "" {
+				filtered := sources[:0]
+				for _, source := range sources {
+					if hostname != "" && source.Host != hostname {
+						continue
+					}
+					if username != "" && source.UserName != username {
+						continue
+					}
+					filtered = append(filtered, source)
+				}
+				sources = filtered
 			}
 
 			var allSnapshots []*snapshot.Manifest
@@ -410,6 +427,13 @@ func (sm *SnapshotManager) DeleteBackupGroup(backupName string) error {
 			return nil
 		}
 
+		// Collect unique sources affected by the deletion
+		affectedSources := make(map[string]snapshot.SourceInfo)
+		for _, snap := range matchingSnapshots {
+			sourceKey := fmt.Sprintf("%s@%s:%s", snap.Source.UserName, snap.Source.Host, snap.Source.Path)
+			affectedSources[sourceKey] = snap.Source
+		}
+
 		// Delete matching snapshots
 		for _, snap := range matchingSnapshots {
 			err := w.DeleteManifest(ctx, snap.ID)
@@ -419,6 +443,35 @@ func (sm *SnapshotManager) DeleteBackupGroup(backupName string) error {
 				ui.Successf("Deleted snapshot %s", snap.ID)
 			}
 		}
+
+		// Clean up orphaned source policies for sources with no remaining snapshots
+		for _, source := range affectedSources {
+			remaining, err := snapshot.ListSnapshots(ctx, r, source)
+			if err != nil {
+				ui.Errorf("Failed to check remaining snapshots for %s: %v", source.Path, err)
+				continue
+			}
+			if len(remaining) > 0 {
+				continue
+			}
+
+			_, err = policy.GetDefinedPolicy(ctx, r, source)
+			if err == policy.ErrPolicyNotFound {
+				ui.Infof("Source %s is now empty (no policy to remove).", source.Path)
+				continue
+			}
+			if err != nil {
+				ui.Errorf("Failed to check policy for %s: %v", source.Path, err)
+				continue
+			}
+
+			if err := policy.RemovePolicy(ctx, w, source); err != nil {
+				ui.Errorf("Failed to remove policy for %s: %v", source.Path, err)
+			} else {
+				ui.Successf("Removed policy for empty source %s", source.Path)
+			}
+		}
+
 		return nil
 	})
 }
