@@ -1,4 +1,3 @@
-{ inputs, ... }:
 let
   user = "krezh";
 in
@@ -28,7 +27,7 @@ in
               {
                 key = "h";
                 desc = "Helium";
-                cmd = lib.getExe inputs.helium.packages.${pkgs.stdenv.hostPlatform.system}.helium;
+                cmd = lib.getExe pkgs.helium;
               }
               {
                 key = "z";

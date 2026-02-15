@@ -10,7 +10,6 @@
         openssh
         gaming
         hyprland
-        niri
         docker
         wooting
       ];

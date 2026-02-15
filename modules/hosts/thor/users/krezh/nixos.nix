@@ -24,7 +24,6 @@ in
 
         # Desktop environment
         hyprland
-        niri
         desktop-shell
         desktop-utils
 

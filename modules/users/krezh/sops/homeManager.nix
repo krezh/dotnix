@@ -16,6 +16,8 @@
           "github/mcp_token".path = "${config.xdg.configHome}/github/mcp_token";
           "garage/accessID" = { };
           "garage/accessSecret" = { };
+          "r2/accessID" = { };
+          "r2/accessSecret" = { };
         };
       };
       home.sessionVariables = {

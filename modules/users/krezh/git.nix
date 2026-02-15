@@ -1,31 +1,12 @@
 {
   flake.modules.homeManager.krezh =
-    { config, pkgs, ... }:
     {
-      programs.jujutsu = {
-        enable = true;
-        settings = {
-          user = {
-            name = "Krezh";
-            email = "krezh@users.noreply.github.com";
-          };
-          ui = {
-            editor = "nvim";
-            paginate = "never";
-            merge-editor = ":builtin";
-            default-command = [
-              "log"
-              "--reversed"
-            ];
-          };
-          signing = {
-            behavior = "own";
-            backend = "ssh";
-            key = config.sops.secrets."ssh/privkey".path;
-          };
-        };
-      };
-
+      config,
+      pkgs,
+      lib,
+      ...
+    }:
+    {
       programs.git = {
         enable = true;
         includes = [
@@ -54,13 +35,13 @@
           tag.forceSignAnnotated = true;
           init.defaultBranch = "main";
           url."ssh://git@github.com/".pushInsteadOf = "https://github.com/";
-          merge.tool = "meld";
+          merge.tool = lib.getExe pkgs.meld;
         };
       };
 
       programs.lazygit.enable = true;
 
-      programs.fish.shellAbbrs.lg = "lazygit";
+      programs.fish.shellAbbrs.lg = lib.getExe config.programs.lazygit.package;
 
       home.packages = [
         pkgs.meld

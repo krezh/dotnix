@@ -119,11 +119,6 @@
       inputs.treefmt-nix.follows = "treefmt-nix";
     };
 
-    helium = {
-      url = "git+https://github.com/AlvaroParker/helium-nix?shallow=1";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-
     niri = {
       url = "git+https://github.com/sodiboo/niri-flake?shallow=1";
       inputs.nixpkgs.follows = "nixpkgs";
