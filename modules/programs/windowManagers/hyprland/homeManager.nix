@@ -17,12 +17,12 @@
 
       term =
         let
-          base = lib.getExe pkgs.kitty;
+          base = lib.getExe pkgs.ghostty;
         in
         {
-          run = "${base}";
-          float = cmd: "${base} --class floatTerm -e ${cmd}";
-          toggle = proc: cmd: "pkill ${proc} || ${base} --class floatTerm -e ${cmd}";
+          run = "${base} +new-window";
+          float = cmd: "${base} --class=floatTerm -e ${cmd}";
+          toggle = proc: cmd: "pkill ${proc} || ${base} --class=floatTerm -e ${cmd}";
         };
 
       browser.run = "${lib.getExe config.programs.wlr-which-key.package} browser";

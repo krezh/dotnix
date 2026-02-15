@@ -19,8 +19,11 @@
           quit-after-last-window-closed = false;
           selection-clear-on-copy = true;
           shell-integration-features = "no-cursor";
-          cursor-style = "underline";
+          cursor-style = "block";
           app-notifications = "no-clipboard-copy";
+          resize-overlay = "never";
+          window-padding-x = 3;
+          window-padding-y = 3;
         };
       };
     };

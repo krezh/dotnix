@@ -20,7 +20,6 @@ in
       imports = with inputs.self.modules.nixos; [
         system-base
         inputs.self.modules.nixos.${user}
-        ai
         inputs.nixos-wsl.nixosModules.wsl
         (modulesPath + "/profiles/minimal.nix")
       ];

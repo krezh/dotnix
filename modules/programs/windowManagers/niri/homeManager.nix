@@ -8,7 +8,7 @@
       ...
     }:
     let
-      termBin = lib.getExe pkgs.kitty;
+      termBin = lib.getExe pkgs.ghostty;
       launcherBin = "${pkgs.netcat}/bin/nc -U /run/user/$(id -u)/walker/walker.sock";
       shellBin = "${lib.getExe config.programs.noctalia-shell.package} ipc call";
       clipboardBin = "${lib.getExe config.programs.walker.package} -m clipboard";
@@ -368,7 +368,7 @@
           };
 
           # Application Launchers
-          "Mod+Return".action = spawn termBin;
+          "Mod+Return".action = spawn termBin "+new-window";
           "Mod+R".action = spawn-sh launcherBin;
           "Mod+B".action = spawn (lib.getExe config.programs.zen-browser.package);
           "Mod+E".action = spawn (lib.getExe pkgs.nautilus);
@@ -379,7 +379,7 @@
           "Mod+Escape".action = spawn (lib.getExe pkgs.wlogout);
           "Ctrl+Shift+Escape".action = spawn (lib.getExe pkgs.resources);
           "Mod+G".action =
-            spawn-sh "pkill ${audioControlName} || ${termBin} --class audioControl -e ${audioControlBin} -m 100";
+            spawn-sh "pkill ${audioControlName} || ${termBin} --class=audioControl --command=${audioControlBin} -m 100";
 
           # Window Management
           "Mod+Q".action = actions."close-window";

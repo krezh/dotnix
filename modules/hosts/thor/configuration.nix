@@ -11,7 +11,6 @@
         gaming
         hyprland
         niri
-        ai
         docker
         wooting
       ];

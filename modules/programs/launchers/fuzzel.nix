@@ -16,7 +16,7 @@
             font = "${config.var.fonts.sans}:weight=bold:size=14";
             line-height = 28;
             fields = "name,generic,comment,categories,filename,keywords";
-            terminal = lib.getExe pkgs.kitty;
+            terminal = lib.getExe pkgs.ghostty;
             exit-on-keyboard-focus-loss = true;
             prompt = "'   '";
             icon-theme = "Papirus-Dark";

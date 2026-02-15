@@ -31,7 +31,6 @@ in
         desktop-utils
         openssh
         hyprland
-        ai
         docker
         inputs.self.modules.nixos.${user}
       ];

@@ -77,7 +77,7 @@
             nixd = {
               settings = {
                 nixpkgs.expr = "import ${inputs.nixpkgs} { }";
-                formatter.command = [ (lib.getExe pkgs.treefmt) ];
+                formatter.command = [ (lib.getExe pkgs.nixfmt) ];
                 options = {
                   nixos.expr = ''
                     (let
@@ -103,7 +103,10 @@
               };
             };
             nil.settings.formatting = {
-              command = [ (lib.getExe pkgs.treefmt) ];
+              #command = [ (lib.getExe pkgs.treefmt) ];
+            };
+            nixd.settings.formatting = {
+              command = [ (lib.getExe pkgs.nixfmt) ];
             };
             yaml-language-server.settings = {
               yaml.schemas = {
