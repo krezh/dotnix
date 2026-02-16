@@ -83,7 +83,7 @@ runs:
           ${{ inputs.nothing-but-nix == 'true' && 'build-dir = /nix/build' || '' }}
 
     - name: Setup Cachix
-      if: inputs.skip-cache != 'true'
+      if: inputs.skip-cache != 'true' && inputs.cachix-cache != '' && inputs.cachix-token != ''
       uses: cachix/cachix-action@3ba601ff5bbb07c7220846facfa2cd81eeee15a1 # v16
       with:
         name: ${{ inputs.cachix-cache }}
@@ -91,7 +91,7 @@ runs:
         skipPush: ${{ inputs.skip-push }}
 
     - name: Setup Attic
-      if: inputs.skip-cache != 'true'
+      if: inputs.skip-cache != 'true' && inputs.attic-endpoint != '' && inputs.attic-cache != '' && inputs.attic-token != ''
       uses: ryanccn/attic-action@7fbafba3978e86e585cb68a82c08b30f3672b62d # v0.4.0
       with:
         endpoint: ${{ inputs.attic-endpoint }}
