@@ -370,7 +370,7 @@
           # Application Launchers
           "Mod+Return".action = spawn termBin "+new-window";
           "Mod+R".action = spawn-sh launcherBin;
-          "Mod+B".action = spawn (lib.getExe config.programs.zen-browser.package);
+          "Mod+B".action = spawn-sh (lib.getExe pkgs.wlr-which-key) "browser";
           "Mod+E".action = spawn (lib.getExe pkgs.nautilus);
           "Mod+O".action = spawn (lib.getExe pkgs.gnome-calculator);
           "Mod+V".action = spawn-sh clipboardBin;

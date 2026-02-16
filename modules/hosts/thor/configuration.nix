@@ -12,6 +12,7 @@
         hyprland
         docker
         wooting
+        inputs.silentSDDM.nixosModules.default
       ];
 
       nixpkgs.overlays = [
@@ -19,6 +20,14 @@
       ];
 
       networking.hostName = "thor";
+
+      programs.silentSDDM = {
+        enable = true;
+        theme = "catppuccin-mocha";
+        # settings = { ... }; see example in module
+      };
+
+      catppuccin.sddm.enable = false;
 
       # Display manager
       services.displayManager = {

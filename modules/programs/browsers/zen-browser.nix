@@ -1,11 +1,7 @@
 { inputs, ... }:
 {
   flake.modules.homeManager.browsers =
-    {
-      pkgs,
-      config,
-      ...
-    }:
+    { pkgs, config, ... }:
     let
       catppuccin = {
         source = "${inputs.zen-browser-catppuccin}/themes/Mocha/Lavender/";
@@ -363,6 +359,6 @@
         };
       };
 
-      home.file.".zen/${config.home.username}/chrome" = catppuccin;
+      xdg.configFile."zen/${config.home.username}/chrome" = catppuccin;
     };
 }

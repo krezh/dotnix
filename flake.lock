@@ -954,11 +954,33 @@
         "nixpkgs": "nixpkgs_3",
         "noctalia": "noctalia",
         "nvf": "nvf",
+        "silentSDDM": "silentSDDM",
         "sops-nix": "sops-nix",
         "treefmt-nix": "treefmt-nix",
         "walker": "walker",
         "zen-browser": "zen-browser",
         "zen-browser-catppuccin": "zen-browser-catppuccin"
+      }
+    },
+    "silentSDDM": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1769900466,
+        "narHash": "sha256-WeoJBj/PhqFCCJEIycTipqPbKm5BpQT2uzFTYcYZ30I=",
+        "ref": "refs/heads/main",
+        "rev": "a44caf771b4cb72f5c2514f7d488455b0fa860d2",
+        "shallow": true,
+        "type": "git",
+        "url": "https://github.com/uiriansan/SilentSDDM"
+      },
+      "original": {
+        "shallow": true,
+        "type": "git",
+        "url": "https://github.com/uiriansan/SilentSDDM"
       }
     },
     "sops-nix": {
@@ -1177,10 +1199,10 @@
         ]
       },
       "locked": {
-        "lastModified": 1771073480,
-        "narHash": "sha256-62U5QqYnPmTaIZXLjvSLW9ezVlo4+1DbgdA1M5wur10=",
+        "lastModified": 1771247135,
+        "narHash": "sha256-qDFOVzhs8S/dk3Eqvyqi7veWKEviZuh0hjTNsb4TZ2I=",
         "ref": "refs/heads/main",
-        "rev": "8d5cf4e426c83771ec9d2fec34f9e70dd0174c1c",
+        "rev": "a96ac9e2ae07ccd8522a790ff720db11dd3bdd6e",
         "shallow": true,
         "type": "git",
         "url": "https://github.com/0xc000022070/zen-browser-flake"
