@@ -107,8 +107,6 @@ jobs:
       - name: Setup Nix with caching
         uses: ./.github/actions/setup-nix
         with:
-          cachix-cache: ${{ env.CACHE_NAME }}
-          cachix-token: ${{ secrets.CACHIX_AUTH_TOKEN }}
           attic-endpoint: https://nix-cache.plexuz.xyz
           attic-cache: ${{ secrets.ATTIC_CACHE }}
           attic-token: ${{ secrets.ATTIC_TOKEN }}

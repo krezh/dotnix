@@ -27,32 +27,6 @@ let
         ../../../images/kubevirt.nix
       ];
     };
-
-    buildbot-worker = {
-      format = "kubevirt";
-      system = "x86_64-linux";
-      specialArgs = {
-        hostname = "kubevirt";
-        inherit inputs;
-      };
-      modules = [
-        inputs.sops-nix.nixosModules.sops
-        inputs.self.modules.nixos.buildbot-worker
-      ];
-    };
-
-    buildbot-master = {
-      format = "kubevirt";
-      system = "x86_64-linux";
-      specialArgs = {
-        hostname = "kubevirt";
-        inherit inputs;
-      };
-      modules = [
-        inputs.sops-nix.nixosModules.sops
-        inputs.self.modules.nixos.buildbot-master
-      ];
-    };
   };
 in
 {
