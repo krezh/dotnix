@@ -1,7 +1,6 @@
 {
   appimageTools,
   fetchurl,
-  lib,
 }:
 appimageTools.wrapType2 rec {
   pname = "helium";
@@ -27,7 +26,6 @@ appimageTools.wrapType2 rec {
   meta = {
     description = "Helium browser";
     homepage = "https://github.com/imputnet/helium-linux";
-    license = lib.licenses.unfree;
     mainProgram = "helium";
     platforms = [ "x86_64-linux" ];
   };

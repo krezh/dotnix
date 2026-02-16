@@ -129,11 +129,6 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    hyprshutdown = {
-      url = "git+https://github.com/hyprwm/hyprshutdown?shallow=1";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-
     nix4vscode.url = "git+https://github.com/nix-community/nix4vscode?shallow=1";
     nix4vscode.inputs.nixpkgs.follows = "nixpkgs";
   };

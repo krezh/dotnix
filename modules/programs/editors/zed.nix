@@ -103,7 +103,7 @@
               };
             };
             nil.settings.formatting = {
-              #command = [ (lib.getExe pkgs.treefmt) ];
+              command = [ (lib.getExe pkgs.nixfmt) ];
             };
             nixd.settings.formatting = {
               command = [ (lib.getExe pkgs.nixfmt) ];

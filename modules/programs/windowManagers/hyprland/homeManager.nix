@@ -1,4 +1,4 @@
-{ inputs, ... }:
+{ ... }:
 {
   flake.modules.homeManager.hyprland =
     {
@@ -95,7 +95,6 @@
                   mode = "2560x1440@239.97";
                   position = "0x0";
                   scale = 1.0;
-                  bitdepth = 10;
                   vrr = 2;
                 }
                 {
@@ -475,8 +474,8 @@
       # XDPH config
       xdg.configFile."hypr/xdph.conf".text = ''
         screencopy {
-            max_fps = 120
-            allow_token_by_default = true;
+          max_fps = 120
+          allow_token_by_default = true
         }
       '';
       home.packages = [
@@ -485,7 +484,7 @@
         pkgs.hyprmon
         pkgs.hyprshade
         pkgs.hyprdynamicmonitors
-        inputs.hyprshutdown.packages.${pkgs.stdenv.hostPlatform.system}.default
+        pkgs.hyprshutdown
       ];
     };
 }
