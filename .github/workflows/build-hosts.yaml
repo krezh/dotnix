@@ -109,6 +109,9 @@ jobs:
         with:
           cachix-cache: ${{ env.CACHE_NAME }}
           cachix-token: ${{ secrets.CACHIX_AUTH_TOKEN }}
+          attic-endpoint: https://nix-cache.plexuz.xyz
+          attic-cache: ${{ secrets.ATTIC_CACHE }}
+          attic-token: ${{ secrets.ATTIC_TOKEN }}
           skip-cache: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork }}
 
       - name: Build System
