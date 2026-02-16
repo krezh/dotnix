@@ -30,9 +30,7 @@
             todowrite = "allow";
             todoread = "allow";
             question = "allow";
-
-            # WebFetch: simple allow/ask/deny (no pattern matching)
-            webfetch = "ask";
+            webfetch = "allow";
 
             # Bash command permissions with pattern matching
             bash = {

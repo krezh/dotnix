@@ -124,11 +124,6 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    nixos-generators = {
-      url = "git+https://github.com/nix-community/nixos-generators?shallow=1";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-
     nix4vscode.url = "git+https://github.com/nix-community/nix4vscode?shallow=1";
     nix4vscode.inputs.nixpkgs.follows = "nixpkgs";
 
