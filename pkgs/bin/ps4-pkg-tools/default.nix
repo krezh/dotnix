@@ -41,7 +41,6 @@ pkgs.stdenv.mkDerivation (finalAttrs: {
     description = "Lightweight command-line utility and GUI application for extracting and decrypting PlayStation 4 PKG files";
     homepage = "https://github.com/xXJSONDeruloXx/ps4-pkg-tools";
     license = pkgs.lib.licenses.gpl2Plus;
-    maintainers = with pkgs.lib.maintainers; [ ];
     mainProgram = "ps4-pkg-tool";
     platforms = pkgs.lib.platforms.linux;
   };

@@ -48,7 +48,6 @@ pkgs.stdenv.mkDerivation (finalAttrs: {
     description = "Dedicated launcher/mod manager combo app for Bloodborne on shadPS4";
     homepage = "https://github.com/rainmakerv3/BB_Launcher";
     license = pkgs.lib.licenses.gpl3Only;
-    maintainers = with pkgs.lib.maintainers; [ ];
     mainProgram = "BB_Launcher";
     platforms = pkgs.lib.platforms.all;
   };

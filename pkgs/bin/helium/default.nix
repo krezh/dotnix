@@ -4,7 +4,7 @@
 }:
 appimageTools.wrapType2 rec {
   pname = "helium";
-  # renovate: datasource=github-releases depName=imputnet/helium-linux
+  # renovate: datasource=github-releases depName=imputnet/helium-linux versioning=loose
   version = "0.8.5.1";
 
   src = fetchurl {

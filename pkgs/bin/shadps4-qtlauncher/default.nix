@@ -73,7 +73,6 @@ pkgs.stdenv.mkDerivation (finalAttrs: {
       gpl2Plus
       mit
     ];
-    maintainers = with pkgs.lib.maintainers; [ ];
     mainProgram = "shadPS4QtLauncher";
     platforms = pkgs.lib.platforms.all;
   };
