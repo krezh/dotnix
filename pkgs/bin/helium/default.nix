@@ -5,11 +5,11 @@
 appimageTools.wrapType2 rec {
   pname = "helium";
   # renovate: datasource=github-releases depName=imputnet/helium-linux versioning=loose
-  version = "0.8.5.1";
+  version = "0.9.2.1";
 
   src = fetchurl {
     url = "https://github.com/imputnet/helium-linux/releases/download/${version}/${pname}-${version}-x86_64.AppImage";
-    sha256 = "sha256-jFSLLDsHB/NiJqFmn8S+JpdM8iCy3Zgyq+8l4RkBecM=";
+    sha256 = "sha256-guDBIr8NOD0GtjWznsVXlvb6llvdWHxREfDvXeP4m/w=";
   };
 
   extraInstallCommands =
