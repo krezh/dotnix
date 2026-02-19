@@ -165,13 +165,15 @@
 
         services.rpcbind.enable = mkIf (any (m: m.type == "nfs") (attrValues enabledMounts)) true;
 
-        systemd.tmpfiles.rules = map (
-          mount: "d ${mount.mountPoint} 0755 ${toString mount.uid} ${toString mount.gid} -"
-        ) (attrValues enabledMounts);
-        systemd.mounts = mapAttrsToList mkSystemdMount enabledMounts;
-        systemd.automounts = mapAttrsToList mkSystemdAutoMount (
-          filterAttrs (_name: mount: mount.autoMount) enabledMounts
-        );
+        systemd = {
+          tmpfiles.rules = map (
+            mount: "d ${mount.mountPoint} 0755 ${toString mount.uid} ${toString mount.gid} -"
+          ) (attrValues enabledMounts);
+          mounts = mapAttrsToList mkSystemdMount enabledMounts;
+          automounts = mapAttrsToList mkSystemdAutoMount (
+            filterAttrs (_name: mount: mount.autoMount) enabledMounts
+          );
+        };
 
         environment.systemPackages = mkIf (any (m: m.type == "nfs") (attrValues enabledMounts)) [
           pkgs.nfs-utils

@@ -19,29 +19,85 @@
         inputs.nix-cachyos-kernel.overlay
       ];
 
-      networking.hostName = "thor";
+      networking = {
+        hostName = "thor";
+        networkmanager = {
+          enable = true;
+          wifi.backend = "iwd";
+        };
+        wireless.enable = lib.mkForce false;
+        firewall = {
+          enable = true;
+          allowedTCPPorts = [ ];
+          allowedUDPPorts = [ ];
+        };
+      };
 
-      programs.silentSDDM = {
-        enable = true;
-        theme = "catppuccin-mocha";
-        # settings = { ... }; see example in module
+      programs = {
+        silentSDDM = {
+          enable = true;
+          theme = "catppuccin-mocha";
+          # settings = { ... }; see example in module
+        };
+        seahorse.enable = true;
+        nix-ld.enable = true;
+        appimage = {
+          enable = true;
+          binfmt = true;
+        };
       };
 
       catppuccin.sddm.enable = false;
 
       # Display manager
-      services.displayManager = {
-        sddm = {
-          enable = true;
-          wayland.enable = true;
-          wayland.compositor = "weston";
-          autoNumlock = true;
+      services = {
+        displayManager = {
+          sddm = {
+            enable = true;
+            wayland.enable = true;
+            wayland.compositor = "weston";
+            autoNumlock = true;
+          };
+          gdm = {
+            enable = false;
+            wayland = true;
+          };
+          defaultSession = "hyprland";
         };
-        gdm = {
+
+        # System services
+        fwupd.enable = true;
+        accounts-daemon.enable = true;
+        gnome = {
+          gnome-online-accounts.enable = true;
+          gnome-keyring.enable = true;
+        };
+        scx = {
           enable = false;
-          wayland = true;
+          scheduler = "scx_bpfland";
         };
-        defaultSession = "hyprland";
+        dbus.packages = with pkgs; [
+          gnome-keyring
+          gcr
+          seahorse
+          libsecret
+          libgnome-keyring
+        ];
+
+        # Misc services
+        fstrim.enable = true;
+        libinput = {
+          enable = true;
+          mouse.accelProfile = "flat";
+          touchpad.accelProfile = "flat";
+        };
+        timesyncd.servers = [ ];
+
+        earlyoom = {
+          enable = true;
+          freeMemThreshold = 5;
+          enableNotifications = true;
+        };
       };
 
       # Boot configuration
@@ -68,73 +124,43 @@
             configurationLimit = 5;
           };
         };
+        kernel.sysctl = {
+          "kernel.core_pattern" = "|/bin/false";
+          "kernel.core_uses_pid" = 0;
+        };
       };
-
-      # System services
-      services.fwupd.enable = true;
-      services.accounts-daemon.enable = true;
-      services.gnome.gnome-online-accounts.enable = true;
-      services.scx.enable = false;
-      services.scx.scheduler = "scx_bpfland";
 
       # Disable coredump
-      systemd.coredump.enable = false;
-      boot.kernel.sysctl = {
-        "kernel.core_pattern" = "|/bin/false";
-        "kernel.core_uses_pid" = 0;
+      systemd = {
+        coredump.enable = false;
+        oomd.enableUserSlices = true;
       };
 
-      security.pam.loginLimits = [
-        {
-          domain = "*";
-          type = "hard";
-          item = "core";
-          value = "0";
-        }
-        {
-          domain = "*";
-          type = "soft";
-          item = "core";
-          value = "0";
-        }
-      ];
-
-      # GNOME keyring
-      security.pam.services.sddm.enableGnomeKeyring = true;
-      security.pam.services.hyprlock.enableGnomeKeyring = true;
-      security.pam.services.login.enableGnomeKeyring = true;
-      programs.seahorse.enable = true;
-      services.gnome.gnome-keyring.enable = true;
-      services.dbus.packages = with pkgs; [
-        gnome-keyring
-        gcr
-        seahorse
-        libsecret
-        libgnome-keyring
-      ];
-
-      # Misc services
-      services.fstrim.enable = true;
-      services.libinput = {
-        enable = true;
-        mouse.accelProfile = "flat";
-        touchpad.accelProfile = "flat";
+      security = {
+        pam = {
+          loginLimits = [
+            {
+              domain = "*";
+              type = "hard";
+              item = "core";
+              value = "0";
+            }
+            {
+              domain = "*";
+              type = "soft";
+              item = "core";
+              value = "0";
+            }
+          ];
+          # GNOME keyring
+          services = {
+            sddm.enableGnomeKeyring = true;
+            hyprlock.enableGnomeKeyring = true;
+            login.enableGnomeKeyring = true;
+          };
+        };
+        rtkit.enable = true;
       };
-
-      security.rtkit.enable = true;
-
-      # Programs
-      programs.nix-ld.enable = true;
-      programs.appimage = {
-        enable = true;
-        binfmt = true;
-      };
-
-      # Networking
-      services.timesyncd.servers = [ ];
-      networking.networkmanager.enable = true;
-      networking.networkmanager.wifi.backend = "iwd";
-      networking.wireless.enable = lib.mkForce false;
 
       environment = {
         sessionVariables = {
@@ -198,14 +224,6 @@
             };
           };
         };
-      };
-
-      systemd.oomd.enableUserSlices = true;
-
-      services.earlyoom = {
-        enable = true;
-        freeMemThreshold = 5;
-        enableNotifications = true;
       };
     };
 }

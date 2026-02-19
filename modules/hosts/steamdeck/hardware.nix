@@ -12,17 +12,21 @@
       ];
 
       # Steam Deck AMD Van Gogh APU kernel modules
-      boot.initrd.availableKernelModules = [
-        "nvme"
-        "xhci_pci"
-        "usbhid"
-        "usb_storage"
-        "sd_mod"
-        "sdhci_pci"
-      ];
-      boot.initrd.kernelModules = [ "amdgpu" ];
-      boot.kernelModules = [ "kvm-amd" ];
-      boot.extraModulePackages = [ ];
+      boot = {
+        initrd = {
+          availableKernelModules = [
+            "nvme"
+            "xhci_pci"
+            "usbhid"
+            "usb_storage"
+            "sd_mod"
+            "sdhci_pci"
+          ];
+          kernelModules = [ "amdgpu" ];
+        };
+        kernelModules = [ "kvm-amd" ];
+        extraModulePackages = [ ];
+      };
 
       # AMD CPU microcode
       hardware.cpu.amd.updateMicrocode = lib.mkDefault config.hardware.enableRedistributableFirmware;

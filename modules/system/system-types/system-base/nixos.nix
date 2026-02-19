@@ -72,15 +72,11 @@
           system-features = [ ];
           extra-substituters = [
             "https://nix-cache.plexuz.xyz/krezh"
-            "https://krezh.cachix.org"
-            "https://cache.garnix.io"
             "https://nix-community.cachix.org"
             "https://niri.cachix.org"
           ];
           extra-trusted-public-keys = [
             "krezh:OSZunB+pbfdR7owWUrumhzzZ2kmCzJEevS345CNtjUQ="
-            "krezh.cachix.org-1:0hGx8u/mABpZkzJEBh/UMXyNon5LAXdCRqEeVn5mff8="
-            "cache.garnix.io:CTFPyKSLcx5RMJKfLo5EEPUObbA78b0YQ2DTCJXqr9g="
             "nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs="
             "niri.cachix.org-1:Wv0OmO7PsuocRKzfDoJ3mulSl7Z6oezYhGhR+3W2964="
           ];
@@ -168,6 +164,7 @@
         nixos-update
         nix-fast-build
         nix-eval-jobs
+        inputs.go-overlay.packages.${pkgs.stdenv.hostPlatform.system}.govendor
       ];
 
       programs.nh.enable = true;

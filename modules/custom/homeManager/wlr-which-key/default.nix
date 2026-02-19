@@ -19,7 +19,7 @@
           description = "wlr-which-key derivation to use.";
         };
         settings = lib.mkOption {
-          type = yamlFormat.type;
+          inherit (yamlFormat) type;
           default = { };
           example =
             lib.literalExpression # nix
@@ -85,7 +85,7 @@
             filename = if name == "default" then "config" else name;
           in
           lib.attrsets.nameValuePair "wlr-which-key/${filename}.yaml" {
-            source = (yamlFormat.generate "${filename}.yaml" (cfg.settings // { inherit menu; }));
+            source = yamlFormat.generate "${filename}.yaml" (cfg.settings // { inherit menu; });
           }
         ) cfg.menus;
       };

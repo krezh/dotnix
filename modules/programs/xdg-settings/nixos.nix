@@ -1,7 +1,11 @@
 {
   flake.modules.nixos.xdg-settings = {
-    xdg.mime.enable = true;
-    xdg.terminal-exec.enable = true;
-    xdg.terminal-exec.settings.default = [ "com.mitchellh.ghostty" ];
+    xdg = {
+      mime.enable = true;
+      terminal-exec = {
+        enable = true;
+        settings.default = [ "com.mitchellh.ghostty" ];
+      };
+    };
   };
 }

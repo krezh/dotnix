@@ -20,11 +20,12 @@
         nufraw-thumbnailer
         gdk-pixbuf
         usbutils
-        inputs.go-overlay.packages.${pkgs.stdenv.hostPlatform.system}.govendor
       ];
 
       programs.gdk-pixbuf.modulePackages = [ pkgs.librsvg ];
       environment.pathsToLink = [ "share/thumbnailers" ];
+
+      services.speechd.enable = false;
     };
 
   flake.modules.homeManager.system-desktop = {

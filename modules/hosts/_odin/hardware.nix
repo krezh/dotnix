@@ -14,19 +14,23 @@
         inputs.hardware.nixosModules.common-pc-ssd
       ];
 
-      boot.initrd.availableKernelModules = [
-        "xhci_pci"
-        "thunderbolt"
-        "nvme"
-        "usb_storage"
-        "usbhid"
-        "sd_mod"
-        "rtsx_usb_sdmmc"
-      ];
-      boot.initrd.kernelModules = [ ];
-      boot.kernelParams = [ "ipv6.disable=1" ];
-      boot.kernelModules = [ "kvm-intel" ];
-      boot.extraModulePackages = [ ];
+      boot = {
+        initrd = {
+          availableKernelModules = [
+            "xhci_pci"
+            "thunderbolt"
+            "nvme"
+            "usb_storage"
+            "usbhid"
+            "sd_mod"
+            "rtsx_usb_sdmmc"
+          ];
+          kernelModules = [ ];
+        };
+        kernelParams = [ "ipv6.disable=1" ];
+        kernelModules = [ "kvm-intel" ];
+        extraModulePackages = [ ];
+      };
 
       swapDevices = [ ];
 

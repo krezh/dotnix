@@ -55,7 +55,7 @@ in
         steam = {
           enable = true;
           autoStart = true;
-          user = user;
+          inherit user;
           desktopSession = "hyprland";
         };
         decky-loader.enable = true;

@@ -17,92 +17,96 @@
 
       networking.hostId = "1321fdc7";
 
-      boot.zfs.extraPools = [ "tank" ];
+      boot = {
+        zfs.extraPools = [ "tank" ];
+        # Boot configuration - GRUB with ZFS support
+        loader.grub = {
+          enable = true;
+          efiSupport = true;
+          efiInstallAsRemovable = true;
+          zfsSupport = true;
+          device = "nodev";
+          mirroredBoots = [
+            {
+              devices = [ "nodev" ];
+              path = "/boot/efi";
+            }
+            {
+              devices = [ "nodev" ];
+              path = "/boot/efi-fallback";
+            }
+          ];
+        };
+        supportedFilesystems = [ "zfs" ];
+      };
 
       # Ensure /mnt/tank exists for the data pool
       systemd.tmpfiles.rules = [
         "d /mnt/tank 0755 root root -"
       ];
 
-      services.zfs.autoScrub = {
-        enable = true;
-        pools = [
-          "rpool" # OS pool
-          "tank" # Data pool
-        ];
-      };
-      services.zfs.trim.enable = true;
+      services = {
+        zfs = {
+          autoScrub = {
+            enable = true;
+            pools = [
+              "rpool" # OS pool
+              "tank" # Data pool
+            ];
+          };
+          trim.enable = true;
+        };
 
-      # Boot configuration - GRUB with ZFS support
-      boot.loader.grub = {
-        enable = true;
-        efiSupport = true;
-        efiInstallAsRemovable = true;
-        zfsSupport = true;
-        device = "nodev";
-        mirroredBoots = [
-          {
-            devices = [ "nodev" ];
-            path = "/boot/efi";
-          }
-          {
-            devices = [ "nodev" ];
-            path = "/boot/efi-fallback";
-          }
-        ];
-      };
+        # SSH configuration
+        openssh.settings = {
+          PermitRootLogin = "prohibit-password";
+          PasswordAuthentication = false;
+        };
 
-      boot.supportedFilesystems = [ "zfs" ];
+        # NFS server configuration
+        nfs.server = {
+          enable = true;
+          exports = ''
+            /mnt/tank/ipxe *(sec=sys,rw,anonuid=0,anongid=0,all_squash,insecure,no_subtree_check)
+            /mnt/tank/media 10.10.0.0/27(sec=sys,rw,anonuid=0,anongid=0,all_squash,insecure,no_subtree_check)
+            /mnt/tank/k8s 10.10.0.0/27(sec=sys,rw,anonuid=0,anongid=0,all_squash,insecure,no_subtree_check)
+            /mnt/tank/volsync 10.10.0.0/27(sec=sys,rw,anonuid=0,anongid=0,all_squash,insecure,no_subtree_check)
+            /mnt/tank/crunchy-postgres 10.10.0.0/27(sec=sys,rw,insecure,no_subtree_check)
+            /mnt/tank/kopia *(sec=sys,rw,anonuid=0,anongid=0,all_squash,insecure,no_subtree_check)
+          '';
+        };
 
-      # SSH configuration
-      services.openssh.settings = {
-        PermitRootLogin = "prohibit-password";
-        PasswordAuthentication = false;
+        # Samba configuration
+        samba = {
+          enable = true;
+          openFirewall = true;
+          settings = {
+            global = {
+              "workgroup" = "WORKGROUP";
+              "server string" = "FreeNAS Server";
+              "netbios name" = "JOTUNHEIM";
+              "security" = "user";
+              "guest account" = "nobody";
+              "create mask" = "0664";
+              "directory mask" = "0775";
+              "local master" = "yes";
+              "log level" = "1";
+              "server smb encrypt" = "default";
+            };
+            shares = {
+              "path" = "/mnt/tank/shares/%U";
+              "browseable" = "yes";
+              "read only" = "no";
+              "comment" = "";
+            };
+          };
+        };
       };
 
       users.users.root.openssh.authorizedKeys.keys = [
         "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIANNodE0rg2XalK+tfsqfPwLdBRJIx15IjGwkr5Bud+W"
         "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEMe4X4oNA8PRUHrOk5RIrpxpzzcBvJyQa8PyaQj3BPp"
       ];
-
-      # NFS server configuration
-      services.nfs.server = {
-        enable = true;
-        exports = ''
-          /mnt/tank/ipxe *(sec=sys,rw,anonuid=0,anongid=0,all_squash,insecure,no_subtree_check)
-          /mnt/tank/media 10.10.0.0/27(sec=sys,rw,anonuid=0,anongid=0,all_squash,insecure,no_subtree_check)
-          /mnt/tank/k8s 10.10.0.0/27(sec=sys,rw,anonuid=0,anongid=0,all_squash,insecure,no_subtree_check)
-          /mnt/tank/volsync 10.10.0.0/27(sec=sys,rw,anonuid=0,anongid=0,all_squash,insecure,no_subtree_check)
-          /mnt/tank/crunchy-postgres 10.10.0.0/27(sec=sys,rw,insecure,no_subtree_check)
-          /mnt/tank/kopia *(sec=sys,rw,anonuid=0,anongid=0,all_squash,insecure,no_subtree_check)
-        '';
-      };
-
-      # Samba configuration
-      services.samba = {
-        enable = true;
-        openFirewall = true;
-        settings = {
-          global = {
-            "workgroup" = "WORKGROUP";
-            "server string" = "FreeNAS Server";
-            "netbios name" = "JOTUNHEIM";
-            "security" = "user";
-            "guest account" = "nobody";
-            "create mask" = "0664";
-            "directory mask" = "0775";
-            "local master" = "yes";
-            "log level" = "1";
-            "server smb encrypt" = "default";
-          };
-          shares = {
-            "path" = "/mnt/tank/shares/%U";
-            "browseable" = "yes";
-            "read only" = "no";
-            "comment" = "";
-          };
-        };
-      };
 
       # Firewall configuration
       networking.firewall = {

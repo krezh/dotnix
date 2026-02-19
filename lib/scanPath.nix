@@ -78,7 +78,7 @@ let
       let
         # Memoized directory read
         readResult = cachedReadDir cache basePath;
-        entries = readResult.entries;
+        inherit (readResult) entries;
         newCache = readResult.cache;
 
         # Filter entries
@@ -108,7 +108,7 @@ let
               # Module directory - don't recurse
               {
                 paths = acc.paths ++ [ entryPath ];
-                cache = dirRead.cache;
+                inherit (dirRead) cache;
               }
             else
               # Regular directory - recurse
@@ -117,13 +117,13 @@ let
                 inherit config rootPath;
                 collected = acc.paths;
                 processed = newProcessed;
-                cache = dirRead.cache;
+                inherit (dirRead) cache;
               }
           else
             # Nix file
             {
               paths = acc.paths ++ [ entryPath ];
-              cache = acc.cache;
+              inherit (acc) cache;
             };
 
         result = builtins.foldl' processEntry {
@@ -183,18 +183,22 @@ in
       includePatterns ? [ ],
     }:
     let
-      paths =
-        (scan {
-          inherit basePath;
-          config = {
-            inherit
-              extensions
-              excludeFiles
-              excludePatterns
-              includePatterns
-              ;
-          };
-        }).paths;
+      inherit
+        (
+          (scan {
+            inherit basePath;
+            config = {
+              inherit
+                extensions
+                excludeFiles
+                excludePatterns
+                includePatterns
+                ;
+            };
+          })
+        )
+        paths
+        ;
 
       rootStr = toString basePath;
 

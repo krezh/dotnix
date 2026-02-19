@@ -21,7 +21,7 @@
       audioControlBin = lib.getExe audioControlPkg;
       audioControlName = getBinaryName audioControlPkg;
 
-      actions = config.lib.niri.actions;
+      inherit (config.lib.niri) actions;
     in
     {
       imports = [
@@ -164,7 +164,7 @@
             };
             clip-to-geometry = true;
             draw-border-with-background = false;
-            opacity = config.var.opacity;
+            inherit (config.var) opacity;
             shadow = {
               enable = true;
             };
@@ -264,12 +264,6 @@
             "open-fullscreen" = true;
           }
 
-          # VLC
-          {
-            matches = [ { "app-id" = "^vlc$"; } ];
-            opacity = 1.0;
-          }
-
           # Dialog windows
           {
             matches = [ { title = "^(Select|Open)( a)? (File|Folder)(s)?$"; } ];
@@ -316,11 +310,6 @@
           # Media applications - full opacity
           {
             matches = [ { "app-id" = "^mpv$"; } ];
-            opacity = 1.0;
-          }
-
-          {
-            matches = [ { "app-id" = "^youtube$"; } ];
             opacity = 1.0;
           }
 

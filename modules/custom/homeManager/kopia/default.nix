@@ -16,7 +16,7 @@
         name: backup:
         let
           configJson = mkBackupConfigJson name backup;
-          passwordFile = cfg.repository.passwordFile;
+          inherit (cfg.repository) passwordFile;
         in
         {
           Unit = {
@@ -35,11 +35,11 @@
         name: backup:
         let
           json = builtins.toJSON {
-            name = name;
-            paths = backup.paths;
-            exclude = backup.exclude;
-            compression = backup.compression;
-            retentionPolicy = backup.retentionPolicy;
+            inherit name;
+            inherit (backup) paths;
+            inherit (backup) exclude;
+            inherit (backup) compression;
+            inherit (backup) retentionPolicy;
           };
         in
         pkgs.writeTextFile {

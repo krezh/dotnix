@@ -1,11 +1,13 @@
 {
   perSystem = {
     devshells.default = {
-      devshell.startup.a-welcome.text = ''
-        echo "❄️ Welcome to the Default shell ❄️"
-      '';
-      devshell.startup.z-menu.text = "menu";
       devshell = {
+        startup = {
+          a-welcome.text = ''
+            echo "❄️ Welcome to the Default shell ❄️"
+          '';
+          z-menu.text = "menu";
+        };
         name = "Default";
         motd = "";
         packages = [ ];

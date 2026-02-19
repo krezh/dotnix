@@ -1,5 +1,4 @@
-{ ... }:
-{
+_: {
   flake.modules.homeManager.hyprland =
     {
       pkgs,
@@ -173,7 +172,7 @@
           };
 
           decoration = {
-            rounding = config.var.rounding;
+            inherit (config.var) rounding;
             rounding_power = 4;
             active_opacity = config.var.opacity;
             inactive_opacity = config.var.opacity;
@@ -302,8 +301,6 @@
             "tag +browsers, match:class ^(vivaldi)$"
             "tag +browsers, match:class ^(helium)$"
             "tag +media, match:class ^(mpv)$"
-            "tag +media, match:class ^(vlc)$"
-            "tag +media, match:class ^(youtube)$"
             "tag +media, match:class ^(plex)$"
             "tag +media, match:class ^(org.jellyfin.JellyfinDesktop)$"
             "tag +media, match:content 2" # (none = 0, photo = 1, video = 2, game = 3)

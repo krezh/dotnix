@@ -28,8 +28,8 @@
         {
           name = sanitized;
           value = {
-            name = name;
-            exec = exec;
+            inherit name;
+            inherit exec;
             icon = iconPath;
             categories = [
               "Network"

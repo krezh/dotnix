@@ -24,7 +24,7 @@ in
     ghMatrix = {
       include = lib.mapAttrsToList (host: config: {
         inherit host;
-        system = config.pkgs.stdenv.hostPlatform.system;
+        inherit (config.pkgs.stdenv.hostPlatform) system;
         runner = mapToGha config.pkgs.stdenv.hostPlatform.system;
       }) (lib.filterAttrs (_name: config: (config.ci or true)) self.nixosConfigurations);
     };

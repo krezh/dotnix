@@ -43,15 +43,15 @@
         plugins = [
           {
             name = "puffer";
-            src = pkgs.fishPlugins.puffer.src;
+            inherit (pkgs.fishPlugins.puffer) src;
           }
           {
             name = "autopair";
-            src = pkgs.fishPlugins.autopair.src;
+            inherit (pkgs.fishPlugins.autopair) src;
           }
           {
             name = "bass";
-            src = pkgs.fishPlugins.bass.src;
+            inherit (pkgs.fishPlugins.bass) src;
           }
         ];
         functions.fish_greeting = "";

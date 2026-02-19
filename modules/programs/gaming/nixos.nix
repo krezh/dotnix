@@ -19,8 +19,6 @@
           protonplus
           faugus-launcher
           ps4-pkg-tools
-          shadps4-qtlauncher
-          bblauncher
         ];
         sessionVariables = {
           STEAM_EXTRA_COMPAT_TOOLS_PATHS = "$HOME/.steam/root/compatibilitytools.d";

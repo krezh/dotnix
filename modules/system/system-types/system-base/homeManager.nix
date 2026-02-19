@@ -21,7 +21,7 @@
 
       home = {
         homeDirectory = lib.mkDefault "/home/${config.home.username}";
-        stateVersion = osConfig.system.stateVersion;
+        inherit (osConfig.system) stateVersion;
         preferXdgDirectories = true;
       };
 

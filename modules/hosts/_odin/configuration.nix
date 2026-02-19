@@ -39,7 +39,19 @@ in
         inputs.nix-cachyos-kernel.overlay
       ];
 
-      networking.hostName = "odin";
+      networking = {
+        hostName = "odin";
+        networkmanager = {
+          enable = true;
+          wifi.backend = "iwd";
+        };
+        wireless.enable = lib.mkForce false;
+        firewall = {
+          enable = true;
+          allowedTCPPorts = [ ];
+          allowedUDPPorts = [ ];
+        };
+      };
 
       # Boot configuration
       boot = {
@@ -95,22 +107,10 @@ in
           mouse.accelProfile = "flat";
           touchpad.accelProfile = "flat";
         };
+        udev.packages = [ pkgs.headsetcontrol ];
       };
-
-      services.udev.packages = [ pkgs.headsetcontrol ];
-
-      # Networking
-      networking.networkmanager.enable = true;
-      networking.networkmanager.wifi.backend = "iwd";
-      networking.wireless.enable = lib.mkForce false;
 
       programs.gdk-pixbuf.modulePackages = [ pkgs.librsvg ];
-
-      networking.firewall = {
-        enable = true;
-        allowedTCPPorts = [ ];
-        allowedUDPPorts = [ ];
-      };
 
       security.rtkit.enable = true;
 

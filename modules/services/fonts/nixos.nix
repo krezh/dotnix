@@ -54,7 +54,6 @@
           gyre-fonts
           dejavu_fonts
           cantarell-fonts
-          google-fonts
           source-code-pro
           source-sans-pro
           source-serif-pro

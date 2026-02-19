@@ -4,7 +4,6 @@
     {
       home.packages = with pkgs; [
         spotify
-        vlc
         celluloid
         plex-desktop
         jellyfin-media-player
