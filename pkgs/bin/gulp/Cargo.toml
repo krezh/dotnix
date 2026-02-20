@@ -8,7 +8,7 @@ wayland-client = "0.31"
 wayland-protocols = { version = "0.32", features = ["client", "unstable"] }
 wayland-protocols-wlr = { version = "0.3", features = ["client"] }
 smithay-client-toolkit = { version = "0.20", default-features = false, features = ["calloop", "xkbcommon"] }
-cairo-rs = { version = "0.21", features = ["png"] }
+cairo-rs = { version = "0.22", features = ["png"] }
 image = "0.25"
 memmap2 = "0.9"
 nix = { version = "0.31", features = ["fs", "mman"] }
