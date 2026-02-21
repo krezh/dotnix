@@ -20,6 +20,7 @@
 
       programs.zen-browser = {
         enable = true;
+        suppressXdgMigrationWarning = true;
         profiles.${config.home.username} = {
           isDefault = true;
           pinsForce = true;

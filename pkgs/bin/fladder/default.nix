@@ -20,6 +20,7 @@ appimageTools.wrapType2 {
   extraPkgs = pkgs: [
     pkgs.mpv
     pkgs.libepoxy
+    pkgs.lz4
   ];
 
   extraInstallCommands = ''

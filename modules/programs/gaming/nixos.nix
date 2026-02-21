@@ -10,6 +10,9 @@
       ];
 
       environment = {
+        sessionVariables = {
+          STEAM_EXTRA_COMPAT_TOOLS_PATHS = "$HOME/.steam/root/compatibilitytools.d";
+        };
         systemPackages = with pkgs; [
           winetricks
           protontricks
@@ -18,11 +21,7 @@
           lsfg-vk-ui
           protonplus
           faugus-launcher
-          ps4-pkg-tools
         ];
-        sessionVariables = {
-          STEAM_EXTRA_COMPAT_TOOLS_PATHS = "$HOME/.steam/root/compatibilitytools.d";
-        };
       };
 
       services = {

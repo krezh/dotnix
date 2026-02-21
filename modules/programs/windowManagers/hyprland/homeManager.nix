@@ -478,9 +478,7 @@ _: {
       home.packages = [
         pkgs.tray-tui
         pkgs.hyprpicker
-        pkgs.hyprmon
         pkgs.hyprshade
-        pkgs.hyprdynamicmonitors
         pkgs.hyprshutdown
       ];
     };

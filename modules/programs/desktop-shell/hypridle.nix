@@ -3,7 +3,6 @@
     {
       config,
       lib,
-      pkgs,
       ...
     }:
     let
@@ -19,10 +18,6 @@
             lock_cmd = "${hyprlock}";
           };
           listener = [
-            {
-              timeout = 5 * 60;
-              on-timeout = "${lib.getExe pkgs.hyprdvd} -s";
-            }
             {
               timeout = 10 * 60;
               on-timeout = "${hyprlock}";

@@ -1,5 +1,9 @@
 {
   flake.modules.homeManager.desktop-shell = {
-    programs.wlogout.enable = true;
+    programs = {
+      wlogout = {
+        enable = true;
+      };
+    };
   };
 }
