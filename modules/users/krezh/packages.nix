@@ -57,7 +57,7 @@
           jc
           jnv
           yq-go
-          diffsitter
+          # diffsitter # Commented out due to hash mismatch in tree-sitter-quint
           dyff
         ]
         ++ [

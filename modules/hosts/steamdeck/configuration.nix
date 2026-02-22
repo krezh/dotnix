@@ -28,6 +28,8 @@ in
 
       networking.hostName = "steamdeck";
 
+      services.orca.enable = false;
+
       boot = {
         plymouth.enable = true;
         loader = {
