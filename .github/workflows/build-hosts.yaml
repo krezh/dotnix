@@ -70,6 +70,7 @@ jobs:
 
       - name: Run nix-eval-jobs
         run: |
+          set -Eeu
           nix run nixpkgs#nix-eval-jobs -- --flake ".#hosts" \
                   --check-cache-status \
                   --force-recurse --gc-roots-dir /tmp/test | jq
