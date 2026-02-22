@@ -6,10 +6,10 @@
 let
   pname = "fladder";
   # renovate: datasource=github-releases depName=DonutWare/Fladder
-  version = "0.10.0";
+  version = "v0.10.1";
   src = fetchurl {
     url = "https://github.com/DonutWare/Fladder/releases/download/${version}/Fladder-Linux-${lib.removePrefix "v" version}.AppImage";
-    hash = "sha256-LU2IFM7Jt/Cbr3BNMgUrNFER0RD/oTlBoG1a+znsC1M=";
+    hash = "sha256-TGniwr+a2iB9a38/F1CXlrhcYt45FaM8qAUrBXGekx8=";
   };
 
   appimageContents = appimageTools.extractType2 { inherit pname version src; };
