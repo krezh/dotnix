@@ -10,12 +10,12 @@
 buildGoModule rec {
   pname = "fluxcd";
   # renovate: datasource=github-releases depName=fluxcd/flux2
-  version = "2.7.5";
+  version = "2.8.0";
   src = fetchFromGitHub {
     owner = "fluxcd";
     repo = "flux2";
     rev = "v${version}";
-    hash = "sha256-vTb1YE73xxCC4GlR6UW5Ibu+ck+N+KKYUg50csb7eUA=";
+    hash = "sha256-sKE/IsfC5xNrUiTUTmll6mfTsWpdVfDjs04PmSy5JOg=";
   };
 
   go = go-bin.latestStable;
