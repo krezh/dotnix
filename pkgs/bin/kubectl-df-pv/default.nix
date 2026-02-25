@@ -4,7 +4,7 @@
   fetchFromGitHub,
   go-bin,
 }:
-buildGoModule rec {
+(buildGoModule.override { go = go-bin.latestStable; }) rec {
   pname = "kubectl-df-pv";
   # renovate: datasource=github-releases depName=yashbhutwala/kubectl-df-pv
   version = "0.4.1";
@@ -16,7 +16,6 @@ buildGoModule rec {
     hash = "sha256-dGWGPamVD/26iEgKQcWGKpFIMMlDivFpD/XzmjCr8pQ=";
   };
 
-  go = go-bin.latestStable;
   vendorHash = "sha256-J15tCwYiVSPa2hSB3DMFtVW9Uer7pFMCD1OpCobnYMc=";
 
   postInstall = ''

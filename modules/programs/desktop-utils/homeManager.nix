@@ -22,6 +22,7 @@
         gnome-clocks
         gnome-bluetooth
         gnome-online-accounts-gtk
+        gnome-disk-utility
         geary
         file-roller
         proton-pass

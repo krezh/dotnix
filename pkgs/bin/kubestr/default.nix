@@ -4,7 +4,7 @@
   fetchFromGitHub,
   go-bin,
 }:
-buildGoModule rec {
+(buildGoModule.override { go = go-bin.latestStable; }) rec {
   pname = "kubestr";
   # renovate: datasource=github-releases depName=kastenhq/kubestr
   version = "0.4.49";
@@ -16,7 +16,6 @@ buildGoModule rec {
     hash = "sha256-paBewecIv3LiSSwaLZKHXcT7jOjIcgIURcJEcz1KNtE=";
   };
 
-  go = go-bin.latestStable;
   vendorHash = "sha256-A/id2ut4CHNa1Q59Az0VuyC/PbF2jsa1sMdDsuRemKM=";
 
   ldflags = [

@@ -4,7 +4,7 @@
   fetchFromGitHub,
   go-bin,
 }:
-buildGoModule rec {
+(buildGoModule.override { go = go-bin.latestStable; }) rec {
   pname = "kubectl-rook-ceph";
   # renovate: datasource=github-releases depName=rook/kubectl-rook-ceph
   version = "0.9.5";
@@ -16,7 +16,6 @@ buildGoModule rec {
     hash = "sha256-OYK86GamU4m9vJUINfRbpM5U6mbjI3P6aiUp3+RZvIA=";
   };
 
-  go = go-bin.latestStable;
   vendorHash = "sha256-D2WbLc6/FVm9YB7meWdJ5Of0WYBB+kKC2+AepdgwJAA=";
 
   ldflags = [

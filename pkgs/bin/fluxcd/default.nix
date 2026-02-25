@@ -7,7 +7,7 @@
   lib,
   stdenv,
 }:
-buildGoModule rec {
+(buildGoModule.override { go = go-bin.latest; }) rec {
   pname = "fluxcd";
   # renovate: datasource=github-releases depName=fluxcd/flux2
   version = "2.8.0";
@@ -18,8 +18,7 @@ buildGoModule rec {
     hash = "sha256-sKE/IsfC5xNrUiTUTmll6mfTsWpdVfDjs04PmSy5JOg=";
   };
 
-  go = go-bin.latestStable;
-  vendorHash = "sha256-AgWDvlXVZXXprWCeoNeAMDb6LeYfa9yG5afc7TNISQs=";
+  vendorHash = "sha256-+NEtqGkDC6qJKKeChx3sBPUtMn56XRQXN96HuRKoeKw=";
   manifests = fetchzip {
     url = "https://github.com/fluxcd/flux2/releases/download/v${version}/manifests.tar.gz";
     hash = "sha256-PdhR+UDquIJWtpSymtT6V7qO5fVJOkFz6RGzAx7xeb4=";

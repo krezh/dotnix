@@ -5,7 +5,7 @@
   go-bin,
   installShellFiles,
 }:
-buildGoModule rec {
+(buildGoModule.override { go = go-bin.latestStable; }) rec {
   pname = "talswitcher";
   # renovate: datasource=github-releases depName=mirceanton/talswitcher
   version = "2.2.15";
@@ -17,7 +17,6 @@ buildGoModule rec {
     hash = "sha256-IdtwdCIl/PqtHvF4SppCLfTOo8g7Zf3Ozt6ZH6Fk0aE=";
   };
 
-  go = go-bin.latestStable;
   vendorHash = "sha256-SB2nBKWHPVnejiS4weqXtnoYU+Xbnd7eH185TopoWQ8=";
 
   # Make build write to a writable tempdir instead of /homeless-shelter

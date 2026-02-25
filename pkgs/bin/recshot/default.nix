@@ -3,7 +3,7 @@
   buildGoModule,
   go-bin,
 }:
-buildGoModule rec {
+(buildGoModule.override { go = go-bin.latestStable; }) rec {
   pname = "recshot";
   version = "0.1.0";
 
@@ -12,7 +12,6 @@ buildGoModule rec {
     name = "recshot-src";
   };
 
-  go = go-bin.latestStable;
   vendorHash = null;
 
   ldflags = [

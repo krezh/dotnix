@@ -7,7 +7,7 @@
   installShellFiles,
   versionCheckHook,
 }:
-buildGoModule rec {
+(buildGoModule.override { go = go-bin.latestStable; }) rec {
   pname = "talosctl";
   # renovate: datasource=github-releases depName=siderolabs/talos
   version = "1.12.3";
@@ -19,7 +19,6 @@ buildGoModule rec {
     hash = "sha256-REQ1JAmqZLdoUMuydu4SCq0OsjWRba7s1pWabRbzB0I=";
   };
 
-  go = go-bin.latestStable;
   vendorHash = "sha256-Ni7DWXNinC+eZSajFqA5w6XJim23Yd5dhzWkZL6r4rg=";
 
   ldflags = [

@@ -21,6 +21,7 @@
           lsfg-vk-ui
           protonplus
           faugus-launcher
+          me3
         ];
       };
 
