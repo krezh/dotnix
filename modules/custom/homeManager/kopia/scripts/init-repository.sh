@@ -7,16 +7,27 @@ REPO_TYPE="${1:-filesystem}"
 REPO_PATH="${2:-$HOME/.local/share/kopia-repository}"
 CONFIG_FILE="${3:-$HOME/.config/kopia/repository.config}"
 PASSWORD_FILE="${4:-$HOME/.config/kopia/repository.password}"
+REQUIRE_MOUNT="${5:-false}"
 
 echo "Initializing Kopia repository..."
 echo "Type: $REPO_TYPE"
 echo "Path: $REPO_PATH"
 echo "Config: $CONFIG_FILE"
 
+if [[ "$REQUIRE_MOUNT" == "true" ]]; then
+  if ! mountpoint -q "$REPO_PATH"; then
+    echo "ERROR: Repository path '$REPO_PATH' is not a mount point" >&2
+    exit 1
+  fi
+  echo "Mount point check passed: $REPO_PATH"
+fi
+
 # Create directories
 mkdir -p "$(dirname "$CONFIG_FILE")"
 mkdir -p "$(dirname "$PASSWORD_FILE")"
-mkdir -p "$REPO_PATH"
+if [[ "$REQUIRE_MOUNT" != "true" ]]; then
+  mkdir -p "$REPO_PATH"
+fi
 
 # Generate password if it doesn't exist
 if [ ! -f "$PASSWORD_FILE" ]; then

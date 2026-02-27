@@ -12,6 +12,7 @@ in
             type = "filesystem";
             path = "/mnt/kopia";
             passwordFile = config.sops.secrets."kopia/password".path;
+            requireMountPoint = true;
           };
           backups = {
             downloads = {

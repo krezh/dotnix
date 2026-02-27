@@ -26,7 +26,7 @@
           };
           Service = {
             Type = "oneshot";
-            ExecStart = "${pkgs.writeShellScript "kopia-backup" (builtins.readFile ./scripts/backup.sh)} ${name} ${configFile} ${passwordFile} ${configJson}";
+            ExecStart = "${pkgs.writeShellScript "kopia-backup" (builtins.readFile ./scripts/backup.sh)} ${name} ${configFile} ${passwordFile} ${configJson} ${cfg.repository.path} ${lib.boolToString cfg.repository.requireMountPoint}";
             Environment = [ "KOPIA_CHECK_FOR_UPDATES=false" ];
           };
         };
@@ -87,6 +87,12 @@
             type = lib.types.path;
             default = defaultPasswordFile;
             description = "Path to repository password file";
+          };
+
+          requireMountPoint = lib.mkOption {
+            type = lib.types.bool;
+            default = false;
+            description = "Require that the repository path is a mount point. Prevents backups to local filesystem if NFS/SMB mount fails.";
           };
         };
 
@@ -232,7 +238,7 @@
             Service = {
               Type = "oneshot";
               RemainAfterExit = true;
-              ExecStart = "${pkgs.writeShellScript "kopia-init" (builtins.readFile ./scripts/init-repository.sh)} ${cfg.repository.type} ${cfg.repository.path} ${configFile} ${cfg.repository.passwordFile}";
+              ExecStart = "${pkgs.writeShellScript "kopia-init" (builtins.readFile ./scripts/init-repository.sh)} ${cfg.repository.type} ${cfg.repository.path} ${configFile} ${cfg.repository.passwordFile} ${lib.boolToString cfg.repository.requireMountPoint}";
               Environment = [
                 "KOPIA_REPO_CONFIG=${cfg.repository.type}:${cfg.repository.path}"
                 "KOPIA_CHECK_FOR_UPDATES=false"

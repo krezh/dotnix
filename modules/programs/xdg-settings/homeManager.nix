@@ -49,6 +49,7 @@
         "application/xml" = defaultTextEditor;
         "application/x-yaml" = defaultTextEditor;
         "inode/directory" = defaultFileManager;
+        "inode/mount-point" = defaultFileManager;
         "application/zip" = defaultArchiveManager;
         "application/x-tar" = defaultArchiveManager;
         "application/x-7z-compressed" = defaultArchiveManager;

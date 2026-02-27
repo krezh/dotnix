@@ -43,7 +43,7 @@ var ListServicesCmd = &cobra.Command{
 			return
 		}
 
-		headers := []string{"Service Name", "Timer Status", "Last Run", "Next Run"}
+		headers := []string{"Service Name", "Last Run", "Timer Status", "Next Run"}
 		var rows [][]string
 
 		for _, service := range services {

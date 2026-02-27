@@ -130,7 +130,11 @@ func (sm *ServiceManager) TriggerBackupService(backupName string) error {
 	cmd := exec.Command("systemctl", "--user", "start", serviceName)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return fmt.Errorf("failed to start service %s: %w\nOutput: %s", serviceName, err, string(output))
+		outputStr := strings.TrimSpace(string(output))
+		if outputStr != "" {
+			return fmt.Errorf("failed to start service %s: %w\nOutput: %s", serviceName, err, outputStr)
+		}
+		return fmt.Errorf("failed to start service %s: %w", serviceName, err)
 	}
 
 	return nil
@@ -149,13 +153,12 @@ func (sm *ServiceManager) ListBackupServices() ([]string, error) {
 	for _, line := range lines {
 		if strings.Contains(line, "kopia-backup-") && strings.Contains(line, ".service") {
 			fields := strings.Fields(line)
-			if len(fields) > 0 {
-				serviceName := fields[0]
-				// Extract backup name from service name
-				if strings.HasPrefix(serviceName, "kopia-backup-") && strings.HasSuffix(serviceName, ".service") {
-					backupName := strings.TrimPrefix(serviceName, "kopia-backup-")
+			for _, field := range fields {
+				if strings.HasPrefix(field, "kopia-backup-") && strings.HasSuffix(field, ".service") {
+					backupName := strings.TrimPrefix(field, "kopia-backup-")
 					backupName = strings.TrimSuffix(backupName, ".service")
 					services = append(services, backupName)
+					break
 				}
 			}
 		}
@@ -167,27 +170,7 @@ func (sm *ServiceManager) ListBackupServices() ([]string, error) {
 // getServiceStatus gets the status of a specific systemd service
 func (sm *ServiceManager) getServiceStatus(serviceName string) (string, error) {
 	cmd := exec.Command("systemctl", "--user", "status", serviceName)
-	output, err := cmd.Output()
-
-	if err != nil {
-		// Service might not exist or be inactive, get basic info
-		cmd = exec.Command("systemctl", "--user", "is-active", serviceName)
-		activeOutput, _ := cmd.Output()
-		activeState := strings.TrimSpace(string(activeOutput))
-
-		cmd = exec.Command("systemctl", "--user", "is-enabled", serviceName)
-		enabledOutput, _ := cmd.Output()
-		enabledState := strings.TrimSpace(string(enabledOutput))
-
-		statusIcon := "❌"
-		if activeState == "active" {
-			statusIcon = "✅"
-		} else if activeState == "inactive" {
-			statusIcon = "⏸️"
-		}
-
-		return fmt.Sprintf("%s %s: %s (enabled: %s)", statusIcon, serviceName, activeState, enabledState), nil
-	}
+	output, _ := cmd.CombinedOutput()
 
 	// Parse the systemctl status output for key information
 	lines := strings.Split(string(output), "\n")
@@ -199,9 +182,27 @@ func (sm *ServiceManager) getServiceStatus(serviceName string) (string, error) {
 			serviceLine = line
 		} else if strings.Contains(line, "Active:") {
 			activeLine = line
-		} else if strings.Contains(line, "Memory:") {
+		} else if strings.Contains(line, "Memory:") || strings.Contains(line, "Mem peak:") {
 			memoryLine = line
 		}
+	}
+
+	// If we couldn't parse the output, get basic info
+	if serviceLine == "" {
+		cmd = exec.Command("systemctl", "--user", "is-active", serviceName)
+		activeOutput, _ := cmd.Output()
+		activeState := strings.TrimSpace(string(activeOutput))
+
+		statusIcon := "❌"
+		if activeState == "active" {
+			statusIcon = "✅"
+		} else if activeState == "inactive" {
+			statusIcon = "⏸️"
+		} else if activeState == "failed" {
+			statusIcon = "❌"
+		}
+
+		return fmt.Sprintf("%s %s: %s", statusIcon, serviceName, activeState), nil
 	}
 
 	statusIcon := "❌"
@@ -272,23 +273,16 @@ func (sm *ServiceManager) getTimerStatus(timerName string) (string, error) {
 	return result, nil
 }
 
-// getBackupServices discovers backup services dynamically
+// getBackupServices discovers backup services dynamically and returns full service names
 func (sm *ServiceManager) getBackupServices() ([]string, error) {
-	cmd := exec.Command("systemctl", "--user", "list-units", "--type=service", "--all", "--no-legend")
-	output, err := cmd.Output()
+	backupNames, err := sm.ListBackupServices()
 	if err != nil {
 		return nil, err
 	}
 
 	var services []string
-	lines := strings.Split(string(output), "\n")
-	for _, line := range lines {
-		if strings.Contains(line, "kopia-backup-") && strings.Contains(line, ".service") {
-			fields := strings.Fields(line)
-			if len(fields) > 0 {
-				services = append(services, fields[0])
-			}
-		}
+	for _, name := range backupNames {
+		services = append(services, fmt.Sprintf("kopia-backup-%s.service", name))
 	}
 
 	return services, nil
@@ -307,8 +301,11 @@ func (sm *ServiceManager) getBackupTimers() ([]string, error) {
 	for _, line := range lines {
 		if strings.Contains(line, "kopia-backup-") && strings.Contains(line, ".timer") {
 			fields := strings.Fields(line)
-			if len(fields) > 0 {
-				timers = append(timers, fields[0])
+			for _, field := range fields {
+				if strings.HasPrefix(field, "kopia-backup-") && strings.HasSuffix(field, ".timer") {
+					timers = append(timers, field)
+					break
+				}
 			}
 		}
 	}

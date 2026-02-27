@@ -3,6 +3,7 @@ package mount
 import (
 	"fmt"
 	"os/exec"
+	"path/filepath"
 	"strings"
 
 	"kopia-manager/internal/manager"
@@ -32,12 +33,17 @@ Examples:
 		mountPoint := args[1]
 		browse, _ := cmd.Flags().GetBool("browse")
 
-		if err := km.MountSnapshot(snapshotID, mountPoint); err != nil {
+		absMount, err := filepath.Abs(mountPoint)
+		if err != nil {
+			log.Fatal("Failed to resolve mount point path", "error", err)
+		}
+
+		if err := km.MountSnapshot(snapshotID, absMount); err != nil {
 			log.Fatal("Mount failed", "error", err)
 		}
 
 		if browse {
-			if err := openFileManager(mountPoint); err != nil {
+			if err := openFileManager(absMount); err != nil {
 				log.Warn("Failed to open file manager", "error", err)
 			}
 		}
@@ -136,28 +142,30 @@ func listActiveMounts() ([]MountInfo, error) {
 	lines := strings.Split(string(output), "\n")
 
 	for _, line := range lines {
-		// Look for FUSE mounts that might be kopia-related
-		if strings.Contains(line, "fuse") && (strings.Contains(line, "kopia") || strings.Contains(line, "type fuse")) {
-			fields := strings.Fields(line)
-			if len(fields) >= 3 {
-				// Parse mount line: source on mountpoint type options
-				for i, field := range fields {
-					if field == "on" && i+1 < len(fields) {
-						mountPoint := fields[i+1]
-						source := fields[0]
-						mountType := "fuse"
+		// Look for kopia FUSE mounts only
+		if !strings.Contains(line, "kopia") {
+			continue
+		}
 
-						if i+3 < len(fields) && fields[i+2] == "type" {
-							mountType = fields[i+3]
-						}
+		fields := strings.Fields(line)
+		if len(fields) >= 3 {
+			// Parse mount line: source on mountpoint type options
+			for i, field := range fields {
+				if field == "on" && i+1 < len(fields) {
+					mountPoint := fields[i+1]
+					source := fields[0]
+					mountType := "fuse"
 
-						mounts = append(mounts, MountInfo{
-							MountPoint: mountPoint,
-							Source:     source,
-							Type:       mountType,
-						})
-						break
+					if i+3 < len(fields) && fields[i+2] == "type" {
+						mountType = fields[i+3]
 					}
+
+					mounts = append(mounts, MountInfo{
+						MountPoint: mountPoint,
+						Source:     source,
+						Type:       mountType,
+					})
+					break
 				}
 			}
 		}

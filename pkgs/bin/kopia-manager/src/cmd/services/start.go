@@ -25,7 +25,7 @@ Use 'km services' to see available backup services.`,
 		backupName := args[0]
 
 		if err := km.TriggerBackupService(backupName); err != nil {
-			log.Fatal("Failed to start backup service", "error", err, "backup", backupName)
+			log.Fatalf("Failed to start backup '%s': %v", backupName, err)
 		}
 
 		ui.Successf("Started systemd service: kopia-backup-%s.service", backupName)

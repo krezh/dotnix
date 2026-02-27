@@ -5,6 +5,8 @@ BACKUP_NAME="$1"
 CONFIG_FILE="$2"
 PASSWORD_FILE="$3"
 JSON_CONFIG="$4"
+REPO_PATH="$5"
+REQUIRE_MOUNT="${6:-false}"
 
 
 KOPIA_PASSWORD="$(cat "$PASSWORD_FILE")"
@@ -41,6 +43,15 @@ notify() {
     notify-send --transient -t 5000 "$title" "✅ $message" --icon=dialog-information --urgency="$urgency"
   fi
 }
+
+if [[ "$REQUIRE_MOUNT" == "true" ]]; then
+  if ! mountpoint -q "$REPO_PATH"; then
+    notify "Kopia Backup" "Repository path is not a mount point: $REPO_PATH" "critical"
+    echo "ERROR: Repository path '$REPO_PATH' is not a mount point" >&2
+    exit 1
+  fi
+  echo "Mount point check passed: $REPO_PATH"
+fi
 
 if kopia policy set "${KOPIA_POLICY_ARGS[@]}" --config-file="$CONFIG_FILE" "${BACKUP_PATHS[@]}" \
   && kopia snapshot create "${BACKUP_PATHS[@]}" \

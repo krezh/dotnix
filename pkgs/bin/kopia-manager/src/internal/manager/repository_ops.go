@@ -184,11 +184,6 @@ func (ro *RepositoryOps) ShowPolicy(path string) (string, error) {
 		return "", fmt.Errorf("failed to get policy: %w", err)
 	}
 
-	// Check if there's a policy specifically defined for this path
-	if err != nil && err != policy.ErrPolicyNotFound {
-		return "", fmt.Errorf("failed to check for defined policy: %w", err)
-	}
-
 	// Helper function to check if a setting is defined for this target
 	isDefinedForTarget := func(defSource snapshot.SourceInfo) bool {
 		return defSource.Path == sourceInfo.Path && defSource.Host == sourceInfo.Host && defSource.UserName == sourceInfo.UserName

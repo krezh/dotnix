@@ -59,20 +59,25 @@ func (mm *MountManager) MountSnapshot(snapshotID, mountPoint string) error {
 	cmd := exec.Command("kopia", args...)
 	cmd.Env = env
 
-	// Redirect stdout/stderr to prevent hanging
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+	// Discard stdout/stderr
+	cmd.Stdout = nil
+	cmd.Stderr = nil
 
 	// Start the mount process in background
 	if err := cmd.Start(); err != nil {
 		return fmt.Errorf("failed to start mount: %w", err)
 	}
 
-	// Wait a bit longer for mount to establish
-	time.Sleep(5 * time.Second)
+	// Wait for the process in a goroutine to reap it when it exits
+	go func() {
+		cmd.Wait()
+	}()
+
+	// Wait for the mount to establish by watching for IN_MOUNT on the mount point.
+	mountErr := mm.waitForMount(mountPoint, 30*time.Second)
 
 	// Try to verify mount status, but don't fail if we can't verify
-	if err := mm.checkMountStatus(mountPoint); err != nil {
+	if err := mountErr; err != nil {
 		ui.Warningf("Warning: Could not verify mount status: %v", err)
 		ui.Warningf("The mount process (PID %d) has been started.", cmd.Process.Pid)
 		ui.Help("Check mount status manually with 'mount | grep kopia' or 'mountpoint <path>'")
@@ -95,12 +100,28 @@ func (mm *MountManager) UnmountSnapshot(mountPoint string) error {
 		output, err = cmd.CombinedOutput()
 
 		if err != nil {
-			return fmt.Errorf("failed to unmount %s: %w\nOutput: %s", mountPoint, err, string(output))
+			outputStr := strings.TrimSpace(string(output))
+			if outputStr != "" {
+				return fmt.Errorf("failed to unmount %s: %w\nOutput: %s", mountPoint, err, outputStr)
+			}
+			return fmt.Errorf("failed to unmount %s: %w", mountPoint, err)
 		}
 	}
 
 	ui.Successf("Successfully unmounted %s", mountPoint)
 	return nil
+}
+
+// waitForMount blocks until the mount point has a filesystem mounted on it or the timeout expires.
+func (mm *MountManager) waitForMount(mountPoint string, timeout time.Duration) error {
+	deadline := time.Now().Add(timeout)
+	for time.Now().Before(deadline) {
+		time.Sleep(500 * time.Millisecond)
+		if mm.checkMountStatus(mountPoint) == nil {
+			return nil
+		}
+	}
+	return fmt.Errorf("mount point %s did not become active within %s", mountPoint, timeout)
 }
 
 // checkMountStatus verifies that a mount point is active
