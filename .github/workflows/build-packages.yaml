@@ -70,6 +70,7 @@ jobs:
           attic-cache: ${{ secrets.ATTIC_CACHE }}
           attic-token: ${{ secrets.ATTIC_TOKEN }}
           skip-cache: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork }}
+          nothing-but-nix: false
 
       - name: Build package
         id: build
