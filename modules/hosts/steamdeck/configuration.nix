@@ -28,7 +28,10 @@ in
 
       networking.hostName = "steamdeck";
 
-      services.orca.enable = false;
+      services = {
+        orca.enable = false;
+        displayManager.sddm.wayland.enable = true;
+      };
 
       boot = {
         plymouth.enable = true;

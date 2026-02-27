@@ -58,7 +58,6 @@
           inhibit-gnome
           sponsorblock
           thumbfast
-          mpv-cheatsheet
           quality-menu
         ];
 
