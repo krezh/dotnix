@@ -3,7 +3,7 @@ module github.com/krezh/nixos-webgui
 go 1.24.0
 
 require (
-	github.com/a-h/templ v0.3.977
+	github.com/a-h/templ v0.3.1001
 	github.com/go-chi/chi/v5 v5.2.5
 	github.com/shirou/gopsutil/v4 v4.26.2
 )
