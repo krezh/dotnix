@@ -30,30 +30,26 @@ func GetGenerations() ([]Generation, error) {
 		return nil, fmt.Errorf("failed to read profiles directory: %w", err)
 	}
 
-	var generations []Generation
-
-	// Read current system link - this points to system-XXX-link
 	currentGenLink, err := os.Readlink("/nix/var/nix/profiles/system")
 	if err != nil {
 		return nil, fmt.Errorf("failed to read current system link: %w", err)
 	}
 
-	// Resolve to actual store path
 	currentGenPath := filepath.Join(profilePath, currentGenLink)
 	currentLink, err := os.Readlink(currentGenPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to resolve current generation link: %w", err)
 	}
 
+	var generations []Generation
+
 	for _, entry := range entries {
 		name := entry.Name()
 
-		// Match system-XXX-link pattern
 		if !strings.HasPrefix(name, "system-") || !strings.HasSuffix(name, "-link") {
 			continue
 		}
 
-		// Extract generation number
 		numStr := strings.TrimPrefix(name, "system-")
 		numStr = strings.TrimSuffix(numStr, "-link")
 		genNum, err := strconv.Atoi(numStr)
@@ -67,25 +63,20 @@ func GetGenerations() ([]Generation, error) {
 			continue
 		}
 
-		// Get modification time
 		info, err := entry.Info()
 		if err != nil {
 			continue
 		}
-
-		// Extract NixOS version from path
-		version := extractNixOSVersion(target)
 
 		generations = append(generations, Generation{
 			Number:       genNum,
 			Path:         target,
 			Date:         info.ModTime(),
 			Current:      target == currentLink,
-			NixOSVersion: version,
+			NixOSVersion: extractNixOSVersion(target),
 		})
 	}
 
-	// Sort by generation number (descending)
 	sort.Slice(generations, func(i, j int) bool {
 		return generations[i].Number > generations[j].Number
 	})
@@ -95,71 +86,44 @@ func GetGenerations() ([]Generation, error) {
 
 // extractNixOSVersion extracts version from store path.
 func extractNixOSVersion(path string) string {
-	// Path format: /nix/store/...-nixos-system-hostname-VERSION
 	parts := strings.Split(filepath.Base(path), "-")
-
-	// Look for version-like pattern
 	for i, part := range parts {
 		if strings.Contains(part, ".") && i > 2 {
-			// Found something like "24.11" or "25.05.20260227"
 			return part
 		}
 	}
-
 	return "unknown"
+}
+
+// FormatRelativeTime formats a time as a human-readable relative duration.
+func FormatRelativeTime(t time.Time) string {
+	duration := time.Since(t)
+
+	switch {
+	case duration.Hours() < 1:
+		return fmt.Sprintf("%.0f minutes ago", duration.Minutes())
+	case duration.Hours() < 24:
+		return fmt.Sprintf("%.0f hours ago", duration.Hours())
+	case duration.Hours() < 24*7:
+		return fmt.Sprintf("%d days ago", int(duration.Hours()/24))
+	case duration.Hours() < 24*30:
+		return fmt.Sprintf("%d weeks ago", int(duration.Hours()/24/7))
+	default:
+		return fmt.Sprintf("%d months ago", int(duration.Hours()/24/30))
+	}
 }
 
 // RollbackToGeneration rolls back to a specific generation.
 func RollbackToGeneration(genNum int, sudoPassword string) error {
-	// Run: sudo nix-env --profile /nix/var/nix/profiles/system --switch-generation <num>
 	cmd := exec.Command("sudo", "-S", "nix-env",
 		"--profile", "/nix/var/nix/profiles/system",
 		"--switch-generation", strconv.Itoa(genNum))
-
-	// Set up password pipe
-	stdin, err := cmd.StdinPipe()
-	if err != nil {
-		return fmt.Errorf("failed to create stdin pipe: %w", err)
-	}
-
-	if err := cmd.Start(); err != nil {
-		return fmt.Errorf("failed to start rollback: %w", err)
-	}
-
-	// Send password
-	if sudoPassword != "" {
-		_, err = stdin.Write([]byte(sudoPassword + "\n"))
-		if err != nil {
-			return fmt.Errorf("failed to write password: %w", err)
-		}
-	}
-	stdin.Close()
-
-	if err := cmd.Wait(); err != nil {
+	if err := runWithSudo(cmd, sudoPassword); err != nil {
 		return fmt.Errorf("rollback failed: %w", err)
 	}
 
-	// Now run: sudo /nix/var/nix/profiles/system/bin/switch-to-configuration switch
 	cmd = exec.Command("sudo", "-S", "/nix/var/nix/profiles/system/bin/switch-to-configuration", "switch")
-
-	stdin, err = cmd.StdinPipe()
-	if err != nil {
-		return fmt.Errorf("failed to create stdin pipe: %w", err)
-	}
-
-	if err := cmd.Start(); err != nil {
-		return fmt.Errorf("failed to start switch-to-configuration: %w", err)
-	}
-
-	if sudoPassword != "" {
-		_, err = stdin.Write([]byte(sudoPassword + "\n"))
-		if err != nil {
-			return fmt.Errorf("failed to write password: %w", err)
-		}
-	}
-	stdin.Close()
-
-	if err := cmd.Wait(); err != nil {
+	if err := runWithSudo(cmd, sudoPassword); err != nil {
 		return fmt.Errorf("switch-to-configuration failed: %w", err)
 	}
 
@@ -168,28 +132,23 @@ func RollbackToGeneration(genNum int, sudoPassword string) error {
 
 // DeleteGenerations deletes old generations.
 func DeleteGenerations(keepLast int, sudoPassword string) (int, error) {
-	// Run: sudo nix-env --profile /nix/var/nix/profiles/system --delete-generations old
-	// Or: sudo nix-collect-garbage --delete-older-than Xd
-
-	var args []string
+	var deleteArg string
 	if keepLast > 0 {
-		// Keep last N generations
-		args = []string{"-S", "nix-env", "--profile", "/nix/var/nix/profiles/system",
-			"--delete-generations", fmt.Sprintf("+%d", keepLast)}
+		deleteArg = fmt.Sprintf("+%d", keepLast)
 	} else {
-		// Delete all old generations
-		args = []string{"-S", "nix-env", "--profile", "/nix/var/nix/profiles/system",
-			"--delete-generations", "old"}
+		deleteArg = "old"
 	}
 
-	cmd := exec.Command("sudo", args...)
+	cmd := exec.Command("sudo", "-S", "nix-env",
+		"--profile", "/nix/var/nix/profiles/system",
+		"--delete-generations", deleteArg)
 
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
 		return 0, fmt.Errorf("failed to create stdin pipe: %w", err)
 	}
 
-	output, err := cmd.StdoutPipe()
+	outputPipe, err := cmd.StdoutPipe()
 	if err != nil {
 		return 0, fmt.Errorf("failed to create stdout pipe: %w", err)
 	}
@@ -199,15 +158,13 @@ func DeleteGenerations(keepLast int, sudoPassword string) (int, error) {
 	}
 
 	if sudoPassword != "" {
-		_, err = stdin.Write([]byte(sudoPassword + "\n"))
-		if err != nil {
+		if _, err = stdin.Write([]byte(sudoPassword + "\n")); err != nil {
 			return 0, fmt.Errorf("failed to write password: %w", err)
 		}
 	}
 	stdin.Close()
 
-	// Read output to count deletions
-	outputBytes, err := io.ReadAll(output)
+	outputBytes, err := io.ReadAll(outputPipe)
 	if err != nil {
 		return 0, fmt.Errorf("failed to read output: %w", err)
 	}
@@ -216,8 +173,6 @@ func DeleteGenerations(keepLast int, sudoPassword string) (int, error) {
 		return 0, fmt.Errorf("delete generations failed: %w", err)
 	}
 
-	// Count how many were deleted (output shows "removing generation X")
 	deleted := strings.Count(string(outputBytes), "removing generation")
-
 	return deleted, nil
 }

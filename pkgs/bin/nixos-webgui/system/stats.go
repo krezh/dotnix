@@ -8,14 +8,13 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
-	"time"
 
 	"github.com/shirou/gopsutil/v4/cpu"
 	"github.com/shirou/gopsutil/v4/host"
 	"github.com/shirou/gopsutil/v4/mem"
 	"github.com/shirou/gopsutil/v4/net"
-	"github.com/shirou/gopsutil/v4/process"
 )
 
 // CPUStats represents CPU usage statistics.
@@ -97,9 +96,10 @@ type ProcessInfo struct {
 }
 
 // GetCPUStats retrieves current CPU usage statistics.
+// Uses interval=0 so gopsutil computes the delta from the last /proc/stat read
+// without blocking (no artificial sleep).
 func GetCPUStats() (*CPUStats, error) {
-	// Use a shorter interval (100ms) to reduce blocking time
-	perCore, err := cpu.Percent(100*time.Millisecond, true)
+	perCore, err := cpu.Percent(0, true)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get per-core CPU percent: %w", err)
 	}
@@ -445,11 +445,20 @@ func getVulkanGPUNames() []string {
 	return names
 }
 
+var (
+	vulkanGPUNamesCache []string
+	vulkanGPUNamesDone  bool
+)
+
 func getAMDGPUs() []GPUStats {
 	var gpus []GPUStats
 
-	// Get GPU names from vulkaninfo once (more efficient and accurate)
-	gpuNames := getVulkanGPUNames()
+	// Fetch vulkan GPU names once and cache — vulkaninfo is expensive to spawn.
+	if !vulkanGPUNamesDone {
+		vulkanGPUNamesCache = getVulkanGPUNames()
+		vulkanGPUNamesDone = true
+	}
+	gpuNames := vulkanGPUNamesCache
 
 	// AMD GPUs expose stats via sysfs under /sys/class/drm/cardN/device/
 	// Check common card indices (card0, card1, etc.)
@@ -702,55 +711,197 @@ func GetTemperatureStats() (*TemperatureStats, error) {
 	return temps, nil
 }
 
-// GetTopProcesses retrieves top processes by CPU and memory usage.
+// procTicks holds the last-seen CPU tick count for a PID, used to compute delta.
+type procTicks struct {
+	total uint64 // utime + stime from /proc/<pid>/stat
+}
+
+var (
+	prevProcTicks  = map[int32]procTicks{}
+	prevTotalTicks uint64
+	procTicksMu    sync.Mutex
+)
+
+// readTotalCPUTicks reads the aggregate CPU ticks from /proc/stat (first line).
+func readTotalCPUTicks() (uint64, error) {
+	f, err := os.Open("/proc/stat")
+	if err != nil {
+		return 0, err
+	}
+	defer f.Close()
+
+	scanner := bufio.NewScanner(f)
+	if !scanner.Scan() {
+		return 0, fmt.Errorf("empty /proc/stat")
+	}
+
+	fields := strings.Fields(scanner.Text())
+	// fields[0] == "cpu", fields[1..] are user nice system idle iowait irq softirq steal
+	var total uint64
+	for _, field := range fields[1:] {
+		v, err := strconv.ParseUint(field, 10, 64)
+		if err != nil {
+			break
+		}
+		total += v
+	}
+	return total, nil
+}
+
+// readProcStat reads utime+stime, name, and RSS for a single PID from /proc/<pid>/stat and statm.
+func readProcStat(pid int32) (name string, ticks uint64, rssPages uint64, ok bool) {
+	statPath := fmt.Sprintf("/proc/%d/stat", pid)
+	data, err := os.ReadFile(statPath)
+	if err != nil {
+		return
+	}
+
+	// Format: pid (name) state ppid ... utime stime ...
+	// Name may contain spaces and parentheses, find last ')' to split safely.
+	raw := string(data)
+	end := strings.LastIndex(raw, ")")
+	if end < 0 {
+		return
+	}
+	start := strings.Index(raw, "(")
+	if start < 0 {
+		return
+	}
+	name = raw[start+1 : end]
+
+	// Fields after ')': state ppid pgrp session ... utime(13) stime(14) ...
+	rest := strings.Fields(raw[end+2:])
+	if len(rest) < 13 {
+		return
+	}
+	utime, err1 := strconv.ParseUint(rest[11], 10, 64)
+	stime, err2 := strconv.ParseUint(rest[12], 10, 64)
+	if err1 != nil || err2 != nil {
+		return
+	}
+	ticks = utime + stime
+
+	// RSS from /proc/<pid>/statm (field[1] = RSS in pages)
+	statmPath := fmt.Sprintf("/proc/%d/statm", pid)
+	statmData, err := os.ReadFile(statmPath)
+	if err == nil {
+		statmFields := strings.Fields(string(statmData))
+		if len(statmFields) >= 2 {
+			rssPages, _ = strconv.ParseUint(statmFields[1], 10, 64)
+		}
+	}
+
+	ok = true
+	return
+}
+
+// GetTopProcesses retrieves top processes by CPU usage.
+// Reads /proc directly to avoid the overhead of gopsutil's per-process syscall storm.
 func GetTopProcesses(limit int) ([]ProcessInfo, error) {
-	procs, err := process.Processes()
+	// Read total CPU ticks for delta calculation.
+	totalTicks, err := readTotalCPUTicks()
 	if err != nil {
 		return nil, err
 	}
 
-	var processList []ProcessInfo
+	// List all PIDs from /proc.
+	entries, err := os.ReadDir("/proc")
+	if err != nil {
+		return nil, err
+	}
 
-	for _, p := range procs {
-		name, err := p.Name()
+	pageSize := uint64(os.Getpagesize())
+
+	procTicksMu.Lock()
+	defer procTicksMu.Unlock()
+
+	deltaTotalTicks := totalTicks - prevTotalTicks
+	if deltaTotalTicks == 0 {
+		deltaTotalTicks = 1 // avoid division by zero on first call
+	}
+
+	var processList []ProcessInfo
+	currentPIDs := map[int32]struct{}{}
+
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		pid, err := strconv.ParseInt(entry.Name(), 10, 32)
 		if err != nil {
+			continue // not a PID directory
+		}
+		p := int32(pid)
+		currentPIDs[p] = struct{}{}
+
+		name, ticks, rssPages, ok := readProcStat(p)
+		if !ok {
 			continue
 		}
 
-		cpuPercent, err := p.CPUPercent()
-		if err != nil {
-			cpuPercent = 0
-		}
+		prev := prevProcTicks[p]
+		deltaProcTicks := ticks - prev.total
+		prevProcTicks[p] = procTicks{total: ticks}
 
-		memPercent, err := p.MemoryPercent()
-		if err != nil {
-			memPercent = 0
-		}
-
-		memInfo, err := p.MemoryInfo()
-		memBytes := uint64(0)
-		if err == nil && memInfo != nil {
-			memBytes = memInfo.RSS
+		cpuPercent := float64(deltaProcTicks) / float64(deltaTotalTicks) * 100.0
+		rssBytes := rssPages * pageSize
+		memTotal := getTotalMemBytes()
+		memPercent := float32(0)
+		if memTotal > 0 {
+			memPercent = float32(rssBytes) / float32(memTotal) * 100.0
 		}
 
 		processList = append(processList, ProcessInfo{
-			PID:         p.Pid,
+			PID:         p,
 			Name:        name,
 			CPUPercent:  cpuPercent,
 			MemPercent:  memPercent,
-			MemoryBytes: memBytes,
+			MemoryBytes: rssBytes,
 		})
 	}
 
-	// Sort by CPU usage (descending)
+	// Evict stale PIDs from the previous-ticks map.
+	for p := range prevProcTicks {
+		if _, alive := currentPIDs[p]; !alive {
+			delete(prevProcTicks, p)
+		}
+	}
+
+	prevTotalTicks = totalTicks
+
+	// Sort by CPU usage descending.
 	sort.Slice(processList, func(i, j int) bool {
 		return processList[i].CPUPercent > processList[j].CPUPercent
 	})
 
-	// Limit results
 	if len(processList) > limit {
 		processList = processList[:limit]
 	}
 
 	return processList, nil
+}
+
+// getTotalMemBytes returns total physical memory in bytes from /proc/meminfo.
+func getTotalMemBytes() uint64 {
+	f, err := os.Open("/proc/meminfo")
+	if err != nil {
+		return 0
+	}
+	defer f.Close()
+
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		line := scanner.Text()
+		if strings.HasPrefix(line, "MemTotal:") {
+			fields := strings.Fields(line)
+			if len(fields) >= 2 {
+				kb, err := strconv.ParseUint(fields[1], 10, 64)
+				if err == nil {
+					return kb * 1024
+				}
+			}
+			break
+		}
+	}
+	return 0
 }

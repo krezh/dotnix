@@ -7,7 +7,7 @@ templ Update() {
 templ UpdateContent() {
 	<div class="space-y-6">
 		<div class="card">
-			<h3 class="text-xl font-semibold mb-4">System Update</h3>
+			@CardHeading("System Update")
 			<p class="text-gray-600 dark:text-gray-400 mb-4">
 				This will pull the latest changes from your NixOS configuration repository
 				and rebuild the system using <code class="bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded">nixos-rebuild switch</code>.
@@ -155,11 +155,10 @@ templ UpdateProgressInitial(logs []string) {
 							return;
 						}
 						
-						// Show spinner and update text
-						if (spinnerContainer) {
+					// Show spinner and update text
+					if (spinnerContainer) {
 							spinnerContainer.style.display = 'flex';
-							spinnerContainer.innerHTML = '<div class="spinner-7"><div></div><div></div><div></div></div>' +
-								'<span class="text-sm font-medium">Applying configuration...</span>';
+							spinnerContainer.innerHTML = makeSpinner() + '<span class="text-sm font-medium">Applying configuration...</span>';
 						}
 						
 						// Clear the status area

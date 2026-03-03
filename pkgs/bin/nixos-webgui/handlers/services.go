@@ -12,6 +12,14 @@ import (
 	"github.com/krezh/nixos-webgui/templates"
 )
 
+// normalizeServiceName ensures the service name ends with ".service".
+func normalizeServiceName(name string) string {
+	if !strings.HasSuffix(name, ".service") {
+		return name + ".service"
+	}
+	return name
+}
+
 // HandleServices renders the services page.
 func HandleServices(w http.ResponseWriter, r *http.Request) {
 	filter := r.URL.Query().Get("filter")
@@ -26,19 +34,12 @@ func HandleServices(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	component := templates.Services(services, filter)
-	if err := component.Render(r.Context(), w); err != nil {
-		log.Printf("Error rendering services: %v", err)
-		http.Error(w, "Failed to render page", http.StatusInternalServerError)
-	}
+	renderComponent(w, r, templates.Services(services, filter))
 }
 
 // HandleServiceStart starts a service.
 func HandleServiceStart(w http.ResponseWriter, r *http.Request) {
-	serviceName := chi.URLParam(r, "name")
-	if !strings.HasSuffix(serviceName, ".service") {
-		serviceName += ".service"
-	}
+	serviceName := normalizeServiceName(chi.URLParam(r, "name"))
 
 	if err := system.StartService(serviceName); err != nil {
 		log.Printf("Error starting service %s: %v", serviceName, err)
@@ -46,17 +47,13 @@ func HandleServiceStart(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Trigger page reload
 	w.Header().Set("HX-Refresh", "true")
 	w.WriteHeader(http.StatusOK)
 }
 
 // HandleServiceStop stops a service.
 func HandleServiceStop(w http.ResponseWriter, r *http.Request) {
-	serviceName := chi.URLParam(r, "name")
-	if !strings.HasSuffix(serviceName, ".service") {
-		serviceName += ".service"
-	}
+	serviceName := normalizeServiceName(chi.URLParam(r, "name"))
 
 	if err := system.StopService(serviceName); err != nil {
 		log.Printf("Error stopping service %s: %v", serviceName, err)
@@ -64,17 +61,13 @@ func HandleServiceStop(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Trigger page reload
 	w.Header().Set("HX-Refresh", "true")
 	w.WriteHeader(http.StatusOK)
 }
 
 // HandleServiceRestart restarts a service.
 func HandleServiceRestart(w http.ResponseWriter, r *http.Request) {
-	serviceName := chi.URLParam(r, "name")
-	if !strings.HasSuffix(serviceName, ".service") {
-		serviceName += ".service"
-	}
+	serviceName := normalizeServiceName(chi.URLParam(r, "name"))
 
 	if err := system.RestartService(serviceName); err != nil {
 		log.Printf("Error restarting service %s: %v", serviceName, err)
@@ -82,17 +75,13 @@ func HandleServiceRestart(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Trigger page reload
 	w.Header().Set("HX-Refresh", "true")
 	w.WriteHeader(http.StatusOK)
 }
 
 // HandleServiceLogs returns logs for a service.
 func HandleServiceLogs(w http.ResponseWriter, r *http.Request) {
-	serviceName := chi.URLParam(r, "name")
-	if !strings.HasSuffix(serviceName, ".service") {
-		serviceName += ".service"
-	}
+	serviceName := normalizeServiceName(chi.URLParam(r, "name"))
 
 	logs, err := system.GetServiceLogs(serviceName, 100)
 	if err != nil {
@@ -101,32 +90,19 @@ func HandleServiceLogs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	component := templates.ServiceLogs(serviceName, logs)
-	if err := component.Render(r.Context(), w); err != nil {
-		log.Printf("Error rendering logs: %v", err)
-		http.Error(w, "Failed to render logs", http.StatusInternalServerError)
-	}
+	renderComponent(w, r, templates.ServiceLogs(serviceName, logs))
 }
 
 // HandleServiceLogsStream streams service logs in real-time via SSE.
 func HandleServiceLogsStream(w http.ResponseWriter, r *http.Request) {
-	serviceName := chi.URLParam(r, "name")
-	if !strings.HasSuffix(serviceName, ".service") {
-		serviceName += ".service"
+	serviceName := normalizeServiceName(chi.URLParam(r, "name"))
+
+	setSSEHeaders(w)
+	flusher := sendSSEConnected(w)
+	if flusher == nil {
+		return
 	}
 
-	// Set SSE headers
-	w.Header().Set("Content-Type", "text/event-stream")
-	w.Header().Set("Cache-Control", "no-cache")
-	w.Header().Set("Connection", "keep-alive")
-
-	// Send initial connection confirmation
-	fmt.Fprintf(w, ": connected\n\n")
-	if f, ok := w.(http.Flusher); ok {
-		f.Flush()
-	}
-
-	// Start streaming logs
 	cmd, err := system.StreamServiceLogs(serviceName, 50)
 	if err != nil {
 		log.Printf("Error starting log stream for service %s: %v", serviceName, err)
@@ -147,10 +123,8 @@ func HandleServiceLogsStream(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Create a context that gets cancelled when the client disconnects
 	ctx := r.Context()
 
-	// Cleanup on exit
 	defer func() {
 		if cmd.Process != nil {
 			cmd.Process.Kill()
@@ -158,20 +132,14 @@ func HandleServiceLogsStream(w http.ResponseWriter, r *http.Request) {
 		cmd.Wait()
 	}()
 
-	// Stream logs line by line
 	scanner := bufio.NewScanner(stdout)
 	for scanner.Scan() {
 		select {
 		case <-ctx.Done():
-			// Client disconnected
 			return
 		default:
-			line := scanner.Text()
-			// Send each log line as an SSE event
-			fmt.Fprintf(w, "data: %s\n\n", line)
-			if f, ok := w.(http.Flusher); ok {
-				f.Flush()
-			}
+			fmt.Fprintf(w, "data: %s\n\n", scanner.Text())
+			flusher.Flush()
 		}
 	}
 

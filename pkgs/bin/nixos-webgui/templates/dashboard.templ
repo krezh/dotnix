@@ -36,46 +36,98 @@ templ DashboardContent(info *system.SystemInfo, cpu *system.CPUStats, cpuHistory
 	<script>
 		(function() {
 			const statsContainer = document.getElementById('stats-container');
-			
-			// Get color based on percentage (0-60: blue, 61-79: yellow, 80+: red)
+
+			// --- Process sort state ---
+			let procSortCol = 'cpu'; // default: sort by CPU descending
+			let procSortDir = -1;    // -1 = descending, 1 = ascending
+
+			// Switch active sort column (or toggle direction if same column).
+			window.procSort = function(col) {
+				if (procSortCol === col) {
+					procSortDir *= -1;
+				} else {
+					procSortCol = col;
+					// Numeric columns default descending; name/pid default ascending.
+					procSortDir = (col === 'name' || col === 'pid') ? 1 : -1;
+				}
+				applyProcSort();
+			};
+
+			// Re-sort the process tbody rows and update arrow indicators.
+			function applyProcSort() {
+				const tbody = document.getElementById('proc-tbody');
+				if (!tbody) return;
+
+				const rows = Array.from(tbody.querySelectorAll('tr'));
+
+				rows.sort(function(a, b) {
+					let primary;
+					if (procSortCol === 'name') {
+						const valA = (a.cells[1] ? a.cells[1].textContent.trim().toLowerCase() : '');
+						const valB = (b.cells[1] ? b.cells[1].textContent.trim().toLowerCase() : '');
+						primary = procSortDir * valA.localeCompare(valB);
+					} else {
+						const valA = parseFloat(a.dataset[procSortCol] ?? 0);
+						const valB = parseFloat(b.dataset[procSortCol] ?? 0);
+						primary = procSortDir * (valA - valB);
+					}
+					// Break ties by PID so order is fully deterministic.
+					if (primary !== 0) return primary;
+					return parseInt(a.dataset.pid) - parseInt(b.dataset.pid);
+				});
+
+				rows.forEach(row => tbody.appendChild(row));
+				updateProcArrows();
+			}
+
+			// Update the sort arrow indicators in column headers.
+			function updateProcArrows() {
+				const cols = ['pid', 'name', 'cpu', 'mem', 'mempct'];
+				cols.forEach(col => {
+					const el = document.getElementById('proc-arrow-' + col);
+					if (!el) return;
+					if (col === procSortCol) {
+						el.textContent = procSortDir === -1 ? '↓' : '↑';
+						el.classList.remove('text-gray-400');
+						el.classList.add('text-blue-500');
+					} else {
+						el.textContent = '';
+						el.classList.remove('text-blue-500');
+						el.classList.add('text-gray-400');
+					}
+				});
+			}
+
+			// --- Progress bar colors ---
 			function getProgressColor(percent) {
 				const isDark = document.documentElement.classList.contains('dark');
 				const p = parseFloat(percent);
-				
-				if (p >= 80) {
-					return isDark ? '#ef4444' : '#dc2626'; // red
-				} else if (p >= 61) {
-					return isDark ? '#facc15' : '#eab308'; // yellow
-				} else {
-					return isDark ? '#3b82f6' : '#2563eb'; // blue
-				}
+				if (p >= 80) return isDark ? '#ef4444' : '#dc2626';
+				if (p >= 61) return isDark ? '#facc15' : '#eab308';
+				return isDark ? '#3b82f6' : '#2563eb';
 			}
-			
-			// Apply colors to all gradient progress bars
+
 			function applyProgressColors() {
 				document.querySelectorAll('.progress-fill-gradient[data-percent]').forEach(bar => {
 					bar.style.backgroundColor = getProgressColor(bar.dataset.percent);
 				});
 			}
-			
-			// Morphing function to update DOM smoothly without destroying elements
+
+			// Morphing function to update DOM smoothly without destroying elements.
 			function morphUpdate(newHtml) {
 				const tempDiv = document.createElement('div');
 				tempDiv.innerHTML = newHtml;
-				
-				// Update all progress bars smoothly
-				tempDiv.querySelectorAll('.progress-fill-gradient[id], .progress-fill[id]').forEach((newBar) => {
+
+				// Update progress bars.
+				tempDiv.querySelectorAll('.progress-fill-gradient[id], .progress-fill[id]').forEach(newBar => {
 					const oldBar = document.getElementById(newBar.id);
 					if (oldBar) {
 						oldBar.style.width = newBar.style.width;
-						// Update data-percent for gradient color
-						if (newBar.dataset.percent) {
-							oldBar.dataset.percent = newBar.dataset.percent;
-						}
+						if (newBar.dataset.percent) oldBar.dataset.percent = newBar.dataset.percent;
 					}
 				});
-				
-				// Update CPU history bars smoothly by finding the container
+
+				// Update CPU history bars.
 				const newHistoryContainer = tempDiv.querySelector('.flex.items-end');
 				const oldHistoryContainer = statsContainer.querySelector('.flex.items-end');
 				if (newHistoryContainer && oldHistoryContainer) {
@@ -85,40 +137,76 @@ templ DashboardContent(info *system.SystemInfo, cpu *system.CPUStats, cpuHistory
 						newCpuBars.forEach((newBar, i) => {
 							if (oldCpuBars[i] && newBar.style.height) {
 								oldCpuBars[i].style.height = newBar.style.height;
-								if (newBar.title) {
-									oldCpuBars[i].title = newBar.title;
-								}
+								if (newBar.title) oldCpuBars[i].title = newBar.title;
 							}
 						});
 					}
 				}
-				
-				// Update text content for all elements with IDs
-				tempDiv.querySelectorAll('[id]').forEach((newEl) => {
+
+				// Update text content for all elements with IDs (skip proc card and its internals).
+				tempDiv.querySelectorAll('[id]').forEach(newEl => {
+					if (newEl.id === 'proc-card' || newEl.id === 'proc-tbody' || newEl.id.startsWith('proc-arrow-')) return;
 					const oldEl = document.getElementById(newEl.id);
-					if (oldEl && oldEl.textContent !== newEl.textContent) {
-						oldEl.textContent = newEl.textContent;
-					}
+					if (!oldEl) return;
+					if (oldEl.textContent !== newEl.textContent) oldEl.textContent = newEl.textContent;
+					if (newEl.dataset.percent !== undefined) oldEl.dataset.percent = newEl.dataset.percent;
 				});
-				
-				// Apply gradient colors after updating
+
+				// Keyed reconcile of proc tbody rows by PID — no full rebuild.
+				const newTbody = tempDiv.querySelector('#proc-tbody');
+				const oldTbody = document.getElementById('proc-tbody');
+				let procSetChanged = false;
+				if (newTbody && oldTbody) {
+					const newRows = Array.from(newTbody.querySelectorAll('tr'));
+					const newByPid = new Map(newRows.map(r => [r.dataset.pid, r]));
+
+					// Update or remove existing rows.
+					Array.from(oldTbody.querySelectorAll('tr')).forEach(oldRow => {
+						const pid = oldRow.dataset.pid;
+						const newRow = newByPid.get(pid);
+						if (!newRow) {
+							oldRow.remove();
+							procSetChanged = true;
+							return;
+						}
+						// Update data attributes.
+						oldRow.dataset.cpu    = newRow.dataset.cpu;
+						oldRow.dataset.mem    = newRow.dataset.mem;
+						oldRow.dataset.mempct = newRow.dataset.mempct;
+						// Update cell text only when changed.
+						Array.from(newRow.cells).forEach((newCell, i) => {
+							if (oldRow.cells[i] && oldRow.cells[i].textContent !== newCell.textContent) {
+								oldRow.cells[i].textContent = newCell.textContent;
+							}
+						});
+						newByPid.delete(pid); // mark as handled
+					});
+
+					// Append genuinely new rows.
+					newByPid.forEach(newRow => {
+						oldTbody.appendChild(newRow);
+						procSetChanged = true;
+					});
+				}
+
 				applyProgressColors();
+				// Only re-sort when the set of PIDs changed, or when sorted by a
+				// live column (cpu/mem/mempct) where values meaningfully change.
+				const stableCol = (procSortCol === 'pid' || procSortCol === 'name');
+				if (procSetChanged || !stableCol) {
+					applyProcSort();
+				}
 			}
-			
-			// Apply initial colors to pre-rendered stats
+
+			// Apply initial state.
 			applyProgressColors();
-			
-			// Connect to SSE stream (server controls polling rate)
+			applyProcSort();
+
+			// Connect to SSE stream (server controls polling rate).
 			const eventSource = new EventSource('/api/stats/stream');
-			
-			eventSource.onopen = function() {
-				console.log('Stats stream connected');
-			};
-			
-			eventSource.onmessage = function(event) {
-				morphUpdate(event.data);
-			};
-			
+
+			eventSource.onopen = function() { console.log('Stats stream connected'); };
+			eventSource.onmessage = function(event) { morphUpdate(event.data); };
 			eventSource.onerror = function(error) {
 				console.error('Stats stream error:', error);
 				statsContainer.innerHTML = '<div class="card lg:col-span-2 flex items-center justify-center py-12">' +
@@ -126,11 +214,8 @@ templ DashboardContent(info *system.SystemInfo, cpu *system.CPUStats, cpuHistory
 				'</div>';
 				eventSource.close();
 			};
-			
-			// Clean up on page unload
-			window.addEventListener('beforeunload', function() {
-				eventSource.close();
-			});
+
+			window.addEventListener('beforeunload', function() { eventSource.close(); });
 		})();
 	</script>
 	<!-- Quick Actions -->
@@ -276,7 +361,7 @@ templ StatsGrid(cpu *system.CPUStats, cpuHistory []float64, mem *system.MemorySt
 					<div class="flex items-center justify-between pb-2 border-b border-gray-100 dark:border-gray-800 last:border-0">
 						<div class="flex items-center gap-2 min-w-0 flex-1">
 							<span class="font-medium">{ iface.Interface }</span>
-							<span class={ "text-xs px-1.5 py-0.5 rounded", templ.KV("bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200", iface.Status == "up"), templ.KV("bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200", iface.Status != "up") }>
+							<span class={ "badge", templ.KV("badge-success", iface.Status == "up"), templ.KV("badge-info", iface.Status != "up") }>
 								{ iface.Status }
 							</span>
 							if iface.IPAddress != "" {
@@ -285,11 +370,11 @@ templ StatsGrid(cpu *system.CPUStats, cpuHistory []float64, mem *system.MemorySt
 						</div>
 						<div class="flex gap-3 text-xs text-gray-600 dark:text-gray-400">
 							<div class="text-right">
-								<div class="text-gray-500 dark:text-gray-500">↑</div>
+								<div class="text-green-500">↑</div>
 								<div id={ fmt.Sprintf("net%d-sent", idx) } class="font-medium">{ system.FormatBytes(iface.BytesSent) }</div>
 							</div>
 							<div class="text-right">
-								<div class="text-gray-500 dark:text-gray-500">↓</div>
+								<div class="text-red-500">↓</div>
 								<div id={ fmt.Sprintf("net%d-recv", idx) } class="font-medium">{ system.FormatBytes(iface.BytesRecv) }</div>
 							</div>
 						</div>
@@ -363,33 +448,44 @@ templ StatsGrid(cpu *system.CPUStats, cpuHistory []float64, mem *system.MemorySt
 		</div>
 	</div>
 	<!-- Top Processes -->
-	if len(procs) > 0 {
-		<div class="card lg:col-span-2">
-			<h3 class="text-base font-semibold mb-4">Top Processes</h3>
-			<div class="overflow-x-auto">
-				<table class="min-w-full text-sm">
-					<thead class="border-b border-gray-200 dark:border-gray-700">
-						<tr>
-							<th class="text-left py-2 px-2">PID</th>
-							<th class="text-left py-2 px-2">Name</th>
-							<th class="text-right py-2 px-2">CPU %</th>
-							<th class="text-right py-2 px-2">Memory</th>
-							<th class="text-right py-2 px-2">Mem %</th>
+	<div class="card lg:col-span-2" id="proc-card">
+		<h3 class="text-base font-semibold mb-3">Top Processes</h3>
+		<div class="overflow-x-auto">
+			<table class="w-full text-sm table-fixed">
+				<colgroup>
+					<col style="width:10%"/>
+					<col style="width:40%"/>
+					<col style="width:15%"/>
+					<col style="width:20%"/>
+					<col style="width:15%"/>
+				</colgroup>
+				<thead>
+					<tr class="text-left text-xs text-gray-500 dark:text-gray-400 border-b border-gray-200 dark:border-gray-700">
+						<th class="py-2 px-2 cursor-pointer select-none whitespace-nowrap" onclick="procSort('pid')">PID <span id="proc-arrow-pid" class="inline-block w-3 text-gray-400"></span></th>
+						<th class="py-2 px-2 cursor-pointer select-none whitespace-nowrap" onclick="procSort('name')">Name <span id="proc-arrow-name" class="inline-block w-3 text-gray-400"></span></th>
+						<th class="py-2 px-2 text-right cursor-pointer select-none whitespace-nowrap" onclick="procSort('cpu')">CPU% <span id="proc-arrow-cpu" class="inline-block w-3 text-gray-400"></span></th>
+						<th class="py-2 px-2 text-right cursor-pointer select-none whitespace-nowrap" onclick="procSort('mem')">Memory <span id="proc-arrow-mem" class="inline-block w-3 text-gray-400"></span></th>
+						<th class="py-2 px-2 text-right cursor-pointer select-none whitespace-nowrap" onclick="procSort('mempct')">Mem% <span id="proc-arrow-mempct" class="inline-block w-3 text-gray-400"></span></th>
+					</tr>
+				</thead>
+				<tbody id="proc-tbody">
+					for _, proc := range procs {
+						<tr class="border-b border-gray-100 dark:border-gray-800"
+							data-pid={ fmt.Sprintf("%d", proc.PID) }
+							data-cpu={ fmt.Sprintf("%.4f", proc.CPUPercent) }
+							data-mem={ fmt.Sprintf("%d", proc.MemoryBytes) }
+							data-mempct={ fmt.Sprintf("%.4f", proc.MemPercent) }
+						>
+							<td class="py-2 px-2">{ fmt.Sprintf("%d", proc.PID) }</td>
+							<td class="py-2 px-2 truncate max-w-xs">{ proc.Name }</td>
+							<td class="py-2 px-2 text-right font-mono">{ fmt.Sprintf("%.1f", proc.CPUPercent) }</td>
+							<td class="py-2 px-2 text-right">{ system.FormatBytes(proc.MemoryBytes) }</td>
+							<td class="py-2 px-2 text-right font-mono">{ fmt.Sprintf("%.1f", proc.MemPercent) }</td>
 						</tr>
-					</thead>
-					<tbody>
-						for idx, proc := range procs {
-							<tr class="border-b border-gray-100 dark:border-gray-800">
-								<td class="py-2 px-2" id={ fmt.Sprintf("proc%d-pid", idx) }>{ fmt.Sprintf("%d", proc.PID) }</td>
-								<td class="py-2 px-2 truncate max-w-xs" id={ fmt.Sprintf("proc%d-name", idx) }>{ proc.Name }</td>
-								<td class="py-2 px-2 text-right font-mono" id={ fmt.Sprintf("proc%d-cpu", idx) }>{ fmt.Sprintf("%.1f", proc.CPUPercent) }</td>
-								<td class="py-2 px-2 text-right" id={ fmt.Sprintf("proc%d-mem", idx) }>{ system.FormatBytes(proc.MemoryBytes) }</td>
-								<td class="py-2 px-2 text-right font-mono" id={ fmt.Sprintf("proc%d-mempct", idx) }>{ fmt.Sprintf("%.1f", proc.MemPercent) }</td>
-							</tr>
-						}
-					</tbody>
-				</table>
-			</div>
+					}
+				</tbody>
+			</table>
 		</div>
-	}
+	</div>
 }
+

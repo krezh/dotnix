@@ -13,7 +13,7 @@ templ StoreContent(storeStats *system.StoreStats) {
 		<!-- Store Statistics -->
 		<div class="card">
 			<div class="flex justify-between items-center mb-4">
-				<h3 class="text-xl font-semibold">Store Statistics</h3>
+				@CardHeading("Store Statistics")
 				<div class="tooltip">
 					<button
 						onclick="loadStoreStats(true)"
@@ -73,16 +73,13 @@ templ StoreContent(storeStats *system.StoreStats) {
 
 		<!-- Store Management Actions -->
 		<div class="card">
-			<h3 class="text-xl font-semibold mb-4">Store Management</h3>
+			@CardHeading("Store Management")
 			<p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
 				Manage your Nix store. You can run garbage collection to remove unreachable paths or optimize the store to deduplicate files.
 			</p>
 			<div class="flex gap-4">
 				<div class="tooltip">
-					<button
-						onclick="showGCDialog()"
-						class="btn btn-primary"
-					>
+					<button onclick="showDialog('gc-dialog')" class="btn btn-primary">
 						<svg class="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
 						</svg>
@@ -91,10 +88,7 @@ templ StoreContent(storeStats *system.StoreStats) {
 					<span class="tooltip-text"><code>sudo nix-collect-garbage -d</code></span>
 				</div>
 				<div class="tooltip">
-					<button
-						onclick="showOptimizeDialog()"
-						class="btn btn-secondary"
-					>
+					<button onclick="showDialog('optimize-dialog')" class="btn btn-secondary">
 						<svg class="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4"></path>
 						</svg>
@@ -114,16 +108,7 @@ templ StoreContent(storeStats *system.StoreStats) {
 						<p class="text-sm text-gray-600 dark:text-gray-400">
 							This will delete all store paths that are not reachable from any generation. This can free up significant disk space.
 						</p>
-						<div>
-							<label class="block text-sm font-medium mb-1">Sudo Password</label>
-							<input
-								type="password"
-								id="gc-password"
-								placeholder="Enter your sudo password"
-								onkeypress="if(event.key==='Enter') confirmGC()"
-								class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-white"
-							/>
-						</div>
+						@PasswordInput("gc-password")
 					</div>
 					<div class="flex gap-3 mt-6">
 						<button onclick="confirmGC()" class="btn btn-primary flex-1">Start</button>
@@ -142,16 +127,7 @@ templ StoreContent(storeStats *system.StoreStats) {
 						<p class="text-sm text-gray-600 dark:text-gray-400">
 							This will deduplicate identical files in the store using hard links. This can take a while but saves disk space.
 						</p>
-						<div>
-							<label class="block text-sm font-medium mb-1">Sudo Password</label>
-							<input
-								type="password"
-								id="optimize-password"
-								placeholder="Enter your sudo password"
-								onkeypress="if(event.key==='Enter') confirmOptimize()"
-								class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-white"
-							/>
-						</div>
+						@PasswordInput("optimize-password")
 					</div>
 					<div class="flex gap-3 mt-6">
 						<button onclick="confirmOptimize()" class="btn btn-primary flex-1">Start</button>
@@ -163,64 +139,58 @@ templ StoreContent(storeStats *system.StoreStats) {
 	</div>
 
 	<script>
-		// Auto-load stats if showing "-" (no cache)
+		// Wire up Enter key for password fields
+		document.addEventListener('DOMContentLoaded', function() {
+			var gcp = document.getElementById('gc-password');
+			if (gcp) gcp.addEventListener('keypress', function(e) { if (e.key === 'Enter') confirmGC(); });
+			var op = document.getElementById('optimize-password');
+			if (op) op.addEventListener('keypress', function(e) { if (e.key === 'Enter') confirmOptimize(); });
+		});
+
 		window.addEventListener('load', function() {
 			const storeTotalText = document.getElementById('store-total').textContent.trim();
-			// Only load if showing "-" (no cached data)
 			if (storeTotalText === '-') {
 				loadStoreStats(false);
 			}
 		});
 
-		// Load store stats (refresh=true to force server to recalculate)
 		function loadStoreStats(refresh) {
 			const btn = document.getElementById('refresh-store-btn');
 			const btnText = document.getElementById('refresh-store-text');
 			const originalText = btnText.textContent;
-			
 			const totalEl = document.getElementById('store-total');
 			const aliveEl = document.getElementById('store-alive');
 			const deadEl = document.getElementById('store-dead');
-			
-			// Show spinners when we expect slow operation:
-			// 1. Manual refresh (refresh=true) always recalculates
-			// 2. Initial load when showing "-" (no server-side cache)
-			const currentValue = totalEl.textContent.trim();
-			const willFetchNewData = refresh || currentValue === '-';
-			
+
+			const willFetchNewData = refresh || totalEl.textContent.trim() === '-';
 			if (willFetchNewData) {
-				const spinnerHTML = '<div class="spinner-7 mx-auto"><div></div><div></div><div></div></div>';
+				const spinnerHTML = makeSpinner();
 				totalEl.innerHTML = spinnerHTML;
 				aliveEl.innerHTML = spinnerHTML;
 				deadEl.innerHTML = spinnerHTML;
 			}
-			
+
 			btn.disabled = true;
 			btnText.textContent = 'Loading...';
-			
-			const url = refresh ? '/api/store/stats?refresh=true' : '/api/store/stats';
-			
-			fetch(url)
+
+			fetch(refresh ? '/api/store/stats?refresh=true' : '/api/store/stats')
 				.then(response => {
-					if (!response.ok) {
-						throw new Error('Failed to fetch store stats');
-					}
+					if (!response.ok) throw new Error('Failed to fetch store stats');
 					return response.json();
 				})
 				.then(data => {
-					// Update all three fields
 					totalEl.textContent = formatBytes(data.total_size);
 					aliveEl.textContent = formatBytes(data.alive_size);
 					deadEl.textContent = formatBytes(data.dead_size);
-					
-					// Show cache info
+
 					if (data.cached_at) {
 						const cacheInfo = document.getElementById('store-cache-info');
 						cacheInfo.classList.remove('hidden');
-						const infoText = data.cached ? 'Cached data (click Refresh to update)' : 'Data updated at ' + new Date(data.cached_at).toLocaleString();
-						cacheInfo.textContent = infoText;
+						cacheInfo.textContent = data.cached
+							? 'Cached data (click Refresh to update)'
+							: 'Data updated at ' + new Date(data.cached_at).toLocaleString();
 					}
-					
+
 					btn.disabled = false;
 					btnText.textContent = 'Refresh';
 				})
@@ -236,49 +206,30 @@ templ StoreContent(storeStats *system.StoreStats) {
 
 		function formatBytes(bytes) {
 			const unit = 1024;
-			if (bytes < unit) {
-				return bytes + ' B';
-			}
-			let div = unit;
-			let exp = 0;
-			let n = Math.floor(bytes / unit);
-			while (n >= unit) {
-				div *= unit;
-				exp++;
-				n = Math.floor(n / unit);
-			}
-			const sizes = ['K', 'M', 'G', 'T', 'P', 'E'];
-			return (bytes / div).toFixed(1) + ' ' + sizes[exp] + 'iB';
-		}
-
-		function showGCDialog() {
-			document.getElementById('gc-dialog').classList.remove('hidden');
+			if (bytes < unit) return bytes + ' B';
+			let div = unit, exp = 0, n = Math.floor(bytes / unit);
+			while (n >= unit) { div *= unit; exp++; n = Math.floor(n / unit); }
+			return (bytes / div).toFixed(1) + ' ' + ['K', 'M', 'G', 'T', 'P', 'E'][exp] + 'iB';
 		}
 
 		function hideGCDialog() {
-			document.getElementById('gc-dialog').classList.add('hidden');
+			hideDialog('gc-dialog');
 			document.getElementById('gc-password').value = '';
 		}
 
 		function confirmGC() {
 			const password = document.getElementById('gc-password').value;
-			if (!password) {
-				alert('Please enter your sudo password');
-				return;
-			}
+			if (!password) { alert('Please enter your sudo password'); return; }
 
 			fetch('/api/store/gc', {
 				method: 'POST',
-				headers: {
-					'Content-Type': 'application/x-www-form-urlencoded',
-				},
+				headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
 				body: 'password=' + encodeURIComponent(password)
 			})
 			.then(response => response.text())
 			.then(message => {
 				alert(message);
 				hideGCDialog();
-				// Refresh stats after GC
 				loadStoreStats(true);
 			})
 			.catch(err => {
@@ -287,34 +238,24 @@ templ StoreContent(storeStats *system.StoreStats) {
 			});
 		}
 
-		function showOptimizeDialog() {
-			document.getElementById('optimize-dialog').classList.remove('hidden');
-		}
-
 		function hideOptimizeDialog() {
-			document.getElementById('optimize-dialog').classList.add('hidden');
+			hideDialog('optimize-dialog');
 			document.getElementById('optimize-password').value = '';
 		}
 
 		function confirmOptimize() {
 			const password = document.getElementById('optimize-password').value;
-			if (!password) {
-				alert('Please enter your sudo password');
-				return;
-			}
+			if (!password) { alert('Please enter your sudo password'); return; }
 
 			fetch('/api/store/optimize', {
 				method: 'POST',
-				headers: {
-					'Content-Type': 'application/x-www-form-urlencoded',
-				},
+				headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
 				body: 'password=' + encodeURIComponent(password)
 			})
 			.then(response => response.text())
 			.then(message => {
 				alert(message);
 				hideOptimizeDialog();
-				// Refresh stats after optimization
 				loadStoreStats(true);
 			})
 			.catch(err => {

@@ -1,11 +1,10 @@
 {
+  pkgs,
   lib,
-  buildGoModule,
-  templ,
-  nodejs,
-  tailwindcss,
+  buildGoApplication,
+  go-bin,
 }:
-buildGoModule rec {
+buildGoApplication rec {
   pname = "nixos-webgui";
   version = "0.1.0";
 
@@ -14,12 +13,13 @@ buildGoModule rec {
     name = "nixos-webgui-src";
   };
 
-  vendorHash = "sha256-A78ziZ8JN1Wk9L9MqwFQgSaZczfVCLqUuYfI4tvEZR8=";
+  go = go-bin.latestStable;
+  modules = "${src}/govendor.toml";
 
   nativeBuildInputs = [
-    templ
-    nodejs
-    tailwindcss
+    pkgs.templ
+    pkgs.nodejs
+    pkgs.tailwindcss
   ];
 
   preBuild = ''

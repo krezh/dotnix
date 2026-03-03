@@ -20,11 +20,7 @@ var (
 
 // HandleUpdate renders the update page.
 func HandleUpdate(w http.ResponseWriter, r *http.Request) {
-	component := templates.Update()
-	if err := component.Render(r.Context(), w); err != nil {
-		log.Printf("Error rendering update page: %v", err)
-		http.Error(w, "Failed to render page", http.StatusInternalServerError)
-	}
+	renderComponent(w, r, templates.Update())
 }
 
 // broadcastUpdate sends update to all SSE listeners.
@@ -50,40 +46,22 @@ func HandleUpdateStart(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Reset state
 	updateRunning = true
 	updateLogs = []string{"Starting build and diff..."}
 	updateError = ""
-	updateListeners = nil // Clear old listeners
+	updateListeners = nil
 	log.Printf("Update started, initial logs: %v", updateLogs)
 	updateMutex.Unlock()
 
-	// Start build and diff in background
 	go func() {
 		progressChan := make(chan system.UpdateProgress, 100)
-
 		go func() {
 			if err := system.BuildDiff(progressChan); err != nil {
 				log.Printf("Build/diff failed: %v", err)
 			}
 		}()
 
-		// Collect progress updates
-		for progress := range progressChan {
-			updateMutex.Lock()
-			if progress.Error != nil {
-				updateError = progress.Error.Error()
-				updateLogs = append(updateLogs, "ERROR: "+progress.Error.Error())
-			} else if progress.Message != "" {
-				// Clean the log line
-				cleanedLine := system.CleanLogLine(progress.Message)
-				if cleanedLine != "" {
-					updateLogs = append(updateLogs, cleanedLine)
-					broadcastUpdate(cleanedLine)
-				}
-			}
-			updateMutex.Unlock()
-		}
+		collectProgressUpdates(progressChan)
 
 		updateMutex.Lock()
 		updateRunning = false
@@ -95,16 +73,17 @@ func HandleUpdateStart(w http.ResponseWriter, r *http.Request) {
 		updateMutex.Unlock()
 	}()
 
-	// Return initial rendering
-	component := templates.UpdateProgressInitial(updateLogs)
-	if err := component.Render(r.Context(), w); err != nil {
-		log.Printf("Error rendering update progress: %v", err)
-		http.Error(w, "Failed to render update progress", http.StatusInternalServerError)
-	}
+	renderComponent(w, r, templates.UpdateProgressInitial(updateLogs))
 }
 
-// HandleUpdateApply applies the built configuration (step 2).
+// HandleUpdateApply applies the already-built configuration (step 2).
 func HandleUpdateApply(w http.ResponseWriter, r *http.Request) {
+	// Parse form before acquiring the lock.
+	sudoPassword, ok := parseSudoPassword(w, r)
+	if !ok {
+		return
+	}
+
 	updateMutex.Lock()
 	if updateRunning {
 		updateMutex.Unlock()
@@ -112,50 +91,23 @@ func HandleUpdateApply(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Get sudo password from form
-	if err := r.ParseForm(); err != nil {
-		updateMutex.Unlock()
-		http.Error(w, "Failed to parse form", http.StatusBadRequest)
-		return
-	}
-	sudoPassword := r.FormValue("password")
-
-	// Append to existing logs (keep existing listeners)
 	updateRunning = true
 	updateLogs = append(updateLogs, "", "=== Applying configuration with sudo ===", "")
 	updateError = ""
-	// Broadcast the new log lines
 	broadcastUpdate("")
 	broadcastUpdate("=== Applying configuration with sudo ===")
 	broadcastUpdate("")
 	updateMutex.Unlock()
 
-	// Start apply in background
 	go func() {
 		progressChan := make(chan system.UpdateProgress, 100)
-
 		go func() {
 			if err := system.ApplyUpdate(progressChan, sudoPassword); err != nil {
 				log.Printf("Apply failed: %v", err)
 			}
 		}()
 
-		// Collect progress updates
-		for progress := range progressChan {
-			updateMutex.Lock()
-			if progress.Error != nil {
-				updateError = progress.Error.Error()
-				updateLogs = append(updateLogs, "ERROR: "+progress.Error.Error())
-				broadcastUpdate("ERROR: " + progress.Error.Error())
-			} else if progress.Message != "" {
-				cleanedLine := system.CleanLogLine(progress.Message)
-				if cleanedLine != "" {
-					updateLogs = append(updateLogs, cleanedLine)
-					broadcastUpdate(cleanedLine)
-				}
-			}
-			updateMutex.Unlock()
-		}
+		collectProgressUpdates(progressChan)
 
 		updateMutex.Lock()
 		updateRunning = false
@@ -167,7 +119,6 @@ func HandleUpdateApply(w http.ResponseWriter, r *http.Request) {
 		updateMutex.Unlock()
 	}()
 
-	// Just return success - the SSE connection will handle updates
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte("OK"))
 }
@@ -176,27 +127,14 @@ func HandleUpdateApply(w http.ResponseWriter, r *http.Request) {
 func HandleUpdateStream(w http.ResponseWriter, r *http.Request) {
 	log.Println("SSE client connected - ENTERING HANDLER")
 
-	// Set SSE headers
-	w.Header().Set("Content-Type", "text/event-stream")
-	w.Header().Set("Cache-Control", "no-cache")
-	w.Header().Set("Connection", "keep-alive")
-
-	// Stream updates
-	flusher, ok := w.(http.Flusher)
-	if !ok {
+	setSSEHeaders(w)
+	flusher := sendSSEConnected(w)
+	if flusher == nil {
 		log.Println("ERROR: Streaming not supported")
-		http.Error(w, "Streaming not supported", http.StatusInternalServerError)
 		return
 	}
-	log.Println("Flusher obtained")
+	log.Println("Flusher obtained and initial comment sent")
 
-	// Send initial comment to establish connection
-	log.Println("Sending initial comment")
-	fmt.Fprintf(w, ": connected\n\n")
-	flusher.Flush()
-	log.Println("Initial comment sent")
-
-	// Create a channel for this client
 	messageChan := make(chan string, 100)
 	log.Println("Message channel created")
 
@@ -205,7 +143,6 @@ func HandleUpdateStream(w http.ResponseWriter, r *http.Request) {
 	updateListeners = append(updateListeners, messageChan)
 	log.Printf("Added listener, new count: %d", len(updateListeners))
 
-	// Send existing logs immediately
 	log.Printf("Sending %d existing log lines to new SSE client", len(updateLogs))
 	for i, line := range updateLogs {
 		log.Printf("  Log line %d: %q", i, line)
@@ -221,17 +158,13 @@ func HandleUpdateStream(w http.ResponseWriter, r *http.Request) {
 		select {
 		case msg := <-messageChan:
 			if msg == "__COMPLETE__" {
-				// Build complete - show apply button
 				fmt.Fprintf(w, "event: complete\ndata: show_apply\n\n")
 				flusher.Flush()
-				// Don't return - keep connection open for apply phase
 			} else if msg == "__APPLY_COMPLETE__" {
-				// Apply complete - show success
 				fmt.Fprintf(w, "event: complete\ndata: done\n\n")
 				flusher.Flush()
 				return
 			} else if msg == "__FLAKE_COMPLETE__" {
-				// Flake update complete - show rollback button
 				fmt.Fprintf(w, "event: complete\ndata: flake_done\n\n")
 				flusher.Flush()
 				return
@@ -240,7 +173,6 @@ func HandleUpdateStream(w http.ResponseWriter, r *http.Request) {
 				flusher.Flush()
 			}
 		case <-r.Context().Done():
-			// Client disconnected
 			updateMutex.Lock()
 			for i, ch := range updateListeners {
 				if ch == messageChan {
@@ -264,39 +196,21 @@ func HandleFlakeUpdate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Reset state
 	updateRunning = true
 	updateLogs = []string{"Starting flake update..."}
 	updateError = ""
-	updateListeners = nil // Clear old listeners
+	updateListeners = nil
 	updateMutex.Unlock()
 
-	// Start flake update in background
 	go func() {
 		progressChan := make(chan system.UpdateProgress, 100)
-
 		go func() {
 			if err := system.FlakeUpdate(progressChan); err != nil {
 				log.Printf("Flake update failed: %v", err)
 			}
 		}()
 
-		// Collect progress updates
-		for progress := range progressChan {
-			updateMutex.Lock()
-			if progress.Error != nil {
-				updateError = progress.Error.Error()
-				updateLogs = append(updateLogs, "ERROR: "+progress.Error.Error())
-			} else if progress.Message != "" {
-				// Clean the log line
-				cleanedLine := system.CleanLogLine(progress.Message)
-				if cleanedLine != "" {
-					updateLogs = append(updateLogs, cleanedLine)
-					broadcastUpdate(cleanedLine)
-				}
-			}
-			updateMutex.Unlock()
-		}
+		collectProgressUpdates(progressChan)
 
 		updateMutex.Lock()
 		updateRunning = false
@@ -308,12 +222,7 @@ func HandleFlakeUpdate(w http.ResponseWriter, r *http.Request) {
 		updateMutex.Unlock()
 	}()
 
-	// Return initial rendering with SSE (no apply button for flake update)
-	component := templates.UpdateProgressInitial(updateLogs)
-	if err := component.Render(r.Context(), w); err != nil {
-		log.Printf("Error rendering update progress: %v", err)
-		http.Error(w, "Failed to render update progress", http.StatusInternalServerError)
-	}
+	renderComponent(w, r, templates.UpdateProgressInitial(updateLogs))
 }
 
 // HandleFlakeRollback restores the flake.lock backup.

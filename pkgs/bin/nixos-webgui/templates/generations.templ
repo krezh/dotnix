@@ -2,7 +2,6 @@ package templates
 
 import (
 	"fmt"
-	"time"
 	"github.com/krezh/nixos-webgui/system"
 )
 
@@ -14,10 +13,10 @@ templ GenerationsContent(generations []system.Generation) {
 	<div class="space-y-6">
 		<div class="card">
 			<div class="flex justify-between items-center mb-4">
-				<h3 class="text-xl font-semibold">System Generations</h3>
+				@CardHeading("System Generations")
 				<div class="tooltip">
 					<button
-						onclick="showDeleteDialog()"
+						onclick="showDialog('delete-dialog')"
 						class="btn btn-danger btn-sm"
 					>
 						<svg class="w-4 h-4 inline-block mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -28,7 +27,7 @@ templ GenerationsContent(generations []system.Generation) {
 					<span class="tooltip-text"><code>sudo nix-env --delete-generations +N</code></span>
 				</div>
 			</div>
-			<p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
+			<p class="text-sm text-gray-600 dark:text-gray-400">
 				Manage your NixOS system generations. You can rollback to previous configurations or delete old generations to free up disk space.
 			</p>
 		</div>
@@ -53,7 +52,7 @@ templ GenerationsContent(generations []system.Generation) {
 								</td>
 								<td class="px-6 py-4 whitespace-nowrap">
 									<div class="text-sm">{ gen.Date.Format("2006-01-02 15:04:05") }</div>
-									<div class="text-xs text-gray-500">{ formatRelativeTime(gen.Date) }</div>
+									<div class="text-xs text-gray-500">{ system.FormatRelativeTime(gen.Date) }</div>
 								</td>
 								<td class="px-6 py-4 whitespace-nowrap text-sm">
 									{ gen.NixOSVersion }
@@ -103,29 +102,11 @@ templ GenerationsContent(generations []system.Generation) {
 						/>
 						<p class="text-xs text-gray-500 mt-1">Will delete all generations except the last N</p>
 					</div>
-					<div>
-						<label class="block text-sm font-medium mb-1">Sudo Password</label>
-						<input
-							type="password"
-							id="delete-password"
-							placeholder="Enter your sudo password"
-							class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-white"
-						/>
-					</div>
+					@PasswordInput("delete-password")
 				</div>
 				<div class="flex gap-3 mt-6">
-					<button
-						onclick="confirmDelete()"
-						class="btn btn-danger flex-1"
-					>
-						Delete
-					</button>
-					<button
-						onclick="hideDeleteDialog()"
-						class="btn btn-secondary flex-1"
-					>
-						Cancel
-					</button>
+					<button onclick="confirmDelete()" class="btn btn-danger flex-1">Delete</button>
+					<button onclick="hideDialog('delete-dialog')" class="btn btn-secondary flex-1">Cancel</button>
 				</div>
 			</div>
 		</div>
@@ -140,30 +121,11 @@ templ GenerationsContent(generations []system.Generation) {
 					<p class="text-sm text-gray-600 dark:text-gray-400">
 						This will switch your system to the selected generation. Your current configuration will remain available.
 					</p>
-					<div>
-						<label class="block text-sm font-medium mb-1">Sudo Password</label>
-						<input
-							type="password"
-							id="rollback-password"
-							placeholder="Enter your sudo password"
-							onkeypress="if(event.key==='Enter') confirmRollback()"
-							class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-white"
-						/>
-					</div>
+					@PasswordInput("rollback-password")
 				</div>
 				<div class="flex gap-3 mt-6">
-					<button
-						onclick="confirmRollback()"
-						class="btn btn-primary flex-1"
-					>
-						Rollback
-					</button>
-					<button
-						onclick="hideRollbackDialog()"
-						class="btn btn-secondary flex-1"
-					>
-						Cancel
-					</button>
+					<button onclick="confirmRollback()" class="btn btn-primary flex-1">Rollback</button>
+					<button onclick="hideDialog('rollback-dialog')" class="btn btn-secondary flex-1">Cancel</button>
 				</div>
 			</div>
 		</div>
@@ -171,26 +133,19 @@ templ GenerationsContent(generations []system.Generation) {
 
 	<script>
 		let selectedGeneration = 0;
-		function showDeleteDialog() {
-			document.getElementById('delete-dialog').classList.remove('hidden');
-		}
 
-		function hideDeleteDialog() {
-			document.getElementById('delete-dialog').classList.add('hidden');
-		}
-
-		function showRollbackDialog() {
-			document.getElementById('rollback-dialog').classList.remove('hidden');
-		}
-
-		function hideRollbackDialog() {
-			document.getElementById('rollback-dialog').classList.add('hidden');
-		}
+		// Wire up Enter key for password fields
+		document.addEventListener('DOMContentLoaded', function() {
+			var rp = document.getElementById('rollback-password');
+			if (rp) rp.addEventListener('keypress', function(e) { if (e.key === 'Enter') confirmRollback(); });
+			var dp = document.getElementById('delete-password');
+			if (dp) dp.addEventListener('keypress', function(e) { if (e.key === 'Enter') confirmDelete(); });
+		});
 
 		function rollbackToGeneration(genNum) {
 			selectedGeneration = genNum;
 			document.getElementById('rollback-gen-num').textContent = '#' + genNum;
-			showRollbackDialog();
+			showDialog('rollback-dialog');
 		}
 
 		function confirmRollback() {
@@ -200,20 +155,17 @@ templ GenerationsContent(generations []system.Generation) {
 				return;
 			}
 
-			// Show loading state
 			const dialog = document.getElementById('rollback-dialog');
 			dialog.innerHTML = '<div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white dark:bg-gray-800">' +
 				'<div class="flex items-center justify-center gap-3 p-8">' +
-					'<div class="spinner-7"><div></div><div></div><div></div></div>' +
+					makeSpinner() +
 					'<span>Rolling back...</span>' +
 				'</div>' +
 			'</div>';
 
 			fetch('/api/generations/rollback', {
 				method: 'POST',
-				headers: {
-					'Content-Type': 'application/x-www-form-urlencoded',
-				},
+				headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
 				body: 'generation=' + selectedGeneration + '&password=' + encodeURIComponent(password)
 			})
 			.then(response => {
@@ -221,49 +173,41 @@ templ GenerationsContent(generations []system.Generation) {
 					alert('Rollback successful! The system has been switched to generation #' + selectedGeneration);
 					window.location.reload();
 				} else {
-					return response.text().then(text => {
-						throw new Error(text);
-					});
+					return response.text().then(text => { throw new Error(text); });
 				}
 			})
 			.catch(err => {
 				alert('Rollback failed: ' + err.message);
-				hideRollbackDialog();
+				hideDialog('rollback-dialog');
 			});
 		}
 
 		function confirmDelete() {
 			const keepLast = document.getElementById('keep-last').value;
 			const password = document.getElementById('delete-password').value;
-			
 			if (!password) {
 				alert('Please enter your sudo password');
 				return;
 			}
 
-			// Show loading state
 			const dialog = document.getElementById('delete-dialog');
 			dialog.innerHTML = '<div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white dark:bg-gray-800">' +
 				'<div class="flex items-center justify-center gap-3 p-8">' +
-					'<div class="spinner-7"><div></div><div></div><div></div></div>' +
+					makeSpinner() +
 					'<span>Deleting old generations...</span>' +
 				'</div>' +
 			'</div>';
 
 			fetch('/api/generations/delete', {
 				method: 'POST',
-				headers: {
-					'Content-Type': 'application/x-www-form-urlencoded',
-				},
+				headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
 				body: 'keep_last=' + keepLast + '&password=' + encodeURIComponent(password)
 			})
 			.then(response => {
 				if (response.ok) {
 					return response.text();
 				} else {
-					return response.text().then(text => {
-						throw new Error(text);
-					});
+					return response.text().then(text => { throw new Error(text); });
 				}
 			})
 			.then(message => {
@@ -272,27 +216,8 @@ templ GenerationsContent(generations []system.Generation) {
 			})
 			.catch(err => {
 				alert('Delete failed: ' + err.message);
-				hideDeleteDialog();
+				hideDialog('delete-dialog');
 			});
 		}
 	</script>
-}
-
-func formatRelativeTime(t time.Time) string {
-	duration := time.Since(t)
-	
-	if duration.Hours() < 1 {
-		return fmt.Sprintf("%.0f minutes ago", duration.Minutes())
-	} else if duration.Hours() < 24 {
-		return fmt.Sprintf("%.0f hours ago", duration.Hours())
-	} else if duration.Hours() < 24*7 {
-		days := int(duration.Hours() / 24)
-		return fmt.Sprintf("%d days ago", days)
-	} else if duration.Hours() < 24*30 {
-		weeks := int(duration.Hours() / 24 / 7)
-		return fmt.Sprintf("%d weeks ago", weeks)
-	} else {
-		months := int(duration.Hours() / 24 / 30)
-		return fmt.Sprintf("%d months ago", months)
-	}
 }

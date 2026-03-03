@@ -9,6 +9,14 @@ templ Base(title string, content templ.Component) {
 			<title>{ title } - NixOS WebGUI</title>
 			<link rel="stylesheet" href="/static/css/output.css"/>
 			<script src="https://unpkg.com/htmx.org@2.0.4"></script>
+			<script>
+				// Shows a dialog element by removing the 'hidden' class.
+				function showDialog(id) { document.getElementById(id).classList.remove('hidden'); }
+				// Hides a dialog element by adding the 'hidden' class.
+				function hideDialog(id) { document.getElementById(id).classList.add('hidden'); }
+				// Returns the HTML string for a spinner-7 element.
+				function makeSpinner() { return '<div class="spinner-7"><div></div><div></div><div></div></div>'; }
+			</script>
 		</head>
 		<body class="h-screen flex">
 			<!-- Sidebar -->
