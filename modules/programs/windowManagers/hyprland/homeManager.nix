@@ -162,7 +162,7 @@ _: {
           # };
 
           general = {
-            layout = "dwindle";
+            layout = "scrolling";
             gaps_in = 5;
             gaps_out = 10;
             border_size = 3;
