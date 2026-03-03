@@ -62,7 +62,7 @@ runs:
 
     - name: Install Nix (with remote builders)
       if: inputs.use-remote-builders == 'true'
-      uses: cachix/install-nix-action@2126ae7fc54c9df00dd18f7f18754393182c73cd # v31.9.1
+      uses: cachix/install-nix-action@19effe9fe722874e6d46dd7182e4b8b7a43c4a99 # v31.10.0
       with:
         install_options: --no-daemon
         extra_nix_config: |
