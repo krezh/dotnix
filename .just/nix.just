@@ -78,7 +78,7 @@ build: deps
     set -euo pipefail
     git pull
     nixos-rebuild build --flake "{{ ROOT_DIR }}/#{{ HOST }}"
-    dix diff /run/current-system result
+    dix /run/current-system $(pwd)/result
 
 # Build and apply nix configuration
 [no-cd]

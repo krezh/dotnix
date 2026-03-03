@@ -1,3 +1,6 @@
+set quiet := true
+
+
 [private]
 default:
   @just --list

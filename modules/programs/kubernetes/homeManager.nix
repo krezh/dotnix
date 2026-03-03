@@ -56,19 +56,26 @@
       programs = {
         k9s = {
           enable = true;
-          settings.k9s = {
-            liveViewAutoRefresh = true;
-            refreshRate = 2;
-            skipLatestRevCheck = true;
-            disablePodCounting = false;
-            ui = {
-              enableMouse = true;
-              headless = true;
-              logoless = true;
-              crumbsless = true;
-              reactive = true;
-              noIcons = false;
-              defaultsToFullScreen = true;
+          settings = {
+            k9s = {
+              liveViewAutoRefresh = true;
+              refreshRate = 2;
+              skipLatestRevCheck = true;
+              disablePodCounting = false;
+              ui = {
+                enableMouse = true;
+                headless = true;
+                logoless = true;
+                crumbsless = true;
+                reactive = true;
+                noIcons = false;
+                defaultsToFullScreen = true;
+              };
+            };
+          };
+          views = {
+            "v1/pods" = {
+              "sortColumn" = "NAMESPACE:asc";
             };
           };
           plugins = {

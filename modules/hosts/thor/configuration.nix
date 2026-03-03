@@ -45,6 +45,7 @@
           enable = true;
           binfmt = true;
         };
+        sniffnet.enable = true;
       };
 
       catppuccin.sddm.enable = false;
@@ -71,10 +72,6 @@
         gnome = {
           gnome-online-accounts.enable = true;
           gnome-keyring.enable = true;
-        };
-        scx = {
-          enable = false;
-          scheduler = "scx_bpfland";
         };
         dbus.packages = with pkgs; [
           gnome-keyring
@@ -159,7 +156,6 @@
             login.enableGnomeKeyring = true;
           };
         };
-        rtkit.enable = true;
       };
 
       environment = {

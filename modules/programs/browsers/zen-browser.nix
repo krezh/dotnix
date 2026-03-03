@@ -288,7 +288,7 @@
             "privacy.query_stripping.enabled" = true;
             "privacy.query_stripping.enabled.pbmode" = true;
             "privacy.spoof_english" = 1;
-            "privacy.firstparty.isolate" = true;
+            "privacy.firstparty.isolate" = false;
             "network.cookie.cookieBehavior" = 5;
             "dom.battery.enabled" = false;
             "network.http.referer.XOriginPolicy" = 0;

@@ -75,7 +75,7 @@ _: {
           variables = [ "--all" ];
         };
         plugins = [
-          pkgs.hyprlandPlugins.hyprexpo
+          # pkgs.hyprlandPlugins.hyprexpo
         ];
 
         settings = {
@@ -152,14 +152,14 @@ _: {
             sensitivity = "0.4";
           };
 
-          plugin.hyprexpo = {
-            columns = 2;
-            gap_size = 5;
-            bg_col = "rgb(111111)";
-            workspace_method = "center current";
-            gesture_distance = 300;
-            skip_empty = true;
-          };
+          # plugin.hyprexpo = {
+          #   columns = 2;
+          #   gap_size = 5;
+          #   bg_col = "rgb(111111)";
+          #   workspace_method = "center current";
+          #   gesture_distance = 300;
+          #   skip_empty = true;
+          # };
 
           general = {
             layout = "dwindle";
@@ -398,7 +398,7 @@ _: {
             "${mainMod},K,Show keybinds,exec,${keybinds.run}"
             "${mainMod},G,Audio Control,exec,[float] ${term.toggle audioControl.name audioControl.run}"
             "${mainMod},M,Mail Client,exec,${mail.run}"
-            "${mainMod},TAB,Toggle workspace overview, hyprexpo:expo, toggle"
+            # "${mainMod},TAB,Toggle workspace overview, hyprexpo:expo, toggle"
             "${mainModShift},R, Reload Hyprland config,exec,hyprctl reload && notify-send -u low 'Hyprland' 'Config Reloaded'"
             "${mainMod},F3,Toggle between audio devices,exec,audio-switch toggle"
             "${mainModShift},S,Area screenshot,exec,${recShot} -m image-area"

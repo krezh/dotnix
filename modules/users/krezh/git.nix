@@ -35,7 +35,8 @@
             status.submoduleSummary = false;
             tag.forceSignAnnotated = true;
             init.defaultBranch = "main";
-            url."ssh://git@github.com/".pushInsteadOf = "https://github.com/";
+            url."ssh://git@ssh.github.com:443/".InsteadOf = "https://github.com/";
+            url."ssh://git@ssh.github.com:443/".insteadOf = "git@github.com:";
             merge.tool = lib.getExe pkgs.meld;
           };
         };

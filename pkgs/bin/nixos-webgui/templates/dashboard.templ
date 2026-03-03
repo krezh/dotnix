@@ -1,0 +1,395 @@
+package templates
+
+import (
+	"fmt"
+	"github.com/krezh/nixos-webgui/system"
+)
+
+templ Dashboard(info *system.SystemInfo, cpu *system.CPUStats, cpuHistory []float64, mem *system.MemoryStats, disks []system.DiskStats, load []float64, gpus []system.GPUStats, network []system.NetworkStats, temps *system.TemperatureStats, procs []system.ProcessInfo) {
+	@Base("Dashboard", DashboardContent(info, cpu, cpuHistory, mem, disks, load, gpus, network, temps, procs))
+}
+
+templ DashboardContent(info *system.SystemInfo, cpu *system.CPUStats, cpuHistory []float64, mem *system.MemoryStats, disks []system.DiskStats, load []float64, gpus []system.GPUStats, network []system.NetworkStats, temps *system.TemperatureStats, procs []system.ProcessInfo) {
+	<!-- System Info -->
+	<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+		<div class="stat-card">
+			<div class="stat-label">Hostname</div>
+			<div class="stat-value">{ info.Hostname }</div>
+		</div>
+		<div class="stat-card">
+			<div class="stat-label">Uptime</div>
+			<div class="stat-value">{ system.FormatUptime(info.Uptime) }</div>
+		</div>
+		<div class="stat-card">
+			<div class="stat-label">NixOS Version</div>
+			<div class="stat-value">{ info.NixOSVersion }</div>
+		</div>
+		<div class="stat-card">
+			<div class="stat-label">Kernel</div>
+			<div class="stat-value">{ info.KernelVersion }</div>
+		</div>
+	</div>
+	<!-- Stats Grid -->
+	<div id="stats-container" class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8 min-h-[600px]">
+		@StatsGrid(cpu, cpuHistory, mem, disks, load, gpus, network, temps, procs)
+	</div>
+	<script>
+		(function() {
+			const statsContainer = document.getElementById('stats-container');
+			
+			// Get color based on percentage (0-60: blue, 61-79: yellow, 80+: red)
+			function getProgressColor(percent) {
+				const isDark = document.documentElement.classList.contains('dark');
+				const p = parseFloat(percent);
+				
+				if (p >= 80) {
+					return isDark ? '#ef4444' : '#dc2626'; // red
+				} else if (p >= 61) {
+					return isDark ? '#facc15' : '#eab308'; // yellow
+				} else {
+					return isDark ? '#3b82f6' : '#2563eb'; // blue
+				}
+			}
+			
+			// Apply colors to all gradient progress bars
+			function applyProgressColors() {
+				document.querySelectorAll('.progress-fill-gradient[data-percent]').forEach(bar => {
+					bar.style.backgroundColor = getProgressColor(bar.dataset.percent);
+				});
+			}
+			
+			// Morphing function to update DOM smoothly without destroying elements
+			function morphUpdate(newHtml) {
+				const tempDiv = document.createElement('div');
+				tempDiv.innerHTML = newHtml;
+				
+				// Update all progress bars smoothly
+				tempDiv.querySelectorAll('.progress-fill-gradient[id], .progress-fill[id]').forEach((newBar) => {
+					const oldBar = document.getElementById(newBar.id);
+					if (oldBar) {
+						oldBar.style.width = newBar.style.width;
+						// Update data-percent for gradient color
+						if (newBar.dataset.percent) {
+							oldBar.dataset.percent = newBar.dataset.percent;
+						}
+					}
+				});
+				
+				// Update CPU history bars smoothly by finding the container
+				const newHistoryContainer = tempDiv.querySelector('.flex.items-end');
+				const oldHistoryContainer = statsContainer.querySelector('.flex.items-end');
+				if (newHistoryContainer && oldHistoryContainer) {
+					const newCpuBars = Array.from(newHistoryContainer.children);
+					const oldCpuBars = Array.from(oldHistoryContainer.children);
+					if (newCpuBars.length === oldCpuBars.length) {
+						newCpuBars.forEach((newBar, i) => {
+							if (oldCpuBars[i] && newBar.style.height) {
+								oldCpuBars[i].style.height = newBar.style.height;
+								if (newBar.title) {
+									oldCpuBars[i].title = newBar.title;
+								}
+							}
+						});
+					}
+				}
+				
+				// Update text content for all elements with IDs
+				tempDiv.querySelectorAll('[id]').forEach((newEl) => {
+					const oldEl = document.getElementById(newEl.id);
+					if (oldEl && oldEl.textContent !== newEl.textContent) {
+						oldEl.textContent = newEl.textContent;
+					}
+				});
+				
+				// Apply gradient colors after updating
+				applyProgressColors();
+			}
+			
+			// Apply initial colors to pre-rendered stats
+			applyProgressColors();
+			
+			// Connect to SSE stream (server controls polling rate)
+			const eventSource = new EventSource('/api/stats/stream');
+			
+			eventSource.onopen = function() {
+				console.log('Stats stream connected');
+			};
+			
+			eventSource.onmessage = function(event) {
+				morphUpdate(event.data);
+			};
+			
+			eventSource.onerror = function(error) {
+				console.error('Stats stream error:', error);
+				statsContainer.innerHTML = '<div class="card lg:col-span-2 flex items-center justify-center py-12">' +
+					'<div class="text-red-600">Failed to load stats. Refresh the page to try again.</div>' +
+				'</div>';
+				eventSource.close();
+			};
+			
+			// Clean up on page unload
+			window.addEventListener('beforeunload', function() {
+				eventSource.close();
+			});
+		})();
+	</script>
+	<!-- Quick Actions -->
+	<div class="card">
+		<h3 class="text-base font-semibold mb-4">Quick Actions</h3>
+		<div class="flex gap-4">
+			<a href="/update" class="btn btn-primary">
+				<svg class="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+				</svg>
+				Update System
+			</a>
+			<a href="/services" class="btn btn-secondary">
+				<svg class="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"></path>
+				</svg>
+				View Services
+			</a>
+		</div>
+	</div>
+}
+
+templ StatsGrid(cpu *system.CPUStats, cpuHistory []float64, mem *system.MemoryStats, disks []system.DiskStats, load []float64, gpus []system.GPUStats, network []system.NetworkStats, temps *system.TemperatureStats, procs []system.ProcessInfo) {
+	<!-- CPU Stats -->
+	<div class="card">
+		<h3 class="text-base font-semibold mb-3">CPU</h3>
+		<div class="mb-3">
+			<div class="flex justify-between mb-2">
+				<span class="text-sm font-medium">Current: <span id="cpu-percent">{ fmt.Sprintf("%.1f%%", cpu.UsagePercent) }</span></span>
+				<span class="text-xs text-gray-500 dark:text-gray-400">Last 3 minutes</span>
+			</div>
+			<!-- CPU History Graph -->
+			<div class="flex items-end gap-0.5 h-24 bg-gray-50 dark:bg-gray-800 rounded p-2">
+				<!-- Show last 90 samples (3 minutes at 2s intervals) -->
+				if len(cpuHistory) > 0 {
+					// Calculate start index to show last 90 samples
+					for i := 0; i < 90; i++ {
+						if len(cpuHistory) > 90 {
+							// Show last 90 samples
+							if i < 90 {
+								<div 
+									class="flex-1 min-w-0 bg-primary-600 dark:bg-primary-500 rounded-t transition-all duration-300"
+									style={ fmt.Sprintf("height: %.1f%%;", cpuHistory[len(cpuHistory)-90+i]) }
+									title={ fmt.Sprintf("%.1f%%", cpuHistory[len(cpuHistory)-90+i]) }
+								></div>
+							}
+						} else if i < len(cpuHistory) {
+							// Still building history, show what we have
+							<div 
+								class="flex-1 min-w-0 bg-primary-600 dark:bg-primary-500 rounded-t transition-all duration-300"
+								style={ fmt.Sprintf("height: %.1f%%;", cpuHistory[i]) }
+								title={ fmt.Sprintf("%.1f%%", cpuHistory[i]) }
+							></div>
+						} else {
+							// Placeholder for future data
+							<div class="flex-1 min-w-0 bg-gray-300 dark:bg-gray-700 rounded-t" style="height: 2%;"></div>
+						}
+					}
+				} else {
+					<div class="flex-1 flex items-center justify-center text-xs text-gray-400">
+						Building history...
+					</div>
+				}
+			</div>
+		</div>
+		<div class="space-y-1 text-sm text-gray-600 dark:text-gray-400">
+			<div class="flex justify-between">
+				<span>Model:</span>
+				<span class="text-right truncate ml-2" title={ cpu.ModelName }>{ cpu.ModelName }</span>
+			</div>
+			<div class="flex justify-between">
+				<span>Configuration:</span>
+				if cpu.CPUCount > 1 {
+					<span>{ fmt.Sprintf("%d CPUs × %d cores (%d threads)", cpu.CPUCount, cpu.PhysicalCores/cpu.CPUCount, cpu.LogicalCores) }</span>
+				} else {
+					<span>{ fmt.Sprintf("%d cores / %d threads", cpu.PhysicalCores, cpu.LogicalCores) }</span>
+				}
+			</div>
+			if len(load) >= 3 {
+				<div class="flex justify-between">
+					<span>Load Average (1m/5m/15m):</span>
+					<span id="load-avg">{ fmt.Sprintf("%.2f / %.2f / %.2f", load[0], load[1], load[2]) }</span>
+				</div>
+			}
+			if temps != nil && temps.CPUTemp > 0 {
+				<div class="flex justify-between">
+					<span>Temperature:</span>
+					<span id="cpu-temp">{ fmt.Sprintf("%.0f°C", temps.CPUTemp) }</span>
+				</div>
+			}
+		</div>
+	</div>
+	<!-- Memory Stats -->
+	<div class="card">
+		<h3 class="text-base font-semibold mb-3">Memory</h3>
+		<div class="mb-3">
+			<div class="flex justify-between mb-2">
+				<span class="text-sm font-medium">RAM</span>
+				<span class="text-sm font-medium" id="mem-percent">{ fmt.Sprintf("%.1f%%", mem.UsedPercent) }</span>
+			</div>
+			<div class="progress-bar">
+				<div class="progress-fill-gradient" id="mem-bar" data-percent={ fmt.Sprintf("%.0f", mem.UsedPercent) } style={ fmt.Sprintf("width: %.1f%%", mem.UsedPercent) }></div>
+			</div>
+			<div class="flex justify-between mt-1 text-xs text-gray-600 dark:text-gray-400">
+				<span id="mem-used">{ system.FormatBytes(mem.Used) } used</span>
+				<span>{ system.FormatBytes(mem.Available) } available</span>
+			</div>
+		</div>
+		if mem.SwapTotal > 0 {
+			<div class="mb-3">
+				<div class="flex justify-between mb-2">
+					<span class="text-sm font-medium">Swap</span>
+					<span class="text-sm font-medium" id="swap-percent">{ fmt.Sprintf("%.1f%%", mem.SwapPercent) }</span>
+				</div>
+				<div class="progress-bar">
+					<div class="progress-fill-gradient" id="swap-bar" data-percent={ fmt.Sprintf("%.0f", mem.SwapPercent) } style={ fmt.Sprintf("width: %.1f%%", mem.SwapPercent) }></div>
+				</div>
+				<div class="flex justify-between mt-1 text-xs text-gray-600 dark:text-gray-400">
+					<span id="swap-used">{ system.FormatBytes(mem.SwapUsed) } used</span>
+					<span>{ system.FormatBytes(mem.SwapTotal) } total</span>
+				</div>
+			</div>
+		}
+		<div class="space-y-1 text-sm text-gray-600 dark:text-gray-400">
+			<div class="flex justify-between">
+				<span>Total RAM:</span>
+				<span>{ system.FormatBytes(mem.Total) }</span>
+			</div>
+			if temps != nil && temps.MemoryTemp > 0 {
+				<div class="flex justify-between">
+					<span>Temperature:</span>
+					<span id="mem-temp">{ fmt.Sprintf("%.0f°C", temps.MemoryTemp) }</span>
+				</div>
+			}
+		</div>
+	</div>
+	<!-- Network Stats -->
+	if len(network) > 0 {
+		<div class="card">
+			<h3 class="text-base font-semibold mb-4">Network</h3>
+			<div class="space-y-2 text-sm">
+				for idx, iface := range network {
+					<div class="flex items-center justify-between pb-2 border-b border-gray-100 dark:border-gray-800 last:border-0">
+						<div class="flex items-center gap-2 min-w-0 flex-1">
+							<span class="font-medium">{ iface.Interface }</span>
+							<span class={ "text-xs px-1.5 py-0.5 rounded", templ.KV("bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200", iface.Status == "up"), templ.KV("bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200", iface.Status != "up") }>
+								{ iface.Status }
+							</span>
+							if iface.IPAddress != "" {
+								<span class="text-xs text-gray-500 dark:text-gray-400 truncate">{ iface.IPAddress }</span>
+							}
+						</div>
+						<div class="flex gap-3 text-xs text-gray-600 dark:text-gray-400">
+							<div class="text-right">
+								<div class="text-gray-500 dark:text-gray-500">↑</div>
+								<div id={ fmt.Sprintf("net%d-sent", idx) } class="font-medium">{ system.FormatBytes(iface.BytesSent) }</div>
+							</div>
+							<div class="text-right">
+								<div class="text-gray-500 dark:text-gray-500">↓</div>
+								<div id={ fmt.Sprintf("net%d-recv", idx) } class="font-medium">{ system.FormatBytes(iface.BytesRecv) }</div>
+							</div>
+						</div>
+					</div>
+				}
+			</div>
+		</div>
+	}
+	<!-- GPU Stats -->
+	if len(gpus) > 0 {
+		for idx, gpu := range gpus {
+			<div class="card">
+				<h3 class="text-base font-semibold mb-4">GPU</h3>
+				<div class="text-sm font-medium mb-4">{ gpu.Name }</div>
+				if gpu.UtilizationGPU > 0 {
+					<div class="mb-4">
+						<div class="flex justify-between mb-2">
+							<span class="text-sm font-medium">GPU Utilization</span>
+							<span class="text-sm font-medium" id={ fmt.Sprintf("gpu%d-util-percent", idx) }>{ fmt.Sprintf("%.0f%%", gpu.UtilizationGPU) }</span>
+						</div>
+						<div class="progress-bar">
+							<div class="progress-fill-gradient" id={ fmt.Sprintf("gpu%d-util-bar", idx) } data-percent={ fmt.Sprintf("%.0f", gpu.UtilizationGPU) } style={ fmt.Sprintf("width: %.0f%%", gpu.UtilizationGPU) }></div>
+						</div>
+					</div>
+				}
+				if gpu.MemoryTotal > 0 {
+					<div class="mb-4">
+						<div class="flex justify-between mb-2">
+							<span class="text-sm font-medium">VRAM</span>
+							<span class="text-sm font-medium" id={ fmt.Sprintf("gpu%d-mem-percent", idx) }>{ fmt.Sprintf("%.1f%%", gpu.MemoryPercent) }</span>
+						</div>
+						<div class="progress-bar">
+							<div class="progress-fill-gradient" id={ fmt.Sprintf("gpu%d-mem-bar", idx) } data-percent={ fmt.Sprintf("%.0f", gpu.MemoryPercent) } style={ fmt.Sprintf("width: %.1f%%", gpu.MemoryPercent) }></div>
+						</div>
+						<div class="flex justify-between mt-1 text-xs text-gray-600 dark:text-gray-400">
+							<span id={ fmt.Sprintf("gpu%d-mem-used", idx) }>{ system.FormatBytes(gpu.MemoryUsed) } / { system.FormatBytes(gpu.MemoryTotal) }</span>
+							<span id={ fmt.Sprintf("gpu%d-mem-free", idx) }>{ system.FormatBytes(gpu.MemoryTotal - gpu.MemoryUsed) } free</span>
+						</div>
+					</div>
+				}
+				if gpu.Temperature > 0 {
+					<div class="text-sm text-gray-600 dark:text-gray-400">
+						<div class="flex justify-between">
+							<span>Temperature:</span>
+							<span id={ fmt.Sprintf("gpu%d-temp", idx) }>{ fmt.Sprintf("%.0f°C", gpu.Temperature) }</span>
+						</div>
+					</div>
+				}
+			</div>
+		}
+	}
+	<!-- Disk Stats -->
+	<div class="card lg:col-span-2">
+		<h3 class="text-base font-semibold mb-4">Storage</h3>
+		<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+			for idx, disk := range disks {
+				<div>
+					<div class="flex justify-between mb-2">
+						<span class="text-sm font-medium">{ disk.MountPoint }</span>
+						<span class="text-sm font-medium" id={ fmt.Sprintf("disk%d-percent", idx) }>{ fmt.Sprintf("%.1f%%", disk.UsedPercent) }</span>
+					</div>
+					<div class="progress-bar">
+						<div class="progress-fill-gradient" id={ fmt.Sprintf("disk%d-bar", idx) } data-percent={ fmt.Sprintf("%.0f", disk.UsedPercent) } style={ fmt.Sprintf("width: %.1f%%", disk.UsedPercent) }></div>
+					</div>
+					<div class="flex justify-between mt-1 text-xs text-gray-600 dark:text-gray-400">
+						<span id={ fmt.Sprintf("disk%d-used", idx) }>{ system.FormatBytes(disk.Used) } / { system.FormatBytes(disk.Total) }</span>
+						<span id={ fmt.Sprintf("disk%d-free", idx) }>{ system.FormatBytes(disk.Available) } free</span>
+					</div>
+				</div>
+			}
+		</div>
+	</div>
+	<!-- Top Processes -->
+	if len(procs) > 0 {
+		<div class="card lg:col-span-2">
+			<h3 class="text-base font-semibold mb-4">Top Processes</h3>
+			<div class="overflow-x-auto">
+				<table class="min-w-full text-sm">
+					<thead class="border-b border-gray-200 dark:border-gray-700">
+						<tr>
+							<th class="text-left py-2 px-2">PID</th>
+							<th class="text-left py-2 px-2">Name</th>
+							<th class="text-right py-2 px-2">CPU %</th>
+							<th class="text-right py-2 px-2">Memory</th>
+							<th class="text-right py-2 px-2">Mem %</th>
+						</tr>
+					</thead>
+					<tbody>
+						for idx, proc := range procs {
+							<tr class="border-b border-gray-100 dark:border-gray-800">
+								<td class="py-2 px-2" id={ fmt.Sprintf("proc%d-pid", idx) }>{ fmt.Sprintf("%d", proc.PID) }</td>
+								<td class="py-2 px-2 truncate max-w-xs" id={ fmt.Sprintf("proc%d-name", idx) }>{ proc.Name }</td>
+								<td class="py-2 px-2 text-right font-mono" id={ fmt.Sprintf("proc%d-cpu", idx) }>{ fmt.Sprintf("%.1f", proc.CPUPercent) }</td>
+								<td class="py-2 px-2 text-right" id={ fmt.Sprintf("proc%d-mem", idx) }>{ system.FormatBytes(proc.MemoryBytes) }</td>
+								<td class="py-2 px-2 text-right font-mono" id={ fmt.Sprintf("proc%d-mempct", idx) }>{ fmt.Sprintf("%.1f", proc.MemPercent) }</td>
+							</tr>
+						}
+					</tbody>
+				</table>
+			</div>
+		</div>
+	}
+}

@@ -108,6 +108,10 @@
         sudo-rs = {
           enable = true;
           wheelNeedsPassword = lib.mkDefault true;
+          extraConfig = ''
+            Defaults pwfeedback
+            Defaults timestamp_timeout=15
+          '';
           extraRules = [
             {
               commands = [
@@ -150,7 +154,7 @@
       ];
 
       programs.nh.enable = true;
-      documentation.man.generateCaches = lib.mkForce false;
+      documentation.man.cache.enable = lib.mkForce false;
       documentation.enable = false;
     };
 }

@@ -1,0 +1,7 @@
+# Generated files
+templates/*_templ.go
+static/css/output.css
+
+# Build artifacts
+result
+nixos-webgui
