@@ -17,6 +17,6 @@ _... managed with Renovate, and GitHub Actions_ 🤖
 ![Repo Size](https://img.shields.io/github/repo-size/krezh/nix-config?color=ea999c&labelColor=303446&style=for-the-badge&link=https%3A%2F%2Fgithub.com%2Fkrezh%2Fnix-config)
 ![License](https://img.shields.io/static/v1.svg?label=License&message=GPLv3&logoColor=ca9ee6&colorA=313244&colorB=cba6f7&style=for-the-badge)
 
-<img src="./thor.svg" width="500"/>
+<img src="thor.svg" width="500"/>
 
 </div>
