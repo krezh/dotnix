@@ -1,6 +1,5 @@
 { lib, inputs, ... }:
 {
-  # This one brings our custom packages from the 'packages' directory
   pkgs =
     final: _prev:
     lib.scanPath.toAttrs {
@@ -13,11 +12,17 @@
 
   nix4vscode = inputs.nix4vscode.overlays.default;
 
+  kernel = final: prev: {
+    linux = prev.linux.overrideAttrs (old: {
+      requiredSystemFeatures = (old.requiredSystemFeatures or [ ]) ++ [ "kernelbuild" ];
+    });
+  };
+
   lix = _final: prev: {
     inherit (prev.lixPackageSets.latest)
       # nixpkgs-review
-      nix-eval-jobs
       # nix-fast-build
+      nix-eval-jobs
       colmena
       ;
   };

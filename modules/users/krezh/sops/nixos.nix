@@ -5,7 +5,6 @@ in
   flake.modules.nixos.${user} =
     { config, ... }:
     {
-      # NixOS-level sops secrets
       sops = {
         age = {
           keyFile = "/home/${user}/.config/sops/age/keys.txt";
@@ -16,6 +15,7 @@ in
           "github/token" = { };
           "smb/user" = { };
           "smb/pass" = { };
+          "nixbuild/key" = { };
         };
         templates = {
           "nix_access_token.conf" = {

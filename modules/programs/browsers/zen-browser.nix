@@ -37,9 +37,9 @@
               position = 103;
               isEssential = true;
             };
-            "AlertManager" = {
-              id = "alertmanager";
-              url = "https://alertmanager.talos.plexuz.xyz";
+            "Siren" = {
+              id = "siren";
+              url = "https://siren.talos.plexuz.xyz";
               position = 104;
               isEssential = true;
             };

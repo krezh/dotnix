@@ -62,14 +62,12 @@ runs:
 
     - name: Install Nix (with remote builders)
       if: inputs.use-remote-builders == 'true'
-      uses: cachix/install-nix-action@19effe9fe722874e6d46dd7182e4b8b7a43c4a99 # v31.10.0
+      uses: nixbuild/nix-quick-install-action@2c9db80fb984ceb1bcaa77cdda3fdf8cfba92035 # v34
       with:
-        install_options: --no-daemon
-        extra_nix_config: |
+        nix_conf: |
           accept-flake-config = true
           always-allow-substitutes = true
           builders-use-substitutes = true
-          max-jobs = 0
           builders = @${{ github.workspace }}/.github/nix-builders.conf
           ${{ inputs.nothing-but-nix == 'true' && 'build-dir = /nix/build' || '' }}
 
