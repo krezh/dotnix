@@ -68,8 +68,6 @@
             system = "x86_64-linux";
             maxJobs = 100;
             supportedFeatures = [
-              "benchmark"
-              "big-parallel"
               "kernelbuild"
             ];
           }
