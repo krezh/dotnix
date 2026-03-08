@@ -7,13 +7,13 @@
 (buildGoModule.override { go = go-bin.latestStable; }) rec {
   pname = "kubectl-browse-pvc";
   # renovate: datasource=github-releases depName=clbx/kubectl-browse-pvc
-  version = "1.4.0";
+  version = "1.4.1";
 
   src = fetchFromGitHub {
     owner = "clbx";
     repo = "kubectl-browse-pvc";
     rev = "v${version}";
-    hash = "sha256-dw7q28qNS3RcUuPZcDc4JqPNU1JTn1RJMLJ6KSkpjrU=";
+    hash = "sha256-H6p4u95UI+DoLkB90DkSSdcuZAbxFTeDHbTxjcS3COg=";
   };
 
   ldflags = [
