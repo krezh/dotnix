@@ -29,7 +29,9 @@ func sendSSEConnected(w http.ResponseWriter) http.Flusher {
 	return flusher
 }
 
-// renderComponent renders a templ component to the response writer.
+// renderComponent executes the templ component and writes the result to the HTTP response.
+//
+// Sends a 500 error if rendering fails.
 func renderComponent(w http.ResponseWriter, r *http.Request, component templ.Component) {
 	if err := component.Render(r.Context(), w); err != nil {
 		log.Printf("Error rendering component: %v", err)

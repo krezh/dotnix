@@ -22,9 +22,10 @@ func HandleStore(w http.ResponseWriter, r *http.Request) {
 	// Get cached store stats if available
 	storeStatsMutex.RLock()
 	cachedStats := cachedStoreStats
+	cachedTime := storeStatsTime
 	storeStatsMutex.RUnlock()
 
-	component := templates.Store(cachedStats)
+	component := templates.Store(cachedStats, cachedTime)
 	if err := component.Render(r.Context(), w); err != nil {
 		log.Printf("Error rendering store: %v", err)
 		http.Error(w, "Failed to render page", http.StatusInternalServerError)

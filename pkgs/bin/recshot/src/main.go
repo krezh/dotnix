@@ -20,11 +20,9 @@ import (
 func main() {
 	cfg := config.New()
 
-	// Track which flags were explicitly set
 	urlSet := false
 	tokenSet := false
 
-	// Define flags
 	flag.StringVar(&cfg.ZiplineURL, "url", cfg.ZiplineURL, "Zipline URL")
 	flag.StringVar(&cfg.ZiplineURL, "u", cfg.ZiplineURL, "Zipline URL (short)")
 	flag.StringVar(&cfg.TokenFile, "token", cfg.TokenFile, "Token file path")
@@ -75,7 +73,6 @@ func main() {
 
 	flag.Parse()
 
-	// Check which flags were actually set
 	flag.Visit(func(f *flag.Flag) {
 		if f.Name == "url" || f.Name == "u" {
 			urlSet = true
@@ -114,7 +111,6 @@ func main() {
 }
 
 func run(cfg *config.Config) {
-	// Handle status check
 	if cfg.Status {
 		isRecording, outputFile := getRecordingStatus()
 		if isRecording {
@@ -129,27 +125,22 @@ func run(cfg *config.Config) {
 		return
 	}
 
-	// Validate configuration
 	if err := cfg.Validate(); err != nil {
 		log.Fatal(err)
 	}
 
-	// Check dependencies
 	if err := checkDependencies(cfg.Dependencies); err != nil {
 		log.Fatal(err)
 	}
 
-	// Create save directory
 	if err := os.MkdirAll(cfg.SavePath, 0755); err != nil {
 		log.Fatalf("Failed to create save directory: %v", err)
 	}
 
-	// Initialize components
 	notifier := notify.New()
 	procMgr := process.New()
 	capturer := capture.New(cfg, notifier, procMgr)
 
-	// Handle video recording check
 	if cfg.IsVideoMode() {
 		if outputFile, wasRecording, err := capturer.CheckRecording(); err != nil {
 			log.Fatal(err)
@@ -164,10 +155,8 @@ func run(cfg *config.Config) {
 		}
 	}
 
-	// Generate filename
 	filename := filepath.Join(cfg.SavePath, time.Now().Format("2006-01-02_15-04-05")+cfg.GetFileExtension())
 
-	// Capture based on mode
 	if cfg.IsImageMode() {
 		if err := capturer.TakeScreenshot(filename); err != nil {
 			notifier.SendError("Failed to take screenshot")

@@ -21,6 +21,7 @@ in
         launchers
         mail
         ai
+        kubernetes
 
         # Desktop environment
         hyprland

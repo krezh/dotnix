@@ -4,6 +4,12 @@
   buildGoApplication,
   go-bin,
 }:
+let
+  htmx = pkgs.fetchurl {
+    url = "https://unpkg.com/htmx.org@2.0.4/dist/htmx.min.js";
+    hash = "sha256-4gndpcgjVHnzFm3vx3UOHbzVpcGAi3eS/C5nM3aPtEc=";
+  };
+in
 buildGoApplication rec {
   pname = "nixos-webgui";
   version = "0.1.0";
@@ -23,6 +29,10 @@ buildGoApplication rec {
   ];
 
   preBuild = ''
+    # Vendor htmx — fetched from nix store, no network at build time
+    mkdir -p ./static/js
+    cp ${htmx} ./static/js/htmx.min.js
+
     # Generate Go code from Templ templates
     echo "Generating templates..."
     templ generate

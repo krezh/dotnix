@@ -2,10 +2,12 @@ package system
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"os/exec"
 	"strconv"
 	"strings"
+	"sync"
 )
 
 // StoreStats represents Nix store statistics.
@@ -17,27 +19,42 @@ type StoreStats struct {
 }
 
 // GetStoreStats retrieves Nix store statistics.
+//
+// Runs du -sb /nix/store and nix-store --gc --print-dead in parallel, then
+// measures dead-path disk usage with a single du -scb call.
 func GetStoreStats() (*StoreStats, error) {
-	cmd := exec.Command("du", "-sb", "/nix/store")
-	output, err := cmd.Output()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get store size: %w", err)
+	var (
+		wg        sync.WaitGroup
+		totalSize uint64
+		totalErr  error
+		deadPaths []string
+		deadErr   error
+	)
+
+	wg.Add(2)
+
+	go func() {
+		defer wg.Done()
+		totalSize, totalErr = fetchStoreTotalSize()
+	}()
+
+	go func() {
+		defer wg.Done()
+		deadPaths, deadErr = fetchDeadPaths()
+	}()
+
+	wg.Wait()
+
+	if totalErr != nil {
+		return nil, fmt.Errorf("failed to get store size: %w", totalErr)
 	}
 
-	// Parse output: "123456\t/nix/store"
-	parts := strings.Fields(string(output))
-	if len(parts) < 1 {
-		return nil, fmt.Errorf("unexpected du output format")
+	if deadErr != nil {
+		return &StoreStats{TotalSize: totalSize, DeadSize: 0, AliveSize: totalSize}, nil
 	}
 
-	totalSize, err := strconv.ParseUint(parts[0], 10, 64)
+	deadSize, err := measureDeadSize(deadPaths)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse store size: %w", err)
-	}
-
-	deadSize, err := calculateDeadPathsSize()
-	if err != nil {
-		// If dead paths cannot be calculated, report total as alive.
 		return &StoreStats{TotalSize: totalSize, DeadSize: 0, AliveSize: totalSize}, nil
 	}
 
@@ -50,69 +67,56 @@ func GetStoreStats() (*StoreStats, error) {
 	return &StoreStats{TotalSize: totalSize, DeadSize: deadSize, AliveSize: aliveSize}, nil
 }
 
-// calculateDeadPathsSize calculates the size of dead (unreachable) store paths.
-func calculateDeadPathsSize() (uint64, error) {
-	cmd := exec.Command("nix-store", "--gc", "--print-dead")
-	output, err := cmd.Output()
+// fetchStoreTotalSize returns the on-disk size of /nix/store in bytes.
+func fetchStoreTotalSize() (uint64, error) {
+	out, err := exec.Command("du", "-sb", "/nix/store").Output()
 	if err != nil {
-		return 0, fmt.Errorf("failed to get dead paths: %w", err)
+		return 0, err
 	}
-
-	var deadPaths []string
-	scanner := bufio.NewScanner(strings.NewReader(string(output)))
-	for scanner.Scan() {
-		path := strings.TrimSpace(scanner.Text())
-		if path != "" && strings.HasPrefix(path, "/nix/store/") {
-			deadPaths = append(deadPaths, path)
-		}
+	parts := strings.Fields(string(out))
+	if len(parts) < 1 {
+		return 0, fmt.Errorf("unexpected du output")
 	}
-
-	if len(deadPaths) == 0 {
-		return 0, nil
-	}
-
-	// Calculate total size using du with all paths at once for performance.
-	args := append([]string{"-scb"}, deadPaths...)
-	duCmd := exec.Command("du", args...)
-	duOutput, err := duCmd.Output()
-	if err != nil {
-		return calculateDeadPathsSizeIndividually(deadPaths)
-	}
-
-	// Last line format: "123456\ttotal"
-	lines := strings.Split(strings.TrimSpace(string(duOutput)), "\n")
-	if len(lines) == 0 {
-		return 0, nil
-	}
-	parts := strings.Fields(lines[len(lines)-1])
-	if len(parts) >= 1 {
-		size, err := strconv.ParseUint(parts[0], 10, 64)
-		if err == nil {
-			return size, nil
-		}
-	}
-
-	return 0, nil
+	return strconv.ParseUint(parts[0], 10, 64)
 }
 
-// calculateDeadPathsSizeIndividually is a fallback that calculates size path by path.
-func calculateDeadPathsSizeIndividually(paths []string) (uint64, error) {
-	var totalDeadSize uint64
-	for _, path := range paths {
-		duCmd := exec.Command("du", "-sb", path)
-		duOutput, err := duCmd.Output()
-		if err != nil {
-			continue
-		}
-		parts := strings.Fields(string(duOutput))
-		if len(parts) >= 1 {
-			size, err := strconv.ParseUint(parts[0], 10, 64)
-			if err == nil {
-				totalDeadSize += size
-			}
+// fetchDeadPaths returns the list of unreachable store paths.
+func fetchDeadPaths() ([]string, error) {
+	out, err := exec.Command("nix-store", "--gc", "--print-dead").Output()
+	if err != nil {
+		return nil, fmt.Errorf("nix-store --gc --print-dead: %w", err)
+	}
+
+	var paths []string
+	scanner := bufio.NewScanner(bytes.NewReader(out))
+	for scanner.Scan() {
+		path := strings.TrimSpace(scanner.Text())
+		if strings.HasPrefix(path, "/nix/store/") {
+			paths = append(paths, path)
 		}
 	}
-	return totalDeadSize, nil
+	return paths, scanner.Err()
+}
+
+// measureDeadSize returns the total on-disk size of the given paths using du.
+func measureDeadSize(paths []string) (uint64, error) {
+	if len(paths) == 0 {
+		return 0, nil
+	}
+
+	args := append([]string{"-scb"}, paths...)
+	out, err := exec.Command("du", args...).Output()
+	if err != nil {
+		return 0, fmt.Errorf("du on dead paths: %w", err)
+	}
+
+	// Last line is the grand total: "123456\ttotal"
+	lines := strings.Split(strings.TrimSpace(string(out)), "\n")
+	parts := strings.Fields(lines[len(lines)-1])
+	if len(parts) < 1 {
+		return 0, fmt.Errorf("unexpected du total output")
+	}
+	return strconv.ParseUint(parts[0], 10, 64)
 }
 
 // RunGarbageCollection runs nix garbage collection.

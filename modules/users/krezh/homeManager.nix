@@ -15,7 +15,6 @@ in
         };
       };
       imports = with inputs.self.modules.homeManager; [
-        kubernetes
         atuin
         fastfetch
         aria2

@@ -85,11 +85,11 @@
   }
   
   .nav-link {
-    @apply flex items-center px-4 py-3 text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-800 rounded-md transition-colors;
+    @apply flex items-center px-4 py-3 text-gray-700 hover:bg-primary-50 hover:text-primary-600 dark:text-gray-200 dark:hover:bg-primary-900/20 dark:hover:text-primary-400 rounded-md transition-colors;
   }
   
   .nav-link-active {
-    @apply bg-primary-50 text-primary-600 dark:bg-primary-900/20 dark:text-primary-400;
+    @apply bg-primary-50 text-primary-600 dark:bg-primary-900/20 dark:text-primary-400 hover:bg-primary-50 dark:hover:bg-primary-900/20;
   }
   
   .table {
@@ -235,5 +235,50 @@
   /* Tooltip code styling */
   .tooltip .tooltip-text code {
     @apply font-mono font-semibold;
+  }
+
+  /* List-style tooltip: width fits content, each child on its own line */
+  .tooltip .tooltip-text-list {
+    @apply invisible absolute z-50 bg-gray-900 dark:bg-gray-700 text-white text-xs rounded-md py-2 px-3 opacity-0 transition-opacity duration-200;
+    @apply bottom-full left-1/2 -translate-x-1/2 mb-2;
+    white-space: nowrap;
+    width: max-content;
+    text-align: left;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  }
+
+  .tooltip .tooltip-text-list::after {
+    content: "";
+    @apply absolute top-full left-1/2 -translate-x-1/2;
+    border-width: 5px;
+    border-style: solid;
+    border-color: #111827 transparent transparent transparent;
+  }
+
+  .dark .tooltip .tooltip-text-list::after {
+    border-color: #374151 transparent transparent transparent;
+  }
+
+  .tooltip:hover .tooltip-text-list {
+    @apply visible opacity-100;
+  }
+
+  /* Standalone tooltip for JS-positioned graph tooltips (appended to body). */
+  .graph-tooltip {
+    @apply invisible fixed z-50 bg-gray-900 dark:bg-gray-700 text-white text-xs rounded-md py-2 px-3 opacity-0 transition-opacity duration-200;
+    @apply whitespace-nowrap pointer-events-none;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  }
+
+  .graph-tooltip::after {
+    content: "";
+    @apply absolute top-full left-1/2 -translate-x-1/2;
+    border-width: 5px;
+    border-style: solid;
+    border-color: #111827 transparent transparent transparent;
+  }
+
+  .dark .graph-tooltip::after {
+    border-color: #374151 transparent transparent transparent;
   }
 }

@@ -54,9 +54,10 @@ func getMousePositionHyprland() string {
 	return formatPosition(localX, localY)
 }
 
-// getMousePositionSway gets mouse position using swaymsg for Sway
+// getMousePositionSway gets mouse position using swaymsg for Sway.
+//
+// Currently unimplemented as Sway requires additional compositor queries to obtain cursor coordinates.
 func getMousePositionSway() string {
-	// Placeholder - Sway doesn't easily expose cursor position
 	return ""
 }
 

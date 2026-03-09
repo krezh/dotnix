@@ -49,6 +49,9 @@ func main() {
 		r.Get("/services/{name}/logs/stream", handlers.HandleServiceLogsStream)
 
 		// Update endpoints
+		r.Get("/update/git-status", handlers.HandleGitStatus)
+		r.Get("/update/git-status-dot", handlers.HandleGitStatusDot)
+		r.Post("/update/git-status/refresh", handlers.HandleGitStatusRefresh)
 		r.Post("/update/start", handlers.HandleUpdateStart)
 		r.Post("/update/apply", handlers.HandleUpdateApply)
 		r.Post("/update/flake", handlers.HandleFlakeUpdate)

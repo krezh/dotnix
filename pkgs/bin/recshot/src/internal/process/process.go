@@ -13,7 +13,7 @@ import (
 // Manager handles process operations
 type Manager struct{}
 
-// New creates a new process manager
+// New creates a manager for querying and controlling system processes.
 func New() *Manager {
 	return &Manager{}
 }
@@ -69,7 +69,7 @@ func (m *Manager) FindByName(name string) ([]int, error) {
 	return pids, nil
 }
 
-// readCommFileBuffered reads process name from comm file efficiently
+// readCommFileBuffered reads the process name from /proc/[pid]/comm using buffered I/O.
 func (m *Manager) readCommFileBuffered(commPath string) string {
 	file, err := os.Open(commPath)
 	if err != nil {

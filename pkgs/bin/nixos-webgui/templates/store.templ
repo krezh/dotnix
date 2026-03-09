@@ -1,14 +1,16 @@
 package templates
 
 import (
+	"fmt"
+	"time"
 	"github.com/krezh/nixos-webgui/system"
 )
 
-templ Store(storeStats *system.StoreStats) {
-	@Base("Nix Store", StoreContent(storeStats))
+templ Store(storeStats *system.StoreStats, cachedAt time.Time) {
+	@Base("Nix Store", StoreContent(storeStats, cachedAt))
 }
 
-templ StoreContent(storeStats *system.StoreStats) {
+templ StoreContent(storeStats *system.StoreStats, cachedAt time.Time) {
 	<div class="space-y-6">
 		<!-- Store Statistics -->
 		<div class="card">
@@ -31,7 +33,7 @@ templ StoreContent(storeStats *system.StoreStats) {
 			<div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
 				<div class="text-center p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
 					<div class="text-sm text-gray-600 dark:text-gray-400">Total Store Size</div>
-					<div id="store-total" class="text-2xl font-bold mt-1 h-8">
+					<div id="store-total" class="text-2xl font-bold mt-1 h-8 flex items-center justify-center">
 						if storeStats != nil {
 							{ system.FormatBytes(storeStats.TotalSize) }
 						} else {
@@ -41,7 +43,7 @@ templ StoreContent(storeStats *system.StoreStats) {
 				</div>
 				<div class="text-center p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
 					<div class="text-sm text-gray-600 dark:text-gray-400">In Use</div>
-					<div id="store-alive" class="text-2xl font-bold mt-1 text-green-600 h-8">
+					<div id="store-alive" class="text-2xl font-bold mt-1 text-green-600 h-8 flex items-center justify-center">
 						if storeStats != nil {
 							{ system.FormatBytes(storeStats.AliveSize) }
 						} else {
@@ -51,7 +53,7 @@ templ StoreContent(storeStats *system.StoreStats) {
 				</div>
 				<div class="text-center p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
 					<div class="text-sm text-gray-600 dark:text-gray-400">Reclaimable</div>
-					<div id="store-dead" class="text-2xl font-bold mt-1 text-orange-600 h-8">
+					<div id="store-dead" class="text-2xl font-bold mt-1 text-orange-600 h-8 flex items-center justify-center">
 						if storeStats != nil {
 							{ system.FormatBytes(storeStats.DeadSize) }
 						} else {
@@ -60,15 +62,13 @@ templ StoreContent(storeStats *system.StoreStats) {
 					</div>
 				</div>
 			</div>
-			if storeStats != nil {
-				<div id="store-cache-info" class="text-xs text-gray-500 dark:text-gray-400 mb-4">
-					Cached data (click Refresh to update)
-				</div>
-			} else {
-				<div id="store-cache-info" class="text-xs text-gray-500 dark:text-gray-400 mb-4 hidden">
-					<span id="store-cached-time"></span>
-				</div>
-			}
+		if storeStats != nil {
+			<div id="store-cache-info" class="text-xs text-gray-500 dark:text-gray-400 mb-4">
+				{ fmt.Sprintf("Cached — last updated %s", cachedAt.Format("02/01/2006, 15:04:05")) }
+			</div>
+		} else {
+			<div id="store-cache-info" class="text-xs text-gray-500 dark:text-gray-400 mb-4 hidden"></div>
+		}
 		</div>
 
 		<!-- Store Management Actions -->
@@ -186,9 +186,10 @@ templ StoreContent(storeStats *system.StoreStats) {
 					if (data.cached_at) {
 						const cacheInfo = document.getElementById('store-cache-info');
 						cacheInfo.classList.remove('hidden');
+						const ts = new Date(data.cached_at).toLocaleString('en-GB', { hour12: false });
 						cacheInfo.textContent = data.cached
-							? 'Cached data (click Refresh to update)'
-							: 'Data updated at ' + new Date(data.cached_at).toLocaleString();
+							? 'Cached \u2014 last updated ' + ts
+							: 'Data updated at ' + ts;
 					}
 
 					btn.disabled = false;

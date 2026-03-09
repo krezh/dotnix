@@ -20,7 +20,7 @@ var (
 var rootCmd = &cobra.Command{
 	Use:   manager.AppName,
 	Short: "Kopia backup manager with Go library interface",
-	Long:  `A comprehensive tool for managing Kopia backups using the official Go library.`,
+	Long:  `Manages Kopia repository operations, snapshots, and systemd backup services using the official Kopia Go library.`,
 }
 
 // Execute runs the root command

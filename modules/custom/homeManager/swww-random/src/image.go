@@ -33,7 +33,7 @@ func findImages(directory string) []string {
 	return images
 }
 
-// selectRandomImage returns a random image from the slice
+// selectRandomImage selects one image uniformly at random from the provided slice.
 func selectRandomImage(images []string) string {
 	if len(images) == 0 {
 		return ""
@@ -41,7 +41,7 @@ func selectRandomImage(images []string) string {
 	return images[rand.Intn(len(images))]
 }
 
-// shuffleImages randomizes the order of images in place
+// shuffleImages performs an in-place Fisher-Yates shuffle of the image paths.
 func shuffleImages(images []string) {
 	rand.Shuffle(len(images), func(i, j int) {
 		images[i], images[j] = images[j], images[i]

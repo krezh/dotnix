@@ -23,7 +23,7 @@ type Capturer struct {
 	procMgr  *process.Manager
 }
 
-// New creates a new capturer
+// New creates a capturer for handling screenshot and video recording operations.
 func New(cfg *config.Config, notifier *notify.Notifier, procMgr *process.Manager) *Capturer {
 	return &Capturer{
 		config:   cfg,
@@ -70,7 +70,9 @@ func (c *Capturer) StartRecording(filename string) error {
 	return c.executeWlScreenrec(geometry, monitor, filename)
 }
 
-// CheckRecording checks if a recording is active and stops it if found
+// CheckRecording checks if a recording is active and stops it if found.
+//
+// Returns the output file path, whether a recording was found, and any error encountered.
 func (c *Capturer) CheckRecording() (string, bool, error) {
 	pids, err := c.procMgr.FindByName("wl-screenrec")
 	if err != nil {
@@ -81,7 +83,6 @@ func (c *Capturer) CheckRecording() (string, bool, error) {
 		return "", false, nil
 	}
 
-	// Find output file from command line
 	var outputFile string
 	for _, pid := range pids {
 		cmdline, err := c.procMgr.ReadCmdline(pid)
@@ -98,14 +99,12 @@ func (c *Capturer) CheckRecording() (string, bool, error) {
 		}
 	}
 
-	// Stop all recording processes
 	for _, pid := range pids {
 		c.procMgr.Kill(pid, syscall.SIGINT)
 	}
 
 	c.notifier.SendSuccess("Screen recording saved")
 
-	// Small delay to ensure file is completely written
 	time.Sleep(500 * time.Millisecond)
 
 	return outputFile, true, nil

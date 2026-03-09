@@ -1,5 +1,7 @@
 package templates
 
+import "os"
+
 templ Base(title string, content templ.Component) {
 	<!DOCTYPE html>
 	<html lang="en" class="dark">
@@ -8,7 +10,7 @@ templ Base(title string, content templ.Component) {
 			<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 			<title>{ title } - NixOS WebGUI</title>
 			<link rel="stylesheet" href="/static/css/output.css"/>
-			<script src="https://unpkg.com/htmx.org@2.0.4"></script>
+			<script src="/static/js/htmx.min.js"></script>
 			<script>
 				// Shows a dialog element by removing the 'hidden' class.
 				function showDialog(id) { document.getElementById(id).classList.remove('hidden'); }
@@ -16,13 +18,39 @@ templ Base(title string, content templ.Component) {
 				function hideDialog(id) { document.getElementById(id).classList.add('hidden'); }
 				// Returns the HTML string for a spinner-7 element.
 				function makeSpinner() { return '<div class="spinner-7"><div></div><div></div><div></div></div>'; }
+
+				// Clean up page-specific resources before hx-boost navigates to a new page.
+				// Only runs when the swap target is <body> (i.e. a full-page boost navigation),
+				// not for partial HTMX swaps within a page.
+				document.addEventListener('htmx:beforeSwap', function(event) {
+					if (event.detail.target !== document.body) return;
+					// Close the dashboard SSE connection if open.
+					if (window._dashboardSSE) {
+						window._dashboardSSE.close();
+						window._dashboardSSE = null;
+					}
+					// Cancel all running graph animation frames.
+					if (window._graphState) {
+						Object.values(window._graphState).forEach(function(s) {
+							if (s.rafId) cancelAnimationFrame(s.rafId);
+						});
+						window._graphState = null;
+					}
+					// Remove the floating graph tooltip if present.
+					if (window._graphTooltip) {
+						window._graphTooltip.remove();
+						window._graphTooltip = null;
+					}
+				});
 			</script>
 		</head>
-		<body class="h-screen flex">
+		<body class="h-screen flex" hx-boost="true">
 			<!-- Sidebar -->
 			<aside class="w-64 bg-gray-800 text-white flex flex-col">
-				<div class="p-6">
-					<h1 class="text-2xl font-bold">NixOS WebGUI</h1>
+				<div class="p-5 flex items-center gap-3">
+					<img src="/static/img/nixos.svg" class="w-8 h-8 shrink-0" alt="NixOS"/>
+					{{ hostname, _ := os.Hostname() }}
+					<span class="font-semibold text-white truncate">{ hostname }</span>
 				</div>
 				<nav class="flex-1 px-4 space-y-2">
 					<a href="/" class={ "nav-link", templ.KV("nav-link-active", title == "Dashboard") }>
@@ -42,6 +70,11 @@ templ Base(title string, content templ.Component) {
 							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
 						</svg>
 						Update
+						<span
+							hx-get="/api/update/git-status-dot"
+							hx-trigger="load"
+							hx-swap="outerHTML"
+						></span>
 					</a>
 					<a href="/generations" class={ "nav-link", templ.KV("nav-link-active", title == "Generations") }>
 						<svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">

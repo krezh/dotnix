@@ -136,7 +136,7 @@ fn clear_overlays(output_surfaces: &mut [OutputSurface]) {
     }
 }
 
-/// Formats selection coordinates into output string.
+/// Formats selection coordinates as "%x,%y %wx%h" with all placeholder substitutions applied.
 fn format_output(x: i32, y: i32, width: i32, height: i32) -> String {
     "%x,%y %wx%h"
         .replace("%x", &x.to_string())
