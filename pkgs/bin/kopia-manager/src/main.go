@@ -3,7 +3,7 @@ package main
 import (
 	"kopia-manager/cmd"
 
-	"github.com/charmbracelet/log"
+	"charm.land/log/v2"
 )
 
 func main() {

@@ -10,7 +10,7 @@ import (
 	"kopia-manager/internal/ui"
 	"kopia-manager/internal/util"
 
-	"github.com/charmbracelet/log"
+	"charm.land/log/v2"
 	"github.com/spf13/cobra"
 )
 

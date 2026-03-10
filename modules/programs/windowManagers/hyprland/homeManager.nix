@@ -27,7 +27,7 @@ _: {
       browser.run = "${lib.getExe config.programs.wlr-which-key.package} browser";
       fileManager = mkProg pkgs.nautilus;
       passwords = mkProg pkgs.proton-pass;
-      sysMonitor = mkProg pkgs.mission-center;
+      sysMonitor = mkProg pkgs.resources;
       logout = mkProg pkgs.wlogout;
       hyprlock.run = "${lib.getExe config.programs.hyprlock.package} --immediate";
       launcher.run = "${pkgs.netcat}/bin/nc -U /run/user/$(id -u)/walker/walker.sock";
@@ -375,10 +375,10 @@ _: {
             "match:class com.floatterm.floatterm, size 60% 60%"
 
             # Mission Center
-            "match:class (io.missioncenter.MissionCenter), float on"
-            "match:class (io.missioncenter.MissionCenter), pin on"
-            "match:class (io.missioncenter.MissionCenter), center on"
-            "match:class (io.missioncenter.MissionCenter), size 1200 800"
+            "match:class (net.nokyan.Resources), float on"
+            "match:class (net.nokyan.Resources), pin on"
+            "match:class (net.nokyan.Resources), center on"
+            "match:class (net.nokyan.Resources), size 1200 800"
           ];
 
           bindd = [

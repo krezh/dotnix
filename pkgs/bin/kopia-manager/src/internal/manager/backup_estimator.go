@@ -8,7 +8,7 @@ import (
 
 	"kopia-manager/internal/ui"
 
-	"github.com/charmbracelet/log"
+	"charm.land/log/v2"
 	"github.com/kopia/kopia/fs"
 	"github.com/kopia/kopia/fs/localfs"
 )

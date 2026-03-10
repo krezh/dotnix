@@ -496,7 +496,6 @@
         wl-screenrec
         swaylock
         swayidle
-        mission-center
         xwayland-satellite
       ];
 

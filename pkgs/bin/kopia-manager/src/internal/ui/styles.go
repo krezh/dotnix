@@ -3,7 +3,7 @@ package ui
 import (
 	"fmt"
 
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/lipgloss/v2"
 )
 
 // Centralized lipgloss styles for consistent UI

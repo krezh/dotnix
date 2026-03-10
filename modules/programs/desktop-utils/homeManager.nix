@@ -11,7 +11,7 @@
         recshot
         gulp
 
-        mission-center
+        resources
 
         # Misc desktop apps
         wowup-cf
