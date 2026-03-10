@@ -79,9 +79,9 @@ func ShortenPath(path string) string {
 
 // NewSimpleProgressBar creates a simple progress bar with default settings using bubbles/progress
 func NewSimpleProgressBar(title string, total int64) *SimpleProgressBar {
-	// Create bubbles progress bar with Catppuccin Mocha gradient
+	// Create bubbles progress bar with Catppuccin Mocha colors
 	prog := progress.New(
-		progress.WithGradient("#a6e3a1", "#74c7ec"), // Green to Sapphire
+		progress.WithDefaultBlend(), // Use default color blending
 		progress.WithWidth(40),
 		progress.WithoutPercentage(), // We'll show our own stats
 	)
