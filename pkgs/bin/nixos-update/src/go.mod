@@ -3,7 +3,7 @@ module github.com/krezh/nix-config/nixos-update
 go 1.25.8
 
 require (
-	charm.land/lipgloss/v2 v2.0.1
+	charm.land/lipgloss/v2 v2.0.2
 	charm.land/log/v2 v2.0.0
 	github.com/catppuccin/go v0.3.0
 )
