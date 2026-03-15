@@ -665,9 +665,9 @@ dependencies = [
 
 [[package]]
 name = "glib"
-version = "0.22.2"
+version = "0.22.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "16877c6e619447e0bcb6de326a42a8bd02b36328cfeeda210135425e576efa3d"
+checksum = "039f93465ac17e6cb02d16f16572cd3e43a77e736d5ecc461e71b9c9c5c0569c"
 dependencies = [
  "bitflags 2.11.0",
  "glib-macros",
@@ -692,9 +692,9 @@ dependencies = [
 
 [[package]]
 name = "glib-sys"
-version = "0.22.0"
+version = "0.22.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "48073e3b228419faa80b9b7f7122759d4ab2f44cd52a065fde7ca08f34c03147"
+checksum = "1eb23a616a3dbc7fc15bbd26f58756ff0b04c8a894df3f0680cd21011db6a642"
 dependencies = [
  "libc",
  "system-deps",
@@ -1208,9 +1208,9 @@ checksum = "c33a9471896f1c69cecef8d20cbe2f7accd12527ce60845ff44c153bb2a21b49"
 
 [[package]]
 name = "portable-atomic-util"
-version = "0.2.5"
+version = "0.2.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7a9db96d7fa8782dd8c15ce32ffe8680bbd1e978a43bf51a34d39483540495f5"
+checksum = "091397be61a01d4be58e7841595bd4bfedb15f1cd54977d79b8271e94ed799a3"
 dependencies = [
  "portable-atomic",
 ]
