@@ -18,6 +18,9 @@
 
     # Create presets.conf to switch to detailed stats
     xdg.configFile."MangoHud/presets.conf".text = ''
+      [preset 1]
+      fps_only=1
+      background_alpha=0.0
       [preset 2]
       fps_only=0
       round_corners=10

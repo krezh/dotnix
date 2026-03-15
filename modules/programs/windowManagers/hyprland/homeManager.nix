@@ -95,6 +95,7 @@ _: {
                   position = "0x0";
                   scale = 1.0;
                   vrr = 2;
+                  # icc = "/home/krezh/.config/icc/PG279QM.icm";
                 }
                 {
                   output = "DP-2";
@@ -215,7 +216,7 @@ _: {
             disable_autoreload = true;
             session_lock_xray = true;
             on_focus_under_fullscreen = 2;
-            render_unfocused_fps = 30;
+            render_unfocused_fps = 60;
           };
 
           dwindle = {
@@ -298,7 +299,7 @@ _: {
             "tag +browsers, match:class ^(firefox)$"
             "tag +browsers, match:class ^(chromium)$"
             "tag +browsers, match:class ^(chrome)$"
-            "tag +browsers, match:class ^(vivaldi)$"
+            "tag +browsers, match:class ^(vivaldi-stable)$"
             "tag +browsers, match:class ^(helium)$"
             "tag +media, match:class ^(mpv)$"
             "tag +media, match:class ^(plex)$"
@@ -310,21 +311,23 @@ _: {
             "tag +chat, match:class ^(discord)$"
 
             # Tag rules
+            # Chat
             "match:tag chat, workspace 4 silent"
+            # Browsers
             "match:tag browsers, opacity 1.0 override"
+            # Media
             "match:tag media, opacity 1.0 override"
             "match:tag media, no_blur on"
+            # Games
             "match:tag games, workspace 3"
             "match:tag games, idle_inhibit always"
             "match:tag games, opacity 1.0 override"
             "match:tag games, no_blur on"
             "match:tag games, render_unfocused on"
 
-            # Smart gaps
+            # Smart borders
             "match:float false, match:workspace w[tv1]s[false], border_size 0"
-            # "match:float false, match:workspace w[tv1]s[false], rounding 0"
             "match:float false, match:workspace f[1]s[false], border_size 0"
-            # "match:float false, match:workspace f[1]s[false], rounding 0"
 
             # Fullscreen
             "match:fullscreen true, opacity 1.0 override"
@@ -364,17 +367,13 @@ _: {
             # Vips
             "match:class ^(org.libvips.vipsdisp)$, float on"
 
-            # MPV
-            "match:class mpv, float on"
-            "match:class mpv, size 60% 70%"
-
             # Float Terminal
             "match:class floatTerm, float on"
             "match:class floatTerm, size 60% 60%"
             "match:class com.floatterm.floatterm, float on"
             "match:class com.floatterm.floatterm, size 60% 60%"
 
-            # Mission Center
+            # Resources
             "match:class (net.nokyan.Resources), float on"
             "match:class (net.nokyan.Resources), pin on"
             "match:class (net.nokyan.Resources), center on"
