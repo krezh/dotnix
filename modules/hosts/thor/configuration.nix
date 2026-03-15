@@ -6,7 +6,9 @@
       imports = with inputs.self.modules.nixos; [
         system-desktop
         desktop-utils
+        secureboot
         amd
+        tpm
         openssh
         gaming
         hyprland
@@ -107,7 +109,6 @@
           systemd-boot = {
             enable = true;
             configurationLimit = 5;
-            netbootxyz.enable = true;
           };
           efi = {
             canTouchEfiVariables = true;

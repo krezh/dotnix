@@ -18,7 +18,7 @@
           gtk-single-instance = true;
           quit-after-last-window-closed = false;
           selection-clear-on-copy = true;
-          shell-integration-features = "no-cursor";
+          shell-integration-features = "no-cursor, sudo, title, ssh-env, ssh-terminfo, path";
           cursor-style = "block";
           app-notifications = "no-clipboard-copy";
           resize-overlay = "never";

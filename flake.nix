@@ -17,6 +17,12 @@
     nixpkgs.url = "git+https://github.com/NixOS/nixpkgs?ref=nixos-unstable&shallow=1";
     hardware.url = "git+https://github.com/nixos/nixos-hardware?shallow=1";
     nix-cachyos-kernel.url = "git+https://github.com/xddxdd/nix-cachyos-kernel?shallow=1";
+    nix-cachyos-kernel.inputs.nixpkgs.follows = "nixpkgs";
+
+    lanzaboote = {
+      url = "github:nix-community/lanzaboote/v1.0.0";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
 
     home-manager = {
       url = "git+https://github.com/nix-community/home-manager?shallow=1";

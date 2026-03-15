@@ -5,9 +5,9 @@ import (
 	"os"
 	"os/exec"
 
-	catppuccin "github.com/catppuccin/go"
 	"charm.land/lipgloss/v2"
 	"charm.land/log/v2"
+	catppuccin "github.com/catppuccin/go"
 )
 
 var (

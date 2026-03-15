@@ -12,7 +12,7 @@
 
   nix4vscode = inputs.nix4vscode.overlays.default;
 
-  kernel = final: prev: {
+  kernel = _final: prev: {
     linux = prev.linux.overrideAttrs (old: {
       requiredSystemFeatures = (old.requiredSystemFeatures or [ ]) ++ [ "kernelbuild" ];
     });
