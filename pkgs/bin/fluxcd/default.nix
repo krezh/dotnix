@@ -10,15 +10,15 @@
 (buildGoModule.override { go = go-bin.latest; }) rec {
   pname = "fluxcd";
   # renovate: datasource=github-releases depName=fluxcd/flux2
-  version = "2.8.2";
+  version = "2.8.3";
   src = fetchFromGitHub {
     owner = "fluxcd";
     repo = "flux2";
     rev = "v${version}";
-    hash = "sha256-2UBnOtTdYkzHioGUHtAd0vwqpCouk/uaNvYmjmwc4F0=";
+    hash = "sha256-5bs7atecd7NqUrJySMxOe01zGpTMbgrau5B6QkUTRyg=";
   };
 
-  vendorHash = "sha256-W6Vgvb4pPexHxx7t8IIfBWyC3c5jUr9KxaR8k5QUUpw=";
+  vendorHash = "sha256-ICI9Lace4gv2GE/nb9y5yRlvsOkujr2DA2gQ8PnIrIs=";
   manifests = fetchzip {
     url = "https://github.com/fluxcd/flux2/releases/download/v${version}/manifests.tar.gz";
     hash = "sha256-PdhR+UDquIJWtpSymtT6V7qO5fVJOkFz6RGzAx7xeb4=";
