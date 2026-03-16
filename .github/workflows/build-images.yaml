@@ -16,7 +16,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.number || github.ref }}
@@ -37,6 +37,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
 
       - name: Install Nix
         uses: nixbuild/nix-quick-install-action@2c9db80fb984ceb1bcaa77cdda3fdf8cfba92035 # v34
@@ -53,6 +55,8 @@ jobs:
     name: Build ${{ matrix.image }}
     needs: setup
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     strategy:
       fail-fast: false
       matrix: ${{ fromJson(needs.setup.outputs.matrix) }}
@@ -60,6 +64,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
+          persist-credentials: false
           fetch-depth: 0
 
       - name: Install Nix
@@ -72,12 +77,14 @@ jobs:
 
       - name: Build ${{ matrix.image }} image
         id: build
+        env:
+          IMAGE: ${{ matrix.image }}
         run: |
           set -o pipefail
           build_start=$(date +%s)
 
           nix build \
-            ".#images.${{ matrix.image }}" \
+            ".#images.${IMAGE}" \
             --fallback \
             --log-format raw \
             --print-build-logs 2>&1 | tee build.log || {
@@ -99,6 +106,9 @@ jobs:
       - name: Get image info
         if: success()
         id: image-info
+        env:
+          IMAGE: ${{ matrix.image }}
+          TAG: ${{ steps.tag.outputs.tag }}
         run: |
           image_path=$(find -L result -type f \( -name "*.iso" -o -name "*.qcow2" -o -name "*.img" -o -name "*.raw" \))
 
@@ -116,12 +126,15 @@ jobs:
           echo "path=$image_path" >> $GITHUB_OUTPUT
           echo "size=$image_size" >> $GITHUB_OUTPUT
           echo "extension=$extension" >> $GITHUB_OUTPUT
-          echo "name=nixos-${{ matrix.image }}-${{ steps.tag.outputs.tag }}.$extension" >> $GITHUB_OUTPUT
+          echo "name=nixos-${IMAGE}-${TAG}.$extension" >> $GITHUB_OUTPUT
 
       - name: Copy image
         if: success()
+        env:
+          IMAGE_PATH: ${{ steps.image-info.outputs.path }}
+          IMAGE_NAME: ${{ steps.image-info.outputs.name }}
         run: |
-          cp "${{ steps.image-info.outputs.path }}" "/tmp/${{ steps.image-info.outputs.name }}"
+          cp "${IMAGE_PATH}" "/tmp/${IMAGE_NAME}"
 
       - name: Release image
         if: success()

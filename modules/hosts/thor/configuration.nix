@@ -165,6 +165,7 @@
         };
         systemPackages = with pkgs; [
           age-plugin-yubikey
+          age-plugin-fido2-hmac
           nautilus
           libnotify
           pwvucontrol
