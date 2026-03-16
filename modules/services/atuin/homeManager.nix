@@ -9,6 +9,7 @@
       daemon.enable = true;
       flags = [ "--disable-up-arrow" ];
       settings = {
+        sync_address = "https://sh.talos.plexuz.xyz";
         style = "compact";
         workspaces = true;
         auto_sync = true;
@@ -18,6 +19,7 @@
         show_preview = true;
         filter_mode = "workspace";
         update_check = false;
+        sync.records = true;
         history_filter = [
           "^(sudo reboot)$"
           "^(reboot)$"

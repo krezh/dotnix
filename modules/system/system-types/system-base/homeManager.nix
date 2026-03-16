@@ -9,7 +9,6 @@
     }:
     {
       imports = [
-        inputs.sops-nix.homeManagerModules.sops
         inputs.nix-index.homeModules.nix-index
       ]
       ++ (with inputs.self.modules; [

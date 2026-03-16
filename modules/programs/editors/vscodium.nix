@@ -61,6 +61,7 @@
             "mhutchie.git-graph"
             "anthropic.claude-code"
             "sst-dev.opencode"
+            "zizmor.zizmor-vscode"
           ];
           userSettings = {
             telemetry.telemetryLevel = "off";

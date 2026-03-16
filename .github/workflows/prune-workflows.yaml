@@ -11,11 +11,11 @@ on:
       successful_runs_to_keep:
         description: "Number of successful runs to keep"
         required: false
-        default: 6
+        default: "6"
       failed_runs_to_keep:
         description: "Number of failed runs to keep"
         required: false
-        default: 2
+        default: "2"
       delete_workflow_pattern:
         description: "Name or filename of the workflow (if not set, all workflows are targeted)"
         required: false

@@ -21,7 +21,6 @@ on:
 permissions:
   contents: read
   actions: read
-  pull-requests: write
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.number || github.ref }}
@@ -39,6 +38,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
+          persist-credentials: false
           fetch-depth: 0
 
       - name: Get changed systems
@@ -62,6 +62,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
 
       - name: Setup Nix with caching
         uses: ./.github/actions/setup-nix
@@ -94,10 +96,12 @@ jobs:
 
       - id: set-matrix
         name: Generate Matrix
+        env:
+          CHANGED_SYSTEMS: ${{ needs.detect-changes.outputs.changed-systems }}
         run: |
           set -Eeu
           matrix=$(nix eval --json '.#ghMatrix' | jq -c) || exit 1
-          systems='${{ needs.detect-changes.outputs.changed-systems }}'
+          systems="${CHANGED_SYSTEMS}"
           if [ -n "$systems" ] && [ "$systems" != "[]" ]; then
             # Extract host-specific changes (exclude shared modules directories)
             changed_hosts=$(echo "$systems" | jq -r '[.[] | select(startswith("modules/hosts/")) | split("/")[2] | select(length > 0)] | unique')
@@ -114,6 +118,8 @@ jobs:
     name: Build ${{ matrix.host }}
     if: ${{ github.event.pull_request.draft == false && (github.event_name == 'workflow_dispatch' || needs.detect-changes.outputs.changed-systems != '[]') }}
     needs: [detect-changes, ghMatrix]
+    permissions:
+      pull-requests: write
     strategy:
       matrix: ${{ fromJSON(needs.ghMatrix.outputs.matrix) }}
       fail-fast: false
@@ -121,6 +127,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
 
       - name: Setup Nix with caching
         uses: ./.github/actions/setup-nix

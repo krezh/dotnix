@@ -15,7 +15,6 @@ on:
 permissions:
   contents: read
   actions: read
-  pull-requests: write
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.number || github.ref }}
@@ -33,6 +32,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
+          persist-credentials: false
           fetch-depth: 0
 
       - name: Get changed packages
@@ -45,8 +45,10 @@ jobs:
       - name: Extract package names
         id: extract-packages
         if: ${{ steps.changed-packages.outputs.changed_files != '[]' }}
+        env:
+          CHANGED_FILES: ${{ steps.changed-packages.outputs.changed_files }}
         run: |
-          files='${{ steps.changed-packages.outputs.changed_files }}'
+          files="${CHANGED_FILES}"
           pkgs=$(echo "$files" | jq -c '[.[] | split("/") | .[2]] | unique')
           echo "packages=$pkgs" >> $GITHUB_OUTPUT
 
@@ -55,6 +57,8 @@ jobs:
     needs: detect-packages
     if: ${{ needs.detect-packages.outputs.changed-packages != '' }}
     runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
     continue-on-error: true
     strategy:
       matrix:
@@ -62,6 +66,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
 
       - name: Setup Nix with caching
         uses: ./.github/actions/setup-nix

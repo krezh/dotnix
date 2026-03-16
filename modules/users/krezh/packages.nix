@@ -13,6 +13,7 @@
           go-task
           opentofu
           tofu-ls
+          zizmor
           ncdu
           fd
           timer
