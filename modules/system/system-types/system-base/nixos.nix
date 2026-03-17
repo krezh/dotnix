@@ -70,6 +70,9 @@
             supportedFeatures = [
               "kernelbuild"
             ];
+            mandatoryFeatures = [
+              "kernelbuild"
+            ];
           }
         ];
         package = pkgs.lixPackageSets.latest.lix;

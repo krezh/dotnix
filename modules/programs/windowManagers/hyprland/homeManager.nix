@@ -30,7 +30,7 @@ _: {
       sysMonitor = mkProg pkgs.resources;
       logout = mkProg pkgs.wlogout;
       hyprlock.run = "${lib.getExe config.programs.hyprlock.package} --immediate";
-      launcher.run = "${pkgs.netcat}/bin/nc -U /run/user/$(id -u)/walker/walker.sock";
+      launcher.run = "${pkgs.netcat}/bin/nc -U /run/user/$EUID/walker/walker.sock";
       shell.run = "${lib.getExe config.programs.noctalia-shell.package} ipc call";
       keybinds.run = lib.getExe pkgs.hyprland_keybinds;
       clipboardMgr.run = "${lib.getExe config.programs.walker.package} -m clipboard";
@@ -169,7 +169,6 @@ _: {
             border_size = 3;
             "col.active_border" = "$blue $green 125deg";
             "col.inactive_border" = "$base";
-            allow_tearing = false;
           };
 
           decoration = {
@@ -219,6 +218,11 @@ _: {
             render_unfocused_fps = 60;
           };
 
+          render = {
+            direct_scanout = 1;
+            new_render_scheduling = true;
+          };
+
           dwindle = {
             force_split = 0;
             preserve_split = true;
@@ -232,20 +236,6 @@ _: {
 
           animations = {
             enabled = true;
-            # bezier = [
-            #   "easeOutExpo,0.16,1,0.3,1"
-            #   "easeOutQuad,0.25,0.46,0.45,0.94"
-            #   "spring,0.25,0.1,0.25,1"
-            # ];
-            # animation = [
-            #   "windowsIn,1,3,spring"
-            #   "windowsOut,1,2,easeOutQuad,popin 80%"
-            #   "windowsMove,1,3,spring"
-            #   "workspaces,1,3,spring,slidevert"
-            #   "border,1,3,spring"
-            #   "fade,1,1,spring"
-            #   "layers,1,3,easeOutQuad"
-            # ];
             bezier = [
               "easeOutQuint,0.23,1,0.32,1"
               "linear,0,0,1,1"
@@ -310,7 +300,7 @@ _: {
             "tag +chat, match:class ^(legcord)$"
             "tag +chat, match:class ^(discord)$"
 
-            # Tag rules
+            # Tag Rules
             # Chat
             "match:tag chat, workspace 4 silent"
             # Browsers
@@ -324,6 +314,7 @@ _: {
             "match:tag games, opacity 1.0 override"
             "match:tag games, no_blur on"
             "match:tag games, render_unfocused on"
+            "match:tag games, immediate true"
 
             # Smart borders
             "match:float false, match:workspace w[tv1]s[false], border_size 0"
