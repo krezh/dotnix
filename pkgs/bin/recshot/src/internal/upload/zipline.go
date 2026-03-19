@@ -56,24 +56,27 @@ func NewZiplineUploader(cfg *config.Config, notifier *notify.Notifier) *ZiplineU
 // Upload uploads a file to Zipline and returns the URL
 func (z *ZiplineUploader) Upload(filename string) (string, error) {
 	if z.token == "" {
-		z.notifier.SendError("Upload failed - no token")
-		return "", fmt.Errorf("token not available")
+		err := fmt.Errorf("token not available")
+		z.notifier.SendErrorWithDetails("Upload failed", err)
+		return "", err
 	}
 
 	if z.config.ZiplineURL == "" {
-		z.notifier.SendError("Upload failed - no URL")
-		return "", fmt.Errorf("Zipline URL not configured")
+		err := fmt.Errorf("Zipline URL not configured")
+		z.notifier.SendErrorWithDetails("Upload failed", err)
+		return "", err
 	}
 
 	// Create multipart form in memory for retry safety
 	body, contentType, err := z.createMultipartBody(filename)
 	if err != nil {
-		z.notifier.SendError("Upload failed")
+		z.notifier.SendErrorWithDetails("Upload failed", err)
 		return "", err
 	}
 
 	req, err := http.NewRequest("POST", z.config.ZiplineURL+"/api/upload", nil)
 	if err != nil {
+		z.notifier.SendErrorWithDetails("Upload failed", err)
 		return "", err
 	}
 
@@ -91,20 +94,26 @@ func (z *ZiplineUploader) Upload(filename string) (string, error) {
 
 	resp, err := z.client.Do(req)
 	if err != nil {
-		z.notifier.SendError("Upload failed")
+		z.notifier.SendErrorWithDetails("Upload failed", err)
 		return "", err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		z.notifier.SendError("Upload failed - server error")
-		return "", fmt.Errorf("upload failed with status %d", resp.StatusCode)
+		err := fmt.Errorf("server returned status %d", resp.StatusCode)
+		z.notifier.SendErrorWithDetails("Upload failed", err)
+		return "", err
 	}
 
 	var response ZiplineResponse
 	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil || len(response.Files) == 0 {
-		z.notifier.SendError("Upload failed - invalid response")
-		return "", fmt.Errorf("invalid response")
+		if err != nil {
+			z.notifier.SendErrorWithDetails("Upload failed", err)
+			return "", err
+		}
+		err := fmt.Errorf("invalid response: no files in response")
+		z.notifier.SendErrorWithDetails("Upload failed", err)
+		return "", err
 	}
 
 	url := response.Files[0].URL

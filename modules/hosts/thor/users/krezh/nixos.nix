@@ -4,7 +4,7 @@ let
 in
 {
   flake.modules.nixos.thor = {
-    imports = with inputs.self.modules.homeManager; [
+    imports = [
       inputs.self.modules.nixos.${user}
     ];
     security.pam.services.${user}.enableGnomeKeyring = true;
@@ -13,7 +13,8 @@ in
     home-manager.users.${user} = {
       imports = with inputs.self.modules.homeManager; [
         system-desktop
-
+        desktop-shell
+        desktop-utils
         terminal
         editors
         browsers
@@ -22,13 +23,8 @@ in
         mail
         ai
         kubernetes
-
-        # Desktop environment
+        office
         hyprland
-        desktop-shell
-        desktop-utils
-
-        # Gaming
         gaming
       ];
     };
