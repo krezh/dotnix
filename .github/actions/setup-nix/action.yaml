@@ -82,7 +82,7 @@ runs:
 
     - name: Setup Cachix
       if: inputs.skip-cache != 'true' && inputs.cachix-cache != '' && inputs.cachix-token != ''
-      uses: cachix/cachix-action@3ba601ff5bbb07c7220846facfa2cd81eeee15a1 # v16
+      uses: cachix/cachix-action@1eb2ef646ac0255473d23a5907ad7b04ce94065c # v17
       with:
         name: ${{ inputs.cachix-cache }}
         authToken: ${{ inputs.cachix-token }}
