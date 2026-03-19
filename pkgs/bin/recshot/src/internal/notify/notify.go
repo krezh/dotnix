@@ -157,3 +157,9 @@ func (n *Notifier) SendSuccessWithAction(message, url string) error {
 func (n *Notifier) SendError(message string) error {
 	return n.send("critical", "✗ "+message, "")
 }
+
+// SendErrorWithDetails sends an error notification with detailed error message
+func (n *Notifier) SendErrorWithDetails(message string, err error) error {
+	fullMessage := fmt.Sprintf("✗ %s\n%v", message, err)
+	return n.send("critical", fullMessage, "")
+}

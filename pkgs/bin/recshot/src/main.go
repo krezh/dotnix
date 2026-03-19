@@ -159,7 +159,7 @@ func run(cfg *config.Config) {
 
 	if cfg.IsImageMode() {
 		if err := capturer.TakeScreenshot(filename); err != nil {
-			notifier.SendError("Failed to take screenshot")
+			notifier.SendErrorWithDetails("Failed to take screenshot", err)
 			log.Fatal(err)
 		}
 		fmt.Printf("Screenshot saved: %s\n", filename)
@@ -170,6 +170,7 @@ func run(cfg *config.Config) {
 		}
 	} else if cfg.IsVideoMode() {
 		if err := capturer.StartRecording(filename); err != nil {
+			notifier.SendErrorWithDetails("Failed to start recording", err)
 			log.Fatal(err)
 		}
 	}
@@ -181,8 +182,9 @@ func handleUpload(cfg *config.Config, notifier *notify.Notifier, filename string
 	if err != nil {
 		log.Printf("Upload failed: %v", err)
 		// Fallback to copying image to clipboard
-		if err := copyImageToClipboard(filename); err != nil {
-			log.Printf("Failed to copy image to clipboard: %v", err)
+		if clipErr := copyImageToClipboard(filename); clipErr != nil {
+			log.Printf("Failed to copy image to clipboard: %v", clipErr)
+			notifier.SendErrorWithDetails("Upload failed and clipboard copy failed", clipErr)
 		} else {
 			notifier.SendSuccess("Upload failed - image copied to clipboard")
 		}

@@ -2,24 +2,19 @@
 {
   flake.modules.homeManager.browsers =
     { pkgs, config, ... }:
-    let
-      catppuccin = {
-        source = "${inputs.zen-browser-catppuccin}/themes/Mocha/Lavender/";
-        recursive = true;
-        force = true;
-      };
-      mkLockedAttrs = builtins.mapAttrs (
-        _: value: {
-          Value = value;
-          Status = "locked";
-        }
-      );
-    in
+    # let
+    #   catppuccin = {
+    #     source = "${inputs.zen-browser-catppuccin}/themes/Mocha/Lavender/";
+    #     recursive = true;
+    #     force = true;
+    #   };
+    # in
     {
-      imports = [ inputs.zen-browser.homeModules.default ];
+      imports = [ inputs.zen-browser.homeModules.twilight-official ];
 
       programs.zen-browser = {
         enable = true;
+        setAsDefaultBrowser = true;
         profiles.${config.home.username} = {
           isDefault = true;
           pinsForce = true;
@@ -280,7 +275,7 @@
             # Linux - Wayland
             "widget.wayland.opaque-region.enabled" = true;
             "widget.wayland.fractional-scale.enabled" = true;
-            "widget.gtk.rounded-bottom-corners.enabled" = false;
+            "widget.gtk.rounded-bottom-corners.enabled" = true;
 
             # Privacy
             "privacy.trackingprotection.enabled" = false;
@@ -300,6 +295,7 @@
             "browser.search.suggest.enabled" = true;
             "browser.urlbar.suggest.searches" = true;
             "browser.findBar.suggest.enabled" = true;
+            "browser.urlbar.showSearchSuggestionsFirst" = true;
 
             # Zen theme
             "zen.theme.accent-color" = "#ffffff90";
@@ -339,7 +335,6 @@
           };
         };
         policies = {
-          Preferences = mkLockedAttrs { };
           AutofillAddressEnabled = true;
           AutofillCreditCardEnabled = false;
           DisableAppUpdate = true;
@@ -359,6 +354,6 @@
         };
       };
 
-      xdg.configFile."zen/${config.home.username}/chrome" = catppuccin;
+      # xdg.configFile."zen/${config.home.username}/chrome" = catppuccin;
     };
 }

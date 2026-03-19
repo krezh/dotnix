@@ -1,14 +1,11 @@
 {
   flake.modules.homeManager.xdg-settings =
-    {
-      pkgs,
-      lib,
-      ...
-    }:
+    { pkgs, lib, ... }:
     let
-      defaultBrowser = "zen-beta.desktop";
+      defaultBrowser = "zen-twilight.desktop";
       defaultImageViewer = "org.libvips.vipsdisp.desktop";
       defaultVideoPlayer = "org.gnome.Showtime.desktop";
+      defaultAudioPlayer = "org.gnome.Showtime.desktop";
       defaultTextEditor = "dev.zed.Zed.desktop";
       defaultFileManager = "org.gnome.Nautilus.desktop";
       defaultArchiveManager = "org.gnome.FileRoller.desktop";
@@ -23,7 +20,7 @@
       mediaDefaults = lib.mkMerge [
         (defaultsFor "image/" defaultImageViewer)
         (defaultsFor "video/" defaultVideoPlayer)
-        (defaultsFor "audio/" defaultVideoPlayer)
+        (defaultsFor "audio/" defaultAudioPlayer)
       ];
 
       manualDefaults = {

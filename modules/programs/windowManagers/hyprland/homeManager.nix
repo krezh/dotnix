@@ -25,6 +25,7 @@ _: {
         };
 
       browser.run = "${lib.getExe config.programs.wlr-which-key.package} browser";
+      screenshot.run = "${lib.getExe config.programs.wlr-which-key.package} screenshot";
       fileManager = mkProg pkgs.nautilus;
       passwords = mkProg pkgs.proton-pass;
       sysMonitor = mkProg pkgs.resources;
@@ -39,10 +40,6 @@ _: {
       trayTui = mkProg pkgs.tray-tui;
       volume_script = lib.getExe pkgs.volume_script_hyprpanel;
       brightness_script = lib.getExe pkgs.brightness_script_hyprpanel;
-
-      recShot = "${lib.getExe pkgs.recshot} -t ${
-        config.sops.secrets."zipline/token".path
-      } -u https://zipline.talos.plexuz.xyz";
 
       mainMod = "SUPER";
       mainModShift = "${mainMod} SHIFT";
@@ -391,12 +388,7 @@ _: {
             # "${mainMod},TAB,Toggle workspace overview, hyprexpo:expo, toggle"
             "${mainModShift},R, Reload Hyprland config,exec,hyprctl reload && notify-send -u low 'Hyprland' 'Config Reloaded'"
             "${mainMod},F3,Toggle between audio devices,exec,audio-switch toggle"
-            "${mainModShift},S,Area screenshot,exec,${recShot} -m image-area"
-            ",PRINT,Fullscreen screenshot,exec,${recShot} -m image-full"
-            "ALT,PRINT,Window screenshot,exec,${recShot} -m image-window"
-            "SHIFT ALT,S,Area screen recording,exec,${recShot} -m video-area"
-            "SHIFT,PRINT,Window screen recording,exec,${recShot} -m video-window"
-            "${mainModShift},C,Gulp OCR,exec,${lib.getExe pkgs.gulp} --ocr --no-snap"
+            "${mainMod},S,Screenshot menu,exec,${screenshot.run}"
             "${mainMod},Q,Close active window,killactive"
             "${mainMod},C,Toggle floating mode,togglefloating"
             "${mainMod},J,Toggle split layout,togglesplit"

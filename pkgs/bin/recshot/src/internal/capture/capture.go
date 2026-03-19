@@ -54,6 +54,8 @@ func (c *Capturer) TakeScreenshot(filename string) error {
 		return fmt.Errorf("failed to get capture geometry: %w", err)
 	}
 
+	time.Sleep(100 * time.Millisecond)
+
 	return c.executeGrim(geometry, filename)
 }
 
