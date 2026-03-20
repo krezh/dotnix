@@ -1,8 +1,9 @@
 use anyhow::{Context, Result};
 use cairo::{Context as CairoContext, Format, ImageSurface};
+use std::cell::RefCell;
 
-use crate::selection::Rect;
-use crate::selection::Selection;
+use super::selection::{Rect, Selection};
+use crate::config::FontWeight;
 
 // Text display thresholds
 const MIN_TEXT_WIDTH: i32 = 80;
@@ -62,14 +63,9 @@ impl RenderConfig {
         dim_opacity: f64,
         font_family: String,
         font_size: u32,
-        font_weight: &str,
+        font_weight: FontWeight,
     ) -> Result<Self> {
         let border_color = Color::from_hex(border_color)?;
-        let font_weight = match font_weight {
-            "Normal" => cairo::FontWeight::Normal,
-            "Bold" => cairo::FontWeight::Bold,
-            _ => cairo::FontWeight::Bold,
-        };
 
         Ok(Self {
             border_color,
@@ -78,7 +74,7 @@ impl RenderConfig {
             dim_opacity,
             font_family,
             font_size: font_size as f64,
-            font_weight,
+            font_weight: font_weight.to_cairo(),
         })
     }
 }
@@ -101,6 +97,7 @@ pub struct Renderer {
     config: RenderConfig,
     width: i32,
     height: i32,
+    cached_text: RefCell<Option<(i32, i32, String)>>, // (width, height, rendered_text)
 }
 
 impl Renderer {
@@ -109,6 +106,7 @@ impl Renderer {
             config,
             width,
             height,
+            cached_text: RefCell::new(None),
         }
     }
 
@@ -139,10 +137,50 @@ impl Renderer {
     }
 
     /// Renders the selection overlay directly to the provided buffer with zero-copy optimization.
-    pub fn render_to_buffer(&self, selection: &Selection, buffer: &mut [u8]) -> Result<()> {
+    pub fn render_to_buffer(&self, selection: &Selection, buffer: &mut [u8], frozen_buffer: Option<(&[u8], i32)>) -> Result<()> {
         let stride = self.width * 4;
 
-        // Create Cairo surface wrapping the existing buffer (NO allocation!)
+        // Step 1: Complete frozen buffer copy ENTIRELY before creating Cairo surface
+        let has_frozen = if let Some((frozen_data, frozen_stride)) = frozen_buffer {
+            // Fast copy: handle stride differences efficiently
+            if frozen_stride == stride {
+                // Strides match - single memcpy with explicit completion
+                let copy_len = buffer.len().min(frozen_data.len());
+                // Use chunks to ensure completion (prevents compiler optimizations that might reorder)
+                for (dst_chunk, src_chunk) in buffer[..copy_len]
+                    .chunks_mut(4096)
+                    .zip(frozen_data[..copy_len].chunks(4096))
+                {
+                    dst_chunk[..src_chunk.len()].copy_from_slice(src_chunk);
+                }
+            } else {
+                // Strides differ - copy row by row with explicit completion
+                let row_bytes = (self.width * 4) as usize;
+                for y in 0..self.height as usize {
+                    let dst_offset = y * stride as usize;
+                    let src_offset = y * frozen_stride as usize;
+                    if dst_offset + row_bytes <= buffer.len()
+                        && src_offset + row_bytes <= frozen_data.len() {
+                        // Copy in chunks for explicit completion
+                        let dst_row = &mut buffer[dst_offset..dst_offset + row_bytes];
+                        let src_row = &frozen_data[src_offset..src_offset + row_bytes];
+                        for (dst_chunk, src_chunk) in dst_row.chunks_mut(4096).zip(src_row.chunks(4096)) {
+                            dst_chunk[..src_chunk.len()].copy_from_slice(src_chunk);
+                        }
+                    }
+                }
+            }
+            true
+        } else {
+            false
+        };
+
+        // Step 2: Ensure ALL memcpy operations are complete with compiler barrier
+        std::sync::atomic::compiler_fence(std::sync::atomic::Ordering::SeqCst);
+
+        // Step 3: Now create Cairo surface - buffer is guaranteed complete
+        // SAFETY: The buffer's lifetime is tied to the surface's usage within this function.
+        // Buffer is fully populated at this point.
         let surface = unsafe {
             ImageSurface::create_for_data_unsafe(
                 buffer.as_mut_ptr(),
@@ -155,38 +193,72 @@ impl Renderer {
 
         let ctx = CairoContext::new(&surface).context("Failed to create Cairo context")?;
 
-        // Paint dimmed background - use Source operator to replace buffer contents
-        self.with_operator(&ctx, cairo::Operator::Source, |ctx| {
-            ctx.set_source_rgba(0.0, 0.0, 0.0, self.config.dim_opacity);
-            ctx.paint()?;
-            Ok(())
-        })?;
+        // Check if we have a selection to avoid dimming that area
+        let selection_rect = selection.get_rect().filter(|r| r.width > 0 && r.height > 0);
 
-        // Clear the selection area (punch hole in dimming) - only when user is selecting
-        if let Some(rect) = selection.get_rect() {
-            if rect.width > 0 && rect.height > 0 {
+        if has_frozen {
+            // Apply dimming over the frozen image, excluding selection area
+            if let Some(rect) = selection_rect {
+                // Save context state
+                ctx.save()?;
+
+                // Create inverse clip: dim everything EXCEPT the selection
+                ctx.rectangle(0.0, 0.0, self.width as f64, self.height as f64);
+                let (x, y, w, h) = rect.as_f64_tuple();
+                ctx.rectangle(x, y, w, h);
+                ctx.set_fill_rule(cairo::FillRule::EvenOdd);
+                ctx.clip();
+
+                // Apply dimming only to non-selection area
+                ctx.set_source_rgba(0.0, 0.0, 0.0, self.config.dim_opacity);
+                ctx.set_operator(cairo::Operator::Over);
+                ctx.paint()?;
+
+                // Restore context
+                ctx.restore()?;
+
+                log::debug!(
+                    "Renderer drawing selection rect {} on surface {}x{} with frozen content",
+                    rect.describe(),
+                    self.width,
+                    self.height
+                );
+            } else {
+                // No selection - dim entire surface
+                self.with_operator(&ctx, cairo::Operator::Over, |ctx| {
+                    ctx.set_source_rgba(0.0, 0.0, 0.0, self.config.dim_opacity);
+                    ctx.paint()?;
+                    Ok(())
+                })?;
+            }
+        } else {
+            // No frozen buffer - use original transparent dimming approach
+            if let Some(rect) = selection_rect {
+                // Paint dimmed background
+                self.with_operator(&ctx, cairo::Operator::Source, |ctx| {
+                    ctx.set_source_rgba(0.0, 0.0, 0.0, self.config.dim_opacity);
+                    ctx.paint()?;
+                    Ok(())
+                })?;
+
+                // Clear selection area to transparency
+                self.with_operator(&ctx, cairo::Operator::Clear, |ctx| {
+                    self.clear_area(ctx, rect)
+                })?;
+
                 log::debug!(
                     "Renderer drawing selection rect {} on surface {}x{}",
                     rect.describe(),
                     self.width,
                     self.height
                 );
-                self.with_operator(&ctx, cairo::Operator::Clear, |ctx| {
-                    self.clear_area(ctx, rect)
+            } else {
+                // No selection - paint dimmed background
+                self.with_operator(&ctx, cairo::Operator::Source, |ctx| {
+                    ctx.set_source_rgba(0.0, 0.0, 0.0, self.config.dim_opacity);
+                    ctx.paint()?;
+                    Ok(())
                 })?;
-            }
-        }
-
-        // Clear dimming and draw snap target preview (when hovering, not selecting)
-        if selection.get_rect().is_none() {
-            if let Some(snap_rect) = selection.get_current_snap_target() {
-                // Clear the snap target area (punch hole in dimming)
-                self.with_operator(&ctx, cairo::Operator::Clear, |ctx| {
-                    self.clear_area(ctx, snap_rect)
-                })?;
-
-                // Draw the border
-                self.draw_snap_target(&ctx, snap_rect)?;
             }
         }
 
@@ -195,9 +267,14 @@ impl Renderer {
             self.draw_selection_border(&ctx, rect)?;
         }
 
-        // Ensure all drawing is flushed to the buffer
+        // Ensure all drawing operations are complete and flushed to the buffer
+        // This is critical to prevent tearing
+        ctx.target().flush();
         drop(ctx);
         surface.flush();
+
+        // Force synchronization point - ensure all operations completed
+        std::sync::atomic::fence(std::sync::atomic::Ordering::SeqCst);
 
         Ok(())
     }
@@ -239,12 +316,6 @@ impl Renderer {
         Ok(())
     }
 
-    fn draw_snap_target(&self, ctx: &CairoContext, rect: Rect) -> Result<()> {
-        // Draw snap target with same style as selection border
-        self.draw_selection_border(ctx, rect)?;
-        Ok(())
-    }
-
     fn draw_selection_border(&self, ctx: &CairoContext, rect: Rect) -> Result<()> {
         let weight = self.config.border_weight as f64;
         let radius = self.config.border_radius as f64;
@@ -267,7 +338,24 @@ impl Renderer {
         ctx.stroke()?;
 
         if rect.width > MIN_TEXT_WIDTH && rect.height > MIN_TEXT_HEIGHT {
-            let text = format!("{}×{}", rect.width, rect.height);
+            // Check if we need to regenerate the cached text
+            let text = {
+                let cached = self.cached_text.borrow();
+                let dimensions_changed = match cached.as_ref() {
+                    None => true,
+                    Some((w, h, _)) => *w != rect.width || *h != rect.height,
+                };
+
+                if dimensions_changed {
+                    drop(cached);
+                    let text = format!("{}×{}", rect.width, rect.height);
+                    *self.cached_text.borrow_mut() = Some((rect.width, rect.height, text.clone()));
+                    text
+                } else {
+                    cached.as_ref().unwrap().2.clone()
+                }
+            };
+
             ctx.select_font_face(
                 &self.config.font_family,
                 cairo::FontSlant::Normal,
@@ -317,7 +405,7 @@ mod tests {
             0.5,
             "Inter Nerd Font".to_string(),
             18,
-            "Bold",
+            FontWeight::Bold,
         )
         .unwrap();
         let renderer = Renderer::new(1920, 1080, config);

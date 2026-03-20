@@ -1,46 +1,22 @@
 //! Screenshot capture and OCR completion handling
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 use wayland_client::{protocol::wl_output, Connection};
 
-use crate::{cli::Args, ocr, selection::Rect};
+use crate::{capture, cli::Args, ocr, render::Rect, system};
 
 use super::output::OutputSurface;
 
-/// Copies text to the Wayland clipboard using wl-copy.
-pub fn copy_to_clipboard(text: &str) -> Result<()> {
-    use std::io::Write;
-    use std::process::{Command, Stdio};
-
-    let mut child = Command::new("wl-copy")
-        .stdin(Stdio::piped())
-        .spawn()
-        .context("Failed to spawn wl-copy process")?;
-
-    if let Some(mut stdin) = child.stdin.take() {
-        stdin
-            .write_all(text.as_bytes())
-            .context("Failed to write to wl-copy stdin")?;
-    }
-
-    let status = child.wait().context("Failed to wait for wl-copy")?;
-
-    if status.success() {
-        log::info!("Text copied to clipboard ({} bytes)", text.len());
-        Ok(())
-    } else {
-        anyhow::bail!("wl-copy exited with status: {}", status)
-    }
-}
-
 /// Handles selection completion including screenshot capture, OCR, or coordinate output.
+///
+/// Returns Some(geometry) if in area mode for the caller to handle, otherwise None.
 pub fn complete_selection(
     conn: &Connection,
     output_surfaces: &mut [OutputSurface],
     outputs_map: &[(wl_output::WlOutput, String)],
     args: &Args,
     rect: Rect,
-) -> Result<()> {
+) -> Result<Option<String>> {
     // Clear overlays before capturing
     clear_overlays(output_surfaces);
 
@@ -52,7 +28,7 @@ pub fn complete_selection(
     std::thread::sleep(std::time::Duration::from_millis(16)); // One frame at 60fps
 
     // Collect outputs with their names and positions
-    let outputs_list: Vec<(wl_output::WlOutput, String, i32, i32, u32, u32)> = output_surfaces
+    let outputs_list: Vec<crate::compositor::protocol::outputs::OutputInfo> = output_surfaces
         .iter()
         .map(|surf| {
             let name = outputs_map
@@ -71,6 +47,15 @@ pub fn complete_selection(
         })
         .collect();
 
+    // Check if we're in mode-based workflow (image-area or video-area)
+    if let Some(ref mode_str) = args.mode {
+        if mode_str == "image-area" || mode_str == "video-area" {
+            // For area modes, return geometry for the caller to handle
+            let geometry = rect.to_geometry_string();
+            return Ok(Some(geometry));
+        }
+    }
+    
     if args.ocr {
         // OCR mode: capture and extract text
         match ocr::capture_and_ocr(conn, &outputs_list, rect) {
@@ -78,7 +63,7 @@ pub fn complete_selection(
                 println!("{}", text);
 
                 // Copy to clipboard using wl-copy
-                if let Err(e) = copy_to_clipboard(&text) {
+                if let Err(e) = system::copy_text(&text) {
                     log::warn!("Failed to copy to clipboard: {}", e);
                 }
             }
@@ -89,7 +74,7 @@ pub fn complete_selection(
         }
     } else if let Some(ref output_path) = args.output {
         // Screenshot mode: capture and save to file or stdout
-        match ocr::capture_and_save(conn, &outputs_list, rect, Some(output_path)) {
+        match capture::capture_and_save(conn, &outputs_list, rect, Some(output_path)) {
             Ok(()) => {
                 // Success - file saved or written to stdout
             }
@@ -100,11 +85,11 @@ pub fn complete_selection(
         }
     } else {
         // Coordinate output mode: output coordinates only
-        let output = format_output(rect.x, rect.y, rect.width, rect.height);
+        let output = rect.to_geometry_string();
         println!("{}", output);
     }
 
-    Ok(())
+    Ok(None)
 }
 
 /// Clears all output surfaces by rendering fully transparent overlays.
@@ -134,15 +119,4 @@ fn clear_overlays(output_surfaces: &mut [OutputSurface]) {
             }
         }
     }
-}
-
-/// Formats selection coordinates as "%x,%y %wx%h" with all placeholder substitutions applied.
-fn format_output(x: i32, y: i32, width: i32, height: i32) -> String {
-    "%x,%y %wx%h"
-        .replace("%x", &x.to_string())
-        .replace("%y", &y.to_string())
-        .replace("%w", &width.to_string())
-        .replace("%h", &height.to_string())
-        .replace("%X", &(x + width).to_string())
-        .replace("%Y", &(y + height).to_string())
 }

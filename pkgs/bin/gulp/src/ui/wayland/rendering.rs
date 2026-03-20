@@ -3,7 +3,7 @@
 use anyhow::Result;
 use wayland_client::protocol::wl_shm;
 
-use crate::selection::{Rect, Selection};
+use crate::render::{Rect, Selection};
 
 use super::output::OutputSurface;
 
@@ -27,8 +27,14 @@ pub fn create_local_selection(global_rect: Rect, offset_x: i32, offset_y: i32) -
 pub fn draw_output(
     output_surface: &mut OutputSurface,
     selection: &Selection,
+    qh: &wayland_client::QueueHandle<super::App>,
 ) -> Result<()> {
     if !output_surface.configured {
+        return Ok(());
+    }
+
+    // Skip if waiting for frame callback (vsync synchronization)
+    if output_surface.waiting_for_frame {
         return Ok(());
     }
 
@@ -62,6 +68,28 @@ pub fn draw_output(
     };
 
     log::debug!("Got buffer, canvas ptr: {:p}", canvas.as_ptr());
+
+    // Determine if this output currently has a selection
+    let output_rect = Rect::new(offset_x, offset_y, width, height);
+    let has_selection_now = selection.get_rect()
+        .map(|rect| rect.intersects(&output_rect))
+        .unwrap_or(false);
+
+    // Skip rendering ONLY if:
+    // 1. Not first render AND
+    // 2. State hasn't changed AND
+    // 3. Currently has NO selection (if it has selection, always render as rect changes)
+    let skip_render = !output_surface.needs_render
+        && has_selection_now == output_surface.last_had_selection
+        && !has_selection_now;
+
+    if skip_render {
+        return Ok(());
+    }
+
+    // Update state
+    output_surface.last_had_selection = has_selection_now;
+    output_surface.needs_render = false;
 
     // Check if we need to render a selection on this output
     let has_selection = if let Some(rect) = selection.get_rect() {
@@ -105,8 +133,12 @@ pub fn draw_output(
             // Create a selection with the full rectangle translated to local coords
             let local_selection = create_local_selection(rect, offset_x, offset_y);
 
+            // Get frozen buffer data and stride if available
+            let frozen_data = output_surface.frozen_buffer.as_ref()
+                .map(|img| (img.data.as_slice(), img.stride as i32));
+
             // Render directly to buffer
-            renderer.render_to_buffer(&local_selection, canvas)?;
+            renderer.render_to_buffer(&local_selection, canvas, frozen_data)?;
             true
         } else {
             log::debug!("SKIPPING - no intersection");
@@ -118,28 +150,21 @@ pub fn draw_output(
 
     // If no selection on this output, render dimmed overlay only (or snap target if present)
     if !has_selection {
-        let snap_rect = selection.get_current_snap_target();
-
-        if let Some(snap_rect) = snap_rect {
-            let local_snap = translate_rect_to_local(snap_rect, offset_x, offset_y);
-
-            log::debug!(
-                "RENDERING SNAP TARGET: global ({},{}) {}x{} -> local ({},{}) {}x{}",
-                snap_rect.x, snap_rect.y, snap_rect.width, snap_rect.height,
-                local_snap.x, local_snap.y, local_snap.width, local_snap.height
-            );
-
-            let mut local_selection = Selection::new();
-            local_selection.set_animated_snap_target(Some(local_snap));
-
-            renderer.render_to_buffer(&local_selection, canvas)?;
-        } else {
-            // Render dimmed overlay
-            log::debug!("RENDERING DIMMED ONLY");
-            let empty_selection = Selection::new();
-            renderer.render_to_buffer(&empty_selection, canvas)?;
-        }
+        // Render dimmed overlay without selection
+        log::debug!("RENDERING DIMMED ONLY");
+        let empty_selection = Selection::new();
+        let frozen_data = output_surface.frozen_buffer.as_ref()
+            .map(|img| (img.data.as_slice(), img.stride as i32));
+        renderer.render_to_buffer(&empty_selection, canvas, frozen_data)?;
     }
+
+    // Ensure all rendering is complete before commit (prevents tearing)
+    std::sync::atomic::fence(std::sync::atomic::Ordering::SeqCst);
+
+    // Request frame callback for vsync synchronization
+    let callback = output_surface.surface.frame(qh, ());
+    output_surface.frame_callback = Some(callback);
+    output_surface.waiting_for_frame = true;
 
     // Attach and commit
     log::debug!(

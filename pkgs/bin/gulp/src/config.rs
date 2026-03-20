@@ -8,6 +8,24 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
 
+/// Font weight options.
+#[derive(Debug, Clone, Copy, Default, Deserialize, Serialize, clap::ValueEnum)]
+pub enum FontWeight {
+    Normal,
+    #[default]
+    Bold,
+}
+
+impl FontWeight {
+    /// Converts the font weight to Cairo's FontWeight type.
+    pub fn to_cairo(self) -> cairo::FontWeight {
+        match self {
+            Self::Normal => cairo::FontWeight::Normal,
+            Self::Bold => cairo::FontWeight::Bold,
+        }
+    }
+}
+
 /// Main configuration structure with nested groups
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]
 #[serde(default)]
@@ -21,8 +39,11 @@ pub struct Config {
     /// Display configuration
     pub display: DisplayConfig,
 
-    /// Feature flags
-    pub features: FeatureConfig,
+    /// Upload configuration
+    pub upload: UploadConfig,
+
+    /// Capture configuration
+    pub capture: CaptureConfig,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -34,8 +55,8 @@ pub struct FontConfig {
     /// Font size
     pub size: u32,
 
-    /// Font weight (Normal, Bold)
-    pub weight: String,
+    /// Font weight
+    pub weight: FontWeight,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -57,21 +78,46 @@ pub struct DisplayConfig {
     /// Dimming opacity (0.0-1.0)
     pub dim_opacity: f64,
 
-    /// Maximum frames per second (0 = auto-detect)
-    pub fps: u32,
-
     /// Log level (off, info, debug, warn, error)
     pub log: String,
+
+    /// Freeze screen before selection (captures snapshot)
+    pub freeze: bool,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]
 #[serde(default)]
-pub struct FeatureConfig {
-    /// Disable window snapping
-    pub no_snap: bool,
+pub struct UploadConfig {
+    /// Zipline upload settings
+    pub zipline: ZiplineConfig,
+}
 
-    /// Disable snap animation
-    pub no_animation: bool,
+#[derive(Debug, Deserialize, Serialize, Clone, Default)]
+#[serde(default)]
+pub struct ZiplineConfig {
+    /// Zipline server URL (auto-uploads if both url and token are set)
+    pub url: String,
+
+    /// Path to Zipline token file (e.g., "~/.config/zipline/token")
+    pub token: String,
+
+    /// Use original filename on Zipline
+    pub use_original_name: bool,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+#[serde(default)]
+pub struct CaptureConfig {
+    /// Default save directory for captures
+    pub save_path: String,
+}
+
+impl Default for CaptureConfig {
+    fn default() -> Self {
+        Self {
+            save_path: "/tmp".to_string(),
+        }
+    }
 }
 
 impl Default for FontConfig {
@@ -79,7 +125,7 @@ impl Default for FontConfig {
         Self {
             family: "Inter".to_string(),
             size: 16,
-            weight: "Bold".to_string(),
+            weight: FontWeight::Bold,
         }
     }
 }
@@ -98,8 +144,8 @@ impl Default for DisplayConfig {
     fn default() -> Self {
         Self {
             dim_opacity: 0.5,
-            fps: 0,
             log: "off".to_string(),
+            freeze: true,
         }
     }
 }

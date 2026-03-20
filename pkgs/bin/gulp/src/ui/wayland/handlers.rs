@@ -16,8 +16,8 @@ use smithay_client_toolkit::{
     shm::{Shm, ShmHandler},
 };
 use wayland_client::{
-    protocol::{wl_output, wl_pointer, wl_seat, wl_surface},
-    Connection, QueueHandle,
+    protocol::{wl_callback, wl_output, wl_pointer, wl_seat, wl_surface},
+    Connection, Dispatch, QueueHandle,
 };
 use smithay_client_toolkit::seat::pointer::CursorIcon;
 
@@ -118,7 +118,7 @@ impl LayerShellHandler for App {
     fn configure(
         &mut self,
         _conn: &Connection,
-        _qh: &QueueHandle<Self>,
+        qh: &QueueHandle<Self>,
         layer: &LayerSurface,
         configure: LayerSurfaceConfigure,
         _serial: u32,
@@ -129,7 +129,7 @@ impl LayerShellHandler for App {
                 self.output_surfaces[i].width = configure.new_size.0;
                 self.output_surfaces[i].height = configure.new_size.1;
 
-                let _ = self.draw_index(i);
+                let _ = self.draw_index(i, qh);
                 break;
             }
         }
@@ -303,6 +303,32 @@ impl ProvidesRegistryState for App {
     }
 
     registry_handlers![OutputState];
+}
+
+// Frame callback handler for vsync synchronization
+impl Dispatch<wl_callback::WlCallback, ()> for App {
+    fn event(
+        state: &mut Self,
+        callback: &wl_callback::WlCallback,
+        _event: wl_callback::Event,
+        _data: &(),
+        _conn: &Connection,
+        _qh: &QueueHandle<Self>,
+    ) {
+        // Find the output surface that owns this callback
+        for output_surface in &mut state.output_surfaces {
+            if let Some(ref frame_callback) = output_surface.frame_callback {
+                if frame_callback == callback {
+                    // Frame callback received - compositor is ready for next frame
+                    output_surface.waiting_for_frame = false;
+                    output_surface.frame_callback = None;
+                    output_surface.needs_render = true;  // Mark for redraw
+                    state.needs_redraw = true;  // Trigger redraw cycle
+                    break;
+                }
+            }
+        }
+    }
 }
 
 delegate_compositor!(App);
