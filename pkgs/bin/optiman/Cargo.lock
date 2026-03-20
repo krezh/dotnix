@@ -1546,7 +1546,7 @@ dependencies = [
  "serde_json",
  "sevenz-rust",
  "tempfile",
- "thiserror 1.0.69",
+ "thiserror 2.0.18",
  "tokio",
  "tracing",
  "tracing-subscriber",
