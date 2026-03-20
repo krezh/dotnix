@@ -2,10 +2,10 @@
 
 use smithay_client_toolkit::shm::slot::SlotPool;
 use smithay_client_toolkit::shell::wlr_layer::LayerSurface;
-use wayland_client::protocol::{wl_output, wl_surface};
+use wayland_client::protocol::{wl_callback, wl_output, wl_surface};
 
 use crate::render::Renderer;
-use std::time::{Duration, Instant};
+use crate::capture::buffer::CapturedImage;
 
 /// Represents a single monitor's overlay surface
 pub struct OutputSurface {
@@ -19,6 +19,9 @@ pub struct OutputSurface {
     pub configured: bool,
     pub pool: Option<SlotPool>,
     pub renderer: Option<Renderer>,
-    pub last_render: Instant,
-    pub frame_time: Duration,
+    pub frozen_buffer: Option<CapturedImage>,
+    pub last_had_selection: bool,
+    pub needs_render: bool,
+    pub frame_callback: Option<wl_callback::WlCallback>,
+    pub waiting_for_frame: bool,
 }

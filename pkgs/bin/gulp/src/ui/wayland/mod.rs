@@ -4,7 +4,6 @@
 //! - Layer shell surface creation for fullscreen overlay (works above fullscreen windows)
 //! - Pointer and keyboard event handling
 //! - Multi-monitor rendering and synchronization
-//! - Compositor-agnostic window snapping with smooth spring animations
 //! - Frame-rate limiting per monitor
 
 use anyhow::{Context, Result};
@@ -25,11 +24,8 @@ use wayland_client::{
 };
 
 use crate::{
-    animation::SpringAnimation,
     cli::Args,
-    render::Renderer,
-    selection::{Rect, Selection},
-    windows::WindowManager,
+    render::{Renderer, Selection},
 };
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
@@ -63,7 +59,6 @@ pub struct App {
     pub(super) renderer: Option<Renderer>,
     pub(super) selection: Selection,
     pub(super) args: Args,
-    pub(super) window_manager: Option<WindowManager>,
 
     // Input state
     pub(super) input: InputState,
@@ -71,8 +66,10 @@ pub struct App {
     // Loop control
     pub(super) exit: bool,
     pub(super) loop_signal: LoopSignal,
-    pub(super) last_frame_time: Instant,
     pub(super) needs_redraw: bool,
+    
+    // Selection result (for area modes)
+    pub(super) selection_geometry: Option<String>,
 }
 
 // ============================================================================
@@ -80,7 +77,7 @@ pub struct App {
 // ============================================================================
 
 impl App {
-    pub fn run(args: Args) -> Result<()> {
+    pub fn run(args: Args) -> Result<Option<String>> {
         let conn = Connection::connect_to_env().context("Failed to connect to Wayland")?;
         let (globals, mut event_queue) =
             registry_queue_init::<Self>(&conn).context("Failed to init registry")?;
@@ -96,22 +93,6 @@ impl App {
             LayerShell::bind(&globals, &qh).context("zwlr_layer_shell not available")?;
 
         let selection = Selection::new();
-
-        // Initialize window manager if snapping is enabled
-        let window_manager = if !args.no_snap {
-            match WindowManager::new() {
-                Ok(wm) => Some(wm),
-                Err(e) => {
-                    log::warn!(
-                        "Failed to initialize window manager: {}. Snapping disabled.",
-                        e
-                    );
-                    None
-                }
-            }
-        } else {
-            None
-        };
 
         // Create event loop
         let mut event_loop: EventLoop<Self> = EventLoop::try_new()?;
@@ -141,12 +122,11 @@ impl App {
             renderer: None,
             selection,
             args,
-            window_manager,
             input: InputState::new(),
             exit: false,
             loop_signal,
-            last_frame_time: Instant::now(),
             needs_redraw: false,
+            selection_geometry: None,
         };
 
         // Dispatch any pending events
@@ -160,30 +140,19 @@ impl App {
         // Create layer surfaces for each output
         app.create_layer_surfaces(&qh)?;
 
-        app.initialize_snap_animation();
-        app.input.snap_initialized = true;
+        // Capture frozen screenshots if freeze mode is enabled
+        let should_freeze = app.args.freeze.unwrap_or(true);
+        if should_freeze {
+            app.capture_frozen_screens()?;
+        }
 
         loop {
-            let timeout = if let Some(ref anim) = app.input.snap_animation {
-                if anim.is_settled() {
-                    Some(Duration::from_millis(IDLE_FRAME_TIMEOUT_MS))
-                } else {
-                    Some(Duration::from_millis(ANIMATION_FRAME_TIMEOUT_MS))
-                }
-            } else {
-                None
-            };
-
-            event_loop.dispatch(timeout, &mut app)?;
-
-            if app.input.snap_animation.is_some() {
-                app.update_animation();
-            }
+            event_loop.dispatch(Some(Duration::from_millis(IDLE_FRAME_TIMEOUT_MS)), &mut app)?;
 
             // Render if needed (throttled by frame rate limiting in redraw_all)
             if app.needs_redraw {
                 app.needs_redraw = false;
-                app.redraw_all();
+                app.redraw_all(&qh);
             }
 
             if app.exit {
@@ -191,7 +160,8 @@ impl App {
             }
         }
 
-        Ok(())
+        // Return geometry if captured (for area modes)
+        Ok(app.selection_geometry)
     }
 
     fn create_layer_surfaces(&mut self, qh: &QueueHandle<Self>) -> Result<()> {
@@ -224,32 +194,14 @@ impl App {
                 // Create a dedicated renderer for this output
                 let renderer = create_renderer(width, height, &self.args);
 
-                // Calculate frame time for this specific output
-                let fps = self.args.fps.unwrap_or(0);
-                let frame_time = if fps > 0 {
-                    // User specified FPS - use it for all monitors
-                    fps_to_duration(fps)
-                } else {
-                    // Auto-detect: use this monitor's refresh rate
-                    let refresh_rate = info
-                        .modes
-                        .iter()
-                        .find(|m| m.current)
-                        .map(|m| m.refresh_rate)
-                        .unwrap_or(DEFAULT_REFRESH_RATE_MHZ);
-
-                    let fps = (refresh_rate / REFRESH_RATE_DIVIDER) as u32;
-                    log::info!(
-                        "Output {:?}: {}x{} at ({}, {}) @ {}Hz",
-                        info.name,
-                        width,
-                        height,
-                        x,
-                        y,
-                        fps
-                    );
-                    fps_to_duration(fps)
-                };
+                log::info!(
+                    "Output {:?}: {}x{} at ({}, {})",
+                    info.name,
+                    width,
+                    height,
+                    x,
+                    y
+                );
 
                 self.output_surfaces.push(OutputSurface {
                     _output: output.clone(),
@@ -262,8 +214,11 @@ impl App {
                     configured: false,
                     pool,
                     renderer,
-                    last_render: Instant::now(),
-                    frame_time,
+                    frozen_buffer: None,
+                    last_had_selection: false,
+                    needs_render: true,
+                    frame_callback: None,
+                    waiting_for_frame: false,
                 });
             }
         }
@@ -278,94 +233,50 @@ impl App {
         Ok(())
     }
 
-    // ------------------------------------------------------------------------
-    // Animation & Snap Target Management
-    // ------------------------------------------------------------------------
+    /// Captures frozen screenshots of all outputs for freeze mode.
+    fn capture_frozen_screens(&mut self) -> Result<()> {
+        use crate::compositor::protocol::capture_output;
 
-    fn initialize_snap_animation(&mut self) {
-        if let Some(ref window_manager) = self.window_manager {
-            // Get actual cursor position from compositor backend
-            let (px, py) = match window_manager.get_cursor_position() {
-                Ok((x, y)) => {
-                    log::info!("Got cursor position from backend: ({}, {})", x, y);
-                    (x as f64, y as f64)
+        log::info!("Capturing frozen screenshots for {} outputs", self.output_surfaces.len());
+
+        for output_surface in &mut self.output_surfaces {
+            match capture_output(&self.conn, &output_surface._output) {
+                Ok(captured_image) => {
+                    log::debug!(
+                        "Captured frozen screen for output: {}x{}",
+                        captured_image.width,
+                        captured_image.height
+                    );
+                    output_surface.frozen_buffer = Some(captured_image);
                 }
                 Err(e) => {
-                    log::warn!(
-                        "Failed to get cursor position from backend: {}. Using fallback.",
-                        e
-                    );
-                    // Fallback to stored pointer position or screen center
-                    if self.input.pointer_position != (0.0, 0.0) {
-                        self.input.pointer_position
-                    } else {
-                        (1280.0, 720.0)
-                    }
+                    log::warn!("Failed to capture frozen screen: {}. Continuing without freeze for this output.", e);
                 }
-            };
-
-            if let Some(window) = window_manager.find_nearest_window(px as i32, py as i32, 50) {
-                let rect = window.rect;
-                log::info!("Initial snap target: {}", rect.describe());
-
-                if !self.args.no_animation {
-                    // Start animation from cursor position
-                    let start_rect = Rect::new(px as i32, py as i32, 1, 1);
-                    let mut anim = SpringAnimation::new(start_rect);
-                    anim.set_target(rect);
-                    self.input.snap_animation = Some(anim);
-                }
-                self.selection.set_snap_target(Some(rect));
             }
         }
-    }
 
-    /// Updates spring animation state and marks surfaces for redraw if needed.
-    ///
-    /// Uses delta time for frame-rate independent animation physics.
-    fn update_animation(&mut self) {
-        let now = Instant::now();
-        let dt = now.duration_since(self.last_frame_time).as_secs_f64();
-        self.last_frame_time = now;
-
-        if let Some(ref mut anim) = self.input.snap_animation {
-            anim.update(dt);
-            let animated_rect = anim.current();
-            self.selection.set_animated_snap_target(Some(animated_rect));
-
-            if !anim.is_settled() {
-                self.needs_redraw = true;
-            }
-        }
-    }
-
-    /// Redraws all monitors with independent per-monitor FPS throttling.
-    ///
-    /// Throttles each monitor independently based on its refresh rate to reduce CPU and GPU usage.
-    fn redraw_all(&mut self) {
-        let now = Instant::now();
-        let len = self.output_surfaces.len();
-
-        for i in 0..len {
-            if !self.output_surfaces[i].configured {
-                continue;
-            }
-
-            // Per-monitor frame rate limiting
-            let elapsed = now.duration_since(self.output_surfaces[i].last_render);
-            if elapsed >= self.output_surfaces[i].frame_time {
-                self.output_surfaces[i].last_render = now;
-                let _ = self.draw_index(i);
-            }
-        }
+        Ok(())
     }
 
     // ------------------------------------------------------------------------
     // Rendering
     // ------------------------------------------------------------------------
 
-    pub(super) fn draw_index(&mut self, index: usize) -> Result<()> {
-        rendering::draw_output(&mut self.output_surfaces[index], &self.selection)
+    /// Redraws all monitors using frame callbacks for vsync.
+    ///
+    /// Frame callbacks ensure rendering is synchronized with compositor refresh.
+    fn redraw_all(&mut self, qh: &QueueHandle<Self>) {
+        for i in 0..self.output_surfaces.len() {
+            if !self.output_surfaces[i].configured {
+                continue;
+            }
+
+            let _ = self.draw_index(i, qh);
+        }
+    }
+
+    pub(super) fn draw_index(&mut self, index: usize, qh: &QueueHandle<Self>) -> Result<()> {
+        rendering::draw_output(&mut self.output_surfaces[index], &self.selection, qh)
     }
 
     // ------------------------------------------------------------------------
@@ -386,43 +297,11 @@ impl App {
 
         self.input.pointer_position = (global_x, global_y);
 
-        if !self.input.snap_initialized && self.window_manager.is_some() {
-            self.input.snap_initialized = true;
-            self.initialize_snap_animation();
-        }
-
         if self.input.mouse_pressed {
             if let Some((start_x, start_y)) = self.input.selection_start {
                 self.selection
                     .update_drag(start_x, start_y, global_x as i32, global_y as i32);
                 self.needs_redraw = true;
-            }
-        } else if let Some(ref window_manager) = self.window_manager {
-            let snap_target = window_manager
-                .find_nearest_window(global_x as i32, global_y as i32, 50)
-                .map(|w| w.rect);
-
-            if snap_target != self.selection.get_snap_target() {
-                if let Some(rect) = snap_target {
-                    log::info!("Snap target: {}", rect.describe());
-
-                    if !self.args.no_animation {
-                        if let Some(ref mut anim) = self.input.snap_animation {
-                            anim.set_target(rect);
-                        } else {
-                            let start_rect = Rect::new(global_x as i32, global_y as i32, 1, 1);
-                            let mut anim = SpringAnimation::new(start_rect);
-                            anim.set_target(rect);
-                            self.input.snap_animation = Some(anim);
-                        }
-                    }
-                    self.needs_redraw = true;
-                } else {
-                    log::info!("Snap target: None");
-                    self.needs_redraw = true;
-                }
-
-                self.selection.set_snap_target(snap_target);
             }
         }
     }
@@ -442,16 +321,6 @@ impl App {
             self.input.mouse_pressed = false;
             if self.selection.get_selection().is_some() {
                 self.complete_selection();
-            } else if let Some(snap_rect) = self.selection.get_snap_target() {
-                log::info!("Using snap target on click: {}", snap_rect.describe());
-                self.selection.start_selection(snap_rect.x, snap_rect.y);
-                self.selection.update_drag(
-                    snap_rect.x,
-                    snap_rect.y,
-                    snap_rect.x + snap_rect.width,
-                    snap_rect.y + snap_rect.height,
-                );
-                self.complete_selection();
             }
         }
         self.needs_redraw = true;
@@ -467,13 +336,20 @@ impl App {
                 .collect();
 
             // Handle selection completion
-            let _ = capture::complete_selection(
+            match capture::complete_selection(
                 &self.conn,
                 &mut self.output_surfaces,
                 &outputs_map,
                 &self.args,
                 rect,
-            );
+            ) {
+                Ok(geometry) => {
+                    self.selection_geometry = geometry;
+                }
+                Err(e) => {
+                    log::error!("Selection completion failed: {}", e);
+                }
+            }
 
             self.exit = true;
             self.loop_signal.stop();

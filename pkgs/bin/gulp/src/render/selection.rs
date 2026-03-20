@@ -19,6 +19,39 @@ impl Rect {
         }
     }
 
+    /// Parses a geometry string in "x,y wxh" format into a Rect.
+    ///
+    /// Example: "100,200 300x400" creates a rectangle at (100,200) with size 300x400.
+    pub fn from_geometry_string(geometry: &str) -> anyhow::Result<Self> {
+        let parts: Vec<&str> = geometry.split_whitespace().collect();
+        if parts.len() != 2 {
+            anyhow::bail!("Invalid geometry format: {}", geometry);
+        }
+
+        let pos_parts: Vec<&str> = parts[0].split(',').collect();
+        let size_parts: Vec<&str> = parts[1].split('x').collect();
+
+        if pos_parts.len() != 2 || size_parts.len() != 2 {
+            anyhow::bail!("Invalid geometry format: {}", geometry);
+        }
+
+        let x: i32 = pos_parts[0].parse()
+            .map_err(|_| anyhow::anyhow!("Invalid x coordinate"))?;
+        let y: i32 = pos_parts[1].parse()
+            .map_err(|_| anyhow::anyhow!("Invalid y coordinate"))?;
+        let width: i32 = size_parts[0].parse()
+            .map_err(|_| anyhow::anyhow!("Invalid width"))?;
+        let height: i32 = size_parts[1].parse()
+            .map_err(|_| anyhow::anyhow!("Invalid height"))?;
+
+        Ok(Self::new(x, y, width, height))
+    }
+
+    /// Formats the rectangle as a geometry string "x,y wxh".
+    pub fn to_geometry_string(self) -> String {
+        format!("{},{} {}x{}", self.x, self.y, self.width, self.height)
+    }
+
     /// Checks if this rectangle intersects with another rectangle.
     #[inline]
     pub const fn intersects(&self, other: &Rect) -> bool {
@@ -92,10 +125,6 @@ pub struct Selection {
     hover_pos: (i32, i32),
     /// Selection rectangle (if any)
     rect: Option<Rect>,
-    /// Snap target window rectangle (when hovering over a window)
-    snap_target: Option<Rect>,
-    /// Animated snap target rectangle (for smooth transitions)
-    animated_snap_target: Option<Rect>,
 }
 
 impl Selection {
@@ -104,8 +133,6 @@ impl Selection {
             mode: SelectionMode::Hover,
             hover_pos: (0, 0),
             rect: None,
-            snap_target: None,
-            animated_snap_target: None,
         }
     }
 
@@ -140,28 +167,6 @@ impl Selection {
     #[inline]
     pub const fn get_rect(&self) -> Option<Rect> {
         self.rect
-    }
-
-    pub fn set_snap_target(&mut self, target: Option<Rect>) {
-        self.snap_target = target;
-    }
-
-    pub fn get_snap_target(&self) -> Option<Rect> {
-        self.snap_target
-    }
-
-    pub fn set_animated_snap_target(&mut self, target: Option<Rect>) {
-        self.animated_snap_target = target;
-    }
-
-    pub fn get_animated_snap_target(&self) -> Option<Rect> {
-        self.animated_snap_target
-    }
-
-    /// Returns the current snap target, preferring animated over static.
-    pub fn get_current_snap_target(&self) -> Option<Rect> {
-        self.get_animated_snap_target()
-            .or_else(|| self.get_snap_target())
     }
 }
 

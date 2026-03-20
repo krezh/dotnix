@@ -37,30 +37,28 @@ in
             ];
             screenshot =
               let
-                recShot = "${lib.getExe pkgs.recshot} -t ${
-                  config.home-manager.users.${user}.sops.secrets."zipline/token".path
-                } -u https://zipline.talos.plexuz.xyz";
+                gulpBin = "${lib.getExe pkgs.gulp}";
               in
               [
                 {
                   key = "s";
                   desc = "Screen (Fullscreen)";
-                  cmd = "${recShot} -m image-screen";
+                  cmd = "${gulpBin} --mode image-screen --delay 100";
                 }
                 {
                   key = "w";
                   desc = "Window";
-                  cmd = "${recShot} -m image-window";
+                  cmd = "${gulpBin} --mode image-window --delay 100";
                 }
                 {
                   key = "a";
                   desc = "Area";
-                  cmd = "${recShot} -m image-area";
+                  cmd = "${gulpBin} --mode image-area --delay 100";
                 }
                 {
                   key = "c";
                   desc = "OCR";
-                  cmd = "${lib.getExe pkgs.gulp} --ocr --no-snap";
+                  cmd = "${gulpBin} --ocr --delay 100";
                 }
                 {
                   key = "r";
@@ -69,17 +67,17 @@ in
                     {
                       key = "a";
                       desc = "Area";
-                      cmd = "${recShot} -m video-area";
+                      cmd = "${gulpBin} --mode video-area";
                     }
                     {
                       key = "w";
                       desc = "Window";
-                      cmd = "${recShot} -m video-window";
+                      cmd = "${gulpBin} --mode video-window";
                     }
                     {
                       key = "s";
-                      desc = "Window";
-                      cmd = "${recShot} -m video-screen";
+                      desc = "Screen";
+                      cmd = "${gulpBin} --mode video-screen --delay 100";
                     }
                   ];
                 }

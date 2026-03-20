@@ -3,7 +3,7 @@
 use clap::{CommandFactory, Parser};
 use clap_complete::{generate, Shell};
 
-use crate::config::Config;
+use crate::config::{Config, FontWeight};
 
 /// Command-line arguments for gulp
 ///
@@ -19,16 +19,16 @@ pub struct Args {
     #[arg(long)]
     pub font_size: Option<u32>,
 
-    /// Text Font weight (Options: Normal, Bold)
-    #[arg(long)]
-    pub font_weight: Option<String>,
+    /// Text Font weight
+    #[arg(long, value_enum)]
+    pub font_weight: Option<FontWeight>,
 
     /// Border color in hex
     #[arg(short, long)]
     pub border_color: Option<String>,
 
     /// Border thickness in pixels
-    #[arg(short = 't', long)]
+    #[arg(long)]
     pub border_thickness: Option<u32>,
 
     /// Border rounding in pixels (for rounded corners)
@@ -43,17 +43,13 @@ pub struct Args {
     #[arg(short = 'l', long)]
     pub log: Option<String>,
 
-    /// Maximum frames per second (0 = auto-detect from monitor)
+    /// Delay in milliseconds before starting capture
     #[arg(long)]
-    pub fps: Option<u32>,
+    pub delay: Option<u64>,
 
-    /// Disable window snapping
+    /// Freeze screen before selection (captures snapshot)
     #[arg(long)]
-    pub no_snap: bool,
-
-    /// Disable snap animation
-    #[arg(long)]
-    pub no_animation: bool,
+    pub freeze: Option<bool>,
 
     /// Enable OCR mode (extract text from selected region)
     #[arg(long)]
@@ -62,6 +58,30 @@ pub struct Args {
     /// Screenshot output file path (use '-' for stdout in PNG format)
     #[arg(short = 'o', long)]
     pub output: Option<String>,
+
+    /// Capture mode: image-area, image-window, image-screen, video-area, video-window, video-screen
+    #[arg(long, short = 'm')]
+    pub mode: Option<String>,
+
+    /// Show recording status
+    #[arg(long)]
+    pub status: bool,
+
+    /// Zipline server URL (overrides config)
+    #[arg(long, short = 'u')]
+    pub zipline_url: Option<String>,
+
+    /// Zipline token file path (overrides config)
+    #[arg(long, short = 't')]
+    pub zipline_token: Option<String>,
+
+    /// Use original filename on Zipline (overrides config)
+    #[arg(long)]
+    pub original_name: Option<bool>,
+
+    /// Save path directory (overrides config)
+    #[arg(long, short = 'p')]
+    pub save_path: Option<String>,
 
     /// Generate default config file and exit
     #[arg(long)]
@@ -78,37 +98,28 @@ impl Args {
     /// Applies priority order: CLI args > config file > hardcoded defaults.
     /// Ensures all `Option` fields are populated with concrete values.
     pub fn merge_with_config(mut self, config: Config) -> Self {
-        // Helper macro to reduce repetition
-        macro_rules! merge_option {
-            ($field:expr, $config_value:expr) => {
-                if $field.is_none() {
-                    $field = Some($config_value);
-                }
-            };
-        }
-
         // Merge font settings
-        merge_option!(self.font_family, config.font.family);
-        merge_option!(self.font_size, config.font.size);
-        merge_option!(self.font_weight, config.font.weight);
+        self.font_family.get_or_insert(config.font.family);
+        self.font_size.get_or_insert(config.font.size);
+        self.font_weight.get_or_insert(config.font.weight);
 
         // Merge border settings
-        merge_option!(self.border_color, config.border.color);
-        merge_option!(self.border_thickness, config.border.thickness);
-        merge_option!(self.border_rounding, config.border.rounding);
+        self.border_color.get_or_insert(config.border.color);
+        self.border_thickness.get_or_insert(config.border.thickness);
+        self.border_rounding.get_or_insert(config.border.rounding);
 
         // Merge display settings
-        merge_option!(self.dim_opacity, config.display.dim_opacity);
-        merge_option!(self.log, config.display.log);
-        merge_option!(self.fps, config.display.fps);
+        self.dim_opacity.get_or_insert(config.display.dim_opacity);
+        self.log.get_or_insert(config.display.log);
+        self.freeze.get_or_insert(config.display.freeze);
 
-        // Merge feature flags (boolean needs special handling)
-        if !self.no_snap && config.features.no_snap {
-            self.no_snap = true;
-        }
-        if !self.no_animation && config.features.no_animation {
-            self.no_animation = true;
-        }
+        // Merge upload settings
+        self.zipline_url.get_or_insert(config.upload.zipline.url);
+        self.zipline_token.get_or_insert(config.upload.zipline.token);
+        self.original_name.get_or_insert(config.upload.zipline.use_original_name);
+
+        // Merge capture settings
+        self.save_path.get_or_insert(config.capture.save_path);
 
         self
     }

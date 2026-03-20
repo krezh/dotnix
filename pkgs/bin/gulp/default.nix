@@ -37,6 +37,7 @@ rustPlatform.buildRustPackage {
     tesseract
     leptonica
     llvmPackages.libclang.lib
+    openssl
   ];
 
   env = {
