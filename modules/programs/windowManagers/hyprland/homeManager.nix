@@ -268,7 +268,7 @@ _: {
             "match:namespace ^(walker)$, animation popin 60%"
             "match:namespace ^(hyprpicker)$, animation fade"
             "match:namespace ^(logout_dialog)$, animation fade"
-            "match:namespace ^(gulp-selection)$, animation fade"
+            "match:namespace ^(chomp-selection)$, animation fade"
             "match:namespace ^(wayfreeze)$, animation fade"
             "match:namespace (noctalia:.*), no_anim on"
           ];

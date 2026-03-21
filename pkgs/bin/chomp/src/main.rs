@@ -1,4 +1,4 @@
-//! gulp: Enhanced region selector for Wayland
+//! chomp: Enhanced region selector for Wayland
 //!
 //! A compositor-agnostic screen selection tool with features like:
 //! - Interactive area selection with live preview
@@ -54,7 +54,7 @@ fn main() -> Result<()> {
         .filter_level(parse_log_level(log_level))
         .init();
 
-    log::info!("Starting gulp with args: {:?}", args);
+    log::info!("Starting chomp with args: {:?}", args);
 
     // Handle --status flag
     if args.status {
@@ -94,7 +94,7 @@ fn handle_status() -> Result<()> {
         if let Some(file) = output_file {
             println!("📁 Output: {}", file);
         }
-        println!("Run gulp -m video-<mode> to stop");
+        println!("Run chomp -m video-<mode> to stop");
     } else {
         println!("⏹️ No recording active");
     }
@@ -172,7 +172,7 @@ fn handle_video_mode(
 
     notifier.send_info(&format!("Recording {}, run again to stop", mode_name));
     println!(
-        "Recording started - run gulp -m video-{} to stop",
+        "Recording started - run chomp -m video-{} to stop",
         mode_name
     );
 

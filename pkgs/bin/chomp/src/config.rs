@@ -1,8 +1,8 @@
-//! Configuration file handling for gulp
+//! Configuration file handling for chomp
 //!
 //! Supports loading from JSON files in XDG-compliant locations:
-//! - $XDG_CONFIG_HOME/gulp/config.json
-//! - ~/.config/gulp/config.json (fallback)
+//! - $XDG_CONFIG_HOME/chomp/config.json
+//! - ~/.config/chomp/config.json (fallback)
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use std::fs;
@@ -202,10 +202,10 @@ impl Config {
     /// Searches for config file in XDG-compliant locations
     ///
     /// Priority order:
-    /// 1. $XDG_CONFIG_HOME/gulp/config.json
-    /// 2. ~/.config/gulp/config.json
+    /// 1. $XDG_CONFIG_HOME/chomp/config.json
+    /// 2. ~/.config/chomp/config.json
     fn find_config_file() -> Option<PathBuf> {
-        const CONFIG_FILE: &str = "gulp/config.json";
+        const CONFIG_FILE: &str = "chomp/config.json";
 
         // Try XDG_CONFIG_HOME first
         std::env::var("XDG_CONFIG_HOME")
@@ -225,7 +225,7 @@ impl Config {
     ///
     /// Uses XDG_CONFIG_HOME if set, otherwise ~/.config
     pub fn default_config_path() -> PathBuf {
-        const CONFIG_FILE: &str = "gulp/config.json";
+        const CONFIG_FILE: &str = "chomp/config.json";
 
         std::env::var("XDG_CONFIG_HOME")
             .ok()
@@ -235,7 +235,7 @@ impl Config {
                     .ok()
                     .map(|home| PathBuf::from(home).join(".config").join(CONFIG_FILE))
             })
-            .unwrap_or_else(|| PathBuf::from("~/.config/gulp/config.json"))
+            .unwrap_or_else(|| PathBuf::from("~/.config/chomp/config.json"))
     }
 }
 

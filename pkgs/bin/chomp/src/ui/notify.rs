@@ -11,7 +11,7 @@ impl Notifier {
 
     /// Sends a success notification.
     pub fn send_success(&self, message: &str) {
-        self.send("gulp", message, "normal");
+        self.send("chomp", message, "normal");
     }
 
     /// Sends an error notification with optional details.
@@ -21,12 +21,12 @@ impl Notifier {
         } else {
             message.to_string()
         };
-        self.send("gulp", &full_message, "critical");
+        self.send("chomp", &full_message, "critical");
     }
 
     /// Sends an info notification.
     pub fn send_info(&self, message: &str) {
-        self.send("gulp", message, "normal");
+        self.send("chomp", message, "normal");
     }
 
     /// Sends a notification with a clickable action button that opens a URL.
@@ -37,7 +37,7 @@ impl Notifier {
                 "-u", "normal",
                 "--transient",
                 "-A", "open=Open URL",
-                "gulp",
+                "chomp",
                 message,
             ])
             .output();

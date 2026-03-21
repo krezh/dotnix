@@ -174,7 +174,7 @@ impl App {
                     qh,
                     surface.clone(),
                     Layer::Overlay,
-                    Some("gulp-selection"),
+                    Some("chomp-selection"),
                     Some(output),
                 );
 

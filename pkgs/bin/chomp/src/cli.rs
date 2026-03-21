@@ -5,7 +5,7 @@ use clap_complete::{generate, Shell};
 
 use crate::config::{Config, FontWeight};
 
-/// Command-line arguments for gulp
+/// Command-line arguments for chomp
 ///
 /// These override config file settings when specified.
 #[derive(Parser, Debug, Clone)]

@@ -8,12 +8,12 @@
   ...
 }:
 rustPlatform.buildRustPackage {
-  pname = "gulp";
+  pname = "chomp";
   version = "0.1.0";
 
   src = builtins.path {
     path = ./.;
-    name = "gulp-src";
+    name = "chomp-src";
   };
 
   cargoLock = {
@@ -46,13 +46,13 @@ rustPlatform.buildRustPackage {
   };
 
   postInstall = ''
-    wrapProgram $out/bin/gulp \
+    wrapProgram $out/bin/chomp \
       --prefix PATH : ${lib.makeBinPath [ pkgs.tesseract ]}
 
-    installShellCompletion --cmd gulp \
-      --bash <($out/bin/gulp --generate-completions bash) \
-      --fish <($out/bin/gulp --generate-completions fish) \
-      --zsh <($out/bin/gulp --generate-completions zsh)
+    installShellCompletion --cmd chomp \
+      --bash <($out/bin/chomp --generate-completions bash) \
+      --fish <($out/bin/chomp --generate-completions fish) \
+      --zsh <($out/bin/chomp --generate-completions zsh)
   '';
 
   meta = {
@@ -61,6 +61,6 @@ rustPlatform.buildRustPackage {
       "x86_64-linux"
       "aarch64-linux"
     ];
-    mainProgram = "gulp";
+    mainProgram = "chomp";
   };
 }
