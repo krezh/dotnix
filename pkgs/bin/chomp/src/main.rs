@@ -23,6 +23,8 @@ use clap::Parser;
 use cli::{Args, parse_log_level};
 use config::Config;
 
+pub const APP_NAME: &str = "chomp";
+
 fn main() -> Result<()> {
     let args = Args::parse();
 

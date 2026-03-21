@@ -2,8 +2,6 @@
 
 use std::process::Command;
 
-const APP_NAME: &str = "APP_NAME";
-
 pub struct Notifier;
 
 impl Notifier {
@@ -13,7 +11,7 @@ impl Notifier {
 
     /// Sends a success notification.
     pub fn send_success(&self, message: &str) {
-        self.send("APP_NAME", message, "normal");
+        self.send(crate::APP_NAME, message, "normal");
     }
 
     /// Sends an error notification with optional details.
@@ -23,12 +21,12 @@ impl Notifier {
         } else {
             message.to_string()
         };
-        self.send("APP_NAME", &full_message, "critical");
+        self.send(crate::APP_NAME, &full_message, "critical");
     }
 
     /// Sends an info notification.
     pub fn send_info(&self, message: &str) {
-        self.send("APP_NAME", message, "normal");
+        self.send(crate::APP_NAME, message, "normal");
     }
 
     /// Sends a notification with a clickable action button that opens a URL.
@@ -39,7 +37,7 @@ impl Notifier {
                 "-u", "normal",
                 "--transient",
                 "-A", "open=Open URL",
-                "APP_NAME",
+                crate::APP_NAME,
                 message,
             ])
             .output();
