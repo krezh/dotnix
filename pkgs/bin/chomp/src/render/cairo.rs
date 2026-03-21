@@ -197,24 +197,19 @@ impl Renderer {
         let selection_rect = selection.get_rect().filter(|r| r.width > 0 && r.height > 0);
 
         if has_frozen {
-            // Apply dimming over the frozen image, excluding selection area
             if let Some(rect) = selection_rect {
-                // Save context state
                 ctx.save()?;
 
-                // Create inverse clip: dim everything EXCEPT the selection
                 ctx.rectangle(0.0, 0.0, self.width as f64, self.height as f64);
                 let (x, y, w, h) = rect.as_f64_tuple();
                 ctx.rectangle(x, y, w, h);
                 ctx.set_fill_rule(cairo::FillRule::EvenOdd);
                 ctx.clip();
 
-                // Apply dimming only to non-selection area
                 ctx.set_source_rgba(0.0, 0.0, 0.0, self.config.dim_opacity);
                 ctx.set_operator(cairo::Operator::Over);
                 ctx.paint()?;
 
-                // Restore context
                 ctx.restore()?;
 
                 log::debug!(
@@ -224,7 +219,6 @@ impl Renderer {
                     self.height
                 );
             } else {
-                // No selection - dim entire surface
                 self.with_operator(&ctx, cairo::Operator::Over, |ctx| {
                     ctx.set_source_rgba(0.0, 0.0, 0.0, self.config.dim_opacity);
                     ctx.paint()?;
@@ -232,16 +226,13 @@ impl Renderer {
                 })?;
             }
         } else {
-            // No frozen buffer - use original transparent dimming approach
             if let Some(rect) = selection_rect {
-                // Paint dimmed background
                 self.with_operator(&ctx, cairo::Operator::Source, |ctx| {
                     ctx.set_source_rgba(0.0, 0.0, 0.0, self.config.dim_opacity);
                     ctx.paint()?;
                     Ok(())
                 })?;
 
-                // Clear selection area to transparency
                 self.with_operator(&ctx, cairo::Operator::Clear, |ctx| {
                     self.clear_area(ctx, rect)
                 })?;
@@ -253,7 +244,6 @@ impl Renderer {
                     self.height
                 );
             } else {
-                // No selection - paint dimmed background
                 self.with_operator(&ctx, cairo::Operator::Source, |ctx| {
                     ctx.set_source_rgba(0.0, 0.0, 0.0, self.config.dim_opacity);
                     ctx.paint()?;
@@ -262,7 +252,6 @@ impl Renderer {
             }
         }
 
-        // Draw selection rectangle border (if selecting)
         if let Some(rect) = selection.get_rect() {
             self.draw_selection_border(&ctx, rect)?;
         }

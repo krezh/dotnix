@@ -396,6 +396,30 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "613afe47fcd5fac7ccf1db93babcb082c5994d996f20b8b159f2ad1658eb5724"
 
 [[package]]
+name = "chomp"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "cairo-rs",
+ "calloop",
+ "chrono",
+ "clap",
+ "clap_complete",
+ "env_logger",
+ "image",
+ "log",
+ "nix",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "smithay-client-toolkit",
+ "tesseract",
+ "wayland-client",
+ "wayland-protocols",
+ "wayland-protocols-wlr",
+]
+
+[[package]]
 name = "chrono"
 version = "0.4.44"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -878,30 +902,6 @@ dependencies = [
  "glib-sys",
  "libc",
  "system-deps",
-]
-
-[[package]]
-name = "chomp"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "cairo-rs",
- "calloop",
- "chrono",
- "clap",
- "clap_complete",
- "env_logger",
- "image",
- "log",
- "nix",
- "reqwest",
- "serde",
- "serde_json",
- "smithay-client-toolkit",
- "tesseract",
- "wayland-client",
- "wayland-protocols",
- "wayland-protocols-wlr",
 ]
 
 [[package]]

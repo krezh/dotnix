@@ -17,17 +17,14 @@ pub fn complete_selection(
     args: &Args,
     rect: Rect,
 ) -> Result<Option<String>> {
-    // Clear overlays before capturing
     clear_overlays(output_surfaces);
 
-    // Flush and ensure transparent frames are committed
     let _ = conn.flush();
     let _ = conn.roundtrip();
 
     // Minimal delay for compositor to render the transparent frame
     std::thread::sleep(std::time::Duration::from_millis(16)); // One frame at 60fps
 
-    // Collect outputs with their names and positions
     let outputs_list: Vec<crate::compositor::protocol::outputs::OutputInfo> = output_surfaces
         .iter()
         .map(|surf| {
@@ -47,7 +44,6 @@ pub fn complete_selection(
         })
         .collect();
 
-    // Check if we're in mode-based workflow (image-area or video-area)
     if let Some(ref mode_str) = args.mode {
         if mode_str == "image-area" || mode_str == "video-area" {
             // For area modes, return geometry for the caller to handle

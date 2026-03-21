@@ -98,7 +98,6 @@ impl App {
         let mut event_loop: EventLoop<Self> = EventLoop::try_new()?;
         let loop_signal = event_loop.get_signal();
 
-        // Get initial outputs
         let outputs: HashMap<_, _> = output_state
             .outputs()
             .filter_map(|output| {
@@ -129,18 +128,14 @@ impl App {
             selection_geometry: None,
         };
 
-        // Dispatch any pending events
         event_queue.blocking_dispatch(&mut app)?;
 
-        // Set up Wayland event source
         WaylandSource::new(conn.clone(), event_queue)
             .insert(event_loop.handle())
             .context("Failed to insert wayland source")?;
 
-        // Create layer surfaces for each output
         app.create_layer_surfaces(&qh)?;
 
-        // Capture frozen screenshots if freeze mode is enabled
         let should_freeze = app.args.freeze.unwrap_or(true);
         if should_freeze {
             app.capture_frozen_screens()?;
@@ -149,7 +144,6 @@ impl App {
         loop {
             event_loop.dispatch(Some(Duration::from_millis(IDLE_FRAME_TIMEOUT_MS)), &mut app)?;
 
-            // Render if needed (throttled by frame rate limiting in redraw_all)
             if app.needs_redraw {
                 app.needs_redraw = false;
                 app.redraw_all(&qh);
@@ -160,7 +154,6 @@ impl App {
             }
         }
 
-        // Return geometry if captured (for area modes)
         Ok(app.selection_geometry)
     }
 
@@ -186,12 +179,9 @@ impl App {
 
                 surface.commit();
 
-                // Create a dedicated pool for this output with space for double buffering
-                // Double the size to allow for two buffers (reduces flickering)
                 let pool_size = (width * height * 4 * 2) as usize;
                 let pool = SlotPool::new(pool_size, &self.shm_state).ok();
 
-                // Create a dedicated renderer for this output
                 let renderer = create_renderer(width, height, &self.args);
 
                 log::info!(
@@ -223,7 +213,6 @@ impl App {
             }
         }
 
-        // Initialize renderer with first output dimensions
         if let Some(first) = self.output_surfaces.first() {
             self.renderer = create_renderer(first.width as i32, first.height as i32, &self.args)
                 .ok_or_else(|| anyhow::anyhow!("Failed to create renderer"))?
@@ -328,14 +317,12 @@ impl App {
 
     fn complete_selection(&mut self) {
         if let Some(rect) = self.selection.get_selection() {
-            // Collect outputs map for capture module
             let outputs_map: Vec<(wl_output::WlOutput, String)> = self
                 .outputs
                 .iter()
                 .map(|(output, info)| (output.clone(), info.name.clone().unwrap_or_default()))
                 .collect();
 
-            // Handle selection completion
             match capture::complete_selection(
                 &self.conn,
                 &mut self.output_surfaces,

@@ -26,7 +26,6 @@ use config::Config;
 fn main() -> Result<()> {
     let args = Args::parse();
 
-    // Handle shell completion generation
     if let Some(shell) = args.generate_completions {
         Args::generate_completions(shell);
         return Ok(());
@@ -39,16 +38,13 @@ fn main() -> Result<()> {
         return Ok(());
     }
 
-    // Load config from file or use defaults if loading fails
     let config = Config::load().unwrap_or_else(|e| {
         eprintln!("Warning: Failed to load config: {}. Using defaults.", e);
         Config::default()
     });
 
-    // Merge CLI args with config (CLI overrides config)
     let args = args.merge_with_config(config);
 
-    // Initialize logging system
     let log_level = args.log.as_deref().unwrap_or("off");
     env_logger::Builder::from_default_env()
         .filter_level(parse_log_level(log_level))
@@ -56,12 +52,10 @@ fn main() -> Result<()> {
 
     log::info!("Starting chomp with args: {:?}", args);
 
-    // Handle --status flag
     if args.status {
         return handle_status();
     }
 
-    // Handle mode-based workflow
     if let Some(ref mode_str) = args.mode {
         let mode = capture::CaptureMode::from_str(mode_str)?;
         let notifier = ui::Notifier::new();
@@ -73,15 +67,28 @@ fn main() -> Result<()> {
         }
     }
 
-    // Apply delay if specified
-    if let Some(delay_ms) = args.delay {
-        std::thread::sleep(std::time::Duration::from_millis(delay_ms));
-    }
+    apply_delay(&args);
 
-    // Selection mode
     let _ = ui::App::run(args)?;
 
     Ok(())
+}
+
+/// Applies delay if specified in args.
+fn apply_delay(args: &Args) {
+    if let Some(delay_ms) = args.delay {
+        std::thread::sleep(std::time::Duration::from_millis(delay_ms));
+    }
+}
+
+/// Attempts to upload file if configured, logging and notifying on error.
+fn handle_upload(args: &Args, file_path: &str, notifier: &ui::Notifier) {
+    if should_upload(args) {
+        if let Err(e) = upload_file(args, file_path, notifier) {
+            log::error!("Upload failed: {}", e);
+            notifier.send_error("Upload failed", Some(&e.to_string()));
+        }
+    }
 }
 
 /// Handles --status flag to show recording status.
@@ -110,38 +117,24 @@ fn handle_video_mode(
 ) -> Result<()> {
     let recorder = capture::VideoRecorder::new();
 
-    // Check if already recording
     let (is_recording, _) = recorder.is_recording()?;
 
     if is_recording {
-        // Stop recording
         let output_file = recorder.stop_recording()?;
         notifier.send_success("Screen recording saved");
 
         if let Some(file) = &output_file {
             println!("Recording saved to: {}", file);
-
-            // Upload if configured
-            if should_upload(args) {
-                if let Err(e) = upload_file(args, file, notifier) {
-                    log::error!("Upload failed: {}", e);
-                    notifier.send_error("Upload failed", Some(&e.to_string()));
-                }
-            }
+            handle_upload(args, file, notifier);
         }
 
         return Ok(());
     }
 
-    // Apply delay if specified
-    if let Some(delay_ms) = args.delay {
-        std::thread::sleep(std::time::Duration::from_millis(delay_ms));
-    }
+    apply_delay(args);
 
-    // Start new recording - get geometry/monitor based on mode
     let (geometry, monitor): (Option<String>, Option<String>) = match mode {
         capture::CaptureMode::VideoArea => {
-            // Run selection overlay - it returns the geometry
             let geo = ui::App::run(args.clone())?
                 .context("Selection cancelled or failed")?;
             (Some(geo), None)
@@ -157,10 +150,8 @@ fn handle_video_mode(
         _ => unreachable!(),
     };
 
-    // Generate output filename
     let output_file = generate_output_path(args, "mp4")?;
 
-    // Start recording
     recorder.start_recording(geometry.as_deref(), monitor.as_deref(), &output_file)?;
 
     let mode_name = match mode {
@@ -185,23 +176,17 @@ fn handle_image_mode(
     mode: &capture::CaptureMode,
     notifier: &ui::Notifier,
 ) -> Result<()> {
-    // Apply delay if specified
-    if let Some(delay_ms) = args.delay {
-        std::thread::sleep(std::time::Duration::from_millis(delay_ms));
-    }
+    apply_delay(args);
 
-    // Generate output filename
     let output_file = generate_output_path(args, "png")?;
 
     let rect = match mode {
         capture::CaptureMode::ImageArea => {
-            // Run selection overlay - it returns the geometry
             let geometry = ui::App::run(args.clone())?
                 .context("Selection cancelled or failed")?;
             render::Rect::from_geometry_string(&geometry)?
         }
         capture::CaptureMode::ImageWindow => {
-            // Get active window geometry from hyprctl
             let geometry_str = compositor::get_active_window()?;
             render::Rect::from_geometry_string(&geometry_str)?
         }
@@ -216,7 +201,6 @@ fn handle_image_mode(
 
     log::info!("Screenshot saved to {}", output_file);
 
-    // Upload if configured
     if should_upload(args) {
         if let Err(e) = upload_file(args, &output_file, notifier) {
             log::error!("Upload failed: {}", e);

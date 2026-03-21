@@ -33,7 +33,6 @@ pub fn draw_output(
         return Ok(());
     }
 
-    // Skip if waiting for frame callback (vsync synchronization)
     if output_surface.waiting_for_frame {
         return Ok(());
     }
@@ -44,7 +43,6 @@ pub fn draw_output(
     let offset_y = output_surface.y;
     let stride = width * 4;
 
-    // Check if we have renderer and pool
     if output_surface.renderer.is_none() || output_surface.pool.is_none() {
         return Ok(());
     }
@@ -69,7 +67,6 @@ pub fn draw_output(
 
     log::debug!("Got buffer, canvas ptr: {:p}", canvas.as_ptr());
 
-    // Determine if this output currently has a selection
     let output_rect = Rect::new(offset_x, offset_y, width, height);
     let has_selection_now = selection.get_rect()
         .map(|rect| rect.intersects(&output_rect))
@@ -91,12 +88,10 @@ pub fn draw_output(
     output_surface.last_had_selection = has_selection_now;
     output_surface.needs_render = false;
 
-    // Check if we need to render a selection on this output
     let has_selection = if let Some(rect) = selection.get_rect() {
         let output_rect = Rect::new(offset_x, offset_y, width, height);
 
         if rect.intersects(&output_rect) {
-            // Calculate the intersection rectangle (clipped to this output)
             let clip_x = rect.x.max(offset_x);
             let clip_y = rect.y.max(offset_y);
             let clip_right = (rect.x + rect.width).min(offset_x + width);
@@ -120,7 +115,6 @@ pub fn draw_output(
                 clip_height
             );
 
-            // Translate the ENTIRE global selection to output-local coordinates
             let local_rect_x = rect.x - offset_x;
             let local_rect_y = rect.y - offset_y;
 
@@ -130,14 +124,11 @@ pub fn draw_output(
                 local_rect_x, local_rect_y, rect.width, rect.height
             );
 
-            // Create a selection with the full rectangle translated to local coords
             let local_selection = create_local_selection(rect, offset_x, offset_y);
 
-            // Get frozen buffer data and stride if available
             let frozen_data = output_surface.frozen_buffer.as_ref()
                 .map(|img| (img.data.as_slice(), img.stride as i32));
 
-            // Render directly to buffer
             renderer.render_to_buffer(&local_selection, canvas, frozen_data)?;
             true
         } else {
@@ -148,9 +139,7 @@ pub fn draw_output(
         false
     };
 
-    // If no selection on this output, render dimmed overlay only (or snap target if present)
     if !has_selection {
-        // Render dimmed overlay without selection
         log::debug!("RENDERING DIMMED ONLY");
         let empty_selection = Selection::new();
         let frozen_data = output_surface.frozen_buffer.as_ref()
@@ -158,15 +147,12 @@ pub fn draw_output(
         renderer.render_to_buffer(&empty_selection, canvas, frozen_data)?;
     }
 
-    // Ensure all rendering is complete before commit (prevents tearing)
     std::sync::atomic::fence(std::sync::atomic::Ordering::SeqCst);
 
-    // Request frame callback for vsync synchronization
     let callback = output_surface.surface.frame(qh, ());
     output_surface.frame_callback = Some(callback);
     output_surface.waiting_for_frame = true;
 
-    // Attach and commit
     log::debug!(
         "Committing buffer to surface at offset ({},{}) with damage {}x{}",
         offset_x,

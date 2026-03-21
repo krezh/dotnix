@@ -1,9 +1,9 @@
-let
-  user = "krezh";
-in
 {
   flake.modules.nixos.thor =
     { config, ... }:
+    let
+      user = "krezh";
+    in
     {
       home-manager.users.${user} = {
         programs.chomp = {

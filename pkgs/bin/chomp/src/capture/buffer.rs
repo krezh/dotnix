@@ -26,16 +26,6 @@ impl CapturedImage {
         }
     }
 
-    /// Returns the width of the image.
-    pub fn width(&self) -> u32 {
-        self.width
-    }
-
-    /// Returns the height of the image.
-    pub fn height(&self) -> u32 {
-        self.height
-    }
-
     /// Crops the image to the specified rectangular region.
     ///
     /// Returns a new `CapturedImage` containing only the pixels within the given rectangle.
@@ -55,7 +45,6 @@ impl CapturedImage {
             .ok_or_else(|| anyhow::anyhow!("Crop region size overflow: {}x{}", rect_width, rect_height))?
             as usize;
 
-        // Pre-validate that entire crop region is within buffer bounds
         let last_row_offset = ((rect.y as u32 + rect_height - 1) * self.stride + rect.x as u32 * 4) as usize;
         let row_size = (rect_width * 4) as usize;
 

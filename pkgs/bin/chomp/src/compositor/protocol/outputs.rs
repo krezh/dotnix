@@ -110,7 +110,7 @@ pub fn find_output_for_rect(
     outputs: &[OutputInfo],
     rect: Rect,
 ) -> Result<(&wl_output::WlOutput, Rect)> {
-    let (output, _name, offset_x, offset_y, _width, _height) = outputs
+    let (output, _, offset_x, offset_y, _, _) = outputs
         .iter()
         .find(|(_, _, x, y, w, h)| {
             let output_rect = Rect::new(*x, *y, *w as i32, *h as i32);
