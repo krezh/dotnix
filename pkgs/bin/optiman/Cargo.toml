@@ -36,7 +36,7 @@ tempfile = "3"
 
 # Error handling
 anyhow = "1"
-thiserror = "1"
+thiserror = "2"
 
 # DateTime
 chrono = { version = "0.4", features = ["serde"] }
