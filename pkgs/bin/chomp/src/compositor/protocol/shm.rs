@@ -11,7 +11,7 @@ pub(super) fn create_shm_fd(size: usize) -> Result<i32> {
     use nix::unistd::ftruncate;
     use std::os::fd::IntoRawFd;
 
-    let name = c"gulp-capture";
+    let name = c"chomp-capture";
     let fd = memfd_create(
         name,
         MFdFlags::MFD_CLOEXEC | MFdFlags::MFD_ALLOW_SEALING,

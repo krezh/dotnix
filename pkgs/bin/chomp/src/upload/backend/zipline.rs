@@ -86,7 +86,7 @@ impl UploadService for ZiplineUploader {
                 "x-zipline-original-name",
                 self.use_original_name.to_string(),
             )
-            .header("User-Agent", "gulp/1.0")
+            .header("User-Agent", "chomp/1.0")
             .multipart(form)
             .send()
             .context("Failed to send upload request")?;

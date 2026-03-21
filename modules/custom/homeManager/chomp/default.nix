@@ -7,17 +7,17 @@
       ...
     }:
     let
-      cfg = config.programs.gulp;
+      cfg = config.programs.chomp;
       jsonFormat = pkgs.formats.json { };
     in
     {
-      options.programs.gulp = {
-        enable = lib.mkEnableOption "gulp screenshot and screen recording tool";
+      options.programs.chomp = {
+        enable = lib.mkEnableOption "chomp screenshot and screen recording tool";
 
         package = lib.mkOption {
           type = lib.types.package;
-          default = pkgs.gulp;
-          description = "gulp derivation to use.";
+          default = pkgs.chomp;
+          description = "chomp derivation to use.";
         };
 
         font = lib.mkOption {
@@ -146,7 +146,7 @@
       config = lib.mkIf cfg.enable {
         home.packages = [ cfg.package ];
 
-        xdg.configFile."gulp/config.json".source = jsonFormat.generate "gulp-config.json" {
+        xdg.configFile."chomp/config.json".source = jsonFormat.generate "chomp-config.json" {
           font = {
             family = cfg.font.family;
             size = cfg.font.size;

@@ -6,7 +6,7 @@ in
     { config, ... }:
     {
       home-manager.users.${user} = {
-        programs.gulp = {
+        programs.chomp = {
           enable = true;
           font.family = "Rubik";
           border = {

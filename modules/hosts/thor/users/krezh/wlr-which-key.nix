@@ -37,28 +37,28 @@ in
             ];
             screenshot =
               let
-                gulpBin = "${lib.getExe pkgs.gulp}";
+                chompBin = "${lib.getExe pkgs.chomp}";
               in
               [
                 {
                   key = "s";
                   desc = "Screen (Fullscreen)";
-                  cmd = "${gulpBin} --mode image-screen --delay 100";
+                  cmd = "${chompBin} --mode image-screen --delay 100";
                 }
                 {
                   key = "w";
                   desc = "Window";
-                  cmd = "${gulpBin} --mode image-window --delay 100";
+                  cmd = "${chompBin} --mode image-window --delay 100";
                 }
                 {
                   key = "a";
                   desc = "Area";
-                  cmd = "${gulpBin} --mode image-area --delay 100";
+                  cmd = "${chompBin} --mode image-area --delay 100";
                 }
                 {
                   key = "c";
                   desc = "OCR";
-                  cmd = "${gulpBin} --ocr --delay 100";
+                  cmd = "${chompBin} --ocr";
                 }
                 {
                   key = "r";
@@ -67,17 +67,17 @@ in
                     {
                       key = "a";
                       desc = "Area";
-                      cmd = "${gulpBin} --mode video-area";
+                      cmd = "${chompBin} --mode video-area --delay 100";
                     }
                     {
                       key = "w";
                       desc = "Window";
-                      cmd = "${gulpBin} --mode video-window";
+                      cmd = "${chompBin} --mode video-window --delay 100";
                     }
                     {
                       key = "s";
                       desc = "Screen";
-                      cmd = "${gulpBin} --mode video-screen --delay 100";
+                      cmd = "${chompBin} --mode video-screen --delay 100";
                     }
                   ];
                 }

@@ -2,7 +2,7 @@
   pkgs ? import <nixpkgs> { },
 }:
 pkgs.mkShell {
-  name = "gulp";
+  name = "chomp";
 
   nativeBuildInputs = with pkgs; [
     pkg-config

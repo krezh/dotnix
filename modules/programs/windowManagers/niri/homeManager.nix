@@ -12,7 +12,7 @@
       launcherBin = "${pkgs.netcat}/bin/nc -U /run/user/$(id -u)/walker/walker.sock";
       shellBin = "${lib.getExe config.programs.noctalia-shell.package} ipc call";
       clipboardBin = "${lib.getExe config.programs.walker.package} -m clipboard";
-      gulpBin = "${lib.getExe pkgs.gulp} -t ${
+      chompBin = "${lib.getExe pkgs.chomp} -t ${
         config.sops.secrets."zipline/token".path
       } -u https://zipline.talos.plexuz.xyz";
 
@@ -462,14 +462,14 @@
           "Mod+Shift+R".action = actions."reset-window-height";
           "Mod+W".action = actions."switch-preset-column-width";
 
-          # Screenshots with gulp
-          "Mod+Shift+S".action = spawn "sh" "-c" "${gulpBin} --mode image-area";
-          "Print".action = spawn "sh" "-c" "${gulpBin} --mode image-screen";
-          "Alt+Print".action = spawn "sh" "-c" "${gulpBin} --mode image-window";
+          # Screenshots with chomp
+          "Mod+Shift+S".action = spawn "sh" "-c" "${chompBin} --mode image-area";
+          "Print".action = spawn "sh" "-c" "${chompBin} --mode image-screen";
+          "Alt+Print".action = spawn "sh" "-c" "${chompBin} --mode image-window";
 
-          # Screen recordings with gulp
-          "Shift+Alt+S".action = spawn "sh" "-c" "${gulpBin} --mode video-area";
-          "Shift+Print".action = spawn "sh" "-c" "${gulpBin} --mode video-screen";
+          # Screen recordings with chomp
+          "Shift+Alt+S".action = spawn "sh" "-c" "${chompBin} --mode video-area";
+          "Shift+Print".action = spawn "sh" "-c" "${chompBin} --mode video-screen";
 
           # Media Keys
           "XF86AudioRaiseVolume".action = spawn "wpctl" "set-volume" "@DEFAULT_AUDIO_SINK@" "5%+";
