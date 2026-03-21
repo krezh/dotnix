@@ -48,5 +48,11 @@
         enable = true;
         package = pkgs.rsrpc;
       };
+
+      systemd.user.services.arRPC = {
+        Unit = {
+          After = [ "network-online.target" ];
+        };
+      };
     };
 }
