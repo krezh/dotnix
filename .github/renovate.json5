@@ -30,7 +30,7 @@
       description: "Separate PRs for pkgs",
       matchFileNames: ["pkgs/**"],
       additionalBranchPrefix: "pkgs-",
-      prTitle: "{{{semanticCommitType}}}({{{manager}}}) [{{lookup (split packageFileDir '/') 2}}]: {{{commitMessageExtra}}} {{{commitMessageTopic}}}",
+      prTitle: "{{{semanticCommitType}}}({{{manager}}}) [{{lookup (split packageFileDir '/') 2}}]: {{{commitMessageAction}}} {{{commitMessageTopic}}} {{{commitMessageExtra}}}",
       automerge: true,
       automergeType: "pr",
       ignoreTests: false,
