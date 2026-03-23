@@ -62,11 +62,11 @@
     "cachyos-kernel": {
       "flake": false,
       "locked": {
-        "lastModified": 1774112313,
-        "narHash": "sha256-Wgpr9XN55jOT5PgpxbKWCnaNjjH0F9RygqG1fQ4DmWg=",
+        "lastModified": 1774160598,
+        "narHash": "sha256-ArPoVPHpXauFDGsz7nGBiXljj7keGcp/O4Pf4ZU4/30=",
         "owner": "CachyOS",
         "repo": "linux-cachyos",
-        "rev": "7be1be63b167f0cdf039b865b3852e73e5310374",
+        "rev": "1caa0b77871d4537f0d629a2ce30edb2f6178d19",
         "type": "github"
       },
       "original": {
@@ -541,10 +541,10 @@
         ]
       },
       "locked": {
-        "lastModified": 1774014134,
-        "narHash": "sha256-pQFcGGzvrMK1CueEZCXEwT5VT50iD0npePG6Ua5fAGw=",
+        "lastModified": 1774203070,
+        "narHash": "sha256-p4zSwyWFZQ34n4kJTGcdK8/7np34UmnUCSVTFCoX9aA=",
         "ref": "refs/heads/main",
-        "rev": "bb849d2bf033264032379dc31d7e1959dfe6f24e",
+        "rev": "5bf743f4e7019ebc22078e36f4df16448c84d6d3",
         "shallow": true,
         "type": "git",
         "url": "https://github.com/purpleclay/go-overlay"
@@ -600,10 +600,10 @@
         ]
       },
       "locked": {
-        "lastModified": 1774135471,
-        "narHash": "sha256-TVeIGOxnfSPM6JvkRkXHpJECnj1OG2dXkWMSA4elzzQ=",
+        "lastModified": 1774210133,
+        "narHash": "sha256-yeiWCY9aAUUJ3ebMVjs0UZXRnT5x90MCtpbpOWiXrvM=",
         "ref": "refs/heads/master",
-        "rev": "856b01ebd1de3f53c3929ce8082d9d67d799d816",
+        "rev": "c6fe2944ad9f2444b2d767c4a5edee7c166e8a95",
         "shallow": true,
         "type": "git",
         "url": "https://github.com/nix-community/home-manager"
@@ -807,10 +807,10 @@
         ]
       },
       "locked": {
-        "lastModified": 1774149162,
-        "narHash": "sha256-nEccD+VNmqMkDbTssNY01AKQ/T2yX0ZHj2QXOF/TIUQ=",
+        "lastModified": 1774190239,
+        "narHash": "sha256-j1CRpjQSAChzvkh+4P2WQpO7aJJn514ZpbQ03T1fk38=",
         "ref": "refs/heads/main",
-        "rev": "104fae2a6ddde32838b7b1dabaa77edbdb69378a",
+        "rev": "20277623694c39636c6d6cc709461931d0fe64d3",
         "shallow": true,
         "type": "git",
         "url": "https://github.com/numtide/nix-ai-tools"
@@ -832,10 +832,10 @@
         ]
       },
       "locked": {
-        "lastModified": 1774115689,
-        "narHash": "sha256-tclbyX/ww0/uDmxWfL2E1yHHEVjMfp+G5AOforlgmYc=",
+        "lastModified": 1774202167,
+        "narHash": "sha256-TMfXHEZWwOPTq7JljKEjSkdQ/JsBbP0aP9MgldCl82o=",
         "ref": "refs/heads/master",
-        "rev": "46d37ddfe759b09e722567d3a0d2c5d77017fddc",
+        "rev": "ac562b5d5a4b0ada9ea2ead715ed8f22b3d03449",
         "shallow": true,
         "type": "git",
         "url": "https://github.com/xddxdd/nix-cachyos-kernel"
@@ -1072,10 +1072,10 @@
         "noctalia-qs": "noctalia-qs"
       },
       "locked": {
-        "lastModified": 1774176156,
-        "narHash": "sha256-VUeJWuiyWo/4RB4MLqS0aR1HLrauUZodsn7AIyaraD8=",
+        "lastModified": 1774224618,
+        "narHash": "sha256-wRZxbldrDigfDtBPXiqiNbDXdgzCiF2HY6HWeBJqFDw=",
         "ref": "refs/heads/main",
-        "rev": "deadea5c16586575bb1dc98c63fc013055785eab",
+        "rev": "41bfe094181aa7f7c64c675a7cbca47f444eba2d",
         "shallow": true,
         "type": "git",
         "url": "https://github.com/noctalia-dev/noctalia-shell"
@@ -1121,10 +1121,10 @@
         "systems": "systems_7"
       },
       "locked": {
-        "lastModified": 1774134539,
-        "narHash": "sha256-VTbmIpAP4OlM76uwUUezfewBUsrfWk2l3H2QaTY6QLc=",
+        "lastModified": 1774224548,
+        "narHash": "sha256-g45WZAZHNc7wJBkK4IdB5dq0Bh0JE7G0gcY2H5DFi44=",
         "ref": "refs/heads/main",
-        "rev": "85ca579065a079ee9ee603339668c7c16b61c4f7",
+        "rev": "edfb73fa4ced576f587d259a70a513b4152f8cea",
         "shallow": true,
         "type": "git",
         "url": "https://github.com/notashelf/nvf"
