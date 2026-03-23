@@ -80,7 +80,7 @@ impl InstallDialog {
 
     /// Shows the dialog and returns the selected version and proxy DLL.
     pub async fn show<W: IsA<gtk4::Widget>>(self, parent: &W) -> Option<(Release, String)> {
-        let response = self.dialog.choose_future(parent).await;
+        let response = self.dialog.choose_future(Some(parent)).await;
 
         if response == "install" {
             let version_index = self.version_row.selected() as usize;

@@ -418,7 +418,7 @@ impl MainWindow {
         confirm_dialog.set_default_response(Some("cancel"));
         confirm_dialog.set_close_response("cancel");
 
-        let response = confirm_dialog.choose_future(window).await;
+        let response = confirm_dialog.choose_future(Some(window)).await;
 
         if response == "remove" {
             // Get game install path and executable path from tracked games
