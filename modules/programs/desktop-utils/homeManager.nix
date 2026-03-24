@@ -20,6 +20,7 @@
         gnome-bluetooth
         gnome-online-accounts-gtk
         gnome-disk-utility
+        baobab
         geary
         file-roller
         proton-pass

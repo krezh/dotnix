@@ -81,22 +81,20 @@
               "LS(*)"
               "Read(*)"
               "Search(*)"
+              "Web Search(*)"
               "Task(*)"
               "TodoWrite(*)"
 
-              # MCP servers (read-only)
-              "mcp__github"
+              # MCP servers
               "mcp__nixos"
-              "mcp__rust-analyzer"
-              "mcp__gopls"
-              "mcp__sequential-thinking"
-              "mcp__filesystem"
 
               # Safe web fetch from trusted domains
               "WebFetch(domain:wiki.hyprland.org)"
               "WebFetch(domain:wiki.hypr.land)"
               "WebFetch(domain:github.com)"
               "WebFetch(domain:raw.githubusercontent.com)"
+              "WebFetch(domain:raw.githubusercontent.com)"
+              "webFetch(domain:docs.renovatebot.com)"
 
               # NixOS build
               "Bash(nh os build:*)"
