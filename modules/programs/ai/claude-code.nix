@@ -94,7 +94,7 @@
               "WebFetch(domain:github.com)"
               "WebFetch(domain:raw.githubusercontent.com)"
               "WebFetch(domain:raw.githubusercontent.com)"
-              "webFetch(domain:docs.renovatebot.com)"
+              "WebFetch(domain:docs.renovatebot.com)"
 
               # NixOS build
               "Bash(nh os build:*)"

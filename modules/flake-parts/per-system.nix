@@ -1,9 +1,4 @@
-# Configures per-system Nix package environments and custom packages
-{
-  inputs,
-  lib,
-  ...
-}:
+{ inputs, lib, ... }:
 {
   perSystem =
     {
@@ -13,14 +8,11 @@
       ...
     }:
     {
-      # Provides the nixpkgs package set with system-specific overlays applied
       # needed by gomod2nix
       _module.args.pkgs = import inputs.nixpkgs {
         inherit system;
-        overlays = builtins.attrValues (import (lib.relativeToRoot "overlays") { inherit inputs lib; });
+        overlays = [ inputs.self.overlays.default ];
       };
-
-      # Automatically discovers all packages from the pkgs directory
       packages =
         (lib.scanPath.toAttrs {
           basePath = lib.relativeToRoot "pkgs";
@@ -28,8 +20,7 @@
           useBaseName = true;
         })
         // {
-          # Expose treefmt wrapper to prevent GC
-          treefmt = config.treefmt.build.wrapper;
+          treefmt = config.treefmt.build.wrapper; # Expose treefmt wrapper to prevent GC
         };
     };
 }

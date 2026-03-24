@@ -1,7 +1,4 @@
-{
-  inputs,
-  ...
-}:
+{ inputs, lib, ... }:
 let
   imageConfigs = {
     livecd = {
@@ -11,7 +8,7 @@ let
         inherit inputs;
       };
       modules = [
-        ../../../images/livecd.nix
+        (lib.relativeToRoot "images/livecd.nix")
       ];
     };
   };

@@ -1,8 +1,4 @@
-{
-  self,
-  lib,
-  ...
-}:
+{ self, lib, ... }:
 let
   mapToGha =
     system:
@@ -19,8 +15,6 @@ in
     hosts = lib.mapAttrs (_name: config: config.config.system.build.toplevel) (
       lib.filterAttrs (_name: config: (config.ci or true)) self.nixosConfigurations
     );
-
-    om.ci.default.root.dir = ".";
     ghMatrix = {
       include = lib.mapAttrsToList (host: config: {
         inherit host;

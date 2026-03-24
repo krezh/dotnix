@@ -229,8 +229,6 @@ _: {
             use_active_for_splits = true;
           };
 
-          debug.damage_tracking = 2;
-
           animations = {
             enabled = true;
             bezier = [

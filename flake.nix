@@ -2,12 +2,12 @@
   description = "Krezh's NixOS Flake";
   nixConfig = {
     extra-trusted-substituters = [
-      "https://nix-cache.plexuz.xyz/krezh"
+      #"https://nix-cache.plexuz.xyz/krezh"
       "https://nix-community.cachix.org"
       "https://niri.cachix.org"
     ];
     extra-trusted-public-keys = [
-      "krezh:OSZunB+pbfdR7owWUrumhzzZ2kmCzJEevS345CNtjUQ="
+      #"krezh:OSZunB+pbfdR7owWUrumhzzZ2kmCzJEevS345CNtjUQ="
       "nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs="
       "niri.cachix.org-1:Wv0OmO7PsuocRKzfDoJ3mulSl7Z6oezYhGhR+3W2964="
     ];
