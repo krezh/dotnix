@@ -98,10 +98,10 @@ fast-build-pr pr:
 
 # Build all hosts
 [no-cd]
-fast-build:
+fast-build args:
     #!/usr/bin/env bash
     set -euo pipefail
-    nix run "nixpkgs#nix-fast-build" -- --skip-cached --flake ".#hosts"
+    nix run "nixpkgs#nix-fast-build" -- --skip-cached --flake ".#hosts" {{ args }}
 
 # Initialize a new nix package
 [no-cd]

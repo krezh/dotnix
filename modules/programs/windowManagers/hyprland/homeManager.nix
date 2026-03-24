@@ -387,7 +387,7 @@ _: {
             "${mainMod},M,Mail Client,exec,${mail.run}"
             # "${mainMod},TAB,Toggle workspace overview, hyprexpo:expo, toggle"
             "${mainModShift},R, Reload Hyprland config,exec,hyprctl reload && notify-send -u low 'Hyprland' 'Config Reloaded'"
-            "${mainMod},F3,Toggle between audio devices,exec,audio-switch toggle"
+            "${mainMod},A,Toggle between audio devices,exec,audio-switch toggle"
             "${mainMod},S,Screenshot menu,exec,${screenshot.run}"
             "${mainMod},Q,Close active window,killactive"
             "${mainMod},C,Toggle floating mode,togglefloating"
