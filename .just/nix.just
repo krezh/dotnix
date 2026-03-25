@@ -94,14 +94,15 @@ fast-build-pr pr:
     #!/usr/bin/env bash
     set -euo pipefail
     nix run nixpkgs#nix-fast-build -- \
-      --skip-cached --flake "github:krezh/nix-config/pull/{{ pr }}/head#hosts"
+      --skip-cached --option fallback true --flake "github:krezh/nix-config/pull/{{ pr }}/head#hosts"
 
 # Build all hosts
 [no-cd]
 fast-build args:
     #!/usr/bin/env bash
     set -euo pipefail
-    nix run "nixpkgs#nix-fast-build" -- --skip-cached --flake ".#hosts" {{ args }}
+    nix run nixpkgs#nix-fast-build -- \
+      --skip-cached --option fallback true --flake ".#hosts" {{ args }}
 
 # Initialize a new nix package
 [no-cd]
@@ -111,5 +112,5 @@ init package:
     nix-init pkgs/bin/{{ package }}/default.nix
 
 roots:
-  #!/usr/bin/env bash
-  nix-store --gc --print-roots
+    #!/usr/bin/env bash
+    nix-store --gc --print-roots

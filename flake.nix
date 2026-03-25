@@ -7,7 +7,7 @@
       "https://niri.cachix.org"
     ];
     extra-trusted-public-keys = [
-      "krezh:OSZunB+pbfdR7owWUrumhzzZ2kmCzJEevS345CNtjUQ="
+      "krezh:f7qFtNU9qKZkMgoGgBRetTHfoDPyHBc+VfFN3fRqJH8="
       "nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs="
       "niri.cachix.org-1:Wv0OmO7PsuocRKzfDoJ3mulSl7Z6oezYhGhR+3W2964="
     ];
@@ -16,8 +16,12 @@
   inputs = {
     nixpkgs.url = "git+https://github.com/NixOS/nixpkgs?ref=nixos-unstable&shallow=1";
     hardware.url = "git+https://github.com/nixos/nixos-hardware?shallow=1";
-    nix-cachyos-kernel.url = "git+https://github.com/xddxdd/nix-cachyos-kernel?shallow=1";
-    nix-cachyos-kernel.inputs.nixpkgs.follows = "nixpkgs";
+    nix-cachyos-kernel = {
+      url = "git+https://github.com/xddxdd/nix-cachyos-kernel?shallow=1";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
+    flake-parts.url = "git+https://github.com/hercules-ci/flake-parts?shallow=1";
 
     lanzaboote = {
       url = "github:nix-community/lanzaboote/v1.0.0";
@@ -28,8 +32,6 @@
       url = "git+https://github.com/nix-community/home-manager?shallow=1";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-
-    flake-parts.url = "git+https://github.com/hercules-ci/flake-parts?shallow=1";
 
     devshell = {
       url = "git+https://github.com/numtide/devshell?shallow=1";
@@ -126,8 +128,10 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    nix4vscode.url = "git+https://github.com/nix-community/nix4vscode?shallow=1";
-    nix4vscode.inputs.nixpkgs.follows = "nixpkgs";
+    nix4vscode = {
+      url = "git+https://github.com/nix-community/nix4vscode?shallow=1";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
 
     silentSDDM = {
       url = "git+https://github.com/uiriansan/SilentSDDM?shallow=1";
