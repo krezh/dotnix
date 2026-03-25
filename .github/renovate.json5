@@ -29,7 +29,7 @@
     {
       description: "Separate PRs for pkgs",
       matchFileNames: ["pkgs/**"],
-      additionalBranchPrefix: "pkgs-",
+      additionalBranchPrefix: "pkgs-{{lookup (split packageFileDir '/') 2}}",
       commitMessagePrefix: "{{{semanticCommitType}}}({{{manager}}}) [{{lookup (split packageFileDir '/') 2}}]:",
       automerge: true,
       automergeType: "pr",
