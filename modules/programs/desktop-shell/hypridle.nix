@@ -1,10 +1,6 @@
 {
   flake.modules.homeManager.desktop-shell =
-    {
-      config,
-      lib,
-      ...
-    }:
+    { config, lib, ... }:
     let
       hyprlock = lib.getExe config.programs.hyprlock.package;
     in

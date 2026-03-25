@@ -1,10 +1,6 @@
 {
   flake.modules.homeManager.gtk-theme =
-    {
-      pkgs,
-      config,
-      ...
-    }:
+    { pkgs, config, ... }:
     {
       home.pointerCursor = {
         gtk.enable = true;
@@ -23,6 +19,7 @@
 
       gtk = {
         enable = true;
+        gtk4.theme = config.gtk.theme;
         font = {
           name = config.var.fonts.sans;
           size = 11.5;

@@ -4,11 +4,7 @@ let
 in
 {
   flake.modules.nixos.odin =
-    {
-      pkgs,
-      lib,
-      ...
-    }:
+    { pkgs, lib, ... }:
     {
       home-manager.users.${user} = {
         imports = with inputs.self.modules.homeManager; [

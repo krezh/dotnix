@@ -69,9 +69,6 @@
           exports = ''
             /mnt/tank/ipxe *(sec=sys,rw,anonuid=0,anongid=0,all_squash,insecure,no_subtree_check)
             /mnt/tank/media 10.10.0.0/27(sec=sys,rw,anonuid=0,anongid=0,all_squash,insecure,no_subtree_check)
-            /mnt/tank/k8s 10.10.0.0/27(sec=sys,rw,anonuid=0,anongid=0,all_squash,insecure,no_subtree_check)
-            /mnt/tank/volsync 10.10.0.0/27(sec=sys,rw,anonuid=0,anongid=0,all_squash,insecure,no_subtree_check)
-            /mnt/tank/crunchy-postgres 10.10.0.0/27(sec=sys,rw,insecure,no_subtree_check)
             /mnt/tank/kopia *(sec=sys,rw,anonuid=0,anongid=0,all_squash,insecure,no_subtree_check)
           '';
         };

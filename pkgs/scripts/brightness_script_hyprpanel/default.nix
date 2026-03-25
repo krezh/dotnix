@@ -1,8 +1,4 @@
-{
-  writeShellApplication,
-  brightnessctl,
-  ...
-}:
+{ writeShellApplication, brightnessctl, ... }:
 writeShellApplication {
   name = "brightness_script_hyprpanel";
 

@@ -1,8 +1,4 @@
-{
-  pkgs,
-  go-bin,
-  ...
-}:
+{ pkgs, go-bin, ... }:
 pkgs.buildGoApplication rec {
   pname = "k8s-format";
   version = "0.0.0";

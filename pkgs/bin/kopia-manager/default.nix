@@ -1,8 +1,4 @@
-{
-  pkgs,
-  go-bin,
-  ...
-}:
+{ pkgs, go-bin, ... }:
 pkgs.buildGoApplication rec {
   pname = "km";
   version = "0.1.0";
