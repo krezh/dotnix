@@ -62,11 +62,11 @@
     "cachyos-kernel": {
       "flake": false,
       "locked": {
-        "lastModified": 1774160598,
-        "narHash": "sha256-ArPoVPHpXauFDGsz7nGBiXljj7keGcp/O4Pf4ZU4/30=",
+        "lastModified": 1774373890,
+        "narHash": "sha256-dMDY9gN3HOjRAU04Ma82JufxsABO/AZ3Dge1X7ekoPY=",
         "owner": "CachyOS",
         "repo": "linux-cachyos",
-        "rev": "1caa0b77871d4537f0d629a2ce30edb2f6178d19",
+        "rev": "0bf8e79bccecc331aaba0069b95a3bc47a6e075d",
         "type": "github"
       },
       "original": {
@@ -600,10 +600,10 @@
         ]
       },
       "locked": {
-        "lastModified": 1774368172,
-        "narHash": "sha256-Vdfo8+2SQhgc7i+TCIkBXzypQCFAvNrWvhUkZQtFGKE=",
+        "lastModified": 1774379316,
+        "narHash": "sha256-0nGNxWDUH2Hzlj/R3Zf4FEK6fsFNB/dvewuboSRZqiI=",
         "ref": "refs/heads/master",
-        "rev": "5068d0b03e8b2cfae58441775aa849b7028a3d39",
+        "rev": "1eb0549a1ab3fe3f5acf86668249be15fa0e64f7",
         "shallow": true,
         "type": "git",
         "url": "https://github.com/nix-community/home-manager"
@@ -807,10 +807,10 @@
         ]
       },
       "locked": {
-        "lastModified": 1774365699,
-        "narHash": "sha256-21NlHCjd8kA6fD1gec43BKMcFGwRABTkUHJNs9eOx+M=",
+        "lastModified": 1774392031,
+        "narHash": "sha256-WJGB0bKHPiDyQlIMOkOgNCSJ4MaZfji+hwmhg88plIM=",
         "ref": "refs/heads/main",
-        "rev": "3b7caac99cca84bc0e7f05758e5d52f46fd3c244",
+        "rev": "b5623a6406c3ecbd25fad79a655eae545f08023a",
         "shallow": true,
         "type": "git",
         "url": "https://github.com/numtide/nix-ai-tools"
@@ -832,10 +832,10 @@
         ]
       },
       "locked": {
-        "lastModified": 1774290535,
-        "narHash": "sha256-dnFbucSiAjjWmPENgyIiK/ocCuYSp4sM6Sq4WCVjG+8=",
+        "lastModified": 1774377295,
+        "narHash": "sha256-iM6fp6vHi5G8oLAWEOgV+I4e40JMoxKS/eE06+YY5T0=",
         "ref": "refs/heads/master",
-        "rev": "c0fcdf5cab21b7e3157e84046b57407a60934415",
+        "rev": "c137ed38d662234118b71f0afb97a00000ca05e6",
         "shallow": true,
         "type": "git",
         "url": "https://github.com/xddxdd/nix-cachyos-kernel"
@@ -1072,10 +1072,10 @@
         "noctalia-qs": "noctalia-qs"
       },
       "locked": {
-        "lastModified": 1774367351,
-        "narHash": "sha256-I229K+FstIQyRRY9KTRrNM243nAaPgZ5mTv55/d7hpE=",
+        "lastModified": 1774396428,
+        "narHash": "sha256-PvWLG8D0dEXvIk4JnfbWipWJL5MP0Ne2fQf1uJyldKE=",
         "ref": "refs/heads/main",
-        "rev": "b6d2599f895512362a3fff653404433d408ab425",
+        "rev": "7022fb9d2081829beb4170497735d7b39c104712",
         "shallow": true,
         "type": "git",
         "url": "https://github.com/noctalia-dev/noctalia-shell"
@@ -1121,10 +1121,10 @@
         "systems": "systems_7"
       },
       "locked": {
-        "lastModified": 1774366947,
-        "narHash": "sha256-IvYyAFW5jnXuTzl323kHNYcgIKiTxuuYNeS2QodR6LQ=",
+        "lastModified": 1774375131,
+        "narHash": "sha256-d22VIgsDXagQQWnAnebYeQWGHlmF81YRwuGCzAgNZAQ=",
         "ref": "refs/heads/main",
-        "rev": "c4d49801ebfe286025fc5b63543f71836ed95add",
+        "rev": "d847d401bea4dcb1478d02a61a3209fa8512f71d",
         "shallow": true,
         "type": "git",
         "url": "https://github.com/notashelf/nvf"
