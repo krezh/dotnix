@@ -1,11 +1,7 @@
 { inputs, ... }:
 {
   flake.modules.homeManager.launchers =
-    {
-      pkgs,
-      config,
-      ...
-    }:
+    { pkgs, config, ... }:
     {
       imports = [ inputs.walker.homeManagerModules.default ];
 

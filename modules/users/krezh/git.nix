@@ -10,6 +10,7 @@
       programs = {
         git = {
           enable = true;
+          signing.format = "ssh";
           includes = [
             {
               condition = "hasconfig:remote.*.url:ssh://git@codeberg.org/**";
@@ -30,13 +31,11 @@
             pull.rebase = true;
             rebase.autoStash = true;
             push.autoSetupRemote = true;
-            gpg.format = "ssh";
             format.signoff = true;
             status.submoduleSummary = false;
             tag.forceSignAnnotated = true;
             init.defaultBranch = "main";
-            url."ssh://git@ssh.github.com:443/".InsteadOf = "https://github.com/";
-            url."ssh://git@ssh.github.com:443/".insteadOf = "git@github.com:";
+            url."ssh://git@github.com/".insteadOf = "https://github.com/";
             merge.tool = lib.getExe pkgs.meld;
           };
         };
@@ -46,7 +45,6 @@
 
       home.packages = [
         pkgs.meld
-        pkgs.git
       ];
     };
 }

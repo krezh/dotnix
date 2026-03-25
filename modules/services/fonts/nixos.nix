@@ -1,10 +1,6 @@
 {
   flake.modules.nixos.fonts =
-    {
-      config,
-      pkgs,
-      ...
-    }:
+    { config, pkgs, ... }:
     {
       environment = {
         sessionVariables = {
