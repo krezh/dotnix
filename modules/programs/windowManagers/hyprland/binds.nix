@@ -62,7 +62,7 @@
             "CTRL SHIFT,ESCAPE,System Monitor,exec,[float] ${sysMonitor.run}"
             "${mainMod},V,Clipboard Manager,exec,${clipboardMgr.run}"
             "${mainMod},K,Show keybinds,exec,${keybinds.run}"
-            "${mainMod},G,Audio Control,exec,[float] ${term.toggle audioControl.name audioControl.run}"
+            "${mainMod},G,Audio Control,exec,[float] ${audioControl.run}"
             "${mainMod},M,Mail Client,exec,${mail.run}"
             # "${mainMod},TAB,Toggle workspace overview, hyprexpo:expo, toggle"
             "${mainModShift},R, Reload Hyprland config,exec,hyprctl reload && notify-send -u low 'Hyprland' 'Config Reloaded'"
