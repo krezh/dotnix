@@ -3,8 +3,8 @@ package templates
 import (
 	"fmt"
 
-	g "github.com/maragudk/gomponents"
-	"github.com/maragudk/gomponents/html"
+	g "maragu.dev/gomponents"
+	"maragu.dev/gomponents/html"
 
 	"github.com/krezh/nixos-webgui/system"
 )

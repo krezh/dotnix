@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/maragudk/gomponents/html"
+	"maragu.dev/gomponents/html"
 
 	"github.com/krezh/nixos-webgui/system"
 	"github.com/krezh/nixos-webgui/templates"

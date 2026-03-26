@@ -5,7 +5,7 @@ import (
 	"log"
 	"net/http"
 
-	g "github.com/maragudk/gomponents"
+	g "maragu.dev/gomponents"
 	"github.com/krezh/nixos-webgui/system"
 )
 
