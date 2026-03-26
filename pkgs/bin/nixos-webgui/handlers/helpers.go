@@ -5,8 +5,8 @@ import (
 	"log"
 	"net/http"
 
-	g "maragu.dev/gomponents"
 	"github.com/krezh/nixos-webgui/system"
+	g "maragu.dev/gomponents"
 )
 
 // setSSEHeaders sets the required headers for a Server-Sent Events response.
