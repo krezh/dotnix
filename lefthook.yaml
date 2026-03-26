@@ -6,3 +6,6 @@ pre-commit:
     "Nix Format":
       run: nix fmt {staged_files}
       stage_fixed: true
+    "Govendor":
+      run: govendor $(fd go.mod)
+      stage_fixed: true

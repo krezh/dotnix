@@ -3,7 +3,7 @@ package templates
 import (
 	"strings"
 
-	g "github.com/maragudk/gomponents"
+	g "maragu.dev/gomponents"
 )
 
 // HxPost creates an hx-post attribute for HTMX POST requests.
