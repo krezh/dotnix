@@ -23,7 +23,6 @@ buildGoApplication rec {
   modules = "${src}/govendor.toml";
 
   nativeBuildInputs = [
-    pkgs.templ
     pkgs.nodejs
     pkgs.tailwindcss
   ];
@@ -32,10 +31,6 @@ buildGoApplication rec {
     # Vendor htmx — fetched from nix store, no network at build time
     mkdir -p ./static/js
     cp ${htmx} ./static/js/htmx.min.js
-
-    # Generate Go code from Templ templates
-    echo "Generating templates..."
-    templ generate
 
     # Build Tailwind CSS
     echo "Building Tailwind CSS..."

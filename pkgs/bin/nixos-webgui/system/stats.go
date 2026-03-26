@@ -887,19 +887,31 @@ func getNVIDIAGPUs() []GPUStats {
 }
 
 // getVulkanGPUNames retrieves GPU names from vulkaninfo.
-func getVulkanGPUNames() []string {
-	var names []string
+func getVulkanGPUNames() map[string]string {
+	namesByDeviceID := make(map[string]string)
 
 	cmd := exec.Command("vulkaninfo")
 	output, err := cmd.Output()
 	if err != nil {
-		return names
+		return namesByDeviceID
 	}
 
 	scanner := bufio.NewScanner(strings.NewReader(string(output)))
+	var currentDeviceID string
 	for scanner.Scan() {
 		line := scanner.Text()
-		if strings.Contains(line, "deviceName") && strings.Contains(line, "=") {
+		// Parse deviceID (hex format: 0x7550)
+		if strings.Contains(line, "deviceID") && strings.Contains(line, "=") {
+			parts := strings.SplitN(line, "=", 2)
+			if len(parts) == 2 {
+				deviceID := strings.TrimSpace(parts[1])
+				// Remove 0x prefix and convert to uppercase for matching
+				deviceID = strings.TrimPrefix(deviceID, "0x")
+				currentDeviceID = strings.ToUpper(deviceID)
+			}
+		}
+		// Parse deviceName and associate with current deviceID
+		if strings.Contains(line, "deviceName") && strings.Contains(line, "=") && currentDeviceID != "" {
 			parts := strings.SplitN(line, "=", 2)
 			if len(parts) == 2 {
 				name := strings.TrimSpace(parts[1])
@@ -907,17 +919,17 @@ func getVulkanGPUNames() []string {
 					name = strings.TrimSpace(name[:idx])
 				}
 				if !strings.Contains(name, "llvmpipe") {
-					names = append(names, name)
+					namesByDeviceID[currentDeviceID] = name
 				}
 			}
 		}
 	}
 
-	return names
+	return namesByDeviceID
 }
 
 var (
-	vulkanGPUNamesCache []string
+	vulkanGPUNamesCache map[string]string
 	vulkanGPUNamesDone  bool
 )
 
@@ -928,9 +940,8 @@ func getAMDGPUs() []GPUStats {
 		vulkanGPUNamesCache = getVulkanGPUNames()
 		vulkanGPUNamesDone = true
 	}
-	gpuNames := vulkanGPUNamesCache
+	gpuNamesByID := vulkanGPUNamesCache
 
-	gpuIndex := 0
 	for cardNum := 0; cardNum < 4; cardNum++ {
 		basePath := fmt.Sprintf("/sys/class/drm/card%d/device", cardNum)
 
@@ -940,12 +951,21 @@ func getAMDGPUs() []GPUStats {
 
 		gpu := GPUStats{}
 
-		if gpuIndex < len(gpuNames) {
-			gpu.Name = gpuNames[gpuIndex]
+		// Read device ID from sysfs and match to Vulkan GPU name
+		if data, err := os.ReadFile(basePath + "/device"); err == nil {
+			deviceID := strings.TrimSpace(string(data))
+			// Remove 0x prefix and convert to uppercase
+			deviceID = strings.TrimPrefix(deviceID, "0x")
+			deviceID = strings.ToUpper(deviceID)
+
+			if name, ok := gpuNamesByID[deviceID]; ok {
+				gpu.Name = name
+			} else {
+				gpu.Name = fmt.Sprintf("AMD GPU (card%d)", cardNum)
+			}
 		} else {
 			gpu.Name = fmt.Sprintf("AMD GPU (card%d)", cardNum)
 		}
-		gpuIndex++
 
 		if data, err := os.ReadFile(basePath + "/gpu_busy_percent"); err == nil {
 			if val, err := strconv.ParseFloat(strings.TrimSpace(string(data)), 64); err == nil {

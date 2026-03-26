@@ -41,7 +41,12 @@ func HandleServices(w http.ResponseWriter, r *http.Request) {
 func HandleServiceStart(w http.ResponseWriter, r *http.Request) {
 	serviceName := normalizeServiceName(chi.URLParam(r, "name"))
 
-	if err := system.StartService(serviceName); err != nil {
+	sudoPassword, ok := parseSudoPassword(w, r)
+	if !ok {
+		return
+	}
+
+	if err := system.StartServiceWithSudo(serviceName, sudoPassword); err != nil {
 		log.Printf("Error starting service %s: %v", serviceName, err)
 		http.Error(w, "Failed to start service", http.StatusInternalServerError)
 		return
@@ -55,7 +60,12 @@ func HandleServiceStart(w http.ResponseWriter, r *http.Request) {
 func HandleServiceStop(w http.ResponseWriter, r *http.Request) {
 	serviceName := normalizeServiceName(chi.URLParam(r, "name"))
 
-	if err := system.StopService(serviceName); err != nil {
+	sudoPassword, ok := parseSudoPassword(w, r)
+	if !ok {
+		return
+	}
+
+	if err := system.StopServiceWithSudo(serviceName, sudoPassword); err != nil {
 		log.Printf("Error stopping service %s: %v", serviceName, err)
 		http.Error(w, "Failed to stop service", http.StatusInternalServerError)
 		return
@@ -69,7 +79,12 @@ func HandleServiceStop(w http.ResponseWriter, r *http.Request) {
 func HandleServiceRestart(w http.ResponseWriter, r *http.Request) {
 	serviceName := normalizeServiceName(chi.URLParam(r, "name"))
 
-	if err := system.RestartService(serviceName); err != nil {
+	sudoPassword, ok := parseSudoPassword(w, r)
+	if !ok {
+		return
+	}
+
+	if err := system.RestartServiceWithSudo(serviceName, sudoPassword); err != nil {
 		log.Printf("Error restarting service %s: %v", serviceName, err)
 		http.Error(w, "Failed to restart service", http.StatusInternalServerError)
 		return

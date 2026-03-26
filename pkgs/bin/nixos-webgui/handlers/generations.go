@@ -19,7 +19,7 @@ func HandleGenerations(w http.ResponseWriter, r *http.Request) {
 	}
 
 	component := templates.Generations(generations)
-	if err := component.Render(r.Context(), w); err != nil {
+	if err := component.Render(w); err != nil {
 		log.Printf("Error rendering generations: %v", err)
 		http.Error(w, "Failed to render page", http.StatusInternalServerError)
 	}

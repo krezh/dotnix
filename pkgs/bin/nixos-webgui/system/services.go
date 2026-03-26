@@ -64,6 +64,9 @@ func GetServices(filter string) ([]Service, error) {
 			continue
 		}
 
+		status := parseServiceStatus(fields[2])
+		running := fields[3] == "running"
+
 		// Apply filter
 		if filter != "" && filter != "all" {
 			activeState := strings.ToLower(fields[2])
@@ -73,10 +76,13 @@ func GetServices(filter string) ([]Service, error) {
 			if filter == "failed" && activeState != "failed" {
 				continue
 			}
+			if filter == "running" && !running {
+				continue
+			}
+			if filter == "stopped" && running {
+				continue
+			}
 		}
-
-		status := parseServiceStatus(fields[2])
-		running := fields[3] == "running"
 
 		// Get description (rest of the line after first 4 fields)
 		description := ""
@@ -202,6 +208,87 @@ func RestartService(serviceName string) error {
 
 	cmd := exec.Command("systemctl", "restart", serviceName)
 	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("failed to restart service: %w", err)
+	}
+	return nil
+}
+
+// StartServiceWithSudo starts a systemd service using sudo with the provided password.
+func StartServiceWithSudo(serviceName string, sudoPassword string) error {
+	if !isValidServiceName(serviceName) {
+		return fmt.Errorf("invalid service name: %s", serviceName)
+	}
+
+	cmd := exec.Command("sudo", "-S", "systemctl", "start", serviceName)
+	stdin, err := cmd.StdinPipe()
+	if err != nil {
+		return fmt.Errorf("failed to get stdin pipe: %w", err)
+	}
+
+	if err := cmd.Start(); err != nil {
+		return fmt.Errorf("failed to start command: %w", err)
+	}
+
+	if _, err := stdin.Write([]byte(sudoPassword + "\n")); err != nil {
+		return fmt.Errorf("failed to write password: %w", err)
+	}
+	stdin.Close()
+
+	if err := cmd.Wait(); err != nil {
+		return fmt.Errorf("failed to start service: %w", err)
+	}
+	return nil
+}
+
+// StopServiceWithSudo stops a systemd service using sudo with the provided password.
+func StopServiceWithSudo(serviceName string, sudoPassword string) error {
+	if !isValidServiceName(serviceName) {
+		return fmt.Errorf("invalid service name: %s", serviceName)
+	}
+
+	cmd := exec.Command("sudo", "-S", "systemctl", "stop", serviceName)
+	stdin, err := cmd.StdinPipe()
+	if err != nil {
+		return fmt.Errorf("failed to get stdin pipe: %w", err)
+	}
+
+	if err := cmd.Start(); err != nil {
+		return fmt.Errorf("failed to start command: %w", err)
+	}
+
+	if _, err := stdin.Write([]byte(sudoPassword + "\n")); err != nil {
+		return fmt.Errorf("failed to write password: %w", err)
+	}
+	stdin.Close()
+
+	if err := cmd.Wait(); err != nil {
+		return fmt.Errorf("failed to stop service: %w", err)
+	}
+	return nil
+}
+
+// RestartServiceWithSudo restarts a systemd service using sudo with the provided password.
+func RestartServiceWithSudo(serviceName string, sudoPassword string) error {
+	if !isValidServiceName(serviceName) {
+		return fmt.Errorf("invalid service name: %s", serviceName)
+	}
+
+	cmd := exec.Command("sudo", "-S", "systemctl", "restart", serviceName)
+	stdin, err := cmd.StdinPipe()
+	if err != nil {
+		return fmt.Errorf("failed to get stdin pipe: %w", err)
+	}
+
+	if err := cmd.Start(); err != nil {
+		return fmt.Errorf("failed to start command: %w", err)
+	}
+
+	if _, err := stdin.Write([]byte(sudoPassword + "\n")); err != nil {
+		return fmt.Errorf("failed to write password: %w", err)
+	}
+	stdin.Close()
+
+	if err := cmd.Wait(); err != nil {
 		return fmt.Errorf("failed to restart service: %w", err)
 	}
 	return nil
