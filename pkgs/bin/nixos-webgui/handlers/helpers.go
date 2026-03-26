@@ -5,7 +5,7 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/a-h/templ"
+	g "github.com/maragudk/gomponents"
 	"github.com/krezh/nixos-webgui/system"
 )
 
@@ -29,11 +29,11 @@ func sendSSEConnected(w http.ResponseWriter) http.Flusher {
 	return flusher
 }
 
-// renderComponent executes the templ component and writes the result to the HTTP response.
+// renderComponent executes the gomponents component and writes the result to the HTTP response.
 //
 // Sends a 500 error if rendering fails.
-func renderComponent(w http.ResponseWriter, r *http.Request, component templ.Component) {
-	if err := component.Render(r.Context(), w); err != nil {
+func renderComponent(w http.ResponseWriter, r *http.Request, component g.Node) {
+	if err := component.Render(w); err != nil {
 		log.Printf("Error rendering component: %v", err)
 		http.Error(w, "Failed to render page", http.StatusInternalServerError)
 	}

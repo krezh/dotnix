@@ -9,6 +9,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/maragudk/gomponents/html"
+
 	"github.com/krezh/nixos-webgui/system"
 	"github.com/krezh/nixos-webgui/templates"
 )
@@ -302,11 +304,13 @@ func buildSSEHTML(stats *dashboardStats) []byte {
 	buf.Reset()
 	defer renderBufPool.Put(buf)
 
-	component := templates.StatsGrid(
-		stats.CPU, stats.CPUHistory, stats.Mem, stats.Disks,
-		stats.Load, stats.GPUs, stats.Network, stats.Temperatures, stats.TopProcesses,
+	component := html.Div(
+		templates.StatsGrid(
+			stats.CPU, stats.CPUHistory, stats.Mem, stats.Disks,
+			stats.Load, stats.GPUs, stats.Network, stats.Temperatures, stats.TopProcesses,
+		),
 	)
-	if err := component.Render(backgroundCtx, buf); err != nil {
+	if err := component.Render(buf); err != nil {
 		log.Printf("Error pre-rendering SSE HTML: %v", err)
 		return nil
 	}
@@ -443,7 +447,7 @@ func HandleDashboard(w http.ResponseWriter, r *http.Request) {
 	}
 
 	component := templates.Dashboard(stats.Info, stats.CPU, stats.CPUHistory, stats.Mem, stats.Disks, stats.Load, stats.GPUs, stats.Network, stats.Temperatures, stats.TopProcesses)
-	if err := component.Render(r.Context(), w); err != nil {
+	if err := component.Render(w); err != nil {
 		log.Printf("Error rendering dashboard: %v", err)
 		http.Error(w, "Failed to render page", http.StatusInternalServerError)
 	}
