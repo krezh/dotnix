@@ -4,8 +4,8 @@ import (
 	"io"
 	"os"
 
-	g "github.com/maragudk/gomponents"
-	"github.com/maragudk/gomponents/html"
+	g "maragu.dev/gomponents"
+	"maragu.dev/gomponents/html"
 )
 
 // doctype is a custom node that renders DOCTYPE + html element
