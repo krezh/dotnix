@@ -177,10 +177,10 @@
         "systems": "systems"
       },
       "locked": {
-        "lastModified": 1773079031,
-        "narHash": "sha256-RvCzINnVISBT3d0F1DoIcQFbQsbRJISW9qZeKTzmNaA=",
+        "lastModified": 1774640361,
+        "narHash": "sha256-5PLTPbnbtK0iDbsB9yFeHr5y/pv6/XzoVm/CDeXXt/c=",
         "ref": "refs/heads/master",
-        "rev": "53afe39cef252010f7c55bd33c5bae6dd50dcf0c",
+        "rev": "d30652147d8e16ebc849b779b8ef495a894b0dd4",
         "shallow": true,
         "type": "git",
         "url": "https://github.com/abenz1267/elephant"
@@ -541,10 +541,10 @@
         ]
       },
       "locked": {
-        "lastModified": 1774590811,
-        "narHash": "sha256-1LlU0UzhbcHKCQn0vLYYxKzNkItxwgldBT6ZXCac750=",
+        "lastModified": 1774628456,
+        "narHash": "sha256-TpTlbkt9pL36dQzWXxFGl/hQJ6zQFQk/kw3deHEYTP0=",
         "ref": "refs/heads/main",
-        "rev": "36633c7f6a2ee685b45751b194d06b39e99afe1d",
+        "rev": "cd09fe088c127ce2b65dfa27a3c3f5bc9c8771c3",
         "shallow": true,
         "type": "git",
         "url": "https://github.com/purpleclay/go-overlay"
@@ -600,10 +600,10 @@
         ]
       },
       "locked": {
-        "lastModified": 1774622476,
-        "narHash": "sha256-lhx5jiMYRaBAkH5MmkWQ+VQjXGjeKIJqnvsPWa9fn40=",
+        "lastModified": 1774647770,
+        "narHash": "sha256-UNNi14XiqRWWjO8ykbFwA5wRwx7EscsC+GItOVpuGjc=",
         "ref": "refs/heads/master",
-        "rev": "accd450fcdbb1e1018cd8701b4980b36d57f28f0",
+        "rev": "02371c05a04a2876cf92e2d67a259e8f87399068",
         "shallow": true,
         "type": "git",
         "url": "https://github.com/nix-community/home-manager"
@@ -832,10 +832,10 @@
         ]
       },
       "locked": {
-        "lastModified": 1774550276,
-        "narHash": "sha256-TMu9v5ad8970jHGEYeiL3K48stnBth2oVzmd6JhCFdE=",
+        "lastModified": 1774636356,
+        "narHash": "sha256-ysuUJbtcF6rt4ACmoUopEHsvxAPgo/v2/liJE8KT1MQ=",
         "ref": "refs/heads/master",
-        "rev": "8d01bdbe61f116572f3ec661b521a4b2a59ea384",
+        "rev": "ea07123367e63d106bed7f1b6e964d444c808988",
         "shallow": true,
         "type": "git",
         "url": "https://github.com/xddxdd/nix-cachyos-kernel"
@@ -1105,10 +1105,10 @@
         "systems": "systems_7"
       },
       "locked": {
-        "lastModified": 1774375131,
-        "narHash": "sha256-d22VIgsDXagQQWnAnebYeQWGHlmF81YRwuGCzAgNZAQ=",
+        "lastModified": 1774631252,
+        "narHash": "sha256-SBPYPLuM+KSaauKsWa7sETRf26NT7LH0ilUw36V5nkA=",
         "ref": "refs/heads/main",
-        "rev": "d847d401bea4dcb1478d02a61a3209fa8512f71d",
+        "rev": "5836038ead139a0c54269ecde45cba262fb3a3db",
         "shallow": true,
         "type": "git",
         "url": "https://github.com/notashelf/nvf"
