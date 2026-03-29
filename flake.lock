@@ -600,10 +600,10 @@
         ]
       },
       "locked": {
-        "lastModified": 1774647770,
-        "narHash": "sha256-UNNi14XiqRWWjO8ykbFwA5wRwx7EscsC+GItOVpuGjc=",
+        "lastModified": 1774738535,
+        "narHash": "sha256-2jfBEZUC67IlnxO5KItFCAd7Oc+1TvyV/jQlR+2ykGQ=",
         "ref": "refs/heads/master",
-        "rev": "02371c05a04a2876cf92e2d67a259e8f87399068",
+        "rev": "769e07ef8f4cf7b1ec3b96ef015abec9bc6b1e2a",
         "shallow": true,
         "type": "git",
         "url": "https://github.com/nix-community/home-manager"
@@ -637,10 +637,10 @@
         ]
       },
       "locked": {
-        "lastModified": 1774614108,
-        "narHash": "sha256-7syLwVkCqf+uYeLK41e33TeeYArF6xUzveitVi0OLus=",
+        "lastModified": 1774679353,
+        "narHash": "sha256-N5L8U18JigqVqxMz1FuwbJVruCCa5lA6hgGeXLg8LI8=",
         "ref": "refs/heads/development",
-        "rev": "4912ff360a2051f220842a94e9e803ff5ff26687",
+        "rev": "8ffb6db9322542ec3cb541a232864084422f7e90",
         "shallow": true,
         "type": "git",
         "url": "https://github.com/Jovian-Experiments/Jovian-NixOS"
@@ -659,10 +659,10 @@
         ]
       },
       "locked": {
-        "lastModified": 1774320353,
-        "narHash": "sha256-ntHqYhZMHzGUnoFOVM0hbN537HkaERNbCC0Uiuj7BAI=",
+        "lastModified": 1774662008,
+        "narHash": "sha256-JKY69o/ewEmmXtRHNCGcm5mnqkprzJ8Zhi6lH5gFjM4=",
         "ref": "refs/heads/main",
-        "rev": "b6e4e9c4df0a4b982540e2c516d62db0d29b4b7a",
+        "rev": "51ec6c0900502731d7130e5a2aeb81d6686d5896",
         "shallow": true,
         "type": "git",
         "url": "https://github.com/krezh/kauth"
@@ -807,10 +807,10 @@
         ]
       },
       "locked": {
-        "lastModified": 1774623710,
-        "narHash": "sha256-UVVA1OCUeDm7fnH98G+Okfb6vUuA1in89LZGDgVWR/4=",
+        "lastModified": 1774731118,
+        "narHash": "sha256-0mGxkRud0ckwABxp5M6aWETFWzh82KSBqfdMjM4+kgY=",
         "ref": "refs/heads/main",
-        "rev": "4814adf48100a2138b02591e6a7e000c106887b1",
+        "rev": "411f27777ea2a5928bb12ec68bb1dbd724ef1825",
         "shallow": true,
         "type": "git",
         "url": "https://github.com/numtide/nix-ai-tools"
@@ -832,10 +832,10 @@
         ]
       },
       "locked": {
-        "lastModified": 1774636356,
-        "narHash": "sha256-ysuUJbtcF6rt4ACmoUopEHsvxAPgo/v2/liJE8KT1MQ=",
+        "lastModified": 1774720783,
+        "narHash": "sha256-Nl8geGkT2NZmq6NKrJmHSLyatQxdx2D4URC02UIPbSI=",
         "ref": "refs/heads/master",
-        "rev": "ea07123367e63d106bed7f1b6e964d444c808988",
+        "rev": "40bb1e8f8acf76136d7c63f57433e0fecd843c69",
         "shallow": true,
         "type": "git",
         "url": "https://github.com/xddxdd/nix-cachyos-kernel"
@@ -853,10 +853,10 @@
         "nixpkgs": "nixpkgs"
       },
       "locked": {
-        "lastModified": 1774579928,
-        "narHash": "sha256-HgDoK1Z1koMnEf1aX2FK02xwHmKsOmVR6dGhJOFZA9Y=",
+        "lastModified": 1774665675,
+        "narHash": "sha256-GT3cOq5rmmjIqUDGj3vo7sVjyF8rJ2y7+bhMPVakAXY=",
         "ref": "refs/heads/master",
-        "rev": "34f157cab59fc5fec17f7cef7a0f563d303b3fc9",
+        "rev": "f2644f0aebb5805ca0ff778f9241ab8f69cd6675",
         "shallow": true,
         "type": "git",
         "url": "https://github.com/fufexan/nix-gaming"
@@ -918,10 +918,10 @@
         "systems": "systems_5"
       },
       "locked": {
-        "lastModified": 1774580618,
-        "narHash": "sha256-HGyc63xsci9OoIqKDsSlBlLhCZeebxMVXIoHqhGhvao=",
+        "lastModified": 1774666189,
+        "narHash": "sha256-cnPH7kFfC5Mw/av5bdpxTDpvFMyGbY6B5trC2oFXmyI=",
         "ref": "refs/heads/master",
-        "rev": "edf0a39fe84b8023a0728a8fd67e7953acd3c7a8",
+        "rev": "a37604b5eff1581cc0046a58bebf352b296ff80c",
         "shallow": true,
         "type": "git",
         "url": "https://github.com/nix-community/nix4vscode"
@@ -1056,10 +1056,10 @@
         "noctalia-qs": "noctalia-qs"
       },
       "locked": {
-        "lastModified": 1774621124,
-        "narHash": "sha256-VWUwuU2uRUtq0PWFYViu05fFiobs5uEDhqKUywpNJGk=",
+        "lastModified": 1774731535,
+        "narHash": "sha256-X1W59Ba+b1GF5pF9VWijGdh/T7zziAgsryV7d7ggI7s=",
         "ref": "refs/heads/main",
-        "rev": "8a3aafc69f0f005a0a689b7d859d0ad32df3a639",
+        "rev": "decb65ae9580f21cb09d368323b32d8b4576d103",
         "shallow": true,
         "type": "git",
         "url": "https://github.com/noctalia-dev/noctalia-shell"
@@ -1080,11 +1080,11 @@
         "treefmt-nix": "treefmt-nix"
       },
       "locked": {
-        "lastModified": 1774556355,
-        "narHash": "sha256-N131zILQ06ZNEvtgtjjFZ0N5qEI70rKKhCZsBcZoDH8=",
+        "lastModified": 1774625568,
+        "narHash": "sha256-k/1eM1e7IZo4qFXY6e8EEDaSR8DIHUoTVplxeiGfY24=",
         "owner": "noctalia-dev",
         "repo": "noctalia-qs",
-        "rev": "070340934ca374bc770fd500a0fd7b3210f06b1c",
+        "rev": "c08a0c522371db506a9952da92593149a9341ddd",
         "type": "github"
       },
       "original": {
@@ -1105,10 +1105,10 @@
         "systems": "systems_7"
       },
       "locked": {
-        "lastModified": 1774631252,
-        "narHash": "sha256-SBPYPLuM+KSaauKsWa7sETRf26NT7LH0ilUw36V5nkA=",
+        "lastModified": 1774736237,
+        "narHash": "sha256-uQ+Was7QP9Bupr0XZyZXOAD32Ox8z2mJnevT2FmDwS8=",
         "ref": "refs/heads/main",
-        "rev": "5836038ead139a0c54269ecde45cba262fb3a3db",
+        "rev": "a0636d5c977743851c91d3c2e74bfac90be48835",
         "shallow": true,
         "type": "git",
         "url": "https://github.com/notashelf/nvf"
@@ -1468,10 +1468,10 @@
         ]
       },
       "locked": {
-        "lastModified": 1774605342,
-        "narHash": "sha256-VEcy7N8TExxCsDem0SUsqJJlTcUm0y4vaSPYCghe5W8=",
+        "lastModified": 1774708879,
+        "narHash": "sha256-rTYvYkQL69/YkZB+MRA/IaX1qJ1lPx5KXoQS2/9+7Mw=",
         "ref": "refs/heads/main",
-        "rev": "4916e4d7ab444c544c3f36cc9fafe58cdb0f7237",
+        "rev": "d01d23c798cceef42307d5789bfbce70515e8800",
         "shallow": true,
         "type": "git",
         "url": "https://github.com/0xc000022070/zen-browser-flake"
