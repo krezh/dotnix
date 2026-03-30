@@ -7,6 +7,7 @@
         inputs.nix-gaming.nixosModules.platformOptimizations
         inputs.nix-gaming.nixosModules.wine
         inputs.nix-gaming.nixosModules.pipewireLowLatency
+        inputs.steam-config-nix.nixosModules.default
       ];
 
       environment = {
@@ -66,6 +67,53 @@
           localNetworkGameTransfers.openFirewall = true;
           protontricks.enable = true;
           platformOptimizations.enable = true;
+          config = {
+            enable = true;
+            closeSteam = true;
+            defaultCompatTool = "Proton-GE Latest";
+            apps = {
+              darktide = {
+                id = 1361210;
+                compatTool = "Proton-GE Latest";
+                launchOptions = {
+                  wrappers = [ "gamemoderun" ];
+                  env = {
+                    PROTON_FSR4_UPGRADE = "4.1.0";
+                  };
+                };
+              };
+              crimson-desert = {
+                id = 3321460;
+                compatTool = "Proton-GE Latest";
+                launchOptions = {
+                  wrappers = [ "gamemoderun" ];
+                  env = {
+                    PROTON_FSR4_UPGRADE = "4.1.0";
+                  };
+                };
+              };
+              toxic-commando = {
+                id = 2157830;
+                compatTool = "Proton-GE Latest";
+                launchOptions = {
+                  wrappers = [ "gamemoderun" ];
+                  env = {
+                    PROTON_FSR4_UPGRADE = "4.1.0";
+                  };
+                };
+              };
+              sekiro = {
+                id = 814380;
+                compatTool = "Proton-GE Latest";
+                launchOptions = {
+                  wrappers = [ "gamemoderun" ];
+                  env = {
+                    LSFG_PROCESS = "Default";
+                  };
+                };
+              };
+            };
+          };
         };
       };
     };

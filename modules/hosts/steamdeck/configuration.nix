@@ -4,7 +4,7 @@ let
 in
 {
   flake.modules.nixos.steamdeck =
-
+    { pkgs, ... }:
     {
       home-manager.users.${user} = {
         imports = with inputs.self.modules.homeManager; [
@@ -39,7 +39,7 @@ in
           timeout = 0;
           systemd-boot = {
             enable = true;
-            configurationLimit = 10;
+            configurationLimit = 5;
           };
           efi.canTouchEfiVariables = true;
         };
@@ -54,6 +54,7 @@ in
       ];
 
       networking.networkmanager.enable = true;
+      environment.systemPackages = [ pkgs.wvkbd ];
 
       jovian = {
         devices.steamdeck.enable = true;

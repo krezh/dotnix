@@ -58,7 +58,7 @@ in
                 {
                   key = "c";
                   desc = "OCR";
-                  cmd = "${chompBin} --ocr";
+                  cmd = "${chompBin} --ocr --delay 100";
                 }
                 {
                   key = "r";
