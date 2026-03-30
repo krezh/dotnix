@@ -86,6 +86,11 @@
 
     nix-gaming.url = "git+https://github.com/fufexan/nix-gaming?shallow=1";
 
+    steam-config-nix = {
+      url = "git+https://github.com/different-name/steam-config-nix?shallow=1";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
     jovian = {
       url = "git+https://github.com/Jovian-Experiments/Jovian-NixOS?shallow=1";
       inputs.nixpkgs.follows = "nixpkgs";
