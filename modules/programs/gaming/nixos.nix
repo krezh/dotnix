@@ -58,8 +58,8 @@
               MESA_GLSL_CACHE_MAX_SIZE = "16G";
               WINE_CPU_TOPOLOGY = "16:0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15";
               PROTON_USE_NTSYNC = true;
-              PROTON_USE_WOW64 = true;
-              PROTON_ENABLE_WAYLAND = true;
+              PROTON_USE_WOW64 = 1;
+              PROTON_ENABLE_WAYLAND = 1;
               WINE_VK_VULKAN_ONLY = true;
             };
           };
@@ -72,6 +72,18 @@
             closeSteam = true;
             defaultCompatTool = "Proton-GE Latest";
             apps = {
+              eldenring = {
+                id = 1245620;
+                compatTool = "Proton-GE Latest";
+                launchOptions = {
+                  wrappers = [ ];
+                  env = {
+                    PROTON_USE_WOW64 = 0;
+                    PROTON_ENABLE_WAYLAND = 0;
+                    LSFG_PROCESS = "Default";
+                  };
+                };
+              };
               darktide = {
                 id = 1361210;
                 compatTool = "Proton-GE Latest";
@@ -80,6 +92,19 @@
                   env = {
                     PROTON_FSR4_UPGRADE = "4.1.0";
                   };
+                };
+              };
+              fellowship = {
+                id = 2352620;
+                compatTool = "Proton-GE Latest";
+                launchOptions = {
+                  wrappers = [ "gamemoderun" ];
+                  env = {
+                    PROTON_FSR4_UPGRADE = "4.1.0";
+                    PROTON_USE_WOW64 = 0;
+                    PROTON_ENABLE_WAYLAND = 0;
+                  };
+                  args = [ "-dx11" ];
                 };
               };
               crimson-desert = {
