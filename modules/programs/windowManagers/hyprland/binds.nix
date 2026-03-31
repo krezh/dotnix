@@ -103,8 +103,6 @@
             "${mainModShift},8,Move active window to workspace 8,movetoworkspace,8"
             "${mainModShift},9,Move active window to workspace 9,movetoworkspace,9"
             "${mainModShift},0,Move active window to workspace 10,movetoworkspace,10"
-            "${mainMod},mouse_down,Next workspace,workspace,e+1"
-            "${mainMod},mouse_up,Previous workspace,workspace,e-1"
           ];
 
           binddl = [

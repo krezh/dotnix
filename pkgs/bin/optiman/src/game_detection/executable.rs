@@ -11,17 +11,17 @@ pub fn find_game_executable(game: &SteamGame) -> Result<PathBuf> {
     // 2. Look for *.exe files in the root directory
     // 3. Check common subdirectories (bin, binaries, game, etc.)
     // 4. Fall back to recursive search (limited depth)
-    
+
     // 1. Check for Unreal Engine pattern
     if let Some(exe) = check_unreal_engine_pattern(&game.install_dir)? {
         return Ok(exe);
     }
-    
+
     // 2. Look for .exe files in the root directory
     if let Some(exe) = find_exe_in_directory(&game.install_dir, false)? {
         return Ok(exe);
     }
-    
+
     // 3. Check common subdirectories
     let common_dirs = ["bin", "Bin", "binaries", "Binaries", "Game", "game"];
     for dir_name in common_dirs {
@@ -32,12 +32,12 @@ pub fn find_game_executable(game: &SteamGame) -> Result<PathBuf> {
             }
         }
     }
-    
+
     // 4. Fall back to recursive search (limit depth to avoid performance issues)
     if let Some(exe) = find_exe_recursive(&game.install_dir, 0, 6)? {
         return Ok(exe);
     }
-    
+
     anyhow::bail!("Could not find game executable for: {}", game.name)
 }
 
@@ -48,7 +48,7 @@ fn check_unreal_engine_pattern(install_dir: &std::path::Path) -> Result<Option<P
         Ok(e) => e,
         Err(_) => return Ok(None),
     };
-    
+
     for entry in entries.flatten() {
         let path = entry.path();
         if path.is_dir() {
@@ -60,7 +60,7 @@ fn check_unreal_engine_pattern(install_dir: &std::path::Path) -> Result<Option<P
             }
         }
     }
-    
+
     Ok(None)
 }
 
@@ -70,12 +70,12 @@ fn find_exe_in_directory(dir: &std::path::Path, recursive: bool) -> Result<Optio
         Ok(e) => e,
         Err(_) => return Ok(None),
     };
-    
+
     let mut candidates = Vec::new();
-    
+
     for entry in entries.flatten() {
         let path = entry.path();
-        
+
         if path.is_file() {
             if let Some(ext) = path.extension() {
                 if ext.eq_ignore_ascii_case("exe") {
@@ -83,11 +83,11 @@ fn find_exe_in_directory(dir: &std::path::Path, recursive: bool) -> Result<Optio
                     if let Some(filename) = path.file_stem().and_then(|s| s.to_str()) {
                         let filename_lower = filename.to_lowercase();
                         if filename_lower.contains("launcher") ||
-                           filename_lower.contains("updater") ||
-                           filename_lower.contains("crash") ||
-                           filename_lower.contains("unins") ||
-                           filename_lower.contains("setup") ||
-                           filename_lower == "unrealcefsubprocess" {
+                            filename_lower.contains("updater") ||
+                            filename_lower.contains("crash") ||
+                            filename_lower.contains("unins") ||
+                            filename_lower.contains("setup") ||
+                            filename_lower == "unrealcefsubprocess" {
                             continue;
                         }
                     }
@@ -100,7 +100,7 @@ fn find_exe_in_directory(dir: &std::path::Path, recursive: bool) -> Result<Optio
             }
         }
     }
-    
+
     // Return the first candidate (or the one with shortest name as heuristic)
     if !candidates.is_empty() {
         candidates.sort_by_key(|p| {
@@ -120,18 +120,18 @@ fn find_exe_recursive(dir: &std::path::Path, current_depth: usize, max_depth: us
     if current_depth >= max_depth {
         return Ok(None);
     }
-    
+
     let entries = match fs::read_dir(dir) {
         Ok(e) => e,
         Err(_) => return Ok(None),
     };
-    
+
     let mut candidates = Vec::new();
     let mut subdirs = Vec::new();
-    
+
     for entry in entries.flatten() {
         let path = entry.path();
-        
+
         if path.is_file() {
             if let Some(ext) = path.extension() {
                 if ext.eq_ignore_ascii_case("exe") {
@@ -145,7 +145,7 @@ fn find_exe_recursive(dir: &std::path::Path, current_depth: usize, max_depth: us
             // Skip common non-game directories
             if let Some(dir_name) = path.file_name().and_then(|n| n.to_str()) {
                 let dir_name_lower = dir_name.to_lowercase();
-                if dir_name_lower == "advguide" 
+                if dir_name_lower == "advguide"
                     || dir_name_lower == "easyanticheat"
                     || dir_name_lower == "_commonredist"
                     || dir_name_lower.starts_with(".")
@@ -156,7 +156,7 @@ fn find_exe_recursive(dir: &std::path::Path, current_depth: usize, max_depth: us
             subdirs.push(path);
         }
     }
-    
+
     // If we found candidates at this level, return the best one
     if !candidates.is_empty() {
         candidates.sort_by_key(|p| {
@@ -167,14 +167,14 @@ fn find_exe_recursive(dir: &std::path::Path, current_depth: usize, max_depth: us
         });
         return Ok(Some(candidates[0].clone()));
     }
-    
+
     // Otherwise, recurse into subdirectories
     for subdir in subdirs {
         if let Some(exe) = find_exe_recursive(&subdir, current_depth + 1, max_depth)? {
             return Ok(Some(exe));
         }
     }
-    
+
     Ok(None)
 }
 
@@ -182,7 +182,7 @@ fn find_exe_recursive(dir: &std::path::Path, current_depth: usize, max_depth: us
 fn should_skip_executable(path: &std::path::Path) -> bool {
     if let Some(filename) = path.file_stem().and_then(|s| s.to_str()) {
         let filename_lower = filename.to_lowercase();
-        if filename_lower.contains("launcher") 
+        if filename_lower.contains("launcher")
             || filename_lower.contains("updater")
             || filename_lower.contains("crash")
             || filename_lower.contains("unins")
