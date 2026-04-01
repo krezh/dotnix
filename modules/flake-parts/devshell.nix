@@ -20,7 +20,7 @@
               echo "Usage: partition <hostname>"
               exit 1
             fi
-            sudo nix --experimental-features 'nix-command flakes' run github:nix-community/disko -- --mode disko --flake github:krezh/nix-config#"$1"
+            sudo nix --experimental-features 'nix-command flakes' run github:nix-community/disko -- --mode disko --flake github:krezh/dotnix#"$1"
           '';
           help = "Partition disk for specified host";
           category = "Nix";
@@ -32,7 +32,7 @@
               echo "Usage: install <hostname>"
               exit 1
             fi
-            sudo nixos-install --flake github:krezh/nix-config#"$1"
+            sudo nixos-install --flake github:krezh/dotnix#"$1"
           '';
           help = "Install NixOS for specified host";
           category = "Nix";
@@ -44,7 +44,7 @@
               echo "Usage: disko-install <hostname>"
               exit 1
             fi
-            sudo disko-install --flake github:krezh/nix-config#"$1"
+            sudo disko-install --flake github:krezh/dotnix#"$1"
           '';
           help = "Partition and install NixOS in one step";
           category = "Nix";
