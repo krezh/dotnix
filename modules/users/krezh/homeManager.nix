@@ -9,8 +9,8 @@ in
       home = {
         username = "${username}";
         sessionVariables = {
-          FLAKE = "${config.home.homeDirectory}/nix-config";
-          NH_FLAKE = "${config.home.homeDirectory}/nix-config";
+          FLAKE = "${config.home.homeDirectory}/dotnix";
+          NH_FLAKE = "${config.home.homeDirectory}/dotnix";
           SOPS_AGE_KEY_FILE = "${config.sops.age.keyFile}";
         };
       };

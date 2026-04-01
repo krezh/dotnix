@@ -1,4 +1,4 @@
-module github.com/krezh/nix-config/nixos-update
+module github.com/krezh/dotnix/nixos-update
 
 go 1.25.8
 

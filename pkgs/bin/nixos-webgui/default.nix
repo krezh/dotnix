@@ -47,7 +47,7 @@ buildGoApplication rec {
 
   meta = with lib; {
     description = "A modern web GUI for managing NixOS systems";
-    homepage = "https://github.com/krezh/nix-config";
+    homepage = "https://github.com/krezh/dotnix";
     license = licenses.mit;
     maintainers = [ ];
     mainProgram = "nixos-webgui";

@@ -24,7 +24,7 @@ buildGoApplication rec {
 
   meta = with lib; {
     description = "A stylish NixOS system updater using nh os switch";
-    homepage = "https://github.com/krezh/nix-config";
+    homepage = "https://github.com/krezh/dotnix";
     license = licenses.mit;
     mainProgram = "nu";
   };

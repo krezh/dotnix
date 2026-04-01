@@ -48,7 +48,7 @@ func main() {
 func run() error {
 	fmt.Println(titleStyle.Render("🚀 NixOS System Update"))
 
-	// Get the nix-config directory (assuming this binary runs from within the repo)
+	// Get the dotnix directory (assuming this binary runs from within the repo)
 	configDir, err := getConfigDir()
 	if err != nil {
 		return fmt.Errorf("failed to determine config directory: %w", err)
