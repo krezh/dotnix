@@ -275,7 +275,7 @@
             # Linux - Wayland
             "widget.wayland.opaque-region.enabled" = true;
             "widget.wayland.fractional-scale.enabled" = true;
-            "widget.gtk.rounded-bottom-corners.enabled" = true;
+            "widget.gtk.rounded-bottom-corners.enabled" = false;
 
             # Privacy
             "privacy.trackingprotection.enabled" = false;
