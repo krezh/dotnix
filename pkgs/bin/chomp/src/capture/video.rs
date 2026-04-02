@@ -1,9 +1,12 @@
 //! Video recording management using wl-screenrec
 
 use anyhow::{Context, Result};
+use nix::sys::signal::{kill, Signal};
+use nix::unistd::Pid;
 use std::fs;
 use std::process::Command;
 use std::time::Duration;
+use sysinfo::{ProcessRefreshKind, RefreshKind, System};
 
 pub struct VideoRecorder;
 
@@ -49,10 +52,8 @@ impl VideoRecorder {
 
         let pids = self.find_wl_screenrec_pids()?;
         for pid in pids {
-            // Send SIGINT (2) to gracefully stop recording
-            let _ = Command::new("kill")
-                .args(["-2", &pid.to_string()])
-                .output();
+            // Send SIGINT to gracefully stop recording
+            let _ = kill(Pid::from_raw(pid as i32), Signal::SIGINT);
         }
 
         // Wait for process to finish writing
@@ -93,23 +94,19 @@ impl VideoRecorder {
     }
 
     fn find_wl_screenrec_pids(&self) -> Result<Vec<u32>> {
-        let mut pids = Vec::new();
+        let mut sys = System::new_with_specifics(
+            RefreshKind::nothing().with_processes(ProcessRefreshKind::nothing())
+        );
+        sys.refresh_processes(sysinfo::ProcessesToUpdate::All, true);
 
-        let proc_dir = fs::read_dir("/proc")?;
-        for entry in proc_dir.flatten() {
-            let file_name = entry.file_name();
-            let name = file_name.to_string_lossy();
-
-            // Check if directory name is numeric (PID)
-            if let Ok(pid) = name.parse::<u32>() {
-                let comm_path = format!("/proc/{}/comm", pid);
-                if let Ok(comm) = fs::read_to_string(comm_path) {
-                    if comm.trim() == "wl-screenrec" {
-                        pids.push(pid);
-                    }
-                }
-            }
-        }
+        let pids = sys
+            .processes()
+            .iter()
+            .filter(|(_, process)| {
+                process.name().to_string_lossy() == "wl-screenrec"
+            })
+            .map(|(pid, _)| pid.as_u32())
+            .collect();
 
         Ok(pids)
     }

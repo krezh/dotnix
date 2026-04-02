@@ -254,8 +254,22 @@ fn upload_file(args: &Args, file_path: &str, notifier: &ui::Notifier) -> Result<
         file_path,
     )?;
 
-    system::copy_text(&url)?;
-    notifier.send_with_action("Upload successful", &url);
+    // Upload succeeded - try to copy URL to clipboard
+    let clipboard_failed = if let Err(e) = system::copy_text(&url) {
+        log::warn!("Failed to copy URL to clipboard: {}", e);
+        true
+    } else {
+        false
+    };
+
+    // Show notification with URL action button
+    let message = if clipboard_failed {
+        "Upload successful (clipboard copy failed)"
+    } else {
+        "Upload successful"
+    };
+    notifier.send_with_action(message, &url);
+
     println!("Uploaded: {}", url);
 
     Ok(url)
