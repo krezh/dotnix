@@ -7,15 +7,15 @@
       ...
     }:
     let
-      cfg = config.services.swww-random;
+      cfg = config.services.awww-random;
 
-      swww-random = pkgs.buildGoModule rec {
-        pname = "swww-random";
+      awww-random = pkgs.buildGoModule rec {
+        pname = "awww-random";
         version = "1.0.0";
         src = ./src;
         vendorHash = null;
         meta = with lib; {
-          description = "Random wallpaper setter for swww";
+          description = "Random wallpaper setter for awww";
           license = licenses.gpl3;
           platforms = platforms.linux;
           mainProgram = pname;
@@ -23,13 +23,13 @@
       };
     in
     {
-      options.services.swww-random = {
-        enable = lib.mkEnableOption "swww random wallpaper service";
+      options.services.awww-random = {
+        enable = lib.mkEnableOption "awww random wallpaper service";
 
         package = lib.mkOption {
           type = lib.types.package;
-          default = pkgs.swww;
-          description = "swww derivation to use.";
+          default = pkgs.awww;
+          description = "awww derivation to use.";
         };
 
         path = lib.mkOption {
@@ -89,14 +89,14 @@
         home = {
           packages = [
             cfg.package
-            swww-random
+            awww-random
             pkgs.waypaper
           ];
           sessionVariables = {
-            SWWW_TRANSITION_FPS = "${toString cfg.settings.transitionFPS}";
-            SWWW_TRANSITION_STEP = "${toString cfg.settings.transitionStep}";
-            SWWW_TRANSITION = "${cfg.settings.transition}";
-            SWWW_TRANSITION_POS = "${cfg.settings.transitionPos}";
+            AWWW_TRANSITION_FPS = "${toString cfg.settings.transitionFPS}";
+            AWWW_TRANSITION_STEP = "${toString cfg.settings.transitionStep}";
+            AWWW_TRANSITION = "${cfg.settings.transition}";
+            AWWW_TRANSITION_POS = "${cfg.settings.transitionPos}";
           };
         };
 
@@ -105,17 +105,17 @@
           source = ./wallpapers;
         };
 
-        systemd.user.services.swww-daemon = {
+        systemd.user.services.awww-daemon = {
           Unit = {
             Description = "A Solution to your Wayland Wallpaper Woes";
-            Documentation = "https://github.com/Horus645/swww";
+            Documentation = "https://github.com/Horus645/awww";
             Requires = [ "graphical-session.target" ];
           };
           Service = {
             Type = "simple";
-            ExecStartPre = "${pkgs.bash}/bin/bash -c '${cfg.package}/bin/swww kill 2>/dev/null || true'";
-            ExecStart = "${cfg.package}/bin/swww-daemon";
-            ExecStop = "${cfg.package}/bin/swww kill";
+            ExecStartPre = "${pkgs.bash}/bin/bash -c '${cfg.package}/bin/awww kill 2>/dev/null || true'";
+            ExecStart = "${cfg.package}/bin/awww-daemon";
+            ExecStop = "${cfg.package}/bin/awww kill";
             Restart = "on-failure";
             RestartSec = 5;
             RemainAfterExit = false;
@@ -123,23 +123,23 @@
           Install.WantedBy = [ "graphical-session.target" ];
         };
 
-        systemd.user.services.swww-random = {
+        systemd.user.services.awww-random = {
           Unit = {
-            Description = "Random wallpaper setter for swww";
-            Requires = [ "swww-daemon.service" ];
+            Description = "Random wallpaper setter for awww";
+            Requires = [ "awww-daemon.service" ];
           };
           Service = {
             Environment = [
-              "SWWW_TRANSITION_FPS=${toString cfg.settings.transitionFPS}"
-              "SWWW_TRANSITION_STEP=${toString cfg.settings.transitionStep}"
-              "SWWW_TRANSITION=${cfg.settings.transition}"
-              "SWWW_TRANSITION_POS=${cfg.settings.transitionPos}"
+              "AWWW_TRANSITION_FPS=${toString cfg.settings.transitionFPS}"
+              "AWWW_TRANSITION_STEP=${toString cfg.settings.transitionStep}"
+              "AWWW_TRANSITION=${cfg.settings.transition}"
+              "AWWW_TRANSITION_POS=${cfg.settings.transitionPos}"
             ];
-            ExecStart = "${lib.getExe swww-random} -d ${cfg.path} -i ${toString cfg.settings.interval}";
+            ExecStart = "${lib.getExe awww-random} -d ${cfg.path} -i ${toString cfg.settings.interval}";
             Restart = "on-failure";
             RestartSec = 5;
           };
-          Install.WantedBy = [ "swww-daemon.service" ];
+          Install.WantedBy = [ "awww-daemon.service" ];
         };
       };
     };

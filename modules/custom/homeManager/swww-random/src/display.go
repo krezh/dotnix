@@ -16,7 +16,7 @@ type TransitionOptions struct {
 	Pos  string
 }
 
-// displayImage shows an image using swww with the specified transition options
+// displayImage shows an image using awww with the specified transition options
 func displayImage(imagePath string, options TransitionOptions) {
 	fmt.Printf("Displaying: %s\n", filepath.Base(imagePath))
 
@@ -48,7 +48,7 @@ func displayImage(imagePath string, options TransitionOptions) {
 		}
 	}
 
-	if err := exec.Command("swww", args...).Run(); err != nil {
+	if err := exec.Command("awww", args...).Run(); err != nil {
 		fmt.Printf("Warning: Failed to display %s: %v\n", filepath.Base(imagePath), err)
 	}
 }

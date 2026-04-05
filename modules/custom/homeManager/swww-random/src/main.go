@@ -15,10 +15,10 @@ var (
 	interval       = flag.Int("i", 0, "seconds to wait between images")
 	oneshot        = flag.Bool("o", false, "run once and exit")
 	help           = flag.Bool("h", false, "show this help")
-	transitionFPS  = flag.String("fps", "", "transition FPS (overrides SWWW_TRANSITION_FPS)")
-	transitionStep = flag.String("step", "", "transition step (overrides SWWW_TRANSITION_STEP)")
-	transitionType = flag.String("transition", "", "transition type (overrides SWWW_TRANSITION)")
-	transitionPos  = flag.String("pos", "", "transition position (overrides SWWW_TRANSITION_POS)")
+	transitionFPS  = flag.String("fps", "", "transition FPS (overrides AWWW_TRANSITION_FPS)")
+	transitionStep = flag.String("step", "", "transition step (overrides AWWW_TRANSITION_STEP)")
+	transitionType = flag.String("transition", "", "transition type (overrides AWWW_TRANSITION)")
+	transitionPos  = flag.String("pos", "", "transition position (overrides AWWW_TRANSITION_POS)")
 )
 
 func init() {
@@ -26,10 +26,10 @@ func init() {
 	flag.IntVar(interval, "interval", 0, "seconds to wait between images")
 	flag.BoolVar(oneshot, "oneshot", false, "run once and exit")
 	flag.BoolVar(help, "help", false, "show this help")
-	flag.StringVar(transitionFPS, "transition-fps", "", "transition FPS (overrides SWWW_TRANSITION_FPS)")
-	flag.StringVar(transitionStep, "transition-step", "", "transition step (overrides SWWW_TRANSITION_STEP)")
-	flag.StringVar(transitionType, "transition-type", "", "transition type (overrides SWWW_TRANSITION)")
-	flag.StringVar(transitionPos, "transition-pos", "", "transition position (overrides SWWW_TRANSITION_POS)")
+	flag.StringVar(transitionFPS, "transition-fps", "", "transition FPS (overrides AWWW_TRANSITION_FPS)")
+	flag.StringVar(transitionStep, "transition-step", "", "transition step (overrides AWWW_TRANSITION_STEP)")
+	flag.StringVar(transitionType, "transition-type", "", "transition type (overrides AWWW_TRANSITION)")
+	flag.StringVar(transitionPos, "transition-pos", "", "transition position (overrides AWWW_TRANSITION_POS)")
 }
 
 func main() {
@@ -68,10 +68,10 @@ func showHelp() {
 	fmt.Println("  -o, --oneshot            run once and exit")
 	fmt.Println("  -h, --help               show this help")
 	fmt.Println("Transition options:")
-	fmt.Println("  --fps, --transition-fps  transition FPS (overrides SWWW_TRANSITION_FPS)")
-	fmt.Println("  --step, --transition-step transition step (overrides SWWW_TRANSITION_STEP)")
-	fmt.Println("  --transition, --transition-type transition type (overrides SWWW_TRANSITION)")
-	fmt.Println("  --pos, --transition-pos  transition position (overrides SWWW_TRANSITION_POS)")
+	fmt.Println("  --fps, --transition-fps  transition FPS (overrides AWWW_TRANSITION_FPS)")
+	fmt.Println("  --step, --transition-step transition step (overrides AWWW_TRANSITION_STEP)")
+	fmt.Println("  --transition, --transition-type transition type (overrides AWWW_TRANSITION)")
+	fmt.Println("  --pos, --transition-pos  transition position (overrides AWWW_TRANSITION_POS)")
 	fmt.Println("                           use 'mouse' to automatically use current mouse position")
 }
 
@@ -92,12 +92,12 @@ func validateArgs() error {
 }
 
 func checkDependencies() error {
-	if _, err := exec.LookPath("swww"); err != nil {
-		return fmt.Errorf("swww command not found. Please install swww")
+	if _, err := exec.LookPath("awww"); err != nil {
+		return fmt.Errorf("awww command not found. Please install awww")
 	}
 
-	if err := exec.Command("swww", "query").Run(); err != nil {
-		return fmt.Errorf("swww daemon is not running. Please start it with 'swww init'")
+	if err := exec.Command("awww", "query").Run(); err != nil {
+		return fmt.Errorf("awww daemon is not running. Please start it with 'awww init'")
 	}
 
 	return nil
@@ -111,10 +111,10 @@ func printConfig() {
 		fmt.Printf("Interval: %d seconds\n", *interval)
 		fmt.Println("Mode: Slideshow")
 	}
-	fmt.Printf("Transition FPS: %s\n", getTransitionValue(*transitionFPS, "SWWW_TRANSITION_FPS", "30"))
-	fmt.Printf("Transition Step: %s\n", getTransitionValue(*transitionStep, "SWWW_TRANSITION_STEP", "90"))
-	fmt.Printf("Transition Type: %s\n", getTransitionValue(*transitionType, "SWWW_TRANSITION", "any"))
-	fmt.Printf("Transition Position: %s\n", getTransitionValue(*transitionPos, "SWWW_TRANSITION_POS", "center"))
+	fmt.Printf("Transition FPS: %s\n", getTransitionValue(*transitionFPS, "AWWW_TRANSITION_FPS", "30"))
+	fmt.Printf("Transition Step: %s\n", getTransitionValue(*transitionStep, "AWWW_TRANSITION_STEP", "90"))
+	fmt.Printf("Transition Type: %s\n", getTransitionValue(*transitionType, "AWWW_TRANSITION", "any"))
+	fmt.Printf("Transition Position: %s\n", getTransitionValue(*transitionPos, "AWWW_TRANSITION_POS", "center"))
 }
 
 func runOneshot() {
@@ -146,9 +146,9 @@ func runSlideshow() {
 
 func getTransitionOptions() TransitionOptions {
 	return TransitionOptions{
-		FPS:  getTransitionValue(*transitionFPS, "SWWW_TRANSITION_FPS", ""),
-		Step: getTransitionValue(*transitionStep, "SWWW_TRANSITION_STEP", ""),
-		Type: getTransitionValue(*transitionType, "SWWW_TRANSITION", ""),
-		Pos:  getTransitionValue(*transitionPos, "SWWW_TRANSITION_POS", ""),
+		FPS:  getTransitionValue(*transitionFPS, "AWWW_TRANSITION_FPS", ""),
+		Step: getTransitionValue(*transitionStep, "AWWW_TRANSITION_STEP", ""),
+		Type: getTransitionValue(*transitionType, "AWWW_TRANSITION", ""),
+		Pos:  getTransitionValue(*transitionPos, "AWWW_TRANSITION_POS", ""),
 	}
 }
