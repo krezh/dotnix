@@ -38,7 +38,7 @@ runs:
   steps:
     - name: Delete comment on success
       if: ${{ inputs.build-status == 'success' }}
-      uses: marocchino/sticky-pull-request-comment@70d2764d1a7d5d9560b100cbea0077fc8f633987 # v3.0.2
+      uses: marocchino/sticky-pull-request-comment@d4d6b0936434b21bc8345ad45a440c5f7d2c40ff # v3.0.3
       with:
         header: "${{ inputs.build-type == 'package' && 'Package' || 'System' }} Build: ${{ inputs.build-name }}"
         delete: true
@@ -66,7 +66,7 @@ runs:
 
     - name: Comment build errors on PR
       if: ${{ inputs.build-status == 'failure' }}
-      uses: marocchino/sticky-pull-request-comment@70d2764d1a7d5d9560b100cbea0077fc8f633987 # v3.0.2
+      uses: marocchino/sticky-pull-request-comment@d4d6b0936434b21bc8345ad45a440c5f7d2c40ff # v3.0.3
       with:
         header: "${{ inputs.build-type == 'package' && 'Package' || 'System' }} Build: ${{ inputs.build-name }}"
         message: |
