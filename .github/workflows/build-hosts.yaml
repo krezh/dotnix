@@ -58,6 +58,7 @@ jobs:
     needs: detect-changes
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
+      has-targets: ${{ steps.set-matrix.outputs.has_targets }}
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
@@ -97,11 +98,12 @@ jobs:
         name: Generate Matrix
         env:
           CHANGED_SYSTEMS: ${{ needs.detect-changes.outputs.changed-systems }}
+          EVENT_NAME: ${{ github.event_name }}
         run: |
           set -Eeu
           matrix=$(nix eval --json '.#ghMatrix' | jq -c) || exit 1
           systems="${CHANGED_SYSTEMS}"
-          if [ -n "$systems" ] && [ "$systems" != "[]" ]; then
+          if [ "$EVENT_NAME" != "workflow_dispatch" ] && [ -n "$systems" ] && [ "$systems" != "[]" ]; then
             # Extract host-specific changes (exclude shared modules directories)
             changed_hosts=$(echo "$systems" | jq -r '[.[] | select(startswith("modules/hosts/")) | split("/")[2] | select(length > 0)] | unique')
             has_shared=$(echo "$systems" | jq -r 'any((startswith("modules/hosts/") | not) or (startswith("modules/hosts/") and (split("/") | length) == 2))')
@@ -111,16 +113,17 @@ jobs:
             fi
           fi
           echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+          echo "has_targets=$(echo "$matrix" | jq -r '.include | length > 0')" >> "$GITHUB_OUTPUT"
           echo "$matrix"
 
   nix-build:
     name: Build ${{ matrix.host }}
-    if: ${{ github.event.pull_request.draft == false }}
+    if: ${{ github.event.pull_request.draft == false && needs.ghMatrix.outputs.has-targets == 'true' }}
     needs: [detect-changes, ghMatrix]
     permissions:
       pull-requests: write
     strategy:
-      matrix: ${{ fromJSON(needs.ghMatrix.outputs.matrix || '{"include":[]}') }}
+      matrix: ${{ fromJSON(needs.ghMatrix.outputs.matrix) }}
       fail-fast: false
     runs-on: ${{ matrix.runner }}
     steps:
