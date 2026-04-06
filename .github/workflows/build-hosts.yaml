@@ -118,7 +118,7 @@ jobs:
 
   nix-build:
     name: Build ${{ matrix.host }}
-    if: ${{ github.event.pull_request.draft == false && needs.ghMatrix.outputs.has-targets == 'true' }}
+    if: ${{ github.event.pull_request.draft != true && needs.ghMatrix.outputs.has-targets == 'true' }}
     needs: [detect-changes, ghMatrix]
     permissions:
       pull-requests: write
