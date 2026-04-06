@@ -59,6 +59,22 @@
         "type": "github"
       }
     },
+    "cache-nix-action": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1773147946,
+        "narHash": "sha256-8f6GTgHxJzGVOzElUtuJXFwm2jFBac52qjOU6IEgBtY=",
+        "owner": "nix-community",
+        "repo": "cache-nix-action",
+        "rev": "a100bc2d2b42a2556e7205eb0025f6807e752d4d",
+        "type": "github"
+      },
+      "original": {
+        "owner": "nix-community",
+        "repo": "cache-nix-action",
+        "type": "github"
+      }
+    },
     "cachyos-kernel": {
       "flake": false,
       "locked": {
@@ -1165,6 +1181,7 @@
     },
     "root": {
       "inputs": {
+        "cache-nix-action": "cache-nix-action",
         "catppuccin": "catppuccin",
         "devshell": "devshell",
         "disko": "disko",
