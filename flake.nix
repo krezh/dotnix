@@ -142,6 +142,11 @@
       url = "git+https://github.com/uiriansan/SilentSDDM?shallow=1";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+
+    cache-nix-action = {
+      url = "github:nix-community/cache-nix-action";
+      flake = false;
+    };
   };
 
   outputs =
