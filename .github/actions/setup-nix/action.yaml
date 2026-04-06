@@ -49,9 +49,11 @@ runs:
     - name: Setup SSH Key for Remote Builders
       if: inputs.use-remote-builders == 'true' && inputs.remote-builders-ssh-key != ''
       shell: bash
+      env:
+        SSH_KEY: ${{ inputs.remote-builders-ssh-key }}
       run: |
         mkdir -p ~/.ssh
-        echo "${{ inputs.remote-builders-ssh-key }}" > ~/.ssh/nix-builder-key
+        echo "$SSH_KEY" > ~/.ssh/nix-builder-key
         chmod 600 ~/.ssh/nix-builder-key
         cat >> ~/.ssh/config <<EOF
         Host *
@@ -62,9 +64,9 @@ runs:
 
     - name: Install Nix (with remote builders)
       if: inputs.use-remote-builders == 'true'
-      uses: nixbuild/nix-quick-install-action@2c9db80fb984ceb1bcaa77cdda3fdf8cfba92035 # v34
+      uses: cachix/install-nix-action@96951a368ba55167b55f1c916f7d416bac6505fe # v31.10.3
       with:
-        nix_conf: |
+        extra_nix_config: |
           accept-flake-config = true
           always-allow-substitutes = true
           builders-use-substitutes = true
@@ -73,9 +75,9 @@ runs:
 
     - name: Install Nix (local)
       if: inputs.use-remote-builders != 'true'
-      uses: nixbuild/nix-quick-install-action@2c9db80fb984ceb1bcaa77cdda3fdf8cfba92035 # v34
+      uses: cachix/install-nix-action@96951a368ba55167b55f1c916f7d416bac6505fe # v31.10.3
       with:
-        nix_conf: |
+        extra_nix_config: |
           accept-flake-config = true
           always-allow-substitutes = true
           ${{ inputs.nothing-but-nix == 'true' && 'build-dir = /nix/build' || '' }}
