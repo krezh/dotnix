@@ -7,5 +7,6 @@ pre-commit:
       run: nix fmt {staged_files}
       stage_fixed: true
     "Govendor":
+      glob: "*.{go,mod}"
       run: govendor $(fd go.mod)
       stage_fixed: true
