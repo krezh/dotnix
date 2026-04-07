@@ -78,11 +78,11 @@
     "cachyos-kernel": {
       "flake": false,
       "locked": {
-        "lastModified": 1775145950,
-        "narHash": "sha256-AfVja9nvYHm0BHbuTvn+K8rKfLmPl5QjoiNecp9HOJU=",
+        "lastModified": 1775477087,
+        "narHash": "sha256-0Z+54oJHKce1bU++f1zzq6vKpSF/oFPwxXc4FfSQod8=",
         "owner": "CachyOS",
         "repo": "linux-cachyos",
-        "rev": "b91624f68ceaf5394ef1571f60290dca6ba22b45",
+        "rev": "2b7f80a54af05aca754ee922012c08ab6d3ac3e9",
         "type": "github"
       },
       "original": {
@@ -616,10 +616,10 @@
     },
     "hardware": {
       "locked": {
-        "lastModified": 1775486889,
-        "narHash": "sha256-2fsuTRa10Uv/B/rKpyqyNTFX8S1u9spMBL9E6mEcnaU=",
+        "lastModified": 1775490113,
+        "narHash": "sha256-2ZBhDNZZwYkRmefK5XLOusCJHnoeKkoN95hoSGgMxWM=",
         "ref": "refs/heads/master",
-        "rev": "bd363ef3d7b19fca9e0a9eac826c3198e89359a9",
+        "rev": "c775c2772ba56e906cbeb4e0b2db19079ef11ff7",
         "shallow": true,
         "type": "git",
         "url": "https://github.com/nixos/nixos-hardware"
@@ -869,10 +869,10 @@
         ]
       },
       "locked": {
-        "lastModified": 1775412159,
-        "narHash": "sha256-217zU2fKzIgcn9qht9MvvHDOgywnAZ0vFsYFg+c80oE=",
+        "lastModified": 1775500465,
+        "narHash": "sha256-7R6JDPTJ4/4X2D2xbTtgEAKJTACCDl/KLWUKuso8Ei0=",
         "ref": "refs/heads/master",
-        "rev": "98d1a70e3c0c14d23bc6ef395110664e1221daf4",
+        "rev": "405df9c3307f212ed4602aeaac3d39cfc34ac680",
         "shallow": true,
         "type": "git",
         "url": "https://github.com/xddxdd/nix-cachyos-kernel"
@@ -1240,10 +1240,10 @@
         ]
       },
       "locked": {
-        "lastModified": 1771956684,
-        "narHash": "sha256-+EtzmEzGA2xqwIvKrP0euYaOzrmTQWEWAiWV+k2WBEM=",
+        "lastModified": 1775506870,
+        "narHash": "sha256-L41kRgv4huPzQtLIP9tYmElmWCsykIMpwWWBeWqDvRA=",
         "ref": "refs/heads/main",
-        "rev": "34f82e1fb8412fff78b82a0dcce763492b36054c",
+        "rev": "bcc88d3d05d544c2bfb518a78cb939e1c0037998",
         "shallow": true,
         "type": "git",
         "url": "https://github.com/uiriansan/SilentSDDM"
