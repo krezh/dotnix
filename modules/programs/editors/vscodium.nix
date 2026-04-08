@@ -301,6 +301,7 @@
               };
             };
             "[opentofu]".editor.defaultFormatter = "opentofu.vscode-opentofu";
+            docker.extension.enableComposeLanguageServer = false;
             "[dockerbake]".editor.defaultFormatter = "docker.docker";
             "[dockercompose]" = {
               editor = {

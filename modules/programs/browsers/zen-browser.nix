@@ -2,13 +2,23 @@
 {
   flake.modules.homeManager.browsers =
     { pkgs, config, ... }:
-    # let
-    #   catppuccin = {
-    #     source = "${inputs.zen-browser-catppuccin}/themes/Mocha/Lavender/";
-    #     recursive = true;
-    #     force = true;
-    #   };
-    # in
+    let
+      # Patch catppuccin to remove element separation
+      catppuccinPatched = pkgs.runCommand "catppuccin-zen-patched" { } ''
+        cp -r ${inputs.zen-browser-catppuccin}/themes/Mocha/Blue $out
+        chmod -R +w $out
+
+        # Remove element separation and webview border radius
+        sed -i 's/--zen-element-separation: 8px/--zen-element-separation: 0px/g' $out/userChrome.css
+        sed -i 's/--zen-webview-border-radius: 10px/--zen-webview-border-radius: 0px/g' $out/userChrome.css
+      '';
+
+      catppuccin = {
+        source = catppuccinPatched;
+        recursive = true;
+        force = true;
+      };
+    in
     {
       imports = [ inputs.zen-browser.homeModules.twilight-official ];
 
@@ -354,6 +364,6 @@
         };
       };
 
-      # xdg.configFile."zen/${config.home.username}/chrome" = catppuccin;
+      xdg.configFile."zen/${config.home.username}/chrome" = catppuccin;
     };
 }

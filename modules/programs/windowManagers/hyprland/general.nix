@@ -154,14 +154,14 @@
               "smooth,0.7,0.9,0.1,1.0"
             ];
             animation = [
-              "global, 1, 10, smooth"
-              "border, 1, 2, quick"
-              "windows, 1, 3, smooth"
-              "fade, 1, 1.5, smooth"
-              "layers, 1, 4, smooth"
-              "fadeLayers, 1, 2, smooth"
+              "global, 1, 3.5, smooth"
+              "border, 1, 3.5, smooth"
+              "windows, 1, 3.5, smooth"
+              "fade, 0"
+              "layers, 1, 3.5, smooth"
+              "fadeLayers, 1, 3.5, smooth"
               "workspaces, 1, 3.5, smooth, slidevert"
-              "specialWorkspace, 1, 2.5, smooth, slidevert"
+              "specialWorkspace, 1, 3.5, smooth, slidevert"
             ];
           };
         };

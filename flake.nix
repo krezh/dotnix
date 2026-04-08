@@ -80,7 +80,7 @@
     };
 
     zen-browser-catppuccin = {
-      url = "git+https://github.com/catppuccin/zen-browser?shallow=1";
+      url = "git+https://github.com/catppuccin/zen-browser?ref=96273ffbe6d29df1ed9a3ff8456fad8816c73984";
       flake = false;
     };
 

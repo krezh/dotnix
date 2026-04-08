@@ -65,7 +65,7 @@
             "${mainMod},G,Audio Control,exec,[float] ${audioControl.run}"
             "${mainMod},M,Mail Client,exec,${mail.run}"
             # "${mainMod},TAB,Toggle workspace overview, hyprexpo:expo, toggle"
-            "${mainModShift},R, Reload Hyprland config,exec,hyprctl reload && notify-send -u low 'Hyprland' 'Config Reloaded'"
+            "${mainModShift},R, Reload Hyprland config,exec,hyprctl reload && notify-send --transient -u low 'Hyprland' 'Config Reloaded'"
             "${mainMod},A,Toggle between audio devices,exec,audio-switch toggle"
             "${mainMod},S,Screenshot menu,exec,${screenshot.run}"
             "${mainMod},Q,Close active window,killactive"

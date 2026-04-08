@@ -9,7 +9,7 @@ in
       home-manager.users.${user} = {
         imports = with inputs.self.modules.homeManager; [
           system-desktop
-          hyprland
+          gnome
           desktop-shell
           terminal
           editors
@@ -19,7 +19,7 @@ in
       };
       imports = with inputs.self.modules.nixos; [
         system-desktop
-        hyprland
+        gnome
         openssh
         battery
         inputs.self.modules.nixos.${user}
@@ -29,7 +29,6 @@ in
       networking.hostName = "steamdeck";
 
       services = {
-        orca.enable = false;
         displayManager.sddm.wayland.enable = true;
       };
 
@@ -62,7 +61,7 @@ in
           enable = true;
           autoStart = true;
           inherit user;
-          desktopSession = "hyprland";
+          desktopSession = "gnome";
         };
         decky-loader.enable = true;
       };
