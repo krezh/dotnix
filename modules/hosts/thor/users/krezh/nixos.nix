@@ -25,6 +25,7 @@ in
         kubernetes
         office
         hyprland
+        gnome
         gaming
       ];
     };

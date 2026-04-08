@@ -24,8 +24,6 @@
 
       programs.gdk-pixbuf.modulePackages = [ pkgs.librsvg ];
       environment.pathsToLink = [ "share/thumbnailers" ];
-
-      services.speechd.enable = false;
     };
 
   flake.modules.homeManager.system-desktop = {
@@ -34,5 +32,10 @@
       gtk-theme
       xdg-settings
     ];
+
+    home.file.wallpapers = {
+      recursive = true;
+      source = ./wallpapers;
+    };
   };
 }

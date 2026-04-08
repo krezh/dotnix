@@ -100,11 +100,6 @@
           };
         };
 
-        home.file."wallpapers" = {
-          recursive = true;
-          source = ./wallpapers;
-        };
-
         systemd.user.services.awww-daemon = {
           Unit = {
             Description = "A Solution to your Wayland Wallpaper Woes";

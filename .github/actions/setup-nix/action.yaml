@@ -64,9 +64,9 @@ runs:
 
     - name: Install Nix (with remote builders)
       if: inputs.use-remote-builders == 'true'
-      uses: cachix/install-nix-action@96951a368ba55167b55f1c916f7d416bac6505fe # v31.10.3
+      uses: canidae-solutions/lix-quick-install-action@v4.0.1
       with:
-        extra_nix_config: |
+        lix_conf: |
           accept-flake-config = true
           always-allow-substitutes = true
           builders-use-substitutes = true
@@ -75,9 +75,9 @@ runs:
 
     - name: Install Nix (local)
       if: inputs.use-remote-builders != 'true'
-      uses: cachix/install-nix-action@96951a368ba55167b55f1c916f7d416bac6505fe # v31.10.3
+      uses: canidae-solutions/lix-quick-install-action@v4.0.1
       with:
-        extra_nix_config: |
+        lix_conf: |
           accept-flake-config = true
           always-allow-substitutes = true
           ${{ inputs.nothing-but-nix == 'true' && 'build-dir = /nix/build' || '' }}

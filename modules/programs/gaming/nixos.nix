@@ -84,6 +84,16 @@
                   };
                 };
               };
+              witchfire = {
+                id = 3156770;
+                compatTool = "Proton-GE Latest";
+                launchOptions = {
+                  wrappers = [ "gamemoderun" ];
+                  env = {
+                    LSFG_PROCESS = "Default";
+                  };
+                };
+              };
               darktide = {
                 id = 1361210;
                 compatTool = "Proton-GE Latest";

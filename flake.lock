@@ -1562,16 +1562,16 @@
     "zen-browser-catppuccin": {
       "flake": false,
       "locked": {
-        "lastModified": 1759018582,
-        "narHash": "sha256-5A57Lyctq497SSph7B+ucuEyF1gGVTsuI3zuBItGfg4=",
-        "ref": "refs/heads/main",
-        "rev": "c855685442c6040c4dda9c8d3ddc7b708de1cbaa",
-        "shallow": true,
+        "lastModified": 1775069964,
+        "narHash": "sha256-9QDYV01dHh/WS82zQV0F2WsRWR2v6W0oB/pmucZMMAc=",
+        "ref": "96273ffbe6d29df1ed9a3ff8456fad8816c73984",
+        "rev": "96273ffbe6d29df1ed9a3ff8456fad8816c73984",
+        "revCount": 55,
         "type": "git",
         "url": "https://github.com/catppuccin/zen-browser"
       },
       "original": {
-        "shallow": true,
+        "ref": "96273ffbe6d29df1ed9a3ff8456fad8816c73984",
         "type": "git",
         "url": "https://github.com/catppuccin/zen-browser"
       }
