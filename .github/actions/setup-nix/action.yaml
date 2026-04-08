@@ -92,7 +92,7 @@ runs:
 
     - name: Setup Attic
       if: inputs.skip-cache != 'true' && inputs.attic-endpoint != '' && inputs.attic-cache != '' && inputs.attic-token != ''
-      uses: ryanccn/attic-action@5635a15ef0c5462194ffbd05d1daeddc74625c3a # v0.5.0
+      uses: ryanccn/attic-action@1887fd507f03327c96c64cca30118c96eb17fdad # v0.4.1
       with:
         endpoint: ${{ inputs.attic-endpoint }}
         cache: ${{ inputs.attic-cache }}
