@@ -1,7 +1,7 @@
 { inputs, ... }:
 {
   flake.modules.homeManager.ai =
-    { pkgs, ... }:
+    { pkgs, lib, ... }:
     let
       nix-ai-tools = inputs.nix-ai-tools.packages.${pkgs.stdenv.hostPlatform.system};
     in
@@ -9,6 +9,43 @@
       programs.claude-code = {
         enable = true;
         package = nix-ai-tools.claude-code;
+
+        lspServers = {
+          nix = {
+            command = lib.getExe pkgs.nixd;
+            extensionToLanguage = {
+              ".nix" = "nix";
+            };
+          };
+          go = {
+            command = lib.getExe pkgs.gopls;
+            args = [
+              "serve"
+            ];
+            extensionToLanguage = {
+              ".go" = "go";
+            };
+          };
+          rust = {
+            command = lib.getExe pkgs.rust-analyzer;
+            args = [ ];
+            extensionToLanguage = {
+              ".rs" = "rust";
+            };
+          };
+          typescript = {
+            command = lib.getExe pkgs.typescript-language-server;
+            args = [
+              "--stdio"
+            ];
+            extensionToLanguage = {
+              ".js" = "javascript";
+              ".jsx" = "javascriptreact";
+              ".ts" = "typescript";
+              ".tsx" = "typescriptreact";
+            };
+          };
+        };
 
         mcpServers = {
           nixos = {
@@ -115,11 +152,7 @@
           includeCoAuthoredBy = false;
 
           statusLine = {
-            command = pkgs.writeShellScript "claude-powerline-wrapper" ''
-              export PATH="${pkgs.nodejs}/bin:$PATH"
-              ${pkgs.nodejs}/bin/npx -y @owloops/claude-powerline@latest --style=powerline
-            '';
-            padding = 0;
+            command = "${pkgs.claude-usage-bar}/bin/claude-usage-bar";
             type = "command";
           };
         };

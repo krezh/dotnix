@@ -9,11 +9,6 @@
           curl
           ripgrep
           gh
-          go
-          go-task
-          opentofu
-          tofu-ls
-          zizmor
           ncdu
           fd
           timer
@@ -22,25 +17,36 @@
           await
           ntfy-sh
           hwatch
-          gopls
           btop
           retry
-          just
           minijinja
           gh-poi
           unzip
-          shellcheck
           gum
           duf
           isd
           cava
           glow
-          rust-analyzer
           hyperfine
-          lefthook
           rclone
           wakatime-cli
           infisical
+
+          # Dev
+          devenv
+          lefthook
+          rust-analyzer
+          shellcheck
+          just
+          gopls
+          zizmor
+          go
+          go-task
+          opentofu
+          tofu-ls
+          statix
+          nixd
+          nil
 
           # Networking
           speedtest-cli
@@ -58,7 +64,6 @@
           jc
           jnv
           yq-go
-          # diffsitter # Commented out due to hash mismatch in tree-sitter-quint
           dyff
         ]
         ++ [

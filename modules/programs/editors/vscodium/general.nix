@@ -1,4 +1,4 @@
-{ inputs, ... }:
+{ ... }:
 {
   flake.modules.homeManager.editors =
     {
@@ -37,7 +37,6 @@
             "signageos.signageos-vscode-sops"
             "golang.go"
             "rust-lang.rust-analyzer"
-            "jnoortheen.nix-ide"
             "nefrob.vscode-just-syntax"
             "docker.docker"
             "github.vscode-github-actions"
@@ -211,8 +210,8 @@
             };
             chat = {
               editing.confirmEditRequestRemoval = false;
-              commandCenter.enabled = true;
-              disableAIFeatures = false;
+              commandCenter.enabled = false;
+              disableAIFeatures = true;
             };
             claudeCode = {
               useTerminal = false;
@@ -225,46 +224,7 @@
               inlineMessageEnabled = false;
               statusBarMessageEnabled = true;
             };
-            nix = {
-              enableLanguageServer = true;
-              serverPath = lib.getExe pkgs.nixd;
-              formatterPath = lib.getExe pkgs.treefmt;
-              serverSettings = {
-                nixd = {
-                  nixpkgs.expr = "import ${inputs.nixpkgs} { }";
-                  # formatter.command = [ (lib.getExe pkgs.treefmt) ];
-                  options = {
-                    nixos.expr = ''
-                      (let
-                        pkgs = import ${inputs.nixpkgs} { };
-                      in (pkgs.lib.evalModules {
-                        modules = (import ${inputs.nixpkgs}/nixos/modules/module-list.nix) ++ [
-                          ({...}: { nixpkgs.hostPlatform = "${pkgs.stdenv.hostPlatform.system}"; })
-                        ];
-                      })).options
-                    '';
-                    home-manager.expr = ''
-                      (let
-                        pkgs = import ${inputs.nixpkgs} { };
-                        lib = import ${inputs.home-manager}/modules/lib/stdlib-extended.nix pkgs.lib;
-                      in (lib.evalModules {
-                        modules = (import ${inputs.home-manager}/modules/modules.nix) {
-                          inherit lib pkgs;
-                          check = false;
-                        };
-                      })).options
-                    '';
-                  };
-                  diagnostic.suppress = [ "sema-extra-with" ];
-                };
-                hiddenLanguageServerErrors = [
-                  "textDocument/definition"
-                  "unknown node type for definition"
-                ];
-              };
-            };
-            "[nix]".editor.defaultFormatter = "jnoortheen.nix-ide";
-            rust-analyzer.server.path = "rust-analyzer";
+            rust-analyzer.server.path = lib.getExe pkgs.rust-analyzer;
             go = {
               toolsManagement.autoUpdate = true;
               inlayHints.assignVariableTypes = true;

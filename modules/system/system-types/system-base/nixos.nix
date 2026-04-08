@@ -165,8 +165,6 @@
         deadnix
         nix-init
         nix-update
-        nixd
-        nil
         nix-inspect
         cachix
         nixfmt
