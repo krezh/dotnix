@@ -9,7 +9,7 @@
         enableZshIntegration = true;
         settings = {
           add_newline = true;
-          format = "$username$hostname$git_branch$git_commit$git_state$git_metrics$git_status$fill$cmd_duration$time\n$directory$fill$kubernetes\${custom.talos}\n$character";
+          format = "$username$hostname$git_branch$git_commit$git_state$git_metrics$git_status$nix_shell$fill$cmd_duration$time\n$directory$fill$kubernetes\${custom.talos}\n$character";
           kubernetes = {
             format = "[$context](bold blue) $symbol ";
             symbol = "⎈";
@@ -25,11 +25,10 @@
           custom.talos = {
             command = "${lib.getExe pkgs.talosctl} config info --output json | ${lib.getExe pkgs.jq} --raw-output '.context'";
             format = "[$output](bold blue)";
-            when = "command -v ${lib.getExe pkgs.talosctl} &>/dev/null";
+            when = "command -v talosctl &>/dev/null";
             disabled = false;
           };
           fill.symbol = " ";
-          direnv.disabled = false;
           time = {
             disabled = false;
             style = "bold bright-black";
@@ -44,7 +43,7 @@
             heuristic = true;
           };
           cmd_duration = {
-            format = "took [$duration]($style) ";
+            format = "[$duration]($style) ";
             style = "yellow bold";
             show_notifications = true;
             min_time_to_notify = 60000;

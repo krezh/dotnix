@@ -9,6 +9,7 @@
 
 rustPlatform.buildRustPackage (finalAttrs: {
   pname = "serie";
+  # renovate: datasource=github-releases depName=lusingander/serie
   version = "0.7.0";
 
   src = fetchFromGitHub {
