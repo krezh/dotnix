@@ -64,7 +64,7 @@ runs:
 
     - name: Install Nix (with remote builders)
       if: inputs.use-remote-builders == 'true'
-      uses: canidae-solutions/lix-quick-install-action@v4.0.1
+      uses: canidae-solutions/lix-quick-install-action@cdb5d0931be2223edbb9bad884341fcacdac298f # v4.0.1
       with:
         lix_conf: |
           accept-flake-config = true
@@ -75,7 +75,7 @@ runs:
 
     - name: Install Nix (local)
       if: inputs.use-remote-builders != 'true'
-      uses: canidae-solutions/lix-quick-install-action@v4.0.1
+      uses: canidae-solutions/lix-quick-install-action@cdb5d0931be2223edbb9bad884341fcacdac298f # v4.0.1
       with:
         lix_conf: |
           accept-flake-config = true
