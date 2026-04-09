@@ -1,5 +1,5 @@
 ---
-name: Cleanup Old Releases
+name: Prune Releases
 
 on:
   schedule:
