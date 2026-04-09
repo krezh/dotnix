@@ -48,7 +48,6 @@
                   hiddenLanguageServerErrors = [
                     "textDocument/definition"
                     "unknown node type for definition"
-                    "Request textDocument/definition"
                   ];
                 };
               };

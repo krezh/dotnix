@@ -9,6 +9,7 @@
     ++ [
       inputs.go-overlay.overlays.default
       inputs.nix4vscode.overlays.default
+      (final: _prev: { craneLib = inputs.crane.mkLib final; })
       (
         final: _prev:
         lib.scanPath.toAttrs {
