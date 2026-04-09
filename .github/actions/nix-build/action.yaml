@@ -36,21 +36,25 @@ runs:
     - name: Build ${{ inputs.build-type }}
       id: build
       shell: bash
+      env:
+        INPUT_TARGET: ${{ inputs.target }}
+        OUTPUT_LINK: ${{ inputs.output-link }}
+        EXTRA_ARGS: ${{ inputs.extra-args }}
       run: |
         set -o pipefail
         build_start=$(date +%s)
 
         # Construct nix build command
-        nix_cmd="nix build --fallback --no-write-lock-file --log-format raw \".#${{ inputs.target }}\""
+        nix_cmd="nix build --fallback --no-write-lock-file --log-format raw \".#${INPUT_TARGET}\""
 
         # Add output link if specified
-        if [ -n "${{ inputs.output-link }}" ]; then
-          nix_cmd="$nix_cmd -o ${{ inputs.output-link }}"
+        if [ -n "${OUTPUT_LINK}" ]; then
+          nix_cmd="$nix_cmd -o ${OUTPUT_LINK}"
         fi
 
         # Add extra args based on build type or custom args
-        if [ -n "${{ inputs.extra-args }}" ]; then
-          nix_cmd="$nix_cmd ${{ inputs.extra-args }}"
+        if [ -n "${EXTRA_ARGS}" ]; then
+          nix_cmd="$nix_cmd ${EXTRA_ARGS}"
         fi
 
         # Execute build with error capture

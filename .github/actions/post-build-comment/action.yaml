@@ -46,9 +46,11 @@ runs:
     - name: Format build duration
       if: ${{ inputs.build-status == 'failure' }}
       id: format-duration
+      env:
+        BUILD_DURATION: ${{ inputs.build-duration }}
       shell: bash
       run: |
-        duration_seconds=${{ inputs.build-duration }}
+        duration_seconds=${BUILD_DURATION}
         if [ -z "$duration_seconds" ] || [ "$duration_seconds" = "0" ]; then
           echo "formatted=0s" >> $GITHUB_OUTPUT
         elif [ "$duration_seconds" -ge 3600 ]; then
