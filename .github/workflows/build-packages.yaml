@@ -52,6 +52,13 @@ jobs:
           pkgs=$(echo "$files" | jq -c '[.[] | split("/") | .[2]] | unique')
           echo "packages=$pkgs" >> $GITHUB_OUTPUT
 
+      - name: Run nix-eval-jobs
+        run: |
+          set -Eeu
+          nix run nixpkgs#nix-eval-jobs -- --flake ".#packages" \
+                  --check-cache-status \
+                  --force-recurse --gc-roots-dir /tmp/test | jq
+
   build-packages:
     name: Build package ${{ matrix.package }}
     needs: detect-packages
@@ -59,6 +66,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
+    environment:
+      name: prod
     continue-on-error: true
     strategy:
       matrix:

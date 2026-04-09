@@ -10,10 +10,15 @@ on:
       - .github/renovate.json5
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   renovate:
     name: Renovate
     runs-on: ubuntu-latest
+    environment:
+      name: prod
     steps:
       - name: Generate Token
         uses: actions/create-github-app-token@f8d387b68d61c58ab83c6c016672934102569859 # v3.0.0
@@ -46,5 +51,6 @@ jobs:
       - name: Renovate Output
         env:
           GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
+          RUN_ID: ${{ steps.dispatch.outputs.run_id }}
         run: |-
-          gh run view --repo ${{ github.repository_owner }}/renovate-config --log ${{ steps.dispatch.outputs.run_id }}
+          gh run view --repo ${{ github.repository_owner }}/renovate-config --log ${RUN_ID}

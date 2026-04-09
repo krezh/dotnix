@@ -121,6 +121,8 @@ jobs:
     needs: [detect-changes, ghMatrix]
     permissions:
       pull-requests: write
+    environment:
+      name: prod
     strategy:
       matrix: ${{ fromJSON(needs.ghMatrix.outputs.matrix) }}
       fail-fast: false
