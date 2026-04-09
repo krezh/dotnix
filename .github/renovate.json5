@@ -16,9 +16,7 @@
       matchManagers: ["custom.regex"],
       matchFileNames: ["pkgs/**/*.nix"],
       postUpgradeTasks: {
-        commands: [
-          'bash -c \'PKG=$(grep -P "^\\s*pname = " {{{packageFile}}} | cut -d\\" -f2); nix run github:Mic92/nix-update -- $PKG --flake --version=skip\'',
-        ],
+        commands: ["bash .github/scripts/update-hash.sh {{{packageFile}}}"],
         fileFilters: ["**/*.nix"],
         executionMode: "update",
       },
