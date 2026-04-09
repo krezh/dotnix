@@ -1,31 +1,14 @@
 {
   lib,
-  rustPlatform,
+  craneLib,
   pkgs,
   makeWrapper,
   llvmPackages,
   installShellFiles,
-  ...
 }:
-rustPlatform.buildRustPackage {
-  pname = "chomp";
-  version = "0.1.0";
-
-  src = builtins.path {
-    path = ./.;
-    name = "chomp-src";
-  };
-
-  cargoLock = {
-    lockFile = ./Cargo.lock;
-  };
-
-  nativeBuildInputs = with pkgs; [
-    pkg-config
-    makeWrapper
-    llvmPackages.clang
-    installShellFiles
-  ];
+craneLib.buildPackage rec {
+  src = craneLib.cleanCargoSource ./.;
+  strictDeps = true;
 
   buildInputs = with pkgs; [
     wayland
@@ -45,6 +28,26 @@ rustPlatform.buildRustPackage {
     BINDGEN_EXTRA_CLANG_ARGS = "-isystem ${llvmPackages.libclang.lib}/lib/clang/${llvmPackages.libclang.version}/include";
   };
 
+  cargoArtifacts = craneLib.buildDepsOnly {
+    inherit
+      src
+      strictDeps
+      buildInputs
+      env
+      ;
+    nativeBuildInputs = with pkgs; [
+      pkg-config
+      llvmPackages.clang
+    ];
+  };
+
+  nativeBuildInputs = with pkgs; [
+    pkg-config
+    llvmPackages.clang
+    makeWrapper
+    installShellFiles
+  ];
+
   postInstall = ''
     wrapProgram $out/bin/chomp \
       --prefix PATH : ${lib.makeBinPath [ pkgs.tesseract ]}
@@ -56,7 +59,7 @@ rustPlatform.buildRustPackage {
   '';
 
   meta = {
-    description = "A playful, compositor-agnostic Wayland screen selection tool with OCR support";
+    description = "";
     platforms = [
       "x86_64-linux"
       "aarch64-linux"

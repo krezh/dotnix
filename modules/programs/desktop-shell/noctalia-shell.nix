@@ -13,9 +13,7 @@
           bar = {
             barType = "floating";
             position = "top";
-            monitors = [
-
-            ];
+            monitors = [ ];
             density = "default";
             showOutline = false;
             showCapsule = false;
@@ -83,7 +81,7 @@
                   showAlbumArt = false;
                   showArtistFirst = true;
                   showProgressRing = true;
-                  showVisualizer = true;
+                  showVisualizer = false;
                   textColor = "none";
                   useFixedWidth = true;
                   visualizerType = "mirrored";
@@ -93,18 +91,18 @@
                 {
                   characterCount = 2;
                   colorizeIcons = false;
-                  emptyColor = "secondary";
+                  emptyColor = "none";
                   enableScrollWheel = true;
                   focusedColor = "primary";
                   followFocusedScreen = false;
                   fontWeight = "bold";
                   groupedBorderOpacity = 1;
                   hideUnoccupied = true;
-                  iconScale = 0.8;
+                  iconScale = 1;
                   id = "Workspace";
-                  labelMode = "index";
-                  occupiedColor = "secondary";
-                  pillSize = 0.6;
+                  labelMode = "name";
+                  occupiedColor = "none";
+                  pillSize = 0.7;
                   showApplications = false;
                   showApplicationsHover = false;
                   showBadge = true;

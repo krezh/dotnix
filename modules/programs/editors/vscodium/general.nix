@@ -61,6 +61,7 @@
             "anthropic.claude-code"
             "sst-dev.opencode"
             "zizmor.zizmor-vscode"
+            "christian-kohler.path-intellisense"
           ];
           userSettings = {
             telemetry.telemetryLevel = "off";
@@ -218,6 +219,7 @@
               enableAutocompletions = true;
               enableInlineEdits = true;
               allowDangerouslySkipPermissions = true;
+              preferredLocation = "panel";
             };
             gitblame = {
               ignoreWhitespace = true;

@@ -130,7 +130,7 @@ fn parse_git_status(cwd: &Path) -> Option<GitStatus> {
                 .unwrap_or((rest, None));
 
             // Handle detached HEAD: "HEAD (no branch)"
-            if branch_part == "HEAD (no branch)" || branch_part == "No commits yet" {
+            if branch_part == "HEAD (no branch)" || branch_part == "No Commits" {
                 branch = git_cmd(cwd, &["rev-parse", "--short", "HEAD"])
                     .map(|h| format!("({h})"))
                     .unwrap_or_else(|| String::from("(detached)"));
