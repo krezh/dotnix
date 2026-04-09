@@ -73,7 +73,7 @@ jobs:
           key: nix-${{ runner.os }}-${{ hashFiles('**/*.nix', '**/flake.lock') }}
           restore-keys: nix-${{ runner.os }}-
 
-      - name: Setup Nix with caching
+      - name: Setup Nix
         uses: ./.github/actions/setup-nix
         with:
           skip-cache: true
@@ -133,7 +133,7 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Setup Nix with caching
+      - name: Setup Nix
         uses: ./.github/actions/setup-nix
         with:
           attic-endpoint: https://nix-cache.plexuz.xyz
