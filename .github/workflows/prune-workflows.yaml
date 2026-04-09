@@ -30,7 +30,7 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  del_runs:
+  Prune:
     runs-on: ubuntu-latest
     permissions:
       actions: write
