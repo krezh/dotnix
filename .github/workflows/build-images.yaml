@@ -22,12 +22,6 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.event.number || github.ref }}
   cancel-in-progress: true
 
-env:
-  NIX_CONFIG: |
-    accept-flake-config = true
-    always-allow-substitutes = true
-    builders-use-substitutes = true
-
 jobs:
   setup:
     name: Setup Build Matrix
@@ -40,10 +34,11 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Install Nix
-        uses: nixbuild/nix-quick-install-action@2c9db80fb984ceb1bcaa77cdda3fdf8cfba92035 # v34
+      - name: Setup Nix
+        uses: ./.github/actions/setup-nix
         with:
-          nix_conf: ${{ env.NIX_CONFIG }}
+          skip-cache: true
+          nothing-but-nix: false
 
       - name: Get image list
         id: set-matrix
@@ -67,10 +62,11 @@ jobs:
           persist-credentials: false
           fetch-depth: 0
 
-      - name: Install Nix
-        uses: nixbuild/nix-quick-install-action@2c9db80fb984ceb1bcaa77cdda3fdf8cfba92035 # v34
+      - name: Setup Nix
+        uses: ./.github/actions/setup-nix
         with:
-          nix_conf: ${{ env.NIX_CONFIG }}
+          skip-cache: true
+          nothing-but-nix: false
 
       - name: Garbage collect build dependencies
         run: nix-collect-garbage

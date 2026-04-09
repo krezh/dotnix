@@ -52,6 +52,12 @@ jobs:
           pkgs=$(echo "$files" | jq -c '[.[] | split("/") | .[2]] | unique')
           echo "packages=$pkgs" >> $GITHUB_OUTPUT
 
+      - name: Setup Nix
+        uses: ./.github/actions/setup-nix
+        with:
+          skip-cache: true
+          nothing-but-nix: false
+
       - name: Run nix-eval-jobs
         run: |
           set -Eeu
