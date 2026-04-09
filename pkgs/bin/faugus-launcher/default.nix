@@ -48,13 +48,7 @@ python3Packages.buildPythonApplication rec {
   ];
 
   postPatch = ''
-    substituteInPlace faugus_launcher.py \
-      --replace-fail "PathManager.find_binary('faugus-run')" "'$out/bin/.faugus-run-wrapped'" \
-      --replace-fail "PathManager.find_binary('faugus-proton-manager')" "'$out/bin/.faugus-proton-manager-wrapped'" \
-      --replace-fail "PathManager.user_data('faugus-launcher/umu-run')" "'${lib.getExe umu-launcher}'" \
-      --replace-fail 'Exec={faugus_run}' 'Exec=faugus-run'
-
-    substituteInPlace faugus_run.py \
+    substituteInPlace faugus/launcher.py faugus/runner.py faugus/shortcut.py \
       --replace-fail "PathManager.user_data('faugus-launcher/umu-run')" "'${lib.getExe umu-launcher}'"
   '';
 
