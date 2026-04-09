@@ -17,8 +17,7 @@ if grep -q "craneLib\.buildPackage" "$file"; then
   old_hash=$(grep -oP 'hash = "\K[^"]*' "$file")
   echo "  Old hash: $old_hash"
 
-  hash=$(nix-prefetch-url --unpack "https://github.com/$owner/$repo/archive/refs/tags/$ref.tar.gz" 2>/dev/null | tail -1)
-  sri=$(nix hash to-sri --type sha256 "$hash")
+  sri=$(nix store prefetch-file --json "https://github.com/$owner/$repo/archive/refs/tags/$ref.tar.gz" --unpack | jq -r .hash)
 
   echo "  New hash: $sri"
 
