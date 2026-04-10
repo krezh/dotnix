@@ -36,17 +36,11 @@ in
       ];
 
       networking = {
-        hostName = "odin";
         networkmanager = {
           enable = true;
           wifi.backend = "iwd";
         };
         wireless.enable = lib.mkForce false;
-        firewall = {
-          enable = true;
-          allowedTCPPorts = [ ];
-          allowedUDPPorts = [ ];
-        };
       };
 
       # Boot configuration
@@ -103,18 +97,6 @@ in
           mouse.accelProfile = "flat";
           touchpad.accelProfile = "flat";
         };
-        udev.packages = [ pkgs.headsetcontrol ];
-      };
-
-      programs.gdk-pixbuf.modulePackages = [ pkgs.librsvg ];
-
-      environment = {
-        sessionVariables = {
-          NIXOS_OZONE_WL = "1";
-        };
-        systemPackages = with pkgs; [
-          age-plugin-yubikey
-        ];
       };
     };
 }

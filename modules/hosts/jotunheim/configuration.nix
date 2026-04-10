@@ -105,11 +105,8 @@
         "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEMe4X4oNA8PRUHrOk5RIrpxpzzcBvJyQa8PyaQj3BPp"
       ];
 
-      # Firewall configuration
       networking.firewall = {
-        enable = true;
         allowedTCPPorts = [
-          22 # SSH
           2049 # NFS
           445 # SMB
           139 # SMB
@@ -120,21 +117,12 @@
         ];
       };
 
-      # System packages
       environment.systemPackages = with pkgs; [
         neovim
-        git
         htop
         iotop
         smartmontools
         zfs
       ];
-
-      # Locale and timezone
-      time.timeZone = "Europe/Stockholm";
-      console.keyMap = "sv-latin1";
-      i18n.defaultLocale = "en_US.UTF-8";
-
-      system.stateVersion = "24.05";
     };
 }

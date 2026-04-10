@@ -45,6 +45,15 @@
               ".tsx" = "typescriptreact";
             };
           };
+          bash = {
+            command = lib.getExe pkgs.bash-language-server;
+            args = [ "start" ];
+            extensionToLanguage = {
+              ".sh" = "shellscript";
+              ".bash" = "shellscript";
+              ".zsh" = "shellscript";
+            };
+          };
         };
 
         mcpServers = {

@@ -26,8 +26,6 @@ in
         inputs.jovian.nixosModules.default
       ];
 
-      networking.hostName = "steamdeck";
-
       services = {
         displayManager.sddm.wayland.enable = true;
       };

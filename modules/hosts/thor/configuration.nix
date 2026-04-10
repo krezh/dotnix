@@ -29,11 +29,6 @@
           wifi.backend = "iwd";
         };
         wireless.enable = lib.mkForce false;
-        firewall = {
-          enable = true;
-          allowedTCPPorts = [ ];
-          allowedUDPPorts = [ ];
-        };
       };
 
       programs = {

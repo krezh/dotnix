@@ -23,7 +23,7 @@
             "match:namespace ^(logout_dialog)$, animation fade"
             "match:namespace ^(chomp-selection)$, animation fade"
             "match:namespace ^(wayfreeze)$, animation fade"
-            "match:namespace (noctalia:.*), no_anim on"
+            "match:namespace ^(noctalia:.*)$, no_anim on"
           ];
 
           windowrule = [
@@ -90,6 +90,7 @@
             "match:title Library, float on"
             "match:title Install, match:class steam, float on"
             "match:title Install, match:class steam, size 50% 50%"
+            "match:title Install, match:class steam, center on"
             "match:modal true, float on"
 
             # Opacity overrides
@@ -118,7 +119,7 @@
             "match:class (net.nokyan.Resources), float on"
             "match:class (net.nokyan.Resources), pin on"
             "match:class (net.nokyan.Resources), center on"
-            "match:class (net.nokyan.Resources), size 1200 800"
+            "match:class (net.nokyan.Resources), size 60% 60%"
           ];
         };
       };
