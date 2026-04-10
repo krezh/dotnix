@@ -44,18 +44,19 @@
       console.keyMap = "sv-latin1";
       time.timeZone = "Europe/Stockholm";
 
-      programs.ssh.extraConfig = ''
-        Host eu.nixbuild.net
-        PubkeyAcceptedKeyTypes ssh-ed25519
-        ServerAliveInterval 60
-        IPQoS throughput
-        IdentityFile ${config.sops.secrets."nixbuild/key".path}
-      '';
-
-      programs.ssh.knownHosts = {
-        nixbuild = {
-          hostNames = [ "eu.nixbuild.net" ];
-          publicKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPIQCZc54poJ8vqawd8TraNryQeJnvH1eLpIDgbiqymM";
+      programs.ssh = {
+        extraConfig = ''
+          Host eu.nixbuild.net
+          PubkeyAcceptedKeyTypes ssh-ed25519
+          ServerAliveInterval 60
+          IPQoS throughput
+          IdentityFile ${config.sops.secrets."nixbuild/key".path}
+        '';
+        knownHosts = {
+          nixbuild = {
+            hostNames = [ "eu.nixbuild.net" ];
+            publicKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPIQCZc54poJ8vqawd8TraNryQeJnvH1eLpIDgbiqymM";
+          };
         };
       };
 

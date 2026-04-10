@@ -16,6 +16,10 @@
           PasswordAuthentication = false;
           PermitRootLogin = lib.mkDefault "no";
           AllowGroups = [ "sshusers" ];
+          KexAlgorithms = [
+            "mlkem768x25519-sha256"
+            "sntrup761x25519-sha512@openssh.com"
+          ];
         };
         hostKeys = [
           {

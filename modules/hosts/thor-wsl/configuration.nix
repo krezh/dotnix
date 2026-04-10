@@ -24,8 +24,6 @@ in
         (modulesPath + "/profiles/minimal.nix")
       ];
 
-      networking.hostName = "thor-wsl";
-
       # WSL configuration
       wsl = {
         enable = true;

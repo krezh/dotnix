@@ -80,7 +80,7 @@
                 (mkRule (mkMatch { "device.name" = "alsa_card.${device}"; }) (mkUpdateProps settings.deviceProps))
               ]
             else
-              [ ];
+              null;
           hideRules = mkHideRules deviceHideNodes;
           renameRules = mkRenameRules deviceRenameModules;
         in

@@ -1,5 +1,4 @@
-{ ... }:
-{
+_: {
   flake.modules.homeManager.editors =
     {
       lib,
@@ -42,6 +41,7 @@
             "github.vscode-github-actions"
             "gruntfuggly.todo-tree"
             "timonwong.shellcheck"
+            "jeff-hykin.better-shellscript-syntax"
             "tamasfe.even-better-toml"
             "mads-hartmann.bash-ide-vscode"
             "bmalehorn.vscode-fish"
