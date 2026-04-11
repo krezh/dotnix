@@ -9,13 +9,13 @@
 craneLib.buildPackage rec {
   pname = "serie";
   # renovate: datasource=github-releases depName=lusingander/serie
-  version = "0.7.1";
+  version = "0.7.2";
 
   src = fetchFromGitHub {
     owner = "lusingander";
     repo = "serie";
     tag = "v${version}";
-    hash = "sha256-tNMNbxPuWNXfBdQglq6PekJV93AdhO+zqAA+dyNqdcQ=";
+    hash = "sha256-/w/LKU2ObPjoO7RQ5HehCAqWv3Hfu7a+6Rk+rPx5MSM=";
   };
 
   strictDeps = true;
