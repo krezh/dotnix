@@ -143,7 +143,7 @@ jobs:
           attic-cache: ${{ secrets.ATTIC_CACHE }}
           attic-token: ${{ secrets.ATTIC_TOKEN }}
           skip-cache: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork }}
-          use-remote-builders: true
+          use-remote-builders: false
           remote-builders-ssh-key: |
             ${{ secrets.REMOTE_BUILDERS_SSH_KEY }}
 
