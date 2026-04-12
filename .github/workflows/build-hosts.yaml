@@ -76,7 +76,7 @@ jobs:
       - name: Setup Nix
         uses: ./.github/actions/setup-nix
         with:
-          skip-cache: true
+          skip-cache: false
           nothing-but-nix: false
 
       - name: Import Nix store cache
@@ -86,9 +86,12 @@ jobs:
       - name: Run nix-eval-jobs
         run: |
           set -Eeu
-          nix run nixpkgs#nix-eval-jobs -- --flake ".#hosts" \
-                  --check-cache-status \
-                  --force-recurse --gc-roots-dir /tmp/test | jq
+          nix run nixpkgs#nix-eval-jobs -- \
+            --flake .#hosts \
+            --check-cache-status \
+            --force-recurse \
+            --gc-roots-dir /tmp/gcroots | \
+              jq -sc 'map(select(.cacheStatus == "notBuilt"))' | jq
 
       - name: Export Nix store cache
         run: |
