@@ -7,13 +7,13 @@
 buildGoModule (finalAttrs: {
   pname = "lfk";
   # renovate: datasource=github-releases depName=janosmiko/lfk
-  version = "0.9.9";
+  version = "0.9.10";
 
   src = fetchFromGitHub {
     owner = "janosmiko";
     repo = "lfk";
     tag = "v${finalAttrs.version}";
-    hash = "sha256-23Zvifw3ClBHe7vxrucS9mfU5X87yoPOlWRk4ZnOBPk=";
+    hash = "sha256-Fm8GDfe5lhHaf7ewmzaz9BRUsjPfJSTWK3NSEo+Ev6c=";
   };
 
   postPatch = ''
