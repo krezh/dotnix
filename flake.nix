@@ -7,7 +7,7 @@
       "https://niri.cachix.org"
     ];
     extra-trusted-public-keys = [
-      "krezh:f7qFtNU9qKZkMgoGgBRetTHfoDPyHBc+VfFN3fRqJH8="
+      "krezh:pZdo/AYEhclPmRTLLD2LTL1K7acK/kd56TJAQzO196o="
       "nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs="
       "niri.cachix.org-1:Wv0OmO7PsuocRKzfDoJ3mulSl7Z6oezYhGhR+3W2964="
     ];

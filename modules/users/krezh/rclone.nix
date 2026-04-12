@@ -29,6 +29,18 @@
               secret_access_key = config.sops.secrets."r2/accessSecret".path;
             };
           };
+          hetzner = {
+            config = {
+              type = "s3";
+              provider = "Other";
+              endpoint = "hel1.your-objectstorage.com";
+              region = "hel1";
+            };
+            secrets = {
+              access_key_id = config.sops.secrets."hetzner/accessID".path;
+              secret_access_key = config.sops.secrets."hetzner/accessSecret".path;
+            };
+          };
         };
       };
     };

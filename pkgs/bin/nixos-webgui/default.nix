@@ -15,7 +15,7 @@ buildGoApplication rec {
   version = "0.1.0";
 
   src = builtins.path {
-    path = ./.;
+    path = ./src;
     name = "nixos-webgui-src";
   };
 

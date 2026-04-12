@@ -2,6 +2,8 @@ package main
 
 import (
 	"embed"
+	"flag"
+	"fmt"
 	"io/fs"
 	"log"
 	"net/http"
@@ -15,6 +17,10 @@ import (
 var staticFiles embed.FS
 
 func main() {
+	host := flag.String("host", "0.0.0.0", "address to listen on")
+	port := flag.Int("port", 8080, "port to listen on")
+	flag.Parse()
+
 	r := chi.NewRouter()
 
 	// Middleware
@@ -66,10 +72,17 @@ func main() {
 		r.Get("/store/stats", handlers.HandleStoreStats)
 		r.Post("/store/gc", handlers.HandleGarbageCollection)
 		r.Post("/store/optimize", handlers.HandleStoreOptimize)
+
+		// Health check
+		r.Get("/health", handlers.HandleHealthcheck)
 	})
 
-	log.Println("Starting NixOS WebGUI on http://localhost:8080")
-	if err := http.ListenAndServe("0.0.0.0:8080", r); err != nil {
+	// Registered after all routes so chi.Walk sees the full router.
+	r.Get("/api/routes", handlers.HandleAPIRoutes(r))
+
+	addr := fmt.Sprintf("%s:%d", *host, *port)
+	log.Printf("Starting NixOS WebGUI on http://%s\n", addr)
+	if err := http.ListenAndServe(addr, r); err != nil {
 		log.Fatal(err)
 	}
 }

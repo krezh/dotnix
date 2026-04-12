@@ -2,6 +2,7 @@
 pkgs.buildGoApplication rec {
   pname = "km";
   version = "0.1.0";
+
   src = builtins.path {
     path = ./src;
     name = "kopia-manager-src";

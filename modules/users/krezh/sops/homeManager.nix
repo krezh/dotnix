@@ -21,6 +21,8 @@
           "garage/accessSecret" = { };
           "r2/accessID" = { };
           "r2/accessSecret" = { };
+          "hetzner/accessID" = { };
+          "hetzner/accessSecret" = { };
         };
       };
       home.sessionVariables = {
