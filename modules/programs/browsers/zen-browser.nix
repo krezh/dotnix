@@ -179,7 +179,11 @@
               "Github Code Search"
             ];
           };
+          mods = [
+            # "642854b5-88b4-4c40-b256-e035532109df" # Transparent Zen
+          ];
           settings = {
+            # https://docs.zen-browser.app/guides/about-config-flags
             # Network settings
             "browser.preferences.defaultPerformanceSettings.enabled" = false;
             "network.http.max-connections" = 1200;
@@ -311,9 +315,8 @@
             "zen.theme.accent-color" = "#ffffff90";
             "zen.theme.border-radius" = toString config.var.rounding;
             "zen.theme.content-element-separation" = 0;
-            "zen.theme.gradient" = true;
+            "zen.theme.gradient" = false;
             "zen.theme.gradient.show-custom-colors" = true;
-            "zen.theme.acrylic-elements" = false;
             "zen.urlbar.replace-newtab" = true;
             "zen.urlbar.behavior" = "float";
             "zen.workspaces.open-new-tab-if-last-unpinned-tab-is-closed" = true;
@@ -332,6 +335,12 @@
             "zen.mediacontrols.enabled" = false;
             "zen.welcome-screen.seen" = true;
             "reader.parse-on-load.enabled" = false;
+
+            # Transparancy
+            "zen.widget.linux.transparency" = true;
+            "browser.tabs.allow_transparent_browser" = true;
+            "widget.transparent-windows" = true;
+            "zen.theme.acrylic-elements" = true;
 
             # Browser misc
             "browser.aboutConfig.showWarning" = false;

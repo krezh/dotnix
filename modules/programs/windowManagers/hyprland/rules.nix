@@ -27,14 +27,13 @@
           ];
 
           windowrule = [
-            # Tags
+            # Tags Definitions
             "tag +games, match:class ^(gamescope)$"
             "tag +games, match:class ^(steam_proton)$"
             "tag +games, match:class ^(steam_app_default)$"
             "tag +games, match:class ^(steam_app_[0-9]+)$"
             "tag +games, match:xdg_tag ^(proton-game)$"
             "tag +games, match:content 3" # (none = 0, photo = 1, video = 2, game = 3)
-
             "tag +browsers, match:class ^(zen.*)$"
             "tag +browsers, match:class ^(firefox)$"
             "tag +browsers, match:class ^(chromium)$"
@@ -49,6 +48,16 @@
             "tag +chat, match:class ^(vesktop)$"
             "tag +chat, match:class ^(legcord)$"
             "tag +chat, match:class ^(discord)$"
+            "tag +dialog, match:title (Select|Open)( a)? (File|Folder)(s)?"
+            "tag +dialog, match:title File (Operation|Upload)( Progress)?"
+            "tag +dialog, match:class xdg-desktop-portal-gtk"
+            "tag +dialog, match:title .* Properties"
+            "tag +dialog, match:title Export Image as PNG"
+            "tag +dialog, match:title GIMP Crash Debug"
+            "tag +dialog, match:title Save As"
+            "tag +dialog, match:title Library"
+            "tag +dialog, match:title Install, match:class steam"
+            "tag +dialog, match:modal true"
 
             # Tag Rules
             # Chat
@@ -65,6 +74,10 @@
             "match:tag games, no_blur on"
             "match:tag games, render_unfocused on"
             "match:tag games, immediate true"
+            # Dialog
+            "match:tag dialog, float on"
+            "match:tag dialog, size (monitor_w*0.5) (monitor_h*0.5)"
+            "match:tag dialog, center on"
 
             # Smart borders
             "match:float false, match:workspace w[tv1]s[false], border_size 0"
@@ -78,20 +91,6 @@
             "match:xwayland true, match:title win[0-9]+, no_dim on"
             "match:xwayland true, match:title win[0-9]+, no_shadow on"
             "match:xwayland true, match:title win[0-9]+, rounding ${toString config.var.rounding}"
-
-            # Dialog windows
-            "match:title (Select|Open)( a)? (File|Folder)(s)?, float on"
-            "match:title File (Operation|Upload)( Progress)?, float on"
-            "match:initial_class xdg-desktop-portal-gtk, float on"
-            "match:title .* Properties, float on"
-            "match:title Export Image as PNG, float on"
-            "match:title GIMP Crash Debug, float on"
-            "match:title Save As, float on"
-            "match:title Library, float on"
-            "match:title Install, match:class steam, float on"
-            "match:title Install, match:class steam, size 50% 50%"
-            "match:title Install, match:class steam, center on"
-            "match:modal true, float on"
 
             # Opacity overrides
             "match:initial_title ^(Discord Popout)$, opacity 1.0 override"
@@ -111,15 +110,15 @@
 
             # Float Terminal
             "match:class floatTerm, float on"
-            "match:class floatTerm, size 60% 60%"
+            "match:class floatTerm, size (monitor_w*0.5) (monitor_h*0.5)"
             "match:class com.floatterm.floatterm, float on"
-            "match:class com.floatterm.floatterm, size 60% 60%"
+            "match:class com.floatterm.floatterm, size (monitor_w*0.5) (monitor_h*0.5)"
 
             # Resources
             "match:class (net.nokyan.Resources), float on"
             "match:class (net.nokyan.Resources), pin on"
             "match:class (net.nokyan.Resources), center on"
-            "match:class (net.nokyan.Resources), size 60% 60%"
+            "match:class (net.nokyan.Resources), size (monitor_w*0.5) (monitor_h*0.5)"
           ];
         };
       };

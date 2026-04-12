@@ -1,6 +1,3 @@
-let
-  user = "krezh";
-in
 {
   flake.modules.nixos.thor =
     {
@@ -9,6 +6,9 @@ in
       config,
       ...
     }:
+    let
+      user = "krezh";
+    in
     {
       home-manager.users.${user} = {
         programs.wlr-which-key = {
@@ -43,22 +43,22 @@ in
                 {
                   key = "s";
                   desc = "Screen (Fullscreen)";
-                  cmd = "${chompBin} --mode image-screen --delay 100";
+                  cmd = "${chompBin} --mode image-screen --delay 300";
                 }
                 {
                   key = "w";
                   desc = "Window";
-                  cmd = "${chompBin} --mode image-window --delay 100";
+                  cmd = "${chompBin} --mode image-window --delay 300";
                 }
                 {
                   key = "a";
                   desc = "Area";
-                  cmd = "${chompBin} --mode image-area --delay 100";
+                  cmd = "${chompBin} --mode image-area --delay 300";
                 }
                 {
                   key = "c";
                   desc = "OCR";
-                  cmd = "${chompBin} --ocr --delay 100";
+                  cmd = "${chompBin} --ocr --delay 300";
                 }
                 {
                   key = "r";
@@ -67,17 +67,17 @@ in
                     {
                       key = "a";
                       desc = "Area";
-                      cmd = "${chompBin} --mode video-area --delay 100";
+                      cmd = "${chompBin} --mode video-area --delay 300";
                     }
                     {
                       key = "w";
                       desc = "Window";
-                      cmd = "${chompBin} --mode video-window --delay 100";
+                      cmd = "${chompBin} --mode video-window --delay 300";
                     }
                     {
                       key = "s";
                       desc = "Screen";
-                      cmd = "${chompBin} --mode video-screen --delay 100";
+                      cmd = "${chompBin} --mode video-screen --delay 300";
                     }
                   ];
                 }

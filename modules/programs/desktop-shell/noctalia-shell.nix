@@ -100,7 +100,7 @@
                   hideUnoccupied = true;
                   iconScale = 1;
                   id = "Workspace";
-                  labelMode = "name";
+                  labelMode = "none";
                   occupiedColor = "none";
                   pillSize = 0.7;
                   showApplications = false;

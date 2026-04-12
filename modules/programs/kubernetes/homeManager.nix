@@ -40,6 +40,7 @@
         k8s-format
         kubectx
         klim
+        egctl
         inputs.kauth.packages.${pkgs.stdenv.hostPlatform.system}.kauth
       ];
 
