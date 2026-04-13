@@ -44,13 +44,19 @@ jobs:
 
       - name: Extract package names
         id: extract-packages
-        if: ${{ steps.changed-packages.outputs.changed_files != '[]' }}
         env:
           CHANGED_FILES: ${{ steps.changed-packages.outputs.changed_files }}
         run: |
-          files="${CHANGED_FILES}"
-          pkgs=$(echo "$files" | jq -c '[.[] | split("/") | .[2]] | unique')
-          echo "packages=$pkgs" >> $GITHUB_OUTPUT
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            # Get all packages on manual trigger
+            pkgs=$(ls -1 pkgs/bin pkgs/lib 2>/dev/null | jq -R -s -c 'split("\n") | map(select(length > 0))')
+            echo "packages=$pkgs" >> $GITHUB_OUTPUT
+          elif [ "${CHANGED_FILES}" != "[]" ]; then
+            # Get changed packages on PR/push
+            files="${CHANGED_FILES}"
+            pkgs=$(echo "$files" | jq -c '[.[] | split("/") | .[2]] | unique')
+            echo "packages=$pkgs" >> $GITHUB_OUTPUT
+          fi
 
       - name: Setup Nix
         uses: ./.github/actions/setup-nix
@@ -66,12 +72,12 @@ jobs:
             --check-cache-status \
             --force-recurse \
             --gc-roots-dir /tmp/gcroots | \
-              jq -sc 'map(select(.cacheStatus == "notBuilt"))' | jq
+              jq -sc 'map(select(.cacheStatus == "notBuilt") | .attr) | sort'
 
   build-packages:
     name: Build package ${{ matrix.package }}
     needs: detect-packages
-    if: ${{ needs.detect-packages.outputs.changed-packages != '' }}
+    if: ${{ github.event_name == 'workflow_dispatch' || needs.detect-packages.outputs.changed-packages != '' }}
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
