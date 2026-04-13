@@ -10,6 +10,13 @@
         enable = true;
         package = nix-ai-tools.opencode;
 
+        tui = {
+          scroll_speed = 3;
+          scroll_acceleration = {
+            enabled = true;
+          };
+        };
+
         settings = {
           model = "anthropic/claude-sonnet-4-5";
           small_model = "anthropic/claude-haiku-4";
@@ -114,14 +121,6 @@
                   exec ${pkgs.nodejs}/bin/npx -y @upstash/context7-mcp "$@"
                 ''}"
               ];
-            };
-          };
-
-          # TUI configuration
-          tui = {
-            scroll_speed = 3;
-            scroll_acceleration = {
-              enabled = true;
             };
           };
         };
