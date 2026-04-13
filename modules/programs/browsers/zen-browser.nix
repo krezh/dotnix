@@ -338,7 +338,7 @@
 
             # Transparancy
             "zen.widget.linux.transparency" = true;
-            "browser.tabs.allow_transparent_browser" = true;
+            "browser.tabs.allow_transparent_browser" = false;
             "widget.transparent-windows" = true;
             "zen.theme.acrylic-elements" = true;
 

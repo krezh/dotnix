@@ -91,7 +91,7 @@ jobs:
             --check-cache-status \
             --force-recurse \
             --gc-roots-dir /tmp/gcroots | \
-              jq -sc 'map(select(.cacheStatus == "notBuilt"))' | jq
+              jq -sc 'map(select(.cacheStatus == "notBuilt") | .attr) | sort'
 
       - name: Export Nix store cache
         run: |
