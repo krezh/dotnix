@@ -23,42 +23,18 @@ env:
   CACHE_NAME: krezh
 
 jobs:
-  detect-packages:
-    name: Detect Changed Packages
+  ghMatrix:
+    name: Generate Build Matrix
     runs-on: ubuntu-latest
     environment:
       name: prod
     outputs:
-      changed-packages: ${{ steps.extract-packages.outputs.packages }}
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           persist-credentials: false
-          fetch-depth: 0
-
-      - name: Get changed packages
-        id: changed-packages
-        uses: bjw-s-labs/action-changed-files@a9a36fb08ce06db9b02fbd8026cc2c0945eb9841 # v0.6.0
-        with:
-          patterns: pkgs/**
-          include_only_directories: true
-
-      - name: Extract package names
-        id: extract-packages
-        env:
-          CHANGED_FILES: ${{ steps.changed-packages.outputs.changed_files }}
-        run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            # Get all packages on manual trigger
-            pkgs=$(nix eval .#packages.x86_64-linux --apply builtins.attrNames --json | jq -c)
-            echo "packages=$pkgs" >> $GITHUB_OUTPUT
-          elif [ "${CHANGED_FILES}" != "[]" ]; then
-            # Get changed packages on PR/push
-            files="${CHANGED_FILES}"
-            pkgs=$(echo "$files" | jq -c '[.[] | split("/") | .[2]] | unique')
-            echo "packages=$pkgs" >> $GITHUB_OUTPUT
-          fi
 
       - name: Setup Nix
         uses: ./.github/actions/setup-nix
@@ -69,30 +45,34 @@ jobs:
           skip-push: true
           nothing-but-nix: false
 
-      - name: Run nix-eval-jobs
+      - id: set-matrix
+        name: Generate Matrix
         run: |
           set -Eeu
-          nix run nixpkgs#nix-eval-jobs -- \
+          pkgs=$(nix run nixpkgs#nix-eval-jobs -- \
             --flake .#packages \
             --allow-import-from-derivation \
             --check-cache-status \
             --force-recurse \
             --gc-roots-dir /tmp/gcroots | \
-              jq -sc 'map(select(.cacheStatus == "notBuilt") | .attr) | sort'
+              jq -sc 'map(select(.cacheStatus == "notBuilt") | {
+                package: (.attr | split(".") | .[1:] | join(".")),
+                runner: (.attr | split(".")[0] | if . == "aarch64-linux" then "ubuntu-24.04-arm" else "ubuntu-latest" end)
+              }) | {include: (sort_by(.package))}')
+          echo "packages=$pkgs" >> $GITHUB_OUTPUT
 
   build-packages:
     name: Build package ${{ matrix.package }}
-    needs: detect-packages
-    if: ${{ github.event_name == 'workflow_dispatch' || needs.detect-packages.outputs.changed-packages != '' }}
-    runs-on: ubuntu-latest
+    needs: ghMatrix
+    if: ${{ fromJson(needs.ghMatrix.outputs.matrix).include[0] != null }}
+    runs-on: ${{ matrix.runner }}
     permissions:
       pull-requests: write
     environment:
       name: prod
     continue-on-error: true
     strategy:
-      matrix:
-        package: ${{ fromJson(needs.detect-packages.outputs.changed-packages) }}
+      matrix: ${{ fromJson(needs.ghMatrix.outputs.matrix) }}
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
