@@ -27,6 +27,7 @@
         rclone
         wakatime-cli
         infisical
+        hcloud
 
         # Dev
         devenv
