@@ -69,6 +69,7 @@ jobs:
           set -Eeu
           nix run nixpkgs#nix-eval-jobs -- \
             --flake .#packages \
+            --allow-import-from-derivation \
             --check-cache-status \
             --force-recurse \
             --gc-roots-dir /tmp/gcroots | \
