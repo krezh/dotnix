@@ -122,7 +122,7 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    crane.url = "github:ipetkov/crane";
+    crane.url = "git+https://github.com/ipetkov/crane?shallow=1";
 
     nix-ai-tools = {
       url = "git+https://github.com/numtide/nix-ai-tools?shallow=1";
@@ -146,8 +146,8 @@
     };
 
     cache-nix-action = {
-      url = "github:nix-community/cache-nix-action";
-      flake = false;
+      url = "git+https://github.com/nix-community/cache-nix-action?shallow=1";
+      # flake = false;
     };
   };
 

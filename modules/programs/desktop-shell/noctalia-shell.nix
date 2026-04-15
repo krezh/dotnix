@@ -8,6 +8,74 @@
       programs.noctalia-shell = {
         enable = true;
         systemd.enable = true;
+        plugins = {
+          version = 2;
+          sources = [
+            {
+              enabled = true;
+              name = "Official Noctalia Plugins";
+              url = "https://github.com/noctalia-dev/noctalia-plugins";
+            }
+          ];
+          states = {
+            model-usage = {
+              enabled = true;
+              sourceUrl = "https://github.com/noctalia-dev/noctalia-plugins";
+            };
+            ssh-sessions = {
+              enabled = true;
+              sourceUrl = "https://github.com/noctalia-dev/noctalia-plugins";
+            };
+            privacy-indicator = {
+              enabled = true;
+              sourceUrl = "https://github.com/noctalia-dev/noctalia-plugins";
+            };
+          };
+        };
+        pluginSettings = {
+          model-usage = {
+            barCycleIntervalSec = 5;
+            barDisplayMode = "active";
+            barMetric = "usage";
+            providers = {
+              claude = {
+                enabled = true;
+                credentialsPath = "~/.claude/.credentials.json";
+                statsPath = "~/.claude/stats-cache.json";
+              };
+              codex = {
+                enabled = false;
+              };
+              copilot = {
+                enabled = false;
+              };
+              openrouter = {
+                apiKey = "";
+                enabled = false;
+              };
+              zen = {
+                apiKey = "";
+                enabled = false;
+              };
+            };
+            refreshIntervalSec = 30;
+          };
+          ssh-sessions = {
+            pollInterval = 10;
+            showInactiveHosts = true;
+            terminalCommand = "";
+          };
+          privacy-indicator = {
+            activeColor = "primary";
+            camFilterRegex = "";
+            enableToast = true;
+            hideInactive = true;
+            iconSpacing = 4;
+            inactiveColor = "none";
+            micFilterRegex = "";
+            removeMargins = true;
+          };
+        };
         settings = {
           settingsVersion = 58;
           bar = {
@@ -25,7 +93,6 @@
             enableExclusionZoneInset = true;
             backgroundOpacity = 0.9;
             useSeparateOpacity = true;
-            floating = true;
             marginVertical = 5;
             marginHorizontal = 10;
             frameThickness = 8;
@@ -39,7 +106,7 @@
             widgets = {
               left = [
                 {
-                  compactMode = false;
+                  compactMode = true;
                   diskPath = "/";
                   iconColor = "none";
                   id = "SystemMonitor";
@@ -49,7 +116,7 @@
                   showCpuUsage = true;
                   showDiskAvailable = false;
                   showDiskUsage = true;
-                  showDiskUsageAsPercent = false;
+                  showDiskUsageAsPercent = true;
                   showGpuTemp = true;
                   showLoadAverage = false;
                   showMemoryAsPercent = true;
@@ -67,6 +134,7 @@
                   maxWidth = 145;
                   scrollingMode = "hover";
                   showIcon = false;
+                  showText = true;
                   textColor = "none";
                   useFixedWidth = false;
                 }
@@ -112,17 +180,23 @@
               ];
               right = [
                 {
-                  blacklist = [
-
-                  ];
+                  id = "plugin:model-usage";
+                }
+                {
+                  id = "plugin:ssh-sessions";
+                  commandPrefix = "ssh";
+                }
+                {
+                  id = "plugin:privacy-indicator";
+                }
+                {
+                  blacklist = [ ];
                   chevronColor = "none";
                   colorizeIcons = true;
                   drawerEnabled = false;
                   hidePassive = false;
                   id = "Tray";
-                  pinned = [
-
-                  ];
+                  pinned = [ ];
                 }
                 {
                   displayMode = "onhover";
@@ -259,6 +333,7 @@
               ];
             };
             reverseScroll = false;
+            smoothScrollEnabled = true;
           };
           ui = {
             fontDefault = "Rubik";
@@ -287,6 +362,8 @@
             firstDayOfWeek = 1;
             hideWeatherTimezone = false;
             hideWeatherCityName = false;
+            autoLocate = false;
+            weatherTaliaMascotAlways = false;
           };
           calendar = {
             cards = [
@@ -306,45 +383,6 @@
           };
           wallpaper = {
             enabled = false;
-            overviewEnabled = true;
-            directory = "/home/krezh/Pictures/Wallpapers";
-            monitorDirectories = [
-
-            ];
-            enableMultiMonitorDirectories = false;
-            showHiddenFiles = false;
-            viewMode = "single";
-            setWallpaperOnAllMonitors = true;
-            fillMode = "crop";
-            fillColor = "#000000";
-            useSolidColor = false;
-            solidColor = "#1a1a2e";
-            automationEnabled = false;
-            wallpaperChangeMode = "random";
-            randomIntervalSec = 300;
-            transitionDuration = 1500;
-            transitionType = "random";
-            skipStartupTransition = false;
-            transitionEdgeSmoothness = 0.05;
-            panelPosition = "follow_bar";
-            hideWallpaperFilenames = false;
-            overviewBlur = 0.4;
-            overviewTint = 0.6;
-            useWallhaven = false;
-            wallhavenQuery = "";
-            wallhavenSorting = "relevance";
-            wallhavenOrder = "desc";
-            wallhavenCategories = "111";
-            wallhavenPurity = "100";
-            wallhavenRatios = "";
-            wallhavenApiKey = "";
-            wallhavenResolutionMode = "atleast";
-            wallhavenResolutionWidth = "";
-            wallhavenResolutionHeight = "";
-            sortOrder = "name";
-            favorites = [
-
-            ];
           };
           appLauncher = {
             enableClipboardHistory = false;
@@ -372,6 +410,8 @@
             screenshotAnnotationTool = "";
             overviewLayer = false;
             density = "default";
+            enableClipboardChips = true;
+            enableClipboardSmartIcons = true;
           };
           controlCenter = {
             position = "close_to_bar_button";
@@ -456,40 +496,8 @@
           };
           dock = {
             enabled = false;
-            position = "bottom";
-            displayMode = "auto_hide";
-            dockType = "attached";
-            backgroundOpacity = 1;
-            floatingRatio = 1;
-            size = 1;
-            onlySameOutput = true;
-            monitors = [
-
-            ];
-            pinnedApps = [
-
-            ];
-            colorizeIcons = false;
-            showLauncherIcon = false;
-            launcherPosition = "end";
-            launcherIconColor = "none";
-            pinnedStatic = false;
-            inactiveIndicators = true;
-            groupApps = true;
-            groupContextMenuMode = "extended";
-            groupClickAction = "cycle";
-            groupIndicatorStyle = "dots";
-            deadOpacity = 0.6;
-            animationSpeed = 1;
-            sitOnFrame = false;
-            showDockIndicator = false;
-            indicatorThickness = 3;
-            indicatorColor = "primary";
-            indicatorOpacity = 0.6;
           };
           network = {
-            wifiEnabled = false;
-            airplaneModeEnabled = false;
             bluetoothRssiPollingEnabled = false;
             bluetoothRssiPollIntervalMs = 10000;
             networkPanelView = "wifi";
@@ -570,9 +578,7 @@
             enabled = true;
             enableMarkdown = true;
             density = "default";
-            monitors = [
-
-            ];
+            monitors = [ ];
             location = "top_right";
             overlayLayer = true;
             backgroundOpacity = 0.98;
@@ -582,7 +588,7 @@
             criticalUrgencyDuration = 15;
             clearDismissed = true;
             saveToHistory = {
-              low = true;
+              low = false;
               normal = true;
               critical = true;
             };
@@ -614,9 +620,7 @@
               null
               null
             ];
-            monitors = [
-
-            ];
+            monitors = [ ];
           };
           audio = {
             volumeStep = 5;
@@ -629,6 +633,7 @@
             preferredPlayer = "";
             volumeFeedback = false;
             volumeFeedbackSoundFile = "";
+            spectrumMirrored = true;
           };
           brightness = {
             brightnessStep = 5;
@@ -647,6 +652,7 @@
             manualSunset = "18:30";
             generationMethod = "fruit-salad";
             monitorForColors = "";
+            syncGsettings = true;
           };
           templates = {
             activeTemplates = [
@@ -656,40 +662,16 @@
           };
           nightLight = {
             enabled = false;
-            forced = false;
-            autoSchedule = true;
-            nightTemp = "4000";
-            dayTemp = "6500";
-            manualSunrise = "06:30";
-            manualSunset = "18:30";
           };
           hooks = {
             enabled = false;
-            wallpaperChange = "";
-            darkModeChange = "";
-            screenLock = "";
-            screenUnlock = "";
-            performanceModeEnabled = "";
-            performanceModeDisabled = "";
-            startup = "";
-            session = "";
           };
           plugins = {
-            autoUpdate = false;
+            autoUpdate = true;
+            notifyUpdates = true;
           };
           idle = {
             enabled = false;
-            screenOffTimeout = 600;
-            lockTimeout = 660;
-            suspendTimeout = 1800;
-            fadeDuration = 5;
-            screenOffCommand = "";
-            lockCommand = "";
-            suspendCommand = "";
-            resumeScreenOffCommand = "";
-            resumeLockCommand = "";
-            resumeSuspendCommand = "";
-            customCommands = "[]";
           };
           desktopWidgets = {
             enabled = true;
