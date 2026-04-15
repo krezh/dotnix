@@ -24,7 +24,7 @@
     flake-parts.url = "git+https://github.com/hercules-ci/flake-parts?shallow=1";
 
     lanzaboote = {
-      url = "git+https://github.com/nix-community/lanzaboote?ref=v1.0.0&shallow=1";
+      url = "git+https://github.com/nix-community/lanzaboote?ref=refs/tags/v1.0.0&shallow=1";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 

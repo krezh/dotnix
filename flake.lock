@@ -784,14 +784,14 @@
       "locked": {
         "lastModified": 1765382359,
         "narHash": "sha256-RJmgVDzjRI18BWVogG6wpsl1UCuV6ui8qr4DJ1LfWZ8=",
-        "ref": "v1.0.0",
+        "ref": "refs/tags/v1.0.0",
         "rev": "e8c096ade12ec9130ff931b0f0e25d2f1bc63607",
         "shallow": true,
         "type": "git",
         "url": "https://github.com/nix-community/lanzaboote"
       },
       "original": {
-        "ref": "v1.0.0",
+        "ref": "refs/tags/v1.0.0",
         "shallow": true,
         "type": "git",
         "url": "https://github.com/nix-community/lanzaboote"
