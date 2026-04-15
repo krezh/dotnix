@@ -21,6 +21,7 @@
 }:
 craneLib.buildPackage rec {
   pname = "wayle";
+  # renovate: datasource=github-releases depName=wayle-rs/wayle
   version = "0.1.2";
 
   src = fetchFromGitHub {
