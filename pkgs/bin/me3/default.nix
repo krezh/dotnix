@@ -11,6 +11,7 @@
 let
   me3-unwrapped = stdenv.mkDerivation (finalAttrs: {
     pname = "me3-unwrapped";
+    # renovate: datasource=github-releases depName=garyttierney/me3
     version = "0.10.1";
 
     src = fetchurl {
