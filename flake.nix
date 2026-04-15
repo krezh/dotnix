@@ -24,7 +24,7 @@
     flake-parts.url = "git+https://github.com/hercules-ci/flake-parts?shallow=1";
 
     lanzaboote = {
-      url = "github:nix-community/lanzaboote/v1.0.0";
+      url = "git+https://github.com/nix-community/lanzaboote?ref=v1.0.0&shallow=1";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
@@ -80,7 +80,7 @@
     };
 
     zen-browser-catppuccin = {
-      url = "git+https://github.com/catppuccin/zen-browser?ref=96273ffbe6d29df1ed9a3ff8456fad8816c73984";
+      url = "git+https://github.com/catppuccin/zen-browser?rev=96273ffbe6d29df1ed9a3ff8456fad8816c73984&shallow=1";
       flake = false;
     };
 
