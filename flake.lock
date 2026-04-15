@@ -784,16 +784,17 @@
       "locked": {
         "lastModified": 1765382359,
         "narHash": "sha256-RJmgVDzjRI18BWVogG6wpsl1UCuV6ui8qr4DJ1LfWZ8=",
-        "owner": "nix-community",
-        "repo": "lanzaboote",
+        "ref": "v1.0.0",
         "rev": "e8c096ade12ec9130ff931b0f0e25d2f1bc63607",
-        "type": "github"
+        "shallow": true,
+        "type": "git",
+        "url": "https://github.com/nix-community/lanzaboote"
       },
       "original": {
-        "owner": "nix-community",
         "ref": "v1.0.0",
-        "repo": "lanzaboote",
-        "type": "github"
+        "shallow": true,
+        "type": "git",
+        "url": "https://github.com/nix-community/lanzaboote"
       }
     },
     "mnw": {
@@ -1695,14 +1696,14 @@
       "locked": {
         "lastModified": 1775069964,
         "narHash": "sha256-9QDYV01dHh/WS82zQV0F2WsRWR2v6W0oB/pmucZMMAc=",
-        "ref": "96273ffbe6d29df1ed9a3ff8456fad8816c73984",
         "rev": "96273ffbe6d29df1ed9a3ff8456fad8816c73984",
-        "revCount": 55,
+        "shallow": true,
         "type": "git",
         "url": "https://github.com/catppuccin/zen-browser"
       },
       "original": {
-        "ref": "96273ffbe6d29df1ed9a3ff8456fad8816c73984",
+        "rev": "96273ffbe6d29df1ed9a3ff8456fad8816c73984",
+        "shallow": true,
         "type": "git",
         "url": "https://github.com/catppuccin/zen-browser"
       }
