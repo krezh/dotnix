@@ -49,7 +49,7 @@ jobs:
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             # Get all packages on manual trigger
-            pkgs=$(ls -1 pkgs/bin pkgs/lib 2>/dev/null | jq -R -s -c 'split("\n") | map(select(length > 0))')
+            pkgs=$(nix eval .#packages.x86_64-linux --apply builtins.attrNames --json | jq -c)
             echo "packages=$pkgs" >> $GITHUB_OUTPUT
           elif [ "${CHANGED_FILES}" != "[]" ]; then
             # Get changed packages on PR/push
