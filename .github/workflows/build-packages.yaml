@@ -26,6 +26,8 @@ jobs:
   detect-packages:
     name: Detect Changed Packages
     runs-on: ubuntu-latest
+    environment:
+      name: prod
     outputs:
       changed-packages: ${{ steps.extract-packages.outputs.packages }}
     steps:
@@ -61,7 +63,10 @@ jobs:
       - name: Setup Nix
         uses: ./.github/actions/setup-nix
         with:
-          skip-cache: false
+          attic-endpoint: https://nix-cache.plexuz.xyz
+          attic-cache: ${{ secrets.ATTIC_CACHE }}
+          attic-token: ${{ secrets.ATTIC_TOKEN }}
+          skip-push: true
           nothing-but-nix: false
 
       - name: Run nix-eval-jobs
