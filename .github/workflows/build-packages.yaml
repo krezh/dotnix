@@ -49,7 +49,7 @@ jobs:
         name: Generate Matrix
         run: |
           set -Eeu
-          pkgs=$(nix run nixpkgs#nix-eval-jobs -- \
+          matrix=$(nix run nixpkgs#nix-eval-jobs -- \
             --flake .#packages \
             --allow-import-from-derivation \
             --check-cache-status \
@@ -59,12 +59,13 @@ jobs:
                 package: (.attr | split(".") | .[1:] | join(".")),
                 runner: (.attr | split(".")[0] | if . == "aarch64-linux" then "ubuntu-24.04-arm" else "ubuntu-latest" end)
               }) | {include: (sort_by(.package))}')
-          echo "packages=$pkgs" >> $GITHUB_OUTPUT
+          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+          echo "$matrix"
 
   build-packages:
     name: Build package ${{ matrix.package }}
     needs: ghMatrix
-    if: ${{ fromJson(needs.ghMatrix.outputs.matrix).include[0] != null }}
+    if: ${{ fromJson(needs.ghMatrix.outputs.matrix || '{"include":[]}').include[0] != null }}
     runs-on: ${{ matrix.runner }}
     permissions:
       pull-requests: write
@@ -79,7 +80,7 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Setup Nix with caching
+      - name: Setup Nix
         uses: ./.github/actions/setup-nix
         with:
           attic-endpoint: https://nix-cache.plexuz.xyz
@@ -88,7 +89,7 @@ jobs:
           skip-cache: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork }}
           nothing-but-nix: false
 
-      - name: Build package
+      - name: Build Package
         id: build
         uses: ./.github/actions/nix-build
         with:

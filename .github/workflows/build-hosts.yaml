@@ -68,10 +68,11 @@ jobs:
           echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
           echo "$matrix"
 
-  nix-build:
+  build-hosts:
     name: Build ${{ matrix.host }}
-    if: ${{ github.event.pull_request.draft != true && fromJson(needs.ghMatrix.outputs.matrix).include[0] != null }}
-    needs: [ghMatrix]
+    needs: ghMatrix
+    if: ${{ github.event.pull_request.draft != true && fromJson(needs.ghMatrix.outputs.matrix || '{"include":[]}').include[0] != null }}
+    runs-on: ${{ matrix.runner }}
     permissions:
       pull-requests: write
     environment:
@@ -79,7 +80,6 @@ jobs:
     strategy:
       matrix: ${{ fromJSON(needs.ghMatrix.outputs.matrix) }}
       fail-fast: false
-    runs-on: ${{ matrix.runner }}
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
@@ -97,7 +97,7 @@ jobs:
           remote-builders-ssh-key: |
             ${{ secrets.REMOTE_BUILDERS_SSH_KEY }}
 
-      - name: Build System
+      - name: Build Host
         id: build
         uses: ./.github/actions/nix-build
         with:
