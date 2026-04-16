@@ -9,7 +9,7 @@
     mkNixos =
       {
         name,
-        system ? "x86_64-linux",
+        system ? throw "Host ${name} is missing a system type. Requires something like \"system = \"x86_64-linux\";\"",
         stateVersion ? null,
       }:
       {

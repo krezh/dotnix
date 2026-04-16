@@ -42,6 +42,19 @@
             };
           };
         };
+        gamescope = {
+          enable = true;
+          capSysNice = false;
+          env = { };
+          args = [
+            "-W 2560"
+            "-H 1440"
+            "-r 240"
+            "--backend wayland"
+            "--expose-wayland"
+            "--adaptive-sync"
+          ];
+        };
         wine = {
           enable = true;
           ntsync = true;
