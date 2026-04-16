@@ -1,0 +1,166 @@
+---
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+name: Build CI
+
+on:
+  workflow_dispatch:
+  workflow_call:
+  pull_request:
+    branches: ["main"]
+    paths: &paths
+      - "modules/**"
+      - "lib/**"
+      - "overlays/**"
+      - "pkgs/**"
+      - "flake.nix"
+      - "flake.lock"
+  push:
+    branches: ["main"]
+    paths: *paths
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.number || github.ref }}
+  cancel-in-progress: true
+env:
+  CACHE_NAME: krezh
+
+jobs:
+  generate-matrix:
+    name: Generate Build Matrix
+    runs-on: ubuntu-latest
+    environment:
+      name: prod
+    outputs:
+      hosts: ${{ steps.set-matrix.outputs.hosts }}
+      packages: ${{ steps.set-matrix.outputs.packages }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
+
+      - name: Setup Nix
+        uses: ./.github/actions/setup-nix
+        with:
+          attic-endpoint: https://nix-cache.plexuz.xyz
+          attic-cache: ${{ secrets.ATTIC_CACHE }}
+          attic-token: ${{ secrets.ATTIC_TOKEN }}
+          skip-push: true
+          nothing-but-nix: false
+
+      - id: set-matrix
+        name: Generate Matrix
+        run: |
+          set -Eeu
+          all=$(nix run nixpkgs#nix-eval-jobs -- \
+            --flake .#ci \
+            --allow-import-from-derivation \
+            --check-cache-status \
+            --force-recurse \
+            --gc-roots-dir /tmp/gcroots | \
+            jq -sc 'map(select(.cacheStatus == "notBuilt") | {
+              attr: .attr,
+              runner: (.system | if . == "aarch64-linux" then "ubuntu-24.04-arm" else "ubuntu-latest" end)
+            })')
+
+          echo "hosts=$(echo "$all" | jq -c '{include: [.[] | select(.attr | startswith("hosts."))]}')" >> "$GITHUB_OUTPUT"
+          echo "packages=$(echo "$all" | jq -c '{include: [.[] | select(.attr | startswith("packages."))]}')" >> "$GITHUB_OUTPUT"
+
+  build-hosts:
+    name: Build ${{ matrix.attr }}
+    needs: generate-matrix
+    if: ${{ github.event.pull_request.draft != true && fromJson(needs.generate-matrix.outputs.hosts || '{"include":[]}').include[0] != null }}
+    runs-on: ${{ matrix.runner }}
+    permissions:
+      pull-requests: write
+    environment:
+      name: prod
+    strategy:
+      matrix: ${{ fromJSON(needs.generate-matrix.outputs.hosts) }}
+      fail-fast: false
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
+
+      - name: Setup Nix
+        uses: ./.github/actions/setup-nix
+        with:
+          attic-endpoint: https://nix-cache.plexuz.xyz
+          attic-cache: ${{ secrets.ATTIC_CACHE }}
+          attic-token: ${{ secrets.ATTIC_TOKEN }}
+          skip-cache: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork }}
+          use-remote-builders: false
+          remote-builders-ssh-key: |
+            ${{ secrets.REMOTE_BUILDERS_SSH_KEY }}
+
+      - name: Build Host
+        id: build
+        uses: ./.github/actions/nix-build
+        with:
+          target: ${{ matrix.attr }}
+          build-type: system
+          output-link: result
+
+      - name: Post build comment
+        if: ${{ always() && github.event_name == 'pull_request' }}
+        uses: ./.github/actions/post-build-comment
+        with:
+          build-type: system
+          build-name: ${{ matrix.attr }}
+          build-status: ${{ steps.build.outcome }}
+          flake-target: ${{ matrix.attr }}
+          error-log: ${{ steps.build.outputs.error-log }}
+          build-duration: ${{ steps.build.outputs.build_duration }}
+          runner: ${{ matrix.runner }}
+          pr-number: ${{ github.event.pull_request.number }}
+
+  build-packages:
+    name: Build ${{ matrix.attr }}
+    needs: generate-matrix
+    if: ${{ fromJson(needs.generate-matrix.outputs.packages || '{"include":[]}').include[0] != null }}
+    runs-on: ${{ matrix.runner }}
+    permissions:
+      pull-requests: write
+    environment:
+      name: prod
+    continue-on-error: true
+    strategy:
+      matrix: ${{ fromJSON(needs.generate-matrix.outputs.packages) }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
+
+      - name: Setup Nix
+        uses: ./.github/actions/setup-nix
+        with:
+          attic-endpoint: https://nix-cache.plexuz.xyz
+          attic-cache: ${{ secrets.ATTIC_CACHE }}
+          attic-token: ${{ secrets.ATTIC_TOKEN }}
+          skip-cache: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork }}
+          nothing-but-nix: false
+
+      - name: Build Package
+        id: build
+        uses: ./.github/actions/nix-build
+        with:
+          target: ${{ matrix.attr }}
+          build-type: package
+
+      - name: Post build comment
+        if: ${{ always() && github.event_name == 'pull_request' }}
+        uses: ./.github/actions/post-build-comment
+        with:
+          build-type: package
+          build-name: ${{ matrix.attr }}
+          build-status: ${{ steps.build.outcome }}
+          flake-target: ${{ matrix.attr }}
+          error-log: ${{ steps.build.outputs.error-log }}
+          pr-number: ${{ github.event.pull_request.number }}
