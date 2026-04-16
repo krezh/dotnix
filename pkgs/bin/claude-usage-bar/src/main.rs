@@ -18,6 +18,7 @@ const EMPTY: char = '\u{2591}';
 
 // ── Rendering ─────────────────────────────────────────────────────────────────
 
+/// Renders a block progress bar of the given character length.
 fn bar(pct: f64, length: usize) -> String {
     let filled = ((pct / 100.0) * length as f64) as usize;
     let filled = filled.min(length);
@@ -27,6 +28,9 @@ fn bar(pct: f64, length: usize) -> String {
         .collect()
 }
 
+/// Formats a rate-limit usage percentage with a colored bar.
+///
+/// Thresholds: green below 80%, orange 80–89%, red 90%+.
 fn color_rate(pct: Option<f64>) -> String {
     match pct {
         None => format!("{DIM}N/A{RESET}"),
@@ -37,6 +41,10 @@ fn color_rate(pct: Option<f64>) -> String {
     }
 }
 
+/// Formats a context-window usage percentage with a colored bar.
+///
+/// Thresholds are tighter than rate limits (orange 70%+, red 80%+) because
+/// approaching the context limit degrades model quality before hitting the hard cap.
 fn color_ctx(pct: Option<f64>) -> String {
     match pct {
         None => format!("{DIM}N/A{RESET}"),
@@ -47,7 +55,8 @@ fn color_ctx(pct: Option<f64>) -> String {
     }
 }
 
-fn time_until(reset_ts: u64) -> String {
+/// Formats a unix timestamp as "Day HH:MM" in local time using the system `date` command.
+fn format_reset_ts(reset_ts: u64) -> String {
     let now = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map(|d| d.as_secs())
@@ -57,21 +66,38 @@ fn time_until(reset_ts: u64) -> String {
         return format!("{GREEN}now{RESET}");
     }
 
-    let diff = reset_ts - now;
-    let h_total = diff / 3600;
-    let m = (diff % 3600) / 60;
+    let today = Command::new("date")
+        .args(["+%Y-%m-%d"])
+        .output()
+        .ok()
+        .and_then(|o| if o.status.success() { Some(o) } else { None })
+        .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
+        .unwrap_or_default();
 
-    if h_total >= 24 {
-        let d = h_total / 24;
-        let h = h_total % 24;
-        format!("{CYAN}{d}d {h}h{RESET}")
-    } else if h_total > 0 {
-        format!("{CYAN}{h_total}h {m}m{RESET}")
-    } else {
-        format!("{CYAN}{m}m{RESET}")
+    let reset_day = Command::new("date")
+        .args(["-d", &format!("@{reset_ts}"), "+%Y-%m-%d"])
+        .output()
+        .ok()
+        .and_then(|o| if o.status.success() { Some(o) } else { None })
+        .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
+        .unwrap_or_default();
+
+    let fmt = if reset_day == today { "+%H:%M" } else { "+%a %H:%M" };
+
+    let result = Command::new("date")
+        .args(["-d", &format!("@{reset_ts}"), fmt])
+        .output()
+        .ok()
+        .and_then(|o| if o.status.success() { Some(o) } else { None })
+        .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string());
+
+    match result {
+        Some(s) => format!("{CYAN}{s}{RESET}"),
+        None => format!("{CYAN}?{RESET}"),
     }
 }
 
+/// Shortens an absolute path by replacing the home directory prefix with `~`.
 fn display_path(path_str: &str) -> String {
     let home = std::env::var("HOME").unwrap_or_default();
     if !home.is_empty() && path_str.starts_with(&home) {
@@ -160,6 +186,7 @@ fn parse_git_status(cwd: &Path) -> Option<GitStatus> {
             continue;
         }
 
+        // Porcelain v1: two-character XY status code where X = index, Y = worktree.
         let idx = line.as_bytes()[0] as char;
         let wt = line.as_bytes()[1] as char;
 
@@ -215,6 +242,7 @@ fn detect_git_operation(cwd: &Path) -> Option<String> {
     }
 }
 
+/// Builds the git status segment string, or returns `None` when `cwd` is not a git repo.
 fn format_git_segment(cwd: &Path) -> Option<String> {
     let s = parse_git_status(cwd)?;
 
@@ -252,6 +280,7 @@ fn format_git_segment(cwd: &Path) -> Option<String> {
 
 // ── Cost / session ────────────────────────────────────────────────────────────
 
+/// Formats the session's net line additions and deletions, or returns `None` when both are absent or zero.
 fn format_lines(data: &serde_json::Value) -> Option<String> {
     let added = data["cost"]["total_lines_added"].as_i64();
     let removed = data["cost"]["total_lines_removed"].as_i64();
@@ -322,12 +351,12 @@ fn main() {
     let sd_reset = sd["resets_at"].as_u64();
 
     let fh_reset_str = fh_reset
-        .map(|ts| format!(" reset {}", time_until(ts)))
+        .map(|ts| format!(" {}", format_reset_ts(ts)))
         .unwrap_or_default();
     parts.push(format!("{BOLD}5h:{RESET} {}{fh_reset_str}", color_rate(fh_pct)));
 
     let sd_reset_str = sd_reset
-        .map(|ts| format!(" reset {}", time_until(ts)))
+        .map(|ts| format!(" {}", format_reset_ts(ts)))
         .unwrap_or_default();
     parts.push(format!("{BOLD}7d:{RESET} {}{sd_reset_str}", color_rate(sd_pct)));
 
