@@ -1694,17 +1694,17 @@
     "zen-browser-catppuccin": {
       "flake": false,
       "locked": {
-        "lastModified": 1775069964,
-        "narHash": "sha256-9QDYV01dHh/WS82zQV0F2WsRWR2v6W0oB/pmucZMMAc=",
+        "lastModified": 1759018582,
+        "narHash": "sha256-5A57Lyctq497SSph7B+ucuEyF1gGVTsuI3zuBItGfg4=",
         "owner": "catppuccin",
         "repo": "zen-browser",
-        "rev": "96273ffbe6d29df1ed9a3ff8456fad8816c73984",
+        "rev": "c855685442c6040c4dda9c8d3ddc7b708de1cbaa",
         "type": "github"
       },
       "original": {
         "owner": "catppuccin",
         "repo": "zen-browser",
-        "rev": "96273ffbe6d29df1ed9a3ff8456fad8816c73984",
+        "rev": "c855685442c6040c4dda9c8d3ddc7b708de1cbaa",
         "type": "github"
       }
     }
