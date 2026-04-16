@@ -1,8 +1,8 @@
 { inputs, ... }:
 {
   flake.nixosConfigurations = inputs.self.lib.mkNixos {
-    name = "thor-wsl";
-    system = "x86_64-linux";
+    name = "phone";
+    system = "aarch64-linux";
     stateVersion = "24.05";
   };
 }
