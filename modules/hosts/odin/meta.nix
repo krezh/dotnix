@@ -2,6 +2,7 @@
 {
   flake.nixosConfigurations = inputs.self.lib.mkNixos {
     name = "odin";
+    system = "x86_64-linux";
     stateVersion = "24.05";
   };
 }
