@@ -22,13 +22,13 @@
 craneLib.buildPackage rec {
   pname = "wayle";
   # renovate: datasource=github-releases depName=wayle-rs/wayle
-  version = "0.2.0";
+  version = "0.1.2";
 
   src = fetchFromGitHub {
     owner = "wayle-rs";
     repo = "wayle";
     tag = "v${version}";
-    hash = "sha256-jvga9yBhr7qaGipVtECJeB5jn6HShv4zoRJogYFIeCU=";
+    hash = "sha256-iZddhPdskoyyAYT3J92S5cRRKkkR8KyqIyBBPE+Lg18=";
   };
 
   strictDeps = true;
