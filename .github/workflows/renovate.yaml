@@ -8,10 +8,8 @@ on:
       - main
     paths:
       - .github/renovate.json5
+      - .github/renovate/*.json5
   workflow_dispatch:
-
-permissions:
-  contents: read
 
 jobs:
   renovate:
@@ -19,38 +17,44 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: prod
+    permissions:
+      contents: read
     steps:
       - name: Generate Token
         uses: actions/create-github-app-token@1b10c78c7865c340bc4f6099eb2f838309f1e8c3 # v3.1.1
         id: app-token
         with:
-          app-id: ${{ secrets.BOT_APP_ID }}
+          client-id: ${{ secrets.BOT_APP_ID }}
           private-key: ${{ secrets.BOT_APP_PRIVATE_KEY }}
           owner: ${{ github.repository_owner }}
 
       - name: Run Renovate
-        uses: codex-/return-dispatch@16fa9d14771c4d56ae0196bbda1d3c17f7f3650f # v3.0.2
         id: dispatch
-        with:
-          token: ${{ steps.app-token.outputs.token }}
-          owner: ${{ github.repository_owner }}
-          repo: renovate-config
-          ref: main
-          workflow: renovate.yaml
-          workflow_inputs: |-
-            { "repo": "${{ github.event.repository.name }}" }
+        env:
+          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
+          REPO_NAME: ${{ github.event.repository.name }}
+        run: |-
+          RUN_URL=$(gh workflow run renovate.yaml \
+            --repo "${{ github.repository_owner }}/renovate-config" \
+            --ref main \
+            --field "repo=$REPO_NAME")
+          echo "run_id=${RUN_URL##*/}" >> "$GITHUB_OUTPUT"
 
       - name: Await Renovate Completion
-        uses: Codex-/await-remote-run@a56c556e6434d2d7ec9438dc656143b39532324e # v1.13.0
-        with:
-          token: ${{ steps.app-token.outputs.token }}
-          owner: ${{ github.repository_owner }}
-          repo: renovate-config
-          run_id: ${{ steps.dispatch.outputs.run_id }}
+        env:
+          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
+          RUN_ID: ${{ steps.dispatch.outputs.run_id }}
+        run: |-
+          gh run watch \
+            --repo "${{ github.repository_owner }}/renovate-config" \
+            "$RUN_ID" \
+            --exit-status
 
       - name: Renovate Output
         env:
           GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
           RUN_ID: ${{ steps.dispatch.outputs.run_id }}
         run: |-
-          gh run view --repo ${{ github.repository_owner }}/renovate-config --log ${RUN_ID}
+          gh run view \
+            --repo "${{ github.repository_owner }}/renovate-config" \
+            --log "$RUN_ID"
