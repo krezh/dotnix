@@ -41,11 +41,13 @@
         extraLocales = "all";
         extraLocaleSettings.LC_TIME = "en_US.UTF-8";
       };
+      console.enable = false;
       console.keyMap = "sv-latin1";
+      services.kmscon.enable = true;
       time.timeZone = "Europe/Stockholm";
 
       programs.ssh = {
-        extraConfig = ''
+        extraConfig = lib.optionalString (config.sops.secrets ? "nixbuild/key") ''
           Host eu.nixbuild.net
           PubkeyAcceptedKeyTypes ssh-ed25519
           ServerAliveInterval 60
@@ -62,8 +64,8 @@
 
       # Nix settings
       nix = {
-        distributedBuilds = true;
-        buildMachines = [
+        distributedBuilds = config.sops.secrets ? "nixbuild/key";
+        buildMachines = lib.optionals (config.sops.secrets ? "nixbuild/key") [
           {
             hostName = "eu.nixbuild.net";
             system = "x86_64-linux";
@@ -77,7 +79,7 @@
           }
         ];
         package = pkgs.lixPackageSets.latest.lix;
-        extraOptions = ''
+        extraOptions = lib.optionalString (config.sops.templates ? "nix_access_token.conf") ''
           !include ${config.sops.templates."nix_access_token.conf".path}
         '';
         settings = {
