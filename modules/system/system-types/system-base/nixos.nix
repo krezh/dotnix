@@ -44,6 +44,13 @@
       console.enable = false;
       console.keyMap = "sv-latin1";
       services.kmscon.enable = true;
+      services.kmscon.hwRender = false;
+      services.kmscon.extraConfig = ''
+        font-name=${config.var.fonts.mono} Bold
+        font-size=12
+        xkb-layout=se
+        xkb-variant=nodeadkeys
+      '';
       time.timeZone = "Europe/Stockholm";
 
       programs.ssh = {
