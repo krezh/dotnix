@@ -62,8 +62,8 @@ jobs:
             --force-recurse \
             --gc-roots-dir /tmp/gcroots | \
               jq -sc 'map(select(.cacheStatus == "notBuilt") | {
-                host: (.attr | split(".") | .[1:] | join(".")),
-                runner: (.attr | split(".")[0] | if . == "aarch64-linux" then "ubuntu-24.04-arm" else "ubuntu-latest" end)
+                host: .attr,
+                runner: (.system | if . == "aarch64-linux" then "ubuntu-24.04-arm" else "ubuntu-latest" end)
               }) | {include: (sort_by(.host))}')
           echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
           echo "$matrix"

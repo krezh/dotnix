@@ -1299,7 +1299,6 @@
         "nixpkgs": "nixpkgs_3",
         "noctalia": "noctalia",
         "nvf": "nvf",
-        "silentSDDM": "silentSDDM",
         "sops-nix": "sops-nix",
         "steam-config-nix": "steam-config-nix",
         "treefmt-nix": "treefmt-nix_3",
@@ -1327,27 +1326,6 @@
         "owner": "oxalica",
         "repo": "rust-overlay",
         "type": "github"
-      }
-    },
-    "silentSDDM": {
-      "inputs": {
-        "nixpkgs": [
-          "nixpkgs"
-        ]
-      },
-      "locked": {
-        "lastModified": 1775652648,
-        "narHash": "sha256-mLE7i9r9qenayJ8adWm22SbqUwLuopvRhyoizuZTtyo=",
-        "ref": "refs/heads/main",
-        "rev": "a0fb8a48de772c0340dd6639b331ebf6ec2eb554",
-        "shallow": true,
-        "type": "git",
-        "url": "https://github.com/uiriansan/SilentSDDM"
-      },
-      "original": {
-        "shallow": true,
-        "type": "git",
-        "url": "https://github.com/uiriansan/SilentSDDM"
       }
     },
     "sops-nix": {
