@@ -17,14 +17,14 @@
 python3Packages.buildPythonApplication rec {
   pname = "faugus-launcher";
   # renovate: datasource=github-releases depName=Faugus/faugus-launcher
-  version = "1.18.2";
+  version = "1.18.3";
   pyproject = false;
 
   src = fetchFromGitHub {
     owner = "Faugus";
     repo = "faugus-launcher";
     tag = version;
-    hash = "sha256-QKzRtelATs0i1CPPi+ZuybDca9BrjAziWz5J5e0kLpI=";
+    hash = "sha256-cqtylAeDQDlv+Ai9ALr4cOxrOolDdHrN5yYRFW2/H8s=";
   };
 
   nativeBuildInputs = [
