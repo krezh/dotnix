@@ -32,6 +32,7 @@
         fluxcd
         stern
         helmfile
+        helm-ls
         kubernetes-helm
         kubernetes-helmPlugins.helm-diff
         kind
@@ -42,6 +43,7 @@
         klim
         egctl
         inputs.kauth.packages.${pkgs.stdenv.hostPlatform.system}.kauth
+        lfk
       ];
 
       catppuccin = {

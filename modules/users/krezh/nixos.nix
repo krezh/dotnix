@@ -18,9 +18,9 @@ in
 
       # User account
       users = {
-        mutableUsers = true;
+        mutableUsers = false;
         users.${username} = {
-          initialPassword = username;
+          hashedPasswordFile = config.sops.secrets."krezh/password".path;
           isNormalUser = true;
           shell = pkgs.fish;
           openssh.authorizedKeys.keys = [

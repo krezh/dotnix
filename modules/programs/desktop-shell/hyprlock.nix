@@ -87,7 +87,7 @@
           $accent = $blue
           $accentAlpha = $blueAlpha
 
-          $font = ${config.var.fonts.mono}
+          $font = ${config.var.fonts.sans}
 
           # GENERAL
           general {
@@ -103,18 +103,6 @@
             path = $HOME/.config/background
             blur_passes = 0
             color = $base
-          }
-
-          # LAYOUT
-          label {
-            monitor =
-            text = Layout: $LAYOUT
-            color = $text
-            font_size = 25
-            font_family = $font
-            position = 30, -30
-            halign = left
-            valign = top
           }
 
           # TIME
@@ -156,7 +144,7 @@
           # USER AVATAR
           image {
             monitor =
-            path = $HOME/.face
+            path = ${config.home.homeDirectory}/wolf.png
             size = 100
             border_color = $accent
             position = 0, 75
@@ -168,7 +156,7 @@
           input-field {
             monitor =
             size = 300, 60
-            outline_thickness = 4
+            outline_thickness = ${toString config.var.borderSize}
             rounding = ${toString config.var.rounding}
             dots_size = 0.2
             dots_spacing = 0.2

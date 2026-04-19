@@ -3,11 +3,7 @@
     programs.hyprland.enable = true;
   };
   flake.modules.homeManager.hyprland =
-    {
-      pkgs,
-      config,
-      ...
-    }:
+    { pkgs, config, ... }:
     {
       services.polkit-gnome.enable = true;
       xdg.portal = {
@@ -43,6 +39,7 @@
           env = [
             "QT_WAYLAND_DISABLE_WINDOWDECORATION,1"
             "QT_QPA_PLATFORM=wayland"
+            "NIXOS_OZONE_WL=1;"
           ];
 
           xwayland.force_zero_scaling = true;
@@ -176,7 +173,6 @@
       '';
       home.packages = [
         pkgs.tray-tui
-        pkgs.hyprpicker
         pkgs.hyprshade
         pkgs.hyprshutdown
       ];
