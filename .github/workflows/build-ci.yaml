@@ -64,11 +64,6 @@ jobs:
         if: steps.cache.outputs.cache-hit == 'true'
         run: nix copy --all --no-check-sigs --from /tmp/nix-cache
 
-      - name: Cleanup
-        run: |
-          # remove everything so the cache doesn't grow over time
-          sudo rm -rf /tmp/nix-cache
-
       - name: Generate Matrix
         id: set-matrix
         run: |
@@ -88,6 +83,12 @@ jobs:
 
           echo "hosts=$(echo "$all" | jq -c '{include: [.[] | select(.attr | startswith("hosts."))]}')" >> "$GITHUB_OUTPUT"
           echo "packages=$(echo "$all" | jq -c '{include: [.[] | select(.attr | startswith("packages."))]}')" >> "$GITHUB_OUTPUT"
+
+      - name: Export to Nix store cache
+        run: |
+          # remove everything before copying so the cache doesn't grow over time
+          sudo rm -rf /tmp/nix-cache
+          nix copy --no-check-sigs --to /tmp/nix-cache
 
   build-hosts:
     name: Build ${{ matrix.attr }}
