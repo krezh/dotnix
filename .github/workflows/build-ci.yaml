@@ -43,6 +43,14 @@ jobs:
         with:
           persist-credentials: false
 
+      - uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        id: cache
+        with:
+          path: /tmp/nix-cache
+          key: nix-flake-inputs-${{ hashFiles('**/flake.lock') }}
+          restore-keys: |
+            nix-flake-inputs-
+
       - name: Setup Nix
         uses: ./.github/actions/setup-nix
         with:
@@ -52,11 +60,14 @@ jobs:
           skip-push: true
           nothing-but-nix: false
 
-      - name: Magic Nix Cache
-        uses: DeterminateSystems/magic-nix-cache-action@565684385bcd71bad329742eefe8d12f2e765b39 # v13
-        with:
-          diagnostic-endpoint: ""
-          use-flakehub: false
+      - name: Import Nix store cache
+        if: steps.cache.outputs.cache-hit == 'true'
+        run: nix copy --all --no-check-sigs --from /tmp/nix-cache
+
+      - name: Cleanup
+        run: |
+          # remove everything so the cache doesn't grow over time
+          sudo rm -rf /tmp/nix-cache
 
       - name: Generate Matrix
         id: set-matrix
