@@ -48,6 +48,10 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
+    impermanence = {
+      url = "git+https://github.com/nix-community/impermanence?shallow=1";
+    };
+
     catppuccin = {
       url = "git+https://github.com/catppuccin/nix?shallow=1";
       inputs.nixpkgs.follows = "nixpkgs";

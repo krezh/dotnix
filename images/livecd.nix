@@ -9,6 +9,8 @@
 
   security.sudo.wheelNeedsPassword = false;
 
+  services.pcscd.enable = true;
+
   image.modules.iso-installer =
     { pkgs, ... }:
     {

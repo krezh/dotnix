@@ -1,13 +1,15 @@
 { inputs, ... }:
 {
   flake.modules.nixos.secureboot =
-    { pkgs, lib, ... }:
+    {
+      pkgs,
+      lib,
+      config,
+      ...
+    }:
     {
       imports = [
         inputs.lanzaboote.nixosModules.lanzaboote
-      ];
-      environment.systemPackages = [
-        pkgs.sbctl
       ];
 
       # Lanzaboote currently replaces the systemd-boot module.
@@ -24,6 +26,19 @@
         };
         autoEnrollKeys = {
           enable = true;
+          autoReboot = true;
+        };
+      };
+
+      environment = {
+        systemPackages = [
+          pkgs.sbctl
+        ];
+
+        persistence."/persist" = {
+          directories = [
+            "${config.boot.lanzaboote.pkiBundle}"
+          ];
         };
       };
     };

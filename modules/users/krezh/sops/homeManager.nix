@@ -16,7 +16,6 @@
           "atuin/key".path = "${config.xdg.dataHome}/atuin/key";
           "zipline/token".path = "${config.xdg.configHome}/zipline/token";
           "kopia/password".path = "${config.xdg.configHome}/kopia/repository.password";
-          "github/mcp_token".path = "${config.xdg.configHome}/github/mcp_token";
           "garage/accessID" = { };
           "garage/accessSecret" = { };
           "r2/accessID" = { };

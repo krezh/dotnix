@@ -62,6 +62,8 @@ _: {
             "sst-dev.opencode"
             "zizmor.zizmor-vscode"
             "christian-kohler.path-intellisense"
+            "helm-ls.helm-ls"
+            "ms-kubernetes-tools.vscode-kubernetes-tools"
           ];
           userSettings = {
             telemetry.telemetryLevel = "off";
@@ -301,6 +303,7 @@ _: {
             };
             indentRainbow.indicatorStyle = "light";
             indentRainbow.lightIndicatorStyleLineWidth = 2;
+            vs-kubernetes."vs-kubernetes.crd-code-completion" = "disabled";
             projectManager = {
               git.baseFolders = [ "~/" ];
               git.ignoredFolders = [

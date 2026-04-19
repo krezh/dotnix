@@ -4,8 +4,18 @@
     imports = [ inputs.disko.nixosModules.disko ];
 
     fileSystems."/home".neededForBoot = true;
+    fileSystems."/persist".neededForBoot = true;
 
     disko.devices = {
+      nodev."/" = {
+        fsType = "tmpfs";
+        mountOptions = [
+          "defaults"
+          "size=2G"
+          "mode=755"
+        ];
+      };
+
       disk = {
         main = {
           device = "/dev/nvme0n1";
@@ -27,7 +37,7 @@
                 content = {
                   type = "filesystem";
                   format = "ext4";
-                  mountpoint = "/";
+                  mountpoint = "/persist";
                 };
               };
               swap = {
