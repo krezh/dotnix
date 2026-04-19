@@ -21,6 +21,10 @@
         })
         // {
           treefmt = config.treefmt.build.wrapper; # Expose treefmt wrapper to prevent GC
+          gc-keep =
+            (import "${inputs.cache-nix-action}/saveFromGC.nix" {
+              inherit pkgs inputs;
+            }).package;
         };
     };
 }
