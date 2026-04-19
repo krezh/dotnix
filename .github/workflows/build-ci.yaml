@@ -52,8 +52,14 @@ jobs:
           skip-push: true
           nothing-but-nix: false
 
-      - id: set-matrix
-        name: Generate Matrix
+      - name: Magic Nix Cache
+        uses: DeterminateSystems/magic-nix-cache-action@565684385bcd71bad329742eefe8d12f2e765b39 # v13
+        with:
+          diagnostic-endpoint: ""
+          use-flakehub: false
+
+      - name: Generate Matrix
+        id: set-matrix
         run: |
           set -Eeu
           all=$(nix run nixpkgs#nix-eval-jobs -- \
@@ -75,7 +81,9 @@ jobs:
   build-hosts:
     name: Build ${{ matrix.attr }}
     needs: generate-matrix
-    if: ${{ github.event.pull_request.draft != true && fromJson(needs.generate-matrix.outputs.hosts || '{"include":[]}').include[0] != null }}
+    if: ${{ github.event.pull_request.draft != true &&
+      fromJson(needs.generate-matrix.outputs.hosts ||
+      '{"include":[]}').include[0] != null }}
     runs-on: ${{ matrix.runner }}
     permissions:
       pull-requests: write
@@ -96,7 +104,8 @@ jobs:
           attic-endpoint: https://nix-cache.plexuz.xyz
           attic-cache: ${{ secrets.ATTIC_CACHE }}
           attic-token: ${{ secrets.ATTIC_TOKEN }}
-          skip-cache: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork }}
+          skip-cache: ${{ github.event_name == 'pull_request' &&
+            github.event.pull_request.head.repo.fork }}
           use-remote-builders: false
           remote-builders-ssh-key: |
             ${{ secrets.REMOTE_BUILDERS_SSH_KEY }}
@@ -125,7 +134,8 @@ jobs:
   build-packages:
     name: Build ${{ matrix.attr }}
     needs: generate-matrix
-    if: ${{ fromJson(needs.generate-matrix.outputs.packages || '{"include":[]}').include[0] != null }}
+    if: ${{ fromJson(needs.generate-matrix.outputs.packages ||
+      '{"include":[]}').include[0] != null }}
     runs-on: ${{ matrix.runner }}
     permissions:
       pull-requests: write
@@ -146,7 +156,8 @@ jobs:
           attic-endpoint: https://nix-cache.plexuz.xyz
           attic-cache: ${{ secrets.ATTIC_CACHE }}
           attic-token: ${{ secrets.ATTIC_TOKEN }}
-          skip-cache: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork }}
+          skip-cache: ${{ github.event_name == 'pull_request' &&
+            github.event.pull_request.head.repo.fork }}
           nothing-but-nix: false
 
       - name: Build Package
