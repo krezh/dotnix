@@ -43,26 +43,14 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
-        id: cache
-        with:
-          path: /tmp/nix-cache
-          key: nix-flake-inputs-${{ hashFiles('**/flake.lock') }}
-          restore-keys: |
-            nix-flake-inputs-
-
       - name: Setup Nix
         uses: ./.github/actions/setup-nix
         with:
           attic-endpoint: https://nix-cache.plexuz.xyz
           attic-cache: ${{ secrets.ATTIC_CACHE }}
           attic-token: ${{ secrets.ATTIC_TOKEN }}
-          skip-push: true
+          skip-push: false
           nothing-but-nix: false
-
-      - name: Import Nix store cache
-        if: steps.cache.outputs.cache-hit == 'true'
-        run: nix copy --all --no-check-sigs --from /tmp/nix-cache
 
       - name: Generate Matrix
         id: set-matrix
@@ -83,12 +71,6 @@ jobs:
 
           echo "hosts=$(echo "$all" | jq -c '{include: [.[] | select(.attr | startswith("hosts."))]}')" >> "$GITHUB_OUTPUT"
           echo "packages=$(echo "$all" | jq -c '{include: [.[] | select(.attr | startswith("packages."))]}')" >> "$GITHUB_OUTPUT"
-
-      - name: Export gcroots to Nix store cache
-        run: |
-          # remove everything before copying so the cache doesn't grow over time
-          sudo rm -rf /tmp/nix-cache
-          nix copy --all --no-check-sigs --from /tmp/gcroots --to /tmp/nix-cache
 
   build-hosts:
     name: Build ${{ matrix.attr }}
