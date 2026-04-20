@@ -43,7 +43,11 @@ jobs:
           nix_path: nixpkgs=channel:nixos-unstable
           extra_nix_config: |
             access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
-      - run: nix flake check
+            accept-flake-config = true
+            always-allow-substitutes = true
+            builders-use-substitutes = true
+
+      - run: nix flake check --no-build
 
   generate-matrix:
     name: Generate Build Matrix
