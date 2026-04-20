@@ -1,0 +1,54 @@
+---
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+name: Build Packages
+
+on:
+  workflow_call:
+    inputs:
+      matrix:
+        description: "Build matrix from nix-eval-jobs"
+        required: true
+        type: string
+
+jobs:
+  build:
+    name: Build ${{ matrix.attr }}
+    if: ${{ fromJson(inputs.matrix || '{"include":[]}').include[0] != null }}
+    runs-on: ${{ matrix.runner }}
+    environment:
+      name: prod
+    strategy:
+      matrix: ${{ fromJSON(inputs.matrix) }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
+
+      - name: Setup Nix
+        uses: ./.github/actions/setup-nix
+        with:
+          attic-endpoint: https://nix-cache.plexuz.xyz
+          attic-cache: ${{ secrets.ATTIC_CACHE }}
+          attic-token: ${{ secrets.ATTIC_TOKEN }}
+          skip-cache: ${{ github.event.pull_request.head.repo.fork }}
+          nothing-but-nix: false
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build Package
+        id: build
+        uses: ./.github/actions/nix-build
+        with:
+          target: ${{ matrix.target }}
+          build-type: package
+
+      - name: Post build comment
+        if: ${{ always() && github.event_name == 'pull_request' }}
+        uses: ./.github/actions/post-build-comment
+        with:
+          build-type: package
+          build-name: ${{ matrix.attr }}
+          build-status: ${{ steps.build.outcome }}
+          flake-target: ${{ matrix.target }}
+          error-log: ${{ steps.build.outputs.error-log }}
+          pr-number: ${{ github.event.pull_request.number }}
