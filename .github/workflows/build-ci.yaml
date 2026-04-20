@@ -38,18 +38,12 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Setup Nix
-        uses: ./.github/actions/setup-nix
+      - uses: cachix/install-nix-action@616559265b40713947b9c190a8ff4b507b5df49b # v31
         with:
-          attic-endpoint: https://nix-cache.plexuz.xyz
-          attic-cache: ${{ secrets.ATTIC_CACHE }}
-          attic-token: ${{ secrets.ATTIC_TOKEN }}
-          skip-push: true
-          nothing-but-nix: false
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Check Flake
-        run: nix flake check --no-build
+          nix_path: nixpkgs=channel:nixos-unstable
+          extra_nix_config: |
+            access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
+      - run: nix flake check
 
   generate-matrix:
     name: Generate Build Matrix
@@ -73,6 +67,7 @@ jobs:
           attic-token: ${{ secrets.ATTIC_TOKEN }}
           skip-push: false
           nothing-but-nix: false
+          github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Generate Matrix
         id: set-matrix
@@ -120,11 +115,8 @@ jobs:
           attic-endpoint: https://nix-cache.plexuz.xyz
           attic-cache: ${{ secrets.ATTIC_CACHE }}
           attic-token: ${{ secrets.ATTIC_TOKEN }}
-          skip-cache: ${{ github.event_name == 'pull_request' &&
-            github.event.pull_request.head.repo.fork }}
-          use-remote-builders: false
-          remote-builders-ssh-key: |
-            ${{ secrets.REMOTE_BUILDERS_SSH_KEY }}
+          skip-cache: ${{ github.event.pull_request.head.repo.fork }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build Host
         id: build
@@ -171,9 +163,9 @@ jobs:
           attic-endpoint: https://nix-cache.plexuz.xyz
           attic-cache: ${{ secrets.ATTIC_CACHE }}
           attic-token: ${{ secrets.ATTIC_TOKEN }}
-          skip-cache: ${{ github.event_name == 'pull_request' &&
-            github.event.pull_request.head.repo.fork }}
+          skip-cache: ${{ github.event.pull_request.head.repo.fork }}
           nothing-but-nix: false
+          github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build Package
         id: build
