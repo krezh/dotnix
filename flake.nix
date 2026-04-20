@@ -149,6 +149,11 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
+    spicetify-nix = {
+      url = "github:Gerg-L/spicetify-nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
     cache-nix-action = {
       url = "git+https://github.com/nix-community/cache-nix-action?shallow=1";
     };
@@ -165,6 +170,7 @@
         specialArgs = { inherit lib; };
       }
       {
+        debug = true;
         imports = lib.scanPath.toImports ./modules;
       };
 }

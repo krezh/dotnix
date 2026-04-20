@@ -150,6 +150,17 @@
                   };
                 };
               };
+              rogue-trader = {
+                id = 2186680;
+                compatTool = "Proton-GE Latest";
+                launchOptions = {
+                  wrappers = [ "gamemoderun" ];
+                  env = {
+                    PROTON_FSR4_UPGRADE = "4.1.0";
+                    LSFG_PROCESS = "Default";
+                  };
+                };
+              };
               sekiro = {
                 id = 814380;
                 compatTool = "Proton-GE Latest";

@@ -12,21 +12,21 @@ in
         ];
       };
 
-      system.activationScripts.sopsYubikey = {
-        deps = [ "users" ];
-        text = ''
-          if [ ! -f ${config.sops.age.keyFile} ]; then
-            echo "sopsYubikey: Generating Yubikey identity file..." >&2
-            mkdir -p /home/${user}/.config/sops/age
-            ${pkgs.age-plugin-yubikey}/bin/age-plugin-yubikey --identity > ${config.sops.age.keyFile}
-            chown ${user}:users ${config.sops.age.keyFile}
-            chmod 600 ${config.sops.age.keyFile}
-            echo "sopsYubikey: Successfully created ${config.sops.age.keyFile}" >&2
-          else
-            echo "sopsYubikey: File already exists, skipping generation" >&2
-          fi
-        '';
-      };
+      # system.activationScripts.sopsYubikey = {
+      #   deps = [ "users" ];
+      #   text = ''
+      #     if [ ! -f ${config.sops.age.keyFile} ]; then
+      #       echo "sopsYubikey: Generating Yubikey identity file..." >&2
+      #       mkdir -p /home/${user}/.config/sops/age
+      #       ${pkgs.age-plugin-yubikey}/bin/age-plugin-yubikey --identity > ${config.sops.age.keyFile}
+      #       chown ${user}:users ${config.sops.age.keyFile}
+      #       chmod 600 ${config.sops.age.keyFile}
+      #       echo "sopsYubikey: Successfully created ${config.sops.age.keyFile}" >&2
+      #     else
+      #       echo "sopsYubikey: File already exists, skipping generation" >&2
+      #     fi
+      #   '';
+      # };
 
       sops = {
         age = {
