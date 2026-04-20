@@ -52,10 +52,7 @@ jobs:
         run: |
           set -Eeuo pipefail
           attrs=$(nix eval .#ci --apply '
-            ci:
-              (map (host: "ci.hosts." + host) (builtins.attrNames ci.hosts))
-              ++
-              (map (pkg: "ci.packages." + pkg) (builtins.attrNames ci.packages))
+            ci: map (host: "ci.hosts." + host) (builtins.attrNames ci.hosts)
           ' --json | jq -c 'map({attr: .})')
           echo "matrix={\"include\":$attrs}" >> "$GITHUB_OUTPUT"
 
