@@ -86,6 +86,7 @@ jobs:
             jq -sc 'map(select(.cacheStatus == "notBuilt") | {
               attr: .attr,
               target: (.attr | ltrimstr("packages.")),
+              name: (.attr | ltrimstr("hosts.") | ltrimstr("packages.")),
               runner: (.system | if . == "aarch64-linux" then "ubuntu-24.04-arm" else "ubuntu-latest" end)
             })')
 
