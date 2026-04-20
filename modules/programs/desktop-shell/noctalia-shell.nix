@@ -1,15 +1,12 @@
 { inputs, ... }:
 {
   flake.modules.homeManager.desktop-shell =
-    {
-      ...
-    }:
+    { lib, config, ... }:
     {
       imports = [ inputs.noctalia.homeModules.default ];
 
       programs.noctalia-shell = {
         enable = true;
-        systemd.enable = true;
         plugins = {
           version = 2;
           sources = [
@@ -772,34 +769,34 @@
         };
       };
 
-      # systemd.user.services.noctalia-shell =
-      #   let
-      #     cfg = config.programs.noctalia-shell;
-      #   in
-      #   lib.mkIf cfg.enable {
-      #     Unit = {
-      #       Description = "Noctalia Shell - Wayland desktop shell";
-      #       Documentation = "https://docs.noctalia.dev";
-      #       PartOf = [ config.wayland.systemd.target ];
-      #       After = [ config.wayland.systemd.target ];
-      #       X-Restart-Triggers =
-      #         lib.optional (cfg.settings != { }) "${config.xdg.configFile."noctalia/settings.json".source}"
-      #         ++ lib.optional (cfg.colors != { }) "${config.xdg.configFile."noctalia/colors.json".source}"
-      #         ++ lib.optional (cfg.plugins != { }) "${config.xdg.configFile."noctalia/plugins.json".source}"
-      #         ++ lib.optional (
-      #           cfg.user-templates != { }
-      #         ) "${config.xdg.configFile."noctalia/user-templates.toml".source}"
-      #         ++ lib.mapAttrsToList (
-      #           name: _: "${config.xdg.configFile."noctalia/plugins/${name}/settings.json".source}"
-      #         ) cfg.pluginSettings;
-      #     };
+      systemd.user.services.noctalia-shell =
+        let
+          cfg = config.programs.noctalia-shell;
+        in
+        lib.mkIf cfg.enable {
+          Unit = {
+            Description = "Noctalia Shell - Wayland desktop shell";
+            Documentation = "https://docs.noctalia.dev";
+            PartOf = [ config.wayland.systemd.target ];
+            After = [ config.wayland.systemd.target ];
+            X-Restart-Triggers =
+              lib.optional (cfg.settings != { }) "${config.xdg.configFile."noctalia/settings.json".source}"
+              ++ lib.optional (cfg.colors != { }) "${config.xdg.configFile."noctalia/colors.json".source}"
+              ++ lib.optional (cfg.plugins != { }) "${config.xdg.configFile."noctalia/plugins.json".source}"
+              ++ lib.optional (
+                cfg.user-templates != { }
+              ) "${config.xdg.configFile."noctalia/user-templates.toml".source}"
+              ++ lib.mapAttrsToList (
+                name: _: "${config.xdg.configFile."noctalia/plugins/${name}/settings.json".source}"
+              ) cfg.pluginSettings;
+          };
 
-      #     Service = {
-      #       ExecStart = lib.getExe cfg.package;
-      #       Restart = "on-failure";
-      #     };
+          Service = {
+            ExecStart = lib.getExe cfg.package;
+            Restart = "on-failure";
+          };
 
-      #     Install.WantedBy = [ config.wayland.systemd.target ];
-      #   };
+          Install.WantedBy = [ config.wayland.systemd.target ];
+        };
     };
 }
