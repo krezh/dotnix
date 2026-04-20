@@ -27,11 +27,13 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  flake-check:
-    name: Flake Check
+  flake-check-matrix:
+    name: Generate Check Matrix
     runs-on: ubuntu-latest
     environment:
       name: prod
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
@@ -45,8 +47,43 @@ jobs:
             access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
             accept-flake-config = true
 
-      - name: Check
-        run: nix flake check
+      - name: Generate Matrix
+        id: set-matrix
+        run: |
+          set -Eeuo pipefail
+          attrs=$(nix eval .#ci --apply '
+            ci:
+              (map (host: "ci.hosts." + host) (builtins.attrNames ci.hosts))
+              ++
+              (map (pkg: "ci.packages." + pkg) (builtins.attrNames ci.packages))
+          ' --json | jq -c 'map({attr: .})')
+          echo "matrix={\"include\":$attrs}" >> "$GITHUB_OUTPUT"
+
+  flake-check:
+    name: Check ${{ matrix.attr }}
+    needs: flake-check-matrix
+    if: ${{ fromJson(needs.flake-check-matrix.outputs.matrix || '{"include":[]}').include[0] != null }}
+    runs-on: ubuntu-latest
+    environment:
+      name: prod
+    strategy:
+      matrix: ${{ fromJSON(needs.flake-check-matrix.outputs.matrix) }}
+      fail-fast: false
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@616559265b40713947b9c190a8ff4b507b5df49b # v31
+        with:
+          extra_nix_config: |
+            access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
+            accept-flake-config = true
+
+      - name: Evaluate
+        run: nix eval .#${{ matrix.attr }}
 
   generate-matrix:
     name: Generate Build Matrix
