@@ -12,7 +12,7 @@ on:
 
 jobs:
   build:
-    name: Build ${{ matrix.attr }}
+    name: Build ${{ matrix.name }}
     if: ${{ fromJson(inputs.matrix || '{"include":[]}').include[0] != null }}
     runs-on: ${{ matrix.runner }}
     environment:
