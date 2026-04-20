@@ -36,6 +36,10 @@ inputs:
     description: Enable nothing-but-nix mode (uses /nix/build as build directory)
     required: false
     default: "true"
+  github-token:
+    description: GitHub token for private repository access
+    required: false
+    default: ""
 runs:
   using: composite
   steps:
@@ -72,6 +76,7 @@ runs:
           builders-use-substitutes = true
           builders = @${{ github.workspace }}/.github/nix-builders.conf
           ${{ inputs.nothing-but-nix == 'true' && 'build-dir = /nix/build' || '' }}
+          ${{ inputs.github-token != '' && 'access-tokens = github.com=' || '' }}${{ inputs.github-token }}
 
     - name: Install Nix (local)
       if: inputs.use-remote-builders != 'true'
@@ -81,6 +86,7 @@ runs:
           accept-flake-config = true
           always-allow-substitutes = true
           ${{ inputs.nothing-but-nix == 'true' && 'build-dir = /nix/build' || '' }}
+          ${{ inputs.github-token != '' && 'access-tokens = github.com=' || '' }}${{ inputs.github-token }}
 
     - name: Setup Cachix
       if: inputs.skip-cache != 'true' && inputs.cachix-cache != '' && inputs.cachix-token != ''

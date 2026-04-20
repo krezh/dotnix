@@ -46,6 +46,7 @@ jobs:
           attic-token: ${{ secrets.ATTIC_TOKEN }}
           skip-push: true
           nothing-but-nix: false
+          github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Check Flake
         run: nix flake check --no-build
