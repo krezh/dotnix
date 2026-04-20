@@ -44,9 +44,10 @@ jobs:
           extra_nix_config: |
             access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
             accept-flake-config = true
+            allow-import-from-derivation = true
 
       - name: Check
-        run: nix flake check --no-build --option allow-import-from-derivation true
+        run: nix flake check --no-build
 
   generate-matrix:
     name: Generate Build Matrix
