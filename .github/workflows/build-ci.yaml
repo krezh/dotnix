@@ -46,7 +46,7 @@ jobs:
             accept-flake-config = true
 
       - name: Check
-        run: nix flake check --no-build
+        run: nix flake check --no-build --option allow-import-from-derivation true
 
   generate-matrix:
     name: Generate Build Matrix
