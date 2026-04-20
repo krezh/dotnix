@@ -7,13 +7,13 @@
 buildGoModule (finalAttrs: {
   pname = "lfk";
   # renovate: datasource=github-releases depName=janosmiko/lfk
-  version = "0.9.18";
+  version = "0.9.19";
 
   src = fetchFromGitHub {
     owner = "janosmiko";
     repo = "lfk";
     tag = "v${finalAttrs.version}";
-    hash = "sha256-jV5dlvRFzDTkN6jbRNInbLJJIEqAcxfOuCkKLPKuFE0=";
+    hash = "sha256-gUkAl+/i8MBSYdyPW+5L8XB7eAHoyQ6sRqXOZUG9tTU=";
   };
 
   postPatch = ''
@@ -21,7 +21,7 @@ buildGoModule (finalAttrs: {
       --replace "go 1.26.2" "go 1.26.1"
   '';
 
-  vendorHash = "sha256-ayuGDgCzPLCq2gRxOlWlxUQIqAatyeGm95e/7ieLx3Y=";
+  vendorHash = "sha256-mx5IuJLGtNx2WZUfF/TdubwOGCr0Wjy7s2zvzOXqyO0=";
   doCheck = false;
 
   ldflags = [
