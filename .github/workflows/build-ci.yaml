@@ -25,10 +25,31 @@ permissions:
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.number || github.ref }}
   cancel-in-progress: true
-env:
-  CACHE_NAME: krezh
 
 jobs:
+  flake-check:
+    name: Flake Check
+    runs-on: ubuntu-latest
+    environment:
+      name: prod
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
+
+      - name: Setup Nix
+        uses: ./.github/actions/setup-nix
+        with:
+          attic-endpoint: https://nix-cache.plexuz.xyz
+          attic-cache: ${{ secrets.ATTIC_CACHE }}
+          attic-token: ${{ secrets.ATTIC_TOKEN }}
+          skip-push: true
+          nothing-but-nix: false
+
+      - name: Check Flake
+        run: nix flake check --no-build
+
   generate-matrix:
     name: Generate Build Matrix
     runs-on: ubuntu-latest
@@ -55,7 +76,7 @@ jobs:
       - name: Generate Matrix
         id: set-matrix
         run: |
-          set -Eeu
+          set -Eeuo pipefail
           all=$(nix run nixpkgs#nix-eval-jobs -- \
             --flake .#ci \
             --allow-import-from-derivation \
@@ -135,7 +156,6 @@ jobs:
       pull-requests: write
     environment:
       name: prod
-    continue-on-error: true
     strategy:
       matrix: ${{ fromJSON(needs.generate-matrix.outputs.packages) }}
     steps:
