@@ -28,9 +28,14 @@
           "log"
           "wakatime"
           "xml"
+          "catppuccin-icons"
+          "editorconfig"
         ];
         userSettings = {
           auto_update = false;
+          agent_servers = {
+            "claude-acp".type = "registry";
+          };
           base_keymap = "VSCode";
           ui_font_size = 17;
           ui_font_family = "Rubik";
@@ -42,12 +47,8 @@
           edit_predictions.mode = "eager";
           agent = {
             enabled = true;
-            always_allow_tool_actions = true;
+            tool_permissions.default = "allow";
             use_modifier_to_send = false;
-            default_model = {
-              provider = "copilot_chat";
-              model = "gpt-4.1";
-            };
           };
           tabs = {
             file_icons = true;
@@ -75,13 +76,13 @@
           };
           lsp = {
             nixd = {
-              settings = {
+              settings = rec {
                 nixpkgs.expr = "import ${inputs.nixpkgs} { }";
                 formatter.command = [ (lib.getExe pkgs.nixfmt) ];
                 options = {
                   nixos.expr = ''
                     (let
-                      pkgs = import ${inputs.nixpkgs} { };
+                      pkgs = ${nixpkgs.expr};
                     in (pkgs.lib.evalModules {
                       modules = (import ${inputs.nixpkgs}/nixos/modules/module-list.nix) ++ [
                         ({...}: { nixpkgs.hostPlatform = "${pkgs.stdenv.hostPlatform.system}"; })
@@ -90,7 +91,7 @@
                   '';
                   home-manager.expr = ''
                     (let
-                      pkgs = import ${inputs.nixpkgs} { };
+                      pkgs = ${nixpkgs.expr};
                       lib = import ${inputs.home-manager}/modules/lib/stdlib-extended.nix pkgs.lib;
                     in (lib.evalModules {
                       modules = (import ${inputs.home-manager}/modules/modules.nix) {
@@ -99,13 +100,11 @@
                       };
                     })).options
                   '';
+                  flake_parts.expr = "let flake = builtins.getFlake (toString ./.); in flake.debug.options // flake.currentSystem.options";
                 };
               };
             };
             nil.settings.formatting = {
-              command = [ (lib.getExe pkgs.nixfmt) ];
-            };
-            nixd.settings.formatting = {
               command = [ (lib.getExe pkgs.nixfmt) ];
             };
             yaml-language-server.settings = {
@@ -118,7 +117,6 @@
             };
             just-lsp.settings = { };
             pyright.settings."python.analysis".typeCheckingMode = "off";
-            qml.binary.arguments = [ "-E" ];
           };
           inlay_hints = {
             enabled = true;

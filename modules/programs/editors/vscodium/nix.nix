@@ -20,21 +20,21 @@
               serverPath = lib.getExe pkgs.nixd;
               formatterPath = lib.getExe pkgs.nixfmt;
               serverSettings = {
-                nixd = {
+                nixd = rec {
                   nixpkgs.expr = "import ${inputs.nixpkgs} { }";
                   options = {
                     nixos.expr = ''
                       (let
-                        pkgs = import ${inputs.nixpkgs} { };
+                        pkgs = ${nixpkgs.expr};
                       in (pkgs.lib.evalModules {
                         modules = (import ${inputs.nixpkgs}/nixos/modules/module-list.nix) ++ [
                           ({...}: { nixpkgs.hostPlatform = "${pkgs.stdenv.hostPlatform.system}"; })
                         ];
                       })).options
                     '';
-                    home-manager.expr = ''
+                    home_manager.expr = ''
                       (let
-                        pkgs = import ${inputs.nixpkgs} { };
+                        pkgs = ${nixpkgs.expr};
                         lib = import ${inputs.home-manager}/modules/lib/stdlib-extended.nix pkgs.lib;
                       in (lib.evalModules {
                         modules = (import ${inputs.home-manager}/modules/modules.nix) {
@@ -43,6 +43,7 @@
                         };
                       })).options
                     '';
+                    flake_parts.expr = "let flake = builtins.getFlake (toString ./.); in flake.debug.options // flake.currentSystem.options";
                   };
                   diagnostic.suppress = [ "sema-extra-with" ];
                   hiddenLanguageServerErrors = [

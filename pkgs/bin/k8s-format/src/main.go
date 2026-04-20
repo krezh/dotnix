@@ -24,8 +24,8 @@ var resourceTypes = []ResourceType{
 		Kind:      "HelmRelease",
 		Filenames: []string{"helmrelease.yaml"},
 		Ordering: map[string][]string{
-			"spec":     {"interval", "chartRef", "chart", "driftDetection", "install", "upgrade", "uninstall", "dependsOn", "timeout", "maxHistory", "valuesFrom", "values", "postRenderers"},
 			"metadata": {"name", "namespace", "labels", "annotations"},
+			"spec":     {"interval", "chartRef", "chart", "driftDetection", "install", "upgrade", "uninstall", "dependsOn", "timeout", "maxHistory", "valuesFrom", "values", "postRenderers"},
 			"values":   {"defaultPodOptions", "controllers", "service", "serviceAccount", "ingress", "route", "persistence", "configMaps", "secrets"},
 		},
 	},
@@ -33,16 +33,16 @@ var resourceTypes = []ResourceType{
 		Kind:      "OCIRepository",
 		Filenames: []string{"ocirepository.yaml"},
 		Ordering: map[string][]string{
-			"spec":     {"interval", "layerSelector", "ref", "url", "insecure", "provider", "timeout"},
 			"metadata": {"name", "namespace", "labels", "annotations"},
+			"spec":     {"interval", "layerSelector", "ref", "url", "insecure", "provider", "timeout"},
 		},
 	},
 	{
 		Kind:      "Kustomization",
 		Filenames: []string{"ks.yaml"},
 		Ordering: map[string][]string{
-			"spec":     {"targetNamespace", "commonMetadata", "dependsOn", "path", "prune", "sourceRef", "wait", "interval", "retryInterval", "timeout", "force", "components", "postBuild", "patches", "images"},
 			"metadata": {"name", "namespace", "labels", "annotations"},
+			"spec":     {"targetNamespace", "commonMetadata", "dependsOn", "path", "prune", "sourceRef", "wait", "interval", "retryInterval", "timeout", "force", "components", "postBuild", "patches", "images"},
 		},
 	},
 	{
@@ -56,8 +56,16 @@ var resourceTypes = []ResourceType{
 		Kind:      "ExternalSecret",
 		Filenames: []string{"externalsecret.yaml"},
 		Ordering: map[string][]string{
-			"spec":     {"refreshInterval", "secretStoreRef", "target", "data", "dataFrom"},
 			"metadata": {"name", "namespace", "labels", "annotations"},
+			"spec":     {"refreshInterval", "secretStoreRef", "target", "data", "dataFrom"},
+		},
+	},
+	{
+		Kind:      "GrafanaDashboard",
+		Filenames: []string{"grafanadashboard.yaml"},
+		Ordering: map[string][]string{
+			"metadata": {"name", "namespace", "labels", "annotations"},
+			"spec":     {"allowCrossNamespaceImport", "instanceSelector", "datasources", "url"},
 		},
 	},
 }

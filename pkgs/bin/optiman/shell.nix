@@ -24,7 +24,7 @@ pkgs.mkShell {
 
   shellHook = ''
     echo "OptiMan development environment"
-    echo "Run 'cargo build' to build the project"
-    echo "Run 'cargo run' to run the application"
+    echo "Run 'nix build .#optiman' to build the project"
+    echo "Run 'nix build .#optiman' to run the application"
   '';
 }
