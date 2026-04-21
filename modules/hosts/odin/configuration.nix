@@ -31,10 +31,6 @@ in
         inputs.self.modules.nixos.${user}
       ];
 
-      nixpkgs.overlays = [
-        inputs.nix-cachyos-kernel.overlay
-      ];
-
       networking = {
         networkmanager = {
           enable = true;
@@ -52,7 +48,7 @@ in
           "quiet"
           "udev.log_level=0"
         ];
-        kernelPackages = pkgs.cachyosKernels.linuxPackages-cachyos-bore-lto;
+        kernelPackages = pkgs.linuxKernel.kernels.linux_zen;
         loader = {
           timeout = 0;
           systemd-boot = {
