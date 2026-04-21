@@ -100,9 +100,18 @@
           # BACKGROUND
           background {
             monitor =
-            path = $HOME/.config/background
-            blur_passes = 0
+            path = screenshot
             color = $base
+            blur_passes = 4
+            blur_size = 7
+            blur_noise = 0.01
+            blur_ignore_opacity = true
+            blur_brightness = 1.0
+            blur_contrast = 1.0
+            blur_vibrancy = 0.8
+            blur_vibrancy_darkness = 0.6
+            blur_popups = true
+            blur_popups_ignorealpha = 0.2
           }
 
           # TIME
@@ -112,9 +121,9 @@
             color = $text
             font_size = 90
             font_family = $font
-            position = -30, 0
-            halign = right
-            valign = top
+            position = 0, 155
+            halign = center
+            valign = center
           }
 
           # DATE
@@ -124,9 +133,9 @@
             color = $text
             font_size = 25
             font_family = $font
-            position = -30, -150
-            halign = right
-            valign = top
+            position = 0, 75
+            halign = center
+            valign = center
           }
 
           # FINGERPRINT
@@ -139,17 +148,6 @@
             position = "0, -107";
             halign = "center";
             valign = "center";
-          }
-
-          # USER AVATAR
-          image {
-            monitor =
-            path = ${config.home.homeDirectory}/wolf.png
-            size = 100
-            border_color = $accent
-            position = 0, 75
-            halign = center
-            valign = center
           }
 
           # INPUT FIELD

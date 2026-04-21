@@ -25,6 +25,8 @@
         file-roller
         proton-pass
         proton-pass-cli
+        proton-vpn
+        proton-vpn-cli
         evince
       ];
     };
