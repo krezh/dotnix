@@ -150,7 +150,7 @@ func (f *Formatter) formatTable(recs []types.Recommendation) (string, error) {
 			sparkline,
 			recommendations.FormatResourceQuantity(rec.CurrentMemory),
 			recommendations.FormatResourceQuantity(rec.RecommendedMemory),
-			colorChange(rec.MemoryChange, rec.Severity, rec.CurrentMemory),
+			colorChange(rec.MemoryChange, rec.CurrentMemory),
 		})
 	}
 
@@ -238,8 +238,8 @@ func formatChange(change float64) string {
 	return fmt.Sprintf("%.1f%%", change)
 }
 
-// colorChange formats and colors a percentage change based on severity.
-func colorChange(change float64, severity string, currentMemory types.ResourceQuantity) string {
+// colorChange formats and colors a percentage change based on value.
+func colorChange(change float64, currentMemory types.ResourceQuantity) string {
 	// If current limit is not set, show N/A
 	if currentMemory.Unit == "" {
 		return "N/A"
@@ -247,14 +247,10 @@ func colorChange(change float64, severity string, currentMemory types.ResourceQu
 
 	changeStr := formatChange(change)
 
-	switch severity {
-	case "critical":
-		return fmt.Sprintf("\033[31m%s\033[0m", changeStr)
-	case "warning":
-		return fmt.Sprintf("\033[33m%s\033[0m", changeStr)
-	case "info":
+	if change > 0 {
 		return fmt.Sprintf("\033[32m%s\033[0m", changeStr)
-	default:
-		return changeStr
+	} else if change < 0 {
+		return fmt.Sprintf("\033[31m%s\033[0m", changeStr)
 	}
+	return fmt.Sprintf("\033[37m%s\033[0m", changeStr)
 }
