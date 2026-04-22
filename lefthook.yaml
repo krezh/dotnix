@@ -4,9 +4,12 @@ pre-commit:
   parallel: true
   commands:
     "Nix Format":
-      run: nix fmt {staged_files}
+      glob: "*.nix"
+      run: nixfmt {staged_files}
       stage_fixed: true
     "Govendor":
-      glob: "*.{go,mod}"
-      run: govendor $(fd go.mod)
-      stage_fixed: true
+      glob: "*go.mod"
+      run: govendor --check {staged_files}
+    "Statix":
+      glob: "*.nix"
+      run: statix check
