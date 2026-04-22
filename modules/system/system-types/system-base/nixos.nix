@@ -41,50 +41,25 @@
         extraLocales = "all";
         extraLocaleSettings.LC_TIME = "en_US.UTF-8";
       };
-      console.enable = false;
-      console.keyMap = "sv-latin1";
-      services.kmscon.enable = true;
-      services.kmscon.hwRender = false;
-      services.kmscon.extraConfig = ''
-        font-name=${config.var.fonts.mono} Bold
-        font-size=12
-        xkb-layout=se
-        xkb-variant=nodeadkeys
-      '';
-      time.timeZone = "Europe/Stockholm";
-
-      programs.ssh = {
-        extraConfig = lib.optionalString (config.sops.secrets ? "nixbuild/key") ''
-          Host eu.nixbuild.net
-          PubkeyAcceptedKeyTypes ssh-ed25519
-          ServerAliveInterval 60
-          IPQoS throughput
-          IdentityFile ${config.sops.secrets."nixbuild/key".path}
-        '';
-        knownHosts = {
-          nixbuild = {
-            hostNames = [ "eu.nixbuild.net" ];
-            publicKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPIQCZc54poJ8vqawd8TraNryQeJnvH1eLpIDgbiqymM";
-          };
-        };
+      console = {
+        enable = false;
+        keyMap = "sv-latin1";
       };
+      services.kmscon = {
+        enable = true;
+        hwRender = false;
+        extraConfig = ''
+          font-name=${config.var.fonts.mono} Bold
+          font-size=12
+          xkb-layout=se
+          xkb-variant=nodeadkeys
+        '';
+      };
+
+      time.timeZone = "Europe/Stockholm";
 
       # Nix settings
       nix = {
-        distributedBuilds = config.sops.secrets ? "nixbuild/key";
-        buildMachines = lib.optionals (config.sops.secrets ? "nixbuild/key") [
-          {
-            hostName = "eu.nixbuild.net";
-            system = "x86_64-linux";
-            maxJobs = 100;
-            supportedFeatures = [
-              "kernelbuild"
-            ];
-            mandatoryFeatures = [
-              "kernelbuild"
-            ];
-          }
-        ];
         package = pkgs.lixPackageSets.latest.lix;
         extraOptions = lib.optionalString (config.sops.templates ? "nix_access_token.conf") ''
           !include ${config.sops.templates."nix_access_token.conf".path}
@@ -92,7 +67,7 @@
         settings = {
           keep-outputs = lib.mkDefault false;
           keep-derivations = lib.mkDefault false;
-          warn-dirty = false;
+          warn-dirty = true;
           flake-registry = "";
           use-xdg-base-directories = true;
           accept-flake-config = true;
@@ -101,7 +76,6 @@
           auto-optimise-store = true;
           trusted-users = [
             "@wheel"
-            "root"
           ];
           experimental-features = [
             "nix-command"

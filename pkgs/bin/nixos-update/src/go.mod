@@ -1,6 +1,6 @@
 module github.com/krezh/dotnix/nixos-update
 
-go 1.25.8
+go 1.26.2
 
 require (
 	charm.land/lipgloss/v2 v2.0.3

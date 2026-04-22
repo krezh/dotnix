@@ -48,7 +48,7 @@ in
           "quiet"
           "udev.log_level=0"
         ];
-        kernelPackages = pkgs.linuxKernel.kernels.linux_zen;
+        kernelPackages = pkgs.linuxPackages_zen;
         loader = {
           timeout = 0;
           systemd-boot = {
