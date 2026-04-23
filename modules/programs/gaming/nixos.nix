@@ -69,7 +69,7 @@
             extraEnv = {
               MANGOHUD = true;
               MESA_GLSL_CACHE_MAX_SIZE = "16G";
-              WINE_CPU_TOPOLOGY = "16:0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15";
+              WINE_CPU_TOPOLOGY = "16:0,1,2,3,4,5,6,7,16,17,18,19,20,21,22,23"; # Ryzen 9 9950X3D
               PROTON_USE_NTSYNC = true;
               PROTON_USE_WOW64 = 1;
               PROTON_ENABLE_WAYLAND = 1;

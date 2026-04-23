@@ -67,7 +67,7 @@
         settings = {
           keep-outputs = lib.mkDefault false;
           keep-derivations = lib.mkDefault false;
-          warn-dirty = true;
+          warn-dirty = false;
           flake-registry = "";
           use-xdg-base-directories = true;
           accept-flake-config = true;

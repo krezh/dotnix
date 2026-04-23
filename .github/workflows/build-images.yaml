@@ -97,7 +97,8 @@ jobs:
       - name: Create tag
         if: success()
         id: tag
-        run: echo tag="$(date -u +"%Y-%m-%d")-$(openssl rand -hex 5)" >> "${GITHUB_OUTPUT}"
+        run: echo tag="$(date -u +"%Y-%m-%d")-$(openssl rand -hex 5)" >>
+          "${GITHUB_OUTPUT}"
 
       - name: Get image info
         if: success()

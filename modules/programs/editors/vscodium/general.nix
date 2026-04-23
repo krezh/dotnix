@@ -47,7 +47,6 @@
             "bmalehorn.vscode-fish"
             "waderyan.gitblame"
             "alefragnani.project-manager"
-            "wakatime.vscode-wakatime"
             "theqtcompany.qt-core"
             "theqtcompany.qt-qml"
             "theqtcompany.qt-ui"
@@ -290,6 +289,7 @@
                 customExePath = "${pkgs.qt6.qtdeclarative}/bin/qmlls";
               };
             };
+            "[toml]".editor.defaultFormatter = "tamasfe.even-better-toml";
             todo-tree = {
               general.showActivityBarBadge = true;
               filtering = {
