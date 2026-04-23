@@ -15,7 +15,7 @@ craneLib.buildPackage rec {
   nativeBuildInputs = with pkgs; [ makeWrapper ];
 
   postInstall = ''
-    wrapProgram $out/bin/nix-closure-diff \
+    wrapProgram $out/bin/ncd \
       --prefix PATH : ${lib.makeBinPath [ pkgs.nix ]}
   '';
 
@@ -27,6 +27,6 @@ craneLib.buildPackage rec {
       "x86_64-linux"
       "aarch64-linux"
     ];
-    mainProgram = "nix-closure-diff";
+    mainProgram = "ncd";
   };
 }

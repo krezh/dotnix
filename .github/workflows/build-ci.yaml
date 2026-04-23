@@ -6,16 +6,14 @@ on:
   workflow_dispatch:
   workflow_call:
   pull_request:
-    branches: ["main"]
+    branches: [ "main" ]
     paths: &paths
-      - "modules/**"
-      - "lib/**"
-      - "overlays/**"
+      - "*.nix"
       - "pkgs/**"
       - "flake.nix"
       - "flake.lock"
   push:
-    branches: ["main"]
+    branches: [ "main" ]
     paths: *paths
 
 permissions:
@@ -96,11 +94,13 @@ jobs:
   build-hosts:
     name: Build Hosts
     needs: generate-matrix
-    if: ${{ github.event.pull_request.draft != true && fromJson(needs.generate-matrix.outputs.hosts || '{"include":[]}').include[0] != null }}
+    if: ${{ github.event.pull_request.draft != true &&
+      fromJson(needs.generate-matrix.outputs.hosts ||
+      '{"include":[]}').include[0] != null }}
     permissions:
       contents: read
       pull-requests: write
-    uses: ./.github/workflows/build-hosts.yaml
+    uses: ./.github/workflows/build-hosts.yaml # zizmor: ignore[secrets-inherit]
     secrets: inherit
     with:
       matrix: ${{ needs.generate-matrix.outputs.hosts }}
@@ -108,11 +108,12 @@ jobs:
   build-packages:
     name: Build Packages
     needs: generate-matrix
-    if: ${{ fromJson(needs.generate-matrix.outputs.packages || '{"include":[]}').include[0] != null }}
+    if: ${{ fromJson(needs.generate-matrix.outputs.packages ||
+      '{"include":[]}').include[0] != null }}
     permissions:
       contents: read
       pull-requests: write
-    uses: ./.github/workflows/build-packages.yaml
+    uses: ./.github/workflows/build-packages.yaml # zizmor: ignore[secrets-inherit]
     secrets: inherit
     with:
       matrix: ${{ needs.generate-matrix.outputs.packages }}

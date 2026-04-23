@@ -26,7 +26,6 @@
           "github-actions"
           "json5"
           "log"
-          "wakatime"
           "xml"
           "catppuccin-icons"
           "editorconfig"
