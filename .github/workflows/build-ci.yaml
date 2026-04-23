@@ -6,14 +6,14 @@ on:
   workflow_dispatch:
   workflow_call:
   pull_request:
-    branches: [ "main" ]
+    branches: ["main"]
     paths: &paths
       - "*.nix"
       - "pkgs/**"
       - "flake.nix"
       - "flake.lock"
   push:
-    branches: [ "main" ]
+    branches: ["main"]
     paths: *paths
 
 permissions:
