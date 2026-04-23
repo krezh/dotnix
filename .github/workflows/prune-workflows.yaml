@@ -4,8 +4,8 @@ on:
   schedule:
     - cron: "0 0 * * *" # Daily at midnight UTC
   push:
-    branches: [ "main" ]
-    paths: [ ".github/workflows/prune-workflows.yaml" ]
+    branches: ["main"]
+    paths: [".github/workflows/prune-workflows.yaml"]
   workflow_dispatch:
     inputs:
       successful_runs_to_keep:
@@ -17,7 +17,8 @@ on:
         required: false
         default: "2"
       delete_workflow_pattern:
-        description: "Name or filename of the workflow (if not set, all workflows are
+        description:
+          "Name or filename of the workflow (if not set, all workflows are
           targeted)"
         required: false
       dry_run:
