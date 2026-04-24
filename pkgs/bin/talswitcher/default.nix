@@ -8,16 +8,16 @@
 (buildGoModule.override { go = go-bin.latestStable; }) rec {
   pname = "talswitcher";
   # renovate: datasource=github-releases depName=mirceanton/talswitcher
-  version = "2.2.19";
+  version = "2.2.20";
 
   src = fetchFromGitHub {
     owner = "mirceanton";
     repo = "talswitcher";
     rev = "v${version}";
-    hash = "sha256-uexIYl2htc3r4H9xYqbyryCjEB/enhOamXDipK4c/+8=";
+    hash = "sha256-lEJ/fcNNYt0zrXr4xpKnnmeI3hZ9Vw0prBnAVkT9D1I=";
   };
 
-  vendorHash = "sha256-5c4N/yzf1e9ZYPA3uNqeorDHBFrZ6Dmm/fMZpQifN3k=";
+  vendorHash = "sha256-H2DB0C4OzPEgc6JcdEmYgDguSDNNrqjgYnj9XudmEBA=";
 
   # Make build write to a writable tempdir instead of /homeless-shelter
   preBuild = ''
