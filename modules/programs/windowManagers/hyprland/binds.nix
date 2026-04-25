@@ -4,6 +4,7 @@
       pkgs,
       config,
       lib,
+      osConfig,
       ...
     }:
     let
@@ -39,6 +40,7 @@
       trayTui = mkProg pkgs.tray-tui;
       volume_script = lib.getExe pkgs.volume_script_hyprpanel;
       brightness_script = lib.getExe pkgs.brightness_script_hyprpanel;
+      audioSwitch = lib.getExe osConfig.nixosModules.wireplumber.audioSwitching.package;
 
       mainMod = "SUPER";
       mainModShift = "${mainMod} SHIFT";
@@ -66,7 +68,7 @@
             "${mainMod},M,Mail Client,exec,${mail.run}"
             # "${mainMod},TAB,Toggle workspace overview, hyprexpo:expo, toggle"
             "${mainModShift},R, Reload Hyprland config,exec,hyprctl reload && notify-send --transient -u low 'Hyprland' 'Config Reloaded'"
-            "${mainMod},A,Toggle between audio devices,exec,audio-switch toggle"
+            "${mainMod},A,Toggle between audio devices,exec,${audioSwitch} toggle"
             "${mainMod},S,Screenshot menu,exec,${screenshot.run}"
             "${mainMod},Q,Close active window,killactive"
             "${mainMod},C,Toggle floating mode,togglefloating"
