@@ -91,7 +91,7 @@
           };
         };
 
-      audio-switch-script = pkgs.writeShellScript "audio-switch" (
+      audio-switch = pkgs.writeShellScriptBin "audio-switch" (
         lib.replaceStrings
           [ "wpctl" "@PRIMARY_DEVICE_NAME@" "@SECONDARY_DEVICE_NAME@" ]
           [ "${pkgs.wireplumber}/bin/wpctl" cfg.audioSwitching.primary cfg.audioSwitching.secondary ]
@@ -103,6 +103,11 @@
         enable = mkEnableOption "custom audio device configuration";
         audioSwitching = {
           enable = mkEnableOption "manual audio device switching";
+          package = mkOption {
+            type = types.package;
+            default = audio-switch;
+            description = "The audio-switch script package";
+          };
           primary = mkOption {
             type = types.str;
             default = "A50 Game Audio";
@@ -167,9 +172,6 @@
         services.pipewire.wireplumber.extraConfig = builtins.listToAttrs (
           map generateDeviceConfig allDevices
         );
-        environment.systemPackages = lib.optionals cfg.audioSwitching.enable [
-          (pkgs.writeShellScriptBin "audio-switch" (builtins.readFile audio-switch-script))
-        ];
         systemd.user.services.wireplumber.restartTriggers = [
           (builtins.toJSON (builtins.listToAttrs (map generateDeviceConfig allDevices)))
         ];

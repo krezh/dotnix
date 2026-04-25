@@ -5,6 +5,7 @@
       pkgs,
       lib,
       config,
+      osConfig,
       ...
     }:
     let
@@ -20,6 +21,7 @@
       audioControlPkg = pkgs.wiremix;
       audioControlBin = lib.getExe audioControlPkg;
       audioControlName = getBinaryName audioControlPkg;
+      audioSwitchBin = lib.getExe osConfig.nixosModules.wireplumber.audioSwitching.package;
 
       inherit (config.lib.niri) actions;
     in
@@ -484,7 +486,7 @@
           "XF86MonBrightnessDown".action = spawn (lib.getExe pkgs.brightnessctl) "set" "10%-";
 
           # Audio Device Switching
-          "Mod+F3".action = spawn "audio-switch" "toggle";
+          "Mod+F3".action = spawn audioSwitchBin "toggle";
         };
       };
 
