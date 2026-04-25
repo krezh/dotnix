@@ -94,7 +94,7 @@ func (t *Tracker) Stop() {
 	}
 
 	close(t.done)
-	time.Sleep(150 * time.Millisecond) // Let it finish rendering
+	time.Sleep(200 * time.Millisecond) // Let it finish clearing
 }
 
 // render draws the current state.
@@ -116,7 +116,7 @@ func (t *Tracker) render() {
 	spinner := spinnerFrames[t.frameIndex]
 	t.frameIndex = (t.frameIndex + 1) % len(spinnerFrames)
 
-	cyan.Printf("%s Analyzing pods: ", spinner)
+	cyan.Printf("%s Analyzing workloads: ", spinner)
 	green.Printf("%d/%d completed\n", t.completed, t.total)
 
 	lineCount := 1 // Progress line
@@ -155,9 +155,15 @@ func (t *Tracker) render() {
 
 // clearLines clears all rendered lines.
 func (t *Tracker) clearLines() {
-	if t.lastLineCount > 0 {
-		for i := 0; i < t.lastLineCount; i++ {
-			fmt.Print("\033[A\033[2K") // Move up and clear line
+	t.mu.Lock()
+	lineCount := t.lastLineCount
+	t.lastLineCount = 0
+	t.mu.Unlock()
+
+	if lineCount > 0 {
+		// Move cursor up and clear each line
+		for i := 0; i < lineCount; i++ {
+			fmt.Print("\033[F\033[2K") // Move to beginning of previous line and clear
 		}
 	}
 }
@@ -180,8 +186,8 @@ func (t *Tracker) Summary() string {
 	defer t.mu.Unlock()
 
 	if t.completed == 0 {
-		return "No pods analyzed"
+		return "No workloads analyzed"
 	}
 
-	return fmt.Sprintf("Analyzed %d/%d pods", t.completed, t.total)
+	return fmt.Sprintf("Analyzed %d/%d workloads", t.completed, t.total)
 }

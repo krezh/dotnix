@@ -240,7 +240,7 @@
             };
             "[yaml]" = {
               editor = {
-                defaultFormatter = "redhat.vscode-yaml";
+                defaultFormatter = "esbenp.prettier-vscode";
                 autoIndent = "full";
                 detectIndentation = true;
               };

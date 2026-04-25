@@ -9,76 +9,65 @@ import (
 
 // Engine generates resource recommendations.
 type Engine struct {
-	memoryBuffer float64
-	minMemory    float64
+	minMemory float64
 }
 
 // NewEngine creates a new recommendation engine.
-func NewEngine(memoryBuffer, minMemory float64) *Engine {
+func NewEngine(minMemory float64) *Engine {
 	return &Engine{
-		memoryBuffer: memoryBuffer,
-		minMemory:    minMemory,
+		minMemory: minMemory,
 	}
 }
 
-// Generate creates a recommendation based on resource metrics.
+// Generate creates a recommendation based on VPA recommendations.
 func (e *Engine) Generate(metrics types.ResourceMetrics, workloadKind, workloadName string) types.Recommendation {
-	memoryRecommendation := e.calculateMemoryRecommendation(metrics.MemoryUsage)
+	// Use VPA upperBound recommendation, apply minMemory floor if configured
+	vpaMemoryMB := metrics.VPAMemoryUpperBound / 1000000 // Convert bytes to MB
+	recommendedMemoryMB := math.Max(vpaMemoryMB, e.minMemory)
+
+	// Round up both current and recommended for display and percentage calculation
+	currentMemoryRounded := math.Ceil(metrics.CurrentMemory.Value)
+	recommendedMemoryRounded := math.Ceil(recommendedMemoryMB)
+
+	memoryRecommendation := types.ResourceQuantity{
+		Value: recommendedMemoryRounded,
+		Unit:  "M",
+	}
 
 	// Calculate recommended request - must not exceed limit
 	recommendedRequest := metrics.CurrentRequest
 	requestLowered := false
 
-	if metrics.CurrentRequest.Value > 0 && metrics.CurrentRequest.Value > memoryRecommendation.Value {
+	if metrics.CurrentRequest.Value > 0 && math.Ceil(metrics.CurrentRequest.Value) > recommendedMemoryRounded {
 		// Lower the request to match the recommended limit
 		recommendedRequest = types.ResourceQuantity{
-			Value: memoryRecommendation.Value,
-			Unit:  "Mi",
+			Value: recommendedMemoryRounded,
+			Unit:  "M",
 		}
 		requestLowered = true
 	}
 
-	memoryChange := calculatePercentageChange(metrics.CurrentMemory.Value, memoryRecommendation.Value)
+	memoryChange := calculatePercentageChange(currentMemoryRounded, recommendedMemoryRounded)
 	severity := determineSeverity(memoryChange)
 
 	return types.Recommendation{
-		Namespace:          metrics.Namespace,
-		WorkloadName:       workloadName,
-		WorkloadKind:       workloadKind,
-		Container:          metrics.Container,
-		CurrentMemory:      metrics.CurrentMemory,
-		CurrentRequest:     metrics.CurrentRequest,
+		Namespace:     metrics.Namespace,
+		WorkloadName:  workloadName,
+		WorkloadKind:  workloadKind,
+		Container:     metrics.Container,
+		CurrentMemory: types.ResourceQuantity{
+			Value: currentMemoryRounded,
+			Unit:  "M",
+		},
+		CurrentRequest: types.ResourceQuantity{
+			Value: math.Ceil(metrics.CurrentRequest.Value),
+			Unit:  "M",
+		},
 		RecommendedMemory:  memoryRecommendation,
 		RecommendedRequest: recommendedRequest,
 		MemoryChange:       memoryChange,
 		Severity:           severity,
 		RequestLowered:     requestLowered,
-		MemoryHistory:      metrics.MemoryUsage,
-	}
-}
-
-// calculateMemoryRecommendation computes memory recommendation using peak + buffer.
-func (e *Engine) calculateMemoryRecommendation(memoryUsage []types.MetricPoint) types.ResourceQuantity {
-	if len(memoryUsage) == 0 {
-		return types.ResourceQuantity{Value: e.minMemory, Unit: "Mi"}
-	}
-
-	peak := 0.0
-	for _, point := range memoryUsage {
-		// Convert bytes to MiB
-		valueMiB := point.Value / (1024 * 1024)
-		if valueMiB > peak {
-			peak = valueMiB
-		}
-	}
-
-	recommended := peak * (1.0 + e.memoryBuffer)
-	recommended = math.Max(recommended, e.minMemory)
-
-	// Round up to nearest integer
-	return types.ResourceQuantity{
-		Value: math.Ceil(recommended),
-		Unit:  "Mi",
 	}
 }
 
@@ -112,6 +101,5 @@ func FormatResourceQuantity(rq types.ResourceQuantity) string {
 	if rq.Unit == "" {
 		return "N/A"
 	}
-	// Value should already be an integer from math.Ceil
 	return fmt.Sprintf("%d%s", int64(rq.Value), rq.Unit)
 }

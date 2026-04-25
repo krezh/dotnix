@@ -10,7 +10,6 @@ import (
 	"github.com/olekukonko/tablewriter"
 	"gopkg.in/yaml.v3"
 
-	"klim/internal/graph"
 	"klim/internal/recommendations"
 	"klim/pkg/types"
 )
@@ -134,20 +133,16 @@ func (f *Formatter) formatTable(recs []types.Recommendation) (string, error) {
 		"Namespace",
 		"Workload",
 		"Container",
-		"History",
-		"Current Limit",
-		"Rec. Limit",
+		"Curr",
+		"Rec",
 		"Δ%",
 	)
 
 	for _, rec := range recs {
-		sparkline := graph.GenerateSparkline(rec.MemoryHistory, 12)
-
 		table.Append([]interface{}{
 			rec.Namespace,
 			fmt.Sprintf("%s/%s", rec.WorkloadKind, rec.WorkloadName),
 			rec.Container,
-			sparkline,
 			recommendations.FormatResourceQuantity(rec.CurrentMemory),
 			recommendations.FormatResourceQuantity(rec.RecommendedMemory),
 			colorChange(rec.MemoryChange, rec.CurrentMemory),
