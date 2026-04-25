@@ -26,6 +26,7 @@
               useTabs = false;
               bracketSpacing = true;
               bracketSameLine = true;
+              singleAttributePerLine = true;
               endOfLine = "lf";
             };
           };

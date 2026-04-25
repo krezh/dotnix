@@ -6,6 +6,7 @@
       imports = with inputs.self.modules.nixos; [
         system-desktop
         desktop-utils
+        impermanence
         secureboot
         amd
         tpm
@@ -16,7 +17,6 @@
         docker
         wooting
         inputs.silentSDDM.nixosModules.default
-        inputs.impermanence.nixosModules.impermanence
       ];
 
       nixpkgs.overlays = [
@@ -149,48 +149,15 @@
         };
       };
 
-      environment = {
-        systemPackages = with pkgs; [
-          age-plugin-yubikey
-          age-plugin-fido2-hmac
-          nautilus
-          libnotify
-          pwvucontrol
-          alsa-utils
-          pavucontrol
-          pulseaudio
-        ];
-
-        # Impermanence - persist system state
-        persistence."/persist" = {
-          hideMounts = true;
-          directories = [
-            "/nix"
-            "/etc/nixos"
-            "/srv"
-            "/etc/NetworkManager/system-connections"
-            "/var/spool"
-            "/var/cache/"
-            "/var/db/sudo/"
-            "/var/lib/nixos"
-            "/var/lib/systemd/coredump"
-            "/var/lib/systemd/timers"
-            "/var/lib/systemd/timesync"
-            "/var/lib/bluetooth"
-            "/var/lib/NetworkManager"
-            "/var/lib/dbus"
-            "/var/lib/docker"
-            "/var/log"
-            "/root"
-            "/tmp"
-          ];
-          files = [
-            "/etc/machine-id"
-            "/etc/adjtime"
-            "/etc/ssh/ssh_host_ed25519_key"
-            "/etc/ssh/ssh_host_ed25519_key.pub"
-          ];
-        };
-      };
+      environment.systemPackages = with pkgs; [
+        age-plugin-yubikey
+        age-plugin-fido2-hmac
+        nautilus
+        libnotify
+        pwvucontrol
+        alsa-utils
+        pavucontrol
+        pulseaudio
+      ];
     };
 }
