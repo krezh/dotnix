@@ -138,14 +138,14 @@ func GetContainerResources(pod corev1.Pod, containerName string) (cpuLimit, memo
 		if container.Name == containerName {
 			if mem, ok := container.Resources.Limits[corev1.ResourceMemory]; ok {
 				memoryLimit = types.ResourceQuantity{
-					Value: float64(mem.Value()) / (1024 * 1024),
-					Unit:  "Mi",
+					Value: float64(mem.Value()) / 1000000, // Convert bytes to MB
+					Unit:  "M",
 				}
 			}
 			if mem, ok := container.Resources.Requests[corev1.ResourceMemory]; ok {
 				memoryRequest = types.ResourceQuantity{
-					Value: float64(mem.Value()) / (1024 * 1024),
-					Unit:  "Mi",
+					Value: float64(mem.Value()) / 1000000, // Convert bytes to MB
+					Unit:  "M",
 				}
 			}
 			break
@@ -172,10 +172,11 @@ func GetWorkloadKind(pod corev1.Pod) string {
 func GetWorkloadName(pod corev1.Pod) string {
 	for _, owner := range pod.OwnerReferences {
 		if owner.Kind == "ReplicaSet" {
-			// Strip the replica set hash suffix
+			// Strip the replica set hash suffix (format: name-<10-char-hash>)
+			// Remove 11 characters: 10 for hash + 1 for dash
 			name := owner.Name
-			if len(name) > 10 {
-				return name[:len(name)-10]
+			if len(name) > 11 {
+				return name[:len(name)-11]
 			}
 			return name
 		}
@@ -193,4 +194,180 @@ func CreatePodFromLabels(namespace, name string, labels map[string]string) corev
 			Labels:    labels,
 		},
 	}
+}
+
+// WorkloadCache caches workload specs to avoid repeated API calls.
+type WorkloadCache struct {
+	deployments  map[string]map[string][]corev1.Container // namespace -> name -> containers
+	statefulsets map[string]map[string][]corev1.Container
+	daemonsets   map[string]map[string][]corev1.Container
+	cronjobs     map[string]map[string][]corev1.Container
+	jobs         map[string]map[string][]corev1.Container
+	labels       map[string]map[string]map[string]string // namespace -> name -> labels
+}
+
+// BulkFetchWorkloads fetches all workloads in the specified namespaces at once.
+func (c *Client) BulkFetchWorkloads(namespaces []string) (*WorkloadCache, error) {
+	ctx := context.TODO()
+	cache := &WorkloadCache{
+		deployments:  make(map[string]map[string][]corev1.Container),
+		statefulsets: make(map[string]map[string][]corev1.Container),
+		daemonsets:   make(map[string]map[string][]corev1.Container),
+		cronjobs:     make(map[string]map[string][]corev1.Container),
+		jobs:         make(map[string]map[string][]corev1.Container),
+		labels:       make(map[string]map[string]map[string]string),
+	}
+
+	if len(namespaces) == 0 {
+		namespaces = []string{corev1.NamespaceAll}
+	}
+
+	for _, ns := range namespaces {
+		// Fetch Deployments
+		deployments, err := c.clientset.AppsV1().Deployments(ns).List(ctx, metav1.ListOptions{})
+		if err != nil {
+			return nil, fmt.Errorf("failed to list deployments: %w", err)
+		}
+		for _, d := range deployments.Items {
+			// Use the actual namespace from the object, not the query namespace
+			actualNs := d.Namespace
+			if cache.deployments[actualNs] == nil {
+				cache.deployments[actualNs] = make(map[string][]corev1.Container)
+			}
+			if cache.labels[actualNs] == nil {
+				cache.labels[actualNs] = make(map[string]map[string]string)
+			}
+			cache.deployments[actualNs][d.Name] = d.Spec.Template.Spec.Containers
+			cache.labels[actualNs][d.Name] = d.Spec.Template.Labels
+		}
+
+		// Fetch StatefulSets
+		statefulsets, err := c.clientset.AppsV1().StatefulSets(ns).List(ctx, metav1.ListOptions{})
+		if err != nil {
+			return nil, fmt.Errorf("failed to list statefulsets: %w", err)
+		}
+		for _, s := range statefulsets.Items {
+			actualNs := s.Namespace
+			if cache.statefulsets[actualNs] == nil {
+				cache.statefulsets[actualNs] = make(map[string][]corev1.Container)
+			}
+			if cache.labels[actualNs] == nil {
+				cache.labels[actualNs] = make(map[string]map[string]string)
+			}
+			cache.statefulsets[actualNs][s.Name] = s.Spec.Template.Spec.Containers
+			cache.labels[actualNs][s.Name] = s.Spec.Template.Labels
+		}
+
+		// Fetch DaemonSets
+		daemonsets, err := c.clientset.AppsV1().DaemonSets(ns).List(ctx, metav1.ListOptions{})
+		if err != nil {
+			return nil, fmt.Errorf("failed to list daemonsets: %w", err)
+		}
+		for _, d := range daemonsets.Items {
+			actualNs := d.Namespace
+			if cache.daemonsets[actualNs] == nil {
+				cache.daemonsets[actualNs] = make(map[string][]corev1.Container)
+			}
+			if cache.labels[actualNs] == nil {
+				cache.labels[actualNs] = make(map[string]map[string]string)
+			}
+			cache.daemonsets[actualNs][d.Name] = d.Spec.Template.Spec.Containers
+			cache.labels[actualNs][d.Name] = d.Spec.Template.Labels
+		}
+
+		// Fetch CronJobs
+		cronjobs, err := c.clientset.BatchV1().CronJobs(ns).List(ctx, metav1.ListOptions{})
+		if err != nil {
+			return nil, fmt.Errorf("failed to list cronjobs: %w", err)
+		}
+		for _, cj := range cronjobs.Items {
+			actualNs := cj.Namespace
+			if cache.cronjobs[actualNs] == nil {
+				cache.cronjobs[actualNs] = make(map[string][]corev1.Container)
+			}
+			if cache.labels[actualNs] == nil {
+				cache.labels[actualNs] = make(map[string]map[string]string)
+			}
+			cache.cronjobs[actualNs][cj.Name] = cj.Spec.JobTemplate.Spec.Template.Spec.Containers
+			cache.labels[actualNs][cj.Name] = cj.Spec.JobTemplate.Spec.Template.Labels
+		}
+
+		// Fetch Jobs
+		jobs, err := c.clientset.BatchV1().Jobs(ns).List(ctx, metav1.ListOptions{})
+		if err != nil {
+			return nil, fmt.Errorf("failed to list jobs: %w", err)
+		}
+		for _, j := range jobs.Items {
+			actualNs := j.Namespace
+			if cache.jobs[actualNs] == nil {
+				cache.jobs[actualNs] = make(map[string][]corev1.Container)
+			}
+			if cache.labels[actualNs] == nil {
+				cache.labels[actualNs] = make(map[string]map[string]string)
+			}
+			cache.jobs[actualNs][j.Name] = j.Spec.Template.Spec.Containers
+			cache.labels[actualNs][j.Name] = j.Spec.Template.Labels
+		}
+	}
+
+	return cache, nil
+}
+
+// GetWorkloadContainersFromCache returns container specs from cache.
+func (cache *WorkloadCache) GetWorkloadContainers(namespace string, targetRef types.TargetRef) ([]corev1.Container, map[string]string, error) {
+	var containers []corev1.Container
+	var labels map[string]string
+
+	switch targetRef.Kind {
+	case "Deployment":
+		if nsCache, ok := cache.deployments[namespace]; ok {
+			containers = nsCache[targetRef.Name]
+			labels = cache.labels[namespace][targetRef.Name]
+		}
+	case "StatefulSet":
+		if nsCache, ok := cache.statefulsets[namespace]; ok {
+			containers = nsCache[targetRef.Name]
+			labels = cache.labels[namespace][targetRef.Name]
+		}
+	case "DaemonSet":
+		if nsCache, ok := cache.daemonsets[namespace]; ok {
+			containers = nsCache[targetRef.Name]
+			labels = cache.labels[namespace][targetRef.Name]
+		}
+	case "CronJob":
+		if nsCache, ok := cache.cronjobs[namespace]; ok {
+			containers = nsCache[targetRef.Name]
+			labels = cache.labels[namespace][targetRef.Name]
+		}
+	case "Job":
+		if nsCache, ok := cache.jobs[namespace]; ok {
+			containers = nsCache[targetRef.Name]
+			labels = cache.labels[namespace][targetRef.Name]
+		}
+	default:
+		return nil, nil, fmt.Errorf("unsupported workload kind: %s", targetRef.Kind)
+	}
+
+	if containers == nil {
+		return nil, nil, fmt.Errorf("%s %s not found in namespace %s", targetRef.Kind, targetRef.Name, namespace)
+	}
+
+	return containers, labels, nil
+}
+
+// GetContainerResourcesFromSpec extracts current resource requests and limits from a container spec.
+func GetContainerResourcesFromSpec(container corev1.Container) (cpuLimit, memoryLimit, cpuRequest, memoryRequest types.ResourceQuantity) {
+	if mem, ok := container.Resources.Limits[corev1.ResourceMemory]; ok {
+		memoryLimit = types.ResourceQuantity{
+			Value: float64(mem.Value()) / 1000000, // Convert bytes to MB
+			Unit:  "M",
+		}
+	}
+	if mem, ok := container.Resources.Requests[corev1.ResourceMemory]; ok {
+		memoryRequest = types.ResourceQuantity{
+			Value: float64(mem.Value()) / 1000000, // Convert bytes to MB
+			Unit:  "M",
+		}
+	}
+	return
 }

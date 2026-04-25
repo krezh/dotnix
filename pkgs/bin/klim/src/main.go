@@ -1,23 +1,24 @@
 package main
 
 import (
+	"flag"
 	"fmt"
-	"math"
 	"os"
+	"sort"
 	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
+	"k8s.io/klog/v2"
 
 	"klim/internal/analyzer"
 	"klim/internal/config"
-	"klim/internal/graph"
 	"klim/internal/kubernetes"
 	"klim/internal/manifests"
 	"klim/internal/output"
 	"klim/internal/progress"
-	"klim/internal/prometheus"
 	"klim/internal/recommendations"
+	"klim/internal/vpa"
 	"klim/pkg/types"
 )
 
@@ -52,6 +53,12 @@ func (d *durationValue) Type() string {
 }
 
 func main() {
+	// Suppress Kubernetes client-go info logs (only show warnings and errors)
+	klog.InitFlags(nil)
+	flag.Set("v", "0")
+	flag.Set("logtostderr", "false")
+	flag.Parse()
+
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
@@ -63,8 +70,12 @@ var rootCmd = &cobra.Command{
 	Short: "Kubernetes Resource Recommender",
 	Long: `Klim analyzes Kubernetes cluster resource usage and provides optimization recommendations.
 
-It queries Prometheus for historical metrics and generates right-sized CPU and memory requests/limits
-based on actual usage patterns.`,
+It queries VPA (Vertical Pod Autoscaler) for calculated recommendations and can apply them to
+bjw-s HelmRelease manifests.
+
+Prerequisites:
+- VPA must be installed in the cluster
+- VPAs must be configured for workloads you want to analyze`,
 	Version: version,
 }
 
@@ -77,27 +88,22 @@ var simpleCmd = &cobra.Command{
 
 var applyCmd = &cobra.Command{
 	Use:   "apply",
-	Short: "Apply recommendations to HelmRelease manifests",
-	Long: `Analyzes resource usage and updates bjw-s HelmRelease manifests with recommendations.
+	Short: "Apply VPA recommendations to HelmRelease manifests",
+	Long: `Fetches VPA recommendations and updates bjw-s HelmRelease manifests.
 Shows a diff and requires confirmation before applying changes.`,
 	RunE: runApply,
 }
 
 func addCommonFlags(cmd *cobra.Command) {
-	cmd.Flags().StringVarP(&cfg.PrometheusURL, "prometheus", "p", "", "Prometheus URL (auto-discovered if not specified)")
 	cmd.Flags().StringSliceVarP(&cfg.Namespaces, "namespace", "n", []string{}, "Namespaces to analyze (all if not specified)")
 	cmd.Flags().StringVarP(&cfg.LabelSelector, "selector", "l", "", "Label selector to filter pods")
-	cmd.Flags().Var(&durationValue{&cfg.HistoryDuration}, "history-duration", "Historical data duration (e.g., 7d, 2w, 168h, 1w3d) (default 7d)")
-	cmd.Flags().Float64Var(&cfg.MemoryBuffer, "memory-buffer", 0.5, "Memory buffer multiplier (0.5 = 50% buffer above peak)")
-	cmd.Flags().Float64Var(&cfg.MinMemory, "mem-min", 10.0, "Minimum memory recommendation in Mi")
+	cmd.Flags().Float64Var(&cfg.MinMemory, "mem-min", 10.0, "Minimum memory recommendation in M")
 	cmd.Flags().BoolVarP(&cfg.Verbose, "verbose", "v", false, "Verbose output")
 }
 
 func init() {
 	rootCmd.AddCommand(simpleCmd)
 	rootCmd.AddCommand(applyCmd)
-
-	cfg.HistoryDuration = 7 * 24 * time.Hour
 
 	// Simple command flags
 	addCommonFlags(simpleCmd)
@@ -120,33 +126,18 @@ func setupAndAnalyze(ctx string) ([]types.Recommendation, error) {
 		return nil, fmt.Errorf("failed to create kubernetes client: %w", err)
 	}
 
-	// Discover or use Prometheus endpoint
-	prometheusURL := cfg.PrometheusURL
-	if prometheusURL == "" {
-		if cfg.Verbose {
-			fmt.Println("Discovering Prometheus endpoint...")
-		}
-		discovered, err := prometheus.DiscoverPrometheus(k8sClient.Clientset(), k8sClient.Config())
-		if err != nil {
-			return nil, fmt.Errorf("failed to discover prometheus: %w (use -p to specify manually)", err)
-		}
-		prometheusURL = discovered
-		if cfg.Verbose {
-			fmt.Printf("Discovered Prometheus at: %s\n", prometheusURL)
-		}
-	}
-
-	// Create Prometheus client
-	promClient, err := prometheus.NewClient(prometheusURL, k8sClient.Config())
+	// Create VPA client
+	vpaClient, err := vpa.NewClient(k8sClient.Clientset(), k8sClient.Config())
 	if err != nil {
-		return nil, fmt.Errorf("failed to create prometheus client: %w", err)
+		return nil, fmt.Errorf("failed to create VPA client: %w", err)
 	}
+	vpaClient.SetVerbose(cfg.Verbose)
 
 	// Create recommendation engine
-	engine := recommendations.NewEngine(cfg.MemoryBuffer, cfg.MinMemory)
+	engine := recommendations.NewEngine(cfg.MinMemory)
 
 	// Create analyzer
-	an := analyzer.NewAnalyzer(k8sClient, promClient, engine, cfg)
+	an := analyzer.NewAnalyzer(k8sClient, vpaClient, engine, cfg)
 
 	// Get pod count for progress tracker
 	pods, err := k8sClient.GetPods(cfg.Namespaces, cfg.LabelSelector)
@@ -210,11 +201,24 @@ func runSimple(cmd *cobra.Command, args []string) error {
 
 	if len(allRecommendations) == 0 {
 		fmt.Println("No recommendations generated. This might mean:")
-		fmt.Println("  - No running pods found in the specified namespaces")
-		fmt.Println("  - No metrics available in Prometheus for the specified time range")
-		fmt.Println("  - Label selector filtered out all pods")
+		fmt.Println("  - No VPAs found in the specified namespaces")
+		fmt.Println("  - No workloads found for existing VPAs")
+		fmt.Println("  - Label selector filtered out all workloads")
 		return nil
 	}
+
+	// Sort recommendations by namespace > workload > container
+	sort.Slice(allRecommendations, func(i, j int) bool {
+		if allRecommendations[i].Namespace != allRecommendations[j].Namespace {
+			return allRecommendations[i].Namespace < allRecommendations[j].Namespace
+		}
+		workloadI := allRecommendations[i].WorkloadKind + "/" + allRecommendations[i].WorkloadName
+		workloadJ := allRecommendations[j].WorkloadKind + "/" + allRecommendations[j].WorkloadName
+		if workloadI != workloadJ {
+			return workloadI < workloadJ
+		}
+		return allRecommendations[i].Container < allRecommendations[j].Container
+	})
 
 	formatter := output.NewFormatter(cfg.OutputFormat, cfg.OutputFile)
 	if err := formatter.Output(allRecommendations); err != nil {
@@ -288,6 +292,11 @@ func runApply(cmd *cobra.Command, args []string) error {
 
 	// Process each manifest
 	for manifestPath, recs := range manifestRecs {
+		// Sort recommendations by container name
+		sort.Slice(recs, func(i, j int) bool {
+			return recs[i].Container < recs[j].Container
+		})
+
 		fmt.Printf("=== %s ===\n\n", manifestPath)
 
 		// Read original content
@@ -304,32 +313,18 @@ func runApply(cmd *cobra.Command, args []string) error {
 			continue
 		}
 
-		// Show memory usage graphs for each container
+		// Show VPA recommendations for each container
 		for _, rec := range recs {
-			// Calculate peak for display
-			var peak float64
-			for _, point := range rec.MemoryHistory {
-				valueMiB := point.Value / (1024 * 1024)
-				if valueMiB > peak {
-					peak = valueMiB
-				}
-			}
-
-			// Show full graph
 			fmt.Printf("Container: %s\n", rec.Container)
-			graphOutput := graph.GenerateGraph(
-				rec.MemoryHistory,
-				rec.RecommendedMemory.Value,
-				peak,
-				cfg.HistoryDuration.String(),
-			)
-			fmt.Println(graphOutput)
+			fmt.Printf("  VPA Target: %s\n", recommendations.FormatResourceQuantity(rec.RecommendedMemory))
+			fmt.Printf("  Current Limit: %s\n", recommendations.FormatResourceQuantity(rec.CurrentMemory))
+			fmt.Printf("  Change: %.1f%%\n\n", rec.MemoryChange)
 
 			// Show request lowering warning
 			if rec.RequestLowered {
-				fmt.Printf("ℹ️  Request (%dMi) will be lowered to match recommended limit (%dMi)\n\n",
-					int64(math.Ceil(rec.CurrentRequest.Value)),
-					int64(math.Ceil(rec.RecommendedMemory.Value)))
+				fmt.Printf("ℹ️  Request (%s) will be lowered to match recommended limit (%s)\n\n",
+					recommendations.FormatResourceQuantity(rec.CurrentRequest),
+					recommendations.FormatResourceQuantity(rec.RecommendedMemory))
 			}
 		}
 
