@@ -6,14 +6,14 @@ on:
   workflow_dispatch:
   workflow_call:
   pull_request:
-    branches: ["main"]
+    branches: [ "main" ]
     paths: &paths
       - "*.nix"
       - "pkgs/**"
       - "flake.nix"
       - "flake.lock"
   push:
-    branches: ["main"]
+    branches: [ "main" ]
     paths: *paths
 
 permissions:
@@ -79,6 +79,7 @@ jobs:
             --allow-import-from-derivation \
             --check-cache-status \
             --force-recurse \
+            --show-trace \
             --workers $(nproc) \
             --gc-roots-dir /tmp/gcroots | \
             jq -sc 'if any(.error != null) then (map(select(.error != null) | "\(.attr): \(.error)") | "❌ Evaluation errors:\n" + join("\n")) | halt_error(1) else map(select(.cacheStatus == "notBuilt") | {
