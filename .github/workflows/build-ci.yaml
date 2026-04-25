@@ -81,12 +81,12 @@ jobs:
             --force-recurse \
             --workers $(nproc) \
             --gc-roots-dir /tmp/gcroots | \
-            jq -sc 'map(select(.cacheStatus == "notBuilt") | {
+            jq -sc 'if any(.error != null) then (map(select(.error != null) | "\(.attr): \(.error)") | "❌ Evaluation errors:\n" + join("\n")) | halt_error(1) else map(select(.cacheStatus == "notBuilt") | {
               attr: .attr,
               target: (.attr | ltrimstr("packages.")),
               name: (.attr | ltrimstr("hosts.") | ltrimstr("packages.")),
               runner: (.system | if . == "aarch64-linux" then "ubuntu-24.04-arm" else "ubuntu-latest" end)
-            })')
+            }) end')
 
           echo "hosts=$(echo "$all" | jq -c '{include: [.[] | select(.attr | startswith("hosts."))]}')" >> "$GITHUB_OUTPUT"
           echo "packages=$(echo "$all" | jq -c '{include: [.[] | select(.attr | startswith("packages."))]}')" >> "$GITHUB_OUTPUT"
