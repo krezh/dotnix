@@ -2,6 +2,7 @@
   flake.modules.homeManager.shell =
     { lib, pkgs, ... }:
     {
+      catppuccin.starship.enable = false;
       programs.starship = {
         enable = true;
         enableFishIntegration = true;
