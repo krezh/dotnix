@@ -55,7 +55,6 @@ jobs:
           set -Eeuo pipefail
           all=$(nix run nixpkgs#nix-eval-jobs -- \
             --flake .#ci \
-            --allow-import-from-derivation \
             --check-cache-status \
             --force-recurse \
             --workers $(nproc) \
