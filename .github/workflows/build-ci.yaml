@@ -58,8 +58,8 @@ jobs:
             --allow-import-from-derivation \
             --check-cache-status \
             --force-recurse \
-            --show-trace \
             --workers $(nproc) \
+            --max-memory-size 2048 \
             --gc-roots-dir /tmp/gcroots | \
             jq -sc 'if any(.error != null) then (map(select(.error != null) | "\(.attr): \(.error)") | "❌ Evaluation errors:\n" + join("\n")) | halt_error(1) else map(select(.cacheStatus == "notBuilt") | {
               attr: .attr,
