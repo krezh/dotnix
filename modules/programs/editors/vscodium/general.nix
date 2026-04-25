@@ -266,15 +266,8 @@
             "[opentofu]".editor.defaultFormatter = "opentofu.vscode-opentofu";
             docker.extension.enableComposeLanguageServer = false;
             "[dockerbake]".editor.defaultFormatter = "docker.docker";
-            "[dockercompose]" = {
-              editor = {
-                insertSpaces = true;
-                tabSize = 2;
-                autoIndent = "advanced";
-                defaultFormatter = "redhat.vscode-yaml";
-              };
-            };
-            "[github-actions-workflow]".editor.defaultFormatter = "redhat.vscode-yaml";
+            "[dockercompose]".editor.defaultFormatter = "esbenp.prettier-vscode";
+            "[github-actions-workflow]".editor.defaultFormatter = "esbenp.prettier-vscode";
             "[qml]".editor.defaultFormatter = "theqtcompany.qt-qml";
             qt-core.additionalQtPaths = [
               {

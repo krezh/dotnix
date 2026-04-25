@@ -5,7 +5,7 @@
 
     disko.devices = {
       disk = {
-        vdb = {
+        main = {
           device = "/dev/nvme0n1";
           type = "disk";
           content = {
