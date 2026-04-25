@@ -25,27 +25,6 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  flake-check:
-    name: Flake Check
-    runs-on: ubuntu-latest
-    environment:
-      name: prod
-    steps:
-      - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-        with:
-          persist-credentials: false
-
-      - name: Install Nix
-        uses: cachix/install-nix-action@616559265b40713947b9c190a8ff4b507b5df49b # v31
-        with:
-          extra_nix_config: |
-            access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
-            accept-flake-config = true
-
-      - name: Check
-        run: nix flake check
-
   generate-matrix:
     name: Generate Build Matrix
     runs-on: ubuntu-latest
