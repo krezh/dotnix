@@ -59,10 +59,10 @@ type VPARecommendation struct {
 
 // VPAWorkload contains VPA metadata and recommendations for a workload.
 type VPAWorkload struct {
-	Namespace      string
-	Name           string
-	TargetRef      TargetRef
-	Containers     map[string]VPARecommendation
+	Namespace  string
+	Name       string
+	TargetRef  TargetRef
+	Containers map[string]VPARecommendation
 }
 
 // TargetRef identifies the workload targeted by a VPA.

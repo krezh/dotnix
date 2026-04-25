@@ -51,10 +51,10 @@ func (e *Engine) Generate(metrics types.ResourceMetrics, workloadKind, workloadN
 	severity := determineSeverity(memoryChange)
 
 	return types.Recommendation{
-		Namespace:     metrics.Namespace,
-		WorkloadName:  workloadName,
-		WorkloadKind:  workloadKind,
-		Container:     metrics.Container,
+		Namespace:    metrics.Namespace,
+		WorkloadName: workloadName,
+		WorkloadKind: workloadKind,
+		Container:    metrics.Container,
 		CurrentMemory: types.ResourceQuantity{
 			Value: currentMemoryRounded,
 			Unit:  "M",
