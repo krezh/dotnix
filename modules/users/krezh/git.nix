@@ -41,10 +41,20 @@
         };
         lazygit.enable = true;
         fish.shellAbbrs.lg = lib.getExe config.programs.lazygit.package;
+        difftastic = {
+          enable = true;
+          options.background = "dark";
+          options.display = "inline";
+          git = {
+            enable = true;
+            diffToolMode = true;
+          };
+        };
       };
 
       home.packages = [
         pkgs.meld
+        pkgs.serie
       ];
     };
 }

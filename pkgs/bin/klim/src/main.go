@@ -23,8 +23,9 @@ import (
 )
 
 var (
-	version = "dev"
-	cfg     = config.DefaultConfig()
+	version             = "dev"
+	cfg                 = config.DefaultConfig()
+	excludeNamespaceFirst string
 )
 
 // durationValue is a custom flag type that supports weeks and days.
@@ -96,9 +97,18 @@ Shows a diff and requires confirmation before applying changes.`,
 
 func addCommonFlags(cmd *cobra.Command) {
 	cmd.Flags().StringSliceVarP(&cfg.Namespaces, "namespace", "n", []string{}, "Namespaces to analyze (all if not specified)")
+	cmd.Flags().StringVarP(&excludeNamespaceFirst, "exclude-namespace", "x", "", "Namespaces to exclude (e.g., -x kube-system rook-ceph)")
 	cmd.Flags().StringVarP(&cfg.LabelSelector, "selector", "l", "", "Label selector to filter pods")
 	cmd.Flags().Float64Var(&cfg.MinMemory, "mem-min", 10.0, "Minimum memory recommendation in M")
 	cmd.Flags().BoolVarP(&cfg.Verbose, "verbose", "v", false, "Verbose output")
+}
+
+func parseExcludeNamespaces(args []string) {
+	cfg.ExcludeNamespaces = []string{}
+	if excludeNamespaceFirst != "" {
+		cfg.ExcludeNamespaces = append(cfg.ExcludeNamespaces, excludeNamespaceFirst)
+	}
+	cfg.ExcludeNamespaces = append(cfg.ExcludeNamespaces, args...)
 }
 
 func init() {
@@ -170,6 +180,8 @@ func setupAndAnalyze(ctx string) ([]types.Recommendation, error) {
 }
 
 func runSimple(cmd *cobra.Command, args []string) error {
+	parseExcludeNamespaces(args)
+
 	if cfg.Verbose {
 		fmt.Printf("Klim version %s\n", version)
 		fmt.Println("Starting analysis...")
@@ -233,6 +245,8 @@ func runSimple(cmd *cobra.Command, args []string) error {
 }
 
 func runApply(cmd *cobra.Command, args []string) error {
+	parseExcludeNamespaces(args)
+
 	if cfg.Verbose {
 		fmt.Printf("Klim version %s\n", version)
 		fmt.Println("Starting analysis for manifest updates...")

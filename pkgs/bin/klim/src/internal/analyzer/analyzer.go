@@ -46,7 +46,7 @@ func (a *Analyzer) Analyze() ([]types.Recommendation, error) {
 		fmt.Println("Fetching VPA recommendations from Kubernetes API...")
 	}
 
-	vpaWorkloads, err := a.vpaClient.ListVPAWorkloads(a.config.Namespaces)
+	vpaWorkloads, err := a.vpaClient.ListVPAWorkloads(a.config.Namespaces, a.config.ExcludeNamespaces)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch VPA recommendations: %w", err)
 	}

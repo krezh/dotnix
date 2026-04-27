@@ -109,8 +109,12 @@
               inlayHints.enabled = "on";
               stickyScroll.enabled = true;
               selectionClipboard = false;
-              autoIndentOnPaste = false;
-              guides.bracketPairs = false;
+              autoIndentOnPaste = true;
+              guides = {
+                bracketPairs = true;
+                bracketPairsHorizontal = true;
+                highlightActiveBracketPair = true;
+              };
             };
             search.exclude = {
               "**/.direnv" = true;
@@ -165,12 +169,14 @@
             explorer = {
               confirmDelete = false;
               confirmDragAndDrop = false;
+              autoReveal = true;
             };
             scm = {
               alwaysShowActions = true;
               defaultViewMode = "tree";
             };
             files = {
+              trimTrailingWhitespace = true;
               associations = {
                 "*.tf" = "opentofu";
                 CODEOWNERS = "plaintext";

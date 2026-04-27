@@ -38,6 +38,7 @@ type Recommendation struct {
 // Config holds the configuration for klim.
 type Config struct {
 	Namespaces        []string
+	ExcludeNamespaces []string
 	Contexts          []string
 	LabelSelector     string
 	OutputFormat      string
@@ -73,6 +74,6 @@ type TargetRef struct {
 
 // VPAClient defines the interface for querying VPA recommendations.
 type VPAClient interface {
-	ListVPAWorkloads(namespaces []string) ([]VPAWorkload, error)
+	ListVPAWorkloads(namespaces []string, excludeNamespaces []string) ([]VPAWorkload, error)
 	SetVerbose(verbose bool)
 }
