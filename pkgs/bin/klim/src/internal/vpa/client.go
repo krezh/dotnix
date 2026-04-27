@@ -46,11 +46,17 @@ func (c *Client) SetVerbose(verbose bool) {
 
 // ListVPAWorkloads fetches all VPA recommendations for the specified namespaces.
 // Returns a list of VPAWorkload objects containing targetRef and container recommendations.
-func (c *Client) ListVPAWorkloads(namespaces []string) ([]types.VPAWorkload, error) {
+func (c *Client) ListVPAWorkloads(namespaces []string, excludeNamespaces []string) ([]types.VPAWorkload, error) {
 	var workloads []types.VPAWorkload
 
 	if len(namespaces) == 0 {
 		namespaces = []string{metav1.NamespaceAll}
+	}
+
+	// Create a map for fast exclude lookup
+	excludeMap := make(map[string]bool)
+	for _, ns := range excludeNamespaces {
+		excludeMap[ns] = true
 	}
 
 	for _, namespace := range namespaces {
@@ -64,10 +70,20 @@ func (c *Client) ListVPAWorkloads(namespaces []string) ([]types.VPAWorkload, err
 		}
 
 		for _, vpa := range vpas.Items {
+			vpaNamespace := vpa.GetNamespace()
+
+			// Skip excluded namespaces
+			if excludeMap[vpaNamespace] {
+				if c.verbose {
+					fmt.Printf("Skipping VPA %s/%s (namespace excluded)\n", vpaNamespace, vpa.GetName())
+				}
+				continue
+			}
+
 			workload, err := c.parseVPA(&vpa)
 			if err != nil {
 				if c.verbose {
-					fmt.Printf("Warning: failed to parse VPA %s/%s: %v\n", namespace, vpa.GetName(), err)
+					fmt.Printf("Warning: failed to parse VPA %s/%s: %v\n", vpaNamespace, vpa.GetName(), err)
 				}
 				continue
 			}
