@@ -57,9 +57,9 @@ runs:
 
     - name: Install Nix (with remote builders)
       if: inputs.use-remote-builders == 'true'
-      uses: https://github.com/canidae-solutions/lix-quick-install-action@cdb5d0931be2223edbb9bad884341fcacdac298f # v4.0.1
+      uses: https://github.com/cachix/install-nix-action@08dcb3a5e62fa31e2460746e4209e94c1c7f1248 # v30
       with:
-        lix_conf: |
+        extra_nix_config: |
           accept-flake-config = true
           always-allow-substitutes = true
           builders-use-substitutes = true
@@ -68,9 +68,9 @@ runs:
 
     - name: Install Nix (local)
       if: inputs.use-remote-builders != 'true'
-      uses: https://github.com/canidae-solutions/lix-quick-install-action@cdb5d0931be2223edbb9bad884341fcacdac298f # v4.0.1
+      uses: https://github.com/cachix/install-nix-action@08dcb3a5e62fa31e2460746e4209e94c1c7f1248 # v30
       with:
-        lix_conf: |
+        extra_nix_config: |
           accept-flake-config = true
           always-allow-substitutes = true
           ${{ inputs.github-token != '' && 'access-tokens = github.com=' || '' }}${{ inputs.github-token }}
