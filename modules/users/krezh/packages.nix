@@ -41,6 +41,7 @@
         go-task
         opentofu
         tofu-ls
+        just-lsp
         statix
         nixd
         nil

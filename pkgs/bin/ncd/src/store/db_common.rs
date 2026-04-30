@@ -63,8 +63,6 @@ pub(crate) fn default_sqlite_connection(path: &str) -> Result<Connection> {
   Ok(inner)
 }
 
-// FIXME: why is this marked as dead code? It is used by both the lazy
-// and eager backend implementation
 pub(crate) fn default_close_inner_connection(
   path: &str,
   maybe_conn: &mut Option<Connection>,

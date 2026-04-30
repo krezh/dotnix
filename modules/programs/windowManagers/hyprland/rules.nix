@@ -57,7 +57,6 @@
             "tag +dialog, match:title Save As"
             "tag +dialog, match:title Library"
             "tag +dialog, match:title Install, match:class steam"
-            "tag +dialog, match:class steam, match:float true"
             "tag +dialog, match:modal true"
 
             # Tag Rules
@@ -108,6 +107,8 @@
 
             # Vips
             "match:class ^(org.libvips.vipsdisp)$, float on"
+
+            "match:float true, center on"
 
             # Float Terminal
             "match:class floatTerm, float on"

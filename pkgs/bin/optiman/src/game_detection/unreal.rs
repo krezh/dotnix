@@ -7,6 +7,6 @@ pub fn is_unreal_engine_game(_game: &SteamGame) -> bool {
     // - Check for Engine directory
     // - Look for *-Win64-Shipping.exe pattern
     // - Check for .uproject files
-    
+
     false
 }
