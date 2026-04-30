@@ -1,0 +1,96 @@
+---
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+name: Build CI
+
+on:
+  workflow_dispatch:
+  workflow_call:
+  pull_request:
+    branches: ["main"]
+    paths: &paths
+      - "**/*.nix"
+      - "pkgs/**"
+      - "flake.nix"
+      - "flake.lock"
+  push:
+    branches: ["main"]
+    paths: *paths
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: ${{ forgejo.workflow }}-${{ forgejo.event.number || forgejo.ref }}
+  cancel-in-progress: true
+
+jobs:
+  generate-matrix:
+    name: Generate Build Matrix
+    runs-on: ubuntu-latest
+    environment:
+      name: prod
+    outputs:
+      hosts: ${{ steps.set-matrix.outputs.hosts }}
+      packages: ${{ steps.set-matrix.outputs.packages }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
+
+      - name: Setup Nix
+        uses: ./.forgejo/actions/setup-nix
+        with:
+          attic-endpoint: ${{ secrets.ATTIC_ENDPOINT }}
+          attic-cache: ${{ secrets.ATTIC_CACHE }}
+          attic-token: ${{ secrets.ATTIC_TOKEN }}
+          skip-push: false
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Generate Matrix
+        id: set-matrix
+        run: |
+          set -Eeuo pipefail
+          all=$(nix run nixpkgs#nix-eval-jobs -- \
+            --flake .#ci \
+            --check-cache-status \
+            --force-recurse \
+            --workers $(nproc) \
+            --gc-roots-dir /tmp/gcroots | \
+            jq -sc 'if any(.error != null) then (map(select(.error != null) | "\(.attr): \(.error)") | "❌ Evaluation errors:\n" + join("\n")) | halt_error(1) else map(select(.cacheStatus == "notBuilt") | {
+              attr: .attr,
+              target: (.attr | ltrimstr("packages.")),
+              name: (.attr | ltrimstr("hosts.") | ltrimstr("packages.")),
+              runner: (.system | if . == "aarch64-linux" then "ubuntu-24.04-arm" else "ubuntu-latest" end)
+            }) end')
+
+          echo "hosts=$(echo "$all" | jq -c '{include: [.[] | select(.attr | startswith("hosts."))]}')" >> "$GITHUB_OUTPUT"
+          echo "packages=$(echo "$all" | jq -c '{include: [.[] | select(.attr | startswith("packages."))]}')" >> "$GITHUB_OUTPUT"
+
+  build-hosts:
+    name: Build Hosts
+    needs: generate-matrix
+    if: ${{ forgejo.event.pull_request.draft != true &&
+      fromJson(needs.generate-matrix.outputs.hosts ||
+      '{"include":[]}').include[0] != null }}
+    permissions:
+      contents: read
+      pull-requests: write
+    uses: ./.forgejo/workflows/build-hosts.yaml # zizmor: ignore[secrets-inherit]
+    secrets: inherit
+    with:
+      matrix: ${{ needs.generate-matrix.outputs.hosts }}
+
+  build-packages:
+    name: Build Packages
+    needs: generate-matrix
+    if: ${{ fromJson(needs.generate-matrix.outputs.packages ||
+      '{"include":[]}').include[0] != null }}
+    permissions:
+      contents: read
+      pull-requests: write
+    uses: ./.forgejo/workflows/build-packages.yaml # zizmor: ignore[secrets-inherit]
+    secrets: inherit
+    with:
+      matrix: ${{ needs.generate-matrix.outputs.packages }}

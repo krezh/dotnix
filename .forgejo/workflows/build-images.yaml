@@ -1,0 +1,174 @@
+---
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+name: Build Images
+
+on:
+  pull_request:
+    branches:
+      - "test-**"
+  push:
+    paths:
+      - "images"
+    branches:
+      - "test-**"
+  schedule:
+    - cron: "0 0 * * 0"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ forgejo.workflow }}-${{ forgejo.event.number || forgejo.ref }}
+  cancel-in-progress: true
+
+jobs:
+  setup:
+    name: Setup Build Matrix
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
+
+      - name: Setup Nix
+        uses: ./.forgejo/actions/setup-nix
+        with:
+          skip-cache: true
+
+      - name: Get image list
+        id: set-matrix
+        run: |
+          images=$(nix eval --json '.#images' --apply 'builtins.attrNames' | jq -c '{include: map({image: .})}')
+          echo "matrix=$images" >> $GITHUB_OUTPUT
+
+  build:
+    name: Build ${{ matrix.image }}
+    needs: setup
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.setup.outputs.matrix) }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Setup Nix
+        uses: ./.forgejo/actions/setup-nix
+        with:
+          skip-cache: true
+
+      - name: Garbage collect build dependencies
+        run: nix-collect-garbage
+
+      - name: Build ${{ matrix.image }} image
+        id: build
+        env:
+          IMAGE: ${{ matrix.image }}
+        run: |
+          set -o pipefail
+          build_start=$(date +%s)
+
+          nix build \
+            ".#images.${IMAGE}" \
+            --fallback \
+            --log-format raw \
+            --print-build-logs 2>&1 | tee build.log || {
+            echo 'error-log<<EOF_ERROR_LOG' >> $GITHUB_OUTPUT
+            grep -iE 'error|failed|cannot|fatal|panic' build.log | tail -n 100 || tail -n 50 build.log >> $GITHUB_OUTPUT
+            echo 'EOF_ERROR_LOG' >> $GITHUB_OUTPUT
+            exit 1
+          }
+
+          build_end=$(date +%s)
+          build_duration=$((build_end - build_start))
+          echo "build_duration=$build_duration" >> $GITHUB_OUTPUT
+
+      - name: Create tag
+        if: success()
+        id: tag
+        run: echo tag="$(date -u +"%Y-%m-%d")-$(openssl rand -hex 5)" >>
+          "${GITHUB_OUTPUT}"
+
+      - name: Get image info
+        if: success()
+        id: image-info
+        env:
+          IMAGE: ${{ matrix.image }}
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          image_path=$(find -L result -type f \( -name "*.iso" -o -name "*.qcow2" -o -name "*.img" -o -name "*.raw" \))
+
+          if [ -z "$image_path" ]; then
+            echo "No image file found"
+            echo "Contents:"
+            ls -lR result/
+            exit 1
+          fi
+
+          echo "Found image: $image_path"
+          image_size=$(du -h "$image_path" | cut -f1)
+          extension="${image_path##*.}"
+
+          echo "path=$image_path" >> $GITHUB_OUTPUT
+          echo "size=$image_size" >> $GITHUB_OUTPUT
+          echo "extension=$extension" >> $GITHUB_OUTPUT
+          echo "name=nixos-${IMAGE}-${TAG}.$extension" >> $GITHUB_OUTPUT
+
+      - name: Copy image
+        if: success()
+        env:
+          IMAGE_PATH: ${{ steps.image-info.outputs.path }}
+          IMAGE_NAME: ${{ steps.image-info.outputs.name }}
+        run: |
+          cp "${IMAGE_PATH}" "/tmp/${IMAGE_NAME}"
+
+      - name: Create git tag
+        if: success()
+        env:
+          TAG_NAME: ${{ matrix.image }}-${{ steps.tag.outputs.tag }}
+        run: |
+          git tag "${TAG_NAME}"
+          git push origin "${TAG_NAME}"
+
+      - name: Release image
+        if: success()
+        env:
+          FORGEJO_TOKEN: ${{ secrets.FORGEJO_TOKEN }}
+          TAG_NAME: ${{ matrix.image }}-${{ steps.tag.outputs.tag }}
+          RELEASE_NAME: "${{ matrix.image }}: ${{ steps.tag.outputs.tag }}"
+          IMAGE_FILE: /tmp/${{ steps.image-info.outputs.name }}
+          IMAGE_NAME: ${{ steps.image-info.outputs.name }}
+        run: |
+          # Create release
+          release_response=$(curl -s -X POST -H "Authorization: token $FORGEJO_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"tag_name\": \"${TAG_NAME}\",
+              \"name\": \"${RELEASE_NAME}\",
+              \"draft\": false,
+              \"prerelease\": false
+            }" \
+            "${{ forgejo.api_url }}/repos/${{ forgejo.repository }}/releases")
+
+          release_id=$(echo "$release_response" | jq -r '.id')
+
+          if [ -z "$release_id" ] || [ "$release_id" = "null" ]; then
+            echo "Failed to create release"
+            echo "$release_response" | jq .
+            exit 1
+          fi
+
+          # Upload asset
+          curl -s -X POST -H "Authorization: token $FORGEJO_TOKEN" \
+            -H "Content-Type: application/octet-stream" \
+            --data-binary "@${IMAGE_FILE}" \
+            "${{ forgejo.api_url }}/repos/${{ forgejo.repository }}/releases/${release_id}/assets?name=${IMAGE_NAME}"

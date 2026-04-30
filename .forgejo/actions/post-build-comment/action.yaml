@@ -1,0 +1,146 @@
+---
+name: "Post Build Comment"
+description: "Posts or deletes build comments on PRs"
+author: "krezh"
+
+inputs:
+  build-type:
+    description: "Type of build (package, system, or iso)"
+    required: true
+  build-name:
+    description: "Name of package or host"
+    required: true
+  build-status:
+    description: "Build status (success or failure)"
+    required: true
+  flake-target:
+    description: "Flake target that failed"
+    required: false
+    default: ""
+  error-log:
+    description: "Error log content"
+    required: false
+    default: ""
+  build-duration:
+    description: "Build duration in seconds (optional, for system builds)"
+    required: false
+    default: ""
+  runner:
+    description: "Runner type (optional, for system builds)"
+    required: false
+    default: ""
+  pr-number:
+    description: "PR number"
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: Delete comment on success
+      if: ${{ inputs.build-status == 'success' }}
+      shell: bash
+      env:
+        FORGEJO_TOKEN: ${{ secrets.BOT_TOKEN }}
+        PR_NUMBER: ${{ inputs.pr-number }}
+        COMMENT_HEADER: "${{ inputs.build-type == 'package' && 'Package' || 'System' }} Build: ${{ inputs.build-name }}"
+      run: |
+        # Find and delete comment with matching header
+        comments=$(curl -s -H "Authorization: token $FORGEJO_TOKEN" \
+          "${{ forgejo.api_url }}/repos/${{ forgejo.repository }}/issues/${PR_NUMBER}/comments")
+
+        comment_id=$(echo "$comments" | jq -r ".[] | select(.body | contains(\"<!-- ${COMMENT_HEADER} -->\")) | .id" | head -1)
+
+        if [ -n "$comment_id" ]; then
+          curl -s -X DELETE -H "Authorization: token $FORGEJO_TOKEN" \
+            "${{ forgejo.api_url }}/repos/${{ forgejo.repository }}/issues/comments/${comment_id}"
+        fi
+
+    - name: Format build duration
+      if: ${{ inputs.build-status == 'failure' }}
+      id: format-duration
+      env:
+        BUILD_DURATION: ${{ inputs.build-duration }}
+      shell: bash
+      run: |
+        duration_seconds=${BUILD_DURATION}
+        if [ -z "$duration_seconds" ] || [ "$duration_seconds" = "0" ]; then
+          echo "formatted=0s" >> $GITHUB_OUTPUT
+        elif [ "$duration_seconds" -ge 3600 ]; then
+          hours=$((duration_seconds / 3600))
+          minutes=$(((duration_seconds % 3600) / 60))
+          seconds=$((duration_seconds % 60))
+          echo "formatted=${hours}h${minutes}m${seconds}s" >> $GITHUB_OUTPUT
+        elif [ "$duration_seconds" -ge 60 ]; then
+          minutes=$((duration_seconds / 60))
+          seconds=$((duration_seconds % 60))
+          echo "formatted=${minutes}m${seconds}s" >> $GITHUB_OUTPUT
+        else
+          echo "formatted=${duration_seconds}s" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Comment build errors on PR
+      if: ${{ inputs.build-status == 'failure' }}
+      shell: bash
+      env:
+        FORGEJO_TOKEN: ${{ secrets.BOT_TOKEN }}
+        PR_NUMBER: ${{ inputs.pr-number }}
+        BUILD_TYPE: ${{ inputs.build-type }}
+        BUILD_NAME: ${{ inputs.build-name }}
+        FLAKE_TARGET: ${{ inputs.flake-target }}
+        ERROR_LOG: ${{ inputs.error-log }}
+        BUILD_DURATION: ${{ steps.format-duration.outputs.formatted }}
+        RUNNER: ${{ inputs.runner }}
+        COMMENT_HEADER: "${{ inputs.build-type == 'package' && 'Package' || 'System' }} Build: ${{ inputs.build-name }}"
+      run: |
+        # Create comment body with hidden header marker
+        COMMENT_BODY="<!-- ${COMMENT_HEADER} -->
+        ## ❌ $([ "$BUILD_TYPE" = "package" ] && echo "Package" || echo "System") Build Failed: \`${BUILD_NAME}\`
+
+        | Property | Value |
+        |----------|-------|
+        | **$([ "$BUILD_TYPE" = "package" ] && echo "Package" || echo "Host")** | \`${BUILD_NAME}\` |$([ -n "$RUNNER" ] && echo "
+        | **Runner** | \`${RUNNER}\` |" || echo "")
+        | **Time to Failure** | ${BUILD_DURATION} |
+
+        ### 🛠️ Debugging
+
+        **Flake Target:** \`${FLAKE_TARGET}\`
+
+        **Reproduce locally:**
+        \`\`\`bash
+        nix build ${{ forgejo.server_url }}/${{ forgejo.repository }}/pull/${PR_NUMBER}/head#${FLAKE_TARGET}
+        \`\`\`
+
+        ### Build Errors
+
+        <details>
+        <summary>Click to expand build log</summary>
+
+        \`\`\`
+        ${ERROR_LOG}
+        \`\`\`
+
+        </details>
+
+        ---
+        <sub>🤖 [View full logs](${{ forgejo.server_url }}/${{ forgejo.repository }}/actions/runs/${{ forgejo.run_id }})</sub>"
+
+        # Find existing comment with matching header
+        comments=$(curl -s -H "Authorization: token $FORGEJO_TOKEN" \
+          "${{ forgejo.api_url }}/repos/${{ forgejo.repository }}/issues/${PR_NUMBER}/comments")
+
+        comment_id=$(echo "$comments" | jq -r ".[] | select(.body | contains(\"<!-- ${COMMENT_HEADER} -->\")) | .id" | head -1)
+
+        if [ -n "$comment_id" ]; then
+          # Update existing comment
+          curl -s -X PATCH -H "Authorization: token $FORGEJO_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "{\"body\": $(echo "$COMMENT_BODY" | jq -Rs .)}" \
+            "${{ forgejo.api_url }}/repos/${{ forgejo.repository }}/issues/comments/${comment_id}"
+        else
+          # Create new comment
+          curl -s -X POST -H "Authorization: token $FORGEJO_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "{\"body\": $(echo "$COMMENT_BODY" | jq -Rs .)}" \
+            "${{ forgejo.api_url }}/repos/${{ forgejo.repository }}/issues/${PR_NUMBER}/comments"
+        fi

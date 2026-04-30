@@ -1,0 +1,51 @@
+{
+  $schema: "https://docs.renovatebot.com/renovate-schema.json",
+  nix: {
+    enabled: true,
+  },
+  postUpdateOptions: ["gomodTidy"],
+  lockFileMaintenance: {
+    enabled: true,
+    schedule: ["after 1am and before 2am"],
+    automerge: true,
+    automergeType: "pr",
+    ignoreTests: false,
+  },
+  packageRules: [
+    {
+      matchManagers: ["custom.regex"],
+      matchFileNames: ["pkgs/**/*.nix"],
+      postUpgradeTasks: {
+        commands: ["bash .github/scripts/update-hash.sh {{{packageFile}}}"],
+        fileFilters: ["**/*.nix"],
+        executionMode: "update",
+      },
+      automerge: true,
+      automergeType: "pr",
+      ignoreTests: false,
+    },
+    {
+      description: "Separate PRs for pkgs",
+      matchFileNames: ["pkgs/**"],
+      additionalBranchPrefix: "pkgs-{{lookup (split packageFileDir '/') 2}}",
+      commitMessagePrefix: "{{{semanticCommitType}}}({{{manager}}}) [{{lookup (split packageFileDir '/') 2}}]:",
+      automerge: true,
+      automergeType: "pr",
+      ignoreTests: false,
+    },
+    {
+      description: "Update govendor.toml when go.mod changes",
+      matchManagers: ["gomod"],
+      postUpgradeTasks: {
+        commands: [
+          "nix run github:purpleclay/go-overlay#govendor -- {{{packageFileDir}}}",
+        ],
+        fileFilters: ["**/govendor.toml", "**/go.sum"],
+        executionMode: "update",
+      },
+      automerge: true,
+      automergeType: "pr",
+      ignoreTests: false,
+    },
+  ],
+}
