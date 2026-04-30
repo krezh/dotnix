@@ -28,8 +28,6 @@ jobs:
   generate-matrix:
     name: Generate Build Matrix
     runs-on: ubuntu-latest
-    environment:
-      name: prod
     outputs:
       hosts: ${{ steps.set-matrix.outputs.hosts }}
       packages: ${{ steps.set-matrix.outputs.packages }}
