@@ -31,6 +31,10 @@ inputs:
 runs:
   using: composite
   steps:
+    - name: Debug - Before Nix Install
+      shell: bash
+      run: echo "About to install Nix..."
+
     - name: Install Nix
       uses: https://github.com/cachix/install-nix-action@08dcb3a5e62fa31e2460746e4209e94c1c7f1248 # v30
       with:
