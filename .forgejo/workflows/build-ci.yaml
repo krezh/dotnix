@@ -44,7 +44,7 @@ jobs:
           attic-cache: ${{ secrets.ATTIC_CACHE }}
           attic-token: ${{ secrets.ATTIC_TOKEN }}
           skip-push: false
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+          github-token: ${{ secrets.NIX_GITHUB_TOKEN }}
 
       - name: Generate Matrix
         id: set-matrix
