@@ -30,7 +30,7 @@ jobs:
           attic-cache: ${{ secrets.ATTIC_CACHE }}
           attic-token: ${{ secrets.ATTIC_TOKEN }}
           skip-cache: ${{ forgejo.event.pull_request.head.repo.fork }}
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+          github-token: ${{ secrets.NIX_GITHUB_TOKEN }}
 
       - name: Build Package
         id: build
