@@ -15,8 +15,6 @@ jobs:
     name: Build ${{ matrix.name }}
     if: ${{ fromJson(inputs.matrix || '{"include":[]}').include[0] != null }}
     runs-on: ${{ matrix.runner }}
-    environment:
-      name: prod
     strategy:
       matrix: ${{ fromJSON(inputs.matrix) }}
     steps:
