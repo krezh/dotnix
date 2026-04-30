@@ -24,14 +24,6 @@ inputs:
     description: Skip cache push
     required: false
     default: "false"
-  use-remote-builders:
-    description: Enable remote builders
-    required: false
-    default: "false"
-  remote-builders-ssh-key:
-    description: SSH private key for remote builders
-    required: false
-    default: ""
   github-token:
     description: GitHub token for private repository access
     required: false
@@ -39,41 +31,13 @@ inputs:
 runs:
   using: composite
   steps:
-    - name: Setup SSH Key for Remote Builders
-      if: inputs.use-remote-builders == 'true' && inputs.remote-builders-ssh-key != ''
-      shell: bash
-      env:
-        SSH_KEY: ${{ inputs.remote-builders-ssh-key }}
-      run: |
-        mkdir -p ~/.ssh
-        echo "$SSH_KEY" > ~/.ssh/nix-builder-key
-        chmod 600 ~/.ssh/nix-builder-key
-        cat >> ~/.ssh/config <<EOF
-        Host *
-          StrictHostKeyChecking accept-new
-          IdentityFile ~/.ssh/nix-builder-key
-        EOF
-        chmod 600 ~/.ssh/config
-
-    - name: Install Nix (with remote builders)
-      if: inputs.use-remote-builders == 'true'
+    - name: Install Nix
       uses: https://github.com/cachix/install-nix-action@08dcb3a5e62fa31e2460746e4209e94c1c7f1248 # v30
       with:
         extra_nix_config: |
           accept-flake-config = true
           always-allow-substitutes = true
-          builders-use-substitutes = true
-          builders = @${{ forgejo.workspace }}/.forgejo/nix-builders.conf
-          ${{ inputs.github-token != '' && 'access-tokens = github.com=' || '' }}${{ inputs.github-token }}
-
-    - name: Install Nix (local)
-      if: inputs.use-remote-builders != 'true'
-      uses: https://github.com/cachix/install-nix-action@08dcb3a5e62fa31e2460746e4209e94c1c7f1248 # v30
-      with:
-        extra_nix_config: |
-          accept-flake-config = true
-          always-allow-substitutes = true
-          ${{ inputs.github-token != '' && 'access-tokens = github.com=' || '' }}${{ inputs.github-token }}
+          ${{ inputs.github-token != '' && format('access-tokens = github.com={0}', inputs.github-token) || '' }}
 
     - name: Setup Cachix
       if: inputs.skip-cache != 'true' && inputs.cachix-cache != '' && inputs.cachix-token != ''
