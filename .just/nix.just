@@ -1,3 +1,6 @@
+
+set lazy
+
 [private]
 default:
     @just --list nix

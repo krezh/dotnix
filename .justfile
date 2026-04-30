@@ -1,4 +1,5 @@
-set quiet := true
+set quiet
+set lazy
 
 
 [private]

@@ -117,6 +117,18 @@
                   };
                 };
               };
+              borderlands4 = {
+                id = 1285190;
+                compatTool = "Proton-GE Latest";
+                launchOptions = {
+                  wrappers = [ "gamemoderun" ];
+                  env = {
+                    PROTON_USE_WOW64 = 0;
+                    PROTON_ENABLE_WAYLAND = 0;
+                    PROTON_FSR4_UPGRADE = "4.1.0";
+                  };
+                };
+              };
               fellowship = {
                 id = 2352620;
                 compatTool = "Proton-GE Latest";
