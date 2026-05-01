@@ -7,7 +7,7 @@
 buildGoModule (finalAttrs: {
   pname = "lfk";
   # renovate: datasource=github-releases depName=janosmiko/lfk
-  version = "0.9.35";
+  version = "0.9.36";
 
   src = fetchFromGitHub {
     owner = "janosmiko";
