@@ -1,9 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Ensure nix is in PATH
-export PATH="/home/ubuntu/.nix-profile/bin:${PATH:-/usr/local/bin:/usr/bin:/bin}"
-
 file="$1"
 
 # Check if this is a crane package
