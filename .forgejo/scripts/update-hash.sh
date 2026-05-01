@@ -17,7 +17,7 @@ if grep -q "craneLib\.buildPackage" "$file"; then
   old_hash=$(grep -oP 'hash = "\K[^"]*' "$file")
   echo "  Old hash: $old_hash"
 
-  sri=$(nix store prefetch-file --json "https://github.com/$owner/$repo/archive/refs/tags/$ref.tar.gz" --unpack | jq -r .hash)
+  sri=$(nix --extra-experimental-features 'nix-command flakes' store prefetch-file --json "https://github.com/$owner/$repo/archive/refs/tags/$ref.tar.gz" --unpack | jq -r .hash)
 
   echo "  New hash: $sri"
 
@@ -37,5 +37,5 @@ else
   # Not a crane package, use nix-update
   echo "Using nix-update for: $file"
   pkg=$(grep -P '^\s*pname = ' "$file" | cut -d\" -f2)
-  nix run github:Mic92/nix-update -- "$pkg" --flake --version=skip
+  nix --extra-experimental-features 'nix-command flakes' run github:Mic92/nix-update -- "$pkg" --flake --version=skip
 fi
