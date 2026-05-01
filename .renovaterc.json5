@@ -17,7 +17,7 @@
       matchManagers: ["custom.regex"],
       matchFileNames: ["pkgs/**/*.nix"],
       postUpgradeTasks: {
-        commands: ["bash .github/scripts/update-hash.sh {{{packageFile}}}"],
+        commands: ["bash .forgejo/scripts/update-hash.sh {{{packageFile}}}"],
         fileFilters: ["**/*.nix"],
         executionMode: "update",
       },
