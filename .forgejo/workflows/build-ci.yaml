@@ -43,7 +43,7 @@ jobs:
           attic-endpoint: ${{ secrets.ATTIC_ENDPOINT }}
           attic-cache: ${{ secrets.ATTIC_CACHE }}
           attic-token: ${{ secrets.ATTIC_TOKEN }}
-          skip-push: false
+          skip-cache: ${{ forgejo.event.pull_request.head.repo.fork }}
           github-token: ${{ secrets.NIX_GITHUB_TOKEN }}
 
       - name: Generate Matrix
