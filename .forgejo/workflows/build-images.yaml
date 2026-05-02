@@ -92,18 +92,11 @@ jobs:
           build_duration=$((build_end - build_start))
           echo "build_duration=$build_duration" >> $GITHUB_OUTPUT
 
-      - name: Create tag
-        if: success()
-        id: tag
-        run: echo tag="$(date -u +"%Y-%m-%d")-$(openssl rand -hex 5)" >>
-          "${GITHUB_OUTPUT}"
-
       - name: Get image info
         if: success()
         id: image-info
         env:
           IMAGE: ${{ matrix.image }}
-          TAG: ${{ steps.tag.outputs.tag }}
         run: |
           image_path=$(find -L result -type f \( -name "*.iso" -o -name "*.qcow2" -o -name "*.img" -o -name "*.raw" \))
 
@@ -121,18 +114,16 @@ jobs:
           echo "path=$image_path" >> $GITHUB_OUTPUT
           echo "size=$image_size" >> $GITHUB_OUTPUT
           echo "extension=$extension" >> $GITHUB_OUTPUT
-          echo "name=nixos-${IMAGE}-${TAG}.$extension" >> $GITHUB_OUTPUT
 
       - name: Upload image to package registry
         if: success()
         env:
           IMAGE: ${{ matrix.image }}
-          TAG: ${{ steps.tag.outputs.tag }}
           IMAGE_PATH: ${{ steps.image-info.outputs.path }}
-          IMAGE_NAME: ${{ steps.image-info.outputs.name }}
+          EXTENSION: ${{ steps.image-info.outputs.extension }}
           PACKAGE_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
         run: |
           curl -X PUT \
             -H "Authorization: token ${PACKAGE_TOKEN}" \
             -T "${IMAGE_PATH}" \
-            "${{ forgejo.api_url }}/packages/${{ forgejo.repository_owner }}/generic/${IMAGE}/${TAG}/${IMAGE_NAME}"
+            "${{ forgejo.api_url }}/packages/${{ forgejo.repository_owner }}/generic/${IMAGE}.${EXTENSION}"
