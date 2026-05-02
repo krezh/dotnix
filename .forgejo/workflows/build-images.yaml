@@ -122,14 +122,9 @@ jobs:
           IMAGE_PATH: ${{ steps.image-info.outputs.path }}
           EXTENSION: ${{ steps.image-info.outputs.extension }}
           PACKAGE_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+          GIT_HASH: ${{ forgejo.sha }}
         run: |
-          # Delete existing version if it exists
-          curl -X DELETE \
-            -H "Authorization: token ${PACKAGE_TOKEN}" \
-            "${{ forgejo.server_url }}/api/packages/${{ forgejo.repository_owner }}/generic/${IMAGE}/latest" || true
-
-          # Upload new version
           curl -X PUT \
             -H "Authorization: token ${PACKAGE_TOKEN}" \
             -T "${IMAGE_PATH}" \
-            "${{ forgejo.server_url }}/api/packages/${{ forgejo.repository_owner }}/generic/${IMAGE}/latest/${IMAGE}.${EXTENSION}"
+            "${{ forgejo.server_url }}/api/packages/${{ forgejo.repository_owner }}/generic/${{ forgejo.repository }}%2F${IMAGE}/${GIT_HASH:0:8}/${IMAGE}.${EXTENSION}"
