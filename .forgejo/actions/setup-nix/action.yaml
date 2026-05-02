@@ -32,9 +32,9 @@ runs:
   using: composite
   steps:
     - name: Install Nix
-      uses: https://github.com/cachix/install-nix-action@ab739621df7a23f52766f9ccc97f38da6b7af14f # v31.10.5
+      uses: https://github.com/canidae-solutions/lix-quick-install-action@cdb5d0931be2223edbb9bad884341fcacdac298f # v4.0.1
       with:
-        extra_nix_config: |
+        lix_conf: |
           accept-flake-config = true
           always-allow-substitutes = true
           sandbox = true
