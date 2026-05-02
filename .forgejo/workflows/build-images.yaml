@@ -123,7 +123,13 @@ jobs:
           EXTENSION: ${{ steps.image-info.outputs.extension }}
           PACKAGE_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
         run: |
+          # Delete existing version if it exists
+          curl -X DELETE \
+            -H "Authorization: token ${PACKAGE_TOKEN}" \
+            "${{ forgejo.server_url }}/api/packages/${{ forgejo.repository_owner }}/generic/${IMAGE}/latest" || true
+
+          # Upload new version
           curl -X PUT \
             -H "Authorization: token ${PACKAGE_TOKEN}" \
             -T "${IMAGE_PATH}" \
-            "${{ forgejo.api_url }}/packages/${{ forgejo.repository_owner }}/generic/${IMAGE}/latest/${IMAGE}.${EXTENSION}"
+            "${{ forgejo.server_url }}/api/packages/${{ forgejo.repository_owner }}/generic/${IMAGE}/latest/${IMAGE}.${EXTENSION}"
