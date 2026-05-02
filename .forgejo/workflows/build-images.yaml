@@ -108,11 +108,9 @@ jobs:
           fi
 
           echo "Found image: $image_path"
-          image_size=$(du -h "$image_path" | cut -f1)
           extension="${image_path##*.}"
 
           echo "path=$image_path" >> $GITHUB_OUTPUT
-          echo "size=$image_size" >> $GITHUB_OUTPUT
           echo "extension=$extension" >> $GITHUB_OUTPUT
 
       - name: Upload image to package registry
@@ -120,7 +118,7 @@ jobs:
         run: |
           response=$(curl -w "\n%{http_code}" --user "${{ forgejo.actor }}:${{ secrets.PACKAGE_TOKEN }}" \
             --upload-file "${{ steps.image-info.outputs.path }}" \
-            "${{ forgejo.server_url }}/api/packages/${{ forgejo.repository_owner }}/generic/${{ matrix.image }}/${{ forgejo.sha }}/${{ matrix.image }}.${{ steps.image-info.outputs.extension }}")
+            "${{ forgejo.server_url }}/api/packages/${{ forgejo.repository_owner }}/generic/${{ matrix.image }}/${${{ forgejo.sha }}:0:8}/${{ matrix.image }}.${{ steps.image-info.outputs.extension }}")
 
           http_code=$(echo "$response" | tail -n1)
           body=$(echo "$response" | head -n-1)
