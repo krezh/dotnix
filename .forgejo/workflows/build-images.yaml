@@ -125,7 +125,7 @@ jobs:
 
       - name: Create release and upload image
         if: success()
-        uses: akkuman/gitea-release-action@v1
+        uses: https://gitea.com/actions/gitea-release-action@v1.3.6
         with:
           files: ${{ steps.image-info.outputs.path }}
           name: "${{ matrix.image }}: ${{ steps.tag.outputs.tag }}"
