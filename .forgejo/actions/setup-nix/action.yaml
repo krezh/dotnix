@@ -45,23 +45,23 @@ runs:
     #     echo "Making sure Nix is installed and on PATH..."
     #     nix --version
 
-    - name: Install Nix
-      uses: https://github.com/samueldr/lix-gha-installer-action@7b7f14d320d6aacfb65bd1ef761566b3b69e474c
-      with:
-        extra_nix_config: |
-          accept-flake-config = true
-          always-allow-substitutes = true
-          sandbox = true
-          ${{ inputs.github-token != '' && format('access-tokens = github.com={0}', inputs.github-token) || '' }}
-
     # - name: Install Nix
-    #   uses: https://github.com/canidae-solutions/lix-quick-install-action@cdb5d0931be2223edbb9bad884341fcacdac298f # v4.0.1
+    #   uses: https://github.com/samueldr/lix-gha-installer-action@7b7f14d320d6aacfb65bd1ef761566b3b69e474c
     #   with:
-    #     lix_conf: |
+    #     extra_nix_config: |
     #       accept-flake-config = true
     #       always-allow-substitutes = true
     #       sandbox = true
     #       ${{ inputs.github-token != '' && format('access-tokens = github.com={0}', inputs.github-token) || '' }}
+
+    - name: Install Nix
+      uses: https://github.com/canidae-solutions/lix-quick-install-action@cdb5d0931be2223edbb9bad884341fcacdac298f # v4.0.1
+      with:
+        lix_conf: |
+          accept-flake-config = true
+          always-allow-substitutes = true
+          sandbox = true
+          ${{ inputs.github-token != '' && format('access-tokens = github.com={0}', inputs.github-token) || '' }}
 
     - name: Setup Cachix
       if: inputs.skip-cache != 'true' && inputs.cachix-cache != '' && inputs.cachix-token != ''
