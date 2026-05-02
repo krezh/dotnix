@@ -117,15 +117,7 @@ jobs:
 
       - name: Upload image to package registry
         if: success()
-        env:
-          IMAGE: ${{ matrix.image }}
-          IMAGE_PATH: ${{ steps.image-info.outputs.path }}
-          EXTENSION: ${{ steps.image-info.outputs.extension }}
-          PACKAGE_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
-          GIT_HASH: ${{ forgejo.sha }}
-          REPO_NAME: ${{ github.event.repository.name }}
         run: |
-          curl -X PUT \
-            -H "Authorization: token ${PACKAGE_TOKEN}" \
-            -T "${IMAGE_PATH}" \
-            "${{ forgejo.server_url }}/api/packages/${{ forgejo.repository_owner }}/generic/${REPO_NAME}_${IMAGE}/${GIT_HASH:0:8}/${IMAGE}.${EXTENSION}"
+          curl --user "${{ forgejo.actor }}:${{ secrets.PACKAGE_TOKEN }}" \
+            --upload-file "${{ steps.image-info.outputs.path }}" \
+            "${{ forgejo.server_url }}/api/packages/dextek/generic/dextek%2Fdotnix%2F${{ matrix.image }}/${{ forgejo.sha }}/${{ matrix.image }}.${{ steps.image-info.outputs.extension }}"
