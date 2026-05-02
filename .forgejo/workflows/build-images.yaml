@@ -116,9 +116,12 @@ jobs:
       - name: Upload image to package registry
         if: success()
         run: |
+          SHORT_SHA="${{ forgejo.sha }}"
+          SHORT_SHA="${SHORT_SHA:0:8}"
+
           response=$(curl -w "\n%{http_code}" --user "${{ forgejo.actor }}:${{ secrets.PACKAGE_TOKEN }}" \
             --upload-file "${{ steps.image-info.outputs.path }}" \
-            "${{ forgejo.server_url }}/api/packages/${{ forgejo.repository_owner }}/generic/${{ matrix.image }}/${${{ forgejo.sha }}:0:8}/${{ matrix.image }}.${{ steps.image-info.outputs.extension }}")
+            "${{ forgejo.server_url }}/api/packages/${{ forgejo.repository_owner }}/generic/${{ matrix.image }}/${SHORT_SHA}/${{ matrix.image }}.${{ steps.image-info.outputs.extension }}")
 
           http_code=$(echo "$response" | tail -n1)
           body=$(echo "$response" | head -n-1)
