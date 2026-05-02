@@ -37,6 +37,7 @@ runs:
         extra_nix_config: |
           accept-flake-config = true
           always-allow-substitutes = true
+          sandbox = true
           ${{ inputs.github-token != '' && format('access-tokens = github.com={0}', inputs.github-token) || '' }}
 
     - name: Setup Cachix
