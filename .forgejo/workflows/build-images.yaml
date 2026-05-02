@@ -123,12 +123,16 @@ jobs:
           echo "extension=$extension" >> $GITHUB_OUTPUT
           echo "name=nixos-${IMAGE}-${TAG}.$extension" >> $GITHUB_OUTPUT
 
-      - name: Create release and upload image
+      - name: Upload image to package registry
         if: success()
-        uses: https://gitea.com/actions/gitea-release-action@v1.3.6
-        with:
-          files: ${{ steps.image-info.outputs.path }}
-          name: "${{ matrix.image }}: ${{ steps.tag.outputs.tag }}"
-          body: "Image build: ${{ matrix.image }} (${{ steps.tag.outputs.tag }})\n\nSize: ${{ steps.image-info.outputs.size }}\nBuild duration: ${{ steps.build.outputs.build_duration }}s"
-          tag_name: ${{ matrix.image }}-${{ steps.tag.outputs.tag }}
-          token: ${{ secrets.PACKAGE_TOKEN }}
+        env:
+          IMAGE: ${{ matrix.image }}
+          TAG: ${{ steps.tag.outputs.tag }}
+          IMAGE_PATH: ${{ steps.image-info.outputs.path }}
+          IMAGE_NAME: ${{ steps.image-info.outputs.name }}
+          PACKAGE_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+        run: |
+          curl -X PUT \
+            -H "Authorization: token ${PACKAGE_TOKEN}" \
+            -T "${IMAGE_PATH}" \
+            "${{ forgejo.api_url }}/packages/${{ forgejo.repository_owner }}/generic/${IMAGE}/${TAG}/${IMAGE_NAME}"
