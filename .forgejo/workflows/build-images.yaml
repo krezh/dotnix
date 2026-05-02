@@ -126,4 +126,4 @@ jobs:
           curl -X PUT \
             -H "Authorization: token ${PACKAGE_TOKEN}" \
             -T "${IMAGE_PATH}" \
-            "${{ forgejo.api_url }}/packages/${{ forgejo.repository_owner }}/generic/${IMAGE}.${EXTENSION}"
+            "${{ forgejo.api_url }}/packages/${{ forgejo.repository_owner }}/generic/${IMAGE}/latest/${IMAGE}.${EXTENSION}"
