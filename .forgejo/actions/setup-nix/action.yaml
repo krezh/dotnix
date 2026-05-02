@@ -36,7 +36,7 @@ runs:
       run: |
         echo "Downloading and running Lix installer..."
         curl -sSf -L https://install.lix.systems/lix | bash -s -- install linux \
-          --no-confirm --force --enable-flakes \
+          --no-confirm --force --enable-flakes --no-start-daemon\
           --extra-conf="experimental-features = nix-command flakes" \
           --extra-conf="${{ inputs.github-token != '' && format('access-tokens = github.com={0}', inputs.github-token) || '' }}"
           --extra-conf="accept-flake-config = true"
