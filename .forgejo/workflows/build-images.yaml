@@ -123,52 +123,12 @@ jobs:
           echo "extension=$extension" >> $GITHUB_OUTPUT
           echo "name=nixos-${IMAGE}-${TAG}.$extension" >> $GITHUB_OUTPUT
 
-      - name: Copy image
+      - name: Create release and upload image
         if: success()
-        env:
-          IMAGE_PATH: ${{ steps.image-info.outputs.path }}
-          IMAGE_NAME: ${{ steps.image-info.outputs.name }}
-        run: |
-          cp "${IMAGE_PATH}" "/tmp/${IMAGE_NAME}"
-
-      - name: Create git tag
-        if: success()
-        env:
-          TAG_NAME: ${{ matrix.image }}-${{ steps.tag.outputs.tag }}
-        run: |
-          git tag "${TAG_NAME}"
-          git push origin "${TAG_NAME}"
-
-      - name: Release image
-        if: success()
-        env:
-          FORGEJO_TOKEN: ${{ secrets.FORGEJO_TOKEN }}
-          TAG_NAME: ${{ matrix.image }}-${{ steps.tag.outputs.tag }}
-          RELEASE_NAME: "${{ matrix.image }}: ${{ steps.tag.outputs.tag }}"
-          IMAGE_FILE: /tmp/${{ steps.image-info.outputs.name }}
-          IMAGE_NAME: ${{ steps.image-info.outputs.name }}
-        run: |
-          # Create release
-          release_response=$(curl -s -X POST -H "Authorization: token $FORGEJO_TOKEN" \
-            -H "Content-Type: application/json" \
-            -d "{
-              \"tag_name\": \"${TAG_NAME}\",
-              \"name\": \"${RELEASE_NAME}\",
-              \"draft\": false,
-              \"prerelease\": false
-            }" \
-            "${{ forgejo.api_url }}/repos/${{ forgejo.repository }}/releases")
-
-          release_id=$(echo "$release_response" | jq -r '.id')
-
-          if [ -z "$release_id" ] || [ "$release_id" = "null" ]; then
-            echo "Failed to create release"
-            echo "$release_response" | jq .
-            exit 1
-          fi
-
-          # Upload asset
-          curl -s -X POST -H "Authorization: token $FORGEJO_TOKEN" \
-            -H "Content-Type: application/octet-stream" \
-            --data-binary "@${IMAGE_FILE}" \
-            "${{ forgejo.api_url }}/repos/${{ forgejo.repository }}/releases/${release_id}/assets?name=${IMAGE_NAME}"
+        uses: akkuman/gitea-release-action@v1
+        with:
+          files: ${{ steps.image-info.outputs.path }}
+          name: "${{ matrix.image }}: ${{ steps.tag.outputs.tag }}"
+          body: "Image build: ${{ matrix.image }} (${{ steps.tag.outputs.tag }})\n\nSize: ${{ steps.image-info.outputs.size }}\nBuild duration: ${{ steps.build.outputs.build_duration }}s"
+          tag_name: ${{ matrix.image }}-${{ steps.tag.outputs.tag }}
+          token: ${{ secrets.PACKAGE_TOKEN }}
