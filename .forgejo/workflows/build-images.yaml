@@ -118,6 +118,17 @@ jobs:
       - name: Upload image to package registry
         if: success()
         run: |
-          curl --user "${{ forgejo.actor }}:${{ secrets.PACKAGE_TOKEN }}" \
+          response=$(curl -w "\n%{http_code}" --user "${{ forgejo.actor }}:${{ secrets.PACKAGE_TOKEN }}" \
             --upload-file "${{ steps.image-info.outputs.path }}" \
-            "${{ forgejo.server_url }}/api/packages/dextek/generic/dextek%2Fdotnix%2F${{ matrix.image }}/${{ forgejo.sha }}/${{ matrix.image }}.${{ steps.image-info.outputs.extension }}"
+            "${{ forgejo.server_url }}/api/packages/dextek/generic/dextek%2Fdotnix%2F${{ matrix.image }}/${{ forgejo.sha }}/${{ matrix.image }}.${{ steps.image-info.outputs.extension }}")
+
+          http_code=$(echo "$response" | tail -n1)
+          body=$(echo "$response" | head -n-1)
+
+          echo "HTTP Status: $http_code"
+          echo "Response: $body"
+
+          if [ "$http_code" != "201" ]; then
+            echo "Upload failed with status $http_code"
+            exit 1
+          fi
