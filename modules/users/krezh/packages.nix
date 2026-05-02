@@ -46,6 +46,7 @@
         nixd
         nil
         inputs.self.packages.${pkgs.stdenv.hostPlatform.system}.treefmt
+        yaml-language-server
 
         # Networking
         speedtest-cli

@@ -74,7 +74,6 @@
     };
 
   flake.modules.nixos.shell = {
-    # Fish shell
     programs.fish = {
       enable = true;
       vendor = {
