@@ -1,7 +1,7 @@
 { inputs, ... }:
 {
   flake.modules.nixos.impermanence =
-    { lib, ... }:
+    { lib, config, ... }:
     {
       imports = [ inputs.impermanence.nixosModules.impermanence ];
 
@@ -39,6 +39,7 @@
           "/var/log"
           "/root"
           "/tmp"
+          "${lib.mkIf config.boot.lanzaboote.pkiBundle}"
         ];
         files = [
           "/etc/machine-id"

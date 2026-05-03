@@ -31,7 +31,7 @@ in
       sops = {
         age = {
           keyFile = "/home/${user}/.config/sops/age/keys.txt";
-          sshKeyPaths = [ "/persist/etc/ssh/ssh_host_ed25519_key" ];
+          sshKeyPaths = [ "/etc/ssh/ssh_host_ed25519_key" ];
           plugins = [
             pkgs.age-plugin-fido2-hmac
             pkgs.age-plugin-yubikey

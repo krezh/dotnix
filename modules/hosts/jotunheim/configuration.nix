@@ -18,7 +18,10 @@
       networking.hostId = "1321fdc7";
 
       boot = {
-        zfs.extraPools = [ "tank" ];
+        zfs = {
+          forceImportRoot = false;
+          extraPools = [ "tank" ];
+        };
         # Boot configuration - GRUB with ZFS support
         loader.grub = {
           enable = true;

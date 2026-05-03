@@ -6,7 +6,6 @@
       imports = with inputs.self.modules.nixos; [
         system-desktop
         desktop-utils
-        impermanence
         secureboot
         amd
         tpm
