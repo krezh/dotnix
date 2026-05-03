@@ -1,12 +1,7 @@
 { inputs, ... }:
 {
   flake.modules.nixos.secureboot =
-    {
-      pkgs,
-      lib,
-      config,
-      ...
-    }:
+    { pkgs, lib, ... }:
     {
       imports = [
         inputs.lanzaboote.nixosModules.lanzaboote
@@ -34,12 +29,6 @@
         systemPackages = [
           pkgs.sbctl
         ];
-
-        persistence."/persist" = {
-          directories = [
-            "${config.boot.lanzaboote.pkiBundle}"
-          ];
-        };
       };
     };
 }
