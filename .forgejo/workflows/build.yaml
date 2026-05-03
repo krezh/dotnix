@@ -27,7 +27,7 @@ concurrency:
 jobs:
   generate-matrix:
     name: Generate Build Matrix
-    runs-on: ubuntu-latest
+    runs-on: nix
     outputs:
       hosts: ${{ steps.set-matrix.outputs.hosts }}
       packages: ${{ steps.set-matrix.outputs.packages }}
@@ -60,7 +60,7 @@ jobs:
               attr: .attr,
               target: (.attr | ltrimstr("packages.")),
               name: (.attr | ltrimstr("hosts.") | ltrimstr("packages.")),
-              runner: (.system | if . == "aarch64-linux" then "ubuntu-24.04-arm" else "ubuntu-latest" end)
+              runner: (.system | if . == "aarch64-linux" then "ubuntu-24.04-arm" else "nix" end)
             }) end')
 
           echo "hosts=$(echo "$all" | jq -c '{include: [.[] | select(.attr | startswith("hosts."))]}')" >> "$GITHUB_OUTPUT"

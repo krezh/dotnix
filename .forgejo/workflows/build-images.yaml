@@ -25,7 +25,7 @@ concurrency:
 jobs:
   setup:
     name: Setup Build Matrix
-    runs-on: ubuntu-latest
+    runs-on: nix
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
     steps:
@@ -48,7 +48,7 @@ jobs:
   build:
     name: Build ${{ matrix.image }}
     needs: setup
-    runs-on: ubuntu-latest
+    runs-on: nix
     permissions:
       contents: write
       packages: write
