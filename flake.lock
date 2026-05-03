@@ -364,11 +364,11 @@
         "nixpkgs-lib": "nixpkgs-lib_2"
       },
       "locked": {
-        "lastModified": 1775087534,
-        "narHash": "sha256-91qqW8lhL7TLwgQWijoGBbiD4t7/q75KTi8NxjVmSmA=",
+        "lastModified": 1777678872,
+        "narHash": "sha256-EPIFsulyon7Z1vLQq5Fk64GR8L7cQsT+IPhcsukVbgk=",
         "owner": "hercules-ci",
         "repo": "flake-parts",
-        "rev": "3107b77cd68437b9a76194f0f7f9c55f2329ca5b",
+        "rev": "5250617bffd85403b14dbf43c3870e7f255d2c16",
         "type": "github"
       },
       "original": {
@@ -702,10 +702,10 @@
         ]
       },
       "locked": {
-        "lastModified": 1777733408,
-        "narHash": "sha256-lyKV2GtkMPS1Mp8bKJ8sBr7LPCzL4GnVnQQYa4e7UsQ=",
+        "lastModified": 1777771152,
+        "narHash": "sha256-+J0PGlJpLvo1ukmHM0ksI8PtBDwMCYyh87rbs86F0/c=",
         "ref": "refs/heads/master",
-        "rev": "9ce9f7f128c5834bb71a4f5c62232187371379b6",
+        "rev": "9c9fc9368a6d9e698d03d3780d3b930ebc060334",
         "shallow": true,
         "type": "git",
         "url": "https://github.com/nix-community/home-manager"
@@ -787,10 +787,10 @@
         ]
       },
       "locked": {
-        "lastModified": 1777597368,
-        "narHash": "sha256-C19VD0ChMJWLh8Nro6+LboxRs+B/9GuSM3duYy9jNTg=",
+        "lastModified": 1777770082,
+        "narHash": "sha256-iE1k40e3wP5FEZneB9ZEZnTo9DW7ZUmdf9whSbNsL84=",
         "ref": "refs/heads/main",
-        "rev": "5969789554a8f65b849f88884128955596cad050",
+        "rev": "eaa6bde1d1bf2c49000309aabb64f92b7d5b27b5",
         "shallow": true,
         "type": "git",
         "url": "https://github.com/krezh/kauth"
@@ -936,10 +936,10 @@
         ]
       },
       "locked": {
-        "lastModified": 1777698621,
-        "narHash": "sha256-AmiRSWOXXJyB/rBRZZKwJWRfM5O+xGO4Pe8V+XFd6Kc=",
+        "lastModified": 1777769716,
+        "narHash": "sha256-hIh5MIF5T+JpTtOXt/1A+6dH2ngGeZVw1UH9K2NKWS0=",
         "ref": "refs/heads/main",
-        "rev": "a2cd1d9eda4a84d713153f718c8583e1a4c89983",
+        "rev": "03eace0567fae62662191ec3c2c3721c2a32b454",
         "shallow": true,
         "type": "git",
         "url": "https://github.com/numtide/nix-ai-tools"
@@ -961,10 +961,10 @@
         ]
       },
       "locked": {
-        "lastModified": 1777698543,
-        "narHash": "sha256-+n0XbQWNL+I4S++wTURqZj0LkMZ0uv+aspUFM7FS8Rk=",
+        "lastModified": 1777746826,
+        "narHash": "sha256-fAbcHwnhw294NL+a+2E2bidNiaxhM935RrsJLqKcnc4=",
         "ref": "refs/heads/master",
-        "rev": "d6b88f7dd99022d5757b912337d7fe416170d35d",
+        "rev": "26aa2e8f054184252d08558290471a397164aeff",
         "shallow": true,
         "type": "git",
         "url": "https://github.com/xddxdd/nix-cachyos-kernel"
@@ -982,10 +982,10 @@
         "nixpkgs": "nixpkgs_2"
       },
       "locked": {
-        "lastModified": 1777538647,
-        "narHash": "sha256-pCdYLPCoZFUjTIOTto86MpJse/I0A8XHy3HIU53s/qM=",
+        "lastModified": 1777757455,
+        "narHash": "sha256-yHnMAcT8okMxaqUdY9nvwykQQWis+3+x77ITQ31k+vk=",
         "ref": "refs/heads/master",
-        "rev": "9a1c5aeb3d0a96aa11f02c33fdba319ddb339aad",
+        "rev": "da34be9dbe1549ec05e4b5d1718546ea369dbe8f",
         "shallow": true,
         "type": "git",
         "url": "https://github.com/fufexan/nix-gaming"
@@ -1116,11 +1116,11 @@
     },
     "nixpkgs-lib_2": {
       "locked": {
-        "lastModified": 1774748309,
-        "narHash": "sha256-+U7gF3qxzwD5TZuANzZPeJTZRHS29OFQgkQ2kiTJBIQ=",
+        "lastModified": 1777168982,
+        "narHash": "sha256-GOkGPcboWE9BmGCRMLX3worL4EMnsnG8MyKmXNeYuhQ=",
         "owner": "nix-community",
         "repo": "nixpkgs.lib",
-        "rev": "333c4e0545a6da976206c74db8773a1645b5870a",
+        "rev": "f5901329dade4a6ea039af1433fb087bd9c1fe14",
         "type": "github"
       },
       "original": {
@@ -1201,10 +1201,10 @@
         "noctalia-qs": "noctalia-qs"
       },
       "locked": {
-        "lastModified": 1777427472,
-        "narHash": "sha256-kqcfLdxb+CqTroMErCScvx6YQcZYJcf6X+z5I8kBJK8=",
+        "lastModified": 1777772763,
+        "narHash": "sha256-MIFrNTX+x42UdOiL9lWmwyyymh80/pxtU4afvEizZDk=",
         "ref": "refs/heads/main",
-        "rev": "9f8dd48c8df5ab1f7f87ddf9842627e1e5682186",
+        "rev": "f0469d2d6f9b1ca873932dcef6583f9d6a2eee28",
         "shallow": true,
         "type": "git",
         "url": "https://github.com/noctalia-dev/noctalia-shell"
