@@ -1,6 +1,6 @@
 {
   $schema: "https://docs.renovatebot.com/renovate-schema.json",
-  extends: ["local>dextek/renovate-config"],
+  extends: ["local>krezh/renovate-config"],
   nix: {
     enabled: true,
   },
