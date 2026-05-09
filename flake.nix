@@ -88,6 +88,11 @@
       flake = false;
     };
 
+    helium = {
+      url = "github:cjavad/nixpille-helium";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
     nix-gaming.url = "git+https://github.com/fufexan/nix-gaming?shallow=1";
 
     steam-config-nix = {

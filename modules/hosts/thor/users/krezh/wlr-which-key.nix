@@ -27,7 +27,7 @@
               {
                 key = "h";
                 desc = "Helium";
-                cmd = lib.getExe pkgs.helium;
+                cmd = lib.getExe config.home-manager.users.${user}.programs.helium.package;
               }
               {
                 key = "z";

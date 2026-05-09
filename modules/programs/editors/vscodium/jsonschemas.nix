@@ -1,6 +1,6 @@
 _: {
   flake.modules.homeManager.editors = _: {
-    programs.vscode = {
+    programs.vscodium = {
       profiles.default = {
         userSettings = {
           json.schemaDownload.enable = true;

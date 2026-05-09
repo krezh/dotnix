@@ -7,7 +7,7 @@
       ...
     }:
     {
-      catppuccin.vscode = {
+      catppuccin.vscodium = {
         profiles.default = {
           accent = "blue";
           settings = {
@@ -23,7 +23,7 @@
         };
       };
 
-      programs.vscode = {
+      programs.vscodium = {
         enable = true;
         package = pkgs.vscodium;
         mutableExtensionsDir = true;
@@ -44,7 +44,6 @@
             "jeff-hykin.better-shellscript-syntax"
             "tamasfe.even-better-toml"
             "mads-hartmann.bash-ide-vscode"
-            "bmalehorn.vscode-fish"
             "waderyan.gitblame"
             "alefragnani.project-manager"
             "theqtcompany.qt-core"

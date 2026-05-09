@@ -23,8 +23,8 @@ import (
 )
 
 var (
-	version             = "dev"
-	cfg                 = config.DefaultConfig()
+	version               = "dev"
+	cfg                   = config.DefaultConfig()
 	excludeNamespaceFirst string
 )
 

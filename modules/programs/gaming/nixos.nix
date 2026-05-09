@@ -74,6 +74,7 @@
               PROTON_USE_WOW64 = 1;
               PROTON_ENABLE_WAYLAND = 1;
               WINE_VK_VULKAN_ONLY = true;
+              PROTON_FSR4_UPGRADE = "4.1.0";
             };
           };
           remotePlay.openFirewall = true;
@@ -113,7 +114,6 @@
                 launchOptions = {
                   wrappers = [ "gamemoderun" ];
                   env = {
-                    PROTON_FSR4_UPGRADE = "4.1.0";
                   };
                 };
               };
@@ -125,7 +125,6 @@
                   env = {
                     PROTON_USE_WOW64 = 0;
                     PROTON_ENABLE_WAYLAND = 0;
-                    PROTON_FSR4_UPGRADE = "4.1.0";
                   };
                 };
               };
@@ -135,7 +134,6 @@
                 launchOptions = {
                   wrappers = [ "gamemoderun" ];
                   env = {
-                    PROTON_FSR4_UPGRADE = "4.1.0";
                     PROTON_USE_WOW64 = 0;
                     PROTON_ENABLE_WAYLAND = 0;
                   };
@@ -148,7 +146,6 @@
                 launchOptions = {
                   wrappers = [ "gamemoderun" ];
                   env = {
-                    PROTON_FSR4_UPGRADE = "4.1.0";
                   };
                 };
               };
@@ -158,7 +155,6 @@
                 launchOptions = {
                   wrappers = [ "gamemoderun" ];
                   env = {
-                    PROTON_FSR4_UPGRADE = "4.1.0";
                   };
                 };
               };
@@ -168,8 +164,16 @@
                 launchOptions = {
                   wrappers = [ "gamemoderun" ];
                   env = {
-                    PROTON_FSR4_UPGRADE = "4.1.0";
                     LSFG_PROCESS = "Default";
+                  };
+                };
+              };
+              elite-dangerous = {
+                id = 359320;
+                compatTool = "Proton-GE Latest";
+                launchOptions = {
+                  wrappers = [ "gamemoderun" ];
+                  env = {
                   };
                 };
               };

@@ -8,7 +8,7 @@
       ...
     }:
     {
-      programs.vscode = {
+      programs.vscodium = {
         profiles.default = {
           extensions = pkgs.nix4vscode.forVscodeVersion config.programs.vscode.package.version [
             "jnoortheen.nix-ide"

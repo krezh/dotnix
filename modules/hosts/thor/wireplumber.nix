@@ -31,21 +31,7 @@
           nick = "A50";
         }
       ];
-      deviceSettings = {
-        "usb-Generic_USB_Audio-00" = {
-          priority = 50;
-          deviceProps = {
-            "device.profile" = "HiFi 5+1";
-          };
-        };
-        "usb-Logitech_A50-00" = {
-          priority = 51;
-          deviceProps = {
-            "api.acp.auto-profile" = "false";
-            "device.profile" = "iec958-stereo";
-          };
-        };
-      };
+
     };
   };
 }

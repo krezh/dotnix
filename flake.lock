@@ -695,6 +695,26 @@
         "url": "https://github.com/nixos/nixos-hardware"
       }
     },
+    "helium": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1778050670,
+        "narHash": "sha256-NSYgEk2BKUBqVQb8advmuSIfPVdExTshTncEmsclGo4=",
+        "owner": "cjavad",
+        "repo": "nixpille-helium",
+        "rev": "66c7d290cad668f35442ac484596a8aff17f8117",
+        "type": "github"
+      },
+      "original": {
+        "owner": "cjavad",
+        "repo": "nixpille-helium",
+        "type": "github"
+      }
+    },
     "home-manager": {
       "inputs": {
         "nixpkgs": [
@@ -1297,6 +1317,7 @@
         "flake-parts": "flake-parts",
         "go-overlay": "go-overlay",
         "hardware": "hardware",
+        "helium": "helium",
         "home-manager": "home-manager",
         "impermanence": "impermanence",
         "jovian": "jovian",
