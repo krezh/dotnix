@@ -108,13 +108,22 @@
                   };
                 };
               };
+              poe2 = {
+                id = 2694490;
+                compatTool = "Proton-GE Latest";
+                launchOptions = {
+                  wrappers = [ "gamemoderun" ];
+                  env = {
+                    LSFG_PROCESS = "Default";
+                  };
+                };
+              };
               darktide = {
                 id = 1361210;
                 compatTool = "Proton-GE Latest";
                 launchOptions = {
                   wrappers = [ "gamemoderun" ];
-                  env = {
-                  };
+                  env = { };
                 };
               };
               borderlands4 = {
@@ -145,8 +154,7 @@
                 compatTool = "Proton-GE Latest";
                 launchOptions = {
                   wrappers = [ "gamemoderun" ];
-                  env = {
-                  };
+                  env = { };
                 };
               };
               toxic-commando = {
@@ -154,8 +162,7 @@
                 compatTool = "Proton-GE Latest";
                 launchOptions = {
                   wrappers = [ "gamemoderun" ];
-                  env = {
-                  };
+                  env = { };
                 };
               };
               rogue-trader = {
@@ -173,8 +180,7 @@
                 compatTool = "Proton-GE Latest";
                 launchOptions = {
                   wrappers = [ "gamemoderun" ];
-                  env = {
-                  };
+                  env = { };
                 };
               };
               sekiro = {

@@ -56,7 +56,6 @@
             "oderwat.indent-rainbow"
             "mhutchie.git-graph"
             "anthropic.claude-code"
-            "sst-dev.opencode"
             "zizmor.zizmor-vscode"
             "christian-kohler.path-intellisense"
             "helm-ls.helm-ls"

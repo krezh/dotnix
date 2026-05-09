@@ -43,6 +43,50 @@ jobs:
           build-type: system
           output-link: result
 
+      - name: Snapshot closure
+        if: ${{ steps.build.outcome == 'success' && github.ref == 'refs/heads/main' }}
+        env:
+          HOST_NAME: ${{ matrix.name }}
+        run: nix run .#ncd -- snapshot result --output "${HOST_NAME}.json"
+
+      - name: Save snapshot
+        if: ${{ steps.build.outcome == 'success' && github.ref == 'refs/heads/main' }}
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: ${{ matrix.name }}.json
+          key: ncd-snapshot-${{ matrix.name }}
+
+      - name: Restore snapshot
+        if: ${{ steps.build.outcome == 'success' && github.event_name == 'pull_request' }}
+        id: restore-snapshot
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: ${{ matrix.name }}.json
+          key: ncd-snapshot-${{ matrix.name }}
+
+      - name: Diff closure
+        if: ${{ steps.build.outcome == 'success' && steps.restore-snapshot.outputs.cache-hit == 'true' }}
+        id: diff
+        env:
+          HOST_NAME: ${{ matrix.name }}
+        run: |
+          diff=$(nix run .#ncd -- diff "${HOST_NAME}.json" result --color never)
+          echo "output<<EOF" >> $GITHUB_OUTPUT
+          echo "$diff" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Post diff comment
+        if: ${{ github.event_name == 'pull_request' && steps.restore-snapshot.outputs.cache-hit == 'true' }}
+        uses: marocchino/sticky-pull-request-comment@0ea0beb66eb9baf113663a64ec522f60e49231c0
+        with:
+          header: "Closure Diff: ${{ matrix.attr }}"
+          delete: ${{ steps.diff.outputs.output == '' }}
+          message: |
+            ## 📦 Closure Diff: `${{ matrix.attr }}`
+            ```
+            ${{ steps.diff.outputs.output }}
+            ```
+
       - name: Post build comment
         if: ${{ always() && github.event_name == 'pull_request' }}
         uses: ./.github/actions/post-build-comment
