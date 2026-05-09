@@ -133,6 +133,11 @@
 
     crane.url = "git+https://github.com/ipetkov/crane?shallow=1";
 
+    rust-overlay = {
+      url = "git+https://github.com/oxalica/rust-overlay?shallow=1";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
     nix-ai-tools = {
       url = "git+https://github.com/numtide/nix-ai-tools?shallow=1";
       inputs.nixpkgs.follows = "nixpkgs";

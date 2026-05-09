@@ -9,7 +9,10 @@
     ++ [
       inputs.go-overlay.overlays.default
       inputs.nix4vscode.overlays.default
-      (final: _prev: { craneLib = inputs.crane.mkLib final; })
+      inputs.rust-overlay.overlays.default
+      (final: _prev: {
+        craneLib = (inputs.crane.mkLib final).overrideToolchain final.rust-bin.stable.latest.default;
+      })
       (
         final: _prev:
         lib.scanPath.toAttrs {
