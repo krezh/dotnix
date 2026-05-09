@@ -7,7 +7,7 @@
   lib,
   stdenv,
 }:
-(buildGoModule.override { go = go-bin.latest; }) rec {
+(buildGoModule.override { go = go-bin.latestStable; }) rec {
   pname = "fluxcd";
   # renovate: datasource=github-releases depName=fluxcd/flux2
   version = "2.8.6";
