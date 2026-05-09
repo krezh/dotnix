@@ -89,7 +89,7 @@
     };
 
     helium = {
-      url = "github:cjavad/nixpille-helium";
+      url = "git+https://github.com/cjavad/nixpille-helium?shallow=1";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
@@ -160,7 +160,7 @@
     };
 
     spicetify-nix = {
-      url = "github:Gerg-L/spicetify-nix";
+      url = "git+https://github.com/Gerg-L/spicetify-nix?shallow=1";
       inputs.nixpkgs.follows = "nixpkgs";
     };
   };

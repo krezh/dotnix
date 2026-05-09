@@ -704,15 +704,16 @@
       "locked": {
         "lastModified": 1778050670,
         "narHash": "sha256-NSYgEk2BKUBqVQb8advmuSIfPVdExTshTncEmsclGo4=",
-        "owner": "cjavad",
-        "repo": "nixpille-helium",
+        "ref": "refs/heads/main",
         "rev": "66c7d290cad668f35442ac484596a8aff17f8117",
-        "type": "github"
+        "shallow": true,
+        "type": "git",
+        "url": "https://github.com/cjavad/nixpille-helium"
       },
       "original": {
-        "owner": "cjavad",
-        "repo": "nixpille-helium",
-        "type": "github"
+        "shallow": true,
+        "type": "git",
+        "url": "https://github.com/cjavad/nixpille-helium"
       }
     },
     "home-manager": {
@@ -1438,15 +1439,16 @@
       "locked": {
         "lastModified": 1777789800,
         "narHash": "sha256-XHCvLGu/bEEZRzXVKFu1i+2YB102Nr00n8e7xrzsfVs=",
-        "owner": "Gerg-L",
-        "repo": "spicetify-nix",
+        "ref": "refs/heads/master",
         "rev": "d0e921cc48aab6137d203a3eab19601dc2bdc0c3",
-        "type": "github"
+        "shallow": true,
+        "type": "git",
+        "url": "https://github.com/Gerg-L/spicetify-nix"
       },
       "original": {
-        "owner": "Gerg-L",
-        "repo": "spicetify-nix",
-        "type": "github"
+        "shallow": true,
+        "type": "git",
+        "url": "https://github.com/Gerg-L/spicetify-nix"
       }
     },
     "steam-config-nix": {

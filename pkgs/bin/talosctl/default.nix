@@ -7,7 +7,7 @@
   installShellFiles,
   versionCheckHook,
 }:
-(buildGoModule.override { go = go-bin.latestStable; }) rec {
+(buildGoModule.override { go = go-bin.latestStable; }) (finalAttrs: {
   pname = "talosctl";
   # renovate: datasource=github-releases depName=siderolabs/talos
   version = "1.13.0";
@@ -15,7 +15,7 @@
   src = fetchFromGitHub {
     owner = "siderolabs";
     repo = "talos";
-    rev = "v${version}";
+    rev = "v${finalAttrs.version}";
     hash = "sha256-dO4GBDhxsiuNn0lJl8RgFwUVxn34+Uks69Cm5J9zJsg=";
   };
 
@@ -39,17 +39,16 @@
       --zsh <($out/bin/talosctl completion zsh)
   '';
 
-  doCheck = false; # no tests
+  doCheck = false;
 
   doInstallCheck = true;
   nativeInstallCheckInputs = [ versionCheckHook ];
   versionCheckProgramArg = "version";
 
-  meta = with lib; {
+  meta = {
     description = "A CLI for out-of-band management of Kubernetes nodes created by Talos";
     homepage = "https://www.talos.dev/";
-    license = licenses.mpl20;
-    maintainers = [ ];
-    mainProgram = pname;
+    license = lib.licenses.mpl20;
+    mainProgram = finalAttrs.pname;
   };
-}
+})

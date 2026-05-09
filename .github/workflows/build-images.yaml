@@ -50,6 +50,8 @@ jobs:
     name: Build ${{ matrix.image }}
     needs: setup
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     strategy:
       fail-fast: false
       matrix: ${{ fromJson(needs.setup.outputs.matrix) }}
@@ -91,13 +93,25 @@ jobs:
             exit 1
           fi
           extension="${image_path##*.}"
-          echo "path=$image_path" >> $GITHUB_OUTPUT
-          echo "name=nixos-${IMAGE}-$(date -u +"%Y-%m-%d").$extension" >> $GITHUB_OUTPUT
+          asset_name="nixos-${IMAGE}.${extension}"
+          cp "$image_path" "$asset_name"
+          echo "asset=$asset_name" >> $GITHUB_OUTPUT
 
-      - name: Upload image
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        with:
-          name: ${{ steps.find-image.outputs.name }}
-          path: ${{ steps.find-image.outputs.path }}
-          if-no-files-found: error
-          retention-days: 90
+      - name: Ensure latest release exists
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release view latest --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1 || \
+            gh release create latest \
+              --repo "$GITHUB_REPOSITORY" \
+              --title "Latest Builds" \
+              --notes "Latest automated NixOS image builds. Updated on every scheduled run."
+
+      - name: Upload image to latest release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ASSET: ${{ steps.find-image.outputs.asset }}
+        run: |
+          gh release upload latest "$ASSET" \
+            --repo "$GITHUB_REPOSITORY" \
+            --clobber

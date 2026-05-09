@@ -4,7 +4,7 @@
   fetchFromGitHub,
   go-bin,
 }:
-(buildGoModule.override { go = go-bin.latestStable; }) rec {
+(buildGoModule.override { go = go-bin.latestStable; }) (finalAttrs: {
   pname = "kubectl-pgo";
   # renovate: datasource=github-releases depName=CrunchyData/postgres-operator-client
   version = "0.5.3";
@@ -12,7 +12,7 @@
   src = fetchFromGitHub {
     owner = "CrunchyData";
     repo = "postgres-operator-client";
-    rev = "v${version}";
+    rev = "v${finalAttrs.version}";
     hash = "sha256-m8k4BiZx6ILUFYgpeXD2/Qy8HyBf/C51ErOy19baMhI=";
     fetchSubmodules = true;
   };
@@ -25,10 +25,9 @@
   ];
 
   meta = {
-    description = "";
+    description = "A kubectl plugin for managing PostgreSQL clusters with PGO";
     homepage = "https://github.com/CrunchyData/postgres-operator-client";
     license = lib.licenses.asl20;
-    maintainers = [ ];
-    mainProgram = pname;
+    mainProgram = finalAttrs.pname;
   };
-}
+})

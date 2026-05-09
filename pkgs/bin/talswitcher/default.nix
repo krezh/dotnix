@@ -5,7 +5,7 @@
   go-bin,
   installShellFiles,
 }:
-(buildGoModule.override { go = go-bin.latestStable; }) rec {
+(buildGoModule.override { go = go-bin.latestStable; }) (finalAttrs: {
   pname = "talswitcher";
   # renovate: datasource=github-releases depName=mirceanton/talswitcher
   version = "2.2.22";
@@ -13,13 +13,12 @@
   src = fetchFromGitHub {
     owner = "mirceanton";
     repo = "talswitcher";
-    rev = "v${version}";
+    rev = "v${finalAttrs.version}";
     hash = "sha256-bjGaXMtMvAm45a6nxmmEZt1J77RSFFXsVoW14pAIJTY=";
   };
 
   vendorHash = "sha256-MpGwlyhBC3AuaP0zr/JDdeqn4DRdxzENMgSlmX1RdLs=";
 
-  # Make build write to a writable tempdir instead of /homeless-shelter
   preBuild = ''
     export HOME="$TMPDIR"
     mkdir -p "$HOME/.talos/configs"
@@ -28,7 +27,7 @@
   ldflags = [
     "-s"
     "-w"
-    "-X=github.com/mirceanton/${pname}/cmd.version=${version}"
+    "-X=github.com/mirceanton/${finalAttrs.pname}/cmd.version=${finalAttrs.version}"
   ];
 
   nativeBuildInputs = [ installShellFiles ];
@@ -44,6 +43,6 @@
     description = "A simple tool to help manage multiple talosconfig files";
     homepage = "https://github.com/mirceanton/talswitcher";
     license = lib.licenses.mit;
-    mainProgram = pname;
+    mainProgram = finalAttrs.pname;
   };
-}
+})
