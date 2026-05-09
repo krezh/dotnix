@@ -1,5 +1,6 @@
 {
   lib,
+  go,
   buildGoModule,
   fetchFromGitHub,
 }:
@@ -7,21 +8,21 @@
 buildGoModule (finalAttrs: {
   pname = "lfk";
   # renovate: datasource=github-releases depName=janosmiko/lfk
-  version = "v0.11.0";
+  version = "0.11.0";
 
   src = fetchFromGitHub {
     owner = "janosmiko";
     repo = "lfk";
     tag = "v${finalAttrs.version}";
-    hash = "sha256-q9j8sV6hd7PWZS9+s9r9t7GXfLyZooWdmis32jv6QIA=";
+    hash = "sha256-6SNz/PwtWrQWV2Gk6A3BxaS71cPep43er6/NdZ03wec=";
   };
 
   postPatch = ''
     substituteInPlace go.mod \
-      --replace "go 1.26.2" "go 1.26.1"
+      --replace-fail "go 1.26.3" "go ${go.version}"
   '';
 
-  vendorHash = "sha256-A/qAaqkm7gx0WIPHtZJAf69i70z12rLP9/I8NzqpEFo=";
+  vendorHash = "sha256-D3ra3CpmQG+CD+upI0S8fv+1iTZd/4VSeAtnEq26VnI=";
   doCheck = false;
 
   ldflags = [
