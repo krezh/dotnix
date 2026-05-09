@@ -18,8 +18,7 @@ buildGoModule (finalAttrs: {
   };
 
   postPatch = ''
-    substituteInPlace go.mod \
-      --replace-fail "go 1.26.3" "go ${go.version}"
+    go mod edit -go=${lib.versions.majorMinor go.version}
   '';
 
   vendorHash = "sha256-D3ra3CpmQG+CD+upI0S8fv+1iTZd/4VSeAtnEq26VnI=";
