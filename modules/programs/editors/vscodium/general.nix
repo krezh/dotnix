@@ -25,12 +25,11 @@
 
       programs.vscodium = {
         enable = true;
-        package = pkgs.vscodium;
         mutableExtensionsDir = true;
         profiles.default = {
           enableExtensionUpdateCheck = false;
           enableUpdateCheck = false;
-          extensions = pkgs.nix4vscode.forVscodeVersion config.programs.vscode.package.version [
+          extensions = pkgs.nix4vscode.forVscodeVersion config.programs.vscodium.package.version [
             "esbenp.prettier-vscode"
             "redhat.vscode-yaml"
             "signageos.signageos-vscode-sops"
