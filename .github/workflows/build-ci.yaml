@@ -50,7 +50,7 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install nix-eval-jobs
-        run: nix profile install --inputs-from . nixpkgs#lixPackageSets.latest.nix-eval-jobs
+        run: nix profile install nixpkgs#lixPackageSets.latest.nix-eval-jobs
 
       - name: Generate Matrix
         id: set-matrix

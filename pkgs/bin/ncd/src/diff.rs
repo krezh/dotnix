@@ -201,6 +201,7 @@ pub fn write_package_diff(
   path_old: &Path,
   path_new: &Path,
   force_correctness: bool,
+  format: OutputFormat,
 ) -> Result<usize> {
   let mut connection = create_backend(force_correctness);
   connection.connect()?;
@@ -244,6 +245,7 @@ pub fn write_package_diff(
     paths_new,
     system_derivations_old,
     system_derivations_new,
+    format,
   )
   .map_err(Error::from)
 }
@@ -264,7 +266,7 @@ pub fn write_paths_diffln(
   path_new: &Path,
 ) -> Result<usize> {
   // Setting `force_correctness` to false mimics the old behaviour.
-  write_package_diff(writer, path_old, path_new, false)
+  write_package_diff(writer, path_old, path_new, false, OutputFormat::Text)
 }
 
 /// Computes the Levenshtein distance between two slices using dynamic
@@ -479,6 +481,17 @@ fn deduplicate_versions(versions: &mut Vec<Version>) {
   versions.truncate(result_index);
 }
 
+/// Controls the output format for diff rendering.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum OutputFormat {
+  /// Plain text output with ANSI color codes.
+  #[default]
+  Text,
+  /// Unified diff format: each line is prefixed with `+`, `-`, or ` ` so
+  /// GitHub renders the output with colors in a ` ```diff ` code block.
+  Diff,
+}
+
 /// Entry point for writing package differences.
 ///
 /// # Errors
@@ -490,6 +503,7 @@ pub fn write_packages_diffln(
   paths_new: impl Iterator<Item = StorePath>,
   system_paths_old: impl Iterator<Item = StorePath>,
   system_paths_new: impl Iterator<Item = StorePath>,
+  format: OutputFormat,
 ) -> Result<usize, fmt::Error> {
   let paths_map = collect_path_versions(paths_old, paths_new);
   let sys_old_set = collect_system_names(system_paths_old, "old");
@@ -515,7 +529,7 @@ pub fn write_packages_diffln(
   diffs
     .sort_by(|a, b| a.status.cmp(&b.status).then_with(|| a.name.cmp(&b.name)));
 
-  render_diffs(writer, &diffs)
+  render_diffs(writer, &diffs, format)
 }
 
 /// Collects package names from system paths
@@ -593,6 +607,7 @@ fn collect_path_versions(
 fn render_diffs(
   writer: &mut impl fmt::Write,
   diffs: &[Diff],
+  format: OutputFormat,
 ) -> Result<usize, fmt::Error> {
   // Calculate width needed for aligning package names
   let name_width = diffs
@@ -602,6 +617,7 @@ fn render_diffs(
     .unwrap_or(0)
     + 1;
   let mut last_status = None::<DiffStatus>;
+  let mut line_prefix = ' ';
 
   for diff in diffs {
     // Print section header when status changes
@@ -612,14 +628,22 @@ fn render_diffs(
         writeln!(writer)?;
       }
 
+      line_prefix = match diff.status {
+        DiffStatus::Changed(_) => ' ',
+        DiffStatus::Added => '+',
+        DiffStatus::Removed => '-',
+      };
+
       // Format and write the section header
       let header = match diff.status {
-        DiffStatus::Changed(_) => "CHANGED",
-        DiffStatus::Added => "ADDED",
-        DiffStatus::Removed => "REMOVED",
-      }
-      .bold();
+        DiffStatus::Changed(_) => "CHANGED".yellow().bold(),
+        DiffStatus::Added => "ADDED".green().bold(),
+        DiffStatus::Removed => "REMOVED".red().bold(),
+      };
 
+      if format == OutputFormat::Diff {
+        write!(writer, "{line_prefix}")?;
+      }
       writeln!(writer, "{header}")?;
       last_status = Some(diff.status);
     }
@@ -628,6 +652,10 @@ fn render_diffs(
     let status_char = diff.status.char();
     let sel_char = diff.selection.char();
     let name_painted = diff.name.paint(sel_char.style);
+
+    if format == OutputFormat::Diff {
+      write!(writer, "{line_prefix}")?;
+    }
 
     // Write package name with indicators
     write!(
