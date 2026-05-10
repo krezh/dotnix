@@ -1,4 +1,4 @@
-{
+_: {
   flake.modules.homeManager.shell =
     {
       lib,
@@ -16,7 +16,6 @@
         lib.mkIf hasPackage name;
     in
     {
-      # Fish shell
       programs.fish = {
         enable = true;
         package = pkgs.fish;
@@ -58,29 +57,7 @@
         interactiveShellInit = ''
           ${lib.getExe pkgs.fastfetch}
           ${lib.getExe pkgs.any-nix-shell} fish --info-right | source
-
-          function _ssh_known_host_hint --on-event fish_postexec
-            set -l last_status $status
-            if not string match -qr '^ssh\b' -- $argv[1]
-              return
-            end
-            if test $last_status -ne 0
-              set -l host (string replace -r '.*\s+' "" -- $argv[1] | string replace -r '^[^@]+@' "")
-              printf '\nIf the host key changed, remove it with:\n  ssh-keygen -R "%s"\n' $host
-            end
-          end
         '';
       };
     };
-
-  flake.modules.nixos.shell = {
-    programs.fish = {
-      enable = true;
-      vendor = {
-        completions.enable = true;
-        config.enable = true;
-        functions.enable = true;
-      };
-    };
-  };
 }
