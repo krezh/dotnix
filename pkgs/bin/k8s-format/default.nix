@@ -1,11 +1,14 @@
 { pkgs, go-bin, ... }:
-pkgs.buildGoApplication rec {
-  pname = "k8s-format";
-  version = "0.0.0";
+let
   src = builtins.path {
     path = ./src;
     name = "k8s-format-src";
   };
+in
+pkgs.buildGoApplication {
+  pname = "k8s-format";
+  version = "0.0.0";
+  inherit src;
 
   go = go-bin.latestStable;
   modules = "${src}/govendor.toml";

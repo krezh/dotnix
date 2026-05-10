@@ -19,6 +19,7 @@ in
       };
       imports = with inputs.self.modules.nixos; [
         system-desktop
+        efi
         gnome
         openssh
         battery
@@ -32,14 +33,6 @@ in
 
       boot = {
         plymouth.enable = true;
-        loader = {
-          timeout = 0;
-          systemd-boot = {
-            enable = true;
-            configurationLimit = 5;
-          };
-          efi.canTouchEfiVariables = true;
-        };
         resumeDevice = "/dev/disk/by-label/nixos";
       };
 

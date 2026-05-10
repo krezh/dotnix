@@ -1,6 +1,6 @@
 {
   flake.modules.nixos.greetd =
-    { pkgs, ... }:
+    { pkgs, config, ... }:
     {
       services.greetd = {
         enable = true;
@@ -59,12 +59,12 @@
           $crust = rgb(11111b)
 
           $accent = $blue
-          $font = JetBrainsMono Nerd Font
+          $font = ${config.var.fonts.mono}
 
           sessions {
             wayland_path = /run/current-system/sw/share/wayland-sessions
             x11_path = /run/current-system/sw/share/xsessions
-            default_user = krezh
+            default_user = ${config.var.username}
             default_session = hyprland.desktop
           }
 

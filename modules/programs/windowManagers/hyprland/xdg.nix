@@ -19,12 +19,6 @@
           "org.freedesktop.impl.portal.Print" = "gtk";
         };
       };
-      wayland.windowManager.hyprland = {
-        systemd = {
-          enableXdgAutostart = true;
-        };
-      };
-
       # XDPH config
       xdg.configFile."hypr/xdph.conf".text = ''
         screencopy {

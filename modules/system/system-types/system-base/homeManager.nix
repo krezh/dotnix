@@ -28,6 +28,7 @@
 
       programs = {
         home-manager.enable = true;
+        nix-index-database.comma.enable = true;
       };
 
       systemd.user.startServices = "sd-switch";

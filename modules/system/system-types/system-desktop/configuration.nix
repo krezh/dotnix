@@ -24,6 +24,12 @@
 
       programs.gdk-pixbuf.modulePackages = [ pkgs.librsvg ];
       environment.pathsToLink = [ "share/thumbnailers" ];
+
+      services.earlyoom = {
+        enable = true;
+        freeMemThreshold = 5;
+        enableNotifications = true;
+      };
     };
 
   flake.modules.homeManager.system-desktop = {

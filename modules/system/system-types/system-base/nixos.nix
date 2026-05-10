@@ -41,10 +41,7 @@
         extraLocales = "all";
         extraLocaleSettings.LC_TIME = "en_US.UTF-8";
       };
-      console = {
-        enable = false;
-        keyMap = "sv-latin1";
-      };
+      console.enable = false;
       services.kmscon = {
         enable = true;
         hwRender = false;
@@ -82,7 +79,6 @@
             "flakes"
             "cgroups"
           ];
-          system-features = [ ];
           extra-substituters = [
             "https://nix-cache.plexuz.xyz/krezh"
             "https://nix-community.cachix.org"

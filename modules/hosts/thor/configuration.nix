@@ -5,6 +5,7 @@
     {
       imports = with inputs.self.modules.nixos; [
         system-desktop
+        efi
         desktop-utils
         secureboot
         amd
@@ -88,11 +89,6 @@
         };
         timesyncd.servers = [ ];
 
-        earlyoom = {
-          enable = true;
-          freeMemThreshold = 5;
-          enableNotifications = true;
-        };
       };
 
       # Boot configuration
@@ -100,17 +96,6 @@
         plymouth.enable = true;
         kernelPackages = pkgs.cachyosKernels.linuxPackages-cachyos-bore-lto;
         tmp.cleanOnBoot = true;
-        loader = {
-          timeout = 0;
-          systemd-boot = {
-            enable = true;
-            configurationLimit = 5;
-          };
-          efi = {
-            canTouchEfiVariables = true;
-            efiSysMountPoint = "/boot";
-          };
-        };
         kernel.sysctl = {
           "kernel.core_pattern" = "|/bin/false";
           "kernel.core_uses_pid" = 0;
@@ -156,7 +141,6 @@
         pwvucontrol
         alsa-utils
         pavucontrol
-        pulseaudio
       ];
     };
 }

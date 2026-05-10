@@ -3,13 +3,16 @@
   buildGoApplication,
   go-bin,
 }:
-buildGoApplication rec {
-  pname = "nixos-update";
-  version = "0.1.0";
+let
   src = builtins.path {
     path = ./src;
     name = "nixos-update-src";
   };
+in
+buildGoApplication {
+  pname = "nixos-update";
+  version = "0.1.0";
+  inherit src;
 
   go = go-bin.latestStable;
   modules = "${src}/govendor.toml";

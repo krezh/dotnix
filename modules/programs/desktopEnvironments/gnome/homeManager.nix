@@ -66,6 +66,11 @@ _: {
             pkgs.gnomeExtensions.vitals.extensionUuid
             pkgs.gnomeExtensions.rounded-window-corners-reborn.extensionUuid
           ];
+          favorite-apps = [
+            "org.gnome.Nautilus.desktop"
+            "zen-twilight.desktop"
+            "com.mitchellh.ghostty.desktop"
+          ];
         };
 
         # Blur My Shell Configuration
@@ -179,6 +184,7 @@ _: {
           button-layout = "appmenu:minimize,maximize,close";
           resize-with-right-button = true;
           mouse-button-modifier = "<Super>";
+          num-workspaces = 4;
         };
 
         # Keybindings - Window Management
@@ -253,20 +259,6 @@ _: {
           edge-tiling = true;
           dynamic-workspaces = false;
           workspaces-only-on-primary = true;
-        };
-
-        # Workspaces
-        "org/gnome/desktop/wm/preferences" = {
-          num-workspaces = 4;
-        };
-
-        # Shell Settings
-        "org/gnome/shell" = {
-          favorite-apps = [
-            "org.gnome.Nautilus.desktop"
-            "zen-twilight.desktop"
-            "com.mitchellh.ghostty.desktop"
-          ];
         };
 
         # Privacy

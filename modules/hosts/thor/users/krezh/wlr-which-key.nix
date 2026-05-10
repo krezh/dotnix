@@ -14,7 +14,7 @@
         programs.wlr-which-key = {
           enable = true;
           settings = {
-            font = "JetBrainsMono Nerd Font 14";
+            font = "${config.var.fonts.mono} 14";
             background = "#1e1e2e";
             color = "#cdd6f4";
             border = "#89b4fa";
