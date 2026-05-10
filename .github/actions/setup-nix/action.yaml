@@ -55,36 +55,22 @@ runs:
         nix-permission-edict: true
 
     - name: Install Lix
+      uses: canidae-solutions/lix-quick-install-action@cdb5d0931be2223edbb9bad884341fcacdac298f # v4.0.1
+      with:
+        lix_version: "2.94.0"
+        enable_kvm: ${{ inputs.enable-kvm }}
+        github_access_token: ${{ inputs.github-token }}
+        lix_conf: |
+          accept-flake-config = true
+          sandbox = true
+          sandbox-fallback = false
+
+    - name: Configure GitHub access token
+      if: inputs.github-token != ''
       shell: bash
       env:
-        ENABLE_KVM: ${{ inputs.enable-kvm }}
         GITHUB_TOKEN: ${{ inputs.github-token }}
-      run: |
-        enable_kvm() {
-          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-install-lix-action-kvm.rules
-          sudo udevadm control --reload-rules && sudo udevadm trigger --name-match=kvm
-        }
-        if [[ "$(uname -s)" == "Linux" && "$ENABLE_KVM" == 'true' ]]; then
-          enable_kvm && echo 'Enabled KVM' || echo 'KVM is not available'
-        fi
-        nix_config=(
-          "experimental-features = nix-command flakes"
-          "accept-flake-config = true"
-          "sandbox = true"
-          "sandbox-fallback = false"
-          "trusted-users = root runner"
-        )
-        [[ -n "$GITHUB_TOKEN" ]] && nix_config+=("access-tokens = github.com=$GITHUB_TOKEN")
-        extra_conf=()
-        for conf in "${nix_config[@]}"; do extra_conf+=(--extra-conf="$conf"); done
-        echo "Downloading and running Lix installer..."
-        curl -sSf -L https://install.lix.systems/lix | bash -s -- install linux \
-          --no-confirm --force --enable-flakes \
-          "${extra_conf[@]}"
-        echo "Running Nix profile..."
-        . /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh
-        echo "Making sure Nix is installed and on PATH..."
-        nix --version
+      run: echo "access-tokens = github.com=$GITHUB_TOKEN" >> "${XDG_CONFIG_HOME:-$HOME/.config}/nix/nix.conf"
 
     - name: Setup Cachix
       if: inputs.skip-cache != 'true' && inputs.cachix-cache != '' && inputs.cachix-token != ''
