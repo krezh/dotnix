@@ -40,6 +40,10 @@ inputs:
     description: GitHub token for private repository access
     required: false
     default: ""
+  enable-kvm:
+    description: Enable KVM
+    required: false
+    default: "true"
 runs:
   using: composite
   steps:
@@ -50,43 +54,40 @@ runs:
         hatchet-protocol: cleave
         nix-permission-edict: true
 
-    - name: Setup SSH Key for Remote Builders
-      if: inputs.use-remote-builders == 'true' && inputs.remote-builders-ssh-key != ''
+    - name: Install Lix
       shell: bash
       env:
-        SSH_KEY: ${{ inputs.remote-builders-ssh-key }}
+        ENABLE_KVM: ${{ inputs.enable-kvm }}
+        GITHUB_TOKEN: ${{ inputs.github-token }}
       run: |
-        mkdir -p ~/.ssh
-        echo "$SSH_KEY" > ~/.ssh/nix-builder-key
-        chmod 600 ~/.ssh/nix-builder-key
-        cat >> ~/.ssh/config <<EOF
-        Host *
-          StrictHostKeyChecking accept-new
-          IdentityFile ~/.ssh/nix-builder-key
-        EOF
-        chmod 600 ~/.ssh/config
-
-    - name: Install Nix (with remote builders)
-      if: inputs.use-remote-builders == 'true'
-      uses: canidae-solutions/lix-quick-install-action@cdb5d0931be2223edbb9bad884341fcacdac298f # v4.0.1
-      with:
-        lix_conf: |
-          accept-flake-config = true
-          always-allow-substitutes = true
-          builders-use-substitutes = true
-          builders = @${{ github.workspace }}/.github/nix-builders.conf
-          ${{ inputs.nothing-but-nix == 'true' && 'build-dir = /nix/build' || '' }}
-          ${{ inputs.github-token != '' && 'access-tokens = github.com=' || '' }}${{ inputs.github-token }}
-
-    - name: Install Nix (local)
-      if: inputs.use-remote-builders != 'true'
-      uses: canidae-solutions/lix-quick-install-action@cdb5d0931be2223edbb9bad884341fcacdac298f # v4.0.1
-      with:
-        lix_conf: |
-          accept-flake-config = true
-          always-allow-substitutes = true
-          ${{ inputs.nothing-but-nix == 'true' && 'build-dir = /nix/build' || '' }}
-          ${{ inputs.github-token != '' && 'access-tokens = github.com=' || '' }}${{ inputs.github-token }}
+        enable_kvm() {
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-install-lix-action-kvm.rules
+          sudo udevadm control --reload-rules && sudo udevadm trigger --name-match=kvm
+        }
+        arch="$(uname -m)"
+        case "$OSTYPE" in
+          darwin*) sys="$arch-darwin" ;;
+          linux*)  sys="$arch-linux"  ;;
+        esac
+        if [[ ("$sys" =~ .*-linux) && ("$ENABLE_KVM" == 'true') ]]; then
+          enable_kvm && echo 'Enabled KVM' || echo 'KVM is not available'
+        fi
+        echo "Downloading and running Lix installer..."
+        extra_conf=()
+        if [[ -n "$GITHUB_TOKEN" ]]; then
+          extra_conf+=(--extra-conf="access-tokens = github.com=$GITHUB_TOKEN")
+        fi
+        curl -sSf -L https://install.lix.systems/lix | bash -s -- install linux \
+          --no-confirm --force --enable-flakes \
+          --extra-conf="experimental-features = nix-command flakes" \
+          --extra-conf="accept-flake-config = true" \
+          --extra-conf="sandbox-fallback = false" \
+          --extra-conf="trusted-users = root runner" \
+          "${extra_conf[@]}"
+        echo "Running Nix profile..."
+        . /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh
+        echo "Making sure Nix is installed and on PATH..."
+        nix --version
 
     - name: Setup Cachix
       if: inputs.skip-cache != 'true' && inputs.cachix-cache != '' && inputs.cachix-token != ''

@@ -49,11 +49,15 @@ jobs:
           nothing-but-nix: false
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Install nix-eval-jobs
+        run: nix profile install --inputs-from . nixpkgs#lixPackageSets.latest.nix-eval-jobs
+
       - name: Generate Matrix
         id: set-matrix
+        timeout-minutes: 15
         run: |
           set -Eeuo pipefail
-          all=$(nix run nixpkgs#nix-eval-jobs -- \
+          all=$(nix-eval-jobs \
             --flake .#ci \
             --check-cache-status \
             --force-recurse \
