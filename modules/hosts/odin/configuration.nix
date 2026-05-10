@@ -23,6 +23,7 @@ in
       };
       imports = with inputs.self.modules.nixos; [
         system-desktop
+        efi
         intel
         desktop-utils
         openssh
@@ -49,24 +50,7 @@ in
           "udev.log_level=0"
         ];
         kernelPackages = pkgs.linuxPackages_zen;
-        loader = {
-          timeout = 0;
-          systemd-boot = {
-            enable = true;
-            configurationLimit = 5;
-          };
-          efi = {
-            canTouchEfiVariables = true;
-            efiSysMountPoint = "/boot";
-          };
-          grub = {
-            enable = false;
-            device = "nodev";
-            efiSupport = true;
-            useOSProber = true;
-            configurationLimit = 5;
-          };
-        };
+
       };
 
       zramSwap.enable = true;

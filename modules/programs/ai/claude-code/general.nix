@@ -1,7 +1,7 @@
 { inputs, ... }:
 {
   flake.modules.homeManager.ai =
-    { pkgs, lib, ... }:
+    { pkgs, ... }:
     let
       nix-ai-tools = inputs.nix-ai-tools.packages.${pkgs.stdenv.hostPlatform.system};
     in
@@ -10,74 +10,17 @@
         enable = true;
         package = nix-ai-tools.claude-code;
 
-        lspServers = {
-          nix = {
-            command = lib.getExe pkgs.nixd;
-            extensionToLanguage = {
-              ".nix" = "nix";
-            };
-          };
-          go = {
-            command = lib.getExe pkgs.gopls;
-            args = [
-              "serve"
-            ];
-            extensionToLanguage = {
-              ".go" = "go";
-            };
-          };
-          rust = {
-            command = lib.getExe pkgs.rust-analyzer;
-            args = [ ];
-            extensionToLanguage = {
-              ".rs" = "rust";
-            };
-          };
-          typescript = {
-            command = lib.getExe pkgs.typescript-language-server;
-            args = [
-              "--stdio"
-            ];
-            extensionToLanguage = {
-              ".js" = "javascript";
-              ".jsx" = "javascriptreact";
-              ".ts" = "typescript";
-              ".tsx" = "typescriptreact";
-            };
-          };
-          bash = {
-            command = lib.getExe pkgs.bash-language-server;
-            args = [ "start" ];
-            extensionToLanguage = {
-              ".sh" = "shellscript";
-              ".bash" = "shellscript";
-              ".zsh" = "shellscript";
-            };
-          };
-        };
-
-        mcpServers = {
-          nixos = {
-            type = "stdio";
-            command = "${pkgs.uv}/bin/uvx";
-            args = [ "mcp-nixos" ];
-          };
-          forgetful = {
-            type = "stdio";
-            command = "${pkgs.uv}/bin/uvx";
-            args = [ "forgetful-ai" ];
-          };
-          context7 = {
-            type = "stdio";
-            command = pkgs.writeShellScript "context7-mcp-wrapper" ''
-              export PATH="${pkgs.nodejs}/bin:$PATH"
-              exec ${pkgs.nodejs}/bin/npx -y @upstash/context7-mcp "$@"
-            '';
-          };
-        };
-
         settings = {
           theme = "dark";
+          model = "claude-sonnet-4-5";
+          verbose = true;
+          includeCoAuthoredBy = false;
+
+          statusLine = {
+            command = "${pkgs.claude-usage-bar}/bin/claude-usage-bar";
+            type = "command";
+          };
+
           permissions = {
             allow = [
               # Safe read-only git commands
@@ -139,7 +82,6 @@
               "WebFetch(domain:wiki.hypr.land)"
               "WebFetch(domain:github.com)"
               "WebFetch(domain:raw.githubusercontent.com)"
-              "WebFetch(domain:raw.githubusercontent.com)"
               "WebFetch(domain:docs.renovatebot.com)"
 
               # NixOS build
@@ -155,14 +97,6 @@
               "Bash(sudo:*)"
             ];
             defaultMode = "acceptEdits";
-          };
-          model = "claude-sonnet-4-5";
-          verbose = true;
-          includeCoAuthoredBy = false;
-
-          statusLine = {
-            command = "${pkgs.claude-usage-bar}/bin/claude-usage-bar";
-            type = "command";
           };
         };
       };

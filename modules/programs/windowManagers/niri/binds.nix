@@ -1,0 +1,191 @@
+_: {
+  flake.modules.homeManager.niri =
+    {
+      pkgs,
+      lib,
+      config,
+      osConfig,
+      ...
+    }:
+    let
+      termBin = lib.getExe pkgs.ghostty;
+      launcherBin = "${pkgs.netcat}/bin/nc -U /run/user/$(id -u)/walker/walker.sock";
+      shellBin = "${lib.getExe config.programs.noctalia-shell.package} ipc call";
+      clipboardBin = "${lib.getExe config.programs.walker.package} -m clipboard";
+      chompBin = "${lib.getExe pkgs.chomp} -t ${
+        config.sops.secrets."zipline/token".path
+      } -u https://zipline.talos.plexuz.xyz";
+
+      getBinaryName = pkg: pkg.meta.mainProgram or pkg.pname or pkg.name;
+      audioControlPkg = pkgs.wiremix;
+      audioControlBin = lib.getExe audioControlPkg;
+      audioControlName = getBinaryName audioControlPkg;
+      audioSwitchBin = lib.getExe osConfig.nixosModules.wireplumber.audioSwitching.package;
+
+      inherit (config.lib.niri) actions;
+    in
+    {
+      programs.niri.settings.binds = with actions; {
+        # Hotkey overlay
+        "Mod+Shift+Slash".action = actions."show-hotkey-overlay";
+        "Mod+Slash".action = actions."show-hotkey-overlay";
+
+        # Overview
+        "Mod+Tab".action = actions."toggle-overview";
+
+        # Mouse wheel — workspace navigation
+        "Mod+WheelScrollDown" = {
+          action = actions."focus-workspace-down";
+          cooldown-ms = 150;
+        };
+        "Mod+WheelScrollUp" = {
+          action = actions."focus-workspace-up";
+          cooldown-ms = 150;
+        };
+        "Mod+WheelScrollRight".action = actions."focus-column-right";
+        "Mod+WheelScrollLeft".action = actions."focus-column-left";
+
+        # Mouse wheel — window navigation
+        "Mod+Shift+WheelScrollDown".action = actions."focus-window-down";
+        "Mod+Shift+WheelScrollUp".action = actions."focus-window-up";
+        "Mod+Shift+WheelScrollRight".action = actions."focus-column-right";
+        "Mod+Shift+WheelScrollLeft".action = actions."focus-column-left";
+
+        # Mouse wheel — column width
+        "Mod+Ctrl+WheelScrollDown" = {
+          action = actions."set-column-width" "-10%";
+          cooldown-ms = 150;
+        };
+        "Mod+Ctrl+WheelScrollUp" = {
+          action = actions."set-column-width" "+10%";
+          cooldown-ms = 150;
+        };
+
+        # Application launchers
+        "Mod+Return".action = spawn termBin "+new-window";
+        "Mod+R".action = spawn-sh launcherBin;
+        "Mod+B".action = spawn-sh (lib.getExe pkgs.wlr-which-key) "browser";
+        "Mod+E".action = spawn (lib.getExe pkgs.nautilus);
+        "Mod+O".action = spawn (lib.getExe pkgs.gnome-calculator);
+        "Mod+V".action = spawn-sh clipboardBin;
+        "Mod+N".action = spawn-sh "${shellBin} notifications toggleHistory";
+        "Mod+Ctrl+N".action = spawn-sh "${shellBin} notifications clear";
+        "Mod+Escape".action = spawn (lib.getExe pkgs.wlogout);
+        "Ctrl+Shift+Escape".action = spawn (lib.getExe pkgs.resources);
+        "Mod+G".action =
+          spawn-sh "pkill ${audioControlName} || ${termBin} --class=audioControl --command=${audioControlBin} -m 100";
+
+        # Window management
+        "Mod+Q".action = actions."close-window";
+        "Mod+C".action = actions."toggle-window-floating";
+        "Mod+F".action = actions."maximize-column";
+        "Mod+Shift+F".action = actions."fullscreen-window";
+
+        # Focus movement
+        "Mod+Left".action = actions."focus-column-left";
+        "Mod+Right".action = actions."focus-column-right";
+        "Mod+Up".action = actions."focus-window-up";
+        "Mod+Down".action = actions."focus-window-down";
+
+        # Window movement
+        "Mod+Shift+Left".action = actions."move-column-left";
+        "Mod+Shift+Right".action = actions."move-column-right";
+        "Mod+Shift+Up".action = actions."move-window-up";
+        "Mod+Shift+Down".action = actions."move-window-down";
+
+        # Workspace navigation (1-3 on DP-1, 4-6 on DP-2)
+        "Mod+1".action = actions."focus-workspace" "1";
+        "Mod+2".action = actions."focus-workspace" "2";
+        "Mod+3".action = actions."focus-workspace" "3";
+        "Mod+4".action = actions."focus-workspace" "4";
+        "Mod+5".action = actions."focus-workspace" "5";
+        "Mod+6".action = actions."focus-workspace" "6";
+        "Mod+7".action = actions."focus-workspace" "7";
+        "Mod+8".action = actions."focus-workspace" "8";
+        "Mod+9".action = actions."focus-workspace" "9";
+        "Mod+0".action = actions."focus-workspace" "10";
+
+        # Move to workspace (1-3 on DP-1, 4-6 on DP-2)
+        "Mod+Shift+1".action = {
+          "move-column-to-workspace" = "1";
+        };
+        "Mod+Shift+2".action = {
+          "move-column-to-workspace" = "2";
+        };
+        "Mod+Shift+3".action = {
+          "move-column-to-workspace" = "3";
+        };
+        "Mod+Shift+4".action = {
+          "move-column-to-workspace" = "4";
+        };
+        "Mod+Shift+5".action = {
+          "move-column-to-workspace" = "5";
+        };
+        "Mod+Shift+6".action = {
+          "move-column-to-workspace" = "6";
+        };
+        "Mod+Shift+7".action = {
+          "move-column-to-workspace" = "7";
+        };
+        "Mod+Shift+8".action = {
+          "move-column-to-workspace" = "8";
+        };
+        "Mod+Shift+9".action = {
+          "move-column-to-workspace" = "9";
+        };
+        "Mod+Shift+0".action = {
+          "move-column-to-workspace" = "10";
+        };
+
+        # Workspace switching
+        "Mod+Page_Down".action = actions."focus-workspace-down";
+        "Mod+Page_Up".action = actions."focus-workspace-up";
+        "Mod+Ctrl+Down".action = actions."focus-workspace-down";
+        "Mod+Ctrl+Up".action = actions."focus-workspace-up";
+
+        # Move to monitor
+        "Mod+Shift+Ctrl+Left".action = actions."move-column-to-monitor-left";
+        "Mod+Shift+Ctrl+Right".action = actions."move-column-to-monitor-right";
+        "Mod+Shift+Ctrl+Up".action = actions."move-column-to-monitor-up";
+        "Mod+Shift+Ctrl+Down".action = actions."move-column-to-monitor-down";
+
+        # Focus monitor
+        "Mod+Ctrl+Left".action = actions."focus-monitor-left";
+        "Mod+Ctrl+Right".action = actions."focus-monitor-right";
+        "Mod+Ctrl+H".action = actions."focus-monitor-left";
+        "Mod+Ctrl+L".action = actions."focus-monitor-right";
+
+        # Column/window sizing
+        "Mod+Minus".action = actions."set-column-width" "-10%";
+        "Mod+Equal".action = actions."set-column-width" "+10%";
+        "Mod+Shift+Minus".action = actions."set-window-height" "-10%";
+        "Mod+Shift+Equal".action = actions."set-window-height" "+10%";
+        "Mod+Shift+R".action = actions."reset-window-height";
+        "Mod+W".action = actions."switch-preset-column-width";
+
+        # Screenshots
+        "Mod+Shift+S".action = spawn "sh" "-c" "${chompBin} --mode image-area";
+        "Print".action = spawn "sh" "-c" "${chompBin} --mode image-screen";
+        "Alt+Print".action = spawn "sh" "-c" "${chompBin} --mode image-window";
+
+        # Screen recordings
+        "Shift+Alt+S".action = spawn "sh" "-c" "${chompBin} --mode video-area";
+        "Shift+Print".action = spawn "sh" "-c" "${chompBin} --mode video-screen";
+
+        # Media keys
+        "XF86AudioRaiseVolume".action = spawn "wpctl" "set-volume" "@DEFAULT_AUDIO_SINK@" "5%+";
+        "XF86AudioLowerVolume".action = spawn "wpctl" "set-volume" "@DEFAULT_AUDIO_SINK@" "5%-";
+        "XF86AudioMute".action = spawn "wpctl" "set-mute" "@DEFAULT_AUDIO_SINK@" "toggle";
+        "XF86AudioPlay".action = spawn (lib.getExe pkgs.playerctl) "play-pause";
+        "XF86AudioPrev".action = spawn (lib.getExe pkgs.playerctl) "previous";
+        "XF86AudioNext".action = spawn (lib.getExe pkgs.playerctl) "next";
+
+        # Brightness
+        "XF86MonBrightnessUp".action = spawn (lib.getExe pkgs.brightnessctl) "set" "10%+";
+        "XF86MonBrightnessDown".action = spawn (lib.getExe pkgs.brightnessctl) "set" "10%-";
+
+        # Audio device switching
+        "Mod+F3".action = spawn audioSwitchBin "toggle";
+      };
+    };
+}

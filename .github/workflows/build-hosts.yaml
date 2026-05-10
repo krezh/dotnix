@@ -70,7 +70,7 @@ jobs:
         env:
           HOST_NAME: ${{ matrix.name }}
         run: |
-          diff=$(nix run .#ncd -- diff "${HOST_NAME}.json" result --color never)
+          diff=$(nix run .#ncd -- diff "${HOST_NAME}.json" result --color never --format diff)
           echo "output<<EOF" >> $GITHUB_OUTPUT
           echo "$diff" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
@@ -83,7 +83,7 @@ jobs:
           delete: ${{ steps.diff.outputs.output == '' }}
           message: |
             ## 📦 Closure Diff: `${{ matrix.attr }}`
-            ```
+            ```diff
             ${{ steps.diff.outputs.output }}
             ```
 

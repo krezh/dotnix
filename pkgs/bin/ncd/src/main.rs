@@ -31,6 +31,7 @@ use yansi::Paint as _;
 use nix_closure_diff::{
   StorePath,
   diff,
+  diff::OutputFormat,
   store::{
     self,
     StoreBackend,
@@ -42,6 +43,31 @@ struct WriteFmt<W: io::Write>(W);
 impl<W: io::Write> fmt::Write for WriteFmt<W> {
   fn write_str(&mut self, string: &str) -> fmt::Result {
     self.0.write_all(string.as_bytes()).map_err(|_| fmt::Error)
+  }
+}
+
+#[derive(clap::ValueEnum, Clone, Copy, Debug, Default)]
+enum Format {
+  #[default]
+  Text,
+  Diff,
+}
+
+impl fmt::Display for Format {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    match self {
+      Self::Text => write!(f, "text"),
+      Self::Diff => write!(f, "diff"),
+    }
+  }
+}
+
+impl From<Format> for OutputFormat {
+  fn from(f: Format) -> Self {
+    match f {
+      Format::Text => Self::Text,
+      Format::Diff => Self::Diff,
+    }
   }
 }
 
@@ -62,6 +88,11 @@ struct Cli {
       global = true,
   )]
   color: clap::ColorChoice,
+
+  /// Output format. Use `diff` to prefix lines with `+`/`-`/` ` for GitHub
+  /// diff code block rendering.
+  #[arg(long, default_value_t = Format::Text, global = true)]
+  format: Format,
 
   /// Fall back to a backend that is focused solely on absolutely guaranteeing
   /// correct results at the cost of memory usage and query speed.
@@ -165,6 +196,7 @@ fn real_main() -> Result<()> {
     command,
     verbose,
     color,
+    format,
     force_correctness,
   } = Cli::parse();
 
@@ -209,20 +241,6 @@ fn real_main() -> Result<()> {
 
       let mut out = WriteFmt(io::stdout());
 
-      writeln!(
-        out,
-        "{arrows} {old}",
-        arrows = "<<<".bold(),
-        old = old_snapshot.system_path,
-      )?;
-      writeln!(
-        out,
-        "{arrows} {new}",
-        arrows = ">>>".bold(),
-        new = new_snapshot.system_path,
-      )?;
-      writeln!(out)?;
-
       // Convert paths back to StorePath
       let old_paths = old_snapshot
         .paths
@@ -249,6 +267,7 @@ fn real_main() -> Result<()> {
         new_paths,
         old_system_paths,
         new_system_paths,
+        format.into(),
       )?;
 
       if wrote > 0 {

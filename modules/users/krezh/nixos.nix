@@ -9,6 +9,8 @@ in
       ifTheyExist = groups: builtins.filter (group: builtins.hasAttr group config.users.groups) groups;
     in
     {
+      var.username = username;
+
       # Home-manager integration
       home-manager = {
         users.${username} = {

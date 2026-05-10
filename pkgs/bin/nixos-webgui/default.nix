@@ -9,15 +9,15 @@ let
     url = "https://unpkg.com/htmx.org@2.0.4/dist/htmx.min.js";
     hash = "sha256-4gndpcgjVHnzFm3vx3UOHbzVpcGAi3eS/C5nM3aPtEc=";
   };
-in
-buildGoApplication rec {
-  pname = "nixos-webgui";
-  version = "0.1.0";
-
   src = builtins.path {
     path = ./src;
     name = "nixos-webgui-src";
   };
+in
+buildGoApplication {
+  pname = "nixos-webgui";
+  version = "0.1.0";
+  inherit src;
 
   go = go-bin.latestStable;
   modules = "${src}/govendor.toml";
@@ -49,7 +49,6 @@ buildGoApplication rec {
     description = "A modern web GUI for managing NixOS systems";
     homepage = "https://github.com/krezh/dotnix";
     license = licenses.mit;
-    maintainers = [ ];
     mainProgram = "nixos-webgui";
   };
 }
