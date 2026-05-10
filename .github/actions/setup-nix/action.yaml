@@ -65,13 +65,6 @@ runs:
           sandbox = true
           sandbox-fallback = false
 
-    - name: Configure GitHub access token
-      if: inputs.github-token != ''
-      shell: bash
-      env:
-        GITHUB_TOKEN: ${{ inputs.github-token }}
-      run: echo "access-tokens = github.com=$GITHUB_TOKEN" >> "${XDG_CONFIG_HOME:-$HOME/.config}/nix/nix.conf"
-
     - name: Setup Cachix
       if: inputs.skip-cache != 'true' && inputs.cachix-cache != '' && inputs.cachix-token != ''
       uses: cachix/cachix-action@5f2d7c5294214f71b873db4b969586b980625e71 # v17
