@@ -61,8 +61,6 @@ runs:
         github_access_token: ${{ inputs.github-token }}
         lix_conf: |
           accept-flake-config = true
-          sandbox = true
-          sandbox-fallback = false
 
     - name: Setup Cachix
       if: inputs.skip-cache != 'true' && inputs.cachix-cache != '' && inputs.cachix-token != ''
