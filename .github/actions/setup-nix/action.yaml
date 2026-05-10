@@ -64,25 +64,22 @@ runs:
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-install-lix-action-kvm.rules
           sudo udevadm control --reload-rules && sudo udevadm trigger --name-match=kvm
         }
-        arch="$(uname -m)"
-        case "$OSTYPE" in
-          darwin*) sys="$arch-darwin" ;;
-          linux*)  sys="$arch-linux"  ;;
-        esac
-        if [[ ("$sys" =~ .*-linux) && ("$ENABLE_KVM" == 'true') ]]; then
+        if [[ "$(uname -s)" == "Linux" && "$ENABLE_KVM" == 'true' ]]; then
           enable_kvm && echo 'Enabled KVM' || echo 'KVM is not available'
         fi
-        echo "Downloading and running Lix installer..."
+        nix_config=(
+          "experimental-features = nix-command flakes"
+          "accept-flake-config = true"
+          "sandbox = true"
+          "sandbox-fallback = false"
+          "trusted-users = root runner"
+        )
+        [[ -n "$GITHUB_TOKEN" ]] && nix_config+=("access-tokens = github.com=$GITHUB_TOKEN")
         extra_conf=()
-        if [[ -n "$GITHUB_TOKEN" ]]; then
-          extra_conf+=(--extra-conf="access-tokens = github.com=$GITHUB_TOKEN")
-        fi
+        for conf in "${nix_config[@]}"; do extra_conf+=(--extra-conf="$conf"); done
+        echo "Downloading and running Lix installer..."
         curl -sSf -L https://install.lix.systems/lix | bash -s -- install linux \
           --no-confirm --force --enable-flakes \
-          --extra-conf="experimental-features = nix-command flakes" \
-          --extra-conf="accept-flake-config = true" \
-          --extra-conf="sandbox-fallback = false" \
-          --extra-conf="trusted-users = root runner" \
           "${extra_conf[@]}"
         echo "Running Nix profile..."
         . /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh
