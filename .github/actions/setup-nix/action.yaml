@@ -52,7 +52,7 @@ runs:
       uses: wimpysworld/nothing-but-nix@687c797a730352432950c707ab493fcc951818d7 # v10
       with:
         hatchet-protocol: cleave
-        nix-permission-edict: true
+        nix-permission-edict: false
 
     - name: Install Lix
       uses: samueldr/lix-gha-installer-action@7b7f14d320d6aacfb65bd1ef761566b3b69e474c # v2026-02-22
