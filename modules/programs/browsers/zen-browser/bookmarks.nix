@@ -19,14 +19,8 @@ _: {
           };
           "AlertManager" = {
             id = "alertmanager";
-            url = "https://alertmanager.talos.plexuz.xyz";
+            url = "https://alertmanager.plexuz.xyz";
             position = 104;
-            isEssential = true;
-          };
-          "Ntfy" = {
-            id = "ntfy";
-            url = "https://ntfy.plexuz.xyz";
-            position = 105;
             isEssential = true;
           };
           "ChatGPT" = {

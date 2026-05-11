@@ -20,7 +20,7 @@ pub use service::UploadService;
 
 use anyhow::Result;
 
-/// Uploads a file to Zipline and returns the public URL.
+/// Uploads a file to Zipline and returns the public URL and service name.
 ///
 /// This is a convenience wrapper around the Zipline backend.
 pub fn upload_to_zipline(
@@ -28,10 +28,11 @@ pub fn upload_to_zipline(
     token_file: &str,
     use_original_name: bool,
     file_path: &str,
-) -> Result<String> {
+) -> Result<(String, &'static str)> {
     use backend::zipline::ZiplineUploader;
     use service::UploadService;
 
     let uploader = ZiplineUploader::new(zipline_url, token_file, use_original_name)?;
-    uploader.upload(file_path)
+    let url = uploader.upload(file_path)?;
+    Ok((url, uploader.name()))
 }

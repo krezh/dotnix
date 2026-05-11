@@ -12,7 +12,6 @@
         ffmpeg
         gowall
         await
-        ntfy-sh
         hwatch
         btop
         retry

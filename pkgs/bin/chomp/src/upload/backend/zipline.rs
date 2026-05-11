@@ -48,6 +48,10 @@ impl ZiplineUploader {
 }
 
 impl UploadService for ZiplineUploader {
+    fn name(&self) -> &'static str {
+        "Zipline"
+    }
+
     fn upload(&self, file_path: &str) -> Result<String> {
         let path = std::path::Path::new(file_path);
         let file_name = path

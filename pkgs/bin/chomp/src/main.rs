@@ -248,7 +248,7 @@ fn should_upload(args: &Args) -> bool {
 
 /// Uploads file to Zipline.
 fn upload_file(args: &Args, file_path: &str, notifier: &ui::Notifier) -> Result<String> {
-    let url = upload::upload_to_zipline(
+    let (url, service_name) = upload::upload_to_zipline(
         args.zipline_url
             .as_ref()
             .expect("zipline_url must be set after merge_with_config"),
@@ -276,7 +276,7 @@ fn upload_file(args: &Args, file_path: &str, notifier: &ui::Notifier) -> Result<
     } else {
         "Upload successful"
     };
-    notifier.send_with_action(message, &url);
+    notifier.send_with_action(service_name, message, &url);
 
     println!("Uploaded: {}", url);
 

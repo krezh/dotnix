@@ -14,7 +14,7 @@
             rounding = 15;
           };
           zipline = {
-            url = "https://zipline.talos.plexuz.xyz";
+            url = "https://zipline.plexuz.xyz";
             token = config.home-manager.users.${user}.sops.secrets."zipline/token".path;
             useOriginalName = true;
           };

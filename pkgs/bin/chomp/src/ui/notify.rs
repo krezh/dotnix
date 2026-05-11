@@ -33,8 +33,9 @@ impl Notifier {
     ///
     /// Forks a background process to wait for the button click, allowing the main
     /// chomp process to exit immediately.
-    pub fn send_with_action(&self, message: &str, url: &str) {
+    pub fn send_with_action(&self, title: &str, message: &str, url: &str) {
         let url_owned = url.to_string();
+        let title_owned = title.to_string();
         let message_owned = message.to_string();
 
         // Fork a background process to handle the notification action
@@ -46,7 +47,8 @@ impl Notifier {
             Ok(nix::unistd::ForkResult::Child) => {
                 // Child process handles the notification
                 match Notification::new()
-                    .summary(crate::APP_NAME)
+                    .appname(crate::APP_NAME)
+                    .summary(&title_owned)
                     .body(&message_owned)
                     .urgency(Urgency::Normal)
                     .timeout(Timeout::Never)
@@ -69,9 +71,10 @@ impl Notifier {
             }
             Err(_) => {
                 // Fork failed, fall back to simple notification
-                let body = format!("{}\n\n{}", message, url);
+                let body = format!("{}\n\n{}", message_owned, url_owned);
                 let _ = Notification::new()
-                    .summary(crate::APP_NAME)
+                    .appname(crate::APP_NAME)
+                    .summary(&title_owned)
                     .body(&body)
                     .urgency(Urgency::Normal)
                     .timeout(Timeout::Never)
@@ -82,6 +85,7 @@ impl Notifier {
 
     fn send(&self, app_name: &str, message: &str, urgency: Urgency) {
         if let Err(e) = Notification::new()
+            .appname(crate::APP_NAME)
             .summary(app_name)
             .body(message)
             .urgency(urgency)
