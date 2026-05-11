@@ -11,8 +11,7 @@ impl Cache {
     /// Creates a new cache instance.
     pub fn new() -> Result<Self> {
         let cache_dir = Self::get_cache_dir()?;
-        fs::create_dir_all(&cache_dir)
-            .context("Failed to create cache directory")?;
+        fs::create_dir_all(&cache_dir).context("Failed to create cache directory")?;
 
         Ok(Self { cache_dir })
     }
@@ -49,22 +48,25 @@ impl Cache {
     }
 
     /// Extracts an archive file to the cache for a specific version.
-    pub fn cache_version_from_archive(&self, version: &str, archive_path: &Path) -> Result<PathBuf> {
+    pub fn cache_version_from_archive(
+        &self,
+        version: &str,
+        archive_path: &Path,
+    ) -> Result<PathBuf> {
         tracing::info!("Caching OptiScaler version {} from archive", version);
 
         let version_dir = self.version_path(version);
 
         if version_dir.exists() {
             tracing::info!("Version {} already cached, removing old cache", version);
-            fs::remove_dir_all(&version_dir)
-                .context("Failed to remove old cache")?;
+            fs::remove_dir_all(&version_dir).context("Failed to remove old cache")?;
         }
 
-        fs::create_dir_all(&version_dir)
-            .context("Failed to create version cache directory")?;
+        fs::create_dir_all(&version_dir).context("Failed to create version cache directory")?;
 
         // Determine archive type by extension
-        let extension = archive_path.extension()
+        let extension = archive_path
+            .extension()
             .and_then(|e| e.to_str())
             .unwrap_or("");
 
@@ -79,15 +81,12 @@ impl Cache {
     }
 
     fn extract_zip(&self, zip_path: &Path, dest_dir: &Path) -> Result<()> {
-        let file = fs::File::open(zip_path)
-            .context("Failed to open ZIP file")?;
+        let file = fs::File::open(zip_path).context("Failed to open ZIP file")?;
 
-        let mut archive = zip::ZipArchive::new(file)
-            .context("Failed to read ZIP archive")?;
+        let mut archive = zip::ZipArchive::new(file).context("Failed to read ZIP archive")?;
 
         for i in 0..archive.len() {
-            let mut file = archive.by_index(i)
-                .context("Failed to read ZIP entry")?;
+            let mut file = archive.by_index(i).context("Failed to read ZIP entry")?;
 
             let outpath = match file.enclosed_name() {
                 Some(path) => dest_dir.join(path),
@@ -95,19 +94,15 @@ impl Cache {
             };
 
             if file.name().ends_with('/') {
-                fs::create_dir_all(&outpath)
-                    .context("Failed to create directory")?;
+                fs::create_dir_all(&outpath).context("Failed to create directory")?;
             } else {
                 if let Some(parent) = outpath.parent() {
-                    fs::create_dir_all(parent)
-                        .context("Failed to create parent directory")?;
+                    fs::create_dir_all(parent).context("Failed to create parent directory")?;
                 }
 
-                let mut outfile = fs::File::create(&outpath)
-                    .context("Failed to create file")?;
+                let mut outfile = fs::File::create(&outpath).context("Failed to create file")?;
 
-                std::io::copy(&mut file, &mut outfile)
-                    .context("Failed to extract file")?;
+                std::io::copy(&mut file, &mut outfile).context("Failed to extract file")?;
             }
         }
 
@@ -124,8 +119,7 @@ impl Cache {
     pub fn remove_version(&self, version: &str) -> Result<()> {
         let version_dir = self.version_path(version);
         if version_dir.exists() {
-            fs::remove_dir_all(&version_dir)
-                .context("Failed to remove cached version")?;
+            fs::remove_dir_all(&version_dir).context("Failed to remove cached version")?;
             tracing::info!("Removed cached version {}", version);
         }
         Ok(())
@@ -155,10 +149,8 @@ impl Cache {
     /// Clears the entire cache.
     pub fn clear(&self) -> Result<()> {
         if self.cache_dir.exists() {
-            fs::remove_dir_all(&self.cache_dir)
-                .context("Failed to clear cache")?;
-            fs::create_dir_all(&self.cache_dir)
-                .context("Failed to recreate cache directory")?;
+            fs::remove_dir_all(&self.cache_dir).context("Failed to clear cache")?;
+            fs::create_dir_all(&self.cache_dir).context("Failed to recreate cache directory")?;
             tracing::info!("Cleared OptiScaler cache");
         }
         Ok(())

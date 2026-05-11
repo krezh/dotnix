@@ -82,12 +82,13 @@ fn find_exe_in_directory(dir: &std::path::Path, recursive: bool) -> Result<Optio
                     // Skip common launchers/updaters/crashreporters
                     if let Some(filename) = path.file_stem().and_then(|s| s.to_str()) {
                         let filename_lower = filename.to_lowercase();
-                        if filename_lower.contains("launcher") ||
-                            filename_lower.contains("updater") ||
-                            filename_lower.contains("crash") ||
-                            filename_lower.contains("unins") ||
-                            filename_lower.contains("setup") ||
-                            filename_lower == "unrealcefsubprocess" {
+                        if filename_lower.contains("launcher")
+                            || filename_lower.contains("updater")
+                            || filename_lower.contains("crash")
+                            || filename_lower.contains("unins")
+                            || filename_lower.contains("setup")
+                            || filename_lower == "unrealcefsubprocess"
+                        {
                             continue;
                         }
                     }
@@ -116,7 +117,11 @@ fn find_exe_in_directory(dir: &std::path::Path, recursive: bool) -> Result<Optio
 }
 
 /// Recursively searches for game executables with depth limit.
-fn find_exe_recursive(dir: &std::path::Path, current_depth: usize, max_depth: usize) -> Result<Option<PathBuf>> {
+fn find_exe_recursive(
+    dir: &std::path::Path,
+    current_depth: usize,
+    max_depth: usize,
+) -> Result<Option<PathBuf>> {
     if current_depth >= max_depth {
         return Ok(None);
     }
@@ -149,7 +154,8 @@ fn find_exe_recursive(dir: &std::path::Path, current_depth: usize, max_depth: us
                     || dir_name_lower == "easyanticheat"
                     || dir_name_lower == "_commonredist"
                     || dir_name_lower.starts_with(".")
-                    || dir_name_lower.contains("redist") {
+                    || dir_name_lower.contains("redist")
+                {
                     continue;
                 }
             }
@@ -191,7 +197,8 @@ fn should_skip_executable(path: &std::path::Path) -> bool {
             || filename_lower.contains("anticheat")
             || filename_lower.contains("guide")
             || filename_lower == "unrealcefsubprocess"
-            || filename_lower == "start_protected_game" {
+            || filename_lower == "start_protected_game"
+        {
             return true;
         }
     }

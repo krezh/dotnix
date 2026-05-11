@@ -51,7 +51,9 @@ impl InstallDialog {
         // Proxy DLL selection group
         let proxy_group = adw::PreferencesGroup::new();
         proxy_group.set_title("Proxy DLL");
-        proxy_group.set_description(Some("Select which DLL to use as proxy (dxgi.dll is recommended for most games)"));
+        proxy_group.set_description(Some(
+            "Select which DLL to use as proxy (dxgi.dll is recommended for most games)",
+        ));
 
         let proxy_options = ["dxgi.dll", "d3d11.dll", "d3d12.dll", "winmm.dll"];
         let proxy_model = gtk4::StringList::new(&proxy_options);

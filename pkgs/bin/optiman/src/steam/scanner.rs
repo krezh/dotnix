@@ -8,17 +8,19 @@ use crate::game_detection::find_game_executable;
 /// Checks if an app should be filtered out based on name or app ID.
 fn should_filter_app(name: &str, app_id: &str) -> bool {
     let name_lower = name.to_lowercase();
-    
+
     // Filter by name patterns
-    if name_lower.starts_with("proton ") 
+    if name_lower.starts_with("proton ")
         || name_lower == "proton experimental"
-        || name_lower.contains("proton ") && (name_lower.contains("runtime") || name_lower.contains("easyanticheat"))
+        || name_lower.contains("proton ")
+            && (name_lower.contains("runtime") || name_lower.contains("easyanticheat"))
         || name_lower.contains("steam linux runtime")
         || name_lower.contains("steam runtime")
-        || name_lower.contains("redistributables") {
+        || name_lower.contains("redistributables")
+    {
         return true;
     }
-    
+
     // Filter by known tool app IDs
     // Proton versions: 1493710 (Experimental), 3658110 (10.0), 2180100 (9.0), 1887720 (Hotfix)
     // Steam Runtime: 1628350 (sniper), 1391110 (soldier), 1070560 (scout)
@@ -26,36 +28,36 @@ fn should_filter_app(name: &str, app_id: &str) -> bool {
     // Steamworks: 228980
     // Lossless Scaling: 993090
     let tool_app_ids = [
-        "1493710", "3658110", "2180100", "1887720", "1391110",
-        "1628350", "1070560", "1826330", "228980", "993090"
+        "1493710", "3658110", "2180100", "1887720", "1391110", "1628350", "1070560", "1826330",
+        "228980", "993090",
     ];
-    
+
     if tool_app_ids.contains(&app_id) {
         return true;
     }
-    
+
     false
 }
-
-
 
 /// Scans a Steam library directory for installed games.
 pub fn scan_library(library_path: &Path) -> Result<Vec<SteamGame>> {
     let steamapps = library_path.join("steamapps");
 
     if !steamapps.exists() {
-        anyhow::bail!("steamapps directory not found in library: {:?}", library_path);
+        anyhow::bail!(
+            "steamapps directory not found in library: {:?}",
+            library_path
+        );
     }
 
     let mut games = Vec::new();
 
     // Read all appmanifest_*.acf files
-    let entries = fs::read_dir(&steamapps)
-        .context("Failed to read steamapps directory")?;
+    let entries = fs::read_dir(&steamapps).context("Failed to read steamapps directory")?;
 
     for entry in entries.flatten() {
         let path = entry.path();
-        
+
         if let Some(filename) = path.file_name().and_then(|n| n.to_str()) {
             if filename.starts_with("appmanifest_") && filename.ends_with(".acf") {
                 match parse_app_manifest(&path) {
@@ -64,29 +66,32 @@ pub fn scan_library(library_path: &Path) -> Result<Vec<SteamGame>> {
                         if should_filter_app(&game_info.name, &game_info.app_id) {
                             continue;
                         }
-                        
-                        let install_path = steamapps
-                            .join("common")
-                            .join(&game_info.install_dir);
+
+                        let install_path = steamapps.join("common").join(&game_info.install_dir);
 
                         if install_path.exists() {
-                            let mut game = SteamGame::new(
-                                game_info.app_id,
-                                game_info.name,
-                                install_path,
-                            );
-                            
+                            let mut game =
+                                SteamGame::new(game_info.app_id, game_info.name, install_path);
+
                             // Try to detect the game executable
                             match find_game_executable(&game) {
                                 Ok(exe_path) => {
-                                    tracing::info!("Detected executable for {}: {:?}", game.name, exe_path);
+                                    tracing::info!(
+                                        "Detected executable for {}: {:?}",
+                                        game.name,
+                                        exe_path
+                                    );
                                     game = game.with_executable(exe_path);
                                 }
                                 Err(e) => {
-                                    tracing::warn!("Could not find executable for {}: {}", game.name, e);
+                                    tracing::warn!(
+                                        "Could not find executable for {}: {}",
+                                        game.name,
+                                        e
+                                    );
                                 }
                             }
-                            
+
                             games.push(game);
                         }
                     }
@@ -104,8 +109,7 @@ pub fn scan_library(library_path: &Path) -> Result<Vec<SteamGame>> {
 
 /// Parses an appmanifest_*.acf file.
 fn parse_app_manifest(path: &Path) -> Result<GameInfo> {
-    let contents = fs::read_to_string(path)
-        .context("Failed to read appmanifest file")?;
+    let contents = fs::read_to_string(path).context("Failed to read appmanifest file")?;
 
     let parsed = keyvalues_parser::Vdf::parse(&contents)
         .map_err(|e| anyhow::anyhow!("Failed to parse VDF: {}", e))?;

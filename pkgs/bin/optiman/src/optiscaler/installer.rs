@@ -3,11 +3,11 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
+use super::cache::Cache;
+use super::downloader::Downloader;
+use super::github::Release;
 use crate::config::TrackedGames;
 use crate::steam::SteamGame;
-use super::github::Release;
-use super::downloader::Downloader;
-use super::cache::Cache;
 
 pub struct Installer {
     tracked_games: Arc<Mutex<TrackedGames>>,
@@ -28,11 +28,11 @@ impl Installer {
     fn extract_archive(archive_path: &Path, dest_dir: &Path) -> Result<()> {
         tracing::info!("Extracting {:?} to {:?}", archive_path, dest_dir);
 
-        fs::create_dir_all(dest_dir)
-            .context("Failed to create extraction directory")?;
+        fs::create_dir_all(dest_dir).context("Failed to create extraction directory")?;
 
         // Determine archive type by extension
-        let extension = archive_path.extension()
+        let extension = archive_path
+            .extension()
             .and_then(|e| e.to_str())
             .unwrap_or("");
 
@@ -48,15 +48,12 @@ impl Installer {
 
     /// Extracts a ZIP file to a destination directory.
     fn extract_zip(zip_path: &Path, dest_dir: &Path) -> Result<()> {
-        let file = fs::File::open(zip_path)
-            .context("Failed to open ZIP file")?;
+        let file = fs::File::open(zip_path).context("Failed to open ZIP file")?;
 
-        let mut archive = zip::ZipArchive::new(file)
-            .context("Failed to read ZIP archive")?;
+        let mut archive = zip::ZipArchive::new(file).context("Failed to read ZIP archive")?;
 
         for i in 0..archive.len() {
-            let mut file = archive.by_index(i)
-                .context("Failed to read ZIP entry")?;
+            let mut file = archive.by_index(i).context("Failed to read ZIP entry")?;
 
             let outpath = match file.enclosed_name() {
                 Some(path) => dest_dir.join(path),
@@ -64,19 +61,15 @@ impl Installer {
             };
 
             if file.name().ends_with('/') {
-                fs::create_dir_all(&outpath)
-                    .context("Failed to create directory")?;
+                fs::create_dir_all(&outpath).context("Failed to create directory")?;
             } else {
                 if let Some(parent) = outpath.parent() {
-                    fs::create_dir_all(parent)
-                        .context("Failed to create parent directory")?;
+                    fs::create_dir_all(parent).context("Failed to create parent directory")?;
                 }
 
-                let mut outfile = fs::File::create(&outpath)
-                    .context("Failed to create file")?;
+                let mut outfile = fs::File::create(&outpath).context("Failed to create file")?;
 
-                std::io::copy(&mut file, &mut outfile)
-                    .context("Failed to extract file")?;
+                std::io::copy(&mut file, &mut outfile).context("Failed to extract file")?;
             }
         }
 
@@ -103,8 +96,7 @@ UpscalerOutput=FSR31
 FrameGenOutput=FSR3FG
 "#;
 
-        fs::write(path, default_ini)
-            .context("Failed to write default OptiScaler.ini")?;
+        fs::write(path, default_ini).context("Failed to write default OptiScaler.ini")?;
 
         tracing::info!("Created default OptiScaler.ini at {:?}", path);
         Ok(())
@@ -121,40 +113,60 @@ FrameGenOutput=FSR3FG
     where
         F: FnMut(u64, u64),
     {
-        tracing::info!("Installing OptiScaler {} to {}", release.tag_name, game.name);
+        tracing::info!(
+            "Installing OptiScaler {} to {}",
+            release.tag_name,
+            game.name
+        );
 
         // Check if this version is already cached
         let extract_dir = if self.cache.has_version(&release.tag_name) {
             tracing::info!("Using cached version {}", release.tag_name);
-            self.cache.get_version_path(&release.tag_name)
+            self.cache
+                .get_version_path(&release.tag_name)
                 .context("Failed to get cached version path")?
         } else {
             tracing::info!("Version {} not cached, downloading", release.tag_name);
 
             // Find the asset to download (look for archive files)
-            tracing::debug!("Available assets: {:?}", release.assets.iter().map(|a| &a.name).collect::<Vec<_>>());
-            
-            let asset = release.assets.iter()
+            tracing::debug!(
+                "Available assets: {:?}",
+                release.assets.iter().map(|a| &a.name).collect::<Vec<_>>()
+            );
+
+            let asset = release
+                .assets
+                .iter()
                 .find(|a| {
                     let name_lower = a.name.to_lowercase();
-                    name_lower.ends_with(".zip") || 
-                    name_lower.ends_with(".7z") || 
-                    name_lower.ends_with(".rar")
+                    name_lower.ends_with(".zip")
+                        || name_lower.ends_with(".7z")
+                        || name_lower.ends_with(".rar")
                 })
                 .context(format!(
                     "No archive asset found in release. Available assets: {}",
-                    release.assets.iter().map(|a| a.name.as_str()).collect::<Vec<_>>().join(", ")
+                    release
+                        .assets
+                        .iter()
+                        .map(|a| a.name.as_str())
+                        .collect::<Vec<_>>()
+                        .join(", ")
                 ))?;
 
             // Download the release
-            let archive_path = self.downloader.download_to_temp(
-                &asset.browser_download_url,
-                &asset.name,
-                &mut progress_callback,
-            ).await?;
+            let archive_path = self
+                .downloader
+                .download_to_temp(
+                    &asset.browser_download_url,
+                    &asset.name,
+                    &mut progress_callback,
+                )
+                .await?;
 
             // Cache the version
-            let cached_path = self.cache.cache_version_from_archive(&release.tag_name, &archive_path)?;
+            let cached_path = self
+                .cache
+                .cache_version_from_archive(&release.tag_name, &archive_path)?;
 
             // Clean up downloaded archive
             let _ = fs::remove_file(archive_path);
@@ -163,7 +175,9 @@ FrameGenOutput=FSR3FG
         };
 
         // Get the directory where the game executable is located
-        let target_dir = game.executable_path.as_ref()
+        let target_dir = game
+            .executable_path
+            .as_ref()
             .and_then(|p| p.parent())
             .context("Could not determine executable directory - no executable path found")?;
 
@@ -210,8 +224,7 @@ FrameGenOutput=FSR3FG
         // - nvngx_dlss.dll (if bundled)
         // - Other dependencies
 
-        for entry in fs::read_dir(source_dir)
-            .context("Failed to read source directory")? {
+        for entry in fs::read_dir(source_dir).context("Failed to read source directory")? {
             let entry = entry?;
             let file_type = entry.file_type()?;
             let source_path = entry.path();
@@ -234,8 +247,7 @@ FrameGenOutput=FSR3FG
 
     /// Recursively copies a directory.
     fn copy_directory_recursive(&self, source: &Path, dest: &Path) -> Result<()> {
-        fs::create_dir_all(dest)
-            .context("Failed to create destination directory")?;
+        fs::create_dir_all(dest).context("Failed to create destination directory")?;
 
         for entry in fs::read_dir(source)? {
             let entry = entry?;
@@ -256,13 +268,16 @@ FrameGenOutput=FSR3FG
     pub fn remove(&self, game: &SteamGame) -> Result<()> {
         tracing::info!("Removing OptiScaler from {}", game.name);
 
-        let target_dir = game.executable_path.as_ref()
+        let target_dir = game
+            .executable_path
+            .as_ref()
             .and_then(|p| p.parent())
             .context("Could not determine executable directory - no executable path found")?;
 
         // Get proxy DLL name from tracked games
         let proxy_dll = if let Ok(tracked) = self.tracked_games.lock() {
-            tracked.get_game(&game.app_id)
+            tracked
+                .get_game(&game.app_id)
                 .and_then(|e| e.proxy_dll.clone())
         } else {
             None
@@ -272,8 +287,7 @@ FrameGenOutput=FSR3FG
         if let Some(proxy_dll_name) = proxy_dll {
             let proxy_path = target_dir.join(&proxy_dll_name);
             if proxy_path.exists() {
-                fs::remove_file(&proxy_path)
-                    .context("Failed to remove proxy DLL")?;
+                fs::remove_file(&proxy_path).context("Failed to remove proxy DLL")?;
                 tracing::info!("Removed {}", proxy_dll_name);
             }
         }
@@ -290,7 +304,7 @@ FrameGenOutput=FSR3FG
             "nvngx_dlss.dll",
             "nvngx.dll",
         ];
-        
+
         for file in files_to_remove {
             let path = target_dir.join(file);
             if path.exists() {
@@ -301,7 +315,7 @@ FrameGenOutput=FSR3FG
                 }
             }
         }
-        
+
         // Remove directories
         let dirs_to_remove = ["D3D12_Optiscaler", "DlssOverrides", "Licenses"];
         for dir in dirs_to_remove {
@@ -340,7 +354,8 @@ FrameGenOutput=FSR3FG
 
                 // Verify the proxy DLL actually exists
                 if let Some(proxy_dll) = &entry.proxy_dll {
-                    if let Some(target_dir) = game.executable_path.as_ref().and_then(|p| p.parent()) {
+                    if let Some(target_dir) = game.executable_path.as_ref().and_then(|p| p.parent())
+                    {
                         let proxy_path = target_dir.join(proxy_dll);
                         return proxy_path.exists();
                     }

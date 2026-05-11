@@ -1,7 +1,7 @@
 //! Zipline upload functionality
 
 use anyhow::{Context, Result};
-use reqwest::blocking::{multipart, Client};
+use reqwest::blocking::{Client, multipart};
 use serde::Deserialize;
 use std::fs;
 use std::time::Duration;
@@ -45,7 +45,6 @@ impl ZiplineUploader {
             use_original_name,
         })
     }
-
 }
 
 impl UploadService for ZiplineUploader {
@@ -96,8 +95,8 @@ impl UploadService for ZiplineUploader {
         }
 
         let body = response.text().context("Failed to read response body")?;
-        let zipline_response: ZiplineResponse = serde_json::from_str(&body)
-            .context("Failed to parse Zipline response")?;
+        let zipline_response: ZiplineResponse =
+            serde_json::from_str(&body).context("Failed to parse Zipline response")?;
 
         if zipline_response.files.is_empty() {
             anyhow::bail!("No files in Zipline response");

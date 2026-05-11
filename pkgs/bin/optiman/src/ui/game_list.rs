@@ -31,7 +31,7 @@ impl GameListView {
 
     pub fn add_game(&self, name: &str, app_id: &str, installed: bool) {
         let row = gtk4::ListBoxRow::new();
-        
+
         let hbox = gtk4::Box::new(gtk4::Orientation::Horizontal, 12);
         hbox.set_margin_start(12);
         hbox.set_margin_end(12);
@@ -49,12 +49,12 @@ impl GameListView {
 
         // Game info
         let vbox = gtk4::Box::new(gtk4::Orientation::Vertical, 4);
-        
+
         let name_label = gtk4::Label::new(Some(name));
         name_label.set_halign(gtk4::Align::Start);
         name_label.set_ellipsize(gtk4::pango::EllipsizeMode::End);
         name_label.set_widget_name("game_name");
-        
+
         let id_label = gtk4::Label::new(Some(&format!("AppID: {}", app_id)));
         id_label.set_halign(gtk4::Align::Start);
         id_label.add_css_class("dim-label");
@@ -66,12 +66,16 @@ impl GameListView {
 
         hbox.append(&status_label);
         hbox.append(&vbox);
-        hbox.set_widget_name(if installed { "installed" } else { "not_installed" });
+        hbox.set_widget_name(if installed {
+            "installed"
+        } else {
+            "not_installed"
+        });
 
         row.set_child(Some(&hbox));
         self.list_box.append(&row);
     }
-    
+
     pub fn connect_row_selected<F>(&self, callback: F)
     where
         F: Fn(Option<(String, String, bool)>) + 'static,
@@ -80,15 +84,15 @@ impl GameListView {
             let game_data = row.and_then(|r| {
                 let child = r.child()?;
                 let hbox = child.clone().downcast::<gtk4::Box>().ok()?;
-                
+
                 let installed = hbox.widget_name() == "installed";
-                
+
                 let mut first_child = hbox.first_child();
                 while let Some(child) = first_child.clone() {
                     if let Ok(vbox) = child.clone().downcast::<gtk4::Box>() {
                         let mut name = None;
                         let mut app_id = None;
-                        
+
                         let mut vbox_child = vbox.first_child();
                         while let Some(label_widget) = vbox_child.clone() {
                             if let Ok(label) = label_widget.clone().downcast::<gtk4::Label>() {
@@ -101,17 +105,17 @@ impl GameListView {
                             }
                             vbox_child = label_widget.next_sibling();
                         }
-                        
+
                         if let (Some(n), Some(a)) = (name, app_id) {
                             return Some((n, a, installed));
                         }
                     }
                     first_child = child.next_sibling();
                 }
-                
+
                 None
             });
-            
+
             callback(game_data);
         });
     }
@@ -126,12 +130,14 @@ impl GameListView {
                         // Check if this is the right row by finding the app_id label
                         let mut hbox_child = hbox.first_child();
                         let mut found_match = false;
-                        
+
                         while let Some(child) = hbox_child.clone() {
                             if let Ok(vbox) = child.clone().downcast::<gtk4::Box>() {
                                 let mut vbox_child = vbox.first_child();
                                 while let Some(label_widget) = vbox_child.clone() {
-                                    if let Ok(label) = label_widget.clone().downcast::<gtk4::Label>() {
+                                    if let Ok(label) =
+                                        label_widget.clone().downcast::<gtk4::Label>()
+                                    {
                                         if label.widget_name() == "app_id" {
                                             let text = label.text();
                                             if let Some(id) = text.strip_prefix("AppID: ") {
@@ -147,7 +153,7 @@ impl GameListView {
                             }
                             hbox_child = child.next_sibling();
                         }
-                        
+
                         if found_match {
                             // Update the status indicator
                             let mut hbox_child = hbox.first_child();
@@ -162,9 +168,13 @@ impl GameListView {
                                     } else {
                                         status_label.add_css_class("dim-label");
                                     }
-                                    
+
                                     // Update hbox widget name
-                                    hbox.set_widget_name(if installed { "installed" } else { "not_installed" });
+                                    hbox.set_widget_name(if installed {
+                                        "installed"
+                                    } else {
+                                        "not_installed"
+                                    });
                                     return;
                                 }
                                 hbox_child = child.next_sibling();

@@ -4,13 +4,13 @@ use anyhow::{Context, Result};
 use wayland_client::Connection;
 
 use crate::compositor::get_outputs;
-use crate::render::{convert_argb_to_rgba, Rect};
+use crate::render::{Rect, convert_argb_to_rgba};
 
 /// Captures a screenshot directly given a rect and saves it to a file.
 pub fn capture_screenshot(rect: Rect, output_path: &str) -> Result<()> {
     let conn = Connection::connect_to_env().context("Failed to connect to Wayland")?;
     let outputs = get_outputs(&conn)?;
-    
+
     capture_and_save(&conn, &outputs, rect, Some(output_path))
 }
 
@@ -44,16 +44,18 @@ pub fn capture_and_save(
     // Save or write to stdout
     match output_path {
         Some("-") => {
-            use image::{codecs::png::PngEncoder, ImageEncoder};
+            use image::{ImageEncoder, codecs::png::PngEncoder};
 
             let mut stdout = std::io::stdout().lock();
             let encoder = PngEncoder::new(&mut stdout);
-            encoder.write_image(
-                img.as_raw(),
-                cropped.width,
-                cropped.height,
-                image::ExtendedColorType::Rgba8,
-            ).context("Failed to write image to stdout")?;
+            encoder
+                .write_image(
+                    img.as_raw(),
+                    cropped.width,
+                    cropped.height,
+                    image::ExtendedColorType::Rgba8,
+                )
+                .context("Failed to write image to stdout")?;
         }
         Some(path) => {
             img.save(path)

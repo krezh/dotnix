@@ -1,7 +1,7 @@
 //! CLI argument parsing and configuration merging
 
 use clap::{CommandFactory, Parser};
-use clap_complete::{generate, Shell};
+use clap_complete::{Shell, generate};
 
 use crate::config::{Config, FontWeight};
 
@@ -115,8 +115,10 @@ impl Args {
 
         // Merge upload settings
         self.zipline_url.get_or_insert(config.upload.zipline.url);
-        self.zipline_token.get_or_insert(config.upload.zipline.token);
-        self.original_name.get_or_insert(config.upload.zipline.use_original_name);
+        self.zipline_token
+            .get_or_insert(config.upload.zipline.token);
+        self.original_name
+            .get_or_insert(config.upload.zipline.use_original_name);
 
         // Merge capture settings
         self.save_path.get_or_insert(config.capture.save_path);

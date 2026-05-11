@@ -46,8 +46,7 @@ impl TrackedGames {
             .context("Could not determine config directory")?
             .join("optiman");
 
-        fs::create_dir_all(&config_dir)
-            .context("Failed to create config directory")?;
+        fs::create_dir_all(&config_dir).context("Failed to create config directory")?;
 
         Ok(config_dir.join("tracked_games.json"))
     }
@@ -61,11 +60,10 @@ impl TrackedGames {
             return Ok(Self::default());
         }
 
-        let contents = fs::read_to_string(&path)
-            .context("Failed to read tracked games file")?;
+        let contents = fs::read_to_string(&path).context("Failed to read tracked games file")?;
 
-        let tracked_games: TrackedGames = serde_json::from_str(&contents)
-            .context("Failed to parse tracked games JSON")?;
+        let tracked_games: TrackedGames =
+            serde_json::from_str(&contents).context("Failed to parse tracked games JSON")?;
 
         tracing::info!("Loaded {} tracked games", tracked_games.games.len());
         Ok(tracked_games)
@@ -75,11 +73,10 @@ impl TrackedGames {
     pub fn save(&self) -> Result<()> {
         let path = Self::config_path()?;
 
-        let contents = serde_json::to_string_pretty(self)
-            .context("Failed to serialize tracked games")?;
+        let contents =
+            serde_json::to_string_pretty(self).context("Failed to serialize tracked games")?;
 
-        fs::write(&path, contents)
-            .context("Failed to write tracked games file")?;
+        fs::write(&path, contents).context("Failed to write tracked games file")?;
 
         tracing::debug!("Saved tracked games to {:?}", path);
         Ok(())

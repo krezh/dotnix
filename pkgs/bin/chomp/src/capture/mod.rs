@@ -32,8 +32,10 @@ pub(crate) fn capture_region(
 
     log::info!(
         "Capturing {}x{} at ({},{}) from output",
-        local_rect.width, local_rect.height,
-        local_rect.x, local_rect.y
+        local_rect.width,
+        local_rect.height,
+        local_rect.x,
+        local_rect.y
     );
 
     let captured = capture_output(conn, output)?;

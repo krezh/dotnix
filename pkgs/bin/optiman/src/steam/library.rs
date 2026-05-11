@@ -17,8 +17,8 @@ pub fn find_steam_libraries() -> Result<Vec<PathBuf>> {
         anyhow::bail!("libraryfolders.vdf not found at {:?}", library_folders_path);
     }
 
-    let contents = fs::read_to_string(&library_folders_path)
-        .context("Failed to read libraryfolders.vdf")?;
+    let contents =
+        fs::read_to_string(&library_folders_path).context("Failed to read libraryfolders.vdf")?;
 
     parse_library_folders(&contents)
 }
@@ -51,7 +51,10 @@ fn parse_library_folders(contents: &str) -> Result<Vec<PathBuf>> {
                                             tracing::info!("Found Steam library: {:?}", path);
                                             libraries.push(path);
                                         } else {
-                                            tracing::warn!("Library path does not exist: {:?}", path);
+                                            tracing::warn!(
+                                                "Library path does not exist: {:?}",
+                                                path
+                                            );
                                         }
                                     }
                                 }

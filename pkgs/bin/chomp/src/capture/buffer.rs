@@ -16,7 +16,13 @@ pub struct CapturedImage {
 
 impl CapturedImage {
     /// Creates a new CapturedImage.
-    pub fn new(data: Vec<u8>, width: u32, height: u32, stride: u32, format: wl_shm::Format) -> Self {
+    pub fn new(
+        data: Vec<u8>,
+        width: u32,
+        height: u32,
+        stride: u32,
+        format: wl_shm::Format,
+    ) -> Self {
         Self {
             data,
             width,
@@ -36,22 +42,31 @@ impl CapturedImage {
 
         log::debug!(
             "Cropping {}x{} region from {}x{} image (stride: {}, format: {:?})",
-            rect_width, rect_height, self.width, self.height, self.stride, self.format
+            rect_width,
+            rect_height,
+            self.width,
+            self.height,
+            self.stride,
+            self.format
         );
 
         let expected_size = rect_width
             .checked_mul(rect_height)
             .and_then(|pixels| pixels.checked_mul(4))
-            .ok_or_else(|| anyhow::anyhow!("Crop region size overflow: {}x{}", rect_width, rect_height))?
-            as usize;
+            .ok_or_else(|| {
+                anyhow::anyhow!("Crop region size overflow: {}x{}", rect_width, rect_height)
+            })? as usize;
 
-        let last_row_offset = ((rect.y as u32 + rect_height - 1) * self.stride + rect.x as u32 * 4) as usize;
+        let last_row_offset =
+            ((rect.y as u32 + rect_height - 1) * self.stride + rect.x as u32 * 4) as usize;
         let row_size = (rect_width * 4) as usize;
 
         if last_row_offset + row_size > self.data.len() {
             anyhow::bail!(
                 "Crop region extends beyond buffer bounds: last_row_offset={}, row_size={}, buffer_len={}",
-                last_row_offset, row_size, self.data.len()
+                last_row_offset,
+                row_size,
+                self.data.len()
             );
         }
 
@@ -64,7 +79,11 @@ impl CapturedImage {
                 .copy_from_slice(&self.data[src_offset..src_offset + row_size]);
         }
 
-        log::debug!("Cropped buffer size: {}, expected: {}", cropped_data.len(), expected_size);
+        log::debug!(
+            "Cropped buffer size: {}, expected: {}",
+            cropped_data.len(),
+            expected_size
+        );
 
         Ok(CapturedImage {
             data: cropped_data,

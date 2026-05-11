@@ -2,18 +2,17 @@
 
 use anyhow::{Context, Result};
 use wayland_client::{
+    Connection, Dispatch, QueueHandle, delegate_noop,
     globals::GlobalListContents,
     protocol::{wl_buffer, wl_output, wl_registry, wl_shm, wl_shm_pool},
-    Connection, Dispatch, QueueHandle,
-    delegate_noop,
 };
 use wayland_protocols_wlr::screencopy::v1::client::{
     zwlr_screencopy_frame_v1::{self, ZwlrScreencopyFrameV1},
     zwlr_screencopy_manager_v1::ZwlrScreencopyManagerV1,
 };
 
-use crate::capture::buffer::CapturedImage;
 use super::shm::{create_shm_fd, read_shm_buffer};
+use crate::capture::buffer::CapturedImage;
 
 // Capture timing constants
 const MAX_CAPTURE_ATTEMPTS: u32 = 100;
@@ -75,7 +74,13 @@ impl Dispatch<ZwlrScreencopyFrameV1, ()> for CaptureState {
                 height,
                 stride,
             } => {
-                log::debug!("Buffer: {}x{}, stride: {}, format: {:?}", width, height, stride, format);
+                log::debug!(
+                    "Buffer: {}x{}, stride: {}, format: {:?}",
+                    width,
+                    height,
+                    stride,
+                    format
+                );
                 state.width = Some(width);
                 state.height = Some(height);
                 state.stride = Some(stride);
@@ -138,7 +143,13 @@ pub fn capture_output(conn: &Connection, output: &wl_output::WlOutput) -> Result
     let stride = capture_state.stride.context("No stride received")?;
     let format = capture_state.format.unwrap_or(wl_shm::Format::Argb8888);
 
-    log::debug!("Capture buffer: {}x{}, stride: {}, format: {:?}", width, height, stride, format);
+    log::debug!(
+        "Capture buffer: {}x{}, stride: {}, format: {:?}",
+        width,
+        height,
+        stride,
+        format
+    );
 
     // Create and attach buffer
     let size = (stride * height) as usize;
@@ -167,8 +178,8 @@ fn bind_protocols(
     qh: &QueueHandle<CaptureState>,
 ) -> Result<(ZwlrScreencopyManagerV1, wl_shm::WlShm)> {
     use wayland_client::globals::registry_queue_init;
-    let (globals, _) = registry_queue_init::<CaptureState>(conn)
-        .context("Failed to init registry")?;
+    let (globals, _) =
+        registry_queue_init::<CaptureState>(conn).context("Failed to init registry")?;
 
     let screencopy_manager = globals
         .bind(qh, 1..=3, ())

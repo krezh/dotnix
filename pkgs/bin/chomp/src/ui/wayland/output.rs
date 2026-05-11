@@ -1,11 +1,11 @@
 //! Per-output surface management and rendering
 
-use smithay_client_toolkit::shm::slot::SlotPool;
 use smithay_client_toolkit::shell::wlr_layer::LayerSurface;
+use smithay_client_toolkit::shm::slot::SlotPool;
 use wayland_client::protocol::{wl_callback, wl_output, wl_surface};
 
-use crate::render::Renderer;
 use crate::capture::buffer::CapturedImage;
+use crate::render::Renderer;
 
 /// Represents a single monitor's overlay surface
 pub struct OutputSurface {

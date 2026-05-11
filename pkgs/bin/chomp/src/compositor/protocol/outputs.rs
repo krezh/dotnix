@@ -4,7 +4,7 @@ use anyhow::{Context, Result};
 use smithay_client_toolkit::output::{OutputHandler, OutputState};
 use smithay_client_toolkit::registry::{ProvidesRegistryState, RegistryState};
 use smithay_client_toolkit::{delegate_output, delegate_registry};
-use wayland_client::{globals::registry_queue_init, protocol::wl_output, Connection};
+use wayland_client::{Connection, globals::registry_queue_init, protocol::wl_output};
 
 use crate::render::selection::Rect;
 
@@ -62,8 +62,8 @@ pub fn get_outputs(conn: &Connection) -> Result<Vec<OutputInfo>> {
     delegate_output!(OutputEnumerator);
     delegate_registry!(OutputEnumerator);
 
-    let (globals, mut event_queue) = registry_queue_init::<OutputEnumerator>(conn)
-        .context("Failed to init registry")?;
+    let (globals, mut event_queue) =
+        registry_queue_init::<OutputEnumerator>(conn).context("Failed to init registry")?;
 
     let registry_state = RegistryState::new(&globals);
     let output_state = OutputState::new(&globals, &event_queue.handle());

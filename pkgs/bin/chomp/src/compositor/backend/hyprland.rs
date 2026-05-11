@@ -7,7 +7,7 @@ use serde::Deserialize;
 use std::io::{Read, Write};
 use std::os::unix::net::UnixStream;
 
-use super::super::{detect_compositor, Compositor};
+use super::super::{Compositor, detect_compositor};
 
 #[derive(Deserialize)]
 struct HyprctlWindow {
@@ -33,34 +33,37 @@ fn hyprctl_socket(command: &str) -> Result<String> {
 
     let signature = std::env::var("HYPRLAND_INSTANCE_SIGNATURE")
         .context("HYPRLAND_INSTANCE_SIGNATURE not set")?;
-    
-    let runtime_dir = std::env::var("XDG_RUNTIME_DIR")
-        .context("XDG_RUNTIME_DIR not set")?;
-    
+
+    let runtime_dir = std::env::var("XDG_RUNTIME_DIR").context("XDG_RUNTIME_DIR not set")?;
+
     let socket_path = format!("{}/hypr/{}/.socket.sock", runtime_dir, signature);
-    
-    let mut stream = UnixStream::connect(&socket_path)
-        .context(format!("Failed to connect to Hyprland socket at {}", socket_path))?;
-    
+
+    let mut stream = UnixStream::connect(&socket_path).context(format!(
+        "Failed to connect to Hyprland socket at {}",
+        socket_path
+    ))?;
+
     // Send command with -j flag for JSON output
     let cmd = format!("-j/{}", command);
-    stream.write_all(cmd.as_bytes())
+    stream
+        .write_all(cmd.as_bytes())
         .context("Failed to write to Hyprland socket")?;
-    
+
     // Read response
     let mut response = String::new();
-    stream.read_to_string(&mut response)
+    stream
+        .read_to_string(&mut response)
         .context("Failed to read from Hyprland socket")?;
-    
+
     Ok(response)
 }
 
 /// Gets the geometry of the active window as "x,y wxh" format.
 pub fn get_active_window() -> Result<String> {
     let response = hyprctl_socket("activewindow")?;
-    
-    let window: HyprctlWindow = serde_json::from_str(&response)
-        .context("Failed to parse activewindow response")?;
+
+    let window: HyprctlWindow =
+        serde_json::from_str(&response).context("Failed to parse activewindow response")?;
 
     Ok(format!(
         "{},{} {}x{}",
@@ -71,9 +74,9 @@ pub fn get_active_window() -> Result<String> {
 /// Gets the name of the active monitor.
 pub fn get_active_monitor() -> Result<String> {
     let response = hyprctl_socket("activeworkspace")?;
-    
-    let workspace: HyprctlWorkspace = serde_json::from_str(&response)
-        .context("Failed to parse activeworkspace response")?;
+
+    let workspace: HyprctlWorkspace =
+        serde_json::from_str(&response).context("Failed to parse activeworkspace response")?;
 
     Ok(workspace.monitor)
 }

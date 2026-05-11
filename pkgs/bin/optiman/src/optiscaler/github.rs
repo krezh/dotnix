@@ -36,9 +36,13 @@ impl GitHubClient {
 
     /// Gets the latest stable release.
     pub async fn get_latest_release(&self) -> Result<Release> {
-        let url = format!("{}/repos/{}/releases/latest", GITHUB_API_BASE, OPTISCALER_REPO);
+        let url = format!(
+            "{}/repos/{}/releases/latest",
+            GITHUB_API_BASE, OPTISCALER_REPO
+        );
 
-        let response = self.client
+        let response = self
+            .client
             .get(&url)
             .send()
             .await
@@ -58,9 +62,13 @@ impl GitHubClient {
 
     /// Gets the nightly release.
     pub async fn get_nightly_release(&self) -> Result<Release> {
-        let url = format!("{}/repos/{}/releases/tags/nightly", GITHUB_API_BASE, OPTISCALER_REPO);
+        let url = format!(
+            "{}/repos/{}/releases/tags/nightly",
+            GITHUB_API_BASE, OPTISCALER_REPO
+        );
 
-        let response = self.client
+        let response = self
+            .client
             .get(&url)
             .send()
             .await
@@ -82,7 +90,8 @@ impl GitHubClient {
     pub async fn get_releases(&self) -> Result<Vec<Release>> {
         let url = format!("{}/repos/{}/releases", GITHUB_API_BASE, OPTISCALER_REPO);
 
-        let response = self.client
+        let response = self
+            .client
             .get(&url)
             .send()
             .await

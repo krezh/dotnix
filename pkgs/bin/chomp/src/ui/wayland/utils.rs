@@ -1,7 +1,7 @@
 //! Utility functions for Wayland module
 
 use crate::cli::Args;
-use crate::render::{Renderer, RenderConfig};
+use crate::render::{RenderConfig, Renderer};
 
 // Event loop timeout
 pub const IDLE_FRAME_TIMEOUT_MS: u64 = 33; // ~30 FPS when idle

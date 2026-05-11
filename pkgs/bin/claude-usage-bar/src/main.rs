@@ -35,7 +35,13 @@ fn color_rate(pct: Option<f64>) -> String {
     match pct {
         None => format!("{DIM}N/A{RESET}"),
         Some(v) => {
-            let color = if v >= 90.0 { RED } else if v >= 80.0 { ORANGE } else { GREEN };
+            let color = if v >= 90.0 {
+                RED
+            } else if v >= 80.0 {
+                ORANGE
+            } else {
+                GREEN
+            };
             format!("{color}{} {:.0}%{RESET}", bar(v, 8), v)
         }
     }
@@ -49,7 +55,13 @@ fn color_ctx(pct: Option<f64>) -> String {
     match pct {
         None => format!("{DIM}N/A{RESET}"),
         Some(v) => {
-            let color = if v > 80.0 { RED } else if v >= 70.0 { ORANGE } else { GREEN };
+            let color = if v > 80.0 {
+                RED
+            } else if v >= 70.0 {
+                ORANGE
+            } else {
+                GREEN
+            };
             format!("{color}{} {:.0}%{RESET}", bar(v, 8), v)
         }
     }
@@ -82,7 +94,11 @@ fn format_reset_ts(reset_ts: u64) -> String {
         .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
         .unwrap_or_default();
 
-    let fmt = if reset_day == today { "+%H:%M" } else { "+%a %H:%M" };
+    let fmt = if reset_day == today {
+        "+%H:%M"
+    } else {
+        "+%a %H:%M"
+    };
 
     let result = Command::new("date")
         .args(["-d", &format!("@{reset_ts}"), fmt])
@@ -191,7 +207,16 @@ fn parse_git_status(cwd: &Path) -> Option<GitStatus> {
         let wt = line.as_bytes()[1] as char;
 
         // Conflict markers
-        if matches!((idx, wt), ('D','D') | ('A','U') | ('U','D') | ('U','A') | ('D','U') | ('A','A') | ('U','U')) {
+        if matches!(
+            (idx, wt),
+            ('D', 'D')
+                | ('A', 'U')
+                | ('U', 'D')
+                | ('U', 'A')
+                | ('D', 'U')
+                | ('A', 'A')
+                | ('U', 'U')
+        ) {
             conflicts += 1;
             continue;
         }
@@ -212,7 +237,16 @@ fn parse_git_status(cwd: &Path) -> Option<GitStatus> {
     // Detect ongoing operations by inspecting the .git dir
     let operation = detect_git_operation(cwd);
 
-    Some(GitStatus { branch, staged, unstaged, untracked, conflicts, ahead, behind, operation })
+    Some(GitStatus {
+        branch,
+        staged,
+        unstaged,
+        untracked,
+        conflicts,
+        ahead,
+        behind,
+        operation,
+    })
 }
 
 /// Checks `.git/` for in-progress operations (MERGE, REBASE, etc.).
@@ -295,7 +329,9 @@ fn format_lines(data: &serde_json::Value) -> Option<String> {
             }
             if let Some(n) = r {
                 if n > 0 {
-                    if !s.is_empty() { s.push(' '); }
+                    if !s.is_empty() {
+                        s.push(' ');
+                    }
                     s.push_str(&format!("{RED}-{n}{RESET}"));
                 }
             }
@@ -353,24 +389,40 @@ fn main() {
     let fh_reset_str = fh_reset
         .map(|ts| format!(" {}", format_reset_ts(ts)))
         .unwrap_or_default();
-    parts.push(format!("{BOLD}5h:{RESET} {}{fh_reset_str}", color_rate(fh_pct)));
+    parts.push(format!(
+        "{BOLD}5h:{RESET} {}{fh_reset_str}",
+        color_rate(fh_pct)
+    ));
 
     let sd_reset_str = sd_reset
         .map(|ts| format!(" {}", format_reset_ts(ts)))
         .unwrap_or_default();
-    parts.push(format!("{BOLD}7d:{RESET} {}{sd_reset_str}", color_rate(sd_pct)));
+    parts.push(format!(
+        "{BOLD}7d:{RESET} {}{sd_reset_str}",
+        color_rate(sd_pct)
+    ));
 
     // ── Context window ───────────────────────────────────────────────────────
     let ctx_pct = ctx["used_percentage"].as_f64();
     if ctx_pct.is_some() {
         // Show token count if available
-        let token_str = ctx["current_usage"]["input_tokens"].as_u64().map(|t| {
-            let cache_create = ctx["current_usage"]["cache_creation_input_tokens"].as_u64().unwrap_or(0);
-            let cache_read = ctx["current_usage"]["cache_read_input_tokens"].as_u64().unwrap_or(0);
-            let total = t + cache_create + cache_read;
-            format!(" {MAGENTA}{}k{RESET}", total / 1000)
-        }).unwrap_or_default();
-        parts.push(format!("{BOLD}ctx:{RESET} {}{token_str}", color_ctx(ctx_pct)));
+        let token_str = ctx["current_usage"]["input_tokens"]
+            .as_u64()
+            .map(|t| {
+                let cache_create = ctx["current_usage"]["cache_creation_input_tokens"]
+                    .as_u64()
+                    .unwrap_or(0);
+                let cache_read = ctx["current_usage"]["cache_read_input_tokens"]
+                    .as_u64()
+                    .unwrap_or(0);
+                let total = t + cache_create + cache_read;
+                format!(" {MAGENTA}{}k{RESET}", total / 1000)
+            })
+            .unwrap_or_default();
+        parts.push(format!(
+            "{BOLD}ctx:{RESET} {}{token_str}",
+            color_ctx(ctx_pct)
+        ));
     }
 
     println!("{}", parts.join(&sep));

@@ -7,15 +7,12 @@ use anyhow::Result;
 /// Uses memfd_create with sealing to prevent resizing.
 pub(super) fn create_shm_fd(size: usize) -> Result<i32> {
     use nix::fcntl::{FcntlArg, SealFlag};
-    use nix::sys::memfd::{memfd_create, MFdFlags};
+    use nix::sys::memfd::{MFdFlags, memfd_create};
     use nix::unistd::ftruncate;
     use std::os::fd::IntoRawFd;
 
     let name = c"chomp-capture";
-    let fd = memfd_create(
-        name,
-        MFdFlags::MFD_CLOEXEC | MFdFlags::MFD_ALLOW_SEALING,
-    )?;
+    let fd = memfd_create(name, MFdFlags::MFD_CLOEXEC | MFdFlags::MFD_ALLOW_SEALING)?;
 
     ftruncate(&fd, size as i64)?;
 
@@ -32,7 +29,7 @@ pub(super) fn create_shm_fd(size: usize) -> Result<i32> {
 
 /// Reads data from a shared memory file descriptor into a buffer.
 pub(super) fn read_shm_buffer(fd: i32, size: usize) -> Result<Vec<u8>> {
-    use nix::unistd::{lseek, read, Whence};
+    use nix::unistd::{Whence, lseek, read};
     use std::os::fd::BorrowedFd;
 
     let mut buffer = vec![0u8; size];
@@ -52,7 +49,11 @@ pub(super) fn read_shm_buffer(fd: i32, size: usize) -> Result<Vec<u8>> {
     }
 
     if total_read != size {
-        anyhow::bail!("Incomplete read: got {} bytes, expected {}", total_read, size);
+        anyhow::bail!(
+            "Incomplete read: got {} bytes, expected {}",
+            total_read,
+            size
+        );
     }
 
     Ok(buffer)

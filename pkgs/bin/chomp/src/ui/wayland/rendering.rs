@@ -55,10 +55,7 @@ pub fn draw_output(
     {
         Ok(buffer) => buffer,
         Err(e) => {
-            log::warn!(
-                "Failed to create buffer: {}. Resizing pool.",
-                e
-            );
+            log::warn!("Failed to create buffer: {}. Resizing pool.", e);
             // Pool might be exhausted, resize it
             pool.resize((width * height * 4 * 2) as usize)?;
             pool.create_buffer(width, height, stride, wl_shm::Format::Argb8888)?
@@ -68,7 +65,8 @@ pub fn draw_output(
     log::debug!("Got buffer, canvas ptr: {:p}", canvas.as_ptr());
 
     let output_rect = Rect::new(offset_x, offset_y, width, height);
-    let has_selection_now = selection.get_rect()
+    let has_selection_now = selection
+        .get_rect()
         .map(|rect| rect.intersects(&output_rect))
         .unwrap_or(false);
 
@@ -120,13 +118,21 @@ pub fn draw_output(
 
             log::debug!(
                 "Creating local selection: global rect ({},{}) {}x{} -> local rect ({},{}) {}x{}",
-                rect.x, rect.y, rect.width, rect.height,
-                local_rect_x, local_rect_y, rect.width, rect.height
+                rect.x,
+                rect.y,
+                rect.width,
+                rect.height,
+                local_rect_x,
+                local_rect_y,
+                rect.width,
+                rect.height
             );
 
             let local_selection = create_local_selection(rect, offset_x, offset_y);
 
-            let frozen_data = output_surface.frozen_buffer.as_ref()
+            let frozen_data = output_surface
+                .frozen_buffer
+                .as_ref()
                 .map(|img| (img.data.as_slice(), img.stride as i32));
 
             renderer.render_to_buffer(&local_selection, canvas, frozen_data)?;
@@ -142,7 +148,9 @@ pub fn draw_output(
     if !has_selection {
         log::debug!("RENDERING DIMMED ONLY");
         let empty_selection = Selection::new();
-        let frozen_data = output_surface.frozen_buffer.as_ref()
+        let frozen_data = output_surface
+            .frozen_buffer
+            .as_ref()
             .map(|img| (img.data.as_slice(), img.stride as i32));
         renderer.render_to_buffer(&empty_selection, canvas, frozen_data)?;
     }

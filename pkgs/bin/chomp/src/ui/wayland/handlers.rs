@@ -1,3 +1,4 @@
+use smithay_client_toolkit::seat::pointer::CursorIcon;
 use smithay_client_toolkit::{
     compositor::CompositorHandler,
     delegate_compositor, delegate_keyboard, delegate_layer, delegate_output, delegate_pointer,
@@ -6,20 +7,17 @@ use smithay_client_toolkit::{
     registry::{ProvidesRegistryState, RegistryState},
     registry_handlers,
     seat::{
+        Capability, SeatHandler, SeatState,
         keyboard::{KeyEvent, KeyboardHandler, Keysym, Modifiers},
         pointer::{PointerEvent, PointerEventKind, PointerHandler},
-        Capability, SeatHandler, SeatState,
     },
-    shell::{
-        wlr_layer::{LayerShellHandler, LayerSurface, LayerSurfaceConfigure},
-    },
+    shell::wlr_layer::{LayerShellHandler, LayerSurface, LayerSurfaceConfigure},
     shm::{Shm, ShmHandler},
 };
 use wayland_client::{
-    protocol::{wl_callback, wl_output, wl_pointer, wl_seat, wl_surface},
     Connection, Dispatch, QueueHandle,
+    protocol::{wl_callback, wl_output, wl_pointer, wl_seat, wl_surface},
 };
-use smithay_client_toolkit::seat::pointer::CursorIcon;
 
 use super::App;
 
@@ -322,8 +320,8 @@ impl Dispatch<wl_callback::WlCallback, ()> for App {
                     // Frame callback received - compositor is ready for next frame
                     output_surface.waiting_for_frame = false;
                     output_surface.frame_callback = None;
-                    output_surface.needs_render = true;  // Mark for redraw
-                    state.needs_redraw = true;  // Trigger redraw cycle
+                    output_surface.needs_render = true; // Mark for redraw
+                    state.needs_redraw = true; // Trigger redraw cycle
                     break;
                 }
             }

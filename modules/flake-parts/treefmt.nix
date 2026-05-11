@@ -18,6 +18,7 @@
           gofmt.enable = true;
           terraform.enable = true;
           actionlint.enable = false;
+          rustfmt.enable = true;
           prettier = {
             enable = true;
             settings = {

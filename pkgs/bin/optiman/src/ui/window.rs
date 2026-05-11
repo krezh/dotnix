@@ -4,12 +4,12 @@ use libadwaita as adw;
 use libadwaita::prelude::*;
 use std::sync::{Arc, Mutex};
 
-use crate::config::TrackedGames;
-use crate::steam::{self, SteamGame};
-use crate::optiscaler::{GitHubClient, Installer};
-use super::game_list::GameListView;
 use super::game_details::GameDetailsPanel;
+use super::game_list::GameListView;
 use super::install_dialog::InstallDialog;
+use crate::config::TrackedGames;
+use crate::optiscaler::{GitHubClient, Installer};
+use crate::steam::{self, SteamGame};
 use std::path::PathBuf;
 
 pub struct MainWindow {
@@ -120,7 +120,7 @@ impl MainWindow {
 
         // Wrap in toast overlay
         self.toast_overlay.set_child(Some(&toolbar_view));
-        
+
         self.window.set_content(Some(&self.toast_overlay));
 
         // Connect game selection to details panel
@@ -129,22 +129,31 @@ impl MainWindow {
         self.game_list_view.connect_row_selected(move |game_data| {
             if let Some((name, app_id, installed)) = game_data {
                 // Get additional game info from tracked games
-                let (version, proxy_dll, install_path, exe_path) = if let Ok(tracked) = tracked_games_clone.lock() {
-                    if let Some(entry) = tracked.games.get(&app_id) {
-                        (
-                            entry.optiscaler_version.clone(),
-                            entry.proxy_dll.clone(),
-                            Some(entry.install_path.clone()),
-                            entry.exe_path.clone(),
-                        )
+                let (version, proxy_dll, install_path, exe_path) =
+                    if let Ok(tracked) = tracked_games_clone.lock() {
+                        if let Some(entry) = tracked.games.get(&app_id) {
+                            (
+                                entry.optiscaler_version.clone(),
+                                entry.proxy_dll.clone(),
+                                Some(entry.install_path.clone()),
+                                entry.exe_path.clone(),
+                            )
+                        } else {
+                            (None, None, None, None)
+                        }
                     } else {
                         (None, None, None, None)
-                    }
-                } else {
-                    (None, None, None, None)
-                };
-                
-                details_panel_clone.update(&name, &app_id, installed, version, proxy_dll, install_path, exe_path);
+                    };
+
+                details_panel_clone.update(
+                    &name,
+                    &app_id,
+                    installed,
+                    version,
+                    proxy_dll,
+                    install_path,
+                    exe_path,
+                );
             } else {
                 details_panel_clone.clear();
             }
@@ -156,36 +165,39 @@ impl MainWindow {
         let tracked_games_clone = self.tracked_games.clone();
         let toast_overlay_clone = self.toast_overlay.clone();
         let game_list_clone = self.game_list_view.clone();
-        self.details_panel.install_button().connect_clicked(move |_| {
-            let window = window_clone.clone();
-            let details_panel = details_panel_clone.clone();
-            let tracked_games = tracked_games_clone.clone();
-            let toast_overlay = toast_overlay_clone.clone();
-            let game_list = game_list_clone.clone();
-            
-            glib::spawn_future_local(async move {
-                match Self::handle_install(&window, &details_panel, tracked_games.clone()).await {
-                    Ok((installed, app_id)) => {
-                        if installed {
-                            let toast = adw::Toast::new("OptiScaler installed successfully");
-                            toast_overlay.add_toast(toast);
-                            // Update just this game's status in the list
-                            game_list.update_game_status(&app_id, true);
+        self.details_panel
+            .install_button()
+            .connect_clicked(move |_| {
+                let window = window_clone.clone();
+                let details_panel = details_panel_clone.clone();
+                let tracked_games = tracked_games_clone.clone();
+                let toast_overlay = toast_overlay_clone.clone();
+                let game_list = game_list_clone.clone();
+
+                glib::spawn_future_local(async move {
+                    match Self::handle_install(&window, &details_panel, tracked_games.clone()).await
+                    {
+                        Ok((installed, app_id)) => {
+                            if installed {
+                                let toast = adw::Toast::new("OptiScaler installed successfully");
+                                toast_overlay.add_toast(toast);
+                                // Update just this game's status in the list
+                                game_list.update_game_status(&app_id, true);
+                            }
+                        }
+                        Err(e) => {
+                            tracing::error!("Installation failed: {}", e);
+
+                            let error_dialog = adw::AlertDialog::builder()
+                                .heading("Installation Failed")
+                                .body(&format!("Failed to install OptiScaler: {}", e))
+                                .build();
+                            error_dialog.add_response("ok", "OK");
+                            error_dialog.present(Some(&window));
                         }
                     }
-                    Err(e) => {
-                        tracing::error!("Installation failed: {}", e);
-                        
-                        let error_dialog = adw::AlertDialog::builder()
-                            .heading("Installation Failed")
-                            .body(&format!("Failed to install OptiScaler: {}", e))
-                            .build();
-                        error_dialog.add_response("ok", "OK");
-                        error_dialog.present(Some(&window));
-                    }
-                }
+                });
             });
-        });
 
         // Connect remove button
         let window_clone = self.window.clone();
@@ -193,36 +205,39 @@ impl MainWindow {
         let tracked_games_clone = self.tracked_games.clone();
         let toast_overlay_clone = self.toast_overlay.clone();
         let game_list_clone = self.game_list_view.clone();
-        self.details_panel.remove_button().connect_clicked(move |_| {
-            let window = window_clone.clone();
-            let details_panel = details_panel_clone.clone();
-            let tracked_games = tracked_games_clone.clone();
-            let toast_overlay = toast_overlay_clone.clone();
-            let game_list = game_list_clone.clone();
-            
-            glib::spawn_future_local(async move {
-                match Self::handle_remove(&window, &details_panel, tracked_games.clone()).await {
-                    Ok((removed, app_id)) => {
-                        if removed {
-                            let toast = adw::Toast::new("OptiScaler removed successfully");
-                            toast_overlay.add_toast(toast);
-                            // Update just this game's status in the list
-                            game_list.update_game_status(&app_id, false);
+        self.details_panel
+            .remove_button()
+            .connect_clicked(move |_| {
+                let window = window_clone.clone();
+                let details_panel = details_panel_clone.clone();
+                let tracked_games = tracked_games_clone.clone();
+                let toast_overlay = toast_overlay_clone.clone();
+                let game_list = game_list_clone.clone();
+
+                glib::spawn_future_local(async move {
+                    match Self::handle_remove(&window, &details_panel, tracked_games.clone()).await
+                    {
+                        Ok((removed, app_id)) => {
+                            if removed {
+                                let toast = adw::Toast::new("OptiScaler removed successfully");
+                                toast_overlay.add_toast(toast);
+                                // Update just this game's status in the list
+                                game_list.update_game_status(&app_id, false);
+                            }
+                        }
+                        Err(e) => {
+                            tracing::error!("Removal failed: {}", e);
+
+                            let error_dialog = adw::AlertDialog::builder()
+                                .heading("Removal Failed")
+                                .body(&format!("Failed to remove OptiScaler: {}", e))
+                                .build();
+                            error_dialog.add_response("ok", "OK");
+                            error_dialog.present(Some(&window));
                         }
                     }
-                    Err(e) => {
-                        tracing::error!("Removal failed: {}", e);
-                        
-                        let error_dialog = adw::AlertDialog::builder()
-                            .heading("Removal Failed")
-                            .body(&format!("Failed to remove OptiScaler: {}", e))
-                            .build();
-                        error_dialog.add_response("ok", "OK");
-                        error_dialog.present(Some(&window));
-                    }
-                }
+                });
             });
-        });
 
         // Connect refresh button
         let tracked_games_clone = self.tracked_games.clone();
@@ -276,7 +291,10 @@ impl MainWindow {
                                     optiscaler_version: None,
                                     proxy_dll: None,
                                     install_path: game.install_dir.to_string_lossy().to_string(),
-                                    exe_path: game.executable_path.as_ref().map(|p| p.to_string_lossy().to_string()),
+                                    exe_path: game
+                                        .executable_path
+                                        .as_ref()
+                                        .map(|p| p.to_string_lossy().to_string()),
                                     installed_date: None,
                                     last_verified: None,
                                 },
@@ -284,7 +302,10 @@ impl MainWindow {
                         } else {
                             // Update exe_path if it changed
                             if let Some(entry) = tracked.get_game_mut(&game.app_id) {
-                                let new_exe_path = game.executable_path.as_ref().map(|p| p.to_string_lossy().to_string());
+                                let new_exe_path = game
+                                    .executable_path
+                                    .as_ref()
+                                    .map(|p| p.to_string_lossy().to_string());
                                 if entry.exe_path != new_exe_path {
                                     entry.exe_path = new_exe_path;
                                 }
@@ -294,10 +315,12 @@ impl MainWindow {
 
                     // Populate UI with games
                     for game in all_games {
-                        let installed = tracked.games.get(&game.app_id)
+                        let installed = tracked
+                            .games
+                            .get(&game.app_id)
                             .map(|e| e.installed)
                             .unwrap_or(false);
-                        
+
                         game_list.add_game(&game.name, &game.app_id, installed);
                     }
 
@@ -317,7 +340,8 @@ impl MainWindow {
         details_panel: &GameDetailsPanel,
         tracked_games: Arc<Mutex<TrackedGames>>,
     ) -> anyhow::Result<(bool, String)> {
-        let (app_id, game_name) = details_panel.current_game()
+        let (app_id, game_name) = details_panel
+            .current_game()
             .ok_or_else(|| anyhow::anyhow!("No game selected"))?;
 
         tracing::info!("Install button clicked for game: {}", game_name);
@@ -339,8 +363,15 @@ impl MainWindow {
 
         // Get game install path and executable path from tracked games
         let (install_path, exe_path) = if let Ok(tracked) = tracked_games.lock() {
-            tracked.games.get(&app_id)
-                .map(|e| (PathBuf::from(&e.install_path), e.exe_path.clone().map(PathBuf::from)))
+            tracked
+                .games
+                .get(&app_id)
+                .map(|e| {
+                    (
+                        PathBuf::from(&e.install_path),
+                        e.exe_path.clone().map(PathBuf::from),
+                    )
+                })
                 .ok_or_else(|| anyhow::anyhow!("Game not found in tracked games"))?
         } else {
             anyhow::bail!("Failed to access tracked games");
@@ -348,33 +379,44 @@ impl MainWindow {
 
         // Show install dialog
         let dialog = InstallDialog::new(&game_name, releases);
-        
+
         if let Some((release, proxy_dll)) = dialog.show(window).await {
-            tracing::info!("Installing OptiScaler {} with proxy {}", release.tag_name, proxy_dll);
-            
+            tracing::info!(
+                "Installing OptiScaler {} with proxy {}",
+                release.tag_name,
+                proxy_dll
+            );
+
             // Create SteamGame object for installer
             let mut game = SteamGame::new(app_id.clone(), game_name.clone(), install_path);
             if let Some(exe) = exe_path {
                 game = game.with_executable(exe);
             }
-            
+
             // Create installer
             let installer = Installer::new(tracked_games.clone())?;
-            
+
             // Perform installation in a separate thread with Tokio runtime
             let release_clone = release.clone();
             let proxy_dll_clone = proxy_dll.clone();
             let result = std::thread::spawn(move || {
                 let rt = tokio::runtime::Runtime::new()?;
                 rt.block_on(async {
-                    installer.install(&game, &release_clone, &proxy_dll_clone, |downloaded, total| {
-                        tracing::debug!("Download progress: {}/{}", downloaded, total);
-                    }).await
+                    installer
+                        .install(
+                            &game,
+                            &release_clone,
+                            &proxy_dll_clone,
+                            |downloaded, total| {
+                                tracing::debug!("Download progress: {}/{}", downloaded, total);
+                            },
+                        )
+                        .await
                 })
             })
             .join()
             .map_err(|e| anyhow::anyhow!("Installation thread panicked: {:?}", e))??;
-            
+
             // Update UI
             if let Ok(tracked) = tracked_games.lock() {
                 if let Some(entry) = tracked.games.get(&app_id) {
@@ -389,7 +431,7 @@ impl MainWindow {
                     );
                 }
             }
-            
+
             return Ok((true, app_id));
         }
 
@@ -401,7 +443,8 @@ impl MainWindow {
         details_panel: &GameDetailsPanel,
         tracked_games: Arc<Mutex<TrackedGames>>,
     ) -> anyhow::Result<(bool, String)> {
-        let (app_id, game_name) = details_panel.current_game()
+        let (app_id, game_name) = details_panel
+            .current_game()
             .ok_or_else(|| anyhow::anyhow!("No game selected"))?;
 
         tracing::info!("Remove button clicked for game: {}", game_name);
@@ -409,9 +452,12 @@ impl MainWindow {
         // Show confirmation dialog
         let confirm_dialog = adw::AlertDialog::builder()
             .heading("Remove OptiScaler")
-            .body(&format!("Are you sure you want to remove OptiScaler from {}?", game_name))
+            .body(&format!(
+                "Are you sure you want to remove OptiScaler from {}?",
+                game_name
+            ))
             .build();
-        
+
         confirm_dialog.add_response("cancel", "Cancel");
         confirm_dialog.add_response("remove", "Remove");
         confirm_dialog.set_response_appearance("remove", adw::ResponseAppearance::Destructive);
@@ -423,25 +469,32 @@ impl MainWindow {
         if response == "remove" {
             // Get game install path and executable path from tracked games
             let (install_path, exe_path) = if let Ok(tracked) = tracked_games.lock() {
-                tracked.games.get(&app_id)
-                    .map(|e| (PathBuf::from(&e.install_path), e.exe_path.clone().map(PathBuf::from)))
+                tracked
+                    .games
+                    .get(&app_id)
+                    .map(|e| {
+                        (
+                            PathBuf::from(&e.install_path),
+                            e.exe_path.clone().map(PathBuf::from),
+                        )
+                    })
                     .ok_or_else(|| anyhow::anyhow!("Game not found in tracked games"))?
             } else {
                 anyhow::bail!("Failed to access tracked games");
             };
-            
+
             // Create SteamGame object for installer
             let mut game = SteamGame::new(app_id.clone(), game_name.clone(), install_path);
             if let Some(exe) = exe_path {
                 game = game.with_executable(exe);
             }
-            
+
             // Create installer
             let installer = Installer::new(tracked_games.clone())?;
-            
+
             // Perform removal
             installer.remove(&game)?;
-            
+
             // Update UI
             if let Ok(tracked) = tracked_games.lock() {
                 if let Some(entry) = tracked.games.get(&app_id) {
@@ -456,7 +509,7 @@ impl MainWindow {
                     );
                 }
             }
-            
+
             return Ok((true, app_id));
         }
 

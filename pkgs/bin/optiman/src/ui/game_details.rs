@@ -135,17 +135,20 @@ impl GameDetailsPanel {
 
         // Update game info
         self.game_name_label.set_text(&game.name);
-        self.app_id_label.set_text(&format!("AppID: {}", game.app_id));
-        self.install_path_label.set_text(&game.install_dir.to_string_lossy());
+        self.app_id_label
+            .set_text(&format!("AppID: {}", game.app_id));
+        self.install_path_label
+            .set_text(&game.install_dir.to_string_lossy());
 
         // Update OptiScaler status
         if let Ok(tracked) = tracked_games.lock() {
             if let Some(entry) = tracked.get_game(&game.app_id) {
                 if entry.installed {
                     self.status_label.set_text("Installed");
-                    
+
                     if let Some(version) = &entry.optiscaler_version {
-                        self.version_label.set_text(&format!("Version: {}", version));
+                        self.version_label
+                            .set_text(&format!("Version: {}", version));
                         self.version_label.set_visible(true);
                     } else {
                         self.version_label.set_visible(false);
@@ -188,16 +191,18 @@ impl GameDetailsPanel {
         // Update game info
         self.game_name_label.set_text(name);
         self.app_id_label.set_text(&format!("AppID: {}", app_id));
-        
+
         if let Some(path) = install_path {
-            self.install_path_label.set_text(&format!("Install: {}", path));
+            self.install_path_label
+                .set_text(&format!("Install: {}", path));
             self.install_path_label.set_visible(true);
         } else {
             self.install_path_label.set_visible(false);
         }
-        
+
         if let Some(path) = exe_path {
-            self.exe_path_label.set_text(&format!("Executable: {}", path));
+            self.exe_path_label
+                .set_text(&format!("Executable: {}", path));
             self.exe_path_label.set_visible(true);
         } else {
             self.exe_path_label.set_text("Executable: Not detected");
@@ -207,7 +212,7 @@ impl GameDetailsPanel {
         // Update OptiScaler status
         if installed {
             self.status_label.set_text("Installed");
-            
+
             let mut version_text = String::new();
             if let Some(v) = version {
                 version_text.push_str(&format!("Version: {}", v));
@@ -218,7 +223,7 @@ impl GameDetailsPanel {
                 }
                 version_text.push_str(&format!("Proxy: {}", dll));
             }
-            
+
             if !version_text.is_empty() {
                 self.version_label.set_text(&version_text);
                 self.version_label.set_visible(true);

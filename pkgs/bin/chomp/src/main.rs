@@ -137,8 +137,7 @@ fn handle_video_mode(
 
     let (geometry, monitor): (Option<String>, Option<String>) = match mode {
         capture::CaptureMode::VideoArea => {
-            let geo = ui::App::run(args.clone())?
-                .context("Selection cancelled or failed")?;
+            let geo = ui::App::run(args.clone())?.context("Selection cancelled or failed")?;
             (Some(geo), None)
         }
         capture::CaptureMode::VideoWindow => {
@@ -184,8 +183,7 @@ fn handle_image_mode(
 
     let rect = match mode {
         capture::CaptureMode::ImageArea => {
-            let geometry = ui::App::run(args.clone())?
-                .context("Selection cancelled or failed")?;
+            let geometry = ui::App::run(args.clone())?.context("Selection cancelled or failed")?;
             render::Rect::from_geometry_string(&geometry)?
         }
         capture::CaptureMode::ImageWindow => {
@@ -224,11 +222,11 @@ fn handle_image_mode(
     Ok(())
 }
 
-
-
 /// Generates output file path with timestamp.
 fn generate_output_path(args: &Args, extension: &str) -> Result<String> {
-    let save_path = args.save_path.as_ref()
+    let save_path = args
+        .save_path
+        .as_ref()
         .expect("save_path must be set after merge_with_config");
     let timestamp = chrono::Local::now().format("%Y-%m-%d_%H-%M-%S");
     Ok(format!("{}/{}.{}", save_path, timestamp, extension))
@@ -236,20 +234,30 @@ fn generate_output_path(args: &Args, extension: &str) -> Result<String> {
 
 /// Checks if upload is configured.
 fn should_upload(args: &Args) -> bool {
-    !args.zipline_url.as_ref()
-        .expect("zipline_url must be set after merge_with_config").is_empty()
-        && !args.zipline_token.as_ref()
-        .expect("zipline_token must be set after merge_with_config").is_empty()
+    !args
+        .zipline_url
+        .as_ref()
+        .expect("zipline_url must be set after merge_with_config")
+        .is_empty()
+        && !args
+            .zipline_token
+            .as_ref()
+            .expect("zipline_token must be set after merge_with_config")
+            .is_empty()
 }
 
 /// Uploads file to Zipline.
 fn upload_file(args: &Args, file_path: &str, notifier: &ui::Notifier) -> Result<String> {
     let url = upload::upload_to_zipline(
-        args.zipline_url.as_ref()
+        args.zipline_url
+            .as_ref()
             .expect("zipline_url must be set after merge_with_config"),
-        args.zipline_token.as_ref()
+        args.zipline_token
+            .as_ref()
             .expect("zipline_token must be set after merge_with_config"),
-        *args.original_name.as_ref()
+        *args
+            .original_name
+            .as_ref()
             .expect("original_name must be set after merge_with_config"),
         file_path,
     )?;

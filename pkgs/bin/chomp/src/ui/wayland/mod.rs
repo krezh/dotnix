@@ -13,14 +13,14 @@ use smithay_client_toolkit::{
     compositor::CompositorState,
     output::{OutputInfo, OutputState},
     registry::RegistryState,
-    seat::{pointer::ThemedPointer, SeatState},
+    seat::{SeatState, pointer::ThemedPointer},
     shell::wlr_layer::{Anchor, KeyboardInteractivity, Layer, LayerShell},
-    shm::{slot::SlotPool, Shm},
+    shm::{Shm, slot::SlotPool},
 };
 use wayland_client::{
+    Connection, QueueHandle,
     globals::registry_queue_init,
     protocol::{wl_output, wl_surface},
-    Connection, QueueHandle,
 };
 
 use crate::{
@@ -67,7 +67,7 @@ pub struct App {
     pub(super) exit: bool,
     pub(super) loop_signal: LoopSignal,
     pub(super) needs_redraw: bool,
-    
+
     // Selection result (for area modes)
     pub(super) selection_geometry: Option<String>,
 }
@@ -226,7 +226,10 @@ impl App {
     fn capture_frozen_screens(&mut self) -> Result<()> {
         use crate::compositor::protocol::capture_output;
 
-        log::info!("Capturing frozen screenshots for {} outputs", self.output_surfaces.len());
+        log::info!(
+            "Capturing frozen screenshots for {} outputs",
+            self.output_surfaces.len()
+        );
 
         for output_surface in &mut self.output_surfaces {
             match capture_output(&self.conn, &output_surface._output) {
@@ -239,7 +242,10 @@ impl App {
                     output_surface.frozen_buffer = Some(captured_image);
                 }
                 Err(e) => {
-                    log::warn!("Failed to capture frozen screen: {}. Continuing without freeze for this output.", e);
+                    log::warn!(
+                        "Failed to capture frozen screen: {}. Continuing without freeze for this output.",
+                        e
+                    );
                 }
             }
         }

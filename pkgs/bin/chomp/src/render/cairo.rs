@@ -137,7 +137,12 @@ impl Renderer {
     }
 
     /// Renders the selection overlay directly to the provided buffer with zero-copy optimization.
-    pub fn render_to_buffer(&self, selection: &Selection, buffer: &mut [u8], frozen_buffer: Option<(&[u8], i32)>) -> Result<()> {
+    pub fn render_to_buffer(
+        &self,
+        selection: &Selection,
+        buffer: &mut [u8],
+        frozen_buffer: Option<(&[u8], i32)>,
+    ) -> Result<()> {
         let stride = self.width * 4;
 
         // Step 1: Complete frozen buffer copy ENTIRELY before creating Cairo surface
@@ -160,11 +165,14 @@ impl Renderer {
                     let dst_offset = y * stride as usize;
                     let src_offset = y * frozen_stride as usize;
                     if dst_offset + row_bytes <= buffer.len()
-                        && src_offset + row_bytes <= frozen_data.len() {
+                        && src_offset + row_bytes <= frozen_data.len()
+                    {
                         // Copy in chunks for explicit completion
                         let dst_row = &mut buffer[dst_offset..dst_offset + row_bytes];
                         let src_row = &frozen_data[src_offset..src_offset + row_bytes];
-                        for (dst_chunk, src_chunk) in dst_row.chunks_mut(4096).zip(src_row.chunks(4096)) {
+                        for (dst_chunk, src_chunk) in
+                            dst_row.chunks_mut(4096).zip(src_row.chunks(4096))
+                        {
                             dst_chunk[..src_chunk.len()].copy_from_slice(src_chunk);
                         }
                     }

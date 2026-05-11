@@ -30,7 +30,8 @@ impl Downloader {
     {
         tracing::info!("Downloading from: {}", url);
 
-        let response = self.client
+        let response = self
+            .client
             .get(url)
             .send()
             .await

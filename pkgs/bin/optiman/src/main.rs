@@ -32,7 +32,7 @@ unsafe extern "C" fn log_writer(
             }
         }
     }
-    
+
     // Pass through to default handler for other messages
     glib::ffi::g_log_writer_default(level, fields, n_fields, _user_data)
 }
@@ -41,13 +41,9 @@ fn main() -> Result<()> {
     // Suppress GTK warnings by setting log level to critical only
     // This filters out "Widget reports min height" layout warnings
     unsafe {
-        glib::ffi::g_log_set_writer_func(
-            Some(log_writer),
-            std::ptr::null_mut(),
-            None,
-        );
+        glib::ffi::g_log_set_writer_func(Some(log_writer), std::ptr::null_mut(), None);
     }
-    
+
     // Initialize logging without timestamps
     tracing_subscriber::registry()
         .with(
@@ -57,13 +53,13 @@ fn main() -> Result<()> {
         .with(
             tracing_subscriber::fmt::layer()
                 .without_time()
-                .with_target(false)
+                .with_target(false),
         )
         .init();
 
     // Run the GTK application
     let app = app::OptiManApp::new();
     let exit_code = app.run();
-    
+
     std::process::exit(exit_code);
 }

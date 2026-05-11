@@ -1,7 +1,7 @@
 //! Video recording management using wl-screenrec
 
 use anyhow::{Context, Result};
-use nix::sys::signal::{kill, Signal};
+use nix::sys::signal::{Signal, kill};
 use nix::unistd::Pid;
 use std::fs;
 use std::process::Command;
@@ -95,16 +95,14 @@ impl VideoRecorder {
 
     fn find_wl_screenrec_pids(&self) -> Result<Vec<u32>> {
         let mut sys = System::new_with_specifics(
-            RefreshKind::nothing().with_processes(ProcessRefreshKind::nothing())
+            RefreshKind::nothing().with_processes(ProcessRefreshKind::nothing()),
         );
         sys.refresh_processes(sysinfo::ProcessesToUpdate::All, true);
 
         let pids = sys
             .processes()
             .iter()
-            .filter(|(_, process)| {
-                process.name().to_string_lossy() == "wl-screenrec"
-            })
+            .filter(|(_, process)| process.name().to_string_lossy() == "wl-screenrec")
             .map(|(pid, _)| pid.as_u32())
             .collect();
 

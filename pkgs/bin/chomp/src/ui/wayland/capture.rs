@@ -1,7 +1,7 @@
 //! Screenshot capture and OCR completion handling
 
 use anyhow::Result;
-use wayland_client::{protocol::wl_output, Connection};
+use wayland_client::{Connection, protocol::wl_output};
 
 use crate::{capture, cli::Args, ocr, render::Rect, system};
 
@@ -51,7 +51,7 @@ pub fn complete_selection(
             return Ok(Some(geometry));
         }
     }
-    
+
     if args.ocr {
         // OCR mode: capture and extract text
         match ocr::capture_and_ocr(conn, &outputs_list, rect) {

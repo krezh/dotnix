@@ -35,13 +35,17 @@ impl Rect {
             anyhow::bail!("Invalid geometry format: {}", geometry);
         }
 
-        let x: i32 = pos_parts[0].parse()
+        let x: i32 = pos_parts[0]
+            .parse()
             .map_err(|_| anyhow::anyhow!("Invalid x coordinate"))?;
-        let y: i32 = pos_parts[1].parse()
+        let y: i32 = pos_parts[1]
+            .parse()
             .map_err(|_| anyhow::anyhow!("Invalid y coordinate"))?;
-        let width: i32 = size_parts[0].parse()
+        let width: i32 = size_parts[0]
+            .parse()
             .map_err(|_| anyhow::anyhow!("Invalid width"))?;
-        let height: i32 = size_parts[1].parse()
+        let height: i32 = size_parts[1]
+            .parse()
             .map_err(|_| anyhow::anyhow!("Invalid height"))?;
 
         Ok(Self::new(x, y, width, height))
@@ -100,7 +104,12 @@ impl Rect {
     /// Converts rectangle coordinates to an f64 tuple for rendering and animation.
     #[inline]
     pub fn as_f64_tuple(&self) -> (f64, f64, f64, f64) {
-        (self.x as f64, self.y as f64, self.width as f64, self.height as f64)
+        (
+            self.x as f64,
+            self.y as f64,
+            self.width as f64,
+            self.height as f64,
+        )
     }
 
     /// Formats rectangle as a string for logging purposes.

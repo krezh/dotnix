@@ -31,7 +31,7 @@ pub fn upload_to_zipline(
 ) -> Result<String> {
     use backend::zipline::ZiplineUploader;
     use service::UploadService;
-    
+
     let uploader = ZiplineUploader::new(zipline_url, token_file, use_original_name)?;
     uploader.upload(file_path)
 }
