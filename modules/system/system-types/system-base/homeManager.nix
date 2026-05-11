@@ -24,7 +24,7 @@
         preferXdgDirectories = true;
       };
 
-      manual.manpages.enable = false;
+      manual.manpages.enable = lib.mkForce false;
 
       programs = {
         home-manager.enable = true;

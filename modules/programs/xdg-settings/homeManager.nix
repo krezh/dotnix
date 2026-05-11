@@ -9,10 +9,10 @@
       defaultTextEditor = "dev.zed.Zed.desktop";
       defaultFileManager = "org.gnome.Nautilus.desktop";
       defaultArchiveManager = "org.gnome.FileRoller.desktop";
-      defaultMailClient = "org.gnome.Geary.desktop";
+      defaultMailClient = "proton-mail.desktop";
 
-      mimeList = builtins.readFile "${pkgs.shared-mime-info}/share/mime/types";
-      allMimes = lib.splitString "\n" mimeList;
+      mimes = import ./_mimetypes.nix;
+      inherit (mimes) allMimes;
 
       defaultsFor =
         prefix: app: lib.genAttrs (builtins.filter (m: lib.strings.hasPrefix prefix m) allMimes) (_: app);
@@ -26,6 +26,7 @@
       manualDefaults = {
         "application/pdf" = "org.gnome.Evince.desktop";
         "x-scheme-handler/mailto" = defaultMailClient;
+        "x-scheme-handler/webcal" = defaultMailClient;
         "text/html" = defaultBrowser;
         "x-scheme-handler/http" = defaultBrowser;
         "x-scheme-handler/https" = defaultBrowser;
@@ -33,7 +34,6 @@
         "x-scheme-handler/about" = defaultBrowser;
         "x-scheme-handler/ftp" = defaultBrowser;
         "x-scheme-handler/unknown" = defaultBrowser;
-        "x-scheme-handler/webcal" = defaultBrowser;
         "application/x-extension-htm" = defaultBrowser;
         "application/x-extension-html" = defaultBrowser;
         "application/x-extension-shtml" = defaultBrowser;

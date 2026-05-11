@@ -70,10 +70,20 @@
           accept-flake-config = true;
           always-allow-substitutes = true;
           builders-use-substitutes = true;
+          use-cgroups = true;
           auto-optimise-store = true;
-          trusted-users = [
-            "@wheel"
-          ];
+          log-format = "multiline-with-logs";
+          warn-import-from-derivation = true;
+          trusted-users = [ "@wheel" ];
+          use-registries = false;
+          fallback = true;
+          http-connections = 0;
+          diff-hook = pkgs.writeShellScript "dix-hook" ''
+            exec >&2
+            echo "For derivation $3:"
+            ${lib.getExe pkgs.dix} "$1" "$2"
+          '';
+          run-diff-hook = true;
           experimental-features = [
             "nix-command"
             "flakes"
@@ -164,6 +174,6 @@
         enable = true;
       };
       documentation.man.cache.enable = lib.mkForce false;
-      documentation.enable = false;
+      documentation.enable = lib.mkForce false;
     };
 }

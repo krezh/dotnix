@@ -8,7 +8,6 @@
   libcanberra-gtk3,
   meson,
   ninja,
-  nix-update-script,
   python3Packages,
   umu-launcher,
   lsfg-vk,
@@ -102,8 +101,6 @@ python3Packages.buildPythonApplication (finalAttrs: {
         "''${gappsWrapperArgs[@]}"
       )
     '';
-
-  passthru.updateScript = nix-update-script { };
 
   meta = {
     description = "Simple and lightweight app for running Windows games using UMU-Launcher";
