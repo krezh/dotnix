@@ -65,6 +65,7 @@ jobs:
             --gc-roots-dir /tmp/gcroots | \
             jq -sc 'if any(.error != null) then (map(select(.error != null) | "\(.attr): \(.error)") | "❌ Evaluation errors:\n" + join("\n")) | halt_error(1) else map(select(.cacheStatus == "notBuilt") | {
               attr: .attr,
+              neededBuilds: .neededBuilds,
               target: (.attr | ltrimstr("packages.")),
               name: (.attr | ltrimstr("hosts.") | ltrimstr("packages.")),
               runner: (.system | if . == "aarch64-linux" then "ubuntu-24.04-arm" else "ubuntu-latest" end)
@@ -72,6 +73,24 @@ jobs:
 
           echo "hosts=$(echo "$all" | jq -c '{include: [.[] | select(.attr | startswith("hosts."))]}')" >> "$GITHUB_OUTPUT"
           echo "packages=$(echo "$all" | jq -c '{include: [.[] | select(.attr | startswith("packages."))]}')" >> "$GITHUB_OUTPUT"
+
+          {
+            echo "## Derivations to Build"
+            hosts_count=$(echo "$all" | jq '[.[] | select(.attr | startswith("hosts."))] | length')
+            packages_count=$(echo "$all" | jq '[.[] | select(.attr | startswith("packages."))] | length')
+            if [ "$hosts_count" -eq 0 ] && [ "$packages_count" -eq 0 ]; then
+              echo "All derivations are cached — nothing to build."
+            else
+              if [ "$hosts_count" -gt 0 ]; then
+                echo "### Hosts ($hosts_count)"
+                echo "$all" | jq -r '.[] | select(.attr | startswith("hosts.")) | "- `\(.attr)`"'
+              fi
+              if [ "$packages_count" -gt 0 ]; then
+                echo "### Packages ($packages_count)"
+                echo "$all" | jq -r '.[] | select(.attr | startswith("packages.")) | "- `\(.attr)`"'
+              fi
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
 
   build-hosts:
     name: Build Hosts
