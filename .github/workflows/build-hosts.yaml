@@ -35,23 +35,6 @@ jobs:
           skip-cache: ${{ github.event.pull_request.head.repo.fork }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Write build plan
-        env:
-          NEEDED_BUILDS: ${{ toJson(matrix.neededBuilds) }}
-          ATTR: ${{ matrix.attr }}
-        shell: bash
-        run: |
-          {
-            echo "## Derivations to Build: \`${ATTR}\`"
-            count=$(echo "$NEEDED_BUILDS" | jq 'length')
-            if [ "$count" -eq 0 ]; then
-              echo "_No individual derivations to build._"
-            else
-              echo "Needs to build ($count):"
-              echo "$NEEDED_BUILDS" | jq -r '.[] | "- `" + . + "`"'
-            fi
-          } >> "$GITHUB_STEP_SUMMARY"
-
       - name: Build Host
         id: build
         uses: ./.github/actions/nix-build
