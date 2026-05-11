@@ -6,7 +6,10 @@
       systemd.user.services.valent = {
         Unit = {
           Description = "Valent - KDE Connect implementation";
-          After = [ "graphical-session.target" ];
+          After = [
+            "graphical-session.target"
+            "network-online.target"
+          ];
           PartOf = [ "graphical-session.target" ];
         };
         Service = {
