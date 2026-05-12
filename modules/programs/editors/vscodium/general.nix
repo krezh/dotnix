@@ -35,7 +35,6 @@
             "signageos.signageos-vscode-sops"
             "golang.go"
             "rust-lang.rust-analyzer"
-            "nefrob.vscode-just-syntax"
             "docker.docker"
             "github.vscode-github-actions"
             "gruntfuggly.todo-tree"
