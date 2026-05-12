@@ -1,25 +1,26 @@
 set quiet
 set lazy
-
+set no-exit-message
+set positional-arguments
 
 [private]
 default:
-  @just --list
+    @just --list
 
 mod sops '.just/sops.just'
 mod nix '.just/nix.just'
 
-[private, positional-arguments]
+[private]
 log lvl msg *args:
     @gum log -t rfc3339 -s -l "{{ lvl }}" "{{ msg }}" {{ args }}
 
-[private, positional-arguments]
+[private]
 confirm msg:
     gum confirm "{{ msg }}"
 
-[private, positional-arguments]
+[private]
 choose msg *options:
     #!/usr/bin/env bash
     set -euo pipefail
-    SELECTED="$(gum choose --header "{{ msg }}" {{options}})"
+    SELECTED="$(gum choose --header "{{ msg }}" {{ options }})"
     echo "$SELECTED"

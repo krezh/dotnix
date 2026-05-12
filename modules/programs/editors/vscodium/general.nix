@@ -35,7 +35,6 @@
             "signageos.signageos-vscode-sops"
             "golang.go"
             "rust-lang.rust-analyzer"
-            "nefrob.vscode-just-syntax"
             "docker.docker"
             "github.vscode-github-actions"
             "gruntfuggly.todo-tree"
@@ -60,6 +59,7 @@
             "christian-kohler.path-intellisense"
             "helm-ls.helm-ls"
             "ms-kubernetes-tools.vscode-kubernetes-tools"
+            "gitHub.vscode-pull-request-github"
           ];
           userSettings = {
             telemetry.telemetryLevel = "off";

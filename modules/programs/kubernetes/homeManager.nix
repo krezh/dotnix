@@ -81,68 +81,7 @@
               "sortColumn" = "NAMESPACE:asc";
             };
           };
-          plugins = {
-            toggle-helmrelease = {
-              shortCut = "Shift-T";
-              confirm = true;
-              scopes = [ "helmreleases" ];
-              description = "Toggle to suspend or resume a HelmRelease";
-              command = "bash";
-              background = true;
-              args = [
-                "-c"
-                "suspended=$(kubectl --context $CONTEXT get helmreleases -n $NAMESPACE $NAME -o=custom-columns=TYPE:.spec.suspend | tail -1); verb=$([ $suspended = \"true\" ] && echo \"resume\" || echo \"suspend\"); flux $verb helmrelease --context $CONTEXT -n $NAMESPACE $NAME"
-              ];
-            };
-            toggle-kustomization = {
-              shortCut = "Shift-T";
-              confirm = true;
-              scopes = [ "kustomizations" ];
-              description = "Toggle to suspend or resume a Kustomization";
-              command = "bash";
-              background = true;
-              args = [
-                "-c"
-                "suspended=$(kubectl --context $CONTEXT get kustomizations -n $NAMESPACE $NAME -o=custom-columns=TYPE:.spec.suspend | tail -1); verb=$([ $suspended = \"true\" ] && echo \"resume\" || echo \"suspend\"); flux $verb kustomization --context $CONTEXT -n $NAMESPACE $NAME"
-              ];
-            };
-            reconcile-git = {
-              shortCut = "Shift-R";
-              confirm = false;
-              description = "Flux reconcile";
-              scopes = [ "gitrepositories" ];
-              command = "bash";
-              background = true;
-              args = [
-                "-c"
-                "flux reconcile source git --context $CONTEXT -n $NAMESPACE $NAME"
-              ];
-            };
-            reconcile-hr = {
-              shortCut = "Shift-R";
-              confirm = false;
-              description = "Flux reconcile";
-              scopes = [ "helmreleases" ];
-              command = "bash";
-              background = true;
-              args = [
-                "-c"
-                "flux reconcile helmrelease --context $CONTEXT -n $NAMESPACE $NAME"
-              ];
-            };
-            reconcile-ks = {
-              shortCut = "Shift-R";
-              confirm = false;
-              description = "Flux reconcile";
-              scopes = [ "kustomizations" ];
-              command = "bash";
-              background = true;
-              args = [
-                "-c"
-                "flux reconcile kustomization --context $CONTEXT -n $NAMESPACE $NAME"
-              ];
-            };
-          };
+          plugins = { };
           aliases.aliases = {
             dp = "deployments";
             sec = "v1/secrets";
