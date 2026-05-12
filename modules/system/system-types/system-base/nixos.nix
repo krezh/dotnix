@@ -75,7 +75,6 @@
           log-format = "multiline-with-logs";
           warn-import-from-derivation = true;
           trusted-users = [ "@wheel" ];
-          use-registries = false;
           fallback = true;
           http-connections = 0;
           diff-hook = pkgs.writeShellScript "dix-hook" ''
