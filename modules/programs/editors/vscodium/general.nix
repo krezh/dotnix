@@ -59,6 +59,7 @@
             "christian-kohler.path-intellisense"
             "helm-ls.helm-ls"
             "ms-kubernetes-tools.vscode-kubernetes-tools"
+            "gitHub.vscode-pull-request-github"
           ];
           userSettings = {
             telemetry.telemetryLevel = "off";
