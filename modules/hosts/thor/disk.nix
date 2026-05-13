@@ -27,6 +27,7 @@
                 type = "filesystem";
                 format = "ext4";
                 mountpoint = "/";
+                mountOptions = [ "noatime" ];
               };
             };
             swap = {
@@ -43,6 +44,7 @@
                 type = "filesystem";
                 format = "ext4";
                 mountpoint = "/home";
+                mountOptions = [ "noatime" ];
               };
             };
           };

@@ -305,7 +305,7 @@ func formatYAMLFile(path string, expectedKind string, stats *Stats) error {
 				}
 
 				// Apply nested orderings dynamically
-				if changed := applyNestedOrderings(kind, "spec", specNode, ordering); changed {
+				if applyNestedOrderings(kind, "spec", specNode, ordering) {
 					changed = true
 				}
 			}

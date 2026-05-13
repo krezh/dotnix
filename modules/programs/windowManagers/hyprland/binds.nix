@@ -35,7 +35,7 @@
       shell.run = "${lib.getExe config.programs.noctalia-shell.package} ipc call";
       keybinds.run = lib.getExe pkgs.hyprland_keybinds;
       clipboardMgr.run = "${lib.getExe config.programs.walker.package} -m clipboard";
-      mail.run = lib.getExe' pkgs.geary "geary";
+      mail.run = lib.getExe pkgs.protonmail-desktop;
       audioControl = mkProgWith pkgs.pwvucontrol "--tab 4";
       trayTui = mkProg pkgs.tray-tui;
       volume_script = lib.getExe pkgs.volume_script_hyprpanel;
@@ -66,7 +66,6 @@
             "${mainMod},K,Show keybinds,exec,${keybinds.run}"
             "${mainMod},G,Audio Control,exec,[float] ${audioControl.run}"
             "${mainMod},M,Mail Client,exec,${mail.run}"
-            # "${mainMod},TAB,Toggle workspace overview, hyprexpo:expo, toggle"
             "${mainModShift},R, Reload Hyprland config,exec,hyprctl reload && notify-send --transient -u low 'Hyprland' 'Config Reloaded'"
             "${mainMod},A,Toggle between audio devices,exec,${audioSwitch} toggle"
             "${mainMod},S,Screenshot menu,exec,${screenshot.run}"
