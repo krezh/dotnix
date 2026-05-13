@@ -10,7 +10,7 @@
 (buildGoModule.override { go = go-bin.latestStable; }) (finalAttrs: {
   pname = "talosctl";
   # renovate: datasource=github-releases depName=siderolabs/talos
-  version = "1.13.1";
+  version = "v1.13.2";
 
   src = fetchFromGitHub {
     owner = "siderolabs";
