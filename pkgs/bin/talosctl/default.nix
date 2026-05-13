@@ -41,6 +41,8 @@
 
   doCheck = false;
 
+  HOME = "$TMPDIR";
+
   doInstallCheck = true;
   nativeInstallCheckInputs = [ versionCheckHook ];
   versionCheckProgramArg = "version";
