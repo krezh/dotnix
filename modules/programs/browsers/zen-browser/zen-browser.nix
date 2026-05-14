@@ -18,6 +18,11 @@
         recursive = true;
         force = true;
       };
+
+      lock = Value: {
+        inherit Value;
+        Status = "locked";
+      };
     in
     {
       imports = [ inputs.zen-browser.homeModules.twilight-official ];
@@ -27,57 +32,11 @@
         setAsDefaultBrowser = true;
         profiles.${config.home.username} = {
           isDefault = true;
-          mods = [
-            # "642854b5-88b4-4c40-b256-e035532109df" # Transparent Zen
-          ];
+          mods = [ ];
           settings = {
             # https://docs.zen-browser.app/guides/about-config-flags
-            # Network settings
-            "browser.preferences.defaultPerformanceSettings.enabled" = false;
-            "network.http.max-connections" = 1200;
-            "network.http.max-persistent-connections-per-server" = 8;
-            "network.http.max-urgent-start-excessive-connections-per-host" = 5;
-            "network.http.request.max-start-delay" = 5;
-            "network.http.pacing.requests.enabled" = false;
-            "network.http.pacing.requests.burst" = 32;
-            "network.http.pacing.requests.min-parallelism" = 10;
-            "network.ssl_tokens_cache_capacity" = 32768;
-            "network.http.http3.enabled" = true;
-            "network.http.speculative-parallel-limit" = 0;
-            "network.dns.disablePrefetch" = true;
-            "network.dns.disablePrefetchFromHTTPS" = true;
-            "network.prefetch-next" = false;
-            "network.predictor.enabled" = false;
-            "network.predictor.enable-prefetch" = false;
-            "browser.urlbar.speculativeConnect.enabled" = false;
-            "browser.places.speculativeConnect.enabled" = false;
-
             # Memory settings
             "javascript.options.mem.high_water_mark" = 128;
-            "browser.cache.disk.enable" = false;
-            "browser.cache.disk.capacity" = 0;
-            "browser.cache.memory.capacity" = 131072;
-            "browser.cache.disk.smart_size.enabled" = false;
-            "browser.cache.memory.max_entry_size" = 32768;
-            "browser.cache.disk.metadata_memory_limit" = 16384;
-            "browser.cache.max_shutdown_io_lag" = 100;
-            "image.mem.max_decoded_image_kb" = 512000;
-            "image.cache.size" = 10485760;
-            "image.mem.decode_bytes_at_a_time" = 65536;
-            "image.mem.shared.unmap.min_expiration_ms" = 90000;
-            "media.memory_cache_max_size" = 1048576;
-            "media.memory_caches_combined_limit_kb" = 4194304;
-            "media.cache_readahead_limit" = 600;
-            "media.cache_resume_threshold" = 300;
-
-            # Session & storage
-            "dom.storage.default_quota" = 20480;
-            "dom.storage.shadow_writes" = true;
-            "browser.sessionstore.interval" = 60000;
-            "browser.sessionhistory.max_total_viewers" = 10;
-            "browser.sessionstore.max_tabs_undo" = 10;
-            "browser.sessionstore.max_entries" = 10;
-            "browser.tabs.min_inactive_duration_before_unload" = 600000;
 
             # Content processing
             "content.maxtextrun" = 8191;
@@ -88,76 +47,25 @@
             "content.switch.threshold" = 300000;
 
             # Layout & rendering
-            "layout.frame_rate" = -1;
             "nglayout.initialpaint.delay" = 5;
-            "gfx.content.skia-font-cache-size" = 32;
-
-            # GPU - WebRender
-            "gfx.webrender.all" = true;
-            "gfx.webrender.enabled" = true;
-            "gfx.webrender.compositor" = true;
-            "gfx.webrender.precache-shaders" = true;
-            "gfx.webrender.software" = false;
-            "gfx.webrender.layer-compositor" = true;
-            "layers.acceleration.force-enabled" = true;
-            "gfx.canvas.accelerated.cache-items" = 32768;
-            "gfx.canvas.accelerated.cache-size" = 4096;
-            "gfx.canvas.max-size" = 16384;
-            "webgl.max-size" = 16384;
-            "webgl.force-enabled" = true;
-            "dom.webgpu.enabled" = true;
 
             # UI
-            "ui.submenuDelay" = 0;
-            "browser.uidensity" = 0;
-            "dom.element.animate.enabled" = true;
-            "general.smoothScroll" = true;
             "general.smoothScroll.msdPhysics.enabled" = false;
             "general.smoothScroll.currentVelocityWeighting" = 0;
             "general.smoothScroll.stopDecelerationWeighting" = 1;
             "general.smoothScroll.mouseWheel.durationMaxMS" = 150;
             "general.smoothScroll.mouseWheel.durationMinMS" = 50;
             "apz.overscroll.enabled" = false;
-            "general.autoScroll" = true;
 
             # Process management
-            "dom.ipc.processCount" = 8;
-            "dom.ipc.keepProcessesAlive.web" = 4;
-            "accessibility.force_disabled" = 1;
             "fission.autostart" = true;
 
-            # Media
-            "dom.media.webcodecs.h265.enabled" = true;
-            "media.videocontrols.picture-in-picture.video-toggle.enabled" = false;
-            "media.videocontrols.picture-in-picture.enable-when-switching-tabs.enabled" = false;
-            "media.ffmpeg.vaapi.enabled" = true;
-            "media.hardware-video-decoding.force-enabled" = true;
-            "media.wmf.zero-copy-nv12-textures-force-enabled" = true;
-
-            # Linux - Wayland
-            "widget.wayland.opaque-region.enabled" = true;
-            "widget.wayland.fractional-scale.enabled" = true;
-            "widget.gtk.rounded-bottom-corners.enabled" = false;
-
             # Privacy
-            "privacy.trackingprotection.enabled" = false;
             "privacy.query_stripping.enabled" = true;
             "privacy.query_stripping.enabled.pbmode" = true;
             "privacy.spoof_english" = 1;
             "privacy.firstparty.isolate" = false;
-            "network.cookie.cookieBehavior" = 5;
-            "dom.battery.enabled" = false;
-            "network.http.referer.XOriginPolicy" = 0;
-            "network.http.referer.XOriginTrimmingPolicy" = 0;
             "privacy.partition.network_state" = false;
-            "browser.safebrowsing.downloads.remote.enabled" = false;
-
-            # AI & suggestions
-            "browser.ml.chat.enabled" = false;
-            "browser.search.suggest.enabled" = true;
-            "browser.urlbar.suggest.searches" = true;
-            "browser.findBar.suggest.enabled" = true;
-            "browser.urlbar.showSearchSuggestionsFirst" = true;
 
             # Zen theme
             "zen.theme.accent-color" = "#ffffff90";
@@ -179,26 +87,17 @@
             "zen.view.compact.toolbar-flash-popup" = true;
             "zen.view.show-newtab-button-top" = false;
             "zen.view.window.scheme" = 2;
+            "zen.welcome-screen.seen" = true;
             "zen.watermark.enabled" = false;
             "zen.mediacontrols.enabled" = false;
-            "zen.welcome-screen.seen" = true;
+            "zen.window-sync.enabled" = false;
+            "zen.window-sync.sync-only-pinned-tabs" = true;
+            "zen.view.use-native-titlebar" = true;
             "reader.parse-on-load.enabled" = false;
+            "zen.tabs.dnd-open-blank-window" = false;
 
             # Transparancy
-            "zen.widget.linux.transparency" = true;
-            "browser.tabs.allow_transparent_browser" = false;
             "widget.transparent-windows" = true;
-            "zen.theme.acrylic-elements" = true;
-
-            # Browser misc
-            "browser.aboutConfig.showWarning" = false;
-            "browser.tabs.warnOnClose" = false;
-            "browser.tabs.hoverPreview.enabled" = true;
-            "browser.newtabpage.activity-stream.feeds.topsites" = false;
-            "browser.topsites.contile.enabled" = false;
-            "browser.formfill.enable" = false;
-            "browser.download.useDownloadDir" = true;
-            "toolkit.legacyUserProfileCustomizations.stylesheets" = true;
           };
         };
         policies = {
@@ -212,11 +111,124 @@
           DontCheckDefaultBrowser = true;
           NoDefaultBookmarks = true;
           OfferToSaveLogins = false;
+          SearchSuggestEnabled = true;
+          DisableFormHistory = true;
+          PromptForDownloadLocation = false;
           EnableTrackingProtection = {
             Value = true;
             Locked = true;
             Cryptomining = true;
             Fingerprinting = true;
+          };
+          FirefoxHome = {
+            TopSites = false;
+            Highlights = false;
+            Pocket = false;
+            Snippets = false;
+            Locked = true;
+          };
+          Preferences = {
+            # Network settings
+            "network.http.max-connections" = lock 1200;
+            "network.http.max-persistent-connections-per-server" = lock 8;
+            "network.http.max-urgent-start-excessive-connections-per-host" = lock 5;
+            "network.http.request.max-start-delay" = lock 5;
+            "network.http.pacing.requests.enabled" = lock false;
+            "network.http.pacing.requests.burst" = lock 32;
+            "network.http.pacing.requests.min-parallelism" = lock 10;
+            "network.ssl_tokens_cache_capacity" = lock 32768;
+            "network.http.http3.enabled" = lock true;
+            "network.dns.disablePrefetch" = lock true;
+            "network.dns.disablePrefetchFromHTTPS" = lock true;
+            "network.prefetch-next" = lock false;
+            "network.predictor.enabled" = lock false;
+            "network.predictor.enable-prefetch" = lock false;
+            "network.http.speculative-parallel-limit" = lock 0;
+            "network.cookie.cookieBehavior" = lock 5;
+            "network.http.referer.XOriginPolicy" = lock 0;
+            "network.http.referer.XOriginTrimmingPolicy" = lock 0;
+
+            # Browser & Profile settings
+            "browser.preferences.defaultPerformanceSettings.enabled" = lock false;
+            "browser.cache.disk.enable" = lock false;
+            "browser.cache.disk.capacity" = lock 0;
+            "browser.cache.memory.capacity" = lock 131072;
+            "browser.cache.disk.smart_size.enabled" = lock false;
+            "browser.cache.memory.max_entry_size" = lock 32768;
+            "browser.cache.disk.metadata_memory_limit" = lock 16384;
+            "browser.cache.max_shutdown_io_lag" = lock 100;
+            "browser.sessionstore.interval" = lock 60000;
+            "browser.sessionhistory.max_total_viewers" = lock 10;
+            "browser.sessionstore.max_tabs_undo" = lock 10;
+            "browser.sessionstore.max_entries" = lock 10;
+            "browser.tabs.min_inactive_duration_before_unload" = lock 600000;
+            "browser.uidensity" = lock 0;
+            "browser.ml.chat.enabled" = lock false;
+            "browser.findBar.suggest.enabled" = lock true;
+            "browser.urlbar.showSearchSuggestionsFirst" = lock true;
+            "browser.urlbar.speculativeConnect.enabled" = lock false;
+            "browser.places.speculativeConnect.enabled" = lock false;
+            "browser.aboutConfig.showWarning" = lock false;
+            "browser.tabs.warnOnClose" = lock false;
+            "browser.tabs.allow_transparent_browser" = lock false;
+            "browser.tabs.hoverPreview.enabled" = lock true;
+            "browser.safebrowsing.downloads.remote.enabled" = lock false;
+
+            # DOM & IPC settings
+            "dom.storage.default_quota" = lock 20480;
+            "dom.storage.shadow_writes" = lock true;
+            "dom.ipc.processCount" = lock 8;
+            "dom.ipc.keepProcessesAlive.web" = lock 4;
+            "dom.element.animate.enabled" = lock true;
+            "dom.battery.enabled" = lock false;
+            "dom.webgpu.enabled" = lock true;
+
+            # GFX & Rendering
+            "gfx.content.skia-font-cache-size" = lock 32;
+            "gfx.webrender.all" = lock true;
+            "gfx.webrender.enabled" = lock true;
+            "gfx.webrender.compositor" = lock true;
+            "gfx.webrender.precache-shaders" = lock true;
+            "gfx.webrender.software" = lock false;
+            "gfx.webrender.layer-compositor" = lock true;
+            "gfx.canvas.accelerated.cache-items" = lock 32768;
+            "gfx.canvas.accelerated.cache-size" = lock 4096;
+            "gfx.canvas.max-size" = lock 16384;
+            "layers.acceleration.force-enabled" = lock true;
+            "layout.frame_rate" = lock (-1);
+            "webgl.max-size" = lock 16384;
+            "webgl.force-enabled" = lock true;
+
+            # UI & Accessibility
+            "ui.submenuDelay" = lock 0;
+            "accessibility.force_disabled" = lock 1;
+            "general.smoothScroll" = lock true;
+            "general.autoScroll" = lock true;
+
+            # Media settings
+            "image.mem.max_decoded_image_kb" = lock 512000;
+            "image.cache.size" = lock 10485760;
+            "image.mem.decode_bytes_at_a_time" = lock 65536;
+            "image.mem.shared.unmap.min_expiration_ms" = lock 90000;
+            "media.memory_cache_max_size" = lock 1048576;
+            "media.memory_caches_combined_limit_kb" = lock 4194304;
+            "media.cache_readahead_limit" = lock 600;
+            "media.cache_resume_threshold" = lock 300;
+            "dom.media.webcodecs.h265.enabled" = lock true;
+            "media.videocontrols.picture-in-picture.video-toggle.enabled" = lock false;
+            "media.videocontrols.picture-in-picture.enable-when-switching-tabs.enabled" = lock false;
+            "media.ffmpeg.vaapi.enabled" = lock true;
+            "media.hardware-video-decoding.force-enabled" = lock true;
+            "media.wmf.zero-copy-nv12-textures-force-enabled" = lock true;
+
+            # Linux & Wayland
+            "widget.wayland.opaque-region.enabled" = lock true;
+            "widget.wayland.fractional-scale.enabled" = lock true;
+            "widget.gtk.rounded-bottom-corners.enabled" = lock false;
+            "zen.widget.linux.transparency" = lock true;
+
+            # System
+            "toolkit.legacyUserProfileCustomizations.stylesheets" = lock true;
           };
         };
       };

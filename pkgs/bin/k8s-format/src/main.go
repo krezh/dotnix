@@ -26,7 +26,7 @@ var resourceTypes = []ResourceType{
 		Ordering: map[string][]string{
 			"metadata": {"name", "namespace", "labels", "annotations"},
 			"spec":     {"interval", "chartRef", "chart", "driftDetection", "install", "upgrade", "uninstall", "dependsOn", "timeout", "maxHistory", "valuesFrom", "values", "postRenderers"},
-			"values":   {"defaultPodOptions", "controllers", "service", "serviceAccount", "ingress", "route", "persistence", "configMaps", "secrets"},
+			"values":   {"defaultPodOptions", "controllers", "service", "ingress", "route", "persistence", "configMaps", "secrets", "serviceAccount", "rbac"},
 		},
 	},
 	{

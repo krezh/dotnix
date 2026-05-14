@@ -5,21 +5,20 @@
   fetchFromGitHub,
   go-bin,
   installShellFiles,
-  versionCheckHook,
 }:
 (buildGoModule.override { go = go-bin.latestStable; }) (finalAttrs: {
   pname = "talosctl";
   # renovate: datasource=github-releases depName=siderolabs/talos
-  version = "1.13.1";
+  version = "1.13.2";
 
   src = fetchFromGitHub {
     owner = "siderolabs";
     repo = "talos";
     rev = "v${finalAttrs.version}";
-    hash = "sha256-Bhpy6+oO5oVKziR53Kg2/hO+Xg5Us3PHxkQjJ4j4t/I=";
+    hash = "sha256-ljJjCfpCQiOqlId1EBnnU4rc61HX5yNjzbxHo7ch7XI=";
   };
 
-  vendorHash = "sha256-nsRehIMqfib3cQZ83peS0o7kAHsVHctiX0LYiOR2C3A=";
+  vendorHash = "sha256-p8iSzFgaknmz/0gQ0RErvnXxY4KmFzKUr5+aOcNpqrM=";
 
   ldflags = [
     "-s"
@@ -41,11 +40,11 @@
 
   doCheck = false;
 
-  HOME = "$TMPDIR";
-
   doInstallCheck = true;
-  nativeInstallCheckInputs = [ versionCheckHook ];
-  versionCheckProgramArg = "version";
+
+  installCheckPhase = ''
+    $out/bin/talosctl version --client | grep ${finalAttrs.version} > /dev/null
+  '';
 
   meta = {
     description = "A CLI for out-of-band management of Kubernetes nodes created by Talos";
