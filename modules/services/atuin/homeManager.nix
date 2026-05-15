@@ -9,7 +9,7 @@
       daemon.enable = true;
       flags = [ "--disable-up-arrow" ];
       settings = {
-        sync_address = "https://sh.talos.plexuz.xyz";
+        sync_address = "https://sh.plexuz.xyz";
         style = "compact";
         workspaces = true;
         auto_sync = true;

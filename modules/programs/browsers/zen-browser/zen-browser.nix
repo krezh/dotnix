@@ -90,7 +90,7 @@
             "zen.welcome-screen.seen" = true;
             "zen.watermark.enabled" = false;
             "zen.mediacontrols.enabled" = false;
-            "zen.window-sync.enabled" = false;
+            "zen.window-sync.enabled" = true;
             "zen.window-sync.sync-only-pinned-tabs" = true;
             "zen.view.use-native-titlebar" = true;
             "reader.parse-on-load.enabled" = false;

@@ -44,13 +44,13 @@ jobs:
           output-link: result
 
       - name: Snapshot closure
-        if: ${{ steps.build.outcome == 'success' && github.ref == 'refs/heads/main' }}
+        if: ${{ steps.build.outcome == 'success'}}
         env:
           HOST_NAME: ${{ matrix.name }}
         run: nix run .#ncd -- snapshot result --output "${HOST_NAME}.json"
 
       - name: Save snapshot
-        if: ${{ steps.build.outcome == 'success' && github.ref == 'refs/heads/main' }}
+        if: ${{ steps.build.outcome == 'success' }}
         uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: ${{ matrix.name }}.json
