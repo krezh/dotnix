@@ -1,4 +1,4 @@
-_: {
+{
   flake.modules.nixos.efi = {
     boot.loader = {
       timeout = 0;

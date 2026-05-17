@@ -23,6 +23,7 @@
           protonplus
           faugus-launcher
           me3
+          low-latency-layer
         ];
       };
 
@@ -84,11 +85,11 @@
           config = {
             enable = true;
             closeSteam = true;
-            defaultCompatTool = "Proton-GE Latest";
+            defaultCompatTool = "Proton-CachyOS Latest";
             apps = {
               eldenring = {
                 id = 1245620;
-                compatTool = "Proton-GE Latest";
+                compatTool = "Proton-CachyOS Latest";
                 launchOptions = {
                   wrappers = [ ];
                   env = {
@@ -100,7 +101,7 @@
               };
               witchfire = {
                 id = 3156770;
-                compatTool = "Proton-GE Latest";
+                compatTool = "Proton-CachyOS Latest";
                 launchOptions = {
                   wrappers = [ "gamemoderun" ];
                   env = {
@@ -110,7 +111,7 @@
               };
               poe2 = {
                 id = 2694490;
-                compatTool = "Proton-GE Latest";
+                compatTool = "Proton-CachyOS Latest";
                 launchOptions = {
                   wrappers = [ "gamemoderun" ];
                   env = {
@@ -120,7 +121,7 @@
               };
               darktide = {
                 id = 1361210;
-                compatTool = "Proton-GE Latest";
+                compatTool = "Proton-CachyOS Latest";
                 launchOptions = {
                   wrappers = [ "gamemoderun" ];
                   env = { };
@@ -128,7 +129,7 @@
               };
               borderlands4 = {
                 id = 1285190;
-                compatTool = "Proton-GE Latest";
+                compatTool = "Proton-CachyOS Latest";
                 launchOptions = {
                   wrappers = [ "gamemoderun" ];
                   env = {
@@ -139,7 +140,7 @@
               };
               fellowship = {
                 id = 2352620;
-                compatTool = "Proton-GE Latest";
+                compatTool = "Proton-CachyOS Latest";
                 launchOptions = {
                   wrappers = [ "gamemoderun" ];
                   env = {
@@ -151,7 +152,7 @@
               };
               crimson-desert = {
                 id = 3321460;
-                compatTool = "Proton-GE Latest";
+                compatTool = "Proton-CachyOS Latest";
                 launchOptions = {
                   wrappers = [ "gamemoderun" ];
                   env = { };
@@ -159,7 +160,7 @@
               };
               toxic-commando = {
                 id = 2157830;
-                compatTool = "Proton-GE Latest";
+                compatTool = "Proton-CachyOS Latest";
                 launchOptions = {
                   wrappers = [ "gamemoderun" ];
                   env = { };
@@ -167,7 +168,7 @@
               };
               rogue-trader = {
                 id = 2186680;
-                compatTool = "Proton-GE Latest";
+                compatTool = "Proton-CachyOS Latest";
                 launchOptions = {
                   wrappers = [ "gamemoderun" ];
                   env = {
@@ -177,7 +178,7 @@
               };
               elite-dangerous = {
                 id = 359320;
-                compatTool = "Proton-GE Latest";
+                compatTool = "Proton-CachyOS Latest";
                 launchOptions = {
                   wrappers = [ "gamemoderun" ];
                   env = { };
@@ -185,7 +186,7 @@
               };
               sekiro = {
                 id = 814380;
-                compatTool = "Proton-GE Latest";
+                compatTool = "Proton-CachyOS Latest";
                 launchOptions = {
                   wrappers = [ "gamemoderun" ];
                   env = {

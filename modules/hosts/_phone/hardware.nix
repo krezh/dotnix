@@ -1,5 +1,5 @@
 {
-  flake.modules.nixos.phone = _: {
+  flake.modules.nixos.phone = {
     boot = {
       initrd = {
         availableKernelModules = [ "virtio_pci" ];

@@ -1,5 +1,5 @@
-_: {
-  flake.modules.homeManager.editors = _: {
+{
+  flake.modules.homeManager.editors = {
     programs.vscodium = {
       profiles.default = {
         userSettings = {

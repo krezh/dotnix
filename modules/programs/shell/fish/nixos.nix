@@ -1,4 +1,4 @@
-_: {
+{
   flake.modules.nixos.shell = {
     programs.fish = {
       enable = true;

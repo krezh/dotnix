@@ -1,4 +1,4 @@
-_: {
+{
   flake.modules.homeManager.browsers =
     { config, ... }:
     {
@@ -21,6 +21,12 @@ _: {
             id = "alertmanager";
             url = "https://alertmanager.plexuz.xyz";
             position = 104;
+            isEssential = true;
+          };
+          "Gotify" = {
+            id = "gotify";
+            url = "https://gotify.plexuz.xyz";
+            position = 105;
             isEssential = true;
           };
           "ChatGPT" = {

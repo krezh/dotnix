@@ -1,4 +1,4 @@
-_: {
+{
   flake.modules.homeManager.niri =
     {
       pkgs,
@@ -12,9 +12,7 @@ _: {
       launcherBin = "${pkgs.netcat}/bin/nc -U /run/user/$(id -u)/walker/walker.sock";
       shellBin = "${lib.getExe config.programs.noctalia-shell.package} ipc call";
       clipboardBin = "${lib.getExe config.programs.walker.package} -m clipboard";
-      chompBin = "${lib.getExe pkgs.chomp} -t ${
-        config.sops.secrets."zipline/token".path
-      } -u https://zipline.talos.plexuz.xyz";
+      chompBin = "${lib.getExe pkgs.chomp}";
 
       getBinaryName = pkg: pkg.meta.mainProgram or pkg.pname or pkg.name;
       audioControlPkg = pkgs.wiremix;
