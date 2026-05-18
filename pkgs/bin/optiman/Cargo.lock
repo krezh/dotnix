@@ -1333,9 +1333,9 @@ dependencies = [
 
 [[package]]
 name = "keyvalues-parser"
-version = "0.2.3"
+version = "0.2.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3b1d591f0c9482810347586bd2ae842bbd1fc4e0849283c611244930ff44e90f"
+checksum = "eded51a3b2cdcdc173e23683fd49f72e8151160b279f80c0378f7661a2ae10b7"
 dependencies = [
  "pest",
  "serde_core",
