@@ -4,7 +4,7 @@
     {
       wayland.windowManager.hyprland = {
         settings = {
-          monitorv2 =
+          monitor =
             if osConfig.networking.hostName == "thor" then
               [
                 {
@@ -13,7 +13,6 @@
                   position = "0x0";
                   scale = 1.0;
                   vrr = 2;
-                  # icc = "/home/krezh/.config/icc/PG279QM.icm";
                 }
                 {
                   output = "DP-2";
