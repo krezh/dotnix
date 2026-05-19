@@ -1,7 +1,7 @@
 { inputs, ... }:
 {
   flake.modules.homeManager.gaming =
-    { ... }:
+
     {
       imports = [
         inputs.steam-config-nix.homeModules.default

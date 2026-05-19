@@ -1,7 +1,7 @@
 { inputs, ... }:
 {
   flake.modules.homeManager.browsers =
-    { ... }:
+
     {
       imports = [ inputs.helium.homeModules.default ];
 

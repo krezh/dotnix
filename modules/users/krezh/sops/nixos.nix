@@ -45,7 +45,6 @@ in
           "github/token" = { };
           "smb/user" = { };
           "smb/pass" = { };
-          "nixbuild/key" = { };
         };
         templates = {
           "nix_access_token.conf" = {

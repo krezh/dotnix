@@ -43,11 +43,6 @@
         supportedFilesystems = [ "zfs" ];
       };
 
-      # Ensure /mnt/tank exists for the data pool
-      systemd.tmpfiles.rules = [
-        "d /mnt/tank 0755 root root -"
-      ];
-
       services = {
         zfs = {
           autoScrub = {

@@ -21,6 +21,24 @@
             type = "command";
           };
 
+          hooks = {
+            SessionStart = [
+              {
+                hooks = [
+                  {
+                    type = "mcp_tool";
+                    server = "agentmemory";
+                    tool = "memory_recall";
+                    input = {
+                      query = "user preferences feedback project patterns workflow";
+                    };
+                    statusMessage = "Recalling memory...";
+                  }
+                ];
+              }
+            ];
+          };
+
           permissions = {
             allow = [
               # Safe read-only git commands

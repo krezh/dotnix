@@ -13,7 +13,6 @@
         openssh
         gaming
         hyprland
-        gnome
         docker
         wooting
         inputs.silentSDDM.nixosModules.default

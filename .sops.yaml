@@ -5,6 +5,11 @@ keys:
   - &system_thor age1la8yyuay3f6jzkfggmqsl5dekfe56lk0w83z8x93lyf7k6lf9asskczezw
 
 creation_rules:
+  - path_regex: modules/hosts/jotunheim/.*\.sops\.ya?ml$
+    key_groups:
+      - age:
+          - *user_krezh
+          - *user_krezh_yubikey
   - path_regex: ^[^.].*\.sops\.ya?ml$
     key_groups:
       - age:
