@@ -155,12 +155,12 @@
               desc = "Toggle split layout";
             };
             "${mainMod} + F" = {
-              rule = mkInline "hl.dsp.window.fullscreen(1)";
-              desc = "Toggle fullscreen";
+              rule = mkInline ''hl.dsp.window.fullscreen({mode = "maximized", action = "toggle"})'';
+              desc = "Maximize window";
             };
             "${mainModShift} + F" = {
-              rule = mkInline "hl.dsp.window.fullscreen(2)";
-              desc = "Toggle fullscreen (real)";
+              rule = mkInline ''hl.dsp.window.fullscreen({mode = "fullscreen", action = "toggle"})'';
+              desc = "Toggle fullscreen";
             };
 
             # Move windows
