@@ -1,7 +1,6 @@
 {
   flake.modules.homeManager.editors =
     {
-      lib,
       pkgs,
       config,
       ...
@@ -9,24 +8,11 @@
     {
       vscodium.extensionIds = [
         "esbenp.prettier-vscode"
-        "redhat.vscode-yaml"
         "signageos.signageos-vscode-sops"
-        "golang.go"
-        "rust-lang.rust-analyzer"
-        "docker.docker"
-        "github.vscode-github-actions"
         "gruntfuggly.todo-tree"
-        "timonwong.shellcheck"
-        "jeff-hykin.better-shellscript-syntax"
-        "tamasfe.even-better-toml"
-        "mads-hartmann.bash-ide-vscode"
         "waderyan.gitblame"
         "alefragnani.project-manager"
-        "theqtcompany.qt-core"
-        "theqtcompany.qt-qml"
-        "theqtcompany.qt-ui"
         "mkhl.direnv"
-        "opentofu.vscode-opentofu"
         "blueglassblock.better-json5"
         "editorconfig.editorconfig"
         "usernamehw.errorlens"
@@ -35,8 +21,6 @@
         "anthropic.claude-code"
         "zizmor.zizmor-vscode"
         "christian-kohler.path-intellisense"
-        "helm-ls.helm-ls"
-        "ms-kubernetes-tools.vscode-kubernetes-tools"
         "gitHub.vscode-pull-request-github"
       ];
 
@@ -232,25 +216,6 @@
               inlineMessageEnabled = false;
               statusBarMessageEnabled = true;
             };
-            rust-analyzer.server.path = lib.getExe pkgs.rust-analyzer;
-            go = {
-              toolsManagement.autoUpdate = true;
-              inlayHints.assignVariableTypes = true;
-            };
-            gopls."ui.documentation.hoverKind" = "FullDocumentation";
-            "[go]".editor.defaultFormatter = "golang.go";
-            yaml = {
-              format.enable = true;
-              validate = true;
-            };
-            "[yaml]" = {
-              editor = {
-                defaultFormatter = "esbenp.prettier-vscode";
-                autoIndent = "full";
-                detectIndentation = true;
-              };
-              diffEditor.ignoreTrimWhitespace = true;
-            };
             "[json]".editor.defaultFormatter = "vscode.json-language-features";
             "[jsonc]" = {
               editor = {
@@ -258,36 +223,6 @@
                 suggest.insertMode = "replace";
               };
             };
-            "[fish]".editor.defaultFormatter = "bmalehorn.vscode-fish";
-            "[shellscript]".editor.defaultFormatter = "mads-hartmann.bash-ide-vscode";
-            opentofu = {
-              codelens.referenceCount = true;
-              experimentalFeatures.prefillRequiredFields = true;
-              languageServer = {
-                path = lib.getExe pkgs.tofu-ls;
-                tofu.path = lib.getExe pkgs.opentofu;
-              };
-            };
-            "[opentofu]".editor.defaultFormatter = "opentofu.vscode-opentofu";
-            docker.extension.enableComposeLanguageServer = false;
-            "[dockerbake]".editor.defaultFormatter = "docker.docker";
-            "[dockercompose]".editor.defaultFormatter = "esbenp.prettier-vscode";
-            "[github-actions-workflow]".editor.defaultFormatter = "esbenp.prettier-vscode";
-            "[qml]".editor.defaultFormatter = "theqtcompany.qt-qml";
-            qt-core.additionalQtPaths = [
-              {
-                name = "Qt6-nix";
-                path = "${pkgs.qt6.qtbase}/bin/qtpaths";
-              }
-            ];
-            qt-qml = {
-              doNotAskForQmllsDownload = true;
-              qmlls = {
-                useQmlImportPathEnvVar = true;
-                customExePath = "${pkgs.qt6.qtdeclarative}/bin/qmlls";
-              };
-            };
-            "[toml]".editor.defaultFormatter = "tamasfe.even-better-toml";
             todo-tree = {
               general.showActivityBarBadge = true;
               filtering = {
@@ -301,7 +236,6 @@
             };
             indentRainbow.indicatorStyle = "light";
             indentRainbow.lightIndicatorStyleLineWidth = 2;
-            vs-kubernetes."vs-kubernetes.crd-code-completion" = "disabled";
             projectManager = {
               git.baseFolders = [ "~/" ];
               git.ignoredFolders = [
