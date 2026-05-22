@@ -172,7 +172,12 @@
       programs.nh = {
         enable = true;
       };
-      documentation.man.cache.enable = lib.mkForce false;
-      documentation.enable = lib.mkForce false;
+      documentation = {
+        enable = lib.mkForce false;
+        man = {
+          enable = lib.mkForce false;
+          cache.enable = lib.mkForce false;
+        };
+      };
     };
 }
