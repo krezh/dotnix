@@ -9,7 +9,7 @@
         installBatSyntax = true;
         settings = {
           font-family = "${config.var.fonts.mono}";
-          font-size = 12;
+          font-size = config.var.fonts.codeSize;
           font-style = "Bold";
           font-thicken = true;
           copy-on-select = "clipboard";

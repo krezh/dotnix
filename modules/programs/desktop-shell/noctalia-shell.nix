@@ -269,7 +269,7 @@
             ];
           };
           general = {
-            avatarImage = "/home/krezh/.face";
+            avatarImage = "/home/${config.var.username}/.face";
             dimmerOpacity = 0.2;
             showScreenCorners = false;
             forceBlackScreenCorners = false;
@@ -335,8 +335,8 @@
             smoothScrollEnabled = true;
           };
           ui = {
-            fontDefault = "Rubik";
-            fontFixed = "JetBrainsMono Nerd Font";
+            fontDefault = config.var.fonts.sans;
+            fontFixed = config.var.fonts.mono;
             fontDefaultScale = 1.1;
             fontFixedScale = 1.1;
             tooltipsEnabled = true;

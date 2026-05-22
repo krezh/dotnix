@@ -10,7 +10,7 @@
           cursor_shape = "block";
           shell_integration = "no-cursor";
           input_delay = 2;
-          font_size = 12;
+          font_size = config.var.fonts.codeSize;
           font_family = "family=\"${config.var.fonts.mono}\"";
           bold_font = "auto";
           italic_font = "auto";

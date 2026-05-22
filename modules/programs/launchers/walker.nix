@@ -150,7 +150,7 @@
               @define-color background #24273a;
 
               * { all: unset; }
-              * { font-family: "JetBrainsMono Nerd Font"; font-size: 20px; color: @text; }
+              * { font-family: "${config.var.fonts.mono}"; font-size: 20px; color: @text; }
               popover { background: @background; border: 3px @border; border-radius: 15px; padding: 10px; }
               scrollbar { opacity: 0; }
               .normal-icons { -gtk-icon-size: 16px; }

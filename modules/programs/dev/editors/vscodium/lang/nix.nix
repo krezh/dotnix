@@ -39,7 +39,11 @@
                             inherit lib pkgs;
                             check = false;
                           })
-                          ++ (builtins.attrValues flake.modules.homeManager)
+                          ++ [
+                            flake.modules.homeManager.system-base
+                            flake.modules.homeManager.editors
+                            flake.modules.homeManager.modules
+                          ]
                           ++ [
                             {
                               _module.args = {
