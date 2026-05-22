@@ -93,7 +93,10 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    nix-gaming.url = "git+https://github.com/fufexan/nix-gaming?shallow=1";
+    nix-gaming = {
+      url = "git+https://github.com/fufexan/nix-gaming?shallow=1";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
 
     steam-config-nix = {
       url = "git+https://github.com/different-name/steam-config-nix?shallow=1";
