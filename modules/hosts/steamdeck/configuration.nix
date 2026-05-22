@@ -7,7 +7,7 @@ in
     { pkgs, ... }:
     {
       home-manager.users.${user} = {
-        imports = with inputs.self.mods.homeManager; [
+        imports = with inputs.self.modules.homeManager; [
           system-desktop
           gnome
           desktop-shell
@@ -17,13 +17,13 @@ in
           launchers
         ];
       };
-      imports = with inputs.self.mods.nixos; [
+      imports = with inputs.self.modules.nixos; [
         system-desktop
         efi
         gnome
         openssh
         battery
-        inputs.self.mods.nixos.${user}
+        inputs.self.modules.nixos.${user}
         inputs.jovian.nixosModules.default
       ];
 

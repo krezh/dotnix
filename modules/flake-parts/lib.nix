@@ -18,7 +18,7 @@
             inherit lib;
           };
           modules = [
-            inputs.self.mods.nixos.${name}
+            inputs.self.modules.nixos.${name}
             {
               nixpkgs.hostPlatform = lib.mkDefault system;
               networking.hostName = lib.mkDefault name;

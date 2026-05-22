@@ -11,7 +11,7 @@
       imports = [
         inputs.nix-index.homeModules.nix-index
       ]
-      ++ (with inputs.self.mods; [
+      ++ (with inputs.self.modules; [
         generic.var
         homeManager.shell
         homeManager.catppuccin

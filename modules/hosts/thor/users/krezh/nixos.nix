@@ -5,13 +5,13 @@ in
 {
   flake.modules.nixos.thor = {
     imports = [
-      inputs.self.mods.nixos.${user}
+      inputs.self.modules.nixos.${user}
     ];
     security.pam.services.${user}.enableGnomeKeyring = true;
     users.users.${user}.extraGroups = [ "tss" ]; # tss group has access to TPM devices
 
     home-manager.users.${user} = {
-      imports = with inputs.self.mods.homeManager; [
+      imports = with inputs.self.modules.homeManager; [
         system-desktop
         desktop-shell
         desktop-utils

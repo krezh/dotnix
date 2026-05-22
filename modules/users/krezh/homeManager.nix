@@ -6,7 +6,7 @@ in
   flake.modules.homeManager.${username} =
     { config, ... }:
     {
-      imports = with inputs.self.mods.homeManager; [
+      imports = with inputs.self.modules.homeManager; [
         atuin
         fastfetch
         aria2

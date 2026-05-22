@@ -7,7 +7,7 @@ in
     { pkgs, lib, ... }:
     {
       home-manager.users.${user} = {
-        imports = with inputs.self.mods.homeManager; [
+        imports = with inputs.self.modules.homeManager; [
           system-desktop
           terminal
           editors
@@ -21,7 +21,7 @@ in
           desktop-utils
         ];
       };
-      imports = with inputs.self.mods.nixos; [
+      imports = with inputs.self.modules.nixos; [
         system-desktop
         efi
         intel
@@ -29,7 +29,7 @@ in
         openssh
         hyprland
         docker
-        inputs.self.mods.nixos.${user}
+        inputs.self.modules.nixos.${user}
       ];
 
       networking = {

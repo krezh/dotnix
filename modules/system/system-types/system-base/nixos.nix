@@ -12,7 +12,7 @@
         inputs.sops-nix.nixosModules.sops
         inputs.home-manager.nixosModules.home-manager
       ]
-      ++ (with inputs.self.mods; [
+      ++ (with inputs.self.modules; [
         generic.var
         nixos.shell
         nixos.catppuccin
