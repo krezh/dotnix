@@ -30,6 +30,10 @@ in
               ];
               schedule = "daily";
             };
+            claude = {
+              paths = [ "${config.home.homeDirectory}/.claude/projects" ];
+              schedule = "daily";
+            };
           };
         };
       };

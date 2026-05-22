@@ -4,16 +4,16 @@
     {
       lib,
       pkgs,
-      config,
       ...
     }:
     {
+      vscodium.extensionIds = [
+        "jnoortheen.nix-ide"
+        "jeff-hykin.better-nix-syntax"
+      ];
+
       programs.vscodium = {
         profiles.default = {
-          extensions = pkgs.nix4vscode.forVscodeVersion config.programs.vscode.package.version [
-            "jnoortheen.nix-ide"
-            "jeff-hykin.better-nix-syntax"
-          ];
           userSettings = {
             nix = {
               enableLanguageServer = true;

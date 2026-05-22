@@ -7,6 +7,39 @@
       ...
     }:
     {
+      vscodium.extensionIds = [
+        "esbenp.prettier-vscode"
+        "redhat.vscode-yaml"
+        "signageos.signageos-vscode-sops"
+        "golang.go"
+        "rust-lang.rust-analyzer"
+        "docker.docker"
+        "github.vscode-github-actions"
+        "gruntfuggly.todo-tree"
+        "timonwong.shellcheck"
+        "jeff-hykin.better-shellscript-syntax"
+        "tamasfe.even-better-toml"
+        "mads-hartmann.bash-ide-vscode"
+        "waderyan.gitblame"
+        "alefragnani.project-manager"
+        "theqtcompany.qt-core"
+        "theqtcompany.qt-qml"
+        "theqtcompany.qt-ui"
+        "mkhl.direnv"
+        "opentofu.vscode-opentofu"
+        "blueglassblock.better-json5"
+        "editorconfig.editorconfig"
+        "usernamehw.errorlens"
+        "oderwat.indent-rainbow"
+        "mhutchie.git-graph"
+        "anthropic.claude-code"
+        "zizmor.zizmor-vscode"
+        "christian-kohler.path-intellisense"
+        "helm-ls.helm-ls"
+        "ms-kubernetes-tools.vscode-kubernetes-tools"
+        "gitHub.vscode-pull-request-github"
+      ];
+
       catppuccin.vscodium = {
         profiles.default = {
           accent = "blue";
@@ -29,38 +62,7 @@
         profiles.default = {
           enableExtensionUpdateCheck = false;
           enableUpdateCheck = false;
-          extensions = pkgs.nix4vscode.forVscodeVersion config.programs.vscodium.package.version [
-            "esbenp.prettier-vscode"
-            "redhat.vscode-yaml"
-            "signageos.signageos-vscode-sops"
-            "golang.go"
-            "rust-lang.rust-analyzer"
-            "docker.docker"
-            "github.vscode-github-actions"
-            "gruntfuggly.todo-tree"
-            "timonwong.shellcheck"
-            "jeff-hykin.better-shellscript-syntax"
-            "tamasfe.even-better-toml"
-            "mads-hartmann.bash-ide-vscode"
-            "waderyan.gitblame"
-            "alefragnani.project-manager"
-            "theqtcompany.qt-core"
-            "theqtcompany.qt-qml"
-            "theqtcompany.qt-ui"
-            "mkhl.direnv"
-            "opentofu.vscode-opentofu"
-            "blueglassblock.better-json5"
-            "editorconfig.editorconfig"
-            "usernamehw.errorlens"
-            "oderwat.indent-rainbow"
-            "mhutchie.git-graph"
-            "anthropic.claude-code"
-            "zizmor.zizmor-vscode"
-            "christian-kohler.path-intellisense"
-            "helm-ls.helm-ls"
-            "ms-kubernetes-tools.vscode-kubernetes-tools"
-            "gitHub.vscode-pull-request-github"
-          ];
+          extensions = pkgs.nix4vscode.forVscodeVersion config.programs.vscodium.package.version config.vscodium.extensionIds;
           userSettings = {
             telemetry.telemetryLevel = "off";
             update.mode = "none";

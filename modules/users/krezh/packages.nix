@@ -1,4 +1,3 @@
-{ inputs, ... }:
 {
   flake.modules.homeManager.krezh =
     { pkgs, ... }:
@@ -23,29 +22,8 @@
         cava
         glow
         hyperfine
-        rclone
-        wakatime-cli
         infisical
         hcloud
-
-        # Dev
-        devenv
-        lefthook
-        rust-analyzer
-        shellcheck
-        just
-        gopls
-        zizmor
-        go
-        go-task
-        opentofu
-        tofu-ls
-        just-lsp
-        statix
-        nixd
-        nil
-        inputs.self.packages.${pkgs.stdenv.hostPlatform.system}.treefmt
-        yaml-language-server
 
         # Networking
         speedtest-cli

@@ -12,6 +12,9 @@ in
         aria2
         television
         superfile
+        go
+        nix-dev
+        dev-tools
       ];
       home = {
         username = "${username}";

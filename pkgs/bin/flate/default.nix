@@ -1,0 +1,37 @@
+{
+  lib,
+  buildGoModule,
+  fetchFromGitHub,
+  go-bin,
+}:
+
+(buildGoModule.override { go = go-bin.latestStable; }) (finalAttrs: {
+  pname = "flate";
+  # renovate: datasource=github-releases depName=home-operations/flate
+  version = "0.1.3";
+
+  src = fetchFromGitHub {
+    owner = "home-operations";
+    repo = "flate";
+    tag = finalAttrs.version;
+    hash = "sha256-OzVXXKL3DEDj7Vvw0ogqZLsxYitcnqWkLcA4iEbUq3Y=";
+  };
+
+  doCheck = false;
+
+  vendorHash = "sha256-IPOzsDOgPChBtcJN8qQHS/jMLkPZBi2TGIH3oGlrpgg=";
+
+  ldflags = [
+    "-s"
+    "-w"
+  ];
+
+  meta = {
+    description = "Flate - A Flux resource inflator";
+    homepage = "https://github.com/home-operations/flate";
+    changelog = "https://github.com/home-operations/flate/blob/${finalAttrs.src.rev}/CHANGELOG.md";
+    license = lib.licenses.agpl3Only;
+    maintainers = with lib.maintainers; [ ];
+    mainProgram = "flate";
+  };
+})
