@@ -3,9 +3,9 @@
   flake.modules.nixos.phone =
     { modulesPath, ... }:
     {
-      imports = with inputs.self.modules.nixos; [
+      imports = with inputs.self.mods.nixos; [
         system-base
-        # inputs.self.modules.nixos.${user}
+        # inputs.self.mods.nixos.${user}
         (modulesPath + "/profiles/minimal.nix")
       ];
       boot.loader.grub.devices = [ "/boot" ];

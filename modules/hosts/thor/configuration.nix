@@ -3,7 +3,7 @@
   flake.modules.nixos.thor =
     { pkgs, lib, ... }:
     {
-      imports = with inputs.self.modules.nixos; [
+      imports = with inputs.self.mods.nixos; [
         system-desktop
         efi
         desktop-utils

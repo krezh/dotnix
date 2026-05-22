@@ -3,14 +3,14 @@
   flake.modules.nixos.jotunheim =
     { pkgs, ... }:
     {
-      imports = with inputs.self.modules.nixos; [
+      imports = with inputs.self.mods.nixos; [
         system-base
         openssh
         krezh
       ];
 
       home-manager.users.root = {
-        imports = with inputs.self.modules.homeManager; [
+        imports = with inputs.self.mods.homeManager; [
           system-base
         ];
       };

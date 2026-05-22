@@ -3,7 +3,7 @@
   flake.modules.nixos.system-desktop =
     { pkgs, ... }:
     {
-      imports = with inputs.self.modules.nixos; [
+      imports = with inputs.self.mods.nixos; [
         system-base
         fonts
         bluetooth
@@ -33,7 +33,7 @@
     };
 
   flake.modules.homeManager.system-desktop = {
-    imports = with inputs.self.modules.homeManager; [
+    imports = with inputs.self.mods.homeManager; [
       system-base
       gtk-theme
       xdg-settings

@@ -14,7 +14,7 @@ in
       # Home-manager integration
       home-manager = {
         users.${username} = {
-          imports = [ inputs.self.modules.homeManager.${username} ];
+          imports = [ inputs.self.mods.homeManager.${username} ];
         };
       };
 
