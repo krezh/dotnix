@@ -1,6 +1,8 @@
 {
   flake.modules.homeManager.editors = {
-    vscodium.extensionIds = [ "redhat.vscode-yaml" ];
+    vscodium.extensionIds = [
+      "redhat.vscode-yaml"
+    ];
 
     programs.vscodium.profiles.default.userSettings = {
       yaml = {
@@ -10,8 +12,6 @@
       "[yaml]" = {
         editor = {
           defaultFormatter = "esbenp.prettier-vscode";
-          autoIndent = "full";
-          detectIndentation = true;
         };
         diffEditor.ignoreTrimWhitespace = true;
       };

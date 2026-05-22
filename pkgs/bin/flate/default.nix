@@ -3,6 +3,8 @@
   buildGoModule,
   fetchFromGitHub,
   go-bin,
+  stdenv,
+  installShellFiles,
 }:
 
 (buildGoModule.override { go = go-bin.latestStable; }) (finalAttrs: {
@@ -25,6 +27,15 @@
     "-s"
     "-w"
   ];
+
+  nativeBuildInputs = [ installShellFiles ];
+
+  postInstall = lib.optionalString (stdenv.buildPlatform.canExecute stdenv.hostPlatform) ''
+    installShellCompletion --cmd flate \
+      --bash <($out/bin/flate completion bash) \
+      --fish <($out/bin/flate completion fish) \
+      --zsh <($out/bin/flate completion zsh)
+  '';
 
   meta = {
     description = "Flate - A Flux resource inflator";
