@@ -31,7 +31,7 @@
           "gitHub.vscode-pull-request-github"
         ];
 
-        catppuccin.vscodium = {
+        catppuccin.vscode = {
           profiles.default = {
             accent = "blue";
             settings = {

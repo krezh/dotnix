@@ -15,6 +15,7 @@ in
       home-manager = {
         users.${username} = {
           imports = [ inputs.self.modules.homeManager.${username} ];
+          var.username = username;
         };
       };
 
