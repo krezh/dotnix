@@ -109,6 +109,7 @@ jobs:
               --repo "$GITHUB_REPOSITORY" \
               --title "Latest Builds" \
               --notes "Latest automated NixOS image builds. Updated on every scheduled run."
+          gh release edit latest --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA"
 
       - name: Remove old images from release
         env:
