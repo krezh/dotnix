@@ -2,10 +2,6 @@
   flake.modules.homeManager.atuin = {
     programs.atuin = {
       enable = true;
-      enableBashIntegration = true;
-      enableFishIntegration = true;
-      enableZshIntegration = true;
-      enableNushellIntegration = true;
       daemon.enable = true;
       flags = [ "--disable-up-arrow" ];
       settings = {

@@ -2,7 +2,12 @@
 {
   flake.modules.homeManager.gaming =
 
+    { pkgs, ... }:
     {
+      autostart.apps.steam = {
+        exec = "${pkgs.steam}/bin/steam -silent";
+      };
+
       imports = [
         inputs.steam-config-nix.homeModules.default
       ];

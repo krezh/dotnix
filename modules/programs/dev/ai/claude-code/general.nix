@@ -13,7 +13,7 @@
         settings = {
           theme = "dark";
           model = "claude-sonnet-4-6";
-          verbose = false;
+          verbose = true;
           includeCoAuthoredBy = false;
 
           statusLine = {

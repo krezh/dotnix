@@ -12,6 +12,9 @@ in
     users.users.${user}.extraGroups = [ "tss" ]; # tss group has access to TPM devices
 
     home-manager.users.${user} = {
+      targets.network-online.enable = true;
+      autostart.enableXdgAutostart = true;
+
       imports = with inputs.self.modules.homeManager; [
         system-desktop
         desktop-shell

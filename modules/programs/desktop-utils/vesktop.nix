@@ -44,6 +44,12 @@
         };
       };
 
+      autostart.apps.vesktop = {
+        exec = "${pkgs.vesktop}/bin/vesktop";
+        after = [ "network-online.target" ];
+        wants = [ "network-online.target" ];
+      };
+
       services.arrpc = {
         enable = true;
         package = pkgs.rsrpc;
@@ -52,6 +58,7 @@
       systemd.user.services.arRPC = {
         Unit = {
           After = [ "network-online.target" ];
+          Wants = [ "network-online.target" ];
         };
       };
     };

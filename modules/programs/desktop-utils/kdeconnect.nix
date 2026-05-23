@@ -10,6 +10,7 @@
             "graphical-session.target"
             "network-online.target"
           ];
+          Wants = [ "network-online.target" ];
           PartOf = [ "graphical-session.target" ];
         };
         Service = {

@@ -22,6 +22,7 @@
             id = "proton";
             type = "wireguard";
             interface-name = "Proton";
+            autoconnect = false;
           };
           wireguard = {
             private-key = "$PROTONVPN_PRIVATE_KEY";

@@ -13,7 +13,7 @@
         configType = "lua";
         systemd = {
           enable = true;
-          enableXdgAutostart = true;
+          enableXdgAutostart = false;
           variables = [ "--all" ];
         };
         plugins = [ ];
