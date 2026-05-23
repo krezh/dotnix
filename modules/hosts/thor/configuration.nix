@@ -57,10 +57,6 @@
             wayland.compositor = "weston";
             autoNumlock = true;
           };
-          gdm = {
-            enable = false;
-            wayland = true;
-          };
           defaultSession = "hyprland";
         };
 
