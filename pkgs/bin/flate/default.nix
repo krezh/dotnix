@@ -10,18 +10,18 @@
 (buildGoModule.override { go = go-bin.latestStable; }) (finalAttrs: {
   pname = "flate";
   # renovate: datasource=github-releases depName=home-operations/flate
-  version = "0.1.3";
+  version = "0.1.4";
 
   src = fetchFromGitHub {
     owner = "home-operations";
     repo = "flate";
     tag = finalAttrs.version;
-    hash = "sha256-OzVXXKL3DEDj7Vvw0ogqZLsxYitcnqWkLcA4iEbUq3Y=";
+    hash = "sha256-wKN8ZWVpaZIa8idy0ZSAFyG4t6N5RGmc1S4VhfBhY7A=";
   };
 
   doCheck = false;
 
-  vendorHash = "sha256-IPOzsDOgPChBtcJN8qQHS/jMLkPZBi2TGIH3oGlrpgg=";
+  vendorHash = "sha256-ZkA4iE/cc7IhTWpp+2JC6V1P0CUFVMdBL/F2whtbGTM=";
 
   ldflags = [
     "-s"
