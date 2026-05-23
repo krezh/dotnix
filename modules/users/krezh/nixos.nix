@@ -47,6 +47,7 @@ in
             "podman"
             "git"
             "libvirtd"
+            "kvm"
             "deluge"
             "gamemode"
           ];

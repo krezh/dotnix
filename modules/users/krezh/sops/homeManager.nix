@@ -22,7 +22,6 @@
           "r2/accessSecret" = { };
           "hetzner/accessID" = { };
           "hetzner/accessSecret" = { };
-          "agentmemory/secret" = { };
         };
       };
       home.sessionVariables = {

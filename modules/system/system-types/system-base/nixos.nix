@@ -115,6 +115,8 @@
         TZ = "Europe/Stockholm";
       };
 
+      networking.nftables.enable = true;
+
       # Hardware
       hardware.enableRedistributableFirmware = true;
 

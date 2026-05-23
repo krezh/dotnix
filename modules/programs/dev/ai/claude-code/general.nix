@@ -12,8 +12,8 @@
 
         settings = {
           theme = "dark";
-          model = "claude-sonnet-4-5";
-          verbose = true;
+          model = "claude-sonnet-4-6";
+          verbose = false;
           includeCoAuthoredBy = false;
 
           statusLine = {
@@ -76,27 +76,31 @@
 
               # MCP servers
               "mcp__nixos"
+              "mcp__forgetful"
+              "mcp__context7"
 
               # Safe web fetch from trusted domains
               "WebFetch(domain:wiki.hyprland.org)"
               "WebFetch(domain:wiki.hypr.land)"
               "WebFetch(domain:github.com)"
               "WebFetch(domain:raw.githubusercontent.com)"
-              "WebFetch(domain:docs.renovatebot.com)"
+              "WebFetch(domain:*renovatebot.com)"
 
               # NixOS build
               "Bash(nh os build:*)"
+              "Bash(nixos-rebuild build:*)"
+              "Bash(nix build:*)"
             ];
             deny = [
               "Bash(curl:*)"
-              "Read(./.env)"
-              "Read(./.env.*)"
+              "Read(**/.env.*)"
               "Read(**/.secret*)"
               "Read(**/secret)"
               "Read(**/secret.*)"
+              "Read(**/.decrypted~secrets.sops.*)"
               "Bash(sudo:*)"
             ];
-            defaultMode = "acceptEdits";
+            defaultMode = "auto";
           };
         };
       };

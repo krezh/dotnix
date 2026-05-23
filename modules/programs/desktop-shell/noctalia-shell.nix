@@ -29,6 +29,10 @@
               enabled = true;
               sourceUrl = "https://github.com/noctalia-dev/noctalia-plugins";
             };
+            network-manager-vpn = {
+              enabled = true;
+              sourceUrl = "https://github.com/noctalia-dev/noctalia-plugins";
+            };
           };
         };
         pluginSettings = {
@@ -187,6 +191,9 @@
                 }
                 {
                   id = "plugin:privacy-indicator";
+                }
+                {
+                  id = "plugin:network-manager-vpn";
                 }
                 {
                   blacklist = [ ];

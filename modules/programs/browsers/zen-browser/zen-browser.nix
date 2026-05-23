@@ -44,24 +44,11 @@
 
       programs.zen-browser = {
         enable = true;
-        setAsDefaultBrowser = true;
+        setAsDefaultBrowser = false;
         profiles.${config.home.username} = {
           isDefault = true;
           mods = [ ];
           settings = {
-            # https://docs.zen-browser.app/guides/about-config-flags
-
-            # "javascript.options.mem.high_water_mark" = 128;
-
-            # "content.maxtextrun" = 8191;
-            # "content.interrupt.parsing" = true;
-            # "content.notify.ontimer" = true;
-            # "content.notify.interval" = 50000;
-            # "content.max.tokenizing.time" = 2000000;
-            # "content.switch.threshold" = 300000;
-
-            # Layout & rendering
-            # "nglayout.initialpaint.delay" = 5;
 
             "general.smoothScroll.msdPhysics.enabled" = false;
             "general.smoothScroll.currentVelocityWeighting" = 0;
@@ -70,15 +57,14 @@
             "general.smoothScroll.mouseWheel.durationMinMS" = 50;
             "apz.overscroll.enabled" = false;
 
-            # "fission.autostart" = true;
-
             "privacy.query_stripping.enabled" = true;
             "privacy.query_stripping.enabled.pbmode" = true;
             "privacy.spoof_english" = 1;
             "privacy.firstparty.isolate" = false;
             "privacy.partition.network_state" = false;
+            "reader.parse-on-load.enabled" = false;
 
-            # Zen theme
+            # https://docs.zen-browser.app/guides/about-config-flags
             "zen.theme.accent-color" = "#ffffff90";
             "zen.theme.border-radius" = toString config.var.rounding;
             "zen.theme.content-element-separation" = 0;
@@ -104,7 +90,6 @@
             "zen.window-sync.enabled" = true;
             "zen.window-sync.sync-only-pinned-tabs" = true;
             "zen.view.use-native-titlebar" = true;
-            "reader.parse-on-load.enabled" = false;
             "zen.tabs.dnd-open-blank-window" = false;
             "zen.widget.linux.transparency" = true;
           };

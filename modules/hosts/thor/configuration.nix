@@ -9,7 +9,6 @@
         desktop-utils
         secureboot
         amd
-        tpm
         openssh
         gaming
         hyprland

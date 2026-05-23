@@ -57,11 +57,19 @@ runs:
           nix_cmd="$nix_cmd ${EXTRA_ARGS}"
         fi
 
-        # Execute build with error capture
-        eval "$nix_cmd" 2>&1 | tee build.log || {
+        # Execute build — split stderr (nix messages) from stdout (builder output)
+        eval "$nix_cmd" \
+          > >(tee build.log) \
+          2> >(tee /tmp/nix-build-err.log >&2) || {
+
           {
             echo 'error-log<<EOF_ERROR_LOG'
-            grep -iE 'error|failed|cannot|fatal|panic' build.log | tail -n 100 || tail -n 50 build.log
+            drv=$(grep "For full logs, run" /tmp/nix-build-err.log | grep -oE '/nix/store/[^ ]+\.drv' | head -1)
+            if [ -n "$drv" ]; then
+              nix log "$drv"
+            else
+              cat /tmp/nix-build-err.log
+            fi
             echo 'EOF_ERROR_LOG'
           } >> $GITHUB_OUTPUT
 
