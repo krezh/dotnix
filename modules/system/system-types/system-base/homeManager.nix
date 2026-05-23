@@ -25,6 +25,7 @@
       };
 
       manual.manpages.enable = lib.mkForce false;
+      programs.man.enable = lib.mkForce false;
 
       programs = {
         home-manager.enable = true;

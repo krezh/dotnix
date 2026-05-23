@@ -8,7 +8,7 @@
       home-manager.users.${user} = {
         programs.chomp = {
           enable = true;
-          font.family = "Rubik";
+          font.family = config.var.fonts.sans;
           border = {
             thickness = 3;
             rounding = 15;
