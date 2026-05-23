@@ -97,7 +97,7 @@ jobs:
           asset_name="nixos-${IMAGE}-${date}.${extension}"
           cp "$image_path" "$asset_name"
           echo "asset=$asset_name" >> $GITHUB_OUTPUT
-          echo "prefix=nixos-${IMAGE}-" >> $GITHUB_OUTPUT
+          echo "prefix=nixos-${IMAGE}" >> $GITHUB_OUTPUT
           echo "extension=${extension}" >> $GITHUB_OUTPUT
 
       - name: Ensure latest release exists
