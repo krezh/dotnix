@@ -37,7 +37,7 @@
           };
           base_keymap = "VSCode";
           ui_font_size = 17;
-          ui_font_family = "Rubik";
+          ui_font_family = config.var.fonts.sans;
           buffer_font_size = 15;
           buffer_font_family = "${config.var.fonts.mono}";
           relative_line_numbers = "disabled";
