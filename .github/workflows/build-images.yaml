@@ -93,9 +93,12 @@ jobs:
             exit 1
           fi
           extension="${image_path##*.}"
-          asset_name="nixos-${IMAGE}.${extension}"
+          date=$(date +%Y-%m-%d)
+          asset_name="nixos-${IMAGE}-${date}.${extension}"
           cp "$image_path" "$asset_name"
           echo "asset=$asset_name" >> $GITHUB_OUTPUT
+          echo "prefix=nixos-${IMAGE}-" >> $GITHUB_OUTPUT
+          echo "extension=${extension}" >> $GITHUB_OUTPUT
 
       - name: Ensure latest release exists
         env:
@@ -107,11 +110,22 @@ jobs:
               --title "Latest Builds" \
               --notes "Latest automated NixOS image builds. Updated on every scheduled run."
 
-      - name: Upload image to latest release
+      - name: Remove old images from release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PREFIX: ${{ steps.find-image.outputs.prefix }}
+          EXT: ${{ steps.find-image.outputs.extension }}
+        run: |
+          gh release view latest --repo "$GITHUB_REPOSITORY" --json assets \
+            --jq ".assets[].name | select(startswith(\"$PREFIX\") and endswith(\".$EXT\"))" \
+          | xargs -r -I{} gh release delete-asset latest "{}" \
+              --repo "$GITHUB_REPOSITORY" \
+              --yes
+
+      - name: Upload image to release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ASSET: ${{ steps.find-image.outputs.asset }}
         run: |
           gh release upload latest "$ASSET" \
-            --repo "$GITHUB_REPOSITORY" \
-            --clobber
+            --repo "$GITHUB_REPOSITORY"
