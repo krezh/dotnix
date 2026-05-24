@@ -100,7 +100,7 @@
               "Read(**/.decrypted~secrets.sops.*)"
               "Bash(sudo:*)"
             ];
-            defaultMode = "auto";
+            defaultMode = "acceptEdits";
           };
         };
       };
