@@ -3,22 +3,6 @@
     { pkgs, ... }:
     {
       home.packages = [ pkgs.valent ];
-      systemd.user.services.valent = {
-        Unit = {
-          Description = "Valent - KDE Connect implementation";
-          After = [
-            "graphical-session.target"
-            "network-online.target"
-          ];
-          Wants = [ "network-online.target" ];
-          PartOf = [ "graphical-session.target" ];
-        };
-        Service = {
-          ExecStart = "${pkgs.valent}/bin/valent --gapplication-service";
-          Restart = "on-failure";
-        };
-        Install.WantedBy = [ "graphical-session.target" ];
-      };
     };
   flake.modules.nixos.desktop-utils = {
     networking.firewall =

@@ -48,6 +48,7 @@
         exec = "${pkgs.vesktop}/bin/vesktop";
         after = [ "network-online.target" ];
         wants = [ "network-online.target" ];
+        delay = 2;
       };
 
       services.arrpc = {

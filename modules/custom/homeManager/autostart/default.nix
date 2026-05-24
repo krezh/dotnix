@@ -29,6 +29,11 @@
             type = lib.types.listOf lib.types.str;
             default = [ ];
           };
+
+          delay = lib.mkOption {
+            type = lib.types.ints.unsigned;
+            default = 0;
+          };
         };
       };
 
@@ -38,7 +43,9 @@
         name: entry:
         let
           properties =
-            map (u: "--property=After=${u}") entry.after ++ map (u: "--property=Wants=${u}") entry.wants;
+            map (u: "--property=After=${u}") entry.after
+            ++ map (u: "--property=Wants=${u}") entry.wants
+            ++ lib.optional (entry.delay > 0) "--on-active=${toString entry.delay}s";
           args = lib.concatStringsSep " " (
             [
               "--user"
