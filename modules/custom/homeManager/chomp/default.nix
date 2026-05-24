@@ -141,6 +141,19 @@
           };
           default = { };
         };
+
+        annotate = lib.mkOption {
+          type = lib.types.submodule {
+            options = {
+              package = lib.mkOption {
+                type = lib.types.nullOr lib.types.package;
+                default = null;
+                description = "satty package used for annotation (the --annotate flag). When null, satty is resolved from PATH.";
+              };
+            };
+          };
+          default = { };
+        };
       };
 
       config = lib.mkIf cfg.enable {
@@ -171,6 +184,9 @@
           };
           capture = {
             save_path = cfg.capture.savePath;
+          };
+          annotate = lib.optionalAttrs (cfg.annotate.package != null) {
+            satty_path = lib.getExe cfg.annotate.package;
           };
         };
       };

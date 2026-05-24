@@ -44,6 +44,9 @@ pub struct Config {
 
     /// Capture configuration
     pub capture: CaptureConfig,
+
+    /// Annotation configuration
+    pub annotate: AnnotateConfig,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -112,10 +115,25 @@ pub struct CaptureConfig {
     pub save_path: String,
 }
 
+#[derive(Debug, Deserialize, Serialize, Clone)]
+#[serde(default)]
+pub struct AnnotateConfig {
+    /// Path to the satty binary used for annotation
+    pub satty_path: String,
+}
+
 impl Default for CaptureConfig {
     fn default() -> Self {
         Self {
             save_path: "/tmp".to_string(),
+        }
+    }
+}
+
+impl Default for AnnotateConfig {
+    fn default() -> Self {
+        Self {
+            satty_path: "satty".to_string(),
         }
     }
 }

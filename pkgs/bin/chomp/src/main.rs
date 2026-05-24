@@ -197,7 +197,24 @@ fn handle_image_mode(
         _ => unreachable!(),
     };
 
-    capture::capture_screenshot(rect, &output_file)?;
+    if args.annotate {
+        let png = capture::capture_png_bytes(rect)?;
+        let satty_path = args
+            .satty_path
+            .as_deref()
+            .expect("satty_path must be set after merge_with_config");
+        if let Err(e) = system::annotate(satty_path, &png, &output_file) {
+            log::error!("Annotation failed: {}", e);
+            notifier.send_error("Annotation failed", Some(&e.to_string()));
+            return Ok(());
+        }
+        // satty writes output_file only on a save action
+        if !std::path::Path::new(&output_file).exists() {
+            return Ok(());
+        }
+    } else {
+        capture::capture_screenshot(rect, &output_file)?;
+    }
 
     log::info!("Screenshot saved to {}", output_file);
 

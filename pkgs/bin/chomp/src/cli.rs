@@ -55,6 +55,14 @@ pub struct Args {
     #[arg(long)]
     pub ocr: bool,
 
+    /// Annotate the screenshot with satty before saving/uploading
+    #[arg(short = 'a', long)]
+    pub annotate: bool,
+
+    /// Path to the satty binary (overrides config)
+    #[arg(long)]
+    pub satty_path: Option<String>,
+
     /// Screenshot output file path (use '-' for stdout in PNG format)
     #[arg(short = 'o', long)]
     pub output: Option<String>,
@@ -122,6 +130,9 @@ impl Args {
 
         // Merge capture settings
         self.save_path.get_or_insert(config.capture.save_path);
+
+        // Merge annotation settings
+        self.satty_path.get_or_insert(config.annotate.satty_path);
 
         self
     }
