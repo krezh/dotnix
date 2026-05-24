@@ -9,6 +9,13 @@
       ];
 
       programs.vscodium.profiles.default.userSettings = {
+        workbench = {
+          editorAssociations = {
+            "*.qrc" = "qt-core.qrcEditor";
+            "{git,gitlens,chat-editing-snapshot-text-model,git-graph,git-graph-3}:/**/*.qrc" = "default";
+            "{git,gitlens,chat-editing-snapshot-text-model,git-graph,git-graph-3}:/**/*.ui" = "default";
+          };
+        };
         "[qml]".editor.defaultFormatter = "theqtcompany.qt-qml";
         qt-core.additionalQtPaths = [
           {

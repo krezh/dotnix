@@ -20,13 +20,11 @@
           "waderyan.gitblame"
           "alefragnani.project-manager"
           "mkhl.direnv"
-          "blueglassblock.better-json5"
           "editorconfig.editorconfig"
           "usernamehw.errorlens"
           "oderwat.indent-rainbow"
           "mhutchie.git-graph"
           "anthropic.claude-code"
-          "zizmor.zizmor-vscode"
           "christian-kohler.path-intellisense"
           "gitHub.vscode-pull-request-github"
         ];
@@ -46,7 +44,6 @@
             };
           };
         };
-
         programs.vscodium = {
           enable = true;
           mutableExtensionsDir = true;
@@ -67,11 +64,6 @@
                 editor = {
                   empty.hint = "hidden";
                   autoLockGroups."mainThreadWebview-markdown.preview" = true;
-                };
-                editorAssociations = {
-                  "*.qrc" = "qt-core.qrcEditor";
-                  "{git,gitlens,chat-editing-snapshot-text-model,git-graph,git-graph-3}:/**/*.qrc" = "default";
-                  "{git,gitlens,chat-editing-snapshot-text-model,git-graph,git-graph-3}:/**/*.ui" = "default";
                 };
               };
               breadcrumbs.enabled = true;
@@ -168,7 +160,6 @@
               files = {
                 trimTrailingWhitespace = true;
                 associations = {
-                  "*.tf" = "opentofu";
                   CODEOWNERS = "plaintext";
                 };
                 exclude = {
@@ -211,24 +202,15 @@
                 commandCenter.enabled = false;
                 disableAIFeatures = true;
               };
-              claudeCode = {
-                useTerminal = false;
-                enableAutocompletions = true;
-                enableInlineEdits = true;
-                allowDangerouslySkipPermissions = true;
-                preferredLocation = "panel";
-              };
+              "claudeCode.allowDangerouslySkipPermissions" = true;
+              "claudeCode.enableAutocompletions" = true;
+              "claudeCode.enableInlineEdits" = true;
+              "claudeCode.preferredLocation" = "panel";
+              "claudeCode.useTerminal" = false;
               gitblame = {
                 ignoreWhitespace = true;
                 inlineMessageEnabled = false;
                 statusBarMessageEnabled = true;
-              };
-              "[json]".editor.defaultFormatter = "vscode.json-language-features";
-              "[jsonc]" = {
-                editor = {
-                  quickSuggestions.strings = true;
-                  suggest.insertMode = "replace";
-                };
               };
               todo-tree = {
                 general.showActivityBarBadge = true;

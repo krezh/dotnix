@@ -14,6 +14,7 @@
           };
         };
         "[opentofu]".editor.defaultFormatter = "opentofu.vscode-opentofu";
+        files.associations."*.tf" = "opentofu";
       };
     };
 }
