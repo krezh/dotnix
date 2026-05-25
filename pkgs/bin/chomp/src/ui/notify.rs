@@ -51,7 +51,7 @@ impl Notifier {
                     .summary(&title_owned)
                     .body(&message_owned)
                     .urgency(Urgency::Normal)
-                    .timeout(Timeout::Never)
+                    .timeout(Timeout::Milliseconds(60_000))
                     .action("open", "Open URL")
                     .show()
                 {
@@ -77,7 +77,7 @@ impl Notifier {
                     .summary(&title_owned)
                     .body(&body)
                     .urgency(Urgency::Normal)
-                    .timeout(Timeout::Never)
+                    .timeout(Timeout::Milliseconds(60_000))
                     .show();
             }
         }

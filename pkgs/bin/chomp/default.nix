@@ -50,7 +50,13 @@ craneLib.buildPackage rec {
 
   postInstall = ''
     wrapProgram $out/bin/chomp \
-      --prefix PATH : ${lib.makeBinPath [ pkgs.tesseract ]}
+      --prefix PATH : ${
+        lib.makeBinPath [
+          pkgs.tesseract
+          pkgs.satty
+          pkgs.wl-screenrec
+        ]
+      }
 
     installShellCompletion --cmd chomp \
       --bash <($out/bin/chomp --generate-completions bash) \

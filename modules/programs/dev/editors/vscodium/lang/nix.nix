@@ -57,10 +57,9 @@
                     flake_parts.expr = "let flake = builtins.getFlake (toString ./.); in flake.debug.options // flake.currentSystem.options";
 
                   };
-                  diagnostic.suppress = [ "sema-extra-with" ];
+                  diagnostic.suppress = [ ];
                   hiddenLanguageServerErrors = [
                     "textDocument/definition"
-                    "unknown node type for definition"
                   ];
                 };
               };

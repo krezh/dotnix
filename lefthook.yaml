@@ -8,8 +8,14 @@ pre-commit:
       run: nixfmt {staged_files}
       stage_fixed: true
     "Govendor":
-      glob: "*go.mod"
+      glob: "go.mod"
       run: govendor --check {staged_files}
+      stage_fixed: true
     "Statix":
       glob: "*.nix"
       run: statix check
+      stage_fixed: true
+    "Deadnix":
+      glob: "*.nix"
+      run: deadnix -e {staged_files}
+      stage_fixed: true

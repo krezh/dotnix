@@ -19,6 +19,7 @@
           terraform.enable = true;
           actionlint.enable = false;
           rustfmt.enable = true;
+          statix.enable = true;
           prettier = {
             enable = true;
             settings = {

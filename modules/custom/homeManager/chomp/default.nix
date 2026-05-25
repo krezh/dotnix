@@ -161,24 +161,18 @@
 
         xdg.configFile."chomp/config.json".source = jsonFormat.generate "chomp-config.json" {
           font = {
-            inherit (cfg.font) family;
-            inherit (cfg.font) size;
-            inherit (cfg.font) weight;
+            inherit (cfg.font) family size weight;
           };
           border = {
-            inherit (cfg.border) color;
-            inherit (cfg.border) thickness;
-            inherit (cfg.border) rounding;
+            inherit (cfg.border) color thickness rounding;
           };
           display = {
             dim_opacity = cfg.display.dimOpacity;
-            inherit (cfg.display) fps;
-            inherit (cfg.display) log;
+            inherit (cfg.display) fps log;
           };
           upload = {
             zipline = {
-              inherit (cfg.zipline) url;
-              inherit (cfg.zipline) token;
+              inherit (cfg.zipline) url token;
               use_original_name = cfg.zipline.useOriginalName;
             };
           };

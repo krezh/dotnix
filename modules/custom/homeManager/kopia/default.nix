@@ -36,10 +36,12 @@
         let
           json = builtins.toJSON {
             inherit name;
-            inherit (backup) paths;
-            inherit (backup) exclude;
-            inherit (backup) compression;
-            inherit (backup) retentionPolicy;
+            inherit (backup)
+              paths
+              exclude
+              compression
+              retentionPolicy
+              ;
           };
         in
         pkgs.writeTextFile {

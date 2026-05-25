@@ -7,7 +7,10 @@ edition = "2021"
 wayland-client = "0.31"
 wayland-protocols = { version = "0.32", features = ["client", "unstable"] }
 wayland-protocols-wlr = { version = "0.3", features = ["client"] }
-smithay-client-toolkit = { version = "0.20", default-features = false, features = ["calloop", "xkbcommon"] }
+smithay-client-toolkit = { version = "0.20", default-features = false, features = [
+  "calloop",
+  "xkbcommon",
+] }
 cairo-rs = { version = "0.22", features = ["png"] }
 image = "0.25"
 nix = { version = "0.31", features = ["fs", "mman", "signal", "process"] }
@@ -30,9 +33,9 @@ sysinfo = "0.39"
 opt-level = 1
 
 [profile.release]
-opt-level = 3              # Maximum optimization
-lto = "fat"                # Full link-time optimization across all crates
-codegen-units = 1          # Better optimization at cost of compile time
-strip = true               # Remove debug symbols
-panic = "abort"            # Smaller binary, faster panic handling
-overflow-checks = false    # Disable integer overflow checks in release
+opt-level = 3           # Maximum optimization
+lto = "fat"             # Full link-time optimization across all crates
+codegen-units = 1       # Better optimization at cost of compile time
+strip = true            # Remove debug symbols
+panic = "abort"         # Smaller binary, faster panic handling
+overflow-checks = false # Disable integer overflow checks in release
