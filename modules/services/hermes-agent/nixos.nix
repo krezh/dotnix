@@ -56,4 +56,77 @@
         restartSec = 5;
       };
     };
+
+  # Alternative: hermes backed by a local Ollama instance.
+  # Swap flake.modules.nixos.hermes-agent for this module on hosts that
+  # should run fully offline.  Ollama is started by systemd and hermes is
+  # bound to it — if ollama dies, hermes stops too.
+  flake.modules.nixos.hermes-agent-local =
+    { pkgs, ... }:
+    {
+      imports = [ inputs.hermes-agent.nixosModules.default ];
+
+      users.users.krezh.extraGroups = [ "hermes" ];
+
+      services.ollama = {
+        enable = true;
+        package = pkgs.ollama-vulkan;
+        # loadModels pulls the model on first start so hermes can use it
+        # immediately.  Remove or change to whichever model you prefer.
+        loadModels = [ "qwen3.5:9b" ];
+        environmentVariables = {
+          OLLAMA_CONTEXT_LENGTH = "65536";
+          OLLAMA_KV_CACHE_TYPE = "q8_0";
+        };
+      };
+
+      # Tie hermes-agent to the ollama service: hermes activates ollama on
+      # start and stops automatically if ollama exits.
+      systemd.services.hermes-agent = {
+        bindsTo = [ "ollama.service" ];
+        after = [ "ollama.service" ];
+      };
+
+      services.hermes-agent = {
+        enable = true;
+        settings = {
+          model = {
+            provider = "custom";
+            base_url = "http://localhost:11434/v1";
+            default = "qwen3.5:9b";
+            ollama_num_ctx = 65536;
+          };
+          toolsets = [ "all" ];
+          max_turns = 100;
+          terminal = {
+            backend = "local";
+            cwd = ".";
+            timeout = 180;
+          };
+          compression = {
+            enabled = true;
+            threshold = 0.85;
+          };
+          memory = {
+            memory_enabled = true;
+            user_profile_enabled = true;
+          };
+          display = {
+            compact = false;
+            show_cost = false;
+          };
+          checkpoints = {
+            enabled = true;
+            max_snapshots = 50;
+          };
+          agent = {
+            max_turns = 60;
+            verbose = false;
+          };
+        };
+        extraDependencyGroups = [ ];
+        addToSystemPackages = true;
+        restartSec = 5;
+      };
+    };
 }

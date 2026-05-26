@@ -14,7 +14,7 @@
         hyprland
         docker
         wooting
-        hermes-agent
+        hermes-agent-local
         inputs.silentSDDM.nixosModules.default
       ];
 
