@@ -8,6 +8,7 @@ in
         enable = true;
         vaults.plexuz.target = "Obsidian/Plexuz";
       };
+      catppuccin.obsidian.enable = false; # Uses IFD
     };
   };
 }
