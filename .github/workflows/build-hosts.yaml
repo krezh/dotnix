@@ -50,9 +50,9 @@ jobs:
         run: |
           drv=$(grep "For full logs, run" /tmp/nix-build-err.log | grep -oE '/nix/store/[^ ]+\.drv' | head -1 || true)
           if [ -n "$drv" ]; then
-            nix log "$drv" || cat /tmp/nix-build-err.log
+            nix log "$drv" || grep -v "dependencies of derivation.*failed to build" /tmp/nix-build-err.log | grep -A4 "^error:" || true
           else
-            cat /tmp/nix-build-err.log
+            grep -v "dependencies of derivation.*failed to build" /tmp/nix-build-err.log | grep -A4 "^error:" || true
           fi > /tmp/error-log-out.txt
           cat /tmp/error-log-out.txt
           delimiter=$(openssl rand -hex 16)
