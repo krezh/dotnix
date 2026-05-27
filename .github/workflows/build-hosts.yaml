@@ -43,6 +43,25 @@ jobs:
           build-type: system
           output-link: result
 
+      - name: Output build failure
+        if: failure()
+        id: output-failure
+        shell: bash
+        run: |
+          drv=$(grep "For full logs, run" /tmp/nix-build-err.log | grep -oE '/nix/store/[^ ]+\.drv' | head -1)
+          if [ -n "$drv" ]; then
+            nix log "$drv" > /tmp/error-log-out.txt 2>&1 || cat /tmp/nix-build-err.log > /tmp/error-log-out.txt
+          else
+            cat /tmp/nix-build-err.log > /tmp/error-log-out.txt
+          fi
+          cat /tmp/error-log-out.txt
+          delimiter=$(openssl rand -hex 16)
+          {
+            echo "error-log<<${delimiter}"
+            cat /tmp/error-log-out.txt
+            echo "${delimiter}"
+          } >> "$GITHUB_OUTPUT"
+
       - name: Post build comment
         if: ${{ always() && github.event_name == 'pull_request' }}
         uses: ./.github/actions/post-build-comment
@@ -51,7 +70,7 @@ jobs:
           build-name: ${{ matrix.attr }}
           build-status: ${{ steps.build.outcome }}
           flake-target: ${{ matrix.target }}
-          error-log: ${{ steps.build.outputs.error-log }}
+          error-log: ${{ steps.output-failure.outputs.error-log }}
           build-duration: ${{ steps.build.outputs.build_duration }}
           runner: ${{ matrix.runner }}
           pr-number: ${{ github.event.pull_request.number }}

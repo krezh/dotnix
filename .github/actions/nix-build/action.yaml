@@ -23,9 +23,6 @@ outputs:
   success:
     description: "Whether the build succeeded"
     value: ${{ steps.build.outcome == 'success' }}
-  error-log:
-    description: "Extracted error log content"
-    value: ${{ steps.build.outputs.error-log }}
   build_duration:
     description: "Build duration in seconds"
     value: ${{ steps.build.outputs.build_duration }}
@@ -43,44 +40,18 @@ runs:
       run: |
         set -o pipefail
         build_start=$(date +%s)
+        trap 'echo "build_duration=$(( $(date +%s) - build_start ))" >> "$GITHUB_OUTPUT"' EXIT
 
-        # Construct nix build command
         nix_cmd="nix build --fallback --no-write-lock-file --log-format raw \".#${INPUT_TARGET}\""
 
-        # Add output link if specified
         if [ -n "${OUTPUT_LINK}" ]; then
           nix_cmd="$nix_cmd -o ${OUTPUT_LINK}"
         fi
 
-        # Add extra args based on build type or custom args
         if [ -n "${EXTRA_ARGS}" ]; then
           nix_cmd="$nix_cmd ${EXTRA_ARGS}"
         fi
 
-        # Execute build — split stderr (nix messages) from stdout (builder output)
         eval "$nix_cmd" \
           > >(tee build.log) \
-          2> >(tee /tmp/nix-build-err.log >&2) || {
-
-          {
-            delimiter=$(openssl rand -hex 16)
-            echo "error-log<<${delimiter}"
-            drv=$(grep "For full logs, run" /tmp/nix-build-err.log | grep -oE '/nix/store/[^ ]+\.drv' | head -1)
-            if [ -n "$drv" ]; then
-              nix log "$drv"
-            else
-              cat /tmp/nix-build-err.log
-            fi
-            echo "${delimiter}"
-          } >> $GITHUB_OUTPUT
-
-          build_end=$(date +%s)
-          build_duration=$((build_end - build_start))
-          echo "build_duration=$build_duration" >> $GITHUB_OUTPUT
-
-          exit 1
-        }
-
-        build_end=$(date +%s)
-        build_duration=$((build_end - build_start))
-        echo "build_duration=$build_duration" >> $GITHUB_OUTPUT
+          2> >(tee /tmp/nix-build-err.log >&2)
