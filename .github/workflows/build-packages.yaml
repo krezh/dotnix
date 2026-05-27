@@ -47,12 +47,12 @@ jobs:
         id: output-failure
         shell: bash
         run: |
-          drv=$(grep "For full logs, run" /tmp/nix-build-err.log | grep -oE '/nix/store/[^ ]+\.drv' | head -1)
+          drv=$(grep "For full logs, run" /tmp/nix-build-err.log | grep -oE '/nix/store/[^ ]+\.drv' | head -1 || true)
           if [ -n "$drv" ]; then
-            nix log "$drv" > /tmp/error-log-out.txt 2>&1 || cat /tmp/nix-build-err.log > /tmp/error-log-out.txt
+            nix log "$drv" || cat /tmp/nix-build-err.log
           else
-            cat /tmp/nix-build-err.log > /tmp/error-log-out.txt
-          fi
+            cat /tmp/nix-build-err.log
+          fi > /tmp/error-log-out.txt
           cat /tmp/error-log-out.txt
           delimiter=$(openssl rand -hex 16)
           {
