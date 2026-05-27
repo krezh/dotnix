@@ -63,14 +63,15 @@ runs:
           2> >(tee /tmp/nix-build-err.log >&2) || {
 
           {
-            echo 'error-log<<EOF_ERROR_LOG'
+            delimiter=$(openssl rand -hex 16)
+            echo "error-log<<${delimiter}"
             drv=$(grep "For full logs, run" /tmp/nix-build-err.log | grep -oE '/nix/store/[^ ]+\.drv' | head -1)
             if [ -n "$drv" ]; then
               nix log "$drv"
             else
               cat /tmp/nix-build-err.log
             fi
-            echo 'EOF_ERROR_LOG'
+            echo "${delimiter}"
           } >> $GITHUB_OUTPUT
 
           build_end=$(date +%s)

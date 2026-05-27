@@ -45,6 +45,7 @@
         inputs.kauth.packages.${pkgs.stdenv.hostPlatform.system}.kauth
         lfk
         flate
+        towonel
       ];
 
       catppuccin = {

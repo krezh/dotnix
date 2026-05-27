@@ -22,7 +22,7 @@
         { id = "ngonfifpkpeefnhelnfdkficaiihklid"; } # ProtonDB for Steam
         { id = "kdbmhfkmnlmbkgbabkdealhhbfhlmmon"; } # SteamDB
         { id = "oeakphpfoaeggagmgphfejmfjbhjfhhh"; } # YT Tweaks
-        { id = "bkkmolkhemgaeaeggcmfbghljjjoofoh"; } # Catppuccin Chrome Theme - Mocha
+        { id = "ffabmkklhbepgcgfonabamgnfafbdlkn"; } # GitZip for github
       ];
 
       # nativeMessagingHosts = [ pkgs.browserpass ];
