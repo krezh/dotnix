@@ -12,7 +12,7 @@ craneLib.buildPackage rec {
     inherit src strictDeps;
   };
 
-  nativeBuildInputs = with pkgs; [ makeWrapper ];
+  nativeBuildInputs = [ makeWrapper ];
 
   postInstall = ''
     wrapProgram $out/bin/ncd \

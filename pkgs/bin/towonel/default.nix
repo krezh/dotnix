@@ -1,40 +1,30 @@
 {
   lib,
-  craneLib,
-  fetchFromGitea,
+  rustPlatform,
+  fetchFromForgejo,
   pkg-config,
   openssl,
   sqlite,
 }:
-craneLib.buildPackage rec {
+rustPlatform.buildRustPackage rec {
   pname = "towonel";
   # renovate: datasource=forgejo-releases registryUrl=https://codeberg.org depName=towonel/towonel
   version = "0.1.10";
 
-  src = craneLib.cleanCargoSource (fetchFromGitea {
+  src = fetchFromForgejo {
     domain = "codeberg.org";
     owner = "towonel";
     repo = "towonel";
     tag = "v${version}";
     hash = "sha256-jwN4ro/B7a5Kgz1WJXmCPPzCDuSRBUWcUbLtZKM7pYM=";
-  });
-
-  strictDeps = true;
-
-  cargoArtifacts = craneLib.buildDepsOnly {
-    inherit src strictDeps;
-    nativeBuildInputs = [ pkg-config ];
-    buildInputs = [
-      openssl
-      sqlite
-    ];
-    env = {
-      LIBSQLITE3_SYS_USE_PKG_CONFIG = true;
-      OPENSSL_NO_VENDOR = true;
-    };
   };
 
-  cargoExtraArgs = "--package towonel-node";
+  cargoHash = "sha256-vqPXGDFT+8wRX+RpJMr8OYFfikNbVLmIb3SMIhVEvXU=";
+
+  cargoBuildFlags = [
+    "--package"
+    "towonel-node"
+  ];
   doCheck = false;
 
   nativeBuildInputs = [ pkg-config ];

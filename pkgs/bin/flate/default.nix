@@ -42,7 +42,6 @@
     homepage = "https://github.com/home-operations/flate";
     changelog = "https://github.com/home-operations/flate/blob/${finalAttrs.src.rev}/CHANGELOG.md";
     license = lib.licenses.agpl3Only;
-    maintainers = with lib.maintainers; [ ];
     mainProgram = "flate";
   };
 })
