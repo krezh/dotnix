@@ -3,6 +3,8 @@
   fetchFromGitHub,
   go-bin,
   lib,
+  installShellFiles,
+  stdenv,
 }:
 (buildGoModule.override { go = go-bin.latestStable; }) (finalAttrs: {
   pname = "zli";
@@ -26,6 +28,15 @@
     "-s"
     "-w"
   ];
+
+  nativeBuildInputs = [ installShellFiles ];
+
+  postInstall = lib.optionalString (stdenv.buildPlatform.canExecute stdenv.hostPlatform) ''
+    installShellCompletion --cmd ${finalAttrs.pname} \
+      --bash <($out/bin/${finalAttrs.pname} completion bash) \
+      --fish <($out/bin/${finalAttrs.pname} completion fish) \
+      --zsh <($out/bin/${finalAttrs.pname} completion zsh)
+  '';
 
   doCheck = false;
 
