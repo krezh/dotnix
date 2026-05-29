@@ -29,6 +29,7 @@
           "xml"
           "catppuccin-icons"
           "editorconfig"
+          "jj-lsp"
         ];
         userSettings = {
           auto_update = false;

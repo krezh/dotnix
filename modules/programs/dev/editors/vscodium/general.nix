@@ -27,6 +27,7 @@
           "anthropic.claude-code"
           "christian-kohler.path-intellisense"
           "gitHub.vscode-pull-request-github"
+          "jjx.jjx"
         ];
 
         catppuccin.vscode = {
@@ -113,6 +114,7 @@
                 hideOnStartup = "whenEmpty";
               };
               git = {
+                enabled = false;
                 autofetch = true;
                 enableSmartCommit = true;
                 confirmSync = false;

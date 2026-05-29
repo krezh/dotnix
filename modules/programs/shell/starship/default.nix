@@ -3,6 +3,7 @@
     { lib, pkgs, ... }:
     {
       catppuccin.starship.enable = false; # Uses IFD
+      home.packages = [ pkgs.jj-starship ];
       programs.starship = {
         enable = true;
         enableFishIntegration = true;
@@ -10,7 +11,7 @@
         enableZshIntegration = true;
         settings = {
           add_newline = true;
-          format = "$username$hostname$git_branch$git_commit$git_state$git_metrics$git_status$nix_shell$fill$cmd_duration$time\n$directory$fill$kubernetes\${custom.talos}\n$character";
+          format = "$username$hostname$git_branch$git_commit$git_state$git_metrics$git_status\${custom.jj}$nix_shell$fill$cmd_duration$time\n$directory$fill$kubernetes\${custom.talos}\n$character";
           kubernetes = {
             format = "[$context](bold blue) $symbol ";
             symbol = "⎈";
@@ -28,6 +29,11 @@
             format = "[$output](bold blue)";
             when = "command -v talosctl &>/dev/null";
             disabled = false;
+          };
+          custom.jj = {
+            when = "${lib.getExe pkgs.jj-starship} detect";
+            shell = [ (lib.getExe pkgs.jj-starship) ];
+            format = "$output ";
           };
           fill.symbol = " ";
           time = {
@@ -75,7 +81,12 @@
           git_branch = {
             symbol = " ";
             format = "[$symbol$branch(:$remote_branch)]($style) ";
+            disabled = true;
           };
+          git_commit.disabled = true;
+          git_state.disabled = true;
+          git_metrics.disabled = true;
+          git_status.disabled = true;
           character = {
             success_symbol = "[❯](bold green)";
             error_symbol = "[❯](bold red)";
