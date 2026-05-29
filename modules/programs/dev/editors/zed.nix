@@ -107,12 +107,7 @@
               command = [ (lib.getExe pkgs.nixfmt) ];
             };
             yaml-language-server.settings = {
-              yaml.schemas = {
-                "https://taskfile.dev/schema.json" = [
-                  "Taskfile*.yml"
-                  "Taskfile*.yaml"
-                ];
-              };
+              yaml.schemas = { };
             };
             just-lsp.settings = { };
             pyright.settings."python.analysis".typeCheckingMode = "off";

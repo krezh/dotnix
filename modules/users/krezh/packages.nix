@@ -40,7 +40,6 @@
         jq
         jc
         jnv
-        yq-go
         dyff
       ];
     };
