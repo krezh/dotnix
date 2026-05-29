@@ -11,7 +11,6 @@ _... managed with Renovate, and GitHub Actions_ 🤖
 <div align="center">
 
 [![built with nix](https://img.shields.io/badge/built_with_nix-blue?logo=nixos&logoColor=white&colorA=363a4f&colorB=74c7ec&style=for-the-badge)](https://builtwithnix.org)
-[![Renovate](https://img.shields.io/github/actions/workflow/status/krezh/renovate-config/renovate.yaml?branch=main&label=&logo=renovate&colorA=363a4f&colorB=b7bdf8&style=for-the-badge)](https://github.com/krezh/renovate-config/actions/workflows/renovate.yaml)
 [![Build Nix](https://img.shields.io/github/actions/workflow/status/krezh/dotnix/build-ci.yaml?branch=main&label=&logo=github&colorA=363a4f&colorB=b7bdf8&style=for-the-badge)](https://github.com/krezh/dotnix/actions/workflows/build-ci.yaml)
 
 ![Repo Size](https://img.shields.io/github/repo-size/krezh/dotnix?color=ea999c&labelColor=303446&style=for-the-badge&link=https%3A%2F%2Fgithub.com%2Fkrezh%2Fdotnix)
