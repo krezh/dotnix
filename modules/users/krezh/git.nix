@@ -100,6 +100,19 @@
                   ${lib.getExe config.programs.jujutsu.package} describe --ignore-working-copy -m "$msg"
                 ''
               ];
+              pull = [
+                "util"
+                "exec"
+                "--"
+                (lib.getExe pkgs.bash)
+                "-c"
+                ''
+                  set -euo pipefail
+                  jj=${lib.getExe config.programs.jujutsu.package}
+                  "$jj" git fetch
+                  "$jj" rebase -d 'trunk()'
+                ''
+              ];
             };
             revset-aliases."closest_bookmarks(to)" = "heads(::to & bookmarks())";
             templates = {

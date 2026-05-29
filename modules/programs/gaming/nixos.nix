@@ -54,6 +54,8 @@
             "--backend wayland"
             "--expose-wayland"
             "--adaptive-sync"
+            "-f"
+            "--mangoapp"
           ];
         };
         wine = {
@@ -68,13 +70,13 @@
               unset TZ
             '';
             extraEnv = {
-              MANGOHUD = true;
+              MANGOHUD = 1;
               MESA_GLSL_CACHE_MAX_SIZE = "16G";
               WINE_CPU_TOPOLOGY = "16:0,1,2,3,4,5,6,7,16,17,18,19,20,21,22,23"; # Ryzen 9 9950X3D
-              PROTON_USE_NTSYNC = true;
+              PROTON_USE_NTSYNC = 1;
               PROTON_USE_WOW64 = 1;
               PROTON_ENABLE_WAYLAND = 1;
-              WINE_VK_VULKAN_ONLY = true;
+              WINE_VK_VULKAN_ONLY = 1;
               PROTON_FSR4_UPGRADE = "4.1.0";
             };
           };
@@ -82,120 +84,133 @@
           localNetworkGameTransfers.openFirewall = true;
           protontricks.enable = true;
           platformOptimizations.enable = true;
-          config = {
-            enable = true;
-            closeSteam = true;
-            defaultCompatTool = "Proton-CachyOS Latest";
-            apps = {
-              eldenring = {
-                id = 1245620;
-                compatTool = "Proton-CachyOS Latest";
-                launchOptions = {
-                  wrappers = [ ];
-                  env = {
-                    PROTON_USE_WOW64 = 0;
-                    PROTON_ENABLE_WAYLAND = 0;
-                    LSFG_PROCESS = "Default";
+          config =
+            let
+              defaultCompatTool = "Proton-CachyOS Latest";
+            in
+            {
+              enable = true;
+              closeSteam = true;
+              defaultCompatTool = defaultCompatTool;
+              apps =
+                let
+                  gamescope = [
+                    "gamescope"
+                    "--"
+                  ];
+                in
+                {
+                  eldenring = {
+                    id = 1245620;
+                    compatTool = defaultCompatTool;
+                    launchOptions = {
+                      wrappers = [ ];
+                      env = {
+                        PROTON_USE_WOW64 = 0;
+                        PROTON_ENABLE_WAYLAND = 0;
+                        LSFG_PROCESS = "Default";
+                      };
+                    };
+                  };
+                  witchfire = {
+                    id = 3156770;
+                    compatTool = defaultCompatTool;
+                    launchOptions = {
+                      wrappers = [ "gamemoderun" ];
+                      env = {
+                        LSFG_PROCESS = "Default";
+                      };
+                    };
+                  };
+                  poe2 = {
+                    id = 2694490;
+                    compatTool = defaultCompatTool;
+                    launchOptions = {
+                      wrappers = [
+                        "gamemoderun"
+                      ];
+                      env = {
+                        # LSFG_PROCESS = "Default";
+                      };
+                    };
+                  };
+                  darktide = {
+                    id = 1361210;
+                    compatTool = defaultCompatTool;
+                    launchOptions = {
+                      wrappers = [ "gamemoderun" ];
+                      env = { };
+                    };
+                  };
+                  borderlands4 = {
+                    id = 1285190;
+                    compatTool = defaultCompatTool;
+                    launchOptions = {
+                      wrappers = [ "gamemoderun" ];
+                      env = {
+                        PROTON_USE_WOW64 = 0;
+                        PROTON_ENABLE_WAYLAND = 0;
+                      };
+                    };
+                  };
+                  fellowship = {
+                    id = 2352620;
+                    compatTool = defaultCompatTool;
+                    launchOptions = {
+                      wrappers = [ "gamemoderun" ];
+                      env = {
+                        PROTON_USE_WOW64 = 0;
+                        PROTON_ENABLE_WAYLAND = 0;
+                      };
+                      args = [ "-dx11" ];
+                    };
+                  };
+                  crimson-desert = {
+                    id = 3321460;
+                    compatTool = defaultCompatTool;
+                    launchOptions = {
+                      wrappers = [ "gamemoderun" ];
+                      env = { };
+                    };
+                  };
+                  toxic-commando = {
+                    id = 2157830;
+                    compatTool = defaultCompatTool;
+                    launchOptions = {
+                      wrappers = [ "gamemoderun" ];
+                      env = { };
+                    };
+                  };
+                  rogue-trader = {
+                    id = 2186680;
+                    compatTool = defaultCompatTool;
+                    launchOptions = {
+                      wrappers = [ "gamemoderun" ];
+                      env = {
+                        LSFG_PROCESS = "Default";
+                      };
+                    };
+                  };
+                  elite-dangerous = {
+                    id = 359320;
+                    compatTool = defaultCompatTool;
+                    launchOptions = {
+                      wrappers = [ "gamemoderun" ];
+                      env = { };
+                    };
+                  };
+                  sekiro = {
+                    id = 814380;
+                    compatTool = defaultCompatTool;
+                    launchOptions = {
+                      wrappers = [ "gamemoderun" ];
+                      env = {
+                        LSFG_PROCESS = "Default";
+                      };
+                    };
                   };
                 };
-              };
-              witchfire = {
-                id = 3156770;
-                compatTool = "Proton-CachyOS Latest";
-                launchOptions = {
-                  wrappers = [ "gamemoderun" ];
-                  env = {
-                    LSFG_PROCESS = "Default";
-                  };
-                };
-              };
-              poe2 = {
-                id = 2694490;
-                compatTool = "Proton-CachyOS Latest";
-                launchOptions = {
-                  wrappers = [ "gamemoderun" ];
-                  env = {
-                    LSFG_PROCESS = "Default";
-                  };
-                };
-              };
-              darktide = {
-                id = 1361210;
-                compatTool = "Proton-CachyOS Latest";
-                launchOptions = {
-                  wrappers = [ "gamemoderun" ];
-                  env = { };
-                };
-              };
-              borderlands4 = {
-                id = 1285190;
-                compatTool = "Proton-CachyOS Latest";
-                launchOptions = {
-                  wrappers = [ "gamemoderun" ];
-                  env = {
-                    PROTON_USE_WOW64 = 0;
-                    PROTON_ENABLE_WAYLAND = 0;
-                  };
-                };
-              };
-              fellowship = {
-                id = 2352620;
-                compatTool = "Proton-CachyOS Latest";
-                launchOptions = {
-                  wrappers = [ "gamemoderun" ];
-                  env = {
-                    PROTON_USE_WOW64 = 0;
-                    PROTON_ENABLE_WAYLAND = 0;
-                  };
-                  args = [ "-dx11" ];
-                };
-              };
-              crimson-desert = {
-                id = 3321460;
-                compatTool = "Proton-CachyOS Latest";
-                launchOptions = {
-                  wrappers = [ "gamemoderun" ];
-                  env = { };
-                };
-              };
-              toxic-commando = {
-                id = 2157830;
-                compatTool = "Proton-CachyOS Latest";
-                launchOptions = {
-                  wrappers = [ "gamemoderun" ];
-                  env = { };
-                };
-              };
-              rogue-trader = {
-                id = 2186680;
-                compatTool = "Proton-CachyOS Latest";
-                launchOptions = {
-                  wrappers = [ "gamemoderun" ];
-                  env = {
-                    LSFG_PROCESS = "Default";
-                  };
-                };
-              };
-              elite-dangerous = {
-                id = 359320;
-                compatTool = "Proton-CachyOS Latest";
-                launchOptions = {
-                  wrappers = [ "gamemoderun" ];
-                  env = { };
-                };
-              };
-              sekiro = {
-                id = 814380;
-                compatTool = "Proton-CachyOS Latest";
-                launchOptions = {
-                  wrappers = [ "gamemoderun" ];
-                  env = {
-                    LSFG_PROCESS = "Default";
-                  };
-                };
-              };
             };
-          };
         };
       };
     };

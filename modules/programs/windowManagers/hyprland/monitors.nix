@@ -12,7 +12,7 @@
                   mode = "2560x1440@239.97";
                   position = "0x0";
                   scale = 1.0;
-                  vrr = 2;
+                  vrr = 0;
                 }
                 {
                   output = "DP-2";
@@ -27,16 +27,6 @@
                   output = "eDP-1";
                   mode = "1920x1080@60.0";
                   position = "0x0";
-                  scale = 1;
-                }
-              ]
-            else if osConfig.networking.hostName == "steamdeck" then
-              [
-                {
-                  output = "eDP-1";
-                  mode = "800x1280@90";
-                  position = "0x0";
-                  transform = 3;
                   scale = 1;
                 }
               ]

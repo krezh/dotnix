@@ -88,7 +88,7 @@
             debug.vfr = true;
 
             misc = {
-              vrr = 2;
+              vrr = 0;
               enable_swallow = true;
               mouse_move_enables_dpms = true;
               key_press_enables_dpms = true;
@@ -101,7 +101,7 @@
               disable_autoreload = true;
               session_lock_xray = true;
               on_focus_under_fullscreen = 2;
-              render_unfocused_fps = 60;
+              render_unfocused_fps = 30;
             };
 
             render = {

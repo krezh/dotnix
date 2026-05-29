@@ -44,12 +44,11 @@
 
       programs.zen-browser = {
         enable = true;
-        setAsDefaultBrowser = false;
+        setAsDefaultBrowser = true;
         profiles.${config.home.username} = {
           isDefault = true;
           mods = [ ];
           settings = {
-
             "general.smoothScroll.msdPhysics.enabled" = false;
             "general.smoothScroll.currentVelocityWeighting" = 0;
             "general.smoothScroll.stopDecelerationWeighting" = 1;

@@ -2,7 +2,7 @@
   flake.modules.homeManager.xdg-settings =
     { pkgs, lib, ... }:
     let
-      defaultBrowser = "helium.desktop";
+      defaultBrowser = "zen-twilight.desktop";
       defaultImageViewer = "org.libvips.vipsdisp.desktop";
       defaultVideoPlayer = "org.gnome.Showtime.desktop";
       defaultAudioPlayer = "org.gnome.Showtime.desktop";
