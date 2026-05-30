@@ -100,6 +100,10 @@
                   ${lib.getExe config.programs.jujutsu.package} describe --ignore-working-copy -m "$msg"
                 ''
               ];
+              push = [
+                "git"
+                "push"
+              ];
               pull = [
                 "util"
                 "exec"

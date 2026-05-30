@@ -31,6 +31,21 @@
               "Bash(git show:*)"
               "Bash(git branch:*)"
               "Bash(git remote:*)"
+              "Bash(git rev-parse:*)"
+              "Bash(git blame:*)"
+
+              # Safe jj commands (read-only)
+              "Bash(jj log:*)"
+              "Bash(jj diff:*)"
+              "Bash(jj status)"
+              "Bash(jj st)"
+              "Bash(jj show:*)"
+              "Bash(jj op log:*)"
+              "Bash(jj file show:*)"
+
+              # Safe jj write commands
+              "Bash(jj restore:*)"
+              "Bash(jj describe:*)"
 
               # Safe Nix commands (mostly read-only)
               "Bash(nix:*)"
@@ -75,9 +90,7 @@
               "TodoWrite(*)"
 
               # MCP servers
-              "mcp__nixos"
-              "mcp__forgetful"
-              "mcp__context7"
+              "mcp__*"
 
               # Safe web fetch from trusted domains
               "WebFetch(domain:wiki.hyprland.org)"
@@ -86,12 +99,27 @@
               "WebFetch(domain:raw.githubusercontent.com)"
               "WebFetch(domain:*renovatebot.com)"
 
+              # GitHub CLI read-only
+              "Bash(gh search *)"
+              "Bash(gh api *)"
+
               # NixOS build
               "Bash(nh os build:*)"
               "Bash(nixos-rebuild build:*)"
               "Bash(nix build:*)"
+
+              # Kubernetes read-only
+              "Bash(kubectl get *)"
+              "Bash(kubectl logs *)"
+              "Bash(kubectl describe *)"
+
+              # Security/lint tools
+              "Bash(shellcheck *)"
+              "Bash(zizmor *)"
             ];
             deny = [
+              "Bash(kubectl get secret* -o *)"
+              "Bash(kubectl get secrets* -o *)"
               "Bash(curl:*)"
               "Read(**/.env.*)"
               "Read(**/.secret*)"

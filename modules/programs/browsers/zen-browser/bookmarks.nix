@@ -47,6 +47,12 @@
             position = 107;
             isEssential = false;
           };
+          "NixSearch" = {
+            id = "nixsearch";
+            url = "https://nixsearch.thekoppe.com/";
+            position = 108;
+            isEssential = false;
+          };
         };
       };
     };

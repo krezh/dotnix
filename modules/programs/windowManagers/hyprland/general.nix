@@ -101,7 +101,7 @@
               disable_autoreload = true;
               session_lock_xray = true;
               on_focus_under_fullscreen = 2;
-              render_unfocused_fps = 30;
+              render_unfocused_fps = 60;
             };
 
             render = {

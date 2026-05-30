@@ -91,125 +91,118 @@
             {
               enable = true;
               closeSteam = true;
-              defaultCompatTool = defaultCompatTool;
-              apps =
-                let
-                  gamescope = [
-                    "gamescope"
-                    "--"
-                  ];
-                in
-                {
-                  eldenring = {
-                    id = 1245620;
-                    compatTool = defaultCompatTool;
-                    launchOptions = {
-                      wrappers = [ ];
-                      env = {
-                        PROTON_USE_WOW64 = 0;
-                        PROTON_ENABLE_WAYLAND = 0;
-                        LSFG_PROCESS = "Default";
-                      };
-                    };
-                  };
-                  witchfire = {
-                    id = 3156770;
-                    compatTool = defaultCompatTool;
-                    launchOptions = {
-                      wrappers = [ "gamemoderun" ];
-                      env = {
-                        LSFG_PROCESS = "Default";
-                      };
-                    };
-                  };
-                  poe2 = {
-                    id = 2694490;
-                    compatTool = defaultCompatTool;
-                    launchOptions = {
-                      wrappers = [
-                        "gamemoderun"
-                      ];
-                      env = {
-                        # LSFG_PROCESS = "Default";
-                      };
-                    };
-                  };
-                  darktide = {
-                    id = 1361210;
-                    compatTool = defaultCompatTool;
-                    launchOptions = {
-                      wrappers = [ "gamemoderun" ];
-                      env = { };
-                    };
-                  };
-                  borderlands4 = {
-                    id = 1285190;
-                    compatTool = defaultCompatTool;
-                    launchOptions = {
-                      wrappers = [ "gamemoderun" ];
-                      env = {
-                        PROTON_USE_WOW64 = 0;
-                        PROTON_ENABLE_WAYLAND = 0;
-                      };
-                    };
-                  };
-                  fellowship = {
-                    id = 2352620;
-                    compatTool = defaultCompatTool;
-                    launchOptions = {
-                      wrappers = [ "gamemoderun" ];
-                      env = {
-                        PROTON_USE_WOW64 = 0;
-                        PROTON_ENABLE_WAYLAND = 0;
-                      };
-                      args = [ "-dx11" ];
-                    };
-                  };
-                  crimson-desert = {
-                    id = 3321460;
-                    compatTool = defaultCompatTool;
-                    launchOptions = {
-                      wrappers = [ "gamemoderun" ];
-                      env = { };
-                    };
-                  };
-                  toxic-commando = {
-                    id = 2157830;
-                    compatTool = defaultCompatTool;
-                    launchOptions = {
-                      wrappers = [ "gamemoderun" ];
-                      env = { };
-                    };
-                  };
-                  rogue-trader = {
-                    id = 2186680;
-                    compatTool = defaultCompatTool;
-                    launchOptions = {
-                      wrappers = [ "gamemoderun" ];
-                      env = {
-                        LSFG_PROCESS = "Default";
-                      };
-                    };
-                  };
-                  elite-dangerous = {
-                    id = 359320;
-                    compatTool = defaultCompatTool;
-                    launchOptions = {
-                      wrappers = [ "gamemoderun" ];
-                      env = { };
-                    };
-                  };
-                  sekiro = {
-                    id = 814380;
-                    compatTool = defaultCompatTool;
-                    launchOptions = {
-                      wrappers = [ "gamemoderun" ];
-                      env = {
-                        LSFG_PROCESS = "Default";
-                      };
+              inherit defaultCompatTool;
+              apps = {
+                eldenring = {
+                  id = 1245620;
+                  compatTool = defaultCompatTool;
+                  launchOptions = {
+                    wrappers = [ ];
+                    env = {
+                      PROTON_USE_WOW64 = 0;
+                      PROTON_ENABLE_WAYLAND = 0;
+                      LSFG_PROCESS = "Default";
                     };
                   };
                 };
+                witchfire = {
+                  id = 3156770;
+                  compatTool = defaultCompatTool;
+                  launchOptions = {
+                    wrappers = [ "gamemoderun" ];
+                    env = {
+                      LSFG_PROCESS = "Default";
+                    };
+                  };
+                };
+                poe2 = {
+                  id = 2694490;
+                  compatTool = defaultCompatTool;
+                  launchOptions = {
+                    wrappers = [
+                      "gamemoderun"
+                    ];
+                    env = {
+                      # LSFG_PROCESS = "Default";
+                    };
+                  };
+                };
+                darktide = {
+                  id = 1361210;
+                  compatTool = defaultCompatTool;
+                  launchOptions = {
+                    wrappers = [ "gamemoderun" ];
+                    env = { };
+                  };
+                };
+                borderlands4 = {
+                  id = 1285190;
+                  compatTool = defaultCompatTool;
+                  launchOptions = {
+                    wrappers = [ "gamemoderun" ];
+                    env = {
+                      PROTON_USE_WOW64 = 0;
+                      PROTON_ENABLE_WAYLAND = 0;
+                    };
+                  };
+                };
+                fellowship = {
+                  id = 2352620;
+                  compatTool = defaultCompatTool;
+                  launchOptions = {
+                    wrappers = [ "gamemoderun" ];
+                    env = {
+                      PROTON_USE_WOW64 = 0;
+                      PROTON_ENABLE_WAYLAND = 0;
+                    };
+                    args = [ "-dx11" ];
+                  };
+                };
+                crimson-desert = {
+                  id = 3321460;
+                  compatTool = defaultCompatTool;
+                  launchOptions = {
+                    wrappers = [ "gamemoderun" ];
+                    env = { };
+                  };
+                };
+                toxic-commando = {
+                  id = 2157830;
+                  compatTool = defaultCompatTool;
+                  launchOptions = {
+                    wrappers = [ "gamemoderun" ];
+                    env = { };
+                  };
+                };
+                rogue-trader = {
+                  id = 2186680;
+                  compatTool = defaultCompatTool;
+                  launchOptions = {
+                    wrappers = [ "gamemoderun" ];
+                    env = {
+                      LSFG_PROCESS = "Default";
+                    };
+                  };
+                };
+                elite-dangerous = {
+                  id = 359320;
+                  compatTool = defaultCompatTool;
+                  launchOptions = {
+                    wrappers = [ "gamemoderun" ];
+                    env = { };
+                  };
+                };
+                sekiro = {
+                  id = 814380;
+                  compatTool = defaultCompatTool;
+                  launchOptions = {
+                    wrappers = [ "gamemoderun" ];
+                    env = {
+                      LSFG_PROCESS = "Default";
+                    };
+                  };
+                };
+              };
             };
         };
       };

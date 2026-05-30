@@ -16,7 +16,15 @@ let
         [ rule ]
       else
         expandRules (
-          map (v: rule // { match = m // { ${listField} = v; }; }) m.${listField}
+          map (
+            v:
+            rule
+            // {
+              match = m // {
+                ${listField} = v;
+              };
+            }
+          ) m.${listField}
         )
     ) rules;
 
