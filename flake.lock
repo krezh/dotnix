@@ -751,10 +751,10 @@
         "uv2nix": "uv2nix_2"
       },
       "locked": {
-        "lastModified": 1780254826,
-        "narHash": "sha256-r2w6CKemWH42Gtsa+x289bxxFs4s+fdicJlPcor+oAk=",
+        "lastModified": 1780268015,
+        "narHash": "sha256-mnO8f4XilwoAj/nnFN13FEbTFA8i2y2KgQcuwPD0c5E=",
         "ref": "refs/heads/main",
-        "rev": "eb3cf9750eb8395c158be5cb929604041d1b03b5",
+        "rev": "3ef97a61b9f1fe7247df6be83fd6d4a49e531c1a",
         "shallow": true,
         "type": "git",
         "url": "https://github.com/NousResearch/hermes-agent"
@@ -1006,10 +1006,10 @@
         ]
       },
       "locked": {
-        "lastModified": 1780254643,
-        "narHash": "sha256-HrNzOgmKPx41/qbx1bxTwRTT0wnuD/mIH5gL1KOwCQ4=",
+        "lastModified": 1780263228,
+        "narHash": "sha256-steWp/l2nhrtnzWk7h9II6zd+58F617XMX9sG5ShgOk=",
         "ref": "refs/heads/main",
-        "rev": "1e7adcb42b365dbc2cd4161a8fefb16600fb6ec4",
+        "rev": "22f334071497ce8cfd556a507d7e57fd45d88293",
         "shallow": true,
         "type": "git",
         "url": "https://github.com/numtide/nix-ai-tools"
