@@ -44,13 +44,13 @@
       console.enable = false;
       services.kmscon = {
         enable = true;
-        hwRender = false;
-        extraConfig = ''
-          font-name=${config.var.fonts.mono} Bold
-          font-size=12
-          xkb-layout=se
-          xkb-variant=nodeadkeys
-        '';
+        config = {
+          hwaccel = false;
+          font-name = "${config.var.fonts.mono} Bold";
+          font-size = 12;
+          xkb-layout = "se";
+          xkb-variant = "nodeadkeys";
+        };
       };
 
       time.timeZone = "Europe/Stockholm";
