@@ -661,10 +661,10 @@
         ]
       },
       "locked": {
-        "lastModified": 1780412440,
-        "narHash": "sha256-eCPWiQV0u0SCccPrALORV2q2ZYzdsSZ9iye3aXK8Xks=",
+        "lastModified": 1780434986,
+        "narHash": "sha256-y+HEGGFmDGO/hkRmBgt+bcGNsn7zt8UkM+KQnWhlk38=",
         "ref": "refs/heads/main",
-        "rev": "8644e2375d1f82f6cfe92883ab41a95426b19178",
+        "rev": "7f70305782ff557ca1e1c8f0dc9bdb71f6255122",
         "shallow": true,
         "type": "git",
         "url": "https://github.com/purpleclay/go-overlay"
@@ -685,10 +685,10 @@
         ]
       },
       "locked": {
-        "lastModified": 1779167584,
-        "narHash": "sha256-iAMW53zbWUrGtLjtq66Sqzbz803aT+IBPg+0l6mztE8=",
+        "lastModified": 1780434986,
+        "narHash": "sha256-y+HEGGFmDGO/hkRmBgt+bcGNsn7zt8UkM+KQnWhlk38=",
         "ref": "refs/heads/main",
-        "rev": "1a7dd3c1e396d5d969da6f7a39bc6affd0847f1c",
+        "rev": "7f70305782ff557ca1e1c8f0dc9bdb71f6255122",
         "shallow": true,
         "type": "git",
         "url": "https://github.com/purpleclay/go-overlay"
@@ -751,10 +751,10 @@
         "uv2nix": "uv2nix_2"
       },
       "locked": {
-        "lastModified": 1780433504,
-        "narHash": "sha256-FEt8DvVTeUqEfuAs3+557QwDo8q6rKe6S9iXqgTXcYU=",
+        "lastModified": 1780448439,
+        "narHash": "sha256-NCeXM0aLKo5al+pHtsxS5uThx9VG88MC0IpK9uhU2kg=",
         "ref": "refs/heads/main",
-        "rev": "c47b9d126f2f820f41059813a2c5b16ea4742bf8",
+        "rev": "54343bcade7cc1205cea0637cfffcf925f097c02",
         "shallow": true,
         "type": "git",
         "url": "https://github.com/NousResearch/hermes-agent"
@@ -857,10 +857,10 @@
         ]
       },
       "locked": {
-        "lastModified": 1780358544,
-        "narHash": "sha256-nHNlv963poLShZB3dTe/MQeHYVpmDdU/lX4OgJvKgf0=",
+        "lastModified": 1780444840,
+        "narHash": "sha256-jiLdWnAk8mvGMc50VLaTrKPm5i0MOLeoyzMIh6Zu/ro=",
         "ref": "refs/heads/main",
-        "rev": "5d656bbf731996bdc32d8c2f6c5546e3b79a47d6",
+        "rev": "d3ba9f06e574ec85c2f3f94f7a7058c3057d8cd8",
         "shallow": true,
         "type": "git",
         "url": "https://github.com/krezh/kauth"
@@ -1006,10 +1006,10 @@
         ]
       },
       "locked": {
-        "lastModified": 1780430101,
-        "narHash": "sha256-GVElaX4x8crW9onxeewK2zFMyzrzhCdwobGMneHe42k=",
+        "lastModified": 1780438164,
+        "narHash": "sha256-BHSqy7iM7QFFGhv5MMOypTL+EHDVXGWHokXLFMgl+f8=",
         "ref": "refs/heads/main",
-        "rev": "5c8d6eb7047d607879007c8cd07db7052a17c096",
+        "rev": "f662431f25e8b00a06f8a7a14e4bf5d2e0e801af",
         "shallow": true,
         "type": "git",
         "url": "https://github.com/numtide/nix-ai-tools"
@@ -1141,10 +1141,10 @@
         ]
       },
       "locked": {
-        "lastModified": 1780169171,
-        "narHash": "sha256-3HBYDfBgZ+ph52HS6Ks/bMMwuh2uONIT72sZ1CtLE/s=",
+        "lastModified": 1780448629,
+        "narHash": "sha256-gSA/O9ey7QomcxoRtVA5kJI7XToyyDHQK8Mp4gRCH+I=",
         "ref": "refs/heads/main",
-        "rev": "998b2821c30b2938637230916904ceb8757c79e8",
+        "rev": "ac3c9e99c686c6fcec24b563880577818c79ba4a",
         "shallow": true,
         "type": "git",
         "url": "https://github.com/nix-community/nixos-wsl"
