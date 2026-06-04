@@ -77,11 +77,11 @@
     "cachyos-kernel-patches": {
       "flake": false,
       "locked": {
-        "lastModified": 1779996637,
-        "narHash": "sha256-DcA59mHfCUfbr7EtH9YJUb3t62TcyXwC/I0QMyUs1bo=",
+        "lastModified": 1780462466,
+        "narHash": "sha256-t6c7FTqMB0skEz+4tei5v8GEyL4fRDgx24oW3LrnYiE=",
         "owner": "CachyOS",
         "repo": "kernel-patches",
-        "rev": "b87558b7c865628c48c1d6ff5c827b9df40e9281",
+        "rev": "bb41330bd4372672f552beda66712fb70b17f0fa",
         "type": "github"
       },
       "original": {
@@ -113,10 +113,10 @@
     },
     "crane": {
       "locked": {
-        "lastModified": 1780099841,
-        "narHash": "sha256-EVZd2RsbpreRUDSi9rBwPY+ZxoyMaiEBbZxxhljbaS4=",
+        "lastModified": 1780518114,
+        "narHash": "sha256-b1wC2jV5EHtvI/p1DN5eDYoLXkw7dRxgjl235nC9dzI=",
         "ref": "refs/heads/master",
-        "rev": "0532eb17955225173906d671fb36306bdeb1e2dc",
+        "rev": "f838d21225b9ea22a03f2601273f833974a3ae5d",
         "shallow": true,
         "type": "git",
         "url": "https://github.com/ipetkov/crane"
@@ -751,10 +751,10 @@
         "uv2nix": "uv2nix_2"
       },
       "locked": {
-        "lastModified": 1780448439,
-        "narHash": "sha256-NCeXM0aLKo5al+pHtsxS5uThx9VG88MC0IpK9uhU2kg=",
+        "lastModified": 1780524717,
+        "narHash": "sha256-7rgZyZgJ9XBGqLTSE41bEdLr5so8vYdZkNKo3B6inqY=",
         "ref": "refs/heads/main",
-        "rev": "54343bcade7cc1205cea0637cfffcf925f097c02",
+        "rev": "51a2c07016b2bf263d4a863cbe8de316f05132ab",
         "shallow": true,
         "type": "git",
         "url": "https://github.com/NousResearch/hermes-agent"
@@ -772,10 +772,10 @@
         ]
       },
       "locked": {
-        "lastModified": 1780408569,
-        "narHash": "sha256-s7Tv6FUQThRAvW8En8XVC6HMb0uiikzVccCcCo9u/Bg=",
+        "lastModified": 1780515920,
+        "narHash": "sha256-8KX2hEeOX6KP3hBBJJI8dGWVrzbOOf1rBPmg/GUG24U=",
         "ref": "refs/heads/master",
-        "rev": "f384af1bec6423a0d4ba1855917ab948f64e5808",
+        "rev": "4c5c1e8ba14f1c7475fa31ff11bc1c19cd220974",
         "shallow": true,
         "type": "git",
         "url": "https://github.com/nix-community/home-manager"
@@ -1006,10 +1006,10 @@
         ]
       },
       "locked": {
-        "lastModified": 1780438164,
-        "narHash": "sha256-BHSqy7iM7QFFGhv5MMOypTL+EHDVXGWHokXLFMgl+f8=",
+        "lastModified": 1780527457,
+        "narHash": "sha256-OS/DkoYCIHi7ka7uleKLSCXqFw5sYtsj/zYSceg6Etk=",
         "ref": "refs/heads/main",
-        "rev": "f662431f25e8b00a06f8a7a14e4bf5d2e0e801af",
+        "rev": "d67ff061c9f31d42402a438f0e47cd94881422d5",
         "shallow": true,
         "type": "git",
         "url": "https://github.com/numtide/nix-ai-tools"
@@ -1031,10 +1031,10 @@
         ]
       },
       "locked": {
-        "lastModified": 1780432167,
-        "narHash": "sha256-B74xntBJSA99ZlLz5763pM+2FUOq3wmLWIigjWMBoV0=",
+        "lastModified": 1780519268,
+        "narHash": "sha256-Zz1TGtpZRdkgw5CWJfZktZLMRZY2lf437WxHE3SQfCo=",
         "ref": "refs/heads/master",
-        "rev": "d6edf208efa33a387408a3435f589e76faa35168",
+        "rev": "b496f3384323e9fab650ac8a52bf997b62a8d322",
         "shallow": true,
         "type": "git",
         "url": "https://github.com/xddxdd/nix-cachyos-kernel"
@@ -1054,10 +1054,10 @@
         ]
       },
       "locked": {
-        "lastModified": 1780289451,
-        "narHash": "sha256-fAnLGQK7TqShTVUZmXPWkwOjuMvvq0d3hSrpdV4Vgs0=",
+        "lastModified": 1780462023,
+        "narHash": "sha256-SaAKJJ0RQzc8mVJ45VwzPtTCyclNZpvmhb+csMpSgGQ=",
         "ref": "refs/heads/master",
-        "rev": "0263c951257e322e2ab8ca751a3b5b18f688ea26",
+        "rev": "b6b4b649b365269202da0d67b44b0e85f0c8fb5a",
         "shallow": true,
         "type": "git",
         "url": "https://github.com/fufexan/nix-gaming"
@@ -1119,10 +1119,10 @@
         "systems": "systems_5"
       },
       "locked": {
-        "lastModified": 1780375140,
-        "narHash": "sha256-iR00EPMLSjNSJwA0v1IT/NL4Uv7QDc5pRxM76Wum9so=",
+        "lastModified": 1780462807,
+        "narHash": "sha256-YPs58dNCdLyRfENlEgiGiSzHsalboIbEAD7zgWthsYE=",
         "ref": "refs/heads/master",
-        "rev": "a2ae590c0e19138509f16a4fa9bbc1a007ec2ab1",
+        "rev": "a83861aa32ed34c3d9c9bb5cf692d15548d60b61",
         "shallow": true,
         "type": "git",
         "url": "https://github.com/nix-community/nix4vscode"
@@ -1141,10 +1141,10 @@
         ]
       },
       "locked": {
-        "lastModified": 1780448629,
-        "narHash": "sha256-gSA/O9ey7QomcxoRtVA5kJI7XToyyDHQK8Mp4gRCH+I=",
+        "lastModified": 1780525334,
+        "narHash": "sha256-IsKkAEN/9x0MRIrZduykgLJxME8L70KNknC+3iII6Yo=",
         "ref": "refs/heads/main",
-        "rev": "ac3c9e99c686c6fcec24b563880577818c79ba4a",
+        "rev": "cde346714cb46261648cac80c361dbd388f82f20",
         "shallow": true,
         "type": "git",
         "url": "https://github.com/nix-community/nixos-wsl"
@@ -1340,10 +1340,10 @@
         "systems": "systems_7"
       },
       "locked": {
-        "lastModified": 1780421419,
-        "narHash": "sha256-EkZYvhK9B9M9j9vuLNSexG1Uf51UshGkPy5iVpYORe8=",
+        "lastModified": 1780511420,
+        "narHash": "sha256-Ib44d47GTijSfCtcxFDliP3C9uUiLDYaAE/nVH8TQoY=",
         "ref": "refs/heads/main",
-        "rev": "8265ea062b4c37dc1b9846ec83bb8c9615048ef1",
+        "rev": "29f7eb8491d9833ee55006ab11169130a60c2652",
         "shallow": true,
         "type": "git",
         "url": "https://github.com/notashelf/nvf"
@@ -1531,10 +1531,10 @@
         ]
       },
       "locked": {
-        "lastModified": 1780370483,
-        "narHash": "sha256-7mDa7OBAaf7MU6ZovT9ENfD62kH911SsSazBb4KTDF0=",
+        "lastModified": 1780456895,
+        "narHash": "sha256-CvRZn3Ut0scqLJ1xwQFkZwKGVBUUNBPrFVXRTMZpbfU=",
         "ref": "refs/heads/master",
-        "rev": "4a408e1fc99ad517b4cb402fd0de7464f40c05e1",
+        "rev": "7cc96a6a3fd6613cafd633250a3934483479b9a1",
         "shallow": true,
         "type": "git",
         "url": "https://github.com/oxalica/rust-overlay"
@@ -1943,10 +1943,10 @@
         ]
       },
       "locked": {
-        "lastModified": 1780372976,
-        "narHash": "sha256-7B90rWlpRZ6bZtRDCKZOqqfAjFFhiTDHXymWw2omhJ4=",
+        "lastModified": 1780512239,
+        "narHash": "sha256-hRHaK71WF/UK2ka6uoHPXmbUPNh8pUf+Da47134O348=",
         "ref": "refs/heads/main",
-        "rev": "decef750607ebed4f8ccd9cd6169907367ab08b1",
+        "rev": "735371d9ccc5c9bd7981df54fe9adbb6be666965",
         "shallow": true,
         "type": "git",
         "url": "https://github.com/0xc000022070/zen-browser-flake"
