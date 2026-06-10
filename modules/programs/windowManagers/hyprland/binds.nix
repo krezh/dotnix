@@ -43,10 +43,10 @@
       fileManager = mkProg pkgs.nautilus;
       passwords = mkProg pkgs.proton-pass;
       sysMonitor = mkProg pkgs.resources;
-      logout.run = "noctalia-shell ipc call sessionMenu toggle";
+      logout.run = "noctalia ipc call sessionMenu toggle";
       hyprlock.run = "${lib.getExe config.programs.hyprlock.package} --grace 0";
       launcher.run = "${pkgs.netcat}/bin/nc -U /run/user/$EUID/walker/walker.sock";
-      shell.run = "${lib.getExe config.programs.noctalia-shell.package} ipc call";
+      shell.run = "${lib.getExe config.programs.noctalia.package} ipc call";
       keybinds.run = lib.getExe pkgs.hyprland_keybinds;
       clipboardMgr.run = "${lib.getExe config.programs.walker.package} -m clipboard";
       mail.run = lib.getExe pkgs.protonmail-desktop;

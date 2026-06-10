@@ -10,7 +10,7 @@
     let
       termBin = lib.getExe pkgs.ghostty;
       launcherBin = "${pkgs.netcat}/bin/nc -U /run/user/$(id -u)/walker/walker.sock";
-      shellBin = "${lib.getExe config.programs.noctalia-shell.package} ipc call";
+      shellBin = "${lib.getExe config.programs.noctalia.package} ipc call";
       clipboardBin = "${lib.getExe config.programs.walker.package} -m clipboard";
       chompBin = "${lib.getExe pkgs.chomp}";
 
