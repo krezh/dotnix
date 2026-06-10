@@ -1882,10 +1882,10 @@
         ]
       },
       "locked": {
-        "lastModified": 1780957638,
-        "narHash": "sha256-NQ0WpkNDRR79BWGNmh1dpgchGJnALW7De71kaXD87nc=",
+        "lastModified": 1781085695,
+        "narHash": "sha256-nxZk7i8liid1p1JZG/axWHYu1c45mIRU96aqAN/Fc+o=",
         "ref": "refs/heads/main",
-        "rev": "fc9b27eb5585548282004fac3f0d34fcf2f06467",
+        "rev": "ab76a3274975b13d1967d9c4c1f40e5c74983875",
         "shallow": true,
         "type": "git",
         "url": "https://github.com/0xc000022070/zen-browser-flake"
