@@ -4,7 +4,7 @@ go 1.25.8
 
 require (
 	charm.land/bubbles/v2 v2.1.0
-	charm.land/lipgloss/v2 v2.0.3
+	charm.land/lipgloss/v2 v2.0.4
 	charm.land/log/v2 v2.0.0
 	github.com/charmbracelet/x/ansi v0.11.7
 	github.com/charmbracelet/x/term v0.2.2
@@ -67,7 +67,7 @@ require (
 	golang.org/x/exp v0.0.0-20260410095643-746e56fc9e2f // indirect
 	golang.org/x/net v0.53.0 // indirect
 	golang.org/x/sync v0.20.0 // indirect
-	golang.org/x/sys v0.43.0 // indirect
+	golang.org/x/sys v0.45.0 // indirect
 	golang.org/x/text v0.36.0 // indirect
 	golang.org/x/time v0.15.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260427160629-7cedc36a6bc4 // indirect
