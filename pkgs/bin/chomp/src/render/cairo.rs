@@ -110,6 +110,194 @@ impl Renderer {
         }
     }
 
+    /// Renders the mode selector as a full-width bottom bar.
+    pub fn render_mode_select(
+        &self,
+        buffer: &mut [u8],
+        _frozen_buffer: Option<(&[u8], i32)>,
+        keybinds: &crate::config::KeybindsConfig,
+        style: &crate::config::ModeSelectConfig,
+        is_recording: bool,
+    ) -> Result<()> {
+        let stride = self.width * 4;
+
+        let surface = unsafe {
+            ImageSurface::create_for_data_unsafe(
+                buffer.as_mut_ptr(),
+                Format::ARgb32,
+                self.width,
+                self.height,
+                stride,
+            )?
+        };
+
+        let ctx = CairoContext::new(&surface).context("Failed to create Cairo context")?;
+
+        // Transparent background — compositor content shows through outside the bar
+        ctx.set_operator(cairo::Operator::Source);
+        ctx.set_source_rgba(0.0, 0.0, 0.0, 0.0);
+        ctx.paint()?;
+        ctx.set_operator(cairo::Operator::Over);
+
+        let bc = &self.config.border_color;
+        let screen_w = self.width as f64;
+        let screen_h = self.height as f64;
+
+        // Resolve configurable colors, falling back gracefully on parse error
+        let bg_color = Color::from_hex(&style.background_color).unwrap_or(Color { r: 0.05, g: 0.05, b: 0.08, a: 1.0 });
+        let desc_color = Color::from_hex(&style.description_color).unwrap_or(Color { r: 1.0, g: 1.0, b: 1.0, a: 1.0 });
+        let key_color = if style.key_color.is_empty() {
+            *bc
+        } else {
+            Color::from_hex(&style.key_color).unwrap_or(*bc)
+        };
+        let dot_color = Color::from_hex(&style.recording_dot_color).unwrap_or(Color { r: 0.95, g: 0.25, b: 0.25, a: 1.0 });
+        let rec_color = Color::from_hex(&style.recording_highlight_color).unwrap_or(Color { r: 0.95, g: 0.75, b: 0.20, a: 1.0 });
+
+        let bar_h = style.bar_height as f64;
+        let bar_y = screen_h - bar_h;
+
+        // Bar background
+        ctx.set_source_rgba(bg_color.r, bg_color.g, bg_color.b, style.background_opacity);
+        ctx.rectangle(0.0, bar_y, screen_w, bar_h);
+        ctx.fill()?;
+
+        // Top border
+        ctx.set_source_rgba(bc.r, bc.g, bc.b, style.border_opacity);
+        ctx.set_line_width(1.0);
+        ctx.move_to(0.0, bar_y + 0.5);
+        ctx.line_to(screen_w, bar_y + 0.5);
+        ctx.stroke()?;
+
+        ctx.select_font_face(
+            &self.config.font_family,
+            cairo::FontSlant::Normal,
+            self.config.font_weight,
+        );
+        ctx.set_font_size(self.config.font_size);
+
+        // Groups: each is a slice of (key_label, desc)
+        let ss = [
+            (format!("[{}]", keybinds.screenshot_area),   "Area"),
+            (format!("[{}]", keybinds.screenshot_screen), "Screen"),
+            (format!("[{}]", keybinds.screenshot_window), "Window"),
+            (format!("[{}]", keybinds.ocr),               "OCR"),
+        ];
+        let rec = [
+            (format!("[{}]", keybinds.record_area),   "Area"),
+            (format!("[{}]", keybinds.record_screen), "Screen"),
+            (format!("[{}]", keybinds.record_window), "Window"),
+        ];
+        let stop = [(format!("[{}]", keybinds.stop_recording), "Stop recording")];
+        let quit = [("[Esc]".to_string(), "Quit")];
+
+        // Show stop-recording group only when a recording is active
+        let groups: &[&[(String, &str)]] = if is_recording {
+            &[&ss, &rec, &stop, &quit]
+        } else {
+            &[&ss, &rec, &quit]
+        };
+
+        let key_desc_gap = 8.0_f64;
+        let entry_gap    = 26.0_f64;
+        let sep_pad      = 30.0_f64;
+        // Dot drawn as a filled arc — font_size * 0.3 radius, plus gap after
+        let dot_r   = self.config.font_size * 0.30;
+        let dot_gap = if is_recording { dot_r * 2.0 + 10.0 } else { 0.0 };
+
+        // Measure total content width
+        let entry_width = |key: &str, desc: &str| -> f64 {
+            let kw = ctx.text_extents(key).map(|e| e.width()).unwrap_or(0.0);
+            let dw = ctx.text_extents(desc).map(|e| e.width()).unwrap_or(0.0);
+            kw + key_desc_gap + dw
+        };
+
+        let mut total_w = 0.0_f64;
+        for (g, group) in groups.iter().enumerate() {
+            for (e, (key, desc)) in group.iter().enumerate() {
+                // The stop group gets the dot prefix added to its first entry
+                let extra = if is_recording && g == 2 && e == 0 { dot_gap } else { 0.0 };
+                total_w += extra + entry_width(key, desc);
+                if e + 1 < group.len() {
+                    total_w += entry_gap;
+                }
+            }
+            if g + 1 < groups.len() {
+                total_w += sep_pad * 2.0 + 1.0;
+            }
+        }
+
+        // Vertically center text in bar (use font ascent as baseline offset)
+        let fe = ctx.font_extents()?;
+        let text_y = bar_y + (bar_h + fe.ascent() - fe.descent()) / 2.0;
+
+        let mut x = (screen_w - total_w) / 2.0;
+
+        for (g, group) in groups.iter().enumerate() {
+            // Red dot + "Stop recording" label for the stop group
+            let is_stop_group = is_recording && g == 2;
+
+            for (e, (key, desc)) in group.iter().enumerate() {
+                // Recording indicator dot before the stop entry's key
+                if is_stop_group && e == 0 {
+                    let dot_cx = x + dot_r;
+                    let dot_cy = text_y - fe.ascent() * 0.35;
+                    ctx.set_source_rgba(dot_color.r, dot_color.g, dot_color.b, 1.0);
+                    ctx.arc(dot_cx, dot_cy, dot_r, 0.0, std::f64::consts::TAU);
+                    ctx.fill()?;
+                    x += dot_gap;
+                }
+
+                // Key label
+                if is_stop_group {
+                    ctx.set_source_rgba(rec_color.r, rec_color.g, rec_color.b, 1.0);
+                } else {
+                    ctx.set_source_rgba(key_color.r, key_color.g, key_color.b, 1.0);
+                }
+                ctx.move_to(x, text_y);
+                ctx.show_text(key)?;
+                let kw = ctx.text_extents(key)?.width();
+                x += kw + key_desc_gap;
+
+                // Description
+                if is_stop_group {
+                    ctx.set_source_rgba(rec_color.r, rec_color.g, rec_color.b, 0.90);
+                } else {
+                    ctx.set_source_rgba(desc_color.r, desc_color.g, desc_color.b, style.description_opacity);
+                }
+                ctx.move_to(x, text_y);
+                ctx.show_text(desc)?;
+                let dw = ctx.text_extents(desc)?.width();
+                x += dw;
+
+                if e + 1 < group.len() {
+                    x += entry_gap;
+                }
+            }
+
+            // Group separator
+            if g + 1 < groups.len() {
+                x += sep_pad;
+                let sep_h = bar_h * 0.45;
+                let sep_y = bar_y + (bar_h - sep_h) / 2.0;
+                ctx.set_source_rgba(1.0, 1.0, 1.0, style.separator_opacity);
+                ctx.set_line_width(1.0);
+                ctx.move_to(x + 0.5, sep_y);
+                ctx.line_to(x + 0.5, sep_y + sep_h);
+                ctx.stroke()?;
+                x += 1.0 + sep_pad;
+            }
+        }
+
+        ctx.target().flush();
+        drop(ctx);
+        surface.flush();
+
+        std::sync::atomic::fence(std::sync::atomic::Ordering::SeqCst);
+
+        Ok(())
+    }
+
     /// Executes a drawing operation with a temporary Cairo operator setting.
     #[inline]
     fn with_operator<F>(&self, ctx: &CairoContext, operator: cairo::Operator, f: F) -> Result<()>

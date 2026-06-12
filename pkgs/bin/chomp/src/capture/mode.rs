@@ -11,6 +11,8 @@ pub enum CaptureMode {
     VideoArea,
     VideoWindow,
     VideoScreen,
+    /// Synthetic — only produced by the mode-selector UI when a recording is in progress
+    StopRecording,
 }
 
 impl CaptureMode {
@@ -27,6 +29,18 @@ impl CaptureMode {
                 "Invalid mode: '{}'. Valid modes: image-area, image-window, image-screen, video-area, video-window, video-screen",
                 s
             )),
+        }
+    }
+
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::ImageArea     => "image-area",
+            Self::ImageWindow   => "image-window",
+            Self::ImageScreen   => "image-screen",
+            Self::VideoArea     => "video-area",
+            Self::VideoWindow   => "video-window",
+            Self::VideoScreen   => "video-screen",
+            Self::StopRecording => "stop-recording",
         }
     }
 

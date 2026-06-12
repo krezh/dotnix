@@ -90,7 +90,9 @@
               "TodoWrite(*)"
 
               # MCP servers
-              "mcp__*"
+              "mcp__ide__*"
+              "mcp__plugin_claude-code-home-manager_context7__*"
+              "mcp__plugin_claude-code-home-manager_nixos__*"
 
               # Safe web fetch from trusted domains
               "WebFetch(domain:wiki.hyprland.org)"

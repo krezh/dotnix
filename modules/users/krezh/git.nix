@@ -36,7 +36,8 @@
             status.submoduleSummary = false;
             tag.forceSignAnnotated = true;
             init.defaultBranch = "main";
-            url."ssh://git@github.com/".insteadOf = "https://github.com/";
+            # TODO: re-enable when Lix syncs https://github.com/NixOS/nix/pull/15470
+            # url."ssh://git@github.com/".insteadOf = "https://github.com/";
             merge.tool = lib.getExe pkgs.meld;
           };
         };

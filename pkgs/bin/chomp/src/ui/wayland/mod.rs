@@ -24,6 +24,7 @@ use wayland_client::{
 };
 
 use crate::{
+    capture::{CapturedImage, CaptureMode},
     cli::Args,
     render::{Renderer, Selection},
 };
@@ -40,6 +41,12 @@ mod utils;
 use input::InputState;
 use output::OutputSurface;
 use utils::*;
+
+#[derive(PartialEq)]
+pub(super) enum UiPhase {
+    ModeSelect,
+    RegionSelect,
+}
 
 /// Main application state managing Wayland connection and surfaces
 pub struct App {
@@ -70,6 +77,17 @@ pub struct App {
 
     // Selection result (for area modes)
     pub(super) selection_geometry: Option<String>,
+
+    // Mode selector state
+    pub(super) phase: UiPhase,
+    pub(super) chosen_mode: Option<CaptureMode>,
+
+    // Pre-captured image for non-area modes (captured on the same connection as the UI
+    // to avoid cross-connection ordering races with the compositor)
+    pub(super) captured_image: Option<CapturedImage>,
+
+    // True if a wl-screenrec recording is already running when the selector opens
+    pub(super) is_recording: bool,
 }
 
 // ============================================================================
@@ -77,7 +95,7 @@ pub struct App {
 // ============================================================================
 
 impl App {
-    pub fn run(args: Args) -> Result<Option<String>> {
+    pub fn run(args: Args) -> Result<(Option<String>, Option<CaptureMode>, Option<CapturedImage>)> {
         let conn = Connection::connect_to_env().context("Failed to connect to Wayland")?;
         let (globals, mut event_queue) =
             registry_queue_init::<Self>(&conn).context("Failed to init registry")?;
@@ -107,6 +125,17 @@ impl App {
             })
             .collect();
 
+        let phase = if args.mode.is_none() {
+            UiPhase::ModeSelect
+        } else {
+            UiPhase::RegionSelect
+        };
+
+        let is_recording = crate::capture::VideoRecorder::new()
+            .is_recording()
+            .map(|(r, _)| r)
+            .unwrap_or(false);
+
         let mut app = Self {
             conn: conn.clone(),
             registry_state,
@@ -126,6 +155,10 @@ impl App {
             loop_signal,
             needs_redraw: false,
             selection_geometry: None,
+            phase,
+            chosen_mode: None,
+            captured_image: None,
+            is_recording,
         };
 
         event_queue.blocking_dispatch(&mut app)?;
@@ -136,6 +169,12 @@ impl App {
 
         app.create_layer_surfaces(&qh)?;
 
+        // Capture frozen backgrounds before any buffer is attached to any surface.
+        // At this point layer surfaces exist (surface.commit() with no buffer), so
+        // they are not yet visible — the compositor cannot include them in a rendered
+        // frame.  Capturing here works for both ModeSelect (mode dialog launched first)
+        // and RegionSelect (--mode image-area), avoiding the race where capture happens
+        // after the overlay is already on screen.
         let should_freeze = app.args.freeze.unwrap_or(true);
         if should_freeze {
             app.capture_frozen_screens()?;
@@ -154,7 +193,7 @@ impl App {
             }
         }
 
-        Ok(app.selection_geometry)
+        Ok((app.selection_geometry, app.chosen_mode, app.captured_image))
     }
 
     fn create_layer_surfaces(&mut self, qh: &QueueHandle<Self>) -> Result<()> {
@@ -223,7 +262,7 @@ impl App {
     }
 
     /// Captures frozen screenshots of all outputs for freeze mode.
-    fn capture_frozen_screens(&mut self) -> Result<()> {
+    pub(super) fn capture_frozen_screens(&mut self) -> Result<()> {
         use crate::compositor::protocol::capture_output;
 
         log::info!(
@@ -271,7 +310,8 @@ impl App {
     }
 
     pub(super) fn draw_index(&mut self, index: usize, qh: &QueueHandle<Self>) -> Result<()> {
-        rendering::draw_output(&mut self.output_surfaces[index], &self.selection, qh)
+        let is_mode_select = self.phase == UiPhase::ModeSelect;
+        rendering::draw_output(&mut self.output_surfaces[index], &self.selection, is_mode_select, &self.args.keybinds, &self.args.mode_select, self.is_recording, qh)
     }
 
     // ------------------------------------------------------------------------
@@ -302,6 +342,12 @@ impl App {
     }
 
     pub(super) fn handle_pointer_button(&mut self, pressed: bool) {
+        if self.phase == UiPhase::ModeSelect {
+            if pressed {
+                self.cancel_selection();
+            }
+            return;
+        }
         if pressed {
             self.input.mouse_pressed = true;
             self.input.selection_start = Some((

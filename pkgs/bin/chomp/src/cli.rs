@@ -95,9 +95,21 @@ pub struct Args {
     #[arg(long)]
     pub generate_config: bool,
 
+    /// Overwrite existing config file when used with --generate-config
+    #[arg(long)]
+    pub force: bool,
+
     /// Generate shell completion script and exit
     #[arg(long, value_name = "SHELL", value_enum)]
     pub generate_completions: Option<Shell>,
+
+    /// Mode selector keybindings (populated from config, not CLI)
+    #[clap(skip)]
+    pub keybinds: crate::config::KeybindsConfig,
+
+    /// Mode selector bar appearance (populated from config, not CLI)
+    #[clap(skip)]
+    pub mode_select: crate::config::ModeSelectConfig,
 }
 
 impl Args {
@@ -133,6 +145,10 @@ impl Args {
 
         // Merge annotation settings
         self.satty_path.get_or_insert(config.annotate.satty_path);
+
+        // Keybinds and mode-select style always come from config (no CLI override)
+        self.keybinds = config.keybinds;
+        self.mode_select = config.mode_select;
 
         self
     }

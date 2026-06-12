@@ -27,6 +27,10 @@ pub fn create_local_selection(global_rect: Rect, offset_x: i32, offset_y: i32) -
 pub fn draw_output(
     output_surface: &mut OutputSurface,
     selection: &Selection,
+    is_mode_select: bool,
+    keybinds: &crate::config::KeybindsConfig,
+    mode_select: &crate::config::ModeSelectConfig,
+    is_recording: bool,
     qh: &wayland_client::QueueHandle<super::App>,
 ) -> Result<()> {
     if !output_surface.configured {
@@ -63,6 +67,28 @@ pub fn draw_output(
     };
 
     log::debug!("Got buffer, canvas ptr: {:p}", canvas.as_ptr());
+
+    if is_mode_select {
+        if !output_surface.needs_render {
+            return Ok(());
+        }
+        output_surface.needs_render = false;
+
+        let frozen_data = output_surface
+            .frozen_buffer
+            .as_ref()
+            .map(|img| (img.data.as_slice(), img.stride as i32));
+        renderer.render_mode_select(canvas, frozen_data, keybinds, mode_select, is_recording)?;
+
+        std::sync::atomic::fence(std::sync::atomic::Ordering::SeqCst);
+        let callback = output_surface.surface.frame(qh, ());
+        output_surface.frame_callback = Some(callback);
+        output_surface.waiting_for_frame = true;
+        output_surface.surface.attach(Some(buffer.wl_buffer()), 0, 0);
+        output_surface.surface.damage_buffer(0, 0, width, height);
+        output_surface.surface.commit();
+        return Ok(());
+    }
 
     let output_rect = Rect::new(offset_x, offset_y, width, height);
     let has_selection_now = selection

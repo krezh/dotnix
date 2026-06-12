@@ -1,5 +1,5 @@
 {
   flake.modules.homeManager.ai = {
-    programs.gemini-cli.enable = true;
+    programs.antigravity-cli.enable = true;
   };
 }

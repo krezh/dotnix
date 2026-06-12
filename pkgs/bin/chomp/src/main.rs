@@ -35,8 +35,20 @@ fn main() -> Result<()> {
 
     // Handle config generation early (doesn't need the rest of the setup)
     if args.generate_config {
-        let config_path = Config::write_defaults_to_file(None)?;
-        println!("Default config file created at: {}", config_path.display());
+        let config_path = Config::default_config_path();
+        if !args.force && config_path.exists() {
+            // Merge: load existing file (serde fills missing keys with defaults), write back
+            let existing = Config::load()?;
+            let path = Config::write_config_to_file(&existing, None)?;
+            println!("Config merged (new keys added with defaults): {}", path.display());
+        } else {
+            let path = Config::write_defaults_to_file(None)?;
+            if args.force {
+                println!("Config overwritten with defaults: {}", path.display());
+            } else {
+                println!("Default config created: {}", path.display());
+            }
+        }
         return Ok(());
     }
 
@@ -63,15 +75,25 @@ fn main() -> Result<()> {
         let notifier = ui::Notifier::new();
 
         if mode.is_video() {
-            return handle_video_mode(&args, &mode, &notifier);
+            return handle_video_mode(&args, &mode, &notifier, None);
         } else {
-            return handle_image_mode(&args, &mode, &notifier);
+            return handle_image_mode(&args, &mode, &notifier, None, None);
         }
     }
 
     apply_delay(&args);
 
-    let _ = ui::App::run(args)?;
+    let (selection_geometry, chosen_mode, pre_captured) = ui::App::run(args.clone())?;
+    if let Some(mode) = chosen_mode {
+        let notifier = ui::Notifier::new();
+        if mode == capture::CaptureMode::StopRecording {
+            return handle_stop_recording(&args, &notifier);
+        } else if mode.is_video() {
+            return handle_video_mode(&args, &mode, &notifier, selection_geometry);
+        } else {
+            return handle_image_mode(&args, &mode, &notifier, pre_captured, selection_geometry);
+        }
+    }
 
     Ok(())
 }
@@ -111,11 +133,24 @@ fn handle_status() -> Result<()> {
     Ok(())
 }
 
+/// Stops an in-progress recording and handles upload/notification.
+fn handle_stop_recording(args: &Args, notifier: &ui::Notifier) -> Result<()> {
+    let recorder = capture::VideoRecorder::new();
+    let output_file = recorder.stop_recording()?;
+    notifier.send_success("Screen recording saved");
+    if let Some(ref file) = output_file {
+        println!("Recording saved to: {}", file);
+        handle_upload(args, file, notifier);
+    }
+    Ok(())
+}
+
 /// Handles video recording modes.
 fn handle_video_mode(
     args: &Args,
     mode: &capture::CaptureMode,
     notifier: &ui::Notifier,
+    pre_geometry: Option<String>,
 ) -> Result<()> {
     let recorder = capture::VideoRecorder::new();
 
@@ -137,8 +172,13 @@ fn handle_video_mode(
 
     let (geometry, monitor): (Option<String>, Option<String>) = match mode {
         capture::CaptureMode::VideoArea => {
-            let geo = ui::App::run(args.clone())?.context("Selection cancelled or failed")?;
-            (Some(geo), None)
+            if let Some(geo) = pre_geometry {
+                (Some(geo), None)
+            } else {
+                let (geo, _, _) = ui::App::run(args.clone())?;
+                let geo = geo.context("Selection cancelled or failed")?;
+                (Some(geo), None)
+            }
         }
         capture::CaptureMode::VideoWindow => {
             let geo = compositor::get_active_window()?;
@@ -176,29 +216,20 @@ fn handle_image_mode(
     args: &Args,
     mode: &capture::CaptureMode,
     notifier: &ui::Notifier,
+    pre_captured: Option<capture::CapturedImage>,
+    pre_geometry: Option<String>,
 ) -> Result<()> {
     apply_delay(args);
 
     let output_file = generate_output_path(args, "png")?;
 
-    let rect = match mode {
-        capture::CaptureMode::ImageArea => {
-            let geometry = ui::App::run(args.clone())?.context("Selection cancelled or failed")?;
-            render::Rect::from_geometry_string(&geometry)?
-        }
-        capture::CaptureMode::ImageWindow => {
-            let geometry_str = compositor::get_active_window()?;
-            render::Rect::from_geometry_string(&geometry_str)?
-        }
-        capture::CaptureMode::ImageScreen => {
-            // For screen mode, use a large rect that covers typical screens
-            render::Rect::new(0, 0, 3840, 2160)
-        }
-        _ => unreachable!(),
-    };
-
     if args.annotate {
-        let png = capture::capture_png_bytes(rect)?;
+        let png = if let Some(ref img) = pre_captured {
+            capture::captured_image_to_png(img)?
+        } else {
+            let rect = image_capture_rect(args, mode, pre_geometry.as_deref())?;
+            capture::capture_png_bytes(rect)?
+        };
         let satty_path = args
             .satty_path
             .as_deref()
@@ -212,7 +243,10 @@ fn handle_image_mode(
         if !std::path::Path::new(&output_file).exists() {
             return Ok(());
         }
+    } else if let Some(img) = pre_captured {
+        capture::save_captured_image(img, &output_file)?;
     } else {
+        let rect = image_capture_rect(args, mode, pre_geometry.as_deref())?;
         capture::capture_screenshot(rect, &output_file)?;
     }
 
@@ -237,6 +271,26 @@ fn handle_image_mode(
     }
 
     Ok(())
+}
+
+/// Computes the capture rectangle for a non-video, non-pre-captured image mode.
+fn image_capture_rect(args: &Args, mode: &capture::CaptureMode, pre_geometry: Option<&str>) -> Result<render::Rect> {
+    match mode {
+        capture::CaptureMode::ImageArea => {
+            if let Some(geo) = pre_geometry {
+                return render::Rect::from_geometry_string(geo);
+            }
+            let (geometry, _, _) = ui::App::run(args.clone())?;
+            let geometry = geometry.context("Selection cancelled or failed")?;
+            render::Rect::from_geometry_string(&geometry)
+        }
+        capture::CaptureMode::ImageWindow => {
+            let geometry_str = compositor::get_active_window()?;
+            render::Rect::from_geometry_string(&geometry_str)
+        }
+        capture::CaptureMode::ImageScreen => Ok(render::Rect::new(0, 0, 3840, 2160)),
+        _ => unreachable!(),
+    }
 }
 
 /// Generates output file path with timestamp.

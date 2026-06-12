@@ -155,7 +155,6 @@ pub fn capture_output(conn: &Connection, output: &wl_output::WlOutput) -> Result
     let size = (stride * height) as usize;
     let (buffer, pool, shm_fd) = create_wl_buffer(&shm, &qh, width, height, stride, format, size)?;
 
-    // Start capture
     frame.copy(&buffer);
 
     // Wait for completion

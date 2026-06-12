@@ -18,12 +18,8 @@ pub fn complete_selection(
     rect: Rect,
 ) -> Result<Option<String>> {
     clear_overlays(output_surfaces);
-
-    let _ = conn.flush();
     let _ = conn.roundtrip();
-
-    // Minimal delay for compositor to render the transparent frame
-    std::thread::sleep(std::time::Duration::from_millis(16)); // One frame at 60fps
+    let _ = conn.roundtrip();
 
     let outputs_list: Vec<crate::compositor::protocol::outputs::OutputInfo> = output_surfaces
         .iter()
@@ -88,31 +84,10 @@ pub fn complete_selection(
     Ok(None)
 }
 
-/// Clears all output surfaces by rendering fully transparent overlays.
-fn clear_overlays(output_surfaces: &mut [OutputSurface]) {
+/// Unmaps all output surfaces by attaching a null buffer, removing them from compositor scene.
+pub(super) fn clear_overlays(output_surfaces: &mut [OutputSurface]) {
     for output_surface in output_surfaces {
-        let width = output_surface.width as i32;
-        let height = output_surface.height as i32;
-        let stride = width * 4;
-
-        if let Some(pool) = output_surface.pool.as_mut() {
-            if let Ok((buffer, canvas)) = pool.create_buffer(
-                width,
-                height,
-                stride,
-                wayland_client::protocol::wl_shm::Format::Argb8888,
-            ) {
-                // Fill with fully transparent pixels
-                for byte in canvas.iter_mut() {
-                    *byte = 0;
-                }
-
-                output_surface
-                    .surface
-                    .attach(Some(buffer.wl_buffer()), 0, 0);
-                output_surface.surface.damage_buffer(0, 0, width, height);
-                output_surface.surface.commit();
-            }
-        }
+        output_surface.surface.attach(None, 0, 0);
+        output_surface.surface.commit();
     }
 }

@@ -26,6 +26,78 @@ impl FontWeight {
     }
 }
 
+/// Keybindings for the mode selector overlay
+#[derive(Debug, Deserialize, Serialize, Clone)]
+#[serde(default)]
+pub struct KeybindsConfig {
+    pub screenshot_area: String,
+    pub screenshot_screen: String,
+    pub screenshot_window: String,
+    pub ocr: String,
+    pub record_area: String,
+    pub record_screen: String,
+    pub record_window: String,
+    pub stop_recording: String,
+}
+
+impl Default for KeybindsConfig {
+    fn default() -> Self {
+        Self {
+            screenshot_area: "a".to_string(),
+            screenshot_screen: "s".to_string(),
+            screenshot_window: "w".to_string(),
+            ocr: "c".to_string(),
+            record_area: "A".to_string(),
+            record_screen: "S".to_string(),
+            record_window: "W".to_string(),
+            stop_recording: "x".to_string(),
+        }
+    }
+}
+
+/// Visual style for the mode selector bottom bar
+#[derive(Debug, Deserialize, Serialize, Clone)]
+#[serde(default)]
+pub struct ModeSelectConfig {
+    /// Bar background color (hex)
+    pub background_color: String,
+    /// Bar background opacity (0.0–1.0)
+    pub background_opacity: f64,
+    /// Bar height in pixels
+    pub bar_height: u32,
+    /// Top border opacity (applied to the existing border_color)
+    pub border_opacity: f64,
+    /// Key label color (hex); empty string falls back to border_color
+    pub key_color: String,
+    /// Description text color (hex)
+    pub description_color: String,
+    /// Description text opacity (0.0–1.0)
+    pub description_opacity: f64,
+    /// Group separator opacity (0.0–1.0)
+    pub separator_opacity: f64,
+    /// Color of the recording-active indicator dot (hex)
+    pub recording_dot_color: String,
+    /// Color of the stop-recording key label and description (hex)
+    pub recording_highlight_color: String,
+}
+
+impl Default for ModeSelectConfig {
+    fn default() -> Self {
+        Self {
+            background_color: "#0D0D14".to_string(),
+            background_opacity: 0.95,
+            bar_height: 56,
+            border_opacity: 0.35,
+            key_color: String::new(), // empty = use border_color
+            description_color: "#FFFFFF".to_string(),
+            description_opacity: 0.85,
+            separator_opacity: 0.18,
+            recording_dot_color: "#F24040".to_string(),
+            recording_highlight_color: "#F2BF33".to_string(),
+        }
+    }
+}
+
 /// Main configuration structure with nested groups
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]
 #[serde(default)]
@@ -47,6 +119,12 @@ pub struct Config {
 
     /// Annotation configuration
     pub annotate: AnnotateConfig,
+
+    /// Mode selector keybindings
+    pub keybinds: KeybindsConfig,
+
+    /// Mode selector bar appearance
+    pub mode_select: ModeSelectConfig,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -190,14 +268,10 @@ impl Config {
         }
     }
 
-    /// Writes default configuration to file
-    ///
-    /// Creates the config directory if it doesn't exist.
-    /// Returns the path where the config was written.
-    pub fn write_defaults_to_file(path: Option<PathBuf>) -> Result<PathBuf> {
+    /// Writes a config instance to file, creating parent directories as needed.
+    pub fn write_config_to_file(config: &Self, path: Option<PathBuf>) -> Result<PathBuf> {
         let config_path = path.unwrap_or_else(Self::default_config_path);
 
-        // Ensure parent directory exists
         if let Some(parent) = config_path.parent() {
             fs::create_dir_all(parent).context(format!(
                 "Failed to create config directory: {}",
@@ -205,9 +279,8 @@ impl Config {
             ))?;
         }
 
-        // Serialize default config to pretty JSON
-        let json_content = serde_json::to_string_pretty(&Self::default())
-            .context("Failed to serialize default config to JSON")?;
+        let json_content = serde_json::to_string_pretty(config)
+            .context("Failed to serialize config to JSON")?;
 
         fs::write(&config_path, json_content).context(format!(
             "Failed to write config file to: {}",
@@ -215,6 +288,11 @@ impl Config {
         ))?;
 
         Ok(config_path)
+    }
+
+    /// Writes the default config to file (convenience wrapper around write_config_to_file).
+    pub fn write_defaults_to_file(path: Option<PathBuf>) -> Result<PathBuf> {
+        Self::write_config_to_file(&Self::default(), path)
     }
 
     /// Searches for config file in XDG-compliant locations

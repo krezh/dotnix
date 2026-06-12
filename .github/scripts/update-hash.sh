@@ -37,5 +37,5 @@ else
   # Not a crane package, use nix-update
   echo "Using nix-update for: $file"
   pkg=$(grep -P '^\s*pname = ' "$file" | cut -d\" -f2)
-  nix run github:Mic92/nix-update -- "$pkg" --flake --version=skip
+  nix run nixpkgs#nix-update -- "$pkg" --flake --version=skip
 fi

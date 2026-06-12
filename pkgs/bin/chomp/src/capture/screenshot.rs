@@ -5,6 +5,7 @@ use image::RgbaImage;
 use std::io::Write;
 use wayland_client::Connection;
 
+use crate::capture::CapturedImage;
 use crate::compositor::get_outputs;
 use crate::compositor::protocol::outputs::OutputInfo;
 use crate::render::{Rect, convert_argb_to_rgba};
@@ -71,6 +72,23 @@ fn capture_image(conn: &Connection, outputs: &[OutputInfo], rect: Rect) -> Resul
 
     RgbaImage::from_raw(cropped.width, cropped.height, rgba_buffer)
         .context("Failed to create image from buffer")
+}
+
+/// Saves a `CapturedImage` (ARGB8888) directly to a PNG file.
+pub fn save_captured_image(img: CapturedImage, output_path: &str) -> Result<()> {
+    let rgba = convert_argb_to_rgba(&img.data);
+    RgbaImage::from_raw(img.width, img.height, rgba)
+        .context("Failed to construct RGBA image from captured buffer")?
+        .save(output_path)
+        .with_context(|| format!("Failed to save screenshot to {}", output_path))
+}
+
+/// Encodes a `CapturedImage` (ARGB8888) as PNG bytes (for annotate path).
+pub fn captured_image_to_png(img: &CapturedImage) -> Result<Vec<u8>> {
+    let rgba = convert_argb_to_rgba(&img.data);
+    let rgba_image = RgbaImage::from_raw(img.width, img.height, rgba)
+        .context("Failed to construct RGBA image from captured buffer")?;
+    encode_png(&rgba_image)
 }
 
 /// Encodes an RGBA image as PNG bytes.

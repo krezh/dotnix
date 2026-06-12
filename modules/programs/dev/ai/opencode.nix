@@ -23,6 +23,8 @@
           share = "manual";
           autoupdate = false;
 
+          lsp = true;
+
           # Permission configuration
           # OpenCode uses per-tool permissions with states: "allow", "ask", or "deny"
           # For bash: the last matching rule takes precedence, so wildcards should be listed first
@@ -92,6 +94,11 @@
             };
           };
 
+          plugin = [
+            "opencode-mem"
+            "opentmux"
+          ];
+
           # MCP server configuration
           mcp = {
             nixos = {
@@ -100,15 +107,6 @@
               command = [
                 "${pkgs.uv}/bin/uvx"
                 "mcp-nixos"
-              ];
-            };
-
-            forgetful = {
-              enabled = true;
-              type = "local";
-              command = [
-                "${pkgs.uv}/bin/uvx"
-                "forgetful-ai"
               ];
             };
 

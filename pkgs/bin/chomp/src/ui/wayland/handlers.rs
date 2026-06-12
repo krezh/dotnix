@@ -21,6 +21,13 @@ use wayland_client::{
 
 use super::App;
 
+/// Returns true if `keysym` matches the first character of the config key string.
+fn key_matches(keysym: Keysym, key: &str) -> bool {
+    key.chars()
+        .next()
+        .map_or(false, |c| Keysym::from_char(c) == keysym)
+}
+
 impl CompositorHandler for App {
     fn scale_factor_changed(
         &mut self,
@@ -187,13 +194,19 @@ impl PointerHandler for App {
         _pointer: &wl_pointer::WlPointer,
         events: &[PointerEvent],
     ) {
+        use super::UiPhase;
         for event in events {
             match event.kind {
                 PointerEventKind::Enter { .. } => {
                     self.input.current_surface = Some(event.surface.clone());
 
                     if let Some(themed_pointer) = &self.themed_pointer {
-                        let _ = themed_pointer.set_cursor(conn, CursorIcon::Crosshair);
+                        let icon = if self.phase == UiPhase::ModeSelect {
+                            CursorIcon::Default
+                        } else {
+                            CursorIcon::Crosshair
+                        };
+                        let _ = themed_pointer.set_cursor(conn, icon);
                     }
                 }
                 PointerEventKind::Leave { .. } => {}
@@ -251,14 +264,118 @@ impl KeyboardHandler for App {
 
     fn press_key(
         &mut self,
-        _conn: &Connection,
+        conn: &Connection,
         _qh: &QueueHandle<Self>,
         _keyboard: &wayland_client::protocol::wl_keyboard::WlKeyboard,
         _serial: u32,
         event: KeyEvent,
     ) {
-        if event.keysym == Keysym::Escape {
+        use crate::capture::CaptureMode;
+        use super::UiPhase;
+
+        if event.keysym == Keysym::Escape || event.keysym == Keysym::q {
             self.cancel_selection();
+            return;
+        }
+
+        if self.phase != UiPhase::ModeSelect {
+            return;
+        }
+
+        let kb = self.args.keybinds.clone();
+
+        // OCR: transition to region select without setting a capture mode
+        if key_matches(event.keysym, &kb.ocr) {
+            self.args.ocr = true;
+            self.phase = UiPhase::RegionSelect;
+            if self.args.freeze.unwrap_or(true) {
+                if self.output_surfaces.iter().any(|os| os.frozen_buffer.is_none()) {
+                    if let Err(e) = self.capture_frozen_screens() {
+                        log::warn!("Failed to capture freeze: {}", e);
+                    }
+                }
+            }
+            for os in &mut self.output_surfaces {
+                os.needs_render = true;
+            }
+            if let Some(themed_pointer) = &self.themed_pointer {
+                let _ = themed_pointer.set_cursor(conn, CursorIcon::Crosshair);
+            }
+            self.needs_redraw = true;
+            return;
+        }
+
+        // Stop recording key — only active when a recording is running
+        if self.is_recording && key_matches(event.keysym, &kb.stop_recording) {
+            self.chosen_mode = Some(CaptureMode::StopRecording);
+            self.exit = true;
+            self.loop_signal.stop();
+            return;
+        }
+
+        let result = if key_matches(event.keysym, &kb.screenshot_area) {
+            Some((CaptureMode::ImageArea, true))
+        } else if key_matches(event.keysym, &kb.screenshot_screen) {
+            Some((CaptureMode::ImageScreen, false))
+        } else if key_matches(event.keysym, &kb.screenshot_window) {
+            Some((CaptureMode::ImageWindow, false))
+        } else if key_matches(event.keysym, &kb.record_area) {
+            Some((CaptureMode::VideoArea, true))
+        } else if key_matches(event.keysym, &kb.record_screen) {
+            Some((CaptureMode::VideoScreen, false))
+        } else if key_matches(event.keysym, &kb.record_window) {
+            Some((CaptureMode::VideoWindow, false))
+        } else {
+            None
+        };
+
+        let Some((mode, is_area)) = result else { return };
+
+        if is_area {
+            self.chosen_mode = Some(mode.clone());
+            self.args.mode = Some(mode.as_str().to_string());
+            self.phase = UiPhase::RegionSelect;
+            if self.args.freeze.unwrap_or(true) {
+                // Frozen backgrounds are pre-captured at startup before any buffer is
+                // attached.  Only re-capture if that failed for some output.
+                if self.output_surfaces.iter().any(|os| os.frozen_buffer.is_none()) {
+                    if let Err(e) = self.capture_frozen_screens() {
+                        log::warn!("Failed to capture freeze: {}", e);
+                    }
+                }
+            }
+            for os in &mut self.output_surfaces {
+                os.needs_render = true;
+            }
+            if let Some(themed_pointer) = &self.themed_pointer {
+                let _ = themed_pointer.set_cursor(conn, CursorIcon::Crosshair);
+            }
+            self.needs_redraw = true;
+        } else {
+            // Unmap mode-select surfaces before the screencopy request.
+            // Using the same connection guarantees ordering: the screencopy's
+            // first internal roundtrip flushes these null-buffer commits,
+            // ensuring the compositor removes the overlay before it captures.
+            for os in &self.output_surfaces {
+                os.surface.attach(None, 0, 0);
+                os.surface.commit();
+            }
+            if matches!(mode, CaptureMode::ImageScreen | CaptureMode::ImageWindow) {
+                use crate::compositor::protocol::capture_output;
+                let out = self.outputs.iter()
+                    .find(|(_, info)| info.logical_position.unwrap_or((1, 1)) == (0, 0))
+                    .or_else(|| self.outputs.iter().next())
+                    .map(|(o, _)| o.clone());
+                if let Some(out) = out {
+                    match capture_output(&self.conn, &out) {
+                        Ok(img) => self.captured_image = Some(img),
+                        Err(e) => log::warn!("Pre-capture failed: {}", e),
+                    }
+                }
+            }
+            self.chosen_mode = Some(mode);
+            self.exit = true;
+            self.loop_signal.stop();
         }
     }
 
@@ -313,15 +430,13 @@ impl Dispatch<wl_callback::WlCallback, ()> for App {
         _conn: &Connection,
         _qh: &QueueHandle<Self>,
     ) {
-        // Find the output surface that owns this callback
         for output_surface in &mut state.output_surfaces {
             if let Some(ref frame_callback) = output_surface.frame_callback {
                 if frame_callback == callback {
-                    // Frame callback received - compositor is ready for next frame
                     output_surface.waiting_for_frame = false;
                     output_surface.frame_callback = None;
-                    output_surface.needs_render = true; // Mark for redraw
-                    state.needs_redraw = true; // Trigger redraw cycle
+                    output_surface.needs_render = true;
+                    state.needs_redraw = true;
                     break;
                 }
             }

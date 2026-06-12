@@ -43,15 +43,13 @@
       fileManager = mkProg pkgs.nautilus;
       passwords = mkProg pkgs.proton-pass;
       sysMonitor = mkProg pkgs.resources;
-      logout.run = "noctalia ipc call sessionMenu toggle";
       hyprlock.run = "${lib.getExe config.programs.hyprlock.package} --grace 0";
-      launcher.run = "${pkgs.netcat}/bin/nc -U /run/user/$EUID/walker/walker.sock";
-      shell.run = "${lib.getExe config.programs.noctalia.package} ipc call";
+      # launcher.run = "${pkgs.netcat}/bin/nc -U /run/user/$EUID/walker/walker.sock";
+      shell.run = "${lib.getExe config.programs.noctalia.package} msg";
       keybinds.run = lib.getExe pkgs.hyprland_keybinds;
-      clipboardMgr.run = "${lib.getExe config.programs.walker.package} -m clipboard";
+      # clipboardMgr.run = "${lib.getExe config.programs.walker.package} -m clipboard";
       mail.run = lib.getExe pkgs.protonmail-desktop;
       audioControl = mkProgWith pkgs.pwvucontrol "--tab 4";
-      trayTui = mkProg pkgs.tray-tui;
       volume_script = lib.getExe pkgs.volume_script_hyprpanel;
       brightness_script = lib.getExe pkgs.brightness_script_hyprpanel;
       audioSwitch = lib.getExe osConfig.nixosModules.wireplumber.audioSwitching.package;
@@ -65,23 +63,23 @@
           bind = mkBinds {
             # Applications
             "${mainMod} + ESCAPE" = {
-              rule = exec logout.run;
-              desc = "Logout Menu";
+              rule = exec "${shell.run} panel-toggle session";
+              desc = "Session Menu";
             };
             "${mainMod} + L" = {
               rule = exec hyprlock.run;
               desc = "Lockscreen";
             };
             "${mainMod} + R" = {
-              rule = exec launcher.run;
+              rule = exec "${shell.run} panel-toggle launcher";
               desc = "Application launcher";
             };
             "${mainMod} + N" = {
-              rule = exec "${shell.run} notifications toggleHistory";
+              rule = exec "${shell.run} panel-toggle control-center notifications";
               desc = "Notifications";
             };
             "${mainModShift} + N" = {
-              rule = exec "${shell.run} notifications clear";
+              rule = exec "${shell.run} notification-clear-history";
               desc = "Clear notifications";
             };
             "${mainMod} + B" = {
@@ -104,16 +102,12 @@
               rule = exec "[float] ${term.run}";
               desc = "Terminal (float)";
             };
-            "${mainMod} + T" = {
-              rule = exec "[float] ${term.toggle trayTui.name trayTui.run}";
-              desc = "Tray-Tui";
-            };
             "CTRL + SHIFT + ESCAPE" = {
               rule = exec "[float] ${sysMonitor.run}";
               desc = "System Monitor";
             };
             "${mainMod} + V" = {
-              rule = exec clipboardMgr.run;
+              rule = exec "${shell.run} panel-toggle clipboard";
               desc = "Clipboard Manager";
             };
             "${mainMod} + K" = {

@@ -9,7 +9,10 @@ pub mod video;
 
 pub use buffer::CapturedImage;
 pub use mode::CaptureMode;
-pub use screenshot::{capture_and_save, capture_png_bytes, capture_screenshot};
+pub use screenshot::{
+    capture_and_save, capture_png_bytes, capture_screenshot, captured_image_to_png,
+    save_captured_image,
+};
 pub use video::VideoRecorder;
 
 use anyhow::Result;
