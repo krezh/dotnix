@@ -3,7 +3,8 @@
 use clap::{CommandFactory, Parser};
 use clap_complete::{Shell, generate};
 
-use crate::config::{Config, FontWeight};
+use crate::capture::CaptureMode;
+use crate::config::{Config, FontWeight, KeybindsConfig, LogLevel, ModeSelectConfig};
 
 /// Command-line arguments for chomp
 ///
@@ -39,9 +40,9 @@ pub struct Args {
     #[arg(short, long)]
     pub dim_opacity: Option<f64>,
 
-    /// Log level (off, info, debug, warn, error)
-    #[arg(short = 'l', long)]
-    pub log: Option<String>,
+    /// Log level
+    #[arg(short = 'l', long, value_enum)]
+    pub log: Option<LogLevel>,
 
     /// Delay in milliseconds before starting capture
     #[arg(long)]
@@ -67,9 +68,9 @@ pub struct Args {
     #[arg(short = 'o', long)]
     pub output: Option<String>,
 
-    /// Capture mode: image-area, image-window, image-screen, video-area, video-window, video-screen
-    #[arg(long, short = 'm')]
-    pub mode: Option<String>,
+    /// Capture mode
+    #[arg(long, short = 'm', value_enum)]
+    pub mode: Option<CaptureMode>,
 
     /// Show recording status
     #[arg(long)]
@@ -102,55 +103,64 @@ pub struct Args {
     /// Generate shell completion script and exit
     #[arg(long, value_name = "SHELL", value_enum)]
     pub generate_completions: Option<Shell>,
+}
 
-    /// Mode selector keybindings (populated from config, not CLI)
-    #[clap(skip)]
-    pub keybinds: crate::config::KeybindsConfig,
-
-    /// Mode selector bar appearance (populated from config, not CLI)
-    #[clap(skip)]
-    pub mode_select: crate::config::ModeSelectConfig,
+/// Effective settings after merging CLI arguments with the config file.
+///
+/// Priority order: CLI args > config file > hardcoded defaults.
+#[derive(Debug, Clone)]
+pub struct Settings {
+    pub font_family: String,
+    pub font_size: u32,
+    pub font_weight: FontWeight,
+    pub border_color: String,
+    pub border_thickness: u32,
+    pub border_rounding: u32,
+    pub dim_opacity: f64,
+    pub log: LogLevel,
+    pub delay: Option<u64>,
+    pub freeze: bool,
+    pub ocr: bool,
+    pub annotate: bool,
+    pub satty_path: String,
+    pub output: Option<String>,
+    pub mode: Option<CaptureMode>,
+    pub zipline_url: String,
+    pub zipline_token: String,
+    pub original_name: bool,
+    pub save_path: String,
+    pub keybinds: KeybindsConfig,
+    pub mode_select: ModeSelectConfig,
 }
 
 impl Args {
-    /// Merges CLI arguments with config file settings.
-    ///
-    /// Applies priority order: CLI args > config file > hardcoded defaults.
-    /// Ensures all `Option` fields are populated with concrete values.
-    pub fn merge_with_config(mut self, config: Config) -> Self {
-        // Merge font settings
-        self.font_family.get_or_insert(config.font.family);
-        self.font_size.get_or_insert(config.font.size);
-        self.font_weight.get_or_insert(config.font.weight);
-
-        // Merge border settings
-        self.border_color.get_or_insert(config.border.color);
-        self.border_thickness.get_or_insert(config.border.thickness);
-        self.border_rounding.get_or_insert(config.border.rounding);
-
-        // Merge display settings
-        self.dim_opacity.get_or_insert(config.display.dim_opacity);
-        self.log.get_or_insert(config.display.log);
-        self.freeze.get_or_insert(config.display.freeze);
-
-        // Merge upload settings
-        self.zipline_url.get_or_insert(config.upload.zipline.url);
-        self.zipline_token
-            .get_or_insert(config.upload.zipline.token);
-        self.original_name
-            .get_or_insert(config.upload.zipline.use_original_name);
-
-        // Merge capture settings
-        self.save_path.get_or_insert(config.capture.save_path);
-
-        // Merge annotation settings
-        self.satty_path.get_or_insert(config.annotate.satty_path);
-
-        // Keybinds and mode-select style always come from config (no CLI override)
-        self.keybinds = config.keybinds;
-        self.mode_select = config.mode_select;
-
-        self
+    /// Merges CLI arguments with config file settings into resolved settings.
+    pub fn resolve(self, config: Config) -> Settings {
+        Settings {
+            font_family: self.font_family.unwrap_or(config.font.family),
+            font_size: self.font_size.unwrap_or(config.font.size),
+            font_weight: self.font_weight.unwrap_or(config.font.weight),
+            border_color: self.border_color.unwrap_or(config.border.color),
+            border_thickness: self.border_thickness.unwrap_or(config.border.thickness),
+            border_rounding: self.border_rounding.unwrap_or(config.border.rounding),
+            dim_opacity: self.dim_opacity.unwrap_or(config.display.dim_opacity),
+            log: self.log.unwrap_or(config.display.log),
+            delay: self.delay,
+            freeze: self.freeze.unwrap_or(config.display.freeze),
+            ocr: self.ocr,
+            annotate: self.annotate,
+            satty_path: self.satty_path.unwrap_or(config.annotate.satty_path),
+            output: self.output,
+            mode: self.mode,
+            zipline_url: self.zipline_url.unwrap_or(config.upload.zipline.url),
+            zipline_token: self.zipline_token.unwrap_or(config.upload.zipline.token),
+            original_name: self
+                .original_name
+                .unwrap_or(config.upload.zipline.use_original_name),
+            save_path: self.save_path.unwrap_or(config.capture.save_path),
+            keybinds: config.keybinds,
+            mode_select: config.mode_select,
+        }
     }
 
     /// Generates shell completions to stdout.
@@ -158,17 +168,5 @@ impl Args {
         let mut cmd = Self::command();
         let bin_name = cmd.get_name().to_string();
         generate(shell, &mut cmd, bin_name, &mut std::io::stdout());
-    }
-}
-
-/// Parses a log level string into the corresponding filter level.
-pub fn parse_log_level(level: &str) -> log::LevelFilter {
-    match level.to_lowercase().as_str() {
-        "off" => log::LevelFilter::Off,
-        "info" => log::LevelFilter::Info,
-        "error" => log::LevelFilter::Error,
-        "warn" => log::LevelFilter::Warn,
-        "debug" => log::LevelFilter::Debug,
-        _ => log::LevelFilter::Off,
     }
 }

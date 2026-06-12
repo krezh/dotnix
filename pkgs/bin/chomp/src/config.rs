@@ -26,6 +26,33 @@ impl FontWeight {
     }
 }
 
+/// Log level options.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize, Serialize, clap::ValueEnum)]
+#[serde(rename_all = "lowercase")]
+pub enum LogLevel {
+    #[default]
+    Off,
+    Error,
+    Warn,
+    Info,
+    Debug,
+    Trace,
+}
+
+impl LogLevel {
+    /// Converts the log level to the corresponding log filter.
+    pub fn to_filter(self) -> log::LevelFilter {
+        match self {
+            Self::Off => log::LevelFilter::Off,
+            Self::Error => log::LevelFilter::Error,
+            Self::Warn => log::LevelFilter::Warn,
+            Self::Info => log::LevelFilter::Info,
+            Self::Debug => log::LevelFilter::Debug,
+            Self::Trace => log::LevelFilter::Trace,
+        }
+    }
+}
+
 /// Keybindings for the mode selector overlay
 #[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(default)]
@@ -159,8 +186,8 @@ pub struct DisplayConfig {
     /// Dimming opacity (0.0-1.0)
     pub dim_opacity: f64,
 
-    /// Log level (off, info, debug, warn, error)
-    pub log: String,
+    /// Log level
+    pub log: LogLevel,
 
     /// Freeze screen before selection (captures snapshot)
     pub freeze: bool,
@@ -240,7 +267,7 @@ impl Default for DisplayConfig {
     fn default() -> Self {
         Self {
             dim_opacity: 0.5,
-            log: "off".to_string(),
+            log: LogLevel::Off,
             freeze: true,
         }
     }

@@ -25,7 +25,7 @@ use wayland_client::{
 
 use crate::{
     capture::{CapturedImage, CaptureMode},
-    cli::Args,
+    cli::Settings,
     render::{Renderer, Selection},
 };
 use std::collections::HashMap;
@@ -65,7 +65,7 @@ pub struct App {
     pub(super) output_surfaces: Vec<OutputSurface>,
     pub(super) renderer: Option<Renderer>,
     pub(super) selection: Selection,
-    pub(super) args: Args,
+    pub(super) settings: Settings,
 
     // Input state
     pub(super) input: InputState,
@@ -77,6 +77,9 @@ pub struct App {
 
     // Selection result (for area modes)
     pub(super) selection_geometry: Option<String>,
+
+    // Error from selection completion, returned from run()
+    pub(super) completion_error: Option<anyhow::Error>,
 
     // Mode selector state
     pub(super) phase: UiPhase,
@@ -95,7 +98,7 @@ pub struct App {
 // ============================================================================
 
 impl App {
-    pub fn run(args: Args) -> Result<(Option<String>, Option<CaptureMode>, Option<CapturedImage>)> {
+    pub fn run(settings: Settings) -> Result<(Option<String>, Option<CaptureMode>, Option<CapturedImage>)> {
         let conn = Connection::connect_to_env().context("Failed to connect to Wayland")?;
         let (globals, mut event_queue) =
             registry_queue_init::<Self>(&conn).context("Failed to init registry")?;
@@ -125,7 +128,7 @@ impl App {
             })
             .collect();
 
-        let phase = if args.mode.is_none() {
+        let phase = if settings.mode.is_none() {
             UiPhase::ModeSelect
         } else {
             UiPhase::RegionSelect
@@ -149,12 +152,13 @@ impl App {
             output_surfaces: Vec::new(),
             renderer: None,
             selection,
-            args,
+            settings,
             input: InputState::new(),
             exit: false,
             loop_signal,
             needs_redraw: false,
             selection_geometry: None,
+            completion_error: None,
             phase,
             chosen_mode: None,
             captured_image: None,
@@ -175,8 +179,7 @@ impl App {
         // frame.  Capturing here works for both ModeSelect (mode dialog launched first)
         // and RegionSelect (--mode image-area), avoiding the race where capture happens
         // after the overlay is already on screen.
-        let should_freeze = app.args.freeze.unwrap_or(true);
-        if should_freeze {
+        if app.settings.freeze {
             app.capture_frozen_screens()?;
         }
 
@@ -191,6 +194,10 @@ impl App {
             if app.exit {
                 break;
             }
+        }
+
+        if let Some(e) = app.completion_error {
+            return Err(e);
         }
 
         Ok((app.selection_geometry, app.chosen_mode, app.captured_image))
@@ -221,7 +228,7 @@ impl App {
                 let pool_size = (width * height * 4 * 2) as usize;
                 let pool = SlotPool::new(pool_size, &self.shm_state).ok();
 
-                let renderer = create_renderer(width, height, &self.args);
+                let renderer = create_renderer(width, height, &self.settings);
 
                 log::info!(
                     "Output {:?}: {}x{} at ({}, {})",
@@ -253,7 +260,7 @@ impl App {
         }
 
         if let Some(first) = self.output_surfaces.first() {
-            self.renderer = create_renderer(first.width as i32, first.height as i32, &self.args)
+            self.renderer = create_renderer(first.width as i32, first.height as i32, &self.settings)
                 .ok_or_else(|| anyhow::anyhow!("Failed to create renderer"))?
                 .into();
         }
@@ -292,6 +299,60 @@ impl App {
         Ok(())
     }
 
+    /// Captures the active window (cropped) or active monitor on the UI connection
+    /// for non-area image modes.
+    ///
+    /// Falls back to the output at (0,0) or the first output when the compositor
+    /// query for the active monitor fails.
+    pub(super) fn pre_capture(&self, mode: CaptureMode) -> Result<CapturedImage> {
+        use crate::compositor::protocol::capture_output;
+        use crate::compositor::protocol::outputs::OutputInfo as OutputGeometry;
+
+        let outputs_list: Vec<OutputGeometry> = self
+            .outputs
+            .iter()
+            .filter_map(|(output, info)| {
+                let (x, y) = info.logical_position?;
+                let (w, h) = info.logical_size?;
+                Some((
+                    output.clone(),
+                    info.name.clone().unwrap_or_default(),
+                    x,
+                    y,
+                    w as u32,
+                    h as u32,
+                ))
+            })
+            .collect();
+
+        match mode {
+            CaptureMode::ImageWindow => {
+                let geometry = crate::compositor::get_active_window()?;
+                let rect = crate::render::Rect::from_geometry_string(&geometry)?;
+                crate::capture::capture_region(&self.conn, &outputs_list, rect)
+            }
+            CaptureMode::ImageScreen => {
+                let by_name = crate::compositor::get_active_monitor().ok().and_then(|name| {
+                    outputs_list
+                        .iter()
+                        .find(|(_, n, ..)| n == &name)
+                        .map(|(o, ..)| o.clone())
+                });
+                let output = by_name
+                    .or_else(|| {
+                        outputs_list
+                            .iter()
+                            .find(|(_, _, x, y, ..)| (*x, *y) == (0, 0))
+                            .map(|(o, ..)| o.clone())
+                    })
+                    .or_else(|| outputs_list.first().map(|(o, ..)| o.clone()))
+                    .context("No outputs available")?;
+                capture_output(&self.conn, &output)
+            }
+            _ => unreachable!(),
+        }
+    }
+
     // ------------------------------------------------------------------------
     // Rendering
     // ------------------------------------------------------------------------
@@ -311,7 +372,7 @@ impl App {
 
     pub(super) fn draw_index(&mut self, index: usize, qh: &QueueHandle<Self>) -> Result<()> {
         let is_mode_select = self.phase == UiPhase::ModeSelect;
-        rendering::draw_output(&mut self.output_surfaces[index], &self.selection, is_mode_select, &self.args.keybinds, &self.args.mode_select, self.is_recording, qh)
+        rendering::draw_output(&mut self.output_surfaces[index], &self.selection, is_mode_select, &self.settings.keybinds, &self.settings.mode_select, self.is_recording, qh)
     }
 
     // ------------------------------------------------------------------------
@@ -379,7 +440,7 @@ impl App {
                 &self.conn,
                 &mut self.output_surfaces,
                 &outputs_map,
-                &self.args,
+                &self.settings,
                 rect,
             ) {
                 Ok(geometry) => {
@@ -387,6 +448,7 @@ impl App {
                 }
                 Err(e) => {
                     log::error!("Selection completion failed: {}", e);
+                    self.completion_error = Some(e);
                 }
             }
 

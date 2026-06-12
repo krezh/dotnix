@@ -282,17 +282,17 @@ impl KeyboardHandler for App {
             return;
         }
 
-        let kb = self.args.keybinds.clone();
+        let kb = self.settings.keybinds.clone();
 
         // OCR: transition to region select without setting a capture mode
         if key_matches(event.keysym, &kb.ocr) {
-            self.args.ocr = true;
+            self.settings.ocr = true;
             self.phase = UiPhase::RegionSelect;
-            if self.args.freeze.unwrap_or(true) {
-                if self.output_surfaces.iter().any(|os| os.frozen_buffer.is_none()) {
-                    if let Err(e) = self.capture_frozen_screens() {
-                        log::warn!("Failed to capture freeze: {}", e);
-                    }
+            if self.settings.freeze
+                && self.output_surfaces.iter().any(|os| os.frozen_buffer.is_none())
+            {
+                if let Err(e) = self.capture_frozen_screens() {
+                    log::warn!("Failed to capture freeze: {}", e);
                 }
             }
             for os in &mut self.output_surfaces {
@@ -332,10 +332,10 @@ impl KeyboardHandler for App {
         let Some((mode, is_area)) = result else { return };
 
         if is_area {
-            self.chosen_mode = Some(mode.clone());
-            self.args.mode = Some(mode.as_str().to_string());
+            self.chosen_mode = Some(mode);
+            self.settings.mode = Some(mode);
             self.phase = UiPhase::RegionSelect;
-            if self.args.freeze.unwrap_or(true) {
+            if self.settings.freeze {
                 // Frozen backgrounds are pre-captured at startup before any buffer is
                 // attached.  Only re-capture if that failed for some output.
                 if self.output_surfaces.iter().any(|os| os.frozen_buffer.is_none()) {
@@ -361,16 +361,9 @@ impl KeyboardHandler for App {
                 os.surface.commit();
             }
             if matches!(mode, CaptureMode::ImageScreen | CaptureMode::ImageWindow) {
-                use crate::compositor::protocol::capture_output;
-                let out = self.outputs.iter()
-                    .find(|(_, info)| info.logical_position.unwrap_or((1, 1)) == (0, 0))
-                    .or_else(|| self.outputs.iter().next())
-                    .map(|(o, _)| o.clone());
-                if let Some(out) = out {
-                    match capture_output(&self.conn, &out) {
-                        Ok(img) => self.captured_image = Some(img),
-                        Err(e) => log::warn!("Pre-capture failed: {}", e),
-                    }
+                match self.pre_capture(mode) {
+                    Ok(img) => self.captured_image = Some(img),
+                    Err(e) => log::warn!("Pre-capture failed: {}", e),
                 }
             }
             self.chosen_mode = Some(mode);

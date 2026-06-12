@@ -3,7 +3,7 @@
 use anyhow::Result;
 use wayland_client::{Connection, protocol::wl_output};
 
-use crate::{capture, cli::Args, ocr, render::Rect, system};
+use crate::{capture, capture::CaptureMode, cli::Settings, ocr, render::Rect, system};
 
 use super::output::OutputSurface;
 
@@ -14,7 +14,7 @@ pub fn complete_selection(
     conn: &Connection,
     output_surfaces: &mut [OutputSurface],
     outputs_map: &[(wl_output::WlOutput, String)],
-    args: &Args,
+    settings: &Settings,
     rect: Rect,
 ) -> Result<Option<String>> {
     clear_overlays(output_surfaces);
@@ -40,45 +40,29 @@ pub fn complete_selection(
         })
         .collect();
 
-    if let Some(ref mode_str) = args.mode {
-        if mode_str == "image-area" || mode_str == "video-area" {
-            // For area modes, return geometry for the caller to handle
-            let geometry = rect.to_geometry_string();
-            return Ok(Some(geometry));
-        }
+    if matches!(
+        settings.mode,
+        Some(CaptureMode::ImageArea | CaptureMode::VideoArea)
+    ) {
+        // For area modes, return geometry for the caller to handle
+        return Ok(Some(rect.to_geometry_string()));
     }
 
-    if args.ocr {
+    if settings.ocr {
         // OCR mode: capture and extract text
-        match ocr::capture_and_ocr(conn, &outputs_list, rect) {
-            Ok(text) => {
-                println!("{}", text);
+        let text = ocr::capture_and_ocr(conn, &outputs_list, rect)?;
+        println!("{}", text);
 
-                // Copy to clipboard using wl-copy
-                if let Err(e) = system::copy_text(&text) {
-                    log::warn!("Failed to copy to clipboard: {}", e);
-                }
-            }
-            Err(e) => {
-                eprintln!("OCR failed: {}", e);
-                std::process::exit(1);
-            }
+        // Copy to clipboard using wl-copy
+        if let Err(e) = system::copy_text(&text) {
+            log::warn!("Failed to copy to clipboard: {}", e);
         }
-    } else if let Some(ref output_path) = args.output {
+    } else if let Some(ref output_path) = settings.output {
         // Screenshot mode: capture and save to file or stdout
-        match capture::capture_and_save(conn, &outputs_list, rect, Some(output_path)) {
-            Ok(()) => {
-                // Success - file saved or written to stdout
-            }
-            Err(e) => {
-                eprintln!("Screenshot capture failed: {}", e);
-                std::process::exit(1);
-            }
-        }
+        capture::capture_and_save(conn, &outputs_list, rect, Some(output_path))?;
     } else {
         // Coordinate output mode: output coordinates only
-        let output = rect.to_geometry_string();
-        println!("{}", output);
+        println!("{}", rect.to_geometry_string());
     }
 
     Ok(None)

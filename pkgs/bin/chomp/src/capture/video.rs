@@ -1,12 +1,24 @@
 //! Video recording management using wl-screenrec
+//!
+//! Recording state is tracked in a runtime state file containing the wl-screenrec
+//! PID and output path, so only recordings started by chomp are detected and stopped.
 
 use anyhow::{Context, Result};
 use nix::sys::signal::{Signal, kill};
 use nix::unistd::Pid;
+use serde::{Deserialize, Serialize};
 use std::fs;
+use std::path::{Path, PathBuf};
 use std::process::Command;
-use std::time::Duration;
-use sysinfo::{ProcessRefreshKind, RefreshKind, System};
+use std::time::{Duration, Instant};
+
+const STOP_TIMEOUT: Duration = Duration::from_secs(10);
+
+#[derive(Serialize, Deserialize)]
+struct RecordingState {
+    pid: u32,
+    output_file: String,
+}
 
 pub struct VideoRecorder;
 
@@ -15,54 +27,55 @@ impl VideoRecorder {
         Self
     }
 
-    /// Checks if wl-screenrec is currently recording.
+    /// Checks if a chomp-started wl-screenrec recording is active.
     ///
-    /// Returns (is_recording, output_file_path).
+    /// Returns (is_recording, output_file_path). Removes stale state files
+    /// whose process no longer exists.
     pub fn is_recording(&self) -> Result<(bool, Option<String>)> {
-        let pids = self.find_wl_screenrec_pids()?;
-
-        if pids.is_empty() {
-            return Ok((false, None));
-        }
-
-        // Find output file from first process cmdline
-        for pid in &pids {
-            if let Ok(cmdline) = self.read_cmdline(*pid) {
-                let args: Vec<&str> = cmdline.split('\0').filter(|s| !s.is_empty()).collect();
-                for i in 0..args.len() {
-                    if args[i] == "-f" && i + 1 < args.len() {
-                        return Ok((true, Some(args[i + 1].to_string())));
-                    }
-                }
+        match Self::load_state() {
+            Some(state) if Self::pid_is_wl_screenrec(state.pid) => {
+                Ok((true, Some(state.output_file)))
             }
+            Some(_) => {
+                let _ = fs::remove_file(Self::state_file());
+                Ok((false, None))
+            }
+            None => Ok((false, None)),
         }
-
-        Ok((true, None))
     }
 
-    /// Stops active recording by sending SIGINT to wl-screenrec.
+    /// Stops the active recording by sending SIGINT to its wl-screenrec process
+    /// and waiting for it to exit.
     ///
-    /// Returns the output file path if found.
+    /// Returns the output file path.
     pub fn stop_recording(&self) -> Result<Option<String>> {
-        let (is_recording, output_file) = self.is_recording()?;
-
-        if !is_recording {
+        let state = Self::load_state().filter(|s| Self::pid_is_wl_screenrec(s.pid));
+        let Some(state) = state else {
+            let _ = fs::remove_file(Self::state_file());
             anyhow::bail!("No recording active");
+        };
+
+        kill(Pid::from_raw(state.pid as i32), Signal::SIGINT)
+            .context("Failed to signal wl-screenrec")?;
+
+        let deadline = Instant::now() + STOP_TIMEOUT;
+        while Self::pid_is_wl_screenrec(state.pid) {
+            if Instant::now() >= deadline {
+                log::warn!(
+                    "wl-screenrec (pid {}) did not exit within {:?}; recording may be incomplete",
+                    state.pid,
+                    STOP_TIMEOUT
+                );
+                break;
+            }
+            std::thread::sleep(Duration::from_millis(50));
         }
 
-        let pids = self.find_wl_screenrec_pids()?;
-        for pid in pids {
-            // Send SIGINT to gracefully stop recording
-            let _ = kill(Pid::from_raw(pid as i32), Signal::SIGINT);
-        }
-
-        // Wait for process to finish writing
-        std::thread::sleep(Duration::from_millis(500));
-
-        Ok(output_file)
+        let _ = fs::remove_file(Self::state_file());
+        Ok(Some(state.output_file))
     }
 
-    /// Starts wl-screenrec with the given parameters.
+    /// Starts wl-screenrec with the given parameters and records its state.
     pub fn start_recording(
         &self,
         geometry: Option<&str>,
@@ -85,32 +98,44 @@ impl VideoRecorder {
 
         args.extend(["-f", output_file]);
 
-        Command::new("wl-screenrec")
+        let child = Command::new("wl-screenrec")
             .args(&args)
             .spawn()
             .context("Failed to start wl-screenrec")?;
 
+        let state = RecordingState {
+            pid: child.id(),
+            output_file: output_file.to_string(),
+        };
+        if let Err(e) = fs::write(Self::state_file(), serde_json::to_string(&state)?) {
+            let _ = kill(Pid::from_raw(child.id() as i32), Signal::SIGINT);
+            return Err(e).context("Failed to write recording state file");
+        }
+
         Ok(())
     }
 
-    fn find_wl_screenrec_pids(&self) -> Result<Vec<u32>> {
-        let mut sys = System::new_with_specifics(
-            RefreshKind::nothing().with_processes(ProcessRefreshKind::nothing()),
-        );
-        sys.refresh_processes(sysinfo::ProcessesToUpdate::All, true);
-
-        let pids = sys
-            .processes()
-            .iter()
-            .filter(|(_, process)| process.name().to_string_lossy() == "wl-screenrec")
-            .map(|(pid, _)| pid.as_u32())
-            .collect();
-
-        Ok(pids)
+    fn state_file() -> PathBuf {
+        let dir = std::env::var("XDG_RUNTIME_DIR").unwrap_or_else(|_| "/tmp".to_string());
+        PathBuf::from(dir).join("chomp-recording.json")
     }
 
-    fn read_cmdline(&self, pid: u32) -> Result<String> {
-        let path = format!("/proc/{}/cmdline", pid);
-        fs::read_to_string(path).context("Failed to read cmdline")
+    fn load_state() -> Option<RecordingState> {
+        let content = fs::read_to_string(Self::state_file()).ok()?;
+        serde_json::from_str(&content).ok()
+    }
+
+    /// Returns true if the PID is a live process whose executable is wl-screenrec.
+    fn pid_is_wl_screenrec(pid: u32) -> bool {
+        fs::read_to_string(format!("/proc/{}/cmdline", pid))
+            .ok()
+            .and_then(|cmdline| {
+                cmdline.split('\0').next().map(|arg0| {
+                    Path::new(arg0)
+                        .file_name()
+                        .is_some_and(|name| name == "wl-screenrec")
+                })
+            })
+            .unwrap_or(false)
     }
 }

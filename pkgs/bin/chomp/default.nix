@@ -55,6 +55,7 @@ craneLib.buildPackage rec {
           pkgs.tesseract
           pkgs.satty
           pkgs.wl-screenrec
+          pkgs.wl-clipboard
         ]
       }
 
@@ -65,7 +66,7 @@ craneLib.buildPackage rec {
   '';
 
   meta = {
-    description = "";
+    description = "Wayland region selector with screenshot, recording, OCR and upload support";
     platforms = [
       "x86_64-linux"
       "aarch64-linux"

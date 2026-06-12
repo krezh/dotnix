@@ -20,8 +20,9 @@ mod upload;
 
 use anyhow::{Context, Result};
 use clap::Parser;
-use cli::{Args, parse_log_level};
+use cli::{Args, Settings};
 use config::Config;
+use std::io::Write;
 
 pub const APP_NAME: &str = "chomp";
 
@@ -52,63 +53,70 @@ fn main() -> Result<()> {
         return Ok(());
     }
 
+    if args.status {
+        return handle_status();
+    }
+
     let config = Config::load().unwrap_or_else(|e| {
         eprintln!("Warning: Failed to load config: {}. Using defaults.", e);
         Config::default()
     });
 
-    let args = args.merge_with_config(config);
+    let settings = args.resolve(config);
 
-    let log_level = args.log.as_deref().unwrap_or("off");
     env_logger::Builder::from_default_env()
-        .filter_level(parse_log_level(log_level))
+        .filter_level(settings.log.to_filter())
         .init();
 
-    log::info!("Starting chomp with args: {:?}", args);
+    log::info!("Starting chomp with settings: {:?}", settings);
 
-    if args.status {
-        return handle_status();
-    }
-
-    if let Some(ref mode_str) = args.mode {
-        let mode = capture::CaptureMode::from_str(mode_str)?;
+    if let Some(mode) = settings.mode {
         let notifier = ui::Notifier::new();
 
         if mode.is_video() {
-            return handle_video_mode(&args, &mode, &notifier, None);
-        } else {
-            return handle_image_mode(&args, &mode, &notifier, None, None);
+            let recorder = capture::VideoRecorder::new();
+            let (is_recording, _) = recorder.is_recording()?;
+            if is_recording {
+                return handle_stop_recording(&settings, &notifier);
+            }
         }
+
+        apply_delay(&settings);
+
+        if mode.is_video() {
+            return handle_video_mode(&settings, &mode, &notifier, None);
+        }
+        return handle_image_mode(&settings, &mode, &notifier, None, None);
     }
 
-    apply_delay(&args);
+    apply_delay(&settings);
 
-    let (selection_geometry, chosen_mode, pre_captured) = ui::App::run(args.clone())?;
+    let (selection_geometry, chosen_mode, pre_captured) = ui::App::run(settings.clone())?;
     if let Some(mode) = chosen_mode {
         let notifier = ui::Notifier::new();
         if mode == capture::CaptureMode::StopRecording {
-            return handle_stop_recording(&args, &notifier);
+            return handle_stop_recording(&settings, &notifier);
         } else if mode.is_video() {
-            return handle_video_mode(&args, &mode, &notifier, selection_geometry);
+            return handle_video_mode(&settings, &mode, &notifier, selection_geometry);
         } else {
-            return handle_image_mode(&args, &mode, &notifier, pre_captured, selection_geometry);
+            return handle_image_mode(&settings, &mode, &notifier, pre_captured, selection_geometry);
         }
     }
 
     Ok(())
 }
 
-/// Applies delay if specified in args.
-fn apply_delay(args: &Args) {
-    if let Some(delay_ms) = args.delay {
+/// Applies delay if specified in settings.
+fn apply_delay(settings: &Settings) {
+    if let Some(delay_ms) = settings.delay {
         std::thread::sleep(std::time::Duration::from_millis(delay_ms));
     }
 }
 
 /// Attempts to upload file if configured, logging and notifying on error.
-fn handle_upload(args: &Args, file_path: &str, notifier: &ui::Notifier) {
-    if should_upload(args) {
-        if let Err(e) = upload_file(args, file_path, notifier) {
+fn handle_upload(settings: &Settings, file_path: &str, notifier: &ui::Notifier) {
+    if should_upload(settings) {
+        if let Err(e) = upload_file(settings, file_path, notifier) {
             log::error!("Upload failed: {}", e);
             notifier.send_error("Upload failed", Some(&e.to_string()));
         }
@@ -134,48 +142,30 @@ fn handle_status() -> Result<()> {
 }
 
 /// Stops an in-progress recording and handles upload/notification.
-fn handle_stop_recording(args: &Args, notifier: &ui::Notifier) -> Result<()> {
+fn handle_stop_recording(settings: &Settings, notifier: &ui::Notifier) -> Result<()> {
     let recorder = capture::VideoRecorder::new();
     let output_file = recorder.stop_recording()?;
     notifier.send_success("Screen recording saved");
     if let Some(ref file) = output_file {
         println!("Recording saved to: {}", file);
-        handle_upload(args, file, notifier);
+        handle_upload(settings, file, notifier);
     }
     Ok(())
 }
 
 /// Handles video recording modes.
 fn handle_video_mode(
-    args: &Args,
+    settings: &Settings,
     mode: &capture::CaptureMode,
     notifier: &ui::Notifier,
     pre_geometry: Option<String>,
 ) -> Result<()> {
-    let recorder = capture::VideoRecorder::new();
-
-    let (is_recording, _) = recorder.is_recording()?;
-
-    if is_recording {
-        let output_file = recorder.stop_recording()?;
-        notifier.send_success("Screen recording saved");
-
-        if let Some(file) = &output_file {
-            println!("Recording saved to: {}", file);
-            handle_upload(args, file, notifier);
-        }
-
-        return Ok(());
-    }
-
-    apply_delay(args);
-
     let (geometry, monitor): (Option<String>, Option<String>) = match mode {
         capture::CaptureMode::VideoArea => {
             if let Some(geo) = pre_geometry {
                 (Some(geo), None)
             } else {
-                let (geo, _, _) = ui::App::run(args.clone())?;
+                let (geo, _, _) = ui::App::run(settings.clone())?;
                 let geo = geo.context("Selection cancelled or failed")?;
                 (Some(geo), None)
             }
@@ -191,8 +181,12 @@ fn handle_video_mode(
         _ => unreachable!(),
     };
 
-    let output_file = generate_output_path(args, "mp4")?;
+    let output_file = generate_output_path(settings, "mp4");
+    if output_file == "-" {
+        anyhow::bail!("stdout output is not supported for video recording");
+    }
 
+    let recorder = capture::VideoRecorder::new();
     recorder.start_recording(geometry.as_deref(), monitor.as_deref(), &output_file)?;
 
     let mode_name = match mode {
@@ -213,28 +207,40 @@ fn handle_video_mode(
 
 /// Handles image capture modes.
 fn handle_image_mode(
-    args: &Args,
+    settings: &Settings,
     mode: &capture::CaptureMode,
     notifier: &ui::Notifier,
     pre_captured: Option<capture::CapturedImage>,
     pre_geometry: Option<String>,
 ) -> Result<()> {
-    apply_delay(args);
+    let output_file = generate_output_path(settings, "png");
 
-    let output_file = generate_output_path(args, "png")?;
-
-    if args.annotate {
+    if output_file == "-" {
+        anyhow::ensure!(
+            !settings.annotate,
+            "Annotation is not supported with stdout output"
+        );
         let png = if let Some(ref img) = pre_captured {
             capture::captured_image_to_png(img)?
         } else {
-            let rect = image_capture_rect(args, mode, pre_geometry.as_deref())?;
+            let rect = image_capture_rect(settings, mode, pre_geometry.as_deref())?;
             capture::capture_png_bytes(rect)?
         };
-        let satty_path = args
-            .satty_path
-            .as_deref()
-            .expect("satty_path must be set after merge_with_config");
-        if let Err(e) = system::annotate(satty_path, &png, &output_file) {
+        std::io::stdout()
+            .lock()
+            .write_all(&png)
+            .context("Failed to write image to stdout")?;
+        return Ok(());
+    }
+
+    if settings.annotate {
+        let png = if let Some(ref img) = pre_captured {
+            capture::captured_image_to_png(img)?
+        } else {
+            let rect = image_capture_rect(settings, mode, pre_geometry.as_deref())?;
+            capture::capture_png_bytes(rect)?
+        };
+        if let Err(e) = system::annotate(&settings.satty_path, &png, &output_file) {
             log::error!("Annotation failed: {}", e);
             notifier.send_error("Annotation failed", Some(&e.to_string()));
             return Ok(());
@@ -246,14 +252,14 @@ fn handle_image_mode(
     } else if let Some(img) = pre_captured {
         capture::save_captured_image(img, &output_file)?;
     } else {
-        let rect = image_capture_rect(args, mode, pre_geometry.as_deref())?;
+        let rect = image_capture_rect(settings, mode, pre_geometry.as_deref())?;
         capture::capture_screenshot(rect, &output_file)?;
     }
 
     log::info!("Screenshot saved to {}", output_file);
 
-    if should_upload(args) {
-        if let Err(e) = upload_file(args, &output_file, notifier) {
+    if should_upload(settings) {
+        if let Err(e) = upload_file(settings, &output_file, notifier) {
             log::error!("Upload failed: {}", e);
             // Fallback: copy image to clipboard
             if let Err(clip_err) = system::copy_image(&output_file) {
@@ -274,13 +280,17 @@ fn handle_image_mode(
 }
 
 /// Computes the capture rectangle for a non-video, non-pre-captured image mode.
-fn image_capture_rect(args: &Args, mode: &capture::CaptureMode, pre_geometry: Option<&str>) -> Result<render::Rect> {
+fn image_capture_rect(
+    settings: &Settings,
+    mode: &capture::CaptureMode,
+    pre_geometry: Option<&str>,
+) -> Result<render::Rect> {
     match mode {
         capture::CaptureMode::ImageArea => {
             if let Some(geo) = pre_geometry {
                 return render::Rect::from_geometry_string(geo);
             }
-            let (geometry, _, _) = ui::App::run(args.clone())?;
+            let (geometry, _, _) = ui::App::run(settings.clone())?;
             let geometry = geometry.context("Selection cancelled or failed")?;
             render::Rect::from_geometry_string(&geometry)
         }
@@ -288,48 +298,51 @@ fn image_capture_rect(args: &Args, mode: &capture::CaptureMode, pre_geometry: Op
             let geometry_str = compositor::get_active_window()?;
             render::Rect::from_geometry_string(&geometry_str)
         }
-        capture::CaptureMode::ImageScreen => Ok(render::Rect::new(0, 0, 3840, 2160)),
+        capture::CaptureMode::ImageScreen => active_monitor_rect(),
         _ => unreachable!(),
     }
 }
 
-/// Generates output file path with timestamp.
-fn generate_output_path(args: &Args, extension: &str) -> Result<String> {
-    let save_path = args
-        .save_path
-        .as_ref()
-        .expect("save_path must be set after merge_with_config");
+/// Returns the global rectangle of the active monitor, falling back to the first output.
+fn active_monitor_rect() -> Result<render::Rect> {
+    let conn = wayland_client::Connection::connect_to_env()
+        .context("Failed to connect to Wayland")?;
+    let outputs = compositor::get_outputs(&conn)?;
+
+    match compositor::get_active_monitor() {
+        Ok(name) => outputs
+            .iter()
+            .find(|(_, n, ..)| n == &name)
+            .map(|(_, _, x, y, w, h)| render::Rect::new(*x, *y, *w as i32, *h as i32))
+            .with_context(|| format!("Active monitor '{}' not found among outputs", name)),
+        Err(e) => {
+            log::warn!("Failed to query active monitor: {}. Using first output.", e);
+            let (_, _, x, y, w, h) = &outputs[0];
+            Ok(render::Rect::new(*x, *y, *w as i32, *h as i32))
+        }
+    }
+}
+
+/// Generates output file path, preferring an explicit --output over a timestamped name.
+fn generate_output_path(settings: &Settings, extension: &str) -> String {
+    if let Some(ref output) = settings.output {
+        return output.clone();
+    }
     let timestamp = chrono::Local::now().format("%Y-%m-%d_%H-%M-%S");
-    Ok(format!("{}/{}.{}", save_path, timestamp, extension))
+    format!("{}/{}.{}", settings.save_path, timestamp, extension)
 }
 
 /// Checks if upload is configured.
-fn should_upload(args: &Args) -> bool {
-    !args
-        .zipline_url
-        .as_ref()
-        .expect("zipline_url must be set after merge_with_config")
-        .is_empty()
-        && !args
-            .zipline_token
-            .as_ref()
-            .expect("zipline_token must be set after merge_with_config")
-            .is_empty()
+fn should_upload(settings: &Settings) -> bool {
+    !settings.zipline_url.is_empty() && !settings.zipline_token.is_empty()
 }
 
 /// Uploads file to Zipline.
-fn upload_file(args: &Args, file_path: &str, notifier: &ui::Notifier) -> Result<String> {
+fn upload_file(settings: &Settings, file_path: &str, notifier: &ui::Notifier) -> Result<String> {
     let (url, service_name) = upload::upload_to_zipline(
-        args.zipline_url
-            .as_ref()
-            .expect("zipline_url must be set after merge_with_config"),
-        args.zipline_token
-            .as_ref()
-            .expect("zipline_token must be set after merge_with_config"),
-        *args
-            .original_name
-            .as_ref()
-            .expect("original_name must be set after merge_with_config"),
+        &settings.zipline_url,
+        &settings.zipline_token,
+        settings.original_name,
         file_path,
     )?;
 
