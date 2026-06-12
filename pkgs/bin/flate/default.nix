@@ -10,7 +10,7 @@
 (buildGoModule.override { go = go-bin.latestStable; }) (finalAttrs: {
   pname = "flate";
   # renovate: datasource=github-releases depName=home-operations/flate
-  version = "0.1.28";
+  version = "0.4.5";
 
   src = fetchFromGitHub {
     owner = "home-operations";
