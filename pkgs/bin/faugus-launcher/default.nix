@@ -51,19 +51,11 @@ python3Packages.buildPythonApplication (finalAttrs: {
     substituteInPlace faugus-launcher \
       --replace-fail "/usr/bin/python3" "${python3Packages.python.interpreter}"
 
-    substituteInPlace faugus/launcher.py \
-      --replace-fail "PathManager.user_data('faugus-launcher/umu-run')" "'${lib.getExe umu-launcher}'" \
-      --replace-fail 'Path("/usr/lib/extensions/vulkan/lsfgvk/lib/liblsfg-vk.so")' 'Path("${lsfg-vk}/lib/liblsfg-vk.so")' \
-      --replace-fail 'Path("/usr/lib/liblsfg-vk.so")' 'Path("${lsfg-vk}/lib/liblsfg-vk.so")' \
-      --replace-fail 'Path("/usr/lib64/liblsfg-vk.so")' 'Path("${lsfg-vk}/lib/liblsfg-vk.so")'
-
-    substituteInPlace faugus/runner.py \
+    substituteInPlace faugus/path_manager.py \
       --replace-fail "PathManager.user_data('faugus-launcher/umu-run')" "'${lib.getExe umu-launcher}'"
 
-    substituteInPlace faugus/shortcut.py \
-      --replace-fail 'Path("/usr/lib/extensions/vulkan/lsfgvk/lib/liblsfg-vk.so")' 'Path("${lsfg-vk}/lib/liblsfg-vk.so")' \
-      --replace-fail 'Path("/usr/lib/liblsfg-vk.so")' 'Path("${lsfg-vk}/lib/liblsfg-vk.so")' \
-      --replace-fail 'Path("/usr/lib64/liblsfg-vk.so")' 'Path("${lsfg-vk}/lib/liblsfg-vk.so")'
+    substituteInPlace faugus/launcher.py faugus/shortcut.py \
+      --replace-fail 'next((p for p in lsfgvk_possible_paths if p.exists()), lsfgvk_possible_paths[-1])' 'Path("${lsfg-vk}/lib/liblsfg-vk.so")'
   '';
 
   dontWrapGApps = true;
