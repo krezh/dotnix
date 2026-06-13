@@ -9,23 +9,27 @@
 (buildGoModule.override { go = go-bin.latestStable; }) (finalAttrs: {
   pname = "talosctl";
   # renovate: datasource=github-releases depName=siderolabs/talos
-  version = "1.13.3";
+  version = "1.13.4";
 
   src = fetchFromGitHub {
     owner = "siderolabs";
     repo = "talos";
     rev = "v${finalAttrs.version}";
-    hash = "sha256-6WjjJXgsgLzE30VEpnl163nw4wjs8stRd7EGKFlSOoY=";
+    hash = "sha256-jcBRAixpdfbzOfCc7BjyDScWPsrW9Mc7A8vGLyN1f68=";
   };
 
-  vendorHash = "sha256-kfaqywGr6dF1k7tFtNBb+g6dycsV1B9g7a2Bu9qjocA=";
+  vendorHash = "sha256-dbuPRXAz+YOxmhEdd1R3R5rOAiNn9TOEeDavL+40MV4=";
+
+  overrideModAttrs = _: {
+    buildPhase = ''
+      go work vendor
+    '';
+  };
 
   ldflags = [
     "-s"
     "-w"
   ];
-
-  env.GOWORK = "off";
 
   subPackages = [ "cmd/talosctl" ];
 
