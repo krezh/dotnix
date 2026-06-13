@@ -1,8 +1,10 @@
 {
-  flake.modules.homeManager.editors = {
+  flake.modules.homeManager.editors = { pkgs, ... }: {
     vscodium.extensionIds = [
       "redhat.vscode-yaml"
     ];
+
+    programs.vscodium.profiles.default.extensions = [ pkgs.yayamlls-vscode ];
 
     programs.vscodium.profiles.default.userSettings = {
       yaml = {

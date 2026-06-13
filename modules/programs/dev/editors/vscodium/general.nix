@@ -27,7 +27,8 @@
           "anthropic.claude-code"
           "christian-kohler.path-intellisense"
           "gitHub.vscode-pull-request-github"
-          "jjx.jjx"
+          # "jjx.jjx"
+          "visualjj.visualjj"
         ];
 
         catppuccin.vscode = {

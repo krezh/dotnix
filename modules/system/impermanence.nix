@@ -14,6 +14,8 @@
 
       fileSystems."/persist".neededForBoot = true;
 
+      sops.age.sshKeyPaths = [ "/persist/etc/ssh/ssh_host_ed25519_key" ];
+
       disko.devices.nodev."/" = {
         fsType = "tmpfs";
         mountOptions = [

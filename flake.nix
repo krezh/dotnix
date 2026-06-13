@@ -16,12 +16,11 @@
   inputs = {
     nixpkgs.url = "git+https://github.com/NixOS/nixpkgs?ref=nixos-unstable&shallow=1";
     hardware.url = "git+https://github.com/nixos/nixos-hardware?shallow=1";
+    flake-parts.url = "git+https://github.com/hercules-ci/flake-parts?shallow=1";
     nix-cachyos-kernel = {
       url = "git+https://github.com/xddxdd/nix-cachyos-kernel?shallow=1";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-
-    flake-parts.url = "git+https://github.com/hercules-ci/flake-parts?shallow=1";
 
     lanzaboote = {
       url = "git+https://github.com/nix-community/lanzaboote?ref=refs/tags/v1.0.0&shallow=1";
@@ -90,11 +89,6 @@
 
     helium = {
       url = "git+https://github.com/cjavad/nixpille-helium?shallow=1";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-
-    hermes-agent = {
-      url = "git+https://github.com/NousResearch/hermes-agent?shallow=1";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 

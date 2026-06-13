@@ -8,6 +8,7 @@
         efi
         desktop-utils
         secureboot
+        impermanence
         amd
         openssh
         gaming

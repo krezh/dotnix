@@ -31,15 +31,15 @@
     "-w"
   ];
 
-  subPackages = [ "cmd/talosctl" ];
+  subPackages = [ "cmd/${finalAttrs.pname}" ];
 
   nativeBuildInputs = [ installShellFiles ];
 
   postInstall = lib.optionalString (stdenv.buildPlatform.canExecute stdenv.hostPlatform) ''
-    installShellCompletion --cmd talosctl \
-      --bash <($out/bin/talosctl completion bash) \
-      --fish <($out/bin/talosctl completion fish) \
-      --zsh <($out/bin/talosctl completion zsh)
+    installShellCompletion --cmd ${finalAttrs.pname} \
+      --bash <($out/bin/${finalAttrs.pname} completion bash) \
+      --fish <($out/bin/${finalAttrs.pname} completion fish) \
+      --zsh <($out/bin/${finalAttrs.pname} completion zsh)
   '';
 
   doCheck = false;
@@ -47,7 +47,7 @@
   doInstallCheck = true;
 
   installCheckPhase = ''
-    $out/bin/talosctl version --client | grep ${finalAttrs.version} > /dev/null
+    $out/bin/${finalAttrs.pname} version --client | grep ${finalAttrs.version} > /dev/null
   '';
 
   meta = {

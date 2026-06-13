@@ -1,14 +1,29 @@
 { inputs, ... }:
 {
   flake.modules.homeManager.ai =
-    { pkgs, ... }:
+    { pkgs, config, ... }:
     let
       nix-ai-tools = inputs.nix-ai-tools.packages.${pkgs.stdenv.hostPlatform.system};
+      tokenPath = config.sops.secrets."agentmemory/token".path;
+      commandsSrc = "${pkgs.agentmemory}/plugins/opencode/commands";
+
+      opencodeWrapped = pkgs.writeShellScriptBin "opencode" ''
+        export AGENTMEMORY_URL="https://agentmemory.plexuz.xyz"
+        export AGENTMEMORY_SECRET="$(cat ${tokenPath})"
+        export AGENTMEMORY_FORCE_PROXY=1
+        export AGENTMEMORY_TOOLS=all
+        export OPENCODE_AGENTMEMORY_DEBUG=1
+        exec ${nix-ai-tools.opencode}/bin/opencode "$@"
+      '';
+
+      mcpWrapper = pkgs.writeShellScript "agentmemory-mcp-wrapper" ''
+        exec ${pkgs.nodejs}/bin/node ${pkgs.agentmemory}/dist/standalone.mjs "$@"
+      '';
     in
     {
       programs.opencode = {
         enable = true;
-        package = nix-ai-tools.opencode;
+        package = opencodeWrapped;
 
         tui = {
           scroll_speed = 3;
@@ -97,6 +112,7 @@
           plugin = [
             "opencode-mem"
             "opentmux"
+            "opencode/plugins/agentmemory-capture.ts"
           ];
 
           # MCP server configuration
@@ -120,8 +136,21 @@
                 ''}"
               ];
             };
+
+            agentmemory = {
+              enabled = true;
+              type = "local";
+              command = [ mcpWrapper ];
+            };
           };
         };
+      };
+
+      home.file = {
+        ".config/opencode/plugins/agentmemory-capture.ts".source =
+          "${pkgs.agentmemory}/plugins/opencode/agentmemory-capture.ts";
+        ".config/opencode/commands/recall.md".source = "${commandsSrc}/recall.md";
+        ".config/opencode/commands/remember.md".source = "${commandsSrc}/remember.md";
       };
     };
 }
