@@ -23,7 +23,7 @@ buildGoApplication {
   modules = "${src}/govendor.toml";
 
   nativeBuildInputs = [
-    pkgs.nodejs
+    pkgs.nodejs-slim
     pkgs.tailwindcss
   ];
 

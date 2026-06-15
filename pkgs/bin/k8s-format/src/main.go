@@ -16,6 +16,7 @@ type ResourceType struct {
 	Kind      string              // The Kubernetes Kind
 	Filenames []string            // Filenames that contain this resource type
 	Ordering  map[string][]string // Field ordering rules (metadata, spec, values, etc.)
+	SchemaURL string              // Optional schema URL override; empty = auto-derive from apiVersion
 }
 
 // Supported resource types - add new types here
@@ -26,7 +27,7 @@ var resourceTypes = []ResourceType{
 		Ordering: map[string][]string{
 			"metadata": {"name", "namespace", "labels", "annotations"},
 			"spec":     {"interval", "chartRef", "chart", "driftDetection", "install", "upgrade", "uninstall", "dependsOn", "timeout", "maxHistory", "valuesFrom", "values", "postRenderers"},
-			"values":   {"defaultPodOptions", "controllers", "service", "ingress", "route", "persistence", "configMaps", "secrets", "serviceAccount", "rbac"},
+			"values":   {"global", "defaultPodOptions", "controllers", "service", "ingress", "route", "persistence", "configMaps", "secrets", "serviceAccount", "rbac"},
 		},
 	},
 	{
@@ -305,7 +306,7 @@ func formatYAMLFile(path string, expectedKind string, stats *Stats) error {
 				}
 
 				// Apply nested orderings dynamically
-				if applyNestedOrderings(kind, "spec", specNode, ordering) {
+				if applyNestedOrderings(specNode, ordering) {
 					changed = true
 				}
 			}
@@ -333,7 +334,8 @@ func formatYAMLFile(path string, expectedKind string, stats *Stats) error {
 
 	// Add schema comment if it was there
 	if schemaComment != "" {
-		output.WriteString(schemaComment + "\n")
+		output.WriteString(schemaComment)
+		output.WriteString("\n")
 	}
 
 	// Encode all documents
@@ -458,7 +460,7 @@ func getFieldValue(node *yaml.Node, field string) string {
 
 // applyNestedOrderings applies nested field orderings dynamically
 // It auto-detects nested fields by finding ordering keys that aren't top-level fields
-func applyNestedOrderings(kind, parentPath string, parentNode *yaml.Node, ordering map[string][]string) bool {
+func applyNestedOrderings(parentNode *yaml.Node, ordering map[string][]string) bool {
 	changed := false
 
 	// Find all ordering keys that aren't root-level fields - these are nested
@@ -625,7 +627,9 @@ func cleanupParenthesesInString(s string) string {
 
 			// Write cleaned content
 			if len(parenContent) > 0 {
-				result.WriteString(" " + strings.Join(parenContent, " ") + " ")
+				result.WriteString(" ")
+				result.WriteString(strings.Join(parenContent, " "))
+				result.WriteString(" ")
 			}
 
 			// Write closing parenthesis

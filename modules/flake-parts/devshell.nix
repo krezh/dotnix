@@ -4,12 +4,11 @@
       devshell = {
         startup = {
           a-welcome.text = ''
-            echo "❄️ Welcome to the Default shell ❄️"
+            echo "❄️ Welcome to the DotNix shell ❄️"
           '';
           z-menu.text = "menu";
         };
-        name = "Default";
-        motd = "";
+        name = "DotNix";
         packages = [ ];
       };
       commands = [

@@ -1,29 +1,14 @@
 { inputs, ... }:
 {
   flake.modules.homeManager.ai =
-    { pkgs, config, ... }:
+    { pkgs, ... }:
     let
-      nix-ai-tools = inputs.nix-ai-tools.packages.${pkgs.stdenv.hostPlatform.system};
-      tokenPath = config.sops.secrets."agentmemory/token".path;
-      commandsSrc = "${pkgs.agentmemory}/plugins/opencode/commands";
-
-      opencodeWrapped = pkgs.writeShellScriptBin "opencode" ''
-        export AGENTMEMORY_URL="https://agentmemory.plexuz.xyz"
-        export AGENTMEMORY_SECRET="$(cat ${tokenPath})"
-        export AGENTMEMORY_FORCE_PROXY=1
-        export AGENTMEMORY_TOOLS=all
-        export OPENCODE_AGENTMEMORY_DEBUG=1
-        exec ${nix-ai-tools.opencode}/bin/opencode "$@"
-      '';
-
-      mcpWrapper = pkgs.writeShellScript "agentmemory-mcp-wrapper" ''
-        exec ${pkgs.nodejs}/bin/node ${pkgs.agentmemory}/dist/standalone.mjs "$@"
-      '';
+      llm-agents-nix = inputs.llm-agents-nix.packages.${pkgs.stdenv.hostPlatform.system};
     in
     {
       programs.opencode = {
         enable = true;
-        package = opencodeWrapped;
+        package = llm-agents-nix.opencode;
 
         tui = {
           scroll_speed = 3;
@@ -131,26 +116,13 @@
               type = "local";
               command = [
                 "${pkgs.writeShellScript "context7-mcp-wrapper" ''
-                  export PATH="${pkgs.nodejs}/bin:$PATH"
-                  exec ${pkgs.nodejs}/bin/npx -y @upstash/context7-mcp "$@"
+                  export PATH="${pkgs.nodejs-slim}/bin:$PATH"
+                  exec ${pkgs.nodejs-slim}/bin/npx -y @upstash/context7-mcp "$@"
                 ''}"
               ];
             };
-
-            agentmemory = {
-              enabled = true;
-              type = "local";
-              command = [ mcpWrapper ];
-            };
           };
         };
-      };
-
-      home.file = {
-        ".config/opencode/plugins/agentmemory-capture.ts".source =
-          "${pkgs.agentmemory}/plugins/opencode/agentmemory-capture.ts";
-        ".config/opencode/commands/recall.md".source = "${commandsSrc}/recall.md";
-        ".config/opencode/commands/remember.md".source = "${commandsSrc}/remember.md";
       };
     };
 }

@@ -16,10 +16,9 @@
         vscodium.extensionIds = [
           "esbenp.prettier-vscode"
           "signageos.signageos-vscode-sops"
-          "gruntfuggly.todo-tree"
+          # "gruntfuggly.todo-tree"
           # "waderyan.gitblame"
-          "alefragnani.project-manager"
-          "mkhl.direnv"
+          # "alefragnani.project-manager"
           "editorconfig.editorconfig"
           "usernamehw.errorlens"
           "oderwat.indent-rainbow"
@@ -27,8 +26,10 @@
           "anthropic.claude-code"
           "christian-kohler.path-intellisense"
           "gitHub.vscode-pull-request-github"
-          # "jjx.jjx"
-          "visualjj.visualjj"
+          "jjx.jjx"
+          # "jjk.jjk"
+          # "visualjj.visualjj"
+          "datakurre.devenv"
         ];
 
         catppuccin.vscode = {

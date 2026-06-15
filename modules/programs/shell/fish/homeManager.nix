@@ -56,7 +56,7 @@
         functions.fish_greeting = "";
         interactiveShellInit = ''
           ${lib.getExe pkgs.fastfetch}
-          ${lib.getExe pkgs.any-nix-shell} fish --info-right | source
+          ${lib.getExe pkgs.nix-your-shell} fish | source
           ${lib.getExe pkgs.devenv} hook fish | source
         '';
       };

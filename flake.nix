@@ -140,8 +140,8 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    nix-ai-tools = {
-      url = "git+https://github.com/numtide/nix-ai-tools?shallow=1";
+    llm-agents-nix = {
+      url = "git+https://github.com/numtide/llm-agents.nix?shallow=1";
       inputs.nixpkgs.follows = "nixpkgs";
       inputs.treefmt-nix.follows = "treefmt-nix";
     };

@@ -1,15 +1,22 @@
 { inputs, ... }:
 {
   flake.modules.homeManager.ai =
-    { pkgs, ... }:
+    { pkgs, lib, ... }:
     let
-      nix-ai-tools = inputs.nix-ai-tools.packages.${pkgs.stdenv.hostPlatform.system};
+      llm-agents-nix = inputs.llm-agents-nix.packages.${pkgs.stdenv.hostPlatform.system};
+      infisical = "${pkgs.infisical}/bin/infisical secrets --env default --path ";
+      claudeWrapped = pkgs.writeShellScriptBin "claude" ''
+        export PATH="${pkgs.nodejs-slim}/bin:$PATH"
+        export MEMINI_URL=https://memini.plexuz.xyz
+        export MEMINI_MCP_URL=https://memini.plexuz.xyz/mcp
+        export MEMINI_TOKEN="$(${infisical} /Kubernetes/DexTek/Memini get MEMINI_API_KEY --plain --telemetry false)"
+        exec ${lib.getExe llm-agents-nix.claude-code} "$@"
+      '';
     in
     {
       programs.claude-code = {
         enable = true;
-        package = nix-ai-tools.claude-code;
-
+        package = claudeWrapped;
         settings = {
           theme = "dark";
           model = "claude-sonnet-4-6";
@@ -21,117 +28,47 @@
             type = "command";
           };
 
-          permissions = {
-            allow = [
-              # Safe read-only git commands
-              "Bash(git add:*)"
-              "Bash(git status)"
-              "Bash(git log:*)"
-              "Bash(git diff:*)"
-              "Bash(git show:*)"
-              "Bash(git branch:*)"
-              "Bash(git remote:*)"
-              "Bash(git rev-parse:*)"
-              "Bash(git blame:*)"
+          # User memory/instructions
+          memory.text = ''
+            # Working relationship
+            - No sycophancy.
+            - Be direct, matter-of-fact, and concise.
+            - Be critical; challenge my reasoning.
+            - Don't include timeline estimates in plans.
 
-              # Safe jj commands (read-only)
-              "Bash(jj log:*)"
-              "Bash(jj diff:*)"
-              "Bash(jj status)"
-              "Bash(jj st)"
-              "Bash(jj show:*)"
-              "Bash(jj op log:*)"
-              "Bash(jj file show:*)"
+            # Tooling
 
-              # Safe jj write commands
-              "Bash(jj restore:*)"
-              "Bash(jj describe:*)"
+            ## General
+            - Use your Edit tool for changes; Search tool for searching.
+            - Use Mermaid diagrams for complex systems.
 
-              # Safe Nix commands (mostly read-only)
-              "Bash(nix:*)"
+            ## Git
+            - When creating git commit messages ALWAYS use [conventional commit style](https://www.conventionalcommits.org/en/v1.0.0/#specification).
+            - When creating pull requests in Github ALWAYS mark them in draft status.
+            - When interacting with Github (pull request actions, comments etc.) ALWAYS prefer using the `gh` CLI over the Github MCP or other actions.
+          '';
 
-              # Safe programming language tools
-              "Bash(cargo:*)"
-              "Bash(go:*)"
-
-              # Safe file system operations
-              "Bash(ls:*)"
-              "Bash(find:*)"
-              "Bash(grep:*)"
-              "Bash(rg:*)"
-              "Bash(cat:*)"
-              "Bash(head:*)"
-              "Bash(tail:*)"
-              "Bash(mkdir:*)"
-              "Bash(chmod:*)"
-
-              # Safe system info commands
-              "Bash(systemctl list-units:*)"
-              "Bash(systemctl list-timers:*)"
-              "Bash(systemctl status:*)"
-              "Bash(journalctl:*)"
-              "Bash(dmesg:*)"
-              "Bash(env)"
-              "Bash(claude --version)"
-              "Bash(nh search:*)"
-
-              # Audio system (read-only)
-              "Bash(pactl list:*)"
-              "Bash(pw-top)"
-
-              # Core Claude Code tools
-              "Glob(*)"
-              "Grep(*)"
-              "LS(*)"
-              "Read(*)"
-              "Search(*)"
-              "Web Search(*)"
-              "Task(*)"
-              "TodoWrite(*)"
-
-              # MCP servers
-              "mcp__ide__*"
-              "mcp__plugin_claude-code-home-manager_context7__*"
-              "mcp__plugin_claude-code-home-manager_nixos__*"
-              "mcp__plugin_claude-code-home-manager_agentmemory__*"
-
-              # Safe web fetch from trusted domains
-              "WebFetch(domain:wiki.hyprland.org)"
-              "WebFetch(domain:wiki.hypr.land)"
-              "WebFetch(domain:github.com)"
-              "WebFetch(domain:raw.githubusercontent.com)"
-              "WebFetch(domain:*renovatebot.com)"
-
-              # GitHub CLI read-only
-              "Bash(gh search *)"
-              "Bash(gh api *)"
-
-              # NixOS build
-              "Bash(nh os build:*)"
-              "Bash(nixos-rebuild build:*)"
-              "Bash(nix build:*)"
-
-              # Kubernetes read-only
-              "Bash(kubectl get *)"
-              "Bash(kubectl logs *)"
-              "Bash(kubectl describe *)"
-
-              # Security/lint tools
-              "Bash(shellcheck *)"
-              "Bash(zizmor *)"
-            ];
-            deny = [
-              "Bash(kubectl get secret* -o *)"
-              "Bash(kubectl get secrets* -o *)"
-              "Bash(curl:*)"
-              "Read(**/.env.*)"
-              "Read(**/.secret*)"
-              "Read(**/secret)"
-              "Read(**/secret.*)"
-              "Read(**/.decrypted~secrets.sops.*)"
-              "Bash(sudo:*)"
-            ];
-            defaultMode = "acceptEdits";
+          enabledPlugins = {
+            "typescript-lsp@claude-plugins-official" = true;
+            "gopls-lsp@claude-plugins-official" = true;
+            "rust-analyzer-lsp@claude-plugins-official" = true;
+            "superpowers@superpowers-marketplace" = true;
+            "frontend-design@claude-plugins-official" = true;
+            "memini@memini" = true;
+          };
+          extraKnownMarketplaces = {
+            superpowers-marketplace = {
+              source = {
+                source = "github";
+                repo = "obra/superpowers-marketplace";
+              };
+            };
+            memini = {
+              source = {
+                source = "github";
+                repo = "eleboucher/memini";
+              };
+            };
           };
         };
       };
