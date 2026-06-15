@@ -1,5 +1,5 @@
 {
-  flake.modules.homeManager.editors = { pkgs, ... }: {
+  flake.modules.homeManager.editors = { pkgs, lib, ... }: {
     vscodium.extensionIds = [
       "redhat.vscode-yaml"
     ];
@@ -11,6 +11,7 @@
         format.enable = true;
         validate = true;
       };
+      yayamlls.path = lib.getExe pkgs.yayamlls;
       "[yaml]" = {
         editor = {
           defaultFormatter = "esbenp.prettier-vscode";

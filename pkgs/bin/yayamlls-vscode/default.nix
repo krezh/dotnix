@@ -2,13 +2,12 @@
   lib,
   buildNpmPackage,
   fetchFromGitHub,
-  vsce,
-  unzip,
-  jq,
   vscodium,
+  pkgs,
 }:
 
-buildNpmPackage (finalAttrs:
+buildNpmPackage (
+  finalAttrs:
   let
     repoSrc = fetchFromGitHub {
       owner = "home-operations";
@@ -27,13 +26,13 @@ buildNpmPackage (finalAttrs:
     npmDepsHash = "sha256-+v19xyyflJ+RS60+zUHyukrQXliI+zfZMIj5cYrHHn8=";
 
     nativeBuildInputs = [
-      vsce
-      unzip
-      jq
+      pkgs.vsce
+      pkgs.unzip
+      pkgs.jq
     ];
 
     postPatch = ''
-      jq '.engines.vscode = "^${lib.versions.major vscodium.version}.${lib.versions.minor vscodium.version}.0"' \
+      ${lib.getExe pkgs.jq} '.engines.vscode = "^${lib.versions.major vscodium.version}.${lib.versions.minor vscodium.version}.0"' \
         package.json > package.json.tmp
       mv package.json.tmp package.json
     '';
