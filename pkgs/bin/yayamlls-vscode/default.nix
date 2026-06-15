@@ -19,11 +19,11 @@ buildNpmPackage (
   {
     pname = "yayamlls-vscode";
     # renovate: datasource=github-releases depName=home-operations/yayamlls
-    version = "0.1.3";
+    version = "0.1.8";
 
     src = "${repoSrc}/editors/vscode";
 
-    npmDepsHash = "sha256-+v19xyyflJ+RS60+zUHyukrQXliI+zfZMIj5cYrHHn8=";
+    npmDepsHash = "sha256-uRS1Nyv2rEGc103vkpUOtjtqV3CDPUqQVk3tgqxjVwk=";
 
     nativeBuildInputs = [
       pkgs.vsce
