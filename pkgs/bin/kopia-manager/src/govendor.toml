@@ -24,8 +24,8 @@ schema = 3
     go = "1.25.8"
     packages = ["charm.land/log/v2"]
   [mod."github.com/Azure/azure-sdk-for-go/sdk/azcore"]
-    version = "v1.21.1"
-    hash = "sha256-JlPV6OOP1K4/bgaC1/sBGm7BdF6dzOWnzPOyA79g/ZA="
+    version = "v1.22.0"
+    hash = "sha256-JhJgAeC3G0l+th1Xdu0Vf+FzWXTALHyb5FSIsKYTgBo="
     go = "1.25.0"
     packages = ["github.com/Azure/azure-sdk-for-go/sdk/azcore", "github.com/Azure/azure-sdk-for-go/sdk/azcore/cloud", "github.com/Azure/azure-sdk-for-go/sdk/azcore/internal/exported", "github.com/Azure/azure-sdk-for-go/sdk/azcore/internal/log", "github.com/Azure/azure-sdk-for-go/sdk/azcore/internal/pollers", "github.com/Azure/azure-sdk-for-go/sdk/azcore/internal/pollers/async", "github.com/Azure/azure-sdk-for-go/sdk/azcore/internal/pollers/body", "github.com/Azure/azure-sdk-for-go/sdk/azcore/internal/pollers/fake", "github.com/Azure/azure-sdk-for-go/sdk/azcore/internal/pollers/loc", "github.com/Azure/azure-sdk-for-go/sdk/azcore/internal/pollers/op", "github.com/Azure/azure-sdk-for-go/sdk/azcore/internal/shared", "github.com/Azure/azure-sdk-for-go/sdk/azcore/log", "github.com/Azure/azure-sdk-for-go/sdk/azcore/policy", "github.com/Azure/azure-sdk-for-go/sdk/azcore/runtime", "github.com/Azure/azure-sdk-for-go/sdk/azcore/streaming", "github.com/Azure/azure-sdk-for-go/sdk/azcore/to", "github.com/Azure/azure-sdk-for-go/sdk/azcore/tracing"]
   [mod."github.com/Azure/azure-sdk-for-go/sdk/internal"]
@@ -34,9 +34,9 @@ schema = 3
     go = "1.24.0"
     packages = ["github.com/Azure/azure-sdk-for-go/sdk/internal/diag", "github.com/Azure/azure-sdk-for-go/sdk/internal/errorinfo", "github.com/Azure/azure-sdk-for-go/sdk/internal/exported", "github.com/Azure/azure-sdk-for-go/sdk/internal/log", "github.com/Azure/azure-sdk-for-go/sdk/internal/poller", "github.com/Azure/azure-sdk-for-go/sdk/internal/temporal", "github.com/Azure/azure-sdk-for-go/sdk/internal/uuid"]
   [mod."github.com/Azure/azure-sdk-for-go/sdk/storage/azblob"]
-    version = "v1.6.4"
-    hash = "sha256-bVO8jMp/J3K1EB5016Uxc4UGz3hcq+uHgdzKJ3gZpzg="
-    go = "1.24.0"
+    version = "v1.7.0"
+    hash = "sha256-ZY4oyQEDDZTht7rsO473dIRuCPxbeUt0udHgdvp4crI="
+    go = "1.25.0"
     packages = ["github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/blob", "github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/bloberror", "github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/internal/base", "github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/internal/exported", "github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/internal/generated", "github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/internal/shared", "github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/sas"]
   [mod."github.com/beorn7/perks"]
     version = "v1.0.1"
@@ -160,9 +160,9 @@ schema = 3
     go = "1.24"
     packages = ["github.com/klauspost/reedsolomon"]
   [mod."github.com/kopia/kopia"]
-    version = "v0.23.0"
-    hash = "sha256-F1CKTidGisImUuLG6tpkpxST0UGgXjn686gH5IvLJug="
-    go = "1.25.0"
+    version = "v0.23.1"
+    hash = "sha256-z/1FdXjJzb42q5ltI9rTttfyes7XAMSqzkL2HLgsbeY="
+    go = "1.25.8"
     packages = ["github.com/kopia/kopia/fs", "github.com/kopia/kopia/fs/ignorefs", "github.com/kopia/kopia/fs/localfs", "github.com/kopia/kopia/internal/atomicfile", "github.com/kopia/kopia/internal/bigmap", "github.com/kopia/kopia/internal/blobcrypto", "github.com/kopia/kopia/internal/blobparam", "github.com/kopia/kopia/internal/cache", "github.com/kopia/kopia/internal/cachedir", "github.com/kopia/kopia/internal/cacheprot", "github.com/kopia/kopia/internal/clock", "github.com/kopia/kopia/internal/completeset", "github.com/kopia/kopia/internal/contentlog", "github.com/kopia/kopia/internal/contentlog/logparam", "github.com/kopia/kopia/internal/contentparam", "github.com/kopia/kopia/internal/crypto", "github.com/kopia/kopia/internal/dirutil", "github.com/kopia/kopia/internal/epoch", "github.com/kopia/kopia/internal/feature", "github.com/kopia/kopia/internal/freepool", "github.com/kopia/kopia/internal/gather", "github.com/kopia/kopia/internal/grpcapi", "github.com/kopia/kopia/internal/hmac", "github.com/kopia/kopia/internal/impossible", "github.com/kopia/kopia/internal/iocopy", "github.com/kopia/kopia/internal/listcache", "github.com/kopia/kopia/internal/metrics", "github.com/kopia/kopia/internal/ospath", "github.com/kopia/kopia/internal/ownwrites", "github.com/kopia/kopia/internal/parallelwork", "github.com/kopia/kopia/internal/releasable", "github.com/kopia/kopia/internal/repodiag", "github.com/kopia/kopia/internal/retry", "github.com/kopia/kopia/internal/sparsefile", "github.com/kopia/kopia/internal/stat", "github.com/kopia/kopia/internal/stats", "github.com/kopia/kopia/internal/tempfile", "github.com/kopia/kopia/internal/timetrack", "github.com/kopia/kopia/internal/tlsutil", "github.com/kopia/kopia/internal/uitask", "github.com/kopia/kopia/internal/units", "github.com/kopia/kopia/internal/volumesizeinfo", "github.com/kopia/kopia/internal/wcmatch", "github.com/kopia/kopia/internal/workshare", "github.com/kopia/kopia/internal/zaplogutil", "github.com/kopia/kopia/repo", "github.com/kopia/kopia/repo/blob", "github.com/kopia/kopia/repo/blob/beforeop", "github.com/kopia/kopia/repo/blob/filesystem", "github.com/kopia/kopia/repo/blob/logging", "github.com/kopia/kopia/repo/blob/readonly", "github.com/kopia/kopia/repo/blob/sharded", "github.com/kopia/kopia/repo/blob/storagemetrics", "github.com/kopia/kopia/repo/blob/throttling", "github.com/kopia/kopia/repo/compression", "github.com/kopia/kopia/repo/content", "github.com/kopia/kopia/repo/content/index", "github.com/kopia/kopia/repo/content/indexblob", "github.com/kopia/kopia/repo/ecc", "github.com/kopia/kopia/repo/encryption", "github.com/kopia/kopia/repo/format", "github.com/kopia/kopia/repo/hashing", "github.com/kopia/kopia/repo/logging", "github.com/kopia/kopia/repo/maintenance", "github.com/kopia/kopia/repo/maintenancestats", "github.com/kopia/kopia/repo/manifest", "github.com/kopia/kopia/repo/object", "github.com/kopia/kopia/repo/splitter", "github.com/kopia/kopia/snapshot", "github.com/kopia/kopia/snapshot/policy", "github.com/kopia/kopia/snapshot/restore", "github.com/kopia/kopia/snapshot/snapshotfs", "github.com/kopia/kopia/snapshot/upload"]
   [mod."github.com/lucasb-eyer/go-colorful"]
     version = "v1.4.0"
@@ -213,9 +213,9 @@ schema = 3
     go = "1.22.0"
     packages = ["github.com/prometheus/client_model/go"]
   [mod."github.com/prometheus/common"]
-    version = "v0.67.5"
-    hash = "sha256-pDzmYsAANsaIf3W9HxpbgRnZ4BkPhJBBwzKq2E58FRw="
-    go = "1.24.0"
+    version = "v0.68.1"
+    hash = "sha256-1AtxAdjW8OoHxkHeCTNrC1ECK08OVcivVLb8ds8hfOk="
+    go = "1.25.0"
     packages = ["github.com/prometheus/common/expfmt", "github.com/prometheus/common/model"]
   [mod."github.com/prometheus/procfs"]
     version = "v0.17.0"
@@ -253,18 +253,18 @@ schema = 3
     go = "1.24.0"
     packages = ["go.opentelemetry.io/auto/sdk", "go.opentelemetry.io/auto/sdk/internal/telemetry"]
   [mod."go.opentelemetry.io/otel"]
-    version = "v1.43.0"
-    hash = "sha256-oRemJUZhA7AzfUoBbRVA32u/XhMpipxLywHoJ1qsHBs="
+    version = "v1.44.0"
+    hash = "sha256-XTGV9RjOIKyWrrgXJ32IA59lovxXqSeRrpcpC1FAFZA="
     go = "1.25.0"
-    packages = ["go.opentelemetry.io/otel", "go.opentelemetry.io/otel/attribute", "go.opentelemetry.io/otel/attribute/internal", "go.opentelemetry.io/otel/attribute/internal/xxhash", "go.opentelemetry.io/otel/baggage", "go.opentelemetry.io/otel/codes", "go.opentelemetry.io/otel/internal/baggage", "go.opentelemetry.io/otel/internal/errorhandler", "go.opentelemetry.io/otel/internal/global", "go.opentelemetry.io/otel/propagation", "go.opentelemetry.io/otel/semconv/v1.37.0", "go.opentelemetry.io/otel/semconv/v1.40.0"]
+    packages = ["go.opentelemetry.io/otel", "go.opentelemetry.io/otel/attribute", "go.opentelemetry.io/otel/attribute/internal", "go.opentelemetry.io/otel/attribute/internal/xxhash", "go.opentelemetry.io/otel/baggage", "go.opentelemetry.io/otel/codes", "go.opentelemetry.io/otel/internal/baggage", "go.opentelemetry.io/otel/internal/errorhandler", "go.opentelemetry.io/otel/internal/global", "go.opentelemetry.io/otel/propagation", "go.opentelemetry.io/otel/semconv/v1.37.0", "go.opentelemetry.io/otel/semconv/v1.41.0"]
   [mod."go.opentelemetry.io/otel/metric"]
-    version = "v1.43.0"
-    hash = "sha256-iUfx5AvN2oiqlh2v8/oFa+2jm8RX4kbb6X1EOKRyPPw="
+    version = "v1.44.0"
+    hash = "sha256-e8dVyRoavby/YG7aH2T05IhWHlLvwnMHyPhelAS1mCQ="
     go = "1.25.0"
     packages = ["go.opentelemetry.io/otel/metric", "go.opentelemetry.io/otel/metric/embedded"]
   [mod."go.opentelemetry.io/otel/trace"]
-    version = "v1.43.0"
-    hash = "sha256-LLx1PjBGzDwZ3//Gp14R1DCMlnMCzFxnGYqVUz5jTmk="
+    version = "v1.44.0"
+    hash = "sha256-69HorWRTLLzAHRgLe4nPp13qJthb3qp7RU7c0Y9qV/c="
     go = "1.25.0"
     packages = ["go.opentelemetry.io/otel/trace", "go.opentelemetry.io/otel/trace/embedded", "go.opentelemetry.io/otel/trace/internal/telemetry", "go.opentelemetry.io/otel/trace/noop"]
   [mod."go.uber.org/multierr"]
@@ -277,14 +277,9 @@ schema = 3
     hash = "sha256-x+MIioLe/gBKjZyRc8shaBR5nO5Pv++8U9gHPZ5W+5A="
     go = "1.19"
     packages = ["go.uber.org/zap", "go.uber.org/zap/buffer", "go.uber.org/zap/internal", "go.uber.org/zap/internal/bufferpool", "go.uber.org/zap/internal/color", "go.uber.org/zap/internal/exit", "go.uber.org/zap/internal/pool", "go.uber.org/zap/internal/stacktrace", "go.uber.org/zap/zapcore"]
-  [mod."go.yaml.in/yaml/v2"]
-    version = "v2.4.3"
-    hash = "sha256-WqfrOUQFvfuORgl1yyVOcsEXU/vwWQHkcVWx3vCxvaw="
-    go = "1.15"
-    packages = ["go.yaml.in/yaml/v2"]
   [mod."golang.org/x/crypto"]
-    version = "v0.50.0"
-    hash = "sha256-vC1BJT7+3UBWLyEE5n3to0NKhMo6m2HGow2HiFgpQLo="
+    version = "v0.52.0"
+    hash = "sha256-/6Ajm6bIPt5xXNL5mmeNfJh4EZjgFgVlHEwp1TiC5cM="
     go = "1.25.0"
     packages = ["golang.org/x/crypto/blake2b", "golang.org/x/crypto/blake2s", "golang.org/x/crypto/chacha20", "golang.org/x/crypto/chacha20poly1305", "golang.org/x/crypto/internal/alias", "golang.org/x/crypto/internal/poly1305", "golang.org/x/crypto/pbkdf2", "golang.org/x/crypto/scrypt"]
   [mod."golang.org/x/exp"]
@@ -293,23 +288,23 @@ schema = 3
     go = "1.25.0"
     packages = ["golang.org/x/exp/constraints"]
   [mod."golang.org/x/net"]
-    version = "v0.53.0"
-    hash = "sha256-G9gKLmyaf6lIV429NKX+YlL6oUPJwlv+BrG6qGhzvmU="
+    version = "v0.55.0"
+    hash = "sha256-Phi2mSmBGOJcvqPPAit3uqF3UP8SKRI9dHj6yTM3s5s="
     go = "1.25.0"
     packages = ["golang.org/x/net/http/httpguts", "golang.org/x/net/http2", "golang.org/x/net/http2/hpack", "golang.org/x/net/idna", "golang.org/x/net/internal/httpcommon", "golang.org/x/net/internal/httpsfv", "golang.org/x/net/internal/timeseries", "golang.org/x/net/trace"]
   [mod."golang.org/x/sync"]
-    version = "v0.20.0"
-    hash = "sha256-ybcjhCfK6lroUM0yswUvWooW8MOQZBXyiSqoxG6Uy0Y="
+    version = "v0.21.0"
+    hash = "sha256-2n7PVb1krz7UpnXYGVmCrxV0fZBnjQdVVt6eVudEPYY="
     go = "1.25.0"
     packages = ["golang.org/x/sync/errgroup"]
   [mod."golang.org/x/sys"]
-    version = "v0.45.0"
-    hash = "sha256-hkBoNazrDA67ER6sWhb+EKxx9nJ24+nz3zGy+zT5Hvw="
+    version = "v0.46.0"
+    hash = "sha256-NzRXMSEk6upeudJvUEPVnw6clJ3d8UdC/vdfANWAc8g="
     go = "1.25.0"
     packages = ["golang.org/x/sys/cpu", "golang.org/x/sys/unix", "golang.org/x/sys/windows"]
   [mod."golang.org/x/text"]
-    version = "v0.36.0"
-    hash = "sha256-/0t9C6Mc8kYjxweFB0us2lGKo8GovHhBiq5nlMOppC0="
+    version = "v0.37.0"
+    hash = "sha256-8XDOnlPIybcDRy89fkjG5VqtIt5Ku+LmaqYhgKl7i1E="
     go = "1.25.0"
     packages = ["golang.org/x/text/secure/bidirule", "golang.org/x/text/transform", "golang.org/x/text/unicode/bidi", "golang.org/x/text/unicode/norm"]
   [mod."golang.org/x/time"]
@@ -318,15 +313,15 @@ schema = 3
     go = "1.25.0"
     packages = ["golang.org/x/time/rate"]
   [mod."google.golang.org/genproto/googleapis/rpc"]
-    version = "v0.0.0-20260427160629-7cedc36a6bc4"
+    version = "v0.0.0-20260526163538-3dc84a4a5aaa"
     hash = "sha256-ldJTTb7hhj1mdmzTn9IEkQVwCoj3KRlENZtUSEKHABU="
     go = "1.25.0"
     packages = ["google.golang.org/genproto/googleapis/rpc/status"]
   [mod."google.golang.org/grpc"]
-    version = "v1.80.0"
-    hash = "sha256-+p50KGJvGWdpB/4f0h477dCAfoOL5m2PzG8BGOekVgY="
-    go = "1.24.0"
-    packages = ["google.golang.org/grpc", "google.golang.org/grpc/attributes", "google.golang.org/grpc/backoff", "google.golang.org/grpc/balancer", "google.golang.org/grpc/balancer/base", "google.golang.org/grpc/balancer/endpointsharding", "google.golang.org/grpc/balancer/grpclb/state", "google.golang.org/grpc/balancer/pickfirst", "google.golang.org/grpc/balancer/pickfirst/internal", "google.golang.org/grpc/balancer/roundrobin", "google.golang.org/grpc/binarylog/grpc_binarylog_v1", "google.golang.org/grpc/channelz", "google.golang.org/grpc/codes", "google.golang.org/grpc/connectivity", "google.golang.org/grpc/credentials", "google.golang.org/grpc/credentials/insecure", "google.golang.org/grpc/encoding", "google.golang.org/grpc/encoding/internal", "google.golang.org/grpc/encoding/proto", "google.golang.org/grpc/experimental/stats", "google.golang.org/grpc/grpclog", "google.golang.org/grpc/grpclog/internal", "google.golang.org/grpc/internal", "google.golang.org/grpc/internal/backoff", "google.golang.org/grpc/internal/balancer/gracefulswitch", "google.golang.org/grpc/internal/balancer/weight", "google.golang.org/grpc/internal/balancerload", "google.golang.org/grpc/internal/binarylog", "google.golang.org/grpc/internal/buffer", "google.golang.org/grpc/internal/channelz", "google.golang.org/grpc/internal/credentials", "google.golang.org/grpc/internal/envconfig", "google.golang.org/grpc/internal/grpclog", "google.golang.org/grpc/internal/grpcsync", "google.golang.org/grpc/internal/grpcutil", "google.golang.org/grpc/internal/idle", "google.golang.org/grpc/internal/mem", "google.golang.org/grpc/internal/metadata", "google.golang.org/grpc/internal/pretty", "google.golang.org/grpc/internal/proxyattributes", "google.golang.org/grpc/internal/resolver", "google.golang.org/grpc/internal/resolver/delegatingresolver", "google.golang.org/grpc/internal/resolver/dns", "google.golang.org/grpc/internal/resolver/dns/internal", "google.golang.org/grpc/internal/resolver/passthrough", "google.golang.org/grpc/internal/resolver/unix", "google.golang.org/grpc/internal/serviceconfig", "google.golang.org/grpc/internal/stats", "google.golang.org/grpc/internal/status", "google.golang.org/grpc/internal/syscall", "google.golang.org/grpc/internal/transport", "google.golang.org/grpc/internal/transport/networktype", "google.golang.org/grpc/keepalive", "google.golang.org/grpc/mem", "google.golang.org/grpc/metadata", "google.golang.org/grpc/peer", "google.golang.org/grpc/resolver", "google.golang.org/grpc/resolver/dns", "google.golang.org/grpc/serviceconfig", "google.golang.org/grpc/stats", "google.golang.org/grpc/status", "google.golang.org/grpc/tap"]
+    version = "v1.81.1"
+    hash = "sha256-YZ5KMHmN1HvsMxyIBIl3SmFmL3r+6bwjzzFLxUFhm1o="
+    go = "1.25.0"
+    packages = ["google.golang.org/grpc", "google.golang.org/grpc/attributes", "google.golang.org/grpc/backoff", "google.golang.org/grpc/balancer", "google.golang.org/grpc/balancer/base", "google.golang.org/grpc/balancer/endpointsharding", "google.golang.org/grpc/balancer/grpclb/state", "google.golang.org/grpc/balancer/pickfirst", "google.golang.org/grpc/balancer/pickfirst/internal", "google.golang.org/grpc/balancer/roundrobin", "google.golang.org/grpc/binarylog/grpc_binarylog_v1", "google.golang.org/grpc/channelz", "google.golang.org/grpc/codes", "google.golang.org/grpc/connectivity", "google.golang.org/grpc/credentials", "google.golang.org/grpc/credentials/insecure", "google.golang.org/grpc/encoding", "google.golang.org/grpc/encoding/internal", "google.golang.org/grpc/encoding/proto", "google.golang.org/grpc/experimental/stats", "google.golang.org/grpc/grpclog", "google.golang.org/grpc/grpclog/internal", "google.golang.org/grpc/internal", "google.golang.org/grpc/internal/backoff", "google.golang.org/grpc/internal/balancer/gracefulswitch", "google.golang.org/grpc/internal/balancer/weight", "google.golang.org/grpc/internal/balancerload", "google.golang.org/grpc/internal/binarylog", "google.golang.org/grpc/internal/buffer", "google.golang.org/grpc/internal/channelz", "google.golang.org/grpc/internal/credentials", "google.golang.org/grpc/internal/envconfig", "google.golang.org/grpc/internal/grpclog", "google.golang.org/grpc/internal/grpcsync", "google.golang.org/grpc/internal/grpcutil", "google.golang.org/grpc/internal/idle", "google.golang.org/grpc/internal/mem", "google.golang.org/grpc/internal/metadata", "google.golang.org/grpc/internal/pretty", "google.golang.org/grpc/internal/proxyattributes", "google.golang.org/grpc/internal/resolver", "google.golang.org/grpc/internal/resolver/delegatingresolver", "google.golang.org/grpc/internal/resolver/dns", "google.golang.org/grpc/internal/resolver/dns/internal", "google.golang.org/grpc/internal/resolver/passthrough", "google.golang.org/grpc/internal/resolver/unix", "google.golang.org/grpc/internal/serviceconfig", "google.golang.org/grpc/internal/stats", "google.golang.org/grpc/internal/status", "google.golang.org/grpc/internal/syscall", "google.golang.org/grpc/internal/transport", "google.golang.org/grpc/internal/transport/networktype", "google.golang.org/grpc/internal/transport/readyreader", "google.golang.org/grpc/keepalive", "google.golang.org/grpc/mem", "google.golang.org/grpc/metadata", "google.golang.org/grpc/peer", "google.golang.org/grpc/resolver", "google.golang.org/grpc/resolver/dns", "google.golang.org/grpc/serviceconfig", "google.golang.org/grpc/stats", "google.golang.org/grpc/status", "google.golang.org/grpc/tap"]
   [mod."google.golang.org/protobuf"]
     version = "v1.36.11"
     hash = "sha256-7W+6jntfI/awWL3JP6yQedxqP5S9o3XvPgJ2XxxsIeE="
