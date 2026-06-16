@@ -95,31 +95,16 @@
           };
 
           plugin = [
-            "opencode-mem"
             "opentmux"
-            "opencode/plugins/agentmemory-capture.ts"
+            "@mohak34/opencode-notifier@latest"
           ];
 
           # MCP server configuration
           mcp = {
-            nixos = {
+            mcp-tools = {
               enabled = true;
-              type = "local";
-              command = [
-                "${pkgs.uv}/bin/uvx"
-                "mcp-nixos"
-              ];
-            };
-
-            context7 = {
-              enabled = true;
-              type = "local";
-              command = [
-                "${pkgs.writeShellScript "context7-mcp-wrapper" ''
-                  export PATH="${pkgs.nodejs-slim}/bin:$PATH"
-                  exec ${pkgs.nodejs-slim}/bin/npx -y @upstash/context7-mcp "$@"
-                ''}"
-              ];
+              type = "remote";
+              url = "https://mcp.plexuz.xyz/mcp";
             };
           };
         };

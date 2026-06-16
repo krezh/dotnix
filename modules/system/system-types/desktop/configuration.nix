@@ -4,7 +4,7 @@
     { pkgs, ... }:
     {
       imports = with inputs.self.modules.nixos; [
-        system-base
+        system-common
         fonts
         bluetooth
         pipewire
@@ -38,7 +38,7 @@
 
   flake.modules.homeManager.system-desktop = {
     imports = with inputs.self.modules.homeManager; [
-      system-base
+      system-common
       gtk-theme
       xdg-settings
     ];

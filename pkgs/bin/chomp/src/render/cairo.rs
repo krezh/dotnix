@@ -144,15 +144,35 @@ impl Renderer {
         let screen_h = self.height as f64;
 
         // Resolve configurable colors, falling back gracefully on parse error
-        let bg_color = Color::from_hex(&style.background_color).unwrap_or(Color { r: 0.05, g: 0.05, b: 0.08, a: 1.0 });
-        let desc_color = Color::from_hex(&style.description_color).unwrap_or(Color { r: 1.0, g: 1.0, b: 1.0, a: 1.0 });
+        let bg_color = Color::from_hex(&style.background_color).unwrap_or(Color {
+            r: 0.05,
+            g: 0.05,
+            b: 0.08,
+            a: 1.0,
+        });
+        let desc_color = Color::from_hex(&style.description_color).unwrap_or(Color {
+            r: 1.0,
+            g: 1.0,
+            b: 1.0,
+            a: 1.0,
+        });
         let key_color = if style.key_color.is_empty() {
             *bc
         } else {
             Color::from_hex(&style.key_color).unwrap_or(*bc)
         };
-        let dot_color = Color::from_hex(&style.recording_dot_color).unwrap_or(Color { r: 0.95, g: 0.25, b: 0.25, a: 1.0 });
-        let rec_color = Color::from_hex(&style.recording_highlight_color).unwrap_or(Color { r: 0.95, g: 0.75, b: 0.20, a: 1.0 });
+        let dot_color = Color::from_hex(&style.recording_dot_color).unwrap_or(Color {
+            r: 0.95,
+            g: 0.25,
+            b: 0.25,
+            a: 1.0,
+        });
+        let rec_color = Color::from_hex(&style.recording_highlight_color).unwrap_or(Color {
+            r: 0.95,
+            g: 0.75,
+            b: 0.20,
+            a: 1.0,
+        });
 
         let bar_h = style.bar_height as f64;
         let bar_y = screen_h - bar_h;
@@ -178,13 +198,13 @@ impl Renderer {
 
         // Groups: each is a slice of (key_label, desc)
         let ss = [
-            (format!("[{}]", keybinds.screenshot_area),   "Area"),
+            (format!("[{}]", keybinds.screenshot_area), "Area"),
             (format!("[{}]", keybinds.screenshot_screen), "Screen"),
             (format!("[{}]", keybinds.screenshot_window), "Window"),
-            (format!("[{}]", keybinds.ocr),               "OCR"),
+            (format!("[{}]", keybinds.ocr), "OCR"),
         ];
         let rec = [
-            (format!("[{}]", keybinds.record_area),   "Area"),
+            (format!("[{}]", keybinds.record_area), "Area"),
             (format!("[{}]", keybinds.record_screen), "Screen"),
             (format!("[{}]", keybinds.record_window), "Window"),
         ];
@@ -199,11 +219,15 @@ impl Renderer {
         };
 
         let key_desc_gap = 8.0_f64;
-        let entry_gap    = 26.0_f64;
-        let sep_pad      = 30.0_f64;
+        let entry_gap = 26.0_f64;
+        let sep_pad = 30.0_f64;
         // Dot drawn as a filled arc — font_size * 0.3 radius, plus gap after
-        let dot_r   = self.config.font_size * 0.30;
-        let dot_gap = if is_recording { dot_r * 2.0 + 10.0 } else { 0.0 };
+        let dot_r = self.config.font_size * 0.30;
+        let dot_gap = if is_recording {
+            dot_r * 2.0 + 10.0
+        } else {
+            0.0
+        };
 
         // Measure total content width
         let entry_width = |key: &str, desc: &str| -> f64 {
@@ -216,7 +240,11 @@ impl Renderer {
         for (g, group) in groups.iter().enumerate() {
             for (e, (key, desc)) in group.iter().enumerate() {
                 // The stop group gets the dot prefix added to its first entry
-                let extra = if is_recording && g == 2 && e == 0 { dot_gap } else { 0.0 };
+                let extra = if is_recording && g == 2 && e == 0 {
+                    dot_gap
+                } else {
+                    0.0
+                };
                 total_w += extra + entry_width(key, desc);
                 if e + 1 < group.len() {
                     total_w += entry_gap;
@@ -263,7 +291,12 @@ impl Renderer {
                 if is_stop_group {
                     ctx.set_source_rgba(rec_color.r, rec_color.g, rec_color.b, 0.90);
                 } else {
-                    ctx.set_source_rgba(desc_color.r, desc_color.g, desc_color.b, style.description_opacity);
+                    ctx.set_source_rgba(
+                        desc_color.r,
+                        desc_color.g,
+                        desc_color.b,
+                        style.description_opacity,
+                    );
                 }
                 ctx.move_to(x, text_y);
                 ctx.show_text(desc)?;

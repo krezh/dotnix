@@ -4,14 +4,14 @@
     { pkgs, ... }:
     {
       imports = with inputs.self.modules.nixos; [
-        system-base
+        system-common
         openssh
         krezh
       ];
 
       home-manager.users.root = {
         imports = with inputs.self.modules.homeManager; [
-          system-base
+          system-common
         ];
       };
 

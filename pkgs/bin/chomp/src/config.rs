@@ -306,8 +306,8 @@ impl Config {
             ))?;
         }
 
-        let json_content = serde_json::to_string_pretty(config)
-            .context("Failed to serialize config to JSON")?;
+        let json_content =
+            serde_json::to_string_pretty(config).context("Failed to serialize config to JSON")?;
 
         fs::write(&config_path, json_content).context(format!(
             "Failed to write config file to: {}",

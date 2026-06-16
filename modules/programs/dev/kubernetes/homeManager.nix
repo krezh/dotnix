@@ -19,34 +19,40 @@
         ];
       };
 
-      home.packages = with pkgs; [
-        talosctl
-        talswitcher
-        kubectl
-        kubectl-node-shell
-        kubectl-klock
-        kubectl-df-pv
-        kubectl-pgo
-        kubectl-rook-ceph
-        kustomize
-        fluxcd
-        stern
-        helmfile
-        helm-ls
-        kubernetes-helm
-        kubernetes-helmPlugins.helm-diff
-        kind
-        kubestr
-        cilium-cli
-        k8s-format
-        kubectx
-        klim
-        egctl
-        inputs.kauth.packages.${pkgs.stdenv.hostPlatform.system}.kauth
-        lfk
-        flate
-        towonel
-      ];
+      home.packages =
+        with pkgs;
+        [
+          talosctl
+          kubectl
+          kubectl-node-shell
+          kubectl-klock
+          kubectl-df-pv
+          kubectl-rook-ceph
+          kustomize
+          fluxcd
+          stern
+          helmfile
+          helm-ls
+          kubernetes-helm
+          kubernetes-helmPlugins.helm-diff
+          kind
+          cilium-cli
+          kubectx
+          egctl
+          inputs.kauth.packages.${pkgs.stdenv.hostPlatform.system}.kauth
+          lfk
+          vals
+        ]
+        ++ [
+          # Local Packages
+          flate
+          towonel
+          klim
+          kubestr
+          k8s-format
+          kubectl-pgo
+          talswitcher
+        ];
 
       catppuccin = {
         k9s.enable = true;

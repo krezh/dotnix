@@ -13,12 +13,12 @@ in
     {
       home-manager.users.${user} = {
         imports = with inputs.self.modules.homeManager; [
-          system-base
+          system-common
           ai
         ];
       };
       imports = with inputs.self.modules.nixos; [
-        system-base
+        system-common
         inputs.self.modules.nixos.${user}
         inputs.nixos-wsl.nixosModules.wsl
         (modulesPath + "/profiles/minimal.nix")

@@ -27,5 +27,24 @@
           ++ lib.optional (stateVersion != null) { system.stateVersion = stateVersion; };
         };
       };
+    mkImage =
+      {
+        name,
+        system ? "x86_64-linux",
+        stateVersion ? null,
+      }:
+      {
+        ${name} =
+          (inputs.nixpkgs.lib.nixosSystem {
+            specialArgs = { inherit lib; };
+            modules = [
+              inputs.self.image.${name}
+              {
+                nixpkgs.hostPlatform = lib.mkDefault system;
+              }
+            ]
+            ++ lib.optional (stateVersion != null) { system.stateVersion = stateVersion; };
+          }).config.system.build.image;
+      };
   };
 }

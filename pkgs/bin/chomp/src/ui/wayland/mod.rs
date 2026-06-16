@@ -24,7 +24,7 @@ use wayland_client::{
 };
 
 use crate::{
-    capture::{CapturedImage, CaptureMode},
+    capture::{CaptureMode, CapturedImage},
     cli::Settings,
     render::{Renderer, Selection},
 };
@@ -98,7 +98,9 @@ pub struct App {
 // ============================================================================
 
 impl App {
-    pub fn run(settings: Settings) -> Result<(Option<String>, Option<CaptureMode>, Option<CapturedImage>)> {
+    pub fn run(
+        settings: Settings,
+    ) -> Result<(Option<String>, Option<CaptureMode>, Option<CapturedImage>)> {
         let conn = Connection::connect_to_env().context("Failed to connect to Wayland")?;
         let (globals, mut event_queue) =
             registry_queue_init::<Self>(&conn).context("Failed to init registry")?;
@@ -260,9 +262,10 @@ impl App {
         }
 
         if let Some(first) = self.output_surfaces.first() {
-            self.renderer = create_renderer(first.width as i32, first.height as i32, &self.settings)
-                .ok_or_else(|| anyhow::anyhow!("Failed to create renderer"))?
-                .into();
+            self.renderer =
+                create_renderer(first.width as i32, first.height as i32, &self.settings)
+                    .ok_or_else(|| anyhow::anyhow!("Failed to create renderer"))?
+                    .into();
         }
 
         Ok(())
@@ -332,12 +335,14 @@ impl App {
                 crate::capture::capture_region(&self.conn, &outputs_list, rect)
             }
             CaptureMode::ImageScreen => {
-                let by_name = crate::compositor::get_active_monitor().ok().and_then(|name| {
-                    outputs_list
-                        .iter()
-                        .find(|(_, n, ..)| n == &name)
-                        .map(|(o, ..)| o.clone())
-                });
+                let by_name = crate::compositor::get_active_monitor()
+                    .ok()
+                    .and_then(|name| {
+                        outputs_list
+                            .iter()
+                            .find(|(_, n, ..)| n == &name)
+                            .map(|(o, ..)| o.clone())
+                    });
                 let output = by_name
                     .or_else(|| {
                         outputs_list
@@ -372,7 +377,15 @@ impl App {
 
     pub(super) fn draw_index(&mut self, index: usize, qh: &QueueHandle<Self>) -> Result<()> {
         let is_mode_select = self.phase == UiPhase::ModeSelect;
-        rendering::draw_output(&mut self.output_surfaces[index], &self.selection, is_mode_select, &self.settings.keybinds, &self.settings.mode_select, self.is_recording, qh)
+        rendering::draw_output(
+            &mut self.output_surfaces[index],
+            &self.selection,
+            is_mode_select,
+            &self.settings.keybinds,
+            &self.settings.mode_select,
+            self.is_recording,
+            qh,
+        )
     }
 
     // ------------------------------------------------------------------------

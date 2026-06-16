@@ -41,7 +41,10 @@ fn main() -> Result<()> {
             // Merge: load existing file (serde fills missing keys with defaults), write back
             let existing = Config::load()?;
             let path = Config::write_config_to_file(&existing, None)?;
-            println!("Config merged (new keys added with defaults): {}", path.display());
+            println!(
+                "Config merged (new keys added with defaults): {}",
+                path.display()
+            );
         } else {
             let path = Config::write_defaults_to_file(None)?;
             if args.force {
@@ -99,7 +102,13 @@ fn main() -> Result<()> {
         } else if mode.is_video() {
             return handle_video_mode(&settings, &mode, &notifier, selection_geometry);
         } else {
-            return handle_image_mode(&settings, &mode, &notifier, pre_captured, selection_geometry);
+            return handle_image_mode(
+                &settings,
+                &mode,
+                &notifier,
+                pre_captured,
+                selection_geometry,
+            );
         }
     }
 
@@ -305,8 +314,8 @@ fn image_capture_rect(
 
 /// Returns the global rectangle of the active monitor, falling back to the first output.
 fn active_monitor_rect() -> Result<render::Rect> {
-    let conn = wayland_client::Connection::connect_to_env()
-        .context("Failed to connect to Wayland")?;
+    let conn =
+        wayland_client::Connection::connect_to_env().context("Failed to connect to Wayland")?;
     let outputs = compositor::get_outputs(&conn)?;
 
     match compositor::get_active_monitor() {

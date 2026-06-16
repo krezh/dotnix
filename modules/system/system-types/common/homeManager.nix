@@ -1,6 +1,6 @@
 { inputs, ... }:
 {
-  flake.modules.homeManager.system-base =
+  flake.modules.homeManager.system-common =
     {
       lib,
       config,

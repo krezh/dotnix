@@ -270,8 +270,8 @@ impl KeyboardHandler for App {
         _serial: u32,
         event: KeyEvent,
     ) {
-        use crate::capture::CaptureMode;
         use super::UiPhase;
+        use crate::capture::CaptureMode;
 
         if event.keysym == Keysym::Escape || event.keysym == Keysym::q {
             self.cancel_selection();
@@ -289,7 +289,10 @@ impl KeyboardHandler for App {
             self.settings.ocr = true;
             self.phase = UiPhase::RegionSelect;
             if self.settings.freeze
-                && self.output_surfaces.iter().any(|os| os.frozen_buffer.is_none())
+                && self
+                    .output_surfaces
+                    .iter()
+                    .any(|os| os.frozen_buffer.is_none())
             {
                 if let Err(e) = self.capture_frozen_screens() {
                     log::warn!("Failed to capture freeze: {}", e);
@@ -329,7 +332,9 @@ impl KeyboardHandler for App {
             None
         };
 
-        let Some((mode, is_area)) = result else { return };
+        let Some((mode, is_area)) = result else {
+            return;
+        };
 
         if is_area {
             self.chosen_mode = Some(mode);
@@ -338,7 +343,11 @@ impl KeyboardHandler for App {
             if self.settings.freeze {
                 // Frozen backgrounds are pre-captured at startup before any buffer is
                 // attached.  Only re-capture if that failed for some output.
-                if self.output_surfaces.iter().any(|os| os.frozen_buffer.is_none()) {
+                if self
+                    .output_surfaces
+                    .iter()
+                    .any(|os| os.frozen_buffer.is_none())
+                {
                     if let Err(e) = self.capture_frozen_screens() {
                         log::warn!("Failed to capture freeze: {}", e);
                     }

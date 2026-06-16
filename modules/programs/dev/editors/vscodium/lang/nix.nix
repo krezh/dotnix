@@ -40,7 +40,7 @@
                             check = false;
                           })
                           ++ [
-                            flake.modules.homeManager.system-base
+                            flake.modules.homeManager.system-common
                             flake.modules.homeManager.editors
                             flake.modules.homeManager.modules
                           ]

@@ -4,7 +4,7 @@
     { modulesPath, ... }:
     {
       imports = with inputs.self.modules.nixos; [
-        system-base
+        system-common
         # inputs.self.modules.nixos.${user}
         (modulesPath + "/profiles/minimal.nix")
       ];

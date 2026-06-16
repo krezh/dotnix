@@ -7,7 +7,7 @@ in
 
     home-manager.users.${user} = {
       imports = with inputs.self.modules.homeManager; [
-        system-base
+        system-common
       ];
     };
   };

@@ -84,7 +84,9 @@ pub fn draw_output(
         let callback = output_surface.surface.frame(qh, ());
         output_surface.frame_callback = Some(callback);
         output_surface.waiting_for_frame = true;
-        output_surface.surface.attach(Some(buffer.wl_buffer()), 0, 0);
+        output_surface
+            .surface
+            .attach(Some(buffer.wl_buffer()), 0, 0);
         output_surface.surface.damage_buffer(0, 0, width, height);
         output_surface.surface.commit();
         return Ok(());
