@@ -51,7 +51,7 @@ jobs:
         with:
           token: "${{ steps.app-token.outputs.token }}"
           repository: ${{ github.repository }}
-          retain_days: 1
+          retain_days: 0
           keep_minimum_runs: ${{ inputs.successful_runs_to_keep || '10' }}
           delete_workflow_pattern: ${{ inputs.delete_workflow_pattern }}
           delete_run_by_conclusion_pattern: success
@@ -62,7 +62,7 @@ jobs:
         with:
           token: "${{ steps.app-token.outputs.token }}"
           repository: ${{ github.repository }}
-          retain_days: 1
+          retain_days: 0
           keep_minimum_runs: ${{ inputs.failed_runs_to_keep || '5' }}
           delete_workflow_pattern: ${{ inputs.delete_workflow_pattern }}
           delete_run_by_conclusion_pattern: failure
