@@ -52,10 +52,10 @@ jobs:
           token: "${{ steps.app-token.outputs.token }}"
           repository: ${{ github.repository }}
           retain_days: 1
-          keep_minimum_runs: ${{ inputs.successful_runs_to_keep || 6 }}
-          delete_workflow_pattern: ${{ inputs.delete_workflow_pattern || '' }}
+          keep_minimum_runs: ${{ inputs.successful_runs_to_keep }}
+          delete_workflow_pattern: ${{ inputs.delete_workflow_pattern }}
           delete_run_by_conclusion_pattern: success
-          dry_run: ${{ inputs.dry_run || false }}
+          dry_run: ${{ inputs.dry_run }}
 
       - name: Delete old failed workflow runs
         uses: Mattraks/delete-workflow-runs@b3018382ca039b53d238908238bd35d1fb14f8ee # v2.1.0
@@ -63,7 +63,7 @@ jobs:
           token: "${{ steps.app-token.outputs.token }}"
           repository: ${{ github.repository }}
           retain_days: 1
-          keep_minimum_runs: ${{ inputs.failed_runs_to_keep || 2 }}
-          delete_workflow_pattern: ${{ inputs.delete_workflow_pattern || '' }}
+          keep_minimum_runs: ${{ inputs.failed_runs_to_keep }}
+          delete_workflow_pattern: ${{ inputs.delete_workflow_pattern }}
           delete_run_by_conclusion_pattern: failure
-          dry_run: ${{ inputs.dry_run || false }}
+          dry_run: ${{ inputs.dry_run }}
