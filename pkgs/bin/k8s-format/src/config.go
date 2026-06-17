@@ -9,7 +9,7 @@ type ResourceType struct {
 
 // schemaBaseURL is the base for auto-derived yaml-language-server schema comments.
 // Schema URLs follow the pattern: schemaBaseURL/{group}/{kind}_{version}.json
-const schemaBaseURL = "https://k8s-schemas.home-operations.com"
+const schemaBaseURL = "https://kubernetes-schemas.plexuz.xyz"
 
 // appTemplateSchemaURLs lists known schema URLs for bjw-s app-template HelmReleases.
 // Files carrying one of these URLs are left alone unless app-template is positively detected.
@@ -79,9 +79,8 @@ var schemaOverrides = map[string]string{
 // schema comment. An entry with just an apiVersion (e.g. "apps/v1") excludes all kinds under
 // that group. An entry with a kind (e.g. "apps/v1 Deployment") excludes only that specific kind.
 var schemaExclusions = map[string]bool{
-	"apps/v1":             true, // all Deployments, StatefulSets, DaemonSets, etc.
-	"v1":                  true, // all core resources (ConfigMap, Secret, Service, ...)
-	"apps/v1 StatefulSet": true, // just StatefulSets
+	"apps/v1": true, // all Deployments, StatefulSets, DaemonSets, etc.
+	"v1":      true, // all core resources (ConfigMap, Secret, Service, ...)
 }
 
 // fieldsToRemove lists fields to strip from resources (format: "field.path" or "Kind:field.path").

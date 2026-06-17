@@ -834,19 +834,19 @@
         "rust-overlay": "rust-overlay"
       },
       "locked": {
-        "lastModified": 1765382359,
-        "narHash": "sha256-RJmgVDzjRI18BWVogG6wpsl1UCuV6ui8qr4DJ1LfWZ8=",
-        "ref": "refs/tags/v1.0.0",
-        "rev": "e8c096ade12ec9130ff931b0f0e25d2f1bc63607",
+        "lastModified": 1781726978,
+        "narHash": "sha256-5XSdk4INlHEwPRFi2Z1DNZBNamnRLSq/3os5wHk1Fo4=",
+        "ref": "refs/tags/v1.0.1",
+        "rev": "fa99ffdb78c8bb179f2b856d467f9b8ed7097593",
         "shallow": true,
         "type": "git",
-        "url": "https://github.com/nix-community/lanzaboote"
+        "url": "https://github.com/x45iq/lanzaboote"
       },
       "original": {
-        "ref": "refs/tags/v1.0.0",
+        "ref": "refs/tags/v1.0.1",
         "shallow": true,
         "type": "git",
-        "url": "https://github.com/nix-community/lanzaboote"
+        "url": "https://github.com/x45iq/lanzaboote"
       }
     },
     "llm-agents-nix": {

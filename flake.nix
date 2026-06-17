@@ -21,7 +21,7 @@
     };
 
     lanzaboote = {
-      url = "git+https://github.com/nix-community/lanzaboote?ref=refs/tags/v1.0.0&shallow=1";
+      url = "git+https://github.com/x45iq/lanzaboote?ref=refs/tags/v1.0.1&shallow=1";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
