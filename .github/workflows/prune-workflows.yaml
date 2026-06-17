@@ -11,11 +11,11 @@ on:
       successful_runs_to_keep:
         description: "Number of successful runs to keep"
         required: false
-        default: "6"
+        default: "10"
       failed_runs_to_keep:
         description: "Number of failed runs to keep"
         required: false
-        default: "2"
+        default: "5"
       delete_workflow_pattern:
         description:
           "Name or filename of the workflow (if not set, all workflows are
@@ -52,7 +52,7 @@ jobs:
           token: "${{ steps.app-token.outputs.token }}"
           repository: ${{ github.repository }}
           retain_days: 1
-          keep_minimum_runs: ${{ inputs.successful_runs_to_keep }}
+          keep_minimum_runs: ${{ inputs.successful_runs_to_keep || '10' }}
           delete_workflow_pattern: ${{ inputs.delete_workflow_pattern }}
           delete_run_by_conclusion_pattern: success
           dry_run: ${{ inputs.dry_run }}
@@ -63,7 +63,7 @@ jobs:
           token: "${{ steps.app-token.outputs.token }}"
           repository: ${{ github.repository }}
           retain_days: 1
-          keep_minimum_runs: ${{ inputs.failed_runs_to_keep }}
+          keep_minimum_runs: ${{ inputs.failed_runs_to_keep || '5' }}
           delete_workflow_pattern: ${{ inputs.delete_workflow_pattern }}
           delete_run_by_conclusion_pattern: failure
           dry_run: ${{ inputs.dry_run }}
