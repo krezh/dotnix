@@ -52,17 +52,10 @@
             "typescript-lsp@claude-plugins-official" = true;
             "gopls-lsp@claude-plugins-official" = true;
             "rust-analyzer-lsp@claude-plugins-official" = true;
-            "superpowers@superpowers-marketplace" = true;
             "frontend-design@claude-plugins-official" = true;
             "memini@memini" = true;
           };
           extraKnownMarketplaces = {
-            superpowers-marketplace = {
-              source = {
-                source = "github";
-                repo = "obra/superpowers-marketplace";
-              };
-            };
             memini = {
               source = {
                 source = "github";

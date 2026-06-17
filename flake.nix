@@ -4,12 +4,10 @@
     extra-trusted-substituters = [
       "https://nix-cache.plexuz.xyz/krezh"
       "https://nix-community.cachix.org"
-      "https://niri.cachix.org"
     ];
     extra-trusted-public-keys = [
       "krezh:GBrZyWDPWYTg/9a9Vad/NRQF/1w0Yc1kWXOQXM3d0RQ="
       "nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs="
-      "niri.cachix.org-1:Wv0OmO7PsuocRKzfDoJ3mulSl7Z6oezYhGhR+3W2964="
     ];
   };
 
@@ -144,11 +142,6 @@
       url = "git+https://github.com/numtide/llm-agents.nix?shallow=1";
       inputs.nixpkgs.follows = "nixpkgs";
       inputs.treefmt-nix.follows = "treefmt-nix";
-    };
-
-    niri = {
-      url = "git+https://github.com/sodiboo/niri-flake?shallow=1";
-      inputs.nixpkgs.follows = "nixpkgs";
     };
 
     nix4vscode = {

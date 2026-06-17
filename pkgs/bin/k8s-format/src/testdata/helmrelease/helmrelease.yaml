@@ -1,0 +1,12 @@
+---
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: test
+  namespace: default
+spec:
+  interval: 30m
+  chart:
+    spec:
+      chart: test
+      version: 1.0.0

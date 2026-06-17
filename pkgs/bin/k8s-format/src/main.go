@@ -6,104 +6,111 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"gopkg.in/yaml.v3"
 )
 
-// ResourceType defines formatting rules for a Kubernetes resource type
-type ResourceType struct {
-	Kind      string              // The Kubernetes Kind
-	Filenames []string            // Filenames that contain this resource type
-	Ordering  map[string][]string // Field ordering rules (metadata, spec, values, etc.)
-	SchemaURL string              // Optional schema URL override; empty = auto-derive from apiVersion
+// getSchemaURL auto-derives the yaml-language-server schema URL from apiVersion and kind.
+// Returns "" if the kind is excluded or the apiVersion is not in the expected format.
+func getSchemaURL(actualKind, apiVersion string) string {
+	key := apiVersion + " " + actualKind
+	if schemaExclusions[apiVersion] || schemaExclusions[key] {
+		return ""
+	}
+	if url, ok := schemaOverrides[key]; ok {
+		return url
+	}
+	parts := strings.SplitN(apiVersion, "/", 2)
+	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
+		return ""
+	}
+	group, version := parts[0], parts[1]
+	return fmt.Sprintf("%s/%s/%s_%s.json",
+		schemaBaseURL, group, strings.ToLower(actualKind), version)
 }
 
-// Supported resource types - add new types here
-var resourceTypes = []ResourceType{
-	{
-		Kind:      "HelmRelease",
-		Filenames: []string{"helmrelease.yaml"},
-		Ordering: map[string][]string{
-			"metadata": {"name", "namespace", "labels", "annotations"},
-			"spec":     {"interval", "chartRef", "chart", "driftDetection", "install", "upgrade", "uninstall", "dependsOn", "timeout", "maxHistory", "valuesFrom", "values", "postRenderers"},
-			"values":   {"global", "defaultPodOptions", "controllers", "service", "ingress", "route", "persistence", "configMaps", "secrets", "serviceAccount", "rbac"},
-		},
-	},
-	{
-		Kind:      "OCIRepository",
-		Filenames: []string{"ocirepository.yaml"},
-		Ordering: map[string][]string{
-			"metadata": {"name", "namespace", "labels", "annotations"},
-			"spec":     {"interval", "layerSelector", "ref", "url", "insecure", "provider", "timeout"},
-		},
-	},
-	{
-		Kind:      "Kustomization",
-		Filenames: []string{"ks.yaml"},
-		Ordering: map[string][]string{
-			"metadata": {"name", "namespace", "labels", "annotations"},
-			"spec":     {"targetNamespace", "commonMetadata", "dependsOn", "path", "prune", "sourceRef", "wait", "interval", "retryInterval", "timeout", "force", "components", "postBuild", "patches", "images"},
-		},
-	},
-	{
-		Kind:      "KustomizationFile",
-		Filenames: []string{"kustomization.yaml"},
-		Ordering: map[string][]string{
-			"root": {"apiVersion", "kind", "resources"},
-		},
-	},
-	{
-		Kind:      "ExternalSecret",
-		Filenames: []string{"externalsecret.yaml"},
-		Ordering: map[string][]string{
-			"metadata": {"name", "namespace", "labels", "annotations"},
-			"spec":     {"refreshInterval", "secretStoreRef", "target", "data", "dataFrom"},
-		},
-	},
-	{
-		Kind:      "GrafanaDashboard",
-		Filenames: []string{"grafanadashboard.yaml"},
-		Ordering: map[string][]string{
-			"metadata": {"name", "namespace", "labels", "annotations"},
-			"spec":     {"allowCrossNamespaceImport", "instanceSelector", "datasources", "url"},
-		},
-	},
+// findGitRoot walks up from dir until it finds a directory containing .git.
+// Returns dir itself if no .git ancestor is found.
+func findGitRoot(dir string) string {
+	abs, err := filepath.Abs(dir)
+	if err != nil {
+		return dir
+	}
+	current := abs
+	for {
+		if _, err := os.Stat(filepath.Join(current, ".git")); err == nil {
+			return current
+		}
+		parent := filepath.Dir(current)
+		if parent == current {
+			return abs // reached filesystem root, give up
+		}
+		current = parent
+	}
 }
 
-// Build lookup maps from resourceTypes
-var (
-	fieldOrdering map[string]map[string][]string
-	fileKindMap   map[string]string
-)
-
-// Root-level fields in a Kubernetes resource (directly under apiVersion/kind)
-// Any ordering key NOT in this list is treated as a nested field
-var rootLevelFields = map[string]bool{
-	"metadata":   true,
-	"spec":       true,
-	"data":       true,
-	"stringData": true,
-	"status":     true,
+// buildOCIRepoIndex walks rootPath and maps every OCIRepository metadata.name → spec.url.
+func buildOCIRepoIndex(rootPath string) map[string]string {
+	index := make(map[string]string)
+	filepath.Walk(rootPath, func(path string, info os.FileInfo, err error) error {
+		if err != nil || info.IsDir() || info.Name() != "ocirepository.yaml" {
+			return nil
+		}
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return nil
+		}
+		decoder := yaml.NewDecoder(bytes.NewReader(data))
+		for {
+			var doc yaml.Node
+			if err := decoder.Decode(&doc); err != nil {
+				break
+			}
+			root := &doc
+			if doc.Kind == yaml.DocumentNode && len(doc.Content) > 0 {
+				root = doc.Content[0]
+			}
+			if root.Kind != yaml.MappingNode || getFieldValue(root, "kind") != "OCIRepository" {
+				continue
+			}
+			metaNode := getFieldNode(root, "metadata")
+			specNode := getFieldNode(root, "spec")
+			if metaNode == nil || specNode == nil {
+				continue
+			}
+			name := getFieldValue(metaNode, "name")
+			url := getFieldValue(specNode, "url")
+			if name != "" && url != "" {
+				index[name] = url
+			}
+		}
+		return nil
+	})
+	return index
 }
 
-// Fields to remove from resources (format: "field.path" or "kind:field.path")
-// Examples: "spec.maxHistory", "HelmRelease:spec.uninstall"
-var fieldsToRemove = []string{
-	"HelmRelease:spec.maxHistory",
-	"HelmRelease:spec.uninstall",
-}
-
-func init() {
-	fieldOrdering = make(map[string]map[string][]string)
-	fileKindMap = make(map[string]string)
-
-	for _, rt := range resourceTypes {
-		fieldOrdering[rt.Kind] = rt.Ordering
-		for _, filename := range rt.Filenames {
-			fileKindMap[filename] = rt.Kind
+// isAppTemplate returns true when a HelmRelease spec references an app-template chart,
+// either via chartRef → OCIRepository URL ending in /app-template, or via
+// chart.spec.chart == "app-template" for HelmRepository-based releases.
+func isAppTemplate(specNode *yaml.Node, ociIndex map[string]string) bool {
+	if specNode == nil {
+		return false
+	}
+	if chartRefNode := getFieldNode(specNode, "chartRef"); chartRefNode != nil {
+		name := getFieldValue(chartRefNode, "name")
+		if url, ok := ociIndex[name]; ok && strings.HasSuffix(url, "/app-template") {
+			return true
+		}
+		return false
+	}
+	if chartNode := getFieldNode(specNode, "chart"); chartNode != nil {
+		if chartSpecNode := getFieldNode(chartNode, "spec"); chartSpecNode != nil {
+			return getFieldValue(chartSpecNode, "chart") == "app-template"
 		}
 	}
+	return false
 }
 
 type Stats struct {
@@ -125,57 +132,155 @@ func main() {
 		ByKindFmt: make(map[string]int),
 	}
 
-	// Walk through only relevant files
+	ociIndex := buildOCIRepoIndex(*pathFlag)
+
+	// Walk all YAML files: full format for known kinds, schema-only for everything else
 	err := filepath.Walk(*pathFlag, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
-
-		// Skip directories
 		if info.IsDir() {
 			return nil
 		}
-
-		// Check if this filename is one we care about
 		baseName := info.Name()
-		expectedKind, shouldProcess := fileKindMap[baseName]
-		if !shouldProcess {
-			return nil
-		}
-
-		// Check if we have formatting rules for this kind
-		_, hasOrdering := fieldOrdering[expectedKind]
-		if !hasOrdering {
+		ext := filepath.Ext(baseName)
+		if ext != ".yaml" && ext != ".yml" {
 			return nil
 		}
 
 		stats.Total++
-		if err := formatYAMLFile(path, expectedKind, &stats); err != nil {
-			fmt.Printf("Error formatting %s: %v\n", path, err)
-			stats.Errors++
+		expectedKind, inKindMap := fileKindMap[baseName]
+		_, hasOrdering := fieldOrdering[expectedKind]
+
+		scanRoot := *pathFlag
+		if inKindMap && hasOrdering {
+			if err := formatYAMLFile(path, expectedKind, &stats, ociIndex, scanRoot); err != nil {
+				fmt.Fprintf(os.Stderr, "  %s %s  %s\n", errorIcon, relPath(path, scanRoot), muted.Render(err.Error()))
+				stats.Errors++
+			}
+		} else {
+			if err := injectSchemaOnly(path, &stats, ociIndex, scanRoot); err != nil {
+				fmt.Fprintf(os.Stderr, "  %s %s  %s\n", errorIcon, relPath(path, scanRoot), muted.Render(err.Error()))
+				stats.Errors++
+			}
 		}
 
 		return nil
 	})
 
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error walking directory: %v\n", err)
+		fmt.Fprintf(os.Stderr, "  %s %s\n", errorIcon, red.Render(err.Error()))
 		os.Exit(1)
 	}
 
-	// Print statistics
-	fmt.Println("\n=== Kubernetes YAML Formatting Statistics ===")
-	fmt.Printf("Total YAML files: %d\n", stats.Total)
-	fmt.Printf("Formatted: %d\n", stats.Formatted)
-	fmt.Printf("Errors: %d\n", stats.Errors)
-	fmt.Println("\nBy Resource Kind:")
-	for kind, count := range stats.ByKind {
-		formatted := stats.ByKindFmt[kind]
-		fmt.Printf("  %s: %d total, %d formatted\n", kind, count, formatted)
+	scanned := muted.Render(fmt.Sprintf("%d scanned", stats.Total))
+	fmtd := accent.Render(fmt.Sprintf("%d fixed", stats.Formatted))
+	if stats.Errors > 0 {
+		errs := red.Render(fmt.Sprintf("%d error(s)", stats.Errors))
+		fmt.Printf("\n  %s · %s · %s\n\n", scanned, fmtd, errs)
+	} else {
+		fmt.Printf("\n  %s · %s\n\n", scanned, fmtd)
 	}
 }
 
-func formatYAMLFile(path string, expectedKind string, stats *Stats) error {
+// injectSchemaOnly injects or updates the yaml-language-server schema comment in any
+// YAML file that has apiVersion + kind, without reformatting or reordering fields.
+func injectSchemaOnly(path string, stats *Stats, ociIndex map[string]string, scanRoot string) error {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return fmt.Errorf("reading file: %w", err)
+	}
+
+	content := string(data)
+	hasDocSep := strings.HasPrefix(content, "---\n") || strings.HasPrefix(content, "---\r\n")
+
+	lines := strings.Split(content, "\n")
+	commentIdx := 0
+	if hasDocSep {
+		commentIdx = 1
+	}
+
+	var schemaComment string
+	if len(lines) > commentIdx && strings.HasPrefix(lines[commentIdx], "# yaml-language-server:") {
+		schemaComment = lines[commentIdx]
+	}
+
+	// Strip doc separator and schema comment to get the parseable YAML body
+	body := content
+	if hasDocSep {
+		body = strings.TrimPrefix(body, "---\n")
+		body = strings.TrimPrefix(body, "---\r\n")
+	}
+	if schemaComment != "" {
+		body = strings.Replace(body, schemaComment+"\n", "", 1)
+	}
+
+	var firstDoc yaml.Node
+	if err := yaml.NewDecoder(bytes.NewReader([]byte(body))).Decode(&firstDoc); err != nil {
+		return nil // not valid YAML or empty
+	}
+	var rootNode *yaml.Node
+	if firstDoc.Kind == yaml.DocumentNode && len(firstDoc.Content) > 0 {
+		rootNode = firstDoc.Content[0]
+	} else {
+		rootNode = &firstDoc
+	}
+	if rootNode == nil || rootNode.Kind != yaml.MappingNode {
+		return nil
+	}
+
+	kind := getFieldValue(rootNode, "kind")
+	apiVersion := getFieldValue(rootNode, "apiVersion")
+	if kind == "" || apiVersion == "" {
+		return nil
+	}
+
+	stats.ByKind[kind]++
+	targetURL := getSchemaURL(kind, apiVersion)
+
+	if kind == "HelmRelease" {
+		if specNode := getFieldNode(rootNode, "spec"); isAppTemplate(specNode, ociIndex) {
+			targetURL = appTemplateSchemaURLs[0]
+		}
+		currentURL := strings.TrimPrefix(schemaComment, "# yaml-language-server: $schema=")
+		if slices.Contains(appTemplateSchemaURLs, currentURL) && !slices.Contains(appTemplateSchemaURLs, targetURL) {
+			return nil
+		}
+	}
+
+	if targetURL == "" {
+		return nil
+	}
+
+	newComment := "# yaml-language-server: $schema=" + targetURL
+	if newComment == schemaComment {
+		return nil
+	}
+
+	action := "schema-added"
+	if schemaComment != "" {
+		action = "schema-updated"
+	}
+
+	var out bytes.Buffer
+	if hasDocSep {
+		out.WriteString("---\n")
+	}
+	out.WriteString(newComment)
+	out.WriteString("\n")
+	out.WriteString(body)
+
+	if err := os.WriteFile(path, out.Bytes(), 0644); err != nil {
+		return fmt.Errorf("writing file: %w", err)
+	}
+
+	fmt.Printf("  %s %s  %s\n", successIcon, bold.Render(relPath(path, scanRoot)), muted.Render(action))
+	stats.Formatted++
+	stats.ByKindFmt[kind]++
+	return nil
+}
+
+func formatYAMLFile(path string, expectedKind string, stats *Stats, ociIndex map[string]string, scanRoot string) error {
 	// Read file
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -213,6 +318,7 @@ func formatYAMLFile(path string, expectedKind string, stats *Stats) error {
 	decoder := yaml.NewDecoder(bytes.NewReader([]byte(yamlContent)))
 	var documents []*yaml.Node
 	var anyChanged bool
+	var reasons []string
 
 	for {
 		var doc yaml.Node
@@ -253,17 +359,22 @@ func formatYAMLFile(path string, expectedKind string, stats *Stats) error {
 		// Get ordering rules
 		ordering := fieldOrdering[kind]
 
-		// Track if we made changes to this document
-		changed := false
+		addReason := func(r string) {
+			if !slices.Contains(reasons, r) {
+				reasons = append(reasons, r)
+			}
+		}
 
 		// Clean up multiline strings with extra whitespace in parentheses
 		if cleanupMultilineStrings(rootNode) {
-			changed = true
+			anyChanged = true
+			addReason("strings-cleaned")
 		}
 
 		// Remove specified fields
 		if removeConfiguredFields(rootNode, kind) {
-			changed = true
+			anyChanged = true
+			addReason("fields-removed")
 		}
 
 		// Handle KustomizationFile separately (native kustomization.yaml)
@@ -271,28 +382,32 @@ func formatYAMLFile(path string, expectedKind string, stats *Stats) error {
 			// Reorder top-level fields for kustomization.yaml
 			if rootOrdering, ok := ordering["root"]; ok {
 				if reorderFields(rootNode, rootOrdering) {
-					changed = true
+					anyChanged = true
+					addReason("fields-reordered")
 				}
 			}
 
 			// Normalize resource paths to use ./
 			if resourcesNode := getFieldNode(rootNode, "resources"); resourcesNode != nil {
 				if normalizeResourcePaths(resourcesNode) {
-					changed = true
+					anyChanged = true
+					addReason("paths-normalized")
 				}
 			}
 		} else {
 			// Handle Flux Kustomization resources
 			// Reorder top-level fields (apiVersion, kind, metadata, spec)
 			if reorderTopLevelFields(rootNode) {
-				changed = true
+				anyChanged = true
+				addReason("fields-reordered")
 			}
 
 			// Reorder metadata fields
 			if metadataNode := getFieldNode(rootNode, "metadata"); metadataNode != nil {
 				if metadataOrdering, ok := ordering["metadata"]; ok {
 					if reorderFields(metadataNode, metadataOrdering) {
-						changed = true
+						anyChanged = true
+						addReason("fields-reordered")
 					}
 				}
 			}
@@ -301,26 +416,75 @@ func formatYAMLFile(path string, expectedKind string, stats *Stats) error {
 			if specNode := getFieldNode(rootNode, "spec"); specNode != nil {
 				if specOrdering, ok := ordering["spec"]; ok {
 					if reorderFields(specNode, specOrdering) {
-						changed = true
+						anyChanged = true
+						addReason("fields-reordered")
+					}
+				}
+
+				// Normalize spec.path for Flux Kustomization resources
+				if kind == "Kustomization" {
+					if normalizeKsSpecPath(specNode, path, scanRoot) {
+						anyChanged = true
+						addReason("path-normalized")
 					}
 				}
 
 				// Apply nested orderings dynamically
 				if applyNestedOrderings(specNode, ordering) {
-					changed = true
+					anyChanged = true
+					addReason("fields-reordered")
 				}
 			}
-		}
-
-		if changed {
-			anyChanged = true
-			stats.ByKindFmt[kind]++
 		}
 
 		documents = append(documents, &doc)
 	}
 
-	if !anyChanged {
+	// Ensure the schema comment is correct.
+	// Files whose existing schema matches the ResourceType's SchemaURL override are left alone
+	// (e.g. app-template HelmReleases with a bjw-s-labs schema). All others are updated.
+	schemaChanged := false
+	if len(documents) > 0 {
+		var firstRoot *yaml.Node
+		if documents[0].Kind == yaml.DocumentNode && len(documents[0].Content) > 0 {
+			firstRoot = documents[0].Content[0]
+		}
+		if firstRoot != nil && firstRoot.Kind == yaml.MappingNode {
+			actualKind := getFieldValue(firstRoot, "kind")
+			apiVersion := getFieldValue(firstRoot, "apiVersion")
+			if actualKind == "" {
+				actualKind = expectedKind
+			}
+
+			targetURL := getSchemaURL(actualKind, apiVersion)
+
+			// For HelmRelease, detect app-template via OCIRepository index
+			if expectedKind == "HelmRelease" {
+				if specNode := getFieldNode(firstRoot, "spec"); isAppTemplate(specNode, ociIndex) {
+					targetURL = appTemplateSchemaURLs[0]
+				}
+			}
+
+			currentURL := strings.TrimPrefix(schemaComment, "# yaml-language-server: $schema=")
+
+			if expectedKind == "HelmRelease" && slices.Contains(appTemplateSchemaURLs, currentURL) && !slices.Contains(appTemplateSchemaURLs, targetURL) {
+				// Safety net: preserve known app-template schema when detection had no OCI index.
+			} else if targetURL != "" {
+				newComment := "# yaml-language-server: $schema=" + targetURL
+				if newComment != schemaComment {
+					if schemaComment == "" {
+						reasons = append(reasons, "schema-added")
+					} else {
+						reasons = append(reasons, "schema-updated")
+					}
+					schemaComment = newComment
+					schemaChanged = true
+				}
+			}
+		}
+	}
+
+	if !anyChanged && !schemaChanged {
 		return nil // No changes needed
 	}
 
@@ -332,7 +496,7 @@ func formatYAMLFile(path string, expectedKind string, stats *Stats) error {
 		output.WriteString("---\n")
 	}
 
-	// Add schema comment if it was there
+	// Add schema comment (existing or newly derived)
 	if schemaComment != "" {
 		output.WriteString(schemaComment)
 		output.WriteString("\n")
@@ -367,8 +531,9 @@ func formatYAMLFile(path string, expectedKind string, stats *Stats) error {
 		kind = getFieldValue(documents[0].Content[0], "kind")
 	}
 
-	fmt.Printf("Formatted: %s (%s)\n", path, kind)
+	fmt.Printf("  %s %s  %s\n", successIcon, bold.Render(relPath(path, scanRoot)), muted.Render(strings.Join(reasons, ", ")))
 	stats.Formatted++
+	stats.ByKindFmt[kind]++
 
 	return nil
 }
@@ -644,6 +809,66 @@ func cleanupParenthesesInString(s string) string {
 	}
 
 	return result.String()
+}
+
+// normalizeKsSpecPath ensures spec.path in a Flux Kustomization is correct.
+// Without scanRoot it only adds a "./" prefix. With scanRoot it derives the
+// canonical path as "./" + (ks.yaml parent relative to scanRoot) + "/" + (last
+// segment of the current path), enforcing that paths always anchor to the file's
+// own location in the repository.
+func normalizeKsSpecPath(specNode *yaml.Node, ksFilePath, scanRoot string) bool {
+	pathNode := getFieldNode(specNode, "path")
+	if pathNode == nil || pathNode.Kind != yaml.ScalarNode || pathNode.Value == "" {
+		return false
+	}
+	val := pathNode.Value
+
+	if strings.HasPrefix(val, "http") || strings.HasPrefix(val, "/") || strings.HasPrefix(val, "../") {
+		return false
+	}
+
+	if scanRoot == "" {
+		if strings.HasPrefix(val, "./") {
+			return false
+		}
+		pathNode.Value = "./" + val
+		return true
+	}
+
+	// Use the git root as the base for path derivation so the user can pass
+	// any subdirectory as -p and still get correct paths.
+	repoRoot := findGitRoot(scanRoot)
+	ksDir := filepath.Dir(ksFilePath)
+	ksDirRel, err := filepath.Rel(repoRoot, ksDir)
+	if err != nil || ksDirRel == "." {
+		// Can't derive a meaningful base path — just ensure "./" prefix
+		if strings.HasPrefix(val, "./") {
+			return false
+		}
+		pathNode.Value = "./" + val
+		return true
+	}
+	ksDirRel = filepath.ToSlash(ksDirRel)
+
+	// Derive: "./" + ksDirRel + "/" + last segment of the current path
+	stripped := strings.TrimPrefix(strings.TrimPrefix(val, "./"), "../")
+	parts := strings.Split(stripped, "/")
+	subDir := parts[len(parts)-1]
+	if subDir == "" || subDir == "." {
+		// Path has no usable segment — just ensure "./" prefix
+		if strings.HasPrefix(val, "./") {
+			return false
+		}
+		pathNode.Value = "./" + val
+		return true
+	}
+
+	derived := "./" + ksDirRel + "/" + subDir
+	if derived == val {
+		return false
+	}
+	pathNode.Value = derived
+	return true
 }
 
 // normalizeResourcePaths ensures all resource paths start with ./
