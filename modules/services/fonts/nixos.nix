@@ -66,6 +66,7 @@
           rubik
           nerd-fonts.jetbrains-mono
           nerd-fonts.caskaydia-cove
+          nerd-fonts.monaspace
         ];
       };
     };
