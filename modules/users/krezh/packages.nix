@@ -16,6 +16,7 @@
         retry
         minijinja
         unzip
+        unrar
         gum
         duf
         isd
