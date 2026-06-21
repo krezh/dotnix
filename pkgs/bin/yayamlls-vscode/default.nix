@@ -9,18 +9,18 @@
 buildNpmPackage (finalAttrs: {
   pname = "yayamlls-vscode";
   # renovate: datasource=github-releases depName=home-operations/yayamlls
-  version = "0.1.8";
+  version = "0.1.10";
 
   src = fetchFromGitHub {
     owner = "home-operations";
     repo = "yayamlls";
     tag = finalAttrs.version;
-    hash = "sha256-uRS1Nyv2rEGc103vkpUOtjtqV3CDPUqQVk3tgqxjVwk=";
+    hash = "sha256-E0loH//MdaXui/tLoiNoL+L1RBPgh0TlnF1M6flxKto=";
   };
 
   sourceRoot = "source/editors/vscode";
 
-  npmDepsHash = "sha256-+v19xyyflJ+RS60+zUHyukrQXliI+zfZMIj5cYrHHn8=";
+  npmDepsHash = "sha256-cSo8C+mbU9C3tP5EgNnsE06Ok+ZNtyGO9i1cSGQUwnQ=";
 
   nativeBuildInputs = [
     pkgs.vsce
