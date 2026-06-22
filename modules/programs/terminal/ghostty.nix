@@ -8,7 +8,7 @@
         enableFishIntegration = true;
         installBatSyntax = true;
         settings = {
-          font-family = "${config.var.fonts.mono}";
+          font-family = config.var.fonts.mono;
           font-size = config.var.fonts.codeSize;
           font-style = "Bold";
           font-thicken = true;

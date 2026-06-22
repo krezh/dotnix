@@ -21,7 +21,7 @@
         rounding = 10;
         fonts = {
           sans = "Rubik";
-          mono = "JetBrainsMono Nerd Font";
+          mono = "Monaspace Neon NF";
           serif = "Rubik";
           interfaceSize = 15;
           codeSize = 12;

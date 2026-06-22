@@ -9,6 +9,7 @@ const RED: &str = "\x1b[31m";
 const CYAN: &str = "\x1b[36m";
 const YELLOW: &str = "\x1b[33m";
 const MAGENTA: &str = "\x1b[35m";
+const GRAY: &str = "\x1b[90m";
 const BOLD: &str = "\x1b[1m";
 const DIM: &str = "\x1b[2m";
 const RESET: &str = "\x1b[0m";
@@ -113,14 +114,159 @@ fn format_reset_ts(reset_ts: u64) -> String {
     }
 }
 
-/// Shortens an absolute path by replacing the home directory prefix with `~`.
+/// Shortens a path: replaces $HOME with `~`, then abbreviates each interior
+/// component to its first character (two for dotfiles), leaving the final
+/// component intact. E.g. `~/foo/bar/baz` → `~/f/b/baz`.
 fn display_path(path_str: &str) -> String {
     let home = std::env::var("HOME").unwrap_or_default();
-    if !home.is_empty() && path_str.starts_with(&home) {
+    let s = if !home.is_empty() && path_str.starts_with(&home) {
         format!("~{}", &path_str[home.len()..])
     } else {
         path_str.to_string()
+    };
+
+    let parts: Vec<&str> = s.split('/').collect();
+    let n = parts.len();
+    if n <= 2 {
+        return s;
     }
+
+    parts
+        .iter()
+        .enumerate()
+        .map(|(i, part)| {
+            if i == 0 || i == n - 1 || part.is_empty() {
+                part.to_string()
+            } else if part.starts_with('.') {
+                part.chars().take(2).collect()
+            } else {
+                part.chars().take(1).collect()
+            }
+        })
+        .collect::<Vec<_>>()
+        .join("/")
+}
+
+// ── Jujutsu ───────────────────────────────────────────────────────────────────
+
+struct JjStatus {
+    id_prefix: String,
+    id_rest: String,
+    bookmark: Option<String>,
+    modified: u32,
+    added: u32,
+    deleted: u32,
+    conflicts: u32,
+}
+
+fn jj_cmd(cwd: &Path, args: &[&str]) -> Option<String> {
+    let out = Command::new("jj")
+        .args(args)
+        .current_dir(cwd)
+        .output()
+        .ok()?;
+    if out.status.success() {
+        Some(String::from_utf8_lossy(&out.stdout).trim().to_string())
+    } else {
+        None
+    }
+}
+
+fn parse_jj_status(cwd: &Path) -> Option<JjStatus> {
+    // Lines: id prefix, id rest, empty flag, conflict flag, local bookmark names
+    let info = jj_cmd(
+        cwd,
+        &[
+            "log",
+            "--no-graph",
+            "-r",
+            "@",
+            "-T",
+            r#"change_id.shortest(8).prefix() ++ "\n" ++ change_id.shortest(8).rest() ++ "\n" ++ if(empty, "1", "0") ++ "\n" ++ if(conflict, "1", "0") ++ "\n" ++ bookmarks.filter(|b| !b.remote()).map(|b| b.name()).join(" ")"#,
+        ],
+    )?;
+
+    let mut lines = info.lines();
+    let id_prefix = lines.next()?.to_string();
+    let id_rest = lines.next()?.to_string();
+    let is_empty = lines.next()? == "1";
+    let has_conflict = lines.next()? == "1";
+    let bookmarks_str = lines.next().unwrap_or("").trim().to_string();
+
+    let bookmark = if !bookmarks_str.is_empty() {
+        Some(bookmarks_str)
+    } else {
+        None
+    };
+
+    let mut modified = 0u32;
+    let mut added = 0u32;
+    let mut deleted = 0u32;
+
+    if !is_empty {
+        if let Some(diff_out) = jj_cmd(cwd, &["diff", "--summary"]) {
+            for line in diff_out.lines() {
+                let b = line.as_bytes();
+                if b.len() >= 2 && b[1] == b' ' {
+                    match b[0] {
+                        b'M' => modified += 1,
+                        b'A' => added += 1,
+                        b'D' => deleted += 1,
+                        b'R' => modified += 1,
+                        _ => {}
+                    }
+                }
+            }
+        }
+    }
+
+    let conflicts = if has_conflict {
+        jj_cmd(cwd, &["resolve", "--list"])
+            .map(|o| o.lines().filter(|l| !l.trim().is_empty()).count() as u32)
+            .unwrap_or(1)
+    } else {
+        0
+    };
+
+    Some(JjStatus {
+        id_prefix,
+        id_rest,
+        bookmark,
+        modified,
+        added,
+        deleted,
+        conflicts,
+    })
+}
+
+fn format_jj_segment(cwd: &Path) -> Option<String> {
+    let s = parse_jj_status(cwd)?;
+
+    // Bookmark name in bold, or change ID with prefix bright-magenta and rest dim-magenta
+    let label = match &s.bookmark {
+        Some(bm) => format!("{BOLD}{bm}{RESET}"),
+        None => format!(
+            "{MAGENTA}{BOLD}{}{RESET}{DIM}{GRAY}{}{RESET}",
+            s.id_prefix, s.id_rest
+        ),
+    };
+
+    let mut parts = vec![label];
+
+    if s.conflicts > 0 {
+        parts.push(format!("{RED}!{}{RESET}", s.conflicts));
+    }
+    if s.added > 0 {
+        parts.push(format!("{GREEN}+{}{RESET}", s.added));
+    }
+    if s.modified > 0 {
+        parts.push(format!("{YELLOW}~{}{RESET}", s.modified));
+    }
+    if s.deleted > 0 {
+        parts.push(format!("{RED}-{}{RESET}", s.deleted));
+    }
+
+    Some(parts.join(" "))
 }
 
 // ── Git ───────────────────────────────────────────────────────────────────────
@@ -364,8 +510,8 @@ fn main() {
 
     // ── Location + git ───────────────────────────────────────────────────────
     let dir_str = display_path(&cwd.to_string_lossy());
-    let location = match format_git_segment(&cwd) {
-        Some(git) => format!("{BOLD}{dir_str}{RESET} {git}"),
+    let location = match format_jj_segment(&cwd).or_else(|| format_git_segment(&cwd)) {
+        Some(vcs) => format!("{BOLD}{dir_str}{RESET} {vcs}"),
         None => format!("{BOLD}{dir_str}{RESET}"),
     };
     parts.push(location);
