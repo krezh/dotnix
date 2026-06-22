@@ -20,7 +20,8 @@ buildNpmPackage (finalAttrs: {
 
   sourceRoot = "source/editors/vscode";
 
-  npmDepsHash = "sha256-+v19xyyflJ+RS60+zUHyukrQXliI+zfZMIj5cYrHHn8=";
+  npmDepsFetcherVersion = 2;
+  npmDepsHash = "sha256-b/39fOxNj6nYnN7SocyZrI2u4fuHvoIIvjRJta02U/A=";
 
   nativeBuildInputs = [
     pkgs.vsce
@@ -31,7 +32,6 @@ buildNpmPackage (finalAttrs: {
   postPatch = ''
     ${lib.getExe pkgs.jq} '
       .engines.vscode = "^${lib.versions.major vscodium.version}.${lib.versions.minor vscodium.version}.0"
-      | .devDependencies["@types/vscode"] = "^${lib.versions.major vscodium.version}.${lib.versions.minor vscodium.version}.0"
     ' package.json > package.json.tmp
     mv package.json.tmp package.json
   '';
