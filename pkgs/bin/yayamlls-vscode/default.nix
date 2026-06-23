@@ -8,7 +8,7 @@
 buildNpmPackage (finalAttrs: {
   pname = "yayamlls-vscode";
   # renovate: datasource=github-releases depName=home-operations/yayamlls
-  version = "0.1.8";
+  version = "0.1.10";
 
   src = fetchFromGitHub {
     owner = "home-operations";
