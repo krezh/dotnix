@@ -30,7 +30,7 @@ if grep -q "craneLib\.buildPackage" "$file"; then
   old_hash=$(grep -oP 'hash = "\K[^"]*' "$file")
   echo "  Old hash: $old_hash"
 
-  sri=$(nix store prefetch-file --json "https://github.com/$owner/$repo/archive/refs/tags/$ref.tar.gz" --unpack | jq -r .hash)
+  sri=$(nix run nixpkgs#nurl --inputs-from . -- --hash "https://github.com/$owner/$repo" "$ref")
 
   echo "  New hash: $sri"
 
@@ -47,8 +47,6 @@ if grep -q "craneLib\.buildPackage" "$file"; then
     }
   fi
 else
-  # Not a crane package, use nix-update with the pinned nixpkgs from flake.lock
-  # (avoids the GitHub API call that `nix run nixpkgs#...` makes to resolve nixpkgs-unstable)
   echo "Using nix-update for: $file"
   pkg=$(grep -P '^\s*pname = ' "$file" | cut -d\" -f2)
   nix run nixpkgs#nix-update --inputs-from . -- "$pkg" --flake --version=skip
