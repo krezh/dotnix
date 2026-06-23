@@ -2,7 +2,6 @@
   lib,
   buildNpmPackage,
   fetchFromGitHub,
-  vscodium,
   pkgs,
 }:
 
@@ -30,10 +29,8 @@ buildNpmPackage (finalAttrs: {
   ];
 
   postPatch = ''
-    ${lib.getExe pkgs.jq} '
-      .engines.vscode = "^${lib.versions.major vscodium.version}.${lib.versions.minor vscodium.version}.0" |
-      .devDependencies["@types/vscode"] = "^${lib.versions.major vscodium.version}.${lib.versions.minor vscodium.version}.0"
-    ' package.json > package.json.tmp
+    ${lib.getExe pkgs.jq} '.engines.vscode = .devDependencies["@types/vscode"]' \
+      package.json > package.json.tmp
     mv package.json.tmp package.json
   '';
 
