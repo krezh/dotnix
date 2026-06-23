@@ -5,7 +5,8 @@ file="$1"
 
 [ -n "${RENOVATE_TOKEN:-}" ] && export NIX_CONFIG="access-tokens = github.com=$RENOVATE_TOKEN"
 
-nix profile install nixpkgs#nix-update nixpkgs#nurl --inputs-from .
+mapfile -t _tool_paths < <(nix build nixpkgs#nix-update nixpkgs#nurl --inputs-from . --no-link --print-out-paths)
+for _p in "${_tool_paths[@]}"; do export PATH="$_p/bin:$PATH"; done
 
 # Redact IPs from nix stderr — GitHub rate limit errors include the requester's
 # external IP in their response body, which Renovate posts verbatim in PR comments.
