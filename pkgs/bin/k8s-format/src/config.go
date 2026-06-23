@@ -73,6 +73,7 @@ var resourceTypes = []ResourceType{
 // schemaOverrides maps "apiVersion kind" to a fixed schema URL, bypassing auto-derivation.
 var schemaOverrides = map[string]string{
 	"kustomize.config.k8s.io/v1beta1 Kustomization": "https://json.schemastore.org/kustomization",
+	"kustomize.config.k8s.io/v1alpha1 Component":    "https://json.schemastore.org/kustomization",
 }
 
 // schemaExclusions lists apiVersions or "apiVersion kind" pairs that should never receive a
