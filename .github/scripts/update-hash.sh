@@ -5,6 +5,8 @@ file="$1"
 
 [ -n "${RENOVATE_TOKEN:-}" ] && export NIX_CONFIG="access-tokens = github.com=$RENOVATE_TOKEN"
 
+nix profile install nixpkgs#nix-update nixpkgs#nurl --inputs-from .
+
 # Redact IPs from nix stderr — GitHub rate limit errors include the requester's
 # external IP in their response body, which Renovate posts verbatim in PR comments.
 nix() {
@@ -30,7 +32,7 @@ if grep -q "craneLib\.buildPackage" "$file"; then
   old_hash=$(grep -oP 'hash = "\K[^"]*' "$file")
   echo "  Old hash: $old_hash"
 
-  sri=$(nix run nixpkgs#nurl --inputs-from . -- --hash "https://github.com/$owner/$repo" "$ref")
+  sri=$(nurl --hash "https://github.com/$owner/$repo" "$ref")
 
   echo "  New hash: $sri"
 
@@ -49,5 +51,5 @@ if grep -q "craneLib\.buildPackage" "$file"; then
 else
   echo "Using nix-update for: $file"
   pkg=$(grep -P '^\s*pname = ' "$file" | cut -d\" -f2)
-  nix run nixpkgs#nix-update --inputs-from . -- "$pkg" --flake --version=skip
+  nix-update "$pkg" --flake --version=skip
 fi
