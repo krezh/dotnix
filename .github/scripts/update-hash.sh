@@ -3,6 +3,19 @@ set -euo pipefail
 
 file="$1"
 
+[ -n "${RENOVATE_TOKEN:-}" ] && export NIX_CONFIG="access-tokens = github.com=$RENOVATE_TOKEN"
+
+# Redact IPs from nix stderr — GitHub rate limit errors include the requester's
+# external IP in their response body, which Renovate posts verbatim in PR comments.
+nix() {
+    local stderr_tmp rc=0
+    stderr_tmp=$(mktemp)
+    command nix "$@" 2>"$stderr_tmp" || rc=$?
+    sed -E 's/\b([0-9]{1,3}\.){3}[0-9]{1,3}\b/<redacted-ip>/g' "$stderr_tmp" >&2
+    rm -f "$stderr_tmp"
+    return $rc
+}
+
 # Check if this is a crane package
 if grep -q "craneLib\.buildPackage" "$file"; then
   echo "Updating crane package: $file"
@@ -34,8 +47,10 @@ if grep -q "craneLib\.buildPackage" "$file"; then
     }
   fi
 else
-  # Not a crane package, use nix-update
+  # Not a crane package, use nix-update with the pinned nixpkgs from flake.lock
+  # (avoids the GitHub API call that `nix run nixpkgs#...` makes to resolve nixpkgs-unstable)
   echo "Using nix-update for: $file"
   pkg=$(grep -P '^\s*pname = ' "$file" | cut -d\" -f2)
-  nix run nixpkgs#nix-update -- "$pkg" --flake --version=skip
+  nixpkgs_url="$(jq -r '.nodes.nixpkgs.locked | "github:\(.owner)/\(.repo)/\(.rev)"' flake.lock)"
+  nix run "${nixpkgs_url}#nix-update" -- "$pkg" --flake --version=skip
 fi
