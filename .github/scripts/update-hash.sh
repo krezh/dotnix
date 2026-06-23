@@ -51,6 +51,5 @@ else
   # (avoids the GitHub API call that `nix run nixpkgs#...` makes to resolve nixpkgs-unstable)
   echo "Using nix-update for: $file"
   pkg=$(grep -P '^\s*pname = ' "$file" | cut -d\" -f2)
-  nixpkgs_url="$(jq -r '.nodes.nixpkgs.locked | if .type == "github" then "github:\(.owner)/\(.repo)/\(.rev)" else "github:NixOS/nixpkgs/\(.rev)" end' flake.lock)"
-  nix run "${nixpkgs_url}#nix-update" -- "$pkg" --flake --version=skip
+  nix run nixpkgs#nix-update --inputs-from . -- "$pkg" --flake --version=skip
 fi
