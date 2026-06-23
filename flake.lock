@@ -77,11 +77,11 @@
     "cachyos-kernel-patches": {
       "flake": false,
       "locked": {
-        "lastModified": 1781953785,
-        "narHash": "sha256-YgEE1a5QdKd47AfRoU5G8nm0gGzeCuPN2emupNDMQcc=",
+        "lastModified": 1782242233,
+        "narHash": "sha256-AUwTZq++PBq0qjDVFKqD0AZNNwa0b1RK41bM9XMbkW8=",
         "owner": "CachyOS",
         "repo": "kernel-patches",
-        "rev": "e8e9d325eea25f5664e045787c19baac661828de",
+        "rev": "19250dcc39862169961756c733b8a6ba77754c22",
         "type": "github"
       },
       "original": {
@@ -866,10 +866,10 @@
         ]
       },
       "locked": {
-        "lastModified": 1782198869,
-        "narHash": "sha256-7HsiKhCUxnsldqGQRF8sDV/9t6N15Jb3PBZYR/9RJFA=",
+        "lastModified": 1782253243,
+        "narHash": "sha256-YV23Ols+CzZcQRFuljq5Kd/XvBHP9Z9sJctZPxzkGqU=",
         "ref": "refs/heads/main",
-        "rev": "238eb2728ede4b4e5ac3ec276bc81732b8df0b69",
+        "rev": "6fa84ac1103ebed388ba1c6229668b1fc2575d64",
         "shallow": true,
         "type": "git",
         "url": "https://github.com/numtide/llm-agents.nix"
@@ -906,10 +906,10 @@
         ]
       },
       "locked": {
-        "lastModified": 1782187177,
-        "narHash": "sha256-jgPP9pT0yCiiHdoSZjbMEHwmObYF468rtutsIZLslj4=",
+        "lastModified": 1782243013,
+        "narHash": "sha256-tfZeKprk8CkiP/Yjnd76QKxrRy2IcezNQ7jVZSaP2/k=",
         "ref": "refs/heads/master",
-        "rev": "13246dc9799c078adaf296c9a04ad9836ec7e48f",
+        "rev": "a24a38a4965219068fc366d311639db613b9e03e",
         "shallow": true,
         "type": "git",
         "url": "https://github.com/xddxdd/nix-cachyos-kernel"
@@ -1129,10 +1129,10 @@
         ]
       },
       "locked": {
-        "lastModified": 1782228865,
-        "narHash": "sha256-vnmo148gkbMNtyNoWYzcPOKCoaAq+zY69WE2xgMox/I=",
+        "lastModified": 1782253711,
+        "narHash": "sha256-3U8OI05r+EHlSCsHGnVgRMhQ4Zb6p6OlXeA6IBdo7Y8=",
         "ref": "refs/heads/main",
-        "rev": "efb96e41fdac7cb3e5bcc9864d1bd0118da2470f",
+        "rev": "2b1fac0e8290485aec084c3a4c2fcfdf920f6c05",
         "shallow": true,
         "type": "git",
         "url": "https://github.com/noctalia-dev/noctalia-shell"
@@ -1154,10 +1154,10 @@
         "systems": "systems_6"
       },
       "locked": {
-        "lastModified": 1781997110,
-        "narHash": "sha256-6D6xtYN5t1kZGNd69eMZsRBkgX5Df1roErn/kFR1C+A=",
+        "lastModified": 1782253379,
+        "narHash": "sha256-c4Tm1GskFHOMsGYz/fnxIc01U4lYkaDL5olgAYuEo+U=",
         "ref": "refs/heads/main",
-        "rev": "320f60b97075a58d38b90fc5e39f478421dbd38a",
+        "rev": "b1b92ec251afd42395a5e2d66cbe4d1a93bc4021",
         "shallow": true,
         "type": "git",
         "url": "https://github.com/notashelf/nvf"
