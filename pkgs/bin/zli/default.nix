@@ -9,16 +9,16 @@
 (buildGoModule.override { go = go-bin.latestStable; }) (finalAttrs: {
   pname = "zli";
   # renovate: datasource=github-releases depName=project-zot/zot
-  version = "2.1.17";
+  version = "2.1.18";
 
   src = fetchFromGitHub {
     owner = "project-zot";
     repo = "zot";
     rev = "v${finalAttrs.version}";
-    hash = "sha256-/1QEMpDq8okaVWhaynlJ+tE1b6AObUnHfHrmnylBKL0=";
+    hash = "sha256-cYH+4nvrdtKRYx3bap8Ndhu8MtwOWQREnmCa7NE/+O8=";
   };
 
-  vendorHash = "sha256-09LQKBKyqpgBbC44VPsZ3RJcwrHWy6TpF87u35UgcYI=";
+  vendorHash = "sha256-iB/hk4W0yuuptjTso0GINrMJ00XTyCF3EfcsUg5BoPE=";
 
   subPackages = [ "cmd/zli" ];
 
