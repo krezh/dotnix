@@ -19,7 +19,6 @@ on:
 permissions:
   contents: read
   actions: read
-  id-token: write
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.number || github.ref }}
@@ -31,6 +30,8 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: prod
+    permissions:
+      id-token: write
     outputs:
       hosts: ${{ steps.set-matrix.outputs.hosts }}
       packages: ${{ steps.set-matrix.outputs.packages }}
@@ -43,11 +44,7 @@ jobs:
       - name: Setup Nix
         uses: ./.github/actions/setup-nix
         with:
-          attic-endpoint: https://nix-cache.plexuz.xyz
-          attic-cache: ${{ secrets.ATTIC_CACHE }}
-          attic-token: ${{ secrets.ATTIC_TOKEN }}
           niks3-server-url: https://niks.plexuz.xyz
-          skip-push: false
           nothing-but-nix: false
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
