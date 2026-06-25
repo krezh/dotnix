@@ -87,3 +87,4 @@ runs:
       with:
         server-url: ${{ inputs.niks3-server-url }}
         skip-push: ${{ inputs.skip-push }}
+        debug: "true"
