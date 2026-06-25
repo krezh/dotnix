@@ -83,7 +83,7 @@ runs:
 
     - name: Setup Niks3
       if: inputs.skip-cache != 'true' && inputs.niks3-server-url != ''
-      uses: Mic92/niks3-action@v1
+      uses: Mic92/niks3-action@a3da573cc4d21634990e5f21391abe55ed49ec46 # v1
       with:
         server-url: ${{ inputs.niks3-server-url }}
         skip-push: ${{ inputs.skip-push }}
