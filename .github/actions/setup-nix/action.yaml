@@ -36,6 +36,10 @@ inputs:
     description: Enable nothing-but-nix mode (uses /nix/build as build directory)
     required: false
     default: "true"
+  niks3-server-url:
+    description: niks3 server URL
+    required: false
+    default: ""
   github-token:
     description: GitHub token for private repository access
     required: false
@@ -76,3 +80,10 @@ runs:
         endpoint: ${{ inputs.attic-endpoint }}
         cache: ${{ inputs.attic-cache }}
         token: ${{ inputs.attic-token }}
+
+    - name: Setup Niks3
+      if: inputs.skip-cache != 'true' && inputs.niks3-server-url != ''
+      uses: Mic92/niks3-action@v1
+      with:
+        server-url: ${{ inputs.niks3-server-url }}
+        skip-push: ${{ inputs.skip-push }}

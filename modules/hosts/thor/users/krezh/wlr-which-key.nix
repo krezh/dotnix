@@ -1,6 +1,11 @@
 {
   flake.modules.nixos.thor =
-    { lib, config, ... }:
+    {
+      lib,
+      config,
+      pkgs,
+      ...
+    }:
     let
       user = "krezh";
     in
@@ -28,6 +33,11 @@
                 key = "z";
                 desc = "Zen";
                 cmd = lib.getExe config.home-manager.users.${user}.programs.zen-browser.package;
+              }
+              {
+                key = "b";
+                desc = "Brave";
+                cmd = lib.getExe pkgs.brave;
               }
             ];
           };

@@ -46,7 +46,10 @@
 
       autostart.apps.vesktop = {
         exec = "${pkgs.vesktop}/bin/vesktop";
-        after = [ "network-online.target" ];
+        after = [
+          "network-online.target"
+          "arRPC.service"
+        ];
         wants = [ "network-online.target" ];
         delay = 2;
       };
@@ -61,6 +64,7 @@
           After = [ "network-online.target" ];
           Wants = [ "network-online.target" ];
         };
+        Service.RestartSec = "5";
       };
     };
 }

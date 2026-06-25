@@ -32,6 +32,7 @@ jobs:
           attic-endpoint: https://nix-cache.plexuz.xyz
           attic-cache: ${{ secrets.ATTIC_CACHE }}
           attic-token: ${{ secrets.ATTIC_TOKEN }}
+          niks3-server-url: https://niks.plexuz.xyz
           skip-cache: ${{ github.event.pull_request.head.repo.fork }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
 

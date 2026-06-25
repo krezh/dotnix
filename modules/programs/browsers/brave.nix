@@ -2,6 +2,6 @@
   flake.modules.homeManager.browsers =
     { pkgs, ... }:
     {
-      home.packages = [ pkgs.vivaldi ];
+      home.packages = [ pkgs.brave ];
     };
 }
