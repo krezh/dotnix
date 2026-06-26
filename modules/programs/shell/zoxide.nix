@@ -4,7 +4,6 @@
       enable = true;
       enableFishIntegration = true;
       enableBashIntegration = true;
-      options = [ "--cmd cd" ];
     };
   };
 }

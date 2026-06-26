@@ -57,7 +57,6 @@
         interactiveShellInit = ''
           ${lib.getExe pkgs.fastfetch}
           ${lib.getExe pkgs.nix-your-shell} fish | source
-          ${lib.getExe pkgs.devenv} hook fish | source
         '';
       };
     };

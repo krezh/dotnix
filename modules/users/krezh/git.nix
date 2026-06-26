@@ -153,7 +153,7 @@
           options.display = "inline";
           git = {
             enable = true;
-            diffToolMode = true;
+            mode = "both";
           };
         };
       };

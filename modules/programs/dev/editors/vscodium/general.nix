@@ -29,7 +29,7 @@
           "jjx.jjx"
           # "jjk.jjk"
           # "visualjj.visualjj"
-          "datakurre.devenv"
+          "mkhl.direnv"
         ];
 
         catppuccin.vscode = {
