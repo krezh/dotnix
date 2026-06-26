@@ -66,6 +66,11 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
+    niks3 = {
+      url = "git+https://github.com/Mic92/niks3?shallow=1";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
     nvf = {
       url = "git+https://github.com/notashelf/nvf?shallow=1";
       inputs.nixpkgs.follows = "nixpkgs";

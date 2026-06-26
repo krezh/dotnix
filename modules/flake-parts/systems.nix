@@ -3,7 +3,10 @@ let
   ciHosts = lib.filterAttrs (_name: config: (config.ci or true)) self.nixosConfigurations;
 in
 {
-  systems = [ "x86_64-linux" "x86_64-darwin" ];
+  systems = [
+    "x86_64-linux"
+    "x86_64-darwin"
+  ];
   flake = {
     hosts = lib.mapAttrs (_name: config: config.config.system.build.toplevel) ciHosts;
     ci = {
