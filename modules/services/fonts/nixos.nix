@@ -49,7 +49,6 @@
           corefonts
           gyre-fonts
           dejavu_fonts
-          cantarell-fonts
           source-code-pro
           source-sans-pro
           source-serif-pro
@@ -61,8 +60,6 @@
           liberation_ttf
           dina-font
           proggyfonts
-          inter
-          inter-nerdfont
           rubik
           nerd-fonts.jetbrains-mono
           nerd-fonts.caskaydia-cove
