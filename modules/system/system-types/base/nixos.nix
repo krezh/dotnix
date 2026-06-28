@@ -48,12 +48,12 @@
             "cgroups"
           ];
           extra-substituters = [
-            "https://nix-cache.plexuz.xyz/krezh"
+            # "https://nix-cache.plexuz.xyz/krezh"
             "https://niks.plexuz.xyz"
             "https://nix-community.cachix.org"
           ];
           extra-trusted-public-keys = [
-            "krezh:GBrZyWDPWYTg/9a9Vad/NRQF/1w0Yc1kWXOQXM3d0RQ="
+            # "krezh:GBrZyWDPWYTg/9a9Vad/NRQF/1w0Yc1kWXOQXM3d0RQ="
             "niks.plexuz.xyz-1:dBHlH3p4D7VL2bEW3csdOtJ/X3HTWiCUapJfua48DMg="
             "nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs="
           ];

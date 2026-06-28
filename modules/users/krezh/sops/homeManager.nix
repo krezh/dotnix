@@ -22,6 +22,7 @@
           "r2/accessSecret" = { };
           "hetzner/accessID" = { };
           "hetzner/accessSecret" = { };
+          "niks3/token".path = "${config.xdg.configHome}/niks3/auth-token";
         };
       };
       home.sessionVariables = {

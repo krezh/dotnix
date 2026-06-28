@@ -40,6 +40,13 @@ jobs:
           target: ${{ matrix.target }}
           build-type: package
 
+      - name: niks3 upload log
+        if: always()
+        shell: bash
+        run: |
+          log="${RUNNER_TEMP}/niks3/daemon.log"
+          [[ -f "$log" ]] && cat "$log" || echo "(no niks3 daemon log)"
+
       - name: Output build failure
         if: failure()
         id: output-failure
