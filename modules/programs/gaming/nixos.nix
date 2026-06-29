@@ -24,6 +24,7 @@
           faugus-launcher
           me3
           low-latency-layer
+          optiman
         ];
       };
 
@@ -78,6 +79,7 @@
               PROTON_ENABLE_WAYLAND = 1;
               WINE_VK_VULKAN_ONLY = 1;
               PROTON_FSR4_UPGRADE = "4.1.0";
+              LOW_LATENCY_LAYER = 1;
             };
           };
           remotePlay.openFirewall = true;
@@ -166,8 +168,8 @@
                     env = { };
                   };
                 };
-                toxic-commando = {
-                  id = 2157830;
+                avowed = {
+                  id = 2457220;
                   compatTool = defaultCompatTool;
                   launchOptions = {
                     wrappers = [ "gamemoderun" ];
@@ -182,14 +184,6 @@
                     env = {
                       LSFG_PROCESS = "Default";
                     };
-                  };
-                };
-                elite-dangerous = {
-                  id = 359320;
-                  compatTool = defaultCompatTool;
-                  launchOptions = {
-                    wrappers = [ "gamemoderun" ];
-                    env = { };
                   };
                 };
                 sekiro = {

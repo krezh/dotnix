@@ -110,7 +110,7 @@ fast-build-pr pr:
     #!/usr/bin/env bash
     set -euo pipefail
     nix run nixpkgs#nix-fast-build -- \
-      --skip-cached --option fallback true --flake "github:krezh/dotnix/pull/{{ pr }}/head#hosts"
+      --skip-cached --option fallback true --flake "github:krezh/dotnix/pull/{{ pr }}/head#ci"
 
 # Build all hosts
 [no-cd]
@@ -118,7 +118,7 @@ fast-build args:
     #!/usr/bin/env bash
     set -euo pipefail
     nix run nixpkgs#nix-fast-build -- \
-      --skip-cached --option fallback true --flake ".#hosts" {{ args }}
+      --skip-cached --option fallback true --flake ".#ci" {{ args }}
 
 # Initialize a new nix package
 [no-cd]

@@ -21,7 +21,7 @@ const EMPTY: char = '\u{2591}';
 
 /// Renders a block progress bar of the given character length.
 fn bar(pct: f64, length: usize) -> String {
-    let filled = ((pct / 100.0) * length as f64) as usize;
+    let filled = ((pct / 100.0) * length as f64).round() as usize;
     let filled = filled.min(length);
     std::iter::repeat(FILLED)
         .take(filled)
@@ -68,49 +68,93 @@ fn color_ctx(pct: Option<f64>) -> String {
     }
 }
 
-/// Formats a unix timestamp as "Day HH:MM" in local time using the system `date` command.
-fn format_reset_ts(reset_ts: u64) -> String {
-    let now = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|d| d.as_secs())
-        .unwrap_or(0);
-
+/// Formats a unix timestamp as "Day HH:MM" in local time, or as an "MM:SS" countdown
+/// when less than an hour remains. `now` and `today` (local `%Y-%m-%d`) are passed in
+/// so callers can share a single clock read / `date` call across multiple timestamps.
+fn format_reset_ts_at(reset_ts: u64, now: u64, today: &str) -> String {
     if reset_ts <= now {
         return format!("{GREEN}now{RESET}");
     }
 
-    let today = Command::new("date")
-        .args(["+%Y-%m-%d"])
-        .output()
-        .ok()
-        .and_then(|o| if o.status.success() { Some(o) } else { None })
-        .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
-        .unwrap_or_default();
+    let remaining = reset_ts - now;
+    if remaining < 3600 {
+        let minutes = remaining / 60;
+        let seconds = remaining % 60;
+        return format!("{CYAN}{minutes:02}:{seconds:02}{RESET}");
+    }
 
-    let reset_day = Command::new("date")
-        .args(["-d", &format!("@{reset_ts}"), "+%Y-%m-%d"])
-        .output()
-        .ok()
-        .and_then(|o| if o.status.success() { Some(o) } else { None })
-        .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
-        .unwrap_or_default();
-
-    let fmt = if reset_day == today {
-        "+%H:%M"
-    } else {
-        "+%a %H:%M"
-    };
-
+    // Single `date` call yielding "YYYY-MM-DD Day HH:MM"; the day prefix is only
+    // used to decide whether to drop the weekday from the displayed portion.
     let result = Command::new("date")
-        .args(["-d", &format!("@{reset_ts}"), fmt])
+        .args(["-d", &format!("@{reset_ts}"), "+%Y-%m-%d %a %H:%M"])
         .output()
         .ok()
         .and_then(|o| if o.status.success() { Some(o) } else { None })
         .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string());
 
     match result {
-        Some(s) => format!("{CYAN}{s}{RESET}"),
+        Some(s) => {
+            let (day, rest) = s.split_once(' ').unwrap_or((s.as_str(), ""));
+            let display = if day == today {
+                rest.split_once(' ').map(|(_, hm)| hm).unwrap_or(rest)
+            } else {
+                rest
+            };
+            format!("{CYAN}{display}{RESET}")
+        }
         None => format!("{CYAN}?{RESET}"),
+    }
+}
+
+/// Reads the current local date as `%Y-%m-%d` via the system `date` command.
+fn local_today() -> String {
+    Command::new("date")
+        .args(["+%Y-%m-%d"])
+        .output()
+        .ok()
+        .and_then(|o| if o.status.success() { Some(o) } else { None })
+        .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
+        .unwrap_or_default()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn reset_in_the_past_shows_now() {
+        assert_eq!(format_reset_ts_at(100, 200, "2026-01-01"), format!("{GREEN}now{RESET}"));
+    }
+
+    #[test]
+    fn reset_equal_to_now_shows_now() {
+        assert_eq!(format_reset_ts_at(200, 200, "2026-01-01"), format!("{GREEN}now{RESET}"));
+    }
+
+    #[test]
+    fn under_an_hour_counts_down_minutes_and_seconds() {
+        // 65 seconds remaining -> 01:05
+        assert_eq!(
+            format_reset_ts_at(1065, 1000, "2026-01-01"),
+            format!("{CYAN}01:05{RESET}")
+        );
+    }
+
+    #[test]
+    fn just_under_the_hour_boundary_still_counts_down() {
+        // 3599 seconds remaining -> 59:59
+        assert_eq!(
+            format_reset_ts_at(4599, 1000, "2026-01-01"),
+            format!("{CYAN}59:59{RESET}")
+        );
+    }
+
+    #[test]
+    fn one_second_countdown_pads_to_two_digits() {
+        assert_eq!(
+            format_reset_ts_at(1001, 1000, "2026-01-01"),
+            format!("{CYAN}00:01{RESET}")
+        );
     }
 }
 
@@ -532,8 +576,19 @@ fn main() {
     let sd_pct = sd["used_percentage"].as_f64();
     let sd_reset = sd["resets_at"].as_u64();
 
+    let now = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
+    // Shared across both reset timestamps so we shell out to `date` at most once for it.
+    let today = if fh_reset.is_some() || sd_reset.is_some() {
+        Some(local_today())
+    } else {
+        None
+    };
+
     let fh_reset_str = fh_reset
-        .map(|ts| format!(" {}", format_reset_ts(ts)))
+        .map(|ts| format!(" {}", format_reset_ts_at(ts, now, today.as_deref().unwrap_or(""))))
         .unwrap_or_default();
     parts.push(format!(
         "{BOLD}5h:{RESET} {}{fh_reset_str}",
@@ -541,7 +596,7 @@ fn main() {
     ));
 
     let sd_reset_str = sd_reset
-        .map(|ts| format!(" {}", format_reset_ts(ts)))
+        .map(|ts| format!(" {}", format_reset_ts_at(ts, now, today.as_deref().unwrap_or(""))))
         .unwrap_or_default();
     parts.push(format!(
         "{BOLD}7d:{RESET} {}{sd_reset_str}",

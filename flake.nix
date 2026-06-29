@@ -219,6 +219,12 @@
       url = "git+https://github.com/Mic92/fast-nix-gc?shallow=1";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+
+    hyprland-scroll-overview = {
+      url = "git+https://github.com/yayuuu/hyprland-scroll-overview?shallow=1";
+      flake = false;
+    };
+
   };
 
   outputs =

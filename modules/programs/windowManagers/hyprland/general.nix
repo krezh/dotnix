@@ -16,7 +16,9 @@
           enableXdgAutostart = false;
           variables = [ "--all" ];
         };
-        plugins = [ ];
+        plugins = [
+          pkgs.hyprland-scroll-overview
+        ];
 
         settings = {
           config = {
@@ -41,7 +43,7 @@
             };
 
             general = {
-              layout = "dwindle";
+              layout = "scrolling";
               gaps_in = 5;
               gaps_out = 10;
               border_size = 3;
@@ -107,6 +109,12 @@
             render = {
               direct_scanout = 1;
               new_render_scheduling = true;
+            };
+
+            plugin.scrolloverview = {
+              scale = 0.5;
+              workspace_gap = 20;
+              layout = "vertical";
             };
 
             dwindle = {
@@ -342,7 +350,7 @@
               enabled = true;
               speed = 1;
               spring = "spring_workspace";
-              style = "slide";
+              style = "slidevert";
             }
             {
               leaf = "specialWorkspace";

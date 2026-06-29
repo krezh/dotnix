@@ -45,11 +45,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1778446047,
-        "narHash": "sha256-oQvcadh2BCkrog+SGrG6YffKJrveYpjj3TdQJWaKhaM=",
+        "lastModified": 1782772816,
+        "narHash": "sha256-s9BuFv0mRuZx9C1MF8qPHRdcAK14ONi0A5m6E2wqOoM=",
         "owner": "nix-community",
         "repo": "bun2nix",
-        "rev": "f2bc12af1a6369648aac41041ceeaa0b866599c6",
+        "rev": "5a39d717029e94163ac223aee8d5c9946cafed1c",
         "type": "github"
       },
       "original": {
@@ -509,6 +509,23 @@
         "type": "github"
       }
     },
+    "hyprland-scroll-overview": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1782778708,
+        "narHash": "sha256-cLQ2c5q4T9O6bmlDmYfKOWYxBz4zbxhjJga2KJ4CrVM=",
+        "ref": "refs/heads/main",
+        "rev": "0176785b2e2be124f71f8fcea59f99b96734d1e5",
+        "shallow": true,
+        "type": "git",
+        "url": "https://github.com/yayuuu/hyprland-scroll-overview"
+      },
+      "original": {
+        "shallow": true,
+        "type": "git",
+        "url": "https://github.com/yayuuu/hyprland-scroll-overview"
+      }
+    },
     "impermanence": {
       "inputs": {
         "home-manager": "home-manager_2",
@@ -618,10 +635,10 @@
         ]
       },
       "locked": {
-        "lastModified": 1782770576,
-        "narHash": "sha256-W0ukINwxa0cRyIVj7bx1cj8IZc8qP3w2veAtdm20R1U=",
+        "lastModified": 1782888034,
+        "narHash": "sha256-bmM+TfnodBmk/95HE/eIoNzRY8b7wRWbcYU3cUvKIZw=",
         "ref": "refs/heads/main",
-        "rev": "b9ed9d791cc71b5f60a285c1e6dd98eaaf24162e",
+        "rev": "2a0d5e87e34cbec74c2df9764eeddf1a655d2046",
         "shallow": true,
         "type": "git",
         "url": "https://github.com/numtide/llm-agents.nix"
@@ -966,6 +983,7 @@
         "hardware": "hardware",
         "helium": "helium",
         "home-manager": "home-manager",
+        "hyprland-scroll-overview": "hyprland-scroll-overview",
         "impermanence": "impermanence",
         "jovian": "jovian",
         "kauth": "kauth",

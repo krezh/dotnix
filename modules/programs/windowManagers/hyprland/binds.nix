@@ -123,7 +123,7 @@
               desc = "Mail Client";
             };
             "${mainModShift} + R" = {
-              rule = exec "hyprctl reload && notify-send --transient -u low 'Hyprland' 'Config Reloaded'";
+              rule = exec "hyprctl reload && hyprctl notify 5 2000 'rgb(89b4fa)' 'Config Reloaded'";
               desc = "Reload Hyprland config";
             };
             "${mainMod} + A" = {
@@ -133,6 +133,11 @@
             "${mainMod} + S" = {
               rule = exec screenshot.run;
               desc = "Screenshot menu";
+            };
+
+            "${mainMod} + TAB" = {
+              rule = mkInline ''hl.plugin.scrolloverview.overview("toggle")'';
+              desc = "Toggle scroll overview";
             };
 
             # Window management

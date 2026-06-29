@@ -1,9 +1,6 @@
-mod cache;
 mod downloader;
-mod github;
-mod installer;
+mod manager;
+pub mod github;
 
-pub use cache::Cache;
-pub use downloader::Downloader;
-pub use github::{Asset, GitHubClient, Release};
-pub use installer::Installer;
+pub use github::{GitHubClient, Release};
+pub use manager::Manager;
