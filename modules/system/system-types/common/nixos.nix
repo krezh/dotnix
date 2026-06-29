@@ -90,7 +90,6 @@
         nix-tree
         nixos-anywhere
         attic-client
-        niks3
         nix-fast-build
         nix-eval-jobs
         inputs.go-overlay.packages.${pkgs.stdenv.hostPlatform.system}.govendor

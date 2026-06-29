@@ -15,7 +15,6 @@
         hyprland
         docker
         wooting
-        niks3
         inputs.silentSDDM.nixosModules.default
       ];
 

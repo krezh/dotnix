@@ -2,13 +2,11 @@
   description = "Krezh's NixOS Flake";
   nixConfig = {
     extra-trusted-substituters = [
-      # "https://nix-cache.plexuz.xyz/krezh"
-      "https://niks3-s3.plexuz.xyz"
+      "https://nix-cache.plexuz.xyz/krezh"
       "https://nix-community.cachix.org"
     ];
     extra-trusted-public-keys = [
-      # "krezh:GBrZyWDPWYTg/9a9Vad/NRQF/1w0Yc1kWXOQXM3d0RQ="
-      "niks.plexuz.xyz-1:dBHlH3p4D7VL2bEW3csdOtJ/X3HTWiCUapJfua48DMg="
+      "krezh:GBrZyWDPWYTg/9a9Vad/NRQF/1w0Yc1kWXOQXM3d0RQ="
       "nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs="
     ];
   };
@@ -63,11 +61,6 @@
 
     sops-nix = {
       url = "git+https://github.com/Mic92/sops-nix?shallow=1";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-
-    niks3 = {
-      url = "git+https://github.com/Mic92/niks3?shallow=1";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 

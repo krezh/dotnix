@@ -28,8 +28,9 @@ jobs:
       - name: Setup Nix
         uses: ./.github/actions/setup-nix
         with:
-          niks3-server-url: https://niks.plexuz.xyz
-          niks3-substituter-url: https://niks3-s3.plexuz.xyz
+          attic-endpoint: https://nix-cache.plexuz.xyz
+          attic-cache: ${{ secrets.ATTIC_CACHE }}
+          attic-token: ${{ secrets.ATTIC_TOKEN }}
           skip-cache: ${{ github.event.pull_request.head.repo.fork }}
           nothing-but-nix: false
           github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -40,13 +41,6 @@ jobs:
         with:
           target: ${{ matrix.target }}
           build-type: package
-
-      - name: niks3 upload log
-        if: always()
-        shell: bash
-        run: |
-          log="${RUNNER_TEMP}/niks3/daemon.log"
-          [[ -f "$log" ]] && cat "$log" || echo "(no niks3 daemon log)"
 
       - name: Output build failure
         if: failure()
