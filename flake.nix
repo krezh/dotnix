@@ -3,7 +3,7 @@
   nixConfig = {
     extra-trusted-substituters = [
       # "https://nix-cache.plexuz.xyz/krezh"
-      "https://niks.plexuz.xyz"
+      "https://niks3-s3.plexuz.xyz"
       "https://nix-community.cachix.org"
     ];
     extra-trusted-public-keys = [
