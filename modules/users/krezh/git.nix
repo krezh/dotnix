@@ -63,9 +63,11 @@
               ];
               pager = "less -FRX";
             };
-            git.push-bookmark-prefix = "krezh/push-";
-            git.colocate = true;
-            git.track-default-bookmark-on-clone = true;
+            git = {
+              push-bookmark-prefix = "krezh/push-";
+              colocate = true;
+              track-default-bookmark-on-clone = true;
+            };
             aliases = {
               bs = [
                 "bookmark"

@@ -8,6 +8,7 @@
       ...
     }:
     {
+      imports = [ inputs.fast-nix-gc.nixosModules.default ];
       nixpkgs = {
         config.allowUnfree = true;
         overlays = [ inputs.self.overlays.default ];
@@ -56,16 +57,20 @@
             "nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs="
           ];
         };
-        gc = {
-          automatic = true;
-          dates = lib.mkDefault "weekly";
-        };
+        gc.automatic = false;
         channel.enable = lib.mkForce false;
-        registry = lib.mapAttrs (_: value: { flake = value; }) (
-          lib.filterAttrs (name: _: name != "self") inputs
-        );
-        nixPath = lib.mkForce [ "nixpkgs=${inputs.nixpkgs}" ];
       };
+
+      services.fast-nix-gc = {
+        enable = true;
+        automatic = true;
+        dates = lib.mkDefault "weekly";
+      };
+
+      nix.registry = lib.mapAttrs (_: value: { flake = value; }) (
+        lib.filterAttrs (name: _: name != "self") inputs
+      );
+      nix.nixPath = lib.mkForce [ "nixpkgs=${inputs.nixpkgs}" ];
 
       time.timeZone = "Europe/Stockholm";
 

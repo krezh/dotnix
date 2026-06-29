@@ -15,9 +15,28 @@
     nixpkgs.url = "git+https://github.com/NixOS/nixpkgs?ref=nixos-unstable&shallow=1";
     hardware.url = "git+https://github.com/nixos/nixos-hardware?shallow=1";
     flake-parts.url = "git+https://github.com/hercules-ci/flake-parts?shallow=1";
+    systems.url = "github:nix-systems/default";
+    systems-linux.url = "github:nix-systems/default-linux";
+    gitignore = {
+      url = "git+https://github.com/hercules-ci/gitignore.nix?shallow=1";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+    git-hooks = {
+      url = "git+https://github.com/cachix/git-hooks.nix?shallow=1";
+      inputs = {
+        nixpkgs.follows = "nixpkgs";
+        gitignore.follows = "gitignore";
+        flake-compat.follows = "flake-compat";
+      };
+    };
+    flake-compat.url = "git+https://github.com/NixOS/flake-compat?shallow=1";
     nix-cachyos-kernel = {
       url = "git+https://github.com/xddxdd/nix-cachyos-kernel?shallow=1";
-      inputs.nixpkgs.follows = "nixpkgs";
+      inputs = {
+        nixpkgs.follows = "nixpkgs";
+        flake-parts.follows = "flake-parts";
+        flake-compat.follows = "flake-compat";
+      };
     };
 
     lanzaboote = {
@@ -66,7 +85,11 @@
 
     nvf = {
       url = "git+https://github.com/notashelf/nvf?shallow=1";
-      inputs.nixpkgs.follows = "nixpkgs";
+      inputs = {
+        nixpkgs.follows = "nixpkgs";
+        flake-parts.follows = "flake-parts";
+        systems.follows = "systems";
+      };
     };
 
     nixos-wsl = {
@@ -76,8 +99,10 @@
 
     zen-browser = {
       url = "git+https://github.com/0xc000022070/zen-browser-flake?shallow=1";
-      inputs.nixpkgs.follows = "nixpkgs";
-      inputs.home-manager.follows = "home-manager";
+      inputs = {
+        nixpkgs.follows = "nixpkgs";
+        home-manager.follows = "home-manager";
+      };
     };
 
     zen-browser-catppuccin = {
@@ -92,12 +117,21 @@
 
     nix-gaming = {
       url = "git+https://github.com/fufexan/nix-gaming?shallow=1";
-      inputs.nixpkgs.follows = "nixpkgs";
+      inputs = {
+        nixpkgs.follows = "nixpkgs";
+        flake-parts.follows = "flake-parts";
+        git-hooks.follows = "git-hooks";
+        flake-compat.follows = "flake-compat";
+      };
     };
 
     steam-config-nix = {
       url = "git+https://github.com/different-name/steam-config-nix?shallow=1";
-      inputs.nixpkgs.follows = "nixpkgs";
+      inputs = {
+        nixpkgs.follows = "nixpkgs";
+        flake-parts.follows = "flake-parts";
+        systems.follows = "systems";
+      };
     };
 
     jovian = {
@@ -107,23 +141,35 @@
 
     elephant = {
       url = "git+https://github.com/abenz1267/elephant?shallow=1";
-      inputs.nixpkgs.follows = "nixpkgs";
+      inputs = {
+        nixpkgs.follows = "nixpkgs";
+        systems.follows = "systems-linux";
+      };
     };
 
     walker = {
       url = "git+https://github.com/abenz1267/walker?shallow=1";
-      inputs.nixpkgs.follows = "nixpkgs";
-      inputs.elephant.follows = "elephant";
+      inputs = {
+        nixpkgs.follows = "nixpkgs";
+        elephant.follows = "elephant";
+        systems.follows = "systems-linux";
+      };
     };
 
     kauth = {
       url = "git+https://github.com/krezh/kauth?shallow=1";
-      inputs.nixpkgs.follows = "nixpkgs";
+      inputs = {
+        nixpkgs.follows = "nixpkgs";
+        go-overlay.follows = "go-overlay";
+      };
     };
 
     go-overlay = {
       url = "git+https://github.com/purpleclay/go-overlay?shallow=1";
-      inputs.nixpkgs.follows = "nixpkgs";
+      inputs = {
+        nixpkgs.follows = "nixpkgs";
+        git-hooks.follows = "git-hooks";
+      };
     };
 
     noctalia = {
@@ -140,13 +186,20 @@
 
     llm-agents-nix = {
       url = "git+https://github.com/numtide/llm-agents.nix?shallow=1";
-      inputs.nixpkgs.follows = "nixpkgs";
-      inputs.treefmt-nix.follows = "treefmt-nix";
+      inputs = {
+        nixpkgs.follows = "nixpkgs";
+        treefmt-nix.follows = "treefmt-nix";
+        flake-parts.follows = "flake-parts";
+        systems.follows = "systems";
+      };
     };
 
     nix4vscode = {
       url = "git+https://github.com/nix-community/nix4vscode?shallow=1";
-      inputs.nixpkgs.follows = "nixpkgs";
+      inputs = {
+        nixpkgs.follows = "nixpkgs";
+        systems.follows = "systems";
+      };
     };
 
     silentSDDM = {
@@ -156,6 +209,14 @@
 
     spicetify-nix = {
       url = "git+https://github.com/Gerg-L/spicetify-nix?shallow=1";
+      inputs = {
+        nixpkgs.follows = "nixpkgs";
+        systems.follows = "systems";
+      };
+    };
+
+    fast-nix-gc = {
+      url = "git+https://github.com/Mic92/fast-nix-gc?shallow=1";
       inputs.nixpkgs.follows = "nixpkgs";
     };
   };
