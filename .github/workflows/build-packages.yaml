@@ -29,6 +29,7 @@ jobs:
         uses: ./.github/actions/setup-nix
         with:
           niks3-server-url: https://niks.plexuz.xyz
+          niks3-substituter-url: https://niks3-s3.plexuz.xyz
           skip-cache: ${{ github.event.pull_request.head.repo.fork }}
           nothing-but-nix: false
           github-token: ${{ secrets.GITHUB_TOKEN }}

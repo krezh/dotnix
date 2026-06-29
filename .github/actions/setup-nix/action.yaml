@@ -40,6 +40,10 @@ inputs:
     description: niks3 server URL
     required: false
     default: ""
+  niks3-substituter-url:
+    description: niks3 substituter URL (overrides the server's configured cache-url)
+    required: false
+    default: ""
   github-token:
     description: GitHub token for private repository access
     required: false
@@ -91,6 +95,7 @@ runs:
       uses: Mic92/niks3-action@12d3e320b2a99b7938f9634bd337cd9fec104609 # v1.1.0
       with:
         server-url: ${{ inputs.niks3-server-url }}
+        substituter: ${{ inputs.niks3-substituter-url }}
         skip-push: ${{ inputs.skip-push }}
         debug: "true"
         niks3-bin: ${{ inputs.nothing-but-nix == 'true' && '/home/runner/.nix-profile/bin/niks3' || '' }}
