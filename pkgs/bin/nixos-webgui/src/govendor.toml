@@ -23,8 +23,8 @@ schema = 3
     hash = "sha256-ujzuJ1ttQgjHQJEij4O/2+I8DZaUVZQCQgA4ysfqulI="
     go = "1.14"
   [mod."github.com/shirou/gopsutil/v4"]
-    version = "v4.26.5"
-    hash = "sha256-ODPWgxRHQqlARId7n9Crvpgiv54YFr96PnqZg+IAWpI="
+    version = "v4.26.6"
+    hash = "sha256-kIvsWsYifL7Lyd1SsvuirHPET0YMYO9RL2fk3e5K0to="
     go = "1.24.0"
     packages = ["github.com/shirou/gopsutil/v4/common", "github.com/shirou/gopsutil/v4/internal/common", "github.com/shirou/gopsutil/v4/net"]
   [mod."github.com/yusufpapurcu/wmi"]
