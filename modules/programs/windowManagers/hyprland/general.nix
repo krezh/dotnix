@@ -18,6 +18,7 @@
         };
         plugins = [
           pkgs.hyprland-scroll-overview
+          pkgs.hyprland-scroll-drag
         ];
 
         settings = {
@@ -115,6 +116,12 @@
               scale = 0.5;
               workspace_gap = 20;
               layout = "vertical";
+            };
+
+            plugin.scrolldrag = {
+              sensitivity = 1.0;
+              deadzone = 8;
+              workspace_switch_threshold = 300;
             };
 
             dwindle = {

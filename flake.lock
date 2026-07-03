@@ -464,6 +464,27 @@
         "url": "https://github.com/cjavad/nixpille-helium"
       }
     },
+    "herdr": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1783287709,
+        "narHash": "sha256-OTkW4Aq2ad2eIh3w6venmLgiEwTLr00K+7ufAicm3TI=",
+        "ref": "refs/heads/master",
+        "rev": "82487675908e986ec3d4996151d952f086140c7f",
+        "shallow": true,
+        "type": "git",
+        "url": "https://github.com/ogulcancelik/herdr"
+      },
+      "original": {
+        "shallow": true,
+        "type": "git",
+        "url": "https://github.com/ogulcancelik/herdr"
+      }
+    },
     "home-manager": {
       "inputs": {
         "nixpkgs": [
@@ -979,6 +1000,7 @@
         "go-overlay": "go-overlay",
         "hardware": "hardware",
         "helium": "helium",
+        "herdr": "herdr",
         "home-manager": "home-manager",
         "hyprland-scroll-overview": "hyprland-scroll-overview",
         "impermanence": "impermanence",

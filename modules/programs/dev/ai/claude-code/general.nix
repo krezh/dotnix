@@ -17,36 +17,33 @@
       programs.claude-code = {
         enable = true;
         package = claudeWrapped;
+        context = ''
+          # Personal preferences
+          - I always run the latest versions of all software (this is a personal habit, not project-specific).
+            When choosing config syntax, APIs, flags, or features, assume the newest release.
+            Don't suggest legacy/older alternatives or hedge about version compatibility unless I ask.
+
+          # Memory
+          - Never read from or write to the built-in file-based auto-memory system (`~/.claude/projects/*/memory/`, `MEMORY.md`).
+            Use the `memini` MCP plugin for all memory operations instead.
+            If memini is unavailable, proceed without persistent memory rather than falling back to the file-based system.
+
+          # Tools
+          - Before assuming a capability isn't available, call the `mcp-tools` MCP server's `find_tool` to search its tool catalog, then `call_tool` to run whatever it finds.
+            Do this proactively, without being asked, whenever a task needs something outside your built-in tools (infra/homelab integrations, etc.).
+        '';
+
         settings = {
           theme = "dark";
-          model = "claude-sonnet-4-6";
+          model = "sonnet";
           verbose = true;
           includeCoAuthoredBy = false;
+          autoMemoryEnabled = false;
 
           statusLine = {
             command = "${pkgs.claude-usage-bar}/bin/claude-usage-bar";
             type = "command";
           };
-
-          # User memory/instructions
-          memory.text = ''
-            # Working relationship
-            - No sycophancy.
-            - Be direct, matter-of-fact, and concise.
-            - Be critical; challenge my reasoning.
-            - Don't include timeline estimates in plans.
-
-            # Tooling
-
-            ## General
-            - Use your Edit tool for changes; Search tool for searching.
-            - Use Mermaid diagrams for complex systems.
-
-            ## Git
-            - When creating git commit messages ALWAYS use [conventional commit style](https://www.conventionalcommits.org/en/v1.0.0/#specification).
-            - When creating pull requests in Github ALWAYS mark them in draft status.
-            - When interacting with Github (pull request actions, comments etc.) ALWAYS prefer using the `gh` CLI over the Github MCP or other actions.
-          '';
 
           enabledPlugins = {
             "typescript-lsp@claude-plugins-official" = true;

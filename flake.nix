@@ -225,6 +225,11 @@
       flake = false;
     };
 
+    herdr = {
+      url = "git+https://github.com/ogulcancelik/herdr?shallow=1";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
   };
 
   outputs =
