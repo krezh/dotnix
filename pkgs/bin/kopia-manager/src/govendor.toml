@@ -4,14 +4,14 @@ schema = 3
 
 [mod]
   [mod."charm.land/bubbles/v2"]
-    version = "v2.1.0"
-    hash = "sha256-2OmqpBrl+taOJzAhVM6OReLmoYRxZOXx9JqFNjQjsPA="
+    version = "v2.1.1"
+    hash = "sha256-y0GRfSVvlxNzOX40GjcYxZdo92RjmHwU43T3ix9+IcU="
     go = "1.25.0"
     packages = ["charm.land/bubbles/v2/progress"]
   [mod."charm.land/bubbletea/v2"]
-    version = "v2.0.2"
-    hash = "sha256-oWZTg8c3uM0oJfibwIGvh0PbBj6ikoxuk+/cZ4Jm924="
-    go = "1.24.2"
+    version = "v2.0.7"
+    hash = "sha256-YOkvKUahFMMytHXr3AAABDifBtHt29930obiu/kx1vA="
+    go = "1.25.0"
     packages = ["charm.land/bubbletea/v2"]
   [mod."charm.land/lipgloss/v2"]
     version = "v2.0.5"
@@ -59,9 +59,9 @@ schema = 3
     go = "1.16"
     packages = ["github.com/charmbracelet/harmonica"]
   [mod."github.com/charmbracelet/ultraviolet"]
-    version = "v0.0.0-20260205113103-524a6607adb8"
-    hash = "sha256-zHe+nAS80nJPgZ4c3mU2HcHA9QL486b0BiyC4FNK3Nk="
-    go = "1.24.2"
+    version = "v0.0.0-20260525132238-948f4557a654"
+    hash = "sha256-V0e1U50upnr+gWvao41MTiLHAbd5wAlt4GD8hiAVZ38="
+    go = "1.25.0"
     packages = ["github.com/charmbracelet/ultraviolet"]
   [mod."github.com/charmbracelet/x/ansi"]
     version = "v0.11.7"
@@ -170,8 +170,8 @@ schema = 3
     go = "1.12"
     packages = ["github.com/lucasb-eyer/go-colorful"]
   [mod."github.com/mattn/go-runewidth"]
-    version = "v0.0.23"
-    hash = "sha256-SmChZ2U1aR8pW3LPhdM7KcVF5TO6VcHgRzBtUXbBWJA="
+    version = "v0.0.24"
+    hash = "sha256-t2uvZkmlTXQCj76p4poI9y82iziJX2lF44UhkLgLN40="
     go = "1.20"
     packages = ["github.com/mattn/go-runewidth"]
   [mod."github.com/muesli/cancelreader"]
