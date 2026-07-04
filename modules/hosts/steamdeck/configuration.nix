@@ -54,7 +54,6 @@ in
           inherit user;
           desktopSession = "gnome";
         };
-        decky-loader.enable = true;
       };
     };
 }
