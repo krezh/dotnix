@@ -1,5 +1,5 @@
 {
-  flake.modules.nixos.docker = {
+  flake.modules.nixos.containers = { ... }: {
     virtualisation.docker = {
       enable = true;
       daemon.settings = {
@@ -11,6 +11,12 @@
         enable = true;
         setSocketVariable = true;
       };
+    };
+    virtualisation.podman = {
+      enable = false;
+      dockerCompat = true;
+      dockerSocket.enable = true;
+      autoPrune.enable = true;
     };
   };
 }

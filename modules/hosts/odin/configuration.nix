@@ -28,7 +28,7 @@ in
         desktop-utils
         openssh
         hyprland
-        docker
+        containers
         inputs.self.modules.nixos.${user}
       ];
 

@@ -24,7 +24,6 @@
           faugus-launcher
           me3
           low-latency-layer
-          optiman
         ];
       };
 
@@ -92,7 +91,7 @@
             in
             {
               enable = true;
-              closeSteam = true;
+              onSteamRunning = "wait";
               inherit defaultCompatTool;
               apps = {
                 eldenring = {

@@ -13,7 +13,7 @@
         openssh
         gaming
         hyprland
-        docker
+        containers
         wooting
         inputs.silentSDDM.nixosModules.default
       ];
