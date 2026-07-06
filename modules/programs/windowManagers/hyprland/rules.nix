@@ -94,6 +94,7 @@
                 "^(chrome)$"
                 "^(vivaldi-stable)$"
                 "^(helium)$"
+                "^(brave-browser)$"
               ];
               media = {
                 class = [

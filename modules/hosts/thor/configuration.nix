@@ -74,6 +74,9 @@
           libsecret
           libgnome-keyring
         ];
+        flatpak = {
+          enable = true;
+        };
 
         # Misc services
         fstrim.enable = true;

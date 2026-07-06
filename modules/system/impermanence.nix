@@ -43,6 +43,7 @@
           "/var/lib/NetworkManager"
           "/var/lib/dbus"
           "/var/lib/docker"
+          "/var/lib/flatpak"
           "/var/log"
           "/root"
           "/tmp"

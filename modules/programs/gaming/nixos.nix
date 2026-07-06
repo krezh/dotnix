@@ -23,7 +23,6 @@
           protonplus
           faugus-launcher
           me3
-          low-latency-layer
         ];
       };
 
@@ -76,9 +75,11 @@
               PROTON_USE_NTSYNC = 1;
               PROTON_USE_WOW64 = 1;
               PROTON_ENABLE_WAYLAND = 1;
-              WINE_VK_VULKAN_ONLY = 1;
               PROTON_FSR4_UPGRADE = "4.1.0";
               LOW_LATENCY_LAYER = 1;
+              PROTON_DISCORD_BRIDGE = 1;
+              # PROTON_USE_OPTISCALER=1
+              # PROTON_OPTISCALER_NAME=<name.dll> to control the DLL that should be injected. Three names are supported for PROTON_OPTISCALER_NAME, dxgi.dll, d3d12.dll and dbghelp.dll and defaults to dxgi.dll unless explictly set.
             };
           };
           remotePlay.openFirewall = true;
