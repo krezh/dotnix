@@ -8,13 +8,13 @@
 (buildGoModule.override { go = go-bin.latestStable; }) (finalAttrs: {
   pname = "lfk";
   # renovate: datasource=github-releases depName=janosmiko/lfk
-  version = "0.15.0";
+  version = "0.15.1";
 
   src = fetchFromGitHub {
     owner = "janosmiko";
     repo = "lfk";
     tag = "v${finalAttrs.version}";
-    hash = "sha256-agXG6lwuiG2LSNOg0U+8awnp7KDhYYsTV6nOc4P6ZN4=";
+    hash = "sha256-ZfqhGOW4fLAnH81XKoI/1PMB5XBm3TO04jBCV1ll184=";
   };
 
   vendorHash = "sha256-WYx/eMArAsiyfEvrBZmTfK2ABxX2X1VQEtDCxC+UyP8=";
