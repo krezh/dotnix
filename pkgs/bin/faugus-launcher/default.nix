@@ -42,6 +42,7 @@ python3Packages.buildPythonApplication (finalAttrs: {
   dependencies = with python3Packages; [
     pillow
     psutil
+    pygame
     pygobject3
     requests
     vdf
@@ -67,6 +68,7 @@ python3Packages.buildPythonApplication (finalAttrs: {
         makePythonPath [
           pillow
           psutil
+          pygame
           pygobject3
           requests
           vdf

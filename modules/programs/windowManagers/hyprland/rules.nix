@@ -123,13 +123,6 @@
                   "Save As"
                   "Library"
                 ];
-                all = [
-                  {
-                    title = "Install";
-                    class = "steam";
-                    modal = true;
-                  }
-                ];
               };
             };
 
