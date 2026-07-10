@@ -31,6 +31,7 @@ pub fn draw_output(
     keybinds: &crate::config::KeybindsConfig,
     mode_select: &crate::config::ModeSelectConfig,
     is_recording: bool,
+    intro_progress: f64,
     qh: &wayland_client::QueueHandle<super::App>,
 ) -> Result<()> {
     if !output_surface.configured {
@@ -78,7 +79,14 @@ pub fn draw_output(
             .frozen_buffer
             .as_ref()
             .map(|img| (img.data.as_slice(), img.stride as i32));
-        renderer.render_mode_select(canvas, frozen_data, keybinds, mode_select, is_recording)?;
+        renderer.render_mode_select(
+            canvas,
+            frozen_data,
+            keybinds,
+            mode_select,
+            is_recording,
+            intro_progress,
+        )?;
 
         std::sync::atomic::fence(std::sync::atomic::Ordering::SeqCst);
         let callback = output_surface.surface.frame(qh, ());

@@ -193,10 +193,7 @@
 
     nix4vscode = {
       url = "git+https://github.com/nix-community/nix4vscode?shallow=1";
-      inputs = {
-        nixpkgs.follows = "nixpkgs";
-        systems.follows = "systems";
-      };
+      inputs.nixpkgs.follows = "nixpkgs";
     };
 
     silentSDDM = {
@@ -226,7 +223,6 @@
       url = "git+https://github.com/ogulcancelik/herdr?shallow=1";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-
   };
 
   outputs =

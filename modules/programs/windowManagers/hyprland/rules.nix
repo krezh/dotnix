@@ -122,6 +122,7 @@
                   "GIMP Crash Debug"
                   "Save As"
                   "Library"
+                  "Select the game's .exe"
                 ];
               };
             };

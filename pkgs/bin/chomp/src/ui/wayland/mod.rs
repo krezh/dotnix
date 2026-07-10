@@ -13,7 +13,11 @@ use smithay_client_toolkit::{
     compositor::CompositorState,
     output::{OutputInfo, OutputState},
     registry::RegistryState,
-    seat::{SeatState, pointer::ThemedPointer},
+    seat::{
+        SeatState,
+        keyboard::Modifiers,
+        pointer::ThemedPointer,
+    },
     shell::wlr_layer::{Anchor, KeyboardInteractivity, Layer, LayerShell},
     shm::{Shm, slot::SlotPool},
 };
@@ -91,6 +95,20 @@ pub struct App {
 
     // True if a wl-screenrec recording is already running when the selector opens
     pub(super) is_recording: bool,
+
+    // Mode-select entrance animation (slide up from bottom + fade).
+    // `intro_progress` is in [0, 1]; 1.0 means the bar is at rest.
+    pub(super) intro_progress: f64,
+    pub(super) intro_start: Option<std::time::Instant>,
+    pub(super) intro_duration: f64,
+    pub(super) intro_done: bool,
+
+    // Set when the capture was triggered with Ctrl held (copy to clipboard
+    // instead of uploading). Returned from `run` to the caller.
+    pub(super) to_clipboard: bool,
+
+    // Current keyboard modifier state (updated via the modifier event).
+    pub(super) modifiers: Modifiers,
 }
 
 // ============================================================================
@@ -100,7 +118,23 @@ pub struct App {
 impl App {
     pub fn run(
         settings: Settings,
-    ) -> Result<(Option<String>, Option<CaptureMode>, Option<CapturedImage>)> {
+    ) -> Result<(
+        Option<String>,
+        Option<CaptureMode>,
+        Option<CapturedImage>,
+        bool,
+    )> {
+        // Only allow one interactive overlay at a time; otherwise the overlays
+        // stack on top of each other. If another instance is already running, exit.
+        let _instance_lock = match utils::ensure_single_instance() {
+            Ok(lock) => lock,
+            Err(e) => {
+                log::warn!("{}", e);
+                eprintln!("chomp is already running; exiting to avoid a stacked overlay");
+                std::process::exit(0);
+            }
+        };
+
         let conn = Connection::connect_to_env().context("Failed to connect to Wayland")?;
         let (globals, mut event_queue) =
             registry_queue_init::<Self>(&conn).context("Failed to init registry")?;
@@ -136,6 +170,8 @@ impl App {
             UiPhase::RegionSelect
         };
 
+        let is_mode_select = settings.mode.is_none();
+
         let is_recording = crate::capture::VideoRecorder::new()
             .is_recording()
             .map(|(r, _)| r)
@@ -165,6 +201,12 @@ impl App {
             chosen_mode: None,
             captured_image: None,
             is_recording,
+            intro_progress: if is_mode_select { 0.0 } else { 1.0 },
+            intro_start: None,
+            intro_duration: 0.22,
+            intro_done: !is_mode_select,
+            to_clipboard: false,
+            modifiers: Modifiers::default(),
         };
 
         event_queue.blocking_dispatch(&mut app)?;
@@ -188,6 +230,24 @@ impl App {
         loop {
             event_loop.dispatch(Some(Duration::from_millis(IDLE_FRAME_TIMEOUT_MS)), &mut app)?;
 
+            // Drive the mode-select slide-up entrance animation.
+            if app.phase == UiPhase::ModeSelect && !app.intro_done {
+                let start = *app
+                    .intro_start
+                    .get_or_insert_with(std::time::Instant::now);
+                let t = (start.elapsed().as_secs_f64() / app.intro_duration).min(1.0);
+                // Ease-out cubic for a snappy settle.
+                app.intro_progress = 1.0 - (1.0 - t).powi(3);
+                app.needs_redraw = true;
+                for s in &mut app.output_surfaces {
+                    s.needs_render = true;
+                }
+                if t >= 1.0 {
+                    app.intro_done = true;
+                    app.intro_progress = 1.0;
+                }
+            }
+
             if app.needs_redraw {
                 app.needs_redraw = false;
                 app.redraw_all(&qh);
@@ -202,7 +262,12 @@ impl App {
             return Err(e);
         }
 
-        Ok((app.selection_geometry, app.chosen_mode, app.captured_image))
+        Ok((
+            app.selection_geometry,
+            app.chosen_mode,
+            app.captured_image,
+            app.to_clipboard,
+        ))
     }
 
     fn create_layer_surfaces(&mut self, qh: &QueueHandle<Self>) -> Result<()> {
@@ -384,6 +449,7 @@ impl App {
             &self.settings.keybinds,
             &self.settings.mode_select,
             self.is_recording,
+            self.intro_progress,
             qh,
         )
     }

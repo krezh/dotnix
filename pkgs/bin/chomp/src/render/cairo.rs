@@ -111,6 +111,10 @@ impl Renderer {
     }
 
     /// Renders the mode selector as a full-width bottom bar.
+    ///
+    /// `intro_progress` drives the slide-up entrance animation: `0.0` places the
+    /// bar fully below the screen, `1.0` places it at its resting position. The
+    /// bar also fades in proportionally to this value.
     pub fn render_mode_select(
         &self,
         buffer: &mut [u8],
@@ -118,6 +122,7 @@ impl Renderer {
         keybinds: &crate::config::KeybindsConfig,
         style: &crate::config::ModeSelectConfig,
         is_recording: bool,
+        intro_progress: f64,
     ) -> Result<()> {
         let stride = self.width * 4;
 
@@ -142,6 +147,10 @@ impl Renderer {
         let bc = &self.config.border_color;
         let screen_w = self.width as f64;
         let screen_h = self.height as f64;
+
+        // Entrance animation: clamp to [0, 1] and ease the bar position/opacity.
+        let intro = intro_progress.clamp(0.0, 1.0);
+        let fade = intro;
 
         // Resolve configurable colors, falling back gracefully on parse error
         let bg_color = Color::from_hex(&style.background_color).unwrap_or(Color {
@@ -175,15 +184,20 @@ impl Renderer {
         });
 
         let bar_h = style.bar_height as f64;
-        let bar_y = screen_h - bar_h;
+        let bar_y = screen_h - bar_h * intro;
 
         // Bar background
-        ctx.set_source_rgba(bg_color.r, bg_color.g, bg_color.b, style.background_opacity);
+        ctx.set_source_rgba(
+            bg_color.r,
+            bg_color.g,
+            bg_color.b,
+            style.background_opacity * fade,
+        );
         ctx.rectangle(0.0, bar_y, screen_w, bar_h);
         ctx.fill()?;
 
         // Top border
-        ctx.set_source_rgba(bc.r, bc.g, bc.b, style.border_opacity);
+        ctx.set_source_rgba(bc.r, bc.g, bc.b, style.border_opacity * fade);
         ctx.set_line_width(1.0);
         ctx.move_to(0.0, bar_y + 0.5);
         ctx.line_to(screen_w, bar_y + 0.5);
@@ -291,12 +305,12 @@ impl Renderer {
                 if is_stop_group {
                     ctx.set_source_rgba(rec_color.r, rec_color.g, rec_color.b, 0.90);
                 } else {
-                    ctx.set_source_rgba(
-                        desc_color.r,
-                        desc_color.g,
-                        desc_color.b,
-                        style.description_opacity,
-                    );
+                ctx.set_source_rgba(
+                    desc_color.r,
+                    desc_color.g,
+                    desc_color.b,
+                    style.description_opacity * fade,
+                );
                 }
                 ctx.move_to(x, text_y);
                 ctx.show_text(desc)?;
@@ -313,7 +327,7 @@ impl Renderer {
                 x += sep_pad;
                 let sep_h = bar_h * 0.45;
                 let sep_y = bar_y + (bar_h - sep_h) / 2.0;
-                ctx.set_source_rgba(1.0, 1.0, 1.0, style.separator_opacity);
+                ctx.set_source_rgba(1.0, 1.0, 1.0, style.separator_opacity * fade);
                 ctx.set_line_width(1.0);
                 ctx.move_to(x + 0.5, sep_y);
                 ctx.line_to(x + 0.5, sep_y + sep_h);

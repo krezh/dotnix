@@ -60,6 +60,10 @@ pub struct Args {
     #[arg(short = 'a', long)]
     pub annotate: bool,
 
+    /// Copy the capture to the clipboard instead of uploading it
+    #[arg(short = 'c', long)]
+    pub clipboard: bool,
+
     /// Path to the satty binary (overrides config)
     #[arg(long)]
     pub satty_path: Option<String>,
@@ -122,6 +126,7 @@ pub struct Settings {
     pub freeze: bool,
     pub ocr: bool,
     pub annotate: bool,
+    pub clipboard: bool,
     pub satty_path: String,
     pub output: Option<String>,
     pub mode: Option<CaptureMode>,
@@ -149,6 +154,7 @@ impl Args {
             freeze: self.freeze.unwrap_or(config.display.freeze),
             ocr: self.ocr,
             annotate: self.annotate,
+            clipboard: self.clipboard,
             satty_path: self.satty_path.unwrap_or(config.annotate.satty_path),
             output: self.output,
             mode: self.mode,

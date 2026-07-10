@@ -94,13 +94,15 @@
             };
           };
 
-          plugin = [
-            "opentmux"
-            "@mohak34/opencode-notifier@latest"
-          ];
+          plugin = [ ];
 
           # MCP server configuration
           mcp = {
+            konflate = {
+              enabled = true;
+              type = "remote";
+              url = "https://konflate.plexuz.xyz/mcp";
+            };
             mcp-tools = {
               enabled = true;
               type = "remote";

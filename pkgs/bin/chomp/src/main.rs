@@ -89,12 +89,12 @@ fn main() -> Result<()> {
         if mode.is_video() {
             return handle_video_mode(&settings, &mode, &notifier, None);
         }
-        return handle_image_mode(&settings, &mode, &notifier, None, None);
+        return handle_image_mode(&settings, &mode, &notifier, None, None, settings.clipboard);
     }
 
     apply_delay(&settings);
 
-    let (selection_geometry, chosen_mode, pre_captured) = ui::App::run(settings.clone())?;
+    let (selection_geometry, chosen_mode, pre_captured, to_clipboard) = ui::App::run(settings.clone())?;
     if let Some(mode) = chosen_mode {
         let notifier = ui::Notifier::new();
         if mode == capture::CaptureMode::StopRecording {
@@ -108,6 +108,7 @@ fn main() -> Result<()> {
                 &notifier,
                 pre_captured,
                 selection_geometry,
+                to_clipboard,
             );
         }
     }
@@ -174,7 +175,7 @@ fn handle_video_mode(
             if let Some(geo) = pre_geometry {
                 (Some(geo), None)
             } else {
-                let (geo, _, _) = ui::App::run(settings.clone())?;
+                let (geo, _, _, _) = ui::App::run(settings.clone())?;
                 let geo = geo.context("Selection cancelled or failed")?;
                 (Some(geo), None)
             }
@@ -221,6 +222,7 @@ fn handle_image_mode(
     notifier: &ui::Notifier,
     pre_captured: Option<capture::CapturedImage>,
     pre_geometry: Option<String>,
+    to_clipboard: bool,
 ) -> Result<()> {
     let output_file = generate_output_path(settings, "png");
 
@@ -258,6 +260,9 @@ fn handle_image_mode(
         if !std::path::Path::new(&output_file).exists() {
             return Ok(());
         }
+        if to_clipboard {
+            return copy_to_clipboard(notifier, &output_file);
+        }
     } else if let Some(img) = pre_captured {
         capture::save_captured_image(img, &output_file)?;
     } else {
@@ -266,6 +271,10 @@ fn handle_image_mode(
     }
 
     log::info!("Screenshot saved to {}", output_file);
+
+    if to_clipboard {
+        return copy_to_clipboard(notifier, &output_file);
+    }
 
     if should_upload(settings) {
         if let Err(e) = upload_file(settings, &output_file, notifier) {
@@ -288,6 +297,21 @@ fn handle_image_mode(
     Ok(())
 }
 
+/// Copies a saved screenshot to the clipboard and notifies the user.
+fn copy_to_clipboard(notifier: &ui::Notifier, output_file: &str) -> Result<()> {
+    match system::copy_image(output_file) {
+        Ok(()) => {
+            notifier.send_success("Screenshot copied to clipboard");
+            println!("Screenshot copied to clipboard: {}", output_file);
+        }
+        Err(e) => {
+            log::error!("Clipboard copy failed: {}", e);
+            notifier.send_error("Clipboard copy failed", Some(&e.to_string()));
+        }
+    }
+    Ok(())
+}
+
 /// Computes the capture rectangle for a non-video, non-pre-captured image mode.
 fn image_capture_rect(
     settings: &Settings,
@@ -299,7 +323,7 @@ fn image_capture_rect(
             if let Some(geo) = pre_geometry {
                 return render::Rect::from_geometry_string(geo);
             }
-            let (geometry, _, _) = ui::App::run(settings.clone())?;
+            let (geometry, _, _, _) = ui::App::run(settings.clone())?;
             let geometry = geometry.context("Selection cancelled or failed")?;
             render::Rect::from_geometry_string(&geometry)
         }

@@ -27,8 +27,8 @@
           "christian-kohler.path-intellisense"
           "gitHub.vscode-pull-request-github"
           "jjx.jjx"
-          # "jjk.jjk"
-          # "visualjj.visualjj"
+          "jj-view.jj-view"
+          "visualjj.visualjj"
           "mkhl.direnv"
         ];
 

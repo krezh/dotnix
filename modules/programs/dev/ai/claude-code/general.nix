@@ -11,7 +11,9 @@
         export MEMINI_MCP_URL=https://memini.plexuz.xyz/mcp
         export MEMINI_TOKEN="$(${infisical} /Kubernetes/DexTek/Memini get MEMINI_API_KEY --plain --telemetry false)"
         exec ${lib.getExe llm-agents-nix.claude-code} "$@"
-      '';
+      '' // {
+        version = lib.getVersion llm-agents-nix.claude-code;
+      };
     in
     {
       programs.claude-code = {

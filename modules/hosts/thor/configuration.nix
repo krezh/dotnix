@@ -86,12 +86,11 @@
           touchpad.accelProfile = "flat";
         };
         timesyncd.servers = [ ];
-
       };
 
       # Boot configuration
       boot = {
-        plymouth.enable = true;
+        plymouth.enable = false;
         kernelPackages = pkgs.cachyosKernels.linuxPackages-cachyos-bore-lto;
         tmp.cleanOnBoot = true;
         kernel.sysctl = {

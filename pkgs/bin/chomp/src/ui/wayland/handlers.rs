@@ -282,6 +282,8 @@ impl KeyboardHandler for App {
             return;
         }
 
+        let ctrl_held = self.modifiers.ctrl;
+
         let kb = self.settings.keybinds.clone();
 
         // OCR: transition to region select without setting a capture mode
@@ -339,6 +341,7 @@ impl KeyboardHandler for App {
         if is_area {
             self.chosen_mode = Some(mode);
             self.settings.mode = Some(mode);
+            self.to_clipboard = ctrl_held && !mode.is_video();
             self.phase = UiPhase::RegionSelect;
             if self.settings.freeze {
                 // Frozen backgrounds are pre-captured at startup before any buffer is
@@ -376,6 +379,7 @@ impl KeyboardHandler for App {
                 }
             }
             self.chosen_mode = Some(mode);
+            self.to_clipboard = ctrl_held && !mode.is_video();
             self.exit = true;
             self.loop_signal.stop();
         }
@@ -397,10 +401,11 @@ impl KeyboardHandler for App {
         _qh: &QueueHandle<Self>,
         _keyboard: &wayland_client::protocol::wl_keyboard::WlKeyboard,
         _serial: u32,
-        _modifiers: Modifiers,
+        modifiers: Modifiers,
         _raw_modifiers: smithay_client_toolkit::seat::keyboard::RawModifiers,
         _layout: u32,
     ) {
+        self.modifiers = modifiers;
     }
 
     fn repeat_key(

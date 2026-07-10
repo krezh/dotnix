@@ -73,6 +73,7 @@
             # MCP servers
             "mcp__ide__*"
             "mcp__plugin_claude-code-home-manager_context7__*"
+            "mcp__plugin_claude-code-home-manager_konflate__*"
             "mcp__plugin_claude-code-home-manager_nixos__*"
             "mcp__plugin_claude-code-home-manager_mcp-tools__*"
 
