@@ -288,7 +288,7 @@ func (sm *SnapshotManager) RestoreSnapshot(snapshotID, targetDir string) error {
 // DeleteSnapshot deletes a specific snapshot or all snapshots if allFlag is true.
 //
 // When allFlag is true, hostname and username optionally filter which snapshots are deleted.
-func (sm *SnapshotManager) DeleteSnapshot(snapshotID string, allFlag bool, hostname, username string) error {
+func (sm *SnapshotManager) DeleteSnapshot(snapshotID string, allFlag bool, hostname, username string, before, after time.Time) error {
 	ctx := context.Background()
 	r, err := sm.km.openRepository(ctx)
 	if err != nil {
@@ -330,6 +330,9 @@ func (sm *SnapshotManager) DeleteSnapshot(snapshotID string, allFlag bool, hostn
 				allSnapshots = append(allSnapshots, snapshots...)
 			}
 
+			// Filter by --before/--after date and time if provided
+			allSnapshots = filterSnapshotsByTime(allSnapshots, before, after)
+
 			if len(allSnapshots) == 0 {
 				ui.Info("No snapshots to delete.")
 				return nil
@@ -337,10 +340,30 @@ func (sm *SnapshotManager) DeleteSnapshot(snapshotID string, allFlag bool, hostn
 
 			ui.Warning("The following snapshots will be deleted:")
 			for _, snap := range allSnapshots {
-				ui.Itemf("- %s (%s)", snap.ID, snap.Source.Path)
+				ui.Itemf("- %s (%s @ %s)", snap.ID, snap.Source.Path, snap.StartTime.ToTime().Format(time.RFC3339))
 			}
 
-			fmt.Print(ui.Prompt("Are you sure you want to delete ALL snapshots? Type 'yes' to confirm: "))
+			var filterParts []string
+			if hostname != "" {
+				filterParts = append(filterParts, fmt.Sprintf("host=%s", hostname))
+			}
+			if username != "" {
+				filterParts = append(filterParts, fmt.Sprintf("user=%s", username))
+			}
+			if !before.IsZero() {
+				filterParts = append(filterParts, fmt.Sprintf("before=%s", before.Format(time.RFC3339)))
+			}
+			if !after.IsZero() {
+				filterParts = append(filterParts, fmt.Sprintf("after=%s", after.Format(time.RFC3339)))
+			}
+			filterDesc := strings.Join(filterParts, ", ")
+			if filterDesc == "" {
+				filterDesc = "ALL snapshots"
+			} else {
+				filterDesc = "snapshots matching: " + filterDesc
+			}
+
+			fmt.Print(ui.Promptf("Are you sure you want to delete %s? Type 'yes' to confirm: ", filterDesc))
 			var input string
 			fmt.Scanln(&input)
 			if input != "yes" {
@@ -474,6 +497,27 @@ func (sm *SnapshotManager) DeleteBackupGroup(backupName string) error {
 
 		return nil
 	})
+}
+
+// filterSnapshotsByTime returns only the snapshots whose start time falls
+// within the [after, before] window. A zero time for either bound means that
+// side of the window is unbounded.
+func filterSnapshotsByTime(snapshots []*snapshot.Manifest, before, after time.Time) []*snapshot.Manifest {
+	if before.IsZero() && after.IsZero() {
+		return snapshots
+	}
+	filtered := make([]*snapshot.Manifest, 0, len(snapshots))
+	for _, snap := range snapshots {
+		t := snap.StartTime.ToTime()
+		if !before.IsZero() && !t.Before(before) {
+			continue
+		}
+		if !after.IsZero() && !t.After(after) {
+			continue
+		}
+		filtered = append(filtered, snap)
+	}
+	return filtered
 }
 
 // extractBackupName extracts the backup name from a snapshot summary

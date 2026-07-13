@@ -52,6 +52,7 @@
           k8s-format
           kubectl-pgo
           talswitcher
+          kopiur
         ];
 
       catppuccin = {

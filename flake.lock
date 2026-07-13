@@ -802,6 +802,36 @@
         "url": "https://github.com/nix-community/nix4vscode"
       }
     },
+    "nixcord": {
+      "inputs": {
+        "flake-compat": [
+          "flake-compat"
+        ],
+        "flake-parts": [
+          "flake-parts"
+        ],
+        "nixpkgs": [
+          "nixpkgs"
+        ],
+        "nixpkgs-nixcord": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1784344906,
+        "narHash": "sha256-aEMNpfC0Tz46TfCXcxD+x4p7+sQO6+Dwacsif0L3hUc=",
+        "ref": "refs/heads/main",
+        "rev": "c1285ad3cd7619bb58069b647086113f7e22597a",
+        "shallow": true,
+        "type": "git",
+        "url": "https://github.com/4evy/nixcord"
+      },
+      "original": {
+        "shallow": true,
+        "type": "git",
+        "url": "https://github.com/4evy/nixcord"
+      }
+    },
     "nixos-wsl": {
       "inputs": {
         "flake-compat": "flake-compat_3",
@@ -979,6 +1009,7 @@
         "nix-gaming": "nix-gaming",
         "nix-index": "nix-index",
         "nix4vscode": "nix4vscode",
+        "nixcord": "nixcord",
         "nixos-wsl": "nixos-wsl",
         "nixpkgs": "nixpkgs_3",
         "noctalia": "noctalia",

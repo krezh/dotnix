@@ -223,6 +223,16 @@
       url = "git+https://github.com/ogulcancelik/herdr?shallow=1";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+
+    nixcord = {
+      url = "git+https://github.com/4evy/nixcord?shallow=1";
+      inputs = {
+        nixpkgs.follows = "nixpkgs";
+        nixpkgs-nixcord.follows = "nixpkgs";
+        flake-parts.follows = "flake-parts";
+        flake-compat.follows = "flake-compat";
+      };
+    };
   };
 
   outputs =

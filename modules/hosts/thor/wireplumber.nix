@@ -7,16 +7,25 @@
         primary = "A50";
         secondary = "Argon Speakers";
       };
+      deviceSettings = {
+        "usb-Generic_USB_Audio-00" = {
+          deviceProps = {
+            "device.profile" = "pro-audio";
+            "device.restore-profile" = false;
+          };
+        };
+      };
       hideNodes = [
-        "alsa_output.usb-Generic_USB_Audio-00.HiFi_5_1__Headphones__sink"
-        "alsa_output.usb-Generic_USB_Audio-00.HiFi_5_1__Speaker__sink"
-        "alsa_input.usb-Generic_USB_Audio-00.HiFi_5_1__Mic2__source"
-        "alsa_input.usb-Generic_USB_Audio-00.HiFi_5_1__Mic1__source"
-        "alsa_input.usb-Generic_USB_Audio-00.HiFi_5_1__Line1__source"
+        "alsa_output.usb-Generic_USB_Audio-00.pro-output-0"
+        "alsa_output.usb-Generic_USB_Audio-00.pro-output-1"
+        "alsa_output.usb-Generic_USB_Audio-00.pro-output-3"
+        "alsa_input.usb-Generic_USB_Audio-00.pro-input-0"
+        "alsa_input.usb-Generic_USB_Audio-00.pro-input-1"
+        "alsa_input.usb-Generic_USB_Audio-00.pro-input-2"
       ];
       renameModules = [
         {
-          nodeName = "alsa_output.usb-Generic_USB_Audio-00.HiFi_5_1__SPDIF__sink";
+          nodeName = "alsa_output.usb-Generic_USB_Audio-00.pro-output-2";
           description = "Argon Speakers";
           nick = "Argon Speakers";
         }

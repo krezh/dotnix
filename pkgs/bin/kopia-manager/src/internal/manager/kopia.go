@@ -1,5 +1,7 @@
 package manager
 
+import "time"
+
 // This file provides backward-compatible wrapper methods for existing code during migration to specialized managers.
 
 func (km *KopiaManager) ListSnapshots(hostname, username string) ([]SnapshotSummary, error) {
@@ -18,8 +20,8 @@ func (km *KopiaManager) RestoreSnapshot(snapshotID, targetDir string) error {
 	return km.Snapshots().RestoreSnapshot(snapshotID, targetDir)
 }
 
-func (km *KopiaManager) DeleteSnapshot(snapshotID string, allFlag bool, hostname, username string) error {
-	return km.Snapshots().DeleteSnapshot(snapshotID, allFlag, hostname, username)
+func (km *KopiaManager) DeleteSnapshot(snapshotID string, allFlag bool, hostname, username string, before, after time.Time) error {
+	return km.Snapshots().DeleteSnapshot(snapshotID, allFlag, hostname, username, before, after)
 }
 
 func (km *KopiaManager) DeleteBackupGroup(backupName string) error {

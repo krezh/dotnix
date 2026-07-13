@@ -5,9 +5,41 @@ import (
 	"os"
 	"sort"
 	"strings"
+	"time"
 
 	"kopia-manager/internal/manager"
 )
+
+// dateTimeLayouts are the accepted layouts for --before/--after flags.
+// Date-only inputs are interpreted as the end of that day (inclusive).
+var dateTimeLayouts = []string{
+	time.RFC3339,
+	"2006-01-02 15:04:05",
+	"2006-01-02T15:04:05",
+	"2006-01-02",
+	"01/02/2006",
+	"01/02/2006 15:04:05",
+}
+
+// ParseDateTime parses a user-supplied date/time string into a time.Time.
+// If only a date is given (no time component), it is expanded to the end of
+// that day so that --before/--after behave inclusively for whole days.
+func ParseDateTime(value string) (time.Time, error) {
+	var lastErr error
+	for _, layout := range dateTimeLayouts {
+		t, err := time.Parse(layout, value)
+		if err != nil {
+			lastErr = err
+			continue
+		}
+		// Date-only layout: no time component was specified.
+		if layout == "2006-01-02" || layout == "01/02/2006" {
+			t = t.Add(24*time.Hour - time.Nanosecond)
+		}
+		return t, nil
+	}
+	return time.Time{}, fmt.Errorf("unrecognized date/time %q (use e.g. 2006-01-02 or 2006-01-02T15:04:05): %w", value, lastErr)
+}
 
 // ExtractBackupName extracts the backup name from a snapshot's description or source path
 func ExtractBackupName(snap manager.SnapshotSummary) string {
