@@ -1,3 +1,4 @@
+use chrono::{Local, TimeZone};
 use std::io::{self, Read};
 use std::path::Path;
 use std::process::Command;
@@ -23,9 +24,8 @@ const EMPTY: char = '\u{2591}';
 fn bar(pct: f64, length: usize) -> String {
     let filled = ((pct / 100.0) * length as f64).round() as usize;
     let filled = filled.min(length);
-    std::iter::repeat(FILLED)
-        .take(filled)
-        .chain(std::iter::repeat(EMPTY).take(length - filled))
+    std::iter::repeat_n(FILLED, filled)
+        .chain(std::iter::repeat_n(EMPTY, length - filled))
         .collect()
 }
 
@@ -83,38 +83,22 @@ fn format_reset_ts_at(reset_ts: u64, now: u64, today: &str) -> String {
         return format!("{CYAN}{minutes:02}:{seconds:02}{RESET}");
     }
 
-    // Single `date` call yielding "YYYY-MM-DD Day HH:MM"; the day prefix is only
-    // used to decide whether to drop the weekday from the displayed portion.
-    let result = Command::new("date")
-        .args(["-d", &format!("@{reset_ts}"), "+%Y-%m-%d %a %H:%M"])
-        .output()
-        .ok()
-        .and_then(|o| if o.status.success() { Some(o) } else { None })
-        .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string());
+    let Some(dt) = Local.timestamp_opt(reset_ts as i64, 0).single() else {
+        return format!("{CYAN}?{RESET}");
+    };
 
-    match result {
-        Some(s) => {
-            let (day, rest) = s.split_once(' ').unwrap_or((s.as_str(), ""));
-            let display = if day == today {
-                rest.split_once(' ').map(|(_, hm)| hm).unwrap_or(rest)
-            } else {
-                rest
-            };
-            format!("{CYAN}{display}{RESET}")
-        }
-        None => format!("{CYAN}?{RESET}"),
-    }
+    let day = dt.format("%Y-%m-%d").to_string();
+    let display = if day == today {
+        dt.format("%H:%M").to_string()
+    } else {
+        dt.format("%a %H:%M").to_string()
+    };
+    format!("{CYAN}{display}{RESET}")
 }
 
-/// Reads the current local date as `%Y-%m-%d` via the system `date` command.
+/// Reads the current local date as `%Y-%m-%d`.
 fn local_today() -> String {
-    Command::new("date")
-        .args(["+%Y-%m-%d"])
-        .output()
-        .ok()
-        .and_then(|o| if o.status.success() { Some(o) } else { None })
-        .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
-        .unwrap_or_default()
+    Local::now().format("%Y-%m-%d").to_string()
 }
 
 #[cfg(test)]
