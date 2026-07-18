@@ -50,12 +50,10 @@
           ];
           extra-substituters = [
             "https://xilo.plexuz.xyz/c/admin/krezh"
-            "https://nix-cache.plexuz.xyz/krezh"
             "https://nix-community.cachix.org"
           ];
           extra-trusted-public-keys = [
             "krezh:orJlBHtC8lGYpXoH6ORLMpBR7zrgfgGIgm1/xT8Lbvs="
-            "krezh:GBrZyWDPWYTg/9a9Vad/NRQF/1w0Yc1kWXOQXM3d0RQ="
             "nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs="
           ];
         };
