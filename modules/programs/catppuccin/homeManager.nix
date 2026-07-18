@@ -10,11 +10,6 @@
       autoEnable = true;
       flavor = "mocha";
       accent = "blue";
-      cursors = {
-        enable = true;
-        flavor = "mocha";
-        accent = "light";
-      };
     };
   };
 }

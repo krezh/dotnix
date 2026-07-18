@@ -2,6 +2,12 @@
   flake.modules.homeManager.gtk-theme =
     { pkgs, config, ... }:
     {
+      catppuccin.cursors = {
+        enable = true;
+        flavor = "mocha";
+        accent = "light";
+      };
+
       home.pointerCursor = {
         enable = true;
         gtk.enable = true;

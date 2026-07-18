@@ -79,7 +79,7 @@
               LOW_LATENCY_LAYER = 1;
               PROTON_DISCORD_BRIDGE = 1;
               MLFG_UPGRADE = 1;
-              PROTON_USE_OPTISCALER = 1;
+              # PROTON_USE_OPTISCALER = 1;
               # PROTON_OPTISCALER_NAME=<name.dll> to control the DLL that should be injected. Three names are supported for PROTON_OPTISCALER_NAME, dxgi.dll, d3d12.dll and dbghelp.dll and defaults to dxgi.dll unless explictly set.
             };
           };
