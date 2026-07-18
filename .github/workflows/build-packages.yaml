@@ -31,6 +31,9 @@ jobs:
           attic-endpoint: https://nix-cache.plexuz.xyz
           attic-cache: ${{ secrets.ATTIC_CACHE }}
           attic-token: ${{ secrets.ATTIC_TOKEN }}
+          xilo-url: https://xilo.plexuz.xyz
+          xilo-cache: ${{ secrets.XILO_CACHE }}
+          xilo-token: ${{ secrets.XILO_TOKEN }}
           skip-cache: ${{ github.event.pull_request.head.repo.fork }}
           nothing-but-nix: false
           github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -41,6 +44,11 @@ jobs:
         with:
           target: ${{ matrix.target }}
           build-type: package
+
+      - name: Push to xilo
+        if: ${{ success() && github.event.pull_request.head.repo.fork != true }}
+        shell: bash
+        run: xilo push ${{ secrets.XILO_CACHE }} ./result
 
       - name: Output build failure
         if: failure()

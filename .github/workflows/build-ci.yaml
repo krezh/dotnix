@@ -47,6 +47,9 @@ jobs:
           attic-endpoint: https://nix-cache.plexuz.xyz
           attic-cache: ${{ secrets.ATTIC_CACHE }}
           attic-token: ${{ secrets.ATTIC_TOKEN }}
+          xilo-url: https://xilo.plexuz.xyz
+          xilo-cache: ${{ secrets.XILO_CACHE }}
+          xilo-token: ${{ secrets.XILO_TOKEN }}
           skip-push: false
           nothing-but-nix: false
           github-token: ${{ secrets.GITHUB_TOKEN }}

@@ -16,6 +16,15 @@ inputs:
   attic-token:
     description: Attic authentication token
     required: false
+  xilo-url:
+    description: xilo cache server base URL
+    required: false
+  xilo-cache:
+    description: xilo cache name
+    required: false
+  xilo-token:
+    description: xilo push/pull token
+    required: false
   skip-cache:
     description: Skip cache setup
     required: false
@@ -76,4 +85,12 @@ runs:
         endpoint: ${{ inputs.attic-endpoint }}
         cache: ${{ inputs.attic-cache }}
         token: ${{ inputs.attic-token }}
+
+    - name: Setup xilo
+      if: inputs.skip-cache != 'true' && inputs.xilo-url != '' && inputs.xilo-cache != '' && inputs.xilo-token != ''
+      uses: stubbedev/xilo@eef4d6d64a36cc5ec5390e997ebb677d16896fe6 # v1.0.9
+      with:
+        url: ${{ inputs.xilo-url }}
+        cache: ${{ inputs.xilo-cache }}
+        token: ${{ inputs.xilo-token }}
 

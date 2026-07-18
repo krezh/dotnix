@@ -93,6 +93,7 @@
         nix-fast-build
         nix-eval-jobs
         inputs.go-overlay.packages.${pkgs.stdenv.hostPlatform.system}.govendor
+        inputs.xilo.packages.${pkgs.stdenv.hostPlatform.system}.default
       ];
 
       programs.nh = {
