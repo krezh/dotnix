@@ -29,9 +29,6 @@ jobs:
       - name: Setup Nix
         uses: ./.github/actions/setup-nix
         with:
-          attic-endpoint: https://nix-cache.plexuz.xyz
-          attic-cache: ${{ secrets.ATTIC_CACHE }}
-          attic-token: ${{ secrets.ATTIC_TOKEN }}
           xilo-url: https://xilo.plexuz.xyz
           xilo-cache: ${{ secrets.XILO_CACHE }}
           xilo-token: ${{ secrets.XILO_TOKEN }}
