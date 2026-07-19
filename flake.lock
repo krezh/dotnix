@@ -36,11 +36,11 @@
     "cachyos-kernel": {
       "flake": false,
       "locked": {
-        "lastModified": 1784183350,
-        "narHash": "sha256-xt95iMq58azqjOaxevf1u8+5iXjB56ofAeSvIpI4z30=",
+        "lastModified": 1784410754,
+        "narHash": "sha256-wdG7xk2ObUqALDhGWN81Xte/Fqhxm7Udk0jN3WdPkCs=",
         "owner": "CachyOS",
         "repo": "linux-cachyos",
-        "rev": "5aeec554010d57edf03e7cad83c174fd945da8b9",
+        "rev": "4e397a4e5a703fc2f905b73eb60e0a772654317b",
         "type": "github"
       },
       "original": {
@@ -465,10 +465,10 @@
         "rust-overlay": "rust-overlay"
       },
       "locked": {
-        "lastModified": 1784408180,
-        "narHash": "sha256-tQl8RIOX8X7VSWH8ZlWms4ZBGDemBKuivhoofSlCuLg=",
+        "lastModified": 1784498136,
+        "narHash": "sha256-7nxRfvOyI0hJ5XoUUS4vcGgBiuyTiCqEWB3AKJHyWT4=",
         "ref": "refs/heads/master",
-        "rev": "a51a15914a5b29155022a1fd589d2bcc6409cadf",
+        "rev": "d30ab1b54f6b6be95a0cb47ddc38da1d5e088700",
         "shallow": true,
         "type": "git",
         "url": "https://github.com/ogulcancelik/herdr"
@@ -486,10 +486,10 @@
         ]
       },
       "locked": {
-        "lastModified": 1784407317,
-        "narHash": "sha256-iZrxHToDJWnvt+5LGAtvuQMTy1NZYlNEKbKaVtBJNcc=",
+        "lastModified": 1784489491,
+        "narHash": "sha256-j9maqjx1T8+ljAVntAdSI5hSGCm77QNZz64JF1rJNu0=",
         "ref": "refs/heads/master",
-        "rev": "39411a8e12a5526d992e65bc7e3dc9a4414d6713",
+        "rev": "3139deb8cafbe73b39b24451255b2fdd3426077e",
         "shallow": true,
         "type": "git",
         "url": "https://github.com/nix-community/home-manager"
@@ -590,10 +590,10 @@
         ]
       },
       "locked": {
-        "lastModified": 1784332841,
-        "narHash": "sha256-2qE3F02hnmcce26gdPBYakW+NRcy1Zt/2ww7182UEng=",
+        "lastModified": 1784419239,
+        "narHash": "sha256-SyqYhvBAYN7CbzIDG7+Fz1bOLwjbgCCjQTHAYrYNCEw=",
         "ref": "refs/heads/main",
-        "rev": "619e847e8e0599d71850b3057b2e600cde83031b",
+        "rev": "6aed4df6b0a08969026aa51c4eb1fef2b6d3404d",
         "shallow": true,
         "type": "git",
         "url": "https://github.com/krezh/kauth"
@@ -646,10 +646,10 @@
         ]
       },
       "locked": {
-        "lastModified": 1784411668,
-        "narHash": "sha256-jeoYF2PCb+NCROl8L0Bn3LZ5mz2jNE6NG5VfuwhKM94=",
+        "lastModified": 1784498290,
+        "narHash": "sha256-XIvywJW1hghA5Y1ovuN7AEP9wjyttV5NNu1coWUTHFU=",
         "ref": "refs/heads/main",
-        "rev": "43f925a1a5d429c7e585b80efea03d9afdc630a0",
+        "rev": "8abc39337d30a76b62c1e3f8d0f339fa5b1ba957",
         "shallow": true,
         "type": "git",
         "url": "https://github.com/numtide/llm-agents.nix"
@@ -690,10 +690,10 @@
         ]
       },
       "locked": {
-        "lastModified": 1784399663,
-        "narHash": "sha256-iy8esxP2PqoQ77w/g7GXDgnKyDotwY6HSvawS91CDHw=",
+        "lastModified": 1784486060,
+        "narHash": "sha256-GhuwfuSx/cyOwhQjWm+jNvDN4jmszyLcG7yYjAmVH2s=",
         "ref": "refs/heads/master",
-        "rev": "cc5bc99baf27245f2644c1fe13f7bac5d3d47865",
+        "rev": "11f291b783318a0d7e412ec782ffc5e112b9c41b",
         "shallow": true,
         "type": "git",
         "url": "https://github.com/xddxdd/nix-cachyos-kernel"
@@ -741,10 +741,10 @@
         ]
       },
       "locked": {
-        "lastModified": 1784343184,
-        "narHash": "sha256-xD2Fxgh6jD0m3v3ijO9+59EFlYIwIlnw8Z/yQpsAukA=",
+        "lastModified": 1784431599,
+        "narHash": "sha256-B80p0N3Uqx4+nMl/rFK/SU+1i3UNkAAMP7TaUk1ug20=",
         "ref": "refs/heads/master",
-        "rev": "ddadbf248cacdd057658d30bd079e589e7c2b750",
+        "rev": "1aef499f40964840bf28c8e5a47ac7e8009a7e7e",
         "shallow": true,
         "type": "git",
         "url": "https://github.com/fufexan/nix-gaming"
@@ -784,10 +784,10 @@
         ]
       },
       "locked": {
-        "lastModified": 1783864904,
-        "narHash": "sha256-BQxN5UMg9FOevAsgBRwPxfxlh51Puj+dNn/8Dsi3sPM=",
+        "lastModified": 1784440659,
+        "narHash": "sha256-Q5kNLlWngt7TaIIZoxDKWMHjiSaNRVqr70FqWCRRfr4=",
         "ref": "refs/heads/main",
-        "rev": "1111b9bc836afb7e31a7014e8d1272de9b1c917d",
+        "rev": "4f8d52a3598b0dc7db7a5e7b419e3edd9d1ecfdb",
         "shallow": true,
         "type": "git",
         "url": "https://github.com/nix-community/nix-index-database"
@@ -806,10 +806,10 @@
         "systems": "systems_2"
       },
       "locked": {
-        "lastModified": 1784343989,
-        "narHash": "sha256-8ox+WWa5P+vLab/k/IuEepFZAi13h/8OhZZgCqpfdzs=",
+        "lastModified": 1784432173,
+        "narHash": "sha256-0JFCt2QYQBL7QmVhbZn6CtUXHve42j8kxmVR5KgWLjM=",
         "ref": "refs/heads/master",
-        "rev": "3f63bd912f75a5ab2cea810f001c4cdc23f54d2d",
+        "rev": "af47d104650eb5f0a4ca770591040eef4dfaaa9c",
         "shallow": true,
         "type": "git",
         "url": "https://github.com/nix-community/nix4vscode"
@@ -836,10 +836,10 @@
         ]
       },
       "locked": {
-        "lastModified": 1784344906,
-        "narHash": "sha256-aEMNpfC0Tz46TfCXcxD+x4p7+sQO6+Dwacsif0L3hUc=",
+        "lastModified": 1784459605,
+        "narHash": "sha256-xHONoLYkzO3Ab8OLRWChCufW+d7tBkFfshd0rrrzrTg=",
         "ref": "refs/heads/main",
-        "rev": "c1285ad3cd7619bb58069b647086113f7e22597a",
+        "rev": "768c334b027ceaae77315054f92891e1920cae01",
         "shallow": true,
         "type": "git",
         "url": "https://github.com/4evy/nixcord"
@@ -940,10 +940,10 @@
         ]
       },
       "locked": {
-        "lastModified": 1784405926,
-        "narHash": "sha256-Uiu8Mde90n1gRBy3EQrsgJBpKwSeETkfJu2g9YDHqDI=",
+        "lastModified": 1784482325,
+        "narHash": "sha256-u5wnbu0UBxi3uptK8lBy4vYkWtha85vtpWDeQiLdpP8=",
         "ref": "refs/heads/main",
-        "rev": "5ca3131b925b9b41858f4363d5b701582c159749",
+        "rev": "9b54388744e6f3ac2e2dd573a64eef1540c6401c",
         "shallow": true,
         "type": "git",
         "url": "https://github.com/noctalia-dev/noctalia-shell"
@@ -963,10 +963,10 @@
         ]
       },
       "locked": {
-        "lastModified": 1784320861,
-        "narHash": "sha256-sPUghbl8wMmESus7KvsmHIUEyD2mi13/xu7/u2H5SZU=",
+        "lastModified": 1784452318,
+        "narHash": "sha256-osTcEvAKdB30rUSNN0ql6I+OvKKFrzyFy/LQ+pmfZn4=",
         "ref": "refs/heads/main",
-        "rev": "43fdcbf2e00290479d3f9b97b7f61edd08c4e584",
+        "rev": "15802947967d6318f14029f311643e197a726a61",
         "shallow": true,
         "type": "git",
         "url": "https://github.com/notashelf/nvf"
@@ -1095,10 +1095,10 @@
         ]
       },
       "locked": {
-        "lastModified": 1784350408,
-        "narHash": "sha256-OstzLWL5t7Xe14xEC6GIMJCp0PrYNTSA0El7GG2av88=",
+        "lastModified": 1784438913,
+        "narHash": "sha256-NYF7ZM5ip0u+w1pBFDpIGEbrbgN/wpnLFAmBkWkYMXw=",
         "ref": "refs/heads/master",
-        "rev": "3c38e1e1ba9c8d7030f7b5a801398ea7d8a6fdc0",
+        "rev": "afacd6819d3765a05814ee8e3de74c77d42ac799",
         "shallow": true,
         "type": "git",
         "url": "https://github.com/oxalica/rust-overlay"
@@ -1161,10 +1161,10 @@
         ]
       },
       "locked": {
-        "lastModified": 1783838433,
-        "narHash": "sha256-Zb8+v76qSPYDlUea1y30YzgdEoDjA97vRmeqfPAqwZs=",
+        "lastModified": 1784481035,
+        "narHash": "sha256-nC0QN+GPTnA5i+WBx8S2rG8+VFh+EeBnEe5mU3hlAcQ=",
         "ref": "refs/heads/master",
-        "rev": "c6ab7371e40abd405313af9bddafd5f37cc94f83",
+        "rev": "a6baa7464f9b21a106dcfabb0bdcfe96fb434409",
         "shallow": true,
         "type": "git",
         "url": "https://github.com/Gerg-L/spicetify-nix"
@@ -1188,10 +1188,10 @@
         ]
       },
       "locked": {
-        "lastModified": 1783258469,
-        "narHash": "sha256-WNNE9Fm/DHj6ppMCxdAujyRamcNeng9wC3se0aw/oPc=",
+        "lastModified": 1784498597,
+        "narHash": "sha256-ddp8zXobZ6POzdyO/5/vyaaA2BpbhDlV8CndAJ6Bz9c=",
         "ref": "refs/heads/master",
-        "rev": "87b661b33f5f7cf441d4e2234ab302bdd6c6b310",
+        "rev": "2ffcaf31764b1484143753ad68f2c099c0827e3e",
         "shallow": true,
         "type": "git",
         "url": "https://github.com/different-name/steam-config-nix"
