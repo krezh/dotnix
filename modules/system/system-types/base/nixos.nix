@@ -17,9 +17,9 @@
       system.stateVersion = lib.mkDefault "24.05";
 
       i18n = {
-        defaultLocale = lib.mkDefault "en_US.UTF-8";
+        defaultLocale = lib.mkDefault "en_SE.UTF-8";
         extraLocales = "all";
-        extraLocaleSettings.LC_TIME = "en_US.UTF-8";
+        glibcLocales = pkgs.en-se-locale;
       };
 
       nix = {

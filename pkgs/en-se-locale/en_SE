@@ -1,0 +1,81 @@
+comment_char %
+escape_char /
+
+LC_IDENTIFICATION
+title      "English locale for Sweden"
+source     "dotnix"
+address    ""
+contact    ""
+email      ""
+tel        ""
+fax        ""
+language   "English"
+territory  "Sweden"
+revision   "1.0"
+date       "2026-07-20"
+category "i18n:2012";LC_IDENTIFICATION
+category "i18n:2012";LC_CTYPE
+category "i18n:2012";LC_COLLATE
+category "i18n:2012";LC_TIME
+category "i18n:2012";LC_NUMERIC
+category "i18n:2012";LC_MONETARY
+category "i18n:2012";LC_MESSAGES
+category "i18n:2012";LC_PAPER
+category "i18n:2012";LC_NAME
+category "i18n:2012";LC_ADDRESS
+category "i18n:2012";LC_TELEPHONE
+category "i18n:2012";LC_MEASUREMENT
+END LC_IDENTIFICATION
+
+LC_CTYPE
+copy "en_GB"
+END LC_CTYPE
+
+LC_COLLATE
+copy "sv_SE"
+END LC_COLLATE
+
+LC_TIME
+copy "en_DK"
+END LC_TIME
+
+LC_NUMERIC
+copy "sv_SE"
+END LC_NUMERIC
+
+LC_MONETARY
+copy "sv_SE"
+END LC_MONETARY
+
+LC_MESSAGES
+copy "en_GB"
+END LC_MESSAGES
+
+LC_PAPER
+copy "sv_SE"
+END LC_PAPER
+
+LC_NAME
+copy "sv_SE"
+END LC_NAME
+
+LC_ADDRESS
+postal_fmt  "%f%N%a%N%d%N%b%N%s %h %e %r%N%z %T%N%c%N"
+country_name "Sweden"
+country_ab2 "SE"
+country_ab3 "SWE"
+country_num 752
+country_car  "S"
+lang_name    "English"
+lang_ab      "en"
+lang_term    "eng"
+lang_lib     "eng"
+END LC_ADDRESS
+
+LC_TELEPHONE
+copy "sv_SE"
+END LC_TELEPHONE
+
+LC_MEASUREMENT
+copy "sv_SE"
+END LC_MEASUREMENT
