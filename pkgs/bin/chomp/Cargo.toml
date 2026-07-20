@@ -7,7 +7,7 @@ edition = "2021"
 wayland-client = "0.31"
 wayland-protocols = { version = "0.32", features = ["client", "unstable"] }
 wayland-protocols-wlr = { version = "0.3", features = ["client"] }
-smithay-client-toolkit = { version = "0.20", default-features = false, features = [
+smithay-client-toolkit = { version = "0.21", default-features = false, features = [
   "calloop",
   "xkbcommon",
 ] }

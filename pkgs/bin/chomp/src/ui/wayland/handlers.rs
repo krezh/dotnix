@@ -1,8 +1,7 @@
 use smithay_client_toolkit::seat::pointer::CursorIcon;
 use smithay_client_toolkit::{
     compositor::CompositorHandler,
-    delegate_compositor, delegate_keyboard, delegate_layer, delegate_output, delegate_pointer,
-    delegate_registry, delegate_seat, delegate_shm,
+    delegate_registry,
     output::{OutputHandler, OutputState},
     registry::{ProvidesRegistryState, RegistryState},
     registry_handlers,
@@ -157,7 +156,7 @@ impl SeatHandler for App {
     ) {
         if capability == Capability::Pointer && self.themed_pointer.is_none() {
             let surface = self.compositor_state.create_surface(qh);
-            let themed_pointer = self.seat_state.get_pointer_with_theme(
+            let themed_pointer = self.seat_state.get_pointer_with_theme::<App, ()>(
                 qh,
                 &seat,
                 self.shm_state.wl_shm(),
@@ -451,11 +450,5 @@ impl Dispatch<wl_callback::WlCallback, ()> for App {
     }
 }
 
-delegate_compositor!(App);
-delegate_output!(App);
-delegate_shm!(App);
-delegate_seat!(App);
-delegate_pointer!(App);
-delegate_keyboard!(App);
-delegate_layer!(App);
+smithay_client_toolkit::delegate_dispatch2!(App);
 delegate_registry!(App);
