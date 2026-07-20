@@ -61,7 +61,8 @@
                 "$left"
                 "$right"
               ];
-              pager = "less -FRX";
+              pager = ":builtin";
+              streampager.wrapping = "word";
             };
             git = {
               push-bookmark-prefix = "krezh/push-";
@@ -69,6 +70,11 @@
               track-default-bookmark-on-clone = true;
             };
             aliases = {
+              la = [
+                "log"
+                "-r"
+                "all()"
+              ];
               bs = [
                 "bookmark"
                 "set"
@@ -80,11 +86,7 @@
               ];
               tug = [
                 "bookmark"
-                "move"
-                "--from"
-                "closest_bookmarks(@)"
-                "--to"
-                "@"
+                "advance"
               ];
               ai-desc = [
                 "util"
@@ -96,10 +98,14 @@
                   set -euo pipefail
                   diff=$(${lib.getExe config.programs.jujutsu.package} diff --ignore-working-copy --git)
                   if [ -z "$diff" ]; then
-                    echo "desc-ai: no changes in @ to describe" >&2
+                    echo "ai-desc: no changes in @ to describe" >&2
                     exit 1
                   fi
                   msg=$(printf '%s\n' "$diff" | ${lib.getExe config.programs.claude-code.package} --model haiku -p 'Write a single-line Conventional Commits message in imperative mood summarizing this diff. Output ONLY the message text, with no surrounding quotes, backticks, or explanation.')
+                  if [ -z "$msg" ]; then
+                    echo "ai-desc: model returned an empty description" >&2
+                    exit 1
+                  fi
                   ${lib.getExe config.programs.jujutsu.package} describe --ignore-working-copy -m "$msg"
                 ''
               ];
@@ -117,12 +123,38 @@
                   set -euo pipefail
                   jj=${lib.getExe config.programs.jujutsu.package}
                   "$jj" git fetch
-                  "$jj" rebase -d 'trunk()'
+                  "$jj" rebase --branch @ --onto 'trunk()'
                 ''
               ];
             };
-            revset-aliases."closest_bookmarks(to)" = "heads(::to & bookmarks())";
+            revsets.log = "(roots(trunk()..@)-)::visible_heads()";
             templates = {
+              log = ''
+                if(root,
+                  format_root_commit(self),
+                  label(
+                    separate(" ",
+                      if(current_working_copy, "working_copy"),
+                      if(immutable, "immutable", "mutable"),
+                      if(conflict, "conflicted"),
+                    ),
+                    separate(" ",
+                      format_short_change_id_with_change_offset(self),
+                      bookmarks,
+                      if(empty, empty_commit_marker),
+                      if(description,
+                        description.first_line(),
+                        description_placeholder,
+                      ),
+                      surround("(", ")", separate(", ",
+                        coalesce(author.name(), name_placeholder),
+                        committer.timestamp().ago(),
+                      )),
+                      format_commit_labels(self),
+                    ) ++ "\n",
+                  ),
+                )
+              '';
               draft_commit_description = ''
                 concat(
                   builtin_draft_commit_description,
