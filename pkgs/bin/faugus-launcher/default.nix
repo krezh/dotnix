@@ -1,17 +1,17 @@
 {
   fetchFromGitHub,
   gobject-introspection,
-  icoextract,
+  gtk4,
   imagemagick,
   lib,
-  libayatana-appindicator,
-  libcanberra-gtk3,
+  libadwaita,
+  libmanette,
   meson,
   ninja,
   python3Packages,
   umu-launcher,
   lsfg-vk,
-  wrapGAppsHook3,
+  wrapGAppsHook4,
   xdg-utils,
 }:
 
@@ -32,17 +32,20 @@ python3Packages.buildPythonApplication (finalAttrs: {
     gobject-introspection
     meson
     ninja
-    wrapGAppsHook3
+    wrapGAppsHook4
   ];
 
   buildInputs = [
-    libayatana-appindicator
+    gtk4
+    libadwaita
+    libmanette
   ];
 
   dependencies = with python3Packages; [
+    dbus-python
+    icoextract
     pillow
     psutil
-    pygame
     pygobject3
     requests
     vdf
@@ -56,7 +59,7 @@ python3Packages.buildPythonApplication (finalAttrs: {
       --replace-fail "PathManager.user_data('faugus-launcher/umu-run')" "'${lib.getExe umu-launcher}'"
 
     substituteInPlace faugus/path_manager.py \
-      --replace-fail 'next((p for p in _lsfgvk_candidates if p.exists()), _lsfgvk_candidates[-1])' 'Path("${lsfg-vk}/lib/liblsfg-vk.so")'
+      --replace-fail 'next((p for p in _LSFGVK_CANDIDATES if p.exists()), _LSFGVK_CANDIDATES[-1])' 'Path("${lsfg-vk}/lib/liblsfg-vk.so")'
   '';
 
   dontWrapGApps = true;
@@ -66,9 +69,10 @@ python3Packages.buildPythonApplication (finalAttrs: {
       pythonPath =
         with python3Packages;
         makePythonPath [
+          dbus-python
+          icoextract
           pillow
           psutil
-          pygame
           pygobject3
           requests
           vdf
@@ -80,9 +84,7 @@ python3Packages.buildPythonApplication (finalAttrs: {
         --prefix PYTHONPATH : "$out/${python3Packages.python.sitePackages}:${pythonPath}"
         --suffix PATH : "${
           lib.makeBinPath [
-            icoextract
             imagemagick
-            libcanberra-gtk3
             umu-launcher
             xdg-utils
           ]
