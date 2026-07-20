@@ -5,6 +5,7 @@
   imagemagick,
   lib,
   libadwaita,
+  libgudev,
   libmanette,
   meson,
   ninja,
@@ -38,6 +39,7 @@ python3Packages.buildPythonApplication (finalAttrs: {
   buildInputs = [
     gtk4
     libadwaita
+    libgudev
     libmanette
   ];
 
