@@ -32,12 +32,23 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  Prune:
+  prune:
+    name: Prune ${{ matrix.conclusion }} runs
     runs-on: ubuntu-latest
     permissions:
       actions: write
     environment:
       name: prod
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - conclusion: success
+            keep_input: successful_runs_to_keep
+            default_runs_to_keep: "10"
+          - conclusion: failure
+            keep_input: failed_runs_to_keep
+            default_runs_to_keep: "5"
     steps:
       - name: Generate Token
         uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
@@ -46,24 +57,13 @@ jobs:
           client-id: "${{ secrets.BOT_APP_ID }}"
           private-key: "${{ secrets.BOT_APP_PRIVATE_KEY }}"
 
-      - name: Delete old successful workflow runs
+      - name: Delete old ${{ matrix.conclusion }} workflow runs
         uses: Mattraks/delete-workflow-runs@b3018382ca039b53d238908238bd35d1fb14f8ee # v2.1.0
         with:
           token: "${{ steps.app-token.outputs.token }}"
           repository: ${{ github.repository }}
           retain_days: 0
-          keep_minimum_runs: ${{ inputs.successful_runs_to_keep || '10' }}
+          keep_minimum_runs: ${{ inputs[matrix.keep_input] || matrix.default_runs_to_keep }}
           delete_workflow_pattern: ${{ inputs.delete_workflow_pattern }}
-          delete_run_by_conclusion_pattern: success
-          dry_run: ${{ inputs.dry_run }}
-
-      - name: Delete old failed workflow runs
-        uses: Mattraks/delete-workflow-runs@b3018382ca039b53d238908238bd35d1fb14f8ee # v2.1.0
-        with:
-          token: "${{ steps.app-token.outputs.token }}"
-          repository: ${{ github.repository }}
-          retain_days: 0
-          keep_minimum_runs: ${{ inputs.failed_runs_to_keep || '5' }}
-          delete_workflow_pattern: ${{ inputs.delete_workflow_pattern }}
-          delete_run_by_conclusion_pattern: failure
+          delete_run_by_conclusion_pattern: ${{ matrix.conclusion }}
           dry_run: ${{ inputs.dry_run }}
