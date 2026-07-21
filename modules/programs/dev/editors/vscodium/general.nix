@@ -26,8 +26,8 @@
           "anthropic.claude-code"
           "christian-kohler.path-intellisense"
           "gitHub.vscode-pull-request-github"
-          "jjx.jjx"
-          "jj-view.jj-view"
+          # "jjx.jjx"
+          # "jj-view.jj-view"
           "visualjj.visualjj"
           "mkhl.direnv"
         ];
@@ -57,7 +57,7 @@
             userSettings = {
               telemetry.telemetryLevel = "off";
               update.mode = "none";
-              extensions.autoUpdate = false;
+              extensions.autoUpdate = "off";
               redhat.telemetry.enabled = false;
               window.titleBarStyle = "custom";
               window.density.editorTabHeight = "default";

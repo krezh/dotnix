@@ -6,7 +6,6 @@ in
   flake.modules.nixos.thor = {
     imports = [
       inputs.self.modules.nixos.${user}
-      inputs.self.modules.nixos.protonvpn
     ];
     security.pam.services.${user}.enableGnomeKeyring = true;
     users.users.${user}.extraGroups = [ "tss" ]; # tss group has access to TPM devices

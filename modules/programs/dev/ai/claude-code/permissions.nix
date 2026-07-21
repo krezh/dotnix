@@ -105,7 +105,6 @@
           deny = [
             "Bash(kubectl get secret* -o *)"
             "Bash(kubectl get secrets* -o *)"
-            "Bash(curl:*)"
             "Bash(sed:*)"
             "Read(**/.env.*)"
             "Read(**/.secret*)"

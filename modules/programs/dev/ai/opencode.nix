@@ -1,14 +1,25 @@
 { inputs, ... }:
 {
   flake.modules.homeManager.ai =
-    { pkgs, ... }:
+    { pkgs, lib, ... }:
     let
       llm-agents-nix = inputs.llm-agents-nix.packages.${pkgs.stdenv.hostPlatform.system};
+      infisical = "${pkgs.infisical}/bin/infisical secrets --env default --path ";
+      opencodeWrapped =
+        pkgs.writeShellScriptBin "opencode" ''
+          export MEMINI_BASE_URL=https://memini.plexuz.xyz
+          export MEMINI_REQUIRE_HTTPS=1
+          export MEMINI_API_KEY="$(${infisical} /Kubernetes/DexTek/Memini get MEMINI_API_KEY --plain --telemetry false)"
+          exec ${lib.getExe llm-agents-nix.opencode} "$@"
+        ''
+        // {
+          version = lib.getVersion llm-agents-nix.opencode;
+        };
     in
     {
       programs.opencode = {
         enable = true;
-        package = llm-agents-nix.opencode;
+        package = opencodeWrapped;
 
         tui = {
           scroll_speed = 3;
@@ -46,8 +57,6 @@
               # Wildcard first (lowest precedence)
               "*" = "ask";
 
-              # Deny dangerous commands (override wildcard)
-              "curl *" = "deny";
               "sudo *" = "deny";
 
               # Allow safe git commands
@@ -94,7 +103,12 @@
             };
           };
 
-          plugin = [ ];
+          # memini: automatic cross-session memory (recall before each turn,
+          # capture after). Installed from npm by opencode at startup. Auth +
+          # base URL come from the wrapper's env (MEMINI_API_KEY / MEMINI_BASE_URL);
+          # namespace is left to the server handshake so per-project memory is
+          # shared with the claude-code memini plugin.
+          plugin = [ "@eleboucher/opencode-memini" ];
 
           # MCP server configuration
           mcp = {

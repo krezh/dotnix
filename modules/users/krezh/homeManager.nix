@@ -21,6 +21,7 @@ in
         sessionVariables = {
           FLAKE = "${config.home.homeDirectory}/dotnix";
           NH_FLAKE = "${config.home.homeDirectory}/dotnix";
+          NH_NOM = false;
         };
       };
     };
