@@ -30,7 +30,7 @@ buildNpmPackage (finalAttrs: {
 
   postPatch = ''
     ${lib.getExe pkgs.jq} --arg ver "^${lib.versions.major pkgs.vscodium.version}.${lib.versions.minor pkgs.vscodium.version}.0" \
-      '.engines.vscode = $ver | .devDependencies["@types/vscode"] = $ver' \
+      '.engines.vscode = $ver' \
       package.json > package.json.tmp
     mv package.json.tmp package.json
   '';
