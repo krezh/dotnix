@@ -113,6 +113,12 @@
           enableFishIntegration = true;
           package = pkgs.kubeswitch;
         };
+        kubie = {
+          enable = true;
+          settings = {
+            prompt.disable = true;
+          };
+        };
       };
     };
 }

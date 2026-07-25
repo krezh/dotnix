@@ -22,8 +22,8 @@
           cursor-style = "block";
           app-notifications = "no-clipboard-copy";
           resize-overlay = "never";
-          window-padding-x = 3;
-          window-padding-y = 3;
+          window-padding-x = 5;
+          window-padding-y = 5;
         };
       };
     };

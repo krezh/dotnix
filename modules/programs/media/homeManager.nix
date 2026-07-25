@@ -9,14 +9,11 @@
       imports = [ inputs.spicetify-nix.homeManagerModules.spicetify ];
 
       home.packages = with pkgs; [
-        celluloid
         plex-desktop
         jellyfin-media-player
         tsukimi
         ueberzugpp
-        jellyflix
         vipsdisp
-        showtime
         fladder
       ];
 
@@ -32,56 +29,22 @@
           colorScheme = "mocha";
         };
 
-        ncspot = {
-          enable = true;
-          package = pkgs.ncspot.override {
-            withCover = true;
-            withMPRIS = true;
-            withALSA = true;
-            withNotify = true;
-          };
-          settings = {
-            bitrate = 320;
-            cover_max_scale = 2.0;
-            flip_status_indicators = true;
-            use_nerdfont = true;
-            notify = true;
-            theme = {
-              background = "#1e1e2e";
-              primary = "#cdd6f4";
-              secondary = "#6c7086";
-              title = "#a6e3a1";
-              playing = "#a6e3a1";
-              playing_selected = "#94e2d5";
-              playing_bg = "#1e1e2e";
-              highlight = "#b4befe";
-              highlight_bg = "#313244";
-              error = "#eba0ac";
-              error_bg = "#1e1e2e";
-              statusbar = "#a6e3a1";
-              statusbar_progress = "#b4befe";
-              statusbar_bg = "#313244";
-              cmdline = "#cdd6f4";
-              cmdline_bg = "#1e1e2e";
-              search_match = "#f9e2af";
-            };
-          };
-        };
-
         mpv = {
           enable = true;
           scripts = with pkgs.mpvScripts; [
-            modernx
+            # modernx
+            uosc
             inhibit-gnome
             sponsorblock
             thumbfast
             quality-menu
+            mpris
           ];
 
           scriptOpts = {
             modernx = {
-              scalewindowed = 1;
-              scalefullscreen = 1;
+              scalewindowed = 0.5;
+              scalefullscreen = 0.5;
               fadeduration = 150;
               hidetimeout = 5000;
               donttimeoutonpause = true;
@@ -92,6 +55,21 @@
               volumecontrol = true;
               compactmode = false;
               raisesubswithosc = false;
+            };
+            uosc = {
+              timeline_size = 25;
+              timeline_persistency = "paused,audio";
+              progress = "always";
+              progress_size = 4;
+              progress_line_width = 4;
+              controls = "subtitles,<has_many_audio>audio,<has_many_video>video,<has_many_edition>editions,<stream>stream-quality";
+              top_bar = "never";
+              refine = "text_width";
+            };
+            thumbfast = {
+              spawn_first = true;
+              network = true;
+              hwdec = true;
             };
           };
 
@@ -105,11 +83,12 @@
             ytdl-format = "bestvideo+bestaudio";
             save-position-on-quit = false;
             osc = "no";
-            sub-font = "inter";
+            sub-font = "Rubik";
             sub-font-size = 20;
             sub-border-size = 1.5;
             sub-pos = 95;
             sub-auto = "fuzzy";
+            keep-open = true;
           };
 
           bindings = {

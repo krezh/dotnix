@@ -2,31 +2,31 @@
   flake.modules.nixos.jotunheim =
     { pkgs, ... }:
     {
-      services.sanoid = {
-        enable = true;
-        interval = "hourly";
-        datasets."tank" = {
-          recursive = true;
-          autosnap = true;
-          autoprune = true;
-          hourly = 24;
-          daily = 30;
-          monthly = 3;
-          yearly = 0;
+      services = {
+        sanoid = {
+          enable = true;
+          interval = "hourly";
+          datasets."tank" = {
+            recursive = true;
+            autosnap = true;
+            autoprune = true;
+            hourly = 24;
+            daily = 30;
+            monthly = 3;
+            yearly = 0;
+          };
+          smartd = {
+            enable = true;
+            autodetect = true;
+          };
+          earlyoom = {
+            enable = true;
+            freeMemThreshold = 5;
+          };
         };
       };
 
-      services.smartd = {
-        enable = true;
-        autodetect = true;
-      };
-
       zramSwap.enable = true;
-
-      services.earlyoom = {
-        enable = true;
-        freeMemThreshold = 5;
-      };
 
       # Computed at boot so it stays correct regardless of installed RAM.
       systemd.services.zfs-arc-max = {

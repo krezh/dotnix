@@ -4,8 +4,8 @@
     let
       defaultBrowser = "zen-twilight.desktop";
       defaultImageViewer = "org.libvips.vipsdisp.desktop";
-      defaultVideoPlayer = "org.gnome.Showtime.desktop";
-      defaultAudioPlayer = "org.gnome.Showtime.desktop";
+      defaultVideoPlayer = "mpv.desktop";
+      defaultAudioPlayer = "mpv.desktop";
       defaultTextEditor = "dev.zed.Zed.desktop";
       defaultFileManager = "org.gnome.Nautilus.desktop";
       defaultArchiveManager = "org.gnome.FileRoller.desktop";

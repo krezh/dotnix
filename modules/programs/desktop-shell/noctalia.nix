@@ -195,13 +195,13 @@
             disk-nix = {
               type = "sysmon";
               display = "text";
-              stat = "disk_pct";
+              stat = "disk_used_pct";
               path = "/nix";
             };
             disk-home = {
               type = "sysmon";
               display = "text";
-              stat = "disk_pct";
+              stat = "disk_used_pct";
               path = "/home";
             };
           };

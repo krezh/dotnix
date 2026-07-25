@@ -17,8 +17,8 @@
           variables = [ "--all" ];
         };
         plugins = [
-          pkgs.hyprland-scroll-overview
-          pkgs.hyprland-scroll-drag
+          # pkgs.hyprland-scroll-overview
+          # pkgs.hyprland-scroll-drag
         ];
 
         settings = {
@@ -44,10 +44,10 @@
             };
 
             general = {
-              layout = "scrolling";
+              layout = "dwindle";
               gaps_in = 5;
               gaps_out = 10;
-              border_size = 3;
+              border_size = config.var.borderSize;
               col = {
                 active_border = {
                   colors = [
@@ -56,7 +56,7 @@
                   ];
                   angle = 125;
                 };
-                inactive_border = "rgba(1e1e2eff)";
+                inactive_border = "rgba(1e1e2e00)";
               };
             };
 
@@ -80,11 +80,14 @@
               };
               shadow = {
                 enabled = true;
-                color = "rgba(1a1a1aaf)";
-                offset = "0 40";
-                range = 300;
-                render_power = 4;
-                scale = 0.90;
+                color = "rgba(00000030)";
+                offset = "4, 4";
+                range = 40;
+                render_power = 3;
+                scale = 1.0;
+              };
+              motion_blur = {
+                enabled = true;
               };
             };
 
@@ -112,17 +115,17 @@
               new_render_scheduling = true;
             };
 
-            plugin.scrolloverview = {
-              scale = 0.5;
-              workspace_gap = 20;
-              layout = "vertical";
-            };
+            # plugin.scrolloverview = {
+            #   scale = 0.5;
+            #   workspace_gap = 20;
+            #   layout = "vertical";
+            # };
 
-            plugin.scrolldrag = {
-              sensitivity = 1.0;
-              deadzone = 8;
-              workspace_switch_threshold = 300;
-            };
+            # plugin.scrolldrag = {
+            #   sensitivity = 1.0;
+            #   deadzone = 8;
+            #   workspace_switch_threshold = 300;
+            # };
 
             dwindle = {
               force_split = 0;
@@ -236,8 +239,8 @@
                 {
                   type = "spring";
                   mass = 1;
-                  stiffness = 80;
-                  dampening = 14;
+                  stiffness = 240;
+                  dampening = 24;
                 }
               ];
             }
@@ -247,9 +250,10 @@
                 {
                   type = "spring";
                   mass = 1;
-                  stiffness = 30;
-                  dampening = 8;
+                  stiffness = 240;
+                  dampening = 24;
                 }
+
               ];
             }
             {
@@ -258,9 +262,10 @@
                 {
                   type = "spring";
                   mass = 1;
-                  stiffness = 30;
-                  dampening = 8;
+                  stiffness = 240;
+                  dampening = 24;
                 }
+
               ];
             }
             {
@@ -268,10 +273,11 @@
                 "spring_workspace"
                 {
                   type = "spring";
-                  mass = 1.2;
-                  stiffness = 30;
-                  dampening = 10;
+                  mass = 1;
+                  stiffness = 240;
+                  dampening = 24;
                 }
+
               ];
             }
             {
@@ -280,9 +286,10 @@
                 {
                   type = "spring";
                   mass = 1;
-                  stiffness = 30;
-                  dampening = 8;
+                  stiffness = 240;
+                  dampening = 24;
                 }
+
               ];
             }
           ];
@@ -306,7 +313,7 @@
               enabled = true;
               speed = 1;
               spring = "spring_window";
-              style = "popin 60%";
+              style = "popin 40%";
             }
             {
               leaf = "border";

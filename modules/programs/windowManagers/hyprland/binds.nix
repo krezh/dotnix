@@ -135,10 +135,10 @@
               desc = "Screenshot menu";
             };
 
-            "${mainMod} + TAB" = {
-              rule = mkInline ''hl.plugin.scrolloverview.overview("toggle")'';
-              desc = "Toggle scroll overview";
-            };
+            # "${mainMod} + TAB" = {
+            #   rule = mkInline ''hl.plugin.scrolloverview.overview("toggle")'';
+            #   desc = "Toggle scroll overview";
+            # };
 
             # Window management
             "${mainMod} + Q" = {

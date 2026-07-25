@@ -215,8 +215,7 @@
     };
 
     hyprland-scroll-overview = {
-      # Pin to main HEAD with the Hyprland 0.56 update (PRs #47/#48 merged).
-      url = "git+https://github.com/yayuuu/hyprland-scroll-overview?rev=5f704a97a3501834a6ae65ad71997400a9ba8e99&shallow=1";
+      url = "git+https://github.com/yayuuu/hyprland-scroll-overview?shallow=1";
       flake = false;
     };
 
