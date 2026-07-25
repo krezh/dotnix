@@ -141,7 +141,6 @@
                 opacity = "1.0 override";
                 no_blur = true;
                 render_unfocused = true;
-                immediate = true;
               };
               dialog = {
                 float = true;
