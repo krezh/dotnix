@@ -215,8 +215,8 @@
     };
 
     hyprland-scroll-overview = {
-      # Keep the plugin on its Hyprland 0.55.4 compatibility pin.
-      url = "git+https://github.com/yayuuu/hyprland-scroll-overview?rev=cfc23b194ba9378d1606c7aa73060f6ffbe38445&shallow=1";
+      # Pin to main HEAD with the Hyprland 0.56 update (PRs #47/#48 merged).
+      url = "git+https://github.com/yayuuu/hyprland-scroll-overview?rev=5f704a97a3501834a6ae65ad71997400a9ba8e99&shallow=1";
       flake = false;
     };
 

@@ -1,5 +1,5 @@
 { pkgs, ... }:
-pkgs.gcc15Stdenv.mkDerivation {
+pkgs.gcc16Stdenv.mkDerivation {
   pname = "hyprlogin";
   # renovate: datasource=github-releases depName=AuthenticSm1les/hyprlogin
   version = "0-unstable-2026-04-13";
@@ -10,6 +10,10 @@ pkgs.gcc15Stdenv.mkDerivation {
     rev = "d229ed61777f5564cb7c7934b5c86a2b6ba39ffd";
     hash = "sha256-U/GByreAuZ1tkyUPrBacIi/M/hMV3yVSZYsF5LsusCU=";
   };
+
+  # hyprutils bumped its CSharedPointer::operator bool() to `explicit`, so the
+  # pinned upstream `registered()` cannot implicitly convert m_pSeat to bool.
+  patches = [ ./registered-bool-explicit.patch ];
 
   nativeBuildInputs = with pkgs; [
     cmake
