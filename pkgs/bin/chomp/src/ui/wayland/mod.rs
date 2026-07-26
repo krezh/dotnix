@@ -13,11 +13,7 @@ use smithay_client_toolkit::{
     compositor::CompositorState,
     output::{OutputInfo, OutputState},
     registry::RegistryState,
-    seat::{
-        SeatState,
-        keyboard::Modifiers,
-        pointer::ThemedPointer,
-    },
+    seat::{SeatState, keyboard::Modifiers, pointer::ThemedPointer},
     shell::wlr_layer::{Anchor, KeyboardInteractivity, Layer, LayerShell},
     shm::{Shm, slot::SlotPool},
 };
@@ -232,9 +228,7 @@ impl App {
 
             // Drive the mode-select slide-up entrance animation.
             if app.phase == UiPhase::ModeSelect && !app.intro_done {
-                let start = *app
-                    .intro_start
-                    .get_or_insert_with(std::time::Instant::now);
+                let start = *app.intro_start.get_or_insert_with(std::time::Instant::now);
                 let t = (start.elapsed().as_secs_f64() / app.intro_duration).min(1.0);
                 // Ease-out cubic for a snappy settle.
                 app.intro_progress = 1.0 - (1.0 - t).powi(3);

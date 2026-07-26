@@ -25,11 +25,12 @@ pub fn ensure_single_instance() -> Result<std::fs::File> {
         .open(&lock_path)
         .with_context(|| format!("Failed to open lock file {}", lock_path.display()))?;
 
-    match nix::fcntl::flock(file.as_raw_fd(), nix::fcntl::FlockArg::LockExclusiveNonblock) {
+    match nix::fcntl::flock(
+        file.as_raw_fd(),
+        nix::fcntl::FlockArg::LockExclusiveNonblock,
+    ) {
         Ok(()) => Ok(file),
-        Err(e)
-            if e == nix::errno::Errno::EWOULDBLOCK || e == nix::errno::Errno::EAGAIN =>
-        {
+        Err(e) if e == nix::errno::Errno::EWOULDBLOCK || e == nix::errno::Errno::EAGAIN => {
             anyhow::bail!("another chomp instance already holds the overlay lock")
         }
         Err(e) => Err(e).with_context(|| "Failed to acquire instance lock"),

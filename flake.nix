@@ -224,6 +224,11 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
+    undo = {
+      url = "git+https://github.com/edaywalid/undo?shallow=1";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
     nixcord = {
       url = "git+https://github.com/4evy/nixcord?shallow=1";
       inputs = {

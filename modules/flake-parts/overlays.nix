@@ -15,7 +15,9 @@
       })
       (
         final: _prev:
-        { inherit inputs; }
+        {
+          inherit inputs;
+        }
         // lib.scanPath.toAttrs {
           basePath = lib.relativeToRoot "pkgs";
           func = final.callPackage;

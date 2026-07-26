@@ -305,12 +305,12 @@ impl Renderer {
                 if is_stop_group {
                     ctx.set_source_rgba(rec_color.r, rec_color.g, rec_color.b, 0.90);
                 } else {
-                ctx.set_source_rgba(
-                    desc_color.r,
-                    desc_color.g,
-                    desc_color.b,
-                    style.description_opacity * fade,
-                );
+                    ctx.set_source_rgba(
+                        desc_color.r,
+                        desc_color.g,
+                        desc_color.b,
+                        style.description_opacity * fade,
+                    );
                 }
                 ctx.move_to(x, text_y);
                 ctx.show_text(desc)?;

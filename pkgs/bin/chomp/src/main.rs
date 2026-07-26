@@ -94,7 +94,8 @@ fn main() -> Result<()> {
 
     apply_delay(&settings);
 
-    let (selection_geometry, chosen_mode, pre_captured, to_clipboard) = ui::App::run(settings.clone())?;
+    let (selection_geometry, chosen_mode, pre_captured, to_clipboard) =
+        ui::App::run(settings.clone())?;
     if let Some(mode) = chosen_mode {
         let notifier = ui::Notifier::new();
         if mode == capture::CaptureMode::StopRecording {

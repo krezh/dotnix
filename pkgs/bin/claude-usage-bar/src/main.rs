@@ -107,12 +107,18 @@ mod tests {
 
     #[test]
     fn reset_in_the_past_shows_now() {
-        assert_eq!(format_reset_ts_at(100, 200, "2026-01-01"), format!("{GREEN}now{RESET}"));
+        assert_eq!(
+            format_reset_ts_at(100, 200, "2026-01-01"),
+            format!("{GREEN}now{RESET}")
+        );
     }
 
     #[test]
     fn reset_equal_to_now_shows_now() {
-        assert_eq!(format_reset_ts_at(200, 200, "2026-01-01"), format!("{GREEN}now{RESET}"));
+        assert_eq!(
+            format_reset_ts_at(200, 200, "2026-01-01"),
+            format!("{GREEN}now{RESET}")
+        );
     }
 
     #[test]
@@ -572,7 +578,12 @@ fn main() {
     };
 
     let fh_reset_str = fh_reset
-        .map(|ts| format!(" {}", format_reset_ts_at(ts, now, today.as_deref().unwrap_or(""))))
+        .map(|ts| {
+            format!(
+                " {}",
+                format_reset_ts_at(ts, now, today.as_deref().unwrap_or(""))
+            )
+        })
         .unwrap_or_default();
     parts.push(format!(
         "{BOLD}5h:{RESET} {}{fh_reset_str}",
@@ -580,7 +591,12 @@ fn main() {
     ));
 
     let sd_reset_str = sd_reset
-        .map(|ts| format!(" {}", format_reset_ts_at(ts, now, today.as_deref().unwrap_or(""))))
+        .map(|ts| {
+            format!(
+                " {}",
+                format_reset_ts_at(ts, now, today.as_deref().unwrap_or(""))
+            )
+        })
         .unwrap_or_default();
     parts.push(format!(
         "{BOLD}7d:{RESET} {}{sd_reset_str}",

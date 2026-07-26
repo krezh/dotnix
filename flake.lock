@@ -1040,6 +1040,7 @@
         "systems": "systems_3",
         "systems-linux": "systems-linux",
         "treefmt-nix": "treefmt-nix_2",
+        "undo": "undo",
         "walker": "walker",
         "xilo": "xilo",
         "zen-browser": "zen-browser",
@@ -1318,6 +1319,27 @@
         "shallow": true,
         "type": "git",
         "url": "https://github.com/numtide/treefmt-nix"
+      }
+    },
+    "undo": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1785063012,
+        "narHash": "sha256-3lvC58oCb8B3wvbRvQ6LiHL/HgF2xeo3HFIgp5RSAQU=",
+        "ref": "refs/heads/main",
+        "rev": "28af3b9d3c6fb778aa3b7ff89bf572d1e9ba8002",
+        "shallow": true,
+        "type": "git",
+        "url": "https://github.com/edaywalid/undo"
+      },
+      "original": {
+        "shallow": true,
+        "type": "git",
+        "url": "https://github.com/edaywalid/undo"
       }
     },
     "walker": {

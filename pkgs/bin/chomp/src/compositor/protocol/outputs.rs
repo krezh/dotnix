@@ -1,9 +1,9 @@
 //! Wayland output enumeration and geometry queries
 
 use anyhow::{Context, Result};
+use smithay_client_toolkit::delegate_registry;
 use smithay_client_toolkit::output::{OutputHandler, OutputState};
 use smithay_client_toolkit::registry::{ProvidesRegistryState, RegistryState};
-use smithay_client_toolkit::delegate_registry;
 use wayland_client::{Connection, globals::registry_queue_init, protocol::wl_output};
 
 use crate::render::selection::Rect;
