@@ -524,16 +524,16 @@
     "hyprland-scroll-overview": {
       "flake": false,
       "locked": {
-        "lastModified": 1784940465,
-        "narHash": "sha256-DlN5uLcUiac5Kkk8MJGZJnNzjpEt8UMH7uJlcxTo/gE=",
+        "lastModified": 1785023935,
+        "narHash": "sha256-/ZhiCtjfAKQAvFAEu4L2/0pOZ9/UuMKC97t15Wrqau8=",
         "ref": "refs/heads/main",
-        "rev": "5f704a97a3501834a6ae65ad71997400a9ba8e99",
+        "rev": "022247bfc392538db5e350e07167191d2cc8c6f0",
         "shallow": true,
         "type": "git",
         "url": "https://github.com/yayuuu/hyprland-scroll-overview"
       },
       "original": {
-        "rev": "5f704a97a3501834a6ae65ad71997400a9ba8e99",
+        "rev": "022247bfc392538db5e350e07167191d2cc8c6f0",
         "shallow": true,
         "type": "git",
         "url": "https://github.com/yayuuu/hyprland-scroll-overview"
