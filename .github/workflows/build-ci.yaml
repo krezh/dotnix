@@ -47,7 +47,6 @@ jobs:
           xilo-url: https://xilo.plexuz.xyz
           xilo-cache: ${{ secrets.XILO_CACHE }}
           xilo-token: ${{ secrets.XILO_TOKEN }}
-          skip-push: false
           nothing-but-nix: false
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
@@ -74,6 +73,11 @@ jobs:
 
           echo "hosts=$(echo "$all" | jq -c '{include: [.[] | select(.attr | startswith("hosts."))]}')" >> "$GITHUB_OUTPUT"
           echo "packages=$(echo "$all" | jq -c '{include: [.[] | select(.attr | startswith("packages."))]}')" >> "$GITHUB_OUTPUT"
+
+      - name: Push to xilo
+        if: ${{ always() && github.event.pull_request.head.repo.fork != true }}
+        shell: bash
+        run: xilo push ${{ secrets.XILO_CACHE }} ./result
 
   build-hosts:
     name: Build Hosts
