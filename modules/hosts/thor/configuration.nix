@@ -138,6 +138,7 @@
         pwvucontrol
         alsa-utils
         pavucontrol
+        inputs.comin.packages.${stdenv.hostPlatform.system}.default
       ];
     };
 }

@@ -86,6 +86,33 @@
         "url": "https://github.com/catppuccin/nix"
       }
     },
+    "comin": {
+      "inputs": {
+        "flake-compat": [
+          "flake-compat"
+        ],
+        "nixpkgs": [
+          "nixpkgs"
+        ],
+        "treefmt-nix": [
+          "treefmt-nix"
+        ]
+      },
+      "locked": {
+        "lastModified": 1784613260,
+        "narHash": "sha256-M+WLmuIVbA7XD822F8ZTEbMBKf1FamG1BEL0/aBqcKA=",
+        "ref": "refs/heads/main",
+        "rev": "c32a4e457cd3bc99d6c18631707e9d8294f4b5d0",
+        "shallow": true,
+        "type": "git",
+        "url": "https://github.com/nlewo/comin"
+      },
+      "original": {
+        "shallow": true,
+        "type": "git",
+        "url": "https://github.com/nlewo/comin"
+      }
+    },
     "crane": {
       "locked": {
         "lastModified": 1784564969,
@@ -1003,6 +1030,7 @@
     "root": {
       "inputs": {
         "catppuccin": "catppuccin",
+        "comin": "comin",
         "crane": "crane",
         "devshell": "devshell",
         "disko": "disko",

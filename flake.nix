@@ -214,6 +214,15 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
+    comin = {
+      url = "git+https://github.com/nlewo/comin?shallow=1";
+      inputs = {
+        nixpkgs.follows = "nixpkgs";
+        treefmt-nix.follows = "treefmt-nix";
+        flake-compat.follows = "flake-compat";
+      };
+    };
+
     hyprland-scroll-overview = {
       url = "git+https://github.com/yayuuu/hyprland-scroll-overview?shallow=1";
       flake = false;
