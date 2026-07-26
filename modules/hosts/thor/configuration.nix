@@ -44,6 +44,7 @@
           binfmt = true;
         };
         sniffnet.enable = true;
+        headsetcontrol.enable = true;
       };
 
       catppuccin.sddm.enable = false;

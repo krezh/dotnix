@@ -18,7 +18,7 @@
       config.var = {
         opacity = 0.98;
         borderSize = 2;
-        rounding = 0;
+        rounding = 15;
         fonts = {
           sans = "Rubik";
           mono = "Monaspace Neon NF";

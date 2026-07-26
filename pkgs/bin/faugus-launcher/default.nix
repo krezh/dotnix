@@ -16,87 +16,60 @@
   xdg-utils,
 }:
 
-python3Packages.buildPythonApplication (finalAttrs: {
-  pname = "faugus-launcher";
-  # renovate: datasource=github-releases depName=Faugus/faugus-launcher
-  version = "2.0.2";
-  pyproject = false;
+python3Packages.buildPythonApplication (finalAttrs:
+  let
+    pythonDeps = with python3Packages; [
+      dbus-python
+      icoextract
+      pillow
+      psutil
+      pygobject3
+      requests
+      vdf
+    ];
+  in
+  {
+    pname = "faugus-launcher";
+    # renovate: datasource=github-releases depName=Faugus/faugus-launcher
+    version = "2.0.2";
+    pyproject = false;
 
-  src = fetchFromGitHub {
-    owner = "Faugus";
-    repo = "faugus-launcher";
-    tag = finalAttrs.version;
-    hash = "sha256-0knobTbMLOkRIGze+gHaee2Duq4ClMapTCzICX35A8s=";
-  };
+    src = fetchFromGitHub {
+      owner = "Faugus";
+      repo = "faugus-launcher";
+      tag = finalAttrs.version;
+      hash = "sha256-0knobTbMLOkRIGze+gHaee2Duq4ClMapTCzICX35A8s=";
+    };
 
-  nativeBuildInputs = [
-    gobject-introspection
-    meson
-    ninja
-    wrapGAppsHook4
-  ];
+    nativeBuildInputs = [
+      gobject-introspection
+      meson
+      ninja
+      wrapGAppsHook4
+    ];
 
-  buildInputs = [
-    gtk4
-    libadwaita
-    libgudev
-    libmanette
-  ];
+    buildInputs = [
+      gtk4
+      libadwaita
+      libgudev
+      libmanette
+    ];
 
-  dependencies = with python3Packages; [
-    dbus-python
-    icoextract
-    pillow
-    psutil
-    pygobject3
-    requests
-    vdf
-  ];
+    dependencies = pythonDeps;
 
-  postPatch = ''
-    substituteInPlace faugus-launcher \
-      --replace-fail "/usr/bin/python3" "${python3Packages.python.interpreter}"
+    postPatch = ''
+      substituteInPlace faugus-launcher \
+        --replace-fail "/usr/bin/python3" "${python3Packages.python.interpreter}"
 
-    substituteInPlace faugus/path_manager.py \
-      --replace-fail "PathManager.user_data('faugus-launcher/umu-run')" "'${lib.getExe umu-launcher}'"
+      substituteInPlace faugus/path_manager.py \
+        --replace-fail "PathManager.user_data('faugus-launcher/umu-run')" "'${lib.getExe umu-launcher}'" \
+        --replace-fail 'next((p for p in _LSFGVK_CANDIDATES if p.exists()), _LSFGVK_CANDIDATES[-1])' 'Path("${lsfg-vk}/lib/liblsfg-vk.so")'
+    '';
 
-    substituteInPlace faugus/path_manager.py \
-      --replace-fail 'next((p for p in _LSFGVK_CANDIDATES if p.exists()), _LSFGVK_CANDIDATES[-1])' 'Path("${lsfg-vk}/lib/liblsfg-vk.so")'
-  '';
-
-  dontWrapGApps = true;
-
-  preFixup =
-    let
-      pythonPath =
-        with python3Packages;
-        makePythonPath [
-          dbus-python
-          icoextract
-          pillow
-          psutil
-          pygobject3
-          requests
-          vdf
-        ];
-    in
-    ''
-      # Wrap faugus-launcher manually
+    preFixup = ''
       gappsWrapperArgs+=(
-        --prefix PYTHONPATH : "$out/${python3Packages.python.sitePackages}:${pythonPath}"
-        --suffix PATH : "${
-          lib.makeBinPath [
-            imagemagick
-            umu-launcher
-            xdg-utils
-          ]
-        }"
-      )
-      wrapProgram $out/bin/faugus-launcher "''${gappsWrapperArgs[@]}"
-
-      # Set wrapper args for faugus-run
-      makeWrapperArgs+=(
-        "''${gappsWrapperArgs[@]}"
+        --prefix PYTHONPATH : "$out/${python3Packages.python.sitePackages}:${python3Packages.makePythonPath pythonDeps}"
+        --suffix PATH : "${lib.makeBinPath [ python3Packages.icoextract imagemagick umu-launcher xdg-utils ]}"
       )
     '';
 

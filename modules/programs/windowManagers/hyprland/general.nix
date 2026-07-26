@@ -94,12 +94,10 @@
             debug.vfr = true;
 
             misc = {
-              vrr = 0;
-              enable_swallow = true;
+              vrr = 1;
+              enable_swallow = false;
               mouse_move_enables_dpms = true;
               key_press_enables_dpms = true;
-              animate_manual_resizes = false;
-              animate_mouse_windowdragging = false;
               middle_click_paste = false;
               focus_on_activate = true;
               disable_hyprland_logo = true;
@@ -111,7 +109,7 @@
             };
 
             render = {
-              direct_scanout = 1;
+              direct_scanout = 0;
               new_render_scheduling = true;
             };
 
@@ -135,7 +133,7 @@
               split_width_multiplier = 1.0;
               use_active_for_splits = true;
             };
-
+            ecosystem.no_donation_nag = true;
             animations.enabled = true;
           };
 

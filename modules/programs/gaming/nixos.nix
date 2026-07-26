@@ -4,9 +4,9 @@
     { pkgs, ... }:
     {
       imports = [
-        inputs.nix-gaming.nixosModules.platformOptimizations
-        inputs.nix-gaming.nixosModules.wine
-        inputs.nix-gaming.nixosModules.pipewireLowLatency
+        # inputs.nix-gaming.nixosModules.platformOptimizations
+        # inputs.nix-gaming.nixosModules.wine
+        # inputs.nix-gaming.nixosModules.pipewireLowLatency
         inputs.steam-config-nix.nixosModules.default
       ];
 
@@ -16,6 +16,7 @@
         };
         systemPackages = with pkgs; [
           winetricks
+          wineWow64Packages.waylandFull
           protontricks
           vulkan-tools
           lsfg-vk
@@ -27,7 +28,7 @@
       };
 
       services = {
-        pipewire.lowLatency.enable = true;
+        # pipewire.lowLatency.enable = true;
         lact.enable = true;
       };
 
@@ -57,11 +58,11 @@
             "--mangoapp"
           ];
         };
-        wine = {
-          enable = true;
-          ntsync = true;
-          binfmt = true;
-        };
+        # wine = {
+        # enable = true;
+        # ntsync = true;
+        # binfmt = true;
+        # };
         steam = {
           enable = true;
           package = pkgs.steam.override {
@@ -75,7 +76,6 @@
               PROTON_USE_NTSYNC = 1;
               PROTON_USE_WOW64 = 1;
               PROTON_ENABLE_WAYLAND = 1;
-              PROTON_FSR4_UPGRADE = "4.1.1";
               LOW_LATENCY_LAYER = 1;
               PROTON_DISCORD_BRIDGE = 1;
               MLFG_UPGRADE = 1;
@@ -86,7 +86,7 @@
           remotePlay.openFirewall = true;
           localNetworkGameTransfers.openFirewall = true;
           protontricks.enable = true;
-          platformOptimizations.enable = true;
+          # platformOptimizations.enable = true;
           config =
             let
               defaultCompatTool = "Proton-CachyOS Latest";
