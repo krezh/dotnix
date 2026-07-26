@@ -3,6 +3,14 @@
     { pkgs, ... }:
     {
       services = {
+        smartd = {
+          enable = true;
+          autodetect = true;
+        };
+        earlyoom = {
+          enable = true;
+          freeMemThreshold = 5;
+        };
         sanoid = {
           enable = true;
           interval = "hourly";
@@ -14,14 +22,6 @@
             daily = 30;
             monthly = 3;
             yearly = 0;
-          };
-          smartd = {
-            enable = true;
-            autodetect = true;
-          };
-          earlyoom = {
-            enable = true;
-            freeMemThreshold = 5;
           };
         };
       };

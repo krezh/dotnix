@@ -2,19 +2,19 @@
   flake.modules.nixos.jotunheim =
     { config, ... }:
     {
-      sops.secrets."nut/monitorPassword" = {
+      sops.secrets."nut/password" = {
         sopsFile = ../secrets.sops.yaml;
       };
 
       power.ups = {
-        enable = false;
+        enable = true;
         mode = "netclient";
 
         upsmon.monitor."ups" = {
-          system = "<UPS_NAME>@<NUT_SERVER_HOST>";
+          system = "ups@rpi01.lan.plexuz.xyz";
           type = "secondary";
-          user = "<NUT_MONITOR_USER>";
-          passwordFile = config.sops.secrets."nut/monitorPassword".path;
+          user = "ups";
+          passwordFile = config.sops.secrets."nut/password".path;
         };
       };
     };
