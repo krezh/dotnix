@@ -24,6 +24,8 @@
       hideNodes = [
         "alsa_output.usb-Generic_USB_Audio-00.HiFi_5_1__Speaker__sink"
         "alsa_output.usb-Generic_USB_Audio-00.HiFi_5_1__Headphones__sink"
+        "alsa_input.usb-Generic_USB_Audio-00.HiFi_5_1__Mic__source"
+        "alsa_input.usb-Generic_USB_Audio-00.HiFi_5_1__Line__source"
         "alsa_input.usb-Logitech_A50-00.pro-input-1"
       ];
       renameModules = [

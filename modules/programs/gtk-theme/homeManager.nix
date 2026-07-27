@@ -33,16 +33,10 @@
           size = 11.5;
         };
         theme = {
-          name = "Colloid-Dark-Compact-Catppuccin";
-          package = pkgs.colloid-gtk-theme.override {
+          name = "WhiteSur-Dark-blue";
+          package = pkgs.whitesur-gtk-theme.override {
             colorVariants = [ "dark" ];
-            themeVariants = [ "default" ];
-            sizeVariants = [ "compact" ];
-            tweaks = [
-              "catppuccin"
-              "rimless"
-              "float"
-            ];
+            themeVariants = [ "blue" ];
           };
         };
       };
