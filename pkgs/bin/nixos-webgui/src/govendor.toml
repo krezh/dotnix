@@ -4,8 +4,8 @@ schema = 3
 
 [mod]
   [mod."github.com/ebitengine/purego"]
-    version = "v0.10.0"
-    hash = "sha256-NPS88SNvsm4QEAx1zVmNGzMwtR1EBhdQYywQU1JdRqM="
+    version = "v0.10.2"
+    hash = "sha256-p2g0NoOOM3kEIaXQ48tgtn1gB5o0YlWoO8FTUD5w+lE="
     go = "1.18"
     packages = ["github.com/ebitengine/purego", "github.com/ebitengine/purego/internal/fakecgo", "github.com/ebitengine/purego/internal/strings", "github.com/ebitengine/purego/internal/xreflect"]
   [mod."github.com/go-chi/chi/v5"]
@@ -23,8 +23,8 @@ schema = 3
     hash = "sha256-ujzuJ1ttQgjHQJEij4O/2+I8DZaUVZQCQgA4ysfqulI="
     go = "1.14"
   [mod."github.com/shirou/gopsutil/v4"]
-    version = "v4.26.6"
-    hash = "sha256-kIvsWsYifL7Lyd1SsvuirHPET0YMYO9RL2fk3e5K0to="
+    version = "v4.26.7"
+    hash = "sha256-sKPHHNxG5lbJdMtrauQ35Vw5vB8VdQqGDfjn/hxsQzE="
     go = "1.24.0"
     packages = ["github.com/shirou/gopsutil/v4/common", "github.com/shirou/gopsutil/v4/internal/common", "github.com/shirou/gopsutil/v4/net"]
   [mod."github.com/yusufpapurcu/wmi"]
