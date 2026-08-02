@@ -1,7 +1,0 @@
---- a/src/core/Seat.cpp
-+++ b/src/core/Seat.cpp
-@@ -171,3 +171,3 @@ void CSeatManager::registerCursorShape(SP<CCWpCursorShapeManagerV1> shape) {
- bool CSeatManager::registered() {
--    return m_pSeat;
-+    return m_pSeat != nullptr;
- }
