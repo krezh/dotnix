@@ -50,7 +50,6 @@
           klim
           kubestr
           k8s-format
-          kubectl-pgo
           talswitcher
           kopiur
         ];
