@@ -8,14 +8,14 @@
 (buildGoModule.override { go = go-bin.latestStable; }) (finalAttrs: {
   pname = "yayamlls";
   # renovate: datasource=github-releases depName=home-operations/yayamlls
-  version = "0.1.15";
+  version = "0.2.0";
   __structuredAttrs = true;
 
   src = fetchFromGitHub {
     owner = "home-operations";
     repo = "yayamlls";
     tag = finalAttrs.version;
-    hash = "sha256-zWcaNYsTI/ThFa91ntGmGWlChvu3UFrfUukeQtTpzCI=";
+    hash = "sha256-hVjdxKGGFb9ipN14wLTaADTLr921ytvUK2daWgJ5Pvk=";
   };
 
   vendorHash = "sha256-0iUSISbajsOlMxbSp9KAYSZVL2ToktcL4IelxHVBrck=";
