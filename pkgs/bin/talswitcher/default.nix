@@ -8,16 +8,16 @@
 (buildGoModule.override { go = go-bin.latestStable; }) (finalAttrs: {
   pname = "talswitcher";
   # renovate: datasource=github-releases depName=mirceanton/talswitcher
-  version = "2.2.31";
+  version = "2.2.32";
 
   src = fetchFromGitHub {
     owner = "mirceanton";
     repo = "talswitcher";
     rev = "v${finalAttrs.version}";
-    hash = "sha256-cQUterS0PtUAH/yLwOlgo4cGv2EhSTtX6mV4QkQ96rY=";
+    hash = "sha256-t3lkkm+jObjtaMBMTJKcUMJnDE8wtnAP8ZlBIjjnJQM=";
   };
 
-  vendorHash = "sha256-sMqAogK9y+TGoIpg7qdL6lSoPr9t3k4q9WTYCE/Or48=";
+  vendorHash = "sha256-9BoHIWKcttFQKxEC/j3Qab1v3DWmaytZt6yYDoZOpMY=";
 
   preBuild = ''
     export HOME="$TMPDIR"
