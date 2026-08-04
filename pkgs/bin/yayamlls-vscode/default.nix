@@ -8,13 +8,13 @@
 buildNpmPackage (finalAttrs: {
   pname = "yayamlls-vscode";
   # renovate: datasource=github-releases depName=home-operations/yayamlls
-  version = "0.1.15";
+  version = "0.2.0";
 
   src = fetchFromGitHub {
     owner = "home-operations";
     repo = "yayamlls";
     tag = finalAttrs.version;
-    hash = "sha256-zWcaNYsTI/ThFa91ntGmGWlChvu3UFrfUukeQtTpzCI=";
+    hash = "sha256-hVjdxKGGFb9ipN14wLTaADTLr921ytvUK2daWgJ5Pvk=";
   };
 
   sourceRoot = "source/editors/vscode";
