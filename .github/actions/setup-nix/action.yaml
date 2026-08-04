@@ -88,7 +88,7 @@ runs:
 
     - name: Setup xilo
       if: inputs.skip-cache != 'true' && inputs.xilo-url != '' && inputs.xilo-cache != '' && inputs.xilo-token != ''
-      uses: stubbedev/xilo@e8ae9e8d70d553a2d7d742c11d6c4d61c3b84a90 # v1.0.10
+      uses: stubbedev/xilo@3b942a854445828e2cb829847ed0820302fc5e99 # v1.0.12
       with:
         url: ${{ inputs.xilo-url }}
         cache: ${{ inputs.xilo-cache }}
