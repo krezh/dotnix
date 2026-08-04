@@ -11,7 +11,7 @@
           shell_integration = "no-cursor";
           input_delay = 2;
           font_size = config.var.fonts.codeSize;
-          font_family = "family=\"${config.var.fonts.mono}\"";
+          font_family = "family='Monaspace Neon'";
           bold_font = "auto";
           italic_font = "auto";
           bold_italic_font = "auto";
@@ -21,7 +21,7 @@
           sync_to_monitor = "yes";
           scrollback_lines = 10000;
           confirm_os_window_close = 0;
-          window_padding_width = 3;
+          window_padding_width = 5;
           hide_window_decorations = "yes";
         };
         extraConfig = ''

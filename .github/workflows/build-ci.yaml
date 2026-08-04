@@ -61,7 +61,6 @@ jobs:
           all=$(nix-eval-jobs \
             --flake .#ci \
             --check-cache-status \
-            --force-recurse \
             --workers $(nproc) \
             --gc-roots-dir /tmp/gcroots | \
             jq -sc 'if any(.error != null) then (map(select(.error != null) | "\(.attr): \(.error)") | "❌ Evaluation errors:\n" + join("\n")) | halt_error(1) else map(select(.cacheStatus == "notBuilt") | {

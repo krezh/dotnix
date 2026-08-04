@@ -30,13 +30,20 @@
         gtk4.theme = config.gtk.theme;
         font = {
           name = config.var.fonts.sans;
-          size = 11.5;
+          size = 12;
         };
         theme = {
-          name = "WhiteSur-Dark-blue";
-          package = pkgs.whitesur-gtk-theme.override {
+          name = "Colloid-Dark-Compact-Catppuccin";
+          package = pkgs.colloid-gtk-theme.override {
             colorVariants = [ "dark" ];
-            themeVariants = [ "blue" ];
+            themeVariants = [ "default" ];
+            sizeVariants = [ "compact" ];
+            tweaks = [
+              "catppuccin"
+              "rimless"
+              "float"
+              "normal"
+            ];
           };
         };
       };

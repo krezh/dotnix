@@ -10,8 +10,8 @@
         settings = {
           font-family = config.var.fonts.mono;
           font-size = config.var.fonts.codeSize;
-          font-style = "Bold";
-          font-thicken = true;
+          # font-style = "Bold";
+          # font-thicken = true;
           copy-on-select = "clipboard";
           right-click-action = "paste";
           auto-update = "off";

@@ -11,21 +11,26 @@
         name,
         system ? throw "Host ${name} is missing a system type. Requires something like \"system = \"x86_64-linux\";\"",
         stateVersion ? null,
+        ci ? true,
       }:
       {
-        ${name} = inputs.nixpkgs.lib.nixosSystem {
-          specialArgs = {
-            inherit lib;
+        ${name} =
+          (inputs.nixpkgs.lib.nixosSystem {
+            specialArgs = {
+              inherit lib;
+            };
+            modules = [
+              inputs.self.modules.nixos.${name}
+              {
+                nixpkgs.hostPlatform = lib.mkDefault system;
+                networking.hostName = lib.mkDefault name;
+              }
+            ]
+            ++ lib.optional (stateVersion != null) { system.stateVersion = stateVersion; };
+          })
+          // {
+            inherit ci;
           };
-          modules = [
-            inputs.self.modules.nixos.${name}
-            {
-              nixpkgs.hostPlatform = lib.mkDefault system;
-              networking.hostName = lib.mkDefault name;
-            }
-          ]
-          ++ lib.optional (stateVersion != null) { system.stateVersion = stateVersion; };
-        };
       };
     mkImage =
       {

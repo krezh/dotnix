@@ -107,6 +107,11 @@
       flake = false;
     };
 
+    code-comments = {
+      url = "git+https://github.com/pash7ka/code-comments?shallow=1";
+      flake = false;
+    };
+
     helium = {
       url = "git+https://github.com/cjavad/nixpille-helium?shallow=1";
       inputs.nixpkgs.follows = "nixpkgs";

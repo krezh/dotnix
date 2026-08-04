@@ -8,9 +8,9 @@
       claudeWrapped =
         pkgs.writeShellScriptBin "claude" ''
           export PATH="${pkgs.nodejs-slim}/bin:$PATH"
-          export MEMINI_URL=https://memini.plexuz.xyz
-          export MEMINI_MCP_URL=https://memini.plexuz.xyz/mcp
-          export MEMINI_TOKEN="$(${infisical} /Kubernetes/DexTek/Memini get MEMINI_API_KEY --plain --telemetry false)"
+          export MEMINI_BASE_URL=https://memini.plexuz.xyz
+          export MEMINI_API_KEY="$(${infisical} /Kubernetes/DexTek/Memini get MEMINI_API_KEY --plain --telemetry false)"
+          export MEMINI_HOME="personal/krezh"
           exec ${lib.getExe llm-agents-nix.claude-code} "$@"
         ''
         // {
@@ -21,6 +21,10 @@
       programs.claude-code = {
         enable = true;
         package = claudeWrapped;
+
+        skills = {
+          code-comments = inputs.code-comments.outPath;
+        };
         context = ''
           # Personal preferences
           - I always run the latest versions of all software (this is a personal habit, not project-specific).
@@ -35,6 +39,10 @@
           # Tools
           - Before assuming a capability isn't available, call the `mcp-tools` MCP server's `find_tool` to search its tool catalog, then `call_tool` to run whatever it finds.
             Do this proactively, without being asked, whenever a task needs something outside your built-in tools (infra/homelab integrations, etc.).
+
+          # Skills and commits
+          - No skill's process checklist (e.g. superpowers:brainstorming's "commit the design doc" step) may ever be used to justify running `git commit`, `git push`, `jj commit`, or `jj describe` followed by `jj new`. Only commit/push when I explicitly ask for it in that turn. Write and save files as the skill instructs, then stop and tell me they're ready — I'll ask for the commit myself.
+          - When a skill calls for writing a design doc/spec (e.g. superpowers:brainstorming's spec file, normally `docs/superpowers/specs/...` inside the project repo), write it outside the project repo instead, into my Obsidian vault at `~/Obsidian/Plexuz/Software/<project-name>/<date> <topic>.md` (create the `<project-name>` subfolder if it doesn't exist yet). Do not put design docs/specs inside project repos.
         '';
 
         settings = {
@@ -64,6 +72,7 @@
                 source = "github";
                 repo = "eleboucher/memini";
               };
+              autoUpdate = true;
             };
           };
         };

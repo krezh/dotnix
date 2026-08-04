@@ -54,6 +54,23 @@
         "url": "https://github.com/catppuccin/nix"
       }
     },
+    "code-comments": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1781783431,
+        "narHash": "sha256-AzMilK0hWHfJPy7jOuhBy1sOVLQ31GQjIRUoP5Llv3w=",
+        "ref": "refs/heads/master",
+        "rev": "f6e1493b5f69c34f0017455a94d5d4e730461b06",
+        "shallow": true,
+        "type": "git",
+        "url": "https://github.com/pash7ka/code-comments"
+      },
+      "original": {
+        "shallow": true,
+        "type": "git",
+        "url": "https://github.com/pash7ka/code-comments"
+      }
+    },
     "comin": {
       "inputs": {
         "flake-compat": [
@@ -994,6 +1011,7 @@
     "root": {
       "inputs": {
         "catppuccin": "catppuccin",
+        "code-comments": "code-comments",
         "comin": "comin",
         "crane": "crane",
         "devshell": "devshell",

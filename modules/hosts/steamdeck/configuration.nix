@@ -14,7 +14,6 @@ in
           terminal
           editors
           browsers
-          launchers
         ];
       };
       imports = with inputs.self.modules.nixos; [

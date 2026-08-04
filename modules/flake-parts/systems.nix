@@ -7,10 +7,14 @@ in
     "x86_64-linux"
   ];
   flake = {
-    hosts = lib.mapAttrs (_name: config: config.config.system.build.toplevel) ciHosts;
+    hosts = lib.recurseIntoAttrs (
+      lib.mapAttrs (_name: config: config.config.system.build.toplevel) ciHosts
+    );
     ci = {
-      hosts = lib.mapAttrs (_name: config: config.config.system.build.toplevel) ciHosts;
-      packages = lib.concatMapAttrs (_system: pkgs: pkgs) self.packages;
+      hosts = lib.recurseIntoAttrs (
+        lib.mapAttrs (_name: config: config.config.system.build.toplevel) ciHosts
+      );
+      packages = lib.recurseIntoAttrs (lib.concatMapAttrs (_system: pkgs: pkgs) self.packages);
     };
   };
 }

@@ -13,7 +13,6 @@ in
           editors
           browsers
           media
-          launchers
           mail
           ai
           hyprland

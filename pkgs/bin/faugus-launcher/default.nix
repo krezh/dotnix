@@ -16,7 +16,8 @@
   xdg-utils,
 }:
 
-python3Packages.buildPythonApplication (finalAttrs:
+python3Packages.buildPythonApplication (
+  finalAttrs:
   let
     pythonDeps = with python3Packages; [
       dbus-python
@@ -69,16 +70,24 @@ python3Packages.buildPythonApplication (finalAttrs:
     preFixup = ''
       gappsWrapperArgs+=(
         --prefix PYTHONPATH : "$out/${python3Packages.python.sitePackages}:${python3Packages.makePythonPath pythonDeps}"
-        --suffix PATH : "${lib.makeBinPath [ python3Packages.icoextract imagemagick umu-launcher xdg-utils ]}"
+        --suffix PATH : "${
+          lib.makeBinPath [
+            python3Packages.icoextract
+            imagemagick
+            umu-launcher
+            xdg-utils
+          ]
+        }"
       )
     '';
 
-  meta = {
-    description = "Simple and lightweight app for running Windows games using UMU-Launcher";
-    homepage = "https://github.com/Faugus/faugus-launcher";
-    changelog = "https://github.com/Faugus/faugus-launcher/releases/tag/${finalAttrs.src.tag}";
-    license = lib.licenses.mit;
-    mainProgram = "faugus-launcher";
-    platforms = lib.platforms.linux;
-  };
-})
+    meta = {
+      description = "Simple and lightweight app for running Windows games using UMU-Launcher";
+      homepage = "https://github.com/Faugus/faugus-launcher";
+      changelog = "https://github.com/Faugus/faugus-launcher/releases/tag/${finalAttrs.src.tag}";
+      license = lib.licenses.mit;
+      mainProgram = "faugus-launcher";
+      platforms = lib.platforms.linux;
+    };
+  }
+)

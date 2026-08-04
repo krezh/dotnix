@@ -90,6 +90,7 @@
           config =
             let
               defaultCompatTool = "Proton-CachyOS Latest";
+              gamemode = "${pkgs.gamemode}/bin/gamemoderun";
             in
             {
               enable = true;
@@ -112,7 +113,7 @@
                   id = 3156770;
                   compatTool = defaultCompatTool;
                   launchOptions = {
-                    wrappers = [ "gamemoderun" ];
+                    wrappers = [ gamemode ];
                     env = {
                       LSFG_PROCESS = "Default";
                     };
@@ -122,9 +123,7 @@
                   id = 2694490;
                   compatTool = defaultCompatTool;
                   launchOptions = {
-                    wrappers = [
-                      "gamemoderun"
-                    ];
+                    wrappers = [ gamemode ];
                     env = {
                       # LSFG_PROCESS = "Default";
                     };
@@ -134,7 +133,7 @@
                   id = 1361210;
                   compatTool = defaultCompatTool;
                   launchOptions = {
-                    wrappers = [ "gamemoderun" ];
+                    wrappers = [ gamemode ];
                     env = { };
                   };
                 };
@@ -142,7 +141,7 @@
                   id = 1285190;
                   compatTool = defaultCompatTool;
                   launchOptions = {
-                    wrappers = [ "gamemoderun" ];
+                    wrappers = [ gamemode ];
                     env = {
                       PROTON_USE_WOW64 = 0;
                       PROTON_ENABLE_WAYLAND = 0;
@@ -153,7 +152,7 @@
                   id = 2352620;
                   compatTool = defaultCompatTool;
                   launchOptions = {
-                    wrappers = [ "gamemoderun" ];
+                    wrappers = [ gamemode ];
                     env = {
                       PROTON_USE_WOW64 = 0;
                       PROTON_ENABLE_WAYLAND = 0;
@@ -165,7 +164,7 @@
                   id = 3321460;
                   compatTool = defaultCompatTool;
                   launchOptions = {
-                    wrappers = [ "gamemoderun" ];
+                    wrappers = [ gamemode ];
                     env = { };
                   };
                 };
@@ -173,7 +172,7 @@
                   id = 881020;
                   compatTool = defaultCompatTool;
                   launchOptions = {
-                    wrappers = [ "gamemoderun" ];
+                    wrappers = [ gamemode ];
                     env = { };
                   };
                 };
@@ -181,7 +180,7 @@
                   id = 2186680;
                   compatTool = defaultCompatTool;
                   launchOptions = {
-                    wrappers = [ "gamemoderun" ];
+                    wrappers = [ gamemode ];
                     env = {
                       LSFG_PROCESS = "Default";
                     };
@@ -191,9 +190,19 @@
                   id = 814380;
                   compatTool = defaultCompatTool;
                   launchOptions = {
-                    wrappers = [ "gamemoderun" ];
+                    wrappers = [ gamemode ];
                     env = {
                       LSFG_PROCESS = "Default";
+                    };
+                  };
+                };
+                wuwa = {
+                  id = 3513350;
+                  compatTool = defaultCompatTool;
+                  launchOptions = {
+                    wrappers = [ gamemode ];
+                    env = {
+                      # LSFG_PROCESS = "Default";
                     };
                   };
                 };

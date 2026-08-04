@@ -22,7 +22,6 @@ in
         editors
         browsers
         media
-        launchers
         mail
         ai
         kubernetes

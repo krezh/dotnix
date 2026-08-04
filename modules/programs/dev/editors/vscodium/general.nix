@@ -16,19 +16,15 @@
         vscodium.extensionIds = [
           "esbenp.prettier-vscode"
           "signageos.signageos-vscode-sops"
-          # "gruntfuggly.todo-tree"
-          # "waderyan.gitblame"
-          # "alefragnani.project-manager"
           "editorconfig.editorconfig"
           "usernamehw.errorlens"
           "oderwat.indent-rainbow"
-          # "mhutchie.git-graph"
           "anthropic.claude-code"
           "christian-kohler.path-intellisense"
           "gitHub.vscode-pull-request-github"
-          # "jjx.jjx"
+          "jjx.jjx"
           # "jj-view.jj-view"
-          "visualjj.visualjj"
+          # "visualjj.visualjj"
           "mkhl.direnv"
         ];
 
@@ -161,6 +157,9 @@
                 alwaysShowActions = true;
                 defaultViewMode = "tree";
               };
+
+              jj-view.fileWatcherMode = "watch";
+              jj-view.binaryPath= lib.getExe pkgs.jj;
               files = {
                 trimTrailingWhitespace = true;
                 associations = {
@@ -216,33 +215,8 @@
                 inlineMessageEnabled = false;
                 statusBarMessageEnabled = true;
               };
-              todo-tree = {
-                general.showActivityBarBadge = true;
-                filtering = {
-                  ignoreGitSubmodules = true;
-                  useBuiltInExcludes = "file and search excludes";
-                };
-                tree = {
-                  showCountsInTree = true;
-                  buttons.scanMode = true;
-                };
-              };
               indentRainbow.indicatorStyle = "light";
               indentRainbow.lightIndicatorStyleLineWidth = 2;
-              projectManager = {
-                git.baseFolders = [ "~/" ];
-                git.ignoredFolders = [
-                  "node_modules"
-                  "out"
-                  "typings"
-                  "test"
-                  "fork*"
-                  ".cache"
-                ];
-                sortList = "Recent";
-                showProjectNameInStatusBar = true;
-                openInNewWindowWhenClickingInStatusBar = false;
-              };
               sops = {
                 configPath = "./.sops.yaml";
                 creationEnabled = false;
