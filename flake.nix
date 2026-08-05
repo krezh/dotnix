@@ -30,7 +30,7 @@
     };
     flake-compat.url = "git+https://github.com/NixOS/flake-compat?shallow=1";
     nix-cachyos-kernel = {
-      url = "git+https://github.com/xddxdd/nix-cachyos-kernel?shallow=1";
+      url = "git+https://github.com/xddxdd/nix-cachyos-kernel?shallow=1&rev=c6be74346ad21399708e2f15c403e51a27a4ed13";
       inputs = {
         nixpkgs.follows = "nixpkgs";
         flake-parts.follows = "flake-parts";
@@ -39,7 +39,7 @@
     };
 
     lanzaboote = {
-      url = "git+https://github.com/nix-community/lanzaboote?ref=refs/tags/v1.1.0&shallow=1";
+      url = "git+https://github.com/nix-community/lanzaboote?shallow=1&ref=refs/tags/v1.1.0";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 

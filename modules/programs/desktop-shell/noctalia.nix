@@ -66,51 +66,19 @@
             auto_hide = true;
             show_dots = true;
           };
-          location = {
-            address = "Sweden, Bålsta";
-          };
+          location = { };
           lockscreen_widgets = {
             enabled = false;
-            schema_version = 2;
-            widget_order = [
-              "lockscreen-login-box@DP-2"
-              "lockscreen-login-box@DP-1"
-            ];
-            grid = {
-              cell_size = 16;
-              major_interval = 4;
-              visible = true;
-            };
-            widget = {
-              "lockscreen-login-box@DP-1" = {
-                box_height = 0.0;
-                box_width = 0.0;
-                cx = 1280.0;
-                cy = 1317.0;
-                output = "DP-1";
-                rotation = 0.0;
-                type = "login_box";
-              };
-              "lockscreen-login-box@DP-2" = {
-                box_height = 0.0;
-                box_width = 0.0;
-                cx = 1280.0;
-                cy = 1317.0;
-                output = "DP-2";
-                rotation = 0.0;
-                type = "login_box";
-              };
-            };
           };
           nightlight = {
             enabled = false;
           };
           notification = {
-            background_opacity = 0.98;
+            background_opacity = config.var.opacity;
             layer = "overlay";
           };
           osd = {
-            background_opacity = 0.98;
+            background_opacity = config.var.opacity;
             orientation = "vertical";
             position = "center_right";
             position_vertical = "center_right";
@@ -121,13 +89,11 @@
           plugins = {
             source = [
               {
-                auto_update = true;
                 kind = "git";
                 location = "https://github.com/noctalia-dev/official-plugins";
                 name = "official";
               }
               {
-                auto_update = true;
                 kind = "git";
                 location = "https://github.com/noctalia-dev/community-plugins";
                 name = "community";
@@ -150,6 +116,47 @@
               borders = false;
               open_near_click_control_center = true;
             };
+            session = {
+              actions = [
+                {
+                  enabled = true;
+                  action = "lock";
+                  countdown_seconds = 0;
+                  shortcut = 1;
+                  variant = "default";
+                }
+                {
+                  enabled = true;
+                  action = "logout";
+                  countdown_seconds = 0;
+                  shortcut = 2;
+                  variant = "default";
+                }
+                {
+                  enabled = true;
+                  action = "lock_and_suspend";
+                  countdown_seconds = 0;
+                  shortcut = 3;
+                  variant = "default";
+                }
+                {
+                  enabled = true;
+                  action = "reboot";
+                  command = "hyprshutdown -t 'Restarting...' --post-cmd 'reboot'";
+                  countdown_seconds = 0;
+                  shortcut = 4;
+                  variant = "default";
+                }
+                {
+                  action = "shutdown";
+                  command = "hyprshutdown -t 'Shutting down...' --post-cmd 'shutdown -P 0'";
+                  countdown_seconds = 0;
+                  enabled = true;
+                  shortcut = 5;
+                  variant = "destructive";
+                }
+              ];
+            };
           };
           theme = {
             builtin = "Catppuccin";
@@ -166,8 +173,9 @@
           };
           widget = {
             workspaces = {
-              display = "none";
               focused_color = "error";
+              show_label = false;
+              show_labels = false;
             };
             audio_visualizer = {
               color_2 = "tertiary";
@@ -178,13 +186,13 @@
               font_weight = 700;
             };
             cpu = {
-              display = "text";
+              visualization = "none";
             };
             ram = {
-              display = "text";
+              visualization = "none";
             };
             temp = {
-              display = "text";
+              visualization = "none";
             };
             media = {
               hide_when_no_media = true;
@@ -194,13 +202,13 @@
             };
             disk-nix = {
               type = "sysmon";
-              display = "text";
+              visualization = "none";
               stat = "disk_used_pct";
               path = "/nix";
             };
             disk-home = {
               type = "sysmon";
-              display = "text";
+              visualization = "none";
               stat = "disk_used_pct";
               path = "/home";
             };

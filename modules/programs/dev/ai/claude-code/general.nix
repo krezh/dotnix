@@ -39,6 +39,7 @@
           # Tools
           - Before assuming a capability isn't available, call the `mcp-tools` MCP server's `find_tool` to search its tool catalog, then `call_tool` to run whatever it finds.
             Do this proactively, without being asked, whenever a task needs something outside your built-in tools (infra/homelab integrations, etc.).
+          - Always use jj if a .jj directory exists in the project root
 
           # Skills and commits
           - No skill's process checklist (e.g. superpowers:brainstorming's "commit the design doc" step) may ever be used to justify running `git commit`, `git push`, `jj commit`, or `jj describe` followed by `jj new`. Only commit/push when I explicitly ask for it in that turn. Write and save files as the skill instructs, then stop and tell me they're ready — I'll ask for the commit myself.

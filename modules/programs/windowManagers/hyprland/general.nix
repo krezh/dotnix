@@ -86,9 +86,6 @@
                 render_power = 3;
                 scale = 1.0;
               };
-              motion_blur = {
-                enabled = true;
-              };
             };
 
             debug.vfr = true;

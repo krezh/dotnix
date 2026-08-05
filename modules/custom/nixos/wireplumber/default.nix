@@ -110,12 +110,12 @@
           };
           primary = mkOption {
             type = types.str;
-            default = "A50 Game Audio";
+            default = "";
             description = "Display name of the primary audio device";
           };
           secondary = mkOption {
             type = types.str;
-            default = "Argon Speakers";
+            default = "";
             description = "Display name of the secondary audio device";
           };
         };

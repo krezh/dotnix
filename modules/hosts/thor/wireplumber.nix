@@ -4,7 +4,7 @@
       enable = true;
       audioSwitching = {
         enable = true;
-        primary = "A50 Game";
+        primary = "A50 System";
         secondary = "Argon Speakers";
       };
       deviceSettings = {
@@ -36,15 +36,14 @@
         }
         {
           nodeName = "alsa_output.usb-Logitech_A50-00.pro-output-1";
-          description = "A50 Game";
-          nick = "A50 Game";
+          description = "A50 System";
+          nick = "A50 System";
         }
         {
           nodeName = "alsa_output.usb-Logitech_A50-00.pro-output-0";
           description = "A50 Chat";
           nick = "A50 Chat";
         }
-
         {
           nodeName = "alsa_input.usb-Logitech_A50-00.pro-input-0";
           description = "A50 Chat";

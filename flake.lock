@@ -700,15 +700,15 @@
         ]
       },
       "locked": {
-        "lastModified": 1785784274,
-        "narHash": "sha256-EfQnFhRC9hwkHx6x/hQPs5jbGBiW9NanbUi3iwG4qm0=",
-        "ref": "refs/heads/master",
-        "rev": "0c30753ac307cd4656848c367a1c188374d892c0",
+        "lastModified": 1785609312,
+        "narHash": "sha256-u2jA6fdtpzPgvw/49NP5P9y2SoopurMGuw0UZgaPkeY=",
+        "rev": "c6be74346ad21399708e2f15c403e51a27a4ed13",
         "shallow": true,
         "type": "git",
         "url": "https://github.com/xddxdd/nix-cachyos-kernel"
       },
       "original": {
+        "rev": "c6be74346ad21399708e2f15c403e51a27a4ed13",
         "shallow": true,
         "type": "git",
         "url": "https://github.com/xddxdd/nix-cachyos-kernel"

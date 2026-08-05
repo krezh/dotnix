@@ -92,7 +92,15 @@
       # Boot configuration
       boot = {
         plymouth.enable = false;
-        kernelPackages = pkgs.cachyosKernels.linuxPackages-cachyos-bore-lto;
+        kernelPackages = pkgs.linuxPackagesFor (
+          pkgs.cachyosKernels.linux-cachyos-latest.override {
+            cpusched = "eevdf";
+            lto = "thin";
+            processorOpt = "x86_64-v4";
+            hzTicks = "1000";
+            bbr3 = true;
+          }
+        );
         tmp.cleanOnBoot = true;
         kernel.sysctl = {
           "kernel.core_pattern" = "|/bin/false";
