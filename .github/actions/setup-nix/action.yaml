@@ -7,15 +7,6 @@ inputs:
   cachix-token:
     description: Cachix authentication token
     required: false
-  attic-endpoint:
-    description: Attic cache endpoint
-    required: false
-  attic-cache:
-    description: Attic cache name
-    required: false
-  attic-token:
-    description: Attic authentication token
-    required: false
   xilo-url:
     description: xilo cache server base URL
     required: false
@@ -69,22 +60,6 @@ runs:
         github_access_token: ${{ inputs.github-token }}
         extra_nix_config: |
           accept-flake-config = true
-
-    - name: Setup Cachix
-      if: inputs.skip-cache != 'true' && inputs.cachix-cache != '' && inputs.cachix-token != ''
-      uses: cachix/cachix-action@5f2d7c5294214f71b873db4b969586b980625e71 # v17
-      with:
-        name: ${{ inputs.cachix-cache }}
-        authToken: ${{ inputs.cachix-token }}
-        skipPush: ${{ inputs.skip-push }}
-
-    - name: Setup Attic
-      if: inputs.skip-cache != 'true' && inputs.attic-endpoint != '' && inputs.attic-cache != '' && inputs.attic-token != ''
-      uses: ryanccn/attic-action@1887fd507f03327c96c64cca30118c96eb17fdad # v0.4.1
-      with:
-        endpoint: ${{ inputs.attic-endpoint }}
-        cache: ${{ inputs.attic-cache }}
-        token: ${{ inputs.attic-token }}
 
     - name: Setup xilo
       if: inputs.skip-cache != 'true' && inputs.xilo-url != '' && inputs.xilo-cache != '' && inputs.xilo-token != ''

@@ -53,6 +53,16 @@
               backend = "ssh";
               key = config.sops.secrets."ssh/privkey".path;
             };
+            fsmonitor = {
+              backend = "watchman";
+              watchman.register-snapshot-trigger = true;
+            };
+            visualjj.auto-describe = false;
+            visualjj.snapshot-workspaces = true;
+            visualjj.sync = "fetch";
+            visualjj.sync-pause = false;
+            visualjj.sync-rebase = true;
+            visualjj.show-immutable = false;
             ui = {
               default-command = "log";
               diff-formatter = [
@@ -194,9 +204,9 @@
 
       home.packages = [
         pkgs.meld
-        pkgs.serie
         pkgs.jjui
         pkgs.lazyjj
+        pkgs.watchman
       ];
     };
 }

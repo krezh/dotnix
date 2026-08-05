@@ -21,10 +21,9 @@
           "oderwat.indent-rainbow"
           "anthropic.claude-code"
           "christian-kohler.path-intellisense"
-          "gitHub.vscode-pull-request-github"
           "jjx.jjx"
           # "jj-view.jj-view"
-          # "visualjj.visualjj"
+          "visualjj.visualjj"
           "mkhl.direnv"
         ];
 
@@ -159,7 +158,7 @@
               };
 
               jj-view.fileWatcherMode = "watch";
-              jj-view.binaryPath= lib.getExe pkgs.jj;
+              jj-view.binaryPath = lib.getExe pkgs.jj;
               files = {
                 trimTrailingWhitespace = true;
                 associations = {

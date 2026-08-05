@@ -1,7 +1,6 @@
 {
   flake.modules.homeManager.editors = {
     vscodium.extensionIds = [
-      "github.vscode-github-actions"
       "zizmor.zizmor-vscode"
     ];
 

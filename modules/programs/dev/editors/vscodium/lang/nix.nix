@@ -58,9 +58,7 @@
 
                   };
                   diagnostic.suppress = [ ];
-                  hiddenLanguageServerErrors = [
-                    "textDocument/definition"
-                  ];
+                  hiddenLanguageServerErrors = [ ];
                 };
               };
             };

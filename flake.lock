@@ -602,10 +602,10 @@
         ]
       },
       "locked": {
-        "lastModified": 1785808416,
-        "narHash": "sha256-2t9rSdEE3vSoqdSB3En4YEOjiElakE1qJCNw4Jr442s=",
+        "lastModified": 1785950063,
+        "narHash": "sha256-XHmUvub1T9zkrYsKN6pat62HXQcTHwvdnrnHEjyWhb8=",
         "ref": "refs/heads/main",
-        "rev": "ea250ca39126d310a234eccb22f1fbbfb81c06b9",
+        "rev": "d838a38b0a563191d752b63d4ee46c084dfed99d",
         "shallow": true,
         "type": "git",
         "url": "https://github.com/krezh/kauth"

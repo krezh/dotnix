@@ -33,9 +33,9 @@ be combined with --host/--user to narrow the selection. Date-only values
 
 Examples:
   km delete 12e9406f405955816e93                     # Delete specific snapshot
-  km delete --all downloads                          # Delete all snapshots from "downloads" backup group
+  km delete --all group                              # Delete all snapshots from "group" backup group
   km delete --all                                    # Delete ALL snapshots (requires confirmation)
-  km delete --all --host default --user attic        # Delete all snapshots for a specific host/user
+  km delete --all --host default --user user         # Delete all snapshots for a specific host/user
   km delete --all --before 2024-01-01                # Delete snapshots started before 2024-01-01
   km delete --all --after 2024-01-01 --before 2024-02-01  # Delete snapshots from Jan 2024`,
 	Args: cobra.MaximumNArgs(1),
