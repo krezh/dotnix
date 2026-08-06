@@ -364,27 +364,6 @@
     "gitignore": {
       "inputs": {
         "nixpkgs": [
-          "nixpkgs"
-        ]
-      },
-      "locked": {
-        "lastModified": 1762808025,
-        "narHash": "sha256-XmjITeZNMTQXGhhww6ed/Wacy2KzD6svioyCX7pkUu4=",
-        "ref": "refs/heads/master",
-        "rev": "cb5e3fdca1de58ccbc3ef53de65bd372b48f567c",
-        "shallow": true,
-        "type": "git",
-        "url": "https://github.com/hercules-ci/gitignore.nix"
-      },
-      "original": {
-        "shallow": true,
-        "type": "git",
-        "url": "https://github.com/hercules-ci/gitignore.nix"
-      }
-    },
-    "gitignore_2": {
-      "inputs": {
-        "nixpkgs": [
           "lanzaboote",
           "pre-commit",
           "nixpkgs"
@@ -604,13 +583,14 @@
       "locked": {
         "lastModified": 1785950063,
         "narHash": "sha256-XHmUvub1T9zkrYsKN6pat62HXQcTHwvdnrnHEjyWhb8=",
-        "ref": "refs/heads/main",
+        "ref": "refs/tags/0.2.28",
         "rev": "d838a38b0a563191d752b63d4ee46c084dfed99d",
         "shallow": true,
         "type": "git",
         "url": "https://github.com/krezh/kauth"
       },
       "original": {
+        "ref": "refs/tags/0.2.28",
         "shallow": true,
         "type": "git",
         "url": "https://github.com/krezh/kauth"
@@ -988,7 +968,7 @@
     "pre-commit": {
       "inputs": {
         "flake-compat": "flake-compat_2",
-        "gitignore": "gitignore_2",
+        "gitignore": "gitignore",
         "nixpkgs": [
           "lanzaboote",
           "nixpkgs"
@@ -1021,7 +1001,6 @@
         "flake-compat": "flake-compat",
         "flake-parts": "flake-parts",
         "git-hooks": "git-hooks",
-        "gitignore": "gitignore",
         "go-overlay": "go-overlay",
         "hardware": "hardware",
         "helium": "helium",
