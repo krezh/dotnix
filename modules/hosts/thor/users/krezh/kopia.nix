@@ -6,7 +6,7 @@ in
     home-manager.users.${user} =
       { config, ... }:
       {
-        services.kopia = {
+        homeModules.kopia = {
           enable = true;
           repository = {
             type = "filesystem";

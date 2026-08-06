@@ -8,7 +8,7 @@
         { config, ... }:
         {
           sops.secrets."gotify-desktop/token" = { };
-          services.gotify-desktop = {
+          homeModules.gotify-desktop = {
             enable = true;
             tokenFile = config.sops.secrets."gotify-desktop/token".path;
             url = "wss://gotify.plexuz.xyz";

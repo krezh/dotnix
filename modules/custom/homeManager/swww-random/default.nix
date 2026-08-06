@@ -7,7 +7,7 @@
       ...
     }:
     let
-      cfg = config.services.awww-random;
+      cfg = config.homeModules.awww-random;
 
       awww-random = pkgs.buildGoModule rec {
         pname = "awww-random";
@@ -23,7 +23,7 @@
       };
     in
     {
-      options.services.awww-random = {
+      options.homeModules.awww-random = {
         enable = lib.mkEnableOption "awww random wallpaper service";
 
         package = lib.mkOption {

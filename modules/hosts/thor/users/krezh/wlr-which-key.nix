@@ -11,7 +11,7 @@
     in
     {
       home-manager.users.${user} = {
-        programs.wlr-which-key = {
+        homeModules.wlr-which-key = {
           enable = true;
           settings = {
             font = "${config.var.fonts.mono} 14";

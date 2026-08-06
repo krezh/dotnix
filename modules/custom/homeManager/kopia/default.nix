@@ -7,7 +7,7 @@
       ...
     }:
     let
-      cfg = config.services.kopia;
+      cfg = config.homeModules.kopia;
       configFile = "${config.xdg.configHome}/kopia/repository.config";
       defaultPasswordFile = "${config.xdg.configHome}/kopia/repository.password";
       repositoryPath = "${config.xdg.dataHome}/kopia-repository";
@@ -62,7 +62,7 @@
       };
     in
     {
-      options.services.kopia = {
+      options.homeModules.kopia = {
         enable = lib.mkEnableOption "kopia backup service";
 
         repository = {

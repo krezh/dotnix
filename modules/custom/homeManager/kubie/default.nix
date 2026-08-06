@@ -8,11 +8,11 @@
     }:
     let
       yamlFormat = pkgs.formats.yaml { };
-      cfg = config.programs.kubie;
+      cfg = config.homeModules.kubie;
     in
     {
       options = {
-        programs.kubie = {
+        homeModules.kubie = {
           enable = lib.mkEnableOption "Kubie";
           package = lib.mkOption {
             type = lib.types.package;

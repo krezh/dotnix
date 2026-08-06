@@ -7,7 +7,7 @@
       ...
     }:
     let
-      cfg = config.services.gotify-desktop;
+      cfg = config.homeModules.gotify-desktop;
       tomlFormat = pkgs.formats.toml { };
 
       settings = {
@@ -25,7 +25,7 @@
       };
     in
     {
-      options.services.gotify-desktop = {
+      options.homeModules.gotify-desktop = {
         enable = lib.mkEnableOption "gotify-desktop notification daemon";
 
         url = lib.mkOption {

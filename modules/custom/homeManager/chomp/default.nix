@@ -7,11 +7,11 @@
       ...
     }:
     let
-      cfg = config.programs.chomp;
+      cfg = config.homeModules.chomp;
       jsonFormat = pkgs.formats.json { };
     in
     {
-      options.programs.chomp = {
+      options.homeModules.chomp = {
         enable = lib.mkEnableOption "chomp screenshot and screen recording tool";
 
         package = lib.mkOption {

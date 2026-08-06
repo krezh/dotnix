@@ -38,7 +38,7 @@
         }
       );
 
-      browser.run = "${lib.getExe config.programs.wlr-which-key.package} browser";
+      browser.run = "${lib.getExe config.homeModules.wlr-which-key.package} browser";
       screenshot.run = "${lib.getExe pkgs.chomp}";
       fileManager = mkProg pkgs.nautilus;
       passwords = mkProg pkgs.proton-pass;

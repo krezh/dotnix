@@ -7,11 +7,11 @@
       ...
     }:
     let
-      cfg = config.programs.wlr-which-key;
+      cfg = config.homeModules.wlr-which-key;
       yamlFormat = pkgs.formats.yaml { };
     in
     {
-      options.programs.wlr-which-key = {
+      options.homeModules.wlr-which-key = {
         enable = lib.mkEnableOption "wlr-which-key";
         package = lib.mkOption {
           type = lib.types.package;

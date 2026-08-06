@@ -6,7 +6,7 @@
     in
     {
       home-manager.users.${user} = {
-        programs.chomp = {
+        homeModules.chomp = {
           enable = true;
           font.family = config.var.fonts.sans;
           border = {
