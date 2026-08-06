@@ -17,10 +17,6 @@
     flake-parts.url = "git+https://github.com/hercules-ci/flake-parts?shallow=1";
     systems.url = "github:nix-systems/default";
     systems-linux.url = "github:nix-systems/default-linux";
-    gitignore = {
-      url = "git+https://github.com/hercules-ci/gitignore.nix?shallow=1";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
     git-hooks = {
       url = "git+https://github.com/cachix/git-hooks.nix?shallow=1";
       inputs = {
@@ -159,7 +155,7 @@
     };
 
     kauth = {
-      url = "git+https://github.com/krezh/kauth?shallow=1";
+      url = "git+https://github.com/krezh/kauth?shallow=1&ref=refs/tags/0.2.28";
       inputs = {
         nixpkgs.follows = "nixpkgs";
         go-overlay.follows = "go-overlay";

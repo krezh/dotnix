@@ -14,10 +14,6 @@
       environment.systemPackages = with pkgs; [
         ffmpegthumbnailer
         ffmpeg-headless
-        libheif
-        libheif.out
-        nufraw
-        nufraw-thumbnailer
         gdk-pixbuf
         usbutils
       ];
