@@ -14,7 +14,10 @@
   inputs = {
     nixpkgs.url = "git+https://github.com/NixOS/nixpkgs?ref=nixos-unstable&shallow=1";
     hardware.url = "git+https://github.com/nixos/nixos-hardware?shallow=1";
-    flake-parts.url = "git+https://github.com/hercules-ci/flake-parts?shallow=1";
+    flake-parts = {
+      url = "git+https://github.com/hercules-ci/flake-parts?shallow=1";
+      inputs.nixpkgs-lib.follows = "nixpkgs";
+    };
 
     nix-cachyos-kernel = {
       url = "git+https://github.com/xddxdd/nix-cachyos-kernel?shallow=1&rev=c6be74346ad21399708e2f15c403e51a27a4ed13";
