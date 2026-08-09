@@ -54,6 +54,7 @@
 
     impermanence = {
       url = "git+https://github.com/nix-community/impermanence?shallow=1";
+      inputs.nixpkgs.follows = "nixpkgs";
     };
 
     catppuccin = {
@@ -201,6 +202,7 @@
       url = "git+https://github.com/nlewo/comin?shallow=1";
       inputs = {
         nixpkgs.follows = "nixpkgs";
+        treefmt-nix.inputs.nixpkgs.follows = "nixpkgs";
       };
     };
 
