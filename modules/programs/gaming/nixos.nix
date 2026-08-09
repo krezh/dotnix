@@ -4,9 +4,6 @@
     { pkgs, ... }:
     {
       imports = [
-        # inputs.nix-gaming.nixosModules.platformOptimizations
-        # inputs.nix-gaming.nixosModules.wine
-        # inputs.nix-gaming.nixosModules.pipewireLowLatency
         inputs.steam-config-nix.nixosModules.default
       ];
 

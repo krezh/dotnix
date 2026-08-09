@@ -107,14 +107,6 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    nix-gaming = {
-      url = "git+https://github.com/fufexan/nix-gaming?shallow=1";
-      inputs = {
-        nixpkgs.follows = "nixpkgs";
-        flake-parts.follows = "flake-parts";
-      };
-    };
-
     steam-config-nix = {
       url = "git+https://github.com/different-name/steam-config-nix?shallow=1";
       inputs = {
