@@ -15,20 +15,11 @@
     nixpkgs.url = "git+https://github.com/NixOS/nixpkgs?ref=nixos-unstable&shallow=1";
     hardware.url = "git+https://github.com/nixos/nixos-hardware?shallow=1";
     flake-parts.url = "git+https://github.com/hercules-ci/flake-parts?shallow=1";
-    git-hooks = {
-      url = "git+https://github.com/cachix/git-hooks.nix?shallow=1";
-      inputs = {
-        nixpkgs.follows = "nixpkgs";
-        flake-compat.follows = "flake-compat";
-      };
-    };
-    flake-compat.url = "git+https://github.com/NixOS/flake-compat?shallow=1";
+
     nix-cachyos-kernel = {
       url = "git+https://github.com/xddxdd/nix-cachyos-kernel?shallow=1&rev=c6be74346ad21399708e2f15c403e51a27a4ed13";
       inputs = {
         nixpkgs.follows = "nixpkgs";
-        flake-parts.follows = "flake-parts";
-        flake-compat.follows = "flake-compat";
       };
     };
 
@@ -115,9 +106,6 @@
       url = "git+https://github.com/fufexan/nix-gaming?shallow=1";
       inputs = {
         nixpkgs.follows = "nixpkgs";
-        flake-parts.follows = "flake-parts";
-        git-hooks.follows = "git-hooks";
-        flake-compat.follows = "flake-compat";
       };
     };
 
@@ -125,7 +113,6 @@
       url = "git+https://github.com/different-name/steam-config-nix?shallow=1";
       inputs = {
         nixpkgs.follows = "nixpkgs";
-        flake-parts.follows = "flake-parts";
       };
     };
 
@@ -161,7 +148,6 @@
       url = "git+https://github.com/purpleclay/go-overlay?shallow=1";
       inputs = {
         nixpkgs.follows = "nixpkgs";
-        git-hooks.follows = "git-hooks";
       };
     };
 
@@ -181,8 +167,6 @@
       url = "git+https://github.com/numtide/llm-agents.nix?shallow=1";
       inputs = {
         nixpkgs.follows = "nixpkgs";
-        treefmt-nix.follows = "treefmt-nix";
-        flake-parts.follows = "flake-parts";
       };
     };
 
@@ -212,8 +196,6 @@
       url = "git+https://github.com/nlewo/comin?shallow=1";
       inputs = {
         nixpkgs.follows = "nixpkgs";
-        treefmt-nix.follows = "treefmt-nix";
-        flake-compat.follows = "flake-compat";
       };
     };
 
@@ -237,7 +219,6 @@
       inputs = {
         nixpkgs.follows = "nixpkgs";
         nixpkgs-nixcord.follows = "nixpkgs";
-        flake-parts.follows = "flake-parts";
       };
     };
 
