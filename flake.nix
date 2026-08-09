@@ -23,6 +23,7 @@
       url = "git+https://github.com/xddxdd/nix-cachyos-kernel?shallow=1&rev=c6be74346ad21399708e2f15c403e51a27a4ed13";
       inputs = {
         nixpkgs.follows = "nixpkgs";
+        flake-parts.follows = "flake-parts";
       };
     };
 
@@ -109,6 +110,7 @@
       url = "git+https://github.com/fufexan/nix-gaming?shallow=1";
       inputs = {
         nixpkgs.follows = "nixpkgs";
+        flake-parts.follows = "flake-parts";
       };
     };
 
@@ -222,6 +224,7 @@
       inputs = {
         nixpkgs.follows = "nixpkgs";
         nixpkgs-nixcord.follows = "nixpkgs";
+        flake-parts.follows = "flake-parts";
       };
     };
 
