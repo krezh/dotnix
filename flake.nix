@@ -15,8 +15,6 @@
     nixpkgs.url = "git+https://github.com/NixOS/nixpkgs?ref=nixos-unstable&shallow=1";
     hardware.url = "git+https://github.com/nixos/nixos-hardware?shallow=1";
     flake-parts.url = "git+https://github.com/hercules-ci/flake-parts?shallow=1";
-    systems.url = "github:nix-systems/default";
-    systems-linux.url = "github:nix-systems/default-linux";
     git-hooks = {
       url = "git+https://github.com/cachix/git-hooks.nix?shallow=1";
       inputs = {
@@ -128,7 +126,6 @@
       inputs = {
         nixpkgs.follows = "nixpkgs";
         flake-parts.follows = "flake-parts";
-        systems.follows = "systems";
       };
     };
 
@@ -141,7 +138,6 @@
       url = "git+https://github.com/abenz1267/elephant?shallow=1";
       inputs = {
         nixpkgs.follows = "nixpkgs";
-        systems.follows = "systems-linux";
       };
     };
 
@@ -150,7 +146,6 @@
       inputs = {
         nixpkgs.follows = "nixpkgs";
         elephant.follows = "elephant";
-        systems.follows = "systems-linux";
       };
     };
 
@@ -188,7 +183,6 @@
         nixpkgs.follows = "nixpkgs";
         treefmt-nix.follows = "treefmt-nix";
         flake-parts.follows = "flake-parts";
-        systems.follows = "systems";
       };
     };
 
@@ -206,7 +200,6 @@
       url = "git+https://github.com/Gerg-L/spicetify-nix?shallow=1";
       inputs = {
         nixpkgs.follows = "nixpkgs";
-        systems.follows = "systems";
       };
     };
 
