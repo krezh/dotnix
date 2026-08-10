@@ -729,6 +729,23 @@
         "type": "github"
       }
     },
+    "nix": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1783987836,
+        "narHash": "sha256-UkRzz0meYeuSQt5rQodwfiSe1If+5JojDP7Kxk0beXM=",
+        "owner": "NixOS",
+        "repo": "nix",
+        "rev": "aa2613fa02ca6199fe0ebf61a0f7f6d781d32a47",
+        "type": "github"
+      },
+      "original": {
+        "owner": "NixOS",
+        "ref": "2.35-maintenance",
+        "repo": "nix",
+        "type": "github"
+      }
+    },
     "nix-cachyos-kernel": {
       "inputs": {
         "flake-compat": "flake-compat_4",
@@ -773,6 +790,34 @@
         "owner": "nix-darwin",
         "repo": "nix-darwin",
         "type": "github"
+      }
+    },
+    "nix-eval-jobs": {
+      "inputs": {
+        "flake-parts": [
+          "flake-parts"
+        ],
+        "nix": "nix",
+        "nixpkgs": [
+          "nixpkgs"
+        ],
+        "treefmt-nix": [
+          "treefmt-nix"
+        ]
+      },
+      "locked": {
+        "lastModified": 1786359041,
+        "narHash": "sha256-EFJnN35L7UieL8zV8qPrpqfdfzztWksY8JYuXF+mr9o=",
+        "ref": "refs/heads/main",
+        "rev": "cd5c05e1072f52a11fe89b4365e10892bdb6cbda",
+        "shallow": true,
+        "type": "git",
+        "url": "https://github.com/nix-community/nix-eval-jobs"
+      },
+      "original": {
+        "shallow": true,
+        "type": "git",
+        "url": "https://github.com/nix-community/nix-eval-jobs"
       }
     },
     "nix-github-actions": {
@@ -1010,6 +1055,7 @@
         "lanzaboote": "lanzaboote",
         "llm-agents-nix": "llm-agents-nix",
         "nix-cachyos-kernel": "nix-cachyos-kernel",
+        "nix-eval-jobs": "nix-eval-jobs",
         "nix-index": "nix-index",
         "nix4vscode": "nix4vscode",
         "nixcord": "nixcord",

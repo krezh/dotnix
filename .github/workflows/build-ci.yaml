@@ -51,7 +51,7 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install nix-eval-jobs
-        run: nix profile install nixpkgs#nix-eval-jobs
+        run: nix profile install github:nix-community/nix-eval-jobs
 
       - name: Generate Matrix
         id: set-matrix

@@ -47,6 +47,15 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
+    nix-eval-jobs = {
+      url = "git+https://github.com/nix-community/nix-eval-jobs?shallow=1";
+      inputs = {
+        nixpkgs.follows = "nixpkgs";
+        flake-parts.follows = "flake-parts";
+        treefmt-nix.follows = "treefmt-nix";
+      };
+    };
+
     disko = {
       url = "git+https://github.com/nix-community/disko?shallow=1";
       inputs.nixpkgs.follows = "nixpkgs";
