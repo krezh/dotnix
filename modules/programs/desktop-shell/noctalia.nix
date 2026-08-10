@@ -142,14 +142,14 @@
                 {
                   enabled = true;
                   action = "reboot";
-                  command = "hyprshutdown -t 'Restarting...' --post-cmd 'reboot'";
+                  command = "systemd-run --user --scope --collect -- hyprshutdown -t 'Restarting...' --post-cmd 'reboot'";
                   countdown_seconds = 0;
                   shortcut = 4;
                   variant = "default";
                 }
                 {
                   action = "shutdown";
-                  command = "hyprshutdown -t 'Shutting down...' --post-cmd 'shutdown -P 0'";
+                  command = "systemd-run --user --scope --collect -- hyprshutdown -t 'Shutting down...' --post-cmd 'shutdown -P 0'";
                   countdown_seconds = 0;
                   enabled = true;
                   shortcut = 5;

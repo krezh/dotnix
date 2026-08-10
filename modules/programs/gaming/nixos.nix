@@ -84,7 +84,6 @@
           remotePlay.openFirewall = true;
           localNetworkGameTransfers.openFirewall = true;
           protontricks.enable = true;
-          # platformOptimizations.enable = true;
           config =
             let
               defaultCompatTool = "Proton-CachyOS Latest";
@@ -98,110 +97,91 @@
                 eldenring = {
                   id = 1245620;
                   compatTool = defaultCompatTool;
-                  launchOptions = {
-                    wrappers = [ ];
-                    env = {
-                      PROTON_USE_WOW64 = 0;
-                      PROTON_ENABLE_WAYLAND = 0;
-                      LSFG_PROCESS = "Default";
-                    };
+                  wrappers = [ ];
+                  env = {
+                    PROTON_USE_WOW64 = 0;
+                    PROTON_ENABLE_WAYLAND = 0;
+                    LSFG_PROCESS = "Default";
                   };
+
                 };
                 witchfire = {
                   id = 3156770;
                   compatTool = defaultCompatTool;
-                  launchOptions = {
-                    wrappers = [ gamemode ];
-                    env = {
-                      LSFG_PROCESS = "Default";
-                    };
+                  wrappers = [ gamemode ];
+                  env = {
+                    LSFG_PROCESS = "Default";
                   };
+
                 };
                 poe2 = {
                   id = 2694490;
                   compatTool = defaultCompatTool;
-                  launchOptions = {
-                    wrappers = [ gamemode ];
-                    env = {
-                      # LSFG_PROCESS = "Default";
-                    };
+                  wrappers = [ gamemode ];
+                  env = {
+                    # LSFG_PROCESS = "Default";
                   };
+
                 };
                 darktide = {
                   id = 1361210;
                   compatTool = defaultCompatTool;
-                  launchOptions = {
-                    wrappers = [ gamemode ];
-                    env = { };
-                  };
+                  wrappers = [ gamemode ];
+                  env = { };
                 };
                 borderlands4 = {
                   id = 1285190;
                   compatTool = defaultCompatTool;
-                  launchOptions = {
-                    wrappers = [ gamemode ];
-                    env = {
-                      PROTON_USE_WOW64 = 0;
-                      PROTON_ENABLE_WAYLAND = 0;
-                    };
+                  wrappers = [ gamemode ];
+                  env = {
+                    PROTON_USE_WOW64 = 0;
+                    PROTON_ENABLE_WAYLAND = 0;
                   };
                 };
                 fellowship = {
                   id = 2352620;
                   compatTool = defaultCompatTool;
-                  launchOptions = {
-                    wrappers = [ gamemode ];
-                    env = {
-                      PROTON_USE_WOW64 = 0;
-                      PROTON_ENABLE_WAYLAND = 0;
-                    };
-                    args = [ "-dx11" ];
+                  wrappers = [ gamemode ];
+                  env = {
+                    PROTON_USE_WOW64 = 0;
+                    PROTON_ENABLE_WAYLAND = 0;
                   };
+                  args = [ "-dx11" ];
                 };
                 crimson-desert = {
                   id = 3321460;
                   compatTool = defaultCompatTool;
-                  launchOptions = {
-                    wrappers = [ gamemode ];
-                    env = { };
-                  };
+                  wrappers = [ gamemode ];
+                  env = { };
                 };
                 granblue = {
                   id = 881020;
                   compatTool = defaultCompatTool;
-                  launchOptions = {
-                    wrappers = [ gamemode ];
-                    env = { };
-                  };
+                  wrappers = [ gamemode ];
+                  env = { };
                 };
                 rogue-trader = {
                   id = 2186680;
                   compatTool = defaultCompatTool;
-                  launchOptions = {
-                    wrappers = [ gamemode ];
-                    env = {
-                      LSFG_PROCESS = "Default";
-                    };
+                  wrappers = [ gamemode ];
+                  env = {
+                    LSFG_PROCESS = "Default";
                   };
                 };
                 sekiro = {
                   id = 814380;
                   compatTool = defaultCompatTool;
-                  launchOptions = {
-                    wrappers = [ gamemode ];
-                    env = {
-                      LSFG_PROCESS = "Default";
-                    };
+                  wrappers = [ gamemode ];
+                  env = {
+                    LSFG_PROCESS = "Default";
                   };
                 };
                 wuwa = {
                   id = 3513350;
                   compatTool = defaultCompatTool;
-                  launchOptions = {
-                    wrappers = [ gamemode ];
-                    env = {
-                      # LSFG_PROCESS = "Default";
-                    };
+                  wrappers = [ gamemode ];
+                  env = {
+                    # LSFG_PROCESS = "Default";
                   };
                 };
               };

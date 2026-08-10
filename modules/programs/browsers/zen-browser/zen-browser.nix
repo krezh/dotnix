@@ -44,7 +44,6 @@
 
       programs.zen-browser = {
         enable = true;
-        setAsDefaultBrowser = true;
         profiles.${config.home.username} = {
           isDefault = true;
           mods = [ ];
