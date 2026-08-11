@@ -14,8 +14,8 @@ schema = 3
     go = "1.25.0"
     packages = ["charm.land/bubbletea/v2"]
   [mod."charm.land/lipgloss/v2"]
-    version = "v2.0.5"
-    hash = "sha256-EZCcXcyT9XS93UcZvIF42WUXnPlPYe4YLdhdFwCZ5NI="
+    version = "v2.0.6"
+    hash = "sha256-w9yU+7P0lEcTshjZbhOfaHIaZkL3YdM+vS7e1J8lALE="
     go = "1.25.0"
     packages = ["charm.land/lipgloss/v2", "charm.land/lipgloss/v2/table"]
   [mod."charm.land/log/v2"]
@@ -59,8 +59,8 @@ schema = 3
     go = "1.16"
     packages = ["github.com/charmbracelet/harmonica"]
   [mod."github.com/charmbracelet/ultraviolet"]
-    version = "v0.0.0-20260525132238-948f4557a654"
-    hash = "sha256-V0e1U50upnr+gWvao41MTiLHAbd5wAlt4GD8hiAVZ38="
+    version = "v0.0.0-20260811164956-006e29f97886"
+    hash = "sha256-yCXV58PFdrl5jeCS8jyWF5X+5Ndye8W5hxux9981O6E="
     go = "1.25.0"
     packages = ["github.com/charmbracelet/ultraviolet"]
   [mod."github.com/charmbracelet/x/ansi"]
@@ -165,8 +165,8 @@ schema = 3
     go = "1.25.8"
     packages = ["github.com/kopia/kopia/fs", "github.com/kopia/kopia/fs/ignorefs", "github.com/kopia/kopia/fs/localfs", "github.com/kopia/kopia/internal/atomicfile", "github.com/kopia/kopia/internal/bigmap", "github.com/kopia/kopia/internal/blobcrypto", "github.com/kopia/kopia/internal/blobparam", "github.com/kopia/kopia/internal/cache", "github.com/kopia/kopia/internal/cachedir", "github.com/kopia/kopia/internal/cacheprot", "github.com/kopia/kopia/internal/clock", "github.com/kopia/kopia/internal/completeset", "github.com/kopia/kopia/internal/contentlog", "github.com/kopia/kopia/internal/contentlog/logparam", "github.com/kopia/kopia/internal/contentparam", "github.com/kopia/kopia/internal/crypto", "github.com/kopia/kopia/internal/dirutil", "github.com/kopia/kopia/internal/epoch", "github.com/kopia/kopia/internal/feature", "github.com/kopia/kopia/internal/freepool", "github.com/kopia/kopia/internal/gather", "github.com/kopia/kopia/internal/grpcapi", "github.com/kopia/kopia/internal/hmac", "github.com/kopia/kopia/internal/impossible", "github.com/kopia/kopia/internal/iocopy", "github.com/kopia/kopia/internal/listcache", "github.com/kopia/kopia/internal/metrics", "github.com/kopia/kopia/internal/ospath", "github.com/kopia/kopia/internal/ownwrites", "github.com/kopia/kopia/internal/parallelwork", "github.com/kopia/kopia/internal/releasable", "github.com/kopia/kopia/internal/repodiag", "github.com/kopia/kopia/internal/retry", "github.com/kopia/kopia/internal/sparsefile", "github.com/kopia/kopia/internal/stat", "github.com/kopia/kopia/internal/stats", "github.com/kopia/kopia/internal/tempfile", "github.com/kopia/kopia/internal/timetrack", "github.com/kopia/kopia/internal/tlsutil", "github.com/kopia/kopia/internal/uitask", "github.com/kopia/kopia/internal/units", "github.com/kopia/kopia/internal/volumesizeinfo", "github.com/kopia/kopia/internal/wcmatch", "github.com/kopia/kopia/internal/workshare", "github.com/kopia/kopia/internal/zaplogutil", "github.com/kopia/kopia/repo", "github.com/kopia/kopia/repo/blob", "github.com/kopia/kopia/repo/blob/beforeop", "github.com/kopia/kopia/repo/blob/filesystem", "github.com/kopia/kopia/repo/blob/logging", "github.com/kopia/kopia/repo/blob/readonly", "github.com/kopia/kopia/repo/blob/sharded", "github.com/kopia/kopia/repo/blob/storagemetrics", "github.com/kopia/kopia/repo/blob/throttling", "github.com/kopia/kopia/repo/compression", "github.com/kopia/kopia/repo/content", "github.com/kopia/kopia/repo/content/index", "github.com/kopia/kopia/repo/content/indexblob", "github.com/kopia/kopia/repo/ecc", "github.com/kopia/kopia/repo/encryption", "github.com/kopia/kopia/repo/format", "github.com/kopia/kopia/repo/hashing", "github.com/kopia/kopia/repo/logging", "github.com/kopia/kopia/repo/maintenance", "github.com/kopia/kopia/repo/maintenancestats", "github.com/kopia/kopia/repo/manifest", "github.com/kopia/kopia/repo/object", "github.com/kopia/kopia/repo/splitter", "github.com/kopia/kopia/snapshot", "github.com/kopia/kopia/snapshot/policy", "github.com/kopia/kopia/snapshot/restore", "github.com/kopia/kopia/snapshot/snapshotfs", "github.com/kopia/kopia/snapshot/upload"]
   [mod."github.com/lucasb-eyer/go-colorful"]
-    version = "v1.4.0"
-    hash = "sha256-i/3GDHKEMLCy0kc3mtyk58UWYOPmKoUVaq6QCAWXKP0="
+    version = "v1.4.1"
+    hash = "sha256-nY4QB5g4wsf/BNjtNBxzAbgE40kHDhYYYQMAQUHic60="
     go = "1.12"
     packages = ["github.com/lucasb-eyer/go-colorful"]
   [mod."github.com/mattn/go-runewidth"]
@@ -293,13 +293,13 @@ schema = 3
     go = "1.25.0"
     packages = ["golang.org/x/net/http/httpguts", "golang.org/x/net/http2", "golang.org/x/net/http2/hpack", "golang.org/x/net/idna", "golang.org/x/net/internal/httpcommon", "golang.org/x/net/internal/httpsfv", "golang.org/x/net/internal/timeseries", "golang.org/x/net/trace"]
   [mod."golang.org/x/sync"]
-    version = "v0.21.0"
-    hash = "sha256-2n7PVb1krz7UpnXYGVmCrxV0fZBnjQdVVt6eVudEPYY="
+    version = "v0.22.0"
+    hash = "sha256-VZjl0fAM0p/nI81zh+pdBjzxFupx0UcKYXBBpL2ZS7k="
     go = "1.25.0"
     packages = ["golang.org/x/sync/errgroup"]
   [mod."golang.org/x/sys"]
-    version = "v0.46.0"
-    hash = "sha256-NzRXMSEk6upeudJvUEPVnw6clJ3d8UdC/vdfANWAc8g="
+    version = "v0.47.0"
+    hash = "sha256-TpbRyWWqHjddP6QzUgAbaLd2EE0S+GYNRUIDJd18r98="
     go = "1.25.0"
     packages = ["golang.org/x/sys/cpu", "golang.org/x/sys/unix", "golang.org/x/sys/windows"]
   [mod."golang.org/x/text"]
