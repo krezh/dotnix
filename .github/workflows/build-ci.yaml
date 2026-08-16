@@ -53,6 +53,9 @@ jobs:
       - name: Install nix-eval-jobs
         run: nix profile install github:nix-community/nix-eval-jobs
 
+      - name: Pre-fetch flake inputs
+        run: nix flake lock --no-update-lock-file
+
       - name: Generate Matrix
         id: set-matrix
         timeout-minutes: 15
