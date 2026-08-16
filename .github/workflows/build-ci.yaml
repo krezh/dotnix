@@ -53,9 +53,6 @@ jobs:
       - name: Install nix-eval-jobs
         run: nix profile install github:nix-community/nix-eval-jobs
 
-      - name: Pre-fetch flake inputs
-        run: nix flake lock --no-update-lock-file
-
       - name: Generate Matrix
         id: set-matrix
         timeout-minutes: 15
@@ -64,7 +61,7 @@ jobs:
           all=$(nix-eval-jobs \
             --flake .#ci \
             --check-cache-status \
-            --workers $(nproc) \
+            --workers 1 \
             --gc-roots-dir /tmp/gcroots | \
             jq -sc 'if any(.error != null) then (map(select(.error != null) | "\(.attr): \(.error)") | "❌ Evaluation errors:\n" + join("\n")) | halt_error(1) else map(select(.cacheStatus == "notBuilt") | {
               attr: .attr,
