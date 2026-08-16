@@ -60,6 +60,7 @@ runs:
         github_access_token: ${{ inputs.github-token }}
         extra_nix_config: |
           accept-flake-config = true
+          http-connections = 100
 
     - name: Setup xilo
       if: inputs.skip-cache != 'true' && inputs.xilo-url != '' && inputs.xilo-cache != '' && inputs.xilo-token != ''
