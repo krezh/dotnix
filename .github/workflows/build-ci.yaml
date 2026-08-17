@@ -58,16 +58,49 @@ jobs:
         timeout-minutes: 15
         run: |
           set -Eeuo pipefail
-          all=$(nix-eval-jobs \
+          nix-eval-jobs \
             --flake .#ci \
             --workers $(nproc) \
-            --gc-roots-dir /tmp/gcroots | \
-            jq -sc 'if any(.error != null) then (map(select(.error != null) | "\(.attr): \(.error)") | "❌ Evaluation errors:\n" + join("\n")) | halt_error(1) else map({
-              attr: .attr,
-              target: (.attr | ltrimstr("packages.")),
-              name: (.attr | ltrimstr("hosts.") | ltrimstr("packages.")),
-              runner: (.system | if . == "aarch64-linux" then "ubuntu-24.04-arm" else "ubuntu-latest" end)
-            }) end')
+            --gc-roots-dir /tmp/gcroots > /tmp/eval.jsonl
+
+          if jq -es 'any(.error != null)' /tmp/eval.jsonl | grep -q true; then
+            jq -s -r 'map(select(.error != null) | "\(.attr): \(.error)") | "❌ Evaluation errors:\n" + join("\n")' /tmp/eval.jsonl
+            exit 1
+          fi
+
+          # Cache-status check done via a single batched `nix build --dry-run`
+          # instead of nix-eval-jobs's --check-cache-status: that flag makes
+          # nix-eval-jobs recursively walk the full derivation graph one drv at
+          # a time to compute a per-input breakdown this workflow never uses,
+          # which is what caused 15+ min hangs on lock-file-maintenance PRs.
+          # `nix build --dry-run` reuses Nix's own native, batched
+          # queryMissing() to get the same "would this need building" answer
+          # in one shot.
+          mapfile -t drvs < <(jq -r '.drvPath' /tmp/eval.jsonl)
+          installables=("${drvs[@]/%/^*}")
+          nix build --dry-run "${installables[@]}" > /dev/null 2> /tmp/dryrun.log
+
+          awk '
+            /^these [0-9]+ derivations will be built/ { section = "build"; next }
+            /^these [0-9]+ paths will be fetched/     { section = "fetch"; next }
+            /^  \/nix\/store\// {
+              path = $0; sub(/^  /, "", path)
+              if (section == "build") print path >> "/tmp/will-build.txt"
+              next
+            }
+            { section = "" }
+          ' /tmp/dryrun.log
+          touch /tmp/will-build.txt
+
+          all=$(jq -sc \
+            --rawfile wb /tmp/will-build.txt \
+            '($wb | split("\n")) as $notbuilt |
+             map(select(.drvPath as $d | $notbuilt | index($d) != null) | {
+               attr: .attr,
+               target: (.attr | ltrimstr("packages.")),
+               name: (.attr | ltrimstr("hosts.") | ltrimstr("packages.")),
+               runner: (.system | if . == "aarch64-linux" then "ubuntu-24.04-arm" else "ubuntu-latest" end)
+             })' /tmp/eval.jsonl)
 
           echo "hosts=$(echo "$all" | jq -c '{include: [.[] | select(.attr | startswith("hosts."))]}')" >> "$GITHUB_OUTPUT"
           echo "packages=$(echo "$all" | jq -c '{include: [.[] | select(.attr | startswith("packages."))]}')" >> "$GITHUB_OUTPUT"
