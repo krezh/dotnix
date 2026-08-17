@@ -53,6 +53,13 @@ jobs:
       - name: Install nix-eval-jobs
         run: nix profile install github:nix-community/nix-eval-jobs
 
+      - name: Isolate chomp evaluation
+        id: isolate-chomp
+        timeout-minutes: 5
+        continue-on-error: true
+        run: |
+          time timeout 240 nix eval .#packages.x86_64-linux.chomp.drvPath --refresh
+
       - name: Generate Matrix
         id: set-matrix
         timeout-minutes: 15
@@ -69,6 +76,7 @@ jobs:
           EVAL_PID=$!
 
           (
+            set +e
             i=0
             while kill -0 "$EVAL_PID" 2>/dev/null; do
               sleep 60
@@ -76,7 +84,7 @@ jobs:
               {
                 echo "=== snapshot $i at $(date -u -Iseconds) ==="
                 echo "--- process tree ---"
-                ps -eLf --forest
+                ps -eLf || true
                 echo "--- nix-eval-jobs pids: wchan + status ---"
                 for p in $(pgrep -f nix-eval-jobs); do
                   echo "pid=$p cmd=$(tr '\0' ' ' < /proc/$p/cmdline 2>/dev/null)"
