@@ -53,73 +53,16 @@ jobs:
       - name: Install nix-eval-jobs
         run: nix profile install github:nix-community/nix-eval-jobs
 
-      - name: Isolate chomp evaluation
-        id: isolate-chomp
-        timeout-minutes: 5
-        continue-on-error: true
-        run: |
-          time timeout 240 nix eval .#packages.x86_64-linux.chomp.drvPath --refresh
-
       - name: Generate Matrix
         id: set-matrix
         timeout-minutes: 15
         run: |
           set -Eeuo pipefail
-          mkdir -p /tmp/diag
-          nix shell nixpkgs#gdb --command true
-
-          nix-eval-jobs \
+          all=$(nix-eval-jobs \
             --flake .#ci \
-            --check-cache-status \
-            --workers 1 \
-            --gc-roots-dir /tmp/gcroots > /tmp/diag/eval-output.jsonl 2> /tmp/diag/eval-stderr.log &
-          EVAL_PID=$!
-
-          (
-            set +e
-            i=0
-            while kill -0 "$EVAL_PID" 2>/dev/null; do
-              sleep 60
-              i=$((i + 1))
-              {
-                echo "=== snapshot $i at $(date -u -Iseconds) ==="
-                echo "--- process tree ---"
-                ps -eLf || true
-                echo "--- nix-eval-jobs pids: wchan + status ---"
-                for p in $(pgrep -f nix-eval-jobs); do
-                  echo "pid=$p cmd=$(tr '\0' ' ' < /proc/$p/cmdline 2>/dev/null)"
-                  echo "wchan=$(cat /proc/$p/wchan 2>/dev/null)"
-                  cat /proc/$p/status 2>/dev/null | head -5
-                done
-                echo "--- sockets ---"
-                ss -tnp 2>/dev/null || true
-                echo "--- gdb backtrace of main eval process ($EVAL_PID), all threads ---"
-                GDB_BIN="$(nix shell nixpkgs#gdb --command which gdb)"
-                sudo "$GDB_BIN" -p "$EVAL_PID" -batch -ex "thread apply all bt" 2>&1 || true
-                echo "--- gdb backtrace of nix-daemon instances for this eval, all threads ---"
-                for dp in $(pgrep -f "nix-daemon --for $EVAL_PID"); do
-                  echo "-- nix-daemon pid=$dp --"
-                  sudo "$GDB_BIN" -p "$dp" -batch -ex "thread apply all bt" 2>&1 || true
-                done
-              } >> "/tmp/diag/snapshot-$i.log" 2>&1
-            done
-          ) &
-          MONITOR_PID=$!
-
-          set +e
-          wait "$EVAL_PID"
-          EVAL_EXIT=$?
-          set -e
-          kill "$MONITOR_PID" 2>/dev/null || true
-
-          if [ "$EVAL_EXIT" -ne 0 ]; then
-            echo "nix-eval-jobs exited with $EVAL_EXIT"
-            cat /tmp/diag/eval-stderr.log
-            exit "$EVAL_EXIT"
-          fi
-
-          all=$(cat /tmp/diag/eval-output.jsonl | \
-            jq -sc 'if any(.error != null) then (map(select(.error != null) | "\(.attr): \(.error)") | "❌ Evaluation errors:\n" + join("\n")) | halt_error(1) else map(select(.cacheStatus == "notBuilt") | {
+            --workers $(nproc) \
+            --gc-roots-dir /tmp/gcroots | \
+            jq -sc 'if any(.error != null) then (map(select(.error != null) | "\(.attr): \(.error)") | "❌ Evaluation errors:\n" + join("\n")) | halt_error(1) else map({
               attr: .attr,
               target: (.attr | ltrimstr("packages.")),
               name: (.attr | ltrimstr("hosts.") | ltrimstr("packages.")),
@@ -128,15 +71,6 @@ jobs:
 
           echo "hosts=$(echo "$all" | jq -c '{include: [.[] | select(.attr | startswith("hosts."))]}')" >> "$GITHUB_OUTPUT"
           echo "packages=$(echo "$all" | jq -c '{include: [.[] | select(.attr | startswith("packages."))]}')" >> "$GITHUB_OUTPUT"
-
-      - name: Upload eval diagnostics
-        if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: eval-diagnostics
-          path: /tmp/diag/
-          retention-days: 3
-          if-no-files-found: ignore
 
   build-hosts:
     name: Build Hosts
