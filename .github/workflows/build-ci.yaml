@@ -93,10 +93,14 @@ jobs:
                 done
                 echo "--- sockets ---"
                 ss -tnp 2>/dev/null || true
-                echo "--- gdb backtrace of main eval process ($EVAL_PID) ---"
+                echo "--- gdb backtrace of main eval process ($EVAL_PID), all threads ---"
                 GDB_BIN="$(nix shell nixpkgs#gdb --command which gdb)"
-                "$GDB_BIN" -p "$EVAL_PID" -batch -ex "thread apply all bt" 2>&1 || \
-                  sudo "$GDB_BIN" -p "$EVAL_PID" -batch -ex "thread apply all bt" 2>&1 || true
+                sudo "$GDB_BIN" -p "$EVAL_PID" -batch -ex "thread apply all bt" 2>&1 || true
+                echo "--- gdb backtrace of nix-daemon instances for this eval, all threads ---"
+                for dp in $(pgrep -f "nix-daemon --for $EVAL_PID"); do
+                  echo "-- nix-daemon pid=$dp --"
+                  sudo "$GDB_BIN" -p "$dp" -batch -ex "thread apply all bt" 2>&1 || true
+                done
               } >> "/tmp/diag/snapshot-$i.log" 2>&1
             done
           ) &
