@@ -48,7 +48,7 @@
     };
 
     nix-eval-jobs = {
-      url = "github:nix-community/nix-eval-jobs";
+      url = "github:nix-community/nix-eval-jobs/v2.34.3";
       inputs = {
         nixpkgs.follows = "nixpkgs";
         flake-parts.follows = "flake-parts";
