@@ -5,7 +5,7 @@
       settings = { };
 
       skills = {
-        herdr = "${inputs.herdr}/SKILL.md";
+        herdr = "${inputs.herdr}/skills/herdr/SKILL.md";
       };
     };
   };
