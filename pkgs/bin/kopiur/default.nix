@@ -6,7 +6,7 @@
 let
   pname = "kopiur";
   # renovate: datasource=github-releases depName=home-operations/kopiur
-  version = "0.10.2";
+  version = "0.10.3";
 
   selectSystem =
     attrs:
@@ -21,7 +21,7 @@ let
   };
 
   hash = selectSystem {
-    x86_64-linux = "sha256-7lEQ/1RnrV5xKeAQkKYFTLvL6VtBlEadCOpGtcy+Xxo=";
+    x86_64-linux = "sha256-GTXwF34dtZUBBcBMB2gNM1u3zNLspLYVsAwWS5EBpTA=";
     aarch64-linux = "sha256-2oo7eiWrRjzRZwhlhre0lYunQgiD1Rm+WQRHWKFxg2Y=";
     x86_64-darwin = "sha256-HyVzdkt1GhqDxUAD5tSt3EbxChC6/B/uGeNotuePEFY=";
     aarch64-darwin = "sha256-ZL8b+fZUmZ/l8sMX2L5geKHnTy5IsrkkO+0LGlS0YCY=";
