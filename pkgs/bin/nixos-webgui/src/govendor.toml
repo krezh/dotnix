@@ -9,8 +9,8 @@ schema = 3
     go = "1.18"
     packages = ["github.com/ebitengine/purego", "github.com/ebitengine/purego/internal/fakecgo", "github.com/ebitengine/purego/internal/strings", "github.com/ebitengine/purego/internal/xreflect"]
   [mod."github.com/go-chi/chi/v5"]
-    version = "v5.3.1"
-    hash = "sha256-OaGcE3d9w3Yq0ThDxG8YNvpwAQgaTsKqOL6ofZIXAB4="
+    version = "v5.3.2"
+    hash = "sha256-ky/8jZoQ/o5MvkDggAu5OVUXI+ci+7TSU3rgtPtrNbc="
     go = "1.23"
     packages = ["github.com/go-chi/chi/v5", "github.com/go-chi/chi/v5/middleware"]
   [mod."github.com/go-ole/go-ole"]
