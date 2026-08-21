@@ -4,13 +4,13 @@ schema = 3
 
 [mod]
   [mod."charm.land/bubbles/v2"]
-    version = "v2.1.1"
-    hash = "sha256-y0GRfSVvlxNzOX40GjcYxZdo92RjmHwU43T3ix9+IcU="
+    version = "v2.2.0"
+    hash = "sha256-HVZVNS9gP6JoDj7V73TYsNCe5+88mNjFOb5dM0BNhoI="
     go = "1.25.0"
     packages = ["charm.land/bubbles/v2/progress"]
   [mod."charm.land/bubbletea/v2"]
-    version = "v2.0.7"
-    hash = "sha256-YOkvKUahFMMytHXr3AAABDifBtHt29930obiu/kx1vA="
+    version = "v2.0.8"
+    hash = "sha256-ZWcqUjUSKcT8uovaljKp4V8IQ7kIJtoAOGZ2VbpF3hs="
     go = "1.25.0"
     packages = ["charm.land/bubbletea/v2"]
   [mod."charm.land/lipgloss/v2"]
@@ -170,9 +170,9 @@ schema = 3
     go = "1.12"
     packages = ["github.com/lucasb-eyer/go-colorful"]
   [mod."github.com/mattn/go-runewidth"]
-    version = "v0.0.24"
-    hash = "sha256-t2uvZkmlTXQCj76p4poI9y82iziJX2lF44UhkLgLN40="
-    go = "1.20"
+    version = "v0.0.27"
+    hash = "sha256-TQd0ek+jjvxgN9YA6N/ctOyrADIAg9bBcClJCDltIWc="
+    go = "1.23"
     packages = ["github.com/mattn/go-runewidth"]
   [mod."github.com/muesli/cancelreader"]
     version = "v0.2.2"
