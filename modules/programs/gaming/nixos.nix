@@ -129,8 +129,8 @@
                   wrappers = [ gamemode ];
                   env = { };
                 };
-                borderlands4 = {
-                  id = 1285190;
+                warframe = {
+                  id = 230410;
                   compatTool = defaultCompatTool;
                   wrappers = [ gamemode ];
                   env = {
