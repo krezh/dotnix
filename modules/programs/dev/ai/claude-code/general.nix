@@ -7,9 +7,15 @@
       infisical = "${pkgs.infisical}/bin/infisical secrets --env default --path ";
       claudeWrapped =
         pkgs.writeShellScriptBin "claude" ''
+          set -euo pipefail
           export PATH="${pkgs.nodejs-slim}/bin:$PATH"
           export MEMINI_BASE_URL=https://memini.plexuz.xyz
-          export MEMINI_API_KEY="$(${infisical} /Kubernetes/DexTek/Memini get MEMINI_API_KEY --plain --telemetry false)"
+          if ! MEMINI_API_KEY="$(${infisical} /Kubernetes/DexTek/Memini get MEMINI_API_KEY --plain --telemetry false)" || [ -z "$MEMINI_API_KEY" ]; then
+            echo "claude: failed to fetch MEMINI_API_KEY from Infisical; memini MCP will not authenticate" >&2
+            unset MEMINI_API_KEY
+          else
+            export MEMINI_API_KEY
+          fi
           export MEMINI_HOME="personal/krezh"
           exec ${lib.getExe llm-agents-nix.claude-code} "$@"
         ''
