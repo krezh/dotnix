@@ -163,7 +163,7 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    crane.url = "github:ipetkov/crane/2c71e194474d13de031d729b729c968ddbe3507f";
+    crane.url = "github:ipetkov/crane/692f7e9ef2ece8125b466f66f2af532b3edaed0d";
 
     rust-overlay = {
       url = "github:oxalica/rust-overlay/b32685dd7c5a965aa8273adb7ddaf7f5b40d0faa";
