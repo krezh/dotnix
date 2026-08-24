@@ -62,20 +62,32 @@ jobs:
         timeout-minutes: 15
         run: |
           set -Eeuo pipefail
-          all=$(nix-eval-jobs \
+          raw=$(nix-eval-jobs \
             --flake .#ci \
             --check-cache-status \
-            --workers $(nproc) \
+            --workers "$(nproc)" \
             --gc-roots-dir /tmp/gcroots | \
-            jq -sc 'if any(.error != null) then (map(select(.error != null) | "\(.attr): \(.error)") | "❌ Evaluation errors:\n" + join("\n")) | halt_error(1) else map(select(.cacheStatus == "notBuilt") | {
-              attr: .attr,
-              target: (.attr | ltrimstr("packages.")),
-              name: (.attr | ltrimstr("hosts.") | ltrimstr("packages.")),
-              runner: (.system | if . == "aarch64-linux" then "ubuntu-24.04-arm" else "ubuntu-latest" end)
-            }) end')
+            jq -sc 'if any(.error != null) then (map(select(.error != null) | "\(.attr): \(.error)") | "❌ Evaluation errors:\n" + join("\n")) | halt_error(1) else map(select(.cacheStatus == "notBuilt")) end')
+
+          all=$(echo "$raw" | jq -c 'map({
+            attr: .attr,
+            target: (.attr | ltrimstr("packages.")),
+            name: (.attr | ltrimstr("hosts.") | ltrimstr("packages.")),
+            runner: (.system | if . == "aarch64-linux" then "ubuntu-24.04-arm" else "ubuntu-latest" end)
+          })')
 
           echo "hosts=$(echo "$all" | jq -c '{include: [.[] | select(.attr | startswith("hosts."))]}')" >> "$GITHUB_OUTPUT"
           echo "packages=$(echo "$all" | jq -c '{include: [.[] | select(.attr | startswith("packages."))]}')" >> "$GITHUB_OUTPUT"
+
+          echo "$raw" | jq -r '
+            .[] | select(.attr | startswith("hosts.")) |
+            "### \(.attr | ltrimstr("hosts.")): \(.neededBuilds | length) derivation(s) to build\n" +
+            (if (.neededBuilds | length) > 0 then
+              "<details>\n<summary>show derivations</summary>\n\n```\n" +
+              (.neededBuilds | map(sub("^/nix/store/[a-z0-9]+-"; "")) | join("\n")) +
+              "\n```\n\n</details>\n"
+            else "" end)
+          ' >> "$GITHUB_STEP_SUMMARY"
 
   build-hosts:
     name: Build Hosts
