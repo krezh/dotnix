@@ -23,7 +23,7 @@
       };
 
       nix = {
-        package = lib.mkDefault pkgs.lixPackageSets.stable.lix;
+        package = lib.mkDefault pkgs.lixPackageSets.latest.lix;
         extraOptions = ''
           !include ${config.sops.templates."nix_access_token.conf".path}
         '';
