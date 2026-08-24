@@ -200,7 +200,7 @@
     };
 
     comin = {
-      url = "github:nlewo/comin/e72d8cc7ad188dbb109994cba9babf026bacf6ab";
+      url = "github:nlewo/comin/ffeadf34d3daba1790d4dcc810c1ab301178e752";
       inputs = {
         nixpkgs.follows = "nixpkgs";
         treefmt-nix.inputs.nixpkgs.follows = "nixpkgs";
