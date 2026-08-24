@@ -178,7 +178,7 @@
     };
 
     nix4vscode = {
-      url = "github:nix-community/nix4vscode/777db2c5664fc429f739908bcad03f261f8e7045";
+      url = "github:nix-community/nix4vscode/56e0b910333a6e7b45e41af689840205af41be21";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
