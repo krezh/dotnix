@@ -72,7 +72,7 @@
     };
 
     nix-index = {
-      url = "github:nix-community/nix-index-database/c7962dc97b45129df8d751bedaf37beb5a17706e";
+      url = "github:nix-community/nix-index-database/c51d5c2ba69c907a34e90c9b6b80cd2b93811745";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
