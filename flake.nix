@@ -112,7 +112,7 @@
     };
 
     helium = {
-      url = "github:cjavad/nixpille-helium/d05088ecc155780e95e63dd0fd03c7a9df331817";
+      url = "github:cjavad/nixpille-helium/a344f447a97726ec3553edcc636ac0612236e838";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 

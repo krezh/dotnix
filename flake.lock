@@ -523,17 +523,17 @@
         ]
       },
       "locked": {
-        "lastModified": 1786949171,
-        "narHash": "sha256-DY6QkSvY9y9NvJ8FCVMOiO39JZ9uT8YdFwS+szBAwwI=",
+        "lastModified": 1787294345,
+        "narHash": "sha256-XVuUX6EMvOL/kiEs42DduD0+NdnWsnwG5h0c2sQpbzs=",
         "owner": "cjavad",
         "repo": "nixpille-helium",
-        "rev": "d05088ecc155780e95e63dd0fd03c7a9df331817",
+        "rev": "a344f447a97726ec3553edcc636ac0612236e838",
         "type": "github"
       },
       "original": {
         "owner": "cjavad",
         "repo": "nixpille-helium",
-        "rev": "d05088ecc155780e95e63dd0fd03c7a9df331817",
+        "rev": "a344f447a97726ec3553edcc636ac0612236e838",
         "type": "github"
       }
     },
