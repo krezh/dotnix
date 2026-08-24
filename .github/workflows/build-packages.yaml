@@ -43,10 +43,27 @@ jobs:
           target: ${{ matrix.target }}
           build-type: package
 
-      - name: Push to xilo
+      - name: Push built derivations
         if: ${{ always() && github.event.pull_request.head.repo.fork != true }}
         shell: bash
-        run: xilo push ${{ secrets.XILO_CACHE }} ./result
+        env:
+          DRVS_JSON: ${{ toJSON(matrix.drvs) }}
+        run: |
+          set -Eeuo pipefail
+          paths=()
+          while IFS= read -r drv; do
+            [ -e "$drv" ] || continue
+            while IFS= read -r out; do
+              [ -n "$out" ] || continue
+              nix path-info "$out" >/dev/null 2>&1 && paths+=("$out")
+            done < <(nix-store -q --outputs "$drv" 2>/dev/null || true)
+          done < <(jq -r '.[]' <<< "$DRVS_JSON")
+
+          if [ "${#paths[@]}" -gt 0 ]; then
+            xilo push ${{ secrets.XILO_CACHE }} "${paths[@]}"
+          else
+            echo "No built derivations available to push."
+          fi
 
       - name: Output build failure
         if: failure()
