@@ -51,24 +51,6 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    # nix-eval-jobs vendors this source to build against internal Nix APIs.
-    # Its own pin predates NixOS/nix@de426e1a3892 ("Fix compatibility with
-    # lowdown 3"), which breaks the build against current nixpkgs' lowdown.
-    nix = {
-      url = "github:NixOS/nix/2.34-maintenance";
-      flake = false;
-    };
-
-    nix-eval-jobs = {
-      url = "github:nix-community/nix-eval-jobs/v2.34.3";
-      inputs = {
-        nix.follows = "nix";
-        nixpkgs.follows = "nixpkgs";
-        flake-parts.follows = "flake-parts";
-        treefmt-nix.follows = "treefmt-nix";
-      };
-    };
-
     disko = {
       url = "github:nix-community/disko";
       inputs.nixpkgs.follows = "nixpkgs";

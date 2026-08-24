@@ -51,11 +51,7 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install nix-eval-jobs
-        # Pinned before nix-eval-jobs's cb4faa4 (2026-07-15) rewrite of
-        # --check-cache-status to a recursive per-derivation walk, which
-        # causes 15+ min hangs on lock-file-maintenance PRs (also the commit
-        # that introduced issue #430). v2.34.3 is the last release before it.
-        run: nix profile install github:nix-community/nix-eval-jobs/v2.34.3
+        run: nix profile install nixpkgs#nix-eval-jobs
 
       - name: Generate Matrix
         id: set-matrix
