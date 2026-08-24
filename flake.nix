@@ -13,7 +13,7 @@
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/e5bdc4a41d4c072fe1e3787eaa0320a384741d44";
-    hardware.url = "github:nixos/nixos-hardware/ff17823245ab9ff7bcae6acf950bd89cba82c38c";
+    hardware.url = "github:nixos/nixos-hardware/0471accf8d0a8210b31d947497d179ecc99e0021";
     flake-parts = {
       url = "github:hercules-ci/flake-parts/427bf4bd9435fdf21321c8cc628c24efc14c0f7a";
       inputs.nixpkgs-lib.follows = "nixpkgs";
