@@ -50,7 +50,6 @@
       "original": {
         "owner": "catppuccin",
         "repo": "nix",
-        "rev": "35d78c213b65e38789bcb359aae2380fcb4dc3e8",
         "type": "github"
       }
     },
@@ -67,7 +66,6 @@
       "original": {
         "owner": "pash7ka",
         "repo": "code-comments",
-        "rev": "f6e1493b5f69c34f0017455a94d5d4e730461b06",
         "type": "github"
       }
     },
@@ -90,7 +88,6 @@
       "original": {
         "owner": "nlewo",
         "repo": "comin",
-        "rev": "e72d8cc7ad188dbb109994cba9babf026bacf6ab",
         "type": "github"
       }
     },
@@ -106,7 +103,6 @@
       "original": {
         "owner": "ipetkov",
         "repo": "crane",
-        "rev": "2c71e194474d13de031d729b729c968ddbe3507f",
         "type": "github"
       }
     },
@@ -142,7 +138,6 @@
       "original": {
         "owner": "numtide",
         "repo": "devshell",
-        "rev": "255a2b1725a20d060f566e4755dbf571bbbb5f76",
         "type": "github"
       }
     },
@@ -163,7 +158,6 @@
       "original": {
         "owner": "nix-community",
         "repo": "disko",
-        "rev": "ff8702b4de27f72b4c78573dfb89ec74e36abdf1",
         "type": "github"
       }
     },
@@ -185,7 +179,6 @@
       "original": {
         "owner": "abenz1267",
         "repo": "elephant",
-        "rev": "23f37238367355cf46843015ad5e94706200176a",
         "type": "github"
       }
     },
@@ -208,7 +201,6 @@
       "original": {
         "owner": "Mic92",
         "repo": "fast-nix-gc",
-        "rev": "254a2ba0a4f1570b3880bc10bb6166afe1e25936",
         "type": "github"
       }
     },
@@ -325,7 +317,6 @@
       "original": {
         "owner": "hercules-ci",
         "repo": "flake-parts",
-        "rev": "427bf4bd9435fdf21321c8cc628c24efc14c0f7a",
         "type": "github"
       }
     },
@@ -493,7 +484,6 @@
       "original": {
         "owner": "purpleclay",
         "repo": "go-overlay",
-        "rev": "faebe5d8158e75e90750783f43bc07f72d523544",
         "type": "github"
       }
     },
@@ -512,7 +502,6 @@
       "original": {
         "owner": "nixos",
         "repo": "nixos-hardware",
-        "rev": "ff17823245ab9ff7bcae6acf950bd89cba82c38c",
         "type": "github"
       }
     },
@@ -533,7 +522,6 @@
       "original": {
         "owner": "cjavad",
         "repo": "nixpille-helium",
-        "rev": "d05088ecc155780e95e63dd0fd03c7a9df331817",
         "type": "github"
       }
     },
@@ -555,7 +543,6 @@
       "original": {
         "owner": "ogulcancelik",
         "repo": "herdr",
-        "rev": "2d24950ad9a02096921bc764e2e3dcd8900c3366",
         "type": "github"
       }
     },
@@ -576,7 +563,6 @@
       "original": {
         "owner": "nix-community",
         "repo": "home-manager",
-        "rev": "353742587cbaf079b3caee743115d037bc51fea6",
         "type": "github"
       }
     },
@@ -614,7 +600,6 @@
       "original": {
         "owner": "yayuuu",
         "repo": "hyprland-scroll-overview",
-        "rev": "f9248ab6bee770e9d68813b48cc6ca12b3271254",
         "type": "github"
       }
     },
@@ -636,7 +621,6 @@
       "original": {
         "owner": "nix-community",
         "repo": "impermanence",
-        "rev": "7b1d382faf603b6d264f58627330f9faa5cba149",
         "type": "github"
       }
     },
@@ -658,7 +642,6 @@
       "original": {
         "owner": "Jovian-Experiments",
         "repo": "Jovian-NixOS",
-        "rev": "a6043f17992543f9157c594129272e7621c45ea5",
         "type": "github"
       }
     },
@@ -731,7 +714,6 @@
       "original": {
         "owner": "numtide",
         "repo": "llm-agents.nix",
-        "rev": "50e05f7a7cc039d39d53bc77c132d9457f990375",
         "type": "github"
       }
     },
@@ -880,7 +862,6 @@
       "original": {
         "owner": "nix-community",
         "repo": "nix-index-database",
-        "rev": "c7962dc97b45129df8d751bedaf37beb5a17706e",
         "type": "github"
       }
     },
@@ -902,7 +883,6 @@
       "original": {
         "owner": "nix-community",
         "repo": "nix4vscode",
-        "rev": "777db2c5664fc429f739908bcad03f261f8e7045",
         "type": "github"
       }
     },
@@ -930,7 +910,6 @@
       "original": {
         "owner": "4evy",
         "repo": "nixcord",
-        "rev": "befe06adc4df1d8ea4ebc3fabb92a22e0cecccf1",
         "type": "github"
       }
     },
@@ -952,7 +931,6 @@
       "original": {
         "owner": "nix-community",
         "repo": "nixos-wsl",
-        "rev": "eaeb18da90024448a60eb1ec7132eafa4003404e",
         "type": "github"
       }
     },
@@ -980,8 +958,8 @@
       },
       "original": {
         "owner": "NixOS",
+        "ref": "nixos-unstable",
         "repo": "nixpkgs",
-        "rev": "e5bdc4a41d4c072fe1e3787eaa0320a384741d44",
         "type": "github"
       }
     },
@@ -1002,7 +980,6 @@
       "original": {
         "owner": "noctalia-dev",
         "repo": "noctalia-shell",
-        "rev": "b5c1bfaace0c3b1b36f227970e389f9d20295937",
         "type": "github"
       }
     },
@@ -1025,7 +1002,6 @@
       "original": {
         "owner": "notashelf",
         "repo": "nvf",
-        "rev": "59b0dc327b5ce7a6b510c50456a35891ddd144cc",
         "type": "github"
       }
     },
@@ -1155,7 +1131,6 @@
       "original": {
         "owner": "oxalica",
         "repo": "rust-overlay",
-        "rev": "b32685dd7c5a965aa8273adb7ddaf7f5b40d0faa",
         "type": "github"
       }
     },
@@ -1176,7 +1151,6 @@
       "original": {
         "owner": "uiriansan",
         "repo": "SilentSDDM",
-        "rev": "0dc4386ef570659537b480f4b226b3b6f2699948",
         "type": "github"
       }
     },
@@ -1197,7 +1171,6 @@
       "original": {
         "owner": "Mic92",
         "repo": "sops-nix",
-        "rev": "a8627b21b9107c5711c96b84f32a9a4b3d45295f",
         "type": "github"
       }
     },
@@ -1219,7 +1192,6 @@
       "original": {
         "owner": "Gerg-L",
         "repo": "spicetify-nix",
-        "rev": "0f478ff79b82abb785160cd4531293f61d21be86",
         "type": "github"
       }
     },
@@ -1242,7 +1214,6 @@
       "original": {
         "owner": "different-name",
         "repo": "steam-config-nix",
-        "rev": "30dc17418e7aff0b78ee14ef6c451b5f3422e792",
         "type": "github"
       }
     },
@@ -1467,7 +1438,6 @@
       "original": {
         "owner": "numtide",
         "repo": "treefmt-nix",
-        "rev": "27b3b12a8e6375f28ebe122f07d230ca5459bbfa",
         "type": "github"
       }
     },
@@ -1488,7 +1458,6 @@
       "original": {
         "owner": "edaywalid",
         "repo": "undo",
-        "rev": "513536e2a4218b9f7ad22f16ceb88ab6c2e89292",
         "type": "github"
       }
     },
@@ -1513,7 +1482,6 @@
       "original": {
         "owner": "abenz1267",
         "repo": "walker",
-        "rev": "42b3ed88abf50bc52638fb2835b7f17e3ea3ac4c",
         "type": "github"
       }
     },
@@ -1535,7 +1503,6 @@
       "original": {
         "owner": "stubbedev",
         "repo": "xilo",
-        "rev": "857923e34af55ad0c92b86233b55d9172b5868a2",
         "type": "github"
       }
     },
@@ -1559,7 +1526,6 @@
       "original": {
         "owner": "0xc000022070",
         "repo": "zen-browser-flake",
-        "rev": "fd7d5b08ac2e4da35cf908cbbf762a9276f00ddd",
         "type": "github"
       }
     },

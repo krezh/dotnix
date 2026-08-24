@@ -3,6 +3,6 @@ _final: prev: {
     # nixpkgs-review
     # nix-fast-build
     # nix-eval-jobs
-    # colmena
+    colmena
     ;
 }
