@@ -117,7 +117,7 @@
     };
 
     steam-config-nix = {
-      url = "github:different-name/steam-config-nix/30dc17418e7aff0b78ee14ef6c451b5f3422e792";
+      url = "github:different-name/steam-config-nix/e8c99d8e4aacf7e1854aa0196358b1b1c3b55067";
       inputs = {
         nixpkgs.follows = "nixpkgs";
       };
