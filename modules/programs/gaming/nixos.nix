@@ -94,8 +94,8 @@
               onSteamRunning = "wait";
               inherit defaultCompatTool;
               apps = {
-                eldenring = {
-                  id = 1245620;
+                "1245620" = {
+                  name = "eldenring";
                   compatTool = defaultCompatTool;
                   wrappers = [ ];
                   env = {
@@ -105,8 +105,8 @@
                   };
 
                 };
-                witchfire = {
-                  id = 3156770;
+                "3156770" = {
+                  name = "witchfire";
                   compatTool = defaultCompatTool;
                   wrappers = [ gamemode ];
                   env = {
@@ -114,8 +114,8 @@
                   };
 
                 };
-                poe2 = {
-                  id = 2694490;
+                "2694490" = {
+                  name = "poe2";
                   compatTool = defaultCompatTool;
                   wrappers = [ gamemode ];
                   env = {
@@ -123,14 +123,14 @@
                   };
 
                 };
-                darktide = {
-                  id = 1361210;
+                "1361210" = {
+                  name = "darktide";
                   compatTool = defaultCompatTool;
                   wrappers = [ gamemode ];
                   env = { };
                 };
-                borderlands4 = {
-                  id = 1285190;
+                "1285190" = {
+                  name = "borderlands4";
                   compatTool = defaultCompatTool;
                   wrappers = [ gamemode ];
                   env = {
@@ -138,8 +138,8 @@
                     PROTON_ENABLE_WAYLAND = 0;
                   };
                 };
-                fellowship = {
-                  id = 2352620;
+                "2352620" = {
+                  name = "fellowship";
                   compatTool = defaultCompatTool;
                   wrappers = [ gamemode ];
                   env = {
@@ -148,36 +148,36 @@
                   };
                   args = [ "-dx11" ];
                 };
-                crimson-desert = {
-                  id = 3321460;
+                "3321460" = {
+                  name = "crimson-desert";
                   compatTool = defaultCompatTool;
                   wrappers = [ gamemode ];
                   env = { };
                 };
-                granblue = {
-                  id = 881020;
+                "881020" = {
+                  name = "granblue";
                   compatTool = defaultCompatTool;
                   wrappers = [ gamemode ];
                   env = { };
                 };
-                rogue-trader = {
-                  id = 2186680;
+                "2186680" = {
+                  name = "rogue-trader";
                   compatTool = defaultCompatTool;
                   wrappers = [ gamemode ];
                   env = {
                     LSFG_PROCESS = "Default";
                   };
                 };
-                sekiro = {
-                  id = 814380;
+                "814380" = {
+                  name = "sekiro";
                   compatTool = defaultCompatTool;
                   wrappers = [ gamemode ];
                   env = {
                     LSFG_PROCESS = "Default";
                   };
                 };
-                wuwa = {
-                  id = 3513350;
+                "3513350" = {
+                  name = "wuwa";
                   compatTool = defaultCompatTool;
                   wrappers = [ gamemode ];
                   env = {

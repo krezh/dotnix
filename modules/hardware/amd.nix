@@ -1,7 +1,12 @@
+{ inputs, ... }:
 {
   flake.modules.nixos.amd =
     { pkgs, ... }:
     {
+      imports = [ inputs.chaotic.nixosModules.default ];
+
+      chaotic.mesa-git.enable = true;
+
       hardware = {
         graphics = {
           enable = true;

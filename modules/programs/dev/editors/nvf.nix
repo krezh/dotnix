@@ -45,6 +45,10 @@
         statusline.lualine = {
           enable = true;
           theme = "catppuccin";
+          integrations.breadcrumbs = {
+            nvim-navic.enable = true;
+            navbuddy.enable = true;
+          };
         };
         theme = {
           enable = true;
@@ -76,10 +80,6 @@
           noice.enable = true;
           colorizer.enable = true;
           illuminate.enable = true;
-          breadcrumbs = {
-            enable = true;
-            navbuddy.enable = true;
-          };
           fastaction.enable = true;
         };
         comments.comment-nvim.enable = true;

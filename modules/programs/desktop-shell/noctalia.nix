@@ -1,10 +1,8 @@
-{ inputs, ... }:
+{ ... }:
 {
   flake.modules.homeManager.desktop-shell =
     { config, ... }:
     {
-      imports = [ inputs.noctalia.homeModules.default ];
-
       programs.noctalia = {
         enable = true;
         systemd.enable = true;
