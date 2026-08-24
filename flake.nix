@@ -82,7 +82,7 @@
     };
 
     nvf = {
-      url = "github:notashelf/nvf/59b0dc327b5ce7a6b510c50456a35891ddd144cc";
+      url = "github:notashelf/nvf/460dad9e777df4008309f1d731a47b299dc7b41e";
       inputs = {
         nixpkgs.follows = "nixpkgs";
       };
