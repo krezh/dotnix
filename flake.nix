@@ -195,7 +195,7 @@
     };
 
     fast-nix-gc = {
-      url = "github:Mic92/fast-nix-gc/254a2ba0a4f1570b3880bc10bb6166afe1e25936";
+      url = "github:Mic92/fast-nix-gc/68287b2eb3ff360daead3e879568a9e26df5bfb1";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
