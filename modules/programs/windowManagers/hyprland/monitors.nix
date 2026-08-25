@@ -16,7 +16,7 @@
                 }
                 {
                   output = "DP-2";
-                  mode = "2560x1440@144";
+                  mode = "2560x1440@120";
                   position = "2560x0";
                   scale = 1.0;
                 }

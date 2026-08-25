@@ -106,8 +106,8 @@
             };
 
             render = {
-              direct_scanout = 0;
-              new_render_scheduling = true;
+              direct_scanout = 1;
+              new_render_scheduling = false;
             };
 
             # plugin.scrolloverview = {
