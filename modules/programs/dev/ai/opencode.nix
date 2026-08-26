@@ -103,12 +103,10 @@
             };
           };
 
-          # memini: automatic cross-session memory (recall before each turn,
-          # capture after). Installed from npm by opencode at startup. Auth +
-          # base URL come from the wrapper's env (MEMINI_API_KEY / MEMINI_BASE_URL);
-          # namespace is left to the server handshake so per-project memory is
-          # shared with the claude-code memini plugin.
-          plugin = [ "@eleboucher/opencode-memini" ];
+          plugin = [
+            "@eleboucher/opencode-memini"
+            "@slkiser/opencode-quota"
+          ];
 
           # MCP server configuration
           mcp = {
@@ -121,6 +119,17 @@
               enabled = true;
               type = "remote";
               url = "https://mcp.plexuz.xyz/mcp";
+            };
+          };
+
+          experimental = {
+            quotaToast = {
+              enabledProviders = [ "openai" ];
+              formatStyle = "allWindows";
+              percentDisplayMode = "remaining";
+              tuiSidebarPanel.enabled = true;
+              tuiCompactStatus.enabled = true;
+              enableToast = true;
             };
           };
         };

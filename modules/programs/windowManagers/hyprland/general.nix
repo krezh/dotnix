@@ -106,7 +106,7 @@
             };
 
             render = {
-              direct_scanout = 1;
+              direct_scanout = 0;
               new_render_scheduling = false;
             };
 

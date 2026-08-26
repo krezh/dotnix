@@ -35,7 +35,6 @@
         epiphany
         geary
         gnome-music
-        gnome-photos
         gnome-maps
         gnome-contacts
         gnome-weather

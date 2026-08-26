@@ -24,6 +24,7 @@
           resize-overlay = "never";
           window-padding-x = 5;
           window-padding-y = 5;
+          confirm-close-surface = false;
         };
       };
     };

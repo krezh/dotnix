@@ -12,11 +12,13 @@
                   mode = "2560x1440@239.97";
                   position = "0x0";
                   scale = 1.0;
-                  vrr = 2;
+                  # vrr = 2 (fullscreen-only) pinned the OTG to vmax/vmin 16364 whenever a
+                  # window went fullscreen, driving the panel at ~24 Hz instead of 240.
+                  vrr = 0;
                 }
                 {
                   output = "DP-2";
-                  mode = "2560x1440@120";
+                  mode = "2560x1440@144";
                   position = "2560x0";
                   scale = 1.0;
                 }
