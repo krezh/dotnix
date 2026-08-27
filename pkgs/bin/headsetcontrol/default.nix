@@ -10,13 +10,13 @@
 stdenv.mkDerivation (finalAttrs: {
   pname = "headsetcontrol";
   # renovate: datasource=github-releases depName=Sapd/HeadsetControl
-  version = "4.0.0";
+  version = "4.1.0";
 
   src = fetchFromGitHub {
     owner = "Sapd";
     repo = "HeadsetControl";
     tag = finalAttrs.version;
-    hash = "sha256-3mwX6XqoW5wphBHEqDQ1LMCSCv+3OtNlE9cz4M437ME=";
+    hash = "sha256-56SYgHY8HPjmVKSqrLCsUeTTle91RneWZWZeMQR/pWI=";
   };
 
   nativeBuildInputs = [
