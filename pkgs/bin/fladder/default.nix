@@ -6,10 +6,10 @@
 let
   pname = "fladder";
   # renovate: datasource=github-releases depName=DonutWare/Fladder
-  version = "0.10.3";
+  version = "0.11.0";
   src = fetchurl {
     url = "https://github.com/DonutWare/Fladder/releases/download/v${version}/Fladder-Linux-${version}.AppImage";
-    hash = "sha256-t9/rB7Iv0GI5HJWwBUQwfxISPpbYPeRouS6oD8BKMEY=";
+    hash = "sha256-iGRojfXV5ax/VR20JZ9vdUWqheN7HXYvbi0LjYB/tK0=";
   };
 
   appimageContents = appimageTools.extract { inherit pname version src; };
@@ -26,7 +26,7 @@ appimageTools.wrapType2 {
   extraInstallCommands = ''
     install -Dm444 ${appimageContents}/nl.jknaapen.fladder.desktop $out/share/applications/${pname}.desktop
     substituteInPlace $out/share/applications/${pname}.desktop \
-      --replace-fail 'Exec=Fladder' 'Exec=${pname}'
+      --replace-fail 'Exec=fladder' 'Exec=${pname}'
     install -Dm444 ${appimageContents}/fladder_icon_desktop.png $out/share/icons/hicolor/256x256/apps/fladder_icon_desktop.png
   '';
 
