@@ -26,7 +26,7 @@ appimageTools.wrapType2 {
   extraInstallCommands = ''
     install -Dm444 ${appimageContents}/nl.jknaapen.fladder.desktop $out/share/applications/${pname}.desktop
     substituteInPlace $out/share/applications/${pname}.desktop \
-      --replace-fail 'Exec=Fladder' 'Exec=${pname}'
+      --replace-fail 'Exec=fladder' 'Exec=${pname}'
     install -Dm444 ${appimageContents}/fladder_icon_desktop.png $out/share/icons/hicolor/256x256/apps/fladder_icon_desktop.png
   '';
 
