@@ -60,7 +60,16 @@ jobs:
           done < <(jq -r '.[]' <<< "$DRVS_JSON")
 
           if [ "${#paths[@]}" -gt 0 ]; then
-            xilo push ${{ secrets.XILO_CACHE }} "${paths[@]}"
+            for attempt in 1 2 3; do
+              if xilo push ${{ secrets.XILO_CACHE }} "${paths[@]}"; then
+                break
+              elif [ "$attempt" -eq 3 ]; then
+                exit 1
+              else
+                echo "Push attempt $attempt failed, retrying..."
+                sleep $((attempt * 5))
+              fi
+            done
           else
             echo "No built derivations available to push."
           fi
