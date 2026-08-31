@@ -139,7 +139,7 @@
     };
 
     kauth = {
-      url = "github:krezh/kauth/0.2.28";
+      url = "github:krezh/kauth/0.2.31";
       inputs = {
         nixpkgs.follows = "nixpkgs";
         go-overlay.follows = "go-overlay";
