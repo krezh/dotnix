@@ -2,7 +2,7 @@
   flake.modules.homeManager.xdg-settings =
     { pkgs, lib, ... }:
     let
-      defaultBrowser = "zen-twilight.desktop";
+      defaultBrowser = "brave-browser.desktop";
       defaultImageViewer = "org.libvips.vipsdisp.desktop";
       defaultVideoPlayer = "mpv.desktop";
       defaultAudioPlayer = "mpv.desktop";

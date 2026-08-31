@@ -54,7 +54,6 @@
           verbose = true;
           includeCoAuthoredBy = false;
           autoMemoryEnabled = false;
-          advisorModel = "opus";
 
           statusLine = {
             command = "${pkgs.claude-usage-bar}/bin/claude-usage-bar";
