@@ -4,7 +4,7 @@ go 1.25.0
 
 require (
 	github.com/go-chi/chi/v5 v5.3.2
-	github.com/shirou/gopsutil/v4 v4.26.7
+	github.com/shirou/gopsutil/v4 v4.26.8
 	maragu.dev/gomponents v1.3.0
 )
 
