@@ -42,7 +42,9 @@
               sticky_mode = false;
               ignore_special = true;
             };
+            icons.theme = "Papirus-Dark";
             theme.name = "catppuccin-mocha.ini";
+            font.family = "Rubik";
           };
           description = "snappy-switcher config.ini settings.";
         };

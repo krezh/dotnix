@@ -8,6 +8,8 @@
       ...
     }:
     let
+      inherit (import ./_helpers.nix { inherit lib; }) mkBinds;
+
       mkProg = pkg: {
         run = lib.getExe pkg;
         name = pkg.meta.mainProgram or pkg.pname or pkg.name;
@@ -26,18 +28,6 @@
 
       mkInline = lib.generators.mkLuaInline;
       exec = cmd: mkInline "hl.dsp.exec_cmd(${builtins.toJSON cmd})";
-      mkBinds = lib.mapAttrsToList (
-        keys:
-        { rule, ... }@opts:
-        {
-          _args = [
-            keys
-            rule
-            (removeAttrs opts [ "rule" ])
-          ];
-        }
-      );
-
       browser.run = "${lib.getExe config.homeModules.wlr-which-key.package} browser";
       screenshot.run = "${lib.getExe pkgs.chomp}";
       fileManager = mkProg pkgs.nautilus;

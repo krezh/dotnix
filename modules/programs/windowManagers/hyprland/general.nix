@@ -3,7 +3,15 @@
     programs.hyprland.enable = true;
   };
   flake.modules.homeManager.hyprland =
-    { pkgs, config, ... }:
+    {
+      pkgs,
+      config,
+      lib,
+      ...
+    }:
+    let
+      inherit (import ./_helpers.nix { inherit lib; }) mkEnv mkCurves mkAnimations;
+    in
     {
       services.polkit-gnome.enable = true;
       catppuccin.hyprland.enable = false;
@@ -134,240 +142,46 @@
             animations.enabled = true;
           };
 
-          env = [
-            {
-              _args = [
-                "QT_WAYLAND_DISABLE_WINDOWDECORATION"
-                "1"
-              ];
-            }
-            {
-              _args = [
-                "QT_QPA_PLATFORM"
-                "wayland"
-              ];
-            }
-            {
-              _args = [
-                "NIXOS_OZONE_WL"
-                "1"
-              ];
-            }
-          ];
+          env = mkEnv {
+            QT_WAYLAND_DISABLE_WINDOWDECORATION = "1";
+            QT_QPA_PLATFORM = "wayland";
+            NIXOS_OZONE_WL = "1";
+          };
 
-          curve = [
-            {
-              _args = [
-                "md3_decel"
-                {
-                  type = "bezier";
-                  points = [
-                    [
-                      0.05
-                      0.7
-                    ]
-                    [
-                      0.1
-                      1
-                    ]
-                  ];
-                }
-              ];
-            }
-            {
-              _args = [
-                "md3_accel"
-                {
-                  type = "bezier";
-                  points = [
-                    [
-                      0.3
-                      0
-                    ]
-                    [
-                      0.8
-                      0.15
-                    ]
-                  ];
-                }
-              ];
-            }
-            {
-              _args = [
-                "menu_decel"
-                {
-                  type = "bezier";
-                  points = [
-                    [
-                      0.1
-                      1
-                    ]
-                    [
-                      0
-                      1
-                    ]
-                  ];
-                }
-              ];
-            }
-            {
-              _args = [
-                "menu_accel"
-                {
-                  type = "bezier";
-                  points = [
-                    [
-                      0.38
-                      0.04
-                    ]
-                    [
-                      1
-                      0.07
-                    ]
-                  ];
-                }
-              ];
-            }
-            {
-              _args = [
-                "spring_menu"
-                {
-                  type = "spring";
-                  mass = 1;
-                  stiffness = 240;
-                  dampening = 24;
-                }
-              ];
-            }
-            {
-              _args = [
-                "spring_window"
-                {
-                  type = "spring";
-                  mass = 1;
-                  stiffness = 240;
-                  dampening = 24;
-                }
+          # bezier.<name> = "x1, y1, x2, y2"
+          # spring.<name> = "mass, stiffness, dampening"
+          curve = mkCurves {
+            bezier = {
+              md3_decel = "0.05, 0.7, 0.1, 1";
+              md3_accel = "0.3, 0, 0.8, 0.15";
+              menu_decel = "0.1, 1, 0, 1";
+              menu_accel = "0.38, 0.04, 1, 0.07";
+            };
+            spring = {
+              spring_menu = "1, 240, 24";
+              spring_window = "1, 240, 24";
+              spring_open = "1, 240, 24";
+              spring_workspace = "1, 240, 24";
+              spring_special = "1, 240, 24";
+            };
+          };
 
-              ];
-            }
-            {
-              _args = [
-                "spring_open"
-                {
-                  type = "spring";
-                  mass = 1;
-                  stiffness = 240;
-                  dampening = 24;
-                }
-
-              ];
-            }
-            {
-              _args = [
-                "spring_workspace"
-                {
-                  type = "spring";
-                  mass = 1;
-                  stiffness = 240;
-                  dampening = 24;
-                }
-
-              ];
-            }
-            {
-              _args = [
-                "spring_special"
-                {
-                  type = "spring";
-                  mass = 1;
-                  stiffness = 240;
-                  dampening = 24;
-                }
-
-              ];
-            }
-          ];
-
-          animation = [
-            {
-              leaf = "windows";
-              enabled = true;
-              speed = 1;
-              spring = "spring_window";
-            }
-            {
-              leaf = "windowsIn";
-              enabled = true;
-              speed = 1;
-              spring = "spring_window";
-              style = "popin 40%";
-            }
-            {
-              leaf = "windowsOut";
-              enabled = true;
-              speed = 1;
-              spring = "spring_window";
-              style = "popin 40%";
-            }
-            {
-              leaf = "border";
-              enabled = false;
-            }
-            {
-              leaf = "borderangle";
-              enabled = false;
-            }
-            {
-              leaf = "fade";
-              enabled = false;
-            }
-            {
-              leaf = "zoomFactor";
-              enabled = true;
-              speed = 6;
-              bezier = "md3_decel";
-            }
-            {
-              leaf = "layersIn";
-              enabled = true;
-              speed = 3;
-              spring = "spring_menu";
-              style = "slide";
-            }
-            {
-              leaf = "layersOut";
-              enabled = true;
-              speed = 1.6;
-              bezier = "menu_accel";
-              style = "slide";
-            }
-            {
-              leaf = "fadeLayersIn";
-              enabled = true;
-              speed = 2;
-              bezier = "menu_decel";
-            }
-            {
-              leaf = "fadeLayersOut";
-              enabled = true;
-              speed = 1.6;
-              bezier = "menu_accel";
-            }
-            {
-              leaf = "workspaces";
-              enabled = true;
-              speed = 1;
-              spring = "spring_workspace";
-              style = "slidevert";
-            }
-            {
-              leaf = "specialWorkspace";
-              enabled = true;
-              speed = 1;
-              spring = "spring_special";
-              style = "slidefadevert 40%";
-            }
+          # "<leaf>, <speed>, <kind>:<curve>[, <style>]", "<leaf>, off" to disable.
+          # Order matters: a parent leaf resets its children.
+          animation = mkAnimations [
+            "windows, 1, spring:spring_window"
+            "windowsIn, 1, spring:spring_window, popin 40%"
+            "windowsOut, 1, spring:spring_window, popin 40%"
+            "border, off"
+            "borderangle, off"
+            "fade, off"
+            "zoomFactor, 6, bezier:md3_decel"
+            "layersIn, 3, spring:spring_menu, slide"
+            "layersOut, 1.6, bezier:menu_accel, slide"
+            "fadeLayersIn, 2, bezier:menu_decel"
+            "fadeLayersOut, 1.6, bezier:menu_accel"
+            "workspaces, 1, spring:spring_workspace, slidevert"
+            "specialWorkspace, 1, spring:spring_special, slidefadevert 40%"
           ];
         };
       };

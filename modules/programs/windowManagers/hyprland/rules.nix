@@ -2,17 +2,14 @@
   flake.modules.homeManager.hyprland =
     { config, lib, ... }:
     let
-      # mkRules turns one config attrset into Hyprland's flat window-rule list:
-      #   tags.<name>  — a window earns the "+<name>" tag if it matches any field
-      #                  listed here (each field/value becomes its own rule = OR).
-      #                  A list value is OR within that field; `all = [ { … } ]`
-      #                  requires every field of a set together (AND).
-      #   apply.<name> — properties applied to any window carrying that tag.
-      #   rules        — ordered list of `{ label = { match = …; …props }; }` for
-      #                  non-tag rules; order is preserved (Hyprland applies them
-      #                  top-to-bottom). List fields in any `match` expand to
-      #                  one rule per value.
       inherit (import ./_helpers.nix { inherit lib; }) expandRules mkRules;
+
+      # Shared by both dialog tags below.
+      dialogLook = {
+        float = true;
+        size = "(monitor_w*0.5) (monitor_h*0.5)";
+        center = true;
+      };
     in
     {
       wayland.windowManager.hyprland = {
@@ -75,166 +72,170 @@
           ];
 
           window_rule = mkRules {
-            # Tag definitions — each field/value is an independent way to earn the tag.
+            # Each tag: how a window earns it, and what that gets it.
+            # anyOf — any one field is enough. allOf — all fields together.
             tags = {
               games = {
-                class = [
-                  "^(gamescope)$"
-                  "^(steam_proton)$"
-                  "^(steam_app_default)$"
-                  "^(steam_app_[0-9]+)$"
-                ];
-                xdg_tag = "^(proton-game)$";
-                content = 3;
+                anyOf = {
+                  class = [
+                    "^(gamescope)$"
+                    "^(steam_proton)$"
+                    "^(steam_app_default)$"
+                    "^(steam_app_[0-9]+)$"
+                  ];
+                  xdg_tag = "^(proton-game)$";
+                  content = 3;
+                };
+                apply = {
+                  workspace = "3";
+                  idle_inhibit = "always";
+                  opacity = "1.0 override";
+                  no_blur = true;
+                  render_unfocused = true;
+                };
               };
-              browsers.class = [
-                "^(zen.*)$"
-                "^(firefox)$"
-                "^(chromium)$"
-                "^(chrome)$"
-                "^(vivaldi-stable)$"
-                "^(helium)$"
-                "^(brave-browser)$"
-              ];
+
+              browsers = {
+                anyOf.class = [
+                  "^(zen.*)$"
+                  "^(firefox)$"
+                  "^(chromium)$"
+                  "^(chrome)$"
+                  "^(vivaldi-stable)$"
+                  "^(helium)$"
+                  "^(brave-browser)$"
+                ];
+                apply.opacity = "1.0 override";
+              };
+
               media = {
-                class = [
-                  "^(mpv)$"
-                  "^(plex)$"
-                  "^(org.jellyfin.JellyfinDesktop)$"
-                ];
-                content = [
-                  1
-                  2
-                ];
+                anyOf = {
+                  class = [
+                    "^(mpv)$"
+                    "^(plex)$"
+                    "^(org.jellyfin.JellyfinDesktop)$"
+                  ];
+                  content = [
+                    1
+                    2
+                  ];
+                };
+                apply = {
+                  opacity = "1.0 override";
+                  no_blur = true;
+                };
               };
-              chat.class = [
-                "^(vesktop)$"
-                "^(legcord)$"
-                "^(discord)$"
-              ];
-              dialog = {
-                class = "xdg-desktop-portal-gtk";
-                title = [
-                  "(Select|Open)( a)? (File|Folder)(s)?"
-                  "File (Operation|Upload)( Progress)?"
-                  ".* Properties"
-                  "Export Image as PNG"
-                  "GIMP Crash Debug"
-                  "Save As"
-                  "Library"
-                  "Select the game's .exe"
+
+              chat = {
+                anyOf.class = [
+                  "^(vesktop)$"
+                  "^(legcord)$"
+                  "^(discord)$"
                 ];
+                apply.workspace = "4 silent";
+              };
+
+              # The shared GTK file picker — every window of this class is a
+              # dialog, whatever it is called.
+              portalDialog = {
+                anyOf.class = "^(xdg-desktop-portal-gtk)$";
+                apply = dialogLook;
+              };
+
+              # Apps that draw their own dialogs instead of using the picker,
+              # so they can only be spotted by title. Anchored, or a title that
+              # merely contains "Library" or "Save As" would float too.
+              appDialog = {
+                anyOf.title = [
+                  "^(Select|Open)( a)? (File|Folder)(s)?$"
+                  "^File (Operation|Upload)( Progress)?$"
+                  "^.* Properties$"
+                  "^Export Image as PNG$"
+                  "^GIMP Crash Debug$"
+                  "^Save As$"
+                  "^Library$"
+                  "^Select the game's \\.exe$"
+                ];
+                apply = dialogLook;
               };
             };
 
-            # Properties applied to windows carrying a tag.
-            apply = {
-              chat.workspace = "4 silent";
-              browsers.opacity = "1.0 override";
-              media = {
+            # Standalone rules, applied in order. Fields in `match` are AND.
+            rules = [
+              # No border on a window that is alone on its workspace.
+              {
+                match = {
+                  float = false;
+                  workspace = [
+                    "w[tv1]s[false]"
+                    "f[1]s[false]"
+                  ];
+                };
+                border_size = 0;
+              }
+              # Fullscreen windows stay opaque and block idle.
+              {
+                match.fullscreen = true;
                 opacity = "1.0 override";
-                no_blur = true;
-              };
-              games = {
-                workspace = "3";
-                idle_inhibit = "always";
+                idle_inhibit = "fullscreen";
+              }
+              # Xwayland popups: no dim, no shadow.
+              {
+                match = {
+                  xwayland = true;
+                  title = "win[0-9]+";
+                };
+                no_dim = true;
+                no_shadow = true;
+                rounding = config.var.rounding;
+              }
+              # Discord's popped-out window.
+              {
+                match.initial_title = "^(Discord Popout)$";
                 opacity = "1.0 override";
-                no_blur = true;
-                render_unfocused = true;
-              };
-              dialog = {
+              }
+              # Password and launcher prompts keep focus.
+              {
+                match.class = [
+                  "(pinentry-)(.*)"
+                  "(Rofi)"
+                ];
+                stay_focused = true;
+              }
+              # Archive manager floats.
+              {
+                match.class = [
+                  "org.gnome.FileRoller"
+                  "file-roller"
+                ];
+                float = true;
+              }
+              # Image viewer floats.
+              {
+                match.class = "^(org.libvips.vipsdisp)$";
+                float = true;
+              }
+              # Anything floating gets centred.
+              {
+                match.float = true;
+                center = true;
+              }
+              # Floating terminal.
+              {
+                match.class = [
+                  "floatTerm"
+                  "com.floatterm.floatterm"
+                ];
                 float = true;
                 size = "(monitor_w*0.5) (monitor_h*0.5)";
+              }
+              # System monitor floats, pinned and centred.
+              {
+                match.class = "(net.nokyan.Resources)";
+                float = true;
+                pin = true;
                 center = true;
-              };
-            };
-
-            # Standalone rules (no tag) — ordered; each labeled.
-            rules = [
-              {
-                smartBorders = {
-                  match = {
-                    float = false;
-                    workspace = [
-                      "w[tv1]s[false]"
-                      "f[1]s[false]"
-                    ];
-                  };
-                  border_size = 0;
-                };
-              }
-              {
-                fullscreen = {
-                  match.fullscreen = true;
-                  opacity = "1.0 override";
-                  idle_inhibit = "fullscreen";
-                };
-              }
-              {
-                xwaylandPopups = {
-                  match = {
-                    xwayland = true;
-                    title = "win[0-9]+";
-                  };
-                  no_dim = true;
-                  no_shadow = true;
-                  rounding = config.var.rounding;
-                };
-              }
-              {
-                discordPopout = {
-                  match.initial_title = "^(Discord Popout)$";
-                  opacity = "1.0 override";
-                };
-              }
-              {
-                stayFocused = {
-                  match.class = [
-                    "(pinentry-)(.*)"
-                    "(Rofi)"
-                  ];
-                  stay_focused = true;
-                };
-              }
-              {
-                fileManagers = {
-                  match.class = [
-                    "org.gnome.FileRoller"
-                    "file-roller"
-                  ];
-                  float = true;
-                };
-              }
-              {
-                vips = {
-                  match.class = "^(org.libvips.vipsdisp)$";
-                  float = true;
-                };
-              }
-              {
-                floatCentering = {
-                  match.float = true;
-                  center = true;
-                };
-              }
-              {
-                floatTerminal = {
-                  match.class = [
-                    "floatTerm"
-                    "com.floatterm.floatterm"
-                  ];
-                  float = true;
-                  size = "(monitor_w*0.5) (monitor_h*0.5)";
-                };
-              }
-              {
-                resources = {
-                  match.class = "(net.nokyan.Resources)";
-                  float = true;
-                  pin = true;
-                  center = true;
-                  size = "(monitor_w*0.5) (monitor_h*0.5)";
-                };
+                size = "(monitor_w*0.5) (monitor_h*0.5)";
               }
             ];
           };
