@@ -19,8 +19,8 @@ schema = 4
     go = "1.25.0"
     packages = ["charm.land/lipgloss/v2", "charm.land/lipgloss/v2/table"]
   [mod."charm.land/log/v2"]
-    version = "v2.0.0"
-    hash = "sha256-UpdpM11MkNx20lXC46vtMp7PZ0H0GXvX7ZN9STo5qHE="
+    version = "v2.0.1"
+    hash = "sha256-cAFsaCNuLyqw3x+nz/OMMMRqbKA6KTOstugX9J4MDUs="
     go = "1.25.8"
     packages = ["charm.land/log/v2"]
   [mod."github.com/Azure/azure-sdk-for-go/sdk/azcore"]
