@@ -60,14 +60,14 @@ jobs:
           done < <(jq -r '.[]' <<< "$DRVS_JSON")
 
           if [ "${#paths[@]}" -gt 0 ]; then
-            for attempt in 1 2 3; do
+            for attempt in 1 2 3 4 5; do
               if xilo push ${{ secrets.XILO_CACHE }} "${paths[@]}"; then
                 break
-              elif [ "$attempt" -eq 3 ]; then
+              elif [ "$attempt" -eq 5 ]; then
                 exit 1
               else
                 echo "Push attempt $attempt failed, retrying..."
-                sleep $((attempt * 5))
+                sleep $((attempt * 15))
               fi
             done
           else
