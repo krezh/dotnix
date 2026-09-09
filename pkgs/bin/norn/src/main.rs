@@ -170,8 +170,8 @@ fn rebuild(activation: Option<Activation>, args: &RebuildArgs) -> Result<()> {
 
     match outcome {
         Outcome::Abort => bail!("aborted before activating"),
-        // When the browser ran, quitting it *was* the confirmation. Only ask
-        // again if it never appeared.
+        // When the browser ran, pressing `c` there *was* the confirmation.
+        // Only ask again if it never appeared.
         Outcome::Continue => {
             let browsed = interactive && !args.no_changelog;
             if !browsed && args.ask && !confirm("Apply the config?")? {

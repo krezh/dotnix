@@ -21,6 +21,12 @@
         enable = true;
         package = opencodeWrapped;
 
+        # https://impeccable.style — design vocabulary skill + /impeccable command.
+        # The skill's launcher fetches its matching engine binary into
+        # ~/.impeccable on first use, so only the skill tree is pinned here.
+        skills.impeccable = "${inputs.impeccable}/.opencode/skills/impeccable";
+        commands.impeccable = builtins.readFile "${inputs.impeccable}/.opencode/commands/impeccable.md";
+
         tui = {
           scroll_speed = 3;
           scroll_acceleration = {
@@ -100,6 +106,9 @@
               # Allow audio system commands
               "pactl list *" = "allow";
               "pw-top" = "allow";
+
+              # Impeccable skill launcher (read-only context/analysis verbs)
+              "*/skills/impeccable/scripts/impeccable *" = "allow";
             };
           };
 

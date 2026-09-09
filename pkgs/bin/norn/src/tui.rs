@@ -28,8 +28,20 @@ use crate::{
     progress::{BuildStream, Monitor, Plan, fit, human_bytes},
 };
 
-const TICK: Duration = Duration::from_millis(120);
-const SPINNER: [char; 4] = ['⠋', '⠙', '⠹', '⠸'];
+/// How long the loop waits on input before redrawing, and so the interval every
+/// animation is sampled at. Nothing can appear to move faster than this.
+const TICK: Duration = Duration::from_millis(80);
+
+/// The full braille rotation. A subset of it does not read as a spinner: the
+/// dots travel partway round, then jump back to the start.
+const SPINNER: [char; 10] = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
+
+/// One glyph per redraw. The loop is idling on `event::poll` whenever a spinner
+/// is on screen, so its ticks are evenly spaced and the rotation comes out
+/// smooth without having to be paced against the clock.
+fn spinner_glyph(frame: usize) -> char {
+    SPINNER[frame % SPINNER.len()]
+}
 
 /// How many in-flight items the live block shows. It is a fixed height, so the
 /// finished rows above it never shift as Nix's parallelism varies.
@@ -418,7 +430,7 @@ struct Session {
 
 impl Session {
     fn spinner(&self) -> char {
-        SPINNER[(self.frame / 2) % SPINNER.len()]
+        spinner_glyph(self.frame)
     }
 
     /// Starts the build once the plan is known.
@@ -499,11 +511,13 @@ impl Session {
 }
 
 /// Builds the build-phase body: the transaction summary, the finished rows,
-/// then a fixed-height block of what is in flight.
+/// then whatever is in flight, directly beneath them.
 ///
-/// The result is always exactly `height` lines. The live block would otherwise
-/// grow and shrink with Nix's parallelism, shoving the finished rows up and
-/// down the screen on every frame.
+/// The result is always exactly `height` lines, and the log is capped so room
+/// for a full live block is always reserved. That keeps the finished rows still
+/// as Nix's parallelism varies — they are anchored to the top and the live block
+/// grows downwards into space already set aside, rather than the two being held
+/// apart by a run of padding.
 fn body_lines(monitor: &Monitor, width: usize, height: usize) -> Vec<Line<'static>> {
     let mut lines: Vec<Line> = monitor.summary().into_iter().map(dim).collect();
     lines.push(Line::raw(""));
@@ -511,31 +525,19 @@ fn body_lines(monitor: &Monitor, width: usize, height: usize) -> Vec<Line<'stati
     // On a short terminal the live block shrinks rather than crowding out the
     // log entirely.
     let live_rows = MAX_LIVE_ROWS.min(height.saturating_sub(lines.len() + 2));
-    let body_room = height.saturating_sub(live_rows + 1);
-
     let (active, hidden) = monitor.active_rows(width, live_rows);
-    let log = monitor.log();
 
-    let room = body_room.saturating_sub(lines.len());
+    let log = monitor.log();
+    let room = height.saturating_sub(lines.len() + live_rows + 1);
     let start = log.len().saturating_sub(room);
     lines.extend(log[start..].iter().map(|l| ansi_line(l)));
 
-    // Pad so the live block always sits at the same place on screen.
-    while lines.len() < body_room {
-        lines.push(Line::raw(""));
-    }
-
     lines.extend(active.iter().map(|l| ansi_line(l)));
-    for _ in active.len()..live_rows {
-        lines.push(Line::raw(""));
+    if hidden > 0 {
+        lines.push(dim(format!("    … and {hidden} more")));
     }
-    lines.push(if hidden > 0 {
-        dim(format!("    … and {hidden} more"))
-    } else {
-        Line::raw("")
-    });
 
-    lines.truncate(height);
+    lines.resize(height, Line::raw(""));
     lines
 }
 
@@ -554,7 +556,7 @@ fn draw(frame: &mut Frame, session: &mut Session) {
                 frame,
                 body,
                 footer,
-                "↑↓ move  ↵ expand  q continue  x abort",
+                "↑↓ move  ↵ expand  c continue  q abort",
             );
         }
 
@@ -610,8 +612,10 @@ fn on_key(session: &mut Session, code: KeyCode, modifiers: KeyModifiers) -> Opti
         Phase::Failed(_) => Some(Outcome::Abort),
         Phase::Planning(_) | Phase::Building | Phase::Diffing(_) => None,
         Phase::Browsing(browser) => match code {
-            KeyCode::Char('q') | KeyCode::Esc => Some(Outcome::Continue),
-            KeyCode::Char('x') => Some(Outcome::Abort),
+            KeyCode::Char('c') => Some(Outcome::Continue),
+            // Esc goes with `q`: backing out of the review is a decision not to
+            // activate, not a way to wave the build through.
+            KeyCode::Char('q') | KeyCode::Esc => Some(Outcome::Abort),
             other => {
                 browser.on_key(other);
                 None
@@ -763,8 +767,11 @@ mod tests {
     use crate::progress::display_width;
 
     fn monitor_with(active: usize, finished: usize) -> Monitor {
-        let mut plan = Plan::default();
-        plan.builds = 64;
+        let plan = Plan {
+            builds: 64,
+            known: true,
+            ..Plan::default()
+        };
         let mut monitor = Monitor::new(plan);
 
         for id in 0..(active + finished) {
@@ -808,6 +815,32 @@ mod tests {
                 "height {height} overflowed"
             );
         }
+    }
+
+    /// Holding a glyph across two redraws reads as a stall, and covering only
+    /// part of the rotation makes the dots snap backwards. The spinner used to
+    /// do both: four of the ten glyphs, stepped every other frame.
+    #[test]
+    fn the_spinner_advances_every_redraw_through_a_whole_rotation() {
+        let rotation: Vec<char> = (0..SPINNER.len()).map(spinner_glyph).collect();
+
+        assert_eq!(
+            rotation
+                .iter()
+                .collect::<std::collections::HashSet<_>>()
+                .len(),
+            SPINNER.len(),
+            "a repeated glyph is a frame the eye reads as a stall"
+        );
+        assert!(
+            rotation.windows(2).all(|pair| pair[0] != pair[1]),
+            "the spinner must move on every redraw: {rotation:?}"
+        );
+        assert_eq!(
+            spinner_glyph(SPINNER.len()),
+            rotation[0],
+            "and then come back round"
+        );
     }
 
     fn row_of(name: &str, old: &str, new: &str, kind: ChangeKind) -> Row {

@@ -1,6 +1,6 @@
 ---
 # yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
-name: Build CI
+name: Build Eval
 
 on:
   workflow_dispatch:
@@ -42,7 +42,7 @@ jobs:
           persist-credentials: false
 
       - name: Setup Nix
-        uses: ./.github/actions/setup-nix
+        uses: $/.github/actions/setup-nix
         with:
           xilo-url: https://xilo.plexuz.xyz
           xilo-cache: ${{ secrets.XILO_CACHE }}
@@ -55,7 +55,6 @@ jobs:
 
       - name: Generate Matrix
         id: set-matrix
-        timeout-minutes: 15
         run: |
           set -Eeuo pipefail
           raw=$(nix-eval-jobs \
@@ -96,7 +95,7 @@ jobs:
       contents: read
       pull-requests: write
       id-token: write
-    uses: ./.github/workflows/build-hosts.yaml # zizmor: ignore[secrets-inherit]
+    uses: $/.github/workflows/build-hosts.yaml # zizmor: ignore[secrets-inherit]
     secrets: inherit
     with:
       matrix: ${{ needs.generate-matrix.outputs.hosts }}
@@ -110,7 +109,7 @@ jobs:
       contents: read
       pull-requests: write
       id-token: write
-    uses: ./.github/workflows/build-packages.yaml # zizmor: ignore[secrets-inherit]
+    uses: $/.github/workflows/build-packages.yaml # zizmor: ignore[secrets-inherit]
     secrets: inherit
     with:
       matrix: ${{ needs.generate-matrix.outputs.packages }}

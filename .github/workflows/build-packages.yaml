@@ -27,7 +27,7 @@ jobs:
           persist-credentials: false
 
       - name: Setup Nix
-        uses: ./.github/actions/setup-nix
+        uses: $/.github/actions/setup-nix
         with:
           xilo-url: https://xilo.plexuz.xyz
           xilo-cache: ${{ secrets.XILO_CACHE }}
@@ -38,7 +38,7 @@ jobs:
 
       - name: Build Package
         id: build
-        uses: ./.github/actions/nix-build
+        uses: $/.github/actions/nix-build
         with:
           target: ${{ matrix.target }}
           build-type: package
@@ -95,7 +95,7 @@ jobs:
 
       - name: Post build comment
         if: ${{ always() && github.event_name == 'pull_request' }}
-        uses: ./.github/actions/post-build-comment
+        uses: $/.github/actions/post-build-comment
         with:
           build-type: package
           build-name: ${{ matrix.attr }}

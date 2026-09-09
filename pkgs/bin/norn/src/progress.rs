@@ -36,6 +36,11 @@ const RES_PROGRESS: u64 = 105;
 
 const LOG_TAIL: usize = 40;
 
+/// How long an indeterminate bar's segment dwells in one cell. Taken from the
+/// clock rather than counted in redraws, so the slide keeps its pace whatever
+/// rate the event loop happens to run at.
+const MARQUEE_STEP: Duration = Duration::from_millis(120);
+
 /// The transaction, as reported by `nix build --dry-run`.
 #[derive(Default)]
 pub struct Plan {
@@ -43,6 +48,10 @@ pub struct Plan {
     pub fetches: HashSet<String>,
     /// Nix's own size note, e.g. "22.54 MiB download, 22.99 MiB unpacked".
     pub sizes: Option<String>,
+    /// Whether `--dry-run` has actually reported yet. A transaction nobody has
+    /// worked out is not the same as one with nothing in it, and the session
+    /// starts with the former while evaluation runs.
+    pub known: bool,
 }
 
 /// Parses the plan out of `nix build --dry-run`'s stderr.
@@ -56,7 +65,10 @@ pub fn parse_plan(stderr: &str) -> Plan {
         Fetch,
     }
 
-    let mut plan = Plan::default();
+    let mut plan = Plan {
+        known: true,
+        ..Plan::default()
+    };
     let mut section = Section::None;
 
     for line in stderr.lines() {
@@ -292,18 +304,25 @@ pub fn fit(name: &str, width: usize) -> String {
     name.chars().take(width).collect()
 }
 
-/// Column widths for a progress row, chosen from the terminal width.
-fn progress_columns(width: usize) -> (usize, usize) {
+/// Width of the name column, chosen from the terminal width.
+fn name_column(width: usize) -> usize {
     match width {
-        0..=89 => (16, 18),
-        90..=109 => (20, 20),
-        110..=139 => (24, 22),
-        _ => (30, 24),
+        0..=89 => 16,
+        90..=109 => 20,
+        110..=139 => 24,
+        _ => 30,
     }
 }
 
 const PCT_COL: usize = 4;
 const TIME_COL: usize = 6;
+/// The rate and size slots are sized for the widest thing `human_bytes` can
+/// produce (`1023.9 GiB`, plus `/s` for a rate). They are fixed rather than
+/// scaled with the terminal because a transfer crossing from KiB/s into MiB/s
+/// would otherwise shove the size and time columns sideways mid-download.
+const RATE_COL: usize = 12;
+const SIZE_COL: usize = 10;
+const DETAIL_COL: usize = RATE_COL + 1 + SIZE_COL;
 
 /// Lays out one progress row.
 ///
@@ -320,10 +339,10 @@ fn compose(
     width: usize,
     draw: impl Fn(usize) -> String,
 ) -> String {
-    let (name_col, detail_col) = progress_columns(width);
+    let name_col = name_column(width);
 
     // counter ␣ name ␣ bar ␣ pct ␣ detail ␣ time
-    let fixed = display_width(counter) + name_col + detail_col + PCT_COL + TIME_COL + 5;
+    let fixed = display_width(counter) + name_col + DETAIL_COL + PCT_COL + TIME_COL + 5;
     let bar_width = width.saturating_sub(fixed).min(28);
 
     let bar = if bar_width >= 6 {
@@ -335,7 +354,7 @@ fn compose(
     let row = format!(
         "{counter} {name} {bar} {percent:>PCT_COL$} {detail} {time}",
         name = fit(name, name_col),
-        detail = fit(detail, detail_col),
+        detail = fit(detail, DETAIL_COL),
     );
     // A terminal too narrow for even the fixed columns would otherwise overflow.
     truncate(&row, width)
@@ -349,8 +368,17 @@ pub struct Monitor {
     bytes_done: u64,
     frame: usize,
     started: Instant,
-    /// Finished rows and any warnings, in order — the scrollback of the build.
-    log: Vec<String>,
+    /// Whatever Nix had to say for itself, above the table.
+    notes: Vec<String>,
+    /// Finished rows, kept in a run per kind rather than in one list ordered by
+    /// completion.
+    ///
+    /// Fetches and builds are counted separately, and Nix interleaves them, so
+    /// a single completion-ordered list reads as two sequences shuffled
+    /// together — `[126/126]` followed by `[2/14]`, with `[1/14]` stranded
+    /// somewhere up among the downloads. Kept apart, each run counts up.
+    fetched_rows: Vec<String>,
+    built_rows: Vec<String>,
     /// The tail of the actual build output, so a failure can show why.
     build_log: Vec<String>,
 }
@@ -365,7 +393,9 @@ impl Monitor {
             bytes_done: 0,
             frame: 0,
             started: Instant::now(),
-            log: Vec::new(),
+            notes: Vec::new(),
+            fetched_rows: Vec::new(),
+            built_rows: Vec::new(),
             build_log: Vec::new(),
         }
     }
@@ -384,13 +414,24 @@ impl Monitor {
             .len()
     }
 
-    fn counter(&self, kind: Kind) -> String {
-        let (done, total) = match kind {
-            Kind::Download => (self.fetched + 1, self.plan.fetches.len()),
-            Kind::Build => (self.built + 1, self.plan.builds),
+    /// The `[n/total]` cell. `ordinal` is the item's own place in its run, so
+    /// several rows in flight at once each get their own number instead of all
+    /// reporting whatever finished last.
+    fn counter(&self, kind: Kind, ordinal: usize) -> String {
+        let total = match kind {
+            Kind::Download => self.plan.fetches.len(),
+            Kind::Build => self.plan.builds,
         };
         let width = self.digits();
-        format!("[{:>width$}/{total:>width$}]", done.min(total.max(1)))
+        format!("[{:>width$}/{total:>width$}]", ordinal.min(total.max(1)))
+    }
+
+    /// The number the next item of each kind to finish will carry.
+    fn next_ordinal(&self, kind: Kind) -> usize {
+        match kind {
+            Kind::Download => self.fetched + 1,
+            Kind::Build => self.built + 1,
+        }
     }
 
     /// The same width as `counter`, for rows that are not a numbered item.
@@ -398,24 +439,31 @@ impl Monitor {
         format!("{label:>width$}", width = self.digits() * 2 + 3)
     }
 
-    fn row(&self, item: &Item, done: bool, width: usize) -> String {
+    fn row(&self, item: &Item, done: bool, width: usize, ordinal: usize) -> String {
         let elapsed = item.started.elapsed();
-        let counter = self.counter(item.kind);
+        let counter = self.counter(item.kind, ordinal);
         let time = human_duration(elapsed);
 
         match item.kind {
             Kind::Download => {
-                let fraction = if item.expected > 0 {
-                    (item.done as f64 / item.expected as f64).min(1.0)
-                } else if done {
-                    1.0
+                // Nix throttles its progress results, so the last one to land
+                // before `stop` is usually short of the total. A path that
+                // finished fetched all of itself, whatever the counter said.
+                let total = item.expected.max(item.done);
+                let (transferred, fraction) = if done {
+                    (total, 1.0)
+                } else if item.expected > 0 {
+                    (
+                        item.done,
+                        (item.done as f64 / item.expected as f64).min(1.0),
+                    )
                 } else {
-                    0.0
+                    (item.done, 0.0)
                 };
                 let detail = format!(
-                    "{:>9} {:>9}",
-                    rate(item.done, elapsed),
-                    human_bytes(item.expected.max(item.done)),
+                    "{:>RATE_COL$} {:>SIZE_COL$}",
+                    rate(transferred, elapsed),
+                    human_bytes(total),
                 );
                 compose(
                     &counter,
@@ -456,8 +504,15 @@ impl Monitor {
     }
 
     /// The dnf-style transaction table.
+    ///
+    /// Empty until `--dry-run` reports: while evaluation is still working the
+    /// transaction is unknown, and claiming there is nothing to do would be a
+    /// guess that is usually wrong. The footer carries the spinner that says so.
     pub fn summary(&self) -> Vec<String> {
         let mut lines = Vec::new();
+        if !self.plan.known {
+            return lines;
+        }
         if !self.plan.fetches.is_empty() {
             let note = self
                 .plan
@@ -475,9 +530,16 @@ impl Monitor {
         lines
     }
 
-    /// Finished rows and warnings, oldest first.
-    pub fn log(&self) -> &[String] {
-        &self.log
+    /// The scrollback: what Nix said, then every finished fetch, then every
+    /// finished build. Each run counts up without a break, which one list in
+    /// completion order cannot do while the two kinds are numbered separately.
+    pub fn log(&self) -> Vec<&str> {
+        self.notes
+            .iter()
+            .chain(&self.fetched_rows)
+            .chain(&self.built_rows)
+            .map(String::as_str)
+            .collect()
     }
 
     /// Rows for the work currently in flight, oldest first, plus however many
@@ -492,11 +554,25 @@ impl Monitor {
         // and keeps rows from jumping around between frames.
         rows.sort_by_key(|(id, _)| **id);
 
+        // Each row in flight takes the next free number in its run, so a block
+        // of eight concurrent downloads reads 45, 46, 47 … rather than showing
+        // the same `[45/126]` eight times over.
+        let mut next = (
+            self.next_ordinal(Kind::Download),
+            self.next_ordinal(Kind::Build),
+        );
         let hidden = rows.len().saturating_sub(limit);
         let visible = rows
             .iter()
             .take(limit)
-            .map(|(_, item)| self.row(item, false, width))
+            .map(|(_, item)| {
+                let ordinal = match item.kind {
+                    Kind::Download => &mut next.0,
+                    Kind::Build => &mut next.1,
+                };
+                *ordinal += 1;
+                self.row(item, false, width, *ordinal - 1)
+            })
             .collect();
         (visible, hidden)
     }
@@ -516,7 +592,7 @@ impl Monitor {
         let elapsed = self.started.elapsed();
         let fraction = ((self.fetched + self.built) as f64 / total as f64).min(1.0);
         let detail = format!(
-            "{:>9} {:>9}",
+            "{:>RATE_COL$} {:>SIZE_COL$}",
             rate(self.bytes_done, elapsed),
             human_bytes(self.bytes_done),
         );
@@ -556,13 +632,13 @@ impl Monitor {
 
     /// Advances the animation of any indeterminate bars.
     pub fn tick(&mut self) {
-        self.frame = self.frame.wrapping_add(1);
+        self.frame = (self.started.elapsed().as_millis() / MARQUEE_STEP.as_millis()) as usize;
     }
 
     pub fn handle_line(&mut self, line: &str, width: usize) {
         let Some(payload) = line.strip_prefix("@nix ") else {
             if !line.trim().is_empty() {
-                self.log.push(line.to_owned());
+                self.notes.push(line.to_owned());
             }
             return;
         };
@@ -582,7 +658,7 @@ impl Monitor {
                 if event.level <= 1
                     && let Some(msg) = event.msg.clone()
                 {
-                    self.log.push(msg);
+                    self.notes.push(msg);
                 }
             }
             _ => {}
@@ -646,17 +722,20 @@ impl Monitor {
         let Some(item) = self.items.remove(&id) else {
             return;
         };
-        // Render before counting: `counter` reports the ordinal of the item in
-        // flight, which for the one just finishing is its own number.
-        let line = self.row(&item, true, width);
+        // The item just finishing takes the next free number in its run, and
+        // keeps it: the rendered row is what the scrollback holds from here on.
+        let line = self.row(&item, true, width, self.next_ordinal(item.kind));
         match item.kind {
             Kind::Download => {
                 self.bytes_done += item.expected.max(item.done);
                 self.fetched += 1;
+                self.fetched_rows.push(line);
             }
-            Kind::Build => self.built += 1,
+            Kind::Build => {
+                self.built += 1;
+                self.built_rows.push(line);
+            }
         }
-        self.log.push(line);
     }
 }
 
@@ -733,10 +812,16 @@ these 3 paths will be fetched (22.54 MiB download, 22.99 MiB unpacked):
 ";
 
     const FETCHED: &str = "/nix/store/cccccccccccccccccccccccccccccccc-baz-3.0";
+    const OTHER: &str = "/nix/store/dddddddddddddddddddddddddddddddd-qux-4.0";
+    const DRV_A: &str = "/nix/store/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-foo-1.0.drv";
+    const DRV_B: &str = "/nix/store/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb-bar-2.0.drv";
 
     fn monitor_with_plan() -> Monitor {
-        let mut plan = Plan::default();
-        plan.builds = 1;
+        let mut plan = Plan {
+            builds: 1,
+            known: true,
+            ..Plan::default()
+        };
         plan.fetches.insert(FETCHED.to_owned());
         Monitor::new(plan)
     }
@@ -759,6 +844,19 @@ these 3 paths will be fetched (22.54 MiB download, 22.99 MiB unpacked):
         assert_eq!(
             plan.sizes.as_deref(),
             Some("22.54 MiB download, 22.99 MiB unpacked")
+        );
+    }
+
+    /// The session opens its display before `--dry-run` has said anything.
+    /// "Nothing to do" there is a claim about a transaction nobody has worked
+    /// out yet — and it is wrong every time there turns out to be work.
+    #[test]
+    fn an_unresolved_plan_announces_nothing() {
+        let planning = Monitor::new(Plan::default());
+        assert!(
+            planning.summary().is_empty(),
+            "an unresolved plan must not describe itself: {:?}",
+            planning.summary()
         );
     }
 
@@ -805,7 +903,7 @@ these 3 paths will be fetched (22.54 MiB download, 22.99 MiB unpacked):
         // The first completed item must read as [1/n], not [2/n].
         assert!(
             monitor
-                .row(&monitor.items[&3], true, 100)
+                .row(&monitor.items[&3], true, 100, 1)
                 .starts_with("[1/1]")
         );
 
@@ -816,6 +914,73 @@ these 3 paths will be fetched (22.54 MiB download, 22.99 MiB unpacked):
         assert_eq!(monitor.built, 1);
         assert!(monitor.items.is_empty());
         assert_eq!(monitor.log().len(), 2, "both finished rows are logged");
+    }
+
+    /// Nix finishes fetches and builds interleaved, but the two are numbered
+    /// separately. Logged in completion order they read as two sequences
+    /// shuffled together — `[2/2]` then `[1/2]` then `[1/1]` — so each kind
+    /// keeps its own run and the numbers count up on the way down the screen.
+    #[test]
+    fn the_scrollback_counts_up_within_each_kind() {
+        let mut plan = Plan {
+            builds: 2,
+            known: true,
+            ..Plan::default()
+        };
+        plan.fetches.insert(FETCHED.to_owned());
+        plan.fetches.insert(OTHER.to_owned());
+        let mut monitor = Monitor::new(plan);
+
+        // Two fetches and two builds, finishing in a deliberately mixed order.
+        start_fetch(&mut monitor);
+        for (id, path) in [(2, OTHER), (3, DRV_A), (4, DRV_B)] {
+            let kind = if path.ends_with(".drv") { 105 } else { 100 };
+            monitor.handle_line(
+                &format!(
+                    r#"@nix {{"action":"start","id":{id},"type":{kind},"fields":["{path}","",1,1]}}"#
+                ),
+                100,
+            );
+        }
+        for id in [3, 1, 4, 2] {
+            monitor.handle_line(&format!(r#"@nix {{"action":"stop","id":{id}}}"#), 100);
+        }
+
+        let ordinals: Vec<&str> = monitor
+            .log()
+            .iter()
+            .map(|line| line.split(']').next().unwrap_or(line))
+            .collect();
+        assert_eq!(
+            ordinals,
+            vec!["[1/2", "[2/2", "[1/2", "[2/2"],
+            "each run must count up: {:?}",
+            monitor.log()
+        );
+    }
+
+    #[test]
+    fn every_row_in_flight_gets_its_own_number() {
+        let mut plan = Plan {
+            known: true,
+            ..Plan::default()
+        };
+        plan.fetches.insert(FETCHED.to_owned());
+        plan.fetches.insert(OTHER.to_owned());
+        let mut monitor = Monitor::new(plan);
+
+        start_fetch(&mut monitor);
+        monitor.handle_line(
+            &format!(r#"@nix {{"action":"start","id":2,"type":100,"fields":["{OTHER}","",""]}}"#),
+            100,
+        );
+
+        let (rows, _) = monitor.active_rows(120, 8);
+        assert!(rows[0].starts_with("[1/2]"), "{rows:?}");
+        assert!(
+            rows[1].starts_with("[2/2]"),
+            "a second row in flight must not repeat the first's number: {rows:?}"
+        );
     }
 
     #[test]
@@ -833,6 +998,49 @@ these 3 paths will be fetched (22.54 MiB download, 22.99 MiB unpacked):
             100,
         );
         assert_eq!(monitor.log().len(), 1);
+    }
+
+    /// Nix stops reporting progress well before a path is done, so the last
+    /// figure seen is not the final one. A retired row that still reads 69%
+    /// with a half-drawn bar is the display lying about finished work.
+    #[test]
+    fn a_finished_download_reads_as_complete() {
+        let mut monitor = monitor_with_plan();
+        start_fetch(&mut monitor);
+        monitor.handle_line(
+            r#"@nix {"action":"result","id":1,"type":105,"fields":[700,1024,0,0]}"#,
+            100,
+        );
+        let live = monitor.row(&monitor.items[&1], false, 120, 1);
+        assert!(live.contains("68%"), "in flight: {live}");
+
+        monitor.handle_line(r#"@nix {"action":"stop","id":1}"#, 100);
+        let finished = &monitor.log()[0];
+        assert!(finished.contains("100%"), "finished: {finished}");
+        assert!(finished.contains("1.0 KiB"), "finished: {finished}");
+        assert_eq!(monitor.bytes_done, 1024);
+    }
+
+    /// A transfer crossing from KiB/s into MiB/s must not shove the size and
+    /// time columns sideways.
+    #[test]
+    fn the_detail_column_is_the_same_width_at_every_rate() {
+        let widths: Vec<usize> = [0u64, 1_024, 921_600, 41_943_040, 3_221_225_472]
+            .into_iter()
+            .map(|bytes| {
+                format!(
+                    "{:>RATE_COL$} {:>SIZE_COL$}",
+                    rate(bytes, Duration::from_secs(1)),
+                    human_bytes(bytes),
+                )
+                .chars()
+                .count()
+            })
+            .collect();
+        assert!(
+            widths.iter().all(|&width| width == DETAIL_COL),
+            "a rate or size overflowed its slot: {widths:?}"
+        );
     }
 
     #[test]
@@ -859,7 +1067,7 @@ these 3 paths will be fetched (22.54 MiB download, 22.99 MiB unpacked):
         );
 
         for width in [60, 80, 100, 120, 200] {
-            let row = monitor.row(&monitor.items[&1], false, width);
+            let row = monitor.row(&monitor.items[&1], false, width, 1);
             assert!(
                 display_width(&row) <= width,
                 "row overflowed a {width}-column terminal"
@@ -871,8 +1079,11 @@ these 3 paths will be fetched (22.54 MiB download, 22.99 MiB unpacked):
     /// live block lines up instead of jittering between kinds.
     #[test]
     fn every_row_kind_has_the_same_width() {
-        let mut plan = Plan::default();
-        plan.builds = 29;
+        let mut plan = Plan {
+            builds: 29,
+            known: true,
+            ..Plan::default()
+        };
         plan.fetches.insert(FETCHED.to_owned());
         for n in 0..150 {
             plan.fetches.insert(format!("/nix/store/{n:032}-pkg-{n}"));
@@ -894,9 +1105,9 @@ these 3 paths will be fetched (22.54 MiB download, 22.99 MiB unpacked):
         );
 
         for width in [80, 100, 120, 160] {
-            let download = monitor.row(&monitor.items[&1], false, width);
-            let build = monitor.row(&monitor.items[&2], false, width);
-            let finished = monitor.row(&monitor.items[&2], true, width);
+            let download = monitor.row(&monitor.items[&1], false, width, 1);
+            let build = monitor.row(&monitor.items[&2], false, width, 1);
+            let finished = monitor.row(&monitor.items[&2], true, width, 1);
             let total = monitor.total_row(width).expect("plan is not empty");
 
             let widths = [

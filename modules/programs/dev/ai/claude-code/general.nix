@@ -54,6 +54,7 @@
           verbose = true;
           includeCoAuthoredBy = false;
           autoMemoryEnabled = false;
+          remoteControlAtStartup = false;
 
           statusLine = {
             command = "${pkgs.claude-usage-bar}/bin/claude-usage-bar";
@@ -67,6 +68,7 @@
             "playground@claude-plugins-official" = true;
             "memini@memini" = true;
             "ecc@ecc" = true;
+            "impeccable@impeccable" = true;
           };
           extraKnownMarketplaces = {
             memini = {
@@ -80,6 +82,13 @@
               source = {
                 source = "github";
                 repo = "affaan-m/ECC";
+              };
+              autoUpdate = true;
+            };
+            impeccable = {
+              source = {
+                source = "github";
+                repo = "pbakaus/impeccable";
               };
               autoUpdate = true;
             };
