@@ -43,11 +43,17 @@ jobs:
           build-type: system
           output-link: result
 
+      - name: Download derivation map
+        if: ${{ always() && github.event.pull_request.head.repo.fork != true }}
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: matrix-drvs
+
       - name: Push built derivations
         if: ${{ always() && github.event.pull_request.head.repo.fork != true }}
         shell: bash
         env:
-          DRVS_JSON: ${{ toJSON(matrix.drvs) }}
+          ATTR: ${{ matrix.attr }}
         run: |
           set -Eeuo pipefail
           paths=()
@@ -57,7 +63,7 @@ jobs:
               [ -n "$out" ] || continue
               nix path-info "$out" >/dev/null 2>&1 && paths+=("$out")
             done < <(nix-store -q --outputs "$drv" 2>/dev/null || true)
-          done < <(jq -r '.[]' <<< "$DRVS_JSON")
+          done < <(jq -r --arg attr "$ATTR" '.[] | select(.attr == $attr) | .drvs[]' matrix-drvs.json)
 
           if [ "${#paths[@]}" -gt 0 ]; then
             for attempt in 1 2 3 4 5; do
