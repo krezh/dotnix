@@ -72,8 +72,10 @@ jobs:
             drvs: ((.neededBuilds + [.drvPath]) | unique)
           })')
 
-          echo "hosts=$(echo "$all" | jq -c '{include: [.[] | select(.attr | startswith("hosts."))]}')" >> "$GITHUB_OUTPUT"
-          echo "packages=$(echo "$all" | jq -c '{include: [.[] | select(.attr | startswith("packages."))]}')" >> "$GITHUB_OUTPUT"
+          echo "$all" | jq -c 'map({attr, drvs})' > matrix-drvs.json
+
+          echo "hosts=$(echo "$all" | jq -c '{include: [.[] | select(.attr | startswith("hosts.")) | del(.drvs)]}')" >> "$GITHUB_OUTPUT"
+          echo "packages=$(echo "$all" | jq -c '{include: [.[] | select(.attr | startswith("packages.")) | del(.drvs)]}')" >> "$GITHUB_OUTPUT"
 
           echo "$raw" | jq -r '
             .[] | select(.attr | startswith("hosts.")) |
@@ -84,6 +86,13 @@ jobs:
               "\n```\n\n</details>\n"
             else "" end)
           ' >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload derivation map
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: matrix-drvs
+          path: matrix-drvs.json
+          retention-days: 1
 
   build-hosts:
     name: Build Hosts
