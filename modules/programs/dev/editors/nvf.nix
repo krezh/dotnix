@@ -44,7 +44,7 @@
         };
         statusline.lualine = {
           enable = true;
-          theme = "catppuccin";
+          setupOpts.options.theme = "catppuccin";
           integrations.breadcrumbs = {
             nvim-navic.enable = true;
             navbuddy.enable = true;

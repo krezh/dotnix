@@ -9,7 +9,7 @@
     let
       cfg = config.homeModules.awww-random;
 
-      awww-random = pkgs.buildGoModule rec {
+      awww-random = (pkgs.buildGoModule.override { go = pkgs.go-bin.latestStable; }) rec {
         pname = "awww-random";
         version = "1.0.0";
         src = ./src;

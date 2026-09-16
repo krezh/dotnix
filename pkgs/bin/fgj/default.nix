@@ -3,9 +3,10 @@
   buildGoModule,
   fetchFromGitea,
   nix-update-script,
+  go-bin,
 }:
 
-buildGoModule (finalAttrs: {
+(buildGoModule.override { go = go-bin.latestStable; }) (finalAttrs: {
   pname = "fgj";
   version = "0.4.0";
   __structuredAttrs = true;

@@ -20,6 +20,9 @@
           selection-clear-on-copy = true;
           shell-integration-features = "no-cursor, sudo, title, ssh-env, ssh-terminfo, path";
           cursor-style = "block";
+          # cursor_glide.glsl draws the cursor itself; hide ghostty's own.
+          cursor-opacity = 0;
+          custom-shader = "${./shaders/cursor_glide.glsl}";
           app-notifications = "no-clipboard-copy";
           resize-overlay = "never";
           window-padding-x = 5;
