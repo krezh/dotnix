@@ -4,7 +4,7 @@ go 1.26.0
 
 require (
 	github.com/fatih/color v1.19.0
-	github.com/olekukonko/tablewriter v1.1.4
+	github.com/olekukonko/tablewriter v1.1.5
 	github.com/spf13/cobra v1.10.2
 	gopkg.in/yaml.v3 v3.0.1
 	k8s.io/api v0.37.0

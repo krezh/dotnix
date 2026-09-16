@@ -175,8 +175,8 @@ schema = 4
     go = "1.21"
     packages = ["github.com/olekukonko/ll", "github.com/olekukonko/ll/lh", "github.com/olekukonko/ll/lx"]
   [mod."github.com/olekukonko/tablewriter"]
-    version = "v1.1.4"
-    hash = "sha256-eYHt9ejVyQ9wXRhPcVS973cDF3y6HI7M55ajDPNVyTI="
+    version = "v1.1.5"
+    hash = "sha256-LLGFe4s7DAvOJmqmgTDNOrZRlnVoFuN5tZOJn4wqkXs="
     go = "1.21"
     packages = ["github.com/olekukonko/tablewriter", "github.com/olekukonko/tablewriter/pkg/twcache", "github.com/olekukonko/tablewriter/pkg/twwarp", "github.com/olekukonko/tablewriter/pkg/twwidth", "github.com/olekukonko/tablewriter/renderer", "github.com/olekukonko/tablewriter/tw"]
   [mod."github.com/spf13/cobra"]
