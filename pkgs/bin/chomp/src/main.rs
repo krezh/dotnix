@@ -66,7 +66,9 @@ fn main() -> Result<()> {
     }
 
     let config = Config::load().unwrap_or_else(|e| {
-        eprintln!("Warning: Failed to load config: {}. Using defaults.", e);
+        // Alternate form prints the whole chain, so an unknown or malformed key
+        // is named rather than just "failed to parse".
+        eprintln!("Warning: Failed to load config: {:#}. Using defaults.", e);
         Config::default()
     });
 
@@ -105,8 +107,8 @@ fn main() -> Result<()> {
         // Area mode runs the selector anyway: take the image it cropped along with
         // the geometry, instead of capturing the region a second time.
         if mode == capture::CaptureMode::ImageArea {
-            let (geometry, _, pre_captured, _) = ui::App::run(settings.clone())?;
-            if geometry.is_none() && pre_captured.is_none() {
+            let selected = ui::App::run(settings.clone())?;
+            if selected.cancelled() {
                 return Ok(());
             }
 
@@ -114,8 +116,8 @@ fn main() -> Result<()> {
                 &settings,
                 &mode,
                 &notifier,
-                pre_captured,
-                geometry,
+                selected.image,
+                selected.geometry,
                 settings.clipboard,
             );
         }
@@ -125,22 +127,21 @@ fn main() -> Result<()> {
 
     apply_delay(&settings);
 
-    let (selection_geometry, chosen_mode, pre_captured, to_clipboard) =
-        ui::App::run(settings.clone())?;
-    if let Some(mode) = chosen_mode {
+    let selected = ui::App::run(settings.clone())?;
+    if let Some(mode) = selected.mode {
         let notifier = ui::Notifier::new();
         if mode == capture::CaptureMode::StopRecording {
             return handle_stop_recording(&settings, &notifier);
         } else if mode.is_video() {
-            return handle_video_mode(&settings, &mode, &notifier, selection_geometry);
+            return handle_video_mode(&settings, &mode, &notifier, selected.geometry);
         } else {
             return handle_image_mode(
                 &settings,
                 &mode,
                 &notifier,
-                pre_captured,
-                selection_geometry,
-                to_clipboard,
+                selected.image,
+                selected.geometry,
+                selected.to_clipboard,
             );
         }
     }
@@ -201,8 +202,8 @@ fn handle_video_mode(
         capture::CaptureMode::VideoArea => match pre_geometry {
             Some(geo) => (Some(geo), None),
             None => {
-                let (geo, _, _, _) = ui::App::run(settings.clone())?;
-                let Some(geo) = geo else {
+                let selected = ui::App::run(settings.clone())?;
+                let Some(geo) = selected.geometry else {
                     // Cancelled: nothing to record.
                     return Ok(());
                 };
@@ -225,10 +226,21 @@ fn handle_video_mode(
         anyhow::bail!("stdout output is not supported for video recording");
     }
 
+    // The recorded area, so the bitrate can be sized to it.
+    let size = match geometry.as_deref() {
+        Some(geo) => render::Rect::from_geometry_string(geo)
+            .ok()
+            .map(|rect| (rect.width.max(0) as u32, rect.height.max(0) as u32)),
+        None => active_monitor_rect()
+            .ok()
+            .map(|rect| (rect.width.max(0) as u32, rect.height.max(0) as u32)),
+    };
+
     capture::start_recording(
         settings,
         geometry.as_deref(),
         monitor.as_deref(),
+        size,
         &output_file,
     )?;
 
@@ -377,8 +389,8 @@ fn image_capture_rect(
             if let Some(geo) = pre_geometry {
                 return render::Rect::from_geometry_string(geo);
             }
-            let (geometry, _, _, _) = ui::App::run(settings.clone())?;
-            let geometry = geometry.context("Selection cancelled or failed")?;
+            let selected = ui::App::run(settings.clone())?;
+            let geometry = selected.geometry.context("Selection produced no region")?;
             render::Rect::from_geometry_string(&geometry)
         }
         capture::CaptureMode::ImageWindow => {

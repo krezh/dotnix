@@ -60,10 +60,30 @@ pub(super) enum PendingCapture {
 /// before capturing anyway, so a compositor that withholds them cannot hang us.
 const HIDE_TIMEOUT_MS: u64 = 120;
 
+/// What the selector produced.
+pub struct Selected {
+    /// The selected region, for the modes that capture or record by coordinates.
+    pub geometry: Option<String>,
+    /// The mode picked in the selector, if it opened on the mode bar.
+    pub mode: Option<CaptureMode>,
+    /// The image the selector already captured, when it has one.
+    pub image: Option<CapturedImage>,
+    /// Ctrl was held, meaning copy to the clipboard instead of uploading.
+    pub to_clipboard: bool,
+}
+
+impl Selected {
+    /// True when the user dismissed the selector without choosing anything.
+    pub fn cancelled(&self) -> bool {
+        self.geometry.is_none() && self.mode.is_none() && self.image.is_none()
+    }
+}
+
 /// Main application state managing Wayland connection and surfaces
 pub struct App {
     // Wayland state
     pub(super) conn: Connection,
+    pub(super) screencopy: crate::compositor::Screencopy,
     pub(super) registry_state: RegistryState,
     pub(super) seat_state: SeatState,
     pub(super) output_state: OutputState,
@@ -127,14 +147,7 @@ pub struct App {
 // ============================================================================
 
 impl App {
-    pub fn run(
-        settings: Settings,
-    ) -> Result<(
-        Option<String>,
-        Option<CaptureMode>,
-        Option<CapturedImage>,
-        bool,
-    )> {
+    pub fn run(settings: Settings) -> Result<Selected> {
         // Only allow one interactive overlay at a time; otherwise the overlays
         // stack on top of each other. If another instance is already running, exit.
         let _instance_lock = match utils::ensure_single_instance() {
@@ -186,6 +199,7 @@ impl App {
         let is_recording = crate::capture::recording(&settings).is_some();
 
         let mut app = Self {
+            screencopy: crate::compositor::Screencopy::new(&conn)?,
             conn: conn.clone(),
             registry_state,
             seat_state,
@@ -236,7 +250,16 @@ impl App {
         }
 
         loop {
-            event_loop.dispatch(Some(Duration::from_millis(IDLE_FRAME_TIMEOUT_MS)), &mut app)?;
+            // Only the intro animation and the wait for a hidden UI need the loop
+            // to wake on its own; otherwise Wayland events do the waking.
+            let animating = app.phase == UiPhase::ModeSelect && !app.intro_done;
+            let timeout = if animating || app.pending_capture.is_some() {
+                Duration::from_millis(IDLE_FRAME_TIMEOUT_MS)
+            } else {
+                Duration::from_millis(IDLE_TIMEOUT_MS)
+            };
+
+            event_loop.dispatch(Some(timeout), &mut app)?;
 
             // While a capture is pending the UI is deliberately invisible: draw nothing
             // back onto the screen until the capture has been taken.
@@ -280,12 +303,12 @@ impl App {
             return Err(e);
         }
 
-        Ok((
-            app.selection_geometry,
-            app.chosen_mode,
-            app.captured_image,
-            app.to_clipboard,
-        ))
+        Ok(Selected {
+            geometry: app.selection_geometry,
+            mode: app.chosen_mode,
+            image: app.captured_image,
+            to_clipboard: app.to_clipboard,
+        })
     }
 
     fn create_layer_surfaces(&mut self, qh: &QueueHandle<Self>) -> Result<()> {
@@ -350,15 +373,15 @@ impl App {
 
     /// Captures frozen screenshots of all outputs for freeze mode.
     pub(super) fn capture_frozen_screens(&mut self) -> Result<()> {
-        use crate::compositor::protocol::capture_output;
-
         log::info!(
             "Capturing frozen screenshots for {} outputs",
             self.output_surfaces.len()
         );
 
+        let dim_opacity = self.settings.dim_opacity;
+
         for output_surface in &mut self.output_surfaces {
-            match capture_output(&self.conn, &output_surface.output) {
+            match self.screencopy.capture(&output_surface.output) {
                 Ok(captured_image) => {
                     log::debug!(
                         "Captured frozen screen for output: {}x{}",
@@ -366,10 +389,8 @@ impl App {
                         captured_image.height
                     );
                     // Dim once here rather than per frame while dragging.
-                    output_surface.frozen_dimmed = Some(crate::render::dim_argb(
-                        &captured_image.data,
-                        self.settings.dim_opacity,
-                    ));
+                    output_surface.frozen_dimmed =
+                        Some(crate::render::dim_argb(&captured_image.data, dim_opacity));
                     output_surface.frozen_buffer = Some(captured_image);
                 }
                 Err(e) => {
@@ -475,32 +496,14 @@ impl App {
     ///
     /// Falls back to the output at (0,0) or the first output when the compositor
     /// query for the active monitor fails.
-    pub(super) fn pre_capture(&self, mode: CaptureMode) -> Result<CapturedImage> {
-        use crate::compositor::protocol::capture_output;
-        use crate::compositor::protocol::outputs::OutputInfo as OutputGeometry;
-
-        let outputs_list: Vec<OutputGeometry> = self
-            .outputs
-            .iter()
-            .filter_map(|(output, info)| {
-                let (x, y) = info.logical_position?;
-                let (w, h) = info.logical_size?;
-                Some((
-                    output.clone(),
-                    info.name.clone().unwrap_or_default(),
-                    x,
-                    y,
-                    w as u32,
-                    h as u32,
-                ))
-            })
-            .collect();
+    pub(super) fn pre_capture(&mut self, mode: CaptureMode) -> Result<CapturedImage> {
+        let outputs_list = self.output_geometry();
 
         match mode {
             CaptureMode::ImageWindow => {
                 let geometry = crate::compositor::get_active_window()?;
                 let rect = crate::render::Rect::from_geometry_string(&geometry)?;
-                crate::capture::capture_region(&self.conn, &outputs_list, rect)
+                crate::capture::capture_region(&mut self.screencopy, &outputs_list, rect)
             }
             CaptureMode::ImageScreen => {
                 let by_name = crate::compositor::get_active_monitor()
@@ -520,10 +523,36 @@ impl App {
                     })
                     .or_else(|| outputs_list.first().map(|(o, ..)| o.clone()))
                     .context("No outputs available")?;
-                capture_output(&self.conn, &output)
+                self.screencopy.capture(&output)
             }
             _ => unreachable!(),
         }
+    }
+
+    /// Returns the geometry of every mapped overlay surface, with its output name.
+    ///
+    /// Taken from the surfaces rather than the outputs, because the size the
+    /// compositor configured is what the selection was actually drawn against.
+    pub(super) fn output_geometry(&self) -> Vec<crate::compositor::protocol::outputs::OutputInfo> {
+        self.output_surfaces
+            .iter()
+            .map(|surface| {
+                let name = self
+                    .outputs
+                    .get(&surface.output)
+                    .and_then(|info| info.name.clone())
+                    .unwrap_or_default();
+
+                (
+                    surface.output.clone(),
+                    name,
+                    surface.x,
+                    surface.y,
+                    surface.width,
+                    surface.height,
+                )
+            })
+            .collect()
     }
 
     // ------------------------------------------------------------------------
@@ -612,16 +641,13 @@ impl App {
 
     fn complete_selection(&mut self) {
         if let Some(rect) = self.selection.get_selection() {
-            let outputs_map: Vec<(wl_output::WlOutput, String)> = self
-                .outputs
-                .iter()
-                .map(|(output, info)| (output.clone(), info.name.clone().unwrap_or_default()))
-                .collect();
+            let outputs_list = self.output_geometry();
 
             match capture::complete_selection(
                 &self.conn,
+                &mut self.screencopy,
                 &mut self.output_surfaces,
-                &outputs_map,
+                &outputs_list,
                 &self.settings,
                 rect,
             ) {

@@ -7,4 +7,4 @@ mod screencopy;
 mod shm;
 
 pub use outputs::get_outputs;
-pub use screencopy::capture_output;
+pub use screencopy::Screencopy;

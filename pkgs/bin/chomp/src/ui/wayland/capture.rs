@@ -1,8 +1,10 @@
 //! Screenshot capture and OCR completion handling
 
 use anyhow::Result;
-use wayland_client::{Connection, protocol::wl_output};
+use wayland_client::Connection;
 
+use crate::compositor::Screencopy;
+use crate::compositor::protocol::outputs::OutputInfo;
 use crate::{
     capture, capture::CaptureMode, capture::CapturedImage, cli::Settings, ocr, render::Rect, system,
 };
@@ -15,8 +17,9 @@ use super::output::OutputSurface;
 /// selected image itself when it could be cropped out of the frozen screen.
 pub fn complete_selection(
     conn: &Connection,
+    screencopy: &mut Screencopy,
     output_surfaces: &mut [OutputSurface],
-    outputs_map: &[(wl_output::WlOutput, String)],
+    outputs_list: &[OutputInfo],
     settings: &Settings,
     rect: Rect,
 ) -> Result<(Option<String>, Option<CapturedImage>)> {
@@ -24,32 +27,13 @@ pub fn complete_selection(
     let _ = conn.roundtrip();
     let _ = conn.roundtrip();
 
-    let outputs_list: Vec<crate::compositor::protocol::outputs::OutputInfo> = output_surfaces
-        .iter()
-        .map(|surf| {
-            let name = outputs_map
-                .iter()
-                .find(|(out, _)| out == &surf.output)
-                .map(|(_, n)| n.clone())
-                .unwrap_or_default();
-            (
-                surf.output.clone(),
-                name,
-                surf.x,
-                surf.y,
-                surf.width,
-                surf.height,
-            )
-        })
-        .collect();
-
     if matches!(
         settings.mode,
         Some(CaptureMode::ImageArea | CaptureMode::VideoArea)
     ) {
         // Recording needs coordinates, not pixels.
         let cropped = if settings.mode == Some(CaptureMode::ImageArea) {
-            crop_frozen(output_surfaces, &outputs_list, settings, rect)
+            crop_frozen(output_surfaces, outputs_list, settings, rect)
         } else {
             None
         };
@@ -60,9 +44,9 @@ pub fn complete_selection(
     if settings.ocr {
         // OCR reads the same selected pixels a screenshot would save.
         let language = &settings.ocr_language;
-        let text = match crop_frozen(output_surfaces, &outputs_list, settings, rect) {
+        let text = match crop_frozen(output_surfaces, outputs_list, settings, rect) {
             Some(image) => ocr::extract_text(&image, language)?,
-            None => ocr::capture_and_ocr(conn, &outputs_list, rect, language)?,
+            None => ocr::capture_and_ocr(screencopy, outputs_list, rect, language)?,
         };
         println!("{}", text);
 
@@ -72,7 +56,7 @@ pub fn complete_selection(
         }
     } else if let Some(ref output_path) = settings.output {
         // Screenshot mode: capture and save to file or stdout
-        capture::capture_and_save(conn, &outputs_list, rect, Some(output_path))?;
+        capture::capture_and_save(screencopy, outputs_list, rect, Some(output_path))?;
     } else {
         // Coordinate output mode: output coordinates only
         println!("{}", rect.to_geometry_string());
@@ -91,31 +75,37 @@ pub fn complete_selection(
 /// is not on an output with a frozen screenshot — leaving the caller to capture.
 fn crop_frozen(
     output_surfaces: &[OutputSurface],
-    outputs: &[crate::compositor::protocol::outputs::OutputInfo],
+    outputs: &[OutputInfo],
     settings: &Settings,
     rect: Rect,
 ) -> Option<CapturedImage> {
-    use crate::compositor::protocol::outputs::find_output_for_rect;
+    use crate::compositor::protocol::outputs::find_outputs_for_rect;
 
     if !settings.freeze {
         return None;
     }
 
-    let (output, local_rect) = find_output_for_rect(outputs, rect)
-        .inspect_err(|e| log::warn!("Failed to locate the selected output: {}", e))
+    let covering = find_outputs_for_rect(outputs, rect)
+        .inspect_err(|e| log::warn!("Failed to locate the selected outputs: {}", e))
         .ok()?;
 
-    let frozen = output_surfaces
-        .iter()
-        .find(|surf| &surf.output == output)?
-        .frozen_buffer
-        .as_ref()?;
+    // Every covered output has to have a frozen screen, or the result would be
+    // missing part of the selection; capturing it live is better than that.
+    let mut parts = Vec::with_capacity(covering.len());
+    for (output, geometry) in covering {
+        let frozen = output_surfaces
+            .iter()
+            .find(|surface| &surface.output == output)?
+            .frozen_buffer
+            .as_ref()?;
 
-    frozen
-        .crop(local_rect)
+        parts.push((geometry, frozen));
+    }
+
+    capture::compose_region(rect, &parts)
         .inspect_err(|e| {
             log::warn!(
-                "Failed to crop the frozen screenshot: {}. Capturing the region instead.",
+                "Failed to assemble the selection from the frozen screen: {}. Capturing it instead.",
                 e
             )
         })

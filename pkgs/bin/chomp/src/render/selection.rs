@@ -65,6 +65,28 @@ impl Rect {
             && self.y + self.height > other.y
     }
 
+    /// Returns the part of this rectangle that lies inside `other`.
+    #[inline]
+    pub fn intersection(&self, other: &Rect) -> Option<Rect> {
+        let x = self.x.max(other.x);
+        let y = self.y.max(other.y);
+        let right = (self.x + self.width).min(other.x + other.width);
+        let bottom = (self.y + self.height).min(other.y + other.height);
+
+        (right > x && bottom > y).then(|| Rect::new(x, y, right - x, bottom - y))
+    }
+
+    /// Returns the smallest rectangle containing both rectangles.
+    #[inline]
+    pub fn union(&self, other: &Rect) -> Rect {
+        let x = self.x.min(other.x);
+        let y = self.y.min(other.y);
+        let right = (self.x + self.width).max(other.x + other.width);
+        let bottom = (self.y + self.height).max(other.y + other.height);
+
+        Rect::new(x, y, right - x, bottom - y)
+    }
+
     /// Creates a rectangle from two corner points.
     ///
     /// Normalizes the coordinates so that the top-left corner is at the minimum x and y values.
@@ -93,6 +115,12 @@ impl Rect {
             width,
             height,
         }
+    }
+
+    /// Returns the rectangle's area in pixels.
+    #[inline]
+    pub fn area(&self) -> i64 {
+        i64::from(self.width.max(0)) * i64::from(self.height.max(0))
     }
 
     /// Checks if this rectangle has non-zero area.

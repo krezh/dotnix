@@ -7,8 +7,12 @@ use nix::fcntl::{Flock, FlockArg};
 use std::fs::OpenOptions;
 use std::path::PathBuf;
 
-// Event loop timeout
-pub const IDLE_FRAME_TIMEOUT_MS: u64 = 33; // ~30 FPS when idle
+// Event loop timeout while the UI is animating or waiting to be hidden
+pub const IDLE_FRAME_TIMEOUT_MS: u64 = 33; // ~30 FPS
+
+// Event loop timeout with nothing to drive: Wayland events still wake the loop,
+// so this only bounds how long a missed wake-up can go unnoticed.
+pub const IDLE_TIMEOUT_MS: u64 = 500;
 
 /// Acquires an exclusive, non-blocking lock on a per-user runtime lock file.
 ///

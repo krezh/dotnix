@@ -60,7 +60,14 @@ impl UploadService for ZiplineUploader {
             .to_string_lossy()
             .to_string();
 
-        let file_content = fs::read(file_path).context("Failed to read file for upload")?;
+        // Streamed rather than read into memory: a recording can be far larger
+        // than a screenshot. The length goes with it, so the server still gets a
+        // Content-Length instead of a chunked body.
+        let file = fs::File::open(file_path).context("Failed to open file for upload")?;
+        let length = file
+            .metadata()
+            .context("Failed to read file size for upload")?
+            .len();
 
         // Determine MIME type based on file extension
         let mime_type = match path.extension().and_then(|e| e.to_str()) {
@@ -76,7 +83,7 @@ impl UploadService for ZiplineUploader {
 
         let form = multipart::Form::new().part(
             "file",
-            multipart::Part::bytes(file_content)
+            multipart::Part::reader_with_length(file, length)
                 .file_name(file_name)
                 .mime_str(mime_type)?,
         );

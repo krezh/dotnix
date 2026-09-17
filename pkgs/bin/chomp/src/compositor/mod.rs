@@ -18,7 +18,7 @@ pub mod backend;
 pub mod protocol;
 
 // Re-export commonly used protocol functions
-pub use protocol::{capture_output, get_outputs};
+pub use protocol::{Screencopy, get_outputs};
 
 // Re-export compositor-specific functions (currently only Hyprland)
 pub use backend::hyprland::{get_active_monitor, get_active_window};

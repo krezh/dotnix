@@ -153,6 +153,30 @@
                       example = "1920x1080";
                       description = "Encoder resolution for screen recordings. Empty records at the monitor's own resolution.";
                     };
+
+                    bitrate = lib.mkOption {
+                      type = lib.types.str;
+                      default = "";
+                      example = "15 MB";
+                      description = ''
+                        Encoder bitrate, in bytes per second as wl-screenrec expects it,
+                        so "15 MB" is 120 Mbps. Empty derives one from the recorded area
+                        and frame rate, which keeps quality steady across resolutions.
+                      '';
+                    };
+
+                    codec = lib.mkOption {
+                      type = lib.types.enum [
+                        "auto"
+                        "avc"
+                        "hevc"
+                        "vp8"
+                        "vp9"
+                        "av1"
+                      ];
+                      default = "auto";
+                      description = "Video codec for screen recordings. At a given bitrate hevc holds up better in motion than avc.";
+                    };
                   };
                 };
                 default = { };
@@ -226,6 +250,7 @@
             video = {
               max_fps = cfg.capture.video.maxFps;
               encode_resolution = cfg.capture.video.encodeResolution;
+              inherit (cfg.capture.video) bitrate codec;
             };
           }
           // lib.optionalAttrs (cfg.capture.delay != null) { inherit (cfg.capture) delay; };

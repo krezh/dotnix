@@ -12,7 +12,7 @@ use wayland_protocols_wlr::screencopy::v1::client::{
     zwlr_screencopy_manager_v1::ZwlrScreencopyManagerV1,
 };
 
-use super::shm::{create_shm_fd, read_shm_buffer};
+use super::shm::{create_shm_fd, map_shm_buffer};
 use crate::capture::buffer::CapturedImage;
 
 // How many times to poll the compositor for the frame before giving up.
@@ -124,17 +124,57 @@ delegate_noop!(CaptureState: ignore wl_shm_pool::WlShmPool);
 delegate_noop!(CaptureState: ignore wl_buffer::WlBuffer);
 delegate_noop!(CaptureState: ignore ZwlrScreencopyManagerV1);
 
-/// Captures the entire content of a Wayland output using the zwlr-screencopy-v1 protocol.
-pub fn capture_output(conn: &Connection, output: &wl_output::WlOutput) -> Result<CapturedImage> {
-    let mut event_queue = conn.new_event_queue::<CaptureState>();
-    let qh = event_queue.handle();
+/// A bound screencopy interface, reusable for any number of captures.
+///
+/// Binding the globals is a full registry enumeration and a roundtrip, so it is
+/// done once per connection rather than once per captured output.
+pub struct Screencopy {
+    event_queue: wayland_client::EventQueue<CaptureState>,
+    manager: ZwlrScreencopyManagerV1,
+    shm: wl_shm::WlShm,
+}
 
-    // Bind protocols
-    let (screencopy_manager, shm) = bind_protocols(conn, &qh)?;
+impl Screencopy {
+    /// Binds the screencopy and shm globals on `conn`.
+    pub fn new(conn: &Connection) -> Result<Self> {
+        use wayland_client::globals::registry_queue_init;
+
+        let (globals, event_queue) =
+            registry_queue_init::<CaptureState>(conn).context("Failed to init registry")?;
+        let qh = event_queue.handle();
+
+        let manager = globals
+            .bind(&qh, 1..=3, ())
+            .context("zwlr_screencopy_manager_v1 not available")?;
+
+        let shm = globals
+            .bind(&qh, 1..=1, ())
+            .context("wl_shm not available")?;
+
+        Ok(Self {
+            event_queue,
+            manager,
+            shm,
+        })
+    }
+
+    /// Captures the entire content of a Wayland output.
+    pub fn capture(&mut self, output: &wl_output::WlOutput) -> Result<CapturedImage> {
+        capture_output(self, output)
+    }
+}
+
+/// Captures the entire content of a Wayland output using the zwlr-screencopy-v1 protocol.
+fn capture_output(
+    screencopy: &mut Screencopy,
+    output: &wl_output::WlOutput,
+) -> Result<CapturedImage> {
+    let event_queue = &mut screencopy.event_queue;
+    let qh = event_queue.handle();
 
     // Initialize capture
     let mut capture_state = CaptureState::new();
-    let frame: ZwlrScreencopyFrameV1 = screencopy_manager.capture_output(0, output, &qh, ());
+    let frame: ZwlrScreencopyFrameV1 = screencopy.manager.capture_output(0, output, &qh, ());
 
     // Get buffer info
     event_queue.roundtrip(&mut capture_state)?;
@@ -154,43 +194,24 @@ pub fn capture_output(conn: &Connection, output: &wl_output::WlOutput) -> Result
 
     // Create and attach buffer
     let size = (stride * height) as usize;
-    let (buffer, pool, shm_fd) = create_wl_buffer(&shm, &qh, width, height, stride, format, size)?;
+    let (buffer, pool, shm_fd) =
+        create_wl_buffer(&screencopy.shm, &qh, width, height, stride, format, size)?;
 
     frame.copy(&buffer);
 
     // Wait for completion
-    wait_for_capture(&mut event_queue, &mut capture_state)?;
+    wait_for_capture(event_queue, &mut capture_state)?;
 
-    // Read the captured data BEFORE cleanup
-    let data = read_shm_buffer(&shm_fd, size)?;
+    // Map the captured pages BEFORE cleanup. The mapping outlives both the
+    // descriptor and the wl_buffer, so the pixels stay valid once those go.
+    let data = map_shm_buffer(&shm_fd, size)?;
 
-    // Cleanup (order matters - buffer before pool). Dropping `shm_fd` at the end
-    // of this scope releases the capture memory with it.
+    // Cleanup (order matters - buffer before pool)
     buffer.destroy();
     pool.destroy();
     frame.destroy();
 
     Ok(CapturedImage::new(data, width, height, stride, format))
-}
-
-/// Binds the required Wayland protocols for screen capture.
-fn bind_protocols(
-    conn: &Connection,
-    qh: &QueueHandle<CaptureState>,
-) -> Result<(ZwlrScreencopyManagerV1, wl_shm::WlShm)> {
-    use wayland_client::globals::registry_queue_init;
-    let (globals, _) =
-        registry_queue_init::<CaptureState>(conn).context("Failed to init registry")?;
-
-    let screencopy_manager = globals
-        .bind(qh, 1..=3, ())
-        .context("zwlr_screencopy_manager_v1 not available")?;
-
-    let shm = globals
-        .bind(qh, 1..=1, ())
-        .context("wl_shm not available")?;
-
-    Ok((screencopy_manager, shm))
 }
 
 /// Creates a Wayland buffer backed by shared memory.

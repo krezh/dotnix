@@ -55,7 +55,7 @@ impl LogLevel {
 
 /// Keybindings for the mode selector overlay
 #[derive(Debug, Deserialize, Serialize, Clone)]
-#[serde(default)]
+#[serde(default, deny_unknown_fields)]
 pub struct KeybindsConfig {
     pub screenshot_area: String,
     pub screenshot_screen: String,
@@ -130,7 +130,7 @@ impl Default for KeybindsConfig {
 
 /// Visual style for the mode selector bottom bar
 #[derive(Debug, Deserialize, Serialize, Clone)]
-#[serde(default)]
+#[serde(default, deny_unknown_fields)]
 pub struct ModeSelectConfig {
     /// Bar background color (hex)
     pub background_color: String,
@@ -173,7 +173,7 @@ impl Default for ModeSelectConfig {
 
 /// Main configuration structure with nested groups
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]
-#[serde(default)]
+#[serde(default, deny_unknown_fields)]
 pub struct Config {
     /// Text/font configuration
     pub font: FontConfig,
@@ -204,7 +204,7 @@ pub struct Config {
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
-#[serde(default)]
+#[serde(default, deny_unknown_fields)]
 pub struct FontConfig {
     /// Font family
     pub family: String,
@@ -217,7 +217,7 @@ pub struct FontConfig {
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
-#[serde(default)]
+#[serde(default, deny_unknown_fields)]
 pub struct BorderConfig {
     /// Border color in hex
     pub color: String,
@@ -230,7 +230,7 @@ pub struct BorderConfig {
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
-#[serde(default)]
+#[serde(default, deny_unknown_fields)]
 pub struct DisplayConfig {
     /// Dimming opacity (0.0-1.0)
     pub dim_opacity: f64,
@@ -243,14 +243,14 @@ pub struct DisplayConfig {
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]
-#[serde(default)]
+#[serde(default, deny_unknown_fields)]
 pub struct UploadConfig {
     /// Zipline upload settings
     pub zipline: ZiplineConfig,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]
-#[serde(default)]
+#[serde(default, deny_unknown_fields)]
 pub struct ZiplineConfig {
     /// Zipline server URL (auto-uploads if both url and token are set)
     pub url: String,
@@ -263,7 +263,7 @@ pub struct ZiplineConfig {
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
-#[serde(default)]
+#[serde(default, deny_unknown_fields)]
 pub struct CaptureConfig {
     /// Default save directory for captures
     pub save_path: String,
@@ -276,17 +276,25 @@ pub struct CaptureConfig {
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
-#[serde(default)]
+#[serde(default, deny_unknown_fields)]
 pub struct VideoConfig {
     /// Frame rate ceiling passed to the recorder
     pub max_fps: u32,
 
     /// Encoder resolution, e.g. "1920x1080". Empty records at the native size.
     pub encode_resolution: String,
+
+    /// Encoder bitrate, in the recorder's own units, e.g. "10 MB" for 80 Mbps.
+    /// Empty derives one from the recorded area and frame rate.
+    pub bitrate: String,
+
+    /// Video codec: "auto", "avc", "hevc", "vp8", "vp9" or "av1". At a given
+    /// bitrate "hevc" holds up better in motion than "avc".
+    pub codec: String,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
-#[serde(default)]
+#[serde(default, deny_unknown_fields)]
 pub struct OcrConfig {
     /// Tesseract language, which must be installed in its data directory
     pub language: String,
@@ -296,7 +304,7 @@ pub struct OcrConfig {
 ///
 /// Each is resolved through `PATH` when left as a bare name.
 #[derive(Debug, Deserialize, Serialize, Clone)]
-#[serde(default)]
+#[serde(default, deny_unknown_fields)]
 pub struct ToolsConfig {
     /// Annotation editor, used by --annotate
     pub satty: String,
@@ -323,6 +331,8 @@ impl Default for VideoConfig {
         Self {
             max_fps: 60,
             encode_resolution: String::new(),
+            bitrate: String::new(),
+            codec: "auto".to_string(),
         }
     }
 }

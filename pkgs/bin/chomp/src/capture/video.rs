@@ -16,6 +16,14 @@ use crate::cli::Settings;
 
 const STOP_TIMEOUT: Duration = Duration::from_secs(10);
 
+/// Bits per pixel the derived bitrate aims for, which holds up in motion.
+const TARGET_BITS_PER_PIXEL: f64 = 0.35;
+const MIN_BITRATE_MB: u64 = 5;
+const MAX_BITRATE_MB: u64 = 25;
+
+/// Used when the recorded size is unknown; the recorder's own default.
+const DEFAULT_BITRATE: &str = "5 MB";
+
 #[derive(Serialize, Deserialize)]
 struct RecordingState {
     pid: u32,
@@ -74,20 +82,30 @@ pub fn stop_recording(settings: &Settings) -> Result<String> {
 }
 
 /// Starts the recorder with the given parameters and records its state.
+///
+/// `size` is the recorded area in pixels, used to pick a bitrate when none is
+/// configured.
 pub fn start_recording(
     settings: &Settings,
     geometry: Option<&str>,
     monitor: Option<&str>,
+    size: Option<(u32, u32)>,
     output_file: &str,
 ) -> Result<()> {
     let max_fps = format!("--max-fps={}", settings.video_max_fps);
     let encode_resolution = format!("--encode-resolution={}", settings.video_encode_resolution);
+    let codec = format!("--codec={}", settings.video_codec);
+    let bitrate = format!("--bitrate={}", resolve_bitrate(settings, size));
 
-    let mut args = vec!["--low-power=off", max_fps.as_str()];
+    let mut args = vec!["--low-power=off", max_fps.as_str(), &bitrate];
 
     // Left empty, the recorder encodes at the output's own resolution.
     if !settings.video_encode_resolution.is_empty() {
         args.push(&encode_resolution);
+    }
+
+    if !settings.video_codec.is_empty() && settings.video_codec != "auto" {
+        args.push(&codec);
     }
 
     if let Some(g) = geometry {
@@ -116,6 +134,86 @@ pub fn start_recording(
     }
 
     Ok(())
+}
+
+/// Returns the bitrate to record at, in the recorder's own byte-per-second units.
+///
+/// The recorder's own default is a fixed 5 MB/s, which is sized for 1080p: at
+/// 1440p or 4K the same bits are spread over two to four times the pixels, and
+/// anything with motion in it breaks up into blocks. Scaling with the pixel rate
+/// keeps quality steady across resolutions, and lands on that same 5 MB/s at
+/// 1080p60.
+fn resolve_bitrate(settings: &Settings, size: Option<(u32, u32)>) -> String {
+    if !settings.video_bitrate.is_empty() {
+        return settings.video_bitrate.clone();
+    }
+
+    // What is encoded, which is the encoder resolution when one is set.
+    let encoded = parse_resolution(&settings.video_encode_resolution).or(size);
+
+    let Some((width, height)) = encoded else {
+        return DEFAULT_BITRATE.to_string();
+    };
+
+    let pixels_per_second = width as f64 * height as f64 * settings.video_max_fps as f64;
+    let bytes_per_second = pixels_per_second * TARGET_BITS_PER_PIXEL / 8.0;
+    let megabytes = (bytes_per_second / 1_000_000.0).round() as u64;
+
+    format!("{} MB", megabytes.clamp(MIN_BITRATE_MB, MAX_BITRATE_MB))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn settings(bitrate: &str, encode_resolution: &str, max_fps: u32) -> Settings {
+        use clap::Parser;
+
+        let mut settings = crate::cli::Args::parse_from(["chomp"]).resolve(Default::default());
+        settings.video_bitrate = bitrate.to_string();
+        settings.video_encode_resolution = encode_resolution.to_string();
+        settings.video_max_fps = max_fps;
+        settings
+    }
+
+    #[test]
+    fn keeps_a_configured_bitrate() {
+        let settings = settings("15 MB", "", 60);
+
+        assert_eq!(resolve_bitrate(&settings, Some((2560, 1440))), "15 MB");
+    }
+
+    #[test]
+    fn scales_the_bitrate_with_the_recorded_area() {
+        let settings = settings("", "", 60);
+
+        // 1080p60 lands on the recorder's own default, 1440p60 above it.
+        assert_eq!(resolve_bitrate(&settings, Some((1920, 1080))), "5 MB");
+        assert_eq!(resolve_bitrate(&settings, Some((2560, 1440))), "10 MB");
+        assert_eq!(resolve_bitrate(&settings, Some((3840, 2160))), "22 MB");
+    }
+
+    #[test]
+    fn sizes_the_bitrate_to_the_encoder_resolution() {
+        let settings = settings("", "1920x1080", 60);
+
+        // Downscaled to 1080p, so a 1440p region still encodes at 1080p's rate.
+        assert_eq!(resolve_bitrate(&settings, Some((2560, 1440))), "5 MB");
+    }
+
+    #[test]
+    fn falls_back_without_a_known_area() {
+        let settings = settings("", "", 60);
+
+        assert_eq!(resolve_bitrate(&settings, None), DEFAULT_BITRATE);
+    }
+}
+
+/// Parses a "WIDTHxHEIGHT" resolution.
+fn parse_resolution(resolution: &str) -> Option<(u32, u32)> {
+    let (width, height) = resolution.split_once('x')?;
+
+    Some((width.trim().parse().ok()?, height.trim().parse().ok()?))
 }
 
 fn state_file() -> PathBuf {

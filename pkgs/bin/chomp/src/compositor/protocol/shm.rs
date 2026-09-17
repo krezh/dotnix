@@ -3,6 +3,8 @@
 use anyhow::Result;
 use std::os::fd::OwnedFd;
 
+use crate::capture::buffer::MappedPixels;
+
 /// Creates a shared memory file descriptor with the specified size.
 ///
 /// Uses memfd_create with sealing to prevent resizing. The descriptor owns the
@@ -27,30 +29,11 @@ pub(super) fn create_shm_fd(size: usize) -> Result<OwnedFd> {
     Ok(fd)
 }
 
-/// Reads data from a shared memory file descriptor into a buffer.
-pub(super) fn read_shm_buffer(fd: &OwnedFd, size: usize) -> Result<Vec<u8>> {
-    use nix::unistd::{Whence, lseek, read};
-
-    let mut buffer = vec![0u8; size];
-
-    lseek(fd, 0, Whence::SeekSet)?;
-
-    let mut total_read = 0;
-    while total_read < size {
-        match read(fd, &mut buffer[total_read..]) {
-            Ok(0) => break, // EOF
-            Ok(n) => total_read += n,
-            Err(e) => return Err(anyhow::anyhow!("Failed to read from shm fd: {}", e)),
-        }
-    }
-
-    if total_read != size {
-        anyhow::bail!(
-            "Incomplete read: got {} bytes, expected {}",
-            total_read,
-            size
-        );
-    }
-
-    Ok(buffer)
+/// Maps a capture's shared memory for reading.
+///
+/// The compositor has already written the pixels into these pages, so mapping
+/// them hands the capture straight over: no second full-screen allocation to
+/// zero, and no copy through `read`.
+pub(super) fn map_shm_buffer(fd: &OwnedFd, size: usize) -> Result<MappedPixels> {
+    MappedPixels::map(fd, size)
 }

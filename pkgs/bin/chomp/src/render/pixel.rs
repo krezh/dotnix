@@ -52,6 +52,16 @@ pub fn blit(
     }
 }
 
+/// Converts ARGB8888 pixel data to RGBA8888 in place.
+///
+/// Saves the second full-screen allocation `convert_argb_to_rgba` needs, for the
+/// callers that already own their pixels.
+pub fn convert_argb_to_rgba_in_place(buffer: &mut [u8]) {
+    for pixel in buffer.chunks_exact_mut(4) {
+        pixel.swap(0, 2);
+    }
+}
+
 /// Converts ARGB8888 pixel data to RGBA8888 format.
 ///
 /// This is commonly needed when converting Wayland's native ARGB format

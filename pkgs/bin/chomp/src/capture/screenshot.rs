@@ -6,42 +6,44 @@ use std::io::Write;
 use wayland_client::Connection;
 
 use crate::capture::CapturedImage;
-use crate::compositor::get_outputs;
 use crate::compositor::protocol::outputs::OutputInfo;
-use crate::render::{Rect, convert_argb_to_rgba};
+use crate::compositor::{Screencopy, get_outputs};
+use crate::render::{Rect, convert_argb_to_rgba, convert_argb_to_rgba_in_place};
 
 /// Captures a screenshot directly given a rect and saves it to a file.
 pub fn capture_screenshot(rect: Rect, output_path: &str) -> Result<()> {
-    let (conn, outputs) = connect()?;
+    let (mut screencopy, outputs) = connect()?;
 
-    capture_and_save(&conn, &outputs, rect, Some(output_path))
+    capture_and_save(&mut screencopy, &outputs, rect, Some(output_path))
 }
 
 /// Captures a screen region and returns it as PNG-encoded bytes.
 pub fn capture_png_bytes(rect: Rect) -> Result<Vec<u8>> {
-    let (conn, outputs) = connect()?;
+    let (mut screencopy, outputs) = connect()?;
 
-    encode_png(&capture_image(&conn, &outputs, rect)?)
+    encode_png(&capture_image(&mut screencopy, &outputs, rect)?)
 }
 
-/// Opens a Wayland connection and enumerates the outputs on it.
-fn connect() -> Result<(Connection, Vec<OutputInfo>)> {
+/// Opens a Wayland connection of its own, binds screencopy on it and enumerates
+/// the outputs.
+fn connect() -> Result<(Screencopy, Vec<OutputInfo>)> {
     let conn = Connection::connect_to_env().context("Failed to connect to Wayland")?;
     let outputs = get_outputs(&conn)?;
+    let screencopy = Screencopy::new(&conn)?;
 
-    Ok((conn, outputs))
+    Ok((screencopy, outputs))
 }
 
 /// Captures a screen region and saves it to a file or stdout.
 ///
 /// Public API for use by ui/wayland/capture.rs
 pub fn capture_and_save(
-    conn: &Connection,
+    screencopy: &mut Screencopy,
     outputs: &[OutputInfo],
     rect: Rect,
     output_path: Option<&str>,
 ) -> Result<()> {
-    let img = capture_image(conn, outputs, rect)?;
+    let img = capture_image(screencopy, outputs, rect)?;
 
     match output_path {
         Some("-") => {
@@ -64,7 +66,11 @@ pub fn capture_and_save(
 }
 
 /// Captures and crops a screen region into an RGBA image.
-fn capture_image(conn: &Connection, outputs: &[OutputInfo], rect: Rect) -> Result<RgbaImage> {
+fn capture_image(
+    screencopy: &mut Screencopy,
+    outputs: &[OutputInfo],
+    rect: Rect,
+) -> Result<RgbaImage> {
     log::info!(
         "Capturing region: {}x{} at ({},{})",
         rect.width,
@@ -73,7 +79,7 @@ fn capture_image(conn: &Connection, outputs: &[OutputInfo], rect: Rect) -> Resul
         rect.y
     );
 
-    let cropped = crate::capture::capture_region(conn, outputs, rect)?;
+    let cropped = crate::capture::capture_region(screencopy, outputs, rect)?;
     let rgba_buffer = convert_argb_to_rgba(&cropped.data);
 
     RgbaImage::from_raw(cropped.width, cropped.height, rgba_buffer)
@@ -82,7 +88,10 @@ fn capture_image(conn: &Connection, outputs: &[OutputInfo], rect: Rect) -> Resul
 
 /// Saves a `CapturedImage` (ARGB8888) directly to a PNG file.
 pub fn save_captured_image(img: CapturedImage, output_path: &str) -> Result<()> {
-    let rgba = convert_argb_to_rgba(&img.data);
+    // Owned pixels here, so the conversion needs no second buffer.
+    let mut rgba = img.data.into_vec();
+    convert_argb_to_rgba_in_place(&mut rgba);
+
     RgbaImage::from_raw(img.width, img.height, rgba)
         .context("Failed to construct RGBA image from captured buffer")?
         .save(output_path)

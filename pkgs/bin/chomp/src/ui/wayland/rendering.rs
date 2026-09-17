@@ -150,7 +150,7 @@ pub fn draw_output(
         .frozen_buffer
         .as_ref()
         .map(|img| FrozenFrame {
-            pixels: img.data.as_slice(),
+            pixels: &img.data,
             dimmed: output_surface.frozen_dimmed.as_deref(),
             stride: img.stride as i32,
         });
