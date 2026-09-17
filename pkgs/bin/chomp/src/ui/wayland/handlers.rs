@@ -263,8 +263,8 @@ impl KeyboardHandler for App {
 
     fn press_key(
         &mut self,
-        conn: &Connection,
-        _qh: &QueueHandle<Self>,
+        _conn: &Connection,
+        qh: &QueueHandle<Self>,
         _keyboard: &wayland_client::protocol::wl_keyboard::WlKeyboard,
         _serial: u32,
         event: KeyEvent,
@@ -288,24 +288,7 @@ impl KeyboardHandler for App {
         // OCR: transition to region select without setting a capture mode
         if key_matches(event.keysym, &kb.ocr) {
             self.settings.ocr = true;
-            self.phase = UiPhase::RegionSelect;
-            if self.settings.freeze
-                && self
-                    .output_surfaces
-                    .iter()
-                    .any(|os| os.frozen_buffer.is_none())
-            {
-                if let Err(e) = self.capture_frozen_screens() {
-                    log::warn!("Failed to capture freeze: {}", e);
-                }
-            }
-            for os in &mut self.output_surfaces {
-                os.needs_render = true;
-            }
-            if let Some(themed_pointer) = &self.themed_pointer {
-                let _ = themed_pointer.set_cursor(conn, CursorIcon::Crosshair);
-            }
-            self.needs_redraw = true;
+            self.begin_region_select(qh);
             return;
         }
 
@@ -337,50 +320,15 @@ impl KeyboardHandler for App {
             return;
         };
 
+        self.chosen_mode = Some(mode);
+        self.to_clipboard = ctrl_held && !mode.is_video();
+
         if is_area {
-            self.chosen_mode = Some(mode);
             self.settings.mode = Some(mode);
-            self.to_clipboard = ctrl_held && !mode.is_video();
-            self.phase = UiPhase::RegionSelect;
-            if self.settings.freeze {
-                // Frozen backgrounds are pre-captured at startup before any buffer is
-                // attached.  Only re-capture if that failed for some output.
-                if self
-                    .output_surfaces
-                    .iter()
-                    .any(|os| os.frozen_buffer.is_none())
-                {
-                    if let Err(e) = self.capture_frozen_screens() {
-                        log::warn!("Failed to capture freeze: {}", e);
-                    }
-                }
-            }
-            for os in &mut self.output_surfaces {
-                os.needs_render = true;
-            }
-            if let Some(themed_pointer) = &self.themed_pointer {
-                let _ = themed_pointer.set_cursor(conn, CursorIcon::Crosshair);
-            }
-            self.needs_redraw = true;
+            self.begin_region_select(qh);
         } else {
-            // Unmap mode-select surfaces before the screencopy request.
-            // Using the same connection guarantees ordering: the screencopy's
-            // first internal roundtrip flushes these null-buffer commits,
-            // ensuring the compositor removes the overlay before it captures.
-            for os in &self.output_surfaces {
-                os.surface.attach(None, 0, 0);
-                os.surface.commit();
-            }
-            if matches!(mode, CaptureMode::ImageScreen | CaptureMode::ImageWindow) {
-                match self.pre_capture(mode) {
-                    Ok(img) => self.captured_image = Some(img),
-                    Err(e) => log::warn!("Pre-capture failed: {}", e),
-                }
-            }
-            self.chosen_mode = Some(mode);
-            self.to_clipboard = ctrl_held && !mode.is_video();
-            self.exit = true;
-            self.loop_signal.stop();
+            // Capture once the compositor has presented a frame without the mode bar.
+            self.hide_ui_for_capture(super::PendingCapture::Image(mode), qh);
         }
     }
 

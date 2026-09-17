@@ -23,6 +23,55 @@ pub fn create_local_selection(global_rect: Rect, offset_x: i32, offset_y: i32) -
     Selection::from_rect(local_rect)
 }
 
+/// Commits a fully transparent frame, hiding the UI without unmapping it.
+///
+/// Unmapping makes the compositor play its layer close animation, during which
+/// chomp's own pixels are still composited and end up in the capture. The frame
+/// callback lets the caller wait until a frame without the UI has been presented.
+pub fn draw_transparent(
+    output_surface: &mut OutputSurface,
+    qh: &wayland_client::QueueHandle<super::App>,
+) -> Result<()> {
+    if !output_surface.configured {
+        return Ok(());
+    }
+
+    let width = output_surface.width as i32;
+    let height = output_surface.height as i32;
+    let stride = width * 4;
+
+    let Some(pool) = output_surface.pool.as_mut() else {
+        return Ok(());
+    };
+
+    let (buffer, canvas) = match pool.create_buffer(width, height, stride, wl_shm::Format::Argb8888)
+    {
+        Ok(buffer) => buffer,
+        Err(e) => {
+            log::warn!("Failed to create buffer: {}. Resizing pool.", e);
+            pool.resize((width * height * 4 * 2) as usize)?;
+            pool.create_buffer(width, height, stride, wl_shm::Format::Argb8888)?
+        }
+    };
+
+    canvas.fill(0);
+
+    std::sync::atomic::fence(std::sync::atomic::Ordering::SeqCst);
+
+    let callback = output_surface.surface.frame(qh, ());
+    output_surface.frame_callback = Some(callback);
+    output_surface.waiting_for_frame = true;
+    output_surface.needs_render = true;
+
+    output_surface
+        .surface
+        .attach(Some(buffer.wl_buffer()), 0, 0);
+    output_surface.surface.damage_buffer(0, 0, width, height);
+    output_surface.surface.commit();
+
+    Ok(())
+}
+
 /// Renders the current selection state to a specific output surface.
 pub fn draw_output(
     output_surface: &mut OutputSurface,

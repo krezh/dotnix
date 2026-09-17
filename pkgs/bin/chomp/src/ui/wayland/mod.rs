@@ -48,6 +48,18 @@ pub(super) enum UiPhase {
     RegionSelect,
 }
 
+/// Work deferred until the compositor has presented a frame without chomp's UI.
+pub(super) enum PendingCapture {
+    /// Freeze the screen, then hand over to region selection.
+    Freeze,
+    /// Capture the screen or the active window, then exit.
+    Image(CaptureMode),
+}
+
+/// How long to wait for the frame callbacks confirming the UI is off screen
+/// before capturing anyway, so a compositor that withholds them cannot hang us.
+const HIDE_TIMEOUT_MS: u64 = 120;
+
 /// Main application state managing Wayland connection and surfaces
 pub struct App {
     // Wayland state
@@ -105,6 +117,10 @@ pub struct App {
 
     // Current keyboard modifier state (updated via the modifier event).
     pub(super) modifiers: Modifiers,
+
+    // Capture waiting for the UI to be off screen, and when the wait started.
+    pub(super) pending_capture: Option<PendingCapture>,
+    pub(super) pending_since: Option<std::time::Instant>,
 }
 
 // ============================================================================
@@ -203,6 +219,8 @@ impl App {
             intro_done: !is_mode_select,
             to_clipboard: false,
             modifiers: Modifiers::default(),
+            pending_capture: None,
+            pending_since: None,
         };
 
         event_queue.blocking_dispatch(&mut app)?;
@@ -213,18 +231,29 @@ impl App {
 
         app.create_layer_surfaces(&qh)?;
 
-        // Capture frozen backgrounds before any buffer is attached to any surface.
-        // At this point layer surfaces exist (surface.commit() with no buffer), so
-        // they are not yet visible — the compositor cannot include them in a rendered
-        // frame.  Capturing here works for both ModeSelect (mode dialog launched first)
-        // and RegionSelect (--mode image-area), avoiding the race where capture happens
-        // after the overlay is already on screen.
-        if app.settings.freeze {
+        // Capture the frozen background before any buffer is attached: the layer
+        // surfaces exist but are not yet visible, so the compositor cannot include
+        // them in a rendered frame. Only for a run that starts straight in region
+        // selection — with the mode selector, the freeze is taken once a mode has
+        // been picked, so it shows the screen as it is then rather than at launch.
+        if app.settings.freeze && app.phase == UiPhase::RegionSelect {
             app.capture_frozen_screens()?;
         }
 
         loop {
             event_loop.dispatch(Some(Duration::from_millis(IDLE_FRAME_TIMEOUT_MS)), &mut app)?;
+
+            // While a capture is pending the UI is deliberately invisible: draw nothing
+            // back onto the screen until the capture has been taken.
+            if app.pending_capture.is_some() {
+                if app.ui_hidden() {
+                    app.run_pending_capture();
+                }
+                if app.exit {
+                    break;
+                }
+                continue;
+            }
 
             // Drive the mode-select slide-up entrance animation.
             if app.phase == UiPhase::ModeSelect && !app.intro_done {
@@ -359,6 +388,86 @@ impl App {
         }
 
         Ok(())
+    }
+
+    /// Hides the UI and queues `pending` to run once it is off screen.
+    pub(super) fn hide_ui_for_capture(&mut self, pending: PendingCapture, qh: &QueueHandle<Self>) {
+        self.pending_capture = Some(pending);
+        self.pending_since = Some(std::time::Instant::now());
+
+        for output_surface in &mut self.output_surfaces {
+            if let Err(e) = rendering::draw_transparent(output_surface, qh) {
+                log::warn!("Failed to hide overlay before capture: {}", e);
+            }
+        }
+    }
+
+    /// True once every surface has had its transparent frame presented, or the
+    /// wait for those frame callbacks timed out.
+    pub(super) fn ui_hidden(&self) -> bool {
+        let timed_out = self
+            .pending_since
+            .is_none_or(|since| since.elapsed() >= Duration::from_millis(HIDE_TIMEOUT_MS));
+
+        timed_out
+            || !self
+                .output_surfaces
+                .iter()
+                .any(|surf| surf.configured && surf.waiting_for_frame)
+    }
+
+    /// Runs the queued capture now that the UI is off screen.
+    pub(super) fn run_pending_capture(&mut self) {
+        let Some(pending) = self.pending_capture.take() else {
+            return;
+        };
+        self.pending_since = None;
+
+        match pending {
+            PendingCapture::Freeze => {
+                if let Err(e) = self.capture_frozen_screens() {
+                    log::warn!("Failed to capture freeze: {}", e);
+                }
+                self.enter_region_select();
+            }
+            PendingCapture::Image(mode) => {
+                if matches!(mode, CaptureMode::ImageScreen | CaptureMode::ImageWindow) {
+                    match self.pre_capture(mode) {
+                        Ok(img) => self.captured_image = Some(img),
+                        Err(e) => log::warn!("Pre-capture failed: {}", e),
+                    }
+                }
+                self.exit = true;
+                self.loop_signal.stop();
+            }
+        }
+    }
+
+    /// Leaves the mode selector for region selection, freezing the screen first
+    /// when freeze is enabled.
+    pub(super) fn begin_region_select(&mut self, qh: &QueueHandle<Self>) {
+        if self.settings.freeze {
+            self.hide_ui_for_capture(PendingCapture::Freeze, qh);
+        } else {
+            self.enter_region_select();
+        }
+    }
+
+    /// Switches from the mode selector to region selection and refreshes the UI.
+    pub(super) fn enter_region_select(&mut self) {
+        use smithay_client_toolkit::seat::pointer::CursorIcon;
+
+        self.phase = UiPhase::RegionSelect;
+
+        for output_surface in &mut self.output_surfaces {
+            output_surface.needs_render = true;
+        }
+
+        if let Some(themed_pointer) = &self.themed_pointer {
+            let _ = themed_pointer.set_cursor(&self.conn, CursorIcon::Crosshair);
+        }
+
+        self.needs_redraw = true;
     }
 
     /// Captures the active window (cropped) or active monitor on the UI connection
@@ -516,8 +625,9 @@ impl App {
                 &self.settings,
                 rect,
             ) {
-                Ok(geometry) => {
+                Ok((geometry, cropped)) => {
                     self.selection_geometry = geometry;
+                    self.captured_image = cropped;
                 }
                 Err(e) => {
                     log::error!("Selection completion failed: {}", e);

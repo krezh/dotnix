@@ -89,6 +89,21 @@ fn main() -> Result<()> {
         if mode.is_video() {
             return handle_video_mode(&settings, &mode, &notifier, None);
         }
+
+        // Area mode runs the selector anyway: take the image it cropped along with
+        // the geometry, instead of capturing the region a second time.
+        if mode == capture::CaptureMode::ImageArea {
+            let (geometry, _, pre_captured, _) = ui::App::run(settings.clone())?;
+            return handle_image_mode(
+                &settings,
+                &mode,
+                &notifier,
+                pre_captured,
+                geometry,
+                settings.clipboard,
+            );
+        }
+
         return handle_image_mode(&settings, &mode, &notifier, None, None, settings.clipboard);
     }
 
