@@ -6,9 +6,9 @@ use anyhow::Result;
 
 /// Extracts text from a captured image using Tesseract OCR.
 ///
-/// Converts the image data to RGBA format and processes it with Tesseract's English language model.
-/// Returns the extracted text as a trimmed string.
-pub fn extract_text(image: &CapturedImage) -> Result<String> {
+/// `language` is a Tesseract language code, which has to be installed in its
+/// data directory. Returns the extracted text as a trimmed string.
+pub fn extract_text(image: &CapturedImage, language: &str) -> Result<String> {
     log::info!("Running OCR on {}x{} image", image.width, image.height);
 
     // Convert ARGB to RGBA for image library
@@ -32,7 +32,7 @@ pub fn extract_text(image: &CapturedImage) -> Result<String> {
     }
 
     // Pass image data directly to Tesseract
-    let mut tess = tesseract::Tesseract::new(None, Some("eng"))?;
+    let mut tess = tesseract::Tesseract::new(None, Some(language))?;
     tess = tess.set_frame(
         &rgba_buffer,
         image.width as i32,

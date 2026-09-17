@@ -9,32 +9,36 @@ use std::io::Write;
 use std::process::{Command, Stdio};
 
 /// Copies text to the clipboard.
-pub fn copy_text(text: &str) -> Result<()> {
-    let mut child = Command::new("wl-copy")
-        .stdin(Stdio::piped())
-        .spawn()
-        .context("Failed to spawn wl-copy")?;
-
-    child
-        .stdin
-        .take()
-        .context("Failed to get stdin")?
-        .write_all(text.as_bytes())
-        .context("Failed to write to wl-copy")?;
-
-    child.wait().context("wl-copy failed")?;
-    Ok(())
+pub fn copy_text(wl_copy: &str, text: &str) -> Result<()> {
+    run_wl_copy(wl_copy, &[], Stdio::piped(), Some(text.as_bytes()))
 }
 
 /// Copies an image file to the clipboard.
-pub fn copy_image(file_path: &str) -> Result<()> {
-    Command::new("wl-copy")
-        .arg("-t")
-        .arg("image/png")
-        .stdin(std::fs::File::open(file_path).context("Failed to open image file")?)
+pub fn copy_image(wl_copy: &str, file_path: &str) -> Result<()> {
+    let file = std::fs::File::open(file_path).context("Failed to open image file")?;
+
+    run_wl_copy(wl_copy, &["-t", "image/png"], Stdio::from(file), None)
+}
+
+/// Runs `wl-copy` with `args`, writing `input` to it when its stdin is a pipe,
+/// and waits for it to take ownership of the selection.
+fn run_wl_copy(wl_copy: &str, args: &[&str], stdin: Stdio, input: Option<&[u8]>) -> Result<()> {
+    let mut child = Command::new(wl_copy)
+        .args(args)
+        .stdin(stdin)
         .spawn()
-        .context("Failed to spawn wl-copy")?
-        .wait()
-        .context("wl-copy failed")?;
+        .context("Failed to spawn wl-copy")?;
+
+    if let Some(bytes) = input {
+        child
+            .stdin
+            .take()
+            .context("Failed to get stdin")?
+            .write_all(bytes)
+            .context("Failed to write to wl-copy")?;
+    }
+
+    child.wait().context("wl-copy failed")?;
+
     Ok(())
 }

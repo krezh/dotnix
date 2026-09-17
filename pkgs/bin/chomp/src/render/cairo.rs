@@ -2,8 +2,21 @@ use anyhow::{Context, Result};
 use cairo::{Context as CairoContext, Format, ImageSurface};
 use std::cell::RefCell;
 
+use super::pixel::blit;
 use super::selection::{Rect, Selection};
 use crate::config::FontWeight;
+
+/// The frozen screen a selection is drawn on.
+///
+/// `dimmed` is the same pixels with the overlay's dim already applied, prepared
+/// once when the screen is frozen so that dragging a selection only copies
+/// rectangles instead of blending the whole screen each frame.
+#[derive(Clone, Copy)]
+pub struct FrozenFrame<'a> {
+    pub pixels: &'a [u8],
+    pub dimmed: Option<&'a [u8]>,
+    pub stride: i32,
+}
 
 // Text display thresholds
 const MIN_TEXT_WIDTH: i32 = 80;
@@ -118,7 +131,6 @@ impl Renderer {
     pub fn render_mode_select(
         &self,
         buffer: &mut [u8],
-        _frozen_buffer: Option<(&[u8], i32)>,
         keybinds: &crate::config::KeybindsConfig,
         style: &crate::config::ModeSelectConfig,
         is_recording: bool,
@@ -376,46 +388,49 @@ impl Renderer {
         &self,
         selection: &Selection,
         buffer: &mut [u8],
-        frozen_buffer: Option<(&[u8], i32)>,
+        frozen: Option<FrozenFrame<'_>>,
     ) -> Result<()> {
         let stride = self.width * 4;
 
-        // Step 1: Complete frozen buffer copy ENTIRELY before creating Cairo surface
-        let has_frozen = if let Some((frozen_data, frozen_stride)) = frozen_buffer {
-            // Fast copy: handle stride differences efficiently
-            if frozen_stride == stride {
-                // Strides match - single memcpy with explicit completion
-                let copy_len = buffer.len().min(frozen_data.len());
-                // Use chunks to ensure completion (prevents compiler optimizations that might reorder)
-                for (dst_chunk, src_chunk) in buffer[..copy_len]
-                    .chunks_mut(4096)
-                    .zip(frozen_data[..copy_len].chunks(4096))
-                {
-                    dst_chunk[..src_chunk.len()].copy_from_slice(src_chunk);
-                }
-            } else {
-                // Strides differ - copy row by row with explicit completion
-                let row_bytes = (self.width * 4) as usize;
-                for y in 0..self.height as usize {
-                    let dst_offset = y * stride as usize;
-                    let src_offset = y * frozen_stride as usize;
-                    if dst_offset + row_bytes <= buffer.len()
-                        && src_offset + row_bytes <= frozen_data.len()
-                    {
-                        // Copy in chunks for explicit completion
-                        let dst_row = &mut buffer[dst_offset..dst_offset + row_bytes];
-                        let src_row = &frozen_data[src_offset..src_offset + row_bytes];
-                        for (dst_chunk, src_chunk) in
-                            dst_row.chunks_mut(4096).zip(src_row.chunks(4096))
-                        {
-                            dst_chunk[..src_chunk.len()].copy_from_slice(src_chunk);
-                        }
+        // Check if we have a selection to avoid dimming that area
+        let selection_rect = selection.get_rect().filter(|r| r.width > 0 && r.height > 0);
+
+        // Step 1: Complete frozen buffer copy ENTIRELY before creating Cairo surface.
+        //
+        // A pre-dimmed copy of the frozen screen turns the dim into two rectangle
+        // copies — the dimmed screen, then the selected region restored from the
+        // undimmed original — instead of a full-screen alpha blend on every frame.
+        let (has_frozen, dim_is_baked) = match frozen {
+            Some(frame) => {
+                blit(
+                    buffer,
+                    stride as usize,
+                    frame.dimmed.unwrap_or(frame.pixels),
+                    frame.stride as usize,
+                    0,
+                    0,
+                    self.width as usize,
+                    self.height as usize,
+                );
+
+                if frame.dimmed.is_some() {
+                    if let Some(rect) = selection_rect.and_then(|r| self.clamp_to_surface(r)) {
+                        blit(
+                            buffer,
+                            stride as usize,
+                            frame.pixels,
+                            frame.stride as usize,
+                            rect.x as usize,
+                            rect.y as usize,
+                            rect.width as usize,
+                            rect.height as usize,
+                        );
                     }
                 }
+
+                (true, frame.dimmed.is_some())
             }
-            true
-        } else {
-            false
+            None => (false, false),
         };
 
         // Step 2: Ensure ALL memcpy operations are complete with compiler barrier
@@ -436,10 +451,9 @@ impl Renderer {
 
         let ctx = CairoContext::new(&surface).context("Failed to create Cairo context")?;
 
-        // Check if we have a selection to avoid dimming that area
-        let selection_rect = selection.get_rect().filter(|r| r.width > 0 && r.height > 0);
-
-        if has_frozen {
+        if has_frozen && dim_is_baked {
+            // The dim is already in the pixels; only the border and label remain.
+        } else if has_frozen {
             if let Some(rect) = selection_rect {
                 ctx.save()?;
 
@@ -546,6 +560,19 @@ impl Renderer {
         ctx.close_path();
 
         Ok(())
+    }
+
+    /// Clips a rectangle to the surface, returning `None` if nothing is left.
+    ///
+    /// A selection can start on a neighbouring monitor, so its coordinates in this
+    /// surface can be negative or run past the far edge.
+    fn clamp_to_surface(&self, rect: Rect) -> Option<Rect> {
+        let left = rect.x.max(0);
+        let top = rect.y.max(0);
+        let right = (rect.x + rect.width).min(self.width);
+        let bottom = (rect.y + rect.height).min(self.height);
+
+        (right > left && bottom > top).then(|| Rect::new(left, top, right - left, bottom - top))
     }
 
     fn draw_selection_border(&self, ctx: &CairoContext, rect: Rect) -> Result<()> {

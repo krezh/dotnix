@@ -13,7 +13,7 @@ pub use screenshot::{
     capture_and_save, capture_png_bytes, capture_screenshot, captured_image_to_png,
     save_captured_image,
 };
-pub use video::VideoRecorder;
+pub use video::{recording, start_recording, stop_recording};
 
 use anyhow::Result;
 use wayland_client::Connection;

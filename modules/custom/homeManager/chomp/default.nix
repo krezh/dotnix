@@ -82,12 +82,6 @@
                 description = "Opacity of the dimmed overlay (0.0 to 1.0).";
               };
 
-              fps = lib.mkOption {
-                type = lib.types.ints.unsigned;
-                default = 0;
-                description = "Maximum frames per second for selection overlay (0 = auto-detect from monitor).";
-              };
-
               log = lib.mkOption {
                 type = lib.types.enum [
                   "off"
@@ -137,18 +131,69 @@
                 default = "/tmp";
                 description = "Default directory for saving screenshots and recordings.";
               };
+
+              delay = lib.mkOption {
+                type = lib.types.nullOr lib.types.ints.unsigned;
+                default = null;
+                description = "Delay before capturing, in milliseconds.";
+              };
+
+              video = lib.mkOption {
+                type = lib.types.submodule {
+                  options = {
+                    maxFps = lib.mkOption {
+                      type = lib.types.ints.positive;
+                      default = 60;
+                      description = "Frame rate ceiling for screen recordings.";
+                    };
+
+                    encodeResolution = lib.mkOption {
+                      type = lib.types.str;
+                      default = "";
+                      example = "1920x1080";
+                      description = "Encoder resolution for screen recordings. Empty records at the monitor's own resolution.";
+                    };
+                  };
+                };
+                default = { };
+              };
             };
           };
           default = { };
         };
 
-        annotate = lib.mkOption {
+        ocr = lib.mkOption {
           type = lib.types.submodule {
             options = {
-              package = lib.mkOption {
-                type = lib.types.nullOr lib.types.package;
-                default = null;
-                description = "satty package used for annotation (the --annotate flag). When null, satty is resolved from PATH.";
+              language = lib.mkOption {
+                type = lib.types.str;
+                default = "eng";
+                description = "Tesseract language code, which must be present in the tesseract package's data.";
+              };
+            };
+          };
+          default = { };
+        };
+
+        tools = lib.mkOption {
+          type = lib.types.submodule {
+            options = {
+              satty = lib.mkOption {
+                type = lib.types.package;
+                default = pkgs.satty;
+                description = "satty package used for annotation (the --annotate flag).";
+              };
+
+              wlCopy = lib.mkOption {
+                type = lib.types.package;
+                default = pkgs.wl-clipboard;
+                description = "Package providing wl-copy, used for every clipboard copy.";
+              };
+
+              wlScreenrec = lib.mkOption {
+                type = lib.types.package;
+                default = pkgs.wl-screenrec;
+                description = "Package used to record the screen.";
               };
             };
           };
@@ -168,7 +213,7 @@
           };
           display = {
             dim_opacity = cfg.display.dimOpacity;
-            inherit (cfg.display) fps log;
+            inherit (cfg.display) log;
           };
           upload = {
             zipline = {
@@ -178,9 +223,19 @@
           };
           capture = {
             save_path = cfg.capture.savePath;
+            video = {
+              max_fps = cfg.capture.video.maxFps;
+              encode_resolution = cfg.capture.video.encodeResolution;
+            };
+          }
+          // lib.optionalAttrs (cfg.capture.delay != null) { inherit (cfg.capture) delay; };
+          ocr = {
+            inherit (cfg.ocr) language;
           };
-          annotate = lib.optionalAttrs (cfg.annotate.package != null) {
-            satty_path = lib.getExe cfg.annotate.package;
+          tools = {
+            satty = lib.getExe cfg.tools.satty;
+            wl_copy = lib.getExe' cfg.tools.wlCopy "wl-copy";
+            wl_screenrec = lib.getExe cfg.tools.wlScreenrec;
           };
         };
       };

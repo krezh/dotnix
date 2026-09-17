@@ -26,7 +26,7 @@ use wayland_client::{
 use crate::{
     capture::{CaptureMode, CapturedImage},
     cli::Settings,
-    render::{Renderer, Selection},
+    render::Selection,
 };
 use std::collections::HashMap;
 use std::time::Duration;
@@ -75,7 +75,6 @@ pub struct App {
     // Application state
     pub(super) outputs: HashMap<wl_output::WlOutput, OutputInfo>,
     pub(super) output_surfaces: Vec<OutputSurface>,
-    pub(super) renderer: Option<Renderer>,
     pub(super) selection: Selection,
     pub(super) settings: Settings,
 
@@ -184,10 +183,7 @@ impl App {
 
         let is_mode_select = settings.mode.is_none();
 
-        let is_recording = crate::capture::VideoRecorder::new()
-            .is_recording()
-            .map(|(r, _)| r)
-            .unwrap_or(false);
+        let is_recording = crate::capture::recording(&settings).is_some();
 
         let mut app = Self {
             conn: conn.clone(),
@@ -200,7 +196,6 @@ impl App {
             themed_pointer: None,
             outputs,
             output_surfaces: Vec::new(),
-            renderer: None,
             selection,
             settings,
             input: InputState::new(),
@@ -330,7 +325,7 @@ impl App {
                 );
 
                 self.output_surfaces.push(OutputSurface {
-                    _output: output.clone(),
+                    output: output.clone(),
                     layer_surface,
                     surface,
                     width: width as u32,
@@ -341,19 +336,13 @@ impl App {
                     pool,
                     renderer,
                     frozen_buffer: None,
+                    frozen_dimmed: None,
                     last_had_selection: false,
                     needs_render: true,
                     frame_callback: None,
                     waiting_for_frame: false,
                 });
             }
-        }
-
-        if let Some(first) = self.output_surfaces.first() {
-            self.renderer =
-                create_renderer(first.width as i32, first.height as i32, &self.settings)
-                    .ok_or_else(|| anyhow::anyhow!("Failed to create renderer"))?
-                    .into();
         }
 
         Ok(())
@@ -369,13 +358,18 @@ impl App {
         );
 
         for output_surface in &mut self.output_surfaces {
-            match capture_output(&self.conn, &output_surface._output) {
+            match capture_output(&self.conn, &output_surface.output) {
                 Ok(captured_image) => {
                     log::debug!(
                         "Captured frozen screen for output: {}x{}",
                         captured_image.width,
                         captured_image.height
                     );
+                    // Dim once here rather than per frame while dragging.
+                    output_surface.frozen_dimmed = Some(crate::render::dim_argb(
+                        &captured_image.data,
+                        self.settings.dim_opacity,
+                    ));
                     output_surface.frozen_buffer = Some(captured_image);
                 }
                 Err(e) => {
@@ -422,6 +416,12 @@ impl App {
             return;
         };
         self.pending_since = None;
+
+        // Reaching here on the timeout leaves frame callbacks outstanding, which
+        // would keep `draw_output` from drawing anything ever again.
+        for output_surface in &mut self.output_surfaces {
+            output_surface.waiting_for_frame = false;
+        }
 
         match pending {
             PendingCapture::Freeze => {
@@ -640,9 +640,19 @@ impl App {
         }
     }
 
+    /// Abandons the capture and leaves the overlay.
+    ///
+    /// Cancelling is a normal outcome, not a failure: it unwinds through the
+    /// event loop and `run` returns with nothing chosen, so chomp exits 0 and
+    /// anything scripting it can tell cancel from error.
     pub(super) fn cancel_selection(&mut self) {
-        eprintln!("Selection cancelled by user");
         log::debug!("Selection cancelled by user");
-        std::process::exit(1);
+
+        self.chosen_mode = None;
+        self.selection_geometry = None;
+        self.captured_image = None;
+        self.pending_capture = None;
+        self.exit = true;
+        self.loop_signal.stop();
     }
 }

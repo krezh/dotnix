@@ -6,6 +6,6 @@ pub mod cairo;
 pub mod pixel;
 pub mod selection;
 
-pub use cairo::{RenderConfig, Renderer};
-pub use pixel::convert_argb_to_rgba;
+pub use cairo::{FrozenFrame, RenderConfig, Renderer};
+pub use pixel::{convert_argb_to_rgba, dim_argb};
 pub use selection::{Rect, Selection};

@@ -12,18 +12,24 @@ use crate::render::{Rect, convert_argb_to_rgba};
 
 /// Captures a screenshot directly given a rect and saves it to a file.
 pub fn capture_screenshot(rect: Rect, output_path: &str) -> Result<()> {
-    let conn = Connection::connect_to_env().context("Failed to connect to Wayland")?;
-    let outputs = get_outputs(&conn)?;
+    let (conn, outputs) = connect()?;
 
     capture_and_save(&conn, &outputs, rect, Some(output_path))
 }
 
 /// Captures a screen region and returns it as PNG-encoded bytes.
 pub fn capture_png_bytes(rect: Rect) -> Result<Vec<u8>> {
+    let (conn, outputs) = connect()?;
+
+    encode_png(&capture_image(&conn, &outputs, rect)?)
+}
+
+/// Opens a Wayland connection and enumerates the outputs on it.
+fn connect() -> Result<(Connection, Vec<OutputInfo>)> {
     let conn = Connection::connect_to_env().context("Failed to connect to Wayland")?;
     let outputs = get_outputs(&conn)?;
 
-    encode_png(&capture_image(&conn, &outputs, rect)?)
+    Ok((conn, outputs))
 }
 
 /// Captures a screen region and saves it to a file or stdout.

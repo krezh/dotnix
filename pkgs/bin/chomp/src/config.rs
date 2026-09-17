@@ -67,6 +67,52 @@ pub struct KeybindsConfig {
     pub stop_recording: String,
 }
 
+impl KeybindsConfig {
+    /// Returns each binding as (name, key).
+    pub fn entries(&self) -> [(&'static str, &str); 8] {
+        [
+            ("screenshot_area", &self.screenshot_area),
+            ("screenshot_screen", &self.screenshot_screen),
+            ("screenshot_window", &self.screenshot_window),
+            ("ocr", &self.ocr),
+            ("record_area", &self.record_area),
+            ("record_screen", &self.record_screen),
+            ("record_window", &self.record_window),
+            ("stop_recording", &self.stop_recording),
+        ]
+    }
+
+    /// Returns the bindings that cannot work, as messages to show the user.
+    ///
+    /// A binding is one character: chomp has no table of key names, so anything
+    /// longer never fires, and two bindings on the same key leave the second one
+    /// unreachable. Both are silent at runtime, hence reporting them up front.
+    pub fn problems(&self) -> Vec<String> {
+        let entries = self.entries();
+        let mut problems = Vec::new();
+
+        for (name, key) in entries {
+            if key.chars().count() != 1 {
+                problems.push(format!(
+                    "keybind {} is {:?}, which is not a single key, so it will never fire",
+                    name, key
+                ));
+            }
+        }
+
+        for (index, (name, key)) in entries.iter().enumerate() {
+            if let Some((earlier, _)) = entries[..index].iter().find(|(_, other)| other == key) {
+                problems.push(format!(
+                    "keybinds {} and {} are both {:?}; only {} will fire",
+                    earlier, name, key, earlier
+                ));
+            }
+        }
+
+        problems
+    }
+}
+
 impl Default for KeybindsConfig {
     fn default() -> Self {
         Self {
@@ -144,8 +190,11 @@ pub struct Config {
     /// Capture configuration
     pub capture: CaptureConfig,
 
-    /// Annotation configuration
-    pub annotate: AnnotateConfig,
+    /// OCR configuration
+    pub ocr: OcrConfig,
+
+    /// External programs chomp runs
+    pub tools: ToolsConfig,
 
     /// Mode selector keybindings
     pub keybinds: KeybindsConfig,
@@ -218,27 +267,80 @@ pub struct ZiplineConfig {
 pub struct CaptureConfig {
     /// Default save directory for captures
     pub save_path: String,
+
+    /// Delay before capturing, in milliseconds
+    pub delay: Option<u64>,
+
+    /// Screen recording settings
+    pub video: VideoConfig,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(default)]
-pub struct AnnotateConfig {
-    /// Path to the satty binary used for annotation
-    pub satty_path: String,
+pub struct VideoConfig {
+    /// Frame rate ceiling passed to the recorder
+    pub max_fps: u32,
+
+    /// Encoder resolution, e.g. "1920x1080". Empty records at the native size.
+    pub encode_resolution: String,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+#[serde(default)]
+pub struct OcrConfig {
+    /// Tesseract language, which must be installed in its data directory
+    pub language: String,
+}
+
+/// Paths of the external programs chomp runs.
+///
+/// Each is resolved through `PATH` when left as a bare name.
+#[derive(Debug, Deserialize, Serialize, Clone)]
+#[serde(default)]
+pub struct ToolsConfig {
+    /// Annotation editor, used by --annotate
+    pub satty: String,
+
+    /// Clipboard tool
+    pub wl_copy: String,
+
+    /// Screen recorder
+    pub wl_screenrec: String,
 }
 
 impl Default for CaptureConfig {
     fn default() -> Self {
         Self {
             save_path: "/tmp".to_string(),
+            delay: None,
+            video: VideoConfig::default(),
         }
     }
 }
 
-impl Default for AnnotateConfig {
+impl Default for VideoConfig {
     fn default() -> Self {
         Self {
-            satty_path: "satty".to_string(),
+            max_fps: 60,
+            encode_resolution: String::new(),
+        }
+    }
+}
+
+impl Default for OcrConfig {
+    fn default() -> Self {
+        Self {
+            language: "eng".to_string(),
+        }
+    }
+}
+
+impl Default for ToolsConfig {
+    fn default() -> Self {
+        Self {
+            satty: "satty".to_string(),
+            wl_copy: "wl-copy".to_string(),
+            wl_screenrec: "wl-screenrec".to_string(),
         }
     }
 }
@@ -322,42 +424,34 @@ impl Config {
         Self::write_config_to_file(&Self::default(), path)
     }
 
-    /// Searches for config file in XDG-compliant locations
+    /// Returns the config file locations, in priority order:
     ///
-    /// Priority order:
-    /// 1. $XDG_CONFIG_HOME/chomp/config.json
-    /// 2. ~/.config/chomp/config.json
-    fn find_config_file() -> Option<PathBuf> {
+    /// 1. `$XDG_CONFIG_HOME/chomp/config.json`
+    /// 2. `~/.config/chomp/config.json`
+    fn config_paths() -> Vec<PathBuf> {
         const CONFIG_FILE: &str = "chomp/config.json";
 
-        // Try XDG_CONFIG_HOME first
-        std::env::var("XDG_CONFIG_HOME")
+        let xdg = std::env::var("XDG_CONFIG_HOME")
             .ok()
-            .map(|dir| PathBuf::from(dir).join(CONFIG_FILE))
-            .filter(|path| path.exists())
-            .or_else(|| {
-                // Fall back to ~/.config
-                std::env::var("HOME")
-                    .ok()
-                    .map(|home| PathBuf::from(home).join(".config").join(CONFIG_FILE))
-                    .filter(|path| path.exists())
-            })
+            .map(|dir| PathBuf::from(dir).join(CONFIG_FILE));
+
+        let home = std::env::var("HOME")
+            .ok()
+            .map(|home| PathBuf::from(home).join(".config").join(CONFIG_FILE));
+
+        xdg.into_iter().chain(home).collect()
     }
 
-    /// Returns the default path where config file should be created
-    ///
-    /// Uses XDG_CONFIG_HOME if set, otherwise ~/.config
-    pub fn default_config_path() -> PathBuf {
-        const CONFIG_FILE: &str = "chomp/config.json";
+    /// Returns the first config file that exists, if any.
+    fn find_config_file() -> Option<PathBuf> {
+        Self::config_paths().into_iter().find(|path| path.exists())
+    }
 
-        std::env::var("XDG_CONFIG_HOME")
-            .ok()
-            .map(|dir| PathBuf::from(dir).join(CONFIG_FILE))
-            .or_else(|| {
-                std::env::var("HOME")
-                    .ok()
-                    .map(|home| PathBuf::from(home).join(".config").join(CONFIG_FILE))
-            })
+    /// Returns the path where the config file should be created.
+    pub fn default_config_path() -> PathBuf {
+        Self::config_paths()
+            .into_iter()
+            .next()
             .unwrap_or_else(|| PathBuf::from("~/.config/chomp/config.json"))
     }
 }

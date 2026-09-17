@@ -9,7 +9,7 @@ use crate::render::Renderer;
 
 /// Represents a single monitor's overlay surface
 pub struct OutputSurface {
-    pub _output: wl_output::WlOutput,
+    pub output: wl_output::WlOutput,
     pub layer_surface: LayerSurface,
     pub surface: wl_surface::WlSurface,
     pub width: u32,
@@ -20,6 +20,8 @@ pub struct OutputSurface {
     pub pool: Option<SlotPool>,
     pub renderer: Option<Renderer>,
     pub frozen_buffer: Option<CapturedImage>,
+    /// `frozen_buffer` with the overlay's dim already applied.
+    pub frozen_dimmed: Option<Vec<u8>>,
     pub last_had_selection: bool,
     pub needs_render: bool,
     pub frame_callback: Option<wl_callback::WlCallback>,

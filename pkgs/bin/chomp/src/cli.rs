@@ -107,6 +107,10 @@ pub struct Args {
     /// Generate shell completion script and exit
     #[arg(long, value_name = "SHELL", value_enum)]
     pub generate_completions: Option<Shell>,
+
+    /// Internal: show an upload notification and wait for its action button
+    #[arg(long, hide = true, num_args = 3, value_names = ["TITLE", "MESSAGE", "URL"])]
+    pub await_notification_action: Option<Vec<String>>,
 }
 
 /// Effective settings after merging CLI arguments with the config file.
@@ -128,6 +132,11 @@ pub struct Settings {
     pub annotate: bool,
     pub clipboard: bool,
     pub satty_path: String,
+    pub wl_copy: String,
+    pub wl_screenrec: String,
+    pub ocr_language: String,
+    pub video_max_fps: u32,
+    pub video_encode_resolution: String,
     pub output: Option<String>,
     pub mode: Option<CaptureMode>,
     pub zipline_url: String,
@@ -150,12 +159,17 @@ impl Args {
             border_rounding: self.border_rounding.unwrap_or(config.border.rounding),
             dim_opacity: self.dim_opacity.unwrap_or(config.display.dim_opacity),
             log: self.log.unwrap_or(config.display.log),
-            delay: self.delay,
+            delay: self.delay.or(config.capture.delay),
             freeze: self.freeze.unwrap_or(config.display.freeze),
             ocr: self.ocr,
             annotate: self.annotate,
             clipboard: self.clipboard,
-            satty_path: self.satty_path.unwrap_or(config.annotate.satty_path),
+            satty_path: self.satty_path.unwrap_or(config.tools.satty),
+            wl_copy: config.tools.wl_copy,
+            wl_screenrec: config.tools.wl_screenrec,
+            ocr_language: config.ocr.language,
+            video_max_fps: config.capture.video.max_fps,
+            video_encode_resolution: config.capture.video.encode_resolution,
             output: self.output,
             mode: self.mode,
             zipline_url: self.zipline_url.unwrap_or(config.upload.zipline.url),

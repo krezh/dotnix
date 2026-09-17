@@ -29,11 +29,11 @@ pub fn complete_selection(
         .map(|surf| {
             let name = outputs_map
                 .iter()
-                .find(|(out, _)| out == &surf._output)
+                .find(|(out, _)| out == &surf.output)
                 .map(|(_, n)| n.clone())
                 .unwrap_or_default();
             (
-                surf._output.clone(),
+                surf.output.clone(),
                 name,
                 surf.x,
                 surf.y,
@@ -59,14 +59,15 @@ pub fn complete_selection(
 
     if settings.ocr {
         // OCR reads the same selected pixels a screenshot would save.
+        let language = &settings.ocr_language;
         let text = match crop_frozen(output_surfaces, &outputs_list, settings, rect) {
-            Some(image) => ocr::extract_text(&image)?,
-            None => ocr::capture_and_ocr(conn, &outputs_list, rect)?,
+            Some(image) => ocr::extract_text(&image, language)?,
+            None => ocr::capture_and_ocr(conn, &outputs_list, rect, language)?,
         };
         println!("{}", text);
 
         // Copy to clipboard using wl-copy
-        if let Err(e) = system::copy_text(&text) {
+        if let Err(e) = system::copy_text(&settings.wl_copy, &text) {
             log::warn!("Failed to copy to clipboard: {}", e);
         }
     } else if let Some(ref output_path) = settings.output {
@@ -106,7 +107,7 @@ fn crop_frozen(
 
     let frozen = output_surfaces
         .iter()
-        .find(|surf| &surf._output == output)?
+        .find(|surf| &surf.output == output)?
         .frozen_buffer
         .as_ref()?;
 

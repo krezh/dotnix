@@ -32,18 +32,38 @@ impl CapturedImage {
         }
     }
 
-    /// Crops the image to the specified rectangular region.
+    /// Crops the image to the specified rectangular region, clipped to the image.
     ///
-    /// Returns a new `CapturedImage` containing only the pixels within the given rectangle.
-    /// Adjusts dimensions automatically if the rectangle extends beyond image boundaries.
+    /// The rectangle may start outside the image — a window can hang off the edge
+    /// of its output, and a selection can start on a neighbouring monitor — so the
+    /// intersection is computed in `i64`, keeping a negative origin from wrapping
+    /// into a huge offset.
     pub fn crop(&self, rect: Rect) -> Result<CapturedImage> {
-        let rect_width = rect.width.min((self.width as i32) - rect.x) as u32;
-        let rect_height = rect.height.min((self.height as i32) - rect.y) as u32;
+        let left = (rect.x as i64).max(0);
+        let top = (rect.y as i64).max(0);
+        let right = (rect.x as i64 + rect.width as i64).min(self.width as i64);
+        let bottom = (rect.y as i64 + rect.height as i64).min(self.height as i64);
+
+        if right <= left || bottom <= top {
+            anyhow::bail!(
+                "Crop region {} lies outside the {}x{} capture",
+                rect.describe(),
+                self.width,
+                self.height
+            );
+        }
+
+        let left = left as u32;
+        let top = top as u32;
+        let rect_width = (right as u32) - left;
+        let rect_height = (bottom as u32) - top;
 
         log::debug!(
-            "Cropping {}x{} region from {}x{} image (stride: {}, format: {:?})",
+            "Cropping {}x{} region at ({},{}) from {}x{} image (stride: {}, format: {:?})",
             rect_width,
             rect_height,
+            left,
+            top,
             self.width,
             self.height,
             self.stride,
@@ -57,8 +77,9 @@ impl CapturedImage {
                 anyhow::anyhow!("Crop region size overflow: {}x{}", rect_width, rect_height)
             })? as usize;
 
-        let last_row_offset =
-            ((rect.y as u32 + rect_height - 1) * self.stride + rect.x as u32 * 4) as usize;
+        let row_start = |y: u32| (top + y) as usize * self.stride as usize + left as usize * 4;
+
+        let last_row_offset = row_start(rect_height - 1);
         let row_size = (rect_width * 4) as usize;
 
         if last_row_offset + row_size > self.data.len() {
@@ -73,7 +94,7 @@ impl CapturedImage {
         let mut cropped_data = vec![0u8; expected_size];
 
         for y in 0..rect_height {
-            let src_offset = ((rect.y as u32 + y) * self.stride + rect.x as u32 * 4) as usize;
+            let src_offset = row_start(y);
             let dst_offset = (y * rect_width * 4) as usize;
             cropped_data[dst_offset..dst_offset + row_size]
                 .copy_from_slice(&self.data[src_offset..src_offset + row_size]);

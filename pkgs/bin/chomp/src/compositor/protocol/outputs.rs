@@ -98,25 +98,32 @@ pub fn get_outputs(conn: &Connection) -> Result<Vec<OutputInfo>> {
     Ok(outputs)
 }
 
-/// Finds the output containing a given rectangle and returns local coordinates.
+/// Finds the output holding a given rectangle and returns local coordinates.
 ///
-/// Searches through the outputs to find which one intersects with the given rectangle,
-/// then translates the rectangle's coordinates from global (multi-monitor) space to
-/// local (single output) space.
-///
-/// Returns a tuple of (output, local_rect) where local_rect has coordinates relative
-/// to the output's top-left corner.
+/// A capture comes from a single output, so a rectangle spanning two monitors is
+/// resolved to the one holding most of it; picking the largest overlap rather than
+/// the first intersection at least keeps the result the part the user aimed at.
+/// The returned rectangle is relative to that output's top-left corner and may
+/// extend past its edges — cropping clips it.
 pub fn find_output_for_rect(
     outputs: &[OutputInfo],
     rect: Rect,
 ) -> Result<(&wl_output::WlOutput, Rect)> {
-    let (output, _, offset_x, offset_y, _, _) = outputs
+    let best = outputs
         .iter()
-        .find(|(_, _, x, y, w, h)| {
-            let output_rect = Rect::new(*x, *y, *w as i32, *h as i32);
-            rect.intersects(&output_rect)
-        })
-        .context("Selection is not on any output")?;
+        .map(|info| (overlap_area(rect, output_rect(info)), info))
+        .filter(|(overlap, _)| *overlap > 0)
+        .max_by_key(|(overlap, _)| *overlap);
+
+    let (overlap, (output, _, offset_x, offset_y, _, _)) =
+        best.context("Selection is not on any output")?;
+
+    if overlap < rect.width as i64 * rect.height as i64 {
+        log::warn!(
+            "Selection {} spans more than one output; capturing only the part on the output holding most of it",
+            rect.describe()
+        );
+    }
 
     let local_rect = Rect::new(
         rect.x - offset_x,
@@ -126,4 +133,17 @@ pub fn find_output_for_rect(
     );
 
     Ok((output, local_rect))
+}
+
+/// Returns an output's geometry as a rectangle in global coordinates.
+fn output_rect((_, _, x, y, width, height): &OutputInfo) -> Rect {
+    Rect::new(*x, *y, *width as i32, *height as i32)
+}
+
+/// Returns the area shared by two rectangles, in pixels.
+fn overlap_area(a: Rect, b: Rect) -> i64 {
+    let width = i64::from((a.x + a.width).min(b.x + b.width)) - i64::from(a.x.max(b.x));
+    let height = i64::from((a.y + a.height).min(b.y + b.height)) - i64::from(a.y.max(b.y));
+
+    width.max(0) * height.max(0)
 }

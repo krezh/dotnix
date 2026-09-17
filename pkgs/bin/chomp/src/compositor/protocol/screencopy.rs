@@ -1,6 +1,7 @@
 //! Wayland screencopy protocol handling
 
 use anyhow::{Context, Result};
+use std::os::fd::OwnedFd;
 use wayland_client::{
     Connection, Dispatch, QueueHandle, delegate_noop,
     globals::GlobalListContents,
@@ -14,8 +15,8 @@ use wayland_protocols_wlr::screencopy::v1::client::{
 use super::shm::{create_shm_fd, read_shm_buffer};
 use crate::capture::buffer::CapturedImage;
 
-// Capture timing constants
-const MAX_CAPTURE_ATTEMPTS: u32 = 100;
+// How many times to poll the compositor for the frame before giving up.
+const MAX_CAPTURE_POLLS: u32 = 100;
 
 /// Internal state for tracking screencopy events
 pub(super) struct CaptureState {
@@ -49,8 +50,8 @@ impl CaptureState {
         }
         if !self.ready {
             anyhow::bail!(
-                "Screen capture timed out after {} attempts",
-                MAX_CAPTURE_ATTEMPTS
+                "The compositor never reported the capture as ready, after {} polls",
+                MAX_CAPTURE_POLLS
             );
         }
         Ok(())
@@ -161,9 +162,10 @@ pub fn capture_output(conn: &Connection, output: &wl_output::WlOutput) -> Result
     wait_for_capture(&mut event_queue, &mut capture_state)?;
 
     // Read the captured data BEFORE cleanup
-    let data = read_shm_buffer(shm_fd, size)?;
+    let data = read_shm_buffer(&shm_fd, size)?;
 
-    // Cleanup (order matters - buffer before pool)
+    // Cleanup (order matters - buffer before pool). Dropping `shm_fd` at the end
+    // of this scope releases the capture memory with it.
     buffer.destroy();
     pool.destroy();
     frame.destroy();
@@ -200,15 +202,12 @@ fn create_wl_buffer(
     stride: u32,
     format: wl_shm::Format,
     size: usize,
-) -> Result<(wl_buffer::WlBuffer, wl_shm_pool::WlShmPool, i32)> {
-    use std::os::fd::BorrowedFd;
+) -> Result<(wl_buffer::WlBuffer, wl_shm_pool::WlShmPool, OwnedFd)> {
+    use std::os::fd::AsFd;
 
     let shm_fd = create_shm_fd(size)?;
-    // SAFETY: shm_fd was just created by create_shm_fd and is a valid file descriptor.
-    // BorrowedFd does not take ownership, and shm_fd remains valid throughout this function.
-    let borrowed_fd = unsafe { BorrowedFd::borrow_raw(shm_fd) };
 
-    let pool = shm.create_pool(borrowed_fd, size as i32, qh, ());
+    let pool = shm.create_pool(shm_fd.as_fd(), size as i32, qh, ());
     let buffer = pool.create_buffer(
         0,
         width as i32,
@@ -227,9 +226,7 @@ fn wait_for_capture(
     event_queue: &mut wayland_client::EventQueue<CaptureState>,
     capture_state: &mut CaptureState,
 ) -> Result<()> {
-    const MAX_ATTEMPTS: u32 = MAX_CAPTURE_ATTEMPTS;
-
-    for attempt in 0..MAX_ATTEMPTS {
+    for attempt in 0..MAX_CAPTURE_POLLS {
         if capture_state.is_complete() {
             return capture_state.to_result();
         }

@@ -19,6 +19,7 @@ pub fn capture_and_ocr(
     conn: &Connection,
     outputs: &[crate::compositor::protocol::outputs::OutputInfo],
     rect: Rect,
+    language: &str,
 ) -> Result<String> {
     log::info!(
         "Capturing region for OCR: {}x{} at ({},{})",
@@ -32,5 +33,5 @@ pub fn capture_and_ocr(
     let cropped = crate::capture::capture_region(conn, outputs, rect)?;
 
     // Perform OCR
-    extract_text(&cropped)
+    extract_text(&cropped, language)
 }

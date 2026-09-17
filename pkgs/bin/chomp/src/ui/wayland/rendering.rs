@@ -1,9 +1,10 @@
 //! Rendering logic for output surfaces
 
-use anyhow::Result;
+use anyhow::{Context, Result};
+use smithay_client_toolkit::shm::slot::{Buffer, SlotPool};
 use wayland_client::protocol::wl_shm;
 
-use crate::render::{Rect, Selection};
+use crate::render::{FrozenFrame, Rect, Selection};
 
 use super::output::OutputSurface;
 
@@ -23,6 +24,27 @@ pub fn create_local_selection(global_rect: Rect, offset_x: i32, offset_y: i32) -
     Selection::from_rect(local_rect)
 }
 
+/// Takes a full-surface buffer from the pool, growing the pool if it is exhausted.
+///
+/// Two buffers are kept in flight so the compositor always has one to show while
+/// the next frame is drawn, which is what exhausts the pool when a frame is still
+/// held. The canvas comes from `Buffer::canvas`, keeping the pool borrow with the
+/// caller.
+fn create_buffer(pool: &mut SlotPool, width: i32, height: i32) -> Result<Buffer> {
+    let stride = width * 4;
+
+    match pool.create_buffer(width, height, stride, wl_shm::Format::Argb8888) {
+        Ok((buffer, _)) => Ok(buffer),
+        Err(e) => {
+            log::warn!("Failed to create buffer: {}. Resizing pool.", e);
+            pool.resize((width * height * 4 * 2) as usize)?;
+            let (buffer, _) =
+                pool.create_buffer(width, height, stride, wl_shm::Format::Argb8888)?;
+            Ok(buffer)
+        }
+    }
+}
+
 /// Commits a fully transparent frame, hiding the UI without unmapping it.
 ///
 /// Unmapping makes the compositor play its layer close animation, during which
@@ -38,21 +60,15 @@ pub fn draw_transparent(
 
     let width = output_surface.width as i32;
     let height = output_surface.height as i32;
-    let stride = width * 4;
 
     let Some(pool) = output_surface.pool.as_mut() else {
         return Ok(());
     };
 
-    let (buffer, canvas) = match pool.create_buffer(width, height, stride, wl_shm::Format::Argb8888)
-    {
-        Ok(buffer) => buffer,
-        Err(e) => {
-            log::warn!("Failed to create buffer: {}. Resizing pool.", e);
-            pool.resize((width * height * 4 * 2) as usize)?;
-            pool.create_buffer(width, height, stride, wl_shm::Format::Argb8888)?
-        }
-    };
+    let buffer = create_buffer(pool, width, height)?;
+    let canvas = buffer
+        .canvas(pool)
+        .context("Buffer slot is still in use by the compositor")?;
 
     canvas.fill(0);
 
@@ -95,26 +111,18 @@ pub fn draw_output(
     let height = output_surface.height as i32;
     let offset_x = output_surface.x;
     let offset_y = output_surface.y;
-    let stride = width * 4;
 
-    if output_surface.renderer.is_none() || output_surface.pool.is_none() {
+    let Some(renderer) = output_surface.renderer.as_ref() else {
         return Ok(());
-    }
-
-    let renderer = output_surface.renderer.as_ref().unwrap();
-    let pool = output_surface.pool.as_mut().unwrap();
-
-    // Use double buffering to prevent flickering
-    let (buffer, canvas) = match pool.create_buffer(width, height, stride, wl_shm::Format::Argb8888)
-    {
-        Ok(buffer) => buffer,
-        Err(e) => {
-            log::warn!("Failed to create buffer: {}. Resizing pool.", e);
-            // Pool might be exhausted, resize it
-            pool.resize((width * height * 4 * 2) as usize)?;
-            pool.create_buffer(width, height, stride, wl_shm::Format::Argb8888)?
-        }
     };
+    let Some(pool) = output_surface.pool.as_mut() else {
+        return Ok(());
+    };
+
+    let buffer = create_buffer(pool, width, height)?;
+    let canvas = buffer
+        .canvas(pool)
+        .context("Buffer slot is still in use by the compositor")?;
 
     log::debug!("Got buffer, canvas ptr: {:p}", canvas.as_ptr());
 
@@ -124,18 +132,7 @@ pub fn draw_output(
         }
         output_surface.needs_render = false;
 
-        let frozen_data = output_surface
-            .frozen_buffer
-            .as_ref()
-            .map(|img| (img.data.as_slice(), img.stride as i32));
-        renderer.render_mode_select(
-            canvas,
-            frozen_data,
-            keybinds,
-            mode_select,
-            is_recording,
-            intro_progress,
-        )?;
+        renderer.render_mode_select(canvas, keybinds, mode_select, is_recording, intro_progress)?;
 
         std::sync::atomic::fence(std::sync::atomic::Ordering::SeqCst);
         let callback = output_surface.surface.frame(qh, ());
@@ -148,6 +145,15 @@ pub fn draw_output(
         output_surface.surface.commit();
         return Ok(());
     }
+
+    let frozen = output_surface
+        .frozen_buffer
+        .as_ref()
+        .map(|img| FrozenFrame {
+            pixels: img.data.as_slice(),
+            dimmed: output_surface.frozen_dimmed.as_deref(),
+            stride: img.stride as i32,
+        });
 
     let output_rect = Rect::new(offset_x, offset_y, width, height);
     let has_selection_now = selection
@@ -215,12 +221,7 @@ pub fn draw_output(
 
             let local_selection = create_local_selection(rect, offset_x, offset_y);
 
-            let frozen_data = output_surface
-                .frozen_buffer
-                .as_ref()
-                .map(|img| (img.data.as_slice(), img.stride as i32));
-
-            renderer.render_to_buffer(&local_selection, canvas, frozen_data)?;
+            renderer.render_to_buffer(&local_selection, canvas, frozen)?;
             true
         } else {
             log::debug!("SKIPPING - no intersection");
@@ -232,12 +233,7 @@ pub fn draw_output(
 
     if !has_selection {
         log::debug!("RENDERING DIMMED ONLY");
-        let empty_selection = Selection::new();
-        let frozen_data = output_surface
-            .frozen_buffer
-            .as_ref()
-            .map(|img| (img.data.as_slice(), img.stride as i32));
-        renderer.render_to_buffer(&empty_selection, canvas, frozen_data)?;
+        renderer.render_to_buffer(&Selection::new(), canvas, frozen)?;
     }
 
     std::sync::atomic::fence(std::sync::atomic::Ordering::SeqCst);

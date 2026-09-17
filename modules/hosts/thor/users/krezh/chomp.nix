@@ -1,6 +1,6 @@
 {
   flake.modules.nixos.thor =
-    { config, pkgs, ... }:
+    { config, ... }:
     let
       user = "krezh";
     in
@@ -13,7 +13,6 @@
             thickness = 3;
             rounding = 15;
           };
-          annotate.package = pkgs.satty;
           zipline = {
             url = "https://zipline.plexuz.xyz";
             token = config.home-manager.users.${user}.sops.secrets."zipline/token".path;

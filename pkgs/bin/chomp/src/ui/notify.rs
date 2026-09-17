@@ -1,17 +1,13 @@
 //! Desktop notification wrapper using notify-rust
 
 use notify_rust::{Notification, Timeout, Urgency};
+use std::process::{Command, Stdio};
 
 pub struct Notifier;
 
 impl Notifier {
     pub fn new() -> Self {
         Self
-    }
-
-    /// Sends a success notification.
-    pub fn send_success(&self, message: &str) {
-        self.send(crate::APP_NAME, message, Urgency::Normal);
     }
 
     /// Sends an error notification with optional details.
@@ -31,55 +27,52 @@ impl Notifier {
 
     /// Sends a notification with an action button that opens a URL.
     ///
-    /// Forks a background process to wait for the button click, allowing the main
-    /// chomp process to exit immediately.
+    /// Serving the action means outliving chomp itself, so this re-runs chomp as a
+    /// detached process that only shows the notification and waits. Forking here
+    /// instead would inherit the HTTP and D-Bus threads of the upload that produced
+    /// the URL, and the child would deadlock on locks those threads left held.
+    ///
+    /// Falls back to a plain notification carrying the URL in its body.
     pub fn send_with_action(&self, title: &str, message: &str, url: &str) {
-        let url_owned = url.to_string();
-        let title_owned = title.to_string();
-        let message_owned = message.to_string();
+        let spawned = std::env::current_exe().ok().and_then(|exe| {
+            Command::new(exe)
+                .arg("--await-notification-action")
+                .args([title, message, url])
+                .stdin(Stdio::null())
+                .stdout(Stdio::null())
+                .stderr(Stdio::null())
+                .spawn()
+                .map_err(|e| log::warn!("Failed to spawn notification process: {}", e))
+                .ok()
+        });
 
-        // Fork a background process to handle the notification action
-        // This allows chomp to exit while the notification stays active
-        match unsafe { nix::unistd::fork() } {
-            Ok(nix::unistd::ForkResult::Parent { .. }) => {
-                // Parent process continues and exits normally
-            }
-            Ok(nix::unistd::ForkResult::Child) => {
-                // Child process handles the notification
-                match Notification::new()
-                    .appname(crate::APP_NAME)
-                    .summary(&title_owned)
-                    .body(&message_owned)
-                    .urgency(Urgency::Normal)
-                    .timeout(Timeout::Milliseconds(60_000))
-                    .action("open", "Open URL")
-                    .show()
-                {
-                    Ok(handle) => {
-                        handle.wait_for_action(|action| {
-                            if action == "open" {
-                                if open::that(&url_owned).is_ok() {
-                                    log::info!("Opened URL: {}", url_owned);
-                                }
-                            }
-                        });
+        if spawned.is_none() {
+            self.send(title, &format!("{}\n\n{}", message, url), Urgency::Normal);
+        }
+    }
+
+    /// Shows the action notification and blocks until it is answered or expires.
+    ///
+    /// This is the whole body of the detached process `send_with_action` spawns.
+    pub fn await_action(title: &str, message: &str, url: &str) {
+        let notification = Notification::new()
+            .appname(crate::APP_NAME)
+            .summary(title)
+            .body(message)
+            .urgency(Urgency::Normal)
+            .timeout(Timeout::Milliseconds(60_000))
+            .action("open", "Open URL")
+            .show();
+
+        match notification {
+            Ok(handle) => handle.wait_for_action(|action| {
+                if action == "open" {
+                    if let Err(e) = open::that(url) {
+                        log::warn!("Failed to open {}: {}", url, e);
                     }
-                    Err(_) => {}
                 }
-                // Exit the child process
-                std::process::exit(0);
-            }
-            Err(_) => {
-                // Fork failed, fall back to simple notification
-                let body = format!("{}\n\n{}", message_owned, url_owned);
-                let _ = Notification::new()
-                    .appname(crate::APP_NAME)
-                    .summary(&title_owned)
-                    .body(&body)
-                    .urgency(Urgency::Normal)
-                    .timeout(Timeout::Milliseconds(60_000))
-                    .show();
-            }
+            }),
+            Err(e) => log::warn!("Failed to send notification: {}", e),
         }
     }
 
