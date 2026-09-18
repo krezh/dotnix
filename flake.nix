@@ -4,10 +4,12 @@
     extra-trusted-substituters = [
       "https://xilo.plexuz.xyz/c/admin/krezh"
       "https://nix-community.cachix.org"
+      "https://cache.numtide.com"
     ];
     extra-trusted-public-keys = [
       "krezh:orJlBHtC8lGYpXoH6ORLMpBR7zrgfgGIgm1/xT8Lbvs="
       "nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs="
+      "niks3.numtide.com-1:DTx8wZduET09hRmMtKdQDxNNthLQETkc/yaX7M4qK0g="
     ];
   };
 
@@ -106,6 +108,11 @@
       flake = false;
     };
 
+    ecc = {
+      url = "github:affaan-m/ECC";
+      flake = false;
+    };
+
     impeccable = {
       url = "github:pbakaus/impeccable";
       flake = false;
@@ -177,9 +184,7 @@
 
     llm-agents-nix = {
       url = "github:numtide/llm-agents.nix";
-      inputs = {
-        nixpkgs.follows = "nixpkgs";
-      };
+      inputs.nixpkgs.follows = "nixpkgs";
     };
 
     nix4vscode = {

@@ -4,19 +4,11 @@
     { pkgs, lib, ... }:
     let
       llm-agents-nix = inputs.llm-agents-nix.packages.${pkgs.stdenv.hostPlatform.system};
-      infisical = "${pkgs.infisical}/bin/infisical secrets --env default --path ";
       claudeWrapped =
         pkgs.writeShellScriptBin "claude" ''
           set -euo pipefail
-          export PATH="${pkgs.nodejs-slim}/bin:$PATH"
-          export MEMINI_BASE_URL=https://memini.plexuz.xyz
-          if ! MEMINI_API_KEY="$(${infisical} /Kubernetes/DexTek/Memini get MEMINI_API_KEY --plain --telemetry false)" || [ -z "$MEMINI_API_KEY" ]; then
-            echo "claude: failed to fetch MEMINI_API_KEY from Infisical; memini MCP will not authenticate" >&2
-            unset MEMINI_API_KEY
-          else
-            export MEMINI_API_KEY
-          fi
-          export MEMINI_HOME="personal/krezh"
+          export PATH="${pkgs.nodejs-slim}/bin:${pkgs.infisical}/bin:$PATH"
+          ${builtins.readFile ../lib/memini-env.sh}
           exec ${lib.getExe llm-agents-nix.claude-code} "$@"
         ''
         // {
@@ -28,9 +20,6 @@
         enable = true;
         package = claudeWrapped;
 
-        skills = {
-          code-comments = inputs.code-comments.outPath;
-        };
         context = ''
           # Personal preferences
           - I always run the latest versions of all software (this is a personal habit, not project-specific).

@@ -183,6 +183,22 @@
         "type": "github"
       }
     },
+    "ecc": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1789668246,
+        "narHash": "sha256-LzvLPNbrFEJiBI7YcJs1+b690vuIuzjytcZZaOvZH34=",
+        "owner": "affaan-m",
+        "repo": "ECC",
+        "rev": "dd6ee538aee0f548d4a6b520118f875431fd749e",
+        "type": "github"
+      },
+      "original": {
+        "owner": "affaan-m",
+        "repo": "ECC",
+        "type": "github"
+      }
+    },
     "elephant": {
       "inputs": {
         "nixpkgs": [
@@ -1116,6 +1132,7 @@
         "crane": "crane",
         "devshell": "devshell",
         "disko": "disko",
+        "ecc": "ecc",
         "elephant": "elephant",
         "fast-nix-gc": "fast-nix-gc",
         "flake-parts": "flake-parts",
