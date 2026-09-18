@@ -135,6 +135,10 @@
               rule = mkInline "hl.dsp.window.close()";
               desc = "Close active window";
             };
+            "${mainModShift} + Q" = {
+              rule = mkInline "hl.dsp.window.kill()";
+              desc = "Force close active window";
+            };
             "${mainMod} + C" = {
               rule = mkInline "hl.dsp.window.float()";
               desc = "Toggle floating mode";
