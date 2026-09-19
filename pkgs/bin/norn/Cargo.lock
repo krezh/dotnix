@@ -221,9 +221,9 @@ checksum = "f079e83a288787bcd14a6aea84cee5c87a67c5a3e660c30f557a3d24761b3527"
 
 [[package]]
 name = "charmed-glamour"
-version = "0.2.3"
+version = "0.2.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b4bd7b0b86adeb404bdcfcb19ae847fde8ad5574371b02b65ae62c83c40a1ee2"
+checksum = "25f68ce2a29b120a8a953c9027a71dfa479eaa24bc63ec8198c15f691cafe4fc"
 dependencies = [
  "charmed-lipgloss",
  "lru",
@@ -234,9 +234,9 @@ dependencies = [
 
 [[package]]
 name = "charmed-lipgloss"
-version = "0.2.3"
+version = "0.2.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fc831c48d0abd4e3361149cfd93d483fed07ef6037844f0dbb6c0a00c0627230"
+checksum = "26a44bb12c9e26b484817605b0494457800aa1abe4e2d6f02dee8b5e5c1ad8bf"
 dependencies = [
  "bitflags 2.13.2",
  "colored",
@@ -321,7 +321,7 @@ version = "3.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "faf9468729b8cbcea668e36183cb69d317348c2e08e994829fb56ebfdfbaac34"
 dependencies = [
- "windows-sys 0.61.2",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -617,7 +617,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb"
 dependencies = [
  "libc",
- "windows-sys 0.61.2",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -1030,7 +1030,7 @@ checksum = "3640c1c38b8e4e43584d8df18be5fc6b0aa314ce6ebf51b53313d4306cca8e46"
 dependencies = [
  "hermit-abi",
  "libc",
- "windows-sys 0.61.2",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -1812,7 +1812,7 @@ dependencies = [
  "errno",
  "libc",
  "linux-raw-sys",
- "windows-sys 0.61.2",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
