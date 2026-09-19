@@ -13,6 +13,7 @@
         openssh
         gaming
         hyprland
+        niri
         containers
         wooting
         inputs.silentSDDM.nixosModules.default

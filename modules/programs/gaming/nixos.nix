@@ -25,7 +25,6 @@
       };
 
       services = {
-        # pipewire.lowLatency.enable = true;
         lact.enable = true;
       };
 
@@ -55,17 +54,10 @@
             "--mangoapp"
           ];
         };
-        # wine = {
-        # enable = true;
-        # ntsync = true;
-        # binfmt = true;
-        # };
         steam = {
           enable = true;
           package = pkgs.steam.override {
-            # extraProfile = ''
-            #   unset TZ
-            # '';
+
             extraEnv = {
               MANGOHUD = 1;
               MESA_GLSL_CACHE_MAX_SIZE = "16G";
@@ -91,7 +83,7 @@
             in
             {
               enable = true;
-              onSteamRunning = "wait";
+              onSteamRunning = "close";
               inherit defaultCompatTool;
               apps = {
                 "1245620" = {
@@ -103,7 +95,6 @@
                     PROTON_ENABLE_WAYLAND = 0;
                     LSFG_PROCESS = "Default";
                   };
-
                 };
                 "3156770" = {
                   name = "witchfire";
@@ -112,16 +103,12 @@
                   env = {
                     LSFG_PROCESS = "Default";
                   };
-
                 };
                 "2694490" = {
                   name = "poe2";
                   compatTool = defaultCompatTool;
                   wrappers = [ gamemode ];
-                  env = {
-                    # LSFG_PROCESS = "Default";
-                  };
-
+                  env = { };
                 };
                 "1361210" = {
                   name = "darktide";
@@ -129,14 +116,17 @@
                   wrappers = [ gamemode ];
                   env = { };
                 };
-                "1285190" = {
-                  name = "borderlands4";
+                "3751260" = {
+                  name = "dawnwalker";
                   compatTool = defaultCompatTool;
                   wrappers = [ gamemode ];
-                  env = {
-                    PROTON_USE_WOW64 = 0;
-                    PROTON_ENABLE_WAYLAND = 0;
-                  };
+                  env = { };
+                };
+                "3669870" = {
+                  name = "resonant";
+                  compatTool = defaultCompatTool;
+                  wrappers = [ gamemode ];
+                  env = { };
                 };
                 "2352620" = {
                   name = "fellowship";
@@ -180,9 +170,7 @@
                   name = "wuwa";
                   compatTool = defaultCompatTool;
                   wrappers = [ gamemode ];
-                  env = {
-                    # LSFG_PROCESS = "Default";
-                  };
+                  env = { };
                 };
               };
             };

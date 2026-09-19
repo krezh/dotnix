@@ -1,10 +1,10 @@
-use std::env;
 use std::process::{self, Command};
+use std::{env, fs};
 
 use anyhow::{Context, Result, bail};
 use clap::{CommandFactory, Parser, Subcommand};
 use clap_complete::{Shell, generate};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use url::Url;
 
@@ -15,12 +15,16 @@ struct Cli {
     #[command(subcommand)]
     command: Option<Cmd>,
 
-    /// Flake reference, e.g. .#faugus-launcher, nixpkgs#k9s, or bare k9s
+    /// Flake reference; bare names try the active flake before nixpkgs
     flake_ref: Option<String>,
 
     /// A specific version (e.g. 1.2.3, latest) or a range (1.0.0..latest, 1.0.0.., ..2.0.0)
     #[arg(value_name = "VERSION_OR_RANGE")]
     version_spec: Option<String>,
+
+    /// Emit structured release data for graphical clients.
+    #[arg(long)]
+    json: bool,
 }
 
 #[derive(Subcommand)]
@@ -42,6 +46,8 @@ struct PackageInfo {
     version: String,
     #[serde(default)]
     meta: Meta,
+    #[serde(default)]
+    flake_input: Option<String>,
 }
 
 struct RepoRef {
@@ -50,9 +56,18 @@ struct RepoRef {
     repo: String,
 }
 
+#[derive(Serialize)]
 struct Release {
     tag: String,
     body: String,
+}
+
+#[derive(Serialize)]
+struct ChangelogOutput<'a> {
+    pname: &'a str,
+    version: &'a str,
+    description: Option<&'a str>,
+    releases: &'a [Release],
 }
 
 enum VersionSpec {
@@ -63,16 +78,25 @@ enum VersionSpec {
     },
 }
 
-fn resolve_ref(raw: &str) -> String {
-    if raw.contains('#') {
-        raw.to_string()
-    } else {
-        format!("nixpkgs#{raw}")
-    }
-}
-
 fn eval_package_info(flake_ref: &str) -> Result<PackageInfo> {
-    let apply = r#"p: { pname = p.pname or (p.name or "unknown"); version = p.version or ""; meta = p.meta or {}; }"#;
+    let apply = r#"p:
+      let
+        meta = p.meta or {};
+        stringOrFirst = value:
+          if builtins.isString value then value
+          else if builtins.isList value then
+            let strings = builtins.filter builtins.isString value;
+            in if strings == [] then null else builtins.head strings
+          else null;
+      in {
+        pname = p.pname or (p.name or "unknown");
+        version = p.version or "";
+        meta = {
+          description = stringOrFirst (meta.description or null);
+          homepage = stringOrFirst (meta.homepage or null);
+          changelog = stringOrFirst (meta.changelog or null);
+        };
+      }"#;
 
     let output = Command::new("nix")
         .args([
@@ -97,6 +121,262 @@ fn eval_package_info(flake_ref: &str) -> Result<PackageInfo> {
     }
 
     serde_json::from_slice(&output.stdout).context("nix returned unexpected JSON")
+}
+
+fn target_version(version_spec: Option<&str>) -> Option<&str> {
+    let version_spec = version_spec?;
+    let version = version_spec
+        .split_once("..")
+        .map_or(version_spec, |(_, to)| to);
+    let version = version.trim();
+    (!version.is_empty() && !version.eq_ignore_ascii_case("latest")).then_some(version)
+}
+
+fn eval_active_flake_package(package: &str, version: Option<&str>) -> Result<PackageInfo> {
+    let package_name = package;
+    let package = serde_json::to_string(package_name)?;
+    let version = serde_json::to_string(version.unwrap_or_default())?;
+    let expression = format!(
+        r#"let
+          package = {package};
+          expectedVersion = {version};
+          root = builtins.getFlake (toString ./.);
+          system = builtins.currentSystem;
+          inputNames = builtins.attrNames root.inputs;
+          orderedInputNames =
+            builtins.filter (name: name == package) inputNames ++
+            builtins.filter (name: name == "nixpkgs" && name != package) inputNames ++
+            builtins.filter (name: name != package && name != "nixpkgs") inputNames;
+          namedFlakes = [ {{ flake = root; input = null; }} ] ++ map
+            (name: {{ flake = root.inputs.${{name}}; input = name; }})
+            orderedInputNames;
+          packagesFor = source:
+            let
+              packages = source.flake.packages.${{system}} or {{}};
+              names = builtins.filter
+                (name: name == package || name == "default")
+                (builtins.attrNames packages);
+              flakePackages = map (name: packages.${{name}}) names;
+              legacyPackages = source.flake.legacyPackages.${{system}} or {{}};
+              nixpkgsPackage =
+                if source.input == "nixpkgs" && builtins.hasAttr package legacyPackages
+                then [ legacyPackages.${{package}} ]
+                else [];
+            in map
+              (resolved: {{ package = resolved; flakeInput = source.input; }})
+              (flakePackages ++ nixpkgsPackage);
+          matchesFor = source: exact:
+            let
+              matches = builtins.filter (candidate:
+                let result = builtins.tryEval (
+                  builtins.isAttrs candidate.package &&
+                  (candidate.package.pname or (candidate.package.name or "")) == package &&
+                  (!exact || (candidate.package.version or "") == expectedVersion)
+                );
+                in result.success && result.value
+              ) (packagesFor source);
+            in if matches == [] then null else builtins.head matches;
+          findMatch = sources: exact:
+            if sources == [] then null
+            else
+              let found = matchesFor (builtins.head sources) exact;
+              in if found != null then found else findMatch (builtins.tail sources) exact;
+          exactMatch = if expectedVersion == "" then null else findMatch namedFlakes true;
+          fallbackMatch = if exactMatch == null then findMatch namedFlakes false else null;
+          selected =
+            if exactMatch != null then exactMatch
+            else if fallbackMatch != null then fallbackMatch
+            else throw "package not found in the active flake or its direct inputs";
+          resolved = selected.package;
+          meta = resolved.meta or {{}};
+          stringOrFirst = value:
+            if builtins.isString value then value
+            else if builtins.isList value then
+              let strings = builtins.filter builtins.isString value;
+              in if strings == [] then null else builtins.head strings
+            else null;
+        in {{
+          pname = resolved.pname or (resolved.name or "unknown");
+          version = resolved.version or "";
+          flake_input = selected.flakeInput;
+          meta = {{
+            description = stringOrFirst (meta.description or null);
+            homepage = stringOrFirst (meta.homepage or null);
+            changelog = stringOrFirst (meta.changelog or null);
+          }};
+        }}"#
+    );
+    let output = Command::new("nix")
+        .args([
+            "eval",
+            "--extra-experimental-features",
+            "nix-command flakes",
+            "--no-warn-dirty",
+            "--impure",
+            "--json",
+            "--expr",
+            &expression,
+        ])
+        .output()
+        .context("failed to inspect the active flake")?;
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        bail!(
+            "couldn't resolve {package_name} from the active flake\n{}",
+            stderr.trim()
+        );
+    }
+    let mut info: PackageInfo =
+        serde_json::from_slice(&output.stdout).context("nix returned unexpected JSON")?;
+    if info.meta.homepage.is_none()
+        && let Some(input) = info.flake_input.as_deref()
+        && let Ok(lock) = fs::read("flake.lock")
+        && let Ok(lock) = serde_json::from_slice::<Value>(&lock)
+    {
+        info.meta.homepage = repository_from_lock(&lock, input);
+    }
+    Ok(info)
+}
+
+fn repository_from_lock(lock: &Value, input: &str) -> Option<String> {
+    let locked = locked_input(lock, input)?;
+    match locked.get("type")?.as_str()? {
+        "github" => Some(format!(
+            "https://github.com/{}/{}",
+            locked.get("owner")?.as_str()?,
+            locked.get("repo")?.as_str()?
+        )),
+        "gitlab" => Some(format!(
+            "https://gitlab.com/{}/{}",
+            locked.get("owner")?.as_str()?,
+            locked.get("repo")?.as_str()?
+        )),
+        "git" => locked.get("url")?.as_str().map(str::to_owned),
+        _ => None,
+    }
+}
+
+fn locked_input<'a>(lock: &'a Value, input: &str) -> Option<&'a Value> {
+    let root = lock.get("root")?.as_str()?;
+    let node = lock
+        .get("nodes")?
+        .get(root)?
+        .get("inputs")?
+        .get(input)?
+        .as_str()?;
+    lock.get("nodes")?.get(node)?.get("locked")
+}
+
+fn flake_ref_from_lock(lock: &Value, input: &str) -> Option<String> {
+    let locked = locked_input(lock, input)?;
+    match locked.get("type")?.as_str()? {
+        "github" => Some(format!(
+            "github:{}/{}/{}",
+            locked.get("owner")?.as_str()?,
+            locked.get("repo")?.as_str()?,
+            locked.get("rev")?.as_str()?
+        )),
+        "gitlab" => Some(format!(
+            "gitlab:{}/{}/{}",
+            locked.get("owner")?.as_str()?,
+            locked.get("repo")?.as_str()?,
+            locked.get("rev")?.as_str()?
+        )),
+        "git" => {
+            let url = locked.get("url")?.as_str()?;
+            let separator = if url.contains('?') { '&' } else { '?' };
+            Some(format!(
+                "git+{url}{separator}rev={}",
+                locked.get("rev")?.as_str()?
+            ))
+        }
+        _ => None,
+    }
+}
+
+fn matches_package(info: &PackageInfo, package: &str, version: Option<&str>) -> bool {
+    info.pname == package
+        && version
+            .is_none_or(|version| normalize_version(&info.version) == normalize_version(version))
+}
+
+fn resolve_package_info(raw_ref: &str, version_spec: Option<&str>) -> Result<PackageInfo> {
+    if raw_ref.contains('#') {
+        eprintln!("Resolving {raw_ref}…");
+        return eval_package_info(raw_ref);
+    }
+
+    let version = target_version(version_spec);
+    let lock = fs::read("flake.lock")
+        .ok()
+        .and_then(|lock| serde_json::from_slice::<Value>(&lock).ok());
+    let mut errors = Vec::new();
+    let root_ref = format!(".#{raw_ref}");
+    eprintln!("Resolving {root_ref}…");
+    match eval_package_info(&root_ref) {
+        Ok(info) if matches_package(&info, raw_ref, version) => return Ok(info),
+        Ok(info) => errors.push(format!(
+            "{root_ref} resolved to {} {}",
+            info.pname, info.version
+        )),
+        Err(error) => errors.push(format!("{error:#}")),
+    }
+
+    if let Some(lock) = lock.as_ref()
+        && let Some(homepage) = repository_from_lock(lock, raw_ref)
+    {
+        return Ok(PackageInfo {
+            pname: raw_ref.to_owned(),
+            version: version.unwrap_or_default().to_owned(),
+            meta: Meta {
+                homepage: Some(homepage),
+                ..Meta::default()
+            },
+            flake_input: Some(raw_ref.to_owned()),
+        });
+    }
+
+    let nixpkgs_ref = lock
+        .as_ref()
+        .and_then(|lock| flake_ref_from_lock(lock, "nixpkgs"))
+        .map_or_else(
+            || format!("nixpkgs#{raw_ref}"),
+            |flake_ref| format!("{flake_ref}#{raw_ref}"),
+        );
+    eprintln!("Resolving {nixpkgs_ref}…");
+    match eval_package_info(&nixpkgs_ref) {
+        Ok(info) if matches_package(&info, raw_ref, version) => return Ok(info),
+        Ok(info) => errors.push(format!(
+            "{nixpkgs_ref} resolved to {} {}",
+            info.pname, info.version
+        )),
+        Err(error) => errors.push(format!("{error:#}")),
+    }
+
+    if !nixpkgs_ref.starts_with("nixpkgs#") {
+        let registry_ref = format!("nixpkgs#{raw_ref}");
+        eprintln!("Resolving {registry_ref}…");
+        match eval_package_info(&registry_ref) {
+            Ok(info) if matches_package(&info, raw_ref, version) => return Ok(info),
+            Ok(info) => errors.push(format!(
+                "{registry_ref} resolved to {} {}",
+                info.pname, info.version
+            )),
+            Err(error) => errors.push(format!("{error:#}")),
+        }
+    }
+
+    eprintln!("Searching the remaining direct flake inputs…");
+    match eval_active_flake_package(raw_ref, version) {
+        Ok(info) => Ok(info),
+        Err(error) => {
+            errors.push(format!("{error:#}"));
+            bail!(
+                "couldn't resolve {raw_ref} from the active flake, its inputs, or nixpkgs\n{}",
+                errors.join("\n\n")
+            )
+        }
+    }
 }
 
 fn print_box(text: &str) {
@@ -363,8 +643,7 @@ fn find_latest_release(repo: &RepoRef) -> Result<Release> {
         .context("no releases found")
 }
 
-/// Collect every release between `from` and `to` (both inclusive), walking
-/// the release list newest-first and returning oldest-first for display.
+/// Collect every release between `from` and `to`, newest-first and inclusive.
 fn collect_range(repo: &RepoRef, from: Option<&str>, to: Option<&str>) -> Result<Vec<Release>> {
     let mut collecting = to.is_none();
     let mut found_to = to.is_none();
@@ -413,7 +692,6 @@ fn collect_range(repo: &RepoRef, from: Option<&str>, to: Option<&str>) -> Result
         );
     }
 
-    collected.reverse();
     Ok(collected)
 }
 
@@ -432,6 +710,24 @@ fn render_releases(releases: &[Release]) -> Result<()> {
     render_markdown(&combined)
 }
 
+fn output_releases(info: &PackageInfo, releases: &[Release], json: bool) -> Result<()> {
+    if json {
+        serde_json::to_writer(
+            std::io::stdout(),
+            &ChangelogOutput {
+                pname: &info.pname,
+                version: &info.version,
+                description: info.meta.description.as_deref(),
+                releases,
+            },
+        )?;
+        println!();
+        Ok(())
+    } else {
+        render_releases(releases)
+    }
+}
+
 fn repo_ref_from_meta(meta: &Meta) -> Option<RepoRef> {
     meta.homepage
         .as_deref()
@@ -439,14 +735,17 @@ fn repo_ref_from_meta(meta: &Meta) -> Option<RepoRef> {
         .or_else(|| meta.changelog.as_deref().and_then(repo_ref_from_url))
 }
 
-fn run(raw_ref: &str, version_spec: Option<&str>) -> Result<()> {
-    let flake_ref = resolve_ref(raw_ref);
-    eprintln!("Resolving {flake_ref}…");
-    let info = eval_package_info(&flake_ref)?;
+fn run(raw_ref: &str, version_spec: Option<&str>, json: bool) -> Result<()> {
+    let info = resolve_package_info(raw_ref, version_spec)?;
 
-    print_header(&info);
+    if !json {
+        print_header(&info);
+    }
 
     let Some(raw_spec) = version_spec else {
+        if json {
+            bail!("--json requires a version or range");
+        }
         let source_url = info
             .meta
             .changelog
@@ -465,16 +764,14 @@ fn run(raw_ref: &str, version_spec: Option<&str>) -> Result<()> {
         )
     })?;
 
-    match parse_version_spec(raw_spec) {
+    let releases = match parse_version_spec(raw_spec) {
         VersionSpec::Single(v) if v.eq_ignore_ascii_case("latest") => {
-            render_releases(&[find_latest_release(&repo)?])
+            vec![find_latest_release(&repo)?]
         }
-        VersionSpec::Single(v) => render_releases(&[find_release(&repo, &v)?]),
-        VersionSpec::Range { from, to } => {
-            let releases = collect_range(&repo, from.as_deref(), to.as_deref())?;
-            render_releases(&releases)
-        }
-    }
+        VersionSpec::Single(v) => vec![find_release(&repo, &v)?],
+        VersionSpec::Range { from, to } => collect_range(&repo, from.as_deref(), to.as_deref())?,
+    };
+    output_releases(&info, &releases, json)
 }
 
 fn main() {
@@ -496,8 +793,47 @@ fn main() {
         process::exit(1);
     };
 
-    if let Err(err) = run(&raw_ref, cli.version_spec.as_deref()) {
+    if let Err(err) = run(&raw_ref, cli.version_spec.as_deref(), cli.json) {
         eprintln!("\x1b[1;31m✗\x1b[0m {err:#}");
         process::exit(1);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn derives_the_target_version_for_package_resolution() {
+        assert_eq!(target_version(Some("1.0..2.0")), Some("2.0"));
+        assert_eq!(target_version(Some("2.0")), Some("2.0"));
+        assert_eq!(target_version(Some("1.0..latest")), None);
+        assert_eq!(target_version(None), None);
+    }
+
+    #[test]
+    fn resolves_input_repository_from_the_lock() {
+        let lock = serde_json::json!({
+            "root": "root",
+            "nodes": {
+                "root": { "inputs": { "demo": "demo" } },
+                "demo": {
+                    "locked": {
+                        "type": "github",
+                        "owner": "example",
+                        "repo": "demo",
+                        "rev": "0123456789abcdef"
+                    }
+                }
+            }
+        });
+        assert_eq!(
+            repository_from_lock(&lock, "demo").as_deref(),
+            Some("https://github.com/example/demo")
+        );
+        assert_eq!(
+            flake_ref_from_lock(&lock, "demo").as_deref(),
+            Some("github:example/demo/0123456789abcdef")
+        );
     }
 }

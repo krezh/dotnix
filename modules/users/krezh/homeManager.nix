@@ -13,6 +13,7 @@ in
         television
         superfile
         go
+        rust
         nix-dev
         dev-tools
       ];

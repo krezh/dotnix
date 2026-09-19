@@ -24,10 +24,7 @@
           enableXdgAutostart = false;
           variables = [ "--all" ];
         };
-        plugins = [
-          # pkgs.hyprland-scroll-overview
-          # pkgs.hyprland-scroll-drag
-        ];
+        plugins = [ ];
 
         settings = {
           config = {

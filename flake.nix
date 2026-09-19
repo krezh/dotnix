@@ -113,11 +113,6 @@
       flake = false;
     };
 
-    impeccable = {
-      url = "github:pbakaus/impeccable";
-      flake = false;
-    };
-
     helium = {
       url = "github:cjavad/nixpille-helium";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -135,21 +130,6 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    elephant = {
-      url = "github:abenz1267/elephant";
-      inputs = {
-        nixpkgs.follows = "nixpkgs";
-      };
-    };
-
-    walker = {
-      url = "github:abenz1267/walker";
-      inputs = {
-        nixpkgs.follows = "nixpkgs";
-        elephant.follows = "elephant";
-      };
-    };
-
     kauth = {
       url = "github:krezh/kauth/0.3.1";
       inputs = {
@@ -163,11 +143,6 @@
       inputs = {
         nixpkgs.follows = "nixpkgs";
       };
-    };
-
-    noctalia = {
-      url = "github:noctalia-dev/noctalia-shell";
-      inputs.nixpkgs.follows = "nixpkgs";
     };
 
     crane.url = "github:ipetkov/crane";
@@ -217,11 +192,6 @@
       };
     };
 
-    hyprland-scroll-overview = {
-      url = "github:yayuuu/hyprland-scroll-overview";
-      flake = false;
-    };
-
     herdr = {
       url = "github:ogulcancelik/herdr";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -244,6 +214,7 @@
       url = "github:stubbedev/xilo";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+
   };
 
   outputs =

@@ -22,6 +22,7 @@ rustPlatform.buildRustPackage rec {
   meta = {
     description = "Kubernetes TUI, reimagined in Rust - built on kube-rs and ratatui, async-first from the ground up";
     homepage = "https://github.com/nklmilojevic/sofka";
+    changelog = "https://github.com/nklmilojevic/sofka/releases/tag/v${version}";
     license = with lib.licenses; [
       mit
       asl20

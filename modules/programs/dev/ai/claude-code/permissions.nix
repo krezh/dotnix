@@ -114,7 +114,7 @@
             "Bash(sudo:*)"
             "Bash(nh os switch:*)"
           ];
-          defaultMode = "acceptEdits";
+          defaultMode = "auto";
         };
       };
     };

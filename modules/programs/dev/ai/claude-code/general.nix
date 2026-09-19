@@ -57,7 +57,6 @@
             "playground@claude-plugins-official" = true;
             "memini@memini" = true;
             "ecc@ecc" = true;
-            "impeccable@impeccable" = true;
           };
           extraKnownMarketplaces = {
             memini = {
@@ -71,13 +70,6 @@
               source = {
                 source = "github";
                 repo = "affaan-m/ECC";
-              };
-              autoUpdate = true;
-            };
-            impeccable = {
-              source = {
-                source = "github";
-                repo = "pbakaus/impeccable";
               };
               autoUpdate = true;
             };

@@ -27,6 +27,7 @@
   meta = {
     description = "Kubectl plugin for browsing PVCs on the command line";
     homepage = "https://github.com/clbx/kubectl-browse-pvc";
+    changelog = "https://github.com/clbx/kubectl-browse-pvc/releases/tag/v${finalAttrs.version}";
     license = lib.licenses.mit;
     mainProgram = finalAttrs.pname;
     platforms = lib.platforms.all;

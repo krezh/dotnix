@@ -33,6 +33,7 @@ appimageTools.wrapType2 {
   meta = with lib; {
     description = "A cross-platform Jellyfin Frontend built on Flutter";
     homepage = "https://github.com/DonutWare/Fladder";
+    changelog = "https://github.com/DonutWare/Fladder/releases/tag/v${version}";
     license = licenses.gpl3Only;
     platforms = [ "x86_64-linux" ];
     mainProgram = pname;

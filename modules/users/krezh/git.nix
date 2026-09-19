@@ -72,6 +72,7 @@
                 "$right"
               ];
               pager = ":builtin";
+              paginate = "never";
               streampager.wrapping = "word";
             };
             git = {

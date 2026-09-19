@@ -33,6 +33,7 @@
       fileManager = mkProg pkgs.nautilus;
       passwords = mkProg pkgs.proton-pass;
       sysMonitor = mkProg pkgs.resources;
+      swix = mkProg pkgs.swix;
       hyprlock.run = "${lib.getExe config.programs.hyprlock.package} --grace 0";
       # launcher.run = "${pkgs.netcat}/bin/nc -U /run/user/$EUID/walker/walker.sock";
       shell.run = "${lib.getExe config.programs.noctalia.package} msg";
@@ -119,6 +120,10 @@
             "${mainMod} + A" = {
               rule = exec "${audioSwitch} toggle";
               desc = "Toggle between audio devices";
+            };
+            "${mainMod} + U" = {
+              rule = exec swix.run;
+              desc = "Software Updates (Swix)";
             };
             "${mainMod} + S" = {
               rule = exec screenshot.run;

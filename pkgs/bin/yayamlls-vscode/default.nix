@@ -52,6 +52,7 @@ buildNpmPackage (finalAttrs: {
   meta = {
     description = "YAML language server VS Code extension";
     homepage = "https://github.com/home-operations/yayamlls";
+    changelog = "https://github.com/home-operations/yayamlls/releases/tag/${finalAttrs.version}";
     license = lib.licenses.mit;
   };
 })

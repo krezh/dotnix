@@ -26,6 +26,7 @@
   meta = {
     description = "A collection of tools to discover, validate and evaluate Kubernetes storage options";
     homepage = "https://github.com/kastenhq/kubestr";
+    changelog = "https://github.com/kastenhq/kubestr/releases/tag/v${finalAttrs.version}";
     license = lib.licenses.asl20;
     mainProgram = finalAttrs.pname;
   };

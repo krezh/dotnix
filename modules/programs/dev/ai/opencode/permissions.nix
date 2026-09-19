@@ -64,9 +64,6 @@
           # Allow audio system commands
           "pactl list *" = "allow";
           "pw-top" = "allow";
-
-          # Impeccable skill launcher (read-only context/analysis verbs)
-          "*/skills/impeccable/scripts/impeccable *" = "allow";
         };
       };
     };

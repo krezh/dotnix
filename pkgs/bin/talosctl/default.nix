@@ -53,6 +53,7 @@
   meta = {
     description = "A CLI for out-of-band management of Kubernetes nodes created by Talos";
     homepage = "https://www.talos.dev/";
+    changelog = "https://github.com/siderolabs/talos/releases/tag/v${finalAttrs.version}";
     license = lib.licenses.mpl20;
     mainProgram = finalAttrs.pname;
   };
