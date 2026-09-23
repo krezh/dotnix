@@ -849,17 +849,17 @@
         ]
       },
       "locked": {
-        "lastModified": 1790108976,
-        "narHash": "sha256-9+/aPZlPEPnNkKO0uLYoZx/aBwJ/Jk9IVHjjVCERPYw=",
+        "lastModified": 1790146623,
+        "narHash": "sha256-z0zSr6nQmAdFoPyZlxes/0wYbBlhCmtNKY7TncvrNAw=",
         "owner": "xddxdd",
         "repo": "nix-cachyos-kernel",
-        "rev": "01308a5fc051717fe68733b92359d6611b474d9e",
+        "rev": "5456ebc0442974babe3dcce3a30ca3a725b4dadd",
         "type": "github"
       },
       "original": {
         "owner": "xddxdd",
         "repo": "nix-cachyos-kernel",
-        "rev": "01308a5fc051717fe68733b92359d6611b474d9e",
+        "rev": "5456ebc0442974babe3dcce3a30ca3a725b4dadd",
         "type": "github"
       }
     },
