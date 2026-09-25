@@ -22,7 +22,7 @@
     };
 
     nix-cachyos-kernel = {
-      url = "github:xddxdd/nix-cachyos-kernel/7ce7e8689129da05517a41209a9d1ed3b86cb9e0";
+      url = "github:xddxdd/nix-cachyos-kernel/70661af57f1165601291358bd51fdb271ec80818";
       inputs = {
         nixpkgs.follows = "nixpkgs";
         flake-parts.follows = "flake-parts";
