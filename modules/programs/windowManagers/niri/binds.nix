@@ -36,7 +36,6 @@
       volume_script = lib.getExe pkgs.volume_script_hyprpanel;
       brightness_script = lib.getExe pkgs.brightness_script_hyprpanel;
       audioSwitch = lib.getExe osConfig.nixosModules.wireplumber.audioSwitching.package;
-      niriShutdown = lib.getExe pkgs.niri-shutdown;
     in
     {
       wayland.windowManager.niri = {
@@ -170,11 +169,6 @@
             };
 
             # Niri compositor actions
-            "Mod+Shift+E" = {
-              _props.repeat = false;
-              _props.hotkey-overlay-title = "Graceful shutdown";
-              spawn-sh = niriShutdown;
-            };
             "Mod+Ctrl+Shift+E" = {
               _props.repeat = false;
               _props.hotkey-overlay-title = "Force quit niri";

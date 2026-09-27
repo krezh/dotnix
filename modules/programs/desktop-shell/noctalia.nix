@@ -7,14 +7,49 @@ _: {
       ...
     }:
     let
-      shutdown = lib.getExe (
+      sessionAction = lib.getExe (
         pkgs.writeShellApplication {
-          name = "graceful-shutdown";
+          name = "session-action";
           text = ''
+            action=''${1:?missing session action}
+            case "$action" in
+              logout | reboot | shutdown) ;;
+              *)
+                printf 'unknown session action: %s\n' "$action" >&2
+                exit 2
+                ;;
+            esac
+
             if [[ -n ''${NIRI_SOCKET:-} ]]; then
-              exec ${lib.getExe pkgs.niri-shutdown} "$@"
+              case "$action" in
+                logout)
+                  exec ${lib.getExe pkgs.niri} msg action quit --skip-confirmation
+                  ;;
+                reboot)
+                  exec ${lib.getExe' pkgs.systemd "systemctl"} reboot
+                  ;;
+                shutdown)
+                  exec ${lib.getExe' pkgs.systemd "systemctl"} poweroff
+                  ;;
+              esac
             fi
-            exec ${lib.getExe pkgs.hyprshutdown} "$@"
+
+            if [[ -n ''${HYPRLAND_INSTANCE_SIGNATURE:-} ]]; then
+              case "$action" in
+                logout)
+                  exec ${lib.getExe pkgs.hyprshutdown}
+                  ;;
+                reboot)
+                  exec ${lib.getExe pkgs.hyprshutdown} -t "Restarting..." --post-cmd "reboot"
+                  ;;
+                shutdown)
+                  exec ${lib.getExe pkgs.hyprshutdown} -t "Shutting down..." --post-cmd "shutdown -P 0"
+                  ;;
+              esac
+            fi
+
+            printf 'unsupported compositor session\n' >&2
+            exit 2
           '';
         }
       );
@@ -146,7 +181,7 @@ _: {
                   countdown_seconds = 0;
                   shortcut = 2;
                   variant = "default";
-                  command = "systemd-run --user --scope --collect -- ${shutdown}";
+                  command = "systemd-run --user --scope --collect -- ${sessionAction} logout";
                 }
                 {
                   enabled = true;
@@ -158,14 +193,14 @@ _: {
                 {
                   enabled = true;
                   action = "reboot";
-                  command = "systemd-run --user --scope --collect -- ${shutdown} -t 'Restarting...' --post-cmd 'reboot'";
+                  command = "systemd-run --user --scope --collect -- ${sessionAction} reboot";
                   countdown_seconds = 0;
                   shortcut = 4;
                   variant = "default";
                 }
                 {
                   action = "shutdown";
-                  command = "systemd-run --user --scope --collect -- ${shutdown} -t 'Shutting down...' --post-cmd 'shutdown -P 0'";
+                  command = "systemd-run --user --scope --collect -- ${sessionAction} shutdown";
                   countdown_seconds = 0;
                   enabled = true;
                   shortcut = 5;
