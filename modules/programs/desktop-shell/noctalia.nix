@@ -12,6 +12,8 @@ _: {
           name = "session-action";
           text = ''
             action=''${1:?missing session action}
+            niri_socket=''${NIRI_SOCKET:-}
+            hyprland_signature=''${HYPRLAND_INSTANCE_SIGNATURE:-}
             case "$action" in
               logout | reboot | shutdown) ;;
               *)
@@ -20,7 +22,7 @@ _: {
                 ;;
             esac
 
-            if [[ -n ''${NIRI_SOCKET:-} ]]; then
+            if [[ -n "$niri_socket" && -S "$niri_socket" ]]; then
               case "$action" in
                 logout)
                   exec ${lib.getExe pkgs.niri} msg action quit --skip-confirmation
@@ -34,7 +36,7 @@ _: {
               esac
             fi
 
-            if [[ -n ''${HYPRLAND_INSTANCE_SIGNATURE:-} ]]; then
+            if [[ -n "$hyprland_signature" && -S "''${XDG_RUNTIME_DIR:?}/hypr/$hyprland_signature/.socket.sock" ]]; then
               case "$action" in
                 logout)
                   exec ${lib.getExe pkgs.hyprshutdown}
