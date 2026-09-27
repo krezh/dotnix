@@ -10,3 +10,4 @@ result*
 
 # Rust
 target
+*.qcow2

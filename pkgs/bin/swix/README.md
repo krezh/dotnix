@@ -24,8 +24,10 @@ The module writes `/etc/swix/swix.toml` and creates `/run/swix.sock` with mode
 that user and does not use the root helper.
 
 Package names in a report are clickable. Swix delegates release resolution to
-`nix-changelog`, which may evaluate or fetch nixpkgs metadata and access package
-forges over the network. Successful lookups are cached for the Swix session.
+`nix-changelog`, which searches the active flake and its direct inputs by package
+identity, including outputs whose attribute name differs from `pname`. Resolution
+may evaluate or fetch nixpkgs metadata and access package forges over the network.
+Successful lookups are cached for the Swix session.
 
 ## Security Model
 

@@ -462,8 +462,7 @@ mod tests {
     fn helper_rejects_excessive_command_output() {
         let mut command = Command::new("sh");
         command.args(["-c", "yes x | head -c 32769"]);
-        let error =
-            run_command(&mut command, "noisy fixture", Duration::from_secs(2)).unwrap_err();
+        let error = run_command(&mut command, "noisy fixture", Duration::from_secs(2)).unwrap_err();
         assert!(error.contains("stdout exceeded"));
     }
 

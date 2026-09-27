@@ -1,6 +1,24 @@
 _: {
   flake.modules.homeManager.desktop-shell =
-    { config, ... }:
+    {
+      config,
+      lib,
+      pkgs,
+      ...
+    }:
+    let
+      shutdown = lib.getExe (
+        pkgs.writeShellApplication {
+          name = "graceful-shutdown";
+          text = ''
+            if [[ -n ''${NIRI_SOCKET:-} ]]; then
+              exec ${lib.getExe pkgs.niri-shutdown} "$@"
+            fi
+            exec ${lib.getExe pkgs.hyprshutdown} "$@"
+          '';
+        }
+      );
+    in
     {
       programs.noctalia = {
         enable = true;
@@ -128,6 +146,7 @@ _: {
                   countdown_seconds = 0;
                   shortcut = 2;
                   variant = "default";
+                  command = "systemd-run --user --scope --collect -- ${shutdown}";
                 }
                 {
                   enabled = true;
@@ -139,14 +158,14 @@ _: {
                 {
                   enabled = true;
                   action = "reboot";
-                  command = "systemd-run --user --scope --collect -- hyprshutdown -t 'Restarting...' --post-cmd 'reboot'";
+                  command = "systemd-run --user --scope --collect -- ${shutdown} -t 'Restarting...' --post-cmd 'reboot'";
                   countdown_seconds = 0;
                   shortcut = 4;
                   variant = "default";
                 }
                 {
                   action = "shutdown";
-                  command = "systemd-run --user --scope --collect -- hyprshutdown -t 'Shutting down...' --post-cmd 'shutdown -P 0'";
+                  command = "systemd-run --user --scope --collect -- ${shutdown} -t 'Shutting down...' --post-cmd 'shutdown -P 0'";
                   countdown_seconds = 0;
                   enabled = true;
                   shortcut = 5;

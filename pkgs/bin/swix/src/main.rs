@@ -24,9 +24,9 @@ use gtk::gio;
 use gtk::glib;
 use gtk::prelude::*;
 use gtk4_layer_shell::{Edge, KeyboardMode, Layer, LayerShell};
-use swix::command;
 use nix::{NixBuildProgress, run};
 use report::{Change, ChangeStatus, Report};
+use swix::command;
 use ui::build_progress::ActivityRows;
 use ui::changelog::render as render_changelog;
 #[cfg(test)]

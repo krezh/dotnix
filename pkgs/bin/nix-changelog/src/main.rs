@@ -153,10 +153,18 @@ fn eval_active_flake_package(package: &str, version: Option<&str>) -> Result<Pac
           packagesFor = source:
             let
               packages = source.flake.packages.${{system}} or {{}};
-              names = builtins.filter
+              packageNames = builtins.attrNames packages;
+              preferredNames = builtins.filter
                 (name: name == package || name == "default")
-                (builtins.attrNames packages);
-              flakePackages = map (name: packages.${{name}}) names;
+                packageNames;
+              remainingNames =
+                if source.input == "nixpkgs" then []
+                else builtins.filter
+                  (name: name != package && name != "default")
+                  packageNames;
+              flakePackages = map
+                (name: packages.${{name}})
+                (preferredNames ++ remainingNames);
               legacyPackages = source.flake.legacyPackages.${{system}} or {{}};
               nixpkgsPackage =
                 if source.input == "nixpkgs" && builtins.hasAttr package legacyPackages

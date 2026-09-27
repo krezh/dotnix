@@ -28,6 +28,10 @@ in
         '';
       };
 
+      nix.extraOptions = ''
+        !include ${config.sops.templates."nix_access_token.conf".path}
+      '';
+
       sops = {
         age = {
           keyFile = "/home/${user}/.config/sops/age/keys.txt";
