@@ -7,15 +7,14 @@ on:
   workflow_call:
   pull_request:
     branches: ["main"]
-    paths: &paths
+    types: [opened, synchronize, reopened, ready_for_review]
+  push:
+    branches: ["main"]
+    paths:
       - "**/*.nix"
       - "pkgs/**"
       - "flake.nix"
       - "flake.lock"
-  push:
-    branches: ["main"]
-    paths: *paths
-
 permissions:
   contents: read
   actions: read
@@ -25,8 +24,29 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  detect-changes:
+    name: Detect Changes
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      nix: ${{ steps.filter.outputs.nix }}
+    steps:
+      - name: Filter Nix changes
+        uses: dorny/paths-filter@de90cc6fb38fc0963ad72b210f1f284cd68cea36 # v3.0.2
+        id: filter
+        with:
+          filters: |
+            nix:
+              - "**/*.nix"
+              - "pkgs/**"
+              - "flake.nix"
+              - "flake.lock"
+
   generate-matrix:
     name: Generate Build Matrix
+    needs: detect-changes
+    if: ${{ contains(fromJSON('["workflow_dispatch", "workflow_call"]'), github.event_name) || needs.detect-changes.outputs.nix == 'true' }}
     runs-on: ubuntu-latest
     environment:
       name: prod
@@ -122,3 +142,23 @@ jobs:
     secrets: inherit
     with:
       matrix: ${{ needs.generate-matrix.outputs.packages }}
+
+  success:
+    name: Success
+    needs: [detect-changes, generate-matrix, build-hosts, build-packages]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify build results
+        env:
+          NEEDS_JSON: ${{ toJson(needs) }}
+        run: |
+          echo "CI job results:"
+          echo "$NEEDS_JSON" | jq -r 'to_entries[] | "  \(.key): \(.value.result)"'
+
+          failed=$(echo "$NEEDS_JSON" | jq -r '[to_entries[] | select(.value.result == "failure" or .value.result == "cancelled")] | length')
+          if [ "$failed" -gt 0 ]; then
+            echo "::error::One or more upstream jobs failed or were cancelled."
+            exit 1
+          fi
+          echo "All CI jobs passed or were intentionally skipped."
