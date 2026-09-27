@@ -608,12 +608,12 @@ button:focus {
   color: #8d98a6;
   font-size: 22px;
   font-weight: 800;
-  padding: 0 16px 12px 16px;
+  padding: 0 10px 12px 10px;
 }
 
 .cell,
 .package-button {
-  padding: 10px 16px;
+  padding: 10px;
 }
 
 .name-cell,
@@ -650,29 +650,6 @@ button:focus {
 
 .size-cell.decrease {
   color: #9fe3a8;
-}
-
-.status {
-  background: transparent;
-  font-size: 17px;
-  font-weight: 800;
-  padding: 6px 12px;
-}
-
-.status.added {
-  color: #9fe3a8;
-}
-.status.removed {
-  color: #ff9b9b;
-}
-.status.upgraded {
-  color: #9ec5ff;
-}
-.status.downgraded {
-  color: #ffd39e;
-}
-.status.changed {
-  color: #ead982;
 }
 
 .error {
@@ -776,9 +753,58 @@ button:focus {
   padding: 18px 20px;
 }
 
-.changelog-body {
+.markdown-heading {
+  color: #edf2f7;
+  font-weight: 800;
+  margin-top: 8px;
+}
+
+.markdown-heading-1 {
+  font-size: 22px;
+}
+
+.markdown-heading-2 {
+  font-size: 20px;
+}
+
+.markdown-heading-3 {
+  color: #d7e7ff;
+  font-size: 17px;
+}
+
+.markdown-text {
   color: #d5dbe2;
   font-size: 16px;
+}
+
+.markdown-list-item {
+  margin: 1px 0;
+}
+
+.markdown-bullet {
+  color: #9ec5ff;
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.markdown-quote {
+  border-left: 3px solid rgba(158, 197, 255, 0.42);
+  color: #b9c5d2;
+  padding-left: 12px;
+}
+
+.markdown-code {
+  background-color: rgba(0, 0, 0, 0.22);
+  border: 1px solid rgba(222, 226, 230, 0.12);
+  border-radius: 5px;
+  font-family: monospace;
+  font-size: 14px;
+  padding: 10px 12px;
+}
+
+.markdown-separator {
+  background-color: rgba(222, 226, 230, 0.14);
+  margin: 6px 0;
 }
 
 .changelog-error {

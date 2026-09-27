@@ -42,16 +42,6 @@ impl ChangeStatus {
         }
     }
 
-    pub(crate) const fn marker(self) -> &'static str {
-        match self {
-            Self::Added => "[A+]",
-            Self::Removed => "[R]",
-            Self::Upgraded => "[U.]",
-            Self::Downgraded => "[D]",
-            Self::Changed => "[C]",
-        }
-    }
-
     pub(crate) const fn is_paired(self) -> bool {
         matches!(self, Self::Upgraded | Self::Downgraded)
     }
@@ -77,27 +67,39 @@ pub(crate) struct Change {
     pub(crate) size: i64,
 }
 
+pub(crate) struct ReportMetadata {
+    pub(crate) target: Target,
+    pub(crate) flake: String,
+    pub(crate) flake_dir: PathBuf,
+    pub(crate) separate_home_manager: bool,
+    pub(crate) baseline: PathBuf,
+    pub(crate) output: PathBuf,
+    pub(crate) gc_root: Arc<GcRoot>,
+}
+
 #[derive(Clone)]
 pub(crate) struct Report {
     pub(crate) target: Target,
     pub(crate) flake: String,
     pub(crate) flake_dir: PathBuf,
     pub(crate) separate_home_manager: bool,
+    pub(crate) baseline: PathBuf,
     pub(crate) output: PathBuf,
     _gc_root: Arc<GcRoot>,
     pub(crate) changes: Vec<Change>,
     pub(crate) paths: Option<(i64, i64, i64, i64)>,
     pub(crate) sizes: Option<(i64, i64)>,
 }
-pub(crate) fn parse_report(
-    target: Target,
-    flake: String,
-    flake_dir: PathBuf,
-    separate_home_manager: bool,
-    output: PathBuf,
-    gc_root: Arc<GcRoot>,
-    json: &[u8],
-) -> Result<Report, String> {
+pub(crate) fn parse_report(metadata: ReportMetadata, json: &[u8]) -> Result<Report, String> {
+    let ReportMetadata {
+        target,
+        flake,
+        flake_dir,
+        separate_home_manager,
+        baseline,
+        output,
+        gc_root,
+    } = metadata;
     let report: DixReport = serde_json::from_slice(json)
         .map_err(|error| format!("dix returned invalid JSON: {error}"))?;
     let mut changes = Vec::new();
@@ -158,6 +160,7 @@ pub(crate) fn parse_report(
         flake,
         flake_dir,
         separate_home_manager,
+        baseline,
         output,
         _gc_root: gc_root,
         changes,

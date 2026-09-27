@@ -5,8 +5,8 @@
       jsonFormat = pkgs.formats.json { };
     in
     {
-      # Generate ~/.omp/agent/mcp.json connecting oh-my-pi to shared MCP servers
-      home.file.".omp/agent/mcp.json".source = jsonFormat.generate "omp-mcp.json" {
+      # Generate ~/.config/omp/agent/mcp.json connecting oh-my-pi to shared MCP servers
+      xdg.configFile."omp/agent/mcp.json".source = jsonFormat.generate "omp-mcp.json" {
         mcpServers = {
           konflate = {
             url = config.programs.mcp.servers.konflate.url;

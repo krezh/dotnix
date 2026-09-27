@@ -6,7 +6,7 @@ use std::time::{Duration, Instant};
 
 use serde_json::Value;
 
-use crate::command::{self, OutputLimits};
+use swix::command::{self, OutputLimits};
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub(crate) struct NixBuildProgress {
     pub(crate) evaluation_started: bool,

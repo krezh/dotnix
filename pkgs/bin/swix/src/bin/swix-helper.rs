@@ -2,10 +2,16 @@ use std::fs::{self, File, OpenOptions};
 use std::io::{self, Read, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
-use std::time::Instant;
+use std::sync::atomic::AtomicBool;
+use std::time::{Duration, Instant};
+
+use swix::command::{self, OutputLimits};
+use swix::protocol::OwnedActivationRequest;
 
 const MAX_REQUEST_BYTES: usize = 4096;
 const MAX_OUTPUT_BYTES: usize = 32 * 1024;
+const ACTIVATION_TIMEOUT: Duration = Duration::from_secs(30 * 60);
+const ROLLBACK_TIMEOUT: Duration = Duration::from_secs(5 * 60);
 const PROFILE: &str = "/nix/var/nix/profiles/system";
 const STORE: &str = "/nix/store";
 const ACTIVATION_LOCK: &str = "/run/swix-helper.lock";
@@ -68,32 +74,58 @@ fn handle_request() -> Result<(), String> {
 }
 
 fn activate_request(input: &[u8], paths: &ActivationPaths) -> Result<(), String> {
-    let requested = PathBuf::from(parse_request(input)?);
+    let request = parse_request(input)?;
+    let requested = request.output;
     let closure = fs::canonicalize(&requested)
         .map_err(|error| format!("invalid system closure {}: {error}", requested.display()))?;
     validate_closure(&closure, &paths.store)?;
-    eprintln!("swix-helper: closure={}", closure.display());
+    let baseline = request.baseline;
+    if !is_store_path(&baseline, &paths.store) {
+        return Err(format!(
+            "{} is not a top-level Nix store path",
+            baseline.display()
+        ));
+    }
+    eprintln!(
+        "swix-helper: baseline={} closure={}",
+        baseline.display(),
+        closure.display()
+    );
 
     let _lock = acquire_activation_lock(&paths.lock)?;
     let prior = fs::canonicalize(&paths.profile)
         .map_err(|error| format!("failed to resolve prior system profile target: {error}"))?;
+    if prior != baseline {
+        return Err(format!(
+            "active profile changed from {} to {}; rebuild before switching",
+            baseline.display(),
+            prior.display()
+        ));
+    }
     eprintln!("swix-helper: prior_profile_target={}", prior.display());
+    let deadline = Instant::now() + ACTIVATION_TIMEOUT;
 
     set_profile(
         &paths.nix_env,
         &paths.profile,
         &closure,
         "setting the requested system profile",
+        deadline.saturating_duration_since(Instant::now()),
     )?;
     let mut activation = Command::new(closure.join("bin/switch-to-configuration"));
     activation.arg("switch");
-    if let Err(activation_error) = run_command(&mut activation, "activation") {
+    if let Err(activation_error) = run_command(
+        &mut activation,
+        "activation",
+        deadline.saturating_duration_since(Instant::now()),
+    ) {
         eprintln!("swix-helper: activation outcome=failure error={activation_error}");
         return match set_profile(
             &paths.nix_env,
             &paths.profile,
             &prior,
             "restoring the prior system profile",
+            ROLLBACK_TIMEOUT,
         ) {
             Ok(()) => {
                 eprintln!(
@@ -122,25 +154,13 @@ fn activate_request(input: &[u8], paths: &ActivationPaths) -> Result<(), String>
     Ok(())
 }
 
-fn parse_request(input: &[u8]) -> Result<&str, String> {
+fn parse_request(input: &[u8]) -> Result<OwnedActivationRequest, String> {
     if input.len() > MAX_REQUEST_BYTES {
         return Err(format!(
             "switch request exceeds {MAX_REQUEST_BYTES}-byte limit"
         ));
     }
-
-    let request =
-        std::str::from_utf8(input).map_err(|_| "switch request is not valid UTF-8".to_owned())?;
-    let request = request.strip_suffix('\n').unwrap_or(request);
-    let request = request.strip_suffix('\r').unwrap_or(request);
-    if request.is_empty() {
-        return Err("switch request is empty".to_owned());
-    }
-    if request.contains(['\n', '\r']) {
-        return Err("switch request must contain exactly one path".to_owned());
-    }
-
-    Ok(request)
+    serde_json::from_slice(input).map_err(|error| format!("invalid switch request: {error}"))
 }
 
 fn validate_closure(closure: &Path, store: &Path) -> Result<(), String> {
@@ -193,33 +213,35 @@ fn acquire_activation_lock(path: &Path) -> Result<File, String> {
     Ok(lock)
 }
 
-fn set_profile(nix_env: &Path, profile: &Path, target: &Path, label: &str) -> Result<(), String> {
+fn set_profile(
+    nix_env: &Path,
+    profile: &Path,
+    target: &Path,
+    label: &str,
+    timeout: Duration,
+) -> Result<(), String> {
     let mut command = Command::new(nix_env);
     command.arg("-p").arg(profile).arg("--set").arg(target);
-    run_command(&mut command, label)
+    run_command(&mut command, label, timeout)
 }
 
-fn run_command(command: &mut Command, label: &str) -> Result<(), String> {
-    let output = command
-        .output()
-        .map_err(|error| format!("{label} could not start: {error}"))?;
+fn run_command(command: &mut Command, label: &str, timeout: Duration) -> Result<(), String> {
+    let cancellation = AtomicBool::new(false);
+    let output = command::run(
+        command,
+        label,
+        &cancellation,
+        timeout,
+        OutputLimits {
+            stdout: MAX_OUTPUT_BYTES,
+            stderr: MAX_OUTPUT_BYTES,
+        },
+        |_| {},
+        bounded_output,
+    )?;
     log_command_output(label, &output);
-
-    if output.status.success() {
-        eprintln!("swix-helper: operation={label:?} outcome=success");
-        return Ok(());
-    }
-
-    let detail = if !output.stderr.is_empty() {
-        bounded_output(&output.stderr)
-    } else {
-        bounded_output(&output.stdout)
-    };
-    if detail.is_empty() {
-        Err(format!("{label} failed with {}", output.status))
-    } else {
-        Err(format!("{label} failed with {}: {detail}", output.status))
-    }
+    eprintln!("swix-helper: operation={label:?} outcome=success");
+    Ok(())
 }
 
 fn log_command_output(label: &str, output: &Output) {
@@ -253,6 +275,7 @@ mod tests {
     use super::*;
     use std::os::unix::fs::{PermissionsExt, symlink};
     use std::sync::atomic::{AtomicU64, Ordering};
+    use swix::protocol::ActivationRequest;
 
     static FIXTURE_ID: AtomicU64 = AtomicU64::new(0);
 
@@ -311,7 +334,12 @@ mod tests {
         }
 
         fn activate(&self) -> Result<(), String> {
-            activate_request(self.requested.as_os_str().as_encoded_bytes(), &self.paths)
+            let request = serde_json::to_vec(&ActivationRequest {
+                baseline: &self.prior,
+                output: &self.requested,
+            })
+            .unwrap();
+            activate_request(&request, &self.paths)
         }
     }
 
@@ -329,44 +357,26 @@ mod tests {
     }
 
     #[test]
-    fn parses_path_with_or_without_line_ending() {
-        assert_eq!(
-            parse_request(b"/nix/store/abc-system").unwrap(),
-            "/nix/store/abc-system"
-        );
-        assert_eq!(
-            parse_request(b"/nix/store/abc-system\n").unwrap(),
-            "/nix/store/abc-system"
-        );
-        assert_eq!(
-            parse_request(b"/nix/store/abc-system\r\n").unwrap(),
-            "/nix/store/abc-system"
-        );
+    fn parses_activation_request() {
+        let request = parse_request(
+            br#"{"baseline":"/nix/store/old-system","output":"/nix/store/new-system"}"#,
+        )
+        .unwrap();
+        assert_eq!(request.baseline, Path::new("/nix/store/old-system"));
+        assert_eq!(request.output, Path::new("/nix/store/new-system"));
     }
 
     #[test]
-    fn rejects_empty_requests() {
+    fn rejects_invalid_requests() {
         assert!(parse_request(b"").is_err());
-        assert!(parse_request(b"\n").is_err());
-        assert!(parse_request(b"\r\n").is_err());
+        assert!(parse_request(br#"{"output":"/nix/store/new-system"}"#).is_err());
+        assert!(parse_request(br#"{"baseline":1,"output":2}"#).is_err());
     }
 
     #[test]
     fn rejects_oversized_requests() {
         let input = vec![b'a'; MAX_REQUEST_BYTES + 1];
         assert!(parse_request(&input).is_err());
-    }
-
-    #[test]
-    fn accepts_request_at_size_limit() {
-        let input = vec![b'a'; MAX_REQUEST_BYTES];
-        assert_eq!(parse_request(&input).unwrap().len(), MAX_REQUEST_BYTES);
-    }
-
-    #[test]
-    fn rejects_multiline_requests() {
-        assert!(parse_request(b"/nix/store/one\n/nix/store/two\n").is_err());
-        assert!(parse_request(b"/nix/store/one\r/nix/store/two").is_err());
     }
 
     #[test]
@@ -402,6 +412,22 @@ mod tests {
     }
 
     #[test]
+    fn changed_profile_is_rejected_before_activation() {
+        let fixture = ActivationFixture::new(true, true);
+        let replacement = fixture.paths.store.join("replacement-system");
+        fs::create_dir_all(&replacement).unwrap();
+        fs::remove_file(&fixture.paths.profile).unwrap();
+        symlink(&replacement, &fixture.paths.profile).unwrap();
+
+        let error = fixture.activate().unwrap_err();
+        assert!(error.contains("active profile changed"));
+        assert_eq!(
+            fs::canonicalize(&fixture.paths.profile).unwrap(),
+            replacement
+        );
+    }
+
+    #[test]
     fn failed_activation_restores_the_prior_profile() {
         let fixture = ActivationFixture::new(false, true);
         let error = fixture.activate().unwrap_err();
@@ -427,10 +453,28 @@ mod tests {
     #[test]
     fn activation_lock_rejects_concurrent_requests() {
         let fixture = ActivationFixture::new(true, true);
-        let first = acquire_activation_lock(&fixture.paths.lock).unwrap();
+        let _first = acquire_activation_lock(&fixture.paths.lock).unwrap();
         let error = acquire_activation_lock(&fixture.paths.lock).unwrap_err();
         assert!(error.contains("another activation is already running"));
-        drop(first);
-        acquire_activation_lock(&fixture.paths.lock).unwrap();
+    }
+
+    #[test]
+    fn helper_rejects_excessive_command_output() {
+        let mut command = Command::new("sh");
+        command.args(["-c", "yes x | head -c 32769"]);
+        let error =
+            run_command(&mut command, "noisy fixture", Duration::from_secs(2)).unwrap_err();
+        assert!(error.contains("stdout exceeded"));
+    }
+
+    #[test]
+    fn helper_times_out_commands_and_descendants() {
+        let mut command = Command::new("sh");
+        command.args(["-c", "sleep 2 & wait"]);
+        let started = Instant::now();
+        let error =
+            run_command(&mut command, "slow fixture", Duration::from_millis(100)).unwrap_err();
+        assert!(error.contains("timed out"));
+        assert!(started.elapsed() < Duration::from_secs(1));
     }
 }

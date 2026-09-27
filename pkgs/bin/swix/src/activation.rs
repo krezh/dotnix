@@ -1,12 +1,13 @@
-use std::io::{Read, Write};
+use std::io::Read;
 use std::os::unix::net::UnixStream;
 use std::process::Command;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
 
-use crate::build::Target;
+use crate::build::{Target, active_profile};
 use crate::nix::run;
 use crate::report::Report;
+use swix::protocol::ActivationRequest;
 const SOCKET_PATH: &str = "/run/swix.sock";
 const ACTIVATE_TIMEOUT: Duration = Duration::from_secs(30 * 60);
 const MAX_SERVICE_RESPONSE_BYTES: usize = 64 * 1024;
@@ -14,6 +15,7 @@ const MAX_SERVICE_RESPONSE_BYTES: usize = 64 * 1024;
 pub(crate) fn activate(report: &Report, cancellation: &AtomicBool) -> Result<(), String> {
     match report.target {
         Target::HomeManager => {
+            ensure_profile_unchanged(report)?;
             run(
                 &mut Command::new(report.output.join("activate")),
                 "Home Manager activation",
@@ -37,8 +39,14 @@ pub(crate) fn activate(report: &Report, cancellation: &AtomicBool) -> Result<(),
             socket
                 .set_write_timeout(Some(Duration::from_secs(10)))
                 .map_err(|error| format!("failed to set the service write timeout: {error}"))?;
-            writeln!(socket, "{}", report.output.display())
-                .map_err(|error| format!("failed to send switch request: {error}"))?;
+            serde_json::to_writer(
+                &mut socket,
+                &ActivationRequest {
+                    baseline: &report.baseline,
+                    output: &report.output,
+                },
+            )
+            .map_err(|error| format!("failed to send switch request: {error}"))?;
             socket
                 .shutdown(std::net::Shutdown::Write)
                 .map_err(|error| format!("failed to finish switch request: {error}"))?;
@@ -80,6 +88,19 @@ pub(crate) fn activate(report: &Report, cancellation: &AtomicBool) -> Result<(),
         }
     }
     Ok(())
+}
+
+fn ensure_profile_unchanged(report: &Report) -> Result<(), String> {
+    let current = active_profile(report.target)?;
+    if current == report.baseline {
+        Ok(())
+    } else {
+        Err(format!(
+            "active profile changed from {} to {}; rebuild before switching",
+            report.baseline.display(),
+            current.display()
+        ))
+    }
 }
 
 pub(crate) fn parse_service_response(response: &[u8]) -> Result<(), String> {

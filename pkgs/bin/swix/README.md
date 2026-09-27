@@ -89,14 +89,21 @@ than the final dependency-propagation summary. The read-only error panel is
 selectable and scrollable and preserves the `nix log` command for the full build
 log.
 A reviewed output remains protected from garbage collection until its report is
-replaced or Swix exits.
+replaced or Swix exits. Swix also records the active profile used to produce the
+report. If that profile changes before activation, switching is rejected and the
+report must be rebuilt. The NixOS helper performs this check while holding the
+activation lock; Home Manager is checked immediately before its activation
+script starts.
 
 NixOS activation accepts only one request at a time; concurrent requests fail
-with a retryable error instead of waiting in a queue. If
-`switch-to-configuration` fails, the helper restores the previous persistent
-system profile and reports the failure. Runtime state may still have been
-changed partially by the failed activation; inspect the journal and reboot or
-switch to a known generation if necessary.
+with a retryable error instead of waiting in a queue. The helper bounds captured
+command output, gives profile update and activation a shared 30-minute deadline,
+and terminates their complete process groups on timeout. If
+`switch-to-configuration` fails, the helper gives profile rollback a separate
+five-minute deadline, restores the previous persistent system profile, and
+reports the failure. Runtime state may still have been changed partially by the
+failed activation; inspect the journal and reboot or switch to a known
+generation if necessary.
 
 Activation cannot be cancelled or left through Swix navigation after it starts.
 The window remains open until the helper or Home Manager activation reports

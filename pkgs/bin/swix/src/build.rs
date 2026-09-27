@@ -8,7 +8,7 @@ use std::time::Duration;
 
 use crate::config::Config;
 use crate::nix::{NixBuildProgress, run, run_nix_command};
-use crate::report::{Report, parse_report};
+use crate::report::{Report, ReportMetadata, parse_report};
 const BUILD_TIMEOUT: Duration = Duration::from_secs(2 * 60 * 60);
 const EVALUATION_TIMEOUT: Duration = Duration::from_secs(30 * 60);
 const DIFF_TIMEOUT: Duration = Duration::from_secs(5 * 60);
@@ -137,10 +137,7 @@ pub(crate) fn build_report(
             .next()
             .ok_or("nix build returned no output path")?,
     );
-    let old = match target {
-        Target::NixOs => PathBuf::from("/run/current-system"),
-        Target::HomeManager => home_manager_profile()?,
-    };
+    let old = active_profile(target)?;
     progress(BuildUpdate::Phase(
         BuildPhase::Compare,
         "Comparing the active and reviewed closures...",
@@ -148,7 +145,7 @@ pub(crate) fn build_report(
     let diff = run(
         Command::new("dix")
             .arg("--output=json")
-            .arg(old)
+            .arg(&old)
             .arg(&output),
         "dix",
         cancellation,
@@ -163,12 +160,15 @@ pub(crate) fn build_report(
         Target::NixOs => config.nixos_flake.clone(),
     };
     parse_report(
-        target,
-        flake,
-        config.flake_dir.clone(),
-        config.home_flake.is_some(),
-        output,
-        gc_root,
+        ReportMetadata {
+            target,
+            flake,
+            flake_dir: config.flake_dir.clone(),
+            separate_home_manager: config.home_flake.is_some(),
+            baseline: old,
+            output,
+            gc_root,
+        },
         &diff.stdout,
     )
 }
@@ -192,11 +192,18 @@ fn create_gc_root(target: Target, generation: u64) -> Result<Arc<GcRoot>, String
     }))
 }
 
-fn home_manager_profile() -> Result<PathBuf, String> {
-    let home = env::var_os("HOME").ok_or("HOME is unset")?;
-    let state = env::var_os("XDG_STATE_HOME")
-        .map(PathBuf::from)
-        .unwrap_or_else(|| PathBuf::from(home).join(".local/state"));
-    fs::canonicalize(state.join("nix/profiles/home-manager"))
-        .map_err(|error| format!("could not resolve the active Home Manager profile: {error}"))
+pub(crate) fn active_profile(target: Target) -> Result<PathBuf, String> {
+    match target {
+        Target::NixOs => fs::canonicalize("/run/current-system")
+            .map_err(|error| format!("could not resolve the active NixOS profile: {error}")),
+        Target::HomeManager => {
+            let home = env::var_os("HOME").ok_or("HOME is unset")?;
+            let state = env::var_os("XDG_STATE_HOME")
+                .map(PathBuf::from)
+                .unwrap_or_else(|| PathBuf::from(home).join(".local/state"));
+            fs::canonicalize(state.join("nix/profiles/home-manager")).map_err(|error| {
+                format!("could not resolve the active Home Manager profile: {error}")
+            })
+        }
+    }
 }

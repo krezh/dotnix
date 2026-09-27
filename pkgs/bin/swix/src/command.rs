@@ -54,32 +54,39 @@ pub fn run(
     let stderr_reader = thread::spawn(move || read_stderr(stderr, line_sender, stderr_limit));
 
     let started = Instant::now();
+    let mut status = None;
     let status = loop {
         while let Ok(line) = line_receiver.try_recv() {
             stderr_line(&line);
         }
         if cancellation.load(Ordering::Relaxed) {
-            terminate(&mut child);
-            join_discard(stdout_reader, stderr_reader);
+            terminate_and_discard(&mut child, stdout_reader, stderr_reader);
             return Err(CANCELLED.to_owned());
         }
         if started.elapsed() >= timeout {
-            terminate(&mut child);
-            join_discard(stdout_reader, stderr_reader);
+            terminate_and_discard(&mut child, stdout_reader, stderr_reader);
             return Err(format!(
                 "{name} timed out after {} seconds",
                 timeout.as_secs()
             ));
         }
-        match child.try_wait() {
-            Ok(Some(status)) => break status,
-            Ok(None) => thread::sleep(Duration::from_millis(50)),
-            Err(error) => {
-                terminate(&mut child);
-                join_discard(stdout_reader, stderr_reader);
-                return Err(format!("failed while waiting for {name}: {error}"));
+        if status.is_none() {
+            match child.try_wait() {
+                Ok(Some(exit_status)) => status = Some(exit_status),
+                Ok(None) => {}
+                Err(error) => {
+                    terminate_and_discard(&mut child, stdout_reader, stderr_reader);
+                    return Err(format!("failed while waiting for {name}: {error}"));
+                }
             }
         }
+        if let Some(exit_status) = status
+            && stdout_reader.is_finished()
+            && stderr_reader.is_finished()
+        {
+            break exit_status;
+        }
+        thread::sleep(Duration::from_millis(50));
     };
 
     let stdout = stdout_reader
@@ -103,7 +110,12 @@ pub fn run(
         stderr,
     };
     if !output.status.success() {
-        Err(format!("{name} failed:\n{}", error_detail(&output.stderr)))
+        let detail = if output.stderr.is_empty() {
+            &output.stdout
+        } else {
+            &output.stderr
+        };
+        Err(format!("{name} failed:\n{}", error_detail(detail)))
     } else if exceeded {
         Err(format!(
             "{name} stdout exceeded the {}-byte limit",
@@ -194,36 +206,38 @@ fn terminate(child: &mut Child) {
 
     signal_group(process_group, SIGTERM);
     let deadline = Instant::now() + TERMINATION_GRACE;
-    let mut reaped = false;
     while Instant::now() < deadline {
-        match child.try_wait() {
-            Ok(Some(_)) => {
-                reaped = true;
-                break;
-            }
-            Ok(None) => thread::sleep(Duration::from_millis(20)),
-            Err(_) => break,
+        let _ = child.try_wait();
+        if !signal_group(process_group, 0) {
+            break;
         }
+        thread::sleep(Duration::from_millis(20));
     }
     signal_group(process_group, SIGKILL);
-    if !reaped {
-        let _ = child.wait();
-    }
+    let _ = child.wait();
 }
 
-fn signal_group(process_group: i32, signal: i32) {
+fn signal_group(process_group: i32, signal: i32) -> bool {
     // Negative PIDs address the process group created by `process_group(0)`.
-    unsafe {
-        kill(-process_group, signal);
-    }
+    unsafe { kill(-process_group, signal) == 0 }
 }
 
-fn join_discard(
+fn terminate_and_discard(
+    child: &mut Child,
     stdout: thread::JoinHandle<std::io::Result<BoundedOutput>>,
     stderr: thread::JoinHandle<std::io::Result<Vec<u8>>>,
 ) {
-    let _ = stdout.join();
-    let _ = stderr.join();
+    terminate(child);
+    let deadline = Instant::now() + Duration::from_millis(100);
+    while (!stdout.is_finished() || !stderr.is_finished()) && Instant::now() < deadline {
+        thread::sleep(Duration::from_millis(10));
+    }
+    if stdout.is_finished() {
+        let _ = stdout.join();
+    }
+    if stderr.is_finished() {
+        let _ = stderr.join();
+    }
 }
 
 #[cfg(test)]
@@ -304,5 +318,26 @@ mod tests {
         )
         .unwrap_err();
         assert!(error.contains("stdout exceeded the 4-byte limit"));
+    }
+
+    #[test]
+    fn timeout_applies_after_the_leader_exits() {
+        let cancellation = AtomicBool::new(false);
+        let started = Instant::now();
+        let error = run(
+            Command::new("sh").args(["-c", "sleep 2 &"]),
+            "fixture",
+            &cancellation,
+            Duration::from_millis(100),
+            OutputLimits {
+                stdout: 1024,
+                stderr: 1024,
+            },
+            |_| {},
+            |_| String::new(),
+        )
+        .unwrap_err();
+        assert!(error.contains("timed out"));
+        assert!(started.elapsed() < Duration::from_secs(1));
     }
 }

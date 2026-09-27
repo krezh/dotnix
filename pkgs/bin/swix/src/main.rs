@@ -1,7 +1,6 @@
 mod activation;
 mod build;
 mod changelog;
-mod command;
 mod config;
 mod nix;
 mod report;
@@ -18,8 +17,6 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 use build::{BuildEvent, BuildPhase, BuildUpdate, Target, build_report};
-#[cfg(test)]
-use changelog::markdown_to_text;
 use changelog::{ChangelogOutput, parse_changelog};
 use config::{Appearance, Config, load_config, set_host_override};
 use gtk::gdk;
@@ -27,10 +24,13 @@ use gtk::gio;
 use gtk::glib;
 use gtk::prelude::*;
 use gtk4_layer_shell::{Edge, KeyboardMode, Layer, LayerShell};
+use swix::command;
 use nix::{NixBuildProgress, run};
 use report::{Change, ChangeStatus, Report};
 use ui::build_progress::ActivityRows;
 use ui::changelog::render as render_changelog;
+#[cfg(test)]
+use ui::changelog::{MarkdownBlock, MarkdownBlockKind, markdown_blocks};
 use ui::switch::{
     SwitchConfirmation, SwitchView, connect_switch, current_hostname,
     requires_host_switch_confirmation, switch_animation,
@@ -45,7 +45,7 @@ use config::parse_config;
 #[cfg(test)]
 use nix::{NixProgressTracker, nix_error_message, strip_ansi};
 #[cfg(test)]
-use report::{compact_dix_version, compact_versions, parse_report};
+use report::{ReportMetadata, compact_dix_version, compact_versions, parse_report};
 #[cfg(test)]
 use std::{env, path::PathBuf};
 #[cfg(test)]
@@ -360,7 +360,7 @@ fn load_css() {
         .replace('\\', "\\\\")
         .replace('"', "\\\"");
     let css = format!(
-        "{CSS}\nwindow.update-popup, window.update-popup.background {{ border-radius: {}px; }}\n.updates-root {{ font-family: \"{sans_font}\", sans-serif; }}\n.keycap, .flake-tag, .metric-branch, .metric-value, .version-cell, .size-cell, .status, .switch-error, .build-error, .evaluation-activity {{ font-family: \"{mono_font}\", monospace; }}",
+        "{CSS}\nwindow.update-popup, window.update-popup.background {{ border-radius: {}px; }}\n.updates-root {{ font-family: \"{sans_font}\", sans-serif; }}\n.keycap, .flake-tag, .metric-branch, .metric-value, .version-cell, .size-cell, .switch-error, .build-error, .evaluation-activity {{ font-family: \"{mono_font}\", monospace; }}",
         appearance.rounding,
     );
     #[allow(deprecated)]
@@ -1672,7 +1672,7 @@ fn show_report(
         let scroller = gtk::ScrolledWindow::new();
         scroller.add_css_class("updates-list");
         scroller.set_vexpand(true);
-        scroller.set_policy(gtk::PolicyType::Automatic, gtk::PolicyType::Automatic);
+        scroller.set_policy(gtk::PolicyType::Never, gtk::PolicyType::Automatic);
         let adjustment = scroller.vadjustment();
         let scroll_animation = Rc::new(Cell::new(0));
         for status in ChangeStatus::ALL {
@@ -1804,13 +1804,13 @@ fn change_section(
     grid.set_row_spacing(4);
     let paired = status.is_paired();
     let headers: &[&str] = if paired {
-        &["Category", "Name", "Old Version", "New Version", "Size"]
+        &["Name", "Old Version", "New Version", "Size"]
     } else {
-        &["Category", "Name", "Version", "Size"]
+        &["Name", "Version", "Size"]
     };
     for (column, heading) in headers.iter().enumerate() {
         let heading = label(heading, &["header-cell"], 0.0);
-        heading.set_ellipsize(gtk::pango::EllipsizeMode::None);
+        heading.set_max_width_chars(if column == 0 { 32 } else { 16 });
         grid.attach(&heading, column as i32, 0, 1, 1);
     }
     for (index, change) in changes.iter().enumerate() {
@@ -1828,18 +1828,22 @@ fn attach_change(
     row: i32,
 ) {
     let class = change.status.class();
-    let marker = label(change.status.marker(), &["status", class], 0.5);
-    marker.set_ellipsize(gtk::pango::EllipsizeMode::None);
-    grid.attach(&marker, 0, row, 1, 1);
     if !has_changelog_versions(change) {
         let name = label(&change.name, &["cell", "name-cell"], 0.0);
         name.set_hexpand(true);
-        grid.attach(&name, 1, row, 1, 1);
+        name.set_max_width_chars(32);
+        name.set_tooltip_text(Some(&change.name));
+        grid.attach(&name, 0, row, 1, 1);
     } else {
-        let name = gtk::Button::with_label(&change.name);
+        let name = gtk::Button::new();
         name.add_css_class("package-button");
         name.set_hexpand(true);
         name.set_halign(gtk::Align::Fill);
+        name.set_tooltip_text(Some(&change.name));
+        let name_text = label(&change.name, &["name-cell"], 0.0);
+        name_text.set_hexpand(true);
+        name_text.set_max_width_chars(32);
+        name.set_child(Some(&name_text));
         let navigation = navigation.clone();
         let changelog_change = change.clone();
         name.connect_clicked(move |_| {
@@ -1853,7 +1857,7 @@ fn attach_change(
                 );
             }
         });
-        grid.attach(&name, 1, row, 1, 1);
+        grid.attach(&name, 0, row, 1, 1);
     }
     if paired {
         grid.attach(
@@ -1862,7 +1866,7 @@ fn attach_change(
                 &["cell", "version-cell", "old-version-cell"],
                 true,
             ),
-            2,
+            1,
             row,
             1,
             1,
@@ -1873,12 +1877,12 @@ fn attach_change(
                 &["cell", "version-cell", "new-version-cell"],
                 true,
             ),
-            3,
+            2,
             row,
             1,
             1,
         );
-        grid.attach(&change_size_label(change, class), 4, row, 1, 1);
+        grid.attach(&change_size_label(change, class), 3, row, 1, 1);
     } else {
         let version = if change.new.is_empty() {
             &change.old
@@ -1887,12 +1891,12 @@ fn attach_change(
         };
         grid.attach(
             &version_label(version, &["cell", "version-cell"], false),
-            2,
+            1,
             row,
             1,
             1,
         );
-        grid.attach(&change_size_label(change, class), 3, row, 1, 1);
+        grid.attach(&change_size_label(change, class), 2, row, 1, 1);
     }
 }
 
@@ -1900,7 +1904,7 @@ fn version_label(text: &str, classes: &[&str], paired: bool) -> gtk::Label {
     let value = label(text, classes, 0.0);
     value.set_ellipsize(gtk::pango::EllipsizeMode::End);
     value.set_single_line_mode(true);
-    value.set_max_width_chars(if paired { 20 } else { 30 });
+    value.set_max_width_chars(if paired { 16 } else { 24 });
     value.set_hexpand(true);
     value.set_tooltip_text(Some(text));
     value
@@ -1917,7 +1921,7 @@ fn change_size_label(change: &Change, class: &str) -> gtk::Label {
         &["cell", "size-cell", class, direction],
         1.0,
     );
-    value.set_ellipsize(gtk::pango::EllipsizeMode::None);
+    value.set_max_width_chars(12);
     value
 }
 
@@ -2131,12 +2135,15 @@ mod tests {
 
     fn parse_test_report(json: &[u8]) -> Result<Report, String> {
         parse_report(
-            Target::NixOs,
-            "host".to_owned(),
-            PathBuf::from("/flake"),
-            false,
-            PathBuf::from("/nix/store/new-system"),
-            test_gc_root(),
+            ReportMetadata {
+                target: Target::NixOs,
+                flake: "host".to_owned(),
+                flake_dir: PathBuf::from("/flake"),
+                separate_home_manager: false,
+                baseline: PathBuf::from("/nix/store/old-system"),
+                output: PathBuf::from("/nix/store/new-system"),
+                gc_root: test_gc_root(),
+            },
             json,
         )
     }
@@ -2171,12 +2178,33 @@ mod tests {
     }
 
     #[test]
-    fn simplifies_release_markdown() {
+    fn parses_release_markdown_into_readable_blocks() {
         assert_eq!(
-            markdown_to_text(
-                "### Fixes\n\n- Handle **empty** `--auth`\n\n[Details](https://example.test)\n\n---"
+            markdown_blocks(
+                "## @oh-my-pi/pi-agent-core\n\n### Fixed\n\n- Handle **empty** `--auth`\n\n[Details](https://example.test)\n\n---"
             ),
-            "Fixes\n• Handle empty --auth\nDetails (https://example.test)\n────────"
+            vec![
+                MarkdownBlock {
+                    kind: MarkdownBlockKind::Heading(2),
+                    markup: "@oh-my-pi/pi-agent-core".to_owned(),
+                },
+                MarkdownBlock {
+                    kind: MarkdownBlockKind::Heading(3),
+                    markup: "Fixed".to_owned(),
+                },
+                MarkdownBlock {
+                    kind: MarkdownBlockKind::Item(1),
+                    markup: "Handle <b>empty</b> <tt>--auth</tt>".to_owned(),
+                },
+                MarkdownBlock {
+                    kind: MarkdownBlockKind::Paragraph,
+                    markup: "<a href=\"https://example.test\">Details</a>".to_owned(),
+                },
+                MarkdownBlock {
+                    kind: MarkdownBlockKind::Rule,
+                    markup: String::new(),
+                },
+            ]
         );
     }
 

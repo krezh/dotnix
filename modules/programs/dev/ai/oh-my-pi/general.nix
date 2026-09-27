@@ -8,6 +8,7 @@
         pkgs.writeShellScriptBin "omp" ''
           set -euo pipefail
           export PATH="${pkgs.nodejs}/bin:${pkgs.bun}/bin:${pkgs.infisical}/bin:$PATH"
+          export PI_CONFIG_DIR=".config/omp"
           ${builtins.readFile ../lib/memini-env.sh}
           exec ${lib.getExe llm-agents-nix.omp} "$@"
         ''
@@ -30,6 +31,59 @@
           Do this proactively, without being asked, whenever a task needs something outside your built-in tools (infra/homelab integrations, etc.).
         - Always use jj if a .jj directory exists in the project root
       '';
+
+      yamlFormat = pkgs.formats.yaml { };
+      ompConfig = {
+        modelRoles = {
+          default = "openai-codex/gpt-5.6-sol:medium";
+        };
+        symbolPreset = "nerd";
+        composer = {
+          shape = "claude";
+        };
+        theme = {
+          dark = "titanium";
+          light = "light";
+        };
+        setupVersion = 2;
+        statusLine = {
+          preset = "custom";
+          transparent = true;
+          separator = "powerline-thin";
+          leftSegments = [
+            "pi"
+            "vim"
+            "model"
+            "usage"
+            "mode"
+            "collab"
+            "stream"
+            "path"
+            "git"
+            "pr"
+            "context_pct"
+            "cost"
+          ];
+          rightSegments = [
+            "session_name"
+          ];
+        };
+        terminal = {
+          showProgress = true;
+        };
+        images = {
+          blockImages = true;
+        };
+        retry = {
+          waitForUsageReset = true;
+        };
+        github = {
+          enabled = true;
+        };
+        dev = {
+          autoqaConsent = "denied";
+        };
+      };
     in
     {
       home.packages = [
@@ -39,8 +93,9 @@
         '')
       ];
 
-      home.file = {
-        ".omp/agent/AGENTS.md".text = commonContext;
+      xdg.configFile = {
+        "omp/agent/AGENTS.md".text = commonContext;
+        "omp/agent/config.yaml".source = yamlFormat.generate "omp-config.yaml" ompConfig;
       };
     };
 }

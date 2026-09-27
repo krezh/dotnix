@@ -9,7 +9,5 @@
     in
     {
       programs.claude-code.skills = sharedSkills;
-      programs.codex.skills = sharedSkills;
-      programs.antigravity-cli.skills = sharedSkills;
     };
 }
