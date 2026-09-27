@@ -78,7 +78,7 @@
       matchManagers: ["custom.regex"],
       matchFileNames: ["flake.nix"],
       postUpgradeTasks: {
-        commands: ["nix flake lock --update-input {{{depName}}}"],
+        commands: ["nix flake lock {{{depName}}}"],
         fileFilters: ["flake.lock"],
         executionMode: "update",
       },
