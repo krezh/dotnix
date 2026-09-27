@@ -23,7 +23,6 @@
       ],
       datasourceTemplate: "github-tags",
       versioningTemplate: "semver",
-      extractVersionTemplate: "^v?(?<version>.*)$",
     },
   ],
   nix: {
@@ -78,7 +77,7 @@
       matchManagers: ["custom.regex"],
       matchFileNames: ["flake.nix"],
       postUpgradeTasks: {
-        commands: ["nix flake lock {{{depName}}}"],
+        commands: ["nix flake update {{{depName}}}"],
         fileFilters: ["flake.lock"],
         executionMode: "update",
       },
