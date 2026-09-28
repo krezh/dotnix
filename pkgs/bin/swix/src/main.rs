@@ -4,6 +4,7 @@ mod changelog;
 mod config;
 mod nix;
 mod report;
+pub(crate) mod theme;
 mod ui;
 
 use std::cell::{Cell, RefCell};
@@ -71,7 +72,6 @@ enum Operation {
     Switching,
 }
 
-#[derive(Default)]
 struct UiState {
     chooser_buttons: RefCell<Vec<gtk::Button>>,
     scroll: RefCell<Option<gtk::Adjustment>>,
@@ -82,6 +82,24 @@ struct UiState {
     cancellation: RefCell<Option<Arc<AtomicBool>>>,
     view_cancellation: RefCell<Option<Arc<AtomicBool>>>,
     changelog_cache: RefCell<HashMap<String, ChangelogOutput>>,
+    appearance: Appearance,
+}
+
+impl Default for UiState {
+    fn default() -> Self {
+        Self {
+            chooser_buttons: RefCell::new(Vec::new()),
+            scroll: RefCell::new(None),
+            switch_confirmation: RefCell::new(None),
+            back_button: RefCell::new(None),
+            operation: Cell::new(Operation::Idle),
+            generation: Cell::new(0),
+            cancellation: RefCell::new(None),
+            view_cancellation: RefCell::new(None),
+            changelog_cache: RefCell::new(HashMap::new()),
+            appearance: Appearance::default(),
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -102,12 +120,14 @@ enum KeyAction {
 
 impl UiState {
     fn clear_actions(&self) {
-        if let Some(cancellation) = self.view_cancellation.borrow().as_ref() {
+        let cancellation = self.view_cancellation.borrow().clone();
+        if let Some(cancellation) = cancellation {
             cancellation.store(true, Ordering::Relaxed);
         }
         self.chooser_buttons.borrow_mut().clear();
         self.scroll.replace(None);
-        if let Some(confirmation) = self.switch_confirmation.borrow_mut().take() {
+        let confirmation = self.switch_confirmation.borrow_mut().take();
+        if let Some(confirmation) = confirmation {
             confirmation.reset();
         }
         self.back_button.replace(None);
@@ -139,13 +159,15 @@ impl UiState {
         if self.operation.get() == Operation::Switching {
             return false;
         }
-        if let Some(cancellation) = self.cancellation.borrow().as_ref() {
+        let cancellation = self.cancellation.borrow().clone();
+        if let Some(cancellation) = cancellation {
             cancellation.store(true, Ordering::Relaxed);
         }
         self.generation.set(self.generation.get().wrapping_add(1));
         self.operation.set(Operation::Idle);
         self.cancellation.replace(None);
-        if let Some(cancellation) = self.view_cancellation.borrow().as_ref() {
+        let cancellation = self.view_cancellation.borrow().clone();
+        if let Some(cancellation) = cancellation {
             cancellation.store(true, Ordering::Relaxed);
         }
         self.view_cancellation.replace(None);
@@ -153,18 +175,21 @@ impl UiState {
     }
 
     fn focus_chooser(&self, delta: isize) -> bool {
-        let buttons = self.chooser_buttons.borrow();
-        if buttons.is_empty() {
-            return false;
-        }
-        let current = buttons
-            .iter()
-            .position(|button| button.has_focus())
-            .unwrap_or(0);
-        let next = current
-            .saturating_add_signed(delta)
-            .min(buttons.len().saturating_sub(1));
-        buttons[next].grab_focus();
+        let button = {
+            let buttons = self.chooser_buttons.borrow();
+            if buttons.is_empty() {
+                return false;
+            }
+            let current = buttons
+                .iter()
+                .position(|button| button.has_focus())
+                .unwrap_or(0);
+            let next = current
+                .saturating_add_signed(delta)
+                .min(buttons.len().saturating_sub(1));
+            buttons[next].clone()
+        };
+        button.grab_focus();
         true
     }
 
@@ -273,7 +298,7 @@ fn main() -> glib::ExitCode {
                 if app.windows().is_empty() {
                     app.activate();
                     0.into()
-                } else if let Some(controller) = command_controller.borrow().as_ref() {
+                } else if let Some(controller) = command_controller.borrow().clone() {
                     match controller.start_nixos() {
                         Ok(()) => 0.into(),
                         Err(error) => {
@@ -348,6 +373,7 @@ fn load_css() {
         |config| Appearance {
             sans_font: config.sans_font,
             mono_font: config.mono_font,
+            symbol_font: config.symbol_font,
             rounding: config.rounding,
         },
     );
@@ -359,8 +385,12 @@ fn load_css() {
         .mono_font
         .replace('\\', "\\\\")
         .replace('"', "\\\"");
+    let symbol_font = appearance
+        .symbol_font
+        .replace('\\', "\\\\")
+        .replace('"', "\\\"");
     let css = format!(
-        "{CSS}\nwindow.update-popup, window.update-popup.background {{ border-radius: {}px; }}\n.updates-root {{ font-family: \"{sans_font}\", sans-serif; }}\n.keycap, .flake-tag, .metric-branch, .metric-value, .version-cell, .size-cell, .switch-error, .build-error, .evaluation-activity {{ font-family: \"{mono_font}\", monospace; }}",
+        "{CSS}\nwindow.update-popup, window.update-popup.background, .updates-root {{ border-radius: {}px; }}\n.updates-root {{ font-family: \"{sans_font}\", sans-serif; }}\n.keycap, .flake-tag, .metric-branch, .metric-value, .version-cell, .size-cell, .switch-error, .build-error, .evaluation-activity {{ font-family: \"{mono_font}\", monospace; }}\n.symbol-icon, .nerd-icon {{ font-family: \"{symbol_font}\", \"{mono_font}\", monospace; }}",
         appearance.rounding,
     );
     #[allow(deprecated)]
@@ -431,7 +461,19 @@ fn build_ui(app: &gtk::Application) -> UiController {
     root.add_css_class("updates-root");
     window.set_child(Some(&root));
 
-    let state = Rc::new(UiState::default());
+    let appearance = load_config().map_or_else(
+        |_| Appearance::default(),
+        |config| Appearance {
+            sans_font: config.sans_font,
+            mono_font: config.mono_font,
+            symbol_font: config.symbol_font,
+            rounding: config.rounding,
+        },
+    );
+    let state = Rc::new(UiState {
+        appearance,
+        ..UiState::default()
+    });
     let config = load_config();
     match config {
         Ok(config) if config.home_flake.is_none() => {
@@ -455,7 +497,8 @@ fn build_ui(app: &gtk::Application) -> UiController {
                 }
             }
             KeyAction::Back => {
-                if let Some(button) = key_state.back_button.borrow().clone() {
+                let button = key_state.back_button.borrow().clone();
+                if let Some(button) = button {
                     button.emit_clicked();
                 } else if !key_state.focus_chooser(-1) {
                     show_chooser(&key_window, &key_root, Rc::clone(&key_state), load_config());
@@ -492,8 +535,9 @@ fn build_ui(app: &gtk::Application) -> UiController {
                 }
             }
             KeyAction::Switch => {
+                let confirmation = key_state.switch_confirmation.borrow().clone();
                 if key_state.operation.get() == Operation::Idle
-                    && let Some(confirmation) = key_state.switch_confirmation.borrow().clone()
+                    && let Some(confirmation) = confirmation
                 {
                     confirmation.key_press();
                 }
@@ -511,16 +555,18 @@ fn build_ui(app: &gtk::Application) -> UiController {
     });
     let release_state = Rc::clone(&state);
     keys.connect_key_released(move |_, key, _, modifiers| {
+        let confirmation = release_state.switch_confirmation.borrow().clone();
         if key_action(key, modifiers) == Some(KeyAction::Switch)
-            && let Some(confirmation) = release_state.switch_confirmation.borrow().clone()
+            && let Some(confirmation) = confirmation
         {
             confirmation.key_release();
         }
     });
     let active_state = Rc::clone(&state);
     window.connect_is_active_notify(move |window| {
+        let confirmation = active_state.switch_confirmation.borrow().clone();
         if !window.is_active()
-            && let Some(confirmation) = active_state.switch_confirmation.borrow().clone()
+            && let Some(confirmation) = confirmation
         {
             confirmation.reset();
         }
@@ -604,7 +650,7 @@ fn build_summary() -> BuildSummary {
     root.append(&heading);
     let map = gtk::DrawingArea::new();
     map.add_css_class("build-plan-map");
-    map.set_content_height(48);
+    map.set_content_height(28);
     map.set_hexpand(true);
     let map_states = Rc::new(RefCell::new(Vec::<GraphNodeState>::new()));
     let draw_states = Rc::clone(&map_states);
@@ -617,7 +663,7 @@ fn build_summary() -> BuildSummary {
     let (building_group, building) = summary_metric("system-run-symbolic", "building");
     let (downloading_group, downloading) =
         summary_metric("folder-download-symbolic", "downloading");
-    let (complete_group, complete) = summary_metric("emblem-ok-symbolic", "complete");
+    let (complete_group, complete) = summary_metric("object-select-symbolic", "complete");
     let (planned_group, planned) = summary_metric("media-playback-pause-symbolic", "planned");
     let (failed_group, failed) = summary_metric("dialog-warning-symbolic", "failed");
     failed_group.set_visible(false);
@@ -641,11 +687,12 @@ fn build_summary() -> BuildSummary {
     }
 }
 fn summary_metric(icon: &str, class: &str) -> (gtk::Box, gtk::Label) {
-    let group = gtk::Box::new(gtk::Orientation::Horizontal, 6);
+    let group = gtk::Box::new(gtk::Orientation::Horizontal, 8);
     group.add_css_class("build-summary-metric");
     group.add_css_class(class);
+    group.set_width_request(128);
     let icon = gtk::Image::from_icon_name(icon);
-    icon.set_pixel_size(15);
+    icon.set_pixel_size(16);
     group.append(&icon);
     let value = label("0", &["build-summary-value"], 0.0);
     group.append(&value);
@@ -664,10 +711,10 @@ struct BuildTimeline {
 }
 
 impl BuildTimeline {
-    fn new() -> Self {
+    fn new(font: &str) -> Self {
         let root = gtk::Box::new(gtk::Orientation::Vertical, 4);
         root.add_css_class("build-timeline");
-        root.set_width_request(420);
+        root.set_width_request(440);
         root.set_halign(gtk::Align::Center);
         root.set_valign(gtk::Align::Center);
         root.set_vexpand(false);
@@ -678,125 +725,217 @@ impl BuildTimeline {
         let indicator = gtk::DrawingArea::new();
         indicator.add_css_class("build-phase-indicator");
         indicator.set_hexpand(true);
-        indicator.set_content_width(420);
-        indicator.set_content_height(22);
+        indicator.set_content_width(440);
+        indicator.set_content_height(34);
         let draw_position = Rc::clone(&current);
         let draw_target = Rc::clone(&target);
         let draw_complete = Rc::clone(&complete);
         let draw_pulse = Rc::clone(&pulse);
+        let draw_font = font.to_owned();
         indicator.set_draw_func(move |_, context, width, _| {
             let width = f64::from(width);
-            let segment = width / 3.0;
-            let first_x = segment / 2.0;
-            let last_x = width - first_x;
-            let center_y = 11.0;
+            let w_cap = 116.0_f64;
+            let h_cap = 30.0_f64;
+            let y_cap = 2.0_f64;
+            let center_y = 17.0_f64;
+            let w_conn = 46.0_f64;
+            let total_caps_width = 3.0 * w_cap + 2.0 * w_conn;
+            let offset_x = (width - total_caps_width) / 2.0;
             let position = draw_position.get().clamp(0.0, 2.0);
             let active = draw_target.get().round().clamp(0.0, 2.0) as usize;
             let is_complete = draw_complete.get();
+            let phase = draw_pulse.get();
 
-            context.set_line_cap(gtk::cairo::LineCap::Round);
-            context.set_line_width(2.0);
-            context.set_source_rgba(0.55, 0.60, 0.65, 0.24);
-            context.move_to(first_x, center_y);
-            context.line_to(last_x, center_y);
-            let _ = context.stroke();
+            let cap_names = ["Evaluate", "Build", "Compare"];
 
-            if position > 0.0 {
-                let progress_x = first_x + (last_x - first_x) * position / 2.0;
-                context.set_line_width(3.0);
-                context.set_source_rgba(0.62, 0.89, 0.66, 0.88);
-                context.move_to(first_x, center_y);
-                context.line_to(progress_x, center_y);
+            // 1. Draw inter-phase connecting rails
+            for i in 0..2 {
+                let conn_start = offset_x + (i as f64 + 1.0) * w_cap + i as f64 * w_conn;
+                let conn_end = conn_start + w_conn;
+
+                // Base rail track
+                context.set_line_cap(gtk::cairo::LineCap::Round);
+                context.set_line_width(2.5);
+                theme::set_source_rgba(context, theme::SURFACE1, 0.35);
+                context.move_to(conn_start, center_y);
+                context.line_to(conn_end, center_y);
                 let _ = context.stroke();
-            }
 
-            if !is_complete && active < 2 {
-                let phase = draw_pulse.get();
-                let from_x = (active as f64 + 0.5) * segment + 12.0;
-                let to_x = (active as f64 + 1.5) * segment - 12.0;
-                let shimmer_x = from_x + (to_x - from_x) * phase;
-                let opacity = (phase * std::f64::consts::PI).sin() * 0.62;
-                context.set_line_width(3.0);
-                context.set_source_rgba(0.39, 0.67, 1.0, opacity);
-                context.move_to(shimmer_x - 7.0, center_y);
-                context.line_to(shimmer_x + 7.0, center_y);
-                let _ = context.stroke();
-            }
-
-            for index in 0..3 {
-                let center_x = (index as f64 + 0.5) * segment;
-                if is_complete || index < active {
-                    context.arc(center_x, center_y, 6.0, 0.0, std::f64::consts::TAU);
-                    context.set_source_rgb(0.62, 0.89, 0.66);
-                    let _ = context.fill();
-
-                    context.set_line_width(1.6);
-                    context.set_source_rgb(0.08, 0.12, 0.10);
-                    context.move_to(center_x - 2.7, center_y);
-                    context.line_to(center_x - 0.7, center_y + 2.1);
-                    context.line_to(center_x + 3.2, center_y - 2.6);
+                // Progress fill through connector
+                let conn_progress = (position - i as f64).clamp(0.0, 1.0);
+                if conn_progress > 0.0 {
+                    let fill_end = conn_start + w_conn * conn_progress;
+                    context.set_line_width(3.0);
+                    theme::set_source_rgba(context, theme::GREEN, 0.90);
+                    context.move_to(conn_start, center_y);
+                    context.line_to(fill_end, center_y);
                     let _ = context.stroke();
-                } else if index == active {
-                    let phase = draw_pulse.get();
-                    for offset in [0.0, 0.5] {
-                        let ripple = (phase + offset).fract();
-                        context.arc(
-                            center_x,
-                            center_y,
-                            7.5 + ripple * 4.0,
-                            0.0,
-                            std::f64::consts::TAU,
-                        );
-                        context.set_line_width(1.2);
-                        context.set_source_rgba(0.39, 0.67, 1.0, (1.0 - ripple) * 0.28);
+                }
+
+                // Subtle pulse through active connector during transition
+                if !is_complete && active == i + 1 && position < (i + 1) as f64 {
+                    let transition_t = (position - i as f64).clamp(0.0, 1.0);
+                    let pulse_x = conn_start + w_conn * transition_t;
+                    context.arc(pulse_x, center_y, 3.0, 0.0, std::f64::consts::TAU);
+                    theme::set_source_rgba(context, theme::SAPPHIRE, 0.90);
+                    let _ = context.fill();
+                }
+            }
+
+            // 2. Draw three horizontal phase capsules
+            for (i, name) in cap_names.iter().enumerate() {
+                let cap_x = offset_x + i as f64 * (w_cap + w_conn);
+                let is_capsule_complete =
+                    is_complete || (i < active && position >= i as f64 + 0.85);
+                let is_capsule_active = !is_complete && (i == active);
+
+                // Select font and calculate text extents
+                let font_name = draw_font.clone();
+                context.select_font_face(
+                    &font_name,
+                    gtk::cairo::FontSlant::Normal,
+                    gtk::cairo::FontWeight::Bold,
+                );
+                context.set_font_size(13.0);
+                let Ok(ext) = context.text_extents(name) else {
+                    continue;
+                };
+
+                if is_capsule_complete {
+                    // Completed: subtle green background tint + green border + checkmark
+                    theme::set_source_rgba(context, theme::GREEN, 0.12);
+                    theme::rounded_rectangle(context, cap_x, y_cap, w_cap, h_cap, 15.0);
+                    let _ = context.fill_preserve();
+
+                    context.set_line_width(1.5);
+                    theme::set_source_rgba(context, theme::GREEN, 0.80);
+                    let _ = context.stroke();
+
+                    // Checkmark indicator at left
+                    let chk_x = cap_x + 18.0;
+                    context.set_line_width(2.0);
+                    context.set_line_cap(gtk::cairo::LineCap::Round);
+                    context.set_line_join(gtk::cairo::LineJoin::Round);
+                    theme::set_source_rgb(context, theme::GREEN);
+                    context.move_to(chk_x - 3.2, center_y);
+                    context.line_to(chk_x - 0.8, center_y + 2.5);
+                    context.line_to(chk_x + 3.6, center_y - 2.8);
+                    let _ = context.stroke();
+
+                    // Centered text in remaining width
+                    let tx = cap_x + 22.0 + (w_cap - 22.0 - ext.width()) / 2.0 - ext.x_bearing();
+                    let ty = y_cap + (h_cap - ext.height()) / 2.0 - ext.y_bearing();
+                    theme::set_source_rgb(context, theme::GREEN);
+                    context.move_to(tx, ty);
+                    let _ = context.show_text(name);
+                } else if is_capsule_active {
+                    // Active: ENTIRE PILL IS ANIMATED with circulating border beam & interior spotlight
+                    let r = 15.0_f64;
+                    theme::set_source_rgba(context, theme::BASE, 0.85);
+                    theme::rounded_rectangle(context, cap_x, y_cap, w_cap, h_cap, r);
+                    let _ = context.fill_preserve();
+
+                    // Base outline
+                    context.set_line_width(1.2);
+                    theme::set_source_rgba(context, theme::SURFACE1, 0.35);
+                    let _ = context.stroke();
+
+                    // 1. Interior ambient spotlight following the beam around the pill
+                    let (head_x, head_y) =
+                        theme::capsule_point(cap_x, y_cap, w_cap, h_cap, r, phase);
+                    let _ = context.save();
+                    theme::rounded_rectangle(
+                        context,
+                        cap_x + 1.0,
+                        y_cap + 1.0,
+                        w_cap - 2.0,
+                        h_cap - 2.0,
+                        r - 1.0,
+                    );
+                    context.clip();
+
+                    let gradient =
+                        gtk::cairo::RadialGradient::new(head_x, head_y, 0.0, head_x, head_y, 55.0);
+                    let (sr, sg, sb) = theme::SAPPHIRE;
+                    let (lr, lg, lb) = theme::LAVENDER;
+                    gradient.add_color_stop_rgba(0.0, lr, lg, lb, 0.32);
+                    gradient.add_color_stop_rgba(0.40, sr, sg, sb, 0.16);
+                    gradient.add_color_stop_rgba(1.0, sr, sg, sb, 0.0);
+                    let _ = context.set_source(&gradient);
+                    let _ = context.paint();
+                    let _ = context.restore();
+
+                    // 2. Circulating luminous border beam orbiting the entire capsule perimeter
+                    let beam_len = 0.35_f64;
+                    let steps = 64;
+                    context.set_line_cap(gtk::cairo::LineCap::Butt);
+                    for s in 0..steps {
+                        let u0 = phase - beam_len * (s as f64 / steps as f64);
+                        let u1 = phase - beam_len * ((s as f64 + 1.25) / steps as f64);
+                        let p0 = theme::capsule_point(cap_x, y_cap, w_cap, h_cap, r, u0);
+                        let p1 = theme::capsule_point(cap_x, y_cap, w_cap, h_cap, r, u1);
+
+                        let frac = 1.0 - (s as f64 / steps as f64);
+                        let alpha = frac * frac * 0.95;
+                        let width = 1.4 + 1.8 * frac;
+
+                        context.set_line_width(width);
+                        theme::set_source_rgba(context, theme::SAPPHIRE, alpha);
+                        context.move_to(p0.0, p0.1);
+                        context.line_to(p1.0, p1.1);
                         let _ = context.stroke();
                     }
 
-                    let angle = phase * std::f64::consts::TAU - std::f64::consts::FRAC_PI_2;
-                    context.arc(
-                        center_x,
-                        center_y,
-                        9.0,
-                        angle,
-                        angle + std::f64::consts::PI * 0.72,
-                    );
-                    context.set_line_width(1.8);
-                    context.set_source_rgba(0.68, 0.84, 1.0, 0.9);
+                    // Soft rounded tip at the tail end
+                    let tail_u = phase - beam_len;
+                    let (tail_x, tail_y) =
+                        theme::capsule_point(cap_x, y_cap, w_cap, h_cap, r, tail_u);
+                    context.arc(tail_x, tail_y, 0.7, 0.0, std::f64::consts::TAU);
+                    theme::set_source_rgba(context, theme::SAPPHIRE, 0.12);
+                    let _ = context.fill();
+
+                    // Subtle soft flare at head
+                    context.arc(head_x, head_y, 2.0, 0.0, std::f64::consts::TAU);
+                    theme::set_source_rgba(context, theme::SKY, 0.70);
+                    let _ = context.fill();
+                    context.arc(head_x, head_y, 0.9, 0.0, std::f64::consts::TAU);
+                    theme::set_source_rgba(context, theme::TEXT, 0.80);
+                    let _ = context.fill();
+
+                    // 3. Crisp centered label text
+                    let tx = cap_x + (w_cap - ext.width()) / 2.0 - ext.x_bearing();
+                    let ty = y_cap + (h_cap - ext.height()) / 2.0 - ext.y_bearing();
+                    theme::set_source_rgba(context, theme::CRUST, 0.85);
+                    context.move_to(tx + 1.0, ty + 1.0);
+                    let _ = context.show_text(name);
+                    theme::set_source_rgb(context, theme::TEXT);
+                    context.move_to(tx, ty);
+                    let _ = context.show_text(name);
+                } else {
+                    // Pending: Dim capsule with muted centered label
+                    theme::set_source_rgba(context, theme::MANTLE, 0.40);
+                    theme::rounded_rectangle(context, cap_x, y_cap, w_cap, h_cap, 15.0);
+                    let _ = context.fill_preserve();
+
+                    context.set_line_width(1.0);
+                    theme::set_source_rgba(context, theme::SURFACE1, 0.35);
                     let _ = context.stroke();
 
-                    context.arc(center_x, center_y, 7.0, 0.0, std::f64::consts::TAU);
-                    context.set_source_rgba(0.39, 0.67, 1.0, 0.16);
-                    let _ = context.fill();
-                    context.arc(center_x, center_y, 5.5, 0.0, std::f64::consts::TAU);
-                    context.set_source_rgb(0.39, 0.67, 1.0);
-                    let _ = context.fill();
-                    context.arc(center_x, center_y, 2.0, 0.0, std::f64::consts::TAU);
-                    context.set_source_rgb(0.90, 0.95, 1.0);
-                    let _ = context.fill();
-                } else {
-                    context.arc(center_x, center_y, 5.0, 0.0, std::f64::consts::TAU);
-                    context.set_source_rgb(0.10, 0.12, 0.17);
-                    let _ = context.fill_preserve();
-                    context.set_line_width(1.5);
-                    context.set_source_rgba(0.64, 0.69, 0.75, 0.68);
-                    let _ = context.stroke();
+                    let tx = cap_x + (w_cap - ext.width()) / 2.0 - ext.x_bearing();
+                    let ty = y_cap + (h_cap - ext.height()) / 2.0 - ext.y_bearing();
+                    theme::set_source_rgb(context, theme::OVERLAY0);
+                    context.move_to(tx, ty);
+                    let _ = context.show_text(name);
                 }
             }
         });
         root.append(&indicator);
 
-        let labels = gtk::Box::new(gtk::Orientation::Horizontal, 0);
-        labels.set_homogeneous(true);
-        labels.set_hexpand(true);
         let mut steps = Vec::new();
         for text in ["Evaluate", "Build", "Compare"] {
             let step = label(text, &["build-phase"], 0.5);
-            step.set_hexpand(true);
-            labels.append(&step);
             steps.push(step);
         }
-        root.append(&labels);
-
         let timeline = Self {
             root,
             steps,
@@ -1044,24 +1183,21 @@ fn draw_build_plan(
     let width = f64::from(width);
     let height = f64::from(height);
     let grid = build_plan_grid(width, height, states.len());
-
     for (index, state) in states.iter().enumerate() {
         let row = index / grid.columns;
         let column = index % grid.columns;
-        let (red, green, blue, alpha) = match state {
-            GraphNodeState::Planned => (0.62, 0.77, 1.0, 0.32),
-            GraphNodeState::Building => (0.92, 0.85, 0.51, 0.95),
-            GraphNodeState::Downloading => (0.47, 0.77, 0.83, 0.95),
-            GraphNodeState::Complete => (0.62, 0.89, 0.66, 0.82),
-            GraphNodeState::Failed => (1.0, 0.61, 0.61, 0.95),
+        let (color, alpha) = match state {
+            GraphNodeState::Planned => (theme::LAVENDER, 0.28),
+            GraphNodeState::Building => (theme::YELLOW, 0.90),
+            GraphNodeState::Downloading => (theme::SAPPHIRE, 0.90),
+            GraphNodeState::Complete => (theme::GREEN, 0.85),
+            GraphNodeState::Failed => (theme::RED, 0.95),
         };
-        context.set_source_rgba(red, green, blue, alpha);
-        context.rectangle(
-            column as f64 * (grid.cell_width + grid.horizontal_gap),
-            row as f64 * (grid.cell_height + grid.vertical_gap),
-            grid.cell_width,
-            grid.cell_height,
-        );
+        theme::set_source_rgba(context, color, alpha);
+        let x = column as f64 * (grid.cell_width + grid.horizontal_gap);
+        let y = row as f64 * (grid.cell_height + grid.vertical_gap);
+        let radius = (grid.cell_width.min(grid.cell_height) * 0.35).min(2.0);
+        theme::rounded_rectangle(context, x, y, grid.cell_width, grid.cell_height, radius);
         let _ = context.fill();
     }
 }
@@ -1243,7 +1379,7 @@ fn show_chooser(
         return;
     }
     state.clear_actions();
-    fit_window(window, (720, 260), (360, 220));
+    fit_window(window, (520, 220), (380, 180));
     clear(root);
     root.add_css_class("chooser-root");
     let Ok(config) = config else {
@@ -1254,26 +1390,70 @@ fn show_chooser(
         return;
     };
 
-    let chooser = gtk::Box::new(gtk::Orientation::Vertical, 0);
+    let chooser = gtk::Box::new(gtk::Orientation::Vertical, 8);
     chooser.add_css_class("chooser");
     chooser.set_vexpand(true);
-    let content = gtk::Box::new(gtk::Orientation::Vertical, 24);
-    content.add_css_class("chooser-content");
-    content.set_vexpand(true);
-    content.set_valign(gtk::Align::Center);
-    content.append(&label("Swix", &["title", "chooser-title"], 0.5));
-    let actions = gtk::Box::new(gtk::Orientation::Horizontal, 16);
-    actions.add_css_class("chooser-buttons");
-    actions.set_halign(gtk::Align::Center);
-    let mut targets = vec![("NixOS", Target::NixOs)];
+
+    let header_bar = gtk::Box::new(gtk::Orientation::Horizontal, 8);
+    header_bar.add_css_class("chooser-header");
+    let prompt_icon = gtk::Image::from_icon_name("emblem-system-symbolic");
+    prompt_icon.add_css_class("chooser-prompt-icon");
+    prompt_icon.set_pixel_size(16);
+    prompt_icon.set_valign(gtk::Align::Center);
+    header_bar.append(&prompt_icon);
+    let prompt_label = label("Switch Configuration", &["chooser-prompt-label"], 0.0);
+    prompt_label.set_hexpand(true);
+    header_bar.append(&prompt_label);
+    chooser.append(&header_bar);
+
+    let separator = gtk::Separator::new(gtk::Orientation::Horizontal);
+    separator.add_css_class("chooser-divider");
+    chooser.append(&separator);
+
+    let actions = gtk::Box::new(gtk::Orientation::Vertical, 4);
+    actions.add_css_class("chooser-list");
+    let mut targets = vec![("NixOS", Target::NixOs, "drive-harddisk-symbolic", "N")];
     if config.home_flake.is_some() {
-        targets.insert(0, ("Home Manager", Target::HomeManager));
+        targets.insert(
+            0,
+            (
+                "Home Manager",
+                Target::HomeManager,
+                "user-home-symbolic",
+                "M",
+            ),
+        );
     }
-    let mut first_button = None;
-    for (label, target) in targets {
-        let button = gtk::Button::with_label(label);
+    let mut first_button: Option<gtk::Button> = None;
+    for (name, target, icon_name, key_str) in targets {
+        let button = gtk::Button::new();
         button.add_css_class("chooser-button");
+        button.add_css_class("chooser-row");
         first_button.get_or_insert_with(|| button.clone());
+
+        let row = gtk::Box::new(gtk::Orientation::Horizontal, 12);
+        row.set_valign(gtk::Align::Center);
+
+        let icon = gtk::Image::from_icon_name(icon_name);
+        icon.add_css_class("chooser-row-icon");
+        icon.set_pixel_size(18);
+        row.append(&icon);
+
+        let title = label(name, &["chooser-row-title"], 0.0);
+        row.append(&title);
+
+        let detail_text = match target {
+            Target::HomeManager => config.home_flake.as_deref().unwrap_or("User environment"),
+            Target::NixOs => &config.nixos_flake,
+        };
+        let detail = label(&format!("#{detail_text}"), &["chooser-row-detail"], 0.0);
+        detail.set_hexpand(true);
+        row.append(&detail);
+
+        let keycap = label(key_str, &["keycap", "chooser-row-key"], 0.5);
+        row.append(&keycap);
+
+        button.set_child(Some(&row));
         let window = window.clone();
         let root = root.clone();
         let callback_state = Rc::clone(&state);
@@ -1290,14 +1470,11 @@ fn show_chooser(
         actions.append(&button);
         state.chooser_buttons.borrow_mut().push(button);
     }
-    content.append(&actions);
-    chooser.append(&content);
-    let mut hints = vec![("N", "NixOS")];
-    if config.home_flake.is_some() {
-        hints.insert(0, ("M", "Home Manager"));
-    }
-    hints.push(("Esc", "Close"));
-    chooser.append(&key_hints(&hints));
+    chooser.append(&actions);
+    let hints = [("Esc", "Close")];
+    let hints_widget = key_hints(&hints);
+    hints_widget.set_margin_top(10);
+    chooser.append(&hints_widget);
     root.append(&chooser);
     if let Some(button) = first_button {
         button.grab_focus();
@@ -1315,7 +1492,7 @@ fn start_build(
         return;
     };
     state.clear_actions();
-    fit_window(window, (1040, 900), (360, 480));
+    fit_window(window, (880, 560), (720, 480));
     clear(root);
     root.remove_css_class("chooser-root");
     let flake = match target {
@@ -1330,7 +1507,7 @@ fn start_build(
     title_slot.set_hexpand(true);
     title_slot.append(&title("Swix"));
     header_row.append(&title_slot);
-    let timeline = BuildTimeline::new();
+    let timeline = BuildTimeline::new(&state.appearance.sans_font);
     timeline.start_pulse();
     header_row.append(&timeline.root);
     let action_slot = gtk::Box::new(gtk::Orientation::Horizontal, 0);
@@ -1377,9 +1554,10 @@ fn start_build(
         ),
     };
     let evaluation_activity = label(&evaluation_target, &["evaluation-activity"], 0.0);
-    evaluation_activity.set_ellipsize(gtk::pango::EllipsizeMode::None);
-    evaluation_activity.set_wrap(true);
-    evaluation_activity.set_wrap_mode(gtk::pango::WrapMode::WordChar);
+    evaluation_activity.set_ellipsize(gtk::pango::EllipsizeMode::Middle);
+    evaluation_activity.set_wrap(false);
+    evaluation_activity.set_lines(1);
+    evaluation_activity.set_height_request(24);
     activity_content.append(&evaluation_activity);
     let fetch_heading = label("Flake inputs", &["graph-heading"], 0.0);
     fetch_heading.set_visible(false);
@@ -1399,6 +1577,7 @@ fn start_build(
     activity_scroll.add_css_class("build-scroll");
     activity_scroll.set_vexpand(true);
     activity_scroll.set_propagate_natural_height(false);
+    activity_scroll.set_min_content_height(260);
     activity_scroll.set_policy(gtk::PolicyType::Automatic, gtk::PolicyType::Automatic);
     activity_scroll.set_child(Some(&activity_content));
     state.scroll.replace(Some(activity_scroll.vadjustment()));
@@ -1522,9 +1701,9 @@ fn show_report(
 ) {
     state.clear_actions();
     if report.changes.is_empty() {
-        fit_window(window, (900, 360), (360, 320));
+        fit_window(window, (640, 260), (360, 200));
     } else {
-        fit_window(window, (1040, 900), (360, 480));
+        fit_window(window, (880, 720), (360, 420));
     }
     clear(root);
     root.remove_css_class("chooser-root");
@@ -1536,16 +1715,17 @@ fn show_report(
     title_slot.set_hexpand(true);
     title_slot.append(&title("Swix"));
     header_row.append(&title_slot);
-    let timeline = BuildTimeline::new();
+    let timeline = BuildTimeline::new(&state.appearance.sans_font);
     timeline.set_complete();
     header_row.append(&timeline.root);
 
-    let actions = gtk::Box::new(gtk::Orientation::Horizontal, 8);
-    actions.add_css_class("report-actions");
-    actions.set_halign(gtk::Align::End);
-    actions.set_valign(gtk::Align::Center);
-    actions.set_width_request(170);
-    actions.set_hexpand(true);
+    let right_slot = gtk::Box::new(gtk::Orientation::Horizontal, 0);
+    right_slot.set_width_request(170);
+    right_slot.set_hexpand(true);
+    header_row.append(&right_slot);
+    header.append(&header_row);
+    header.append(&report_subtitle(&report));
+    root.append(&header);
     let requires_confirmation = requires_host_switch_confirmation(
         report.target,
         &report.flake,
@@ -1563,76 +1743,27 @@ fn show_report(
     }
     let switch_label = label("Switch", &["switch-button-label"], 0.5);
     switch.set_child(Some(&switch_label));
-    let switch_error = label("", &["error", "switch-error"], 0.0);
-    switch_error.set_ellipsize(gtk::pango::EllipsizeMode::None);
-    switch_error.set_selectable(true);
-    switch_error.set_wrap(true);
-    switch_error.set_visible(false);
-    let switch_success = gtk::Box::new(gtk::Orientation::Horizontal, 14);
-    switch_success.add_css_class("switch-success");
-    switch_success.set_visible(false);
-    let success_icon = gtk::Image::from_icon_name("emblem-ok-symbolic");
-    success_icon.add_css_class("switch-success-icon");
-    success_icon.set_pixel_size(28);
-    switch_success.append(&success_icon);
-    let success_copy = gtk::Box::new(gtk::Orientation::Vertical, 2);
-    success_copy.append(&label(
-        "Configuration activated",
-        &["switch-success-title"],
-        0.0,
-    ));
     let target = match report.target {
         Target::HomeManager => "Home Manager",
         Target::NixOs => "NixOS",
     };
-    success_copy.append(&label(
-        &format!("{target} #{} is now active", report.flake),
-        &["switch-success-detail"],
-        0.0,
-    ));
-    switch_success.append(&success_copy);
-    let switch_activity = switch_animation(target, &report.flake);
+    let switch_activity = switch_animation(target, &report.flake, &state.appearance.sans_font);
+    let summary = gtk::Box::new(gtk::Orientation::Vertical, 0);
+    summary.add_css_class("summary");
     let switch_confirmation = connect_switch(
         &SwitchView {
             button: switch.clone(),
             label: switch_label.clone(),
             activity: switch_activity.clone(),
-            success: switch_success.clone(),
-            error: switch_error.clone(),
+            summary: summary.clone(),
         },
         report.clone(),
         Rc::clone(&state),
         requires_confirmation,
     );
     state.switch_confirmation.replace(Some(switch_confirmation));
-    actions.append(&switch);
-    let back = gtk::Button::new();
-    back.add_css_class("header-icon-button");
-    back.set_tooltip_text(Some("Back"));
-    back.set_child(Some(&gtk::Image::from_icon_name("go-previous-symbolic")));
-    let back_window = window.clone();
-    let back_root = root.clone();
-    let back_state = Rc::clone(&state);
-    back.connect_clicked(move |_| {
-        show_chooser(
-            &back_window,
-            &back_root,
-            Rc::clone(&back_state),
-            load_config(),
-        );
-    });
-    state.back_button.replace(Some(back.clone()));
-    actions.append(&back);
-    header_row.append(&actions);
-    header.append(&header_row);
-    header.append(&report_subtitle(&report));
-    root.append(&header);
     root.append(&switch_activity.root);
-    root.append(&switch_success);
-    root.append(&switch_error);
 
-    let summary = gtk::Box::new(gtk::Orientation::Vertical, 0);
-    summary.add_css_class("summary");
     let counts = gtk::Box::new(gtk::Orientation::Horizontal, 16);
     let mut section_jumps = HashMap::new();
     for status in ChangeStatus::ALL {
@@ -1652,7 +1783,9 @@ fn show_report(
         }
     }
     if report.changes.is_empty() {
-        summary.append(&label("No changes", &["no-changes"], 0.0));
+        summary.set_vexpand(true);
+        summary.set_valign(gtk::Align::Center);
+        summary.append(&label("No changes to apply", &["no-changes"], 0.5));
     } else {
         summary.append(&counts);
     }
@@ -1720,7 +1853,46 @@ fn show_report(
         ("← / H", "Back"),
         ("Esc", "Close"),
     ]);
-    root.append(&key_hints(&hints));
+    let footer = gtk::Box::new(gtk::Orientation::Horizontal, 16);
+    footer.add_css_class("report-footer");
+    footer.set_valign(gtk::Align::End);
+
+    let back = gtk::Button::new();
+    back.add_css_class("report-back-button");
+    back.set_tooltip_text(Some("Back to target chooser (H or ←)"));
+    let back_box = gtk::Box::new(gtk::Orientation::Horizontal, 6);
+    back_box.set_valign(gtk::Align::Center);
+    let back_icon = gtk::Image::from_icon_name("go-previous-symbolic");
+    back_icon.set_pixel_size(14);
+    back_box.append(&back_icon);
+    let back_label = label("Back", &["report-back-label"], 0.0);
+    back_box.append(&back_label);
+    back.set_child(Some(&back_box));
+    back.set_valign(gtk::Align::Center);
+    let back_window = window.clone();
+    let back_root = root.clone();
+    let back_state = Rc::clone(&state);
+    back.connect_clicked(move |_| {
+        show_chooser(
+            &back_window,
+            &back_root,
+            Rc::clone(&back_state),
+            load_config(),
+        );
+    });
+    state.back_button.replace(Some(back.clone()));
+    footer.append(&back);
+
+    let hints_widget = key_hints(&hints);
+    hints_widget.set_hexpand(true);
+    hints_widget.set_halign(gtk::Align::Center);
+    hints_widget.set_valign(gtk::Align::Center);
+    footer.append(&hints_widget);
+
+    switch.set_valign(gtk::Align::Center);
+    footer.append(&switch);
+
+    root.append(&footer);
 }
 
 fn report_subtitle(report: &Report) -> gtk::Box {
@@ -1730,7 +1902,7 @@ fn report_subtitle(report: &Report) -> gtk::Box {
 fn target_subtitle(target: Target, flake: &str) -> gtk::Box {
     let subtitle = gtk::Box::new(gtk::Orientation::Horizontal, 0);
     subtitle.add_css_class("report-subtitle");
-    subtitle.append(&label("└──", &["metric-branch", "subtitle-branch"], 0.0));
+    subtitle.append(&label("╰── ", &["metric-branch", "subtitle-branch"], 0.0));
     let target = match target {
         Target::HomeManager => "Home Manager ",
         Target::NixOs => "NixOS ",
@@ -1748,32 +1920,35 @@ fn target_subtitle(target: Target, flake: &str) -> gtk::Box {
 fn report_metrics(report: &Report) -> Option<gtk::Box> {
     let metrics = gtk::Box::new(gtk::Orientation::Horizontal, 0);
     metrics.add_css_class("metrics");
-    metrics.append(&label("└──", &["metric-branch"], 0.0));
+    metrics.append(&label("╰── ", &["metric-branch"], 0.0));
     let mut count = 0;
     if let Some((old, new, added, removed)) = report.paths {
-        metrics.append(&metric(
-            "PATHS:",
-            &format!("{old} -> {new} (+{added}, -{removed})"),
-            count,
-        ));
+        let text = if added == 0 && removed == 0 {
+            format!("{new}")
+        } else {
+            format!("{old} -> {new} (+{added}, -{removed})")
+        };
+        metrics.append(&metric("PATHS:", &text, count));
         count += 1;
     }
     if let Some((old, new)) = report.sizes {
-        metrics.append(&metric(
-            "SIZE:",
-            &format!("{} -> {}", size(old), size(new)),
-            count,
-        ));
-        count += 1;
         let difference = new - old;
-        let difference_metric = metric("DIFF:", &signed_size(difference), count);
-        difference_metric.add_css_class(match difference.cmp(&0) {
-            std::cmp::Ordering::Greater => "increase",
-            std::cmp::Ordering::Less => "decrease",
-            std::cmp::Ordering::Equal => "unchanged",
-        });
-        metrics.append(&difference_metric);
-        count += 1;
+        if difference == 0 {
+            metrics.append(&metric("SIZE:", &size(new), count));
+            count += 1;
+        } else {
+            let text = format!("{} -> {}", size(old), size(new));
+            metrics.append(&metric("SIZE:", &text, count));
+            count += 1;
+            let difference_metric = metric("DIFF:", &signed_size(difference), count);
+            difference_metric.add_css_class(match difference.cmp(&0) {
+                std::cmp::Ordering::Greater => "increase",
+                std::cmp::Ordering::Less => "decrease",
+                std::cmp::Ordering::Equal => "unchanged",
+            });
+            metrics.append(&difference_metric);
+            count += 1;
+        }
     }
     (count > 0).then_some(metrics)
 }
@@ -1797,7 +1972,9 @@ fn change_section(
     let class = status.class();
     let section = gtk::Box::new(gtk::Orientation::Vertical, 0);
     section.add_css_class("section");
-    section.append(&label(status.label(), &["section-title", class], 0.0));
+    let title = label(status.label(), &["section-title", class], 0.0);
+    title.set_halign(gtk::Align::Start);
+    section.append(&title);
     let grid = gtk::Grid::new();
     grid.add_css_class("changes-grid");
     grid.set_column_spacing(12);
@@ -1810,7 +1987,7 @@ fn change_section(
     };
     for (column, heading) in headers.iter().enumerate() {
         let heading = label(heading, &["header-cell"], 0.0);
-        heading.set_max_width_chars(if column == 0 { 32 } else { 16 });
+        heading.set_max_width_chars(if column == 0 { 44 } else { 28 });
         grid.attach(&heading, column as i32, 0, 1, 1);
     }
     for (index, change) in changes.iter().enumerate() {
@@ -1831,7 +2008,7 @@ fn attach_change(
     if !has_changelog_versions(change) {
         let name = label(&change.name, &["cell", "name-cell"], 0.0);
         name.set_hexpand(true);
-        name.set_max_width_chars(32);
+        name.set_max_width_chars(44);
         name.set_tooltip_text(Some(&change.name));
         grid.attach(&name, 0, row, 1, 1);
     } else {
@@ -1842,7 +2019,7 @@ fn attach_change(
         name.set_tooltip_text(Some(&change.name));
         let name_text = label(&change.name, &["name-cell"], 0.0);
         name_text.set_hexpand(true);
-        name_text.set_max_width_chars(32);
+        name_text.set_max_width_chars(44);
         name.set_child(Some(&name_text));
         let navigation = navigation.clone();
         let changelog_change = change.clone();
@@ -1904,7 +2081,7 @@ fn version_label(text: &str, classes: &[&str], paired: bool) -> gtk::Label {
     let value = label(text, classes, 0.0);
     value.set_ellipsize(gtk::pango::EllipsizeMode::End);
     value.set_single_line_mode(true);
-    value.set_max_width_chars(if paired { 16 } else { 24 });
+    value.set_max_width_chars(if paired { 28 } else { 36 });
     value.set_hexpand(true);
     value.set_tooltip_text(Some(text));
     value
@@ -2021,7 +2198,8 @@ fn show_changelog(
         format!("{}..{}", change.old, change.new)
     };
     let cache_key = format!("{}\0{name}\0{version_spec}", flake_dir.display());
-    if let Some(changelog) = state.changelog_cache.borrow().get(&cache_key).cloned() {
+    let changelog = state.changelog_cache.borrow().get(&cache_key).cloned();
+    if let Some(changelog) = changelog {
         render_changelog(&content, &changelog);
         return;
     }
@@ -2263,6 +2441,37 @@ mod tests {
         state.operation.set(Operation::Switching);
         assert!(!state.cancel());
         assert_eq!(state.operation.get(), Operation::Switching);
+    }
+
+    #[test]
+    fn clear_actions_cancels_view_and_clears_state() {
+        let state = UiState::default();
+        let cancellation = Arc::new(AtomicBool::new(false));
+        state.view_cancellation.replace(Some(Arc::clone(&cancellation)));
+        state.clear_actions();
+        assert!(cancellation.load(Ordering::Relaxed));
+        assert!(state.view_cancellation.borrow().is_none());
+        assert!(state.back_button.borrow().is_none());
+    }
+
+    #[test]
+    fn back_button_action_can_clear_actions_without_double_borrow() {
+        if gtk::init().is_err() {
+            return;
+        }
+        let state = Rc::new(UiState::default());
+        let button = gtk::Button::new();
+        let action_state = Rc::clone(&state);
+        button.connect_clicked(move |_| {
+            action_state.clear_actions();
+        });
+        state.back_button.replace(Some(button));
+
+        let button = state.back_button.borrow().clone();
+        if let Some(button) = button {
+            button.emit_clicked();
+        }
+        assert!(state.back_button.borrow().is_none());
     }
 
     #[test]
@@ -2568,6 +2777,7 @@ mod tests {
         )
         .unwrap();
         assert_eq!(config.sans_font, "Font \"Quoted\"");
+        assert_eq!(config.symbol_font, "Symbols Nerd Font");
         assert_eq!(config.rounding, 12);
         assert!(
             parse_config(

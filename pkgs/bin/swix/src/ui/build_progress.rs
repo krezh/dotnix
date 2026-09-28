@@ -21,6 +21,7 @@ impl ActivityRow {
         root.add_css_class("graph-node");
         root.add_css_class("build-activity-row");
         root.add_css_class(class);
+        root.set_size_request(-1, 38);
         let state_widget = state_widget(class);
         state_widget.set_valign(gtk::Align::Start);
         root.append(&state_widget);
@@ -128,14 +129,20 @@ impl ActivityRows {
                 ));
             }
         }
+        let mut prev: Option<gtk::Widget> = None;
         for (path, status) in activity {
-            if let Some(row) = self.rows.get(path) {
+            let row_widget = if let Some(row) = self.rows.get(path) {
                 row.update(status);
+                row.root.clone()
             } else {
                 let row = ActivityRow::new(&activity_name(path), status);
-                container.append(&row.root);
+                let widget = row.root.clone();
+                container.append(&widget);
                 self.rows.insert(path.clone(), row);
-            }
+                widget
+            };
+            container.reorder_child_after(&row_widget, prev.as_ref());
+            prev = Some(row_widget.upcast());
         }
     }
 }
@@ -150,7 +157,7 @@ fn state_widget(class: &str) -> gtk::Widget {
         spinner.upcast()
     } else {
         let icon = match class {
-            "complete" => "emblem-ok-symbolic",
+            "complete" => "object-select-symbolic",
             "failed" => "dialog-warning-symbolic",
             "planned" => "media-record-symbolic",
             _ => "go-next-symbolic",

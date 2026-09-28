@@ -9,6 +9,7 @@ _: {
           appearance = {
             sansFont = config.var.fonts.sans;
             monoFont = config.var.fonts.mono;
+            symbolFont = config.var.fonts.mono;
             rounding = config.var.rounding;
           };
           flakeDir = "/home/${config.var.username}/dotnix";

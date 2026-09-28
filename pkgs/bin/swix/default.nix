@@ -12,6 +12,7 @@ craneLib.buildPackage rec {
   buildInputs = with pkgs; [
     gtk4
     gtk4-layer-shell
+    adwaita-icon-theme
   ];
 
   env = {

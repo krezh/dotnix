@@ -42,6 +42,11 @@
               default = "monospace";
               description = "Font family used for versions, metrics, and keycaps.";
             };
+            symbolFont = mkOption {
+              type = types.str;
+              default = "Symbols Nerd Font";
+              description = "Font family used for symbols, glyphs, and nerd icons.";
+            };
             rounding = mkOption {
               type = types.ints.between 0 64;
               default = 15;
@@ -73,6 +78,7 @@
               nixos_flake = settings.nixosFlake;
               sans_font = settings.appearance.sansFont;
               mono_font = settings.appearance.monoFont;
+              symbol_font = settings.appearance.symbolFont;
               rounding = settings.appearance.rounding;
             }
             // lib.optionalAttrs (settings.homeFlake != null) {

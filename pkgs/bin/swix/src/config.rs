@@ -18,6 +18,8 @@ pub(crate) struct Config {
     pub(crate) sans_font: String,
     #[serde(default = "default_mono_font")]
     pub(crate) mono_font: String,
+    #[serde(default = "default_symbol_font")]
+    pub(crate) symbol_font: String,
     #[serde(default = "default_rounding")]
     pub(crate) rounding: i32,
 }
@@ -26,6 +28,7 @@ pub(crate) struct Config {
 pub(crate) struct Appearance {
     pub(crate) sans_font: String,
     pub(crate) mono_font: String,
+    pub(crate) symbol_font: String,
     pub(crate) rounding: i32,
 }
 
@@ -37,6 +40,10 @@ fn default_mono_font() -> String {
     "monospace".to_owned()
 }
 
+fn default_symbol_font() -> String {
+    "Symbols Nerd Font".to_owned()
+}
+
 const fn default_rounding() -> i32 {
     15
 }
@@ -46,6 +53,7 @@ impl Default for Appearance {
         Self {
             sans_font: default_sans_font(),
             mono_font: default_mono_font(),
+            symbol_font: default_symbol_font(),
             rounding: default_rounding(),
         }
     }
