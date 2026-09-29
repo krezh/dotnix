@@ -9,7 +9,8 @@ use crate::nix::run;
 use crate::report::Report;
 use swix::protocol::ActivationRequest;
 const SOCKET_PATH: &str = "/run/swix.sock";
-const ACTIVATE_TIMEOUT: Duration = Duration::from_secs(30 * 60);
+const HOME_MANAGER_ACTIVATE_TIMEOUT: Duration = Duration::from_secs(30 * 60);
+const SERVICE_RESPONSE_TIMEOUT: Duration = Duration::from_secs(36 * 60);
 const MAX_SERVICE_RESPONSE_BYTES: usize = 64 * 1024;
 
 pub(crate) fn activate(report: &Report, cancellation: &AtomicBool) -> Result<(), String> {
@@ -20,7 +21,7 @@ pub(crate) fn activate(report: &Report, cancellation: &AtomicBool) -> Result<(),
                 &mut Command::new(report.output.join("activate")),
                 "Home Manager activation",
                 cancellation,
-                ACTIVATE_TIMEOUT,
+                HOME_MANAGER_ACTIVATE_TIMEOUT,
                 1024 * 1024,
             )?;
         }
@@ -59,7 +60,7 @@ pub(crate) fn activate(report: &Report, cancellation: &AtomicBool) -> Result<(),
                         "operation cancelled; NixOS activation may still be running".to_owned()
                     );
                 }
-                if started.elapsed() >= ACTIVATE_TIMEOUT {
+                if started.elapsed() >= SERVICE_RESPONSE_TIMEOUT {
                     return Err(
                         "Swix service timed out; NixOS activation may still be running".to_owned(),
                     );
@@ -120,5 +121,21 @@ pub(crate) fn parse_service_response(response: &[u8]) -> Result<(), String> {
                 Err(detail.to_owned())
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn validates_service_responses() {
+        assert_eq!(parse_service_response(b"OK\n"), Ok(()));
+        assert_eq!(
+            parse_service_response(b""),
+            Err("Swix activation service closed without a response".to_owned())
+        );
+        assert!(parse_service_response(b"unexpected").is_err());
+        assert!(parse_service_response(b"ERROR\n").is_err());
     }
 }

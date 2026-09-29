@@ -17,6 +17,8 @@ craneLib.buildPackage rec {
 
   env = {
     SWIX_NIX_ENV = lib.getExe' pkgs.nix "nix-env";
+    SWIX_GIT = lib.getExe pkgs.git;
+    SWIX_JJ = lib.getExe pkgs.jujutsu;
   };
 
   cargoArtifacts = craneLib.buildDepsOnly {
@@ -31,10 +33,18 @@ craneLib.buildPackage rec {
 
   nativeBuildInputs = with pkgs; [
     pkg-config
+    git
     makeWrapper
     wrapGAppsHook4
   ];
 
+
+  preCheck = ''
+    export HOME="$TMPDIR/home"
+    export XDG_CACHE_HOME="$HOME/.cache"
+    export XDG_CONFIG_HOME="$HOME/.config"
+    mkdir -p "$XDG_CACHE_HOME" "$XDG_CONFIG_HOME"
+  '';
   cargoTestExtraArgs = "--all-targets";
 
   passthru.tests.clippy = craneLib.cargoClippy {
@@ -54,6 +64,8 @@ craneLib.buildPackage rec {
       --prefix PATH : ${
         lib.makeBinPath [
           pkgs.dix
+          pkgs.git
+          pkgs.jujutsu
           pkgs.nix
           pkgs.nix-changelog
         ]

@@ -69,10 +69,14 @@
           ];
         };
         terminal = {
+          showImages = true;
           showProgress = true;
         };
         images = {
-          blockImages = true;
+          autoResize = true;
+          blockImages = false;
+          describeForTextModels = true;
+          questionTimeoutMs = 300000;
         };
         retry = {
           waitForUsageReset = true;

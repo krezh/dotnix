@@ -5,7 +5,7 @@
     {
       imports = [ inputs.chaotic.nixosModules.default ];
 
-      chaotic.mesa-git.enable = true;
+      chaotic.mesa-git.enable = false;
 
       hardware = {
         graphics = {

@@ -422,6 +422,63 @@ fn render_markdown(markdown: &str) -> Result<()> {
     Ok(())
 }
 
+fn is_plaintext_release_header(line: &str) -> bool {
+    let Some((_, version)) = line.rsplit_once(" - v") else {
+        return false;
+    };
+    !version.is_empty()
+        && version
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '-' | '_'))
+}
+
+fn plaintext_changelog_to_markdown(changelog: &str) -> Option<String> {
+    let has_release_header = changelog.lines().any(is_plaintext_release_header);
+    let has_indented_bullet = changelog
+        .lines()
+        .any(|line| line.starts_with(char::is_whitespace) && line.trim_start().starts_with("- "));
+    if !has_release_header || !has_indented_bullet {
+        return None;
+    }
+
+    let mut markdown = String::with_capacity(changelog.len());
+    for line in changelog.lines() {
+        let trimmed = line.trim();
+        if is_plaintext_release_header(line) {
+            if !markdown.ends_with("\n\n") && !markdown.is_empty() {
+                markdown.push('\n');
+            }
+            markdown.push_str("## ");
+            for c in line.chars() {
+                if matches!(c, '<' | '>') {
+                    markdown.push('\\');
+                }
+                markdown.push(c);
+            }
+            markdown.push_str("\n\n");
+        } else if trimmed.starts_with("- ") {
+            markdown.push_str(trimmed);
+            markdown.push('\n');
+        } else if trimmed.is_empty() {
+            if !markdown.ends_with("\n\n") {
+                markdown.push('\n');
+            }
+        } else {
+            markdown.push_str("  ");
+            markdown.push_str(trimmed);
+            markdown.push('\n');
+        }
+    }
+    Some(markdown)
+}
+
+fn render_changelog(changelog: &str) -> Result<()> {
+    match plaintext_changelog_to_markdown(changelog) {
+        Some(markdown) => render_markdown(&markdown),
+        None => render_markdown(changelog),
+    }
+}
+
 fn fetch_text(url: &str) -> Result<String> {
     ureq::get(url)
         .header("User-Agent", "nix-changelog")
@@ -494,9 +551,7 @@ fn render_release_body(api: &str, field: &str, fallback_url: &str) -> Result<()>
     }
 }
 
-/// Resolve a changelog/homepage URL to rendered markdown, handling the
-/// common shapes: GitHub blob links, GitHub/GitLab/Forgejo release pages,
-/// and plain markdown files. Anything else is shown as a plain link.
+/// Resolve a changelog/homepage URL to rendered text.
 fn show_changelog(raw_url: &str) -> Result<()> {
     if let Ok(url) = Url::parse(raw_url) {
         let host = url.host_str().unwrap_or_default().to_string();
@@ -508,7 +563,7 @@ fn show_changelog(raw_url: &str) -> Result<()> {
                     "https://raw.githubusercontent.com/{owner}/{repo}/{git_ref}/{}",
                     rest.join("/")
                 );
-                return render_markdown(&fetch_text(&raw)?);
+                return render_changelog(&fetch_text(&raw)?);
             }
             if let [owner, repo, "releases", "tag", tag] = segments.as_slice() {
                 let api =
@@ -817,6 +872,34 @@ mod tests {
         assert_eq!(target_version(Some("2.0")), Some("2.0"));
         assert_eq!(target_version(Some("1.0..latest")), None);
         assert_eq!(target_version(None), None);
+    }
+
+    #[test]
+    fn parses_plaintext_release_entries_as_markdown() {
+        let changelog = "\
+Tue Jul 07th 2026 - maintainer <maintainer@example.com> - v5.2.3
+    - BUGFIX: Fix MIME header encoding
+    - WEBUI: Escape CSS selectors
+
+Mon Jun 15th 2026 - maintainer <maintainer@example.com> - v5.2.2
+    - FEATURE: Show files in file managers
+";
+
+        assert_eq!(
+            plaintext_changelog_to_markdown(changelog).as_deref(),
+            Some(
+                "\
+## Tue Jul 07th 2026 - maintainer \\<maintainer@example.com\\> - v5.2.3
+
+- BUGFIX: Fix MIME header encoding
+- WEBUI: Escape CSS selectors
+
+## Mon Jun 15th 2026 - maintainer \\<maintainer@example.com\\> - v5.2.2
+
+- FEATURE: Show files in file managers
+"
+            )
+        );
     }
 
     #[test]

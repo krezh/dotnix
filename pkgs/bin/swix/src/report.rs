@@ -71,7 +71,6 @@ pub(crate) struct ReportMetadata {
     pub(crate) target: Target,
     pub(crate) flake: String,
     pub(crate) flake_dir: PathBuf,
-    pub(crate) separate_home_manager: bool,
     pub(crate) baseline: PathBuf,
     pub(crate) output: PathBuf,
     pub(crate) gc_root: Arc<GcRoot>,
@@ -82,7 +81,6 @@ pub(crate) struct Report {
     pub(crate) target: Target,
     pub(crate) flake: String,
     pub(crate) flake_dir: PathBuf,
-    pub(crate) separate_home_manager: bool,
     pub(crate) baseline: PathBuf,
     pub(crate) output: PathBuf,
     _gc_root: Arc<GcRoot>,
@@ -95,7 +93,6 @@ pub(crate) fn parse_report(metadata: ReportMetadata, json: &[u8]) -> Result<Repo
         target,
         flake,
         flake_dir,
-        separate_home_manager,
         baseline,
         output,
         gc_root,
@@ -159,7 +156,6 @@ pub(crate) fn parse_report(metadata: ReportMetadata, json: &[u8]) -> Result<Repo
         target,
         flake,
         flake_dir,
-        separate_home_manager,
         baseline,
         output,
         _gc_root: gc_root,
@@ -437,4 +433,119 @@ pub(crate) fn compact_versions(old: &str, new: &str) -> (String, String) {
         old_parts[..old_parts.len() - suffix].join("-"),
         new_parts[..new_parts.len() - suffix].join("-"),
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::{env, path::PathBuf, sync::Arc};
+
+    use crate::build::{GcRoot, Target};
+    fn test_gc_root() -> Arc<GcRoot> {
+        Arc::new(GcRoot {
+            path: env::temp_dir().join(format!("swix-test-gc-root-{}", std::process::id())),
+        })
+    }
+
+    fn parse_test_report(json: &[u8]) -> Result<Report, String> {
+        parse_report(
+            ReportMetadata {
+                target: Target::NixOs,
+                flake: "host".to_owned(),
+                flake_dir: PathBuf::from("/flake"),
+                baseline: PathBuf::from("/nix/store/old-system"),
+                output: PathBuf::from("/nix/store/new-system"),
+                gc_root: test_gc_root(),
+            },
+            json,
+        )
+    }
+
+    #[test]
+    fn strips_only_shared_output_suffixes() {
+        assert_eq!(
+            compact_versions("1.6.5-bwrap", "1.8.3-bwrap"),
+            ("1.6.5".to_owned(), "1.8.3".to_owned())
+        );
+        assert_eq!(
+            compact_versions("1.2.0-rc1", "1.3.0"),
+            ("1.2.0-rc1".to_owned(), "1.3.0".to_owned())
+        );
+        assert_eq!(compact_dix_version("10.3.2_fish-completions"), "10.3.2");
+    }
+
+    #[test]
+    fn parses_a_dix_upgrade() {
+        let report = parse_test_report(
+            br#"{"diffs":[{"name":"demo","status":"Upgraded","size_delta":10,"versions":[{"kind":"changed","old":{"name":"1.0-bin"},"new":{"name":"2.0-bin"}}]}]}"#,
+        )
+        .unwrap();
+        assert_eq!(report.changes.len(), 1);
+        assert_eq!(report.changes[0].old, "1.0");
+        assert_eq!(report.changes[0].new, "2.0");
+    }
+
+    #[test]
+    fn parses_every_supported_dix_status_and_metrics() {
+        let report = parse_test_report(
+            br#"{
+                "diffs": [
+                    {"name":"a","status":"Added","size_delta":1,"versions":[{"kind":"added","version":{"name":"1"}}]},
+                    {"name":"b","status":"Removed","size_delta":-2,"versions":[{"kind":"removed","version":{"name":"1"}}]},
+                    {"name":"c","status":"Upgraded","size_delta":3,"versions":[{"kind":"changed","old":{"name":"1"},"new":{"name":"2"}}]},
+                    {"name":"d","status":"Downgraded","size_delta":-4,"versions":[{"kind":"changed","old":{"name":"2"},"new":{"name":"1"}}]},
+                    {"name":"e","status":"Changed","size_delta":0,"versions":[]},
+                    {"name":"X-Restart-Triggers-dbus-broker","status":"Changed","size_delta":0,"versions":[{"kind":"amount_changed","version":{"name":"1"},"old_amount":1,"new_amount":2}]},
+                    {"name":"chomp","status":"Downgraded","size_delta":0,"versions":[{"kind":"removed","version":{"name":"0.1.0"}}],"has_omitted_versions":true},
+                    {"name":"graphics-drivers","status":"Downgraded","size_delta":0,"versions":[{"kind":"removed","version":{"name":"570.1"}},{"kind":"amount_changed","version":{"name":"565.2"},"old_amount":1,"new_amount":2}],"has_omitted_versions":false},
+                    {"name":"abseil-cpp","status":"Downgraded","size_delta":-7721032,"versions":[{"kind":"removed","version":{"name":"20260107.1-dev"}},{"kind":"amount_changed","version":{"name":"20260107.1"},"old_amount":3,"new_amount":2}],"has_omitted_versions":false},
+                    {"name":"dhcpcd","status":"Upgraded","size_delta":-511536,"versions":[{"kind":"added","version":{"name":"10.3.2_fish-completions"}},{"kind":"amount_changed","version":{"name":"10.3.2"},"old_amount":2,"new_amount":1}],"has_omitted_versions":false},
+                    {"name":"util-linux","status":"Mixed","size_delta":141704,"versions":[{"kind":"changed","old":{"name":"2.42.3-dev"},"new":{"name":"2.42.3-man"}},{"kind":"removed","version":{"name":"2.42.3"}}],"has_omitted_versions":true}
+                ],
+                "paths":{"old":10,"new":11,"added":2,"removed":1},
+                "size_old":100,
+                "size_new":110
+            }"#,
+        )
+        .unwrap();
+        assert_eq!(report.changes.len(), 10);
+        assert_eq!(report.changes[5].name, "chomp");
+        assert_eq!(report.changes[5].old, "0.1.0");
+        assert_eq!(report.changes[5].new, "...");
+        assert_eq!(report.changes[6].name, "graphics-drivers");
+        assert_eq!(report.changes[6].old, "570.1");
+        assert_eq!(report.changes[6].new, "565.2");
+        assert_eq!(report.changes[7].name, "abseil-cpp");
+        assert_eq!(report.changes[7].status, ChangeStatus::Changed);
+        assert!(report.changes[7].old.is_empty());
+        assert_eq!(report.changes[7].new, "20260107.1");
+        assert_eq!(report.changes[8].name, "dhcpcd");
+        assert_eq!(report.changes[8].status, ChangeStatus::Changed);
+        assert!(report.changes[8].old.is_empty());
+        assert_eq!(report.changes[8].new, "10.3.2");
+        assert_eq!(report.changes[9].name, "util-linux");
+        assert_eq!(report.changes[9].status, ChangeStatus::Changed);
+        assert!(report.changes[9].old.is_empty());
+        assert_eq!(report.changes[9].new, "2.42.3");
+        assert_eq!(report.paths, Some((10, 11, 2, 1)));
+        assert_eq!(report.sizes, Some((100, 110)));
+    }
+
+    #[test]
+    fn rejects_incomplete_or_unknown_dix_data() {
+        assert!(parse_test_report(br#"{}"#).is_err());
+        assert!(
+            parse_test_report(
+                br#"{"diffs":[{"name":"demo","status":"Unexpected","size_delta":0,"versions":[]}]}"#
+            )
+            .is_err()
+        );
+        assert!(
+            parse_test_report(
+                br#"{"diffs":[{"name":"demo","status":"Upgraded","size_delta":0,"versions":[]}]}"#
+            )
+            .is_err()
+        );
+        assert!(parse_test_report(br#"{"diffs":[],"size_old":1}"#).is_err());
+    }
 }

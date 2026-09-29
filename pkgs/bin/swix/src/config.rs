@@ -6,6 +6,7 @@ use std::path::{Path, PathBuf};
 use serde::Deserialize;
 thread_local! {
     static HOST_OVERRIDE: RefCell<Option<String>> = const { RefCell::new(None) };
+    static KEYBINDS_OVERRIDE: RefCell<Option<bool>> = const { RefCell::new(None) };
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -22,6 +23,10 @@ pub(crate) struct Config {
     pub(crate) symbol_font: String,
     #[serde(default = "default_rounding")]
     pub(crate) rounding: i32,
+    #[serde(default, alias = "disable-keybinds")]
+    pub(crate) disable_keybinds: bool,
+    #[serde(default = "default_keybinds")]
+    pub(crate) keybinds: bool,
 }
 
 #[derive(Clone, Debug)]
@@ -30,6 +35,7 @@ pub(crate) struct Appearance {
     pub(crate) mono_font: String,
     pub(crate) symbol_font: String,
     pub(crate) rounding: i32,
+    pub(crate) keybinds: bool,
 }
 
 fn default_sans_font() -> String {
@@ -48,6 +54,10 @@ const fn default_rounding() -> i32 {
     15
 }
 
+const fn default_keybinds() -> bool {
+    true
+}
+
 impl Default for Appearance {
     fn default() -> Self {
         Self {
@@ -55,11 +65,16 @@ impl Default for Appearance {
             mono_font: default_mono_font(),
             symbol_font: default_symbol_font(),
             rounding: default_rounding(),
+            keybinds: default_keybinds(),
         }
     }
 }
 pub(crate) fn set_host_override(host: Option<String>) {
     HOST_OVERRIDE.with(|override_host| override_host.replace(host));
+}
+
+pub(crate) fn set_keybinds_override(keybinds: Option<bool>) {
+    KEYBINDS_OVERRIDE.with(|override_keybinds| override_keybinds.replace(keybinds));
 }
 
 pub(crate) fn load_config() -> Result<Config, String> {
@@ -70,12 +85,18 @@ pub(crate) fn load_config() -> Result<Config, String> {
     if let Some(host) = HOST_OVERRIDE.with(|host| host.borrow().clone()) {
         config.nixos_flake = host;
     }
+    if let Some(keybinds) = KEYBINDS_OVERRIDE.with(|k| *k.borrow()) {
+        config.keybinds = keybinds;
+    }
     Ok(config)
 }
 
 pub(crate) fn parse_config(content: &str) -> Result<Config, String> {
     let mut config: Config =
         toml::from_str(content).map_err(|error| format!("invalid Swix configuration: {error}"))?;
+    if config.disable_keybinds {
+        config.keybinds = false;
+    }
     if config.nixos_flake.trim().is_empty() {
         return Err("nixos_flake must not be empty".to_owned());
     }
@@ -109,4 +130,52 @@ fn expand_home(value: &str, home: &Path) -> PathBuf {
         .strip_prefix("$HOME/")
         .or_else(|| value.strip_prefix("~/"))
         .map_or_else(|| PathBuf::from(value), |rest| home.join(rest))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn parses_toml_escaping_and_validates_values() {
+        let config = parse_config(
+            r#"
+                flake_dir = "/tmp/flake"
+                nixos_flake = "host"
+                sans_font = "Font \"Quoted\""
+                mono_font = "Mono"
+                rounding = 12
+            "#,
+        )
+        .unwrap();
+        assert_eq!(config.sans_font, "Font \"Quoted\"");
+        assert_eq!(config.symbol_font, "Symbols Nerd Font");
+        assert_eq!(config.rounding, 12);
+        assert!(config.keybinds);
+        let disabled_config = parse_config(
+            r#"
+                flake_dir = "/tmp/flake"
+                nixos_flake = "host"
+                keybinds = false
+            "#,
+        )
+        .unwrap();
+        assert!(!disabled_config.keybinds);
+        let disabled_alias = parse_config(
+            r#"
+                flake_dir = "/tmp/flake"
+                nixos_flake = "host"
+                disable-keybinds = true
+            "#,
+        )
+        .unwrap();
+        assert!(!disabled_alias.keybinds);
+        assert!(
+            parse_config(
+                r#"flake_dir = "/tmp/flake"
+                   nixos_flake = ""
+                   rounding = 100"#
+            )
+            .is_err()
+        );
+    }
 }

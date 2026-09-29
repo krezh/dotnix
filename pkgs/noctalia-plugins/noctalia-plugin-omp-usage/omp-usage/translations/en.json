@@ -1,0 +1,17 @@
+{
+  "title": "OMP Usage",
+  "settings.refresh_minutes.label": "Refresh interval (minutes)",
+  "settings.refresh_minutes.description": "How often to poll omp usage in the background",
+  "settings.high_usage_threshold.label": "High Usage Threshold (%)",
+  "settings.high_usage_threshold.description": "Quota percentage that triggers high-usage alerts",
+  "settings.glyph.label": "Icon Glyph",
+  "settings.glyph.description": "Default glyph when all providers are healthy",
+  "settings.show_badge.label": "Show Alert Badge",
+  "settings.show_badge.description": "Show a subtle badge beside the icon when a provider has high usage",
+  "ui.panel_title": "Provider Quotas",
+  "ui.refresh": "Refresh",
+  "ui.refreshing": "Syncing...",
+  "ui.no_data": "No provider quotas found.",
+  "ui.resets_in": "Resets in %{time}",
+  "ui.used": "%{used}% used"
+}

@@ -11,9 +11,8 @@
         resources
 
         # Misc desktop apps
-        wowup-cf
         yubikey-manager
-        qbittorrent
+        # qbittorrent
         gnome-calculator
         gnome-calendar
         gnome-clocks
@@ -21,7 +20,6 @@
         gnome-online-accounts-gtk
         gnome-disk-utility
         baobab
-        geary
         file-roller
         proton-pass
         proton-pass-cli

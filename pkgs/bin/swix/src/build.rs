@@ -19,6 +19,53 @@ pub(crate) enum Target {
     NixOs,
 }
 
+impl Target {
+    pub(crate) const fn name(self) -> &'static str {
+        match self {
+            Self::HomeManager => "Home Manager",
+            Self::NixOs => "NixOS",
+        }
+    }
+
+    const fn evaluation_message(self) -> &'static str {
+        match self {
+            Self::HomeManager => "Evaluating the Home Manager configuration...",
+            Self::NixOs => "Evaluating the NixOS configuration...",
+        }
+    }
+
+    const fn build_message(self) -> &'static str {
+        match self {
+            Self::HomeManager => "Building the Home Manager configuration...",
+            Self::NixOs => "Building the NixOS configuration...",
+        }
+    }
+
+    pub(crate) const fn progress_message(self) -> &'static str {
+        match self {
+            Self::HomeManager => "Evaluating Home Manager and computing changes...",
+            Self::NixOs => "Evaluating NixOS and computing changes...",
+        }
+    }
+
+    const fn slug(self) -> &'static str {
+        match self {
+            Self::HomeManager => "home-manager",
+            Self::NixOs => "nixos",
+        }
+    }
+
+    pub(crate) fn flake(self, config: &Config) -> Result<&str, &'static str> {
+        match self {
+            Self::HomeManager => config
+                .home_flake
+                .as_deref()
+                .ok_or("Home Manager target is disabled"),
+            Self::NixOs => Ok(&config.nixos_flake),
+        }
+    }
+}
+
 pub(crate) struct GcRoot {
     pub(crate) path: PathBuf,
 }
@@ -51,6 +98,7 @@ impl BuildPhase {
         }
     }
 }
+
 pub(crate) enum BuildEvent {
     Update(BuildUpdate),
     Finished(Result<Report, String>),
@@ -58,7 +106,7 @@ pub(crate) enum BuildEvent {
 
 pub(crate) enum BuildUpdate {
     Phase(BuildPhase, &'static str),
-    Nix(Box<NixBuildProgress>),
+    Nix(BuildPhase, Box<NixBuildProgress>),
 }
 
 pub(crate) fn build_report(
@@ -68,25 +116,14 @@ pub(crate) fn build_report(
     cancellation: &AtomicBool,
     progress: impl Fn(BuildUpdate),
 ) -> Result<Report, String> {
+    let flake = target.flake(config)?;
     let attr = match target {
-        Target::HomeManager => format!(
-            ".#homeConfigurations.{}.activationPackage",
-            config
-                .home_flake
-                .as_deref()
-                .ok_or("Home Manager target is disabled")?
-        ),
-        Target::NixOs => format!(
-            ".#nixosConfigurations.{}.config.system.build.toplevel",
-            config.nixos_flake
-        ),
+        Target::HomeManager => format!(".#homeConfigurations.{flake}.activationPackage"),
+        Target::NixOs => format!(".#nixosConfigurations.{flake}.config.system.build.toplevel"),
     };
     progress(BuildUpdate::Phase(
         BuildPhase::Evaluate,
-        match target {
-            Target::HomeManager => "Evaluating the Home Manager configuration...",
-            Target::NixOs => "Evaluating the NixOS configuration...",
-        },
+        target.evaluation_message(),
     ));
     let derivation = run_nix_command(
         Command::new("nix")
@@ -96,7 +133,7 @@ pub(crate) fn build_report(
         "nix eval drvPath",
         cancellation,
         EVALUATION_TIMEOUT,
-        |update| progress(BuildUpdate::Nix(Box::new(update))),
+        |update| progress(BuildUpdate::Nix(BuildPhase::Evaluate, Box::new(update))),
     )?;
     let derivation = String::from_utf8_lossy(&derivation.stdout);
     let derivation = derivation.trim();
@@ -107,10 +144,7 @@ pub(crate) fn build_report(
     }
     progress(BuildUpdate::Phase(
         BuildPhase::Build,
-        match target {
-            Target::HomeManager => "Building the Home Manager configuration...",
-            Target::NixOs => "Building the NixOS configuration...",
-        },
+        target.build_message(),
     ));
     let gc_root = create_gc_root(target, generation)?;
     let build = run_nix_command(
@@ -129,7 +163,7 @@ pub(crate) fn build_report(
         "nix build",
         cancellation,
         BUILD_TIMEOUT,
-        |update| progress(BuildUpdate::Nix(Box::new(update))),
+        |update| progress(BuildUpdate::Nix(BuildPhase::Build, Box::new(update))),
     )?;
     let output = PathBuf::from(
         String::from_utf8_lossy(&build.stdout)
@@ -152,19 +186,12 @@ pub(crate) fn build_report(
         DIFF_TIMEOUT,
         64 * 1024 * 1024,
     )?;
-    let flake = match target {
-        Target::HomeManager => config
-            .home_flake
-            .clone()
-            .ok_or("Home Manager target is disabled")?,
-        Target::NixOs => config.nixos_flake.clone(),
-    };
+    let flake = flake.to_owned();
     parse_report(
         ReportMetadata {
             target,
             flake,
             flake_dir: config.flake_dir.clone(),
-            separate_home_manager: config.home_flake.is_some(),
             baseline: old,
             output,
             gc_root,
@@ -180,10 +207,7 @@ fn create_gc_root(target: Target, generation: u64) -> Result<Arc<GcRoot>, String
     let directory = runtime.join("swix");
     fs::create_dir_all(&directory)
         .map_err(|error| format!("failed to create {}: {error}", directory.display()))?;
-    let target = match target {
-        Target::HomeManager => "home-manager",
-        Target::NixOs => "nixos",
-    };
+    let target = target.slug();
     Ok(Arc::new(GcRoot {
         path: directory.join(format!(
             "reviewed-{target}-{}-{generation}",

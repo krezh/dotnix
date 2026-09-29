@@ -3,7 +3,7 @@ use gtk::prelude::*;
 use pulldown_cmark::{Event, HeadingLevel, Parser, Tag, TagEnd};
 
 use crate::changelog::ChangelogOutput;
-use crate::{clear, label};
+use crate::ui::common::{clear, label};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum MarkdownBlockKind {
@@ -240,4 +240,39 @@ fn markdown_label(markup: &str, classes: &[&str]) -> gtk::Label {
     value.set_wrap(true);
     value.set_wrap_mode(gtk::pango::WrapMode::WordChar);
     value
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn parses_release_markdown_into_readable_blocks() {
+        assert_eq!(
+            markdown_blocks(
+                "## @oh-my-pi/pi-agent-core\n\n### Fixed\n\n- Handle **empty** `--auth`\n\n[Details](https://example.test)\n\n---"
+            ),
+            vec![
+                MarkdownBlock {
+                    kind: MarkdownBlockKind::Heading(2),
+                    markup: "@oh-my-pi/pi-agent-core".to_owned(),
+                },
+                MarkdownBlock {
+                    kind: MarkdownBlockKind::Heading(3),
+                    markup: "Fixed".to_owned(),
+                },
+                MarkdownBlock {
+                    kind: MarkdownBlockKind::Item(1),
+                    markup: "Handle <b>empty</b> <tt>--auth</tt>".to_owned(),
+                },
+                MarkdownBlock {
+                    kind: MarkdownBlockKind::Paragraph,
+                    markup: "<a href=\"https://example.test\">Details</a>".to_owned(),
+                },
+                MarkdownBlock {
+                    kind: MarkdownBlockKind::Rule,
+                    markup: String::new(),
+                },
+            ]
+        );
+    }
 }

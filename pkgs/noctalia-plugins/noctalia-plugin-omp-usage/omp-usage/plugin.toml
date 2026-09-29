@@ -1,0 +1,63 @@
+id = "krezh/omp-usage"
+name = "OMP Usage"
+version = "0.1.0"
+plugin_api = 24
+author = "krezh"
+license = "MIT"
+icon = "chart-donut-3"
+description = "Clickable bar icon and popout for OMP provider quotas and reset countdowns."
+tags = ["bar", "panel", "ai", "productivity"]
+dependencies = ["omp"]
+
+[[setting]]
+key = "refresh_minutes"
+type = "int"
+label_key = "settings.refresh_minutes.label"
+description_key = "settings.refresh_minutes.description"
+default = 5
+min = 1
+max = 60
+
+[[setting]]
+key = "high_usage_threshold"
+type = "int"
+label_key = "settings.high_usage_threshold.label"
+description_key = "settings.high_usage_threshold.description"
+default = 75
+min = 50
+max = 99
+
+[[service]]
+id = "service"
+entry = "service.luau"
+
+[[widget]]
+id = "bar"
+entry = "bar.luau"
+
+  [widget.actions]
+  right = "plugin krezh/omp-usage:service all refresh"
+
+[[widget.setting]]
+key = "glyph"
+type = "glyph"
+label_key = "settings.glyph.label"
+description_key = "settings.glyph.description"
+default = "chart-donut-3"
+[[widget.setting]]
+key = "show_badge"
+type = "bool"
+label_key = "settings.show_badge.label"
+description_key = "settings.show_badge.description"
+default = true
+
+[[panel]]
+id = "panel"
+entry = "panel.luau"
+width = 720
+height = 800
+placement = "attached"
+position = "auto"
+open_near_click = true
+dismiss_on_outside_click = true
+capture_keys = ["escape", "r"]

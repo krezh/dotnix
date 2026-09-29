@@ -1,3 +1,11 @@
+pub(crate) mod build_activity;
 pub(crate) mod build_progress;
+pub(crate) mod build_screen;
 pub(crate) mod changelog;
+pub(crate) mod chooser;
+pub(crate) mod common;
+pub(crate) mod error;
+pub(crate) mod release_notes;
+pub(crate) mod report;
 pub(crate) mod switch;
+pub(crate) mod timeline;

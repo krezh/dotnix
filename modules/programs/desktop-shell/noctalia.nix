@@ -91,6 +91,7 @@ _: {
                 "volume"
                 "brightness"
                 "battery"
+                "krezh/omp-usage:bar"
                 "clock"
                 "notifications"
                 "session"
@@ -139,7 +140,13 @@ _: {
             };
           };
           plugins = {
+            enabled = [ "krezh/omp-usage" ];
             source = [
+              {
+                kind = "path";
+                location = "${pkgs.noctalia-plugin-omp-usage}";
+                name = "local";
+              }
               {
                 kind = "git";
                 location = "https://github.com/noctalia-dev/official-plugins";

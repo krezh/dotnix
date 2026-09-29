@@ -66,6 +66,11 @@
             type = types.str;
             description = "NixOS configuration name.";
           };
+          disableKeybinds = mkOption {
+            type = types.bool;
+            default = false;
+            description = "Whether keyboard shortcuts other than Escape are disabled.";
+          };
         };
       };
 
@@ -80,6 +85,8 @@
               mono_font = settings.appearance.monoFont;
               symbol_font = settings.appearance.symbolFont;
               rounding = settings.appearance.rounding;
+              disable_keybinds = settings.disableKeybinds;
+              keybinds = !settings.disableKeybinds;
             }
             // lib.optionalAttrs (settings.homeFlake != null) {
               home_flake = settings.homeFlake;
@@ -116,8 +123,8 @@
               StandardInput = "socket";
               StandardOutput = "socket";
               StandardError = "journal";
-              TimeoutStartSec = "35min";
-              RuntimeMaxSec = "35min";
+              TimeoutStartSec = "37min";
+              RuntimeMaxSec = "37min";
               UMask = "0077";
             };
           };

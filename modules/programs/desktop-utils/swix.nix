@@ -13,6 +13,7 @@ _: {
             rounding = config.var.rounding;
           };
           flakeDir = "/home/${config.var.username}/dotnix";
+          disableKeybinds = true;
           nixosFlake = config.networking.hostName;
         };
       };

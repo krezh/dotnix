@@ -44,7 +44,7 @@ tooltip label {
 }
 
 .updates-root.chooser-root {
-  padding: 16px 20px;
+  padding: 12px 14px;
 }
 
 /* Chooser Command List View */
@@ -53,7 +53,7 @@ tooltip label {
 }
 
 .chooser-header {
-  padding: 4px 8px 8px 8px;
+  padding: 0 4px 2px 4px;
 }
 
 .chooser-prompt-icon {
@@ -65,6 +65,72 @@ tooltip label {
   font-size: 16px;
   font-weight: 700;
   letter-spacing: 0.2px;
+}
+
+
+
+.repository-panel {
+  background-color: rgba(49, 50, 68, 0.48);
+  border: 1px solid rgba(137, 180, 250, 0.14);
+  border-radius: 10px;
+  padding: 8px;
+}
+
+.repository-icon {
+  color: #89b4fa;
+}
+
+.repository-status {
+  color: #cdd6f4;
+  font-size: 15px;
+  font-weight: 750;
+}
+
+.repository-detail {
+  color: #8d98a6;
+  font-size: 13px;
+}
+
+.repository-counter {
+  background-color: rgba(137, 180, 250, 0.16);
+  border: 1px solid rgba(137, 180, 250, 0.28);
+  border-radius: 7px;
+  color: #89b4fa;
+  font-size: 12px;
+  font-weight: 800;
+  min-height: 18px;
+  min-width: 14px;
+  padding: 0 4px;
+}
+
+.repository-refresh {
+  background-color: rgba(205, 214, 244, 0.06);
+  border: 1px solid rgba(205, 214, 244, 0.12);
+  border-radius: 10px;
+  color: #89b4fa;
+  min-height: 22px;
+  min-width: 22px;
+  padding: 0;
+}
+
+.repository-refresh:hover,
+.repository-refresh:focus {
+  background-color: rgba(137, 180, 250, 0.14);
+}
+
+.repository-refresh.energy-active,
+.repository-refresh.energy-active:disabled {
+  border-color: transparent;
+  background-color: transparent;
+  background-image: none;
+  box-shadow: none;
+  color: #cdd6f4;
+  opacity: 1;
+}
+
+.chooser-button:disabled,
+.chooser-row:disabled {
+  opacity: 0.46;
 }
 
 .chooser-close-hint {
@@ -169,7 +235,7 @@ tooltip label {
 /* Build & Timeline View */
 .build-visualization {
   background-color: transparent;
-  margin: 8px 0 2px 0;
+  margin: 2px 0 0 0;
   padding: 0;
 }
 
@@ -195,47 +261,44 @@ tooltip label {
 
 .loading-text {
   color: #cdd6f4;
-  font-size: 19px;
+  font-size: 16px;
   font-weight: 800;
+}
+
+.build-elapsed {
+  color: #8d98a6;
+  font-size: 12px;
+  font-weight: 650;
 }
 
 .build-scroll {
   background-color: transparent;
 }
 
-.build-scroll-content {
-  padding-right: 6px;
+.build-dashboard {
+  margin-top: 2px;
+}
+
+.build-dashboard-panel {
+  min-width: 280px;
+}
+
+.build-context-panel {
+  border-left: 1px solid rgba(205, 214, 244, 0.09);
+  padding-left: 18px;
+}
+
+.build-context-panel.evaluation-context-panel {
+  border-left: 0;
+  padding-left: 0;
 }
 
 .graph-heading {
   color: #bac2de;
-  font-size: 15px;
+  font-size: 13px;
   font-weight: 800;
   letter-spacing: 0.3px;
-  margin-top: 12px;
-}
-
-.build-activities {
-  margin: 4px 0 10px 0;
-}
-
-.build-activity-row {
-  background-color: rgba(255, 255, 255, 0.035);
-  border: 1px solid rgba(205, 214, 244, 0.06);
-  border-radius: 6px;
-  margin-bottom: 4px;
-  padding: 8px 12px;
-}
-
-.build-activity-row:hover {
-  background-color: rgba(255, 255, 255, 0.055);
-}
-
-.build-activity-empty {
-  color: #8d98a6;
-  font-size: 14px;
-  font-weight: 650;
-  padding: 14px 0;
+  margin: 0;
 }
 
 .flake-fetches {
@@ -249,7 +312,7 @@ tooltip label {
 
 .flake-fetch-name {
   color: #cdd6f4;
-  font-size: 14px;
+  font-size: 12px;
   font-weight: 700;
 }
 
@@ -258,146 +321,69 @@ tooltip label {
   font-size: 13px;
 }
 
-.evaluation-activity {
-  background-color: rgba(24, 24, 37, 0.55);
-  border: 1px solid rgba(205, 214, 244, 0.08);
-  border-radius: 6px;
-  color: #89b4fa;
-  font-size: 14px;
-  font-weight: 700;
-  padding: 10px 14px;
-}
-
-.graph-node {
-  border-radius: 6px;
-  padding: 6px 10px;
-}
-
-.graph-node.building,
-.graph-node.downloading {
-  background-color: rgba(137, 180, 250, 0.08);
-  border-color: rgba(137, 180, 250, 0.25);
-}
-
-.graph-node.failed {
-  background-color: rgba(243, 139, 168, 0.1);
-  border-color: rgba(243, 139, 168, 0.3);
-}
-
-.graph-node.context {
-  opacity: 0.72;
-}
-
-.graph-node.complete {
-  opacity: 0.85;
-}
-
-.graph-state {
-  min-height: 18px;
-  min-width: 18px;
-}
-
-.graph-state.complete {
+.flake-fetch-complete {
   color: #a6e3a1;
 }
 
-.graph-state.planned {
-  color: #b4befe;
+.evaluation-warnings {
+  padding: 2px 0;
 }
 
-.graph-state.building {
+.evaluation-warning {
+  background-color: rgba(249, 226, 175, 0.06);
+  border: 1px solid rgba(249, 226, 175, 0.18);
+  border-radius: 5px;
+  padding: 6px 8px;
+}
+
+.evaluation-warning-icon {
   color: #f9e2af;
+  margin-top: 1px;
 }
 
-.graph-state.downloading {
-  color: #74c7ec;
+.evaluation-warning-text {
+  color: #f9e2af;
+  font-size: 12px;
 }
 
-.graph-state.failed {
-  color: #f38ba8;
-}
-
-.graph-state.context {
-  color: #6c7086;
-}
-
-.graph-node-name {
-  color: #cdd6f4;
-  font-size: 14px;
-  font-weight: 700;
-}
-
-.graph-node.planned .graph-node-name {
-  color: #aeb7c2;
-}
-
-.graph-node.context .graph-node-name,
-.graph-node.complete .graph-node-name {
-  color: #9aa5b1;
-}
-
-.graph-node-detail {
-  color: #8d98a6;
-  font-size: 13px;
-  font-weight: 650;
-}
-
-.derivation-download-progress {
-  margin-top: 3px;
-  min-height: 5px;
-}
-
-.derivation-download-progress trough {
-  background-color: rgba(205, 214, 244, 0.09);
-  border-radius: 2px;
-  min-height: 5px;
-}
-
-.derivation-download-progress progress {
-  background-color: #74c7ec;
-  border-radius: 2px;
-  min-height: 5px;
-}
-
-/* Build Plan Map: Inline Strip */
+/* Dependency explorer */
 .build-summary {
   background-color: transparent;
   border: 0;
-  margin: 4px 0 8px 0;
+  margin: 2px 0 4px 0;
   padding: 0;
 }
 
 .build-summary-title {
   color: #cdd6f4;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 800;
 }
 
 .build-summary-count {
   color: #aeb7c2;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 750;
 }
 
-.build-plan-map {
-  background-color: rgba(17, 17, 27, 0.55);
-  border: 1px solid rgba(205, 214, 244, 0.08);
+.build-activity {
+  background-color: rgba(17, 17, 27, 0.32);
+  border: 1px solid rgba(205, 214, 244, 0.1);
   border-radius: 6px;
-  min-height: 32px;
-  padding: 4px;
+  min-height: 350px;
 }
 
 .build-summary-metrics {
-  margin-top: 3px;
+  margin-top: 1px;
 }
 
 .build-summary-metric {
   background-color: transparent;
   border: 0;
   color: #aeb7c2;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 750;
-  padding: 2px 6px;
+  padding: 1px 5px;
 }
 
 .build-summary-metric.building {
@@ -421,49 +407,13 @@ tooltip label {
 }
 
 .build-summary-value {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 850;
-}
-
-.cancel-button {
-  background-color: transparent;
-  border: 1px solid rgba(205, 214, 244, 0.12);
-  border-radius: 6px;
-  color: #c2cad3;
-  font-size: 14px;
-  font-weight: 700;
-  margin-top: 16px;
-  min-height: 38px;
-  padding: 0 18px;
-  transition: all 120ms ease;
-}
-
-.cancel-button:hover {
-  background-color: rgba(243, 139, 168, 0.1);
-  border-color: rgba(243, 139, 168, 0.35);
-  color: #f38ba8;
 }
 
 /* Report Header & Actions */
 .report-header {
   margin-bottom: 6px;
-}
-
-.header-icon-button {
-  background-color: transparent;
-  border: 1px solid rgba(205, 214, 244, 0.1);
-  border-radius: 6px;
-  color: #8d98a6;
-  min-height: 40px;
-  min-width: 40px;
-  padding: 0;
-  transition: all 120ms ease;
-}
-
-.header-icon-button:hover {
-  background-color: rgba(137, 180, 250, 0.12);
-  border-color: rgba(137, 180, 250, 0.3);
-  color: #cdd6f4;
 }
 
 .report-footer {
@@ -474,16 +424,33 @@ tooltip label {
   margin-top: 0;
 }
 
-.report-back-button {
+.chooser-footer {
+  margin-top: 8px;
+}
+
+.report-back-button,
+.report-close-button,
+.chooser-close-button {
   background-color: transparent;
   border: 1px solid rgba(205, 214, 244, 0.12);
   border-radius: 6px;
+  font-weight: 700;
+  transition: all 120ms ease;
+}
+
+.report-back-button,
+.report-close-button {
   color: #c2cad3;
   font-size: 14px;
-  font-weight: 700;
   min-height: 38px;
   padding: 0 16px;
-  transition: all 120ms ease;
+}
+
+.chooser-close-button {
+  color: #a6adc8;
+  font-size: 13px;
+  min-height: 32px;
+  padding: 0 14px;
 }
 
 .report-back-button:hover {
@@ -492,15 +459,39 @@ tooltip label {
   color: #cdd6f4;
 }
 
+.report-close-button:hover,
+.chooser-close-button:hover {
+  background-color: rgba(243, 139, 168, 0.12);
+  border-color: rgba(243, 139, 168, 0.35);
+  color: #f38ba8;
+}
+
 .report-back-button:focus {
   background-color: rgba(137, 180, 250, 0.16);
   border-color: rgba(180, 190, 254, 0.5);
   box-shadow: none;
 }
 
-.report-back-label {
-  font-size: 14px;
+.report-close-button:focus,
+.chooser-close-button:focus {
+  background-color: rgba(243, 139, 168, 0.16);
+  border-color: rgba(243, 139, 168, 0.5);
+  box-shadow: none;
+}
+
+.report-back-label,
+.report-close-label,
+.chooser-close-label {
   font-weight: 700;
+}
+
+.report-back-label,
+.report-close-label {
+  font-size: 14px;
+}
+
+.chooser-close-label {
+  font-size: 13px;
 }
 
 .switch-button {
@@ -571,13 +562,17 @@ tooltip label {
 .switch-activity.switch-complete-card {
   background-color: rgba(24, 24, 37, 0.85);
   border-color: rgba(166, 227, 161, 0.35);
-  box-shadow: 0 8px 28px rgba(166, 227, 161, 0.12), 0 8px 24px rgba(17, 17, 27, 0.45);
+  box-shadow:
+    0 8px 28px rgba(166, 227, 161, 0.12),
+    0 8px 24px rgba(17, 17, 27, 0.45);
 }
 
 .switch-activity.switch-error-card {
   background-color: rgba(24, 24, 37, 0.85);
   border-color: rgba(243, 139, 168, 0.35);
-  box-shadow: 0 8px 28px rgba(243, 139, 168, 0.12), 0 8px 24px rgba(17, 17, 27, 0.45);
+  box-shadow:
+    0 8px 28px rgba(243, 139, 168, 0.12),
+    0 8px 24px rgba(17, 17, 27, 0.45);
 }
 
 .switch-activity-header {
@@ -617,7 +612,7 @@ tooltip label {
 .switch-activity-elapsed {
   background-color: rgba(137, 180, 250, 0.12);
   border: 1px solid rgba(137, 180, 250, 0.28);
-  border-radius: 9999px;
+  border-radius: 5px;
   color: #89b4fa;
   font-size: 13px;
   font-weight: 750;
@@ -692,55 +687,44 @@ tooltip label {
   padding: 1px 8px;
 }
 
-/* Summary Chips */
+/* Summary */
 .summary {
   margin-top: 18px;
 }
 
 .summary-count {
-  border-radius: 9999px;
   font-size: 24px;
   font-weight: 700;
-  padding: 2px 12px;
   transition: all 120ms ease;
 }
 
 .summary-jump:hover {
+  text-decoration: underline;
   filter: brightness(1.2);
 }
 
 .summary-count.added,
 .section-title.added {
-  background-color: rgba(166, 227, 161, 0.12);
-  border: 1px solid rgba(166, 227, 161, 0.3);
   color: #a6e3a1;
 }
 
 .summary-count.removed,
 .section-title.removed {
-  background-color: rgba(243, 139, 168, 0.12);
-  border: 1px solid rgba(243, 139, 168, 0.3);
   color: #f38ba8;
 }
 
 .summary-count.upgraded,
 .section-title.upgraded {
-  background-color: rgba(137, 180, 250, 0.12);
-  border: 1px solid rgba(137, 180, 250, 0.3);
   color: #89b4fa;
 }
 
 .summary-count.downgraded,
 .section-title.downgraded {
-  background-color: rgba(250, 179, 135, 0.12);
-  border: 1px solid rgba(250, 179, 135, 0.3);
   color: #fab387;
 }
 
 .summary-count.changed,
 .section-title.changed {
-  background-color: rgba(203, 166, 247, 0.12);
-  border: 1px solid rgba(203, 166, 247, 0.3);
   color: #cba6f7;
 }
 
@@ -795,8 +779,6 @@ tooltip label {
   font-size: 26px;
   font-weight: 800;
   margin-bottom: 10px;
-  padding: 2px 10px;
-  border-radius: 5px;
 }
 
 .updates-list {
@@ -846,7 +828,10 @@ tooltip label {
 
 .package-button:focus {
   background-color: rgba(137, 180, 250, 0.16);
+  border-color: rgba(180, 190, 254, 0.55);
+  box-shadow: none;
   color: #89b4fa;
+  outline: none;
 }
 
 .version-cell,

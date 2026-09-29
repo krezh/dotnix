@@ -40,6 +40,7 @@
           trusted-users = [ "@wheel" ];
           fallback = true;
           http-connections = 0;
+          nix-path = lib.mkForce [ "nixpkgs=${inputs.nixpkgs}" ];
           experimental-features = [
             "nix-command"
             "flakes"
@@ -67,7 +68,6 @@
       nix.registry = lib.mapAttrs (_: value: { flake = value; }) (
         lib.filterAttrs (name: _: name != "self") inputs
       );
-      nix.nixPath = lib.mkForce [ "nixpkgs=${inputs.nixpkgs}" ];
 
       time.timeZone = "Europe/Stockholm";
 

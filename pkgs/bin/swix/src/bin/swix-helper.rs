@@ -291,6 +291,9 @@ mod tests {
             let id = FIXTURE_ID.fetch_add(1, Ordering::Relaxed);
             let root =
                 std::env::temp_dir().join(format!("swix-helper-test-{}-{id}", std::process::id()));
+            if root.exists() {
+                fs::remove_dir_all(&root).unwrap();
+            }
             let store = root.join("store");
             let prior = store.join("prior-system");
             let requested = store.join("requested-system");

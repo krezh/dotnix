@@ -9,10 +9,8 @@ use serde_json::Value;
 use swix::command::{self, OutputLimits};
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub(crate) struct NixBuildProgress {
-    pub(crate) evaluation_started: bool,
-    pub(crate) evaluation_active: bool,
-    pub(crate) evaluation_activity: Option<String>,
     pub(crate) flake_fetches: Vec<String>,
+    pub(crate) warnings: Vec<String>,
     pub(crate) builds: NixProgressMetric,
     pub(crate) downloads: NixProgressMetric,
     pub(crate) copy_paths: NixProgressMetric,
@@ -83,36 +81,12 @@ impl NixProgressTracker {
                             .unwrap_or_default()
                             <= 4 =>
             {
-                let raw_name = event
-                    .get("text")
-                    .and_then(Value::as_str)
-                    .filter(|text| !text.is_empty())
-                    .or_else(|| {
-                        event
-                            .get("fields")
-                            .and_then(Value::as_array)
-                            .and_then(|fields| fields.first())
-                            .and_then(Value::as_str)
-                    })
-                    .map(strip_ansi)
-                    .unwrap_or_else(|| "Preparing build".to_owned());
                 let path = event
                     .get("fields")
                     .and_then(Value::as_array)
                     .and_then(|fields| fields.first())
                     .and_then(Value::as_str)
                     .map(str::to_owned);
-                if activity_type == 0 {
-                    self.progress.evaluation_started = true;
-                    self.progress.evaluation_active = true;
-                    self.progress.evaluation_activity = Some(
-                        raw_name
-                            .strip_prefix("evaluating derivation '")
-                            .and_then(|target| target.strip_suffix('\''))
-                            .unwrap_or(&raw_name)
-                            .to_owned(),
-                    );
-                }
                 self.activities.insert(
                     id,
                     NixActivity {
@@ -141,9 +115,7 @@ impl NixProgressTracker {
             }
             "stop" => {
                 let activity = self.activities.remove(&id)?;
-                if activity.kind == 0 {
-                    self.progress.evaluation_active = false;
-                } else {
+                if activity.kind != 0 {
                     let completed = self.completed.entry(activity.kind).or_default();
                     completed.done += activity.metric.done;
                     completed.failed += activity.metric.failed;
@@ -209,6 +181,25 @@ impl NixProgressTracker {
                     .or_else(|| event.get("raw_msg"))
                     .and_then(Value::as_str)?;
                 let mut changed = false;
+                if event.get("level").and_then(Value::as_u64) == Some(1) {
+                    let warning = event
+                        .get("raw_msg")
+                        .or_else(|| event.get("msg"))
+                        .and_then(Value::as_str)
+                        .map(strip_ansi)
+                        .unwrap_or_default();
+                    let warning = warning.trim();
+                    if !warning.is_empty()
+                        && !self
+                            .progress
+                            .warnings
+                            .iter()
+                            .any(|existing| existing == warning)
+                    {
+                        self.progress.warnings.push(warning.to_owned());
+                        changed = true;
+                    }
+                }
                 for line in message.lines() {
                     let line = strip_ansi(line);
                     let path = line.trim();
@@ -445,4 +436,139 @@ pub(crate) fn run(
                 .to_owned()
         },
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn tracks_nix_internal_json_progress() {
+        let mut tracker = NixProgressTracker::default();
+        tracker
+            .update(
+                r#"@nix {"action":"msg","level":3,"msg":"fetching \u001b[35;1mgit\u001b[0m input '\u001b[35;1mgit+file:///dotnix\u001b[0m'"}"#,
+            )
+            .unwrap();
+        assert_eq!(tracker.snapshot().flake_fetches, ["git+file:///dotnix"]);
+        assert!(tracker
+            .update(
+                r#"@nix {"action":"msg","level":3,"msg":"fetching git input 'git+file:///dotnix'"}"#,
+            )
+            .is_none());
+        tracker
+            .update(
+                r#"@nix {"action":"start","id":0,"level":4,"text":"evaluating derivation 'git+file:///dotnix#nixosConfigurations.thor.config.system.build.toplevel'","type":0}"#,
+            )
+            .unwrap();
+        assert!(tracker.snapshot().items.is_empty());
+        assert!(
+            tracker
+                .update(r#"@nix {"action":"stop","id":99}"#)
+                .is_none()
+        );
+        assert!(tracker
+            .update(
+                r#"@nix {"action":"start","id":99,"level":5,"text":"copying '/nix/store/hash-source/file' to the store","type":0}"#,
+            )
+            .is_none());
+        tracker.update(r#"@nix {"action":"stop","id":0}"#);
+        tracker
+            .update(
+                r#"@nix {"action":"msg","level":3,"msg":"these derivations will be built:\n  /nix/store/hash-demo-1.0.drv"}"#,
+            )
+            .unwrap();
+        assert!(
+            tracker
+                .snapshot()
+                .planned
+                .contains("/nix/store/hash-demo-1.0.drv")
+        );
+        tracker.update(r#"@nix {"action":"start","id":1,"text":"","type":104}"#);
+        tracker
+            .update(r#"@nix {"action":"result","id":1,"type":105,"fields":[2,5,0,0]}"#)
+            .unwrap();
+        let progress = tracker.snapshot();
+        assert_eq!((progress.builds.done, progress.builds.expected), (2, 5));
+
+        for event in [
+            r#"@nix {"action":"start","id":4,"fields":["/nix/store/hash-demo","https://cache.example"],"text":"fetching demo","type":108}"#,
+            r#"@nix {"action":"start","id":5,"parent":4,"fields":["/nix/store/hash-demo"],"text":"copying demo","type":100}"#,
+            r#"@nix {"action":"start","id":3,"parent":5,"text":"downloading https://cache.example/demo.nar","type":101}"#,
+            r#"@nix {"action":"result","id":3,"type":105,"fields":[512,1024,0,0]}"#,
+        ] {
+            tracker.update(event).unwrap();
+        }
+        let progress = tracker.snapshot();
+        assert_eq!(
+            (progress.downloads.done, progress.downloads.expected),
+            (512, 1024)
+        );
+        assert_eq!(
+            (progress.items[0].done, progress.items[0].expected),
+            (512, 1024)
+        );
+        assert_eq!(
+            progress.items[0].path.as_deref(),
+            Some("/nix/store/hash-demo")
+        );
+        tracker.update(r#"@nix {"action":"stop","id":3}"#);
+
+        tracker
+            .update(
+                r#"@nix {"action":"start","id":2,"fields":["/nix/store/hash-demo-1.0.drv"],"text":"building '/nix/store/hash-demo-1.0.drv'","type":105}"#,
+            )
+            .unwrap();
+        tracker
+            .update(
+                r#"@nix {"action":"result","id":2,"type":101,"fields":["\u001b[1m\u001b[92mChecking\u001b[0m \u001b[1mnum-complex\u001b[0m v0.4.6"]}"#,
+            )
+            .unwrap();
+        assert_eq!(
+            tracker.snapshot().items[0].detail.as_deref(),
+            Some("Checking num-complex v0.4.6")
+        );
+        tracker.update(r#"@nix {"action":"stop","id":2}"#).unwrap();
+        let progress = tracker.snapshot();
+        assert!(progress.items.is_empty());
+        assert!(progress.completed.contains("/nix/store/hash-demo-1.0.drv"));
+    }
+
+    #[test]
+    fn tracks_unique_nix_warnings() {
+        let mut tracker = NixProgressTracker::default();
+        let warning = r#"@nix {"action":"msg","level":1,"raw_msg":"warning: 'system' has been renamed to/replaced by 'stdenv.hostPlatform.system'"}"#;
+        tracker.update(warning).unwrap();
+        assert!(tracker.update(warning).is_none());
+        tracker
+            .update(
+                r#"@nix {"action":"msg","level":1,"raw_msg":"warning: The option `nix.nixPath' has been renamed to `nix.settings.nix-path'."}"#,
+            )
+            .unwrap();
+        assert_eq!(
+            tracker.snapshot().warnings,
+            [
+                "warning: 'system' has been renamed to/replaced by 'stdenv.hostPlatform.system'",
+                "warning: The option `nix.nixPath' has been renamed to `nix.settings.nix-path'.",
+            ]
+        );
+    }
+
+    #[test]
+    fn extracts_originating_nix_build_error() {
+        let stderr = br#"@nix {"action":"msg","level":1,"raw_msg":"warning: deprecated option"}
+@nix {"action":"msg","level":0,"raw_msg":"linking '/nix/store/system_fish-completions/uptime.fish' to '/nix/store/.links/content-address' not allowed"}
+@nix {"action":"msg","level":0,"raw_msg":"\u001b[31;1merror:\u001b[0m builder for '/nix/store/chomp.drv' failed with exit code 101;\n       last 25 log lines:\n       > error[E0583]: file not found for module `video`\n       > error: could not compile `chomp` due to 1 previous error\n       For full logs, run:\n               nix log /nix/store/chomp.drv"}
+@nix {"action":"msg","level":0,"raw_msg":"error: 2 dependencies of derivation '/nix/store/home-manager.drv' failed to build"}
+@nix {"action":"msg","level":0,"raw_msg":"error: 1 dependencies of derivation '/nix/store/nixos-system-odin.drv' failed to build"}"#;
+        assert_eq!(
+            nix_error_message(stderr).as_deref(),
+            Some(
+                "error: builder for '/nix/store/chomp.drv' failed with exit code 101;\n       last 25 log lines:\n       > error[E0583]: file not found for module `video`\n       > error: could not compile `chomp` due to 1 previous error\n       For full logs, run:\n               nix log /nix/store/chomp.drv"
+            )
+        );
+        assert_eq!(
+            strip_ansi("Resolving package\n\u{1b}[1;31m✗\u{1b}[0m failed"),
+            "Resolving package\n✗ failed"
+        );
+    }
 }

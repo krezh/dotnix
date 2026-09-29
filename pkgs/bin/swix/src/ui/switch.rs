@@ -11,8 +11,9 @@ use gtk::prelude::*;
 use crate::activation::activate;
 use crate::build::Target;
 use crate::report::Report;
+use crate::state::{Operation, UiState};
 use crate::theme;
-use crate::{Operation, UiState, label};
+use crate::ui::common::{animations_enabled, label};
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum SwitchVisualState {
@@ -48,11 +49,13 @@ impl SwitchAnimation {
         self.icon.remove_css_class("switch-success-icon");
         self.icon.remove_css_class("switch-error-icon");
         self.icon.add_css_class("switch-activity-icon");
-        self.title.set_text(&format!("Activating {} #{}", self.target, self.flake));
+        self.title
+            .set_text(&format!("Activating {} #{}", self.target, self.flake));
         self.elapsed.set_text("0.0s");
         self.elapsed.remove_css_class("complete");
         self.elapsed.remove_css_class("error");
-        self.note.set_text("Applying configuration and running activation scripts...");
+        self.note
+            .set_text("Applying configuration and running activation scripts...");
         self.root.remove_css_class("switch-complete-card");
         self.root.remove_css_class("switch-error-card");
         self.root.set_visible(true);
@@ -68,6 +71,7 @@ impl SwitchAnimation {
 
     fn complete(&self, elapsed: Duration) {
         self.state.set(SwitchVisualState::Complete);
+        self.active.set(false);
         self.root.remove_css_class("switch-error-card");
         self.root.add_css_class("switch-complete-card");
         self.icon.set_icon_name(Some("object-select-symbolic"));
@@ -75,12 +79,18 @@ impl SwitchAnimation {
         self.icon.remove_css_class("switch-error-icon");
         self.icon.add_css_class("switch-success-icon");
         self.title.set_text("Configuration Activated");
-        self.elapsed.set_text(&format!("✓ in {:.1}s", elapsed.as_secs_f64()));
+        self.elapsed
+            .set_text(&format!("✓ in {:.1}s", elapsed.as_secs_f64()));
         self.elapsed.remove_css_class("error");
         self.elapsed.add_css_class("complete");
         self.note.set_visible(false);
         let morph = Rc::clone(&self.morph);
         let canvas = self.canvas.clone();
+        if !animations_enabled() {
+            morph.set(1.0);
+            canvas.queue_draw();
+            return;
+        }
         let start_time = Rc::new(Cell::new(0_i64));
         self.canvas.add_tick_callback(move |_, frame_clock| {
             let now = frame_clock.frame_time();
@@ -89,10 +99,12 @@ impl SwitchAnimation {
                 start_time.set(now);
                 return glib::ControlFlow::Continue;
             }
-            let progress = ((now - start) as f64 / 350_000.0).clamp(0.0, 1.0);
+            let linear = ((now - start) as f64 / 550_000.0).clamp(0.0, 1.0);
+            let progress = smootherstep(linear);
             morph.set(progress);
             canvas.queue_draw();
-            if progress >= 1.0 {
+            if linear >= 1.0 {
+                morph.set(1.0);
                 glib::ControlFlow::Break
             } else {
                 glib::ControlFlow::Continue
@@ -163,15 +175,17 @@ pub(crate) fn switch_animation(target: &str, flake: &str, font: &str) -> SwitchA
         let height = f64::from(height);
         let center_y = height / 2.0;
         let h_cap = 24.0_f64;
-        let r = 12.0_f64;
+        let r = 5.0_f64;
         let y_cap = center_y - h_cap / 2.0;
+        let x_cap = 2.0_f64;
+        let w_cap = (width - 2.0 * x_cap).max(0.0);
         let phase = draw_phase.get();
         let current_state = draw_state.get();
         let morph = draw_morph.get().clamp(0.0, 1.0);
 
         if current_state == SwitchVisualState::Error {
             theme::set_source_rgba(context, theme::BASE, 0.85);
-            theme::rounded_rectangle(context, 0.0, y_cap, width, h_cap, r);
+            theme::rounded_rectangle(context, x_cap, y_cap, w_cap, h_cap, r);
             let _ = context.fill_preserve();
             context.set_line_width(1.5);
             theme::set_source_rgba(context, theme::RED, 0.80);
@@ -197,31 +211,51 @@ pub(crate) fn switch_animation(target: &str, flake: &str, font: &str) -> SwitchA
         // 1. Base conduit backdrop
         let bg_alpha = 0.85 + 0.10 * morph;
         theme::set_source_rgba(context, theme::BASE, bg_alpha);
-        theme::rounded_rectangle(context, 0.0, y_cap, width, h_cap, r);
+        theme::rounded_rectangle(context, x_cap, y_cap, w_cap, h_cap, r);
         let _ = context.fill_preserve();
         context.set_line_width(1.2);
         theme::set_source_rgba(context, theme::SURFACE1, 0.35);
         let _ = context.stroke();
 
         // 2. Interior spotlight (interpolates from circulating head to full ambient glow)
-        let (head_x, head_y) = theme::capsule_point(0.0, y_cap, width, h_cap, r, phase);
-        let spot_x = head_x + (width / 2.0 - head_x) * morph;
+        let (head_x, head_y) = theme::capsule_point(x_cap, y_cap, w_cap, h_cap, r, phase);
+        let spot_x = head_x + (x_cap + w_cap / 2.0 - head_x) * morph;
         let spot_y = head_y + (center_y - head_y) * morph;
-        let spot_radius = 60.0 + (width / 2.0 - 60.0).max(0.0) * morph;
+        let spot_radius = 60.0 + (w_cap / 2.0 - 60.0).max(0.0) * morph;
 
         let _ = context.save();
-        theme::rounded_rectangle(context, 1.0, y_cap + 1.0, width - 2.0, h_cap - 2.0, r - 1.0);
+        theme::rounded_rectangle(
+            context,
+            x_cap + 1.0,
+            y_cap + 1.0,
+            w_cap - 2.0,
+            h_cap - 2.0,
+            r - 1.0,
+        );
         context.clip();
 
-        let gradient = gtk::cairo::RadialGradient::new(spot_x, spot_y, 0.0, spot_x, spot_y, spot_radius);
+        let gradient =
+            gtk::cairo::RadialGradient::new(spot_x, spot_y, 0.0, spot_x, spot_y, spot_radius);
         let (tr, tg, tb) = theme::TEAL;
         let (sr, sg, sb) = theme::SKY;
         let (gr, gg, gb) = theme::GREEN;
         let r_mid = tr + (gr - tr) * morph;
         let g_mid = tg + (gg - tg) * morph;
         let b_mid = tb + (gb - tb) * morph;
-        gradient.add_color_stop_rgba(0.0, sr + (gr - sr) * morph, sg + (gg - sg) * morph, sb + (gb - sb) * morph, 0.30 * (1.0 - morph) + 0.20 * morph);
-        gradient.add_color_stop_rgba(0.50, r_mid, g_mid, b_mid, 0.16 * (1.0 - morph) + 0.08 * morph);
+        gradient.add_color_stop_rgba(
+            0.0,
+            sr + (gr - sr) * morph,
+            sg + (gg - sg) * morph,
+            sb + (gb - sb) * morph,
+            0.30 * (1.0 - morph) + 0.20 * morph,
+        );
+        gradient.add_color_stop_rgba(
+            0.50,
+            r_mid,
+            g_mid,
+            b_mid,
+            0.16 * (1.0 - morph) + 0.08 * morph,
+        );
         gradient.add_color_stop_rgba(1.0, r_mid, g_mid, b_mid, 0.0);
         let _ = context.set_source(&gradient);
         let _ = context.paint();
@@ -231,7 +265,7 @@ pub(crate) fn switch_animation(target: &str, flake: &str, font: &str) -> SwitchA
         if morph >= 1.0 {
             context.set_line_width(1.8);
             theme::set_source_rgba(context, theme::GREEN, 0.85);
-            theme::rounded_rectangle(context, 0.0, y_cap, width, h_cap, r);
+            theme::rounded_rectangle(context, x_cap, y_cap, w_cap, h_cap, r);
             let _ = context.stroke();
         } else {
             let beam_len = 0.30_f64 + 0.70_f64 * morph;
@@ -240,8 +274,8 @@ pub(crate) fn switch_animation(target: &str, flake: &str, font: &str) -> SwitchA
             for s in 0..steps {
                 let u0 = phase - beam_len * (s as f64 / steps as f64);
                 let u1 = phase - beam_len * ((s as f64 + 1.25) / steps as f64);
-                let p0 = theme::capsule_point(0.0, y_cap, width, h_cap, r, u0);
-                let p1 = theme::capsule_point(0.0, y_cap, width, h_cap, r, u1);
+                let p0 = theme::capsule_point(x_cap, y_cap, w_cap, h_cap, r, u0);
+                let p1 = theme::capsule_point(x_cap, y_cap, w_cap, h_cap, r, u1);
 
                 let frac = 1.0 - (s as f64 / steps as f64);
                 let alpha = (frac * frac * 0.95) * (1.0 - morph) + 0.85 * morph;
@@ -259,9 +293,9 @@ pub(crate) fn switch_animation(target: &str, flake: &str, font: &str) -> SwitchA
                 let _ = context.stroke();
             }
 
-            if morph < 0.95 {
+            if morph < 1.0 {
                 let tail_u = phase - beam_len;
-                let (tail_x, tail_y) = theme::capsule_point(0.0, y_cap, width, h_cap, r, tail_u);
+                let (tail_x, tail_y) = theme::capsule_point(x_cap, y_cap, w_cap, h_cap, r, tail_u);
                 context.arc(tail_x, tail_y, 0.7, 0.0, std::f64::consts::TAU);
                 theme::set_source_rgba(context, theme::TEAL, 0.12 * (1.0 - morph));
                 let _ = context.fill();
@@ -336,17 +370,18 @@ pub(crate) fn switch_animation(target: &str, flake: &str, font: &str) -> SwitchA
         }
     });
 
-    let tick_phase = Rc::clone(&phase);
-    let tick_active = Rc::clone(&active);
-    canvas.add_tick_callback(move |canvas, frame_clock| {
-        if !tick_active.get() {
-            return glib::ControlFlow::Continue;
-        }
-        let seconds = frame_clock.frame_time() as f64 / 1_000_000.0;
-        tick_phase.set((seconds / 2.0).fract());
-        canvas.queue_draw();
-        glib::ControlFlow::Continue
-    });
+    if animations_enabled() {
+        let tick_phase = Rc::clone(&phase);
+        let tick_active = Rc::clone(&active);
+        canvas.add_tick_callback(move |canvas, frame_clock| {
+            if tick_active.get() {
+                let seconds = frame_clock.frame_time() as f64 / 1_000_000.0;
+                tick_phase.set((seconds / 2.0).fract());
+                canvas.queue_draw();
+            }
+            glib::ControlFlow::Continue
+        });
+    }
     root.append(&canvas);
 
     let note = label(
@@ -587,4 +622,70 @@ pub(crate) fn connect_switch(
     button.connect_clicked(move |_| clicked_confirmation.activate());
 
     confirmation
+}
+
+fn smootherstep(t: f64) -> f64 {
+    let c = t.clamp(0.0, 1.0);
+    c * c * c * (c * (c * 6.0 - 15.0) + 10.0)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn smootherstep_boundaries_and_monotonicity() {
+        assert_eq!(smootherstep(0.0), 0.0);
+        assert_eq!(smootherstep(1.0), 1.0);
+        assert_eq!(smootherstep(-0.5), 0.0);
+        assert_eq!(smootherstep(1.5), 1.0);
+        assert_eq!(smootherstep(0.5), 0.5);
+
+        let mut prev = 0.0;
+        for i in 1..=100 {
+            let t = i as f64 / 100.0;
+            let val = smootherstep(t);
+            assert!(val >= prev);
+            prev = val;
+        }
+    }
+
+    #[test]
+    fn only_cross_host_nixos_switches_require_confirmation() {
+        assert!(!requires_host_switch_confirmation(
+            Target::NixOs,
+            "thor",
+            Some("thor")
+        ));
+        assert!(!requires_host_switch_confirmation(
+            Target::NixOs,
+            "thor",
+            Some("thor.example")
+        ));
+        assert!(requires_host_switch_confirmation(
+            Target::NixOs,
+            "odin",
+            Some("thor")
+        ));
+        assert!(requires_host_switch_confirmation(
+            Target::NixOs,
+            "odin",
+            None
+        ));
+        assert!(!requires_host_switch_confirmation(
+            Target::HomeManager,
+            "alice",
+            Some("thor")
+        ));
+    }
+
+    #[test]
+    fn cross_host_switch_requires_two_actions() {
+        let confirmed = Cell::new(false);
+        assert!(!switch_confirmation_allows_activation(true, &confirmed));
+        assert!(confirmed.get());
+        assert!(switch_confirmation_allows_activation(true, &confirmed));
+        assert!(!confirmed.get());
+        assert!(switch_confirmation_allows_activation(false, &confirmed));
+    }
 }

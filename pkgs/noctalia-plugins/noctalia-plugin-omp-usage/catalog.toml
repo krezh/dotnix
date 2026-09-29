@@ -1,0 +1,12 @@
+[[plugin]]
+id = "krezh/omp-usage"
+name = "OMP Usage"
+version = "0.1.0"
+updated_at = 1790732000
+added_at = 1790732000
+author = "krezh"
+license = "MIT"
+icon = "chart-donut-3"
+description = "Tracks Oh My Pi provider usage percentages and reset countdowns."
+plugin_api = 24
+tags = ["bar", "panel", "ai", "indicator", "utility"]

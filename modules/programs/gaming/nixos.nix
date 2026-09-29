@@ -21,6 +21,7 @@
           protonplus
           faugus-launcher
           me3
+          wowup-cf
         ];
       };
 
@@ -116,14 +117,8 @@
                   wrappers = [ gamemode ];
                   env = { };
                 };
-                "3751260" = {
-                  name = "dawnwalker";
-                  compatTool = defaultCompatTool;
-                  wrappers = [ gamemode ];
-                  env = { };
-                };
-                "3669870" = {
-                  name = "resonant";
+                "1285190" = {
+                  name = "borderlands4";
                   compatTool = defaultCompatTool;
                   wrappers = [ gamemode ];
                   env = { };
