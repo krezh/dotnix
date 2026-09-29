@@ -9,16 +9,16 @@
 (buildGoModule.override { go = go-bin.latestStable; }) (finalAttrs: {
   pname = "talosctl";
   # renovate: datasource=github-releases depName=siderolabs/talos
-  version = "1.14.1";
+  version = "1.14.2";
 
   src = fetchFromGitHub {
     owner = "siderolabs";
     repo = "talos";
     rev = "v${finalAttrs.version}";
-    hash = "sha256-55BnNQAUxzUbtYjvMAM6ExnDPNyl7XN7pASYBeMWt3Y=";
+    hash = "sha256-mINL4C+w/9pqTo7oi64VG7TEMwo1rg+ajYNtJQ8+8Bc=";
   };
 
-  vendorHash = "sha256-2mhMSfw3YMO5Tg3b14DIFtJiGFdXaDSaJ4XoR6PXdHA=";
+  vendorHash = "sha256-dHhHOorsWXYJpGcSob2b3IWy4yz2o7vqma9JsK3WThc=";
 
   overrideModAttrs = _: {
     buildPhase = ''
