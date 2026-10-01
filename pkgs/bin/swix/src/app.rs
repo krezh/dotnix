@@ -11,7 +11,7 @@ use crate::build::Target;
 use crate::config::{Appearance, load_config, set_host_override, set_keybinds_override};
 use crate::state::{Operation, UiState};
 use crate::ui::build_screen::start_build;
-use crate::ui::chooser::show_chooser;
+use crate::ui::home::show_home;
 
 const APP_ID: &str = "io.github.krezh.Swix";
 const CSS: &str = include_str!("style.css");
@@ -21,7 +21,7 @@ enum KeyAction {
     Back,
     Close,
     FocusNext,
-    Chooser(char),
+    Home(char),
     ScrollDown,
     ScrollEnd,
     ScrollHome,
@@ -32,13 +32,19 @@ enum KeyAction {
 }
 
 impl UiState {
-    fn is_chooser(&self) -> bool {
-        !self.chooser_buttons.borrow().is_empty()
+    fn is_home(&self) -> bool {
+        !self.home_buttons.borrow().is_empty()
     }
 
-    fn focus_chooser(&self, delta: isize) -> bool {
+    fn focus_home(&self, delta: isize) -> bool {
         let button = {
-            let buttons = self.chooser_buttons.borrow();
+            let buttons = self
+                .home_buttons
+                .borrow()
+                .iter()
+                .filter(|button| button.is_visible() && button.is_sensitive())
+                .cloned()
+                .collect::<Vec<_>>();
             if buttons.is_empty() {
                 return false;
             }
@@ -292,7 +298,7 @@ fn load_css() {
 
 fn character_action(character: char) -> Option<KeyAction> {
     match character.to_ascii_lowercase() {
-        key @ ('m' | 'n' | 'p') => Some(KeyAction::Chooser(key)),
+        key @ ('m' | 'n' | 'p' | 'r') => Some(KeyAction::Home(key)),
         's' => Some(KeyAction::Switch),
         _ => None,
     }
@@ -331,7 +337,7 @@ fn key_action(key: gdk::Key, modifiers: gdk::ModifierType) -> Option<KeyAction> 
 fn build_ui(app: &gtk::Application) -> UiController {
     let window = gtk::ApplicationWindow::builder()
         .application(app)
-        .title("Swix Software Updates")
+        .title("Swix")
         .decorated(false)
         .default_width(720)
         .default_height(260)
@@ -368,7 +374,7 @@ fn build_ui(app: &gtk::Application) -> UiController {
         appearance,
         ..UiState::default()
     });
-    show_chooser(&window, &root, Rc::clone(&state), load_config());
+    show_home(&window, &root, Rc::clone(&state), load_config());
     let key_window = window.clone();
     let key_state = Rc::clone(&state);
     let keys = gtk::EventControllerKey::new();
@@ -393,14 +399,14 @@ fn build_ui(app: &gtk::Application) -> UiController {
                     button.emit_clicked();
                     true
                 } else {
-                    key_state.is_chooser() && key_state.focus_chooser(-1)
+                    key_state.is_home() && key_state.focus_home(-1)
                 }
             }
-            KeyAction::FocusNext => key_state.is_chooser() && key_state.focus_chooser(1),
-            KeyAction::Chooser(key) => {
-                key_state.is_chooser()
+            KeyAction::FocusNext => key_state.is_home() && key_state.focus_home(1),
+            KeyAction::Home(key) => {
+                key_state.is_home()
                     && key_state.operation.get() == Operation::Idle
-                    && key_state.activate_chooser_action(key)
+                    && key_state.activate_home_action(key)
             }
             KeyAction::Switch => {
                 let confirmation = key_state.switch_confirmation.borrow().clone();
@@ -416,8 +422,8 @@ fn build_ui(app: &gtk::Application) -> UiController {
             KeyAction::ScrollUp => {
                 if key_state.scroll(KeyAction::ScrollUp) {
                     true
-                } else if key_state.is_chooser() {
-                    key_state.focus_chooser(-1)
+                } else if key_state.is_home() {
+                    key_state.focus_home(-1)
                 } else {
                     false
                 }
@@ -425,8 +431,8 @@ fn build_ui(app: &gtk::Application) -> UiController {
             KeyAction::ScrollDown => {
                 if key_state.scroll(KeyAction::ScrollDown) {
                     true
-                } else if key_state.is_chooser() {
-                    key_state.focus_chooser(1)
+                } else if key_state.is_home() {
+                    key_state.focus_home(1)
                 } else {
                     false
                 }
@@ -488,11 +494,13 @@ mod tests {
         assert_eq!(character_action('h'), None);
         assert_eq!(character_action('g'), None);
         assert_eq!(character_action('G'), None);
-        assert_eq!(character_action('n'), Some(KeyAction::Chooser('n')));
-        assert_eq!(character_action('N'), Some(KeyAction::Chooser('n')));
-        assert_eq!(character_action('m'), Some(KeyAction::Chooser('m')));
-        assert_eq!(character_action('M'), Some(KeyAction::Chooser('m')));
-        assert_eq!(character_action('p'), Some(KeyAction::Chooser('p')));
+        assert_eq!(character_action('n'), Some(KeyAction::Home('n')));
+        assert_eq!(character_action('N'), Some(KeyAction::Home('n')));
+        assert_eq!(character_action('m'), Some(KeyAction::Home('m')));
+        assert_eq!(character_action('M'), Some(KeyAction::Home('m')));
+        assert_eq!(character_action('p'), Some(KeyAction::Home('p')));
+        assert_eq!(character_action('r'), Some(KeyAction::Home('r')));
+        assert_eq!(character_action('R'), Some(KeyAction::Home('r')));
         assert_eq!(character_action('s'), Some(KeyAction::Switch));
         assert_eq!(character_action('x'), None);
     }

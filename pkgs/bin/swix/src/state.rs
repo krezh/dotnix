@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
-use gtk::prelude::ButtonExt;
+use gtk::prelude::{ButtonExt, WidgetExt};
 
 use crate::changelog::ChangelogOutput;
 use crate::config::Appearance;
@@ -19,8 +19,8 @@ pub(crate) enum Operation {
 }
 
 pub(crate) struct UiState {
-    pub(crate) chooser_buttons: RefCell<Vec<gtk::Button>>,
-    pub(crate) chooser_shortcuts: RefCell<HashMap<char, gtk::Button>>,
+    pub(crate) home_buttons: RefCell<Vec<gtk::Button>>,
+    pub(crate) home_shortcuts: RefCell<HashMap<char, gtk::Button>>,
     pub(crate) scroll: RefCell<Option<gtk::Adjustment>>,
     pub(crate) switch_confirmation: RefCell<Option<SwitchConfirmation>>,
     pub(crate) back_button: RefCell<Option<gtk::Button>>,
@@ -36,8 +36,8 @@ pub(crate) struct UiState {
 impl Default for UiState {
     fn default() -> Self {
         Self {
-            chooser_buttons: RefCell::new(Vec::new()),
-            chooser_shortcuts: RefCell::new(HashMap::new()),
+            home_buttons: RefCell::new(Vec::new()),
+            home_shortcuts: RefCell::new(HashMap::new()),
             scroll: RefCell::new(None),
             switch_confirmation: RefCell::new(None),
             back_button: RefCell::new(None),
@@ -55,8 +55,8 @@ impl Default for UiState {
 impl UiState {
     pub(crate) fn clear_actions(&self) {
         self.cancel_view();
-        self.chooser_buttons.borrow_mut().clear();
-        self.chooser_shortcuts.borrow_mut().clear();
+        self.home_buttons.borrow_mut().clear();
+        self.home_shortcuts.borrow_mut().clear();
         self.scroll.replace(None);
         let confirmation = self.switch_confirmation.borrow_mut().take();
         if let Some(confirmation) = confirmation {
@@ -64,19 +64,22 @@ impl UiState {
         }
         self.back_button.replace(None);
     }
-    pub(crate) fn register_chooser_action(&self, key: char, button: &gtk::Button) {
-        self.chooser_shortcuts
+    pub(crate) fn register_home_action(&self, key: char, button: &gtk::Button) {
+        self.home_shortcuts
             .borrow_mut()
             .insert(key.to_ascii_lowercase(), button.clone());
     }
 
-    pub(crate) fn activate_chooser_action(&self, key: char) -> bool {
+    pub(crate) fn activate_home_action(&self, key: char) -> bool {
         let button = self
-            .chooser_shortcuts
+            .home_shortcuts
             .borrow()
             .get(&key.to_ascii_lowercase())
             .cloned();
-        if let Some(button) = button {
+        if let Some(button) = button
+            && button.is_visible()
+            && button.is_sensitive()
+        {
             button.emit_clicked();
             true
         } else {

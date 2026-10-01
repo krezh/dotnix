@@ -3,8 +3,8 @@ use std::rc::Rc;
 use gtk::prelude::*;
 
 use crate::state::UiState;
-use crate::ui::chooser::back_to_chooser_button;
 use crate::ui::common::{clear, fit_window, navigation_footer, simple_header};
+use crate::ui::home::back_to_home_button;
 
 pub(crate) fn show_error(
     window: &gtk::ApplicationWindow,
@@ -16,7 +16,7 @@ pub(crate) fn show_error(
     fit_window(window, (1040, 760), (360, 420));
     clear(root);
     root.append(&simple_header("Update failed"));
-    let back = back_to_chooser_button(window, root, &state);
+    let back = back_to_home_button(window, root, &state);
     let error = gtk::Label::new(Some(message));
     error.add_css_class("error");
     error.add_css_class("build-error");

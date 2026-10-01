@@ -112,13 +112,13 @@ impl EnergyIndicator {
         let draw_phase = Rc::clone(&phase);
         root.set_draw_func(move |_, context, width, height| {
             if draw_active.get() {
-                draw_energy_capsule(
+                draw_energy_border(
                     context,
                     2.0,
                     2.0,
                     f64::from(width) - 4.0,
                     f64::from(height) - 4.0,
-                    4.0,
+                    8.0,
                     draw_phase.get(),
                 );
             }

@@ -6,11 +6,11 @@ use gtk::prelude::*;
 
 use crate::report::{Change, ChangeStatus, Report};
 use crate::state::{Operation, UiState};
-use crate::ui::chooser::back_to_chooser_button;
 use crate::ui::common::{
     action_close_button, animate_scroll_to, clear, fit_window, key_hints, label, signed_size, size,
     target_subtitle, wide_header,
 };
+use crate::ui::home::back_to_home_button;
 use crate::ui::release_notes::show_changelog;
 use crate::ui::switch::{
     SwitchView, connect_switch, current_hostname, requires_host_switch_confirmation,
@@ -39,7 +39,7 @@ pub(crate) fn show_report(
         fit_window(window, (880, 720), (360, 420));
     }
     clear(root);
-    root.remove_css_class("chooser-root");
+    root.remove_css_class("home-root");
     let timeline = BuildTimeline::new(&state.appearance.sans_font);
     timeline.set_complete();
     let right_slot = gtk::Box::new(gtk::Orientation::Horizontal, 0);
@@ -171,7 +171,7 @@ pub(crate) fn show_report(
     footer.add_css_class("report-footer");
     footer.set_valign(gtk::Align::End);
 
-    let back = back_to_chooser_button(window, root, &state);
+    let back = back_to_home_button(window, root, &state);
     let left_actions = gtk::Box::new(gtk::Orientation::Horizontal, 8);
     left_actions.set_valign(gtk::Align::Center);
     left_actions.append(&back);

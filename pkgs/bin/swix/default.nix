@@ -74,7 +74,7 @@ craneLib.buildPackage rec {
   '';
 
   meta = {
-    description = "GTK software updates, changelogs, and switching for NixOS and Home Manager";
+    description = "GTK control center for NixOS and Home Manager builds, updates, and maintenance";
     mainProgram = "swix";
     license = lib.licenses.gpl3Only;
     platforms = lib.platforms.linux;

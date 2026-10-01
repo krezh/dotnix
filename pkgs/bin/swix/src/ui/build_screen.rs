@@ -15,9 +15,9 @@ use crate::ui::build_progress::{
     BuildPlan, append_evaluation_warnings, build_summary, render_build_progress,
     render_flake_fetches,
 };
-use crate::ui::chooser::show_chooser;
 use crate::ui::common::{clear, fit_window, label, target_subtitle, wide_header};
 use crate::ui::error::show_error;
+use crate::ui::home::show_home;
 use crate::ui::report::show_report;
 use crate::ui::timeline::BuildTimeline;
 use swix::command;
@@ -35,7 +35,7 @@ pub(crate) fn start_build(
     state.clear_actions();
     fit_window(window, (1000, 620), (760, 500));
     clear(root);
-    root.remove_css_class("chooser-root");
+    root.remove_css_class("home-root");
     let flake = target.flake(&config).unwrap_or("<unset>");
     let timeline = BuildTimeline::new(&state.appearance.sans_font);
     timeline.start_pulse();
@@ -51,7 +51,7 @@ pub(crate) fn start_build(
     let cancel_state = Rc::clone(&state);
     cancel.connect_clicked(move |_| {
         cancel_state.cancel();
-        show_chooser(
+        show_home(
             &cancel_window,
             &cancel_root,
             Rc::clone(&cancel_state),
@@ -210,7 +210,7 @@ pub(crate) fn start_build(
                     match result {
                         Ok(report) => show_report(&window, &root, Rc::clone(&state), report),
                         Err(error) if error == command::CANCELLED => {
-                            show_chooser(&window, &root, Rc::clone(&state), load_config())
+                            show_home(&window, &root, Rc::clone(&state), load_config())
                         }
                         Err(error) => show_error(&window, &root, Rc::clone(&state), &error),
                     }

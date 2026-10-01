@@ -43,157 +43,164 @@ tooltip label {
   padding: 24px 28px;
 }
 
-.updates-root.chooser-root {
-  padding: 12px 14px;
+.updates-root.home-root {
+  padding: 22px 24px;
 }
 
-/* Chooser Command List View */
-.chooser {
+/* Home */
+.home {
   padding: 0;
 }
 
-.chooser-header {
-  padding: 0 4px 2px 4px;
+.home-header {
+  margin-bottom: 2px;
 }
 
-.chooser-prompt-icon {
-  color: #89b4fa;
+.home-subtitle {
+  color: #8d98a6;
+  font-size: 14px;
+  font-weight: 650;
 }
 
-.chooser-prompt-label {
-  color: #bac2de;
-  font-size: 16px;
-  font-weight: 700;
-  letter-spacing: 0.2px;
+.home-footer {
+  margin-top: 2px;
 }
 
 
-
-.repository-panel {
-  background-color: rgba(49, 50, 68, 0.48);
-  border: 1px solid rgba(137, 180, 250, 0.14);
-  border-radius: 10px;
-  padding: 8px;
-}
-
-.repository-icon {
-  color: #89b4fa;
-}
-
-.repository-status {
-  color: #cdd6f4;
-  font-size: 15px;
-  font-weight: 750;
-}
-
-.repository-detail {
+.home-section-label {
   color: #8d98a6;
   font-size: 13px;
-}
-
-.repository-counter {
-  background-color: rgba(137, 180, 250, 0.16);
-  border: 1px solid rgba(137, 180, 250, 0.28);
-  border-radius: 7px;
-  color: #89b4fa;
-  font-size: 12px;
   font-weight: 800;
-  min-height: 18px;
-  min-width: 14px;
-  padding: 0 4px;
+  letter-spacing: 0.5px;
+  padding-left: 4px;
 }
 
-.repository-refresh {
-  background-color: rgba(205, 214, 244, 0.06);
-  border: 1px solid rgba(205, 214, 244, 0.12);
+.home-group {
+  background-color: rgba(49, 50, 68, 0.48);
+  border: 1px solid rgba(69, 71, 90, 0.9);
   border-radius: 10px;
-  color: #89b4fa;
-  min-height: 22px;
-  min-width: 22px;
-  padding: 0;
 }
 
-.repository-refresh:hover,
-.repository-refresh:focus {
-  background-color: rgba(137, 180, 250, 0.14);
-}
-
-.repository-refresh.energy-active,
-.repository-refresh.energy-active:disabled {
-  border-color: transparent;
-  background-color: transparent;
-  background-image: none;
-  box-shadow: none;
-  color: #cdd6f4;
-  opacity: 1;
-}
-
-.chooser-button:disabled,
-.chooser-row:disabled {
-  opacity: 0.46;
-}
-
-.chooser-close-hint {
-  opacity: 0.75;
-}
-
-.chooser-hint-text {
-  color: #6c7086;
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.chooser-divider {
+.home-separator {
   background-color: rgba(205, 214, 244, 0.08);
-  margin: 4px 0 8px 0;
+  margin: 0 12px 0 56px;
   min-height: 1px;
 }
 
-.chooser-list {
-  padding: 2px 0;
+.repository-row {
+  min-height: 64px;
 }
 
-.chooser-button,
-.chooser-row {
-  background-color: transparent;
+.repository-update-button {
+  background-color: rgba(249, 226, 175, 0.1);
   background-image: none;
-  border: 1px solid transparent;
-  border-radius: 8px;
+  border: 1px solid rgba(249, 226, 175, 0.28);
+  border-radius: 7px;
   box-shadow: none;
-  color: #cdd6f4;
-  min-height: 48px;
-  padding: 10px 14px;
+  color: #f9e2af;
+  margin-right: 12px;
+  min-height: 38px;
+  padding: 0 10px;
   transition: all 120ms ease;
 }
 
-.chooser-button:hover,
-.chooser-row:hover {
-  background-color: rgba(137, 180, 250, 0.12);
-  border-color: rgba(137, 180, 250, 0.25);
+.repository-update-button:hover,
+.repository-update-button:focus {
+  background-color: rgba(249, 226, 175, 0.16);
+  border-color: rgba(249, 226, 175, 0.48);
+  box-shadow: none;
 }
 
-.chooser-button:focus,
-.chooser-row:focus {
-  background-color: rgba(137, 180, 250, 0.16);
+.repository-update-button.error {
+  background-color: rgba(243, 139, 168, 0.12);
+  border-color: rgba(243, 139, 168, 0.35);
+  color: #f38ba8;
+}
+
+.repository-update-label {
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.home-action {
+  background-color: transparent;
+  background-image: none;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  box-shadow: none;
+  color: #cdd6f4;
+  min-height: 64px;
+  padding: 8px 12px;
+  transition: all 120ms ease;
+}
+
+.home-action:hover {
+  background-color: rgba(137, 180, 250, 0.1);
+  border-color: rgba(137, 180, 250, 0.22);
+}
+
+.home-action:focus {
+  background-color: rgba(137, 180, 250, 0.14);
   border-color: rgba(180, 190, 254, 0.5);
   box-shadow: none;
 }
 
-.chooser-row-icon {
+
+.home-action-icon {
   color: #89b4fa;
 }
 
-.chooser-row-title {
+.home-action-title {
   color: #cdd6f4;
   font-size: 18px;
-  font-weight: 700;
+  font-weight: 750;
 }
 
-.chooser-row-detail {
-  color: #7f849c;
-  font-size: 14px;
+.home-action-detail {
+  color: #8d98a6;
+  font-size: 13px;
   font-weight: 550;
-  margin-left: 8px;
+}
+
+.home-action-branch {
+  font-size: 13px;
+}
+
+.home-action-badge {
+  background-color: rgba(205, 214, 244, 0.07);
+  border: 1px solid rgba(205, 214, 244, 0.13);
+  border-radius: 6px;
+  color: #a6adc8;
+  font-size: 12px;
+  font-weight: 800;
+  padding: 2px 7px;
+}
+
+.home-action-badge.success {
+  background-color: rgba(166, 227, 161, 0.1);
+  border-color: rgba(166, 227, 161, 0.24);
+  color: #a6e3a1;
+}
+
+.home-action-badge.attention {
+  background-color: rgba(249, 226, 175, 0.1);
+  border-color: rgba(249, 226, 175, 0.25);
+  color: #f9e2af;
+}
+
+.home-action-badge.error {
+  background-color: rgba(243, 139, 168, 0.1);
+  border-color: rgba(243, 139, 168, 0.25);
+  color: #f38ba8;
+}
+
+.home-action-chevron {
+  color: #6c7086;
+}
+
+.home-action:hover .home-action-chevron,
+.home-action:focus .home-action-chevron {
+  color: #89b4fa;
 }
 
 .keycap {
@@ -424,13 +431,9 @@ tooltip label {
   margin-top: 0;
 }
 
-.chooser-footer {
-  margin-top: 8px;
-}
 
 .report-back-button,
-.report-close-button,
-.chooser-close-button {
+.report-close-button {
   background-color: transparent;
   border: 1px solid rgba(205, 214, 244, 0.12);
   border-radius: 6px;
@@ -446,12 +449,6 @@ tooltip label {
   padding: 0 16px;
 }
 
-.chooser-close-button {
-  color: #a6adc8;
-  font-size: 13px;
-  min-height: 32px;
-  padding: 0 14px;
-}
 
 .report-back-button:hover {
   background-color: rgba(137, 180, 250, 0.12);
@@ -459,8 +456,7 @@ tooltip label {
   color: #cdd6f4;
 }
 
-.report-close-button:hover,
-.chooser-close-button:hover {
+.report-close-button:hover {
   background-color: rgba(243, 139, 168, 0.12);
   border-color: rgba(243, 139, 168, 0.35);
   color: #f38ba8;
@@ -472,16 +468,14 @@ tooltip label {
   box-shadow: none;
 }
 
-.report-close-button:focus,
-.chooser-close-button:focus {
+.report-close-button:focus {
   background-color: rgba(243, 139, 168, 0.16);
   border-color: rgba(243, 139, 168, 0.5);
   box-shadow: none;
 }
 
 .report-back-label,
-.report-close-label,
-.chooser-close-label {
+.report-close-label {
   font-weight: 700;
 }
 
@@ -490,9 +484,6 @@ tooltip label {
   font-size: 14px;
 }
 
-.chooser-close-label {
-  font-size: 13px;
-}
 
 .switch-button {
   background-color: #a6e3a1;
