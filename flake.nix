@@ -21,12 +21,10 @@
       inputs.nixpkgs-lib.follows = "nixpkgs";
     };
 
+    # Do not follow nixpkgs: CachyOS kernel requires its pinned nixpkgs toolchain.
     nix-cachyos-kernel = {
-      url = "github:xddxdd/nix-cachyos-kernel/53e670823581df6af23ee8981425d87c0dd43dd8";
-      inputs = {
-        nixpkgs.follows = "nixpkgs";
-        flake-parts.follows = "flake-parts";
-      };
+      url = "github:xddxdd/nix-cachyos-kernel/b1332396df6e880d7e3b6b451c6a74132ce8cf66";
+      inputs.flake-parts.follows = "flake-parts";
     };
 
     # Do not follow nixpkgs here: chaotic's binary cache is built against its
