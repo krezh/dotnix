@@ -37,6 +37,10 @@
           enable = true;
           theme = "catppuccin-mocha";
           settings = { };
+          wayland = {
+            enable = true;
+            compositor = "weston";
+          };
         };
         seahorse.enable = true;
         nix-ld.enable = true;
@@ -55,8 +59,6 @@
         displayManager = {
           sddm = {
             enable = true;
-            wayland.enable = true;
-            wayland.compositor = "weston";
             autoNumlock = true;
           };
           defaultSession = "hyprland";
