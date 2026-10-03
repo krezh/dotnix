@@ -23,7 +23,7 @@
 
     # Do not follow nixpkgs: CachyOS kernel requires its pinned nixpkgs toolchain.
     nix-cachyos-kernel = {
-      url = "github:xddxdd/nix-cachyos-kernel/b1332396df6e880d7e3b6b451c6a74132ce8cf66";
+      url = "github:xddxdd/nix-cachyos-kernel/12b3164acdc3eb61afc7420e9d406964e925510f";
       inputs.flake-parts.follows = "flake-parts";
     };
 
