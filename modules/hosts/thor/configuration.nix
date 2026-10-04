@@ -96,7 +96,7 @@
       boot = {
         plymouth.enable = false;
         kernelPackages = pkgs.linuxPackagesFor (
-          pkgs.cachyosKernels.linux-cachyos-latest.override {
+          pkgs.cachyosKernels.linux-cachyos.override {
             cpusched = "eevdf";
             lto = "thin";
             processorOpt = "x86_64-v4";
