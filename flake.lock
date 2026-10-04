@@ -804,16 +804,16 @@
         "nixpkgs": "nixpkgs_3"
       },
       "locked": {
-        "lastModified": 1791129997,
-        "narHash": "sha256-+EYQpZvgNddJxITtNlaxHiRco6aWQlr/t6fs/DwkEh8=",
+        "lastModified": 1791165635,
+        "narHash": "sha256-4WvdRDAMCN5Dm1/lAFAT6ePT5PgWn0iBQr8eUNkE8PM=",
         "owner": "krezh",
         "repo": "nix-cachyos-kernel",
-        "rev": "caf2fd9a7e3c32ac266247dc0b2f7e16872af067",
+        "rev": "726c4a7e6d6d845668e386fd0c2debd5b12dbed5",
         "type": "github"
       },
       "original": {
         "owner": "krezh",
-        "ref": "v7.2.8-1",
+        "ref": "v7.2.8-2",
         "repo": "nix-cachyos-kernel",
         "type": "github"
       }
