@@ -23,6 +23,7 @@ use clap::Parser;
 use cli::{Args, Settings};
 use config::Config;
 use std::io::Write;
+use std::path::{Path, PathBuf};
 
 pub const APP_NAME: &str = "chomp";
 
@@ -65,12 +66,7 @@ fn main() -> Result<()> {
         return Ok(());
     }
 
-    let config = Config::load().unwrap_or_else(|e| {
-        // Alternate form prints the whole chain, so an unknown or malformed key
-        // is named rather than just "failed to parse".
-        eprintln!("Warning: Failed to load config: {:#}. Using defaults.", e);
-        Config::default()
-    });
+    let config = Config::load()?;
 
     let show_status = args.status;
     let settings = args.resolve(config);
@@ -79,8 +75,6 @@ fn main() -> Result<()> {
         .filter_level(settings.log.to_filter())
         .init();
 
-    // Shown regardless of log level: a keybind that cannot fire is invisible
-    // otherwise, and the selector would just ignore the key.
     for problem in settings.keybinds.problems() {
         eprintln!("chomp: {}", problem);
     }
@@ -91,10 +85,10 @@ fn main() -> Result<()> {
         return handle_status(&settings);
     }
 
-    if let Some(mode) = settings.mode {
+    if let Some(mode) = settings.request.mode {
         let notifier = ui::Notifier::new();
 
-        if mode.is_video() && capture::recording(&settings).is_some() {
+        if mode.is_video() && capture::recording(&settings)?.is_some() {
             return handle_stop_recording(&settings, &notifier);
         }
 
@@ -118,11 +112,18 @@ fn main() -> Result<()> {
                 &notifier,
                 selected.image,
                 selected.geometry,
-                settings.clipboard,
+                settings.request.to_clipboard(),
             );
         }
 
-        return handle_image_mode(&settings, &mode, &notifier, None, None, settings.clipboard);
+        return handle_image_mode(
+            &settings,
+            &mode,
+            &notifier,
+            None,
+            None,
+            settings.request.to_clipboard(),
+        );
     }
 
     apply_delay(&settings);
@@ -141,7 +142,7 @@ fn main() -> Result<()> {
                 &notifier,
                 selected.image,
                 selected.geometry,
-                selected.to_clipboard,
+                selected.to_clipboard || settings.request.to_clipboard(),
             );
         }
     }
@@ -156,22 +157,23 @@ fn apply_delay(settings: &Settings) {
     }
 }
 
-/// Attempts to upload file if configured, logging and notifying on error.
-fn handle_upload(settings: &Settings, file_path: &str, notifier: &ui::Notifier) {
+/// Uploads a file when upload configuration is present.
+fn handle_upload(settings: &Settings, file_path: &Path, notifier: &ui::Notifier) -> Result<()> {
     if should_upload(settings) {
-        if let Err(e) = upload_file(settings, file_path, notifier) {
-            log::error!("Upload failed: {}", e);
-            notifier.send_error("Upload failed", Some(&e.to_string()));
+        if let Err(error) = upload_file(settings, file_path, notifier) {
+            notifier.send_error("Upload failed", Some(&error.to_string()));
+            return Err(error);
         }
     }
+    Ok(())
 }
 
 /// Handles --status flag to show recording status.
 fn handle_status(settings: &Settings) -> Result<()> {
-    match capture::recording(settings) {
+    match capture::recording(settings)? {
         Some(file) => {
             println!("🔴 Recording in progress");
-            println!("📁 Output: {}", file);
+            println!("📁 Output: {}", file.display());
             println!("Run chomp -m video-<mode> to stop");
         }
         None => println!("⏹️ No recording active"),
@@ -185,10 +187,8 @@ fn handle_stop_recording(settings: &Settings, notifier: &ui::Notifier) -> Result
     let output_file = capture::stop_recording(settings)?;
 
     notifier.send_info("Screen recording saved");
-    println!("Recording saved to: {}", output_file);
-    handle_upload(settings, &output_file, notifier);
-
-    Ok(())
+    println!("Recording saved to: {}", output_file.display());
+    handle_upload(settings, &output_file, notifier)
 }
 
 /// Handles video recording modes.
@@ -222,7 +222,7 @@ fn handle_video_mode(
     };
 
     let output_file = generate_output_path(settings, "mp4")?;
-    if output_file == "-" {
+    if output_file.as_os_str() == "-" {
         anyhow::bail!("stdout output is not supported for video recording");
     }
 
@@ -271,7 +271,7 @@ fn handle_image_mode(
 ) -> Result<()> {
     let output_file = generate_output_path(settings, "png")?;
 
-    if output_file == "-" {
+    if output_file.as_os_str() == "-" {
         anyhow::ensure!(
             !settings.annotate,
             "Annotation is not supported with stdout output"
@@ -296,13 +296,12 @@ fn handle_image_mode(
             pre_captured.as_ref(),
             pre_geometry.as_deref(),
         )?;
-        if let Err(e) = system::annotate(&settings.satty_path, &png, &output_file) {
-            log::error!("Annotation failed: {}", e);
-            notifier.send_error("Annotation failed", Some(&e.to_string()));
-            return Ok(());
+        if let Err(error) = system::annotate(&settings.satty_path, &png, &output_file) {
+            notifier.send_error("Annotation failed", Some(&error.to_string()));
+            return Err(error);
         }
-        // satty writes output_file only on a save action
-        if !std::path::Path::new(&output_file).exists() {
+        // satty creates output only after a save action.
+        if !output_file.exists() {
             return Ok(());
         }
         if to_clipboard {
@@ -315,28 +314,27 @@ fn handle_image_mode(
         capture::capture_screenshot(rect, &output_file)?;
     }
 
-    log::info!("Screenshot saved to {}", output_file);
+    log::info!("Screenshot saved to {}", output_file.display());
 
     if to_clipboard {
         return copy_to_clipboard(settings, notifier, &output_file);
     }
 
     if should_upload(settings) {
-        if let Err(e) = upload_file(settings, &output_file, notifier) {
-            log::error!("Upload failed: {}", e);
-            // Fallback: copy image to clipboard
-            if let Err(clip_err) = system::copy_image(&settings.wl_copy, &output_file) {
+        if let Err(error) = upload_file(settings, &output_file, notifier) {
+            if let Err(clipboard_error) = system::copy_image(&settings.wl_copy, &output_file) {
                 notifier.send_error(
                     "Upload and clipboard copy failed",
-                    Some(&clip_err.to_string()),
+                    Some(&clipboard_error.to_string()),
                 );
             } else {
                 notifier.send_info("Upload failed - image copied to clipboard");
             }
+            return Err(error);
         }
     } else {
-        notifier.send_info(&format!("Screenshot saved: {}", output_file));
-        println!("Screenshot saved: {}", output_file);
+        notifier.send_info(&format!("Screenshot saved: {}", output_file.display()));
+        println!("Screenshot saved: {}", output_file.display());
     }
 
     Ok(())
@@ -346,18 +344,15 @@ fn handle_image_mode(
 fn copy_to_clipboard(
     settings: &Settings,
     notifier: &ui::Notifier,
-    output_file: &str,
+    output_file: &Path,
 ) -> Result<()> {
-    match system::copy_image(&settings.wl_copy, output_file) {
-        Ok(()) => {
-            notifier.send_info("Screenshot copied to clipboard");
-            println!("Screenshot copied to clipboard: {}", output_file);
-        }
-        Err(e) => {
-            log::error!("Clipboard copy failed: {}", e);
-            notifier.send_error("Clipboard copy failed", Some(&e.to_string()));
-        }
+    if let Err(error) = system::copy_image(&settings.wl_copy, output_file) {
+        notifier.send_error("Clipboard copy failed", Some(&error.to_string()));
+        return Err(error);
     }
+
+    notifier.send_info("Screenshot copied to clipboard");
+    println!("Screenshot copied to clipboard: {}", output_file.display());
     Ok(())
 }
 
@@ -411,13 +406,15 @@ fn active_monitor_rect() -> Result<render::Rect> {
     match compositor::get_active_monitor() {
         Ok(name) => outputs
             .iter()
-            .find(|(_, n, ..)| n == &name)
-            .map(|(_, _, x, y, w, h)| render::Rect::new(*x, *y, *w as i32, *h as i32))
+            .find(|output| output.name == name)
+            .map(|output| output.logical)
             .with_context(|| format!("Active monitor '{}' not found among outputs", name)),
-        Err(e) => {
-            log::warn!("Failed to query active monitor: {}. Using first output.", e);
-            let (_, _, x, y, w, h) = &outputs[0];
-            Ok(render::Rect::new(*x, *y, *w as i32, *h as i32))
+        Err(error) => {
+            log::warn!(
+                "Failed to query active monitor: {}. Using first output.",
+                error
+            );
+            Ok(outputs[0].logical)
         }
     }
 }
@@ -426,17 +423,21 @@ fn active_monitor_rect() -> Result<render::Rect> {
 ///
 /// Creates the directory the capture will be written to, so a save path that does
 /// not exist yet fails here rather than after the capture is already taken.
-fn generate_output_path(settings: &Settings, extension: &str) -> Result<String> {
-    let path = match settings.output {
-        Some(ref output) => output.clone(),
-        None => {
-            let timestamp = chrono::Local::now().format("%Y-%m-%d_%H-%M-%S");
-            format!("{}/{}.{}", settings.save_path, timestamp, extension)
+fn generate_output_path(settings: &Settings, extension: &str) -> Result<PathBuf> {
+    let path = match &settings.output {
+        Some(output) => {
+            anyhow::ensure!(
+                output.as_os_str() == "-" || output.extension().is_some_and(|ext| ext == extension),
+                "Output file must use the .{} extension",
+                extension
+            );
+            output.clone()
         }
+        None => unique_output_path(&settings.save_path, extension)?,
     };
 
-    if path != "-" {
-        if let Some(dir) = std::path::Path::new(&path).parent().filter(|d| !d.exists()) {
+    if path.as_os_str() != "-" {
+        if let Some(dir) = path.parent().filter(|dir| !dir.exists()) {
             std::fs::create_dir_all(dir)
                 .with_context(|| format!("Failed to create output directory {}", dir.display()))?;
         }
@@ -445,13 +446,43 @@ fn generate_output_path(settings: &Settings, extension: &str) -> Result<String> 
     Ok(path)
 }
 
+fn unique_output_path(directory: &Path, extension: &str) -> Result<PathBuf> {
+    use std::sync::atomic::{AtomicU64, Ordering};
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    static SEQUENCE: AtomicU64 = AtomicU64::new(0);
+
+    std::fs::create_dir_all(directory)
+        .with_context(|| format!("Failed to create output directory {}", directory.display()))?;
+
+    for _ in 0..1000 {
+        let nanos = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .context("System clock is before the Unix epoch")?
+            .as_nanos();
+        let sequence = SEQUENCE.fetch_add(1, Ordering::Relaxed);
+        let path = directory.join(format!(
+            "{}-{}-{}.{}",
+            nanos,
+            std::process::id(),
+            sequence,
+            extension
+        ));
+        if !path.exists() {
+            return Ok(path);
+        }
+    }
+
+    anyhow::bail!("Could not allocate a unique output filename")
+}
+
 /// Checks if upload is configured.
 fn should_upload(settings: &Settings) -> bool {
-    !settings.zipline_url.is_empty() && !settings.zipline_token.is_empty()
+    !settings.zipline_url.is_empty() && !settings.zipline_token.as_os_str().is_empty()
 }
 
 /// Uploads file to Zipline.
-fn upload_file(settings: &Settings, file_path: &str, notifier: &ui::Notifier) -> Result<String> {
+fn upload_file(settings: &Settings, file_path: &Path, notifier: &ui::Notifier) -> Result<String> {
     let (url, service_name) = upload::upload_to_zipline(
         &settings.zipline_url,
         &settings.zipline_token,
@@ -478,4 +509,35 @@ fn upload_file(settings: &Settings, file_path: &str, notifier: &ui::Notifier) ->
     println!("Uploaded: {}", url);
 
     Ok(url)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn settings() -> Settings {
+        Args::parse_from(["chomp"]).resolve(Config::default())
+    }
+
+    #[test]
+    fn generated_output_names_do_not_collide() {
+        let directory = tempfile::tempdir().unwrap();
+        let mut settings = settings();
+        settings.save_path = directory.path().to_path_buf();
+
+        let first = generate_output_path(&settings, "png").unwrap();
+        let second = generate_output_path(&settings, "png").unwrap();
+
+        assert_ne!(first, second);
+        assert!(!first.exists());
+        assert!(!second.exists());
+    }
+
+    #[test]
+    fn rejects_an_output_extension_that_does_not_match_the_format() {
+        let mut settings = settings();
+        settings.output = Some(PathBuf::from("capture.jpg"));
+
+        assert!(generate_output_path(&settings, "png").is_err());
+    }
 }

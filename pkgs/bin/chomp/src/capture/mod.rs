@@ -37,8 +37,17 @@ pub(crate) fn capture_region(
     );
 
     let mut captures = Vec::with_capacity(covering.len());
-    for (output, geometry) in covering {
-        captures.push((geometry, screencopy.capture(output)?));
+    for (output, overlap) in covering {
+        let local = Rect::new(
+            overlap.x - output.logical.x,
+            overlap.y - output.logical.y,
+            overlap.width,
+            overlap.height,
+        );
+        captures.push((
+            overlap,
+            screencopy.capture_region(&output.output, local, output.transform)?,
+        ));
     }
 
     let parts: Vec<_> = captures
@@ -69,68 +78,63 @@ pub(crate) fn compose_region(
         .reduce(|covered, part| covered.union(&part))
         .with_context(|| format!("Selection {} is not on any output", rect.describe()))?;
 
-    let format = parts
-        .first()
-        .map(|(_, image)| image.format)
+    let target_scale = parts
+        .iter()
+        .map(|(geometry, image)| {
+            (image.width as f64 / geometry.width as f64)
+                .max(image.height as f64 / geometry.height as f64)
+        })
+        .reduce(f64::max)
         .context("No captures to compose")?;
 
-    if let Some((geometry, image)) = parts.iter().find(|(_, image)| image.format != format) {
-        anyhow::bail!(
-            "Output at ({},{}) captured as {:?}, but the rest of the selection is {:?}",
-            geometry.x,
-            geometry.y,
-            image.format,
-            format
-        );
-    }
-
-    let stride = covered.width as usize * 4;
-    let mut data = vec![0u8; stride * covered.height as usize];
+    let width = (covered.width as f64 * target_scale).round() as u32;
+    let height = (covered.height as f64 * target_scale).round() as u32;
+    let stride = width as usize * 4;
+    let mut data = vec![0u8; stride * height as usize];
 
     for (geometry, image) in parts {
         let Some(part) = rect.intersection(geometry) else {
             continue;
         };
 
-        // A capture is in the output's own pixels, which differ from the layout
-        // coordinates this is assembled in when the output is scaled.
-        let scale_x = image.width as f64 / geometry.width as f64;
-        let scale_y = image.height as f64 / geometry.height as f64;
-
         image.copy_into(
             &mut data,
-            stride,
-            (part.x - covered.x) as usize,
-            (part.y - covered.y) as usize,
-            Rect::new(
-                part.x - geometry.x,
-                part.y - geometry.y,
-                part.width,
-                part.height,
-            ),
-            (scale_x, scale_y),
+            buffer::CopyPlan {
+                dst_stride: stride,
+                dst_x: ((part.x - covered.x) as f64 * target_scale).round() as usize,
+                dst_y: ((part.y - covered.y) as f64 * target_scale).round() as usize,
+                source: Rect::new(
+                    part.x - geometry.x,
+                    part.y - geometry.y,
+                    part.width,
+                    part.height,
+                ),
+                source_scale: (
+                    image.width as f64 / geometry.width as f64,
+                    image.height as f64 / geometry.height as f64,
+                ),
+                target_scale,
+            },
         );
     }
 
-    Ok(CapturedImage::new(
+    CapturedImage::new(
         data,
-        covered.width as u32,
-        covered.height as u32,
+        width,
+        height,
         stride as u32,
-        format,
-    ))
+        buffer::PixelFormat::Argb8888,
+    )
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use wayland_client::protocol::wl_shm;
+    use crate::capture::buffer::PixelFormat;
 
-    /// Builds a `width`x`height` capture whose every byte is `fill`.
     fn capture(width: u32, height: u32, fill: u8) -> CapturedImage {
         let data = vec![fill; (width * height * 4) as usize];
-
-        CapturedImage::new(data, width, height, width * 4, wl_shm::Format::Argb8888)
+        CapturedImage::new(data, width, height, width * 4, PixelFormat::Argb8888).unwrap()
     }
 
     /// The pixel at (x, y) of a composed image, as its first byte.
@@ -177,20 +181,18 @@ mod tests {
     }
 
     #[test]
-    fn samples_a_scaled_output() {
-        // A 2x output: 8x8 pixels of capture behind 4x4 of layout.
+    fn preserves_the_highest_output_scale() {
         let mut data = vec![0u8; 8 * 8 * 4];
-        for (index, pixel) in data.chunks_exact_mut(4).enumerate() {
-            // Mark the right half of the capture so sampling is visible.
+        for (index, pixel) in data.as_chunks_mut::<4>().0.iter_mut().enumerate() {
             pixel[0] = if index % 8 >= 4 { 0xAA } else { 0x55 };
         }
-        let scaled = CapturedImage::new(data, 8, 8, 8 * 4, wl_shm::Format::Argb8888);
+        let scaled = CapturedImage::new(data, 8, 8, 8 * 4, PixelFormat::Argb8888).unwrap();
         let parts = [(Rect::new(0, 0, 4, 4), &scaled)];
 
         let composed = compose_region(Rect::new(0, 0, 4, 4), &parts).unwrap();
 
-        assert_eq!((composed.width, composed.height), (4, 4));
+        assert_eq!((composed.width, composed.height), (8, 8));
         assert_eq!(pixel(&composed, 0, 0), 0x55);
-        assert_eq!(pixel(&composed, 3, 3), 0xAA);
+        assert_eq!(pixel(&composed, 7, 7), 0xAA);
     }
 }

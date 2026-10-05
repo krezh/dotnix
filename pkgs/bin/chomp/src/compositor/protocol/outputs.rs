@@ -6,16 +6,17 @@ use smithay_client_toolkit::output::{OutputHandler, OutputState};
 use smithay_client_toolkit::registry::{ProvidesRegistryState, RegistryState};
 use wayland_client::{Connection, globals::registry_queue_init, protocol::wl_output};
 
-use crate::render::selection::Rect;
+use crate::render::Rect;
 
-/// Wayland output information: (output, name, x, y, width, height).
-pub type OutputInfo = (wl_output::WlOutput, String, i32, i32, u32, u32);
+#[derive(Clone)]
+pub struct OutputInfo {
+    pub output: wl_output::WlOutput,
+    pub name: String,
+    pub logical: Rect,
+    pub transform: wl_output::Transform,
+}
 
-/// Gets list of Wayland outputs with their geometry.
-///
-/// Returns a list of (output, name, x, y, width, height) tuples.
 pub fn get_outputs(conn: &Connection) -> Result<Vec<OutputInfo>> {
-    // Minimal state for output enumeration
     struct OutputEnumerator {
         registry_state: RegistryState,
         output_state: OutputState,
@@ -64,72 +65,60 @@ pub fn get_outputs(conn: &Connection) -> Result<Vec<OutputInfo>> {
 
     let (globals, mut event_queue) =
         registry_queue_init::<OutputEnumerator>(conn).context("Failed to init registry")?;
-
     let registry_state = RegistryState::new(&globals);
     let output_state = OutputState::new(&globals, &event_queue.handle());
-
     let mut state = OutputEnumerator {
         registry_state,
         output_state,
     };
 
-    // Dispatch events to populate output info
     event_queue
         .roundtrip(&mut state)
-        .context("Failed to roundtrip")?;
+        .context("Failed to enumerate outputs")?;
 
-    let outputs: Vec<_> = state
+    let outputs = state
         .output_state
         .outputs()
         .filter_map(|output| {
-            state.output_state.info(&output).map(|info| {
-                let name = info.name.clone().unwrap_or_default();
-                let (x, y) = info.logical_position.unwrap_or((0, 0));
-                let (width, height) = info.logical_size.unwrap_or((1920, 1080));
-                (output.clone(), name, x, y, width as u32, height as u32)
+            let info = state.output_state.info(&output)?;
+            let (x, y) = info.logical_position?;
+            let (width, height) = info.logical_size?;
+            (width > 0 && height > 0).then(|| OutputInfo {
+                output: output.clone(),
+                name: info.name.clone().unwrap_or_default(),
+                logical: Rect::new(x, y, width, height),
+                transform: info.transform,
             })
         })
-        .collect();
+        .collect::<Vec<_>>();
 
-    if outputs.is_empty() {
-        anyhow::bail!("No outputs found");
-    }
-
+    anyhow::ensure!(
+        !outputs.is_empty(),
+        "No outputs with logical geometry found"
+    );
     Ok(outputs)
 }
 
-/// Finds every output a rectangle covers, with each output's global geometry.
-///
-/// A selection can span monitors, and one capture only ever covers one output,
-/// so the caller assembles the region from all of them. Ordered by how much of
-/// the rectangle each output holds, so the first is the one it mostly sits on.
-pub fn find_outputs_for_rect<'a>(
-    outputs: &'a [OutputInfo],
+pub fn find_outputs_for_rect(
+    outputs: &[OutputInfo],
     rect: Rect,
-) -> Result<Vec<(&'a wl_output::WlOutput, Rect)>> {
-    let mut covering: Vec<_> = outputs
+) -> Result<Vec<(&OutputInfo, Rect)>> {
+    let mut covering = outputs
         .iter()
-        .filter_map(|info| {
-            let geometry = output_rect(info);
-            let overlap = rect.intersection(&geometry)?;
-
-            Some((overlap.area(), &info.0, geometry))
+        .filter_map(|output| {
+            let overlap = rect.intersection(&output.logical)?;
+            Some((overlap.area(), output, overlap))
         })
-        .collect();
+        .collect::<Vec<_>>();
 
-    if covering.is_empty() {
-        anyhow::bail!("Selection {} is not on any output", rect.describe());
-    }
-
+    anyhow::ensure!(
+        !covering.is_empty(),
+        "Selection {} is not on any output",
+        rect.describe()
+    );
     covering.sort_by_key(|(area, ..)| std::cmp::Reverse(*area));
-
     Ok(covering
         .into_iter()
-        .map(|(_, output, geometry)| (output, geometry))
+        .map(|(_, output, overlap)| (output, overlap))
         .collect())
-}
-
-/// Returns an output's geometry as a rectangle in global coordinates.
-fn output_rect((_, _, x, y, width, height): &OutputInfo) -> Rect {
-    Rect::new(*x, *y, *width as i32, *height as i32)
 }

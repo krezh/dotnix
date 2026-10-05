@@ -5,6 +5,7 @@ use clap_complete::{Shell, generate};
 
 use crate::capture::CaptureMode;
 use crate::config::{Config, FontWeight, KeybindsConfig, LogLevel, ModeSelectConfig};
+use std::path::PathBuf;
 
 /// Command-line arguments for chomp
 ///
@@ -17,7 +18,7 @@ pub struct Args {
     pub font_family: Option<String>,
 
     /// Text Font size
-    #[arg(long)]
+    #[arg(long, value_parser = clap::value_parser!(u32).range(1..))]
     pub font_size: Option<u32>,
 
     /// Text Font weight
@@ -25,7 +26,7 @@ pub struct Args {
     pub font_weight: Option<FontWeight>,
 
     /// Border color in hex
-    #[arg(short, long)]
+    #[arg(short, long, value_parser = parse_hex_color)]
     pub border_color: Option<String>,
 
     /// Border thickness in pixels
@@ -37,7 +38,7 @@ pub struct Args {
     pub border_rounding: Option<u32>,
 
     /// Dimming opacity (0.0-1.0)
-    #[arg(short, long)]
+    #[arg(short, long, value_parser = parse_unit)]
     pub dim_opacity: Option<f64>,
 
     /// Log level
@@ -53,7 +54,7 @@ pub struct Args {
     pub freeze: Option<bool>,
 
     /// Enable OCR mode (extract text from selected region)
-    #[arg(long)]
+    #[arg(long, conflicts_with = "mode")]
     pub ocr: bool,
 
     /// Annotate the screenshot with satty before saving/uploading
@@ -70,7 +71,7 @@ pub struct Args {
 
     /// Screenshot output file path (use '-' for stdout in PNG format)
     #[arg(short = 'o', long)]
-    pub output: Option<String>,
+    pub output: Option<PathBuf>,
 
     /// Capture mode
     #[arg(long, short = 'm', value_enum)]
@@ -86,7 +87,7 @@ pub struct Args {
 
     /// Zipline token file path (overrides config)
     #[arg(long, short = 't')]
-    pub zipline_token: Option<String>,
+    pub zipline_token: Option<PathBuf>,
 
     /// Use original filename on Zipline (overrides config)
     #[arg(long)]
@@ -94,7 +95,7 @@ pub struct Args {
 
     /// Save path directory (overrides config)
     #[arg(long, short = 'p')]
-    pub save_path: Option<String>,
+    pub save_path: Option<PathBuf>,
 
     /// Generate default config file and exit
     #[arg(long)]
@@ -113,6 +114,43 @@ pub struct Args {
     pub await_notification_action: Option<Vec<String>>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ImageDestination {
+    SaveOrUpload,
+    Clipboard,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CaptureAction {
+    Image,
+    Ocr,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct CaptureRequest {
+    pub mode: Option<CaptureMode>,
+    pub action: CaptureAction,
+    pub destination: ImageDestination,
+}
+
+impl CaptureRequest {
+    pub fn is_ocr(self) -> bool {
+        self.action == CaptureAction::Ocr
+    }
+
+    pub fn to_clipboard(self) -> bool {
+        self.destination == ImageDestination::Clipboard
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RecordingOptions {
+    pub max_fps: u32,
+    pub encode_resolution: String,
+    pub bitrate: String,
+    pub codec: String,
+}
+
 /// Effective settings after merging CLI arguments with the config file.
 ///
 /// Priority order: CLI args > config file > hardcoded defaults.
@@ -128,23 +166,18 @@ pub struct Settings {
     pub log: LogLevel,
     pub delay: Option<u64>,
     pub freeze: bool,
-    pub ocr: bool,
+    pub request: CaptureRequest,
     pub annotate: bool,
-    pub clipboard: bool,
     pub satty_path: String,
     pub wl_copy: String,
     pub wl_screenrec: String,
     pub ocr_language: String,
-    pub video_max_fps: u32,
-    pub video_encode_resolution: String,
-    pub video_bitrate: String,
-    pub video_codec: String,
-    pub output: Option<String>,
-    pub mode: Option<CaptureMode>,
+    pub recording: RecordingOptions,
+    pub output: Option<PathBuf>,
     pub zipline_url: String,
-    pub zipline_token: String,
+    pub zipline_token: PathBuf,
     pub original_name: bool,
-    pub save_path: String,
+    pub save_path: PathBuf,
     pub keybinds: KeybindsConfig,
     pub mode_select: ModeSelectConfig,
 }
@@ -163,25 +196,43 @@ impl Args {
             log: self.log.unwrap_or(config.display.log),
             delay: self.delay.or(config.capture.delay),
             freeze: self.freeze.unwrap_or(config.display.freeze),
-            ocr: self.ocr,
+            request: CaptureRequest {
+                mode: self.mode,
+                action: if self.ocr {
+                    CaptureAction::Ocr
+                } else {
+                    CaptureAction::Image
+                },
+                destination: if self.clipboard {
+                    ImageDestination::Clipboard
+                } else {
+                    ImageDestination::SaveOrUpload
+                },
+            },
             annotate: self.annotate,
-            clipboard: self.clipboard,
             satty_path: self.satty_path.unwrap_or(config.tools.satty),
             wl_copy: config.tools.wl_copy,
             wl_screenrec: config.tools.wl_screenrec,
             ocr_language: config.ocr.language,
-            video_max_fps: config.capture.video.max_fps,
-            video_encode_resolution: config.capture.video.encode_resolution,
-            video_bitrate: config.capture.video.bitrate,
-            video_codec: config.capture.video.codec,
+            recording: RecordingOptions {
+                max_fps: config.capture.video.max_fps,
+                encode_resolution: config.capture.video.encode_resolution,
+                bitrate: config.capture.video.bitrate,
+                codec: config.capture.video.codec,
+            },
             output: self.output,
-            mode: self.mode,
             zipline_url: self.zipline_url.unwrap_or(config.upload.zipline.url),
-            zipline_token: self.zipline_token.unwrap_or(config.upload.zipline.token),
+            zipline_token: expand_home(
+                self.zipline_token
+                    .unwrap_or_else(|| PathBuf::from(config.upload.zipline.token)),
+            ),
             original_name: self
                 .original_name
                 .unwrap_or(config.upload.zipline.use_original_name),
-            save_path: self.save_path.unwrap_or(config.capture.save_path),
+            save_path: expand_home(
+                self.save_path
+                    .unwrap_or_else(|| PathBuf::from(config.capture.save_path)),
+            ),
             keybinds: config.keybinds,
             mode_select: config.mode_select,
         }
@@ -192,5 +243,73 @@ impl Args {
         let mut cmd = Self::command();
         let bin_name = cmd.get_name().to_string();
         generate(shell, &mut cmd, bin_name, &mut std::io::stdout());
+    }
+}
+
+fn parse_unit(value: &str) -> Result<f64, String> {
+    let value = value
+        .parse::<f64>()
+        .map_err(|_| "expected a number between 0.0 and 1.0".to_string())?;
+    if value.is_finite() && (0.0..=1.0).contains(&value) {
+        Ok(value)
+    } else {
+        Err("expected a number between 0.0 and 1.0".to_string())
+    }
+}
+
+fn parse_hex_color(value: &str) -> Result<String, String> {
+    let hex = value.strip_prefix('#').unwrap_or(value);
+    if matches!(hex.len(), 3 | 6) && hex.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+        Ok(value.to_string())
+    } else {
+        Err("expected a three- or six-digit hexadecimal color".to_string())
+    }
+}
+
+fn expand_home(path: PathBuf) -> PathBuf {
+    let Some(path_text) = path.to_str() else {
+        return path;
+    };
+    let Some(rest) = path_text
+        .strip_prefix("~/")
+        .or_else(|| (path_text == "~").then_some(""))
+    else {
+        return path;
+    };
+    std::env::var_os("HOME")
+        .map(PathBuf::from)
+        .map(|home| home.join(rest))
+        .unwrap_or(path)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn resolves_ocr_as_a_region_request() {
+        let settings = Args::parse_from(["chomp", "--ocr"]).resolve(Config::default());
+
+        assert!(settings.request.is_ocr());
+        assert_eq!(settings.request.mode, None);
+    }
+
+    #[test]
+    fn preserves_clipboard_destination_without_an_explicit_mode() {
+        let settings = Args::parse_from(["chomp", "--clipboard"]).resolve(Config::default());
+
+        assert!(settings.request.to_clipboard());
+    }
+
+    #[test]
+    fn rejects_ocr_with_an_explicit_capture_mode() {
+        assert!(Args::try_parse_from(["chomp", "--ocr", "--mode", "image-area"]).is_err());
+    }
+
+    #[test]
+    fn rejects_invalid_visual_values() {
+        assert!(Args::try_parse_from(["chomp", "--dim-opacity", "1.2"]).is_err());
+        assert!(Args::try_parse_from(["chomp", "--border-color", "not-a-color"]).is_err());
+        assert!(Args::try_parse_from(["chomp", "--font-size", "0"]).is_err());
     }
 }

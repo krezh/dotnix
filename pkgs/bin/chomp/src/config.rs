@@ -391,20 +391,87 @@ impl Config {
     /// Searches for config.json in XDG-compliant locations.
     /// Returns default config if no file is found (not an error).
     pub fn load() -> Result<Self> {
-        match Self::find_config_file() {
+        let config = match Self::find_config_file() {
             Some(path) => {
                 log::info!("Loading config from: {}", path.display());
                 let content = fs::read_to_string(&path)
-                    .context(format!("Failed to read config file: {}", path.display()))?;
+                    .with_context(|| format!("Failed to read config file: {}", path.display()))?;
 
                 serde_json::from_str(&content)
-                    .context(format!("Failed to parse config file: {}", path.display()))
+                    .with_context(|| format!("Failed to parse config file: {}", path.display()))?
             }
             None => {
                 log::info!("No config file found, using defaults");
-                Ok(Self::default())
+                Self::default()
             }
+        };
+
+        config.validate()
+    }
+
+    /// Rejects values that would otherwise fail after the selector opens.
+    pub fn validate(self) -> Result<Self> {
+        validate_hex_color("border.color", &self.border.color)?;
+        validate_unit("display.dim_opacity", self.display.dim_opacity)?;
+        validate_unit(
+            "mode_select.background_opacity",
+            self.mode_select.background_opacity,
+        )?;
+        validate_unit(
+            "mode_select.border_opacity",
+            self.mode_select.border_opacity,
+        )?;
+        validate_unit(
+            "mode_select.description_opacity",
+            self.mode_select.description_opacity,
+        )?;
+        validate_unit(
+            "mode_select.separator_opacity",
+            self.mode_select.separator_opacity,
+        )?;
+        validate_hex_color(
+            "mode_select.background_color",
+            &self.mode_select.background_color,
+        )?;
+        if !self.mode_select.key_color.is_empty() {
+            validate_hex_color("mode_select.key_color", &self.mode_select.key_color)?;
         }
+        validate_hex_color(
+            "mode_select.description_color",
+            &self.mode_select.description_color,
+        )?;
+        validate_hex_color(
+            "mode_select.recording_dot_color",
+            &self.mode_select.recording_dot_color,
+        )?;
+        validate_hex_color(
+            "mode_select.recording_highlight_color",
+            &self.mode_select.recording_highlight_color,
+        )?;
+        anyhow::ensure!(self.font.size > 0, "font.size must be greater than zero");
+        anyhow::ensure!(
+            self.capture.video.max_fps > 0,
+            "capture.video.max_fps must be greater than zero"
+        );
+        anyhow::ensure!(
+            self.mode_select.bar_height > 0,
+            "mode_select.bar_height must be greater than zero"
+        );
+        if !self.capture.video.encode_resolution.is_empty() {
+            validate_resolution(&self.capture.video.encode_resolution)?;
+        }
+        anyhow::ensure!(
+            matches!(
+                self.capture.video.codec.as_str(),
+                "" | "auto" | "avc" | "hevc" | "vp8" | "vp9" | "av1"
+            ),
+            "capture.video.codec must be auto, avc, hevc, vp8, vp9 or av1"
+        );
+
+        let problems = self.keybinds.problems();
+        anyhow::ensure!(problems.is_empty(), "{}", problems.join("; "));
+
+        Ok(self)
     }
 
     /// Writes a config instance to file, creating parent directories as needed.
@@ -466,6 +533,42 @@ impl Config {
     }
 }
 
+fn validate_unit(name: &str, value: f64) -> Result<()> {
+    anyhow::ensure!(
+        value.is_finite() && (0.0..=1.0).contains(&value),
+        "{} must be between 0.0 and 1.0",
+        name
+    );
+    Ok(())
+}
+
+fn validate_hex_color(name: &str, value: &str) -> Result<()> {
+    let hex = value.strip_prefix('#').unwrap_or(value);
+    anyhow::ensure!(
+        matches!(hex.len(), 3 | 6) && hex.bytes().all(|byte| byte.is_ascii_hexdigit()),
+        "{} must be a three- or six-digit hexadecimal color",
+        name
+    );
+    Ok(())
+}
+
+fn validate_resolution(value: &str) -> Result<()> {
+    let (width, height) = value
+        .split_once('x')
+        .with_context(|| "capture.video.encode_resolution must use WIDTHxHEIGHT")?;
+    let width: u32 = width
+        .parse()
+        .with_context(|| "capture.video.encode_resolution has an invalid width")?;
+    let height: u32 = height
+        .parse()
+        .with_context(|| "capture.video.encode_resolution has an invalid height")?;
+    anyhow::ensure!(
+        width > 0 && height > 0,
+        "capture.video.encode_resolution dimensions must be greater than zero"
+    );
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -492,5 +595,20 @@ mod tests {
         assert_eq!(config.display.dim_opacity, 0.7);
         // Defaults should still work for unspecified values
         assert_eq!(config.border.thickness, 2);
+    }
+
+    #[test]
+    fn rejects_invalid_semantic_values() {
+        let mut config = Config::default();
+        config.display.dim_opacity = 1.5;
+        assert!(config.validate().is_err());
+
+        let mut config = Config::default();
+        config.capture.video.encode_resolution = "1920".to_string();
+        assert!(config.validate().is_err());
+
+        let mut config = Config::default();
+        config.keybinds.screenshot_screen = config.keybinds.screenshot_area.clone();
+        assert!(config.validate().is_err());
     }
 }

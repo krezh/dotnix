@@ -27,12 +27,22 @@ pub fn complete_selection(
     let _ = conn.roundtrip();
     let _ = conn.roundtrip();
 
+    if settings.request.is_ocr() {
+        let language = &settings.ocr_language;
+        let text = match crop_frozen(output_surfaces, outputs_list, settings, rect) {
+            Some(image) => ocr::extract_text(&image, language)?,
+            None => ocr::capture_and_ocr(screencopy, outputs_list, rect, language)?,
+        };
+        println!("{}", text);
+        system::copy_text(&settings.wl_copy, &text)?;
+        return Ok((None, None));
+    }
+
     if matches!(
-        settings.mode,
+        settings.request.mode,
         Some(CaptureMode::ImageArea | CaptureMode::VideoArea)
     ) {
-        // Recording needs coordinates, not pixels.
-        let cropped = if settings.mode == Some(CaptureMode::ImageArea) {
+        let cropped = if settings.request.mode == Some(CaptureMode::ImageArea) {
             crop_frozen(output_surfaces, outputs_list, settings, rect)
         } else {
             None
@@ -41,24 +51,9 @@ pub fn complete_selection(
         return Ok((Some(rect.to_geometry_string()), cropped));
     }
 
-    if settings.ocr {
-        // OCR reads the same selected pixels a screenshot would save.
-        let language = &settings.ocr_language;
-        let text = match crop_frozen(output_surfaces, outputs_list, settings, rect) {
-            Some(image) => ocr::extract_text(&image, language)?,
-            None => ocr::capture_and_ocr(screencopy, outputs_list, rect, language)?,
-        };
-        println!("{}", text);
-
-        // Copy to clipboard using wl-copy
-        if let Err(e) = system::copy_text(&settings.wl_copy, &text) {
-            log::warn!("Failed to copy to clipboard: {}", e);
-        }
-    } else if let Some(ref output_path) = settings.output {
-        // Screenshot mode: capture and save to file or stdout
+    if let Some(output_path) = &settings.output {
         capture::capture_and_save(screencopy, outputs_list, rect, Some(output_path))?;
     } else {
-        // Coordinate output mode: output coordinates only
         println!("{}", rect.to_geometry_string());
     }
 
@@ -92,14 +87,14 @@ fn crop_frozen(
     // Every covered output has to have a frozen screen, or the result would be
     // missing part of the selection; capturing it live is better than that.
     let mut parts = Vec::with_capacity(covering.len());
-    for (output, geometry) in covering {
+    for (output, _) in covering {
         let frozen = output_surfaces
             .iter()
-            .find(|surface| &surface.output == output)?
+            .find(|surface| surface.output == output.output)?
             .frozen_buffer
             .as_ref()?;
 
-        parts.push((geometry, frozen));
+        parts.push((output.logical, frozen));
     }
 
     capture::compose_region(rect, &parts)

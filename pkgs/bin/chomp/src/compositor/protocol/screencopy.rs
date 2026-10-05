@@ -13,7 +13,8 @@ use wayland_protocols_wlr::screencopy::v1::client::{
 };
 
 use super::shm::{create_shm_fd, map_shm_buffer};
-use crate::capture::buffer::CapturedImage;
+use crate::capture::buffer::{CapturedImage, PixelFormat};
+use crate::render::Rect;
 
 // How many times to poll the compositor for the frame before giving up.
 const MAX_CAPTURE_POLLS: u32 = 100;
@@ -26,6 +27,7 @@ pub(super) struct CaptureState {
     pub format: Option<wl_shm::Format>,
     pub ready: bool,
     pub failed: bool,
+    pub y_inverted: bool,
 }
 
 impl CaptureState {
@@ -37,6 +39,7 @@ impl CaptureState {
             format: None,
             ready: false,
             failed: false,
+            y_inverted: false,
         }
     }
 
@@ -89,8 +92,10 @@ impl Dispatch<ZwlrScreencopyFrameV1, ()> for CaptureState {
                     state.format = Some(fmt);
                 }
             }
-            zwlr_screencopy_frame_v1::Event::Flags { .. } => {
-                log::debug!("Frame flags received");
+            zwlr_screencopy_frame_v1::Event::Flags {
+                flags: WEnum::Value(flags),
+            } => {
+                state.y_inverted = flags.contains(zwlr_screencopy_frame_v1::Flags::YInvert);
             }
             zwlr_screencopy_frame_v1::Event::Ready { .. } => {
                 log::info!("Frame ready");
@@ -158,60 +163,79 @@ impl Screencopy {
         })
     }
 
-    /// Captures the entire content of a Wayland output.
-    pub fn capture(&mut self, output: &wl_output::WlOutput) -> Result<CapturedImage> {
-        capture_output(self, output)
+    pub fn capture(
+        &mut self,
+        output: &wl_output::WlOutput,
+        transform: wl_output::Transform,
+    ) -> Result<CapturedImage> {
+        let qh = self.event_queue.handle();
+        let frame = self.manager.capture_output(0, output, &qh, ());
+        capture_frame(self, frame, transform)
+    }
+
+    pub fn capture_region(
+        &mut self,
+        output: &wl_output::WlOutput,
+        rect: Rect,
+        transform: wl_output::Transform,
+    ) -> Result<CapturedImage> {
+        let qh = self.event_queue.handle();
+        let frame = self.manager.capture_output_region(
+            0,
+            output,
+            rect.x,
+            rect.y,
+            rect.width,
+            rect.height,
+            &qh,
+            (),
+        );
+        capture_frame(self, frame, transform)
     }
 }
 
-/// Captures the entire content of a Wayland output using the zwlr-screencopy-v1 protocol.
-fn capture_output(
+fn capture_frame(
     screencopy: &mut Screencopy,
-    output: &wl_output::WlOutput,
+    frame: ZwlrScreencopyFrameV1,
+    transform: wl_output::Transform,
 ) -> Result<CapturedImage> {
     let event_queue = &mut screencopy.event_queue;
     let qh = event_queue.handle();
-
-    // Initialize capture
     let mut capture_state = CaptureState::new();
-    let frame: ZwlrScreencopyFrameV1 = screencopy.manager.capture_output(0, output, &qh, ());
-
-    // Get buffer info
     event_queue.roundtrip(&mut capture_state)?;
 
     let width = capture_state.width.context("No buffer width received")?;
     let height = capture_state.height.context("No buffer height received")?;
     let stride = capture_state.stride.context("No stride received")?;
-    let format = capture_state.format.unwrap_or(wl_shm::Format::Argb8888);
+    let shm_format = capture_state
+        .format
+        .context("No supported pixel format received")?;
+    let format = match shm_format {
+        wl_shm::Format::Argb8888 => PixelFormat::Argb8888,
+        wl_shm::Format::Xrgb8888 => PixelFormat::Xrgb8888,
+        other => anyhow::bail!("Unsupported screencopy pixel format: {:?}", other),
+    };
 
-    log::debug!(
-        "Capture buffer: {}x{}, stride: {}, format: {:?}",
+    let size = (stride * height) as usize;
+    let (buffer, pool, shm_fd) = create_wl_buffer(
+        &screencopy.shm,
+        &qh,
         width,
         height,
         stride,
-        format
-    );
-
-    // Create and attach buffer
-    let size = (stride * height) as usize;
-    let (buffer, pool, shm_fd) =
-        create_wl_buffer(&screencopy.shm, &qh, width, height, stride, format, size)?;
-
+        shm_format,
+        size,
+    )?;
     frame.copy(&buffer);
-
-    // Wait for completion
     wait_for_capture(event_queue, &mut capture_state)?;
-
-    // Map the captured pages BEFORE cleanup. The mapping outlives both the
-    // descriptor and the wl_buffer, so the pixels stay valid once those go.
     let data = map_shm_buffer(&shm_fd, size)?;
 
-    // Cleanup (order matters - buffer before pool)
     buffer.destroy();
     pool.destroy();
     frame.destroy();
 
-    Ok(CapturedImage::new(data, width, height, stride, format))
+    CapturedImage::new(data, width, height, stride, format)?
+        .normalize(transform, capture_state.y_inverted)
 }
 
 /// Creates a Wayland buffer backed by shared memory.

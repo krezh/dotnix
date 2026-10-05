@@ -1,246 +1,347 @@
 //! Video recording management using wl-screenrec
-//!
-//! Recording state is tracked in a runtime state file containing the recorder
-//! PID and output path, so only recordings started by chomp are detected and stopped.
 
 use anyhow::{Context, Result};
+use nix::fcntl::{Flock, FlockArg};
 use nix::sys::signal::{Signal, kill};
 use nix::unistd::Pid;
 use serde::{Deserialize, Serialize};
-use std::fs;
+use std::fs::{self, OpenOptions};
+use std::io::Write;
+use std::os::unix::fs::OpenOptionsExt;
 use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::process::{Command, Stdio};
 use std::time::{Duration, Instant};
 
-use crate::cli::Settings;
+use crate::cli::{RecordingOptions, Settings};
 
 const STOP_TIMEOUT: Duration = Duration::from_secs(10);
-
-/// Bits per pixel the derived bitrate aims for, which holds up in motion.
+const STARTUP_GRACE: Duration = Duration::from_millis(200);
 const TARGET_BITS_PER_PIXEL: f64 = 0.35;
 const MIN_BITRATE_MB: u64 = 5;
 const MAX_BITRATE_MB: u64 = 25;
-
-/// Used when the recorded size is unknown; the recorder's own default.
 const DEFAULT_BITRATE: &str = "5 MB";
 
 #[derive(Serialize, Deserialize)]
 struct RecordingState {
     pid: u32,
-    output_file: String,
+    start_time: u64,
+    executable: PathBuf,
+    output_file: PathBuf,
 }
 
-/// Returns the output path of the recording chomp has running, if any.
-///
-/// Removes a stale state file whose process is gone.
-pub fn recording(settings: &Settings) -> Option<String> {
-    match load_state() {
-        Some(state) if pid_is_recorder(&settings.wl_screenrec, state.pid) => {
-            Some(state.output_file)
-        }
-        Some(_) => {
-            let _ = fs::remove_file(state_file());
-            None
-        }
-        None => None,
+pub fn recording(_settings: &Settings) -> Result<Option<PathBuf>> {
+    let _lock = lock_state()?;
+    let Some(state) = load_state()? else {
+        return Ok(None);
+    };
+
+    if process_matches(&state) {
+        Ok(Some(state.output_file))
+    } else {
+        remove_state()?;
+        Ok(None)
     }
 }
 
-/// Stops the active recording by sending SIGINT to its recorder process and
-/// waiting for it to exit.
-///
-/// Returns the output file path.
-pub fn stop_recording(settings: &Settings) -> Result<String> {
-    let recorder = &settings.wl_screenrec;
-    let state = load_state().filter(|s| pid_is_recorder(recorder, s.pid));
-
-    let Some(state) = state else {
-        let _ = fs::remove_file(state_file());
+pub fn stop_recording(_settings: &Settings) -> Result<PathBuf> {
+    let _lock = lock_state()?;
+    let Some(state) = load_state()? else {
         anyhow::bail!("No recording active");
     };
+
+    if !process_matches(&state) {
+        remove_state()?;
+        anyhow::bail!("No recording active");
+    }
 
     kill(Pid::from_raw(state.pid as i32), Signal::SIGINT)
         .context("Failed to signal the recorder")?;
 
     let deadline = Instant::now() + STOP_TIMEOUT;
-    while pid_is_recorder(recorder, state.pid) {
-        if Instant::now() >= deadline {
-            log::warn!(
-                "{} (pid {}) did not exit within {:?}; recording may be incomplete",
-                recorder,
-                state.pid,
-                STOP_TIMEOUT
-            );
-            break;
-        }
+    while process_matches(&state) {
+        anyhow::ensure!(
+            Instant::now() < deadline,
+            "Recorder pid {} did not stop within {:?}; recording state was retained",
+            state.pid,
+            STOP_TIMEOUT
+        );
         std::thread::sleep(Duration::from_millis(50));
     }
 
-    let _ = fs::remove_file(state_file());
-
+    remove_state()?;
+    anyhow::ensure!(
+        state
+            .output_file
+            .metadata()
+            .is_ok_and(|metadata| metadata.len() > 0),
+        "Recorder stopped without producing {}",
+        state.output_file.display()
+    );
     Ok(state.output_file)
 }
 
-/// Starts the recorder with the given parameters and records its state.
-///
-/// `size` is the recorded area in pixels, used to pick a bitrate when none is
-/// configured.
 pub fn start_recording(
     settings: &Settings,
     geometry: Option<&str>,
     monitor: Option<&str>,
     size: Option<(u32, u32)>,
-    output_file: &str,
+    output_file: &Path,
 ) -> Result<()> {
-    let max_fps = format!("--max-fps={}", settings.video_max_fps);
-    let encode_resolution = format!("--encode-resolution={}", settings.video_encode_resolution);
-    let codec = format!("--codec={}", settings.video_codec);
-    let bitrate = format!("--bitrate={}", resolve_bitrate(settings, size));
-
-    let mut args = vec!["--low-power=off", max_fps.as_str(), &bitrate];
-
-    // Left empty, the recorder encodes at the output's own resolution.
-    if !settings.video_encode_resolution.is_empty() {
-        args.push(&encode_resolution);
+    let _lock = lock_state()?;
+    if let Some(state) = load_state()? {
+        if process_matches(&state) {
+            anyhow::bail!(
+                "A recording is already active at {}",
+                state.output_file.display()
+            );
+        }
+        remove_state()?;
     }
 
-    if !settings.video_codec.is_empty() && settings.video_codec != "auto" {
-        args.push(&codec);
+    let options = &settings.recording;
+    let max_fps = format!("--max-fps={}", options.max_fps);
+    let encode_resolution = format!("--encode-resolution={}", options.encode_resolution);
+    let codec = format!("--codec={}", options.codec);
+    let bitrate = format!("--bitrate={}", resolve_bitrate(options, size));
+
+    let mut args = vec!["--low-power=off", max_fps.as_str(), bitrate.as_str()];
+    if !options.encode_resolution.is_empty() {
+        args.push(encode_resolution.as_str());
     }
-
-    if let Some(g) = geometry {
-        args.extend(["-g", g]);
+    if !options.codec.is_empty() && options.codec != "auto" {
+        args.push(codec.as_str());
     }
-
-    if let Some(m) = monitor {
-        args.extend(["-o", m]);
+    if let Some(value) = geometry {
+        args.extend(["-g", value]);
     }
+    if let Some(value) = monitor {
+        args.extend(["-o", value]);
+    }
+    args.push("-f");
 
-    args.extend(["-f", output_file]);
-
-    let child = Command::new(&settings.wl_screenrec)
+    let mut child = Command::new(&settings.wl_screenrec)
         .args(&args)
+        .arg(output_file)
+        .stdin(Stdio::null())
         .spawn()
         .with_context(|| format!("Failed to start {}", settings.wl_screenrec))?;
 
+    let deadline = Instant::now() + STARTUP_GRACE;
+    while Instant::now() < deadline {
+        if let Some(status) = child
+            .try_wait()
+            .context("Failed to inspect recorder startup")?
+        {
+            anyhow::bail!(
+                "{} exited during startup with {}",
+                settings.wl_screenrec,
+                status
+            );
+        }
+        std::thread::sleep(Duration::from_millis(20));
+    }
+
+    let pid = child.id();
     let state = RecordingState {
-        pid: child.id(),
-        output_file: output_file.to_string(),
+        pid,
+        start_time: process_start_time(pid).context("Recorder disappeared during startup")?,
+        executable: fs::read_link(format!("/proc/{pid}/exe"))
+            .context("Failed to identify recorder executable")?,
+        output_file: output_file.to_path_buf(),
     };
 
-    if let Err(e) = fs::write(state_file(), serde_json::to_string(&state)?) {
-        let _ = kill(Pid::from_raw(child.id() as i32), Signal::SIGINT);
-        return Err(e).context("Failed to write recording state file");
+    if let Err(error) = write_state(&state) {
+        let _ = kill(Pid::from_raw(pid as i32), Signal::SIGINT);
+        return Err(error);
     }
 
     Ok(())
 }
 
-/// Returns the bitrate to record at, in the recorder's own byte-per-second units.
-///
-/// The recorder's own default is a fixed 5 MB/s, which is sized for 1080p: at
-/// 1440p or 4K the same bits are spread over two to four times the pixels, and
-/// anything with motion in it breaks up into blocks. Scaling with the pixel rate
-/// keeps quality steady across resolutions, and lands on that same 5 MB/s at
-/// 1080p60.
-fn resolve_bitrate(settings: &Settings, size: Option<(u32, u32)>) -> String {
-    if !settings.video_bitrate.is_empty() {
-        return settings.video_bitrate.clone();
+fn resolve_bitrate(options: &RecordingOptions, size: Option<(u32, u32)>) -> String {
+    if !options.bitrate.is_empty() {
+        return options.bitrate.clone();
     }
 
-    // What is encoded, which is the encoder resolution when one is set.
-    let encoded = parse_resolution(&settings.video_encode_resolution).or(size);
-
+    let encoded = parse_resolution(&options.encode_resolution).or(size);
     let Some((width, height)) = encoded else {
         return DEFAULT_BITRATE.to_string();
     };
 
-    let pixels_per_second = width as f64 * height as f64 * settings.video_max_fps as f64;
+    let pixels_per_second = width as f64 * height as f64 * options.max_fps as f64;
     let bytes_per_second = pixels_per_second * TARGET_BITS_PER_PIXEL / 8.0;
     let megabytes = (bytes_per_second / 1_000_000.0).round() as u64;
-
     format!("{} MB", megabytes.clamp(MIN_BITRATE_MB, MAX_BITRATE_MB))
+}
+
+fn parse_resolution(resolution: &str) -> Option<(u32, u32)> {
+    let (width, height) = resolution.split_once('x')?;
+    Some((width.trim().parse().ok()?, height.trim().parse().ok()?))
+}
+
+fn runtime_dir() -> Result<PathBuf> {
+    if let Some(dir) = std::env::var_os("XDG_RUNTIME_DIR") {
+        return Ok(PathBuf::from(dir));
+    }
+    if let Some(uid) = std::env::var_os("UID") {
+        let dir = PathBuf::from("/run/user").join(uid);
+        if dir.is_dir() {
+            return Ok(dir);
+        }
+    }
+    anyhow::bail!("XDG_RUNTIME_DIR is not set and no private user runtime directory exists")
+}
+
+fn state_file() -> Result<PathBuf> {
+    Ok(runtime_dir()?.join("chomp-recording.json"))
+}
+
+fn lock_state() -> Result<Flock<fs::File>> {
+    let path = runtime_dir()?.join("chomp-recording.lock");
+    let file = OpenOptions::new()
+        .read(true)
+        .write(true)
+        .create(true)
+        .truncate(false)
+        .mode(0o600)
+        .custom_flags(nix::libc::O_NOFOLLOW)
+        .open(&path)
+        .with_context(|| format!("Failed to open recording lock {}", path.display()))?;
+    Flock::lock(file, FlockArg::LockExclusive)
+        .map_err(|(_, error)| error)
+        .context("Failed to lock recording state")
+}
+
+fn load_state() -> Result<Option<RecordingState>> {
+    let path = state_file()?;
+    match fs::read_to_string(&path) {
+        Ok(content) => serde_json::from_str(&content)
+            .with_context(|| format!("Failed to parse recording state {}", path.display()))
+            .map(Some),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(None),
+        Err(error) => Err(error).with_context(|| format!("Failed to read {}", path.display())),
+    }
+}
+
+fn write_state(state: &RecordingState) -> Result<()> {
+    let path = state_file()?;
+    let temp = path.with_extension(format!("tmp-{}", std::process::id()));
+    let bytes = serde_json::to_vec(state).context("Failed to encode recording state")?;
+    let mut file = OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .mode(0o600)
+        .custom_flags(nix::libc::O_NOFOLLOW)
+        .open(&temp)
+        .with_context(|| format!("Failed to create {}", temp.display()))?;
+    if let Err(error) = file.write_all(&bytes).and_then(|()| file.sync_all()) {
+        let _ = fs::remove_file(&temp);
+        return Err(error).context("Failed to persist recording state");
+    }
+    if let Err(error) = fs::rename(&temp, &path) {
+        let _ = fs::remove_file(&temp);
+        return Err(error).context("Failed to publish recording state");
+    }
+    Ok(())
+}
+
+fn remove_state() -> Result<()> {
+    let path = state_file()?;
+    match fs::remove_file(&path) {
+        Ok(()) => Ok(()),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        Err(error) => Err(error).with_context(|| format!("Failed to remove {}", path.display())),
+    }
+}
+
+fn process_matches(state: &RecordingState) -> bool {
+    process_start_time(state.pid) == Some(state.start_time)
+        && fs::read_link(format!("/proc/{}/exe", state.pid))
+            .is_ok_and(|path| path == state.executable)
+}
+
+fn process_start_time(pid: u32) -> Option<u64> {
+    let stat = fs::read_to_string(format!("/proc/{pid}/stat")).ok()?;
+    let fields = stat
+        .rsplit_once(") ")?
+        .1
+        .split_whitespace()
+        .collect::<Vec<_>>();
+    fields.get(19)?.parse().ok()
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    fn settings(bitrate: &str, encode_resolution: &str, max_fps: u32) -> Settings {
-        use clap::Parser;
-
-        let mut settings = crate::cli::Args::parse_from(["chomp"]).resolve(Default::default());
-        settings.video_bitrate = bitrate.to_string();
-        settings.video_encode_resolution = encode_resolution.to_string();
-        settings.video_max_fps = max_fps;
-        settings
+    fn options(bitrate: &str, encode_resolution: &str, max_fps: u32) -> RecordingOptions {
+        RecordingOptions {
+            bitrate: bitrate.to_string(),
+            encode_resolution: encode_resolution.to_string(),
+            max_fps,
+            codec: "auto".to_string(),
+        }
     }
 
     #[test]
     fn keeps_a_configured_bitrate() {
-        let settings = settings("15 MB", "", 60);
-
-        assert_eq!(resolve_bitrate(&settings, Some((2560, 1440))), "15 MB");
+        assert_eq!(
+            resolve_bitrate(&options("15 MB", "", 60), Some((2560, 1440))),
+            "15 MB"
+        );
     }
 
     #[test]
     fn scales_the_bitrate_with_the_recorded_area() {
-        let settings = settings("", "", 60);
-
-        // 1080p60 lands on the recorder's own default, 1440p60 above it.
-        assert_eq!(resolve_bitrate(&settings, Some((1920, 1080))), "5 MB");
-        assert_eq!(resolve_bitrate(&settings, Some((2560, 1440))), "10 MB");
-        assert_eq!(resolve_bitrate(&settings, Some((3840, 2160))), "22 MB");
+        let options = options("", "", 60);
+        assert_eq!(resolve_bitrate(&options, Some((1920, 1080))), "5 MB");
+        assert_eq!(resolve_bitrate(&options, Some((2560, 1440))), "10 MB");
+        assert_eq!(resolve_bitrate(&options, Some((3840, 2160))), "22 MB");
     }
 
     #[test]
     fn sizes_the_bitrate_to_the_encoder_resolution() {
-        let settings = settings("", "1920x1080", 60);
-
-        // Downscaled to 1080p, so a 1440p region still encodes at 1080p's rate.
-        assert_eq!(resolve_bitrate(&settings, Some((2560, 1440))), "5 MB");
+        let options = options("", "1920x1080", 60);
+        assert_eq!(resolve_bitrate(&options, Some((2560, 1440))), "5 MB");
     }
 
     #[test]
     fn falls_back_without_a_known_area() {
-        let settings = settings("", "", 60);
-
-        assert_eq!(resolve_bitrate(&settings, None), DEFAULT_BITRATE);
+        assert_eq!(resolve_bitrate(&options("", "", 60), None), DEFAULT_BITRATE);
     }
-}
 
-/// Parses a "WIDTHxHEIGHT" resolution.
-fn parse_resolution(resolution: &str) -> Option<(u32, u32)> {
-    let (width, height) = resolution.split_once('x')?;
+    #[test]
+    fn reads_the_current_process_identity() {
+        let pid = std::process::id();
+        assert!(process_start_time(pid).is_some());
+    }
 
-    Some((width.trim().parse().ok()?, height.trim().parse().ok()?))
-}
+    #[test]
+    fn rejects_a_recorder_that_exits_during_startup() {
+        use clap::Parser;
+        use std::os::unix::fs::PermissionsExt;
 
-fn state_file() -> PathBuf {
-    let dir = std::env::var("XDG_RUNTIME_DIR").unwrap_or_else(|_| "/tmp".to_string());
-    PathBuf::from(dir).join("chomp-recording.json")
-}
+        let directory = tempfile::tempdir().unwrap();
+        let recorder = directory.path().join("wl-screenrec");
+        fs::write(&recorder, "#!/bin/sh\nexit 23\n").unwrap();
+        fs::set_permissions(&recorder, fs::Permissions::from_mode(0o700)).unwrap();
 
-fn load_state() -> Option<RecordingState> {
-    let content = fs::read_to_string(state_file()).ok()?;
-    serde_json::from_str(&content).ok()
-}
+        let previous = std::env::var_os("XDG_RUNTIME_DIR");
+        std::env::set_var("XDG_RUNTIME_DIR", directory.path());
+        let mut settings = crate::cli::Args::parse_from(["chomp"]).resolve(Default::default());
+        settings.wl_screenrec = recorder.to_string_lossy().into_owned();
+        let result = start_recording(
+            &settings,
+            None,
+            None,
+            Some((1920, 1080)),
+            &directory.path().join("recording.mp4"),
+        );
+        match previous {
+            Some(value) => std::env::set_var("XDG_RUNTIME_DIR", value),
+            None => std::env::remove_var("XDG_RUNTIME_DIR"),
+        }
 
-/// Returns true if the PID is a live process running the configured recorder.
-///
-/// The recording is stopped by a second chomp process, which is not the
-/// recorder's parent, so there is no child to wait on — only a PID, which the
-/// kernel may have reused for something else by then.
-fn pid_is_recorder(recorder: &str, pid: u32) -> bool {
-    let name = Path::new(recorder).file_name();
-
-    fs::read_to_string(format!("/proc/{}/cmdline", pid))
-        .ok()
-        .and_then(|cmdline| {
-            cmdline
-                .split('\0')
-                .next()
-                .map(|arg0| Path::new(arg0).file_name() == name)
-        })
-        .unwrap_or(false)
+        assert!(result.is_err());
+    }
 }

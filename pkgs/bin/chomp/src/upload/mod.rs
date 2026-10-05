@@ -19,15 +19,16 @@ mod service;
 pub use service::UploadService;
 
 use anyhow::Result;
+use std::path::Path;
 
 /// Uploads a file to Zipline and returns the public URL and service name.
 ///
 /// This is a convenience wrapper around the Zipline backend.
 pub fn upload_to_zipline(
     zipline_url: &str,
-    token_file: &str,
+    token_file: &Path,
     use_original_name: bool,
-    file_path: &str,
+    file_path: &Path,
 ) -> Result<(String, &'static str)> {
     use backend::zipline::ZiplineUploader;
     use service::UploadService;

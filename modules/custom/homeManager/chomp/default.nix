@@ -89,9 +89,16 @@
                   "debug"
                   "warn"
                   "error"
+                  "trace"
                 ];
                 default = "off";
                 description = "Logging level.";
+              };
+
+              freeze = lib.mkOption {
+                type = lib.types.bool;
+                default = true;
+                description = "Freeze the screen while selecting a region.";
               };
             };
           };
@@ -223,6 +230,96 @@
           };
           default = { };
         };
+
+        keybinds = lib.mkOption {
+          type = lib.types.submodule {
+            options = {
+              screenshotArea = lib.mkOption {
+                type = lib.types.str;
+                default = "a";
+              };
+              screenshotScreen = lib.mkOption {
+                type = lib.types.str;
+                default = "s";
+              };
+              screenshotWindow = lib.mkOption {
+                type = lib.types.str;
+                default = "w";
+              };
+              ocr = lib.mkOption {
+                type = lib.types.str;
+                default = "c";
+              };
+              recordArea = lib.mkOption {
+                type = lib.types.str;
+                default = "A";
+              };
+              recordScreen = lib.mkOption {
+                type = lib.types.str;
+                default = "S";
+              };
+              recordWindow = lib.mkOption {
+                type = lib.types.str;
+                default = "W";
+              };
+              stopRecording = lib.mkOption {
+                type = lib.types.str;
+                default = "x";
+              };
+            };
+          };
+          default = { };
+          description = "Single-character mode selector keybindings.";
+        };
+
+        modeSelect = lib.mkOption {
+          type = lib.types.submodule {
+            options = {
+              backgroundColor = lib.mkOption {
+                type = lib.types.str;
+                default = "#0D0D14";
+              };
+              backgroundOpacity = lib.mkOption {
+                type = lib.types.float;
+                default = 0.95;
+              };
+              barHeight = lib.mkOption {
+                type = lib.types.ints.positive;
+                default = 56;
+              };
+              borderOpacity = lib.mkOption {
+                type = lib.types.float;
+                default = 0.35;
+              };
+              keyColor = lib.mkOption {
+                type = lib.types.str;
+                default = "";
+              };
+              descriptionColor = lib.mkOption {
+                type = lib.types.str;
+                default = "#FFFFFF";
+              };
+              descriptionOpacity = lib.mkOption {
+                type = lib.types.float;
+                default = 0.85;
+              };
+              separatorOpacity = lib.mkOption {
+                type = lib.types.float;
+                default = 0.18;
+              };
+              recordingDotColor = lib.mkOption {
+                type = lib.types.str;
+                default = "#F24040";
+              };
+              recordingHighlightColor = lib.mkOption {
+                type = lib.types.str;
+                default = "#F2BF33";
+              };
+            };
+          };
+          default = { };
+          description = "Mode selector appearance.";
+        };
       };
 
       config = lib.mkIf cfg.enable {
@@ -237,7 +334,7 @@
           };
           display = {
             dim_opacity = cfg.display.dimOpacity;
-            inherit (cfg.display) log;
+            inherit (cfg.display) freeze log;
           };
           upload = {
             zipline = {
@@ -261,6 +358,28 @@
             satty = lib.getExe cfg.tools.satty;
             wl_copy = lib.getExe' cfg.tools.wlCopy "wl-copy";
             wl_screenrec = lib.getExe cfg.tools.wlScreenrec;
+          };
+          keybinds = {
+            screenshot_area = cfg.keybinds.screenshotArea;
+            screenshot_screen = cfg.keybinds.screenshotScreen;
+            screenshot_window = cfg.keybinds.screenshotWindow;
+            inherit (cfg.keybinds) ocr;
+            record_area = cfg.keybinds.recordArea;
+            record_screen = cfg.keybinds.recordScreen;
+            record_window = cfg.keybinds.recordWindow;
+            stop_recording = cfg.keybinds.stopRecording;
+          };
+          mode_select = {
+            background_color = cfg.modeSelect.backgroundColor;
+            background_opacity = cfg.modeSelect.backgroundOpacity;
+            bar_height = cfg.modeSelect.barHeight;
+            border_opacity = cfg.modeSelect.borderOpacity;
+            key_color = cfg.modeSelect.keyColor;
+            description_color = cfg.modeSelect.descriptionColor;
+            description_opacity = cfg.modeSelect.descriptionOpacity;
+            separator_opacity = cfg.modeSelect.separatorOpacity;
+            recording_dot_color = cfg.modeSelect.recordingDotColor;
+            recording_highlight_color = cfg.modeSelect.recordingHighlightColor;
           };
         };
       };

@@ -122,6 +122,7 @@ pub struct App {
 
     // True if a wl-screenrec recording is already running when the selector opens
     pub(super) is_recording: bool,
+    pub(super) supports_window_capture: bool,
 
     // Mode-select entrance animation (slide up from bottom + fade).
     // `intro_progress` is in [0, 1]; 1.0 means the bar is at rest.
@@ -188,15 +189,17 @@ impl App {
             })
             .collect();
 
-        let phase = if settings.mode.is_none() {
+        let is_mode_select = settings.request.mode.is_none() && !settings.request.is_ocr();
+        let phase = if is_mode_select {
             UiPhase::ModeSelect
         } else {
             UiPhase::RegionSelect
         };
 
-        let is_mode_select = settings.mode.is_none();
-
-        let is_recording = crate::capture::recording(&settings).is_some();
+        let is_recording = crate::capture::recording(&settings)?.is_some();
+        let to_clipboard = settings.request.to_clipboard();
+        let supports_window_capture =
+            crate::compositor::detect_compositor().supports_window_capture();
 
         let mut app = Self {
             screencopy: crate::compositor::Screencopy::new(&conn)?,
@@ -222,11 +225,12 @@ impl App {
             chosen_mode: None,
             captured_image: None,
             is_recording,
+            supports_window_capture,
             intro_progress: if is_mode_select { 0.0 } else { 1.0 },
             intro_start: None,
             intro_duration: 0.22,
             intro_done: !is_mode_select,
-            to_clipboard: false,
+            to_clipboard,
             modifiers: Modifiers::default(),
             pending_capture: None,
             pending_since: None,
@@ -336,7 +340,7 @@ impl App {
                 let pool_size = (width * height * 4 * 2) as usize;
                 let pool = SlotPool::new(pool_size, &self.shm_state).ok();
 
-                let renderer = create_renderer(width, height, &self.settings);
+                let renderer = Some(create_renderer(width, height, &self.settings)?);
 
                 log::info!(
                     "Output {:?}: {}x{} at ({}, {})",
@@ -381,7 +385,12 @@ impl App {
         let dim_opacity = self.settings.dim_opacity;
 
         for output_surface in &mut self.output_surfaces {
-            match self.screencopy.capture(&output_surface.output) {
+            let transform = self
+                .outputs
+                .get(&output_surface.output)
+                .map(|info| info.transform)
+                .unwrap_or(wayland_client::protocol::wl_output::Transform::Normal);
+            match self.screencopy.capture(&output_surface.output, transform) {
                 Ok(captured_image) => {
                     log::debug!(
                         "Captured frozen screen for output: {}x{}",
@@ -511,19 +520,19 @@ impl App {
                     .and_then(|name| {
                         outputs_list
                             .iter()
-                            .find(|(_, n, ..)| n == &name)
-                            .map(|(o, ..)| o.clone())
+                            .find(|output| output.name == name)
+                            .cloned()
                     });
                 let output = by_name
                     .or_else(|| {
                         outputs_list
                             .iter()
-                            .find(|(_, _, x, y, ..)| (*x, *y) == (0, 0))
-                            .map(|(o, ..)| o.clone())
+                            .find(|output| (output.logical.x, output.logical.y) == (0, 0))
+                            .cloned()
                     })
-                    .or_else(|| outputs_list.first().map(|(o, ..)| o.clone()))
+                    .or_else(|| outputs_list.first().cloned())
                     .context("No outputs available")?;
-                self.screencopy.capture(&output)
+                self.screencopy.capture(&output.output, output.transform)
             }
             _ => unreachable!(),
         }
@@ -537,20 +546,20 @@ impl App {
         self.output_surfaces
             .iter()
             .map(|surface| {
-                let name = self
-                    .outputs
-                    .get(&surface.output)
-                    .and_then(|info| info.name.clone())
-                    .unwrap_or_default();
-
-                (
-                    surface.output.clone(),
-                    name,
-                    surface.x,
-                    surface.y,
-                    surface.width,
-                    surface.height,
-                )
+                let info = self.outputs.get(&surface.output);
+                crate::compositor::protocol::outputs::OutputInfo {
+                    output: surface.output.clone(),
+                    name: info.and_then(|info| info.name.clone()).unwrap_or_default(),
+                    logical: crate::render::Rect::new(
+                        surface.x,
+                        surface.y,
+                        surface.width as i32,
+                        surface.height as i32,
+                    ),
+                    transform: info
+                        .map(|info| info.transform)
+                        .unwrap_or(wayland_client::protocol::wl_output::Transform::Normal),
+                }
             })
             .collect()
     }
@@ -573,17 +582,16 @@ impl App {
     }
 
     pub(super) fn draw_index(&mut self, index: usize, qh: &QueueHandle<Self>) -> Result<()> {
-        let is_mode_select = self.phase == UiPhase::ModeSelect;
-        rendering::draw_output(
-            &mut self.output_surfaces[index],
-            &self.selection,
-            is_mode_select,
-            &self.settings.keybinds,
-            &self.settings.mode_select,
-            self.is_recording,
-            self.intro_progress,
-            qh,
-        )
+        let state = rendering::DrawState {
+            selection: &self.selection,
+            is_mode_select: self.phase == UiPhase::ModeSelect,
+            keybinds: &self.settings.keybinds,
+            mode_select: &self.settings.mode_select,
+            is_recording: self.is_recording,
+            supports_window_capture: self.supports_window_capture,
+            intro_progress: self.intro_progress,
+        };
+        rendering::draw_output(&mut self.output_surfaces[index], &state, qh)
     }
 
     // ------------------------------------------------------------------------

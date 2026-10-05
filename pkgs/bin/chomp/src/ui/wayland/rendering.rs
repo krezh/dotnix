@@ -7,6 +7,15 @@ use wayland_client::protocol::wl_shm;
 use crate::render::{FrozenFrame, Rect, Selection};
 
 use super::output::OutputSurface;
+pub struct DrawState<'a> {
+    pub selection: &'a Selection,
+    pub is_mode_select: bool,
+    pub keybinds: &'a crate::config::KeybindsConfig,
+    pub mode_select: &'a crate::config::ModeSelectConfig,
+    pub is_recording: bool,
+    pub supports_window_capture: bool,
+    pub intro_progress: f64,
+}
 
 /// Translates global rectangle coordinates to local output coordinates.
 pub fn translate_rect_to_local(rect: Rect, offset_x: i32, offset_y: i32) -> Rect {
@@ -91,14 +100,16 @@ pub fn draw_transparent(
 /// Renders the current selection state to a specific output surface.
 pub fn draw_output(
     output_surface: &mut OutputSurface,
-    selection: &Selection,
-    is_mode_select: bool,
-    keybinds: &crate::config::KeybindsConfig,
-    mode_select: &crate::config::ModeSelectConfig,
-    is_recording: bool,
-    intro_progress: f64,
+    state: &DrawState<'_>,
     qh: &wayland_client::QueueHandle<super::App>,
 ) -> Result<()> {
+    let selection = state.selection;
+    let is_mode_select = state.is_mode_select;
+    let keybinds = state.keybinds;
+    let mode_select = state.mode_select;
+    let is_recording = state.is_recording;
+    let supports_window_capture = state.supports_window_capture;
+    let intro_progress = state.intro_progress;
     if !output_surface.configured {
         return Ok(());
     }
@@ -132,7 +143,14 @@ pub fn draw_output(
         }
         output_surface.needs_render = false;
 
-        renderer.render_mode_select(canvas, keybinds, mode_select, is_recording, intro_progress)?;
+        renderer.render_mode_select(
+            canvas,
+            keybinds,
+            mode_select,
+            is_recording,
+            supports_window_capture,
+            intro_progress,
+        )?;
 
         std::sync::atomic::fence(std::sync::atomic::Ordering::SeqCst);
         let callback = output_surface.surface.frame(qh, ());

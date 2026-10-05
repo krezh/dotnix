@@ -6,6 +6,7 @@
 
 use anyhow::{Context, Result};
 use std::io::Write;
+use std::path::Path;
 use std::process::{Command, Stdio};
 
 /// Copies text to the clipboard.
@@ -14,7 +15,7 @@ pub fn copy_text(wl_copy: &str, text: &str) -> Result<()> {
 }
 
 /// Copies an image file to the clipboard.
-pub fn copy_image(wl_copy: &str, file_path: &str) -> Result<()> {
+pub fn copy_image(wl_copy: &str, file_path: &Path) -> Result<()> {
     let file = std::fs::File::open(file_path).context("Failed to open image file")?;
 
     run_wl_copy(wl_copy, &["-t", "image/png"], Stdio::from(file), None)
@@ -38,7 +39,23 @@ fn run_wl_copy(wl_copy: &str, args: &[&str], stdin: Stdio, input: Option<&[u8]>)
             .context("Failed to write to wl-copy")?;
     }
 
-    child.wait().context("wl-copy failed")?;
-
+    let status = child.wait().context("wl-copy failed")?;
+    anyhow::ensure!(status.success(), "wl-copy exited with status {}", status);
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::os::unix::fs::PermissionsExt;
+
+    #[test]
+    fn reports_a_nonzero_clipboard_exit() {
+        let directory = tempfile::tempdir().unwrap();
+        let script = directory.path().join("wl-copy");
+        std::fs::write(&script, "#!/bin/sh\ncat >/dev/null\nexit 9\n").unwrap();
+        std::fs::set_permissions(&script, std::fs::Permissions::from_mode(0o700)).unwrap();
+
+        assert!(copy_text(script.to_str().unwrap(), "text").is_err());
+    }
 }

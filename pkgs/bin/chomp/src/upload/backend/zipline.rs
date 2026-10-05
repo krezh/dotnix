@@ -4,6 +4,7 @@ use anyhow::{Context, Result};
 use reqwest::blocking::{Client, multipart};
 use serde::Deserialize;
 use std::fs;
+use std::path::Path;
 use std::time::Duration;
 
 use crate::upload::service::UploadService;
@@ -26,7 +27,7 @@ pub struct ZiplineUploader {
 }
 
 impl ZiplineUploader {
-    pub fn new(zipline_url: &str, token_file: &str, use_original_name: bool) -> Result<Self> {
+    pub fn new(zipline_url: &str, token_file: &Path, use_original_name: bool) -> Result<Self> {
         let token = fs::read_to_string(token_file)
             .context("Failed to read Zipline token file")?
             .trim()
@@ -52,8 +53,8 @@ impl UploadService for ZiplineUploader {
         "Zipline"
     }
 
-    fn upload(&self, file_path: &str) -> Result<String> {
-        let path = std::path::Path::new(file_path);
+    fn upload(&self, file_path: &Path) -> Result<String> {
+        let path = file_path;
         let file_name = path
             .file_name()
             .context("Invalid file path")?
@@ -96,13 +97,15 @@ impl UploadService for ZiplineUploader {
                 "x-zipline-original-name",
                 self.use_original_name.to_string(),
             )
-            .header("User-Agent", "chomp/1.0")
+            .header("User-Agent", concat!("chomp/", env!("CARGO_PKG_VERSION")))
             .multipart(form)
             .send()
             .context("Failed to send upload request")?;
 
         if !response.status().is_success() {
-            anyhow::bail!("Upload failed with status: {}", response.status());
+            let status = response.status();
+            let body = response.text().unwrap_or_default();
+            anyhow::bail!("Upload failed with status {}: {}", status, body.trim());
         }
 
         let body = response.text().context("Failed to read response body")?;

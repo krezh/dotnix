@@ -2,11 +2,12 @@
 
 use anyhow::{Context, Result};
 use std::io::Write;
+use std::path::Path;
 use std::process::{Command, Stdio};
 
 /// Pipes PNG image data to satty over stdin, delegating copy to wl-copy and writing
 /// the annotated result to output_path. Exits after the copy/save action. Blocks until satty exits.
-pub fn annotate(satty_path: &str, png_data: &[u8], output_path: &str) -> Result<()> {
+pub fn annotate(satty_path: &str, png_data: &[u8], output_path: &Path) -> Result<()> {
     let mut child = Command::new(satty_path)
         .arg("--filename")
         .arg("-")

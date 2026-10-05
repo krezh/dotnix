@@ -4,7 +4,4 @@
 //! workspaces, and other compositor-specific features.
 
 pub mod hyprland;
-
-// Future compositor support can be added here:
-// pub mod niri;
-// pub mod sway;
+pub mod niri;

@@ -1,7 +1,6 @@
 //! Tesseract OCR integration
 
 use crate::capture::CapturedImage;
-use crate::render::convert_argb_to_rgba;
 use anyhow::Result;
 
 /// Extracts text from a captured image using Tesseract OCR.
@@ -11,8 +10,7 @@ use anyhow::Result;
 pub fn extract_text(image: &CapturedImage, language: &str) -> Result<String> {
     log::info!("Running OCR on {}x{} image", image.width, image.height);
 
-    // Convert ARGB to RGBA for image library
-    let rgba_buffer = convert_argb_to_rgba(&image.data);
+    let rgba_buffer = image.to_rgba();
 
     let expected_size = (image.width * image.height * 4) as usize;
     log::debug!(

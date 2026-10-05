@@ -24,7 +24,7 @@ use super::App;
 fn key_matches(keysym: Keysym, key: &str) -> bool {
     key.chars()
         .next()
-        .map_or(false, |c| Keysym::from_char(c) == keysym)
+        .is_some_and(|c| Keysym::from_char(c) == keysym)
 }
 
 impl CompositorHandler for App {
@@ -271,6 +271,7 @@ impl KeyboardHandler for App {
     ) {
         use super::UiPhase;
         use crate::capture::CaptureMode;
+        use crate::cli::CaptureAction;
 
         if event.keysym == Keysym::Escape || event.keysym == Keysym::q {
             self.cancel_selection();
@@ -287,7 +288,7 @@ impl KeyboardHandler for App {
 
         // OCR: transition to region select without setting a capture mode
         if key_matches(event.keysym, &kb.ocr) {
-            self.settings.ocr = true;
+            self.settings.request.action = CaptureAction::Ocr;
             self.begin_region_select(qh);
             return;
         }
@@ -304,13 +305,13 @@ impl KeyboardHandler for App {
             Some((CaptureMode::ImageArea, true))
         } else if key_matches(event.keysym, &kb.screenshot_screen) {
             Some((CaptureMode::ImageScreen, false))
-        } else if key_matches(event.keysym, &kb.screenshot_window) {
+        } else if self.supports_window_capture && key_matches(event.keysym, &kb.screenshot_window) {
             Some((CaptureMode::ImageWindow, false))
         } else if key_matches(event.keysym, &kb.record_area) {
             Some((CaptureMode::VideoArea, true))
         } else if key_matches(event.keysym, &kb.record_screen) {
             Some((CaptureMode::VideoScreen, false))
-        } else if key_matches(event.keysym, &kb.record_window) {
+        } else if self.supports_window_capture && key_matches(event.keysym, &kb.record_window) {
             Some((CaptureMode::VideoWindow, false))
         } else {
             None
@@ -324,7 +325,7 @@ impl KeyboardHandler for App {
         self.to_clipboard = ctrl_held && !mode.is_video();
 
         if is_area {
-            self.settings.mode = Some(mode);
+            self.settings.request.mode = Some(mode);
             self.begin_region_select(qh);
         } else {
             // Capture once the compositor has presented a frame without the mode bar.

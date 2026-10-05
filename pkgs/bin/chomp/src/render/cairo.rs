@@ -134,6 +134,7 @@ impl Renderer {
         keybinds: &crate::config::KeybindsConfig,
         style: &crate::config::ModeSelectConfig,
         is_recording: bool,
+        supports_window_capture: bool,
         intro_progress: f64,
     ) -> Result<()> {
         let stride = self.width * 4;
@@ -222,18 +223,22 @@ impl Renderer {
         );
         ctx.set_font_size(self.config.font_size);
 
-        // Groups: each is a slice of (key_label, desc)
-        let ss = [
+        let mut ss = vec![
             (format!("[{}]", keybinds.screenshot_area), "Area"),
             (format!("[{}]", keybinds.screenshot_screen), "Screen"),
-            (format!("[{}]", keybinds.screenshot_window), "Window"),
-            (format!("[{}]", keybinds.ocr), "OCR"),
         ];
-        let rec = [
+        if supports_window_capture {
+            ss.push((format!("[{}]", keybinds.screenshot_window), "Window"));
+        }
+        ss.push((format!("[{}]", keybinds.ocr), "OCR"));
+
+        let mut rec = vec![
             (format!("[{}]", keybinds.record_area), "Area"),
             (format!("[{}]", keybinds.record_screen), "Screen"),
-            (format!("[{}]", keybinds.record_window), "Window"),
         ];
+        if supports_window_capture {
+            rec.push((format!("[{}]", keybinds.record_window), "Window"));
+        }
         let stop = [(format!("[{}]", keybinds.stop_recording), "Stop recording")];
         let quit = [("[Esc]".to_string(), "Quit")];
 
@@ -407,10 +412,7 @@ impl Renderer {
                     stride as usize,
                     frame.dimmed.unwrap_or(frame.pixels),
                     frame.stride as usize,
-                    0,
-                    0,
-                    self.width as usize,
-                    self.height as usize,
+                    Rect::new(0, 0, self.width, self.height),
                 );
 
                 if frame.dimmed.is_some() {
@@ -420,10 +422,7 @@ impl Renderer {
                             stride as usize,
                             frame.pixels,
                             frame.stride as usize,
-                            rect.x as usize,
-                            rect.y as usize,
-                            rect.width as usize,
-                            rect.height as usize,
+                            rect,
                         );
                     }
                 }
