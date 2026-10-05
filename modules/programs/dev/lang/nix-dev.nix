@@ -6,6 +6,7 @@
         nixd
         nil
         statix
+        nix-changelog
       ];
     };
 }

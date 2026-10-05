@@ -58,7 +58,6 @@
         steam = {
           enable = true;
           package = pkgs.steam.override {
-
             extraEnv = {
               MANGOHUD = 1;
               MESA_GLSL_CACHE_MAX_SIZE = "16G";
@@ -79,7 +78,7 @@
           protontricks.enable = true;
           config =
             let
-              defaultCompatTool = "Proton-CachyOS Latest";
+              defaultCompatTool = "Proton-GE Latest";
               gamemode = "${pkgs.gamemode}/bin/gamemoderun";
             in
             {
