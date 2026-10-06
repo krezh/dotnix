@@ -65,11 +65,12 @@ pub struct KeybindsConfig {
     pub record_screen: String,
     pub record_window: String,
     pub stop_recording: String,
+    pub replay_save: String,
 }
 
 impl KeybindsConfig {
     /// Returns each binding as (name, key).
-    pub fn entries(&self) -> [(&'static str, &str); 8] {
+    pub fn entries(&self) -> [(&'static str, &str); 9] {
         [
             ("screenshot_area", &self.screenshot_area),
             ("screenshot_screen", &self.screenshot_screen),
@@ -79,6 +80,7 @@ impl KeybindsConfig {
             ("record_screen", &self.record_screen),
             ("record_window", &self.record_window),
             ("stop_recording", &self.stop_recording),
+            ("replay_save", &self.replay_save),
         ]
     }
 
@@ -124,6 +126,7 @@ impl Default for KeybindsConfig {
             record_screen: "S".to_string(),
             record_window: "W".to_string(),
             stop_recording: "x".to_string(),
+            replay_save: "r".to_string(),
         }
     }
 }
@@ -137,7 +140,8 @@ pub struct ModeSelectConfig {
     /// Palette background opacity (0.0–1.0)
     pub background_opacity: f64,
     /// Base control height in pixels
-    pub bar_height: u32,
+    #[serde(alias = "bar_height")]
+    pub control_height: u32,
     /// Palette border opacity
     pub border_opacity: f64,
     /// Shortcut color (hex); empty string falls back to border_color
@@ -147,11 +151,14 @@ pub struct ModeSelectConfig {
     /// Description text opacity (0.0–1.0)
     pub description_opacity: f64,
     /// Inactive control border intensity (0.0–1.0)
-    pub separator_opacity: f64,
+    #[serde(alias = "separator_opacity")]
+    pub control_border_opacity: f64,
     /// Color of the active-recording heading (hex)
     pub recording_dot_color: String,
     /// Color of the stop-recording control (hex)
     pub recording_highlight_color: String,
+    /// Color of the instant replay status and save control (hex)
+    pub replay_color: String,
 }
 
 impl Default for ModeSelectConfig {
@@ -159,14 +166,15 @@ impl Default for ModeSelectConfig {
         Self {
             background_color: "#0D0D14".to_string(),
             background_opacity: 0.95,
-            bar_height: 56,
+            control_height: 56,
             border_opacity: 0.35,
             key_color: String::new(), // empty = use border_color
             description_color: "#FFFFFF".to_string(),
             description_opacity: 0.85,
-            separator_opacity: 0.18,
+            control_border_opacity: 0.18,
             recording_dot_color: "#F24040".to_string(),
             recording_highlight_color: "#F2BF33".to_string(),
+            replay_color: "#38BDF8".to_string(),
         }
     }
 }
@@ -453,8 +461,8 @@ impl Config {
             self.mode_select.description_opacity,
         )?;
         validate_unit(
-            "mode_select.separator_opacity",
-            self.mode_select.separator_opacity,
+            "mode_select.control_border_opacity",
+            self.mode_select.control_border_opacity,
         )?;
         validate_hex_color(
             "mode_select.background_color",
@@ -475,14 +483,15 @@ impl Config {
             "mode_select.recording_highlight_color",
             &self.mode_select.recording_highlight_color,
         )?;
+        validate_hex_color("mode_select.replay_color", &self.mode_select.replay_color)?;
         anyhow::ensure!(self.font.size > 0, "font.size must be greater than zero");
         anyhow::ensure!(
             self.capture.video.max_fps > 0,
             "capture.video.max_fps must be greater than zero"
         );
         anyhow::ensure!(
-            self.mode_select.bar_height > 0,
-            "mode_select.bar_height must be greater than zero"
+            self.mode_select.control_height > 0,
+            "mode_select.control_height must be greater than zero"
         );
         if !self.capture.video.encode_resolution.is_empty() {
             validate_resolution(&self.capture.video.encode_resolution)?;

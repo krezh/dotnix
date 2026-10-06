@@ -1,13 +1,35 @@
 mod capture;
 pub(crate) mod hardware;
-mod ipc;
+pub mod ipc;
 mod service;
+
+pub use ipc::{ReplayStatus, ServiceState};
 
 use anyhow::{Context, Result};
 use std::path::PathBuf;
+use std::time::Duration;
 
 use crate::cli::{ReplayAction, Settings};
 
+/// Queries the replay service status with a short deadline.
+///
+/// Returns `None` if the service is not running, the socket is absent, or the
+/// service is unresponsive. This is intended for interactive UI startup so the
+/// overlay never hangs when the service is down.
+pub fn query_status() -> Option<ReplayStatus> {
+    let path = ipc::socket_path().ok()?;
+    if !path.exists() {
+        return None;
+    }
+    match ipc::request_with_timeout(
+        ipc::ReplayCommand::Status,
+        Some(Duration::from_millis(500)),
+        Some(Duration::from_millis(500)),
+    ) {
+        Ok(ipc::ReplayReply::Status(status)) => Some(status),
+        _ => None,
+    }
+}
 pub fn run_service(settings: Settings) -> Result<()> {
     service::run(settings)
 }

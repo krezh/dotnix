@@ -111,7 +111,7 @@ fn main() -> Result<()> {
         apply_delay(&settings);
 
         if mode.is_video() {
-            return handle_video_mode(&settings, &mode, &notifier, None);
+            return handle_video_mode(&settings, &mode, &notifier, None, None);
         }
 
         // Area mode runs the selector anyway: take the image it cropped along with
@@ -145,12 +145,28 @@ fn main() -> Result<()> {
     apply_delay(&settings);
 
     let selected = ui::App::run(settings.clone())?;
+    if let Some(action) = selected.replay_action {
+        let saved = replay::control(&settings, action)?;
+        if let Some(path) = saved {
+            let notifier = ui::Notifier::new();
+            notifier.send_info("Instant replay saved");
+            handle_upload(&settings, &path, &notifier)?;
+        }
+        return Ok(());
+    }
+
     if let Some(mode) = selected.mode {
         let notifier = ui::Notifier::new();
         if mode == capture::CaptureMode::StopRecording {
             return handle_stop_recording(&settings, &notifier);
         } else if mode.is_video() {
-            return handle_video_mode(&settings, &mode, &notifier, selected.geometry);
+            return handle_video_mode(
+                &settings,
+                &mode,
+                &notifier,
+                selected.geometry,
+                selected.target_monitor.as_deref(),
+            );
         } else {
             return handle_image_mode(
                 &settings,
@@ -212,10 +228,11 @@ fn handle_video_mode(
     settings: &Settings,
     mode: &capture::CaptureMode,
     notifier: &ui::Notifier,
-    pre_geometry: Option<String>,
+    mut pre_geometry: Option<String>,
+    target_monitor: Option<&str>,
 ) -> Result<()> {
     let (geometry, monitor): (Option<String>, Option<String>) = match mode {
-        capture::CaptureMode::VideoArea => match pre_geometry {
+        capture::CaptureMode::VideoArea => match pre_geometry.take() {
             Some(geo) => (Some(geo), None),
             None => {
                 let selected = ui::App::run(settings.clone())?;
@@ -231,7 +248,10 @@ fn handle_video_mode(
             (Some(geo), None)
         }
         capture::CaptureMode::VideoScreen => {
-            let mon = compositor::get_active_monitor()?;
+            let mon = match target_monitor {
+                Some(name) => name.to_string(),
+                None => compositor::get_active_monitor()?,
+            };
             (None, Some(mon))
         }
         _ => unreachable!(),
@@ -243,7 +263,7 @@ fn handle_video_mode(
     }
 
     // The recorded area, so the bitrate can be sized to it.
-    let size = match geometry.as_deref() {
+    let size = match geometry.as_deref().or(pre_geometry.as_deref()) {
         Some(geo) => render::Rect::from_geometry_string(geo)
             .ok()
             .map(|rect| (rect.width.max(0) as u32, rect.height.max(0) as u32)),
@@ -408,7 +428,13 @@ fn image_capture_rect(
             let geometry_str = compositor::get_active_window()?;
             render::Rect::from_geometry_string(&geometry_str)
         }
-        capture::CaptureMode::ImageScreen => active_monitor_rect(),
+        capture::CaptureMode::ImageScreen => {
+            if let Some(geo) = pre_geometry {
+                render::Rect::from_geometry_string(geo)
+            } else {
+                active_monitor_rect()
+            }
+        }
         _ => unreachable!(),
     }
 }

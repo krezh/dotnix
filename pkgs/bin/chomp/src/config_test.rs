@@ -48,3 +48,37 @@ fn replay_requires_an_explicit_hyprland_tag() {
     config.capture.replay.hyprland_tag = Some("games".to_string());
     assert!(config.validate().is_ok());
 }
+#[test]
+fn keybinds_detect_replay_save_collision_and_length() {
+    let config = Config::default();
+    assert!(config.validate().is_ok());
+
+    // Collision with screenshot_area
+    let mut collision = Config::default();
+    collision.keybinds.replay_save = collision.keybinds.screenshot_area.clone();
+    assert!(collision.validate().is_err());
+
+    // Multi-character binding
+    let mut multi_char = Config::default();
+    multi_char.keybinds.replay_save = "replay".to_string();
+    assert!(multi_char.validate().is_err());
+}
+
+#[test]
+fn mode_select_configuration_validation() {
+    let mut config = Config::default();
+    config.mode_select.control_height = 0;
+    assert!(config.validate().is_err());
+
+    let mut config = Config::default();
+    config.mode_select.control_border_opacity = 1.2;
+    assert!(config.validate().is_err());
+
+    let mut config = Config::default();
+    config.mode_select.replay_color = "not-a-color".to_string();
+    assert!(config.validate().is_err());
+
+    let mut config = Config::default();
+    config.mode_select.replay_color = "#4CD964".to_string();
+    assert!(config.validate().is_ok());
+}

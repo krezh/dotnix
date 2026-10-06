@@ -9,6 +9,7 @@ use crate::render::Renderer;
 
 /// Represents a single monitor's overlay surface
 pub struct OutputSurface {
+    pub name: String,
     pub output: wl_output::WlOutput,
     pub layer_surface: LayerSurface,
     pub surface: wl_surface::WlSurface,

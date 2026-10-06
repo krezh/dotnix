@@ -296,6 +296,10 @@
                 type = lib.types.str;
                 default = "x";
               };
+              replaySave = lib.mkOption {
+                type = lib.types.str;
+                default = "r";
+              };
             };
           };
           default = { };
@@ -313,7 +317,7 @@
                 type = lib.types.float;
                 default = 0.95;
               };
-              barHeight = lib.mkOption {
+              controlHeight = lib.mkOption {
                 type = lib.types.ints.positive;
                 default = 56;
               };
@@ -333,7 +337,7 @@
                 type = lib.types.float;
                 default = 0.85;
               };
-              separatorOpacity = lib.mkOption {
+              controlBorderOpacity = lib.mkOption {
                 type = lib.types.float;
                 default = 0.18;
               };
@@ -344,6 +348,10 @@
               recordingHighlightColor = lib.mkOption {
                 type = lib.types.str;
                 default = "#F2BF33";
+              };
+              replayColor = lib.mkOption {
+                type = lib.types.str;
+                default = "#38BDF8";
               };
             };
           };
@@ -408,18 +416,20 @@
             record_screen = cfg.keybinds.recordScreen;
             record_window = cfg.keybinds.recordWindow;
             stop_recording = cfg.keybinds.stopRecording;
+            replay_save = cfg.keybinds.replaySave;
           };
           mode_select = {
             background_color = cfg.modeSelect.backgroundColor;
             background_opacity = cfg.modeSelect.backgroundOpacity;
-            bar_height = cfg.modeSelect.barHeight;
+            control_height = cfg.modeSelect.controlHeight;
             border_opacity = cfg.modeSelect.borderOpacity;
             key_color = cfg.modeSelect.keyColor;
             description_color = cfg.modeSelect.descriptionColor;
             description_opacity = cfg.modeSelect.descriptionOpacity;
-            separator_opacity = cfg.modeSelect.separatorOpacity;
+            control_border_opacity = cfg.modeSelect.controlBorderOpacity;
             recording_dot_color = cfg.modeSelect.recordingDotColor;
             recording_highlight_color = cfg.modeSelect.recordingHighlightColor;
+            replay_color = cfg.modeSelect.replayColor;
           };
         };
 

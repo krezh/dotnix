@@ -4,7 +4,7 @@ use std::cell::RefCell;
 
 use super::pixel::blit;
 use super::selection::{Rect, Selection};
-use super::{ModePaletteLayout, PaletteAction};
+use super::{ModePaletteLayout, PaletteAction, ReplayPaletteState};
 use crate::config::FontWeight;
 
 /// The frozen screen a selection is drawn on.
@@ -31,6 +31,7 @@ pub enum SelectionPurpose {
 pub struct SelectionHud {
     pub purpose: SelectionPurpose,
     pub to_clipboard: bool,
+    pub visible: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -185,6 +186,8 @@ impl Renderer {
         style: &crate::config::ModeSelectConfig,
         is_recording: bool,
         supports_window_capture: bool,
+        replay_status: Option<&crate::replay::ReplayStatus>,
+        replay_configured: bool,
         hovered_action: Option<PaletteAction>,
         intro_progress: f64,
     ) -> Result<()> {
@@ -206,12 +209,17 @@ impl Renderer {
         ctx.set_operator(cairo::Operator::Over);
 
         let intro = intro_progress.clamp(0.0, 1.0);
+        let replay_state = ReplayPaletteState {
+            visible: replay_configured || replay_status.is_some(),
+            can_save: replay_status.as_ref().map_or(false, |s| s.can_save()),
+        };
         let layout = ModePaletteLayout::new(
             self.width,
             self.height,
-            style.bar_height,
+            style.control_height,
             is_recording,
             supports_window_capture,
+            replay_state,
             intro,
         );
         let background = Color::from_hex(&style.background_color).unwrap_or(Color {
@@ -238,6 +246,12 @@ impl Renderer {
             a: 1.0,
         });
         let stop = Color::from_hex(&style.recording_highlight_color).unwrap_or(recording);
+        let replay_color = Color::from_hex(&style.replay_color).unwrap_or(Color {
+            r: 0.22,
+            g: 0.74,
+            b: 0.97,
+            a: 1.0,
+        });
 
         let bounds = layout.bounds;
         self.draw_rounded_rectangle(&ctx, bounds.x, bounds.y, bounds.width, bounds.height, 14.0)?;
@@ -282,18 +296,61 @@ impl Renderer {
             "Record"
         })?;
 
-        ctx.select_font_face(
-            &self.config.font_family,
-            cairo::FontSlant::Normal,
-            self.config.font_weight,
-        );
-        ctx.set_font_size(self.config.font_size);
-        let font = ctx.font_extents()?;
+        if replay_state.visible {
+            let (replay_text, replay_is_active) = match replay_status {
+                Some(status) if status.can_save() => {
+                    let text = format!(
+                        "Replay ready · {:.1}s",
+                        status.buffered_millis as f64 / 1000.0
+                    );
+                    (text, true)
+                }
+                Some(status) => match status.state {
+                    crate::replay::ServiceState::WaitingForTarget => {
+                        ("Replay waiting for target".to_string(), false)
+                    }
+                    crate::replay::ServiceState::Buffering => {
+                        let text = format!(
+                            "Replay buffering · {:.1}s",
+                            status.buffered_millis as f64 / 1000.0
+                        );
+                        (text, false)
+                    }
+                    crate::replay::ServiceState::RetainingAfterExit => {
+                        let text = format!(
+                            "Replay retained · {:.1}s",
+                            status.buffered_millis as f64 / 1000.0
+                        );
+                        (text, false)
+                    }
+                    crate::replay::ServiceState::Suspended => {
+                        ("Replay suspended".to_string(), false)
+                    }
+                    crate::replay::ServiceState::Failed => ("Replay failed".to_string(), false),
+                },
+                None => ("Replay unavailable".to_string(), false),
+            };
+
+            if replay_is_active {
+                ctx.set_source_rgba(replay_color.r, replay_color.g, replay_color.b, intro);
+            } else {
+                ctx.set_source_rgba(
+                    description.r,
+                    description.g,
+                    description.b,
+                    style.description_opacity * 0.72 * intro,
+                );
+            }
+            ctx.move_to(bounds.x + 16.0, layout.replay_heading_y + 13.0);
+            ctx.show_text(&replay_text)?;
+        }
 
         for item in layout.items() {
             let hovered = hovered_action == Some(item.action);
             let action_color = if item.action == PaletteAction::StopRecording {
                 stop
+            } else if item.action == PaletteAction::SaveReplay {
+                replay_color
             } else {
                 key
             };
@@ -320,13 +377,13 @@ impl Renderer {
                 if hovered {
                     0.80
                 } else {
-                    (style.separator_opacity * 2.0).min(1.0)
+                    (style.control_border_opacity * 2.0).min(1.0)
                 } * intro,
             );
             ctx.set_line_width(1.0);
             ctx.stroke()?;
 
-            let (configured_key, label) = match item.action {
+            let (configured_key, full_label) = match item.action {
                 PaletteAction::ScreenshotArea => (&keybinds.screenshot_area, "Area"),
                 PaletteAction::ScreenshotScreen => (&keybinds.screenshot_screen, "Screen"),
                 PaletteAction::ScreenshotWindow => (&keybinds.screenshot_window, "Window"),
@@ -335,7 +392,9 @@ impl Renderer {
                 PaletteAction::RecordScreen => (&keybinds.record_screen, "Screen"),
                 PaletteAction::RecordWindow => (&keybinds.record_window, "Window"),
                 PaletteAction::StopRecording => (&keybinds.stop_recording, "Stop recording"),
+                PaletteAction::SaveReplay => (&keybinds.replay_save, "Save replay"),
             };
+
             let shifted = matches!(
                 item.action,
                 PaletteAction::RecordArea
@@ -345,33 +404,177 @@ impl Renderer {
                 .chars()
                 .next()
                 .is_some_and(char::is_uppercase);
-            let prefix = if shifted { "Shift+" } else { "" };
-            let prefix_width = ctx.text_extents(prefix)?.x_advance();
-            let key_width = ctx.text_extents(configured_key)?.x_advance();
-            let label_width = ctx.text_extents(label)?.x_advance();
-            let gap = 8.0;
-            let total_width = prefix_width + key_width + gap + label_width;
-            let mut text_x = item.rect.x + (item.rect.width - total_width) / 2.0;
-            let text_y = item.rect.y + (item.rect.height + font.ascent() - font.descent()) / 2.0;
 
+            let degraded_label = if item.rect.width < 140.0 {
+                match item.action {
+                    PaletteAction::StopRecording => "Stop",
+                    PaletteAction::SaveReplay => "Save",
+                    _ => full_label,
+                }
+            } else {
+                full_label
+            };
+
+            ctx.select_font_face(
+                &self.config.font_family,
+                cairo::FontSlant::Normal,
+                cairo::FontWeight::Bold,
+            );
+            let key_font_size = (self.config.font_size * 0.80).clamp(11.0, 14.0);
+            ctx.set_font_size(key_font_size);
+            let key_font = ctx.font_extents()?;
+
+            let keycap_pad = if item.rect.width < 100.0 { 4.0 } else { 6.0 };
+            let keycap_h = (item.rect.height - 12.0).clamp(18.0, 24.0);
+
+            let key_ext = ctx.text_extents(configured_key)?;
+            let key_w = (key_ext.x_advance() + keycap_pad * 2.0).max(keycap_h);
+
+            let (shift_w, shift_text_width) = if shifted {
+                let width = ctx.text_extents("Shift")?.x_advance();
+                (width + keycap_pad * 2.0, width)
+            } else {
+                (0.0, 0.0)
+            };
+
+            let keycaps_gap = 4.0;
+            let total_keycaps_w = if shifted {
+                shift_w + keycaps_gap + key_w
+            } else {
+                key_w
+            };
+
+            ctx.select_font_face(
+                &self.config.font_family,
+                cairo::FontSlant::Normal,
+                self.config.font_weight,
+            );
+            let label_font_size = (self.config.font_size * 0.90).clamp(11.0, 15.0);
+            ctx.set_font_size(label_font_size);
+            let label_font = ctx.font_extents()?;
+            let label_ext = ctx.text_extents(degraded_label)?;
+
+            let label_gap = 7.0;
+            let show_label =
+                total_keycaps_w + label_gap + label_ext.x_advance() <= item.rect.width - 10.0;
+            let content_w = if show_label {
+                total_keycaps_w + label_gap + label_ext.x_advance()
+            } else {
+                total_keycaps_w
+            };
+
+            let mut cur_x = item.rect.x + (item.rect.width - content_w) / 2.0;
+            let keycap_y = item.rect.y + (item.rect.height - keycap_h) / 2.0;
+
+            if shifted {
+                self.draw_rounded_rectangle(&ctx, cur_x, keycap_y, shift_w, keycap_h, 4.0)?;
+                ctx.set_source_rgba(
+                    0.02,
+                    0.02,
+                    0.04,
+                    (if hovered { 0.85 } else { 0.70 }) * intro,
+                );
+                ctx.fill_preserve()?;
+                ctx.set_source_rgba(
+                    action_color.r,
+                    action_color.g,
+                    action_color.b,
+                    (if hovered { 0.75 } else { 0.35 }) * intro,
+                );
+                ctx.set_line_width(1.0);
+                ctx.stroke()?;
+
+                ctx.move_to(cur_x + 2.0, keycap_y + keycap_h);
+                ctx.line_to(cur_x + shift_w - 2.0, keycap_y + keycap_h);
+                ctx.set_source_rgba(
+                    action_color.r,
+                    action_color.g,
+                    action_color.b,
+                    (if hovered { 0.90 } else { 0.50 }) * intro,
+                );
+                ctx.set_line_width(1.5);
+                ctx.stroke()?;
+
+                ctx.select_font_face(
+                    &self.config.font_family,
+                    cairo::FontSlant::Normal,
+                    cairo::FontWeight::Bold,
+                );
+                ctx.set_font_size(key_font_size);
+                let text_x = cur_x + (shift_w - shift_text_width) / 2.0;
+                let text_y = keycap_y + (keycap_h + key_font.ascent() - key_font.descent()) / 2.0;
+                ctx.set_source_rgba(action_color.r, action_color.g, action_color.b, intro);
+                ctx.move_to(text_x, text_y);
+                ctx.show_text("Shift")?;
+
+                cur_x += shift_w + keycaps_gap;
+            }
+
+            self.draw_rounded_rectangle(&ctx, cur_x, keycap_y, key_w, keycap_h, 4.0)?;
+            ctx.set_source_rgba(
+                0.02,
+                0.02,
+                0.04,
+                (if hovered { 0.85 } else { 0.70 }) * intro,
+            );
+            ctx.fill_preserve()?;
+            ctx.set_source_rgba(
+                action_color.r,
+                action_color.g,
+                action_color.b,
+                (if hovered { 0.75 } else { 0.35 }) * intro,
+            );
+            ctx.set_line_width(1.0);
+            ctx.stroke()?;
+
+            ctx.move_to(cur_x + 2.0, keycap_y + keycap_h);
+            ctx.line_to(cur_x + key_w - 2.0, keycap_y + keycap_h);
+            ctx.set_source_rgba(
+                action_color.r,
+                action_color.g,
+                action_color.b,
+                (if hovered { 0.90 } else { 0.50 }) * intro,
+            );
+            ctx.set_line_width(1.5);
+            ctx.stroke()?;
+
+            ctx.select_font_face(
+                &self.config.font_family,
+                cairo::FontSlant::Normal,
+                cairo::FontWeight::Bold,
+            );
+            ctx.set_font_size(key_font_size);
+            let text_x = cur_x + (key_w - key_ext.x_advance()) / 2.0;
+            let text_y = keycap_y + (keycap_h + key_font.ascent() - key_font.descent()) / 2.0;
             ctx.set_source_rgba(action_color.r, action_color.g, action_color.b, intro);
             ctx.move_to(text_x, text_y);
-            ctx.show_text(prefix)?;
-            text_x += prefix_width;
-            ctx.move_to(text_x, text_y);
             ctx.show_text(configured_key)?;
-            text_x += key_width + gap;
 
-            ctx.set_source_rgba(
-                description.r,
-                description.g,
-                description.b,
-                style.description_opacity * intro,
-            );
-            ctx.move_to(text_x, text_y);
-            ctx.show_text(label)?;
+            cur_x += key_w + label_gap;
+
+            if show_label {
+                ctx.select_font_face(
+                    &self.config.font_family,
+                    cairo::FontSlant::Normal,
+                    self.config.font_weight,
+                );
+                ctx.set_font_size(label_font_size);
+                let label_y = item.rect.y
+                    + (item.rect.height + label_font.ascent() - label_font.descent()) / 2.0;
+                ctx.set_source_rgba(
+                    description.r,
+                    description.g,
+                    description.b,
+                    (if hovered {
+                        1.0
+                    } else {
+                        style.description_opacity
+                    }) * intro,
+                );
+                ctx.move_to(cur_x, label_y);
+                ctx.show_text(degraded_label)?;
+            }
         }
-
         ctx.target().flush();
         drop(ctx);
         surface.flush();
@@ -530,7 +733,9 @@ impl Renderer {
         if let Some(rect) = selection.get_rect() {
             self.draw_selection_border(&ctx, rect)?;
         }
-        self.draw_selection_hud(&ctx, hud)?;
+        if hud.visible {
+            self.draw_selection_hud(&ctx, hud)?;
+        }
 
         // Ensure all drawing operations are complete and flushed to the buffer
         // This is critical to prevent tearing

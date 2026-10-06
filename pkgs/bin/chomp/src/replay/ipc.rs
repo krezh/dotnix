@@ -36,6 +36,16 @@ pub struct ReplayStatus {
     pub message: Option<String>,
 }
 
+impl ReplayStatus {
+    /// True when the buffer has captured frames and the service can produce a replay clip.
+    pub fn can_save(&self) -> bool {
+        matches!(
+            self.state,
+            ServiceState::Buffering | ServiceState::RetainingAfterExit
+        ) && self.buffered_millis > 0
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum ReplayReply {
@@ -65,6 +75,15 @@ pub fn socket_path() -> Result<PathBuf> {
 }
 
 pub fn request(command: ReplayCommand) -> Result<ReplayReply> {
+    let read_timeout = response_timeout(&command);
+    request_with_timeout(command, read_timeout, Some(Duration::from_secs(5)))
+}
+
+pub fn request_with_timeout(
+    command: ReplayCommand,
+    read_timeout: Option<Duration>,
+    write_timeout: Option<Duration>,
+) -> Result<ReplayReply> {
     let path = socket_path()?;
     let mut stream = UnixStream::connect(&path).with_context(|| {
         format!(
@@ -72,8 +91,8 @@ pub fn request(command: ReplayCommand) -> Result<ReplayReply> {
             path.display()
         )
     })?;
-    stream.set_read_timeout(response_timeout(&command))?;
-    stream.set_write_timeout(Some(Duration::from_secs(5)))?;
+    stream.set_read_timeout(read_timeout)?;
+    stream.set_write_timeout(write_timeout)?;
     write_message(
         &mut stream,
         &Request {

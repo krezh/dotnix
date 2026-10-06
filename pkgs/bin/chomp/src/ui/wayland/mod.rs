@@ -70,12 +70,19 @@ pub struct Selected {
     pub image: Option<CapturedImage>,
     /// Ctrl was held, meaning copy to the clipboard instead of uploading.
     pub to_clipboard: bool,
+    /// Target monitor name picked under the pointer for screen modes.
+    pub target_monitor: Option<String>,
+    /// Replay action chosen from the mode selector.
+    pub replay_action: Option<crate::cli::ReplayAction>,
 }
 
 impl Selected {
     /// True when the user dismissed the selector without choosing anything.
     pub fn cancelled(&self) -> bool {
-        self.geometry.is_none() && self.mode.is_none() && self.image.is_none()
+        self.geometry.is_none()
+            && self.mode.is_none()
+            && self.image.is_none()
+            && self.replay_action.is_none()
     }
 }
 
@@ -143,6 +150,16 @@ pub struct App {
     // Capture waiting for the UI to be off screen, and when the wait started.
     pub(super) pending_capture: Option<PendingCapture>,
     pub(super) pending_since: Option<std::time::Instant>,
+
+    // Instant replay integration
+    pub(super) replay_status: Option<crate::replay::ReplayStatus>,
+    pub(super) replay_configured: bool,
+    pub(super) chosen_replay_action: Option<crate::cli::ReplayAction>,
+
+    // Multi-monitor refinement
+    pub(super) target_monitor: Option<String>,
+    pub(super) target_geometry: Option<String>,
+    pub(super) active_palette_output: Option<usize>,
 }
 
 // ============================================================================
@@ -202,6 +219,8 @@ impl App {
         let to_clipboard = settings.request.to_clipboard();
         let supports_window_capture =
             crate::compositor::detect_compositor().supports_window_capture();
+        let replay_status = is_mode_select.then(crate::replay::query_status).flatten();
+        let replay_configured = is_mode_select && settings.replay.enabled;
 
         let mut app = Self {
             screencopy: crate::compositor::Screencopy::new(&conn)?,
@@ -230,6 +249,12 @@ impl App {
             captured_image: None,
             is_recording,
             supports_window_capture,
+            replay_status,
+            replay_configured,
+            chosen_replay_action: None,
+            target_monitor: None,
+            target_geometry: None,
+            active_palette_output: None,
             intro_progress: if is_mode_select { 0.0 } else { 1.0 },
             intro_start: None,
             intro_duration: 0.22,
@@ -247,6 +272,7 @@ impl App {
             .context("Failed to insert wayland source")?;
 
         app.create_layer_surfaces(&qh)?;
+        app.active_palette_output = app.active_output_index();
 
         // Capture the frozen background before any buffer is attached: the layer
         // surfaces exist but are not yet visible, so the compositor cannot include
@@ -312,10 +338,12 @@ impl App {
         }
 
         Ok(Selected {
-            geometry: app.selection_geometry,
+            geometry: app.selection_geometry.or(app.target_geometry),
             mode: app.chosen_mode,
             image: app.captured_image,
             to_clipboard: app.to_clipboard,
+            target_monitor: app.target_monitor,
+            replay_action: app.chosen_replay_action,
         })
     }
 
@@ -356,6 +384,7 @@ impl App {
                 );
 
                 self.output_surfaces.push(OutputSurface {
+                    name: info.name.clone().unwrap_or_default(),
                     output: output.clone(),
                     layer_surface,
                     surface,
@@ -519,14 +548,22 @@ impl App {
                 crate::capture::capture_region(&mut self.screencopy, &outputs_list, rect)
             }
             CaptureMode::ImageScreen => {
-                let by_name = crate::compositor::get_active_monitor()
-                    .ok()
-                    .and_then(|name| {
-                        outputs_list
-                            .iter()
-                            .find(|output| output.name == name)
-                            .cloned()
-                    });
+                let by_target = self.target_monitor.as_deref().and_then(|target_name| {
+                    outputs_list
+                        .iter()
+                        .find(|output| output.name == target_name)
+                        .cloned()
+                });
+                let by_name = by_target.or_else(|| {
+                    crate::compositor::get_active_monitor()
+                        .ok()
+                        .and_then(|name| {
+                            outputs_list
+                                .iter()
+                                .find(|output| output.name == name)
+                                .cloned()
+                        })
+                });
                 let output = by_name
                     .or_else(|| {
                         outputs_list
@@ -553,7 +590,7 @@ impl App {
                 let info = self.outputs.get(&surface.output);
                 crate::compositor::protocol::outputs::OutputInfo {
                     output: surface.output.clone(),
-                    name: info.and_then(|info| info.name.clone()).unwrap_or_default(),
+                    name: surface.name.clone(),
                     logical: crate::render::Rect::new(
                         surface.x,
                         surface.y,
@@ -566,6 +603,65 @@ impl App {
                 }
             })
             .collect()
+    }
+    /// Returns the index of the single output surface that should display the mode palette.
+    pub(super) fn active_output_index(&self) -> Option<usize> {
+        if let Some(current) = self.input.current_surface.as_ref() {
+            if let Some(index) = self
+                .output_surfaces
+                .iter()
+                .position(|surface| &surface.surface == current)
+            {
+                return Some(index);
+            }
+        }
+
+        if let Ok(active_name) = crate::compositor::get_active_monitor() {
+            if let Some(index) = self
+                .output_surfaces
+                .iter()
+                .position(|surface| surface.name == active_name)
+            {
+                return Some(index);
+            }
+        }
+
+        self.output_surfaces
+            .iter()
+            .position(|surface| (surface.x, surface.y) == (0, 0))
+            .or_else(|| {
+                self.output_surfaces
+                    .iter()
+                    .enumerate()
+                    .min_by_key(|(_, surface)| (surface.x, surface.y, surface.name.as_str()))
+                    .map(|(index, _)| index)
+            })
+    }
+
+    /// Returns the index of the single output surface that should display the region HUD.
+    pub(super) fn region_hud_output_index(&self) -> Option<usize> {
+        let target_point = self
+            .selection
+            .get_selection()
+            .map(|rect| (rect.x, rect.y))
+            .or(self.input.selection_start)
+            .or_else(|| {
+                self.input.current_surface.as_ref().map(|_| {
+                    let (x, y) = self.input.pointer_position;
+                    (x as i32, y as i32)
+                })
+            });
+
+        target_point
+            .and_then(|(px, py)| {
+                self.output_surfaces.iter().position(|surface| {
+                    px >= surface.x
+                        && py >= surface.y
+                        && px < surface.x + surface.width as i32
+                        && py < surface.y + surface.height as i32
+                })
+            })
+            .or_else(|| self.active_output_index())
     }
 
     // ------------------------------------------------------------------------
@@ -586,6 +682,10 @@ impl App {
     }
 
     pub(super) fn draw_index(&mut self, index: usize, qh: &QueueHandle<Self>) -> Result<()> {
+        let is_mode_select = self.phase == UiPhase::ModeSelect;
+        let is_palette_output = is_mode_select && (Some(index) == self.active_palette_output);
+        let is_hud_output = !is_mode_select && (Some(index) == self.region_hud_output_index());
+
         let selection_hud = SelectionHud {
             purpose: if self.settings.request.is_ocr() {
                 SelectionPurpose::Ocr
@@ -600,14 +700,18 @@ impl App {
                 SelectionPurpose::Screenshot
             },
             to_clipboard: self.to_clipboard,
+            visible: is_hud_output,
         };
         let state = rendering::DrawState {
             selection: &self.selection,
-            is_mode_select: self.phase == UiPhase::ModeSelect,
+            is_mode_select,
+            is_palette_output,
             keybinds: &self.settings.keybinds,
             mode_select: &self.settings.mode_select,
             is_recording: self.is_recording,
             supports_window_capture: self.supports_window_capture,
+            replay_status: self.replay_status.as_ref(),
+            replay_configured: self.replay_configured,
             hovered_action: self
                 .hovered_surface
                 .as_ref()
@@ -638,6 +742,24 @@ impl App {
         self.input.pointer_position = (global_x, global_y);
 
         if self.phase == UiPhase::ModeSelect {
+            let new_active_output = self.active_output_index();
+            if new_active_output != self.active_palette_output {
+                if let Some(prev) = self.active_palette_output {
+                    if prev < self.output_surfaces.len() {
+                        self.output_surfaces[prev].needs_render = true;
+                    }
+                }
+                if let Some(curr) = new_active_output {
+                    if curr < self.output_surfaces.len() {
+                        self.output_surfaces[curr].needs_render = true;
+                    }
+                }
+                self.active_palette_output = new_active_output;
+                self.hovered_action = None;
+                self.hovered_surface = None;
+                self.needs_redraw = true;
+            }
+
             let hovered_action = self.palette_action_at(surface, x, y);
             let surface_changed = self
                 .hovered_surface
@@ -722,16 +844,24 @@ impl App {
         x: f64,
         y: f64,
     ) -> Option<PaletteAction> {
-        let output = self
-            .output_surfaces
-            .iter()
-            .find(|output| &output.surface == surface)?;
+        let active_index = self.active_palette_output?;
+        let output = self.output_surfaces.get(active_index)?;
+        if &output.surface != surface {
+            return None;
+        }
+
+        let replay_state = crate::render::ReplayPaletteState {
+            visible: self.replay_configured || self.replay_status.is_some(),
+            can_save: self.replay_status.as_ref().map_or(false, |s| s.can_save()),
+        };
+
         ModePaletteLayout::new(
             output.width as i32,
             output.height as i32,
-            self.settings.mode_select.bar_height,
+            self.settings.mode_select.control_height,
             self.is_recording,
             self.supports_window_capture,
+            replay_state,
             self.intro_progress,
         )
         .action_at(x, y)
@@ -756,6 +886,29 @@ impl App {
             return;
         }
 
+        if action == PaletteAction::SaveReplay {
+            self.chosen_replay_action = Some(crate::cli::ReplayAction::Save);
+            self.exit = true;
+            self.loop_signal.stop();
+            return;
+        }
+
+        if matches!(
+            action,
+            PaletteAction::ScreenshotScreen | PaletteAction::RecordScreen
+        ) {
+            if let Some(target_surf) = self
+                .active_output_index()
+                .and_then(|idx| self.output_surfaces.get(idx))
+            {
+                self.target_monitor = Some(target_surf.name.clone());
+                self.target_geometry = Some(format!(
+                    "{},{} {}x{}",
+                    target_surf.x, target_surf.y, target_surf.width, target_surf.height
+                ));
+            }
+        }
+
         let (mode, is_area) = match action {
             PaletteAction::ScreenshotArea => (CaptureMode::ImageArea, true),
             PaletteAction::ScreenshotScreen => (CaptureMode::ImageScreen, false),
@@ -763,7 +916,9 @@ impl App {
             PaletteAction::RecordArea => (CaptureMode::VideoArea, true),
             PaletteAction::RecordScreen => (CaptureMode::VideoScreen, false),
             PaletteAction::RecordWindow => (CaptureMode::VideoWindow, false),
-            PaletteAction::Ocr | PaletteAction::StopRecording => unreachable!(),
+            PaletteAction::Ocr | PaletteAction::StopRecording | PaletteAction::SaveReplay => {
+                unreachable!()
+            }
         };
 
         self.chosen_mode = Some(mode);
@@ -813,6 +968,9 @@ impl App {
         log::debug!("Selection cancelled by user");
 
         self.chosen_mode = None;
+        self.chosen_replay_action = None;
+        self.target_monitor = None;
+        self.target_geometry = None;
         self.selection_geometry = None;
         self.captured_image = None;
         self.pending_capture = None;
@@ -820,3 +978,66 @@ impl App {
         self.loop_signal.stop();
     }
 }
+#[cfg(test)]
+/// Resolves which output should display the single mode palette.
+///
+/// Priority:
+/// 1. Output containing the pointer index.
+/// 2. Output matching the compositor's active monitor name.
+/// 3. Deterministic fallback: output at (0, 0), or lowest (x, y, name).
+pub(crate) fn resolve_palette_output(
+    pointer_output: Option<usize>,
+    compositor_active: Option<&str>,
+    outputs: &[(String, i32, i32)],
+) -> Option<usize> {
+    if outputs.is_empty() {
+        return None;
+    }
+    if let Some(idx) = pointer_output {
+        if idx < outputs.len() {
+            return Some(idx);
+        }
+    }
+    if let Some(active_name) = compositor_active {
+        if let Some(idx) = outputs.iter().position(|(name, _, _)| name == active_name) {
+            return Some(idx);
+        }
+    }
+    if let Some(idx) = outputs.iter().position(|(_, x, y)| *x == 0 && *y == 0) {
+        return Some(idx);
+    }
+    outputs
+        .iter()
+        .enumerate()
+        .min_by_key(|(_, (name, x, y))| (*x, *y, name.as_str()))
+        .map(|(idx, _)| idx)
+}
+
+#[cfg(test)]
+/// Resolves which output should display the region HUD.
+///
+/// Priority:
+/// 1. Output containing the target point (selection origin, drag start, or pointer).
+/// 2. Fallback palette output.
+pub(crate) fn resolve_hud_output(
+    target_point: Option<(i32, i32)>,
+    outputs: &[(i32, i32, u32, u32)],
+    fallback: Option<usize>,
+) -> Option<usize> {
+    if outputs.is_empty() {
+        return None;
+    }
+    if let Some((px, py)) = target_point {
+        if let Some(idx) = outputs
+            .iter()
+            .position(|&(x, y, w, h)| px >= x && py >= y && px < x + w as i32 && py < y + h as i32)
+        {
+            return Some(idx);
+        }
+    }
+    fallback
+}
+
+#[cfg(test)]
+#[path = "output_test.rs"]
+mod tests;

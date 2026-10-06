@@ -199,6 +199,31 @@ impl PointerHandler for App {
                 PointerEventKind::Enter { .. } => {
                     self.input.current_surface = Some(event.surface.clone());
 
+                    if self.phase == UiPhase::ModeSelect {
+                        let new_active = self.active_output_index();
+                        if new_active != self.active_palette_output {
+                            if let Some(prev) = self.active_palette_output {
+                                if prev < self.output_surfaces.len() {
+                                    self.output_surfaces[prev].needs_render = true;
+                                }
+                            }
+                            if let Some(curr) = new_active {
+                                if curr < self.output_surfaces.len() {
+                                    self.output_surfaces[curr].needs_render = true;
+                                }
+                            }
+                            self.active_palette_output = new_active;
+                            self.hovered_action = None;
+                            self.hovered_surface = None;
+                            self.needs_redraw = true;
+                        }
+                    } else {
+                        self.needs_redraw = true;
+                        for output_surface in &mut self.output_surfaces {
+                            output_surface.needs_render = true;
+                        }
+                    }
+
                     if let Some(themed_pointer) = &self.themed_pointer {
                         let icon = if self.phase == UiPhase::ModeSelect {
                             CursorIcon::Default
@@ -209,7 +234,8 @@ impl PointerHandler for App {
                     }
                 }
                 PointerEventKind::Leave { .. } => {
-                    if self.phase == UiPhase::ModeSelect && self.hovered_action.take().is_some() {
+                    if self.phase == UiPhase::ModeSelect {
+                        self.hovered_action = None;
                         self.hovered_surface = None;
                         self.needs_redraw = true;
                         for output_surface in &mut self.output_surfaces {
@@ -292,10 +318,16 @@ impl KeyboardHandler for App {
         let ctrl_held = self.modifiers.ctrl;
         let action = {
             let kb = &self.settings.keybinds;
+            let can_save_replay = self
+                .replay_status
+                .as_ref()
+                .map_or(false, |status| status.can_save());
             if key_matches(event.keysym, &kb.ocr) {
                 Some(PaletteAction::Ocr)
             } else if self.is_recording && key_matches(event.keysym, &kb.stop_recording) {
                 Some(PaletteAction::StopRecording)
+            } else if can_save_replay && key_matches(event.keysym, &kb.replay_save) {
+                Some(PaletteAction::SaveReplay)
             } else if key_matches(event.keysym, &kb.screenshot_area) {
                 Some(PaletteAction::ScreenshotArea)
             } else if key_matches(event.keysym, &kb.screenshot_screen) {
@@ -317,7 +349,6 @@ impl KeyboardHandler for App {
                 None
             }
         };
-
         if let Some(action) = action {
             self.activate_palette_action(action, ctrl_held, qh);
         }

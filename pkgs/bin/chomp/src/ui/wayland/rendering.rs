@@ -10,10 +10,13 @@ use super::output::OutputSurface;
 pub struct DrawState<'a> {
     pub selection: &'a Selection,
     pub is_mode_select: bool,
+    pub is_palette_output: bool,
     pub keybinds: &'a crate::config::KeybindsConfig,
     pub mode_select: &'a crate::config::ModeSelectConfig,
     pub is_recording: bool,
     pub supports_window_capture: bool,
+    pub replay_status: Option<&'a crate::replay::ReplayStatus>,
+    pub replay_configured: bool,
     pub hovered_action: Option<crate::render::PaletteAction>,
     pub selection_hud: SelectionHud,
     pub intro_progress: f64,
@@ -142,6 +145,25 @@ pub fn draw_output(
     log::debug!("Got buffer, canvas ptr: {:p}", canvas.as_ptr());
 
     if is_mode_select {
+        if !state.is_palette_output {
+            if !output_surface.needs_render {
+                return Ok(());
+            }
+            output_surface.needs_render = false;
+
+            canvas.fill(0);
+            std::sync::atomic::fence(std::sync::atomic::Ordering::SeqCst);
+            let callback = output_surface.surface.frame(qh, ());
+            output_surface.frame_callback = Some(callback);
+            output_surface.waiting_for_frame = true;
+            output_surface
+                .surface
+                .attach(Some(buffer.wl_buffer()), 0, 0);
+            output_surface.surface.damage_buffer(0, 0, width, height);
+            output_surface.surface.commit();
+            return Ok(());
+        }
+
         if !output_surface.needs_render {
             return Ok(());
         }
@@ -153,6 +175,8 @@ pub fn draw_output(
             mode_select,
             is_recording,
             supports_window_capture,
+            state.replay_status,
+            state.replay_configured,
             hovered_action,
             intro_progress,
         )?;

@@ -7,7 +7,7 @@ const HEADING_GAP: f64 = 8.0;
 const ITEM_GAP: f64 = 10.0;
 const SECTION_GAP: f64 = 16.0;
 const MIN_ITEM_WIDTH: f64 = 132.0;
-const MAX_ITEMS: usize = 7;
+const MAX_ITEMS: usize = 12;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PaletteAction {
@@ -19,8 +19,14 @@ pub enum PaletteAction {
     RecordScreen,
     RecordWindow,
     StopRecording,
+    SaveReplay,
 }
 
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct ReplayPaletteState {
+    pub visible: bool,
+    pub can_save: bool,
+}
 #[derive(Debug, Clone, Copy, Default, PartialEq)]
 pub struct PaletteRect {
     pub x: f64,
@@ -55,6 +61,7 @@ pub struct ModePaletteLayout {
     pub bounds: PaletteRect,
     pub capture_heading_y: f64,
     pub record_heading_y: f64,
+    pub replay_heading_y: f64,
     items: [PaletteItem; MAX_ITEMS],
     item_count: usize,
 }
@@ -63,22 +70,50 @@ impl ModePaletteLayout {
     pub fn new(
         width: i32,
         height: i32,
-        configured_height: u32,
+        control_height: u32,
         is_recording: bool,
         supports_window_capture: bool,
+        replay: ReplayPaletteState,
         intro_progress: f64,
     ) -> Self {
         let screen_width = f64::from(width.max(1));
         let screen_height = f64::from(height.max(1));
-        let margin = if screen_width < 480.0 {
+        let margin = if screen_width < 400.0 || screen_height < 320.0 {
+            8.0
+        } else if screen_width < 480.0 {
             NARROW_MARGIN
         } else {
             OUTER_MARGIN
         };
-        let panel_width = (screen_width - margin * 2.0).min(MAX_WIDTH).max(1.0);
-        let content_width = (panel_width - PADDING * 2.0).max(1.0);
-        let item_height = (f64::from(configured_height) * 0.75).clamp(38.0, 48.0);
-        let columns = ((content_width + ITEM_GAP) / (MIN_ITEM_WIDTH + ITEM_GAP))
+        let max_panel_width = (screen_width - margin * 2.0).max(1.0);
+        let max_panel_height = (screen_height - margin * 2.0).max(1.0);
+        let panel_width = max_panel_width.min(MAX_WIDTH);
+
+        let mut padding = if panel_width < 360.0 || max_panel_height < 360.0 {
+            10.0
+        } else {
+            PADDING
+        };
+        if panel_width - padding * 2.0 < 80.0 {
+            padding = 4.0;
+        }
+        let content_width = (panel_width - padding * 2.0).max(1.0);
+
+        let mut item_gap = if content_width < 360.0 { 6.0 } else { ITEM_GAP };
+        let mut heading_gap = HEADING_GAP;
+        let mut heading_height = HEADING_HEIGHT;
+        let mut section_gap = if max_panel_height < 400.0 {
+            10.0
+        } else {
+            SECTION_GAP
+        };
+
+        let min_item_width = if max_panel_height < 320.0 {
+            40.0
+        } else {
+            MIN_ITEM_WIDTH
+        };
+        let columns = ((content_width + item_gap) / (min_item_width + item_gap))
             .floor()
             .clamp(1.0, 4.0) as usize;
 
@@ -90,27 +125,94 @@ impl ModePaletteLayout {
         } else {
             2
         };
+        let replay_count: usize = if replay.visible && replay.can_save {
+            1
+        } else {
+            0
+        };
+
         let capture_rows = capture_count.div_ceil(columns);
         let record_columns = if is_recording { 1 } else { columns.min(3) };
         let record_rows = record_count.div_ceil(record_columns);
-        let panel_height = PADDING * 2.0
-            + HEADING_HEIGHT * 2.0
-            + HEADING_GAP * 2.0
-            + item_height * (capture_rows + record_rows) as f64
-            + ITEM_GAP * (capture_rows.saturating_sub(1) + record_rows.saturating_sub(1)) as f64
-            + SECTION_GAP;
+        let replay_rows = replay_count;
+        let total_rows = capture_rows + record_rows + replay_rows;
+
+        let mut item_height = (f64::from(control_height) * 0.75).clamp(36.0, 48.0);
+
+        let mut sections_count = 2;
+        if replay.visible {
+            sections_count += 1;
+        }
+        let needed_section_gaps = (sections_count - 1) as f64 * section_gap;
+        let needed_headings = sections_count as f64 * heading_height
+            + (capture_rows > 0) as usize as f64 * heading_gap
+            + (record_rows > 0) as usize as f64 * heading_gap
+            + (replay_rows > 0) as usize as f64 * heading_gap;
+        let needed_item_gaps = item_gap
+            * (capture_rows.saturating_sub(1)
+                + record_rows.saturating_sub(1)
+                + replay_rows.saturating_sub(1)) as f64;
+
+        let needed_overhead =
+            padding * 2.0 + needed_section_gaps + needed_headings + needed_item_gaps;
+        let unscaled_height = needed_overhead + item_height * total_rows as f64;
+
+        if unscaled_height > max_panel_height {
+            let available_for_rows =
+                (max_panel_height - needed_overhead).max(total_rows as f64 * 20.0);
+            item_height = (available_for_rows / total_rows as f64).clamp(18.0, 48.0);
+
+            let second_check = padding * 2.0
+                + needed_section_gaps
+                + needed_headings
+                + needed_item_gaps
+                + item_height * total_rows as f64;
+            if second_check > max_panel_height {
+                let compression = (max_panel_height / second_check).clamp(0.4, 1.0);
+                padding = (padding * compression).max(4.0);
+                heading_height = (heading_height * compression).max(10.0);
+                heading_gap = (heading_gap * compression).max(2.0);
+                section_gap = (section_gap * compression).max(4.0);
+                item_gap = (item_gap * compression).max(3.0);
+                item_height = (item_height * compression).max(16.0);
+            }
+        }
+
+        let panel_height = (padding * 2.0
+            + (sections_count - 1) as f64 * section_gap
+            + sections_count as f64 * heading_height
+            + (capture_rows > 0) as usize as f64 * heading_gap
+            + (record_rows > 0) as usize as f64 * heading_gap
+            + (replay_rows > 0) as usize as f64 * heading_gap
+            + item_height * total_rows as f64
+            + item_gap
+                * (capture_rows.saturating_sub(1)
+                    + record_rows.saturating_sub(1)
+                    + replay_rows.saturating_sub(1)) as f64)
+            .min(max_panel_height);
+
         let intro = intro_progress.clamp(0.0, 1.0);
         let x = (screen_width - panel_width) / 2.0;
-        let resting_y = (screen_height - panel_height - margin).max(margin);
+        let resting_y = (screen_height - panel_height - margin)
+            .clamp(margin, (screen_height - panel_height).max(0.0));
         let y = resting_y + (panel_height + margin) * (1.0 - intro);
 
-        let capture_heading_y = y + PADDING;
-        let capture_y = capture_heading_y + HEADING_HEIGHT + HEADING_GAP;
+        let capture_heading_y = y + padding;
+        let capture_y = capture_heading_y + heading_height + heading_gap;
         let record_heading_y = capture_y
             + item_height * capture_rows as f64
-            + ITEM_GAP * capture_rows.saturating_sub(1) as f64
-            + SECTION_GAP;
-        let record_y = record_heading_y + HEADING_HEIGHT + HEADING_GAP;
+            + item_gap * capture_rows.saturating_sub(1) as f64
+            + section_gap;
+        let record_y = record_heading_y + heading_height + heading_gap;
+        let replay_heading_y = if replay.visible {
+            record_y
+                + item_height * record_rows as f64
+                + item_gap * record_rows.saturating_sub(1) as f64
+                + section_gap
+        } else {
+            0.0
+        };
+        let replay_y = replay_heading_y + heading_height + heading_gap;
 
         let mut layout = Self {
             bounds: PaletteRect {
@@ -121,6 +223,7 @@ impl ModePaletteLayout {
             },
             capture_heading_y,
             record_heading_y,
+            replay_heading_y,
             items: [EMPTY_ITEM; MAX_ITEMS],
             item_count: 0,
         };
@@ -144,6 +247,8 @@ impl ModePaletteLayout {
                 capture_y,
                 content_width,
                 item_height,
+                padding,
+                item_gap,
             );
         }
 
@@ -156,6 +261,8 @@ impl ModePaletteLayout {
                 record_y,
                 content_width,
                 item_height,
+                padding,
+                item_gap,
             );
         } else {
             let record_actions = [
@@ -176,8 +283,24 @@ impl ModePaletteLayout {
                     record_y,
                     content_width,
                     item_height,
+                    padding,
+                    item_gap,
                 );
             }
+        }
+
+        if replay.visible && replay.can_save {
+            layout.push_grid_item(
+                PaletteAction::SaveReplay,
+                0,
+                1,
+                1,
+                replay_y,
+                content_width,
+                item_height,
+                padding,
+                item_gap,
+            );
         }
 
         layout
@@ -203,21 +326,23 @@ impl ModePaletteLayout {
         y: f64,
         content_width: f64,
         item_height: f64,
+        padding: f64,
+        item_gap: f64,
     ) {
         let row = index / columns;
         let column = index % columns;
         let items_in_row = (item_count - row * columns).min(columns);
-        let item_width = (content_width - ITEM_GAP * items_in_row.saturating_sub(1) as f64)
+        let item_width = (content_width - item_gap * items_in_row.saturating_sub(1) as f64)
             / items_in_row as f64;
         let row_width =
-            item_width * items_in_row as f64 + ITEM_GAP * items_in_row.saturating_sub(1) as f64;
-        let row_x = self.bounds.x + PADDING + (content_width - row_width) / 2.0;
+            item_width * items_in_row as f64 + item_gap * items_in_row.saturating_sub(1) as f64;
+        let row_x = self.bounds.x + padding + (content_width - row_width) / 2.0;
 
         self.items[self.item_count] = PaletteItem {
             action,
             rect: PaletteRect {
-                x: row_x + column as f64 * (item_width + ITEM_GAP),
-                y: y + row as f64 * (item_height + ITEM_GAP),
+                x: row_x + column as f64 * (item_width + item_gap),
+                y: y + row as f64 * (item_height + item_gap),
                 width: item_width,
                 height: item_height,
             },
