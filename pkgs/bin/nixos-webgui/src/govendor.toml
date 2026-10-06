@@ -39,7 +39,7 @@ schema = 4
     go = "1.26.0"
     packages = ["golang.org/x/sys/unix", "golang.org/x/sys/windows"]
   [mod."maragu.dev/gomponents"]
-    version = "v1.3.0"
-    hash = "sha256-Z5T0p8/y89ct366qzMd2eyJcCORWVg0zKKC1QISW5E4="
+    version = "v1.4.0"
+    hash = "sha256-BQYgXBGLJzAXyTf6Ns59jBWx+QH2GZuqensNH08bzoQ="
     go = "1.18"
     packages = ["maragu.dev/gomponents", "maragu.dev/gomponents/html"]
