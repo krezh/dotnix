@@ -13,7 +13,7 @@ smithay-client-toolkit = { version = "0.21", default-features = false, features 
 ] }
 cairo-rs = { version = "0.22", features = ["png"] }
 image = "0.25"
-nix = { version = "0.31", features = ["fs", "mman", "signal", "process"] }
+nix = { version = "0.31", features = ["fs", "mman", "signal", "process", "socket"] }
 anyhow = "1.0"
 clap = { version = "4.5", features = ["derive"] }
 clap_complete = "4.5"
@@ -26,6 +26,13 @@ tesseract = "0.15"
 reqwest = { version = "0.13", features = ["blocking", "multipart"] }
 notify-rust = "4.12"
 open = "5.3"
+ffmpeg-next = "9.0"
+ffmpeg-sys-next = "9.0"
+wayland-scanner = "0.31"
+drm = "0.15"
+libc = "0.2"
+wayland-backend = "0.3"
+bitflags = "2"
 
 [dev-dependencies]
 tempfile = "3"

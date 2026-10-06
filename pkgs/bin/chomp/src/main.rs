@@ -4,6 +4,7 @@
 //! - Interactive area selection with live preview
 //! - Window and screen capture modes
 //! - Video recording with wl-screenrec
+//! - Native hardware-encoded instant replay for tagged Hyprland game windows
 //! - OCR text extraction with Tesseract
 //! - Configurable appearance
 //! - Multi-monitor support
@@ -14,6 +15,7 @@ mod compositor;
 mod config;
 mod ocr;
 mod render;
+mod replay;
 mod system;
 mod ui;
 mod upload;
@@ -69,6 +71,7 @@ fn main() -> Result<()> {
     let config = Config::load()?;
 
     let show_status = args.status;
+    let replay_service = args.replay_service;
     let settings = args.resolve(config);
 
     env_logger::Builder::from_default_env()
@@ -80,6 +83,19 @@ fn main() -> Result<()> {
     }
 
     log::info!("Starting chomp with settings: {:?}", settings);
+    if replay_service {
+        return replay::run_service(settings);
+    }
+
+    if let Some(action) = settings.replay_action {
+        let saved = replay::control(&settings, action)?;
+        if let Some(path) = saved {
+            let notifier = ui::Notifier::new();
+            notifier.send_info("Instant replay saved");
+            handle_upload(&settings, &path, &notifier)?;
+        }
+        return Ok(());
+    }
 
     if show_status {
         return handle_status(&settings);
@@ -423,7 +439,7 @@ fn active_monitor_rect() -> Result<render::Rect> {
 ///
 /// Creates the directory the capture will be written to, so a save path that does
 /// not exist yet fails here rather than after the capture is already taken.
-fn generate_output_path(settings: &Settings, extension: &str) -> Result<PathBuf> {
+pub(crate) fn generate_output_path(settings: &Settings, extension: &str) -> Result<PathBuf> {
     let path = match &settings.output {
         Some(output) => {
             anyhow::ensure!(
@@ -446,7 +462,7 @@ fn generate_output_path(settings: &Settings, extension: &str) -> Result<PathBuf>
     Ok(path)
 }
 
-fn unique_output_path(directory: &Path, extension: &str) -> Result<PathBuf> {
+pub(crate) fn unique_output_path(directory: &Path, extension: &str) -> Result<PathBuf> {
     use std::sync::atomic::{AtomicU64, Ordering};
     use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -512,32 +528,5 @@ fn upload_file(settings: &Settings, file_path: &Path, notifier: &ui::Notifier) -
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn settings() -> Settings {
-        Args::parse_from(["chomp"]).resolve(Config::default())
-    }
-
-    #[test]
-    fn generated_output_names_do_not_collide() {
-        let directory = tempfile::tempdir().unwrap();
-        let mut settings = settings();
-        settings.save_path = directory.path().to_path_buf();
-
-        let first = generate_output_path(&settings, "png").unwrap();
-        let second = generate_output_path(&settings, "png").unwrap();
-
-        assert_ne!(first, second);
-        assert!(!first.exists());
-        assert!(!second.exists());
-    }
-
-    #[test]
-    fn rejects_an_output_extension_that_does_not_match_the_format() {
-        let mut settings = settings();
-        settings.output = Some(PathBuf::from("capture.jpg"));
-
-        assert!(generate_output_path(&settings, "png").is_err());
-    }
-}
+#[path = "main_test.rs"]
+mod tests;

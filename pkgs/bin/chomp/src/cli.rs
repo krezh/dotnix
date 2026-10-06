@@ -4,7 +4,7 @@ use clap::{CommandFactory, Parser};
 use clap_complete::{Shell, generate};
 
 use crate::capture::CaptureMode;
-use crate::config::{Config, FontWeight, KeybindsConfig, LogLevel, ModeSelectConfig};
+use crate::config::{Config, FontWeight, KeybindsConfig, LogLevel, ModeSelectConfig, ReplayConfig};
 use std::path::PathBuf;
 
 /// Command-line arguments for chomp
@@ -81,6 +81,14 @@ pub struct Args {
     #[arg(long)]
     pub status: bool,
 
+    /// Control the instant replay service
+    #[arg(long, value_enum, conflicts_with_all = ["mode", "ocr", "status"])]
+    pub replay: Option<ReplayAction>,
+
+    /// Internal systemd service entry point
+    #[arg(long, hide = true)]
+    pub replay_service: bool,
+
     /// Zipline server URL (overrides config)
     #[arg(long, short = 'u')]
     pub zipline_url: Option<String>,
@@ -143,6 +151,14 @@ impl CaptureRequest {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, clap::ValueEnum)]
+pub enum ReplayAction {
+    Start,
+    Save,
+    Stop,
+    Status,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RecordingOptions {
     pub max_fps: u32,
@@ -173,6 +189,8 @@ pub struct Settings {
     pub wl_screenrec: String,
     pub ocr_language: String,
     pub recording: RecordingOptions,
+    pub replay: ReplayConfig,
+    pub replay_action: Option<ReplayAction>,
     pub output: Option<PathBuf>,
     pub zipline_url: String,
     pub zipline_token: PathBuf,
@@ -220,6 +238,8 @@ impl Args {
                 bitrate: config.capture.video.bitrate,
                 codec: config.capture.video.codec,
             },
+            replay: config.capture.replay,
+            replay_action: self.replay,
             output: self.output,
             zipline_url: self.zipline_url.unwrap_or(config.upload.zipline.url),
             zipline_token: expand_home(
@@ -283,33 +303,5 @@ fn expand_home(path: PathBuf) -> PathBuf {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn resolves_ocr_as_a_region_request() {
-        let settings = Args::parse_from(["chomp", "--ocr"]).resolve(Config::default());
-
-        assert!(settings.request.is_ocr());
-        assert_eq!(settings.request.mode, None);
-    }
-
-    #[test]
-    fn preserves_clipboard_destination_without_an_explicit_mode() {
-        let settings = Args::parse_from(["chomp", "--clipboard"]).resolve(Config::default());
-
-        assert!(settings.request.to_clipboard());
-    }
-
-    #[test]
-    fn rejects_ocr_with_an_explicit_capture_mode() {
-        assert!(Args::try_parse_from(["chomp", "--ocr", "--mode", "image-area"]).is_err());
-    }
-
-    #[test]
-    fn rejects_invalid_visual_values() {
-        assert!(Args::try_parse_from(["chomp", "--dim-opacity", "1.2"]).is_err());
-        assert!(Args::try_parse_from(["chomp", "--border-color", "not-a-color"]).is_err());
-        assert!(Args::try_parse_from(["chomp", "--font-size", "0"]).is_err());
-    }
-}
+#[path = "cli_test.rs"]
+mod tests;

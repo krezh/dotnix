@@ -25,8 +25,8 @@ use wayland_client::{
 
 use crate::{
     capture::{CaptureMode, CapturedImage},
-    cli::Settings,
-    render::Selection,
+    cli::{CaptureAction, Settings},
+    render::{ModePaletteLayout, PaletteAction, Selection},
 };
 use std::collections::HashMap;
 use std::time::Duration;
@@ -115,6 +115,8 @@ pub struct App {
     // Mode selector state
     pub(super) phase: UiPhase,
     pub(super) chosen_mode: Option<CaptureMode>,
+    pub(super) hovered_action: Option<PaletteAction>,
+    pub(super) hovered_surface: Option<wl_surface::WlSurface>,
 
     // Pre-captured image for non-area modes (captured on the same connection as the UI
     // to avoid cross-connection ordering races with the compositor)
@@ -223,6 +225,8 @@ impl App {
             completion_error: None,
             phase,
             chosen_mode: None,
+            hovered_action: None,
+            hovered_surface: None,
             captured_image: None,
             is_recording,
             supports_window_capture,
@@ -589,6 +593,11 @@ impl App {
             mode_select: &self.settings.mode_select,
             is_recording: self.is_recording,
             supports_window_capture: self.supports_window_capture,
+            hovered_action: self
+                .hovered_surface
+                .as_ref()
+                .filter(|surface| *surface == &self.output_surfaces[index].surface)
+                .and(self.hovered_action),
             intro_progress: self.intro_progress,
         };
         rendering::draw_output(&mut self.output_surfaces[index], &state, qh)
@@ -612,6 +621,33 @@ impl App {
 
         self.input.pointer_position = (global_x, global_y);
 
+        if self.phase == UiPhase::ModeSelect {
+            let hovered_action = self.palette_action_at(surface, x, y);
+            let surface_changed = self
+                .hovered_surface
+                .as_ref()
+                .is_none_or(|hovered| hovered != surface);
+            if self.hovered_action != hovered_action || surface_changed {
+                self.hovered_action = hovered_action;
+                self.hovered_surface = Some(surface.clone());
+                self.needs_redraw = true;
+                for output_surface in &mut self.output_surfaces {
+                    output_surface.needs_render = true;
+                }
+            }
+
+            if let Some(themed_pointer) = &self.themed_pointer {
+                use smithay_client_toolkit::seat::pointer::CursorIcon;
+                let icon = if hovered_action.is_some() {
+                    CursorIcon::Pointer
+                } else {
+                    CursorIcon::Default
+                };
+                let _ = themed_pointer.set_cursor(&self.conn, icon);
+            }
+            return;
+        }
+
         if self.input.mouse_pressed {
             if let Some((start_x, start_y)) = self.input.selection_start {
                 self.selection
@@ -621,10 +657,27 @@ impl App {
         }
     }
 
-    pub(super) fn handle_pointer_button(&mut self, pressed: bool) {
+    pub(super) fn handle_pointer_button(&mut self, pressed: bool, qh: &QueueHandle<Self>) {
         if self.phase == UiPhase::ModeSelect {
             if pressed {
-                self.cancel_selection();
+                let action = self.input.current_surface.as_ref().and_then(|surface| {
+                    let (global_x, global_y) = self.input.pointer_position;
+                    self.output_surfaces
+                        .iter()
+                        .find(|output| &output.surface == surface)
+                        .and_then(|output| {
+                            self.palette_action_at(
+                                surface,
+                                global_x - output.x as f64,
+                                global_y - output.y as f64,
+                            )
+                        })
+                });
+                if let Some(action) = action {
+                    self.activate_palette_action(action, self.modifiers.ctrl, qh);
+                } else {
+                    self.cancel_selection();
+                }
             }
             return;
         }
@@ -645,6 +698,67 @@ impl App {
             }
         }
         self.needs_redraw = true;
+    }
+
+    fn palette_action_at(
+        &self,
+        surface: &wl_surface::WlSurface,
+        x: f64,
+        y: f64,
+    ) -> Option<PaletteAction> {
+        let output = self
+            .output_surfaces
+            .iter()
+            .find(|output| &output.surface == surface)?;
+        ModePaletteLayout::new(
+            output.width as i32,
+            output.height as i32,
+            self.settings.mode_select.bar_height,
+            self.is_recording,
+            self.supports_window_capture,
+            self.intro_progress,
+        )
+        .action_at(x, y)
+    }
+
+    pub(super) fn activate_palette_action(
+        &mut self,
+        action: PaletteAction,
+        ctrl_held: bool,
+        qh: &QueueHandle<Self>,
+    ) {
+        if action == PaletteAction::Ocr {
+            self.settings.request.action = CaptureAction::Ocr;
+            self.begin_region_select(qh);
+            return;
+        }
+
+        if action == PaletteAction::StopRecording {
+            self.chosen_mode = Some(CaptureMode::StopRecording);
+            self.exit = true;
+            self.loop_signal.stop();
+            return;
+        }
+
+        let (mode, is_area) = match action {
+            PaletteAction::ScreenshotArea => (CaptureMode::ImageArea, true),
+            PaletteAction::ScreenshotScreen => (CaptureMode::ImageScreen, false),
+            PaletteAction::ScreenshotWindow => (CaptureMode::ImageWindow, false),
+            PaletteAction::RecordArea => (CaptureMode::VideoArea, true),
+            PaletteAction::RecordScreen => (CaptureMode::VideoScreen, false),
+            PaletteAction::RecordWindow => (CaptureMode::VideoWindow, false),
+            PaletteAction::Ocr | PaletteAction::StopRecording => unreachable!(),
+        };
+
+        self.chosen_mode = Some(mode);
+        self.to_clipboard = ctrl_held && !mode.is_video();
+
+        if is_area {
+            self.settings.request.mode = Some(mode);
+            self.begin_region_select(qh);
+        } else {
+            self.hide_ui_for_capture(PendingCapture::Image(mode), qh);
+        }
     }
 
     fn complete_selection(&mut self) {

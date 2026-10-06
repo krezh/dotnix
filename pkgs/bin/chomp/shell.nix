@@ -24,6 +24,12 @@ pkgs.mkShell {
     rust-analyzer
     llvmPackages.libclang
     llvmPackages.clang
+    ffmpeg
+    libdrm
+    libva
+    mesa
+    pipewire
+    x264
   ];
 
   shellHook = ''

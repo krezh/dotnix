@@ -2,6 +2,7 @@
 //!
 //! Compositor-agnostic Wayland protocol implementations that work across all compositors.
 
+pub mod hyprland_toplevel;
 pub mod outputs;
 mod screencopy;
 mod shm;

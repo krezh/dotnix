@@ -11,13 +11,32 @@ use super::super::{Compositor, detect_compositor};
 
 #[derive(Deserialize)]
 struct HyprctlWindow {
+    #[serde(default)]
+    address: String,
     at: [i32; 2],
     size: [i32; 2],
+    #[serde(default)]
+    class: String,
+    #[serde(default)]
+    title: String,
+    #[serde(default)]
+    tags: Vec<String>,
+    #[serde(default, rename = "focusHistoryID")]
+    focus_history_id: i64,
 }
-
 #[derive(Deserialize)]
 struct HyprctlWorkspace {
     monitor: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TaggedWindow {
+    pub address: u64,
+    pub capture_handle: u32,
+    pub geometry: [i32; 4],
+    pub class: String,
+    pub title: String,
+    pub focus_history_id: i64,
 }
 
 /// Sends a command to Hyprland's socket and returns the JSON response.
@@ -80,3 +99,41 @@ pub fn get_active_monitor() -> Result<String> {
 
     Ok(workspace.monitor)
 }
+
+pub fn get_tagged_windows(tag: &str) -> Result<Vec<TaggedWindow>> {
+    parse_tagged_windows(&hyprctl_socket("clients")?, tag)
+}
+
+fn parse_tagged_windows(response: &str, tag: &str) -> Result<Vec<TaggedWindow>> {
+    let windows: Vec<HyprctlWindow> =
+        serde_json::from_str(response).context("Failed to parse clients response")?;
+    let tag = tag.trim_end_matches('*');
+
+    windows
+        .into_iter()
+        .filter(|window| {
+            window
+                .tags
+                .iter()
+                .any(|candidate| candidate.trim_end_matches('*') == tag)
+        })
+        .map(|window| {
+            let address = window.address.strip_prefix("0x").unwrap_or(&window.address);
+            let address = u64::from_str_radix(address, 16)
+                .with_context(|| format!("Invalid Hyprland window address {}", window.address))?;
+            let capture_handle = address as u32;
+            Ok(TaggedWindow {
+                address,
+                capture_handle,
+                geometry: [window.at[0], window.at[1], window.size[0], window.size[1]],
+                class: window.class,
+                title: window.title,
+                focus_history_id: window.focus_history_id,
+            })
+        })
+        .collect()
+}
+
+#[cfg(test)]
+#[path = "hyprland_test.rs"]
+mod tests;

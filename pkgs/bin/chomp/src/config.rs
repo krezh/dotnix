@@ -128,29 +128,29 @@ impl Default for KeybindsConfig {
     }
 }
 
-/// Visual style for the mode selector bottom bar
+/// Visual style for the mode selector palette
 #[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(default, deny_unknown_fields)]
 pub struct ModeSelectConfig {
-    /// Bar background color (hex)
+    /// Palette background color (hex)
     pub background_color: String,
-    /// Bar background opacity (0.0–1.0)
+    /// Palette background opacity (0.0–1.0)
     pub background_opacity: f64,
-    /// Bar height in pixels
+    /// Base control height in pixels
     pub bar_height: u32,
-    /// Top border opacity (applied to the existing border_color)
+    /// Palette border opacity
     pub border_opacity: f64,
-    /// Key label color (hex); empty string falls back to border_color
+    /// Shortcut color (hex); empty string falls back to border_color
     pub key_color: String,
     /// Description text color (hex)
     pub description_color: String,
     /// Description text opacity (0.0–1.0)
     pub description_opacity: f64,
-    /// Group separator opacity (0.0–1.0)
+    /// Inactive control border intensity (0.0–1.0)
     pub separator_opacity: f64,
-    /// Color of the recording-active indicator dot (hex)
+    /// Color of the active-recording heading (hex)
     pub recording_dot_color: String,
-    /// Color of the stop-recording key label and description (hex)
+    /// Color of the stop-recording control (hex)
     pub recording_highlight_color: String,
 }
 
@@ -273,6 +273,9 @@ pub struct CaptureConfig {
 
     /// Screen recording settings
     pub video: VideoConfig,
+
+    /// Instant replay settings
+    pub replay: ReplayConfig,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -291,6 +294,17 @@ pub struct VideoConfig {
     /// Video codec: "auto", "avc", "hevc", "vp8", "vp9" or "av1". At a given
     /// bitrate "hevc" holds up better in motion than "avc".
     pub codec: String,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+#[serde(default, deny_unknown_fields)]
+pub struct ReplayConfig {
+    pub enabled: bool,
+    pub duration_seconds: u32,
+    pub retain_after_exit_seconds: u32,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub hyprland_tag: Option<String>,
+    pub dri_device: String,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -322,6 +336,7 @@ impl Default for CaptureConfig {
             save_path: "/tmp".to_string(),
             delay: None,
             video: VideoConfig::default(),
+            replay: ReplayConfig::default(),
         }
     }
 }
@@ -333,6 +348,18 @@ impl Default for VideoConfig {
             encode_resolution: String::new(),
             bitrate: String::new(),
             codec: "auto".to_string(),
+        }
+    }
+}
+
+impl Default for ReplayConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            duration_seconds: 30,
+            retain_after_exit_seconds: 120,
+            hyprland_tag: None,
+            dri_device: "/dev/dri/renderD128".to_string(),
         }
     }
 }
@@ -467,6 +494,24 @@ impl Config {
             ),
             "capture.video.codec must be auto, avc, hevc, vp8, vp9 or av1"
         );
+        anyhow::ensure!(
+            (5..=600).contains(&self.capture.replay.duration_seconds),
+            "capture.replay.duration_seconds must be between 5 and 600"
+        );
+        if self.capture.replay.enabled {
+            anyhow::ensure!(
+                self.capture
+                    .replay
+                    .hyprland_tag
+                    .as_ref()
+                    .is_some_and(|tag| !tag.trim().is_empty()),
+                "capture.replay.hyprland_tag is required when instant replay is enabled"
+            );
+        }
+        anyhow::ensure!(
+            !self.capture.replay.dri_device.trim().is_empty(),
+            "capture.replay.dri_device must not be empty"
+        );
 
         let problems = self.keybinds.problems();
         anyhow::ensure!(problems.is_empty(), "{}", problems.join("; "));
@@ -570,45 +615,5 @@ fn validate_resolution(value: &str) -> Result<()> {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_parse_config() {
-        let json_str = r##"{
-  "font": {
-    "family": "JetBrains Mono",
-    "size": 14
-  },
-  "border": {
-    "color": "#FF0000"
-  },
-  "display": {
-    "dim_opacity": 0.7
-  }
-}"##;
-
-        let config: Config = serde_json::from_str(json_str).unwrap();
-        assert_eq!(config.font.family, "JetBrains Mono");
-        assert_eq!(config.font.size, 14);
-        assert_eq!(config.border.color, "#FF0000");
-        assert_eq!(config.display.dim_opacity, 0.7);
-        // Defaults should still work for unspecified values
-        assert_eq!(config.border.thickness, 2);
-    }
-
-    #[test]
-    fn rejects_invalid_semantic_values() {
-        let mut config = Config::default();
-        config.display.dim_opacity = 1.5;
-        assert!(config.validate().is_err());
-
-        let mut config = Config::default();
-        config.capture.video.encode_resolution = "1920".to_string();
-        assert!(config.validate().is_err());
-
-        let mut config = Config::default();
-        config.keybinds.screenshot_screen = config.keybinds.screenshot_area.clone();
-        assert!(config.validate().is_err());
-    }
-}
+#[path = "config_test.rs"]
+mod tests;

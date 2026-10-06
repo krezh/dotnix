@@ -7,7 +7,13 @@
   installShellFiles,
 }:
 craneLib.buildPackage rec {
-  src = craneLib.cleanCargoSource ./.;
+  src = lib.fileset.toSource {
+    root = ./.;
+    fileset = lib.fileset.unions [
+      (craneLib.fileset.commonCargoSources ./.)
+      ./protocols/hyprland-toplevel-export-v1.xml
+    ];
+  };
   strictDeps = true;
 
   buildInputs = with pkgs; [
@@ -21,6 +27,12 @@ craneLib.buildPackage rec {
     leptonica
     llvmPackages.libclang.lib
     openssl
+    ffmpeg
+    libdrm
+    libva
+    mesa
+    pipewire
+    x264
   ];
 
   env = {
@@ -66,7 +78,7 @@ craneLib.buildPackage rec {
   '';
 
   meta = {
-    description = "Wayland region selector with screenshot, recording, OCR and upload support";
+    description = "Wayland screenshot, recording, OCR, upload, and native instant replay tool";
     platforms = [
       "x86_64-linux"
       "aarch64-linux"

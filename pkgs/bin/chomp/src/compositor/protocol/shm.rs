@@ -9,7 +9,7 @@ use crate::capture::buffer::MappedPixels;
 ///
 /// Uses memfd_create with sealing to prevent resizing. The descriptor owns the
 /// capture memory, so dropping it releases the buffer.
-pub(super) fn create_shm_fd(size: usize) -> Result<OwnedFd> {
+pub(crate) fn create_shm_fd(size: usize) -> Result<OwnedFd> {
     use nix::fcntl::{FcntlArg, SealFlag};
     use nix::sys::memfd::{MFdFlags, memfd_create};
     use nix::unistd::ftruncate;
@@ -34,6 +34,6 @@ pub(super) fn create_shm_fd(size: usize) -> Result<OwnedFd> {
 /// The compositor has already written the pixels into these pages, so mapping
 /// them hands the capture straight over: no second full-screen allocation to
 /// zero, and no copy through `read`.
-pub(super) fn map_shm_buffer(fd: &OwnedFd, size: usize) -> Result<MappedPixels> {
+pub(crate) fn map_shm_buffer(fd: &OwnedFd, size: usize) -> Result<MappedPixels> {
     MappedPixels::map(fd, size)
 }

@@ -4,6 +4,7 @@ use std::cell::RefCell;
 
 use super::pixel::blit;
 use super::selection::{Rect, Selection};
+use super::{ModePaletteLayout, PaletteAction};
 use crate::config::FontWeight;
 
 /// The frozen screen a selection is drawn on.
@@ -123,11 +124,9 @@ impl Renderer {
         }
     }
 
-    /// Renders the mode selector as a full-width bottom bar.
+    /// Renders the bounded mode palette.
     ///
-    /// `intro_progress` drives the slide-up entrance animation: `0.0` places the
-    /// bar fully below the screen, `1.0` places it at its resting position. The
-    /// bar also fades in proportionally to this value.
+    /// `intro_progress` slides and fades the palette from below the output.
     pub fn render_mode_select(
         &self,
         buffer: &mut [u8],
@@ -135,10 +134,10 @@ impl Renderer {
         style: &crate::config::ModeSelectConfig,
         is_recording: bool,
         supports_window_capture: bool,
+        hovered_action: Option<PaletteAction>,
         intro_progress: f64,
     ) -> Result<()> {
         let stride = self.width * 4;
-
         let surface = unsafe {
             ImageSurface::create_for_data_unsafe(
                 buffer.as_mut_ptr(),
@@ -148,73 +147,89 @@ impl Renderer {
                 stride,
             )?
         };
-
         let ctx = CairoContext::new(&surface).context("Failed to create Cairo context")?;
 
-        // Transparent background — compositor content shows through outside the bar
         ctx.set_operator(cairo::Operator::Source);
         ctx.set_source_rgba(0.0, 0.0, 0.0, 0.0);
         ctx.paint()?;
         ctx.set_operator(cairo::Operator::Over);
 
-        let bc = &self.config.border_color;
-        let screen_w = self.width as f64;
-        let screen_h = self.height as f64;
-
-        // Entrance animation: clamp to [0, 1] and ease the bar position/opacity.
         let intro = intro_progress.clamp(0.0, 1.0);
-        let fade = intro;
-
-        // Resolve configurable colors, falling back gracefully on parse error
-        let bg_color = Color::from_hex(&style.background_color).unwrap_or(Color {
+        let layout = ModePaletteLayout::new(
+            self.width,
+            self.height,
+            style.bar_height,
+            is_recording,
+            supports_window_capture,
+            intro,
+        );
+        let background = Color::from_hex(&style.background_color).unwrap_or(Color {
             r: 0.05,
             g: 0.05,
             b: 0.08,
             a: 1.0,
         });
-        let desc_color = Color::from_hex(&style.description_color).unwrap_or(Color {
+        let description = Color::from_hex(&style.description_color).unwrap_or(Color {
             r: 1.0,
             g: 1.0,
             b: 1.0,
             a: 1.0,
         });
-        let key_color = if style.key_color.is_empty() {
-            *bc
+        let key = if style.key_color.is_empty() {
+            self.config.border_color
         } else {
-            Color::from_hex(&style.key_color).unwrap_or(*bc)
+            Color::from_hex(&style.key_color).unwrap_or(self.config.border_color)
         };
-        let dot_color = Color::from_hex(&style.recording_dot_color).unwrap_or(Color {
+        let recording = Color::from_hex(&style.recording_dot_color).unwrap_or(Color {
             r: 0.95,
             g: 0.25,
             b: 0.25,
             a: 1.0,
         });
-        let rec_color = Color::from_hex(&style.recording_highlight_color).unwrap_or(Color {
-            r: 0.95,
-            g: 0.75,
-            b: 0.20,
-            a: 1.0,
-        });
+        let stop = Color::from_hex(&style.recording_highlight_color).unwrap_or(recording);
 
-        let bar_h = style.bar_height as f64;
-        let bar_y = screen_h - bar_h * intro;
-
-        // Bar background
+        let bounds = layout.bounds;
+        self.draw_rounded_rectangle(&ctx, bounds.x, bounds.y, bounds.width, bounds.height, 14.0)?;
         ctx.set_source_rgba(
-            bg_color.r,
-            bg_color.g,
-            bg_color.b,
-            style.background_opacity * fade,
+            background.r,
+            background.g,
+            background.b,
+            style.background_opacity * intro,
         );
-        ctx.rectangle(0.0, bar_y, screen_w, bar_h);
-        ctx.fill()?;
-
-        // Top border
-        ctx.set_source_rgba(bc.r, bc.g, bc.b, style.border_opacity * fade);
+        ctx.fill_preserve()?;
+        ctx.set_source_rgba(
+            self.config.border_color.r,
+            self.config.border_color.g,
+            self.config.border_color.b,
+            style.border_opacity * intro,
+        );
         ctx.set_line_width(1.0);
-        ctx.move_to(0.0, bar_y + 0.5);
-        ctx.line_to(screen_w, bar_y + 0.5);
         ctx.stroke()?;
+
+        ctx.select_font_face(
+            &self.config.font_family,
+            cairo::FontSlant::Normal,
+            cairo::FontWeight::Normal,
+        );
+        ctx.set_font_size((self.config.font_size * 0.72).max(11.0));
+        ctx.set_source_rgba(
+            description.r,
+            description.g,
+            description.b,
+            style.description_opacity * 0.72 * intro,
+        );
+        ctx.move_to(bounds.x + 16.0, layout.capture_heading_y + 13.0);
+        ctx.show_text("Capture")?;
+
+        if is_recording {
+            ctx.set_source_rgba(recording.r, recording.g, recording.b, intro);
+        }
+        ctx.move_to(bounds.x + 16.0, layout.record_heading_y + 13.0);
+        ctx.show_text(if is_recording {
+            "Recording active"
+        } else {
+            "Record"
+        })?;
 
         ctx.select_font_face(
             &self.config.font_family,
@@ -222,141 +237,93 @@ impl Renderer {
             self.config.font_weight,
         );
         ctx.set_font_size(self.config.font_size);
+        let font = ctx.font_extents()?;
 
-        let mut ss = vec![
-            (format!("[{}]", keybinds.screenshot_area), "Area"),
-            (format!("[{}]", keybinds.screenshot_screen), "Screen"),
-        ];
-        if supports_window_capture {
-            ss.push((format!("[{}]", keybinds.screenshot_window), "Window"));
-        }
-        ss.push((format!("[{}]", keybinds.ocr), "OCR"));
-
-        let mut rec = vec![
-            (format!("[{}]", keybinds.record_area), "Area"),
-            (format!("[{}]", keybinds.record_screen), "Screen"),
-        ];
-        if supports_window_capture {
-            rec.push((format!("[{}]", keybinds.record_window), "Window"));
-        }
-        let stop = [(format!("[{}]", keybinds.stop_recording), "Stop recording")];
-        let quit = [("[Esc]".to_string(), "Quit")];
-
-        // Show stop-recording group only when a recording is active
-        let groups: &[&[(String, &str)]] = if is_recording {
-            &[&ss, &rec, &stop, &quit]
-        } else {
-            &[&ss, &rec, &quit]
-        };
-
-        let key_desc_gap = 8.0_f64;
-        let entry_gap = 26.0_f64;
-        let sep_pad = 30.0_f64;
-        // Dot drawn as a filled arc — font_size * 0.3 radius, plus gap after
-        let dot_r = self.config.font_size * 0.30;
-        let dot_gap = if is_recording {
-            dot_r * 2.0 + 10.0
-        } else {
-            0.0
-        };
-
-        // Measure total content width
-        let entry_width = |key: &str, desc: &str| -> f64 {
-            let kw = ctx.text_extents(key).map(|e| e.width()).unwrap_or(0.0);
-            let dw = ctx.text_extents(desc).map(|e| e.width()).unwrap_or(0.0);
-            kw + key_desc_gap + dw
-        };
-
-        let mut total_w = 0.0_f64;
-        for (g, group) in groups.iter().enumerate() {
-            for (e, (key, desc)) in group.iter().enumerate() {
-                // The stop group gets the dot prefix added to its first entry
-                let extra = if is_recording && g == 2 && e == 0 {
-                    dot_gap
+        for item in layout.items() {
+            let hovered = hovered_action == Some(item.action);
+            let action_color = if item.action == PaletteAction::StopRecording {
+                stop
+            } else {
+                key
+            };
+            let fill_alpha = if hovered { 0.24 } else { 0.09 };
+            self.draw_rounded_rectangle(
+                &ctx,
+                item.rect.x,
+                item.rect.y,
+                item.rect.width,
+                item.rect.height,
+                9.0,
+            )?;
+            ctx.set_source_rgba(
+                action_color.r,
+                action_color.g,
+                action_color.b,
+                fill_alpha * intro,
+            );
+            ctx.fill_preserve()?;
+            ctx.set_source_rgba(
+                action_color.r,
+                action_color.g,
+                action_color.b,
+                if hovered {
+                    0.80
                 } else {
-                    0.0
-                };
-                total_w += extra + entry_width(key, desc);
-                if e + 1 < group.len() {
-                    total_w += entry_gap;
-                }
-            }
-            if g + 1 < groups.len() {
-                total_w += sep_pad * 2.0 + 1.0;
-            }
-        }
+                    (style.separator_opacity * 2.0).min(1.0)
+                } * intro,
+            );
+            ctx.set_line_width(1.0);
+            ctx.stroke()?;
 
-        // Vertically center text in bar (use font ascent as baseline offset)
-        let fe = ctx.font_extents()?;
-        let text_y = bar_y + (bar_h + fe.ascent() - fe.descent()) / 2.0;
+            let (configured_key, label) = match item.action {
+                PaletteAction::ScreenshotArea => (&keybinds.screenshot_area, "Area"),
+                PaletteAction::ScreenshotScreen => (&keybinds.screenshot_screen, "Screen"),
+                PaletteAction::ScreenshotWindow => (&keybinds.screenshot_window, "Window"),
+                PaletteAction::Ocr => (&keybinds.ocr, "Text"),
+                PaletteAction::RecordArea => (&keybinds.record_area, "Area"),
+                PaletteAction::RecordScreen => (&keybinds.record_screen, "Screen"),
+                PaletteAction::RecordWindow => (&keybinds.record_window, "Window"),
+                PaletteAction::StopRecording => (&keybinds.stop_recording, "Stop recording"),
+            };
+            let shifted = matches!(
+                item.action,
+                PaletteAction::RecordArea
+                    | PaletteAction::RecordScreen
+                    | PaletteAction::RecordWindow
+            ) && configured_key
+                .chars()
+                .next()
+                .is_some_and(char::is_uppercase);
+            let prefix = if shifted { "Shift+" } else { "" };
+            let prefix_width = ctx.text_extents(prefix)?.x_advance();
+            let key_width = ctx.text_extents(configured_key)?.x_advance();
+            let label_width = ctx.text_extents(label)?.x_advance();
+            let gap = 8.0;
+            let total_width = prefix_width + key_width + gap + label_width;
+            let mut text_x = item.rect.x + (item.rect.width - total_width) / 2.0;
+            let text_y = item.rect.y + (item.rect.height + font.ascent() - font.descent()) / 2.0;
 
-        let mut x = (screen_w - total_w) / 2.0;
+            ctx.set_source_rgba(action_color.r, action_color.g, action_color.b, intro);
+            ctx.move_to(text_x, text_y);
+            ctx.show_text(prefix)?;
+            text_x += prefix_width;
+            ctx.move_to(text_x, text_y);
+            ctx.show_text(configured_key)?;
+            text_x += key_width + gap;
 
-        for (g, group) in groups.iter().enumerate() {
-            // Red dot + "Stop recording" label for the stop group
-            let is_stop_group = is_recording && g == 2;
-
-            for (e, (key, desc)) in group.iter().enumerate() {
-                // Recording indicator dot before the stop entry's key
-                if is_stop_group && e == 0 {
-                    let dot_cx = x + dot_r;
-                    let dot_cy = text_y - fe.ascent() * 0.35;
-                    ctx.set_source_rgba(dot_color.r, dot_color.g, dot_color.b, 1.0);
-                    ctx.arc(dot_cx, dot_cy, dot_r, 0.0, std::f64::consts::TAU);
-                    ctx.fill()?;
-                    x += dot_gap;
-                }
-
-                // Key label
-                if is_stop_group {
-                    ctx.set_source_rgba(rec_color.r, rec_color.g, rec_color.b, 1.0);
-                } else {
-                    ctx.set_source_rgba(key_color.r, key_color.g, key_color.b, 1.0);
-                }
-                ctx.move_to(x, text_y);
-                ctx.show_text(key)?;
-                let kw = ctx.text_extents(key)?.width();
-                x += kw + key_desc_gap;
-
-                // Description
-                if is_stop_group {
-                    ctx.set_source_rgba(rec_color.r, rec_color.g, rec_color.b, 0.90);
-                } else {
-                    ctx.set_source_rgba(
-                        desc_color.r,
-                        desc_color.g,
-                        desc_color.b,
-                        style.description_opacity * fade,
-                    );
-                }
-                ctx.move_to(x, text_y);
-                ctx.show_text(desc)?;
-                let dw = ctx.text_extents(desc)?.width();
-                x += dw;
-
-                if e + 1 < group.len() {
-                    x += entry_gap;
-                }
-            }
-
-            // Group separator
-            if g + 1 < groups.len() {
-                x += sep_pad;
-                let sep_h = bar_h * 0.45;
-                let sep_y = bar_y + (bar_h - sep_h) / 2.0;
-                ctx.set_source_rgba(1.0, 1.0, 1.0, style.separator_opacity * fade);
-                ctx.set_line_width(1.0);
-                ctx.move_to(x + 0.5, sep_y);
-                ctx.line_to(x + 0.5, sep_y + sep_h);
-                ctx.stroke()?;
-                x += 1.0 + sep_pad;
-            }
+            ctx.set_source_rgba(
+                description.r,
+                description.g,
+                description.b,
+                style.description_opacity * intro,
+            );
+            ctx.move_to(text_x, text_y);
+            ctx.show_text(label)?;
         }
 
         ctx.target().flush();
         drop(ctx);
         surface.flush();
-
         std::sync::atomic::fence(std::sync::atomic::Ordering::SeqCst);
 
         Ok(())
@@ -638,36 +605,5 @@ impl Renderer {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_color_from_hex() {
-        let color = Color::from_hex("#FF8800").unwrap();
-        assert!((color.r - 1.0).abs() < 0.01);
-        assert!((color.g - 0.533).abs() < 0.01);
-        assert!((color.b - 0.0).abs() < 0.01);
-
-        let color = Color::from_hex("#FFF").unwrap();
-        assert!((color.r - 1.0).abs() < 0.01);
-        assert!((color.g - 1.0).abs() < 0.01);
-        assert!((color.b - 1.0).abs() < 0.01);
-    }
-
-    #[test]
-    fn test_renderer_creation() {
-        let config = RenderConfig::new(
-            "#FFFFFF",
-            2,
-            0,
-            0.5,
-            "Inter Nerd Font".to_string(),
-            18,
-            FontWeight::Bold,
-        )
-        .unwrap();
-        let renderer = Renderer::new(1920, 1080, config);
-        assert_eq!(renderer.width, 1920);
-        assert_eq!(renderer.height, 1080);
-    }
-}
+#[path = "cairo_test.rs"]
+mod tests;

@@ -14,6 +14,7 @@ pub struct DrawState<'a> {
     pub mode_select: &'a crate::config::ModeSelectConfig,
     pub is_recording: bool,
     pub supports_window_capture: bool,
+    pub hovered_action: Option<crate::render::PaletteAction>,
     pub intro_progress: f64,
 }
 
@@ -110,6 +111,7 @@ pub fn draw_output(
     let is_recording = state.is_recording;
     let supports_window_capture = state.supports_window_capture;
     let intro_progress = state.intro_progress;
+    let hovered_action = state.hovered_action;
     if !output_surface.configured {
         return Ok(());
     }
@@ -149,6 +151,7 @@ pub fn draw_output(
             mode_select,
             is_recording,
             supports_window_capture,
+            hovered_action,
             intro_progress,
         )?;
 

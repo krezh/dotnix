@@ -208,7 +208,15 @@ impl PointerHandler for App {
                         let _ = themed_pointer.set_cursor(conn, icon);
                     }
                 }
-                PointerEventKind::Leave { .. } => {}
+                PointerEventKind::Leave { .. } => {
+                    if self.phase == UiPhase::ModeSelect && self.hovered_action.take().is_some() {
+                        self.hovered_surface = None;
+                        self.needs_redraw = true;
+                        for output_surface in &mut self.output_surfaces {
+                            output_surface.needs_render = true;
+                        }
+                    }
+                }
                 PointerEventKind::Motion { .. } => {
                     if let Some(surface) = self.input.current_surface.clone() {
                         self.handle_pointer_move(&surface, event.position.0, event.position.1);
@@ -216,14 +224,14 @@ impl PointerHandler for App {
                 }
                 PointerEventKind::Press { button, .. } => {
                     if button == 0x110 {
-                        self.handle_pointer_button(true);
+                        self.handle_pointer_button(true, _qh);
                     } else if button == 0x111 {
                         self.cancel_selection();
                     }
                 }
                 PointerEventKind::Release { button, .. } => {
                     if button == 0x110 {
-                        self.handle_pointer_button(false);
+                        self.handle_pointer_button(false, _qh);
                     }
                 }
                 PointerEventKind::Axis { .. } => {}
@@ -270,8 +278,7 @@ impl KeyboardHandler for App {
         event: KeyEvent,
     ) {
         use super::UiPhase;
-        use crate::capture::CaptureMode;
-        use crate::cli::CaptureAction;
+        use crate::render::PaletteAction;
 
         if event.keysym == Keysym::Escape || event.keysym == Keysym::q {
             self.cancel_selection();
@@ -283,53 +290,36 @@ impl KeyboardHandler for App {
         }
 
         let ctrl_held = self.modifiers.ctrl;
-
-        let kb = self.settings.keybinds.clone();
-
-        // OCR: transition to region select without setting a capture mode
-        if key_matches(event.keysym, &kb.ocr) {
-            self.settings.request.action = CaptureAction::Ocr;
-            self.begin_region_select(qh);
-            return;
-        }
-
-        // Stop recording key — only active when a recording is running
-        if self.is_recording && key_matches(event.keysym, &kb.stop_recording) {
-            self.chosen_mode = Some(CaptureMode::StopRecording);
-            self.exit = true;
-            self.loop_signal.stop();
-            return;
-        }
-
-        let result = if key_matches(event.keysym, &kb.screenshot_area) {
-            Some((CaptureMode::ImageArea, true))
-        } else if key_matches(event.keysym, &kb.screenshot_screen) {
-            Some((CaptureMode::ImageScreen, false))
-        } else if self.supports_window_capture && key_matches(event.keysym, &kb.screenshot_window) {
-            Some((CaptureMode::ImageWindow, false))
-        } else if key_matches(event.keysym, &kb.record_area) {
-            Some((CaptureMode::VideoArea, true))
-        } else if key_matches(event.keysym, &kb.record_screen) {
-            Some((CaptureMode::VideoScreen, false))
-        } else if self.supports_window_capture && key_matches(event.keysym, &kb.record_window) {
-            Some((CaptureMode::VideoWindow, false))
-        } else {
-            None
+        let action = {
+            let kb = &self.settings.keybinds;
+            if key_matches(event.keysym, &kb.ocr) {
+                Some(PaletteAction::Ocr)
+            } else if self.is_recording && key_matches(event.keysym, &kb.stop_recording) {
+                Some(PaletteAction::StopRecording)
+            } else if key_matches(event.keysym, &kb.screenshot_area) {
+                Some(PaletteAction::ScreenshotArea)
+            } else if key_matches(event.keysym, &kb.screenshot_screen) {
+                Some(PaletteAction::ScreenshotScreen)
+            } else if self.supports_window_capture
+                && key_matches(event.keysym, &kb.screenshot_window)
+            {
+                Some(PaletteAction::ScreenshotWindow)
+            } else if !self.is_recording && key_matches(event.keysym, &kb.record_area) {
+                Some(PaletteAction::RecordArea)
+            } else if !self.is_recording && key_matches(event.keysym, &kb.record_screen) {
+                Some(PaletteAction::RecordScreen)
+            } else if !self.is_recording
+                && self.supports_window_capture
+                && key_matches(event.keysym, &kb.record_window)
+            {
+                Some(PaletteAction::RecordWindow)
+            } else {
+                None
+            }
         };
 
-        let Some((mode, is_area)) = result else {
-            return;
-        };
-
-        self.chosen_mode = Some(mode);
-        self.to_clipboard = ctrl_held && !mode.is_video();
-
-        if is_area {
-            self.settings.request.mode = Some(mode);
-            self.begin_region_select(qh);
-        } else {
-            // Capture once the compositor has presented a frame without the mode bar.
-            self.hide_ui_for_capture(super::PendingCapture::Image(mode), qh);
+        if let Some(action) = action {
+            self.activate_palette_action(action, ctrl_held, qh);
         }
     }
 

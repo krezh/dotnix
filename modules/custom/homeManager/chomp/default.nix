@@ -188,6 +188,36 @@
                 };
                 default = { };
               };
+
+              replay = lib.mkOption {
+                type = lib.types.submodule {
+                  options = {
+                    enabled = lib.mkEnableOption "the native instant replay service" // {
+                      default = true;
+                    };
+                    durationSeconds = lib.mkOption {
+                      type = lib.types.ints.between 5 600;
+                      default = 30;
+                      description = "Seconds of encoded game video retained in memory.";
+                    };
+                    retainAfterExitSeconds = lib.mkOption {
+                      type = lib.types.ints.unsigned;
+                      default = 120;
+                      description = "Seconds the final replay remains available after a game exits.";
+                    };
+                    hyprlandTag = lib.mkOption {
+                      type = lib.types.nonEmptyStr;
+                      description = "Hyprland window tag selecting the game capture target.";
+                    };
+                    driDevice = lib.mkOption {
+                      type = lib.types.str;
+                      default = "/dev/dri/renderD128";
+                      description = "DRM render node used by the VA-API encoder.";
+                    };
+                  };
+                };
+                default = { };
+              };
             };
           };
           default = { };
@@ -349,6 +379,16 @@
               encode_resolution = cfg.capture.video.encodeResolution;
               inherit (cfg.capture.video) bitrate codec;
             };
+            replay =
+              {
+                inherit (cfg.capture.replay) enabled;
+                duration_seconds = cfg.capture.replay.durationSeconds;
+                retain_after_exit_seconds = cfg.capture.replay.retainAfterExitSeconds;
+                dri_device = cfg.capture.replay.driDevice;
+              }
+              // lib.optionalAttrs cfg.capture.replay.enabled {
+                hyprland_tag = cfg.capture.replay.hyprlandTag;
+              };
           }
           // lib.optionalAttrs (cfg.capture.delay != null) { inherit (cfg.capture) delay; };
           ocr = {
@@ -381,6 +421,22 @@
             recording_dot_color = cfg.modeSelect.recordingDotColor;
             recording_highlight_color = cfg.modeSelect.recordingHighlightColor;
           };
+        };
+
+        systemd.user.services.chomp-replay = lib.mkIf cfg.capture.replay.enabled {
+          Unit = {
+            Description = "Chomp instant replay service";
+            PartOf = [ "graphical-session.target" ];
+            After = [ "graphical-session.target" ];
+          };
+          Service = {
+            ExecStart = "${lib.getExe cfg.package} --replay-service";
+            Restart = "on-failure";
+            RestartSec = 1;
+            RuntimeDirectory = "chomp";
+            RuntimeDirectoryMode = "0700";
+          };
+          Install.WantedBy = [ "graphical-session.target" ];
         };
       };
     };

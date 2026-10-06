@@ -30,6 +30,7 @@
       exec = cmd: mkInline "hl.dsp.exec_cmd(${builtins.toJSON cmd})";
       browser.run = "${lib.getExe config.homeModules.wlr-which-key.package} browser";
       screenshot.run = "${lib.getExe pkgs.chomp}";
+      replay.run = "${lib.getExe pkgs.chomp} --replay save";
       fileManager = mkProg pkgs.nautilus;
       passwords = mkProg pkgs.proton-pass;
       sysMonitor = mkProg pkgs.resources;
@@ -128,6 +129,10 @@
             "${mainMod} + S" = {
               rule = exec screenshot.run;
               desc = "Screenshot menu";
+            };
+            "${mainModShift} + S" = {
+              rule = exec replay.run;
+              desc = "Save instant replay";
             };
 
             # "${mainMod} + TAB" = {
