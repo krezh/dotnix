@@ -103,11 +103,11 @@ jobs:
           echo "packages=$(echo "$all" | jq -c '{include: [.[] | select(.attr | startswith("packages.")) | del(.drvs)]}')" >> "$GITHUB_OUTPUT"
 
           echo "$raw" | jq -r '
-            .[] | select(.attr | startswith("hosts.")) |
+            sort_by(.attr)[] | select(.attr | startswith("hosts.")) |
             "### \(.attr | ltrimstr("hosts.")): \(.neededBuilds | length) derivation(s) to build\n" +
             (if (.neededBuilds | length) > 0 then
               "<details>\n<summary>show derivations</summary>\n\n```\n" +
-              (.neededBuilds | map(sub("^/nix/store/[a-z0-9]+-"; "")) | join("\n")) +
+              (.neededBuilds | map(sub("^/nix/store/[a-z0-9]+-"; "")) | sort | join("\n")) +
               "\n```\n\n</details>\n"
             else "" end)
           ' >> "$GITHUB_STEP_SUMMARY"
