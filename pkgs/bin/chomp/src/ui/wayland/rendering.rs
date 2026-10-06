@@ -4,7 +4,7 @@ use anyhow::{Context, Result};
 use smithay_client_toolkit::shm::slot::{Buffer, SlotPool};
 use wayland_client::protocol::wl_shm;
 
-use crate::render::{FrozenFrame, Rect, Selection};
+use crate::render::{FrozenFrame, Rect, Selection, SelectionHud};
 
 use super::output::OutputSurface;
 pub struct DrawState<'a> {
@@ -15,6 +15,7 @@ pub struct DrawState<'a> {
     pub is_recording: bool,
     pub supports_window_capture: bool,
     pub hovered_action: Option<crate::render::PaletteAction>,
+    pub selection_hud: SelectionHud,
     pub intro_progress: f64,
 }
 
@@ -112,6 +113,7 @@ pub fn draw_output(
     let supports_window_capture = state.supports_window_capture;
     let intro_progress = state.intro_progress;
     let hovered_action = state.hovered_action;
+    let selection_hud = state.selection_hud;
     if !output_surface.configured {
         return Ok(());
     }
@@ -242,7 +244,7 @@ pub fn draw_output(
 
             let local_selection = create_local_selection(rect, offset_x, offset_y);
 
-            renderer.render_to_buffer(&local_selection, canvas, frozen)?;
+            renderer.render_to_buffer(&local_selection, canvas, frozen, selection_hud)?;
             true
         } else {
             log::debug!("SKIPPING - no intersection");
@@ -254,7 +256,7 @@ pub fn draw_output(
 
     if !has_selection {
         log::debug!("RENDERING DIMMED ONLY");
-        renderer.render_to_buffer(&Selection::new(), canvas, frozen)?;
+        renderer.render_to_buffer(&Selection::new(), canvas, frozen, selection_hud)?;
     }
 
     std::sync::atomic::fence(std::sync::atomic::Ordering::SeqCst);

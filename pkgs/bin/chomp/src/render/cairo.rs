@@ -18,10 +18,61 @@ pub struct FrozenFrame<'a> {
     pub dimmed: Option<&'a [u8]>,
     pub stride: i32,
 }
+/// Operation represented by the region-selection overlay.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SelectionPurpose {
+    Screenshot,
+    Recording,
+    Ocr,
+}
 
-// Text display thresholds
-const MIN_TEXT_WIDTH: i32 = 80;
-const MIN_TEXT_HEIGHT: i32 = 40;
+/// Context displayed while the user selects a region.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct SelectionHud {
+    pub purpose: SelectionPurpose,
+    pub to_clipboard: bool,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+struct LabelRect {
+    x: f64,
+    y: f64,
+    width: f64,
+    height: f64,
+}
+
+fn dimension_label_rect(
+    selection: Rect,
+    label_width: f64,
+    label_height: f64,
+    surface_width: i32,
+    surface_height: i32,
+) -> LabelRect {
+    const MARGIN: f64 = 8.0;
+    let max_x = (f64::from(surface_width) - label_width - MARGIN).max(MARGIN);
+    let x = (f64::from(selection.x) + (f64::from(selection.width) - label_width) / 2.0)
+        .clamp(MARGIN, max_x);
+    let below = f64::from(selection.y + selection.height) + MARGIN;
+    let above = f64::from(selection.y) - label_height - MARGIN;
+    let max_y = (f64::from(surface_height) - label_height - MARGIN).max(MARGIN);
+    let y = if below + label_height <= f64::from(surface_height) - MARGIN {
+        below
+    } else if above >= MARGIN {
+        above
+    } else {
+        (f64::from(selection.y) + MARGIN).clamp(MARGIN, max_y)
+    };
+
+    LabelRect {
+        x,
+        y,
+        width: label_width,
+        height: label_height,
+    }
+}
+
+const MIN_TEXT_WIDTH: i32 = 48;
+const MIN_TEXT_HEIGHT: i32 = 24;
 
 /// Color representation
 #[derive(Debug, Clone, Copy)]
@@ -361,6 +412,7 @@ impl Renderer {
         selection: &Selection,
         buffer: &mut [u8],
         frozen: Option<FrozenFrame<'_>>,
+        hud: SelectionHud,
     ) -> Result<()> {
         let stride = self.width * 4;
 
@@ -478,6 +530,7 @@ impl Renderer {
         if let Some(rect) = selection.get_rect() {
             self.draw_selection_border(&ctx, rect)?;
         }
+        self.draw_selection_hud(&ctx, hud)?;
 
         // Ensure all drawing operations are complete and flushed to the buffer
         // This is critical to prevent tearing
@@ -554,7 +607,6 @@ impl Renderer {
         ctx.set_line_width(weight);
 
         let (x, y, w, h) = rect.as_f64_tuple();
-
         if radius > 0.0 {
             self.draw_rounded_rectangle(ctx, x, y, w, h, radius)?;
         } else {
@@ -562,43 +614,142 @@ impl Renderer {
         }
         ctx.stroke()?;
 
-        if rect.width > MIN_TEXT_WIDTH && rect.height > MIN_TEXT_HEIGHT {
-            // Check if we need to regenerate the cached text
-            let text = {
-                let cached = self.cached_text.borrow();
-                let dimensions_changed = match cached.as_ref() {
-                    None => true,
-                    Some((w, h, _)) => *w != rect.width || *h != rect.height,
-                };
-
-                if dimensions_changed {
-                    drop(cached);
-                    let text = format!("{}×{}", rect.width, rect.height);
-                    *self.cached_text.borrow_mut() = Some((rect.width, rect.height, text.clone()));
-                    text
-                } else {
-                    cached.as_ref().unwrap().2.clone()
-                }
-            };
-
-            ctx.select_font_face(
-                &self.config.font_family,
-                cairo::FontSlant::Normal,
-                self.config.font_weight,
-            );
-            ctx.set_font_size(self.config.font_size);
-
-            let extents = ctx.text_extents(&text)?;
-            let text_x = x + (w - extents.width()) / 2.0;
-            let text_y = y + (h + extents.height()) / 2.0;
-
-            ctx.fill()?;
-
-            // Text
-            ctx.set_source_rgb(1.0, 1.0, 1.0);
-            ctx.move_to(text_x, text_y);
-            ctx.show_text(&text)?;
+        if rect.width <= MIN_TEXT_WIDTH || rect.height <= MIN_TEXT_HEIGHT {
+            return Ok(());
         }
+
+        let dimensions_changed = self
+            .cached_text
+            .borrow()
+            .as_ref()
+            .is_none_or(|(width, height, _)| *width != rect.width || *height != rect.height);
+        if dimensions_changed {
+            *self.cached_text.borrow_mut() = Some((
+                rect.width,
+                rect.height,
+                format!("{}×{}", rect.width, rect.height),
+            ));
+        }
+        let cached = self.cached_text.borrow();
+        let text = &cached.as_ref().expect("dimension text was initialized").2;
+
+        ctx.select_font_face(
+            &self.config.font_family,
+            cairo::FontSlant::Normal,
+            self.config.font_weight,
+        );
+        ctx.set_font_size(self.config.font_size);
+        let extents = ctx.text_extents(text)?;
+        let font = ctx.font_extents()?;
+        let padding_x = 10.0;
+        let padding_y = 6.0;
+        let pill = dimension_label_rect(
+            rect,
+            extents.x_advance() + padding_x * 2.0,
+            font.height() + padding_y * 2.0,
+            self.width,
+            self.height,
+        );
+
+        self.draw_rounded_rectangle(ctx, pill.x, pill.y, pill.width, pill.height, 7.0)?;
+        ctx.set_source_rgba(0.03, 0.03, 0.05, 0.92);
+        ctx.fill_preserve()?;
+        ctx.set_source_rgba(
+            self.config.border_color.r,
+            self.config.border_color.g,
+            self.config.border_color.b,
+            0.72,
+        );
+        ctx.set_line_width(1.0);
+        ctx.stroke()?;
+
+        let text_x = pill.x + (pill.width - extents.x_advance()) / 2.0;
+        let text_y = pill.y + (pill.height + font.ascent() - font.descent()) / 2.0;
+        ctx.set_source_rgb(1.0, 1.0, 1.0);
+        ctx.move_to(text_x, text_y);
+        ctx.show_text(text)?;
+
+        Ok(())
+    }
+
+    fn draw_selection_hud(&self, ctx: &CairoContext, hud: SelectionHud) -> Result<()> {
+        let primary = match (hud.purpose, hud.to_clipboard) {
+            (SelectionPurpose::Screenshot, true) => "Screenshot area · Copy to clipboard",
+            (SelectionPurpose::Screenshot, false) => "Screenshot area",
+            (SelectionPurpose::Recording, _) => "Record area",
+            (SelectionPurpose::Ocr, _) => "OCR · Copy text to clipboard",
+        };
+        let guidance = if self.width < 560 {
+            "Drag to select · Esc to cancel"
+        } else {
+            "Drag to select · Right-click or Esc to cancel"
+        };
+
+        ctx.select_font_face(
+            &self.config.font_family,
+            cairo::FontSlant::Normal,
+            self.config.font_weight,
+        );
+        let primary_size = (self.config.font_size * 0.88).max(13.0);
+        ctx.set_font_size(primary_size);
+        let primary_width = ctx.text_extents(primary)?.x_advance();
+
+        ctx.select_font_face(
+            &self.config.font_family,
+            cairo::FontSlant::Normal,
+            cairo::FontWeight::Normal,
+        );
+        let guidance_size = (self.config.font_size * 0.72).max(11.0);
+        ctx.set_font_size(guidance_size);
+        let guidance_width = ctx.text_extents(guidance)?.x_advance();
+
+        let panel_width =
+            (primary_width.max(guidance_width) + 32.0).min((f64::from(self.width) - 24.0).max(1.0));
+        let panel_height = 58.0;
+        let panel_x = (f64::from(self.width) - panel_width) / 2.0;
+        let panel_y = 16.0;
+        self.draw_rounded_rectangle(ctx, panel_x, panel_y, panel_width, panel_height, 12.0)?;
+        ctx.set_source_rgba(0.03, 0.03, 0.05, 0.90);
+        ctx.fill_preserve()?;
+        ctx.set_source_rgba(
+            self.config.border_color.r,
+            self.config.border_color.g,
+            self.config.border_color.b,
+            0.42,
+        );
+        ctx.set_line_width(1.0);
+        ctx.stroke()?;
+
+        ctx.select_font_face(
+            &self.config.font_family,
+            cairo::FontSlant::Normal,
+            self.config.font_weight,
+        );
+        ctx.set_font_size(primary_size);
+        ctx.set_source_rgba(
+            self.config.border_color.r,
+            self.config.border_color.g,
+            self.config.border_color.b,
+            1.0,
+        );
+        ctx.move_to(
+            panel_x + (panel_width - primary_width) / 2.0,
+            panel_y + 23.0,
+        );
+        ctx.show_text(primary)?;
+
+        ctx.select_font_face(
+            &self.config.font_family,
+            cairo::FontSlant::Normal,
+            cairo::FontWeight::Normal,
+        );
+        ctx.set_font_size(guidance_size);
+        ctx.set_source_rgba(1.0, 1.0, 1.0, 0.76);
+        ctx.move_to(
+            panel_x + (panel_width - guidance_width) / 2.0,
+            panel_y + 44.0,
+        );
+        ctx.show_text(guidance)?;
 
         Ok(())
     }

@@ -26,7 +26,7 @@ use wayland_client::{
 use crate::{
     capture::{CaptureMode, CapturedImage},
     cli::{CaptureAction, Settings},
-    render::{ModePaletteLayout, PaletteAction, Selection},
+    render::{ModePaletteLayout, PaletteAction, Selection, SelectionHud, SelectionPurpose},
 };
 use std::collections::HashMap;
 use std::time::Duration;
@@ -586,6 +586,21 @@ impl App {
     }
 
     pub(super) fn draw_index(&mut self, index: usize, qh: &QueueHandle<Self>) -> Result<()> {
+        let selection_hud = SelectionHud {
+            purpose: if self.settings.request.is_ocr() {
+                SelectionPurpose::Ocr
+            } else if self
+                .settings
+                .request
+                .mode
+                .is_some_and(|mode| mode.is_video())
+            {
+                SelectionPurpose::Recording
+            } else {
+                SelectionPurpose::Screenshot
+            },
+            to_clipboard: self.to_clipboard,
+        };
         let state = rendering::DrawState {
             selection: &self.selection,
             is_mode_select: self.phase == UiPhase::ModeSelect,
@@ -598,6 +613,7 @@ impl App {
                 .as_ref()
                 .filter(|surface| *surface == &self.output_surfaces[index].surface)
                 .and(self.hovered_action),
+            selection_hud,
             intro_progress: self.intro_progress,
         };
         rendering::draw_output(&mut self.output_surfaces[index], &state, qh)
