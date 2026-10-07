@@ -34,22 +34,6 @@
         "type": "github"
       }
     },
-    "cachyos-config": {
-      "flake": false,
-      "locked": {
-        "lastModified": 1791032864,
-        "narHash": "sha256-rD2mEi6e5HuVrVWUqL4saUjMucmriUIUqzYZKMldPP0=",
-        "owner": "CachyOS",
-        "repo": "linux-cachyos",
-        "rev": "b11ba14854d9748bdb3e3daf7a90e8d3a31004ec",
-        "type": "github"
-      },
-      "original": {
-        "owner": "CachyOS",
-        "repo": "linux-cachyos",
-        "type": "github"
-      }
-    },
     "catppuccin": {
       "inputs": {
         "nixpkgs": [
@@ -700,39 +684,6 @@
         "type": "github"
       }
     },
-    "kernel-patches": {
-      "flake": false,
-      "locked": {
-        "lastModified": 1791032477,
-        "narHash": "sha256-bRx0ODnJsZGiyr9Wn1kabIuz+h0jXZMYOk34xNlC7N4=",
-        "owner": "CachyOS",
-        "repo": "kernel-patches",
-        "rev": "227a7d1a2a402274e3fd6455aacb101e5dec4ed2",
-        "type": "github"
-      },
-      "original": {
-        "owner": "CachyOS",
-        "repo": "kernel-patches",
-        "type": "github"
-      }
-    },
-    "kernel-src": {
-      "flake": false,
-      "locked": {
-        "lastModified": 1790433598,
-        "narHash": "sha256-wLEb7n6RyQXBSx1mjhTj8jA7Y0Pwpc0DbHN2vntrqws=",
-        "owner": "CachyOS",
-        "repo": "linux",
-        "rev": "2b929db2eff77a4b1801fc43f6cc736728fd1706",
-        "type": "github"
-      },
-      "original": {
-        "owner": "CachyOS",
-        "ref": "cachyos-7.2.8-1",
-        "repo": "linux",
-        "type": "github"
-      }
-    },
     "lanzaboote": {
       "inputs": {
         "crane": "crane_2",
@@ -798,22 +749,19 @@
     },
     "nix-cachyos-kernel": {
       "inputs": {
-        "cachyos-config": "cachyos-config",
-        "kernel-patches": "kernel-patches",
-        "kernel-src": "kernel-src",
         "nixpkgs": "nixpkgs_3"
       },
       "locked": {
-        "lastModified": 1791389339,
-        "narHash": "sha256-wBBjYE1R7H2eOXHdsc5zrAhiC/gt0nzhcoloMeJj6B8=",
+        "lastModified": 1791505622,
+        "narHash": "sha256-Fd7TYrWxYvMlPA6L1gr+qe3gYIcPLurJuyC0Gwm/3y8=",
         "owner": "krezh",
         "repo": "nix-cachyos-kernel",
-        "rev": "eaf5c9aecce131b7ec98886a0cd0e8056a4bab13",
+        "rev": "9881746d2de9f7e3c8580240d9fde47c5b3853f2",
         "type": "github"
       },
       "original": {
         "owner": "krezh",
-        "ref": "v7.2.8-5",
+        "ref": "v7.2.8-6",
         "repo": "nix-cachyos-kernel",
         "type": "github"
       }

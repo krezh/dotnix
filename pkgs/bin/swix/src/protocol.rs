@@ -3,13 +3,21 @@ use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize)]
-pub struct ActivationRequest<'a> {
-    pub baseline: &'a Path,
-    pub output: &'a Path,
+#[serde(tag = "operation", rename_all = "snake_case")]
+pub enum HelperRequest<'a> {
+    Activate {
+        baseline: &'a Path,
+        output: &'a Path,
+    },
+    Cleanup {
+        nix: bool,
+        journals: bool,
+    },
 }
 
 #[derive(Debug, Deserialize)]
-pub struct OwnedActivationRequest {
-    pub baseline: PathBuf,
-    pub output: PathBuf,
+#[serde(tag = "operation", rename_all = "snake_case")]
+pub enum OwnedHelperRequest {
+    Activate { baseline: PathBuf, output: PathBuf },
+    Cleanup { nix: bool, journals: bool },
 }

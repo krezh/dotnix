@@ -29,6 +29,23 @@ struct HyprctlWorkspace {
     monitor: String,
 }
 
+#[derive(Deserialize)]
+struct HyprctlCursorPosition {
+    x: i32,
+    y: i32,
+}
+
+#[derive(Deserialize)]
+struct HyprctlMonitor {
+    name: String,
+    x: i32,
+    y: i32,
+    width: i32,
+    height: i32,
+    scale: f64,
+    transform: i32,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TaggedWindow {
     pub address: u64,
@@ -98,6 +115,35 @@ pub fn get_active_monitor() -> Result<String> {
         serde_json::from_str(&response).context("Failed to parse activeworkspace response")?;
 
     Ok(workspace.monitor)
+}
+
+pub fn get_cursor_monitor() -> Result<String> {
+    parse_cursor_monitor(&hyprctl_socket("cursorpos")?, &hyprctl_socket("monitors")?)
+}
+
+fn parse_cursor_monitor(cursor_response: &str, monitors_response: &str) -> Result<String> {
+    let cursor: HyprctlCursorPosition =
+        serde_json::from_str(cursor_response).context("Failed to parse cursorpos response")?;
+    let monitors: Vec<HyprctlMonitor> =
+        serde_json::from_str(monitors_response).context("Failed to parse monitors response")?;
+
+    monitors
+        .into_iter()
+        .find(|monitor| {
+            let (width, height) = if matches!(monitor.transform, 1 | 3 | 5 | 7) {
+                (monitor.height, monitor.width)
+            } else {
+                (monitor.width, monitor.height)
+            };
+            let width = (width as f64 / monitor.scale).round() as i32;
+            let height = (height as f64 / monitor.scale).round() as i32;
+            cursor.x >= monitor.x
+                && cursor.y >= monitor.y
+                && cursor.x < monitor.x + width
+                && cursor.y < monitor.y + height
+        })
+        .map(|monitor| monitor.name)
+        .context("Cursor is not on any Hyprland monitor")
 }
 
 pub fn get_tagged_windows(tag: &str) -> Result<Vec<TaggedWindow>> {

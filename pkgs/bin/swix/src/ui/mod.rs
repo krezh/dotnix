@@ -2,6 +2,7 @@ pub(crate) mod build_activity;
 pub(crate) mod build_progress;
 pub(crate) mod build_screen;
 pub(crate) mod changelog;
+pub(crate) mod cleanup;
 pub(crate) mod common;
 pub(crate) mod error;
 pub(crate) mod home;

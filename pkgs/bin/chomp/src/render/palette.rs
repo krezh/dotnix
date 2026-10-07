@@ -74,7 +74,6 @@ impl ModePaletteLayout {
         is_recording: bool,
         supports_window_capture: bool,
         replay: ReplayPaletteState,
-        intro_progress: f64,
     ) -> Self {
         let screen_width = f64::from(width.max(1));
         let screen_height = f64::from(height.max(1));
@@ -191,11 +190,9 @@ impl ModePaletteLayout {
                     + replay_rows.saturating_sub(1)) as f64)
             .min(max_panel_height);
 
-        let intro = intro_progress.clamp(0.0, 1.0);
         let x = (screen_width - panel_width) / 2.0;
-        let resting_y = (screen_height - panel_height - margin)
+        let y = (screen_height - panel_height - margin)
             .clamp(margin, (screen_height - panel_height).max(0.0));
-        let y = resting_y + (panel_height + margin) * (1.0 - intro);
 
         let capture_heading_y = y + padding;
         let capture_y = capture_heading_y + heading_height + heading_gap;

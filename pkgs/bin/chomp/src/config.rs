@@ -131,11 +131,11 @@ impl Default for KeybindsConfig {
     }
 }
 
-/// Visual style for the mode selector palette
+/// Optional color overrides for the selected theme.
 #[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(default, deny_unknown_fields)]
 pub struct ModeSelectConfig {
-    /// Palette background color (hex)
+    /// Palette background color; empty uses the theme background
     pub background_color: String,
     /// Palette background opacity (0.0–1.0)
     pub background_opacity: f64,
@@ -144,45 +144,70 @@ pub struct ModeSelectConfig {
     pub control_height: u32,
     /// Palette border opacity
     pub border_opacity: f64,
-    /// Shortcut color (hex); empty string falls back to border_color
+    /// Shortcut color; empty uses the theme accent
     pub key_color: String,
-    /// Description text color (hex)
+    /// Description text color; empty uses the theme muted text
     pub description_color: String,
+    /// Keycap and panel color; empty uses the theme surface
+    pub surface_color: String,
     /// Description text opacity (0.0–1.0)
     pub description_opacity: f64,
     /// Inactive control border intensity (0.0–1.0)
     #[serde(alias = "separator_opacity")]
     pub control_border_opacity: f64,
-    /// Color of the active-recording heading (hex)
+    /// Recording status color; empty uses the theme danger color
     pub recording_dot_color: String,
-    /// Color of the stop-recording control (hex)
+    /// Stop-recording color; empty uses the theme warning color
     pub recording_highlight_color: String,
-    /// Color of the instant replay status and save control (hex)
+    /// Replay status color; empty uses the theme info color
     pub replay_color: String,
+}
+
+impl ModeSelectConfig {
+    pub fn resolve(mut self, palette: crate::theme::ThemePalette) -> Self {
+        use crate::theme::resolve_color;
+
+        self.background_color =
+            resolve_color(&self.background_color, palette.background).to_string();
+        self.key_color = resolve_color(&self.key_color, palette.accent).to_string();
+        self.description_color = resolve_color(&self.description_color, palette.muted).to_string();
+        self.surface_color = resolve_color(&self.surface_color, palette.surface).to_string();
+        self.recording_dot_color =
+            resolve_color(&self.recording_dot_color, palette.danger).to_string();
+        self.recording_highlight_color =
+            resolve_color(&self.recording_highlight_color, palette.warning).to_string();
+        self.replay_color = resolve_color(&self.replay_color, palette.info).to_string();
+        self
+    }
 }
 
 impl Default for ModeSelectConfig {
     fn default() -> Self {
         Self {
-            background_color: "#0D0D14".to_string(),
+            background_color: String::new(),
             background_opacity: 0.95,
             control_height: 56,
             border_opacity: 0.35,
-            key_color: String::new(), // empty = use border_color
-            description_color: "#FFFFFF".to_string(),
+            key_color: String::new(),
+            description_color: String::new(),
+            surface_color: String::new(),
             description_opacity: 0.85,
             control_border_opacity: 0.18,
-            recording_dot_color: "#F24040".to_string(),
-            recording_highlight_color: "#F2BF33".to_string(),
-            replay_color: "#38BDF8".to_string(),
+            recording_dot_color: String::new(),
+            recording_highlight_color: String::new(),
+            replay_color: String::new(),
         }
     }
 }
 
 /// Main configuration structure with nested groups
-#[derive(Debug, Deserialize, Serialize, Clone, Default)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(default, deny_unknown_fields)]
 pub struct Config {
+    /// Built-in color theme; omitted legacy configs are migrated to Catppuccin
+    #[serde(default)]
+    pub theme: Option<crate::theme::ThemeName>,
+
     /// Text/font configuration
     pub font: FontConfig,
 
@@ -209,6 +234,23 @@ pub struct Config {
 
     /// Mode selector bar appearance
     pub mode_select: ModeSelectConfig,
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        Self {
+            theme: Some(crate::theme::ThemeName::default()),
+            font: FontConfig::default(),
+            border: BorderConfig::default(),
+            display: DisplayConfig::default(),
+            upload: UploadConfig::default(),
+            capture: CaptureConfig::default(),
+            ocr: OcrConfig::default(),
+            tools: ToolsConfig::default(),
+            keybinds: KeybindsConfig::default(),
+            mode_select: ModeSelectConfig::default(),
+        }
+    }
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -403,7 +445,7 @@ impl Default for FontConfig {
 impl Default for BorderConfig {
     fn default() -> Self {
         Self {
-            color: "#FFFFFF".to_string(),
+            color: String::new(),
             thickness: 2,
             rounding: 0,
         }
@@ -421,6 +463,30 @@ impl Default for DisplayConfig {
 }
 
 impl Config {
+    /// Converts colors emitted by pre-theme config generation into inherited theme colors.
+    pub(crate) fn resolve_theme(mut self) -> Self {
+        if self.theme.is_some() {
+            return self;
+        }
+
+        if self.border.color.eq_ignore_ascii_case("#FFFFFF") {
+            self.border.color.clear();
+        }
+        for (color, legacy_default) in [
+            (&mut self.mode_select.background_color, "#0D0D14"),
+            (&mut self.mode_select.description_color, "#FFFFFF"),
+            (&mut self.mode_select.recording_dot_color, "#F24040"),
+            (&mut self.mode_select.recording_highlight_color, "#F2BF33"),
+            (&mut self.mode_select.replay_color, "#38BDF8"),
+        ] {
+            if color.eq_ignore_ascii_case(legacy_default) {
+                color.clear();
+            }
+        }
+        self.theme = Some(crate::theme::ThemeName::default());
+        self
+    }
+
     /// Loads configuration from file, falling back to defaults if not found
     ///
     /// Searches for config.json in XDG-compliant locations.
@@ -445,8 +511,11 @@ impl Config {
     }
 
     /// Rejects values that would otherwise fail after the selector opens.
-    pub fn validate(self) -> Result<Self> {
-        validate_hex_color("border.color", &self.border.color)?;
+    pub fn validate(mut self) -> Result<Self> {
+        self = self.resolve_theme();
+        if !self.border.color.is_empty() {
+            validate_hex_color("border.color", &self.border.color)?;
+        }
         validate_unit("display.dim_opacity", self.display.dim_opacity)?;
         validate_unit(
             "mode_select.background_opacity",
@@ -464,26 +533,31 @@ impl Config {
             "mode_select.control_border_opacity",
             self.mode_select.control_border_opacity,
         )?;
-        validate_hex_color(
-            "mode_select.background_color",
-            &self.mode_select.background_color,
-        )?;
-        if !self.mode_select.key_color.is_empty() {
-            validate_hex_color("mode_select.key_color", &self.mode_select.key_color)?;
+        for (name, value) in [
+            (
+                "mode_select.background_color",
+                &self.mode_select.background_color,
+            ),
+            ("mode_select.key_color", &self.mode_select.key_color),
+            (
+                "mode_select.description_color",
+                &self.mode_select.description_color,
+            ),
+            ("mode_select.surface_color", &self.mode_select.surface_color),
+            (
+                "mode_select.recording_dot_color",
+                &self.mode_select.recording_dot_color,
+            ),
+            (
+                "mode_select.recording_highlight_color",
+                &self.mode_select.recording_highlight_color,
+            ),
+            ("mode_select.replay_color", &self.mode_select.replay_color),
+        ] {
+            if !value.is_empty() {
+                validate_hex_color(name, value)?;
+            }
         }
-        validate_hex_color(
-            "mode_select.description_color",
-            &self.mode_select.description_color,
-        )?;
-        validate_hex_color(
-            "mode_select.recording_dot_color",
-            &self.mode_select.recording_dot_color,
-        )?;
-        validate_hex_color(
-            "mode_select.recording_highlight_color",
-            &self.mode_select.recording_highlight_color,
-        )?;
-        validate_hex_color("mode_select.replay_color", &self.mode_select.replay_color)?;
         anyhow::ensure!(self.font.size > 0, "font.size must be greater than zero");
         anyhow::ensure!(
             self.capture.video.max_fps > 0,

@@ -2,6 +2,7 @@
   lib,
   craneLib,
   pkgs,
+  nixPackage ? pkgs.nix,
   makeWrapper,
   wrapGAppsHook4,
 }:
@@ -16,9 +17,12 @@ craneLib.buildPackage rec {
   ];
 
   env = {
-    SWIX_NIX_ENV = lib.getExe' pkgs.nix "nix-env";
     SWIX_GIT = lib.getExe pkgs.git;
     SWIX_JJ = lib.getExe pkgs.jujutsu;
+    SWIX_JOURNALCTL = lib.getExe' pkgs.systemd "journalctl";
+    SWIX_NIX = lib.getExe nixPackage;
+    SWIX_NIX_ENV = lib.getExe' nixPackage "nix-env";
+    SWIX_NIX_STORE = lib.getExe' nixPackage "nix-store";
   };
 
   cargoArtifacts = craneLib.buildDepsOnly {
@@ -66,7 +70,6 @@ craneLib.buildPackage rec {
           pkgs.dix
           pkgs.git
           pkgs.jujutsu
-          pkgs.nix
           pkgs.nix-changelog
         ]
       }
@@ -74,7 +77,7 @@ craneLib.buildPackage rec {
   '';
 
   meta = {
-    description = "GTK control center for NixOS and Home Manager builds, updates, and maintenance";
+    description = "GTK control center for NixOS builds, updates, activation, and system cleanup";
     mainProgram = "swix";
     license = lib.licenses.gpl3Only;
     platforms = lib.platforms.linux;

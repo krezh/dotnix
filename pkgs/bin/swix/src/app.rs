@@ -112,8 +112,8 @@ impl UiController {
             Operation::Switching => {
                 return Err("cannot change the build target while activation is running".to_owned());
             }
-            Operation::Updating => {
-                return Err("cannot start a build while the repository is updating".to_owned());
+            Operation::Updating | Operation::Cleaning => {
+                return Err("cannot start a build while maintenance is running".to_owned());
             }
             Operation::Building => {
                 self.state.cancel();
@@ -298,7 +298,7 @@ fn load_css() {
 
 fn character_action(character: char) -> Option<KeyAction> {
     match character.to_ascii_lowercase() {
-        key @ ('m' | 'n' | 'p' | 'r') => Some(KeyAction::Home(key)),
+        key @ ('c' | 'm' | 'n' | 'p' | 'r') => Some(KeyAction::Home(key)),
         's' => Some(KeyAction::Switch),
         _ => None,
     }
@@ -501,6 +501,8 @@ mod tests {
         assert_eq!(character_action('p'), Some(KeyAction::Home('p')));
         assert_eq!(character_action('r'), Some(KeyAction::Home('r')));
         assert_eq!(character_action('R'), Some(KeyAction::Home('r')));
+        assert_eq!(character_action('c'), Some(KeyAction::Home('c')));
+        assert_eq!(character_action('C'), Some(KeyAction::Home('c')));
         assert_eq!(character_action('s'), Some(KeyAction::Switch));
         assert_eq!(character_action('x'), None);
     }

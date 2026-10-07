@@ -14,6 +14,7 @@ pub(crate) enum Operation {
     #[default]
     Idle,
     Building,
+    Cleaning,
     Updating,
     Switching,
 }
@@ -133,7 +134,7 @@ impl UiState {
     pub(crate) fn request_close(&self) -> bool {
         match self.operation.get() {
             Operation::Switching => false,
-            Operation::Building | Operation::Updating => {
+            Operation::Building | Operation::Cleaning | Operation::Updating => {
                 self.close_pending.set(true);
                 if let Some(cancellation) = self.cancellation.borrow().as_ref() {
                     cancellation.store(true, Ordering::Relaxed);

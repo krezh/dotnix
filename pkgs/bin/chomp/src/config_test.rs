@@ -1,4 +1,5 @@
 use super::*;
+use clap::Parser;
 
 #[test]
 fn test_parse_config() {
@@ -22,6 +23,60 @@ fn test_parse_config() {
     assert_eq!(config.display.dim_opacity, 0.7);
     // Defaults should still work for unspecified values
     assert_eq!(config.border.thickness, 2);
+}
+
+#[test]
+fn defaults_to_catppuccin_with_optional_color_overrides() {
+    let config = Config::default();
+    assert_eq!(config.theme, Some(crate::theme::ThemeName::Catppuccin));
+    assert!(config.border.color.is_empty());
+    assert!(config.mode_select.background_color.is_empty());
+
+    let settings = crate::cli::Args::parse_from(["chomp"]).resolve(config);
+    assert_eq!(settings.border_color, "#89B4FA");
+    assert_eq!(settings.mode_select.background_color, "#1E1E2E");
+    assert_eq!(settings.mode_select.surface_color, "#313244");
+    assert_eq!(settings.text_color, "#CDD6F4");
+}
+
+#[test]
+fn accepts_theme_names_and_color_overrides() {
+    let json = r##"{
+  "theme": "nord",
+  "border": { "color": "#112233" },
+  "mode_select": { "background_color": "#445566" }
+}"##;
+    let config: Config = serde_json::from_str(json).unwrap();
+    assert_eq!(config.theme, Some(crate::theme::ThemeName::Nord));
+
+    let settings = crate::cli::Args::parse_from(["chomp"]).resolve(config);
+    assert_eq!(settings.border_color, "#112233");
+    assert_eq!(settings.mode_select.background_color, "#445566");
+    assert_eq!(settings.mode_select.surface_color, "#3B4252");
+}
+
+#[test]
+fn migrates_generated_pre_theme_colors_to_catppuccin() {
+    let json = r##"{
+  "border": { "color": "#FFFFFF", "rounding": 15 },
+  "mode_select": {
+    "background_color": "#0D0D14",
+    "description_color": "#FFFFFF",
+    "recording_dot_color": "#F24040",
+    "recording_highlight_color": "#F2BF33",
+    "replay_color": "#38BDF8"
+  }
+}"##;
+    let config: Config = serde_json::from_str(json).unwrap();
+    let settings = crate::cli::Args::parse_from(["chomp"]).resolve(config);
+
+    assert_eq!(settings.border_color, "#89B4FA");
+    assert_eq!(settings.border_rounding, 15);
+    assert_eq!(settings.mode_select.background_color, "#1E1E2E");
+    assert_eq!(settings.mode_select.description_color, "#BAC2DE");
+    assert_eq!(settings.mode_select.recording_dot_color, "#F38BA8");
+    assert_eq!(settings.mode_select.recording_highlight_color, "#F9E2AF");
+    assert_eq!(settings.mode_select.replay_color, "#74C7EC");
 }
 
 #[test]

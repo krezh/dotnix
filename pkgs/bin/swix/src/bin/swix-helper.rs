@@ -6,7 +6,10 @@ use std::sync::atomic::AtomicBool;
 use std::time::{Duration, Instant};
 
 use swix::command::{self, OutputLimits};
-use swix::protocol::OwnedActivationRequest;
+use swix::protocol::OwnedHelperRequest;
+
+#[path = "swix_helper/cleanup.rs"]
+mod cleanup;
 
 const MAX_REQUEST_BYTES: usize = 4096;
 const MAX_OUTPUT_BYTES: usize = 32 * 1024;
@@ -16,20 +19,24 @@ const PROFILE: &str = "/nix/var/nix/profiles/system";
 const STORE: &str = "/nix/store";
 const ACTIVATION_LOCK: &str = "/run/swix-helper.lock";
 
-struct ActivationPaths {
+struct HelperPaths {
     profile: PathBuf,
     store: PathBuf,
     lock: PathBuf,
     nix_env: PathBuf,
+    nix: PathBuf,
+    journalctl: PathBuf,
 }
 
-impl ActivationPaths {
+impl HelperPaths {
     fn system() -> Self {
         Self {
             profile: PathBuf::from(PROFILE),
             store: PathBuf::from(STORE),
             lock: PathBuf::from(ACTIVATION_LOCK),
-            nix_env: PathBuf::from(env!("SWIX_NIX_ENV")),
+            nix_env: PathBuf::from("nix-env"),
+            nix: PathBuf::from("nix"),
+            journalctl: PathBuf::from("journalctl"),
         }
     }
 }
@@ -69,17 +76,24 @@ fn handle_request() -> Result<(), String> {
         .lock()
         .take((MAX_REQUEST_BYTES + 1) as u64)
         .read_to_end(&mut input)
-        .map_err(|error| format!("failed to read switch request: {error}"))?;
-    activate_request(&input, &ActivationPaths::system())
+        .map_err(|error| format!("failed to read service request: {error}"))?;
+    let paths = HelperPaths::system();
+    match parse_request(&input)? {
+        OwnedHelperRequest::Activate { baseline, output } => {
+            activate_request(baseline, output, &paths)
+        }
+        OwnedHelperRequest::Cleanup { nix, journals } => cleanup::run(nix, journals, &paths),
+    }
 }
 
-fn activate_request(input: &[u8], paths: &ActivationPaths) -> Result<(), String> {
-    let request = parse_request(input)?;
-    let requested = request.output;
+fn activate_request(
+    baseline: PathBuf,
+    requested: PathBuf,
+    paths: &HelperPaths,
+) -> Result<(), String> {
     let closure = fs::canonicalize(&requested)
         .map_err(|error| format!("invalid system closure {}: {error}", requested.display()))?;
     validate_closure(&closure, &paths.store)?;
-    let baseline = request.baseline;
     if !is_store_path(&baseline, &paths.store) {
         return Err(format!(
             "{} is not a top-level Nix store path",
@@ -154,13 +168,13 @@ fn activate_request(input: &[u8], paths: &ActivationPaths) -> Result<(), String>
     Ok(())
 }
 
-fn parse_request(input: &[u8]) -> Result<OwnedActivationRequest, String> {
+fn parse_request(input: &[u8]) -> Result<OwnedHelperRequest, String> {
     if input.len() > MAX_REQUEST_BYTES {
         return Err(format!(
-            "switch request exceeds {MAX_REQUEST_BYTES}-byte limit"
+            "service request exceeds {MAX_REQUEST_BYTES}-byte limit"
         ));
     }
-    serde_json::from_slice(input).map_err(|error| format!("invalid switch request: {error}"))
+    serde_json::from_slice(input).map_err(|error| format!("invalid service request: {error}"))
 }
 
 fn validate_closure(closure: &Path, store: &Path) -> Result<(), String> {
@@ -198,15 +212,15 @@ fn acquire_activation_lock(path: &Path) -> Result<File, String> {
         .create(true)
         .truncate(false)
         .open(path)
-        .map_err(|error| format!("failed to open activation lock: {error}"))?;
+        .map_err(|error| format!("failed to open service lock: {error}"))?;
 
     match lock.try_lock() {
         Ok(()) => {}
         Err(fs::TryLockError::WouldBlock) => {
-            return Err("another activation is already running; retry later".to_owned());
+            return Err("another privileged Swix operation is already running".to_owned());
         }
         Err(fs::TryLockError::Error(error)) => {
-            return Err(format!("failed to acquire activation lock: {error}"));
+            return Err(format!("failed to acquire service lock: {error}"));
         }
     }
 
@@ -275,13 +289,13 @@ mod tests {
     use super::*;
     use std::os::unix::fs::{PermissionsExt, symlink};
     use std::sync::atomic::{AtomicU64, Ordering};
-    use swix::protocol::ActivationRequest;
+    use swix::protocol::{HelperRequest, OwnedHelperRequest};
 
     static FIXTURE_ID: AtomicU64 = AtomicU64::new(0);
 
     struct ActivationFixture {
         root: PathBuf,
-        paths: ActivationPaths,
+        paths: HelperPaths,
         prior: PathBuf,
         requested: PathBuf,
     }
@@ -322,11 +336,13 @@ mod tests {
                 )
             };
             write_script(&nix_env, &script);
-            let paths = ActivationPaths {
+            let paths = HelperPaths {
                 profile,
                 store,
                 lock: root.join("activation.lock"),
                 nix_env,
+                nix: root.join("nix"),
+                journalctl: root.join("journalctl"),
             };
             Self {
                 root,
@@ -337,12 +353,7 @@ mod tests {
         }
 
         fn activate(&self) -> Result<(), String> {
-            let request = serde_json::to_vec(&ActivationRequest {
-                baseline: &self.prior,
-                output: &self.requested,
-            })
-            .unwrap();
-            activate_request(&request, &self.paths)
+            activate_request(self.prior.clone(), self.requested.clone(), &self.paths)
         }
     }
 
@@ -360,20 +371,37 @@ mod tests {
     }
 
     #[test]
-    fn parses_activation_request() {
-        let request = parse_request(
-            br#"{"baseline":"/nix/store/old-system","output":"/nix/store/new-system"}"#,
-        )
+    fn parses_service_requests() {
+        let encoded = serde_json::to_vec(&HelperRequest::Activate {
+            baseline: Path::new("/nix/store/old-system"),
+            output: Path::new("/nix/store/new-system"),
+        })
         .unwrap();
-        assert_eq!(request.baseline, Path::new("/nix/store/old-system"));
-        assert_eq!(request.output, Path::new("/nix/store/new-system"));
+        let request = parse_request(&encoded).unwrap();
+        let OwnedHelperRequest::Activate { baseline, output } = request else {
+            panic!("expected activation request");
+        };
+        assert_eq!(baseline, Path::new("/nix/store/old-system"));
+        assert_eq!(output, Path::new("/nix/store/new-system"));
+
+        let cleanup =
+            parse_request(br#"{"operation":"cleanup","nix":true,"journals":false}"#).unwrap();
+        assert!(matches!(
+            cleanup,
+            OwnedHelperRequest::Cleanup {
+                nix: true,
+                journals: false
+            }
+        ));
     }
 
     #[test]
     fn rejects_invalid_requests() {
-        assert!(parse_request(b"").is_err());
-        assert!(parse_request(br#"{"output":"/nix/store/new-system"}"#).is_err());
-        assert!(parse_request(br#"{"baseline":1,"output":2}"#).is_err());
+        assert!(
+            parse_request(br#"{"operation":"activate","output":"/nix/store/new-system"}"#).is_err()
+        );
+        assert!(parse_request(br#"{"operation":"activate","baseline":1,"output":2}"#).is_err());
+        assert!(parse_request(br#"{"operation":"cleanup","nix":false}"#).is_err());
     }
 
     #[test]
@@ -458,7 +486,7 @@ mod tests {
         let fixture = ActivationFixture::new(true, true);
         let _first = acquire_activation_lock(&fixture.paths.lock).unwrap();
         let error = acquire_activation_lock(&fixture.paths.lock).unwrap_err();
-        assert!(error.contains("another activation is already running"));
+        assert!(error.contains("another privileged Swix operation is already running"));
     }
 
     #[test]

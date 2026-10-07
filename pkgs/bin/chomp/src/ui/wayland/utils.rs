@@ -53,6 +53,8 @@ fn runtime_lock_path() -> PathBuf {
 pub fn create_renderer(width: i32, height: i32, settings: &Settings) -> Result<Renderer> {
     let config = RenderConfig::new(
         &settings.border_color,
+        &settings.mode_select.background_color,
+        &settings.text_color,
         settings.border_thickness,
         settings.border_rounding,
         settings.dim_opacity,

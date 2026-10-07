@@ -16,6 +16,17 @@ fn preserves_clipboard_destination_without_an_explicit_mode() {
 }
 
 #[test]
+fn cli_theme_overrides_the_config_theme() {
+    let mut config = Config::default();
+    config.theme = Some(ThemeName::Nord);
+
+    let settings = Args::parse_from(["chomp", "--theme", "dracula"]).resolve(config);
+
+    assert_eq!(settings.border_color, "#BD93F9");
+    assert_eq!(settings.mode_select.background_color, "#282A36");
+}
+
+#[test]
 fn rejects_ocr_with_an_explicit_capture_mode() {
     assert!(Args::try_parse_from(["chomp", "--ocr", "--mode", "image-area"]).is_err());
 }

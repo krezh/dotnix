@@ -7,7 +7,7 @@ use std::time::{Duration, Instant};
 use crate::build::{Target, active_profile};
 use crate::nix::run;
 use crate::report::Report;
-use swix::protocol::ActivationRequest;
+use swix::protocol::HelperRequest;
 const SOCKET_PATH: &str = "/run/swix.sock";
 const HOME_MANAGER_ACTIVATE_TIMEOUT: Duration = Duration::from_secs(30 * 60);
 const SERVICE_RESPONSE_TIMEOUT: Duration = Duration::from_secs(36 * 60);
@@ -25,70 +25,74 @@ pub(crate) fn activate(report: &Report, cancellation: &AtomicBool) -> Result<(),
                 1024 * 1024,
             )?;
         }
-        Target::NixOs => {
-            let mut socket = UnixStream::connect(SOCKET_PATH).map_err(|error| {
-                if error.kind() == std::io::ErrorKind::NotFound {
-                    "Swix activation socket is unavailable. Start swix.socket or activate the Swix NixOS module."
-                        .to_owned()
-                } else {
-                    format!("failed to connect to the Swix service: {error}")
-                }
-            })?;
-            socket
-                .set_read_timeout(Some(Duration::from_millis(250)))
-                .map_err(|error| format!("failed to set the service read timeout: {error}"))?;
-            socket
-                .set_write_timeout(Some(Duration::from_secs(10)))
-                .map_err(|error| format!("failed to set the service write timeout: {error}"))?;
-            serde_json::to_writer(
-                &mut socket,
-                &ActivationRequest {
-                    baseline: &report.baseline,
-                    output: &report.output,
-                },
-            )
-            .map_err(|error| format!("failed to send switch request: {error}"))?;
-            socket
-                .shutdown(std::net::Shutdown::Write)
-                .map_err(|error| format!("failed to finish switch request: {error}"))?;
-            let mut response = Vec::new();
-            let started = Instant::now();
-            let mut buffer = [0; 1024];
-            loop {
-                if cancellation.load(Ordering::Relaxed) {
-                    return Err(
-                        "operation cancelled; NixOS activation may still be running".to_owned()
-                    );
-                }
-                if started.elapsed() >= SERVICE_RESPONSE_TIMEOUT {
-                    return Err(
-                        "Swix service timed out; NixOS activation may still be running".to_owned(),
-                    );
-                }
-                match socket.read(&mut buffer) {
-                    Ok(0) => break,
-                    Ok(read) => {
-                        if response.len() + read > MAX_SERVICE_RESPONSE_BYTES {
-                            return Err(
-                                "Swix activation service response exceeded 64 KiB".to_owned()
-                            );
-                        }
-                        response.extend_from_slice(&buffer[..read]);
-                    }
-                    Err(error)
-                        if matches!(
-                            error.kind(),
-                            std::io::ErrorKind::WouldBlock | std::io::ErrorKind::TimedOut
-                        ) => {}
-                    Err(error) => {
-                        return Err(format!("failed to read switch response: {error}"));
-                    }
-                }
-            }
-            parse_service_response(&response)?;
-        }
+        Target::NixOs => service_request(
+            &HelperRequest::Activate {
+                baseline: &report.baseline,
+                output: &report.output,
+            },
+            cancellation,
+        )?,
     }
     Ok(())
+}
+
+pub(crate) fn clean_system(
+    nix: bool,
+    journals: bool,
+    cancellation: &AtomicBool,
+) -> Result<(), String> {
+    service_request(&HelperRequest::Cleanup { nix, journals }, cancellation)
+}
+
+fn service_request(request: &HelperRequest<'_>, cancellation: &AtomicBool) -> Result<(), String> {
+    let mut socket = UnixStream::connect(SOCKET_PATH).map_err(|error| {
+        if error.kind() == std::io::ErrorKind::NotFound {
+            "Swix service socket is unavailable. Start swix.socket or activate the Swix NixOS module."
+                .to_owned()
+        } else {
+            format!("failed to connect to the Swix service: {error}")
+        }
+    })?;
+    socket
+        .set_read_timeout(Some(Duration::from_millis(250)))
+        .map_err(|error| format!("failed to set the service read timeout: {error}"))?;
+    socket
+        .set_write_timeout(Some(Duration::from_secs(10)))
+        .map_err(|error| format!("failed to set the service write timeout: {error}"))?;
+    serde_json::to_writer(&mut socket, request)
+        .map_err(|error| format!("failed to send service request: {error}"))?;
+    socket
+        .shutdown(std::net::Shutdown::Write)
+        .map_err(|error| format!("failed to finish service request: {error}"))?;
+    let mut response = Vec::new();
+    let started = Instant::now();
+    let mut buffer = [0; 1024];
+    loop {
+        if cancellation.load(Ordering::Relaxed) {
+            return Err(
+                "operation cancelled; the privileged action may still be running".to_owned(),
+            );
+        }
+        if started.elapsed() >= SERVICE_RESPONSE_TIMEOUT {
+            return Err("Swix service timed out; the operation may still be running".to_owned());
+        }
+        match socket.read(&mut buffer) {
+            Ok(0) => break,
+            Ok(read) => {
+                if response.len() + read > MAX_SERVICE_RESPONSE_BYTES {
+                    return Err("Swix service response exceeded 64 KiB".to_owned());
+                }
+                response.extend_from_slice(&buffer[..read]);
+            }
+            Err(error)
+                if matches!(
+                    error.kind(),
+                    std::io::ErrorKind::WouldBlock | std::io::ErrorKind::TimedOut
+                ) => {}
+            Err(error) => return Err(format!("failed to read service response: {error}")),
+        }
+    }
+    parse_service_response(&response)
 }
 
 fn ensure_profile_unchanged(report: &Report) -> Result<(), String> {

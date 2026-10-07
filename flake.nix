@@ -22,7 +22,7 @@
     };
 
     nix-cachyos-kernel = {
-      url = "github:krezh/nix-cachyos-kernel/v7.2.8-5";
+      url = "github:krezh/nix-cachyos-kernel/v7.2.8-6";
     };
 
     # Do not follow nixpkgs here: chaotic's binary cache is built against its
@@ -116,22 +116,12 @@
 
     steam-config-nix = {
       url = "github:different-name/steam-config-nix";
-      inputs = {
-        nixpkgs.follows = "nixpkgs";
-      };
+      inputs.nixpkgs.follows = "nixpkgs";
     };
 
     jovian = {
       url = "github:Jovian-Experiments/Jovian-NixOS";
       inputs.nixpkgs.follows = "nixpkgs";
-    };
-
-    kauth = {
-      url = "github:krezh/kauth/0.3.1";
-      inputs = {
-        nixpkgs.follows = "nixpkgs";
-        go-overlay.follows = "go-overlay";
-      };
     };
 
     go-overlay = {
@@ -143,13 +133,21 @@
 
     crane.url = "github:ipetkov/crane";
 
-    snappy-switcher = {
-      url = "github:OpalAayan/snappy-switcher";
+    rust-overlay = {
+      url = "github:oxalica/rust-overlay";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    rust-overlay = {
-      url = "github:oxalica/rust-overlay";
+    kauth = {
+      url = "github:krezh/kauth/0.3.1";
+      inputs = {
+        nixpkgs.follows = "nixpkgs";
+        go-overlay.follows = "go-overlay";
+      };
+    };
+
+    snappy-switcher = {
+      url = "github:OpalAayan/snappy-switcher";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
@@ -209,7 +207,6 @@
       url = "github:stubbedev/xilo";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-
   };
 
   outputs =

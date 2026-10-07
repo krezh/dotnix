@@ -40,19 +40,6 @@ pub(crate) struct RepositoryStatus {
     pub(crate) local: usize,
 }
 
-impl RepositoryStatus {
-    pub(crate) fn detail(&self) -> String {
-        match (self.incoming, self.local) {
-            (0, 0) => format!("{} · up to date", self.upstream),
-            (0, local) => format!("{} · {local} local", self.upstream),
-            (incoming, 0) => format!("{} · {incoming} incoming", self.upstream),
-            (incoming, local) => {
-                format!("{} · {incoming} incoming · {local} local", self.upstream)
-            }
-        }
-    }
-}
-
 #[derive(Clone, Debug)]
 struct Repository {
     kind: RepositoryKind,
@@ -605,19 +592,5 @@ mod tests {
         assert_eq!(parse_counts("2\t5", "fixture").unwrap(), (2, 5));
         assert!(parse_counts("2", "fixture").is_err());
         assert!(parse_counts("2 5 extra", "fixture").is_err());
-    }
-
-    #[test]
-    fn status_detail_distinguishes_repository_relationships() {
-        let mut status = RepositoryStatus {
-            kind: RepositoryKind::Jj,
-            upstream: "trunk".to_owned(),
-            incoming: 0,
-            local: 0,
-        };
-        assert_eq!(status.detail(), "trunk · up to date");
-        status.incoming = 3;
-        status.local = 2;
-        assert_eq!(status.detail(), "trunk · 3 incoming · 2 local");
     }
 }

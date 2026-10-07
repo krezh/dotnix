@@ -59,10 +59,9 @@ impl CompositorHandler for App {
         &mut self,
         _conn: &Connection,
         _qh: &QueueHandle<Self>,
-        surface: &wl_surface::WlSurface,
+        _surface: &wl_surface::WlSurface,
         _output: &wl_output::WlOutput,
     ) {
-        self.input.current_surface = Some(surface.clone());
     }
 
     fn surface_leave(
@@ -198,26 +197,15 @@ impl PointerHandler for App {
             match event.kind {
                 PointerEventKind::Enter { .. } => {
                     self.input.current_surface = Some(event.surface.clone());
+                    self.handle_pointer_move(&event.surface, event.position.0, event.position.1);
 
-                    if self.phase == UiPhase::ModeSelect {
-                        let new_active = self.active_output_index();
-                        if new_active != self.active_palette_output {
-                            if let Some(prev) = self.active_palette_output {
-                                if prev < self.output_surfaces.len() {
-                                    self.output_surfaces[prev].needs_render = true;
-                                }
-                            }
-                            if let Some(curr) = new_active {
-                                if curr < self.output_surfaces.len() {
-                                    self.output_surfaces[curr].needs_render = true;
-                                }
-                            }
-                            self.active_palette_output = new_active;
-                            self.hovered_action = None;
-                            self.hovered_surface = None;
-                            self.needs_redraw = true;
+                    if self.phase == UiPhase::ModeSelect && self.active_palette_output.is_none() {
+                        self.active_palette_output = self.active_output_index();
+                        self.needs_redraw = true;
+                        for output_surface in &mut self.output_surfaces {
+                            output_surface.needs_render = true;
                         }
-                    } else {
+                    } else if self.phase != UiPhase::ModeSelect {
                         self.needs_redraw = true;
                         for output_surface in &mut self.output_surfaces {
                             output_surface.needs_render = true;

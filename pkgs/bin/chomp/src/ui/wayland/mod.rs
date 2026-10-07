@@ -26,7 +26,10 @@ use wayland_client::{
 use crate::{
     capture::{CaptureMode, CapturedImage},
     cli::{CaptureAction, Settings},
-    render::{ModePaletteLayout, PaletteAction, Selection, SelectionHud, SelectionPurpose},
+    render::{
+        ModePaletteLayout, PaletteAction, Selection, SelectionHud, SelectionPurpose,
+        cairo::selection_hud_pointer_near,
+    },
 };
 use std::collections::HashMap;
 use std::time::Duration;
@@ -59,6 +62,8 @@ pub(super) enum PendingCapture {
 /// How long to wait for the frame callbacks confirming the UI is off screen
 /// before capturing anyway, so a compositor that withholds them cannot hang us.
 const HIDE_TIMEOUT_MS: u64 = 120;
+
+const POINTER_OUTPUT_TIMEOUT_MS: u64 = 120;
 
 /// What the selector produced.
 pub struct Selected {
@@ -133,8 +138,8 @@ pub struct App {
     pub(super) is_recording: bool,
     pub(super) supports_window_capture: bool,
 
-    // Mode-select entrance animation (slide up from bottom + fade).
-    // `intro_progress` is in [0, 1]; 1.0 means the bar is at rest.
+    // Mode-select entrance animation.
+    // `intro_progress` is in [0, 1]; 1.0 means the palette is at rest.
     pub(super) intro_progress: f64,
     pub(super) intro_start: Option<std::time::Instant>,
     pub(super) intro_duration: f64,
@@ -160,6 +165,8 @@ pub struct App {
     pub(super) target_monitor: Option<String>,
     pub(super) target_geometry: Option<String>,
     pub(super) active_palette_output: Option<usize>,
+    pub(super) region_hud_output_hint: Option<usize>,
+    pub(super) region_hud_hidden: bool,
 }
 
 // ============================================================================
@@ -255,6 +262,8 @@ impl App {
             target_monitor: None,
             target_geometry: None,
             active_palette_output: None,
+            region_hud_output_hint: None,
+            region_hud_hidden: false,
             intro_progress: if is_mode_select { 0.0 } else { 1.0 },
             intro_start: None,
             intro_duration: 0.22,
@@ -272,7 +281,20 @@ impl App {
             .context("Failed to insert wayland source")?;
 
         app.create_layer_surfaces(&qh)?;
-        app.active_palette_output = app.active_output_index();
+        let cursor_output = crate::compositor::get_cursor_monitor()
+            .ok()
+            .and_then(|name| {
+                app.output_surfaces
+                    .iter()
+                    .position(|surface| surface.name == name)
+            });
+        if is_mode_select {
+            app.active_palette_output = cursor_output;
+        } else {
+            app.region_hud_output_hint = cursor_output;
+        }
+        let pointer_output_deadline = (is_mode_select && app.active_palette_output.is_none())
+            .then(|| std::time::Instant::now() + Duration::from_millis(POINTER_OUTPUT_TIMEOUT_MS));
 
         // Capture the frozen background before any buffer is attached: the layer
         // surfaces exist but are not yet visible, so the compositor cannot include
@@ -284,10 +306,12 @@ impl App {
         }
 
         loop {
-            // Only the intro animation and the wait for a hidden UI need the loop
-            // to wake on its own; otherwise Wayland events do the waking.
-            let animating = app.phase == UiPhase::ModeSelect && !app.intro_done;
-            let timeout = if animating || app.pending_capture.is_some() {
+            let waiting_for_pointer =
+                app.phase == UiPhase::ModeSelect && app.active_palette_output.is_none();
+            let animating = app.phase == UiPhase::ModeSelect
+                && app.active_palette_output.is_some()
+                && !app.intro_done;
+            let timeout = if waiting_for_pointer || animating || app.pending_capture.is_some() {
                 Duration::from_millis(IDLE_FRAME_TIMEOUT_MS)
             } else {
                 Duration::from_millis(IDLE_TIMEOUT_MS)
@@ -307,11 +331,23 @@ impl App {
                 continue;
             }
 
-            // Drive the mode-select slide-up entrance animation.
+            if app.phase == UiPhase::ModeSelect
+                && app.active_palette_output.is_none()
+                && pointer_output_deadline
+                    .is_some_and(|deadline| std::time::Instant::now() >= deadline)
+            {
+                app.active_palette_output = app.fallback_output_index();
+                app.needs_redraw = true;
+                for surface in &mut app.output_surfaces {
+                    surface.needs_render = true;
+                }
+            }
+
+            // Drive the mode-select pop-in entrance animation.
             if app.phase == UiPhase::ModeSelect && !app.intro_done {
                 let start = *app.intro_start.get_or_insert_with(std::time::Instant::now);
                 let t = (start.elapsed().as_secs_f64() / app.intro_duration).min(1.0);
-                // Ease-out cubic for a snappy settle.
+                // Ease-out cubic keeps the scale-up quick without an abrupt stop.
                 app.intro_progress = 1.0 - (1.0 - t).powi(3);
                 app.needs_redraw = true;
                 for s in &mut app.output_surfaces {
@@ -521,6 +557,8 @@ impl App {
         use smithay_client_toolkit::seat::pointer::CursorIcon;
 
         self.phase = UiPhase::RegionSelect;
+        self.region_hud_output_hint = self.active_palette_output.or(self.region_hud_output_hint);
+        self.update_region_hud_proximity();
 
         for output_surface in &mut self.output_surfaces {
             output_surface.needs_render = true;
@@ -606,16 +644,18 @@ impl App {
     }
     /// Returns the index of the single output surface that should display the mode palette.
     pub(super) fn active_output_index(&self) -> Option<usize> {
-        if let Some(current) = self.input.current_surface.as_ref() {
-            if let Some(index) = self
-                .output_surfaces
-                .iter()
-                .position(|surface| &surface.surface == current)
-            {
-                return Some(index);
-            }
-        }
+        self.input
+            .current_surface
+            .as_ref()
+            .and_then(|current| {
+                self.output_surfaces
+                    .iter()
+                    .position(|surface| &surface.surface == current)
+            })
+            .or_else(|| self.fallback_output_index())
+    }
 
+    fn fallback_output_index(&self) -> Option<usize> {
         if let Ok(active_name) = crate::compositor::get_active_monitor() {
             if let Some(index) = self
                 .output_surfaces
@@ -638,6 +678,15 @@ impl App {
             })
     }
 
+    fn output_at_point(&self, (px, py): (i32, i32)) -> Option<usize> {
+        self.output_surfaces.iter().position(|surface| {
+            px >= surface.x
+                && py >= surface.y
+                && px < surface.x + surface.width as i32
+                && py < surface.y + surface.height as i32
+        })
+    }
+
     /// Returns the index of the single output surface that should display the region HUD.
     pub(super) fn region_hud_output_index(&self) -> Option<usize> {
         let target_point = self
@@ -653,15 +702,44 @@ impl App {
             });
 
         target_point
-            .and_then(|(px, py)| {
-                self.output_surfaces.iter().position(|surface| {
-                    px >= surface.x
-                        && py >= surface.y
-                        && px < surface.x + surface.width as i32
-                        && py < surface.y + surface.height as i32
-                })
-            })
+            .and_then(|point| self.output_at_point(point))
+            .or(self.region_hud_output_hint)
             .or_else(|| self.active_output_index())
+    }
+
+    fn region_hud_pointer_near(&self) -> bool {
+        if self.input.current_surface.is_none() {
+            return false;
+        }
+
+        let Some(output) = self
+            .region_hud_output_index()
+            .and_then(|index| self.output_surfaces.get(index))
+        else {
+            return false;
+        };
+        let (pointer_x, pointer_y) = self.input.pointer_position;
+
+        selection_hud_pointer_near(
+            (
+                pointer_x - f64::from(output.x),
+                pointer_y - f64::from(output.y),
+            ),
+            output.width as i32,
+        )
+    }
+
+    fn update_region_hud_proximity(&mut self) {
+        let hidden = self.region_hud_pointer_near();
+        if hidden == self.region_hud_hidden {
+            return;
+        }
+
+        self.region_hud_hidden = hidden;
+        self.needs_redraw = true;
+        for output_surface in &mut self.output_surfaces {
+            output_surface.needs_render = true;
+        }
     }
 
     // ------------------------------------------------------------------------
@@ -700,7 +778,7 @@ impl App {
                 SelectionPurpose::Screenshot
             },
             to_clipboard: self.to_clipboard,
-            visible: is_hud_output,
+            visible: is_hud_output && !self.region_hud_hidden,
         };
         let state = rendering::DrawState {
             selection: &self.selection,
@@ -786,6 +864,8 @@ impl App {
             return;
         }
 
+        self.update_region_hud_proximity();
+
         if self.input.mouse_pressed {
             if let Some((start_x, start_y)) = self.input.selection_start {
                 self.selection
@@ -862,7 +942,6 @@ impl App {
             self.is_recording,
             self.supports_window_capture,
             replay_state,
-            self.intro_progress,
         )
         .action_at(x, y)
     }
@@ -977,65 +1056,6 @@ impl App {
         self.exit = true;
         self.loop_signal.stop();
     }
-}
-#[cfg(test)]
-/// Resolves which output should display the single mode palette.
-///
-/// Priority:
-/// 1. Output containing the pointer index.
-/// 2. Output matching the compositor's active monitor name.
-/// 3. Deterministic fallback: output at (0, 0), or lowest (x, y, name).
-pub(crate) fn resolve_palette_output(
-    pointer_output: Option<usize>,
-    compositor_active: Option<&str>,
-    outputs: &[(String, i32, i32)],
-) -> Option<usize> {
-    if outputs.is_empty() {
-        return None;
-    }
-    if let Some(idx) = pointer_output {
-        if idx < outputs.len() {
-            return Some(idx);
-        }
-    }
-    if let Some(active_name) = compositor_active {
-        if let Some(idx) = outputs.iter().position(|(name, _, _)| name == active_name) {
-            return Some(idx);
-        }
-    }
-    if let Some(idx) = outputs.iter().position(|(_, x, y)| *x == 0 && *y == 0) {
-        return Some(idx);
-    }
-    outputs
-        .iter()
-        .enumerate()
-        .min_by_key(|(_, (name, x, y))| (*x, *y, name.as_str()))
-        .map(|(idx, _)| idx)
-}
-
-#[cfg(test)]
-/// Resolves which output should display the region HUD.
-///
-/// Priority:
-/// 1. Output containing the target point (selection origin, drag start, or pointer).
-/// 2. Fallback palette output.
-pub(crate) fn resolve_hud_output(
-    target_point: Option<(i32, i32)>,
-    outputs: &[(i32, i32, u32, u32)],
-    fallback: Option<usize>,
-) -> Option<usize> {
-    if outputs.is_empty() {
-        return None;
-    }
-    if let Some((px, py)) = target_point {
-        if let Some(idx) = outputs
-            .iter()
-            .position(|&(x, y, w, h)| px >= x && py >= y && px < x + w as i32 && py < y + h as i32)
-        {
-            return Some(idx);
-        }
-    }
-    fallback
 }
 
 #[cfg(test)]

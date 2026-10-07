@@ -17,6 +17,7 @@ mod ocr;
 mod render;
 mod replay;
 mod system;
+mod theme;
 mod ui;
 mod upload;
 

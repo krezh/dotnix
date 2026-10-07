@@ -72,6 +72,22 @@ fn dimension_label_rect(
     }
 }
 
+pub(crate) fn selection_hud_pointer_near(pointer: (f64, f64), surface_width: i32) -> bool {
+    const PANEL_Y: f64 = 16.0;
+    const PANEL_HEIGHT: f64 = 58.0;
+    const GUARD_WIDTH: f64 = 420.0;
+    const PROXIMITY: f64 = 48.0;
+
+    let surface_width = f64::from(surface_width);
+    let guard_width = GUARD_WIDTH.min(surface_width);
+    let panel_x = (surface_width - guard_width) / 2.0;
+
+    pointer.0 >= panel_x - PROXIMITY
+        && pointer.0 <= panel_x + guard_width + PROXIMITY
+        && pointer.1 >= (PANEL_Y - PROXIMITY).max(0.0)
+        && pointer.1 <= PANEL_Y + PANEL_HEIGHT + PROXIMITY
+}
+
 const MIN_TEXT_WIDTH: i32 = 48;
 const MIN_TEXT_HEIGHT: i32 = 24;
 
@@ -113,6 +129,8 @@ impl Color {
 
 pub struct RenderConfig {
     pub border_color: Color,
+    pub panel_background_color: Color,
+    pub text_color: Color,
     pub border_weight: u32,
     pub border_radius: u32,
     pub dim_opacity: f64,
@@ -124,6 +142,8 @@ pub struct RenderConfig {
 impl RenderConfig {
     pub fn new(
         border_color: &str,
+        panel_background_color: &str,
+        text_color: &str,
         border_weight: u32,
         border_radius: u32,
         dim_opacity: f64,
@@ -131,10 +151,10 @@ impl RenderConfig {
         font_size: u32,
         font_weight: FontWeight,
     ) -> Result<Self> {
-        let border_color = Color::from_hex(border_color)?;
-
         Ok(Self {
-            border_color,
+            border_color: Color::from_hex(border_color)?,
+            panel_background_color: Color::from_hex(panel_background_color)?,
+            text_color: Color::from_hex(text_color)?,
             border_weight,
             border_radius,
             dim_opacity,
@@ -148,7 +168,9 @@ impl RenderConfig {
 impl Default for RenderConfig {
     fn default() -> Self {
         Self {
-            border_color: Color::from_hex("#FFFFFF").unwrap(),
+            border_color: Color::from_hex("#89B4FA").unwrap(),
+            panel_background_color: Color::from_hex("#1E1E2E").unwrap(),
+            text_color: Color::from_hex("#CDD6F4").unwrap(),
             border_weight: 2,
             border_radius: 0,
             dim_opacity: 0.5,
@@ -176,9 +198,7 @@ impl Renderer {
         }
     }
 
-    /// Renders the bounded mode palette.
-    ///
-    /// `intro_progress` slides and fades the palette from below the output.
+    /// Renders the bounded mode palette with a centered pop-in entrance.
     pub fn render_mode_select(
         &self,
         buffer: &mut [u8],
@@ -208,7 +228,7 @@ impl Renderer {
         ctx.paint()?;
         ctx.set_operator(cairo::Operator::Over);
 
-        let intro = intro_progress.clamp(0.0, 1.0);
+        let progress = intro_progress.clamp(0.0, 1.0);
         let replay_state = ReplayPaletteState {
             visible: replay_configured || replay_status.is_some(),
             can_save: replay_status.as_ref().map_or(false, |s| s.can_save()),
@@ -220,53 +240,36 @@ impl Renderer {
             is_recording,
             supports_window_capture,
             replay_state,
-            intro,
         );
-        let background = Color::from_hex(&style.background_color).unwrap_or(Color {
-            r: 0.05,
-            g: 0.05,
-            b: 0.08,
-            a: 1.0,
-        });
-        let description = Color::from_hex(&style.description_color).unwrap_or(Color {
-            r: 1.0,
-            g: 1.0,
-            b: 1.0,
-            a: 1.0,
-        });
-        let key = if style.key_color.is_empty() {
-            self.config.border_color
-        } else {
-            Color::from_hex(&style.key_color).unwrap_or(self.config.border_color)
-        };
-        let recording = Color::from_hex(&style.recording_dot_color).unwrap_or(Color {
-            r: 0.95,
-            g: 0.25,
-            b: 0.25,
-            a: 1.0,
-        });
-        let stop = Color::from_hex(&style.recording_highlight_color).unwrap_or(recording);
-        let replay_color = Color::from_hex(&style.replay_color).unwrap_or(Color {
-            r: 0.22,
-            g: 0.74,
-            b: 0.97,
-            a: 1.0,
-        });
+        let background = Color::from_hex(&style.background_color)?;
+        let description = Color::from_hex(&style.description_color)?;
+        let surface_color = Color::from_hex(&style.surface_color)?;
+        let key = Color::from_hex(&style.key_color)?;
+        let recording = Color::from_hex(&style.recording_dot_color)?;
+        let stop = Color::from_hex(&style.recording_highlight_color)?;
+        let replay_color = Color::from_hex(&style.replay_color)?;
 
         let bounds = layout.bounds;
+        let scale = 0.4 + 0.6 * progress;
+        let center_x = bounds.x + bounds.width / 2.0;
+        let center_y = bounds.y + bounds.height / 2.0;
+        ctx.save()?;
+        ctx.translate(center_x, center_y);
+        ctx.scale(scale, scale);
+        ctx.translate(-center_x, -center_y);
         self.draw_rounded_rectangle(&ctx, bounds.x, bounds.y, bounds.width, bounds.height, 14.0)?;
         ctx.set_source_rgba(
             background.r,
             background.g,
             background.b,
-            style.background_opacity * intro,
+            style.background_opacity,
         );
         ctx.fill_preserve()?;
         ctx.set_source_rgba(
             self.config.border_color.r,
             self.config.border_color.g,
             self.config.border_color.b,
-            style.border_opacity * intro,
+            style.border_opacity,
         );
         ctx.set_line_width(1.0);
         ctx.stroke()?;
@@ -281,13 +284,13 @@ impl Renderer {
             description.r,
             description.g,
             description.b,
-            style.description_opacity * 0.72 * intro,
+            style.description_opacity * 0.72,
         );
         ctx.move_to(bounds.x + 16.0, layout.capture_heading_y + 13.0);
         ctx.show_text("Capture")?;
 
         if is_recording {
-            ctx.set_source_rgba(recording.r, recording.g, recording.b, intro);
+            ctx.set_source_rgba(recording.r, recording.g, recording.b, 1.0);
         }
         ctx.move_to(bounds.x + 16.0, layout.record_heading_y + 13.0);
         ctx.show_text(if is_recording {
@@ -332,13 +335,13 @@ impl Renderer {
             };
 
             if replay_is_active {
-                ctx.set_source_rgba(replay_color.r, replay_color.g, replay_color.b, intro);
+                ctx.set_source_rgba(replay_color.r, replay_color.g, replay_color.b, 1.0);
             } else {
                 ctx.set_source_rgba(
                     description.r,
                     description.g,
                     description.b,
-                    style.description_opacity * 0.72 * intro,
+                    style.description_opacity * 0.72,
                 );
             }
             ctx.move_to(bounds.x + 16.0, layout.replay_heading_y + 13.0);
@@ -354,7 +357,21 @@ impl Renderer {
             } else {
                 key
             };
-            let fill_alpha = if hovered { 0.24 } else { 0.09 };
+            let is_status_action = matches!(
+                item.action,
+                PaletteAction::StopRecording | PaletteAction::SaveReplay
+            );
+            let fill_color = if is_status_action {
+                action_color
+            } else {
+                surface_color
+            };
+            let fill_alpha = match (is_status_action, hovered) {
+                (true, true) => 0.24,
+                (true, false) => 0.12,
+                (false, true) => 0.96,
+                (false, false) => 0.78,
+            };
             self.draw_rounded_rectangle(
                 &ctx,
                 item.rect.x,
@@ -363,22 +380,18 @@ impl Renderer {
                 item.rect.height,
                 9.0,
             )?;
-            ctx.set_source_rgba(
-                action_color.r,
-                action_color.g,
-                action_color.b,
-                fill_alpha * intro,
-            );
+            ctx.set_source_rgba(fill_color.r, fill_color.g, fill_color.b, fill_alpha);
             ctx.fill_preserve()?;
+            let border_color = if hovered { action_color } else { description };
             ctx.set_source_rgba(
-                action_color.r,
-                action_color.g,
-                action_color.b,
+                border_color.r,
+                border_color.g,
+                border_color.b,
                 if hovered {
                     0.80
                 } else {
-                    (style.control_border_opacity * 2.0).min(1.0)
-                } * intro,
+                    style.control_border_opacity
+                },
             );
             ctx.set_line_width(1.0);
             ctx.stroke()?;
@@ -469,17 +482,17 @@ impl Renderer {
             if shifted {
                 self.draw_rounded_rectangle(&ctx, cur_x, keycap_y, shift_w, keycap_h, 4.0)?;
                 ctx.set_source_rgba(
-                    0.02,
-                    0.02,
-                    0.04,
-                    (if hovered { 0.85 } else { 0.70 }) * intro,
+                    background.r,
+                    background.g,
+                    background.b,
+                    if hovered { 0.96 } else { 0.88 },
                 );
                 ctx.fill_preserve()?;
                 ctx.set_source_rgba(
                     action_color.r,
                     action_color.g,
                     action_color.b,
-                    (if hovered { 0.75 } else { 0.35 }) * intro,
+                    if hovered { 0.75 } else { 0.35 },
                 );
                 ctx.set_line_width(1.0);
                 ctx.stroke()?;
@@ -490,7 +503,7 @@ impl Renderer {
                     action_color.r,
                     action_color.g,
                     action_color.b,
-                    (if hovered { 0.90 } else { 0.50 }) * intro,
+                    if hovered { 0.90 } else { 0.50 },
                 );
                 ctx.set_line_width(1.5);
                 ctx.stroke()?;
@@ -503,7 +516,7 @@ impl Renderer {
                 ctx.set_font_size(key_font_size);
                 let text_x = cur_x + (shift_w - shift_text_width) / 2.0;
                 let text_y = keycap_y + (keycap_h + key_font.ascent() - key_font.descent()) / 2.0;
-                ctx.set_source_rgba(action_color.r, action_color.g, action_color.b, intro);
+                ctx.set_source_rgba(action_color.r, action_color.g, action_color.b, 1.0);
                 ctx.move_to(text_x, text_y);
                 ctx.show_text("Shift")?;
 
@@ -512,17 +525,17 @@ impl Renderer {
 
             self.draw_rounded_rectangle(&ctx, cur_x, keycap_y, key_w, keycap_h, 4.0)?;
             ctx.set_source_rgba(
-                0.02,
-                0.02,
-                0.04,
-                (if hovered { 0.85 } else { 0.70 }) * intro,
+                background.r,
+                background.g,
+                background.b,
+                if hovered { 0.96 } else { 0.88 },
             );
             ctx.fill_preserve()?;
             ctx.set_source_rgba(
                 action_color.r,
                 action_color.g,
                 action_color.b,
-                (if hovered { 0.75 } else { 0.35 }) * intro,
+                if hovered { 0.75 } else { 0.35 },
             );
             ctx.set_line_width(1.0);
             ctx.stroke()?;
@@ -533,7 +546,7 @@ impl Renderer {
                 action_color.r,
                 action_color.g,
                 action_color.b,
-                (if hovered { 0.90 } else { 0.50 }) * intro,
+                if hovered { 0.90 } else { 0.50 },
             );
             ctx.set_line_width(1.5);
             ctx.stroke()?;
@@ -546,7 +559,7 @@ impl Renderer {
             ctx.set_font_size(key_font_size);
             let text_x = cur_x + (key_w - key_ext.x_advance()) / 2.0;
             let text_y = keycap_y + (keycap_h + key_font.ascent() - key_font.descent()) / 2.0;
-            ctx.set_source_rgba(action_color.r, action_color.g, action_color.b, intro);
+            ctx.set_source_rgba(action_color.r, action_color.g, action_color.b, 1.0);
             ctx.move_to(text_x, text_y);
             ctx.show_text(configured_key)?;
 
@@ -565,16 +578,17 @@ impl Renderer {
                     description.r,
                     description.g,
                     description.b,
-                    (if hovered {
+                    if hovered {
                         1.0
                     } else {
                         style.description_opacity
-                    }) * intro,
+                    },
                 );
                 ctx.move_to(cur_x, label_y);
                 ctx.show_text(degraded_label)?;
             }
         }
+        ctx.restore()?;
         ctx.target().flush();
         drop(ctx);
         surface.flush();
@@ -857,7 +871,12 @@ impl Renderer {
         );
 
         self.draw_rounded_rectangle(ctx, pill.x, pill.y, pill.width, pill.height, 7.0)?;
-        ctx.set_source_rgba(0.03, 0.03, 0.05, 0.92);
+        ctx.set_source_rgba(
+            self.config.panel_background_color.r,
+            self.config.panel_background_color.g,
+            self.config.panel_background_color.b,
+            0.92,
+        );
         ctx.fill_preserve()?;
         ctx.set_source_rgba(
             self.config.border_color.r,
@@ -870,7 +889,11 @@ impl Renderer {
 
         let text_x = pill.x + (pill.width - extents.x_advance()) / 2.0;
         let text_y = pill.y + (pill.height + font.ascent() - font.descent()) / 2.0;
-        ctx.set_source_rgb(1.0, 1.0, 1.0);
+        ctx.set_source_rgb(
+            self.config.text_color.r,
+            self.config.text_color.g,
+            self.config.text_color.b,
+        );
         ctx.move_to(text_x, text_y);
         ctx.show_text(text)?;
 
@@ -914,7 +937,12 @@ impl Renderer {
         let panel_x = (f64::from(self.width) - panel_width) / 2.0;
         let panel_y = 16.0;
         self.draw_rounded_rectangle(ctx, panel_x, panel_y, panel_width, panel_height, 12.0)?;
-        ctx.set_source_rgba(0.03, 0.03, 0.05, 0.90);
+        ctx.set_source_rgba(
+            self.config.panel_background_color.r,
+            self.config.panel_background_color.g,
+            self.config.panel_background_color.b,
+            0.90,
+        );
         ctx.fill_preserve()?;
         ctx.set_source_rgba(
             self.config.border_color.r,
@@ -949,7 +977,12 @@ impl Renderer {
             cairo::FontWeight::Normal,
         );
         ctx.set_font_size(guidance_size);
-        ctx.set_source_rgba(1.0, 1.0, 1.0, 0.76);
+        ctx.set_source_rgba(
+            self.config.text_color.r,
+            self.config.text_color.g,
+            self.config.text_color.b,
+            0.76,
+        );
         ctx.move_to(
             panel_x + (panel_width - guidance_width) / 2.0,
             panel_y + 44.0,

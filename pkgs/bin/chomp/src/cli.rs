@@ -5,6 +5,7 @@ use clap_complete::{Shell, generate};
 
 use crate::capture::CaptureMode;
 use crate::config::{Config, FontWeight, KeybindsConfig, LogLevel, ModeSelectConfig, ReplayConfig};
+use crate::theme::{ThemeName, resolve_color};
 use std::path::PathBuf;
 
 /// Command-line arguments for chomp
@@ -13,6 +14,10 @@ use std::path::PathBuf;
 #[derive(Parser, Debug, Clone)]
 #[command(author, version, about, long_about = None)]
 pub struct Args {
+    /// Color theme
+    #[arg(long, value_enum)]
+    pub theme: Option<ThemeName>,
+
     /// Text font family
     #[arg(long)]
     pub font_family: Option<String>,
@@ -172,6 +177,7 @@ pub struct RecordingOptions {
 /// Priority order: CLI args > config file > hardcoded defaults.
 #[derive(Debug, Clone)]
 pub struct Settings {
+    pub text_color: String,
     pub font_family: String,
     pub font_size: u32,
     pub font_weight: FontWeight,
@@ -203,11 +209,20 @@ pub struct Settings {
 impl Args {
     /// Merges CLI arguments with config file settings into resolved settings.
     pub fn resolve(self, config: Config) -> Settings {
+        let config = config.resolve_theme();
+        let theme = self.theme.or(config.theme).unwrap_or_default();
+        let palette = theme.palette();
+        let border_color = self
+            .border_color
+            .unwrap_or_else(|| resolve_color(&config.border.color, palette.accent).to_string());
+        let mode_select = config.mode_select.resolve(palette);
+
         Settings {
+            text_color: palette.text.to_string(),
             font_family: self.font_family.unwrap_or(config.font.family),
             font_size: self.font_size.unwrap_or(config.font.size),
             font_weight: self.font_weight.unwrap_or(config.font.weight),
-            border_color: self.border_color.unwrap_or(config.border.color),
+            border_color,
             border_thickness: self.border_thickness.unwrap_or(config.border.thickness),
             border_rounding: self.border_rounding.unwrap_or(config.border.rounding),
             dim_opacity: self.dim_opacity.unwrap_or(config.display.dim_opacity),
@@ -254,7 +269,7 @@ impl Args {
                     .unwrap_or_else(|| PathBuf::from(config.capture.save_path)),
             ),
             keybinds: config.keybinds,
-            mode_select: config.mode_select,
+            mode_select,
         }
     }
 

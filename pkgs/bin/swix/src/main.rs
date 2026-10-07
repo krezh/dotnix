@@ -2,6 +2,7 @@ mod activation;
 mod app;
 mod build;
 mod changelog;
+mod cleanup;
 mod config;
 mod nix;
 mod report;

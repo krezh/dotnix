@@ -2,15 +2,7 @@ use super::*;
 
 #[test]
 fn wide_palette_is_bounded_and_uses_single_rows() {
-    let layout = ModePaletteLayout::new(
-        1920,
-        1080,
-        56,
-        false,
-        true,
-        ReplayPaletteState::default(),
-        1.0,
-    );
+    let layout = ModePaletteLayout::new(1920, 1080, 56, false, true, ReplayPaletteState::default());
 
     assert_eq!(layout.bounds.width, 760.0);
     assert!(layout.bounds.x > 0.0);
@@ -22,15 +14,7 @@ fn wide_palette_is_bounded_and_uses_single_rows() {
 
 #[test]
 fn narrow_palette_wraps_without_leaving_the_output() {
-    let layout = ModePaletteLayout::new(
-        320,
-        900,
-        56,
-        false,
-        true,
-        ReplayPaletteState::default(),
-        1.0,
-    );
+    let layout = ModePaletteLayout::new(320, 900, 56, false, true, ReplayPaletteState::default());
 
     assert!(layout.bounds.x >= 8.0);
     assert!(layout.bounds.x + layout.bounds.width <= 312.0);
@@ -41,15 +25,7 @@ fn narrow_palette_wraps_without_leaving_the_output() {
 
 #[test]
 fn hit_testing_distinguishes_actions_from_dismissal_space() {
-    let layout = ModePaletteLayout::new(
-        1280,
-        720,
-        56,
-        false,
-        true,
-        ReplayPaletteState::default(),
-        1.0,
-    );
+    let layout = ModePaletteLayout::new(1280, 720, 56, false, true, ReplayPaletteState::default());
     let item = layout.items()[1];
 
     assert_eq!(
@@ -68,15 +44,7 @@ fn hit_testing_distinguishes_actions_from_dismissal_space() {
 
 #[test]
 fn active_recording_replaces_record_start_actions() {
-    let layout = ModePaletteLayout::new(
-        1280,
-        720,
-        56,
-        true,
-        true,
-        ReplayPaletteState::default(),
-        1.0,
-    );
+    let layout = ModePaletteLayout::new(1280, 720, 56, true, true, ReplayPaletteState::default());
     let actions: Vec<_> = layout.items().iter().map(|item| item.action).collect();
 
     assert_eq!(actions.len(), 5);
@@ -92,7 +60,7 @@ fn replay_ready_adds_save_action_and_hit_testing() {
         visible: true,
         can_save: true,
     };
-    let layout = ModePaletteLayout::new(1920, 1080, 56, false, true, replay, 1.0);
+    let layout = ModePaletteLayout::new(1920, 1080, 56, false, true, replay);
     let actions: Vec<_> = layout.items().iter().map(|item| item.action).collect();
 
     assert!(actions.contains(&PaletteAction::SaveReplay));
@@ -117,7 +85,7 @@ fn replay_offline_or_waiting_shows_heading_without_dead_save_action() {
         visible: true,
         can_save: false,
     };
-    let layout = ModePaletteLayout::new(1920, 1080, 56, false, true, replay, 1.0);
+    let layout = ModePaletteLayout::new(1920, 1080, 56, false, true, replay);
     let actions: Vec<_> = layout.items().iter().map(|item| item.action).collect();
 
     assert!(!actions.contains(&PaletteAction::SaveReplay));
@@ -134,7 +102,7 @@ fn extremely_short_and_narrow_outputs_stay_strictly_within_bounds() {
     };
 
     for (w, h) in test_resolutions {
-        let layout = ModePaletteLayout::new(w, h, 56, true, true, replay, 1.0);
+        let layout = ModePaletteLayout::new(w, h, 56, true, true, replay);
         let sw = f64::from(w);
         let sh = f64::from(h);
 

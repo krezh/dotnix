@@ -50,6 +50,14 @@ struct PackageInfo {
     flake_input: Option<String>,
 }
 
+#[derive(Serialize)]
+struct LockedFlakeInput {
+    name: String,
+    flake_ref: String,
+    repository: Option<String>,
+    rank: usize,
+}
+
 struct RepoRef {
     host: String,
     owner: String,
@@ -132,24 +140,26 @@ fn target_version(version_spec: Option<&str>) -> Option<&str> {
     (!version.is_empty() && !version.eq_ignore_ascii_case("latest")).then_some(version)
 }
 
-fn eval_active_flake_package(package: &str, version: Option<&str>) -> Result<PackageInfo> {
+fn eval_direct_flake_packages(
+    package: &str,
+    version: Option<&str>,
+    inputs: &[LockedFlakeInput],
+) -> Result<PackageInfo> {
     let package_name = package;
     let package = serde_json::to_string(package_name)?;
     let version = serde_json::to_string(version.unwrap_or_default())?;
+    let sources = serde_json::to_string(&serde_json::to_string(inputs)?)?;
     let expression = format!(
         r#"let
           package = {package};
           expectedVersion = {version};
-          root = builtins.getFlake (toString ./.);
           system = builtins.currentSystem;
-          inputNames = builtins.attrNames root.inputs;
-          orderedInputNames =
-            builtins.filter (name: name == package) inputNames ++
-            builtins.filter (name: name == "nixpkgs" && name != package) inputNames ++
-            builtins.filter (name: name != package && name != "nixpkgs") inputNames;
-          namedFlakes = [ {{ flake = root; input = null; }} ] ++ map
-            (name: {{ flake = root.inputs.${{name}}; input = name; }})
-            orderedInputNames;
+          sources = map
+            (source: {{
+              flake = builtins.getFlake source.flake_ref;
+              input = source.name;
+            }})
+            (builtins.fromJSON {sources});
           packagesFor = source:
             let
               packages = source.flake.packages.${{system}} or {{}};
@@ -157,22 +167,15 @@ fn eval_active_flake_package(package: &str, version: Option<&str>) -> Result<Pac
               preferredNames = builtins.filter
                 (name: name == package || name == "default")
                 packageNames;
-              remainingNames =
-                if source.input == "nixpkgs" then []
-                else builtins.filter
-                  (name: name != package && name != "default")
-                  packageNames;
-              flakePackages = map
-                (name: packages.${{name}})
-                (preferredNames ++ remainingNames);
-              legacyPackages = source.flake.legacyPackages.${{system}} or {{}};
-              nixpkgsPackage =
-                if source.input == "nixpkgs" && builtins.hasAttr package legacyPackages
-                then [ legacyPackages.${{package}} ]
-                else [];
+              remainingNames = builtins.filter
+                (name: name != package && name != "default")
+                packageNames;
             in map
-              (resolved: {{ package = resolved; flakeInput = source.input; }})
-              (flakePackages ++ nixpkgsPackage);
+              (name: {{
+                package = packages.${{name}};
+                flakeInput = source.input;
+              }})
+              (preferredNames ++ remainingNames);
           matchesFor = source: exact:
             let
               matches = builtins.filter (candidate:
@@ -184,17 +187,17 @@ fn eval_active_flake_package(package: &str, version: Option<&str>) -> Result<Pac
                 in result.success && result.value
               ) (packagesFor source);
             in if matches == [] then null else builtins.head matches;
-          findMatch = sources: exact:
-            if sources == [] then null
+          findMatch = remaining: exact:
+            if remaining == [] then null
             else
-              let found = matchesFor (builtins.head sources) exact;
-              in if found != null then found else findMatch (builtins.tail sources) exact;
-          exactMatch = if expectedVersion == "" then null else findMatch namedFlakes true;
-          fallbackMatch = if exactMatch == null then findMatch namedFlakes false else null;
+              let found = matchesFor (builtins.head remaining) exact;
+              in if found != null then found else findMatch (builtins.tail remaining) exact;
+          exactMatch = if expectedVersion == "" then null else findMatch sources true;
+          fallbackMatch = if exactMatch == null then findMatch sources false else null;
           selected =
             if exactMatch != null then exactMatch
             else if fallbackMatch != null then fallbackMatch
-            else throw "package not found in the active flake or its direct inputs";
+            else throw "package not found in the direct flake inputs";
           resolved = selected.package;
           meta = resolved.meta or {{}};
           stringOrFirst = value:
@@ -226,28 +229,18 @@ fn eval_active_flake_package(package: &str, version: Option<&str>) -> Result<Pac
             &expression,
         ])
         .output()
-        .context("failed to inspect the active flake")?;
+        .context("failed to inspect the direct flake inputs")?;
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
         bail!(
-            "couldn't resolve {package_name} from the active flake\n{}",
+            "couldn't resolve {package_name} from the direct flake inputs\n{}",
             stderr.trim()
         );
     }
-    let mut info: PackageInfo =
-        serde_json::from_slice(&output.stdout).context("nix returned unexpected JSON")?;
-    if info.meta.homepage.is_none()
-        && let Some(input) = info.flake_input.as_deref()
-        && let Ok(lock) = fs::read("flake.lock")
-        && let Ok(lock) = serde_json::from_slice::<Value>(&lock)
-    {
-        info.meta.homepage = repository_from_lock(&lock, input);
-    }
-    Ok(info)
+    serde_json::from_slice(&output.stdout).context("nix returned unexpected JSON")
 }
 
-fn repository_from_lock(lock: &Value, input: &str) -> Option<String> {
-    let locked = locked_input(lock, input)?;
+fn repository_from_locked(locked: &Value) -> Option<String> {
     match locked.get("type")?.as_str()? {
         "github" => Some(format!(
             "https://github.com/{}/{}",
@@ -264,6 +257,10 @@ fn repository_from_lock(lock: &Value, input: &str) -> Option<String> {
     }
 }
 
+fn repository_from_lock(lock: &Value, input: &str) -> Option<String> {
+    repository_from_locked(locked_input(lock, input)?)
+}
+
 fn locked_input<'a>(lock: &'a Value, input: &str) -> Option<&'a Value> {
     let root = lock.get("root")?.as_str()?;
     let node = lock
@@ -275,8 +272,7 @@ fn locked_input<'a>(lock: &'a Value, input: &str) -> Option<&'a Value> {
     lock.get("nodes")?.get(node)?.get("locked")
 }
 
-fn flake_ref_from_lock(lock: &Value, input: &str) -> Option<String> {
-    let locked = locked_input(lock, input)?;
+fn flake_ref_from_locked(locked: &Value) -> Option<String> {
     match locked.get("type")?.as_str()? {
         "github" => Some(format!(
             "github:{}/{}/{}",
@@ -302,6 +298,76 @@ fn flake_ref_from_lock(lock: &Value, input: &str) -> Option<String> {
     }
 }
 
+fn flake_ref_from_lock(lock: &Value, input: &str) -> Option<String> {
+    flake_ref_from_locked(locked_input(lock, input)?)
+}
+
+fn relevant_token(token: &str) -> bool {
+    !token.is_empty() && !matches!(token, "nix" | "flake")
+}
+
+fn input_rank(package: &str, input: &str, repository: Option<&str>) -> usize {
+    package
+        .split(|c: char| !c.is_ascii_alphanumeric())
+        .filter(|token| relevant_token(token))
+        .filter(|package_token| {
+            input
+                .split(|c: char| !c.is_ascii_alphanumeric())
+                .chain(
+                    repository
+                        .into_iter()
+                        .flat_map(|repo| repo.split(|c: char| !c.is_ascii_alphanumeric())),
+                )
+                .filter(|token| relevant_token(token))
+                .any(|input_token| input_token.eq_ignore_ascii_case(package_token))
+        })
+        .count()
+}
+
+fn direct_flake_inputs(lock: &Value, package: &str) -> Vec<LockedFlakeInput> {
+    let Some(root) = lock.get("root").and_then(Value::as_str) else {
+        return Vec::new();
+    };
+    let Some(inputs) = lock
+        .get("nodes")
+        .and_then(|nodes| nodes.get(root))
+        .and_then(|root| root.get("inputs"))
+        .and_then(Value::as_object)
+    else {
+        return Vec::new();
+    };
+    let Some(nodes) = lock.get("nodes") else {
+        return Vec::new();
+    };
+
+    let mut resolved = inputs
+        .iter()
+        .filter(|(name, _)| name.as_str() != "nixpkgs")
+        .filter_map(|(name, node_name)| {
+            let node = nodes.get(node_name.as_str()?)?;
+            if node.get("flake").and_then(Value::as_bool) == Some(false) {
+                return None;
+            }
+            let locked = node.get("locked")?;
+            let flake_ref = flake_ref_from_locked(locked)?;
+            let repository = repository_from_locked(locked);
+            Some(LockedFlakeInput {
+                rank: input_rank(package, name, repository.as_deref()),
+                name: name.clone(),
+                flake_ref,
+                repository,
+            })
+        })
+        .collect::<Vec<_>>();
+    resolved.sort_by(|left, right| {
+        right
+            .rank
+            .cmp(&left.rank)
+            .then_with(|| left.name.cmp(&right.name))
+    });
+    resolved
+}
+
 fn matches_package(info: &PackageInfo, package: &str, version: Option<&str>) -> bool {
     info.pname == package
         && version
@@ -318,6 +384,9 @@ fn resolve_package_info(raw_ref: &str, version_spec: Option<&str>) -> Result<Pac
     let lock = fs::read("flake.lock")
         .ok()
         .and_then(|lock| serde_json::from_slice::<Value>(&lock).ok());
+    let direct_inputs = lock
+        .as_ref()
+        .map_or_else(Vec::new, |lock| direct_flake_inputs(lock, raw_ref));
     let mut errors = Vec::new();
     let root_ref = format!(".#{raw_ref}");
     eprintln!("Resolving {root_ref}…");
@@ -342,6 +411,25 @@ fn resolve_package_info(raw_ref: &str, version_spec: Option<&str>) -> Result<Pac
             },
             flake_input: Some(raw_ref.to_owned()),
         });
+    }
+
+    for input in direct_inputs.iter().take_while(|input| input.rank > 0) {
+        let input_ref = format!("{}#{raw_ref}", input.flake_ref);
+        eprintln!("Resolving {input_ref}…");
+        match eval_package_info(&input_ref) {
+            Ok(mut info) if matches_package(&info, raw_ref, version) => {
+                info.flake_input = Some(input.name.clone());
+                if info.meta.homepage.is_none() {
+                    info.meta.homepage.clone_from(&input.repository);
+                }
+                return Ok(info);
+            }
+            Ok(info) => errors.push(format!(
+                "{input_ref} resolved to {} {}",
+                info.pname, info.version
+            )),
+            Err(error) => errors.push(format!("{error:#}")),
+        }
     }
 
     let nixpkgs_ref = lock
@@ -375,8 +463,17 @@ fn resolve_package_info(raw_ref: &str, version_spec: Option<&str>) -> Result<Pac
     }
 
     eprintln!("Searching the remaining direct flake inputs…");
-    match eval_active_flake_package(raw_ref, version) {
-        Ok(info) => Ok(info),
+    match eval_direct_flake_packages(raw_ref, version, &direct_inputs) {
+        Ok(mut info) => {
+            if info.meta.homepage.is_none()
+                && let Some(input) = direct_inputs
+                    .iter()
+                    .find(|input| Some(input.name.as_str()) == info.flake_input.as_deref())
+            {
+                info.meta.homepage.clone_from(&input.repository);
+            }
+            Ok(info)
+        }
         Err(error) => {
             errors.push(format!("{error:#}"));
             bail!(
@@ -925,6 +1022,56 @@ Mon Jun 15th 2026 - maintainer <maintainer@example.com> - v5.2.2
         assert_eq!(
             flake_ref_from_lock(&lock, "demo").as_deref(),
             Some("github:example/demo/0123456789abcdef")
+        );
+    }
+
+    #[test]
+    fn prioritizes_matching_direct_flake_repositories() {
+        let lock = serde_json::json!({
+            "root": "root",
+            "nodes": {
+                "root": {
+                    "inputs": {
+                        "docs": "docs",
+                        "nix-cachyos-kernel": "cachyos",
+                        "nixpkgs": "nixpkgs"
+                    }
+                },
+                "docs": {
+                    "flake": false,
+                    "locked": {
+                        "type": "github",
+                        "owner": "example",
+                        "repo": "docs",
+                        "rev": "1111111111111111"
+                    }
+                },
+                "cachyos": {
+                    "locked": {
+                        "type": "github",
+                        "owner": "krezh",
+                        "repo": "nix-cachyos-kernel",
+                        "rev": "2222222222222222"
+                    }
+                },
+                "nixpkgs": {
+                    "locked": {
+                        "type": "github",
+                        "owner": "NixOS",
+                        "repo": "nixpkgs",
+                        "rev": "3333333333333333"
+                    }
+                }
+            }
+        });
+
+        let inputs = direct_flake_inputs(&lock, "linux-cachyos");
+        assert_eq!(inputs.len(), 1);
+        assert_eq!(inputs[0].name, "nix-cachyos-kernel");
+        assert_eq!(inputs[0].rank, 1);
+        assert_eq!(
+            inputs[0].flake_ref,
+            "github:krezh/nix-cachyos-kernel/2222222222222222"
         );
     }
 }

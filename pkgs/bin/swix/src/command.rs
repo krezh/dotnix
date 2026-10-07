@@ -1,5 +1,5 @@
 use std::collections::VecDeque;
-use std::io::Read;
+use std::io::{Read, Write};
 use std::os::unix::process::CommandExt;
 use std::process::{Child, Command, Output, Stdio};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -19,6 +19,19 @@ pub struct OutputLimits {
     pub stderr: usize,
 }
 
+#[derive(Clone, Copy)]
+pub struct CommandInput<'a> {
+    pub bytes: &'a [u8],
+    pub limits: OutputLimits,
+}
+
+#[derive(Clone, Copy)]
+struct RunOptions<'a> {
+    timeout: Duration,
+    limits: OutputLimits,
+    input: Option<&'a [u8]>,
+}
+
 unsafe extern "C" {
     fn kill(pid: i32, signal: i32) -> i32;
 }
@@ -29,11 +42,66 @@ pub fn run(
     cancellation: &AtomicBool,
     timeout: Duration,
     limits: OutputLimits,
+    stderr_line: impl FnMut(&str),
+    error_detail: impl FnOnce(&[u8]) -> String,
+) -> Result<Output, String> {
+    run_inner(
+        command,
+        name,
+        cancellation,
+        RunOptions {
+            timeout,
+            limits,
+            input: None,
+        },
+        stderr_line,
+        error_detail,
+    )
+}
+
+pub fn run_with_input(
+    command: &mut Command,
+    name: &str,
+    cancellation: &AtomicBool,
+    timeout: Duration,
+    input: CommandInput<'_>,
+    stderr_line: impl FnMut(&str),
+    error_detail: impl FnOnce(&[u8]) -> String,
+) -> Result<Output, String> {
+    run_inner(
+        command,
+        name,
+        cancellation,
+        RunOptions {
+            timeout,
+            limits: input.limits,
+            input: Some(input.bytes),
+        },
+        stderr_line,
+        error_detail,
+    )
+}
+
+fn run_inner(
+    command: &mut Command,
+    name: &str,
+    cancellation: &AtomicBool,
+    options: RunOptions<'_>,
     mut stderr_line: impl FnMut(&str),
     error_detail: impl FnOnce(&[u8]) -> String,
 ) -> Result<Output, String> {
+    let RunOptions {
+        timeout,
+        limits,
+        input,
+    } = options;
     command
         .process_group(0)
+        .stdin(if input.is_some() {
+            Stdio::piped()
+        } else {
+            Stdio::null()
+        })
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
     let mut child = command
@@ -52,6 +120,13 @@ pub fn run(
     let (line_sender, line_receiver) = mpsc::channel();
     let stderr_limit = limits.stderr;
     let stderr_reader = thread::spawn(move || read_stderr(stderr, line_sender, stderr_limit));
+    if let Some(input) = input {
+        let mut stdin = child.stdin.take().ok_or("failed to open command stdin")?;
+        if let Err(error) = stdin.write_all(input) {
+            terminate_and_discard(&mut child, stdout_reader, stderr_reader);
+            return Err(format!("failed to write {name} stdin: {error}"));
+        }
+    }
 
     let started = Instant::now();
     let mut status = None;

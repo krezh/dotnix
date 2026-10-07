@@ -11,7 +11,6 @@
         mkEnableOption
         mkIf
         mkOption
-        mkPackageOption
         types
         ;
       cfg = config.nixosModules.swix;
@@ -20,8 +19,12 @@
     in
     {
       options.nixosModules.swix = {
-        enable = mkEnableOption "socket-activated Swix NixOS switching service";
-        package = mkPackageOption pkgs "swix" { };
+        enable = mkEnableOption "socket-activated Swix activation and system-maintenance service";
+        package = mkOption {
+          type = types.package;
+          default = pkgs.swix.override { nixPackage = config.nix.package; };
+          description = "Swix package built against the configured system Nix implementation.";
+        };
         user = mkOption {
           type = types.str;
           description = ''
@@ -98,7 +101,7 @@
           tmpfiles.rules = [ "z /run/swix.sock 0600 ${cfg.user} root - -" ];
 
           sockets.swix = {
-            description = "Swix NixOS activation socket";
+            description = "Swix privileged operation socket";
             wantedBy = [ "sockets.target" ];
             restartTriggers = [ (builtins.toJSON { inherit (cfg) user; }) ];
             socketConfig = {
@@ -112,7 +115,11 @@
           };
 
           services."swix@" = {
-            description = "Swix NixOS activation request";
+            description = "Swix privileged operation request";
+            path = [
+              config.nix.package
+              pkgs.systemd
+            ];
             restartIfChanged = false;
             stopIfChanged = false;
             unitConfig.X-StopOnRemoval = false;

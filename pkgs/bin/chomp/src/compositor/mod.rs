@@ -58,6 +58,15 @@ pub fn get_active_monitor() -> Result<String> {
     }
 }
 
+pub fn get_cursor_monitor() -> Result<String> {
+    match detect_compositor() {
+        Compositor::Hyprland => backend::hyprland::get_cursor_monitor(),
+        Compositor::Niri | Compositor::Unknown => {
+            anyhow::bail!("Cursor-monitor detection is unavailable for the current compositor")
+        }
+    }
+}
+
 fn env_socket_exists(variable: &str) -> bool {
     std::env::var_os(variable).is_some_and(|path| Path::new(&path).exists())
 }

@@ -1,9 +1,7 @@
 {
   lib,
   craneLib,
-  makeWrapper,
   installShellFiles,
-  nix,
 }:
 craneLib.buildPackage rec {
   pname = "nix-changelog";
@@ -14,14 +12,10 @@ craneLib.buildPackage rec {
   cargoArtifacts = craneLib.buildDepsOnly { inherit src strictDeps; };
 
   nativeBuildInputs = [
-    makeWrapper
     installShellFiles
   ];
 
   postInstall = ''
-    wrapProgram $out/bin/nix-changelog \
-      --prefix PATH : ${lib.makeBinPath [ nix ]}
-
     installShellCompletion --cmd nix-changelog \
       --bash <($out/bin/nix-changelog completion bash) \
       --fish <($out/bin/nix-changelog completion fish) \
