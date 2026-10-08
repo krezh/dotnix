@@ -64,8 +64,8 @@ schema = 4
     go = "1.25.0"
     packages = ["github.com/charmbracelet/ultraviolet"]
   [mod."github.com/charmbracelet/x/ansi"]
-    version = "v0.11.8"
-    hash = "sha256-IyGyFE/grl7aNEZEMXzmUl+X7qb8HaMAfmJXWhoRLQQ="
+    version = "v0.11.9"
+    hash = "sha256-7ug55TWTkYcBZYeqMmrwZt8tnZexToF2+8z/oGoKV2A="
     go = "1.24.2"
     packages = ["github.com/charmbracelet/x/ansi", "github.com/charmbracelet/x/ansi/kitty", "github.com/charmbracelet/x/ansi/parser"]
   [mod."github.com/charmbracelet/x/term"]
