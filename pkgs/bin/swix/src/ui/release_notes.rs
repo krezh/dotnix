@@ -25,6 +25,7 @@ pub(crate) fn show_changelog(
     change: &Change,
     state: Rc<UiState>,
     report: Report,
+    return_scroll: f64,
 ) {
     state.clear_actions();
     clear(root);
@@ -48,6 +49,7 @@ pub(crate) fn show_changelog(
             &back_root,
             Rc::clone(&back_state),
             report.clone(),
+            Some(return_scroll),
         );
     });
     state.set_back_button(&back);

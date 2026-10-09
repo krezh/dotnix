@@ -208,7 +208,7 @@ pub(crate) fn start_build(
                     window.close();
                 } else {
                     match result {
-                        Ok(report) => show_report(&window, &root, Rc::clone(&state), report),
+                        Ok(report) => show_report(&window, &root, Rc::clone(&state), report, None),
                         Err(error) if error == command::CANCELLED => {
                             show_home(&window, &root, Rc::clone(&state), load_config())
                         }

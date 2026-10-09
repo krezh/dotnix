@@ -16,6 +16,7 @@ fn draw_energy_border(
     height: f64,
     radius: f64,
     phase: f64,
+    opacity: f64,
 ) {
     let scale = height / 30.0;
     let beam_len = 0.35_f64;
@@ -29,7 +30,11 @@ fn draw_energy_border(
         let fraction = 1.0 - step as f64 / steps as f64;
 
         context.set_line_width((1.4 + 1.8 * fraction) * scale);
-        theme::set_source_rgba(context, theme::SAPPHIRE, fraction * fraction * 0.95);
+        theme::set_source_rgba(
+            context,
+            theme::SAPPHIRE,
+            fraction * fraction * 0.95 * opacity,
+        );
         context.move_to(p0.0, p0.1);
         context.line_to(p1.0, p1.1);
         let _ = context.stroke();
@@ -38,14 +43,14 @@ fn draw_energy_border(
     let (head_x, head_y) = theme::capsule_point(x, y, width, height, radius, phase);
     let (tail_x, tail_y) = theme::capsule_point(x, y, width, height, radius, phase - beam_len);
     context.arc(tail_x, tail_y, 0.7 * scale, 0.0, std::f64::consts::TAU);
-    theme::set_source_rgba(context, theme::SAPPHIRE, 0.12);
+    theme::set_source_rgba(context, theme::SAPPHIRE, 0.12 * opacity);
     let _ = context.fill();
 
     context.arc(head_x, head_y, 2.0 * scale, 0.0, std::f64::consts::TAU);
-    theme::set_source_rgba(context, theme::SKY, 0.70);
+    theme::set_source_rgba(context, theme::SKY, 0.70 * opacity);
     let _ = context.fill();
     context.arc(head_x, head_y, 0.9 * scale, 0.0, std::f64::consts::TAU);
-    theme::set_source_rgba(context, theme::TEXT, 0.80);
+    theme::set_source_rgba(context, theme::TEXT, 0.80 * opacity);
     let _ = context.fill();
 }
 
@@ -90,7 +95,7 @@ fn draw_energy_capsule(
     let _ = context.paint();
     let _ = context.restore();
 
-    draw_energy_border(context, x, y, width, height, radius, phase);
+    draw_energy_border(context, x, y, width, height, radius, phase, 1.0);
 }
 
 #[derive(Clone)]
@@ -98,28 +103,32 @@ pub(crate) struct EnergyIndicator {
     pub(crate) root: gtk::DrawingArea,
     active: Rc<Cell<bool>>,
     phase: Rc<Cell<f64>>,
+    opacity: Rc<Cell<f64>>,
 }
 
 impl EnergyIndicator {
-    pub(crate) fn new() -> Self {
+    pub(crate) fn new(border_radius: f64) -> Self {
         let root = gtk::DrawingArea::new();
         root.set_can_target(false);
         root.set_content_width(28);
         root.set_content_height(28);
         let active = Rc::new(Cell::new(false));
         let phase = Rc::new(Cell::new(0.12));
+        let opacity = Rc::new(Cell::new(1.0));
         let draw_active = Rc::clone(&active);
         let draw_phase = Rc::clone(&phase);
+        let draw_opacity = Rc::clone(&opacity);
         root.set_draw_func(move |_, context, width, height| {
             if draw_active.get() {
                 draw_energy_border(
                     context,
-                    2.0,
-                    2.0,
-                    f64::from(width) - 4.0,
-                    f64::from(height) - 4.0,
-                    8.0,
+                    1.0,
+                    1.0,
+                    f64::from(width) - 2.0,
+                    f64::from(height) - 2.0,
+                    (border_radius - 1.0).max(0.0),
                     draw_phase.get(),
+                    draw_opacity.get(),
                 );
             }
         });
@@ -127,10 +136,12 @@ impl EnergyIndicator {
             root,
             active,
             phase,
+            opacity,
         }
     }
 
     pub(crate) fn start(&self) {
+        self.opacity.set(1.0);
         if self.active.replace(true) {
             return;
         }
@@ -151,9 +162,77 @@ impl EnergyIndicator {
         });
     }
 
+    pub(crate) fn finish(&self, duration_ms: u32) {
+        if !self.active.get() {
+            return;
+        }
+        if !animations_enabled() {
+            self.stop();
+            return;
+        }
+        let active = Rc::clone(&self.active);
+        let opacity = Rc::clone(&self.opacity);
+        let started = Rc::new(Cell::new(0_i64));
+        self.root.add_tick_callback(move |indicator, frame_clock| {
+            let now = frame_clock.frame_time();
+            let start = started.get();
+            if start == 0 {
+                started.set(now);
+                return glib::ControlFlow::Continue;
+            }
+            let duration = f64::from(duration_ms) * 1_000.0;
+            let linear = ((now - start) as f64 / duration).clamp(0.0, 1.0);
+            let eased = linear * linear * (3.0 - 2.0 * linear);
+            opacity.set(1.0 - eased);
+            indicator.queue_draw();
+            if linear >= 1.0 {
+                active.set(false);
+                opacity.set(1.0);
+                glib::ControlFlow::Break
+            } else {
+                glib::ControlFlow::Continue
+            }
+        });
+    }
+
     pub(crate) fn stop(&self) {
         self.active.set(false);
+        self.opacity.set(1.0);
         self.root.queue_draw();
+    }
+}
+
+#[derive(Clone)]
+pub(crate) struct EnergyOverlay {
+    pub(crate) root: gtk::Overlay,
+    indicator: EnergyIndicator,
+}
+
+impl EnergyOverlay {
+    pub(crate) fn new(child: &impl IsA<gtk::Widget>, border_radius: f64) -> Self {
+        let root = gtk::Overlay::new();
+        root.set_child(Some(child));
+        let indicator = EnergyIndicator::new(border_radius);
+        indicator.root.set_content_width(0);
+        indicator.root.set_content_height(0);
+        indicator.root.set_halign(gtk::Align::Fill);
+        indicator.root.set_valign(gtk::Align::Fill);
+        indicator.root.set_hexpand(true);
+        indicator.root.set_vexpand(true);
+        root.add_overlay(&indicator.root);
+        Self { root, indicator }
+    }
+
+    pub(crate) fn start(&self) {
+        self.indicator.start();
+    }
+
+    pub(crate) fn stop(&self) {
+        self.indicator.stop();
+    }
+
+    pub(crate) fn finish(&self, duration_ms: u32) {
+        self.indicator.finish(duration_ms);
     }
 }
 

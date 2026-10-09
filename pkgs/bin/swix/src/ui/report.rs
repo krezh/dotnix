@@ -7,16 +7,17 @@ use gtk::prelude::*;
 use crate::report::{Change, ChangeStatus, Report};
 use crate::state::{Operation, UiState};
 use crate::ui::common::{
-    action_close_button, animate_scroll_to, clear, fit_window, key_hints, label, signed_size, size,
-    target_subtitle, wide_header,
+    MorphLabel, action_close_button, animate_scroll_to, clear, fit_window, key_hints, label,
+    signed_size, size, target_subtitle, wide_header,
 };
 use crate::ui::home::back_to_home_button;
 use crate::ui::release_notes::show_changelog;
 use crate::ui::switch::{
-    SwitchView, connect_switch, current_hostname, requires_host_switch_confirmation,
-    switch_animation,
+    COMPLETION_MORPH_MS, SwitchView, connect_switch, current_hostname,
+    requires_host_switch_confirmation, switch_animation,
 };
 use crate::ui::timeline::BuildTimeline;
+use crate::ui::timeline::EnergyOverlay;
 
 #[derive(Clone)]
 struct ReportNavigation {
@@ -24,6 +25,7 @@ struct ReportNavigation {
     root: gtk::Box,
     state: Rc<UiState>,
     report: Report,
+    adjustment: gtk::Adjustment,
 }
 
 pub(crate) fn show_report(
@@ -31,6 +33,7 @@ pub(crate) fn show_report(
     root: &gtk::Box,
     state: Rc<UiState>,
     report: Report,
+    restore_scroll: Option<f64>,
 ) {
     state.clear_actions();
     if report.changes.is_empty() {
@@ -61,25 +64,39 @@ pub(crate) fn show_report(
     } else {
         switch.set_tooltip_text(Some("Activate this configuration"));
     }
-    let switch_label = label("Switch", &["switch-button-label"], 0.5);
-    switch.set_child(Some(&switch_label));
+    let switch_label = MorphLabel::new("Switch", &["switch-button-label"], 0.5);
+    switch_label
+        .root
+        .set_transition_duration(COMPLETION_MORPH_MS);
+    switch.set_child(Some(&switch_label.root));
+    let switch_energy = EnergyOverlay::new(&switch, 6.0);
     let target = report.target.name();
     let switch_activity = switch_animation(target, &report.flake, &state.appearance.sans_font);
     let summary = gtk::Box::new(gtk::Orientation::Vertical, 0);
     summary.add_css_class("summary");
+    let switch_surface = gtk::Stack::new();
+    switch_surface.set_transition_type(gtk::StackTransitionType::Crossfade);
+    switch_surface.set_transition_duration(220);
+    switch_surface.set_interpolate_size(true);
+    switch_surface.set_hhomogeneous(false);
+    switch_surface.set_vhomogeneous(false);
+    switch_surface.add_child(&summary);
+    switch_surface.add_child(&switch_activity.root);
+    switch_surface.set_visible_child(&summary);
     let switch_confirmation = connect_switch(
         &SwitchView {
             button: switch.clone(),
             label: switch_label.clone(),
-            activity: switch_activity.clone(),
-            summary: summary.clone(),
+            activity: switch_activity,
+            surface: switch_surface.clone(),
+            button_energy: switch_energy.clone(),
         },
         report.clone(),
         Rc::clone(&state),
         requires_confirmation,
     );
     state.switch_confirmation.replace(Some(switch_confirmation));
-    root.append(&switch_activity.root);
+    root.append(&switch_surface);
 
     let counts = gtk::Box::new(gtk::Orientation::Horizontal, 16);
     let mut section_jumps = HashMap::new();
@@ -109,21 +126,21 @@ pub(crate) fn show_report(
     if let Some(metrics) = report_metrics(&report) {
         summary.append(&metrics);
     }
-    root.append(&summary);
 
     if !report.changes.is_empty() {
-        let navigation = ReportNavigation {
-            window: window.clone(),
-            root: root.clone(),
-            state: Rc::clone(&state),
-            report: report.clone(),
-        };
         let list = gtk::Box::new(gtk::Orientation::Vertical, 0);
         let scroller = gtk::ScrolledWindow::new();
         scroller.add_css_class("updates-list");
         scroller.set_vexpand(true);
         scroller.set_policy(gtk::PolicyType::Never, gtk::PolicyType::Automatic);
         let adjustment = scroller.vadjustment();
+        let navigation = ReportNavigation {
+            window: window.clone(),
+            root: root.clone(),
+            state: Rc::clone(&state),
+            report: report.clone(),
+            adjustment: adjustment.clone(),
+        };
         let scroll_animation = Rc::new(Cell::new(0));
         for status in ChangeStatus::ALL {
             let changes = report
@@ -153,8 +170,11 @@ pub(crate) fn show_report(
             }
         }
         scroller.set_child(Some(&list));
-        state.set_scroll_adjustment(adjustment);
+        state.set_scroll_adjustment(adjustment.clone());
         root.append(&scroller);
+        if let Some(position) = restore_scroll {
+            gtk::glib::idle_add_local_once(move || adjustment.set_value(position));
+        }
     }
     let hints_widget = if state.appearance.keybinds {
         let mut hints = if report.changes.is_empty() {
@@ -195,7 +215,7 @@ pub(crate) fn show_report(
     }
 
     switch.set_valign(gtk::Align::Center);
-    footer.append(&switch);
+    footer.append(&switch_energy.root);
 
     root.append(&footer);
 }
@@ -312,12 +332,14 @@ fn attach_change(
         let changelog_change = change.clone();
         name.connect_clicked(move |_| {
             if navigation.state.operation.get() == Operation::Idle {
+                let return_scroll = navigation.adjustment.value();
                 show_changelog(
                     &navigation.window,
                     &navigation.root,
                     &changelog_change,
                     Rc::clone(&navigation.state),
                     navigation.report.clone(),
+                    return_scroll,
                 );
             }
         });

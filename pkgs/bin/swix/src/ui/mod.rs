@@ -6,6 +6,7 @@ pub(crate) mod cleanup;
 pub(crate) mod common;
 pub(crate) mod error;
 pub(crate) mod home;
+pub(crate) mod inputs;
 pub(crate) mod release_notes;
 pub(crate) mod report;
 pub(crate) mod switch;

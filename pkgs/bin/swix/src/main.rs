@@ -4,6 +4,7 @@ mod build;
 mod changelog;
 mod cleanup;
 mod config;
+mod inputs;
 mod nix;
 mod report;
 mod repository;

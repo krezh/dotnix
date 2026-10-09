@@ -298,7 +298,7 @@ fn load_css() {
 
 fn character_action(character: char) -> Option<KeyAction> {
     match character.to_ascii_lowercase() {
-        key @ ('c' | 'm' | 'n' | 'p' | 'r') => Some(KeyAction::Home(key)),
+        key @ ('c' | 'i' | 'm' | 'n' | 'p' | 'r') => Some(KeyAction::Home(key)),
         's' => Some(KeyAction::Switch),
         _ => None,
     }
@@ -374,7 +374,12 @@ fn build_ui(app: &gtk::Application) -> UiController {
         appearance,
         ..UiState::default()
     });
-    show_home(&window, &root, Rc::clone(&state), load_config());
+    if std::env::var_os("SWIX_SMOKE_INPUTS").is_some() {
+        let config = load_config().expect("SWIX_SMOKE_INPUTS requires a Swix configuration");
+        crate::ui::inputs::show_inputs(&window, &root, Rc::clone(&state), config.flake_dir);
+    } else {
+        show_home(&window, &root, Rc::clone(&state), load_config());
+    }
     let key_window = window.clone();
     let key_state = Rc::clone(&state);
     let keys = gtk::EventControllerKey::new();
@@ -498,6 +503,8 @@ mod tests {
         assert_eq!(character_action('N'), Some(KeyAction::Home('n')));
         assert_eq!(character_action('m'), Some(KeyAction::Home('m')));
         assert_eq!(character_action('M'), Some(KeyAction::Home('m')));
+        assert_eq!(character_action('i'), Some(KeyAction::Home('i')));
+        assert_eq!(character_action('I'), Some(KeyAction::Home('i')));
         assert_eq!(character_action('p'), Some(KeyAction::Home('p')));
         assert_eq!(character_action('r'), Some(KeyAction::Home('r')));
         assert_eq!(character_action('R'), Some(KeyAction::Home('r')));

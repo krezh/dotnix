@@ -13,7 +13,10 @@ use crate::build::Target;
 use crate::report::Report;
 use crate::state::{Operation, UiState};
 use crate::theme;
-use crate::ui::common::{animations_enabled, label};
+use crate::ui::common::{MorphIcon, MorphLabel, WeakMorphLabel, animations_enabled};
+use crate::ui::timeline::EnergyOverlay;
+
+pub(crate) const COMPLETION_MORPH_MS: u32 = 700;
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum SwitchVisualState {
@@ -27,10 +30,12 @@ enum SwitchVisualState {
 pub(crate) struct SwitchAnimation {
     pub(crate) root: gtk::Box,
     canvas: gtk::DrawingArea,
-    icon: gtk::Image,
-    title: gtk::Label,
-    elapsed: gtk::Label,
-    note: gtk::Label,
+    icon: MorphIcon,
+    title: MorphLabel,
+    elapsed: MorphLabel,
+    elapsed_energy: EnergyOverlay,
+    note: MorphLabel,
+    note_reveal: gtk::Revealer,
     phase: Rc<Cell<f64>>,
     active: Rc<Cell<bool>>,
     state: Rc<Cell<SwitchVisualState>>,
@@ -45,36 +50,36 @@ impl SwitchAnimation {
         self.phase.set(0.0);
         self.active.set(true);
         self.morph.set(0.0);
-        self.icon.set_icon_name(Some("system-run-symbolic"));
+        self.icon.set_icon_name("system-run-symbolic");
         self.icon.remove_css_class("switch-success-icon");
         self.icon.remove_css_class("switch-error-icon");
         self.icon.add_css_class("switch-activity-icon");
         self.title
             .set_text(&format!("Activating {} #{}", self.target, self.flake));
-        self.elapsed.set_text("0.0s");
+        self.elapsed.set_text_immediate("0.0s");
         self.elapsed.remove_css_class("complete");
         self.elapsed.remove_css_class("error");
         self.note
             .set_text("Applying configuration and running activation scripts...");
+        self.note_reveal.set_reveal_child(true);
         self.root.remove_css_class("switch-complete-card");
         self.root.remove_css_class("switch-error-card");
-        self.root.set_visible(true);
+        self.elapsed_energy.start();
         self.canvas.queue_draw();
     }
 
     fn update(&self, elapsed: Duration) {
         let elapsed_text = format!("{:.1}s", elapsed.as_secs_f64());
         if self.elapsed.text().as_str() != elapsed_text.as_str() {
-            self.elapsed.set_text(&elapsed_text);
+            self.elapsed.set_text_immediate(&elapsed_text);
         }
     }
 
     fn complete(&self, elapsed: Duration) {
         self.state.set(SwitchVisualState::Complete);
-        self.active.set(false);
         self.root.remove_css_class("switch-error-card");
         self.root.add_css_class("switch-complete-card");
-        self.icon.set_icon_name(Some("object-select-symbolic"));
+        self.icon.set_icon_name("object-select-symbolic");
         self.icon.remove_css_class("switch-activity-icon");
         self.icon.remove_css_class("switch-error-icon");
         self.icon.add_css_class("switch-success-icon");
@@ -83,11 +88,14 @@ impl SwitchAnimation {
             .set_text(&format!("✓ in {:.1}s", elapsed.as_secs_f64()));
         self.elapsed.remove_css_class("error");
         self.elapsed.add_css_class("complete");
-        self.note.set_visible(false);
+        self.elapsed_energy.finish(COMPLETION_MORPH_MS);
+        self.note_reveal.set_reveal_child(false);
         let morph = Rc::clone(&self.morph);
+        let active = Rc::clone(&self.active);
         let canvas = self.canvas.clone();
         if !animations_enabled() {
             morph.set(1.0);
+            active.set(false);
             canvas.queue_draw();
             return;
         }
@@ -99,12 +107,14 @@ impl SwitchAnimation {
                 start_time.set(now);
                 return glib::ControlFlow::Continue;
             }
-            let linear = ((now - start) as f64 / 550_000.0).clamp(0.0, 1.0);
+            let duration = f64::from(COMPLETION_MORPH_MS) * 1_000.0;
+            let linear = ((now - start) as f64 / duration).clamp(0.0, 1.0);
             let progress = smootherstep(linear);
             morph.set(progress);
             canvas.queue_draw();
             if linear >= 1.0 {
                 morph.set(1.0);
+                active.set(false);
                 glib::ControlFlow::Break
             } else {
                 glib::ControlFlow::Continue
@@ -117,7 +127,7 @@ impl SwitchAnimation {
         self.active.set(false);
         self.root.remove_css_class("switch-complete-card");
         self.root.add_css_class("switch-error-card");
-        self.icon.set_icon_name(Some("dialog-warning-symbolic"));
+        self.icon.set_icon_name("dialog-warning-symbolic");
         self.icon.remove_css_class("switch-activity-icon");
         self.icon.remove_css_class("switch-success-icon");
         self.icon.add_css_class("switch-error-icon");
@@ -126,7 +136,8 @@ impl SwitchAnimation {
         self.elapsed.remove_css_class("complete");
         self.elapsed.add_css_class("error");
         self.note.set_text(message);
-        self.note.set_visible(true);
+        self.note_reveal.set_reveal_child(true);
+        self.elapsed_energy.stop();
         self.canvas.queue_draw();
     }
 }
@@ -134,28 +145,30 @@ impl SwitchAnimation {
 pub(crate) fn switch_animation(target: &str, flake: &str, font: &str) -> SwitchAnimation {
     let root = gtk::Box::new(gtk::Orientation::Vertical, 8);
     root.add_css_class("switch-activity");
-    root.set_visible(false);
+    root.set_visible(true);
 
     let heading = gtk::Box::new(gtk::Orientation::Horizontal, 10);
     heading.add_css_class("switch-activity-header");
     heading.set_valign(gtk::Align::Center);
 
-    let icon = gtk::Image::from_icon_name("system-run-symbolic");
-    icon.add_css_class("switch-activity-icon");
-    icon.set_pixel_size(20);
-    icon.set_valign(gtk::Align::Center);
-    heading.append(&icon);
+    let icon = MorphIcon::new("system-run-symbolic", 20, &["switch-activity-icon"]);
+    icon.root.set_transition_duration(COMPLETION_MORPH_MS);
+    icon.root.set_valign(gtk::Align::Center);
+    heading.append(&icon.root);
 
-    let title = label(
+    let title = MorphLabel::new(
         &format!("Activating {target} #{flake}"),
         &["switch-activity-title"],
         0.0,
     );
-    title.set_hexpand(true);
-    heading.append(&title);
+    title.root.set_transition_duration(COMPLETION_MORPH_MS);
+    title.root.set_hexpand(true);
+    heading.append(&title.root);
 
-    let elapsed = label("0.0s", &["switch-activity-elapsed"], 1.0);
-    heading.append(&elapsed);
+    let elapsed = MorphLabel::new("0.0s", &["switch-activity-elapsed"], 1.0);
+    elapsed.root.set_transition_duration(COMPLETION_MORPH_MS);
+    let elapsed_energy = EnergyOverlay::new(&elapsed.root, 5.0);
+    heading.append(&elapsed_energy.root);
     root.append(&heading);
 
     let phase = Rc::new(Cell::new(0.0_f64));
@@ -261,55 +274,50 @@ pub(crate) fn switch_animation(target: &str, flake: &str, font: &str) -> SwitchA
         let _ = context.paint();
         let _ = context.restore();
 
-        // 3. Circulating beam morphs into full radiant border ring:
-        if morph >= 1.0 {
-            context.set_line_width(1.8);
-            theme::set_source_rgba(context, theme::GREEN, 0.85);
+        let moving_alpha = 1.0 - morph;
+        if morph > 0.0 {
+            context.set_line_width(1.5);
+            theme::set_source_rgba(context, theme::GREEN, 0.62 * morph);
             theme::rounded_rectangle(context, x_cap, y_cap, w_cap, h_cap, r);
             let _ = context.stroke();
-        } else {
-            let beam_len = 0.30_f64 + 0.70_f64 * morph;
-            let steps = 64;
-            context.set_line_cap(gtk::cairo::LineCap::Butt);
-            for s in 0..steps {
-                let u0 = phase - beam_len * (s as f64 / steps as f64);
-                let u1 = phase - beam_len * ((s as f64 + 1.25) / steps as f64);
-                let p0 = theme::capsule_point(x_cap, y_cap, w_cap, h_cap, r, u0);
-                let p1 = theme::capsule_point(x_cap, y_cap, w_cap, h_cap, r, u1);
+        }
 
-                let frac = 1.0 - (s as f64 / steps as f64);
-                let alpha = (frac * frac * 0.95) * (1.0 - morph) + 0.85 * morph;
-                let w = (1.4 + 1.8 * frac) * (1.0 - morph) + 1.8 * morph;
-
-                context.set_line_width(w);
-                let col = (
-                    tr + (gr - tr) * morph,
-                    tg + (gg - tg) * morph,
-                    tb + (gb - tb) * morph,
+        if moving_alpha > 0.0 {
+            let beam_len = 0.30_f64;
+            let steps = 192;
+            let color = (
+                tr + (gr - tr) * morph,
+                tg + (gg - tg) * morph,
+                tb + (gb - tb) * morph,
+            );
+            context.set_line_cap(gtk::cairo::LineCap::Round);
+            for step in 0..steps {
+                let distance = beam_len * step as f64 / steps as f64;
+                let fraction = 1.0 - step as f64 / steps as f64;
+                let p0 = theme::capsule_point(x_cap, y_cap, w_cap, h_cap, r, phase - distance);
+                let p1 = theme::capsule_point(
+                    x_cap,
+                    y_cap,
+                    w_cap,
+                    h_cap,
+                    r,
+                    phase - beam_len * (step as f64 + 1.1) / steps as f64,
                 );
-                theme::set_source_rgba(context, col, alpha);
+                context.set_line_width(1.4 + 1.8 * fraction);
+                theme::set_source_rgba(context, color, fraction * fraction * 0.95 * moving_alpha);
                 context.move_to(p0.0, p0.1);
                 context.line_to(p1.0, p1.1);
                 let _ = context.stroke();
             }
 
-            if morph < 1.0 {
-                let tail_u = phase - beam_len;
-                let (tail_x, tail_y) = theme::capsule_point(x_cap, y_cap, w_cap, h_cap, r, tail_u);
-                context.arc(tail_x, tail_y, 0.7, 0.0, std::f64::consts::TAU);
-                theme::set_source_rgba(context, theme::TEAL, 0.12 * (1.0 - morph));
-                let _ = context.fill();
-
-                context.arc(head_x, head_y, 2.0, 0.0, std::f64::consts::TAU);
-                theme::set_source_rgba(context, theme::SKY, 0.75 * (1.0 - morph));
-                let _ = context.fill();
-                context.arc(head_x, head_y, 0.9, 0.0, std::f64::consts::TAU);
-                theme::set_source_rgba(context, theme::TEXT, 0.85 * (1.0 - morph));
-                let _ = context.fill();
-            }
+            context.arc(head_x, head_y, 2.0, 0.0, std::f64::consts::TAU);
+            theme::set_source_rgba(context, theme::SKY, 0.75 * moving_alpha);
+            let _ = context.fill();
+            context.arc(head_x, head_y, 0.9, 0.0, std::f64::consts::TAU);
+            theme::set_source_rgba(context, theme::TEXT, 0.85 * moving_alpha);
+            let _ = context.fill();
         }
 
-        // 4. Conduit text:
         context.select_font_face(
             &draw_font,
             gtk::cairo::FontSlant::Normal,
@@ -317,39 +325,14 @@ pub(crate) fn switch_animation(target: &str, flake: &str, font: &str) -> SwitchA
         );
 
         if morph > 0.0 {
-            context.set_font_size(11.5);
-            let active_text = "LIVE SYSTEM ACTIVE";
-            if let Ok(ext) = context.text_extents(active_text) {
-                let chk_w = 11.0_f64;
-                let gap = 7.0_f64;
-                let total_w = chk_w + gap + ext.width();
-                let start_x = (width - total_w) / 2.0;
-                let chk_center = start_x + chk_w / 2.0;
-
-                context.set_line_width(2.0);
-                context.set_line_cap(gtk::cairo::LineCap::Round);
-                context.set_line_join(gtk::cairo::LineJoin::Round);
-
-                theme::set_source_rgba(context, theme::CRUST, 0.85 * morph);
-                context.move_to(chk_center - 3.8, center_y + 0.8);
-                context.line_to(chk_center - 1.0, center_y + 3.8);
-                context.line_to(chk_center + 4.2, center_y - 3.2);
-                let _ = context.stroke();
-
-                theme::set_source_rgba(context, theme::GREEN, morph);
-                context.move_to(chk_center - 3.8, center_y - 0.2);
-                context.line_to(chk_center - 1.0, center_y + 2.8);
-                context.line_to(chk_center + 4.2, center_y - 4.2);
-                let _ = context.stroke();
-
-                let tx = start_x + chk_w + gap - ext.x_bearing();
+            context.set_font_size(11.0);
+            let text = "SYSTEM ACTIVE";
+            if let Ok(ext) = context.text_extents(text) {
+                let tx = (width - ext.width()) / 2.0 - ext.x_bearing();
                 let ty = y_cap + (h_cap - ext.height()) / 2.0 - ext.y_bearing();
-                theme::set_source_rgba(context, theme::CRUST, 0.85 * morph);
-                context.move_to(tx + 1.0, ty + 1.0);
-                let _ = context.show_text(active_text);
                 theme::set_source_rgba(context, theme::GREEN, morph);
                 context.move_to(tx, ty);
-                let _ = context.show_text(active_text);
+                let _ = context.show_text(text);
             }
         }
 
@@ -384,12 +367,16 @@ pub(crate) fn switch_animation(target: &str, flake: &str, font: &str) -> SwitchA
     }
     root.append(&canvas);
 
-    let note = label(
+    let note = MorphLabel::new(
         "Applying configuration and running activation scripts...",
         &["switch-activity-note"],
         0.0,
     );
-    root.append(&note);
+    let note_reveal = gtk::Revealer::new();
+    note_reveal.set_transition_type(gtk::RevealerTransitionType::Crossfade);
+    note_reveal.set_transition_duration(COMPLETION_MORPH_MS);
+    note_reveal.set_child(Some(&note.root));
+    root.append(&note_reveal);
 
     SwitchAnimation {
         root,
@@ -397,7 +384,9 @@ pub(crate) fn switch_animation(target: &str, flake: &str, font: &str) -> SwitchA
         icon,
         title,
         elapsed,
+        elapsed_energy,
         note,
+        note_reveal,
         phase,
         active,
         state,
@@ -441,7 +430,7 @@ pub(crate) fn switch_confirmation_allows_activation(
 #[derive(Clone)]
 pub(crate) struct SwitchConfirmation {
     button: glib::WeakRef<gtk::Button>,
-    label: glib::WeakRef<gtk::Label>,
+    label: WeakMorphLabel,
     requires_confirmation: bool,
     confirmed: Rc<Cell<bool>>,
     key_down: Rc<Cell<bool>>,
@@ -506,9 +495,10 @@ impl SwitchConfirmation {
 
 pub(crate) struct SwitchView {
     pub(crate) button: gtk::Button,
-    pub(crate) label: gtk::Label,
+    pub(crate) label: MorphLabel,
     pub(crate) activity: SwitchAnimation,
-    pub(crate) summary: gtk::Box,
+    pub(crate) surface: gtk::Stack,
+    pub(crate) button_energy: EnergyOverlay,
 }
 
 pub(crate) fn connect_switch(
@@ -520,11 +510,13 @@ pub(crate) fn connect_switch(
     let button = &view.button;
     let label = &view.label;
     let activity = &view.activity;
-    let summary = &view.summary;
+    let surface = &view.surface;
+    let button_energy = &view.button_energy;
     let weak_button = button.downgrade();
     let weak_label = label.downgrade();
     let activity = activity.clone();
-    let summary = summary.clone();
+    let surface = surface.clone();
+    let button_energy = button_energy.clone();
     let weak_state = Rc::downgrade(&state);
     let activate = Rc::new(move || {
         let Some(state) = weak_state.upgrade() else {
@@ -546,8 +538,9 @@ pub(crate) fn connect_switch(
         button.set_sensitive(false);
         button.remove_css_class("switch-complete");
         label.set_text("Activating");
+        button_energy.start();
         activity.start();
-        summary.set_visible(false);
+        surface.set_visible_child(&activity.root);
         let switch_report = report.clone();
         let (sender, receiver) = mpsc::channel();
         thread::spawn(move || {
@@ -557,6 +550,7 @@ pub(crate) fn connect_switch(
         let button = button.clone();
         let label = label.clone();
         let activity = activity.clone();
+        let button_energy = button_energy.clone();
         // no separate success/error boxes
         let started = Instant::now();
         glib::timeout_add_local(Duration::from_millis(100), move || {
@@ -567,6 +561,7 @@ pub(crate) fn connect_switch(
                         return glib::ControlFlow::Break;
                     }
                     activity.complete(started.elapsed());
+                    button_energy.finish(COMPLETION_MORPH_MS);
                     label.set_text("Switched");
                     button.remove_css_class("switch-locked");
                     button.add_css_class("switch-complete");
@@ -581,6 +576,7 @@ pub(crate) fn connect_switch(
                         return glib::ControlFlow::Break;
                     }
                     activity.fail(&message);
+                    button_energy.stop();
                     label.set_text("Switch failed");
                     button.remove_css_class("switch-locked");
                     button.set_tooltip_text(Some(&message));
@@ -595,6 +591,7 @@ pub(crate) fn connect_switch(
                 Err(TryRecvError::Disconnected) => {
                     if state.finish(generation) {
                         activity.fail("activation worker stopped without a result");
+                        button_energy.stop();
                         label.set_text("Switch failed");
                         button.remove_css_class("switch-locked");
                         button.set_sensitive(true);

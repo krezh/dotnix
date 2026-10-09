@@ -17,8 +17,9 @@ use crate::cleanup::{
     self, CleanupEvent, CleanupGroup, CleanupKind, DiskUsage, ScanEvent, format_size,
 };
 use crate::state::{Operation, UiState};
-use crate::ui::common::{action_close_button, clear, fit_window, label, title};
+use crate::ui::common::{MorphLabel, action_close_button, clear, fit_window, label, title};
 use crate::ui::home::back_to_home_button;
+use crate::ui::timeline::EnergyOverlay;
 use inspector::CleanupInspector;
 use row::CleanupCard;
 
@@ -34,7 +35,8 @@ struct CleanupView {
     status: gtk::Label,
     spinner: gtk::Spinner,
     action: gtk::Button,
-    action_label: gtk::Label,
+    action_label: MorphLabel,
+    action_energy: EnergyOverlay,
     back: gtk::Button,
     scanning: Cell<bool>,
     armed: Cell<bool>,
@@ -165,7 +167,7 @@ pub(crate) fn show_cleanup(window: &gtk::ApplicationWindow, root: &gtk::Box, sta
     let mut cards = HashMap::new();
     for (index, kind) in CleanupKind::ALL.into_iter().enumerate() {
         let card = CleanupCard::new(kind);
-        grid.attach(&card.root, (index % 2) as i32, (index / 2) as i32, 1, 1);
+        grid.attach(card.widget(), (index % 2) as i32, (index / 2) as i32, 1, 1);
         cards.insert(kind, card);
     }
     content.append(&grid);
@@ -190,9 +192,11 @@ pub(crate) fn show_cleanup(window: &gtk::ApplicationWindow, root: &gtk::Box, sta
     let action = gtk::Button::new();
     action.add_css_class("cleanup-button");
     action.set_sensitive(false);
-    let action_label = label("Scanning", &["cleanup-button-label"], 0.5);
-    action.set_child(Some(&action_label));
-    footer.append(&action);
+    let action_label = MorphLabel::new("Scanning", &["cleanup-button-label"], 0.5);
+    action.set_child(Some(&action_label.root));
+    let action_energy = EnergyOverlay::new(&action, 6.0);
+    action_energy.start();
+    footer.append(&action_energy.root);
     root.append(&footer);
 
     let view = Rc::new(CleanupView {
@@ -208,6 +212,7 @@ pub(crate) fn show_cleanup(window: &gtk::ApplicationWindow, root: &gtk::Box, sta
         spinner,
         action,
         action_label,
+        action_energy,
         back,
         scanning: Cell::new(true),
         armed: Cell::new(false),
@@ -300,6 +305,7 @@ pub(crate) fn show_cleanup(window: &gtk::ApplicationWindow, root: &gtk::Box, sta
         if complete {
             view.scanning.set(false);
             view.spinner.stop();
+            view.action_energy.stop();
             view.spinner.set_visible(false);
             view.status
                 .set_text("Review every category before cleaning");
@@ -324,6 +330,7 @@ fn start_cleanup(
     view.failures.set(0);
     view.action.remove_css_class("cleanup-confirming");
     view.action_label.set_text("Cancel");
+    view.action_energy.start();
     view.back.set_sensitive(false);
     view.status.set_text("Cleanup in progress");
     for card in view.cards.values() {
@@ -371,6 +378,7 @@ fn start_cleanup(
                     view.set_disk(after);
                     view.complete.set(true);
                     view.back.set_sensitive(true);
+                    view.action_energy.stop();
                     view.action_label.set_text("Scan again");
                     let reclaimed = before.zip(after).map_or(0, |(before, after)| {
                         after.available.saturating_sub(before.available)

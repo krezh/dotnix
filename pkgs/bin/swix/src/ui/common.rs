@@ -35,6 +35,151 @@ pub(crate) fn animations_enabled() -> bool {
         .is_none_or(|settings| settings.property::<bool>("gtk-enable-animations"))
 }
 
+#[derive(Clone)]
+pub(crate) struct MorphLabel {
+    pub(crate) root: gtk::Stack,
+    labels: [gtk::Label; 2],
+    visible: Rc<Cell<usize>>,
+}
+
+impl MorphLabel {
+    pub(crate) fn new(text: &str, classes: &[&str], xalign: f32) -> Self {
+        let root = gtk::Stack::new();
+        root.set_transition_type(gtk::StackTransitionType::Crossfade);
+        root.set_transition_duration(180);
+        root.set_interpolate_size(true);
+        root.set_hhomogeneous(false);
+        root.set_vhomogeneous(false);
+        root.set_halign(gtk::Align::Fill);
+        for class in classes {
+            root.add_css_class(class);
+        }
+
+        let first = label(text, &[], xalign);
+        let second = label("", &[], xalign);
+        root.add_child(&first);
+        root.add_child(&second);
+        root.set_visible_child(&first);
+
+        Self {
+            root,
+            labels: [first, second],
+            visible: Rc::new(Cell::new(0)),
+        }
+    }
+
+    pub(crate) fn set_text(&self, text: &str) {
+        let current = self.visible.get();
+        if self.labels[current].text().as_str() == text {
+            return;
+        }
+        let next = 1 - current;
+        self.labels[next].set_text(text);
+        self.root.set_visible_child(&self.labels[next]);
+        self.visible.set(next);
+    }
+
+    pub(crate) fn set_text_immediate(&self, text: &str) {
+        self.labels[self.visible.get()].set_text(text);
+    }
+
+    pub(crate) fn text(&self) -> glib::GString {
+        self.labels[self.visible.get()].text()
+    }
+
+    pub(crate) fn add_css_class(&self, class: &str) {
+        self.root.add_css_class(class);
+    }
+
+    pub(crate) fn remove_css_class(&self, class: &str) {
+        self.root.remove_css_class(class);
+    }
+
+    pub(crate) fn downgrade(&self) -> WeakMorphLabel {
+        WeakMorphLabel {
+            root: self.root.downgrade(),
+            labels: [self.labels[0].downgrade(), self.labels[1].downgrade()],
+            visible: Rc::clone(&self.visible),
+        }
+    }
+}
+
+#[derive(Clone)]
+pub(crate) struct WeakMorphLabel {
+    root: glib::WeakRef<gtk::Stack>,
+    labels: [glib::WeakRef<gtk::Label>; 2],
+    visible: Rc<Cell<usize>>,
+}
+
+impl WeakMorphLabel {
+    pub(crate) fn upgrade(&self) -> Option<MorphLabel> {
+        Some(MorphLabel {
+            root: self.root.upgrade()?,
+            labels: [self.labels[0].upgrade()?, self.labels[1].upgrade()?],
+            visible: Rc::clone(&self.visible),
+        })
+    }
+}
+
+#[derive(Clone)]
+pub(crate) struct MorphIcon {
+    pub(crate) root: gtk::Stack,
+    icons: [gtk::Image; 2],
+    visible: Rc<Cell<usize>>,
+}
+
+impl MorphIcon {
+    pub(crate) fn new(icon_name: &str, pixel_size: i32, classes: &[&str]) -> Self {
+        let root = gtk::Stack::new();
+        root.set_transition_type(gtk::StackTransitionType::Crossfade);
+        root.set_transition_duration(180);
+        root.set_interpolate_size(true);
+        for class in classes {
+            root.add_css_class(class);
+        }
+        let first = gtk::Image::from_icon_name(icon_name);
+        let second = gtk::Image::new();
+        for icon in [&first, &second] {
+            icon.set_pixel_size(pixel_size);
+        }
+        root.add_child(&first);
+        root.add_child(&second);
+        root.set_visible_child(&first);
+        Self {
+            root,
+            icons: [first, second],
+            visible: Rc::new(Cell::new(0)),
+        }
+    }
+
+    pub(crate) fn set_icon_name(&self, icon_name: &str) {
+        let current = self.visible.get();
+        let next = 1 - current;
+        self.icons[next].set_icon_name(Some(icon_name));
+        self.root.set_visible_child(&self.icons[next]);
+        self.visible.set(next);
+    }
+
+    pub(crate) fn add_css_class(&self, class: &str) {
+        self.root.add_css_class(class);
+    }
+
+    pub(crate) fn remove_css_class(&self, class: &str) {
+        self.root.remove_css_class(class);
+    }
+}
+
+pub(crate) fn centered_icon(icon_name: &str, icon_size: i32, slot_size: i32) -> gtk::CenterBox {
+    let slot = gtk::CenterBox::new();
+    slot.set_size_request(slot_size, slot_size);
+    let icon = gtk::Image::from_icon_name(icon_name);
+    icon.set_pixel_size(icon_size);
+    icon.set_halign(gtk::Align::Center);
+    icon.set_valign(gtk::Align::Center);
+    slot.set_center_widget(Some(&icon));
+    slot
+}
+
 fn icon_button(
     text: &str,
     button_class: &str,
@@ -49,9 +194,8 @@ fn icon_button(
     button.set_valign(gtk::Align::Center);
     let content = gtk::Box::new(gtk::Orientation::Horizontal, 6);
     content.set_valign(gtk::Align::Center);
-    let icon = gtk::Image::from_icon_name(icon_name);
-    icon.set_pixel_size(icon_size);
-    content.append(&icon);
+    content.set_halign(gtk::Align::Center);
+    content.append(&centered_icon(icon_name, icon_size, icon_size));
     content.append(&label(text, &[label_class], 0.0));
     button.set_child(Some(&content));
     button

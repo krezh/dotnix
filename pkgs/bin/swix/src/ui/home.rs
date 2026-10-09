@@ -12,34 +12,38 @@ use gtk::prelude::*;
 
 use crate::build::Target;
 use crate::config::{Config, load_config};
+use crate::inputs;
 use crate::repository::{self, RepositoryStatus};
 use crate::state::{Operation, UiState};
 use crate::ui::build_screen::start_build;
 use crate::ui::cleanup::show_cleanup;
-use crate::ui::common::{action_close_button, back_button, clear, fit_window, label, title};
-use crate::ui::timeline::EnergyIndicator;
+use crate::ui::common::{
+    MorphLabel, action_close_button, back_button, clear, fit_window, label, title,
+};
+use crate::ui::inputs::show_inputs;
+use crate::ui::timeline::EnergyOverlay;
 
 #[derive(Clone)]
 struct HomeCardWidgets {
     root: gtk::Box,
     detail: gtk::Label,
-    badge: gtk::Label,
-    badge_container: gtk::Overlay,
-    energy: EnergyIndicator,
+    badge: MorphLabel,
+    badge_container: EnergyOverlay,
 }
 
 #[derive(Clone)]
 struct RepositoryCheckWidgets {
     button: gtk::Button,
-    label: gtk::Label,
+    label: MorphLabel,
     card: HomeCardWidgets,
 }
 
 #[derive(Clone)]
 struct RepositoryUpdateWidgets {
     button: gtk::Button,
-    label: gtk::Label,
-    energy: EnergyIndicator,
+    label: MorphLabel,
+    reveal: gtk::Revealer,
+    energy: EnergyOverlay,
 }
 
 #[derive(Clone)]
@@ -90,22 +94,21 @@ pub(crate) fn show_home(
         return;
     };
 
-    let preferred_width = if config.home_flake.is_some() {
-        680
-    } else {
-        560
-    } + if state.appearance.keybinds { 120 } else { 0 };
-    fit_window(window, (preferred_width, 390), (480, 350));
+    let preferred_width = 940 + if state.appearance.keybinds { 120 } else { 0 };
+    fit_window(window, (preferred_width, 500), (720, 430));
 
     let home = gtk::Box::new(gtk::Orientation::Vertical, 18);
     home.add_css_class("home");
     home.set_vexpand(true);
     home.append(&home_header());
 
-    let dashboard = gtk::Box::new(gtk::Orientation::Horizontal, 10);
+    let dashboard = gtk::Grid::new();
     dashboard.add_css_class("home-dashboard");
-    dashboard.set_homogeneous(true);
+    dashboard.set_column_spacing(10);
+    dashboard.set_row_spacing(10);
+    dashboard.set_column_homogeneous(true);
     dashboard.set_vexpand(false);
+    let mut card_index = 0;
 
     let mut targets = vec![(Target::NixOs, "drive-harddisk-symbolic", 'N')];
     if config.home_flake.is_some() {
@@ -136,7 +139,8 @@ pub(crate) fn show_home(
         });
         actions.append(&button);
         card.root.append(&actions);
-        dashboard.append(&card.root);
+        dashboard.attach(&card.root, card_index % 3, card_index / 3, 1, 1);
+        card_index += 1;
     }
 
     let repository_card = home_card("Repository", "", "folder-remote-symbolic");
@@ -148,14 +152,41 @@ pub(crate) fn show_home(
     repository_check_button.set_hexpand(true);
     repository_actions.append(&repository_check_button);
     let repository_update = repository_update_action(&state);
-    repository_actions.append(&repository_update.button);
+    repository_actions.append(&repository_update.reveal);
     repository_card.root.append(&repository_actions);
-    dashboard.append(&repository_card.root);
+    dashboard.attach(&repository_card.root, card_index % 3, card_index / 3, 1, 1);
+    card_index += 1;
     let repository_check = RepositoryCheckWidgets {
         button: repository_check_button,
         label: repository_check_label,
         card: repository_card,
     };
+
+    let input_count = inputs::load(&config.flake_dir)
+        .map(|(_, inputs)| format!("{} direct inputs", inputs.len()))
+        .unwrap_or_else(|_| "Manage flake.lock".to_owned());
+    let inputs_card = home_card("Inputs", &input_count, "view-list-symbolic");
+    let inputs_actions = gtk::Box::new(gtk::Orientation::Horizontal, 8);
+    inputs_actions.add_css_class("home-card-actions");
+    inputs_actions.set_homogeneous(true);
+    let (inputs_button, _) = home_card_action("Manage", Some("view-list-symbolic"), 'I', &state);
+    inputs_button.add_css_class("primary");
+    let inputs_window = window.clone();
+    let inputs_root = root.clone();
+    let inputs_state = Rc::clone(&state);
+    let inputs_directory = config.flake_dir.clone();
+    inputs_button.connect_clicked(move |_| {
+        show_inputs(
+            &inputs_window,
+            &inputs_root,
+            Rc::clone(&inputs_state),
+            inputs_directory.clone(),
+        );
+    });
+    inputs_actions.append(&inputs_button);
+    inputs_card.root.append(&inputs_actions);
+    dashboard.attach(&inputs_card.root, card_index % 3, card_index / 3, 1, 1);
+    card_index += 1;
 
     let cleanup_card = home_card("Cleanup", "6 areas", "user-trash-symbolic");
     cleanup_card.detail.set_tooltip_text(Some(
@@ -173,7 +204,7 @@ pub(crate) fn show_home(
     });
     cleanup_actions.append(&cleanup_button);
     cleanup_card.root.append(&cleanup_actions);
-    dashboard.append(&cleanup_card.root);
+    dashboard.attach(&cleanup_card.root, card_index % 3, card_index / 3, 1, 1);
 
     let footer = gtk::Box::new(gtk::Orientation::Horizontal, 0);
     footer.add_css_class("home-footer");
@@ -249,22 +280,13 @@ fn home_card(title_text: &str, detail_text: &str, icon_name: &str) -> HomeCardWi
     detail.set_hexpand(true);
     meta.append(&detail);
 
-    let badge = label("", &["home-card-badge"], 0.5);
-    badge.set_valign(gtk::Align::Center);
-    let badge_container = gtk::Overlay::new();
-    badge_container.set_visible(false);
-    badge_container.set_halign(gtk::Align::End);
-    badge_container.set_valign(gtk::Align::Center);
-    badge_container.set_child(Some(&badge));
-    let energy = EnergyIndicator::new();
-    energy.root.set_content_width(0);
-    energy.root.set_content_height(0);
-    energy.root.set_halign(gtk::Align::Fill);
-    energy.root.set_valign(gtk::Align::Fill);
-    energy.root.set_hexpand(true);
-    energy.root.set_vexpand(true);
-    badge_container.add_overlay(&energy.root);
-    meta.append(&badge_container);
+    let badge = MorphLabel::new("", &["home-card-badge"], 0.5);
+    badge.root.set_valign(gtk::Align::Center);
+    let badge_container = EnergyOverlay::new(&badge.root, 6.0);
+    badge_container.root.set_visible(false);
+    badge_container.root.set_halign(gtk::Align::End);
+    badge_container.root.set_valign(gtk::Align::Center);
+    meta.append(&badge_container.root);
     root.append(&meta);
 
     HomeCardWidgets {
@@ -272,7 +294,6 @@ fn home_card(title_text: &str, detail_text: &str, icon_name: &str) -> HomeCardWi
         detail,
         badge,
         badge_container,
-        energy,
     }
 }
 
@@ -281,7 +302,7 @@ fn home_card_action(
     icon_name: Option<&str>,
     key: char,
     state: &Rc<UiState>,
-) -> (gtk::Button, gtk::Label) {
+) -> (gtk::Button, MorphLabel) {
     let button = gtk::Button::new();
     button.add_css_class("home-card-action");
     let content = gtk::Box::new(gtk::Orientation::Horizontal, 4);
@@ -292,8 +313,8 @@ fn home_card_action(
         icon.set_pixel_size(14);
         content.append(&icon);
     }
-    let action_label = label(text, &["home-card-action-label"], 0.5);
-    content.append(&action_label);
+    let action_label = MorphLabel::new(text, &["home-card-action-label"], 0.5);
+    content.append(&action_label.root);
     if state.appearance.keybinds {
         content.append(&label(&key.to_string(), &["keycap", "keycap-subtle"], 0.5));
     }
@@ -312,33 +333,28 @@ fn repository_update_action(state: &Rc<UiState>) -> RepositoryUpdateWidgets {
     } else {
         "Fast-forward or rebase incoming changes"
     }));
-    button.set_visible(false);
+    let reveal = gtk::Revealer::new();
+    reveal.set_transition_type(gtk::RevealerTransitionType::SlideLeft);
+    reveal.set_transition_duration(180);
 
     let content = gtk::Box::new(gtk::Orientation::Horizontal, 4);
     content.set_halign(gtk::Align::Center);
     content.set_valign(gtk::Align::Center);
-    let update_label = label("Pull", &["home-card-action-label"], 0.5);
-    content.append(&update_label);
+    let update_label = MorphLabel::new("Pull", &["home-card-action-label"], 0.5);
+    content.append(&update_label.root);
     if state.appearance.keybinds {
         content.append(&label("P", &["keycap", "keycap-subtle"], 0.5));
     }
-    let overlay = gtk::Overlay::new();
-    overlay.set_child(Some(&content));
-    let energy = EnergyIndicator::new();
-    energy.root.set_content_width(0);
-    energy.root.set_content_height(0);
-    energy.root.set_halign(gtk::Align::Fill);
-    energy.root.set_valign(gtk::Align::Fill);
-    energy.root.set_hexpand(true);
-    energy.root.set_vexpand(true);
-    overlay.add_overlay(&energy.root);
-    button.set_child(Some(&overlay));
+    button.set_child(Some(&content));
+    let energy = EnergyOverlay::new(&button, 6.0);
+    reveal.set_child(Some(&energy.root));
     state.home_buttons.borrow_mut().push(button.clone());
     state.register_home_action('P', &button);
 
     RepositoryUpdateWidgets {
         button,
         label: update_label,
+        reveal,
         energy,
     }
 }
@@ -384,7 +400,7 @@ fn start_repository_check(flake_dir: PathBuf, state: Rc<UiState>, widgets: Rc<Re
     widgets.check.card.detail.set_text("");
     widgets.check.card.detail.set_tooltip_text(None);
     set_repository_badge(&widgets.check.card, "Checking", None);
-    widgets.check.card.energy.start();
+    widgets.check.card.badge_container.start();
     let (sender, receiver) = mpsc::channel();
     let worker_cancellation = Arc::clone(&cancellation);
     thread::spawn(move || {
@@ -395,20 +411,20 @@ fn start_repository_check(flake_dir: PathBuf, state: Rc<UiState>, widgets: Rc<Re
         match receiver.try_recv() {
             Ok(Ok(status)) => {
                 widgets.busy.set(false);
-                widgets.check.card.energy.stop();
+                widgets.check.card.badge_container.stop();
                 render_repository_status(&widgets, &status);
                 glib::ControlFlow::Break
             }
             Ok(Err(error)) => {
                 widgets.busy.set(false);
-                widgets.check.card.energy.stop();
+                widgets.check.card.badge_container.stop();
                 render_repository_check_error(&widgets, &error);
                 glib::ControlFlow::Break
             }
             Err(mpsc::TryRecvError::Empty) => glib::ControlFlow::Continue,
             Err(mpsc::TryRecvError::Disconnected) => {
                 widgets.busy.set(false);
-                widgets.check.card.energy.stop();
+                widgets.check.card.badge_container.stop();
                 render_repository_check_error(
                     &widgets,
                     "The repository check stopped without a result",
@@ -498,11 +514,11 @@ fn render_repository_status(widgets: &RepositoryWidgets, status: &RepositoryStat
             .update
             .button
             .set_tooltip_text(Some("Fast-forward or rebase incoming changes"));
-        widgets.update.button.set_visible(true);
+        widgets.update.reveal.set_reveal_child(true);
     } else {
         let badge_state = (status.local == 0).then_some("success");
         set_repository_badge(&widgets.check.card, &counts, badge_state);
-        widgets.update.button.set_visible(false);
+        widgets.update.reveal.set_reveal_child(false);
     }
 }
 
@@ -512,7 +528,7 @@ fn render_repository_check_error(widgets: &RepositoryWidgets, error: &str) {
     widgets.check.card.detail.set_text(&single_line(error));
     widgets.check.card.detail.set_tooltip_text(Some(error));
     set_repository_badge(&widgets.check.card, "Check failed", Some("error"));
-    widgets.update.button.set_visible(false);
+    widgets.update.reveal.set_reveal_child(false);
 }
 
 fn render_repository_update_error(widgets: &RepositoryWidgets, error: &str) {
@@ -526,7 +542,7 @@ fn render_repository_update_error(widgets: &RepositoryWidgets, error: &str) {
     widgets.check.card.detail.set_text(&single_line(error));
     widgets.check.card.detail.set_tooltip_text(Some(error));
     set_repository_badge(&widgets.check.card, "Update failed", Some("error"));
-    widgets.update.button.set_visible(true);
+    widgets.update.reveal.set_reveal_child(true);
 }
 
 fn set_repository_badge(card: &HomeCardWidgets, text: &str, state: Option<&str>) {
@@ -537,7 +553,7 @@ fn set_repository_badge(card: &HomeCardWidgets, text: &str, state: Option<&str>)
         card.badge.add_css_class(state);
     }
     card.badge.set_text(text);
-    card.badge_container.set_visible(true);
+    card.badge_container.root.set_visible(true);
 }
 
 fn single_line(message: &str) -> String {

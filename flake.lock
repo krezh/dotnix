@@ -78,11 +78,11 @@
     "code-comments": {
       "flake": false,
       "locked": {
-        "lastModified": 1791276074,
-        "narHash": "sha256-a7XB/6A7PS/IVS0/eAGMHY5mYT3l3PYWLSl6dipYyeA=",
+        "lastModified": 1781783431,
+        "narHash": "sha256-AzMilK0hWHfJPy7jOuhBy1sOVLQ31GQjIRUoP5Llv3w=",
         "owner": "pash7ka",
         "repo": "code-comments",
-        "rev": "3bf3fc3abae4619d70250e118f180c49a98b11fe",
+        "rev": "f6e1493b5f69c34f0017455a94d5d4e730461b06",
         "type": "github"
       },
       "original": {
@@ -884,11 +884,11 @@
         "treefmt-nix": "treefmt-nix_4"
       },
       "locked": {
-        "lastModified": 1791584265,
-        "narHash": "sha256-Vm67pBM7skBKWUcrgCsJ04Dmqud3mOBJnnnxQdpdG5k=",
+        "lastModified": 1791624273,
+        "narHash": "sha256-qvL6V4VxqeF5hhrqCYW/XildRFpDJKsevALZRIyGJ7A=",
         "owner": "4evy",
         "repo": "nixcord",
-        "rev": "193d4b92e0de5216290496dc31998449b32abef6",
+        "rev": "1ffd9a241a518fab5c2188749a599a8981cd8208",
         "type": "github"
       },
       "original": {

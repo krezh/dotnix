@@ -3,12 +3,14 @@ use std::cell::Cell;
 use gtk::prelude::*;
 
 use crate::cleanup::{CleanupGroup, CleanupKind, format_size};
-use crate::ui::common::label;
+use crate::ui::common::{MorphLabel, label};
+use crate::ui::timeline::EnergyOverlay;
 
 pub(super) struct CleanupCard {
     pub(super) root: gtk::Button,
-    detail: gtk::Label,
-    amount: gtk::Label,
+    detail: MorphLabel,
+    amount: MorphLabel,
+    energy: EnergyOverlay,
     selected: Cell<bool>,
 }
 
@@ -33,21 +35,27 @@ impl CleanupCard {
         let copy = gtk::Box::new(gtk::Orientation::Vertical, 2);
         copy.set_hexpand(true);
         copy.append(&label(kind.title(), &["cleanup-card-title"], 0.0));
-        let detail = label("Scanning…", &["cleanup-card-detail"], 0.0);
-        copy.append(&detail);
+        let detail = MorphLabel::new("Scanning…", &["cleanup-card-detail"], 0.0);
+        copy.append(&detail.root);
         content.append(&copy);
 
-        let amount = label("…", &["cleanup-card-amount"], 1.0);
-        amount.set_valign(gtk::Align::Center);
-        content.append(&amount);
+        let amount = MorphLabel::new("…", &["cleanup-card-amount"], 1.0);
+        amount.root.set_valign(gtk::Align::Center);
+        content.append(&amount.root);
         root.set_child(Some(&content));
+        let energy = EnergyOverlay::new(&root, 9.0);
 
         Self {
             root,
             detail,
             amount,
+            energy,
             selected: Cell::new(false),
         }
+    }
+
+    pub(super) fn widget(&self) -> &gtk::Overlay {
+        &self.energy.root
     }
 
     pub(super) fn set_group(&self, group: &CleanupGroup) {
@@ -94,9 +102,11 @@ impl CleanupCard {
         self.root.set_sensitive(false);
         self.detail.set_text("Cleaning…");
         self.amount.set_text("Working");
+        self.energy.start();
     }
 
     pub(super) fn set_finished(&self, result: &Result<u64, String>) {
+        self.energy.stop();
         match result {
             Ok(bytes) => {
                 self.root.add_css_class("success");
