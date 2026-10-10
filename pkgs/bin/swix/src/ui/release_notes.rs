@@ -31,6 +31,18 @@ pub(crate) fn show_changelog(
     clear(root);
     fit_window(window, (900, 760), (360, 480));
     let flake_dir = report.flake_dir.clone();
+    let name = change.name.clone();
+    let version_spec = if change.old.is_empty() {
+        change.new.clone()
+    } else {
+        format!("{}..{}", change.old, change.new)
+    };
+    let cache_key = format!("{}\0{name}\0{version_spec}", flake_dir.display());
+    let restore_scroll = state
+        .changelog_scroll_positions
+        .borrow()
+        .get(&cache_key)
+        .copied();
 
     root.append(&simple_header(&format!("{} release notes", change.name)));
 
@@ -43,7 +55,15 @@ pub(crate) fn show_changelog(
     let back_window = window.clone();
     let back_root = root.clone();
     let back_state = Rc::clone(&state);
+    let back_cache_key = cache_key.clone();
     back.connect_clicked(move |_| {
+        let adjustment = back_state.scroll.borrow().clone();
+        if let Some(adjustment) = adjustment {
+            back_state
+                .changelog_scroll_positions
+                .borrow_mut()
+                .insert(back_cache_key.clone(), adjustment.value());
+        }
         show_report(
             &back_window,
             &back_root,
@@ -71,7 +91,8 @@ pub(crate) fn show_changelog(
     scroller.add_css_class("changelog-scroll");
     scroller.set_vexpand(true);
     scroller.set_child(Some(&content));
-    state.set_scroll_adjustment(scroller.vadjustment());
+    let adjustment = scroller.vadjustment();
+    state.set_scroll_adjustment(adjustment.clone());
     root.append(&scroller);
     root.append(&navigation_footer(
         &back,
@@ -89,16 +110,10 @@ pub(crate) fn show_changelog(
     state.set_view_cancellation(&cancellation);
     back.grab_focus();
 
-    let name = change.name.clone();
-    let version_spec = if change.old.is_empty() {
-        change.new.clone()
-    } else {
-        format!("{}..{}", change.old, change.new)
-    };
-    let cache_key = format!("{}\0{name}\0{version_spec}", flake_dir.display());
     let changelog = state.changelog_cache.borrow().get(&cache_key).cloned();
     if let Some(changelog) = changelog {
         render_changelog(&content, &changelog);
+        restore_scroll_position(&adjustment, restore_scroll);
         return;
     }
     let (sender, receiver) = mpsc::channel();
@@ -128,6 +143,7 @@ pub(crate) fn show_changelog(
         match receiver.try_recv() {
             Ok(Ok(changelog)) => {
                 render_changelog(&content, &changelog);
+                restore_scroll_position(&adjustment, restore_scroll);
                 cache_state
                     .changelog_cache
                     .borrow_mut()
@@ -156,4 +172,39 @@ pub(crate) fn show_changelog(
             }
         }
     });
+}
+
+fn restore_scroll_position(adjustment: &gtk::Adjustment, position: Option<f64>) {
+    let Some(position) = position else {
+        return;
+    };
+    let handler = Rc::new(std::cell::RefCell::new(None));
+    let callback_handler = Rc::clone(&handler);
+    let handler_id = adjustment.connect_changed(move |adjustment| {
+        if try_restore_scroll_position(adjustment, position)
+            && let Some(handler_id) = callback_handler.borrow_mut().take()
+        {
+            adjustment.disconnect(handler_id);
+        }
+    });
+    handler.replace(Some(handler_id));
+
+    let adjustment = adjustment.clone();
+    glib::idle_add_local_once(move || {
+        if try_restore_scroll_position(&adjustment, position)
+            && let Some(handler_id) = handler.borrow_mut().take()
+        {
+            adjustment.disconnect(handler_id);
+        }
+    });
+}
+
+fn try_restore_scroll_position(adjustment: &gtk::Adjustment, position: f64) -> bool {
+    let lower = adjustment.lower();
+    let upper = (adjustment.upper() - adjustment.page_size()).max(lower);
+    if upper <= lower {
+        return false;
+    }
+    adjustment.set_value(position.clamp(lower, upper));
+    true
 }

@@ -16,34 +16,41 @@ use crate::ui::common::{action_close_button, centered_icon, clear, fit_window, l
 use crate::ui::home::back_to_home_button;
 use crate::ui::timeline::EnergyOverlay;
 
+#[derive(Clone, Copy)]
+enum RevisionAction {
+    Update,
+    Rollback,
+    Select,
+}
+
 struct InputsView {
     directory: PathBuf,
     window: gtk::ApplicationWindow,
     inputs: RefCell<Vec<FlakeInput>>,
     selected: RefCell<Option<String>>,
     revisions: RefCell<Vec<RevisionRecord>>,
-    revision_index: Cell<usize>,
     history_generation: Cell<u64>,
     list: gtk::ListBox,
     search: gtk::SearchEntry,
     count: gtk::Label,
-    source_kind: gtk::Label,
     detail_name: gtk::Label,
     detail_source: gtk::Label,
     detail_revision: gtk::Label,
     detail_date: gtk::Label,
     detail_follows: gtk::Label,
-    history_position: gtk::Label,
     history_list: gtk::Box,
     history_empty: gtk::Label,
+    history_source: gtk::Label,
+    history_status: gtk::Label,
+    history_spinner: gtk::Spinner,
+    revision_toggle: gtk::Button,
+    revision_revealer: gtk::Revealer,
     revision_entry: gtk::Entry,
     apply_revision: gtk::Button,
     status: gtk::Label,
     spinner: gtk::Spinner,
     update_selected: gtk::Button,
     update_all: gtk::Button,
-    older: gtk::Button,
-    newer: gtk::Button,
     action_energy: EnergyOverlay,
     state: Rc<UiState>,
 }
@@ -105,19 +112,29 @@ impl InputsView {
         self.detail_name.set_text(&input.name);
         self.detail_source.set_text(&input.source);
         self.detail_source.set_tooltip_text(Some(&input.source));
-        self.source_kind.set_text(&input.source_kind.to_uppercase());
-        self.detail_revision.set_text(&input.revision);
+        self.history_source
+            .set_text(&format!("Recent commits from {}", input.source));
+        self.detail_revision
+            .set_text(&short_revision(&input.revision));
         self.detail_revision.set_tooltip_text(Some(&input.revision));
-        self.detail_date
-            .set_text(&input.last_modified.and_then(format_date).map_or_else(
-                || "Lock date unavailable".to_owned(),
-                |date| format!("Locked {date}"),
-            ));
+        self.detail_date.set_text(
+            &input
+                .last_modified
+                .and_then(format_date)
+                .map_or_else(|| "Date unavailable".to_owned(), |date| date),
+        );
         if let Some(follows) = &input.follows {
             self.detail_follows.set_text(&format!("Follows {follows}"));
             self.detail_follows.set_visible(true);
         } else {
             self.detail_follows.set_visible(false);
+        }
+        self.revision_toggle
+            .set_sensitive(input.flake_ref.is_some());
+        if changed {
+            self.revision_revealer.set_reveal_child(false);
+            self.revision_toggle.set_label("Set commit or tag…");
+            self.revision_entry.set_text("");
         }
         self.revision_entry.set_sensitive(input.flake_ref.is_some());
         self.apply_revision.set_sensitive(
@@ -131,15 +148,20 @@ impl InputsView {
         self.selected.replace(None);
         self.detail_name.set_text("No input selected");
         self.detail_source.set_text("");
-        self.source_kind.set_text("");
         self.detail_revision.set_text("");
         self.detail_date.set_text("");
         self.detail_follows.set_visible(false);
         self.update_selected.set_sensitive(false);
+        self.revision_toggle.set_sensitive(false);
+        self.revision_revealer.set_reveal_child(false);
         self.revision_entry.set_sensitive(false);
         self.apply_revision.set_sensitive(false);
         self.revisions.borrow_mut().clear();
-        self.render_history_state();
+        self.clear_history("Select an input");
+        self.history_source.set_text("");
+        self.history_status.set_text("");
+        self.history_spinner.stop();
+        self.history_spinner.set_visible(false);
     }
 
     fn set_busy(&self, busy: bool, message: &str) {
@@ -161,42 +183,28 @@ impl InputsView {
             self.spinner.start();
             self.spinner.set_visible(true);
             self.action_energy.start();
+            self.status.set_visible(true);
             self.status.set_text(message);
         } else {
             self.spinner.stop();
             self.spinner.set_visible(false);
             self.action_energy.stop();
-            self.refresh_history_buttons();
+            self.status.set_visible(false);
         }
     }
 
-    fn refresh_history_buttons(&self) {
-        let index = self.revision_index.get();
-        let count = self.revisions.borrow().len();
-        self.newer.set_sensitive(index > 0);
-        self.older.set_sensitive(index + 1 < count);
-        self.history_position.set_text(
-            if count == 0 {
-                "No repository history".to_owned()
-            } else {
-                format!("Revision {} of {count}", index + 1)
-            }
-            .as_str(),
-        );
-    }
-
-    fn render_history_state(&self) {
+    fn clear_history(&self, message: &str) {
         while let Some(child) = self.history_list.first_child() {
             self.history_list.remove(&child);
         }
-        let empty = self.revisions.borrow().is_empty();
-        self.history_empty.set_visible(empty);
-        self.refresh_history_buttons();
+        self.history_empty.set_text(message);
+        self.history_empty.set_visible(true);
     }
 
     fn show_error(&self, error: &str) {
         self.status.add_css_class("error");
         self.status.set_text(error.lines().next().unwrap_or(error));
+        self.status.set_visible(true);
         self.status.set_tooltip_text(Some(error));
     }
 }
@@ -231,13 +239,6 @@ pub(crate) fn show_inputs(
     let count = label("", &["inputs-count"], 0.0);
     heading.append(&count);
     header.append(&heading);
-    let spinner = gtk::Spinner::new();
-    spinner.set_visible(false);
-    spinner.set_size_request(18, 18);
-    header.append(&spinner);
-    let status = label("Ready", &["inputs-status"], 1.0);
-    status.set_width_chars(26);
-    header.append(&status);
     root.append(&header);
 
     let content = gtk::Box::new(gtk::Orientation::Horizontal, 14);
@@ -246,10 +247,10 @@ pub(crate) fn show_inputs(
 
     let browser = gtk::Box::new(gtk::Orientation::Vertical, 8);
     browser.add_css_class("inputs-browser");
-    browser.set_width_request(380);
+    browser.set_width_request(340);
     let search = gtk::SearchEntry::new();
     search.add_css_class("inputs-search");
-    search.set_placeholder_text(Some("Filter by input, source, or revision"));
+    search.set_placeholder_text(Some("Filter inputs"));
     browser.append(&search);
     let list = gtk::ListBox::new();
     list.add_css_class("inputs-list");
@@ -264,63 +265,87 @@ pub(crate) fn show_inputs(
     browser.append(&list_scroll);
     content.append(&browser);
 
-    let details = gtk::Box::new(gtk::Orientation::Vertical, 12);
+    let details = gtk::Box::new(gtk::Orientation::Vertical, 14);
     details.add_css_class("inputs-detail");
     details.set_hexpand(true);
     details.set_vexpand(true);
 
-    let identity = gtk::Box::new(gtk::Orientation::Horizontal, 14);
+    let update_selected = action_button(
+        "Update to latest",
+        "software-update-available-symbolic",
+        true,
+    );
+    let action_energy = EnergyOverlay::new(&update_selected, 6.0);
+    let identity = gtk::Box::new(gtk::Orientation::Horizontal, 12);
     identity.add_css_class("inputs-identity");
-    let source_emblem = centered_icon("folder-remote-symbolic", 26, 46);
-    source_emblem.add_css_class("inputs-source-emblem");
-    source_emblem.set_halign(gtk::Align::Center);
-    source_emblem.set_valign(gtk::Align::Center);
-    identity.append(&source_emblem);
     let identity_text = gtk::Box::new(gtk::Orientation::Vertical, 1);
     identity_text.set_hexpand(true);
-    identity_text.append(&label("SELECTED INPUT", &["inputs-eyebrow"], 0.0));
     let detail_name = label("", &["inputs-detail-name"], 0.0);
     identity_text.append(&detail_name);
     let detail_source = label("", &["inputs-detail-source"], 0.0);
     identity_text.append(&detail_source);
     identity.append(&identity_text);
-    let source_kind = label("", &["inputs-source-kind"], 0.5);
-    source_kind.set_valign(gtk::Align::Start);
-    identity.append(&source_kind);
+    identity.append(&action_energy.root);
     details.append(&identity);
 
-    let revision_card = gtk::Box::new(gtk::Orientation::Vertical, 8);
-    revision_card.add_css_class("inputs-revision-card");
-    let revision_heading = gtk::Box::new(gtk::Orientation::Horizontal, 8);
-    let revision_title = label("LOCKED REVISION", &["inputs-revision-label"], 0.0);
-    revision_title.set_hexpand(true);
-    revision_heading.append(&revision_title);
-    let detail_follows = label("", &["inputs-follow-badge"], 0.5);
-    revision_heading.append(&detail_follows);
-    revision_card.append(&revision_heading);
+    let current_card = gtk::Box::new(gtk::Orientation::Vertical, 6);
+    current_card.add_css_class("inputs-current-card");
+    let current_heading = gtk::Box::new(gtk::Orientation::Horizontal, 8);
+    let current_title = label("CURRENTLY LOCKED", &["inputs-eyebrow"], 0.0);
+    current_title.set_hexpand(true);
+    current_heading.append(&current_title);
+    current_heading.append(&label("CURRENT", &["inputs-current-badge"], 0.5));
+    current_card.append(&current_heading);
+    let lock_meta = gtk::Box::new(gtk::Orientation::Horizontal, 8);
+    lock_meta.add_css_class("inputs-lock-meta");
     let detail_revision = label("", &["inputs-revision"], 0.0);
     detail_revision.set_selectable(true);
-    revision_card.append(&detail_revision);
+    lock_meta.append(&detail_revision);
     let detail_date = label("", &["inputs-detail-meta"], 0.0);
-    revision_card.append(&detail_date);
-    details.append(&revision_card);
+    detail_date.set_hexpand(true);
+    lock_meta.append(&detail_date);
+    let detail_follows = label("", &["inputs-follow-badge"], 0.5);
+    lock_meta.append(&detail_follows);
+    let revision_toggle = gtk::Button::with_label("Set commit or tag…");
+    revision_toggle.add_css_class("inputs-link-button");
+    lock_meta.append(&revision_toggle);
+    current_card.append(&lock_meta);
+    details.append(&current_card);
+
+    let direct = gtk::Box::new(gtk::Orientation::Horizontal, 8);
+    direct.add_css_class("inputs-direct");
+    let revision_entry = gtk::Entry::new();
+    revision_entry.add_css_class("inputs-revision-entry");
+    revision_entry.set_placeholder_text(Some("Commit, tag, or branch"));
+    revision_entry.set_hexpand(true);
+    direct.append(&revision_entry);
+    let apply_revision = action_button("Apply", "go-jump-symbolic", false);
+    apply_revision.set_sensitive(false);
+    direct.append(&apply_revision);
+    let revision_revealer = gtk::Revealer::new();
+    revision_revealer.set_transition_type(gtk::RevealerTransitionType::SlideDown);
+    revision_revealer.set_transition_duration(140);
+    revision_revealer.set_child(Some(&direct));
+    details.append(&revision_revealer);
 
     let history_panel = gtk::Box::new(gtk::Orientation::Vertical, 8);
     history_panel.add_css_class("inputs-history-panel");
     history_panel.set_vexpand(true);
     let history_header = gtk::Box::new(gtk::Orientation::Horizontal, 8);
-    let history_heading = label("REVISION TIMELINE", &["inputs-eyebrow"], 0.0);
-    history_heading.set_hexpand(true);
-    history_header.append(&history_heading);
-    let history_position = label("Loading history…", &["inputs-history-position"], 1.0);
-    history_header.append(&history_position);
+    let history_copy = gtk::Box::new(gtk::Orientation::Vertical, 1);
+    history_copy.set_hexpand(true);
+    history_copy.append(&label("REMOTE REVISIONS", &["inputs-eyebrow"], 0.0));
+    let history_source = label("", &["inputs-history-source"], 0.0);
+    history_copy.append(&history_source);
+    history_header.append(&history_copy);
+    let history_spinner = gtk::Spinner::new();
+    history_spinner.set_size_request(16, 16);
+    history_header.append(&history_spinner);
+    let history_status = label("", &["inputs-history-status"], 1.0);
+    history_header.append(&history_status);
     history_panel.append(&history_header);
     let history_list = gtk::Box::new(gtk::Orientation::Vertical, 6);
-    let history_empty = label(
-        "Select an input with revision history",
-        &["inputs-history-empty"],
-        0.0,
-    );
+    let history_empty = label("Fetching remote commits…", &["inputs-history-empty"], 0.0);
     history_list.append(&history_empty);
     let history_scroll = gtk::ScrolledWindow::new();
     history_scroll.add_css_class("inputs-history-scroll");
@@ -329,34 +354,7 @@ pub(crate) fn show_inputs(
     history_scroll.set_vexpand(true);
     history_scroll.set_child(Some(&history_list));
     history_panel.append(&history_scroll);
-    let history_controls = gtk::Box::new(gtk::Orientation::Horizontal, 8);
-    let newer = history_button("Newer", "go-previous-symbolic");
-    let older = history_button("Older", "go-next-symbolic");
-    history_controls.append(&newer);
-    history_controls.append(&older);
-    history_panel.append(&history_controls);
     details.append(&history_panel);
-
-    let direct = gtk::Box::new(gtk::Orientation::Horizontal, 8);
-    direct.add_css_class("inputs-direct");
-    let direct_copy = gtk::Box::new(gtk::Orientation::Vertical, 1);
-    direct_copy.set_hexpand(true);
-    direct_copy.append(&label("JUMP TO REVISION", &["inputs-eyebrow"], 0.0));
-    direct_copy.append(&label(
-        "Commit, tag, or branch resolved by Nix",
-        &["inputs-detail-meta"],
-        0.0,
-    ));
-    direct.append(&direct_copy);
-    let revision_entry = gtk::Entry::new();
-    revision_entry.add_css_class("inputs-revision-entry");
-    revision_entry.set_placeholder_text(Some("revision or tag"));
-    revision_entry.set_width_chars(18);
-    direct.append(&revision_entry);
-    let apply_revision = action_button("Apply", "go-jump-symbolic", false);
-    apply_revision.set_sensitive(false);
-    direct.append(&apply_revision);
-    details.append(&direct);
     content.append(&details);
     root.append(&content);
 
@@ -373,15 +371,17 @@ pub(crate) fn show_inputs(
     let footer_spacer = gtk::Box::new(gtk::Orientation::Horizontal, 0);
     footer_spacer.set_hexpand(true);
     footer.append(&footer_spacer);
+    let status = label("", &["inputs-status"], 1.0);
+    status.set_ellipsize(gtk::pango::EllipsizeMode::End);
+    status.set_hexpand(true);
+    status.set_visible(false);
+    footer.append(&status);
+    let spinner = gtk::Spinner::new();
+    spinner.set_visible(false);
+    spinner.set_size_request(18, 18);
+    footer.append(&spinner);
     let update_all = action_button("Update all", "view-refresh-symbolic", false);
     footer.append(&update_all);
-    let update_selected = action_button(
-        "Update selected",
-        "software-update-available-symbolic",
-        true,
-    );
-    let action_energy = EnergyOverlay::new(&update_selected, 6.0);
-    footer.append(&action_energy.root);
     root.append(&footer);
 
     let view = Rc::new(InputsView {
@@ -390,28 +390,28 @@ pub(crate) fn show_inputs(
         inputs: RefCell::new(Vec::new()),
         selected: RefCell::new(None),
         revisions: RefCell::new(Vec::new()),
-        revision_index: Cell::new(0),
         history_generation: Cell::new(0),
         list,
         search,
         count,
-        source_kind,
         detail_name,
         detail_source,
         detail_revision,
         detail_date,
         detail_follows,
-        history_position,
         history_list,
         history_empty,
+        history_source,
+        history_status,
+        history_spinner,
         revision_entry,
+        revision_toggle,
+        revision_revealer,
         apply_revision,
         status,
         spinner,
         update_selected,
         update_all,
-        older,
-        newer,
         action_energy,
         state,
     });
@@ -495,6 +495,24 @@ fn connect_view(window: &gtk::ApplicationWindow, view: &Rc<InputsView>) {
             start_latest_update(&callback_window, view, None);
         }
     });
+    let weak = Rc::downgrade(view);
+    view.revision_toggle.connect_clicked(move |button| {
+        let Some(view) = weak.upgrade() else {
+            return;
+        };
+        let reveal = !view.revision_revealer.reveals_child();
+        view.revision_revealer.set_reveal_child(reveal);
+        button.set_label(if reveal {
+            "Cancel"
+        } else {
+            "Set commit or tag…"
+        });
+        if reveal {
+            view.revision_entry.grab_focus();
+        } else {
+            view.revision_entry.set_text("");
+        }
+    });
 
     let weak = Rc::downgrade(view);
     view.revision_entry.connect_changed(move |entry| {
@@ -522,23 +540,6 @@ fn connect_view(window: &gtk::ApplicationWindow, view: &Rc<InputsView>) {
             start_manual_revision(&callback_window, view);
         }
     });
-
-    let callback_window = window.clone();
-    let weak = Rc::downgrade(view);
-    view.older.connect_clicked(move |_| {
-        if let Some(view) = weak.upgrade() {
-            let index = view.revision_index.get() + 1;
-            apply_history_revision(&callback_window, view, index);
-        }
-    });
-    let callback_window = window.clone();
-    let weak = Rc::downgrade(view);
-    view.newer.connect_clicked(move |_| {
-        if let Some(view) = weak.upgrade() {
-            let index = view.revision_index.get().saturating_sub(1);
-            apply_history_revision(&callback_window, view, index);
-        }
-    });
 }
 
 fn start_history(view: Rc<InputsView>) {
@@ -551,11 +552,14 @@ fn start_history(view: Rc<InputsView>) {
     let generation = view.history_generation.get().wrapping_add(1);
     view.history_generation.set(generation);
     view.revisions.borrow_mut().clear();
-    view.render_history_state();
-    view.history_position.set_text("Loading history…");
+    view.clear_history("Fetching remote commits…");
+    view.history_status.set_text("Loading…");
+    view.history_status.remove_css_class("warning");
+    view.history_spinner.set_visible(true);
+    view.history_spinner.start();
     view.status.remove_css_class("error");
-    view.status
-        .set_text(&format!("Reading {} history…", input.name));
+    view.status.set_visible(false);
+    view.status.set_tooltip_text(None);
     let directory = view.directory.clone();
     let input_name = input.name;
     let (sender, receiver) = mpsc::channel();
@@ -567,33 +571,31 @@ fn start_history(view: Rc<InputsView>) {
         match receiver.try_recv() {
             Ok(Ok(records)) => {
                 if view.history_generation.get() == generation {
-                    let current_revision = view.current_input().map(|input| input.revision);
-                    let index = current_revision
-                        .as_ref()
-                        .and_then(|revision| {
-                            records
-                                .iter()
-                                .position(|record| &record.revision == revision)
-                        })
-                        .unwrap_or(0);
                     view.revisions.replace(records);
-                    view.revision_index.set(index);
                     render_history(&view);
-                    view.status.set_text("Revision history ready");
+                    view.history_spinner.stop();
+                    view.history_spinner.set_visible(false);
                 }
                 glib::ControlFlow::Break
             }
             Ok(Err(error)) => {
                 if view.history_generation.get() == generation {
                     view.show_error(&error);
-                    view.render_history_state();
+                    view.history_spinner.stop();
+                    view.history_spinner.set_visible(false);
+                    view.history_status.set_text("Unavailable");
+                    view.clear_history("Remote revisions unavailable");
                 }
                 glib::ControlFlow::Break
             }
             Err(mpsc::TryRecvError::Empty) => glib::ControlFlow::Continue,
             Err(mpsc::TryRecvError::Disconnected) => {
                 if view.history_generation.get() == generation {
-                    view.show_error("Revision history stopped without a result");
+                    view.show_error("Remote revision fetch stopped without a result");
+                    view.history_spinner.stop();
+                    view.history_spinner.set_visible(false);
+                    view.history_status.set_text("Unavailable");
+                    view.clear_history("Remote revisions unavailable");
                 }
                 glib::ControlFlow::Break
             }
@@ -602,22 +604,71 @@ fn start_history(view: Rc<InputsView>) {
 }
 
 fn render_history(view: &Rc<InputsView>) {
-    view.render_history_state();
-    let index = view.revision_index.get();
-    for (position, record) in view.revisions.borrow().iter().enumerate() {
-        let row = revision_row(record, position == index);
-        let weak = Rc::downgrade(view);
-        let window = view.window.clone();
-        row.connect_clicked(move |_| {
-            if let Some(view) = weak.upgrade() {
-                apply_history_revision(&window, view, position);
+    view.clear_history("No other remote revisions found");
+    view.history_status.remove_css_class("warning");
+    let current_revision = view.current_input().map(|input| input.revision);
+    let records = view.revisions.borrow();
+    let current_position = current_revision
+        .as_deref()
+        .and_then(|revision| history_position(&records, revision));
+
+    let available_count = if let Some((current_index, newer, older)) = current_position {
+        if newer > 0 {
+            append_history_section(&view.history_list, "NEWER THAN CURRENT");
+            for position in 0..current_index {
+                append_revision_row(view, &records[position], position, RevisionAction::Update);
             }
-        });
-        view.history_list.append(&row);
-    }
-    view.history_empty
-        .set_visible(view.revisions.borrow().is_empty());
-    view.refresh_history_buttons();
+        }
+        if older > 0 {
+            append_history_section(&view.history_list, "ROLLBACK POINTS");
+            for position in current_index + 1..records.len() {
+                append_revision_row(view, &records[position], position, RevisionAction::Rollback);
+            }
+        }
+        view.history_status
+            .set_text(&format!("{newer} newer · {older} older"));
+        newer + older
+    } else {
+        if !records.is_empty() {
+            append_history_section(&view.history_list, "RECENT REMOTE COMMITS");
+        }
+        for (position, record) in records.iter().enumerate() {
+            append_revision_row(view, record, position, RevisionAction::Select);
+        }
+        view.history_status.add_css_class("warning");
+        view.history_status
+            .set_text("Current commit not in recent history");
+        records.len()
+    };
+    view.history_empty.set_visible(available_count == 0);
+}
+
+fn append_history_section(container: &gtk::Box, text: &str) {
+    container.append(&label(text, &["inputs-history-section"], 0.0));
+}
+
+fn append_revision_row(
+    view: &Rc<InputsView>,
+    record: &RevisionRecord,
+    position: usize,
+    action: RevisionAction,
+) {
+    let row = revision_row(record, action);
+    let weak = Rc::downgrade(view);
+    let window = view.window.clone();
+    row.connect_clicked(move |_| {
+        if let Some(view) = weak.upgrade() {
+            apply_history_revision(&window, view, position);
+        }
+    });
+    view.history_list.append(&row);
+}
+
+fn history_position(records: &[RevisionRecord], current: &str) -> Option<(usize, usize, usize)> {
+    let index = records
+        .iter()
+        .position(|record| record.revision == current)?;
+    Some((index, index, records.len().saturating_sub(index + 1)))
 }
 
 fn start_latest_update(
@@ -662,7 +713,7 @@ fn apply_history_revision(window: &gtk::ApplicationWindow, view: Rc<InputsView>,
     };
     let input_name = input.name;
     let message = format!(
-        "Restoring {input_name} to {}…",
+        "Setting {input_name} to {}…",
         short_revision(&record.revision)
     );
     start_operation(window, view, message, move |directory, cancellation| {
@@ -701,8 +752,6 @@ fn start_operation(
                                 Ok((_, refreshed)) => {
                                     view.set_inputs(refreshed);
                                     view.revision_entry.set_text("");
-                                    view.status.set_tooltip_text(None);
-                                    view.status.set_text("Input revision applied");
                                     start_history(Rc::clone(&view));
                                 }
                                 Err(error) => view.show_error(&error),
@@ -729,44 +778,37 @@ fn input_row(input: &FlakeInput) -> gtk::ListBoxRow {
     let row = gtk::ListBoxRow::new();
     row.add_css_class("input-row");
     row.set_widget_name(&input.name);
-    let content = gtk::Box::new(gtk::Orientation::Horizontal, 10);
-    content.set_valign(gtk::Align::Center);
-    let icon_container = centered_icon("folder-remote-symbolic", 15, 30);
-    icon_container.add_css_class("input-row-icon");
-    icon_container.set_halign(gtk::Align::Center);
-    icon_container.set_valign(gtk::Align::Center);
-    content.append(&icon_container);
-    let copy = gtk::Box::new(gtk::Orientation::Vertical, 2);
-    copy.set_hexpand(true);
+    let copy = gtk::Box::new(gtk::Orientation::Vertical, 1);
     copy.append(&label(&input.name, &["input-row-name"], 0.0));
     let source = label(&input.source, &["input-row-source"], 0.0);
     source.set_tooltip_text(Some(&input.source));
     copy.append(&source);
-    content.append(&copy);
-    let metadata = gtk::Box::new(gtk::Orientation::Vertical, 2);
-    metadata.set_halign(gtk::Align::End);
-    metadata.set_valign(gtk::Align::Center);
-    metadata.append(&label(
-        &short_revision(&input.revision),
-        &["input-row-revision"],
-        1.0,
-    ));
-    metadata.append(&label(&input.source_kind, &["input-row-kind"], 1.0));
-    content.append(&metadata);
-    row.set_child(Some(&content));
+    row.set_child(Some(&copy));
     row
 }
 
-fn revision_row(record: &RevisionRecord, active: bool) -> gtk::Button {
+fn revision_row(record: &RevisionRecord, action: RevisionAction) -> gtk::Button {
     let row = gtk::Button::new();
     row.add_css_class("inputs-history-row");
-    if active {
-        row.add_css_class("active");
-    }
-    let content = gtk::Box::new(gtk::Orientation::Horizontal, 10);
-    let rail = gtk::Box::new(gtk::Orientation::Vertical, 0);
-    rail.add_css_class("inputs-history-rail");
-    content.append(&rail);
+    let (action_text, action_class, tooltip) = match action {
+        RevisionAction::Update => (
+            "UPDATE",
+            "inputs-update-badge",
+            "Move this input forward to the selected remote revision",
+        ),
+        RevisionAction::Rollback => (
+            "ROLLBACK",
+            "inputs-rollback-badge",
+            "Roll this input back to the selected remote revision",
+        ),
+        RevisionAction::Select => (
+            "SELECT",
+            "inputs-use-badge",
+            "Lock this input to the selected remote revision",
+        ),
+    };
+    row.set_tooltip_text(Some(tooltip));
+    let content = gtk::Box::new(gtk::Orientation::Horizontal, 12);
     let copy = gtk::Box::new(gtk::Orientation::Vertical, 2);
     copy.set_hexpand(true);
     let heading = gtk::Box::new(gtk::Orientation::Horizontal, 8);
@@ -782,11 +824,7 @@ fn revision_row(record: &RevisionRecord, active: bool) -> gtk::Button {
     copy.append(&heading);
     copy.append(&label(&record.summary, &["inputs-history-summary"], 0.0));
     content.append(&copy);
-    if active {
-        content.append(&label("CURRENT", &["inputs-current-badge"], 0.5));
-    } else if record.commit.is_some() {
-        content.append(&label("KNOWN", &["inputs-known-badge"], 0.5));
-    }
+    content.append(&label(action_text, &[action_class], 0.5));
     row.set_child(Some(&content));
     row
 }
@@ -804,13 +842,6 @@ fn action_button(text: &str, icon_name: &str, primary: bool) -> gtk::Button {
     content.append(&centered_icon(icon_name, 14, 14));
     content.append(&label(text, &["inputs-button-label"], 0.5));
     button.set_child(Some(&content));
-    button
-}
-
-fn history_button(text: &str, icon_name: &str) -> gtk::Button {
-    let button = action_button(text, icon_name, false);
-    button.add_css_class("inputs-history-button");
-    button.set_hexpand(true);
     button
 }
 
@@ -867,4 +898,25 @@ fn history_date(value: &str) -> String {
         return format_date(timestamp).unwrap_or_else(|| value.to_owned());
     }
     value.get(..10).unwrap_or(value).to_owned()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn record(revision: &str) -> RevisionRecord {
+        RevisionRecord {
+            revision: revision.to_owned(),
+            flake_ref: format!("github:owner/repo/{revision}"),
+            date: String::new(),
+            summary: String::new(),
+        }
+    }
+
+    #[test]
+    fn positions_remote_revisions_relative_to_the_current_lock() {
+        let records = ["newer", "current", "older-1", "older-2"].map(record);
+        assert_eq!(history_position(&records, "current"), Some((1, 1, 2)));
+        assert_eq!(history_position(&records, "missing"), None);
+    }
 }

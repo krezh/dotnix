@@ -302,46 +302,16 @@ tooltip label {
   box-shadow: inset 2px 0 #89b4fa;
 }
 
-.input-row-icon {
-  background-color: rgba(69, 71, 90, 0.46);
-  border: 1px solid rgba(205, 214, 244, 0.1);
-  border-radius: 5px;
-  color: #7f849c;
-  min-height: 30px;
-  min-width: 30px;
-}
-
-.input-row:selected .input-row-icon {
-  background-color: rgba(137, 180, 250, 0.14);
-  border-color: rgba(137, 180, 250, 0.3);
-  color: #89b4fa;
-}
-
 .input-row-name {
   color: #cdd6f4;
   font-size: 13px;
   font-weight: 800;
 }
 
-.input-row-revision {
-  color: #b4befe;
-  font-family: monospace;
-  font-size: 10px;
-  font-weight: 750;
-}
-
 .input-row-source {
   color: #8d98a6;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 600;
-}
-
-.input-row-kind {
-  color: #6c7086;
-  font-size: 9px;
-  font-weight: 850;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
 }
 
 .inputs-detail {
@@ -353,40 +323,24 @@ tooltip label {
   border: 1px solid rgba(180, 190, 254, 0.14);
   border-radius: 12px;
   box-shadow: 0 12px 32px rgba(17, 17, 27, 0.3);
-  padding: 18px;
+  padding: 16px;
 }
 
 .inputs-identity {
-  background-color: rgba(49, 50, 68, 0.38);
-  border: 1px solid rgba(205, 214, 244, 0.08);
-  border-radius: 10px;
-  padding: 12px 14px;
+  border-bottom: 1px solid rgba(205, 214, 244, 0.08);
+  padding-bottom: 12px;
 }
 
-.inputs-source-emblem {
-  background-image: linear-gradient(
-    145deg,
-    rgba(137, 180, 250, 0.2),
-    rgba(203, 166, 247, 0.14)
-  );
-  border: 1px solid rgba(137, 180, 250, 0.3);
-  border-radius: 6px;
+.inputs-eyebrow {
   color: #89b4fa;
-  min-height: 46px;
-  min-width: 46px;
-}
-
-.inputs-eyebrow,
-.inputs-revision-label {
-  color: #89b4fa;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 850;
   letter-spacing: 0.08em;
 }
 
 .inputs-detail-name {
   color: #cdd6f4;
-  font-size: 26px;
+  font-size: 24px;
   font-weight: 850;
 }
 
@@ -395,40 +349,44 @@ tooltip label {
   font-size: 14px;
   font-weight: 650;
 }
-
-.inputs-source-kind {
-  background-color: rgba(203, 166, 247, 0.12);
-  border: 1px solid rgba(203, 166, 247, 0.28);
-  border-radius: 5px;
-  color: #cba6f7;
-  font-size: 10px;
-  font-weight: 850;
-  padding: 3px 8px;
+.inputs-current-card {
+  background-image: linear-gradient(
+    90deg,
+    rgba(166, 227, 161, 0.1),
+    rgba(148, 226, 213, 0.035)
+  );
+  border: 1px solid rgba(166, 227, 161, 0.22);
+  border-left: 3px solid #a6e3a1;
+  border-radius: 8px;
+  padding: 10px 12px;
 }
 
-.inputs-revision-card {
-  background-image: linear-gradient(
-    110deg,
-    rgba(17, 17, 27, 0.74),
-    rgba(30, 30, 46, 0.52)
-  );
-  border: 1px solid rgba(180, 190, 254, 0.22);
-  border-left: 3px solid #b4befe;
-  border-radius: 10px;
-  box-shadow: 0 8px 20px rgba(17, 17, 27, 0.2);
-  padding: 13px 15px;
+.inputs-current-badge {
+  background-color: rgba(166, 227, 161, 0.14);
+  border: 1px solid rgba(166, 227, 161, 0.32);
+  border-radius: 4px;
+  color: #a6e3a1;
+  font-size: 11px;
+  font-weight: 850;
+  padding: 2px 6px;
+}
+
+
+.inputs-lock-meta {
+  min-height: 26px;
+  padding: 0 2px;
 }
 
 .inputs-revision {
   color: #b4befe;
   font-family: monospace;
-  font-size: 17px;
+  font-size: 13px;
   font-weight: 780;
 }
 
 .inputs-detail-meta {
   color: #8d98a6;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 650;
 }
 
@@ -437,26 +395,56 @@ tooltip label {
   border: 1px solid rgba(116, 199, 236, 0.25);
   border-radius: 5px;
   color: #74c7ec;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 750;
   padding: 2px 7px;
 }
+.inputs-link-button {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  color: #89b4fa;
+  font-size: 12px;
+  font-weight: 750;
+  min-height: 26px;
+  padding: 0 4px;
+}
+
+.inputs-link-button:hover,
+.inputs-link-button:focus {
+  background-color: rgba(137, 180, 250, 0.08);
+  box-shadow: none;
+}
+
 
 .inputs-history-panel {
-  background-color: rgba(17, 17, 27, 0.32);
-  border: 1px solid rgba(205, 214, 244, 0.08);
-  border-radius: 10px;
-  padding: 11px;
+  border-top: 1px solid rgba(205, 214, 244, 0.08);
+  margin-top: 2px;
+  padding-top: 12px;
 }
 
-.inputs-history-position {
+.inputs-history-source,
+.inputs-history-status {
   color: #8d98a6;
-  font-size: 11px;
-  font-weight: 700;
+  font-size: 12px;
+  font-weight: 650;
 }
+
+.inputs-history-status.warning {
+  color: #f9e2af;
+}
+
+.inputs-history-section {
+  color: #7f849c;
+  font-size: 11px;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+  margin: 7px 2px 2px;
+}
+
 
 .inputs-history-row {
-  background-color: rgba(49, 50, 68, 0.34);
+  background-color: rgba(49, 50, 68, 0.28);
   background-image: none;
   border: 1px solid rgba(205, 214, 244, 0.07);
   border-radius: 7px;
@@ -471,31 +459,10 @@ tooltip label {
   border-color: rgba(137, 180, 250, 0.24);
 }
 
-.inputs-history-row.active {
-  background-image: linear-gradient(
-    90deg,
-    rgba(166, 227, 161, 0.12),
-    rgba(148, 226, 213, 0.05)
-  );
-  border-color: rgba(166, 227, 161, 0.34);
-}
-
-.inputs-history-rail {
-  background-color: #585b70;
-  border-radius: 1px;
-  min-height: 28px;
-  min-width: 3px;
-}
-
-.inputs-history-row.active .inputs-history-rail {
-  background-color: #a6e3a1;
-  box-shadow: 0 0 8px rgba(166, 227, 161, 0.6);
-}
-
 .inputs-history-revision {
   color: #b4befe;
   font-family: monospace;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 800;
 }
 
@@ -503,39 +470,38 @@ tooltip label {
 .inputs-history-summary,
 .inputs-history-empty {
   color: #8d98a6;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 600;
 }
 
-.inputs-current-badge,
-.inputs-known-badge {
+.inputs-history-empty {
+  padding: 10px 2px;
+}
+
+.inputs-update-badge,
+.inputs-rollback-badge,
+.inputs-use-badge {
   border-radius: 4px;
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 850;
-  padding: 2px 6px;
+  padding: 3px 7px;
 }
 
-.inputs-current-badge {
-  background-color: rgba(166, 227, 161, 0.12);
-  border: 1px solid rgba(166, 227, 161, 0.28);
-  color: #a6e3a1;
-}
-
-.inputs-known-badge {
-  background-color: rgba(137, 180, 250, 0.09);
-  border: 1px solid rgba(137, 180, 250, 0.2);
+.inputs-update-badge,
+.inputs-use-badge {
+  background-color: rgba(137, 180, 250, 0.1);
+  border: 1px solid rgba(137, 180, 250, 0.24);
   color: #89b4fa;
 }
 
+.inputs-rollback-badge {
+  background-color: rgba(250, 179, 135, 0.1);
+  border: 1px solid rgba(250, 179, 135, 0.24);
+  color: #fab387;
+}
+
 .inputs-direct {
-  background-image: linear-gradient(
-    90deg,
-    rgba(249, 226, 175, 0.07),
-    rgba(250, 179, 135, 0.04)
-  );
-  border: 1px solid rgba(249, 226, 175, 0.17);
-  border-radius: 9px;
-  padding: 9px 11px;
+  min-height: 38px;
 }
 
 .inputs-primary-button,
@@ -574,7 +540,6 @@ tooltip label {
   box-shadow: none;
 }
 
-.inputs-history-button:disabled,
 .inputs-secondary-button:disabled {
   opacity: 0.42;
 }

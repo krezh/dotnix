@@ -134,7 +134,7 @@ pub struct App {
     // to avoid cross-connection ordering races with the compositor)
     pub(super) captured_image: Option<CapturedImage>,
 
-    // True if a wl-screenrec recording is already running when the selector opens
+    // Recording state when the selector opens
     pub(super) is_recording: bool,
     pub(super) supports_window_capture: bool,
 

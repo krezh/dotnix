@@ -3,7 +3,7 @@
 //! A compositor-agnostic screen selection tool with features like:
 //! - Interactive area selection with live preview
 //! - Window and screen capture modes
-//! - Video recording with wl-screenrec
+//! - Native VA-API screen recording
 //! - Native hardware-encoded instant replay for tagged Hyprland game windows
 //! - OCR text extraction with Tesseract
 //! - Configurable appearance
@@ -73,6 +73,10 @@ fn main() -> Result<()> {
 
     let show_status = args.status;
     let replay_service = args.replay_service;
+    let recording_service = args.recording_service;
+    let recording_geometry = args.recording_geometry.clone();
+    let recording_monitor = args.recording_monitor.clone();
+    let recording_output = args.recording_output.clone();
     let settings = args.resolve(config);
 
     env_logger::Builder::from_default_env()
@@ -86,6 +90,14 @@ fn main() -> Result<()> {
     log::info!("Starting chomp with settings: {:?}", settings);
     if replay_service {
         return replay::run_service(settings);
+    }
+    if recording_service {
+        return capture::run_recording_service(
+            settings,
+            recording_geometry,
+            recording_monitor,
+            recording_output.context("--recording-output is required")?,
+        );
     }
 
     if let Some(action) = settings.replay_action {
@@ -263,21 +275,10 @@ fn handle_video_mode(
         anyhow::bail!("stdout output is not supported for video recording");
     }
 
-    // The recorded area, so the bitrate can be sized to it.
-    let size = match geometry.as_deref().or(pre_geometry.as_deref()) {
-        Some(geo) => render::Rect::from_geometry_string(geo)
-            .ok()
-            .map(|rect| (rect.width.max(0) as u32, rect.height.max(0) as u32)),
-        None => active_monitor_rect()
-            .ok()
-            .map(|rect| (rect.width.max(0) as u32, rect.height.max(0) as u32)),
-    };
-
     capture::start_recording(
         settings,
         geometry.as_deref(),
         monitor.as_deref(),
-        size,
         &output_file,
     )?;
 

@@ -31,6 +31,7 @@ pub(crate) struct UiState {
     pub(crate) view_cancellation: RefCell<Option<Arc<AtomicBool>>>,
     pub(crate) close_pending: Cell<bool>,
     pub(crate) changelog_cache: RefCell<HashMap<String, ChangelogOutput>>,
+    pub(crate) changelog_scroll_positions: RefCell<HashMap<String, f64>>,
     pub(crate) appearance: Appearance,
 }
 
@@ -48,6 +49,7 @@ impl Default for UiState {
             view_cancellation: RefCell::new(None),
             close_pending: Cell::new(false),
             changelog_cache: RefCell::new(HashMap::new()),
+            changelog_scroll_positions: RefCell::new(HashMap::new()),
             appearance: Appearance::default(),
         }
     }

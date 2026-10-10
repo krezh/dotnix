@@ -166,9 +166,8 @@
                       default = "";
                       example = "15 MB";
                       description = ''
-                        Encoder bitrate, in bytes per second as wl-screenrec expects it,
-                        so "15 MB" is 120 Mbps. Empty derives one from the recorded area
-                        and frame rate, which keeps quality steady across resolutions.
+                        Encoder bitrate in bytes per second, so "15 MB" is 120 Mbps.
+                        Empty derives one from the recorded area and frame rate.
                       '';
                     };
 
@@ -249,12 +248,6 @@
                 type = lib.types.package;
                 default = pkgs.wl-clipboard;
                 description = "Package providing wl-copy, used for every clipboard copy.";
-              };
-
-              wlScreenrec = lib.mkOption {
-                type = lib.types.package;
-                default = pkgs.wl-screenrec;
-                description = "Package used to record the screen.";
               };
             };
           };
@@ -387,16 +380,15 @@
               encode_resolution = cfg.capture.video.encodeResolution;
               inherit (cfg.capture.video) bitrate codec;
             };
-            replay =
-              {
-                inherit (cfg.capture.replay) enabled;
-                duration_seconds = cfg.capture.replay.durationSeconds;
-                retain_after_exit_seconds = cfg.capture.replay.retainAfterExitSeconds;
-                dri_device = cfg.capture.replay.driDevice;
-              }
-              // lib.optionalAttrs cfg.capture.replay.enabled {
-                hyprland_tag = cfg.capture.replay.hyprlandTag;
-              };
+            replay = {
+              inherit (cfg.capture.replay) enabled;
+              duration_seconds = cfg.capture.replay.durationSeconds;
+              retain_after_exit_seconds = cfg.capture.replay.retainAfterExitSeconds;
+              dri_device = cfg.capture.replay.driDevice;
+            }
+            // lib.optionalAttrs cfg.capture.replay.enabled {
+              hyprland_tag = cfg.capture.replay.hyprlandTag;
+            };
           }
           // lib.optionalAttrs (cfg.capture.delay != null) { inherit (cfg.capture) delay; };
           ocr = {
@@ -405,7 +397,6 @@
           tools = {
             satty = lib.getExe cfg.tools.satty;
             wl_copy = lib.getExe' cfg.tools.wlCopy "wl-copy";
-            wl_screenrec = lib.getExe cfg.tools.wlScreenrec;
           };
           keybinds = {
             screenshot_area = cfg.keybinds.screenshotArea;

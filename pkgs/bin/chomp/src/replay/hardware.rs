@@ -1,11 +1,17 @@
+use crate::capture::buffer::{CapturedImage, PixelFormat};
 use anyhow::{Context, Result};
-use ffmpeg::{Dictionary, Packet, Rational, codec, encoder, filter, format::Pixel, frame};
+use ffmpeg::{
+    Dictionary, Packet, Rational, codec, encoder, filter,
+    format::Pixel,
+    frame,
+    software::scaling::{context::Context as Scaler, flag::Flags as ScalingFlags},
+};
 use ffmpeg_next as ffmpeg;
 use ffmpeg_sys_next::{
     AV_HWFRAME_MAP_WRITE, AVBufferRef, AVDRMFrameDescriptor, AVHWDeviceType, AVHWFramesContext,
     AVPixelFormat, av_buffer_ref, av_buffer_unref, av_buffersrc_parameters_alloc,
     av_buffersrc_parameters_set, av_free, av_hwdevice_ctx_create, av_hwframe_ctx_alloc,
-    av_hwframe_ctx_init, av_hwframe_get_buffer, av_hwframe_map,
+    av_hwframe_ctx_init, av_hwframe_get_buffer, av_hwframe_map, av_hwframe_transfer_data,
 };
 use std::ffi::CString;
 use std::path::Path;
@@ -107,17 +113,27 @@ impl Drop for HardwareFrames {
     }
 }
 
+struct SoftwareUpload {
+    pixel: Pixel,
+    scaler: Scaler,
+    source: frame::Video,
+    converted: frame::Video,
+}
+
 pub struct HardwareEncoder {
     _device: HardwareDevice,
     capture_frames: HardwareFrames,
-    _encode_frames: HardwareFrames,
+    encode_frames: HardwareFrames,
     normal_filter: filter::Graph,
     inverted_filter: filter::Graph,
     encoder: ffmpeg::encoder::video::Encoder,
     parameters: codec::Parameters,
     time_base: Rational,
-    width: u32,
-    height: u32,
+    input_width: u32,
+    input_height: u32,
+    output_width: u32,
+    output_height: u32,
+    software: Option<SoftwareUpload>,
 }
 
 impl HardwareEncoder {
@@ -129,20 +145,60 @@ impl HardwareEncoder {
         capture_format: Pixel,
         device_path: &Path,
     ) -> Result<Self> {
+        Self::new_with_options(
+            width,
+            height,
+            width,
+            height,
+            fps,
+            bitrate_bits,
+            capture_format,
+            "h264_vaapi",
+            device_path,
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn new_with_options(
+        input_width: u32,
+        input_height: u32,
+        output_width: u32,
+        output_height: u32,
+        fps: u32,
+        bitrate_bits: usize,
+        capture_format: Pixel,
+        codec_name: &str,
+        device_path: &Path,
+    ) -> Result<Self> {
         ffmpeg::init().context("Failed to initialize FFmpeg")?;
         let mut device = HardwareDevice::open(device_path)?;
-        let mut capture_frames = device.frames(capture_format, width, height)?;
-        let encode_frames = device.frames(Pixel::NV12, width, height)?;
-        let normal_filter = create_filter(&mut capture_frames, width, height, false)?;
-        let inverted_filter = create_filter(&mut capture_frames, width, height, true)?;
-        let codec = encoder::find_by_name("h264_vaapi").context("h264_vaapi is unavailable")?;
+        let mut capture_frames = device.frames(capture_format, input_width, input_height)?;
+        let encode_frames = device.frames(Pixel::NV12, output_width, output_height)?;
+        let normal_filter = create_filter(
+            &mut capture_frames,
+            input_width,
+            input_height,
+            output_width,
+            output_height,
+            false,
+        )?;
+        let inverted_filter = create_filter(
+            &mut capture_frames,
+            input_width,
+            input_height,
+            output_width,
+            output_height,
+            true,
+        )?;
+        let codec = encoder::find_by_name(codec_name)
+            .with_context(|| format!("{codec_name} is unavailable"))?;
         let time_base = Rational(1, 1_000_000);
         let mut video = codec::context::Context::new_with_codec(codec)
             .encoder()
             .video()
             .context("Failed to create VA-API encoder")?;
-        video.set_width(width);
-        video.set_height(height);
+        video.set_width(output_width);
+        video.set_height(output_height);
         video.set_format(Pixel::VAAPI);
         video.set_time_base(time_base);
         video.set_frame_rate(Some(Rational(fps as i32, 1)));
@@ -159,20 +215,23 @@ impl HardwareEncoder {
         options.set("low_power", "0");
         let encoder = video
             .open_with(options)
-            .context("Failed to open h264_vaapi")?;
+            .with_context(|| format!("Failed to open {codec_name}"))?;
         let parameters = codec::Parameters::from(&encoder);
 
         Ok(Self {
             _device: device,
             capture_frames,
-            _encode_frames: encode_frames,
+            encode_frames,
             normal_filter,
             inverted_filter,
             encoder,
             parameters,
             time_base,
-            width,
-            height,
+            input_width,
+            input_height,
+            output_width,
+            output_height,
+            software: None,
         })
     }
 
@@ -195,8 +254,8 @@ impl HardwareEncoder {
         Ok(HardwareFrame {
             surface,
             mapping,
-            width: self.width,
-            height: self.height,
+            width: self.input_width,
+            height: self.input_height,
         })
     }
 
@@ -237,6 +296,88 @@ impl HardwareEncoder {
             }
         }
 
+        self.receive_packets()
+    }
+
+    pub fn encode_image(
+        &mut self,
+        image: &CapturedImage,
+        timestamp_micros: i64,
+    ) -> Result<Vec<Packet>> {
+        anyhow::ensure!(
+            (image.width, image.height) == (self.input_width, self.input_height),
+            "Captured image dimensions changed to {}x{}",
+            image.width,
+            image.height
+        );
+        let pixel = match image.format {
+            PixelFormat::Argb8888 => Pixel::BGRA,
+            PixelFormat::Xrgb8888 => Pixel::BGRZ,
+        };
+        let recreate = self
+            .software
+            .as_ref()
+            .is_none_or(|software| software.pixel != pixel);
+        if recreate {
+            self.software = Some(SoftwareUpload {
+                pixel,
+                scaler: Scaler::get(
+                    pixel,
+                    self.input_width,
+                    self.input_height,
+                    Pixel::NV12,
+                    self.output_width,
+                    self.output_height,
+                    ScalingFlags::BILINEAR,
+                )
+                .context("Failed to create software upload scaler")?,
+                source: frame::Video::new(pixel, self.input_width, self.input_height),
+                converted: frame::Video::new(Pixel::NV12, self.output_width, self.output_height),
+            });
+        }
+        let software = self
+            .software
+            .as_mut()
+            .context("Software upload state disappeared")?;
+        let destination_stride = software.source.stride(0);
+        let source_stride = image.stride as usize;
+        let row_bytes = image.width as usize * 4;
+        let destination = software.source.data_mut(0);
+        for row in 0..image.height as usize {
+            let source_start = row * source_stride;
+            let destination_start = row * destination_stride;
+            destination[destination_start..destination_start + row_bytes]
+                .copy_from_slice(&image.data[source_start..source_start + row_bytes]);
+        }
+        software.source.set_pts(Some(timestamp_micros));
+        software
+            .scaler
+            .run(&software.source, &mut software.converted)
+            .context("Failed to convert captured pixels")?;
+        let mut hardware = self.encode_frames.allocate()?;
+        let result = unsafe {
+            av_hwframe_transfer_data(hardware.as_mut_ptr(), software.converted.as_ptr(), 0)
+        };
+        anyhow::ensure!(
+            result == 0,
+            "Failed to upload captured pixels: {}",
+            ffmpeg::Error::from(result)
+        );
+        hardware.set_pts(Some(timestamp_micros));
+        self.encoder
+            .send_frame(&hardware)
+            .context("Failed to submit uploaded VA-API frame")?;
+        self.receive_packets()
+    }
+
+    pub fn finish(&mut self) -> Result<Vec<Packet>> {
+        self.encoder
+            .send_eof()
+            .context("Failed to finish VA-API encoder")?;
+        self.receive_packets()
+    }
+
+    fn receive_packets(&mut self) -> Result<Vec<Packet>> {
         let mut packets = Vec::new();
         loop {
             let mut packet = Packet::empty();
@@ -246,6 +387,7 @@ impl HardwareEncoder {
                     packets.push(packet);
                 }
                 Err(ffmpeg::Error::Other { errno }) if errno == libc::EAGAIN => break,
+                Err(ffmpeg::Error::Eof) => break,
                 Err(error) => return Err(error).context("Failed to receive encoded packet"),
             }
         }
@@ -263,8 +405,10 @@ impl HardwareEncoder {
 
 fn create_filter(
     frames: &mut HardwareFrames,
-    width: u32,
-    height: u32,
+    input_width: u32,
+    input_height: u32,
+    output_width: u32,
+    output_height: u32,
     y_inverted: bool,
 ) -> Result<filter::Graph> {
     let mut graph = filter::Graph::new();
@@ -282,8 +426,8 @@ fn create_filter(
             !parameters.is_null(),
             "Failed to allocate filter parameters"
         );
-        (*parameters).width = width as i32;
-        (*parameters).height = height as i32;
+        (*parameters).width = input_width as i32;
+        (*parameters).height = input_height as i32;
         (*parameters).format = AVPixelFormat::AV_PIX_FMT_VAAPI as i32;
         (*parameters).time_base.num = 1;
         (*parameters).time_base.den = 1_000_000;
@@ -301,12 +445,13 @@ fn create_filter(
             "pixel_formats=vaapi",
         )
         .context("Failed to create VA-API filter sink")?;
+    let scale = format!("scale_vaapi=w={output_width}:h={output_height}:format=nv12");
     let chain = if y_inverted {
-        "scale_vaapi=format=nv12,transpose_vaapi=dir=vflip"
+        format!("{scale},transpose_vaapi=dir=vflip")
     } else {
-        "scale_vaapi=format=nv12"
+        scale
     };
-    graph.output("in", 0)?.input("out", 0)?.parse(chain)?;
+    graph.output("in", 0)?.input("out", 0)?.parse(&chain)?;
     graph.validate().context("Invalid VA-API filter graph")?;
     Ok(graph)
 }

@@ -6,7 +6,6 @@
         # Screen/clipboard utilities
         brightnessctl
         wl-clipboard
-        wl-screenrec
 
         resources
 

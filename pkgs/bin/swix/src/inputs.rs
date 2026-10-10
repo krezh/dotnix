@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
-use std::sync::atomic::AtomicBool;
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::time::Duration;
 
 use serde::Deserialize;
@@ -13,10 +13,6 @@ const NIX: &str = match option_env!("SWIX_NIX") {
     Some(path) => path,
     None => "nix",
 };
-const JJ: &str = match option_env!("SWIX_JJ") {
-    Some(path) => path,
-    None => "jj",
-};
 const GIT: &str = match option_env!("SWIX_GIT") {
     Some(path) => path,
     None => "git",
@@ -25,6 +21,7 @@ const UPDATE_TIMEOUT: Duration = Duration::from_secs(20 * 60);
 const HISTORY_TIMEOUT: Duration = Duration::from_secs(2 * 60);
 const MAX_OUTPUT: usize = 4 * 1024 * 1024;
 const HISTORY_LIMIT: usize = 48;
+static HISTORY_ID: AtomicU64 = AtomicU64::new(0);
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct FlakeInput {
@@ -35,6 +32,8 @@ pub(crate) struct FlakeInput {
     pub(crate) last_modified: Option<i64>,
     pub(crate) follows: Option<String>,
     pub(crate) flake_ref: Option<String>,
+    remote_url: Option<String>,
+    remote_ref: Option<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -43,7 +42,6 @@ pub(crate) struct RevisionRecord {
     pub(crate) flake_ref: String,
     pub(crate) date: String,
     pub(crate) summary: String,
-    pub(crate) commit: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -62,19 +60,6 @@ struct LockNode {
     original: Option<Value>,
 }
 
-#[derive(Clone, Debug)]
-struct HistoryMetadata {
-    commit: String,
-    date: String,
-    summary: String,
-}
-
-#[derive(Clone, Copy)]
-enum HistoryKind {
-    Jj,
-    Git,
-}
-
 pub(crate) fn load(directory: &Path) -> Result<(String, Vec<FlakeInput>), String> {
     let path = lock_path(directory);
     let content = fs::read_to_string(&path)
@@ -88,59 +73,63 @@ pub(crate) fn history(
     input_name: &str,
     cancellation: &AtomicBool,
 ) -> Result<Vec<RevisionRecord>, String> {
-    let (_, current_inputs) = load(directory)?;
-    let current = current_inputs
+    let (_, inputs) = load(directory)?;
+    let input = inputs
         .into_iter()
         .find(|input| input.name == input_name)
         .ok_or_else(|| format!("input {input_name:?} is no longer in flake.lock"))?;
-    let current_ref = current
-        .flake_ref
-        .clone()
-        .ok_or_else(|| format!("{} does not expose a selectable revision", current.name))?;
-    let (root, path, metadata, kind) = history_metadata(directory, cancellation)?;
-    let mut records: Vec<RevisionRecord> = Vec::new();
-    for metadata in metadata.into_iter().take(HISTORY_LIMIT) {
-        let snapshot = historical_lock(&root, &path, &metadata.commit, kind, cancellation)?;
-        let inputs = parse_inputs(&snapshot, &path)?;
-        let Some(input) = inputs.into_iter().find(|input| input.name == input_name) else {
-            continue;
-        };
-        let Some(flake_ref) = input.flake_ref else {
-            continue;
-        };
-        if records
-            .last()
-            .is_some_and(|record| record.revision == input.revision)
-        {
-            continue;
-        }
-        records.push(RevisionRecord {
-            revision: input.revision,
-            flake_ref,
-            date: metadata.date,
-            summary: metadata.summary,
-            commit: Some(metadata.commit),
-        });
-    }
-    if !records
-        .iter()
-        .any(|record| record.revision == current.revision)
-    {
-        records.insert(
-            0,
-            RevisionRecord {
-                revision: current.revision,
-                flake_ref: current_ref,
-                date: current
-                    .last_modified
-                    .map(|timestamp| timestamp.to_string())
-                    .unwrap_or_default(),
-                summary: "Current lock file".to_owned(),
-                commit: None,
-            },
-        );
-    }
-    Ok(records)
+    let remote_url = input
+        .remote_url
+        .as_deref()
+        .ok_or_else(|| format!("{} does not expose a Git remote", input.name))?;
+    let target = input.remote_ref.as_deref().unwrap_or("HEAD");
+    let repository = TemporaryRepository::new()?;
+
+    let mut init = Command::new(GIT);
+    init.args(["init", "--bare", "--quiet"])
+        .arg(&repository.path);
+    run_output(
+        &mut init,
+        "remote revision workspace",
+        cancellation,
+        HISTORY_TIMEOUT,
+    )?;
+
+    let mut fetch = Command::new(GIT);
+    fetch.current_dir(&repository.path).args([
+        "fetch",
+        "--quiet",
+        "--depth",
+        &HISTORY_LIMIT.to_string(),
+        "--filter=blob:none",
+        "--no-tags",
+        remote_url,
+        target,
+    ]);
+    run_output(
+        &mut fetch,
+        "remote flake revision fetch",
+        cancellation,
+        HISTORY_TIMEOUT,
+    )?;
+
+    let mut log = Command::new(GIT);
+    log.current_dir(&repository.path).args([
+        "log",
+        "--format=%H%x1f%cI%x1f%s",
+        "--max-count",
+        &HISTORY_LIMIT.to_string(),
+        "FETCH_HEAD",
+    ]);
+    let output = run_output(
+        &mut log,
+        "remote flake revision history",
+        cancellation,
+        HISTORY_TIMEOUT,
+    )?;
+    let text = String::from_utf8(output.stdout)
+        .map_err(|_| "remote revision history returned invalid UTF-8".to_owned())?;
+    parse_remote_history(&text, &input)
 }
 
 pub(crate) fn update(
@@ -228,115 +217,50 @@ pub(crate) fn revision_ref(input: &FlakeInput, revision: &str) -> Result<String,
     ))
 }
 
-fn history_metadata(
-    directory: &Path,
-    cancellation: &AtomicBool,
-) -> Result<(PathBuf, PathBuf, Vec<HistoryMetadata>, HistoryKind), String> {
-    let (root, kind) = if let Some(root) = repository_root(directory, ".jj") {
-        (root, HistoryKind::Jj)
-    } else if let Some(root) = repository_root(directory, ".git") {
-        (root, HistoryKind::Git)
-    } else {
-        return Err("flake directory is not inside a jj or Git repository".to_owned());
-    };
-    let path = lock_path(directory)
-        .strip_prefix(&root)
-        .map_err(|_| "flake.lock is outside the repository root".to_owned())?
-        .to_owned();
-    let mut command = match kind {
-        HistoryKind::Jj => {
-            let mut command = Command::new(JJ);
-            command
-                .current_dir(&root)
-                .args([
-                    "log",
-                    "-r",
-                    "ancestors(@)",
-                    "--no-graph",
-                    "--limit",
-                    &HISTORY_LIMIT.to_string(),
-                    "--template",
-                    "commit_id ++ \"\\x1f\" ++ author.timestamp() ++ \"\\x1f\" ++ description.first_line() ++ \"\\n\"",
-                    "--",
-                ])
-                .arg(&path);
-            command
+struct TemporaryRepository {
+    path: PathBuf,
+}
+
+impl TemporaryRepository {
+    fn new() -> Result<Self, String> {
+        let id = HISTORY_ID.fetch_add(1, Ordering::Relaxed);
+        let path =
+            std::env::temp_dir().join(format!("swix-remote-history-{}-{id}", std::process::id()));
+        if path.exists() {
+            fs::remove_dir_all(&path)
+                .map_err(|error| format!("failed to reset {}: {error}", path.display()))?;
         }
-        HistoryKind::Git => {
-            let mut command = Command::new(GIT);
-            command
-                .current_dir(&root)
-                .args([
-                    "log",
-                    &format!("--max-count={HISTORY_LIMIT}"),
-                    "--format=%H%x1f%aI%x1f%s",
-                    "--",
-                ])
-                .arg(&path);
-            command
-        }
-    };
-    let output = run_output(
-        &mut command,
-        "flake.lock revision history",
-        cancellation,
-        HISTORY_TIMEOUT,
-    )?;
-    let text = String::from_utf8(output.stdout)
-        .map_err(|_| "revision history returned invalid UTF-8".to_owned())?;
-    let metadata = text
-        .lines()
-        .filter_map(|line| {
+        Ok(Self { path })
+    }
+}
+
+impl Drop for TemporaryRepository {
+    fn drop(&mut self) {
+        let _ = fs::remove_dir_all(&self.path);
+    }
+}
+
+fn parse_remote_history(text: &str, input: &FlakeInput) -> Result<Vec<RevisionRecord>, String> {
+    text.lines()
+        .filter(|line| !line.is_empty())
+        .map(|line| {
             let mut fields = line.splitn(3, '\x1f');
-            Some(HistoryMetadata {
-                commit: fields.next()?.to_owned(),
-                date: fields.next()?.to_owned(),
-                summary: fields.next().unwrap_or("flake.lock update").to_owned(),
+            let revision = fields
+                .next()
+                .filter(|field| !field.is_empty())
+                .ok_or_else(|| "remote history omitted a commit revision".to_owned())?;
+            let date = fields
+                .next()
+                .ok_or_else(|| "remote history omitted a commit date".to_owned())?;
+            let summary = fields.next().unwrap_or("Remote commit");
+            Ok(RevisionRecord {
+                revision: revision.to_owned(),
+                flake_ref: revision_ref(input, revision)?,
+                date: date.to_owned(),
+                summary: summary.to_owned(),
             })
         })
-        .collect();
-    Ok((root, path, metadata, kind))
-}
-
-fn historical_lock(
-    root: &Path,
-    path: &Path,
-    commit: &str,
-    kind: HistoryKind,
-    cancellation: &AtomicBool,
-) -> Result<String, String> {
-    let mut command = match kind {
-        HistoryKind::Jj => {
-            let mut command = Command::new(JJ);
-            command
-                .current_dir(root)
-                .args(["file", "show", "-r", commit])
-                .arg(path);
-            command
-        }
-        HistoryKind::Git => {
-            let mut command = Command::new(GIT);
-            command
-                .current_dir(root)
-                .args(["show", &format!("{commit}:{}", path.display())]);
-            command
-        }
-    };
-    let output = run_output(
-        &mut command,
-        "historical flake.lock read",
-        cancellation,
-        HISTORY_TIMEOUT,
-    )?;
-    String::from_utf8(output.stdout)
-        .map_err(|_| "historical flake.lock contains invalid UTF-8".to_owned())
-}
-
-fn repository_root(directory: &Path, marker: &str) -> Option<PathBuf> {
-    directory
-        .ancestors()
-        .find(|ancestor| ancestor.join(marker).exists())
-        .map(Path::to_owned)
+        .collect()
 }
 
 fn run(
@@ -387,7 +311,8 @@ fn input_from_reference(
     });
     let node = resolve_reference(reference, lock, &mut HashSet::new())
         .ok_or_else(|| format!("input {name:?} points to a missing lock node"))?;
-    let locked = node.locked.as_ref().or(node.original.as_ref());
+    let original = node.original.as_ref();
+    let locked = node.locked.as_ref().or(original);
     Ok(FlakeInput {
         name: name.to_owned(),
         source: locked.map_or_else(|| "indirect input".to_owned(), source_label),
@@ -404,6 +329,10 @@ fn input_from_reference(
             .and_then(Value::as_i64),
         follows,
         flake_ref: locked.and_then(flake_reference),
+        remote_url: locked.and_then(remote_url),
+        remote_ref: original
+            .and_then(remote_ref)
+            .or_else(|| locked.and_then(remote_ref)),
     })
 }
 
@@ -480,6 +409,34 @@ fn flake_reference(value: &Value) -> Option<String> {
     }
 }
 
+fn remote_url(value: &Value) -> Option<String> {
+    match value.get("type")?.as_str()? {
+        "github" => Some(format!(
+            "https://github.com/{}/{}.git",
+            value.get("owner")?.as_str()?,
+            value.get("repo")?.as_str()?
+        )),
+        "gitlab" => Some(format!(
+            "https://gitlab.com/{}/{}.git",
+            value.get("owner")?.as_str()?,
+            value.get("repo")?.as_str()?
+        )),
+        "sourcehut" => Some(format!(
+            "https://git.sr.ht/{}/{}",
+            value.get("owner")?.as_str()?,
+            value.get("repo")?.as_str()?
+        )),
+        "git" => value
+            .get("url")?
+            .as_str()
+            .map(|url| url.strip_prefix("git+").unwrap_or(url).to_owned()),
+        _ => None,
+    }
+}
+
+fn remote_ref(value: &Value) -> Option<String> {
+    value.get("ref")?.as_str().map(str::to_owned)
+}
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -513,6 +470,10 @@ mod tests {
         assert_eq!(inputs[0].follows.as_deref(), Some("zeta"));
         assert_eq!(inputs[0].source, "owner/repo");
         assert_eq!(inputs[1].revision, "abcdef123456");
+        assert_eq!(
+            inputs[1].remote_url.as_deref(),
+            Some("https://github.com/owner/repo.git")
+        );
     }
 
     #[test]
@@ -540,51 +501,66 @@ mod tests {
     }
 
     #[test]
-    fn reads_input_revisions_from_jj_history() {
-        let directory =
-            std::env::temp_dir().join(format!("swix-input-jj-test-{}", std::process::id()));
-        let _ = fs::remove_dir_all(&directory);
-        fs::create_dir_all(&directory).unwrap();
-        let run_jj = |arguments: &[&str]| {
-            let status = Command::new(JJ)
-                .current_dir(&directory)
+    fn reads_revisions_from_the_flake_remote() {
+        let root =
+            std::env::temp_dir().join(format!("swix-input-remote-test-{}", std::process::id()));
+        let remote = root.join("remote");
+        let flake = root.join("flake");
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&remote).unwrap();
+        fs::create_dir_all(&flake).unwrap();
+        let run_git = |arguments: &[&str]| {
+            let output = Command::new(GIT)
+                .current_dir(&remote)
                 .args(arguments)
-                .status()
+                .output()
                 .unwrap();
-            assert!(status.success());
+            assert!(
+                output.status.success(),
+                "{}",
+                String::from_utf8_lossy(&output.stderr)
+            );
+            String::from_utf8(output.stdout).unwrap().trim().to_owned()
         };
-        run_jj(&["git", "init"]);
-        run_jj(&["config", "set", "--repo", "user.name", "Swix Fixture"]);
-        run_jj(&[
-            "config",
-            "set",
-            "--repo",
-            "user.email",
-            "swix@example.invalid",
-        ]);
-        fs::write(directory.join("flake.lock"), lock_fixture("aaaaaaaa")).unwrap();
-        run_jj(&["commit", "-m", "first lock"]);
-        fs::write(directory.join("flake.lock"), lock_fixture("bbbbbbbb")).unwrap();
-        run_jj(&["commit", "-m", "second lock"]);
+        run_git(&["init", "--initial-branch=main"]);
+        run_git(&["config", "user.name", "Swix Fixture"]);
+        run_git(&["config", "user.email", "swix@example.invalid"]);
+        fs::write(remote.join("value"), "first").unwrap();
+        run_git(&["add", "value"]);
+        run_git(&["commit", "-m", "first remote revision"]);
+        let first = run_git(&["rev-parse", "HEAD"]);
+        fs::write(remote.join("value"), "second").unwrap();
+        run_git(&["commit", "-am", "second remote revision"]);
+        let second = run_git(&["rev-parse", "HEAD"]);
+        fs::write(
+            flake.join("flake.lock"),
+            remote_lock_fixture(&format!("file://{}", remote.display()), &second),
+        )
+        .unwrap();
 
-        let cancellation = AtomicBool::new(false);
-        let records = history(&directory, "demo", &cancellation).unwrap();
-        assert_eq!(records[0].revision, "bbbbbbbb");
-        assert!(records.iter().any(|record| record.revision == "aaaaaaaa"));
-        fs::remove_dir_all(directory).unwrap();
+        let records = history(&flake, "demo", &AtomicBool::new(false)).unwrap();
+        assert_eq!(records[0].revision, second);
+        assert_eq!(records[0].summary, "second remote revision");
+        assert!(records.iter().any(|record| record.revision == first));
+        assert!(records[0].flake_ref.ends_with(&records[0].revision));
+        fs::remove_dir_all(root).unwrap();
     }
 
-    fn lock_fixture(revision: &str) -> String {
+    fn remote_lock_fixture(url: &str, revision: &str) -> String {
         format!(
             r#"{{
                 "nodes": {{
                     "root": {{ "inputs": {{ "demo": "demo" }} }},
                     "demo": {{
                         "locked": {{
-                            "type": "github",
-                            "owner": "owner",
-                            "repo": "repo",
+                            "type": "git",
+                            "url": "{url}",
                             "rev": "{revision}"
+                        }},
+                        "original": {{
+                            "type": "git",
+                            "url": "{url}",
+                            "ref": "main"
                         }}
                     }}
                 }},

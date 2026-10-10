@@ -375,9 +375,6 @@ pub struct ToolsConfig {
 
     /// Clipboard tool
     pub wl_copy: String,
-
-    /// Screen recorder
-    pub wl_screenrec: String,
 }
 
 impl Default for CaptureConfig {
@@ -427,7 +424,6 @@ impl Default for ToolsConfig {
         Self {
             satty: "satty".to_string(),
             wl_copy: "wl-copy".to_string(),
-            wl_screenrec: "wl-screenrec".to_string(),
         }
     }
 }

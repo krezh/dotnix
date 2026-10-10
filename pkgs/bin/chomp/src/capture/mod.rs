@@ -6,6 +6,7 @@ pub mod buffer;
 pub mod mode;
 pub mod screenshot;
 pub mod video;
+mod video_ipc;
 
 pub use buffer::CapturedImage;
 pub use mode::CaptureMode;
@@ -13,7 +14,7 @@ pub use screenshot::{
     capture_and_save, capture_png_bytes, capture_screenshot, captured_image_to_png,
     save_captured_image,
 };
-pub use video::{recording, start_recording, stop_recording};
+pub use video::{recording, run_recording_service, start_recording, stop_recording};
 
 use anyhow::{Context, Result};
 

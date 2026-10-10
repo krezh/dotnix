@@ -94,6 +94,19 @@ pub struct Args {
     #[arg(long, hide = true)]
     pub replay_service: bool,
 
+    /// Internal native recording worker entry point
+    #[arg(long, hide = true)]
+    pub recording_service: bool,
+
+    #[arg(long, hide = true, requires = "recording_service")]
+    pub recording_geometry: Option<String>,
+
+    #[arg(long, hide = true, requires = "recording_service")]
+    pub recording_monitor: Option<String>,
+
+    #[arg(long, hide = true, requires = "recording_service")]
+    pub recording_output: Option<PathBuf>,
+
     /// Zipline server URL (overrides config)
     #[arg(long, short = 'u')]
     pub zipline_url: Option<String>,
@@ -192,7 +205,6 @@ pub struct Settings {
     pub annotate: bool,
     pub satty_path: String,
     pub wl_copy: String,
-    pub wl_screenrec: String,
     pub ocr_language: String,
     pub recording: RecordingOptions,
     pub replay: ReplayConfig,
@@ -245,7 +257,6 @@ impl Args {
             annotate: self.annotate,
             satty_path: self.satty_path.unwrap_or(config.tools.satty),
             wl_copy: config.tools.wl_copy,
-            wl_screenrec: config.tools.wl_screenrec,
             ocr_language: config.ocr.language,
             recording: RecordingOptions {
                 max_fps: config.capture.video.max_fps,

@@ -66,7 +66,6 @@ craneLib.buildPackage rec {
         lib.makeBinPath [
           pkgs.tesseract
           pkgs.satty
-          pkgs.wl-screenrec
           pkgs.wl-clipboard
         ]
       }
