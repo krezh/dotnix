@@ -1,90 +1,46 @@
 --!nonstrict
 -- OMP Usage clickable bar icon
--- Minimal, native bar widget with legible typography and high-contrast alert states
+-- "worst" mode shows the most urgent alert, healthy icon otherwise; "providers" mode shows
+-- one glyph per provider with its headline usage.
 
-local highUsageThreshold = tonumber(noctalia.getConfig("high_usage_threshold")) or 75
+local shared = require("./shared.luau")
+
 local glyph = noctalia.getConfig("glyph") or "chart-donut-3"
 local showBadge = noctalia.getConfig("show_badge") ~= false
+local display = noctalia.getConfig("display") or "worst"
 
 local report = noctalia.state.get("report")
 local polling = noctalia.state.get("polling") == true
+local lastError = noctalia.state.get("last_error")
 
-local function formatCountdown(resetsAtMs)
-  if not resetsAtMs or resetsAtMs <= 0 then
-    return "--"
-  end
-  local nowMs = (noctalia.nowMs and noctalia.nowMs()) or (os.time() * 1000)
-  local diffMs = resetsAtMs - nowMs
-  if diffMs <= 0 then
-    return "now"
-  end
+local function buildTooltip(alerts)
+  local lines = { "OMP Provider Quotas", string.rep("─", 24) }
 
-  local sec = math.floor(diffMs / 1000)
-  if sec < 60 then
-    return sec .. "s"
+  if lastError and lastError ~= "" then
+    table.insert(lines, "⚠ Last refresh failed; data may be stale:")
+    table.insert(lines, "  " .. lastError)
+    table.insert(lines, "")
   end
 
-  local min = math.floor(sec / 60)
-  if min < 60 then
-    return min .. "m"
-  end
-
-  local hours = math.floor(min / 60)
-  local remMin = min % 60
-  if hours < 24 then
-    return hours .. "h " .. remMin .. "m"
-  end
-
-  local days = math.floor(hours / 24)
-  local remHours = hours % 24
-  return days .. "d " .. remHours .. "h"
-end
-
-local function getHighUsageLimits()
-  local list = {}
-  if not report or not report.providers then
-    return list
-  end
-
-  for _, p in ipairs(report.providers) do
-    for _, lim in ipairs(p.limits or {}) do
-      if lim.status == "exhausted" or lim.used >= highUsageThreshold then
-        table.insert(list, lim)
+  if #alerts > 0 then
+    for _, lim in ipairs(alerts) do
+      local statusTag = lim.severity == "exhausted" and " [EXHAUSTED]" or ""
+      table.insert(lines, string.format("• %s (%s): %.0f%% (resets in %s)%s",
+        lim.displayName, lim.label, lim.used, shared.formatCountdown(lim.resetsAt), statusTag))
+      if lim.exhaustsAt then
+        table.insert(lines, "    on pace to run out in " .. shared.formatCountdown(lim.exhaustsAt))
       end
     end
-  end
-
-  table.sort(list, function(a, b)
-    local aEx = (a.status == "exhausted" or a.used >= 95)
-    local bEx = (b.status == "exhausted" or b.used >= 95)
-    if aEx and not bEx then
-      return true
-    elseif not aEx and bEx then
-      return false
-    elseif aEx and bEx then
-      if a.resetsAt and b.resetsAt then
-        return a.resetsAt < b.resetsAt
-      end
-    end
-    return a.used > b.used
-  end)
-
-  return list
-end
-
-local function buildTooltip(highUsageList)
-  local lines = {}
-  table.insert(lines, "OMP Provider Quotas")
-  table.insert(lines, string.rep("─", 24))
-
-  if highUsageList and #highUsageList > 0 then
-    for _, lim in ipairs(highUsageList) do
-      local cd = formatCountdown(lim.resetsAt)
-      local statusTag = (lim.status == "exhausted" or lim.used >= 95) and " [EXHAUSTED]" or ""
-      table.insert(lines, string.format("• %s (%s): %.0f%% (resets in %s)%s", lim.displayName, lim.label, lim.used, cd, statusTag))
-    end
-  else
+  elseif report then
     table.insert(lines, "All quotas within safe limits.")
+  else
+    table.insert(lines, "No usage data yet.")
+  end
+
+  local issues = (report and report.issues) or {}
+  if #issues > 0 then
+    table.insert(lines, "")
+    table.insert(lines, string.format("⚠ %d account(s) without usage data", #issues))
   end
 
   table.insert(lines, "")
@@ -92,66 +48,98 @@ local function buildTooltip(highUsageList)
   return table.concat(lines, "\n")
 end
 
-local function render()
-  local highUsageList = getHighUsageLimits()
-  local isVertical = (barWidget.isVertical and barWidget.isVertical()) or false
-  local container = isVertical and ui.column or ui.row
+local function badge(text, color)
+  return ui.label({
+    text = text,
+    fontSize = 12,
+    fontWeight = "bold",
+    color = color,
+  })
+end
 
-  barWidget.setTooltip(buildTooltip(highUsageList))
+local function idleIcon(children)
+  local iconColor = "on_surface_variant"
+  if lastError and lastError ~= "" then
+    iconColor = "error"
+  elseif polling then
+    iconColor = "primary"
+  end
+  table.insert(children, ui.glyph({
+    name = glyph,
+    size = 20,
+    color = iconColor,
+  }))
 
+  if polling then
+    table.insert(children, ui.label({
+      text = "…",
+      fontSize = 12,
+      fontWeight = "bold",
+      color = "primary",
+    }))
+  end
+end
+
+local function worstChildren(alerts)
   local children = {}
+  local worst = alerts[1]
+  if not worst then
+    idleIcon(children)
+    return children
+  end
 
-  if #highUsageList > 0 then
-    local worst = highUsageList[1]
-    local isExhausted = (worst.status == "exhausted" or worst.used >= 95)
-    local alertColor = isExhausted and "error" or "warning"
-    local activeGlyph = worst.glyph or glyph
+  local alertColor = shared.severityColor(worst.severity)
+  table.insert(children, ui.glyph({
+    name = worst.glyph or glyph,
+    size = 20,
+    color = alertColor,
+  }))
 
-    table.insert(children, ui.glyph({
-      name = activeGlyph,
-      size = 20,
-      color = alertColor,
-    }))
-
-    if showBadge then
-      local badgeText = formatCountdown(worst.resetsAt)
-      if badgeText == "--" then
-        badgeText = string.format("%.0f%%", worst.used)
-      end
-
-      table.insert(children, ui.row({
-        fill = "surface_variant/0.50",
-        radius = 6,
-        paddingH = 6,
-        paddingV = 2,
-        align = "center",
-      }, {
-        ui.label({
-          text = badgeText,
-          fontSize = 12,
-          fontWeight = "bold",
-          color = alertColor,
-        }),
-      }))
+  if showBadge then
+    local badgeText = shared.formatCountdown(worst.resetsAt)
+    if badgeText == "--" then
+      badgeText = string.format("%.0f%%", worst.used)
     end
-  else
-    local iconColor = polling and "primary" or "on_surface_variant"
-    table.insert(children, ui.glyph({
-      name = glyph,
-      size = 20,
-      color = iconColor,
-    }))
+    table.insert(children, badge(badgeText, alertColor))
+  end
+  return children
+end
 
-    if polling then
+-- Exhausted providers show time until reset, others their headline usage.
+local function providerChildren()
+  local children = {}
+  local providers = (report and report.providers) or {}
+  if #providers == 0 then
+    idleIcon(children)
+    return children
+  end
+
+  for _, prov in ipairs(providers) do
+    local color = prov.severity == "ok" and "on_surface_variant" or shared.severityColor(prov.severity)
+    table.insert(children, ui.glyph({ name = prov.glyph, size = 18, color = color }))
+    local headline = prov.headline
+    if headline then
+      local text = headline.severity == "exhausted"
+        and shared.formatCountdown(headline.resetsAt)
+        or string.format("%.0f%%", headline.used)
       table.insert(children, ui.label({
-        text = "…",
+        text = text,
         fontSize = 12,
         fontWeight = "bold",
-        color = "primary",
+        color = color,
       }))
     end
   end
+  return children
+end
 
+local function render()
+  local alerts = (report and report.alerts) or {}
+  local container = barWidget.isVertical() and ui.column or ui.row
+
+  barWidget.setTooltip(buildTooltip(alerts))
+
+  local children = display == "providers" and providerChildren() or worstChildren(alerts)
   barWidget.render(container({
     gap = 5,
     align = "center",
@@ -169,8 +157,13 @@ noctalia.state.watch("polling", function(val)
   render()
 end)
 
+noctalia.state.watch("last_error", function(val)
+  lastError = val
+  render()
+end)
+
+-- Ticks keep the countdown badge current.
 function update()
-  noctalia.setUpdateInterval(5000)
   render()
 end
 
@@ -183,10 +176,11 @@ function onRightClick()
 end
 
 function onConfigChanged()
-  highUsageThreshold = tonumber(noctalia.getConfig("high_usage_threshold")) or 75
   glyph = noctalia.getConfig("glyph") or "chart-donut-3"
   showBadge = noctalia.getConfig("show_badge") ~= false
+  display = noctalia.getConfig("display") or "worst"
   render()
 end
 
+noctalia.setUpdateInterval(5000)
 render()

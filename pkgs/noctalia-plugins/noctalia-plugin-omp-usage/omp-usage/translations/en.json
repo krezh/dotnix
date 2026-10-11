@@ -8,10 +8,12 @@
   "settings.glyph.description": "Default glyph when all providers are healthy",
   "settings.show_badge.label": "Show Alert Badge",
   "settings.show_badge.description": "Show a subtle badge beside the icon when a provider has high usage",
-  "ui.panel_title": "Provider Quotas",
-  "ui.refresh": "Refresh",
-  "ui.refreshing": "Syncing...",
-  "ui.no_data": "No provider quotas found.",
-  "ui.resets_in": "Resets in %{time}",
-  "ui.used": "%{used}% used"
+  "settings.pace_alerts.label": "Pace Alerts",
+  "settings.pace_alerts.description": "Treat a limit as high when its usage so far projects to run out before it resets",
+  "settings.notifications.label": "Notifications",
+  "settings.notifications.description": "Notify when a limit runs high, is exhausted, or becomes available again",
+  "settings.display.label": "Bar Display",
+  "settings.display.description": "What the bar widget shows",
+  "settings.display.worst": "Most urgent alert",
+  "settings.display.providers": "Every provider"
 }

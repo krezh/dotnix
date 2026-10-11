@@ -57,6 +57,17 @@
               blur = true;
             }
             {
+              match.namespace = "^(swix)$";
+              blur = true;
+              # The layer surface's corners outside Swix's rounded panel are fully transparent;
+              # without this the blur shows there as a frosted rectangle.
+              ignore_alpha = 0.1;
+            }
+            {
+              match.namespace = "^(slumber-screensaver)$";
+              blur = true;
+            }
+            {
               match.namespace = [
                 "^(hyprpicker)$"
                 "^(logout_dialog)$"

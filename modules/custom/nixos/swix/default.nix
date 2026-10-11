@@ -20,11 +20,7 @@
     {
       options.nixosModules.swix = {
         enable = mkEnableOption "socket-activated Swix activation and system-maintenance service";
-        package = mkOption {
-          type = types.package;
-          default = pkgs.swix.override { nixPackage = config.nix.package; };
-          description = "Swix package built against the configured system Nix implementation.";
-        };
+        package = lib.mkPackageOption pkgs "swix" { };
         user = mkOption {
           type = types.str;
           description = ''
@@ -45,15 +41,22 @@
               default = "monospace";
               description = "Font family used for versions, metrics, and keycaps.";
             };
-            symbolFont = mkOption {
-              type = types.str;
-              default = "Symbols Nerd Font";
-              description = "Font family used for symbols, glyphs, and nerd icons.";
-            };
             rounding = mkOption {
               type = types.ints.between 0 64;
               default = 15;
               description = "Outer corner radius in pixels.";
+            };
+          };
+          cleanup = {
+            keepGenerations = mkOption {
+              type = types.ints.between 0 100;
+              default = 0;
+              description = "Number of recent generations retained for each Nix profile during cleanup.";
+            };
+            journalMaxAge = mkOption {
+              type = types.str;
+              default = "0";
+              description = "Archived journal retention used as the cleanup-screen default; 0 keeps none.";
             };
           };
           flakeDir = mkOption {
@@ -72,7 +75,7 @@
           disableKeybinds = mkOption {
             type = types.bool;
             default = false;
-            description = "Whether keyboard shortcuts other than Escape are disabled.";
+            description = "Whether Swix ignores the keyboard entirely.";
           };
         };
       };
@@ -86,9 +89,11 @@
               nixos_flake = settings.nixosFlake;
               sans_font = settings.appearance.sansFont;
               mono_font = settings.appearance.monoFont;
-              symbol_font = settings.appearance.symbolFont;
               rounding = settings.appearance.rounding;
-              disable_keybinds = settings.disableKeybinds;
+              cleanup = {
+                keep_generations = settings.cleanup.keepGenerations;
+                journal_max_age = settings.cleanup.journalMaxAge;
+              };
               keybinds = !settings.disableKeybinds;
             }
             // lib.optionalAttrs (settings.homeFlake != null) {

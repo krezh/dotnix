@@ -624,6 +624,7 @@ dependencies = [
  "charmed-glamour",
  "clap",
  "clap_complete",
+ "rustix",
  "serde",
  "serde_json",
  "terminal_size",

@@ -1,15 +1,17 @@
 use std::fs::{self, File, OpenOptions};
-use std::io::{self, Read, Write};
+use std::io::{self, Read};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 use std::sync::atomic::AtomicBool;
 use std::time::{Duration, Instant};
 
 use swix::command::{self, OutputLimits};
-use swix::protocol::OwnedHelperRequest;
+use swix::protocol::{ActivationMode, HelperResponse, OwnedHelperRequest};
 
 #[path = "swix_helper/cleanup.rs"]
 mod cleanup;
+#[path = "swix_helper/cancellation.rs"]
+mod cancellation;
 
 const MAX_REQUEST_BYTES: usize = 4096;
 const MAX_OUTPUT_BYTES: usize = 32 * 1024;
@@ -18,6 +20,7 @@ const ROLLBACK_TIMEOUT: Duration = Duration::from_secs(5 * 60);
 const PROFILE: &str = "/nix/var/nix/profiles/system";
 const STORE: &str = "/nix/store";
 const ACTIVATION_LOCK: &str = "/run/swix-helper.lock";
+const CANCELLATION_DIRECTORY: &str = "/run/swix-helper-cancel";
 
 struct HelperPaths {
     profile: PathBuf,
@@ -26,6 +29,7 @@ struct HelperPaths {
     nix_env: PathBuf,
     nix: PathBuf,
     journalctl: PathBuf,
+    cancellation_directory: PathBuf,
 }
 
 impl HelperPaths {
@@ -37,6 +41,7 @@ impl HelperPaths {
             nix_env: PathBuf::from("nix-env"),
             nix: PathBuf::from("nix"),
             journalctl: PathBuf::from("journalctl"),
+            cancellation_directory: PathBuf::from(CANCELLATION_DIRECTORY),
         }
     }
 }
@@ -46,7 +51,7 @@ fn main() {
     let result = handle_request();
 
     match &result {
-        Ok(()) => eprintln!(
+        Ok(_) => eprintln!(
             "swix-helper: outcome=success elapsed_ms={}",
             started.elapsed().as_millis()
         ),
@@ -57,10 +62,14 @@ fn main() {
     }
 
     let response = match &result {
-        Ok(()) => "OK\n".to_owned(),
-        Err(error) => format!("ERROR\n{error}\n"),
+        Ok(output) => HelperResponse::Ok {
+            output: output.clone(),
+        },
+        Err(error) => HelperResponse::Error {
+            message: error.clone(),
+        },
     };
-    if let Err(error) = io::stdout().write_all(response.as_bytes()) {
+    if let Err(error) = serde_json::to_writer(io::stdout().lock(), &response) {
         eprintln!("swix-helper: failed to write response: {error}");
         std::process::exit(1);
     }
@@ -70,7 +79,7 @@ fn main() {
     }
 }
 
-fn handle_request() -> Result<(), String> {
+fn handle_request() -> Result<Option<String>, String> {
     let mut input = Vec::with_capacity(MAX_REQUEST_BYTES + 1);
     io::stdin()
         .lock()
@@ -79,18 +88,57 @@ fn handle_request() -> Result<(), String> {
         .map_err(|error| format!("failed to read service request: {error}"))?;
     let paths = HelperPaths::system();
     match parse_request(&input)? {
-        OwnedHelperRequest::Activate { baseline, output } => {
-            activate_request(baseline, output, &paths)
+        OwnedHelperRequest::Activate {
+            request_id,
+            baseline,
+            output,
+        } => activate_request(
+            &request_id,
+            baseline,
+            output,
+            ActivationMode::Switch,
+            &paths,
+        )
+        .map(|()| None),
+        OwnedHelperRequest::ActivateOnBoot {
+            request_id,
+            baseline,
+            output,
+        } => activate_request(&request_id, baseline, output, ActivationMode::Boot, &paths)
+            .map(|()| None),
+        OwnedHelperRequest::Analyze { request_id, output } => {
+            analyze_request(&request_id, output, &paths).map(Some)
         }
-        OwnedHelperRequest::Cleanup { nix, journals } => cleanup::run(nix, journals, &paths),
+        OwnedHelperRequest::Cleanup {
+            request_id,
+            nix,
+            journals,
+            keep_generations,
+            journal_max_age,
+        } => cleanup::run(
+            &request_id,
+            nix,
+            journals,
+            keep_generations,
+            &journal_max_age,
+            &paths,
+        )
+        .map(|()| None),
+        OwnedHelperRequest::Cancel { request_id } => {
+            cancellation::cancel(&request_id, &paths.cancellation_directory).map(|()| None)
+        }
     }
 }
 
 fn activate_request(
+    request_id: &str,
     baseline: PathBuf,
     requested: PathBuf,
+    mode: ActivationMode,
     paths: &HelperPaths,
 ) -> Result<(), String> {
+    let cancellation =
+        cancellation::OperationCancellation::start(request_id, &paths.cancellation_directory)?;
     let closure = fs::canonicalize(&requested)
         .map_err(|error| format!("invalid system closure {}: {error}", requested.display()))?;
     validate_closure(&closure, &paths.store)?;
@@ -101,7 +149,8 @@ fn activate_request(
         ));
     }
     eprintln!(
-        "swix-helper: baseline={} closure={}",
+        "swix-helper: mode={} baseline={} closure={}",
+        mode.action(),
         baseline.display(),
         closure.display()
     );
@@ -109,7 +158,9 @@ fn activate_request(
     let _lock = acquire_activation_lock(&paths.lock)?;
     let prior = fs::canonicalize(&paths.profile)
         .map_err(|error| format!("failed to resolve prior system profile target: {error}"))?;
-    if prior != baseline {
+    // A profile already pointing at the requested closure was staged by applying it on reboot;
+    // switching to it now changes nothing about the profile.
+    if prior != baseline && prior != closure {
         return Err(format!(
             "active profile changed from {} to {}; rebuild before switching",
             baseline.display(),
@@ -125,21 +176,27 @@ fn activate_request(
         &closure,
         "setting the requested system profile",
         deadline.saturating_duration_since(Instant::now()),
+        &cancellation.flag,
     )?;
     let mut activation = Command::new(closure.join("bin/switch-to-configuration"));
-    activation.arg("switch");
+    activation.arg(mode.action());
     if let Err(activation_error) = run_command(
         &mut activation,
         "activation",
         deadline.saturating_duration_since(Instant::now()),
+        &cancellation.flag,
     ) {
-        eprintln!("swix-helper: activation outcome=failure error={activation_error}");
+        eprintln!(
+            "swix-helper: activation mode={} outcome=failure error={activation_error}",
+            mode.action()
+        );
         return match set_profile(
             &paths.nix_env,
             &paths.profile,
             &prior,
             "restoring the prior system profile",
             ROLLBACK_TIMEOUT,
+            &AtomicBool::new(false),
         ) {
             Ok(()) => {
                 eprintln!(
@@ -164,8 +221,40 @@ fn activate_request(
         };
     }
 
-    eprintln!("swix-helper: activation outcome=success");
+    eprintln!(
+        "swix-helper: activation mode={} outcome=success",
+        mode.action()
+    );
     Ok(())
+}
+fn analyze_request(
+    request_id: &str,
+    requested: PathBuf,
+    paths: &HelperPaths,
+) -> Result<String, String> {
+    let closure = fs::canonicalize(&requested)
+        .map_err(|error| format!("invalid system closure {}: {error}", requested.display()))?;
+    validate_closure(&closure, &paths.store)?;
+    let cancellation =
+        cancellation::OperationCancellation::start(request_id, &paths.cancellation_directory)?;
+    let _lock = acquire_activation_lock(&paths.lock)?;
+    let mut command = Command::new(closure.join("bin/switch-to-configuration"));
+    command.arg("dry-activate");
+    let output = run_command(
+        &mut command,
+        "dry activation",
+        ROLLBACK_TIMEOUT,
+        &cancellation.flag,
+    )?;
+    let mut detail = bounded_output(&output.stdout);
+    let stderr = bounded_output(&output.stderr);
+    if !stderr.is_empty() {
+        if !detail.is_empty() {
+            detail.push('\n');
+        }
+        detail.push_str(&stderr);
+    }
+    Ok(detail)
 }
 
 fn parse_request(input: &[u8]) -> Result<OwnedHelperRequest, String> {
@@ -233,18 +322,23 @@ fn set_profile(
     target: &Path,
     label: &str,
     timeout: Duration,
+    cancellation: &AtomicBool,
 ) -> Result<(), String> {
     let mut command = Command::new(nix_env);
     command.arg("-p").arg(profile).arg("--set").arg(target);
-    run_command(&mut command, label, timeout)
+    run_command(&mut command, label, timeout, cancellation).map(|_| ())
 }
 
-fn run_command(command: &mut Command, label: &str, timeout: Duration) -> Result<(), String> {
-    let cancellation = AtomicBool::new(false);
+fn run_command(
+    command: &mut Command,
+    label: &str,
+    timeout: Duration,
+    cancellation: &AtomicBool,
+) -> Result<Output, String> {
     let output = command::run(
         command,
         label,
-        &cancellation,
+        cancellation,
         timeout,
         OutputLimits {
             stdout: MAX_OUTPUT_BYTES,
@@ -255,7 +349,7 @@ fn run_command(command: &mut Command, label: &str, timeout: Duration) -> Result<
     )?;
     log_command_output(label, &output);
     eprintln!("swix-helper: operation={label:?} outcome=success");
-    Ok(())
+    Ok(output)
 }
 
 fn log_command_output(label: &str, output: &Output) {
@@ -287,9 +381,10 @@ fn bounded_output(bytes: &[u8]) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::os::unix::fs::{PermissionsExt, symlink};
+    use std::os::unix::fs::symlink;
     use std::sync::atomic::{AtomicU64, Ordering};
     use swix::protocol::{HelperRequest, OwnedHelperRequest};
+    use swix::test_support::write_executable_script;
 
     static FIXTURE_ID: AtomicU64 = AtomicU64::new(0);
 
@@ -313,13 +408,18 @@ mod tests {
             let requested = store.join("requested-system");
             fs::create_dir_all(prior.join("bin")).unwrap();
             fs::create_dir_all(requested.join("bin")).unwrap();
-            write_script(
+            let arguments = root.join("activation-arguments");
+            write_executable_script(
                 &requested.join("bin/switch-to-configuration"),
-                if activation_succeeds {
-                    "exit 0"
-                } else {
-                    "printf 'activation fixture failed\\n' >&2\nexit 7"
-                },
+                &format!(
+                    "printf '%s\\n' \"$*\" > \"{}\"\n{}",
+                    arguments.display(),
+                    if activation_succeeds {
+                        "exit 0"
+                    } else {
+                        "printf 'activation fixture failed\\n' >&2\nexit 7"
+                    }
+                ),
             );
             let profile = root.join("profiles/system");
             fs::create_dir_all(profile.parent().unwrap()).unwrap();
@@ -335,7 +435,7 @@ mod tests {
                     counter.display()
                 )
             };
-            write_script(&nix_env, &script);
+            write_executable_script(&nix_env, &script);
             let paths = HelperPaths {
                 profile,
                 store,
@@ -343,6 +443,7 @@ mod tests {
                 nix_env,
                 nix: root.join("nix"),
                 journalctl: root.join("journalctl"),
+                cancellation_directory: root.join("cancel"),
             };
             Self {
                 root,
@@ -353,7 +454,25 @@ mod tests {
         }
 
         fn activate(&self) -> Result<(), String> {
-            activate_request(self.prior.clone(), self.requested.clone(), &self.paths)
+            self.activate_with(ActivationMode::Switch)
+        }
+
+        fn activate_with(&self, mode: ActivationMode) -> Result<(), String> {
+            activate_request(
+                "f1a-1",
+                self.prior.clone(),
+                self.requested.clone(),
+                mode,
+                &self.paths,
+            )
+        }
+
+        /// Arguments the last `switch-to-configuration` run received.
+        fn activation_arguments(&self) -> String {
+            fs::read_to_string(self.root.join("activation-arguments"))
+                .unwrap()
+                .trim_end()
+                .to_owned()
         }
     }
 
@@ -363,36 +482,59 @@ mod tests {
         }
     }
 
-    fn write_script(path: &Path, body: &str) {
-        fs::write(path, format!("#!/bin/sh\n{body}\n")).unwrap();
-        let mut permissions = fs::metadata(path).unwrap().permissions();
-        permissions.set_mode(0o755);
-        fs::set_permissions(path, permissions).unwrap();
-    }
-
     #[test]
     fn parses_service_requests() {
-        let encoded = serde_json::to_vec(&HelperRequest::Activate {
+        let encoded = serde_json::to_vec(&HelperRequest::ActivateOnBoot {
+            request_id: "abc-123",
             baseline: Path::new("/nix/store/old-system"),
             output: Path::new("/nix/store/new-system"),
         })
         .unwrap();
         let request = parse_request(&encoded).unwrap();
-        let OwnedHelperRequest::Activate { baseline, output } = request else {
-            panic!("expected activation request");
+        let OwnedHelperRequest::ActivateOnBoot {
+            request_id,
+            baseline,
+            output,
+        } = request
+        else {
+            panic!("expected boot activation request");
         };
+        assert_eq!(request_id, "abc-123");
         assert_eq!(baseline, Path::new("/nix/store/old-system"));
         assert_eq!(output, Path::new("/nix/store/new-system"));
 
-        let cleanup =
-            parse_request(br#"{"operation":"cleanup","nix":true,"journals":false}"#).unwrap();
+        let cleanup = parse_request(
+            br#"{"operation":"cleanup","request_id":"abc-123","nix":true,"journals":false,"keep_generations":3,"journal_max_age":"14d"}"#,
+        )
+        .unwrap();
         assert!(matches!(
             cleanup,
             OwnedHelperRequest::Cleanup {
                 nix: true,
-                journals: false
+                journals: false,
+                keep_generations: 3,
+                ..
             }
         ));
+    }
+
+    /// Helpers ignore unknown fields, so boot must never ride on an `activate` request: an older
+    /// helper would drop the extra field and switch immediately instead of failing.
+    #[test]
+    fn boot_is_a_distinct_operation_from_switch() {
+        let encoded = serde_json::to_value(HelperRequest::ActivateOnBoot {
+            request_id: "a",
+            baseline: Path::new("/nix/store/old"),
+            output: Path::new("/nix/store/new"),
+        })
+        .unwrap();
+        assert_eq!(encoded["operation"], "activate_on_boot");
+
+        let switch = parse_request(
+            br#"{"operation":"activate","request_id":"a","baseline":"/nix/store/old","output":"/nix/store/new"}"#,
+        )
+        .unwrap();
+        assert!(matches!(switch, OwnedHelperRequest::Activate { .. }));
     }
 
     #[test]
@@ -436,9 +578,33 @@ mod tests {
     fn activation_sets_the_requested_profile() {
         let fixture = ActivationFixture::new(true, true);
         fixture.activate().unwrap();
+        assert_eq!(fixture.activation_arguments(), "switch");
         assert_eq!(
             fs::canonicalize(&fixture.paths.profile).unwrap(),
             fixture.requested
+        );
+    }
+
+    #[test]
+    fn boot_activation_sets_the_requested_profile() {
+        let fixture = ActivationFixture::new(true, true);
+        fixture.activate_with(ActivationMode::Boot).unwrap();
+        assert_eq!(fixture.activation_arguments(), "boot");
+        assert_eq!(
+            fs::canonicalize(&fixture.paths.profile).unwrap(),
+            fixture.requested
+        );
+    }
+
+    #[test]
+    fn failed_boot_activation_restores_the_prior_profile() {
+        let fixture = ActivationFixture::new(false, true);
+        let error = fixture.activate_with(ActivationMode::Boot).unwrap_err();
+        assert_eq!(fixture.activation_arguments(), "boot");
+        assert!(error.contains("restored prior system profile"), "{error}");
+        assert_eq!(
+            fs::canonicalize(&fixture.paths.profile).unwrap(),
+            fixture.prior
         );
     }
 
@@ -459,10 +625,24 @@ mod tests {
     }
 
     #[test]
+    fn closure_staged_for_reboot_can_still_be_switched_to() {
+        let fixture = ActivationFixture::new(true, true);
+        fs::remove_file(&fixture.paths.profile).unwrap();
+        symlink(&fixture.requested, &fixture.paths.profile).unwrap();
+
+        fixture.activate().unwrap();
+        assert_eq!(fixture.activation_arguments(), "switch");
+        assert_eq!(
+            fs::canonicalize(&fixture.paths.profile).unwrap(),
+            fixture.requested
+        );
+    }
+
+    #[test]
     fn failed_activation_restores_the_prior_profile() {
         let fixture = ActivationFixture::new(false, true);
         let error = fixture.activate().unwrap_err();
-        assert!(error.contains("restored prior system profile"));
+        assert!(error.contains("restored prior system profile"), "{error}");
         assert_eq!(
             fs::canonicalize(&fixture.paths.profile).unwrap(),
             fixture.prior
@@ -493,7 +673,13 @@ mod tests {
     fn helper_rejects_excessive_command_output() {
         let mut command = Command::new("sh");
         command.args(["-c", "yes x | head -c 32769"]);
-        let error = run_command(&mut command, "noisy fixture", Duration::from_secs(2)).unwrap_err();
+        let error = run_command(
+            &mut command,
+            "noisy fixture",
+            Duration::from_secs(2),
+            &AtomicBool::new(false),
+        )
+        .unwrap_err();
         assert!(error.contains("stdout exceeded"));
     }
 
@@ -502,8 +688,13 @@ mod tests {
         let mut command = Command::new("sh");
         command.args(["-c", "sleep 2 & wait"]);
         let started = Instant::now();
-        let error =
-            run_command(&mut command, "slow fixture", Duration::from_millis(100)).unwrap_err();
+        let error = run_command(
+            &mut command,
+            "slow fixture",
+            Duration::from_millis(100),
+            &AtomicBool::new(false),
+        )
+        .unwrap_err();
         assert!(error.contains("timed out"));
         assert!(started.elapsed() < Duration::from_secs(1));
     }

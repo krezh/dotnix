@@ -1,6 +1,6 @@
 id = "krezh/omp-usage"
 name = "OMP Usage"
-version = "0.1.0"
+version = "0.2.0"
 plugin_api = 24
 author = "krezh"
 license = "MIT"
@@ -27,6 +27,20 @@ default = 75
 min = 50
 max = 99
 
+[[setting]]
+key = "pace_alerts"
+type = "bool"
+label_key = "settings.pace_alerts.label"
+description_key = "settings.pace_alerts.description"
+default = true
+
+[[setting]]
+key = "notifications"
+type = "bool"
+label_key = "settings.notifications.label"
+description_key = "settings.notifications.description"
+default = true
+
 [[service]]
 id = "service"
 entry = "service.luau"
@@ -35,8 +49,16 @@ entry = "service.luau"
 id = "bar"
 entry = "bar.luau"
 
-  [widget.actions]
-  right = "plugin krezh/omp-usage:service all refresh"
+[[widget.setting]]
+key = "display"
+type = "select"
+label_key = "settings.display.label"
+description_key = "settings.display.description"
+default = "worst"
+options = [
+  { value = "worst", label_key = "settings.display.worst" },
+  { value = "providers", label_key = "settings.display.providers" },
+]
 
 [[widget.setting]]
 key = "glyph"
@@ -44,12 +66,14 @@ type = "glyph"
 label_key = "settings.glyph.label"
 description_key = "settings.glyph.description"
 default = "chart-donut-3"
+
 [[widget.setting]]
 key = "show_badge"
 type = "bool"
 label_key = "settings.show_badge.label"
 description_key = "settings.show_badge.description"
 default = true
+visible_when = { key = "display", values = ["worst"] }
 
 [[panel]]
 id = "panel"

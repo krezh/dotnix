@@ -19,21 +19,26 @@ pub(crate) struct Config {
     pub(crate) sans_font: String,
     #[serde(default = "default_mono_font")]
     pub(crate) mono_font: String,
-    #[serde(default = "default_symbol_font")]
-    pub(crate) symbol_font: String,
     #[serde(default = "default_rounding")]
     pub(crate) rounding: i32,
-    #[serde(default, alias = "disable-keybinds")]
-    pub(crate) disable_keybinds: bool,
     #[serde(default = "default_keybinds")]
     pub(crate) keybinds: bool,
+    #[serde(default)]
+    pub(crate) cleanup: CleanupPolicy,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+pub(crate) struct CleanupPolicy {
+    #[serde(default = "default_keep_generations")]
+    pub(crate) keep_generations: usize,
+    #[serde(default = "default_journal_max_age")]
+    pub(crate) journal_max_age: String,
 }
 
 #[derive(Clone, Debug)]
 pub(crate) struct Appearance {
     pub(crate) sans_font: String,
     pub(crate) mono_font: String,
-    pub(crate) symbol_font: String,
     pub(crate) rounding: i32,
     pub(crate) keybinds: bool,
 }
@@ -46,10 +51,6 @@ fn default_mono_font() -> String {
     "monospace".to_owned()
 }
 
-fn default_symbol_font() -> String {
-    "Symbols Nerd Font".to_owned()
-}
-
 const fn default_rounding() -> i32 {
     15
 }
@@ -57,13 +58,28 @@ const fn default_rounding() -> i32 {
 const fn default_keybinds() -> bool {
     true
 }
+const fn default_keep_generations() -> usize {
+    0
+}
+
+fn default_journal_max_age() -> String {
+    "0".to_owned()
+}
+
+impl Default for CleanupPolicy {
+    fn default() -> Self {
+        Self {
+            keep_generations: default_keep_generations(),
+            journal_max_age: default_journal_max_age(),
+        }
+    }
+}
 
 impl Default for Appearance {
     fn default() -> Self {
         Self {
             sans_font: default_sans_font(),
             mono_font: default_mono_font(),
-            symbol_font: default_symbol_font(),
             rounding: default_rounding(),
             keybinds: default_keybinds(),
         }
@@ -94,9 +110,6 @@ pub(crate) fn load_config() -> Result<Config, String> {
 pub(crate) fn parse_config(content: &str) -> Result<Config, String> {
     let mut config: Config =
         toml::from_str(content).map_err(|error| format!("invalid Swix configuration: {error}"))?;
-    if config.disable_keybinds {
-        config.keybinds = false;
-    }
     if config.nixos_flake.trim().is_empty() {
         return Err("nixos_flake must not be empty".to_owned());
     }
@@ -110,6 +123,7 @@ pub(crate) fn parse_config(content: &str) -> Result<Config, String> {
     if !(0..=64).contains(&config.rounding) {
         return Err("rounding must be between 0 and 64".to_owned());
     }
+    config.cleanup.validate()?;
     let flake_dir = config.flake_dir.to_string_lossy();
     if flake_dir == "$HOME"
         || flake_dir == "~"
@@ -132,6 +146,34 @@ fn expand_home(value: &str, home: &Path) -> PathBuf {
         .map_or_else(|| PathBuf::from(value), |rest| home.join(rest))
 }
 
+impl CleanupPolicy {
+    pub(crate) fn validate(&self) -> Result<(), String> {
+        if self.keep_generations > 100 {
+            return Err("cleanup.keep_generations must be between 0 and 100".to_owned());
+        }
+        if !valid_journal_max_age(&self.journal_max_age) {
+            return Err(
+                "cleanup.journal_max_age must be 0 or a positive duration such as 14d, 12h, or 30min"
+                    .to_owned(),
+            );
+        }
+        Ok(())
+    }
+}
+
+fn valid_journal_max_age(value: &str) -> bool {
+    if value == "0" {
+        return true;
+    }
+    let Some(unit_start) = value.find(|character: char| !character.is_ascii_digit()) else {
+        return false;
+    };
+    let (amount, unit) = value.split_at(unit_start);
+    !amount.is_empty()
+        && amount.parse::<u64>().is_ok_and(|amount| amount > 0)
+        && matches!(unit, "s" | "min" | "h" | "d" | "w" | "month" | "y")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -148,9 +190,10 @@ mod tests {
         )
         .unwrap();
         assert_eq!(config.sans_font, "Font \"Quoted\"");
-        assert_eq!(config.symbol_font, "Symbols Nerd Font");
         assert_eq!(config.rounding, 12);
         assert!(config.keybinds);
+        assert_eq!(config.cleanup.keep_generations, 0);
+        assert_eq!(config.cleanup.journal_max_age, "0");
         let disabled_config = parse_config(
             r#"
                 flake_dir = "/tmp/flake"
@@ -160,20 +203,21 @@ mod tests {
         )
         .unwrap();
         assert!(!disabled_config.keybinds);
-        let disabled_alias = parse_config(
-            r#"
-                flake_dir = "/tmp/flake"
-                nixos_flake = "host"
-                disable-keybinds = true
-            "#,
-        )
-        .unwrap();
-        assert!(!disabled_alias.keybinds);
         assert!(
             parse_config(
                 r#"flake_dir = "/tmp/flake"
                    nixos_flake = ""
                    rounding = 100"#
+            )
+            .is_err()
+        );
+        assert!(
+            parse_config(
+                r#"flake_dir = "/tmp/flake"
+                   nixos_flake = "host"
+                   [cleanup]
+                   keep_generations = 0
+                   journal_max_age = "--vacuum-size=1""#
             )
             .is_err()
         );

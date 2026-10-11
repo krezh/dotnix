@@ -11,7 +11,7 @@
 
         # Misc desktop apps
         yubikey-manager
-        # qbittorrent
+        qbittorrent
         gnome-calculator
         gnome-calendar
         gnome-clocks

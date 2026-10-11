@@ -1,9 +1,11 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
+
+use rusqlite::{Connection, OpenFlags, OptionalExtension};
 
 use super::model::{CleanupGroup, CleanupItem, CleanupKind};
 use super::run_command;
@@ -12,20 +14,13 @@ const SCAN_TIMEOUT: Duration = Duration::from_secs(5 * 60);
 const CLEAN_TIMEOUT: Duration = Duration::from_secs(30 * 60);
 const OUTPUT_LIMIT: usize = 128 * 1024 * 1024;
 const SIZE_QUERY_ARGUMENT_BYTES: usize = 512 * 1024;
-const NIX: &str = match option_env!("SWIX_NIX") {
-    Some(path) => path,
-    None => "nix",
-};
-const NIX_STORE: &str = match option_env!("SWIX_NIX_STORE") {
-    Some(path) => path,
-    None => "nix-store",
-};
-const NIX_ENV: &str = match option_env!("SWIX_NIX_ENV") {
-    Some(path) => path,
-    None => "nix-env",
-};
+const NIX: &str = "nix";
+const NIX_STORE: &str = "nix-store";
+const NIX_ENV: &str = "nix-env";
+/// Opened read-only, the way `dix` reads closures, so the scan needs no `nix-store` per batch.
+const NIX_DATABASE: &str = "file:/nix/var/nix/db/db.sqlite";
 
-pub(super) fn scan(cancellation: &AtomicBool) -> CleanupGroup {
+pub(super) fn scan(cancellation: &AtomicBool, keep_generations: usize) -> CleanupGroup {
     let mut command = Command::new(NIX_STORE);
     command.args(["--gc", "--print-dead"]);
     let output = match run_command(
@@ -47,7 +42,9 @@ pub(super) fn scan(cancellation: &AtomicBool) -> CleanupGroup {
         .map(|(index, path)| CleanupItem {
             label: store_name(&path),
             detail: path,
-            bytes: sizes.as_ref().and_then(|sizes| sizes.get(index).copied()),
+            bytes: sizes
+                .as_ref()
+                .and_then(|sizes| sizes.get(index).copied().flatten()),
             path: None,
         })
         .collect::<Vec<_>>();
@@ -59,14 +56,14 @@ pub(super) fn scan(cancellation: &AtomicBool) -> CleanupGroup {
     });
     let reclaimable = items.iter().filter_map(|item| item.bytes).sum();
 
-    let (generation_items, _) = old_generations();
+    let (generation_items, _) = old_generations(keep_generations);
     let generation_count = generation_items.len();
     items.extend(generation_items);
     let note = if generation_count == 0 {
         None
     } else {
         Some(format!(
-            "{generation_count} old generation(s) are included; their shared closure size is resolved during collection"
+            "{generation_count} generation(s) exceed the retention policy of {keep_generations} per profile; their shared closure size is resolved during collection"
         ))
     };
     CleanupGroup {
@@ -75,11 +72,18 @@ pub(super) fn scan(cancellation: &AtomicBool) -> CleanupGroup {
         reclaimable,
         items,
         note,
+        volumes: Vec::new(),
     }
 }
 
-pub(super) fn clean_user_profiles(cancellation: &AtomicBool) -> Result<(), String> {
-    let (_, profiles) = old_generations();
+pub(super) fn clean_user_profiles(
+    keep_generations: usize,
+    cancellation: &AtomicBool,
+) -> Result<(), String> {
+    let (_, profiles) = old_generations(keep_generations);
+    // Nix rejects `+0`; `+N` keeps the newest N up to and including the current generation,
+    // and every generation newer than it, matching `old_generations`.
+    let retention = format!("+{}", keep_generations.max(1));
     for profile in profiles {
         if cancellation.load(Ordering::Relaxed) {
             return Err(swix::command::CANCELLED.to_owned());
@@ -88,7 +92,7 @@ pub(super) fn clean_user_profiles(cancellation: &AtomicBool) -> Result<(), Strin
         command
             .arg("--profile")
             .arg(&profile)
-            .args(["--delete-generations", "old"]);
+            .args(["--delete-generations", &retention]);
         run_command(
             &mut command,
             "old Nix profile cleanup",
@@ -113,7 +117,36 @@ pub(super) fn collect_store(cancellation: &AtomicBool) -> Result<(), String> {
     Ok(())
 }
 
-fn path_sizes(paths: &[String], cancellation: &AtomicBool) -> Result<Vec<u64>, String> {
+/// Each path's NAR size, or `None` for one collected since the dead-path scan. Falls back to
+/// `nix-store --query --size` when the database cannot be read.
+fn path_sizes(paths: &[String], cancellation: &AtomicBool) -> Result<Vec<Option<u64>>, String> {
+    match database_sizes(NIX_DATABASE, paths) {
+        Ok(sizes) => Ok(sizes),
+        Err(_) => command_sizes(paths, cancellation)
+            .map(|sizes| sizes.into_iter().map(Some).collect()),
+    }
+}
+
+fn database_sizes(database: &str, paths: &[String]) -> rusqlite::Result<Vec<Option<u64>>> {
+    let connection = Connection::open_with_flags(
+        database,
+        OpenFlags::SQLITE_OPEN_READ_ONLY
+            | OpenFlags::SQLITE_OPEN_NO_MUTEX
+            | OpenFlags::SQLITE_OPEN_URI,
+    )?;
+    let mut statement = connection.prepare("SELECT narSize FROM ValidPaths WHERE path = ?1")?;
+    paths
+        .iter()
+        .map(|path| {
+            let size = statement
+                .query_row([path], |row| row.get::<_, Option<i64>>(0))
+                .optional()?;
+            Ok(size.flatten().and_then(|size| u64::try_from(size).ok()))
+        })
+        .collect()
+}
+
+fn command_sizes(paths: &[String], cancellation: &AtomicBool) -> Result<Vec<u64>, String> {
     let mut sizes = Vec::with_capacity(paths.len());
     let mut start = 0;
     while start < paths.len() {
@@ -188,7 +221,7 @@ fn store_name(path: &str) -> String {
         .to_owned()
 }
 
-fn old_generations() -> (Vec<CleanupItem>, Vec<PathBuf>) {
+fn old_generations(keep_generations: usize) -> (Vec<CleanupItem>, Vec<PathBuf>) {
     let mut roots = vec![PathBuf::from("/nix/var/nix/profiles")];
     if let Ok(user) = std::env::var("USER") {
         roots.push(PathBuf::from("/nix/var/nix/profiles/per-user").join(user));
@@ -197,8 +230,7 @@ fn old_generations() -> (Vec<CleanupItem>, Vec<PathBuf>) {
         roots.push(state.join("nix/profiles"));
     }
 
-    let mut items = Vec::new();
-    let mut profiles = HashSet::new();
+    let mut generations = HashMap::<PathBuf, Vec<(u64, PathBuf, bool, String)>>::new();
     for root in roots {
         let Ok(entries) = fs::read_dir(&root) else {
             continue;
@@ -215,17 +247,44 @@ fn old_generations() -> (Vec<CleanupItem>, Vec<PathBuf>) {
             let Ok(target) = fs::canonicalize(&generation) else {
                 continue;
             };
-            if current == target {
+            generations.entry(profile).or_default().push((
+                generation_number,
+                generation,
+                current == target,
+                profile_name,
+            ));
+        }
+    }
+
+    let mut items = Vec::new();
+    let mut profiles = HashSet::new();
+    for (profile, mut entries) in generations {
+        entries.sort_by_key(|(number, _, _, _)| *number);
+        let Some(current) = entries
+            .iter()
+            .find_map(|(number, _, active, _)| active.then_some(*number))
+        else {
+            continue;
+        };
+        let mut retained = entries
+            .iter()
+            .filter(|(number, _, _, _)| *number <= current)
+            .map(|(number, _, _, _)| *number)
+            .collect::<Vec<_>>();
+        retained.sort_unstable_by(|left, right| right.cmp(left));
+        retained.truncate(keep_generations);
+        for (number, generation, active, profile_name) in entries {
+            if active || number > current || retained.contains(&number) {
                 continue;
             }
             items.push(CleanupItem {
-                label: format!("{profile_name} generation {generation_number}"),
+                label: format!("{profile_name} generation {number}"),
                 detail: generation.display().to_string(),
                 bytes: None,
                 path: None,
             });
             if profile != Path::new("/nix/var/nix/profiles/system") {
-                profiles.insert(profile);
+                profiles.insert(profile.clone());
             }
         }
     }
@@ -269,6 +328,39 @@ mod tests {
         assert_eq!(parse_path_sizes(&paths, b"42\n7\n").unwrap(), [42, 7]);
         assert!(parse_path_sizes(&paths, b"42\n").is_err());
         assert!(parse_path_sizes(&paths, b"42\n7\n9\n").is_err());
+    }
+
+    #[test]
+    fn reads_database_sizes_in_path_order_and_skips_collected_paths() {
+        let database = std::env::temp_dir().join(format!(
+            "swix-nix-db-test-{}.sqlite",
+            std::process::id()
+        ));
+        let _ = fs::remove_file(&database);
+        let connection = Connection::open(&database).unwrap();
+        connection
+            .execute_batch(
+                "CREATE TABLE ValidPaths (id INTEGER PRIMARY KEY, path TEXT UNIQUE NOT NULL, narSize INTEGER);
+                 INSERT INTO ValidPaths (path, narSize) VALUES
+                     ('/nix/store/abc-one', 42),
+                     ('/nix/store/def-two', 7),
+                     ('/nix/store/ghi-unsized', NULL);",
+            )
+            .unwrap();
+        drop(connection);
+        let paths = [
+            "/nix/store/def-two",
+            "/nix/store/zzz-collected",
+            "/nix/store/abc-one",
+            "/nix/store/ghi-unsized",
+        ]
+        .map(str::to_owned);
+
+        let sizes = database_sizes(database.to_str().unwrap(), &paths).unwrap();
+
+        assert_eq!(sizes, [Some(7), None, Some(42), None]);
+        assert!(database_sizes("/nonexistent/db.sqlite", &paths).is_err());
+        fs::remove_file(&database).unwrap();
     }
 
     #[test]

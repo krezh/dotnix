@@ -2,12 +2,24 @@
   lib,
   craneLib,
   pkgs,
-  nixPackage ? pkgs.nix,
   makeWrapper,
   wrapGAppsHook4,
 }:
 craneLib.buildPackage rec {
-  src = lib.cleanSource ./.;
+  # The root spans `pkgs/bin` so the `nix-changelog` path dependency is in the source.
+  src = lib.fileset.toSource {
+    root = ../.;
+    fileset = lib.fileset.unions [
+      (lib.fileset.fromSource (lib.cleanSource ./.))
+      (craneLib.fileset.commonCargoSources ../nix-changelog)
+    ];
+  };
+  cargoToml = ./Cargo.toml;
+  cargoLock = ./Cargo.lock;
+  postUnpack = ''
+    cd "$sourceRoot/swix"
+    sourceRoot="."
+  '';
   strictDeps = true;
 
   buildInputs = with pkgs; [
@@ -19,15 +31,14 @@ craneLib.buildPackage rec {
   env = {
     SWIX_GIT = lib.getExe pkgs.git;
     SWIX_JJ = lib.getExe pkgs.jujutsu;
-    SWIX_JOURNALCTL = lib.getExe' pkgs.systemd "journalctl";
-    SWIX_NIX = lib.getExe nixPackage;
-    SWIX_NIX_ENV = lib.getExe' nixPackage "nix-env";
-    SWIX_NIX_STORE = lib.getExe' nixPackage "nix-store";
   };
 
   cargoArtifacts = craneLib.buildDepsOnly {
     inherit
       src
+      cargoToml
+      cargoLock
+      postUnpack
       strictDeps
       buildInputs
       env
@@ -54,6 +65,9 @@ craneLib.buildPackage rec {
   passthru.tests.clippy = craneLib.cargoClippy {
     inherit
       src
+      cargoToml
+      cargoLock
+      postUnpack
       strictDeps
       buildInputs
       env
@@ -67,10 +81,8 @@ craneLib.buildPackage rec {
     gappsWrapperArgs+=(
       --prefix PATH : ${
         lib.makeBinPath [
-          pkgs.dix
           pkgs.git
           pkgs.jujutsu
-          pkgs.nix-changelog
         ]
       }
     )

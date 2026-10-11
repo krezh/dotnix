@@ -183,22 +183,6 @@
         "type": "github"
       }
     },
-    "ecc": {
-      "flake": false,
-      "locked": {
-        "lastModified": 1791770530,
-        "narHash": "sha256-3Vc+NOhoMy2rmlhh/UU0W8J+LuBUwgFbwFDOOZBALt8=",
-        "owner": "affaan-m",
-        "repo": "ECC",
-        "rev": "b92f181b3b748d1abbc2afd94af6aa7d8c8fca29",
-        "type": "github"
-      },
-      "original": {
-        "owner": "affaan-m",
-        "repo": "ECC",
-        "type": "github"
-      }
-    },
     "fast-nix-gc": {
       "inputs": {
         "nix-darwin": "nix-darwin",
@@ -477,7 +461,9 @@
     },
     "hardware": {
       "inputs": {
-        "nixpkgs": "nixpkgs_2"
+        "nixpkgs": [
+          "nixpkgs"
+        ]
       },
       "locked": {
         "lastModified": 1791721963,
@@ -771,7 +757,7 @@
     },
     "nix-cachyos-kernel": {
       "inputs": {
-        "nixpkgs": "nixpkgs_3"
+        "nixpkgs": "nixpkgs_2"
       },
       "locked": {
         "lastModified": 1791505622,
@@ -981,19 +967,6 @@
     },
     "nixpkgs_2": {
       "locked": {
-        "lastModified": 1789546076,
-        "narHash": "sha256-vWkSk5bbfTqdtMoSgD9FshACO8JCvXTFi+3cqEp0mH0=",
-        "rev": "b1b875982b17dabde9b4a37f3e229e74913e6db3",
-        "type": "tarball",
-        "url": "https://releases.nixos.org/nixos/unstable/nixos-26.11pre1074753.b1b875982b17/nixexprs.tar.xz"
-      },
-      "original": {
-        "type": "tarball",
-        "url": "https://channels.nixos.org/nixos-unstable/nixexprs.tar.xz"
-      }
-    },
-    "nixpkgs_3": {
-      "locked": {
         "lastModified": 1790505892,
         "narHash": "sha256-/pAz2XfqHS//WRn2xRjoqes7Z92qZ0Q1gufZZ3PtuwA=",
         "owner": "NixOS",
@@ -1008,7 +981,7 @@
         "type": "github"
       }
     },
-    "nixpkgs_4": {
+    "nixpkgs_3": {
       "locked": {
         "lastModified": 1791734076,
         "narHash": "sha256-i5qk1kLiit98rRbh1AXmWBNT9QXC/y4l5Wk/u5EdpDQ=",
@@ -1077,7 +1050,6 @@
         "crane": "crane",
         "devshell": "devshell",
         "disko": "disko",
-        "ecc": "ecc",
         "fast-nix-gc": "fast-nix-gc",
         "flake-parts": "flake-parts",
         "go-overlay": "go-overlay",
@@ -1096,7 +1068,7 @@
         "nix4vscode": "nix4vscode",
         "nixcord": "nixcord",
         "nixos-wsl": "nixos-wsl",
-        "nixpkgs": "nixpkgs_4",
+        "nixpkgs": "nixpkgs_3",
         "nvf": "nvf",
         "rust-overlay": "rust-overlay_3",
         "silentSDDM": "silentSDDM",

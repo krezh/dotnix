@@ -1,0 +1,225 @@
+/* ── Cleanup ───────────────────────────────────────────────────────────────── */
+
+.cleanup-header {
+  margin-bottom: 14px;
+}
+
+.cleanup-subtitle {
+  color: var(--subtext0);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.cleanup-status {
+  color: var(--overlay1);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.cleanup-storage {
+  margin-bottom: 14px;
+  padding: 16px 20px;
+}
+
+.cleanup-available {
+  color: var(--text);
+  font-size: 24px;
+  font-weight: 700;
+}
+
+.cleanup-storage-meter {
+  margin: 2px 0;
+}
+
+.cleanup-volume-mount {
+  color: var(--subtext1);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.cleanup-storage-selection {
+  border-left: 1px solid var(--surface0);
+  padding-left: 24px;
+  margin-left: 24px;
+  min-width: 220px;
+}
+
+.cleanup-selected {
+  color: var(--text);
+  font-size: 34px;
+  font-weight: 700;
+  font-feature-settings: "tnum";
+}
+
+.cleanup-storage-detail,
+.cleanup-section-detail {
+  color: var(--subtext0);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+/* A min-width rather than width-chars: the label morphs, and the column must not move the bars
+ * while it is empty. */
+.cleanup-storage-after {
+  color: var(--subtext1);
+  font-size: 12px;
+  font-weight: 600;
+  min-width: 7em;
+}
+
+.cleanup-plan-panel {
+  padding: 18px 20px;
+}
+
+.cleanup-plan-title {
+  color: var(--text);
+  font-size: 19px;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+.cleanup-plan {
+  margin-bottom: 4px;
+}
+
+/* Each category row is tinted by its tone; unselected categories go grey. The open row is raised
+ * rather than outlined, so the energy beam is the only frame a row ever gets. */
+.cleanup-plan-row {
+  border-radius: 8px;
+  padding-right: 10px;
+}
+
+.cleanup-plan-row.open {
+  background-color: var(--raised);
+}
+
+.cleanup-plan-row:not(.selected) .cleanup-plan-icon {
+  background-color: var(--surface0);
+  color: var(--overlay0);
+}
+
+.cleanup-plan-icon {
+  border-radius: 7px;
+}
+
+.cleanup-plan-name {
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.cleanup-plan-size {
+  color: var(--subtext1);
+  font-size: 12px;
+  font-weight: 600;
+  font-feature-settings: "tnum";
+}
+
+.cleanup-plan-row:not(.selected) .cleanup-plan-name,
+.cleanup-plan-row:not(.selected) .cleanup-plan-size {
+  color: var(--overlay0);
+}
+
+.cleanup-plan-row.success .cleanup-plan-size {
+  color: var(--green);
+}
+
+.cleanup-plan-row.error .cleanup-plan-size {
+  color: var(--red);
+}
+
+/* Result badges share the checkbox's size and corners; the error badge is a bold "!". */
+.cleanup-plan-outcome {
+  border-radius: 4px;
+}
+
+.cleanup-plan-outcome.success {
+  background-color: color-mix(in srgb, var(--green) 18%, transparent);
+  color: var(--green);
+}
+
+.cleanup-plan-outcome.error {
+  background-color: color-mix(in srgb, var(--red) 18%, transparent);
+  color: var(--red);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.cleanup-items-title {
+  font-size: 15px;
+  font-weight: 700;
+  transition: color 200ms ease-out;
+}
+
+.cleanup-items-note {
+  font-size: 12px;
+  padding: 10px 12px;
+}
+
+.cleanup-items-columns {
+  border-bottom: 1px solid var(--surface0);
+  padding: 0 10px 6px;
+}
+
+.cleanup-items-column {
+  color: var(--overlay1);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 1px;
+}
+
+.cleanup-item-row {
+  padding: 6px 10px;
+}
+
+.cleanup-item-name {
+  color: var(--text);
+  font-size: 13px;
+}
+
+.cleanup-item-detail,
+.cleanup-items-empty,
+.cleanup-retention-hint {
+  color: var(--subtext0);
+  font-size: 12px;
+}
+
+.cleanup-item-size {
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 600;
+  font-feature-settings: "tnum";
+}
+
+.cleanup-item-size.pending {
+  color: var(--overlay1);
+  font-weight: 400;
+}
+
+.cleanup-items-empty {
+  padding: 24px 10px;
+}
+
+/* Each row carries its own gap so a collapsed row takes none. */
+.cleanup-retention-row {
+  background-color: var(--raised);
+  border-radius: 8px;
+  margin-top: 6px;
+  padding: 8px 12px;
+}
+
+.cleanup-retention-label {
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.cleanup-footer {
+  padding-top: 12px;
+  margin-top: 14px;
+}
+
+.cleanup-button-label {
+  font-size: 14px;
+  font-weight: 600;
+}

@@ -21,20 +21,11 @@
         package = claudeWrapped;
 
         context = ''
-          # Personal preferences
-          - I always run the latest versions of all software (this is a personal habit, not project-specific).
-            When choosing config syntax, APIs, flags, or features, assume the newest release.
-            Don't suggest legacy/older alternatives or hedge about version compatibility unless I ask.
-
+          ${builtins.readFile ../lib/common-context.md}
           # Memory
           - Never read from or write to the built-in file-based auto-memory system (`~/.claude/projects/*/memory/`, `MEMORY.md`).
             Use the `memini` MCP plugin for all memory operations instead.
             If memini is unavailable, proceed without persistent memory rather than falling back to the file-based system.
-
-          # Tools
-          - Before assuming a capability isn't available, call the `mcp-tools` MCP server's `find_tool` to search its tool catalog, then `call_tool` to run whatever it finds.
-            Do this proactively, without being asked, whenever a task needs something outside your built-in tools (infra/homelab integrations, etc.).
-          - Always use jj if a .jj directory exists in the project root
         '';
 
         settings = {
@@ -56,20 +47,12 @@
             "frontend-design@claude-plugins-official" = true;
             "playground@claude-plugins-official" = true;
             "memini@memini" = true;
-            "ecc@ecc" = true;
           };
           extraKnownMarketplaces = {
             memini = {
               source = {
                 source = "github";
                 repo = "eleboucher/memini";
-              };
-              autoUpdate = true;
-            };
-            ecc = {
-              source = {
-                source = "github";
-                repo = "affaan-m/ECC";
               };
               autoUpdate = true;
             };

@@ -1,0 +1,41 @@
+/* ── Home ──────────────────────────────────────────────────────────────────── */
+
+.home-card-action {
+  border: 0;
+  border-radius: 7px;
+  min-height: 30px;
+  padding: 0 12px;
+}
+
+/* On the card's raised surface a surface0 button would vanish; lift it one step. */
+.home-card-action.surface-button {
+  background-color: var(--surface1);
+}
+
+.home-card-action.surface-button:hover,
+.home-card-action.surface-button:focus {
+  background-color: var(--surface2);
+}
+
+/* Pull, while incoming changes wait: tinted yellow, red once a pull has failed. */
+.repository-update-button {
+  --tone: var(--yellow);
+}
+
+.repository-update-button.error {
+  --tone: var(--red);
+}
+
+.repository-update-button.surface-button {
+  background-color: color-mix(in srgb, var(--tone) 12%, transparent);
+  color: var(--tone);
+}
+
+.repository-update-button.surface-button:hover,
+.repository-update-button.surface-button:focus {
+  background-color: color-mix(in srgb, var(--tone) 20%, transparent);
+}
+
+.repository-update-button .keycap-subtle {
+  color: var(--tone);
+}

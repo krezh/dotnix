@@ -1,0 +1,116 @@
+/* ── Cleanup ───────────────────────────────────────────────────────────────── */
+
+/* A plan row's button spans the icon, name, and size; the row itself carries hover and open. */
+.cleanup-plan-open {
+  background: transparent;
+  border: 0;
+  border-radius: 8px;
+  box-shadow: none;
+  outline: none;
+  min-height: 0;
+  padding: 4px 6px;
+}
+
+.cleanup-plan-open:hover {
+  background-color: var(--hover);
+}
+
+.cleanup-plan-open:focus-visible {
+  box-shadow: inset 0 0 0 1px var(--focus);
+}
+
+.cleanup-items-filter {
+  border-radius: 7px;
+  font-size: 12px;
+  min-height: 28px;
+}
+
+.cleanup-items-filter text placeholder,
+.cleanup-items-filter image {
+  color: var(--overlay1);
+}
+
+.cleanup-items-list,
+.cleanup-items-scroll {
+  background-color: transparent;
+}
+
+.cleanup-items-list > row {
+  border-radius: 6px;
+  padding: 0;
+}
+
+.cleanup-items-list > row:hover {
+  background-color: var(--hover);
+}
+
+/* The plan row's checkbox: no label, just the box. */
+.cleanup-plan-selection {
+  min-height: 0;
+  padding: 0;
+}
+
+.cleanup-plan-selection check {
+  min-width: 14px;
+  min-height: 14px;
+  padding: 0;
+  margin: 0;
+  border-radius: 4px;
+  border: 1px solid var(--surface2);
+  background: transparent;
+  box-shadow: none;
+}
+
+.cleanup-plan-selection check:checked {
+  background-color: var(--accent);
+  border-color: var(--accent);
+  color: var(--base);
+}
+
+.cleanup-plan-selection check:disabled {
+  border-color: var(--surface1);
+}
+
+.cleanup-retention-input {
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  min-height: 30px;
+}
+
+entry.cleanup-retention-input {
+  padding: 0 8px;
+}
+
+spinbutton.cleanup-retention-input text {
+  min-width: 24px;
+  padding: 0 8px;
+}
+
+spinbutton.cleanup-retention-input button {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  color: var(--overlay1);
+  padding: 0 7px;
+}
+
+spinbutton.cleanup-retention-input button:hover {
+  color: var(--text);
+}
+
+.cleanup-button {
+  border: 0;
+  border-radius: 8px;
+  min-height: 36px;
+  padding: 0 20px;
+}
+
+.cleanup-button:disabled {
+  background-color: var(--surface0);
+  color: var(--overlay1);
+}
+
+.cleanup-button.cleanup-confirming {
+  background-color: var(--red);
+}

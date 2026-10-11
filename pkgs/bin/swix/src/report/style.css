@@ -1,0 +1,243 @@
+/* ── Report ────────────────────────────────────────────────────────────────── */
+
+/* Closure and service cards in the side column. */
+.report-closure-delta {
+  color: var(--text);
+  font-size: 24px;
+  font-weight: 700;
+  margin-top: 10px;
+}
+
+.report-closure-range {
+  color: var(--subtext0);
+  font-size: 12px;
+  margin-top: 2px;
+}
+
+.report-closure-details {
+  margin-top: 14px;
+  padding-top: 12px;
+}
+
+.report-closure-key {
+  color: var(--subtext0);
+  font-size: 12px;
+}
+
+.report-closure-value {
+  color: var(--text);
+  font-size: 12px;
+}
+
+.report-closure-value.monospace {
+  font-family: var(--mono-font);
+}
+
+/* Operational impact: dry-activate output grouped by action, each in its action's tone. */
+.report-service-groups {
+  margin-top: 12px;
+}
+
+.report-service-group {
+  margin-bottom: 14px;
+}
+
+.report-service-action {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.service-chip {
+  font-weight: 400;
+}
+
+.service-chip.user {
+  font-style: italic;
+}
+
+.report-services-empty {
+  color: var(--subtext0);
+  font-size: 12px;
+}
+
+.report-services-notice {
+  font-size: 12px;
+  margin-top: 12px;
+  padding: 8px 10px;
+}
+
+.report-raw-output {
+  color: var(--subtext1);
+  font-family: var(--mono-font);
+  font-size: 11px;
+  padding: 8px 10px;
+}
+
+/* The change list's status tabs and filter. */
+.report-packages-bar {
+  border-bottom: 1px solid var(--surface0);
+  padding-bottom: 10px;
+}
+
+.report-columns {
+  padding: 10px 12px 2px 12px;
+}
+
+.report-column-label {
+  color: var(--overlay1);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 1px;
+}
+
+/* Section headers are chips in their status's tone. */
+.report-section-label {
+  margin: 10px 0 4px 0;
+}
+
+.report-package-name {
+  color: var(--text);
+  font-size: 12.5px;
+  font-weight: 500;
+}
+
+.report-version {
+  color: var(--text);
+  font-family: var(--mono-font);
+  font-size: 12px;
+}
+
+.report-size {
+  color: var(--overlay1);
+  font-family: var(--mono-font);
+  font-size: 12px;
+}
+
+.report-store-only {
+  margin-top: 8px;
+  padding-top: 10px;
+}
+
+.report-store-only-summary {
+  color: var(--overlay1);
+  font-size: 12px;
+}
+
+.config-diff-text {
+  font-family: var(--mono-font);
+  font-size: 12px;
+  padding: 10px 4px;
+}
+
+/* ── Release notes ─────────────────────────────────────────────────────────── */
+
+.changelog-versions {
+  font-family: var(--mono-font);
+}
+
+.changelog-bar {
+  border-bottom: 1px solid var(--surface0);
+  padding-bottom: 10px;
+}
+
+.changelog-source {
+  color: var(--overlay1);
+  font-family: var(--mono-font);
+  font-size: 11.5px;
+}
+
+.changelog-content {
+  padding: 14px 4px 8px 0;
+}
+
+.changelog-loading-label,
+.changelog-description {
+  color: var(--subtext0);
+  font-size: 13px;
+}
+
+.changelog-empty {
+  color: var(--overlay1);
+  font-size: 13px;
+}
+
+.changelog-notice {
+  padding: 10px 12px;
+}
+
+.changelog-notice-title {
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.changelog-notice-text {
+  font-family: var(--mono-font);
+  font-size: 12px;
+}
+
+.release-separator,
+.markdown-separator {
+  background-color: var(--surface0);
+  min-height: 1px;
+}
+
+.markdown-separator {
+  margin: 6px 0;
+}
+
+/* A release's tag: a chip in the version tone. */
+.release-tag {
+  font-family: var(--mono-font);
+  font-size: 12px;
+  padding: 3px 9px;
+}
+
+.changelog-release-tag {
+  color: var(--subtext0);
+  font-family: var(--mono-font);
+  font-size: 12px;
+}
+
+/* Headings and bullets of changelog sections take their section's tone (set in Rust). */
+.markdown-heading {
+  color: var(--text);
+  font-weight: 700;
+  margin-top: 6px;
+}
+
+.markdown-heading-1 {
+  font-size: 17px;
+}
+
+.markdown-heading-2 {
+  font-size: 15px;
+}
+
+.markdown-heading-3 {
+  font-size: 13.5px;
+}
+
+.markdown-text {
+  color: var(--subtext0);
+  font-size: 13px;
+}
+
+.markdown-bullet {
+  color: var(--overlay1);
+  font-size: 13px;
+}
+
+.markdown-quote {
+  background-color: var(--hover);
+  border-radius: 6px;
+  padding: 6px 12px;
+}
+
+.markdown-code {
+  background-color: var(--surface0);
+  border-radius: 6px;
+  color: var(--text);
+  font-family: var(--mono-font);
+  font-size: 12px;
+  padding: 8px 12px;
+}

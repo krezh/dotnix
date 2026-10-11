@@ -1,0 +1,21 @@
+/* ── Tone utilities ────────────────────────────────────────────────────────────
+ * Rust picks a colour by adding .tone-<colour> (theme::tone) next to one of these. They come
+ * last so they win over a component's neutral base colours at equal specificity. */
+
+/* A chip or icon tile tinted with its tone. */
+.tinted {
+  background-color: color-mix(in srgb, var(--tone) 14%, transparent);
+  color: var(--tone);
+}
+
+/* Text in its tone. */
+.toned {
+  color: var(--tone);
+}
+
+/* A block of text on a faint tint of its tone: warnings and notices. */
+.notice {
+  background-color: color-mix(in srgb, var(--tone) 8%, transparent);
+  border-radius: 7px;
+  color: var(--tone);
+}

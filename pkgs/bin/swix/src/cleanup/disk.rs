@@ -1,21 +1,13 @@
-use std::collections::HashSet;
-use std::ffi::CString;
 use std::fs;
-use std::os::unix::ffi::OsStrExt;
 use std::os::unix::fs::MetadataExt;
 use std::path::{Path, PathBuf};
 
-use super::model::DiskUsage;
+use super::filesystem::home;
+use super::games::library_roots;
+use super::model::{CleanupKind, DiskUsage, Volume};
 
 pub(super) fn usage(path: &Path) -> Option<DiskUsage> {
-    let path = CString::new(path.as_os_str().as_bytes()).ok()?;
-    let mut stats = std::mem::MaybeUninit::<libc::statvfs>::uninit();
-    // `path` is NUL-terminated and `stats` points to writable storage.
-    if unsafe { libc::statvfs(path.as_ptr(), stats.as_mut_ptr()) } != 0 {
-        return None;
-    }
-    // A successful `statvfs` call initialized the complete structure.
-    let stats = unsafe { stats.assume_init() };
+    let stats = rustix::fs::statvfs(path).ok()?;
     let block_size = stats.f_frsize;
     let total = stats.f_blocks.saturating_mul(block_size);
     let available = stats.f_bavail.saturating_mul(block_size);
@@ -27,31 +19,55 @@ pub(super) fn usage(path: &Path) -> Option<DiskUsage> {
     })
 }
 
-pub(super) fn cleanup_usage() -> Option<DiskUsage> {
-    let mut paths = Vec::with_capacity(3);
-    if let Some(home) = std::env::var_os("HOME") {
-        paths.push(PathBuf::from(home));
-    }
-    paths.push(PathBuf::from("/nix"));
-    paths.push(PathBuf::from("/var/log"));
-
-    let mut devices = HashSet::new();
-    let mut combined = None;
-    for path in paths {
-        let Ok(metadata) = fs::metadata(&path) else {
-            continue;
-        };
-        let device = metadata.dev();
-        if !devices.insert(device) {
-            continue;
+/// The filesystems cleanup frees space on, in category order, each with the categories it hosts.
+pub(super) fn cleanup_volumes() -> Vec<Volume> {
+    let mut volumes: Vec<Volume> = Vec::new();
+    for kind in CleanupKind::ALL {
+        for path in anchors(kind) {
+            let Ok(metadata) = fs::metadata(&path) else {
+                continue;
+            };
+            let device = metadata.dev();
+            if let Some(volume) = volumes.iter_mut().find(|volume| volume.device == device) {
+                if !volume.kinds.contains(&kind) {
+                    volume.kinds.push(kind);
+                }
+                continue;
+            }
+            let Some(usage) = usage(&path) else {
+                continue;
+            };
+            volumes.push(Volume {
+                mount: mount_point(&path, device),
+                device,
+                usage,
+                kinds: vec![kind],
+            });
         }
-        let Some(current) = usage(&path) else {
-            continue;
-        };
-        let total = combined.get_or_insert(DiskUsage::default());
-        total.total = total.total.saturating_add(current.total);
-        total.used = total.used.saturating_add(current.used);
-        total.available = total.available.saturating_add(current.available);
     }
-    combined.or_else(|| usage(Path::new("/")))
+    volumes
+}
+
+/// Paths whose filesystems hold what `kind` removes; game data is spread over every Steam library.
+fn anchors(kind: CleanupKind) -> Vec<PathBuf> {
+    match kind {
+        CleanupKind::Nix => vec![PathBuf::from("/nix")],
+        CleanupKind::Docker => vec![PathBuf::from("/var/lib/docker")],
+        CleanupKind::Journals => vec![PathBuf::from("/var/log")],
+        CleanupKind::Development | CleanupKind::Caches | CleanupKind::Trash => {
+            home().into_iter().collect()
+        }
+        CleanupKind::Games | CleanupKind::GamePrefixes => library_roots(),
+    }
+}
+
+/// The topmost ancestor of `path` still on `device`: where its filesystem is mounted.
+fn mount_point(path: &Path, device: u64) -> PathBuf {
+    let mut mount = path;
+    while let Some(parent) = mount.parent()
+        && fs::metadata(parent).is_ok_and(|metadata| metadata.dev() == device)
+    {
+        mount = parent;
+    }
+    mount.to_path_buf()
 }

@@ -28,7 +28,7 @@
       fileManager = mkProg pkgs.nautilus;
       passwords = mkProg pkgs.proton-pass;
       sysMonitor = mkProg pkgs.resources;
-      swix = mkProg pkgs.swix;
+      swix = mkProg osConfig.nixosModules.swix.package;
       hyprlock.run = "${lib.getExe config.programs.hyprlock.package} --grace 0";
       shell.run = "${lib.getExe config.programs.noctalia.package} msg";
       mail.run = lib.getExe pkgs.protonmail-desktop;

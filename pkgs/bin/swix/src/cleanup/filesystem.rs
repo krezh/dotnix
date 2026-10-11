@@ -1,10 +1,12 @@
 use std::fs;
 use std::io;
+use std::os::unix::fs::MetadataExt;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::thread;
 
+use super::Freed;
 use super::model::{CleanupGroup, CleanupItem};
 
 pub(super) fn home() -> Option<PathBuf> {
@@ -103,7 +105,11 @@ pub(super) fn items_for_paths(
     })
 }
 
-pub(super) fn clean_group(group: &CleanupGroup, cancellation: &AtomicBool) -> Result<u64, String> {
+pub(super) fn clean_group(
+    group: &CleanupGroup,
+    cancellation: &AtomicBool,
+    freed: &Freed,
+) -> Result<u64, String> {
     let home = home().ok_or("HOME is unavailable")?;
     if group.items.is_empty() {
         return Ok(0);
@@ -134,7 +140,7 @@ pub(super) fn clean_group(group: &CleanupGroup, cancellation: &AtomicBool) -> Re
                             failures.push(format!("refused unsafe path {}", path.display()));
                             continue;
                         }
-                        match remove_path(path) {
+                        match remove_counted(path, item.bytes.unwrap_or(0), freed) {
                             Ok(()) => {
                                 removed = removed.saturating_add(item.bytes.unwrap_or(0));
                             }
@@ -171,6 +177,14 @@ pub(super) fn clean_group(group: &CleanupGroup, cancellation: &AtomicBool) -> Re
     }
 }
 
+/// Removes `path` and records `bytes` as freed on its filesystem.
+pub(super) fn remove_counted(path: &Path, bytes: u64, freed: &Freed) -> io::Result<()> {
+    let device = fs::symlink_metadata(path)?.dev();
+    remove_path(path)?;
+    freed.record(device, bytes);
+    Ok(())
+}
+
 fn remove_path(path: &Path) -> io::Result<()> {
     let metadata = fs::symlink_metadata(path)?;
     if metadata.is_dir() && !metadata.file_type().is_symlink() {
@@ -180,7 +194,7 @@ fn remove_path(path: &Path) -> io::Result<()> {
     }
 }
 
-fn display_path(path: &Path, root: &Path) -> String {
+pub(super) fn display_path(path: &Path, root: &Path) -> String {
     path.strip_prefix(root)
         .map(|relative| format!("~/{}", relative.display()))
         .unwrap_or_else(|_| path.display().to_string())
@@ -239,10 +253,11 @@ mod tests {
             reclaimable: 8 * 64,
             items,
             note: None,
+            volumes: Vec::new(),
         };
 
         assert_eq!(
-            clean_group(&group, &AtomicBool::new(false)).unwrap(),
+            clean_group(&group, &AtomicBool::new(false), &Freed::default()).unwrap(),
             8 * 64
         );
         assert!(group.items.iter().all(|item| {

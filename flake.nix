@@ -15,7 +15,10 @@
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-    hardware.url = "github:nixos/nixos-hardware";
+    hardware = {
+      url = "github:nixos/nixos-hardware";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
     flake-parts = {
       url = "github:hercules-ci/flake-parts";
       inputs.nixpkgs-lib.follows = "nixpkgs";
@@ -104,11 +107,6 @@
       flake = false;
     };
 
-    ecc = {
-      url = "github:affaan-m/ECC";
-      flake = false;
-    };
-
     helium = {
       url = "github:cjavad/nixpille-helium";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -126,9 +124,7 @@
 
     go-overlay = {
       url = "github:purpleclay/go-overlay";
-      inputs = {
-        nixpkgs.follows = "nixpkgs";
-      };
+      inputs.nixpkgs.follows = "nixpkgs";
     };
 
     crane.url = "github:ipetkov/crane";
@@ -173,9 +169,7 @@
 
     spicetify-nix = {
       url = "github:Gerg-L/spicetify-nix";
-      inputs = {
-        nixpkgs.follows = "nixpkgs";
-      };
+      inputs.nixpkgs.follows = "nixpkgs";
     };
 
     fast-nix-gc = {

@@ -39,5 +39,6 @@ pub(super) fn scan(cancellation: &AtomicBool) -> CleanupGroup {
         reclaimable,
         items,
         note: None,
+        volumes: Vec::new(),
     }
 }

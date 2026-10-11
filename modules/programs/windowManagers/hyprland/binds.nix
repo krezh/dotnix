@@ -34,12 +34,10 @@
       fileManager = mkProg pkgs.nautilus;
       passwords = mkProg pkgs.proton-pass;
       sysMonitor = mkProg pkgs.resources;
-      swix = mkProg pkgs.swix;
+      swix = mkProg osConfig.nixosModules.swix.package;
       hyprlock.run = "${lib.getExe config.programs.hyprlock.package} --grace 0";
-      # launcher.run = "${pkgs.netcat}/bin/nc -U /run/user/$EUID/walker/walker.sock";
       shell.run = "${lib.getExe config.programs.noctalia.package} msg";
       keybinds.run = lib.getExe pkgs.hyprland_keybinds;
-      # clipboardMgr.run = "${lib.getExe config.programs.walker.package} -m clipboard";
       mail.run = lib.getExe pkgs.protonmail-desktop;
       audioControl = mkProgWith pkgs.pwvucontrol "--tab 4";
       volume_script = lib.getExe pkgs.volume_script_hyprpanel;

@@ -11,6 +11,7 @@
             pad = "5x5 center";
             selection-target = "clipboard";
           };
+          "colors-dark".alpha = config.var.opacity;
           bell = {
             system = "no";
           };

@@ -69,6 +69,7 @@ pub(super) fn scan(cancellation: &AtomicBool) -> CleanupGroup {
         reclaimable,
         items,
         note: Some("Only reproducible build and dependency directories are selected".to_owned()),
+        volumes: Vec::new(),
     }
 }
 

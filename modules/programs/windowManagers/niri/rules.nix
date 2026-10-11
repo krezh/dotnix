@@ -195,11 +195,11 @@
             };
           }
 
-          # Layer rules: Launchers blur and rounded corners
+          # Layer rules: Launchers and Swix blur and rounded corners
           {
             layer-rule = {
               match._props = {
-                namespace = "^(rofi|launcher|walker)$";
+                namespace = "^(rofi|launcher|walker|swix)$";
               };
               background-effect.blur = true;
               geometry-corner-radius = config.var.rounding;

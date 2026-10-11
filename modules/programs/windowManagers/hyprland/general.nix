@@ -68,10 +68,8 @@
             decoration = {
               rounding = config.var.rounding;
               rounding_power = 4;
-              active_opacity = config.var.opacity;
-              inactive_opacity = config.var.opacity;
               blur = {
-                enabled = false;
+                enabled = true;
                 passes = 4;
                 size = 7;
                 noise = 0.01;

@@ -1,0 +1,281 @@
+/* ── Build ─────────────────────────────────────────────────────────────────── */
+
+.build-footer {
+  margin-top: 20px;
+  padding-top: 18px;
+}
+
+/* Main list: rows run nearly edge to edge; the toolbar lines up with the panel's text inset. */
+.build-list-panel {
+  padding: 14px 12px 12px 12px;
+}
+
+.build-list-toolbar {
+  margin: 0 8px;
+}
+
+.build-list-rule,
+.build-card-rule {
+  background-color: var(--surface0);
+  min-height: 1px;
+}
+
+.build-list-rule {
+  margin: 10px 8px 0 8px;
+}
+
+.build-list {
+  padding-bottom: 6px;
+}
+
+.build-list-empty {
+  color: var(--overlay1);
+  font-size: 12px;
+  padding: 18px 8px;
+}
+
+/* A section's tone (set in Rust) colours its header and, while work is live, its row dots. */
+.build-section .phase-section-label {
+  color: var(--tone);
+  margin: 16px 8px 8px 8px;
+}
+
+/* State changes ease: tint, height, and padding move with the row's revealed detail. */
+.build-row {
+  border-radius: 7px;
+  padding: 3px 16px 3px 14px;
+  transition: background-color 200ms ease, min-height 200ms ease, padding 200ms ease;
+}
+
+.build-row.active {
+  background-color: var(--raised);
+  min-height: 34px;
+  padding: 4px 16px 4px 14px;
+}
+
+.build-row.transfer {
+  background-color: color-mix(in srgb, var(--surface0) 55%, transparent);
+  min-height: 22px;
+  padding: 4px 16px 4px 14px;
+}
+
+.build-row-marker {
+  min-width: 10px;
+}
+
+/* Tiny status dots are the one place a full circle is allowed. */
+.build-row-dot {
+  background-color: var(--surface2);
+  border-radius: 50%;
+  min-height: 7px;
+  min-width: 7px;
+  transition: background-color 200ms ease, min-height 200ms ease, min-width 200ms ease;
+}
+
+.build-row.active .build-row-dot {
+  min-height: 10px;
+  min-width: 10px;
+}
+
+.build-row.transfer .build-row-dot {
+  min-height: 9px;
+  min-width: 9px;
+}
+
+.tone-yellow .build-row-dot,
+.tone-sapphire .build-row-dot {
+  background-color: var(--tone);
+}
+
+.build-row-mark {
+  color: var(--green);
+  font-size: 11px;
+}
+
+.build-row.failed .build-row-mark,
+.build-row.failed .build-row-value {
+  color: var(--red);
+}
+
+/* Failed work keeps its last log line, on a faint red tint. */
+.build-row.failed {
+  background-color: color-mix(in srgb, var(--red) 8%, transparent);
+  min-height: 34px;
+  padding: 4px 16px 4px 14px;
+}
+
+.build-row.failed .build-row-title {
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* Store-hash prefix telling apart derivations that share a name. */
+.build-row-tag {
+  color: var(--overlay1);
+  font-family: var(--mono-font);
+  font-size: 11px;
+}
+
+.build-row-title {
+  color: var(--subtext0);
+  font-size: 12.5px;
+  transition: color 200ms ease;
+}
+
+.build-row.active .build-row-title {
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.build-row.transfer .build-row-title {
+  color: var(--text);
+  font-weight: 500;
+}
+
+/* Finished work recedes; the green check carries its state. */
+.build-row.done .build-row-title {
+  color: var(--subtext0);
+  font-weight: 400;
+}
+
+.build-row-column {
+  color: var(--overlay1);
+  font-size: 12px;
+}
+
+/* The top margin sits inside the detail's revealer, so it collapses along with the detail. */
+.build-row-detail {
+  color: var(--subtext0);
+  font-family: var(--mono-font);
+  font-size: 11px;
+  margin-top: 1px;
+}
+
+.build-row-value {
+  color: var(--overlay1);
+  font-feature-settings: "tnum";
+  font-size: 12px;
+  transition: color 200ms ease;
+}
+
+.build-row.active .build-row-value {
+  color: var(--subtext1);
+}
+
+.build-row.done .build-row-value {
+  color: var(--subtext0);
+}
+
+.build-row.transfer .build-row-value {
+  color: var(--subtext0);
+  font-family: var(--mono-font);
+}
+
+/* Side column cards: evaluation, progress, downloads, warnings. */
+.build-card-header {
+  margin-bottom: 12px;
+}
+
+.build-card-figure {
+  color: var(--text);
+  font-feature-settings: "tnum";
+  font-size: 26px;
+  font-weight: 700;
+}
+
+.build-card-figure.small {
+  font-size: 20px;
+}
+
+.build-card-figure-note {
+  color: var(--subtext0);
+  font-size: 13px;
+}
+
+.build-card-rate {
+  color: var(--sapphire);
+  font-feature-settings: "tnum";
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.build-meter {
+  margin: 12px 0 10px 0;
+}
+
+.build-card-note {
+  color: var(--overlay1);
+  font-size: 12px;
+}
+
+.build-card-rule {
+  margin: 14px 0 12px 0;
+}
+
+.build-card-line {
+  margin-bottom: 6px;
+}
+
+.build-card-caption {
+  color: var(--subtext0);
+  font-feature-settings: "tnum";
+  font-size: 12px;
+}
+
+.build-card-value {
+  color: var(--text);
+  font-size: 12px;
+}
+
+.build-sparkline {
+  margin-top: 12px;
+}
+
+.build-warning {
+  border-radius: 6px;
+  padding: 6px 12px;
+}
+
+.build-warning-text {
+  font-size: 11.5px;
+}
+
+.build-warnings-card .build-card-note {
+  margin-top: 8px;
+}
+
+/* Build failure: the error card replaces the side column's first card; the log replaces the
+ * activity list. Buttons, the error scroll, and the log's text view are in controls.css. */
+.build-error-card .panel-eyebrow {
+  color: var(--red);
+}
+
+.build-error-text {
+  color: var(--text);
+  font-family: var(--mono-font);
+  font-size: 11.5px;
+  padding: 10px 12px 10px 14px;
+}
+
+.build-error-actions {
+  margin-top: 12px;
+}
+
+.build-log-status {
+  color: var(--subtext0);
+  font-size: 12px;
+  margin: 10px 8px 0 8px;
+}
+
+.build-log-scroll {
+  margin-top: 8px;
+}
+
+.build-error {
+  color: var(--red);
+  font-family: var(--mono-font);
+  font-size: 14px;
+  padding: 14px 16px;
+}

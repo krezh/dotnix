@@ -30,6 +30,7 @@
           "catppuccin-icons"
           "editorconfig"
           "jj-lsp"
+          "emmet"
         ];
         userSettings = {
           auto_update = false;

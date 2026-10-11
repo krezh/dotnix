@@ -1,0 +1,221 @@
+/* Buttons, checks, entries, rows, and scrollers: widgets the GTK theme also styles. Loaded above
+ * USER priority so these win over the theme imported by the user's gtk.css; everything else is
+ * in the style.css files. Colours, fonts, and radii come from the custom properties app/style.rs
+ * prepends.
+ *
+ * Shared controls are here; each domain's controls.css only adds sizing and its own states. */
+
+/* ── Shared controls ───────────────────────────────────────────────────────── */
+
+/* Popup surface: transparent so .updates-root's translucent base shows the compositor blur. */
+window.update-popup,
+window.update-popup.background {
+  background-color: transparent;
+  background-image: none;
+  border-radius: var(--window-radius);
+  box-shadow: none;
+}
+
+/* Scrollers and lists that sit on a panel instead of the theme's view background. */
+.see-through,
+.see-through > viewport {
+  background-color: transparent;
+  background-image: none;
+}
+
+/* The screen's single primary action: solid accent, base text. */
+.accent-button {
+  background-color: var(--accent);
+  background-image: none;
+  border: 1px solid transparent;
+  box-shadow: none;
+  color: var(--base);
+  outline: none;
+  transition: background-color 120ms ease, color 120ms ease;
+}
+
+.accent-button:hover,
+.accent-button:focus-visible {
+  background-color: var(--focus);
+  box-shadow: none;
+}
+
+.accent-button:disabled {
+  background-color: var(--mantle);
+  color: var(--overlay0);
+}
+
+/* Everything else: solid surface0, so the translucent window never shows through. */
+.surface-button {
+  background-color: var(--surface0);
+  background-image: none;
+  border: 1px solid transparent;
+  box-shadow: none;
+  color: var(--text);
+  outline: none;
+  transition: background-color 120ms ease, color 120ms ease, border-color 120ms ease;
+}
+
+.surface-button:hover {
+  background-color: var(--surface1);
+}
+
+/* :focus, not :focus-visible: a screen focuses its back button on entry, and that should show. */
+.surface-button:focus {
+  border-color: var(--focus);
+  box-shadow: none;
+}
+
+.surface-button:disabled {
+  background-color: var(--mantle);
+  color: var(--overlay0);
+}
+
+/* Text entries: base, with a focus border once the user clicks or types into them (see
+ * ui::field); a screen focusing one on entry leaves it borderless. */
+.field {
+  background-color: var(--base);
+  background-image: none;
+  border: 1px solid transparent;
+  box-shadow: none;
+  color: var(--text);
+  outline: none;
+}
+
+.field.engaged:focus-within {
+  border-color: var(--focus);
+}
+
+/* List rows: flat until hovered; the selected row is raised. */
+.list-row,
+.list-row:focus,
+.list-row:focus-visible {
+  background-color: transparent;
+  background-image: none;
+  border-radius: 6px;
+  box-shadow: none;
+  outline: none;
+  transition: background-color 120ms ease;
+}
+
+.list-row:hover {
+  background-color: var(--hover);
+}
+
+.list-row:selected,
+.list-row:selected:hover {
+  background-color: var(--raised);
+}
+
+/* An inset ring takes no layout space, so focusing a row never shifts its contents. */
+.list-row:focus-visible {
+  box-shadow: inset 0 0 0 1px var(--focus);
+}
+
+/* Links: plain accent text. */
+.text-link,
+.text-link:hover,
+.text-link:active,
+.text-link:focus {
+  background-color: transparent;
+  background-image: none;
+  border: 0;
+  box-shadow: none;
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 600;
+  min-height: 0;
+  outline: none;
+  padding: 0 2px;
+}
+
+.text-link:hover {
+  color: var(--focus);
+}
+
+.text-link:focus-visible {
+  box-shadow: inset 0 -1px 0 var(--focus);
+}
+
+/* Segmented control options are transparent: the sliding pill behind them marks the active one.
+ * Weight stays constant so the pill's target width never changes mid-slide. */
+.segmented-option,
+.segmented-option:checked,
+.segmented-option:hover,
+.segmented-option:focus {
+  background-color: transparent;
+  background-image: none;
+  border: 0;
+  border-radius: 6px;
+  box-shadow: none;
+  color: var(--overlay1);
+  font-size: 12px;
+  font-weight: 600;
+  min-height: 26px;
+  outline: none;
+  padding: 0 12px;
+  transition: color 200ms ease;
+}
+
+.segmented-option:hover {
+  color: var(--subtext1);
+}
+
+.segmented-option:checked {
+  color: var(--text);
+}
+
+.segmented-option:focus-visible {
+  box-shadow: inset 0 0 0 1px var(--focus);
+}
+
+/* Progress bars draw in their tone (set on the bar or an ancestor), overlay2 without one. */
+.cleanup-item-bar trough {
+  background-color: var(--surface0);
+  border: 0;
+  border-radius: 2px;
+  min-height: 4px;
+}
+
+.cleanup-item-bar progress {
+  background-color: var(--tone, var(--overlay2));
+  background-image: none;
+  border: 0;
+  border-radius: 2px;
+  min-height: 4px;
+}
+
+/* ── Footer navigation, shared by every screen ─────────────────────────────── */
+
+.report-back-button,
+.report-close-button {
+  border-radius: 7px;
+  color: var(--subtext1);
+  font-size: 14px;
+  font-weight: 600;
+  min-height: 36px;
+  padding: 0 14px;
+}
+
+.report-back-button:hover {
+  color: var(--text);
+}
+
+.report-close-button:hover {
+  color: var(--red);
+}
+
+/* ── Minimized bar ─────────────────────────────────────────────────────────── */
+
+.mini-action {
+  border-radius: 8px;
+  min-height: 30px;
+  padding: 0 14px;
+}
+
+.mini-restore {
+  border-radius: 8px;
+  min-height: 30px;
+  min-width: 30px;
+  padding: 0;
+}

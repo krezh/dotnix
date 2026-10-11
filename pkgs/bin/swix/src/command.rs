@@ -130,6 +130,8 @@ fn run_inner(
 
     let started = Instant::now();
     let mut status = None;
+    // Short commands finish within milliseconds; start polling fast and back off to 50 ms.
+    let mut poll = Duration::from_millis(1);
     let status = loop {
         while let Ok(line) = line_receiver.try_recv() {
             stderr_line(&line);
@@ -161,7 +163,8 @@ fn run_inner(
         {
             break exit_status;
         }
-        thread::sleep(Duration::from_millis(50));
+        thread::sleep(poll);
+        poll = (poll * 2).min(Duration::from_millis(50));
     };
 
     let stdout = stdout_reader

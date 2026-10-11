@@ -68,7 +68,7 @@ _: {
           };
           bar = {
             main = {
-              background_opacity = 0.9;
+              background_opacity = config.var.opacity;
               capsule = false;
               contact_shadow = true;
               font_family = config.var.fonts.sans;
@@ -84,6 +84,8 @@ _: {
               ];
               center = [ "workspaces" ];
               end = [
+                "krezh/omp-usage:bar"
+                "krezh/swix-check:bar"
                 "audio_visualizer"
                 "tray"
                 "network"
@@ -91,7 +93,6 @@ _: {
                 "volume"
                 "brightness"
                 "battery"
-                "krezh/omp-usage:bar"
                 "clock"
                 "notifications"
                 "session"
@@ -140,13 +141,11 @@ _: {
             };
           };
           plugins = {
-            enabled = [ "krezh/omp-usage" ];
+            enabled = [
+              "krezh/omp-usage"
+              "krezh/swix-check"
+            ];
             source = [
-              {
-                kind = "path";
-                location = "${pkgs.noctalia-plugin-omp-usage}";
-                name = "local";
-              }
               {
                 kind = "git";
                 location = "https://github.com/noctalia-dev/official-plugins";
@@ -167,6 +166,7 @@ _: {
             offline_mode = true;
             screen_time_enabled = true;
             settings_show_advanced = true;
+            settings_window_translucent = true;
             telemetry_enabled = true;
             launcher = {
               categories = false;
@@ -174,6 +174,7 @@ _: {
             panel = {
               borders = false;
               open_near_click_control_center = true;
+              transparency_mode = "soft";
             };
             session = {
               actions = [
@@ -275,5 +276,8 @@ _: {
           };
         };
       };
+
+      xdg.dataFile."noctalia/plugins/omp-usage".source = "${pkgs.noctalia-plugin-omp-usage}/omp-usage";
+      xdg.dataFile."noctalia/plugins/swix-check".source = "${pkgs.noctalia-plugin-swix-check}/swix-check";
     };
 }

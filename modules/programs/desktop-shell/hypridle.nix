@@ -3,6 +3,7 @@
     { config, lib, ... }:
     let
       hyprlock = lib.getExe config.programs.hyprlock.package;
+      slumber = lib.getExe config.homeModules.slumber.package;
     in
     {
       services.hypridle = {
@@ -13,21 +14,26 @@
             ignore_dbus_inhibit = false;
             lock_cmd = "${hyprlock}";
           };
-          listener = [
-            {
+          listener =
+            (lib.optional config.homeModules.slumber.enable {
               timeout = 10 * 60;
-              on-timeout = "${hyprlock}";
-            }
-            {
-              timeout = 15 * 60;
-              on-timeout = "hyprctl dispatch dpms off";
-              on-resume = "hyprctl dispatch dpms on";
-            }
-            {
-              timeout = 30 * 60;
-              on-timeout = "systemctl suspend";
-            }
-          ];
+              on-timeout = "${slumber}";
+            })
+            ++ [
+              {
+                timeout = 15 * 60;
+                on-timeout = "${hyprlock}";
+              }
+              {
+                timeout = 20 * 60;
+                on-timeout = "hyprctl dispatch dpms off";
+                on-resume = "hyprctl dispatch dpms on";
+              }
+              {
+                timeout = 30 * 60;
+                on-timeout = "systemctl suspend";
+              }
+            ];
         };
       };
     };

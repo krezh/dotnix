@@ -1,0 +1,189 @@
+/* ── Inputs ────────────────────────────────────────────────────────────────── */
+
+.inputs-header {
+  margin-bottom: 14px;
+}
+
+.inputs-count,
+.inputs-status {
+  color: var(--subtext0);
+  font-size: 14px;
+  font-weight: 500;
+  transition: color 180ms ease;
+}
+
+.inputs-status.error {
+  color: var(--red);
+}
+
+.inputs-sort {
+  border-radius: 8px;
+  padding: 3px;
+}
+
+.inputs-browser {
+  padding: 12px;
+}
+
+.inputs-detail {
+  padding: 18px 20px;
+}
+
+.input-row-name {
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.input-row-source {
+  color: var(--subtext0);
+  font-size: 12px;
+}
+
+/* Lock age: plain text, tinted when stale. */
+.input-row-age {
+  border-radius: 6px;
+  color: var(--overlay2);
+  font-size: 11px;
+  font-weight: 600;
+  font-feature-settings: "tnum";
+  padding: 2px 8px;
+}
+
+.inputs-detail-name {
+  color: var(--text);
+  font-size: 22px;
+  font-weight: 700;
+}
+
+.inputs-detail-source {
+  color: var(--subtext0);
+  font-size: 13px;
+}
+
+.inputs-lock-line {
+  border-bottom: 1px solid var(--surface0);
+  padding-bottom: 14px;
+}
+
+.inputs-revision {
+  color: var(--version);
+  font-family: var(--mono-font);
+  font-size: 13px;
+}
+
+.inputs-lock-meta {
+  color: var(--subtext0);
+  font-size: 12px;
+  transition: color 180ms ease;
+}
+
+.inputs-lock-meta.newer {
+  color: var(--blue);
+}
+
+.inputs-direct {
+  min-height: 36px;
+}
+
+.inputs-history-status {
+  color: var(--overlay1);
+  font-size: 12px;
+  transition: color 180ms ease;
+}
+
+.inputs-history-status.warning,
+.inputs-history-notice {
+  color: var(--yellow);
+}
+
+.inputs-history-notice {
+  font-size: 12px;
+  padding: 2px 0 8px 32px;
+}
+
+.inputs-history-empty {
+  color: var(--subtext0);
+  font-size: 12px;
+  padding: 10px 2px;
+}
+
+/* Timeline: each row's rail paints its slice of one continuous vertical line. */
+.inputs-timeline-rail {
+  min-width: 20px;
+  background-image: linear-gradient(
+    to right,
+    transparent 9px,
+    var(--surface0) 9px,
+    var(--surface0) 11px,
+    transparent 11px
+  );
+}
+
+.inputs-timeline-dot {
+  min-width: 8px;
+  min-height: 8px;
+  margin-top: 13px;
+  border-radius: 99px;
+  background-color: var(--surface2);
+}
+
+.inputs-timeline-dot.newer {
+  background-color: var(--blue);
+}
+
+.inputs-timeline-dot.current {
+  background-color: var(--base);
+  border: 2px solid var(--focus);
+  border-radius: 4px;
+}
+
+.inputs-history-revision {
+  color: color-mix(in srgb, var(--version) 75%, transparent);
+  font-family: var(--mono-font);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.inputs-history-row.current .inputs-history-revision {
+  color: var(--version);
+}
+
+.inputs-history-summary {
+  color: var(--subtext0);
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.inputs-history-date {
+  color: var(--overlay1);
+  font-size: 12px;
+  font-weight: 400;
+}
+
+/* A row's action: tinted for the newer and the locked commit (tone set in Rust). */
+.inputs-row-action {
+  border-radius: 7px;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 6px;
+}
+
+/* Rolling back is the common, less important action: shown only where the pointer or focus is. */
+.inputs-row-action.older,
+.inputs-row-action.unplaced {
+  background-color: var(--surface1);
+  color: var(--text);
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+
+.inputs-history-row:hover .inputs-row-action,
+.inputs-history-row:focus .inputs-row-action {
+  opacity: 1;
+}
+
+.inputs-button-label {
+  font-size: 13px;
+  font-weight: 600;
+}

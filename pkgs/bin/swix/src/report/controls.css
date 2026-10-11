@@ -1,0 +1,124 @@
+/* ── Report ────────────────────────────────────────────────────────────────── */
+
+.report-filter {
+  border-radius: 7px;
+  font-size: 12px;
+  min-height: 28px;
+}
+
+.report-raw-scroll {
+  background-color: var(--base);
+  background-image: none;
+  border-radius: 7px;
+  margin-top: 10px;
+}
+
+.report-row,
+.report-row:focus,
+.report-row:focus-visible {
+  padding: 5px 12px;
+}
+
+/* The row's changelog or diff link appears only on the hovered or selected row; opacity keeps
+ * its space reserved so the column never shifts. */
+.report-changelog {
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+
+.report-row:hover .report-changelog,
+.report-row:selected .report-changelog {
+  opacity: 1;
+}
+
+.report-link {
+  font-weight: 500;
+  margin-top: 10px;
+}
+
+.report-service-units > flowboxchild {
+  background-color: transparent;
+  background-image: none;
+  min-height: 0;
+  outline: none;
+  padding: 0;
+}
+
+/* The file diff is a read-only text view: let the panel show through it. */
+textview.config-diff-text,
+textview.config-diff-text > text {
+  background-color: transparent;
+  background-image: none;
+  color: var(--subtext1);
+}
+
+/* Switch now is the screen's primary action; Apply on reboot sits beside it as a surface
+ * button. Cross-host activations (switch-danger) turn red and need a second, confirming click. */
+.switch-button {
+  border: 0;
+  border-radius: 7px;
+  min-height: 34px;
+  padding: 0 20px;
+}
+
+.switch-button.switch-danger {
+  background-color: var(--red);
+  color: var(--base);
+}
+
+.switch-button.surface-button.switch-danger {
+  background-color: var(--surface0);
+  color: var(--red);
+}
+
+.switch-button.switch-danger:disabled,
+.switch-button.surface-button.switch-danger:disabled {
+  background-color: var(--mantle);
+  color: var(--overlay0);
+}
+
+.switch-button.switch-confirming,
+.switch-button.switch-confirming:hover,
+.switch-button.switch-locked,
+.switch-button.switch-locked:disabled,
+.switch-button.surface-button.switch-locked:disabled {
+  background-color: var(--red);
+  color: var(--base);
+  opacity: 1;
+}
+
+.switch-button.switch-complete,
+.switch-button.switch-complete:disabled,
+.switch-button.surface-button.switch-complete:disabled {
+  background-color: var(--green);
+  color: var(--base);
+  transition-duration: 700ms;
+}
+
+/* ── Release notes ─────────────────────────────────────────────────────────── */
+
+.changelog-release-list {
+  margin-top: 10px;
+}
+
+.changelog-release-row,
+.changelog-release-row:focus,
+.changelog-release-row:focus-visible {
+  padding: 6px 12px;
+}
+
+.changelog-release-row:selected .changelog-release-tag {
+  color: var(--version);
+}
+
+.markdown-text link,
+.markdown-text link:visited,
+.markdown-heading link,
+.markdown-heading link:visited {
+  color: var(--accent);
+}
+
+.markdown-text link:hover,
+.markdown-heading link:hover {
+  color: var(--focus);
+}

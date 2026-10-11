@@ -10,6 +10,7 @@
         settings = {
           font-family = config.var.fonts.mono;
           font-size = config.var.fonts.codeSize;
+          background-opacity = config.var.opacity;
           # font-style = "Bold";
           # font-thicken = true;
           copy-on-select = "clipboard";
@@ -25,6 +26,7 @@
           custom-shader = "${./shaders/cursor_glide.glsl}";
           app-notifications = "no-clipboard-copy";
           resize-overlay = "never";
+          scrollbar = "never";
           window-padding-x = 5;
           window-padding-y = 5;
           confirm-close-surface = false;

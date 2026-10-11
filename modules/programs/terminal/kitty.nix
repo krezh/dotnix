@@ -11,6 +11,7 @@
           shell_integration = "no-cursor";
           input_delay = 2;
           font_size = config.var.fonts.codeSize;
+          background_opacity = config.var.opacity;
           font_family = "family='Monaspace Neon'";
           bold_font = "auto";
           italic_font = "auto";

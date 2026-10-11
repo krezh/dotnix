@@ -7,16 +7,20 @@ pub(crate) enum CleanupKind {
     Docker,
     Development,
     Caches,
+    Games,
+    GamePrefixes,
     Trash,
     Journals,
 }
 
 impl CleanupKind {
-    pub(crate) const ALL: [Self; 6] = [
+    pub(crate) const ALL: [Self; 8] = [
         Self::Nix,
         Self::Docker,
         Self::Development,
         Self::Caches,
+        Self::Games,
+        Self::GamePrefixes,
         Self::Trash,
         Self::Journals,
     ];
@@ -27,6 +31,8 @@ impl CleanupKind {
             Self::Docker => "Docker",
             Self::Development => "Development artifacts",
             Self::Caches => "Application caches",
+            Self::Games => "Game caches & Proton",
+            Self::GamePrefixes => "Old game prefixes",
             Self::Trash => "Trash",
             Self::Journals => "System journals",
         }
@@ -34,12 +40,14 @@ impl CleanupKind {
 
     pub(crate) const fn description(self) -> &'static str {
         match self {
-            Self::Nix => "Old generations and unreferenced store paths",
-            Self::Docker => "Unused images, containers, volumes, and build cache",
-            Self::Development => "Rust, JavaScript, Python, Zig, and direnv build data",
-            Self::Caches => "User, package-manager, and sandbox application caches",
+            Self::Nix => "Old generations and\nunreferenced store paths",
+            Self::Docker => "Unused images, containers,\nvolumes, and build cache",
+            Self::Development => "Rust, JavaScript, Python,\nZig, and direnv build data",
+            Self::Caches => "User, package-manager, and\nsandbox application caches",
+            Self::Games => "Shader caches of uninstalled\ngames and unused Proton builds",
+            Self::GamePrefixes => "Proton prefixes of uninstalled\ngames, keeping saves",
             Self::Trash => "Files in the freedesktop trash",
-            Self::Journals => "Archived systemd journal data",
+            Self::Journals => "Archived systemd journal\ndata",
         }
     }
 
@@ -49,9 +57,36 @@ impl CleanupKind {
             Self::Docker => "package-x-generic-symbolic",
             Self::Development => "applications-engineering-symbolic",
             Self::Caches => "folder-symbolic",
+            Self::Games => "input-gaming-symbolic",
+            Self::GamePrefixes => "applications-games-symbolic",
             Self::Trash => "user-trash-symbolic",
             Self::Journals => "text-x-generic-symbolic",
         }
+    }
+
+    /// The colour that marks this category on its card, plan row, disk bar segment, and item list.
+    pub(crate) const fn color(self) -> crate::ui::theme::Color {
+        match self {
+            Self::Nix => crate::ui::theme::BLUE,
+            Self::Docker => crate::ui::theme::SAPPHIRE,
+            Self::Development => crate::ui::theme::MAUVE,
+            Self::Caches => crate::ui::theme::PEACH,
+            Self::Games => crate::ui::theme::GREEN,
+            Self::GamePrefixes => crate::ui::theme::YELLOW,
+            Self::Trash => crate::ui::theme::PINK,
+            Self::Journals => crate::ui::theme::SKY,
+        }
+    }
+
+    /// The tone class for [`Self::color`].
+    pub(crate) fn tone(self) -> &'static str {
+        crate::ui::theme::tone(self.color())
+    }
+
+    /// Whether a scan that finds something selects this category. Prefixes hold games' leftover
+    /// settings and saves, so they wait for an explicit choice.
+    pub(crate) const fn selected_by_default(self) -> bool {
+        !matches!(self, Self::GamePrefixes)
     }
 }
 
@@ -70,6 +105,9 @@ pub(crate) struct CleanupGroup {
     pub(crate) reclaimable: u64,
     pub(crate) items: Vec<CleanupItem>,
     pub(crate) note: Option<String>,
+    /// Bytes per filesystem device for a category spread over several; empty when everything
+    /// is on its one volume.
+    pub(crate) volumes: Vec<(u64, u64)>,
 }
 
 impl CleanupGroup {
@@ -80,6 +118,7 @@ impl CleanupGroup {
             reclaimable: 0,
             items: Vec::new(),
             note: Some(reason.into()),
+            volumes: Vec::new(),
         }
     }
 }
@@ -91,10 +130,20 @@ pub(crate) struct DiskUsage {
     pub(crate) available: u64,
 }
 
+/// One filesystem cleanup touches: where it is mounted, its usage, and the categories whose
+/// removals free space on it.
+#[derive(Clone, Debug)]
+pub(crate) struct Volume {
+    pub(crate) mount: PathBuf,
+    pub(crate) device: u64,
+    pub(crate) usage: DiskUsage,
+    pub(crate) kinds: Vec<CleanupKind>,
+}
+
 #[derive(Debug)]
 pub(crate) enum ScanEvent {
     Group(CleanupGroup),
-    Complete(Option<DiskUsage>),
+    Complete(Vec<Volume>),
 }
 
 #[derive(Debug)]
@@ -102,62 +151,8 @@ pub(crate) enum CleanupEvent {
     Started(CleanupKind),
     Finished(CleanupKind, Result<u64, String>),
     Complete {
-        before: Option<DiskUsage>,
-        after: Option<DiskUsage>,
+        before: Vec<Volume>,
+        after: Vec<Volume>,
         elapsed: Duration,
     },
-}
-
-pub(crate) fn format_size(bytes: u64) -> String {
-    let value = bytes as f64;
-    let (value, unit) = if value >= 1024.0 * 1024.0 * 1024.0 * 1024.0 {
-        (value / (1024.0 * 1024.0 * 1024.0 * 1024.0), "TiB")
-    } else if value >= 1024.0 * 1024.0 * 1024.0 {
-        (value / (1024.0 * 1024.0 * 1024.0), "GiB")
-    } else if value >= 1024.0 * 1024.0 {
-        (value / (1024.0 * 1024.0), "MiB")
-    } else if value >= 1024.0 {
-        (value / 1024.0, "KiB")
-    } else {
-        (value, "B")
-    };
-    format!("{value:.1} {unit}")
-}
-
-pub(super) fn parse_size(text: &str) -> Option<u64> {
-    let token = text.split_whitespace().next()?.trim();
-    let split = token
-        .find(|character: char| !character.is_ascii_digit() && character != '.')
-        .unwrap_or(token.len());
-    let value = token[..split].parse::<f64>().ok()?;
-    let unit = token[split..].trim().to_ascii_uppercase();
-    let multiplier = match unit.as_str() {
-        "" | "B" => 1.0,
-        "K" | "KB" | "KIB" => 1024.0,
-        "M" | "MB" | "MIB" => 1024.0 * 1024.0,
-        "G" | "GB" | "GIB" => 1024.0 * 1024.0 * 1024.0,
-        "T" | "TB" | "TIB" => 1024.0 * 1024.0 * 1024.0 * 1024.0,
-        _ => return None,
-    };
-    Some((value * multiplier).round() as u64)
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn parses_cleanup_tool_sizes() {
-        assert_eq!(parse_size("11.06GB (97%)"), Some(11_875_584_573));
-        assert_eq!(parse_size("344.3MB"), Some(361_024_717));
-        assert_eq!(parse_size("3.5G"), Some(3_758_096_384));
-        assert_eq!(parse_size("0B"), Some(0));
-        assert_eq!(parse_size("unknown"), None);
-    }
-
-    #[test]
-    fn formats_large_cleanup_totals() {
-        assert_eq!(format_size(1536), "1.5 KiB");
-        assert_eq!(format_size(2 * 1024 * 1024 * 1024), "2.0 GiB");
-    }
 }

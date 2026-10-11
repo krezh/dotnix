@@ -4,38 +4,17 @@
     { pkgs, lib, ... }:
     let
       llm-agents-nix = inputs.llm-agents-nix.packages.${pkgs.stdenv.hostPlatform.system};
-      ompWrapped =
-        pkgs.writeShellScriptBin "omp" ''
-          set -euo pipefail
-          export PATH="${pkgs.nodejs}/bin:${pkgs.bun}/bin:${pkgs.infisical}/bin:$PATH"
-          export PI_CONFIG_DIR=".config/omp"
-          ${builtins.readFile ../lib/memini-env.sh}
-          exec ${lib.getExe llm-agents-nix.omp} "$@"
-        ''
-        // {
-          version = lib.getVersion llm-agents-nix.omp;
-        };
-
-      commonContext = ''
-        # Personal preferences
-        - I always run the latest versions of all software (this is a personal habit, not project-specific).
-          When choosing config syntax, APIs, flags, or features, assume the newest release.
-          Don't suggest legacy/older alternatives or hedge about version compatibility unless I ask.
-
-        # Memory
-        - Use the `memini` MCP server for all persistent cross-session memory operations.
-          If memini is unavailable, proceed without persistent memory.
-
-        # Tools
-        - Before assuming a capability isn't available, check the mcp-tools MCP server's tool catalog, then call whatever it finds.
-          Do this proactively, without being asked, whenever a task needs something outside your built-in tools (infra/homelab integrations, etc.).
-        - Always use jj if a .jj directory exists in the project root
-      '';
 
       yamlFormat = pkgs.formats.yaml { };
+      jsonFormat = pkgs.formats.json { };
+
       ompConfig = {
         modelRoles = {
-          default = "openai-codex/gpt-5.6-sol:medium";
+          default = "anthropic/claude-opus-5-5:high";
+          slow = "anthropic/claude-opus-5-5:xhigh";
+          plan = "@slow";
+          smol = "anthropic/claude-haiku-5-5:low";
+          commit = "@smol";
         };
         symbolPreset = "nerd";
         composer = {
@@ -45,14 +24,18 @@
           dark = "titanium";
           light = "light";
         };
-        setupVersion = 2;
+        startup = {
+          checkUpdate = false;
+        };
+        marketplace = {
+          autoUpdate = "auto";
+        };
         statusLine = {
           preset = "custom";
           transparent = true;
           separator = "powerline-thin";
           leftSegments = [
             "pi"
-            "vim"
             "model"
             "usage"
             "mode"
@@ -62,7 +45,6 @@
             "git"
             "pr"
             "context_pct"
-            "cost"
           ];
           rightSegments = [
             "session_name"
@@ -88,18 +70,48 @@
           autoqaConsent = "denied";
         };
       };
+
+      ompConfigFile = yamlFormat.generate "omp-config.yaml" ompConfig;
+
+      ompWrapped =
+        pkgs.writeShellScriptBin "omp" ''
+          set -euo pipefail
+          export PATH="${pkgs.nodejs}/bin:${pkgs.bun}/bin:${pkgs.infisical}/bin:$PATH"
+          export PI_CONFIG_DIR=".config/omp"
+          export PI_CONFIG_FILES="${ompConfigFile}"
+          if [ "''${1:-}" != usage ]; then
+            ${builtins.readFile ../lib/memini-env.sh}
+          fi
+          exec ${lib.getExe llm-agents-nix.omp} "$@"
+        '';
+
+      ompPackage =
+        pkgs.symlinkJoin {
+          name = "omp-wrapped";
+          paths = [ ompWrapped ];
+          postBuild = "ln -s omp $out/bin/oh-my-pi";
+          meta.mainProgram = "omp";
+        }
+        // {
+          version = lib.getVersion llm-agents-nix.omp;
+        };
     in
     {
-      home.packages = [
-        ompWrapped
-        (pkgs.writeShellScriptBin "oh-my-pi" ''
-          exec ${ompWrapped}/bin/omp "$@"
-        '')
-      ];
+      home.packages = [ ompPackage ];
 
       xdg.configFile = {
-        "omp/agent/AGENTS.md".text = commonContext;
-        "omp/agent/config.yaml".source = yamlFormat.generate "omp-config.yaml" ompConfig;
+        "omp/agent/AGENTS.md".text = ''
+          ${builtins.readFile ../lib/common-context.md}
+          # Memory
+          - Use the `memini` MCP server for all persistent cross-session memory operations.
+            If memini is unavailable, proceed without persistent memory.
+        '';
+        "omp/agent/lsp.json".source = jsonFormat.generate "omp-lsp.json" {
+          servers = {
+            nil.disabled = true;
+            bashls.command = lib.getExe pkgs.bash-language-server;
+          };
+        };
       };
     };
 }

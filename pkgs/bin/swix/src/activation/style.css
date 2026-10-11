@@ -1,0 +1,63 @@
+/* ── Activation ────────────────────────────────────────────────────────────── */
+
+/* Activation progress replaces the side column; it rests on the same panel surface. */
+.switch-activity {
+  padding: 16px 18px 14px 18px;
+}
+
+.switch-activity-header {
+  margin-bottom: 6px;
+}
+
+.switch-activity-icon,
+.switch-success-icon,
+.switch-error-icon,
+.switch-activity-title,
+.switch-activity-note {
+  transition: color 700ms ease;
+}
+
+.switch-activity-icon {
+  color: var(--sapphire);
+}
+
+.switch-success-icon,
+.switch-complete-card .switch-activity-title,
+.switch-complete-card .switch-activity-note,
+.switch-activity-elapsed.complete {
+  color: var(--green);
+}
+
+.switch-error-icon,
+.switch-error-card .switch-activity-title,
+.switch-error-card .switch-activity-note,
+.switch-activity-elapsed.error {
+  color: var(--red);
+}
+
+.switch-activity-title {
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.switch-activity-elapsed {
+  background-color: var(--surface0);
+  border-radius: 6px;
+  color: var(--subtext1);
+  font-family: var(--mono-font);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 2px 8px;
+  transition: color 700ms ease;
+}
+
+.switch-activity-conduit {
+  margin: 6px 0 8px 0;
+  min-height: 28px;
+}
+
+.switch-activity-note {
+  color: var(--subtext0);
+  font-size: 12px;
+}

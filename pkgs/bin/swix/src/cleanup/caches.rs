@@ -72,6 +72,7 @@ pub(super) fn scan(cancellation: &AtomicBool) -> CleanupGroup {
         note: Some(
             "Caches are recreated by their owning applications and package managers".to_owned(),
         ),
+        volumes: Vec::new(),
     }
 }
 

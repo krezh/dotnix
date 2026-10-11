@@ -1,49 +1,18 @@
 --!nonstrict
--- OMP Usage full floating/attached dashboard panel (720x800)
+-- OMP Usage dashboard panel: provider quota cards, ordered most urgent first
 -- Clean typography, neutral background surfaces, zero colored-on-colored background fills
+
+local shared = require("./shared.luau")
 
 local report = noctalia.state.get("report")
 local polling = noctalia.state.get("polling") == true
 local lastError = noctalia.state.get("last_error")
-local highUsageThreshold = tonumber(noctalia.getConfig("high_usage_threshold")) or 75
-
-local function formatCountdown(resetsAtMs)
-  if not resetsAtMs or resetsAtMs <= 0 then
-    return "--"
-  end
-  local nowMs = (noctalia.nowMs and noctalia.nowMs()) or (os.time() * 1000)
-  local diffMs = resetsAtMs - nowMs
-  if diffMs <= 0 then
-    return "now"
-  end
-
-  local sec = math.floor(diffMs / 1000)
-  if sec < 60 then
-    return sec .. "s"
-  end
-
-  local min = math.floor(sec / 60)
-  if min < 60 then
-    return min .. "m"
-  end
-
-  local hours = math.floor(min / 60)
-  local remMin = min % 60
-  if hours < 24 then
-    return hours .. "h " .. remMin .. "m"
-  end
-
-  local days = math.floor(hours / 24)
-  local remHours = hours % 24
-  return days .. "d " .. remHours .. "h"
-end
 
 local function formatExactReset(resetsAtMs)
   if not resetsAtMs or resetsAtMs <= 0 then
     return ""
   end
-  local nowMs = (noctalia.nowMs and noctalia.nowMs()) or (os.time() * 1000)
-  local diffSec = math.floor((resetsAtMs - nowMs) / 1000)
+  local diffSec = math.floor((resetsAtMs - noctalia.nowMs()) / 1000)
   local resetSec = math.floor(resetsAtMs / 1000)
 
   if diffSec < 86400 then
@@ -53,49 +22,24 @@ local function formatExactReset(resetsAtMs)
   end
 end
 
-local function formatUpdated(fetchedAt)
-  if not fetchedAt or fetchedAt <= 0 then
+local function formatUpdated(fetchedAtMs)
+  if not fetchedAtMs or fetchedAtMs <= 0 then
     return ""
   end
-  local now = os.time()
-  local diffMin = math.floor((now - fetchedAt) / 60)
+  local diffMin = math.floor((noctalia.nowMs() - fetchedAtMs) / 60000)
   if diffMin < 1 then
     return "Synced just now"
   end
   return string.format("Synced %dm ago", diffMin)
 end
 
-local function usageColor(used, status)
-  if status == "exhausted" or used >= 95 then
-    return "error"
-  elseif used >= 75 then
-    return "warning"
-  else
-    return "primary"
-  end
-end
-
-local function providerUrgency(prov)
-  local score = 0
-  for _, lim in ipairs(prov.limits or {}) do
-    if lim.status == "exhausted" or lim.used >= 95 then
-      score = math.max(score, 10000 + (100 - (lim.used or 0)))
-    elseif lim.used >= highUsageThreshold then
-      score = math.max(score, 5000 + (lim.used or 0))
-    else
-      score = math.max(score, lim.used or 0)
-    end
-  end
-  return score
-end
-
 -- Spacious 2-tier limit card with clean neutral backgrounds
 local function buildLimitBlock(lim)
   local fraction = math.min(1.0, math.max(0.0, (lim.used or 0) / 100.0))
-  local color = usageColor(lim.used, lim.status)
-  local countdownStr = formatCountdown(lim.resetsAt)
+  local color = shared.severityColor(lim.severity)
+  local countdownStr = shared.formatCountdown(lim.resetsAt)
   local exactTime = formatExactReset(lim.resetsAt)
-  local isStrained = (lim.status == "exhausted" or lim.used >= highUsageThreshold)
+  local isStrained = lim.severity ~= "ok"
 
   local percentStr = string.format("%.0f%%", lim.used)
   if lim.used > 0 and lim.used < 1 then
@@ -107,12 +51,20 @@ local function buildLimitBlock(lim)
     resetFull = resetFull .. " (" .. exactTime .. ")"
   end
 
-  return ui.column({
-    padding = 12,
-    radius = 10,
-    fill = "surface_variant/0.20",
-    gap = 8,
-  }, {
+  local paceRow = nil
+  if lim.exhaustsAt then
+    local paceText = "On pace to run out in " .. shared.formatCountdown(lim.exhaustsAt)
+    local paceExact = formatExactReset(lim.exhaustsAt)
+    if paceExact ~= "" then
+      paceText = paceText .. " (" .. paceExact .. "), before it resets"
+    end
+    paceRow = ui.row({ gap = 6, align = "center" }, {
+      ui.glyph({ name = "trending-up", size = 14, color = "tertiary" }),
+      ui.label({ text = paceText, fontSize = 13, fontWeight = "medium", color = "tertiary" }),
+    })
+  end
+
+  local rows = {
     -- Top line: Label + Spacer + Percentage (plain bold text, no colored background)
     ui.row({ align = "center" }, {
       ui.label({
@@ -153,7 +105,7 @@ local function buildLimitBlock(lim)
         color = isStrained and color or "on_surface",
       }),
       ui.spacer({ flexGrow = 1 }),
-      lim.status == "exhausted" and ui.label({
+      lim.severity == "exhausted" and ui.label({
         text = "EXHAUSTED",
         fontSize = 12,
         fontWeight = "bold",
@@ -164,20 +116,23 @@ local function buildLimitBlock(lim)
         color = "on_surface_variant",
       }),
     }),
-  })
+  }
+  if paceRow then
+    table.insert(rows, paceRow)
+  end
+
+  return ui.column({
+    padding = 12,
+    radius = 10,
+    fill = "surface_variant/0.20",
+    gap = 8,
+  }, rows)
 end
 
 local function buildProviderCard(prov)
-  local isExhausted = false
-  for _, lim in ipairs(prov.limits or {}) do
-    if lim.status == "exhausted" or lim.used >= 95 then
-      isExhausted = true
-      break
-    end
-  end
-
-  local statusText = isExhausted and "EXHAUSTED" or "ACTIVE"
-  local statusColor = isExhausted and "error" or "secondary"
+  local isExhausted = prov.severity == "exhausted"
+  local statusText = isExhausted and "EXHAUSTED" or (prov.severity == "high" and "HIGH" or "ACTIVE")
+  local statusColor = prov.severity == "ok" and "on_surface_variant" or shared.severityColor(prov.severity)
 
   local accountSubtitle = prov.email
   if prov.planType and prov.planType ~= "" then
@@ -198,6 +153,18 @@ local function buildProviderCard(prov)
       text = "No limits reported for this account",
       fontSize = 13,
       color = "on_surface_variant",
+    }))
+  end
+
+  local credits = prov.resetCredits
+  if credits then
+    local text = string.format("%d saved reset%s", credits.count, credits.count == 1 and "" or "s")
+    if credits.expiresAtMs then
+      text = text .. " · expires in " .. shared.formatCountdown(credits.expiresAtMs)
+    end
+    table.insert(limitItems, 1, ui.row({ gap = 6, align = "center" }, {
+      ui.glyph({ name = "ticket", size = 14, color = "secondary" }),
+      ui.label({ text = text, fontSize = 13, fontWeight = "medium", color = "secondary" }),
     }))
   end
 
@@ -254,11 +221,39 @@ local function buildProviderCard(prov)
   })
 end
 
+-- "3 providers · 1 exhausted · 1 high", from the service's per-provider severity.
+local function summaryText()
+  local providers = (report and report.providers) or {}
+  if #providers == 0 then
+    return "No usage data"
+  end
+  local counts = { exhausted = 0, high = 0 }
+  for _, prov in ipairs(providers) do
+    if counts[prov.severity] then
+      counts[prov.severity] = counts[prov.severity] + 1
+    end
+  end
+  local parts = { string.format("%d provider%s", #providers, #providers == 1 and "" or "s") }
+  if counts.exhausted > 0 then
+    table.insert(parts, counts.exhausted .. " exhausted")
+  end
+  if counts.high > 0 then
+    table.insert(parts, counts.high .. " high")
+  end
+  if counts.exhausted == 0 and counts.high == 0 then
+    table.insert(parts, "all within limits")
+  end
+  return table.concat(parts, " · ")
+end
+
 local function render()
   local contentElements = {}
 
   -- Top Header
-  local syncText = polling and "Syncing..." or (report and formatUpdated(report.fetchedAt) or "")
+  local syncText = polling and "Syncing..." or (report and formatUpdated(report.fetchedAtMs) or "")
+  if not polling and report and lastError and lastError ~= "" then
+    syncText = "Stale · " .. syncText
+  end
 
   table.insert(contentElements, ui.row({ align = "center", gap = 12 }, {
     ui.row({
@@ -276,13 +271,13 @@ local function render()
     }),
     ui.column({ gap = 1, flexGrow = 1 }, {
       ui.label({
-        text = "OMP Provider Quotas & Resets",
+        text = "OMP Usage",
         fontSize = 18,
         fontWeight = "bold",
         color = "on_surface",
       }),
       ui.label({
-        text = "Real-time allowances, usage percentage, and unlock times",
+        text = summaryText(),
         fontSize = 13,
         color = "on_surface_variant",
       }),
@@ -310,9 +305,7 @@ local function render()
       controlSize = "md",
       tooltip = "Close",
       onClick = function()
-        if type(panel.close) == "function" then
-          panel.close()
-        end
+        panel.close()
       end,
     }),
   }))
@@ -333,19 +326,33 @@ local function render()
     }))
   end
 
-  -- Sorted Provider Cards
-  local providers = (report and report.providers) or {}
-  local sortedProviders = {}
-  for _, p in ipairs(providers) do
-    table.insert(sortedProviders, p)
+  -- Accounts omp cannot report usage for (disabled credentials, missing reports)
+  local issues = (report and report.issues) or {}
+  if #issues > 0 then
+    local issueRows = {}
+    for _, issue in ipairs(issues) do
+      local who = issue.account ~= "" and (issue.displayName .. " · " .. issue.account) or issue.displayName
+      table.insert(issueRows, ui.row({ align = "center", gap = 8 }, {
+        ui.glyph({ name = "user-exclamation", size = 16, color = "tertiary" }),
+        ui.label({ text = who, fontSize = 13, fontWeight = "bold", color = "on_surface" }),
+        ui.spacer({ flexGrow = 1 }),
+        ui.label({ text = issue.detail, fontSize = 12, color = "tertiary", maxLines = 1 }),
+      }))
+    end
+    table.insert(contentElements, ui.column({
+      padding = 10,
+      radius = 10,
+      fill = "tertiary/0.10",
+      gap = 6,
+    }, issueRows))
   end
-  table.sort(sortedProviders, function(a, b)
-    return providerUrgency(a) > providerUrgency(b)
-  end)
+
+  -- Provider cards, already ordered most urgent first by the service
+  local providers = (report and report.providers) or {}
 
   local cards = {}
-  if #sortedProviders > 0 then
-    for _, prov in ipairs(sortedProviders) do
+  if #providers > 0 then
+    for _, prov in ipairs(providers) do
       table.insert(cards, buildProviderCard(prov))
     end
   else
@@ -398,9 +405,6 @@ end)
 
 function onOpen()
   panel.setWantsSecondTicks(true)
-  report = noctalia.state.get("report")
-  polling = noctalia.state.get("polling") == true
-  lastError = noctalia.state.get("last_error")
   if not report then
     noctalia.state.set("command", { action = "refresh" })
   end
@@ -422,17 +426,10 @@ function onKey(chord, pressed)
   end
   local lower = tostring(chord or ""):lower()
   if lower == "escape" then
-    if type(panel.close) == "function" then
-      panel.close()
-    end
+    panel.close()
   elseif lower == "r" then
     noctalia.state.set("command", { action = "refresh" })
   end
-end
-
-function onConfigChanged()
-  highUsageThreshold = tonumber(noctalia.getConfig("high_usage_threshold")) or 75
-  render()
 end
 
 render()

@@ -5,7 +5,6 @@
       jsonFormat = pkgs.formats.json { };
     in
     {
-      # Generate ~/.config/omp/agent/mcp.json connecting oh-my-pi to shared MCP servers
       xdg.configFile."omp/agent/mcp.json".source = jsonFormat.generate "omp-mcp.json" {
         mcpServers = {
           konflate = {
@@ -15,9 +14,10 @@
             url = config.programs.mcp.servers.mcp-tools.url;
           };
           memini = {
-            url = "https://memini.plexuz.xyz/mcp";
+            url = "\${MEMINI_BASE_URL}/mcp";
             headers = {
               Authorization = "Bearer \${MEMINI_API_KEY}";
+              X-Memini-Home = "\${MEMINI_HOME}";
             };
           };
         };

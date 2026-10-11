@@ -16,7 +16,7 @@
       };
 
       config.var = {
-        opacity = 0.98;
+        opacity = 0.75;
         borderSize = 2;
         rounding = 15;
         fonts = {

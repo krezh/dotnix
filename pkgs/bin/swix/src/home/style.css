@@ -1,0 +1,107 @@
+/* ── Home ──────────────────────────────────────────────────────────────────── */
+
+.home {
+  padding: 0;
+}
+
+.home-subtitle {
+  color: var(--subtext0);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.home-status {
+  padding: 14px 0;
+}
+
+.home-status-item {
+  padding: 0 20px;
+}
+
+.home-status-item + .home-status-item {
+  border-left: 1px solid var(--surface0);
+}
+
+.home-status-value {
+  color: var(--text);
+  font-size: 18px;
+  font-weight: 700;
+  font-feature-settings: "tnum";
+}
+
+.home-status-detail {
+  color: var(--overlay1);
+  font-size: 12px;
+}
+
+.home-card {
+  background-color: var(--raised);
+  border: 1px solid transparent;
+  border-radius: 11px;
+  min-height: 112px;
+  padding: 14px 16px;
+  transition: border-color 120ms ease;
+}
+
+.home-card:focus-within {
+  border-color: var(--focus);
+}
+
+/* Each card's icon is a tile tinted with the card's tone. */
+.home-card-icon {
+  border-radius: 9px;
+}
+
+.home-card-title {
+  color: var(--text);
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.home-card-detail {
+  color: var(--subtext0);
+  font-size: 12px;
+}
+
+.home-card-footer {
+  margin-top: 12px;
+}
+
+/* The card's status: a chip on the card's raised surface, or plain text when muted. */
+.home-card-badge {
+  --chip-surface: var(--surface1);
+  padding: 3px 10px;
+}
+
+.home-card-badge.muted {
+  background-color: transparent;
+  color: var(--overlay1);
+  font-size: 12px;
+  font-weight: 400;
+  padding: 3px 0;
+}
+
+.home-card-action-label {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.home-card-action .keycap-subtle {
+  background-color: color-mix(in srgb, var(--crust) 35%, transparent);
+  border: 0;
+  border-radius: 4px;
+  color: var(--overlay1);
+  font-size: 11px;
+  min-height: 18px;
+  min-width: 18px;
+  padding: 0 4px;
+}
+
+.home-card-action.accent-button .keycap-subtle {
+  background-color: color-mix(in srgb, var(--base) 18%, transparent);
+  color: var(--base);
+}
+
+.home-footer {
+  padding-top: 12px;
+}
