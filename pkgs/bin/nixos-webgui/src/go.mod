@@ -3,7 +3,7 @@ module github.com/krezh/nixos-webgui
 go 1.26.0
 
 require (
-	github.com/go-chi/chi/v5 v5.3.2
+	github.com/go-chi/chi/v5 v5.4.0
 	github.com/shirou/gopsutil/v4 v4.26.9
 	maragu.dev/gomponents v1.4.0
 )
