@@ -174,7 +174,7 @@ pub(super) fn change_list(
     body.append(&columns_header());
     let list = gtk::ListBox::new();
     list.add_css_class("see-through");
-    list.set_selection_mode(gtk::SelectionMode::Single);
+    list.set_selection_mode(gtk::SelectionMode::None);
     list.set_activate_on_single_click(false);
     let placeholder = label("Nothing matches the filter", &["report-empty"], 0.5);
     list.set_placeholder(Some(&placeholder));
@@ -477,7 +477,7 @@ fn config_row(change: &ConfigChange, index: usize, open: &OpenRow) -> gtk::ListB
     row
 }
 
-/// The row's link to its detail screen, shown on hover or selection.
+/// The row's link to its detail screen, shown on hover.
 fn detail_link(text: &str, tooltip: &str, index: usize, open: &OpenRow) -> gtk::Button {
     let link = gtk::Button::with_label(text);
     link.add_css_class("report-changelog");

@@ -206,6 +206,7 @@
       home.packages = [
         pkgs.meld
         pkgs.jjui
+        pkgs.jayjay
         pkgs.lazyjj
         pkgs.watchman
       ];

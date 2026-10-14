@@ -10,7 +10,6 @@ use std::sync::mpsc;
 use std::thread;
 use std::time::{Duration, Instant};
 
-use gtk::gio;
 use gtk::glib;
 use gtk::prelude::*;
 
@@ -174,7 +173,7 @@ pub(crate) fn start_build(
     let running_footer = gtk::Box::new(gtk::Orientation::Horizontal, 8);
     let hint = label(
         match after {
-            AfterBuild::Review => "Notifies you when done if Swix is in the background",
+            AfterBuild::Review => "Shows the report when the build finishes",
             AfterBuild::Switch => "Switches as soon as the build finishes",
         },
         &["phase-footer-hint"],
@@ -389,8 +388,6 @@ pub(crate) fn start_build(
                 window.close();
             } else {
                 let took = started.elapsed();
-                let minimized = state.mini.get().is_some_and(|mini| mini.is_minimized());
-                notify_in_background(&window, minimized, target, after, &flake, &result, took);
                 match *result {
                     Ok(report) => {
                         let note = report_note(&report);
@@ -592,43 +589,4 @@ fn report_note(report: &Report) -> String {
         Some((old, new)) => format!("{changes} · {}", signed_size(new - old)),
         None => changes,
     }
-}
-
-/// Tells the desktop how the build ended when Swix is not the active window or is minimized.
-fn notify_in_background(
-    window: &gtk::ApplicationWindow,
-    minimized: bool,
-    target: Target,
-    after: AfterBuild,
-    flake: &str,
-    result: &Result<Report, String>,
-    took: Duration,
-) {
-    if window.is_active() && !minimized {
-        return;
-    }
-    let Some(application) = window.application() else {
-        return;
-    };
-    let (title, body) = match result {
-        Ok(_) => (
-            match after {
-                AfterBuild::Review => format!("{} is ready to switch", target.name()),
-                AfterBuild::Switch => format!("{} built, switching now", target.name()),
-            },
-            format!("#{flake} built in {}", clock(took)),
-        ),
-        Err(error) if error == command::CANCELLED => return,
-        Err(error) => (
-            format!("{} build failed", target.name()),
-            error_summary(error)
-                .lines()
-                .next()
-                .unwrap_or_default()
-                .to_owned(),
-        ),
-    };
-    let notification = gio::Notification::new(&title);
-    notification.set_body(Some(&body));
-    application.send_notification(Some("swix-build"), &notification);
 }

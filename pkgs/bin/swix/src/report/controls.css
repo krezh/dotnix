@@ -19,15 +19,14 @@
   padding: 5px 12px;
 }
 
-/* The row's changelog or diff link appears only on the hovered or selected row; opacity keeps
- * its space reserved so the column never shifts. */
+/* The row's changelog or diff link appears only on the hovered row; opacity keeps its space
+ * reserved so the column never shifts. */
 .report-changelog {
   opacity: 0;
   transition: opacity 120ms ease;
 }
 
-.report-row:hover .report-changelog,
-.report-row:selected .report-changelog {
+.report-row:hover .report-changelog {
   opacity: 1;
 }
 
