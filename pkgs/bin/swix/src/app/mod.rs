@@ -170,9 +170,9 @@ fn build_ui(app: &gtk::Application) -> UiController {
     window.init_layer_shell();
     window.set_namespace(Some("swix"));
     window.set_layer(Layer::Top);
-    // On demand: the compositor hands Swix the keyboard only once it is clicked into, and takes it
-    // back on a click elsewhere, so text fields work even with the shortcuts off.
-    window.set_keyboard_mode(KeyboardMode::OnDemand);
+    // Compositors focus an on-demand layer surface as soon as it maps, so Swix opens without the
+    // keyboard and only takes it while it needs it (see `claim_keyboard`).
+    window.set_keyboard_mode(KeyboardMode::None);
     window.set_anchor(Edge::Top, true);
     window.set_margin(Edge::Top, 16);
     window.set_exclusive_zone(0);
@@ -287,11 +287,13 @@ fn build_ui(app: &gtk::Application) -> UiController {
             confirmation.key_release();
         }
     });
+    claim_keyboard(&window, &state);
     let active_state = Rc::clone(&state);
     window.connect_is_active_notify(move |window| {
         if window.is_active() {
             return;
         }
+        window.set_keyboard_mode(KeyboardMode::None);
         let confirmations = active_state.switch_confirmations.borrow().clone();
         for confirmation in confirmations {
             confirmation.reset();
@@ -314,5 +316,62 @@ fn build_ui(app: &gtk::Application) -> UiController {
         root,
         state,
     }
+}
+
+/// Gives Swix the keyboard only while it needs it. With shortcuts off that is while a text field
+/// is focused: a click into one takes the keyboard exclusively (the click itself has already been
+/// routed, so on-demand would only focus on the next one), and focusing anything else, the pointer
+/// leaving, or another window activating hands it back. With shortcuts on, the panel takes the
+/// keyboard on demand while the pointer is over it.
+fn claim_keyboard(window: &gtk::ApplicationWindow, state: &Rc<UiState>) {
+    let minimized = {
+        let state = Rc::clone(state);
+        move || state.mini.get().is_some_and(mini::Mini::is_minimized)
+    };
+    let motion = gtk::EventControllerMotion::new();
+    if state.appearance.keybinds {
+        let enter_window = window.downgrade();
+        let enter_minimized = minimized.clone();
+        motion.connect_enter(move |_, _, _| {
+            if let Some(window) = enter_window.upgrade()
+                && !enter_minimized()
+            {
+                window.set_keyboard_mode(KeyboardMode::OnDemand);
+            }
+        });
+    }
+    let leave_window = window.downgrade();
+    motion.connect_leave(move |_| {
+        if let Some(window) = leave_window.upgrade() {
+            window.set_keyboard_mode(KeyboardMode::None);
+        }
+    });
+    window.add_controller(motion);
+    if state.appearance.keybinds {
+        return;
+    }
+
+    let click = gtk::GestureClick::new();
+    click.set_propagation_phase(gtk::PropagationPhase::Capture);
+    let click_window = window.downgrade();
+    click.connect_pressed(move |_, _, x, y| {
+        let Some(window) = click_window.upgrade() else {
+            return;
+        };
+        let on_text = window.pick(x, y, gtk::PickFlags::DEFAULT).is_some_and(|widget| {
+            widget.is::<gtk::Text>() || widget.ancestor(gtk::Text::static_type()).is_some()
+        });
+        window.set_keyboard_mode(if on_text && !minimized() {
+            KeyboardMode::Exclusive
+        } else {
+            KeyboardMode::None
+        });
+    });
+    window.add_controller(click);
+    window.connect_focus_widget_notify(|window| {
+        if !gtk::prelude::GtkWindowExt::focus(window).is_some_and(|widget| widget.is::<gtk::Text>()) {
+            window.set_keyboard_mode(KeyboardMode::None);
+        }
+    });
 }
 

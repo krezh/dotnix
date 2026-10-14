@@ -355,7 +355,6 @@ fn restore(inner: &Rc<Inner>) {
     let (preferred, minimum) = inner.screen_size.get();
     set_window_size(&window, preferred, minimum);
     inner.root.morph_to(false, || {});
-    window.set_keyboard_mode(KeyboardMode::OnDemand);
     window.present();
 }
 

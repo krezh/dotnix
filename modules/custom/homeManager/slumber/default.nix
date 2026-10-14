@@ -43,13 +43,13 @@
         };
 
         fps = lib.mkOption {
-          type = lib.types.ints.positive;
+          type = lib.types.ints.between 15 240;
           default = 60;
-          description = "Target frames per second.";
+          description = "Target frames per second (15–240), rounded per output to a whole divisor of its refresh rate.";
         };
 
         motionThreshold = lib.mkOption {
-          type = lib.types.float;
+          type = lib.types.addCheck lib.types.float (value: value >= 0.0);
           default = 5.0;
           description = "Mouse movement distance in pixels required to wake up.";
         };
@@ -73,21 +73,57 @@
         };
 
         opacity = lib.mkOption {
-          type = lib.types.float;
+          type = lib.types.addCheck lib.types.float (value: value >= 0.0 && value <= 1.0);
           default = 1.0;
           description = "Background opacity from 0.0 (transparent) to 1.0 (opaque).";
         };
 
         font = lib.mkOption {
-          type = lib.types.str;
+          type = lib.types.nonEmptyStr;
           default = "Rubik";
           description = "Font family or path to font file for screensaver typography.";
         };
 
         speed = lib.mkOption {
-          type = lib.types.float;
+          type = lib.types.addCheck lib.types.float (value: value >= 0.05 && value <= 10.0);
           default = 1.0;
-          description = "Animation speed multiplier.";
+          description = "Animation speed multiplier (0.05–10.0).";
+        };
+
+        clockDrift = lib.mkOption {
+          type = lib.types.bool;
+          default = true;
+          description = "Slowly move the clock to reduce static pixels.";
+        };
+
+        transitionMs = lib.mkOption {
+          type = lib.types.ints.unsigned;
+          default = 600;
+          description = "Entry and animation transition duration in milliseconds (0 = disabled).";
+        };
+
+        syncOutputs = lib.mkOption {
+          type = lib.types.bool;
+          default = false;
+          description = "Synchronize animation choices and timing across outputs.";
+        };
+
+        spanOutputs = lib.mkOption {
+          type = lib.types.bool;
+          default = false;
+          description = "Draw waves as one scene across all outputs instead of one per output; implies syncOutputs.";
+        };
+
+        timeFormat = lib.mkOption {
+          type = lib.types.str;
+          default = "%H:%M";
+          description = "Chrono strftime format for the clock.";
+        };
+
+        dateFormat = lib.mkOption {
+          type = lib.types.str;
+          default = "%A, %d %B %Y";
+          description = "Chrono strftime format for the date.";
         };
       };
 
@@ -105,6 +141,12 @@
           opacity = cfg.opacity;
           font = cfg.font;
           speed = cfg.speed;
+          clock_drift = cfg.clockDrift;
+          transition_ms = cfg.transitionMs;
+          sync_outputs = cfg.syncOutputs;
+          span_outputs = cfg.spanOutputs;
+          time_format = cfg.timeFormat;
+          date_format = cfg.dateFormat;
         };
       };
     };

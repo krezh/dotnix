@@ -1,0 +1,46 @@
+id = "krezh/headsetcontrol"
+name = "HeadsetControl"
+version = "0.1.0"
+plugin_api = 31
+author = "krezh"
+license = "MIT"
+icon = "headphones"
+description = "Bar indicator for headset batteries reported by HeadsetControl; hidden while no supported headset is connected."
+tags = ["bar", "indicator", "hardware"]
+dependencies = ["headsetcontrol"]
+
+[[setting]]
+key = "refresh_seconds"
+type = "int"
+label_key = "settings.refresh_seconds.label"
+description_key = "settings.refresh_seconds.description"
+default = 60
+min = 10
+max = 3600
+
+[[setting]]
+key = "low_percent"
+type = "int"
+label_key = "settings.low_percent.label"
+description_key = "settings.low_percent.description"
+default = 20
+min = 5
+max = 50
+
+[[service]]
+id = "service"
+entry = "service.luau"
+
+[[widget]]
+id = "bar"
+entry = "bar.luau"
+
+  [widget.actions]
+  right = "plugin krezh/headsetcontrol:service all refresh"
+
+[[widget.setting]]
+key = "glyph"
+type = "glyph"
+label_key = "settings.glyph.label"
+description_key = "settings.glyph.description"
+default = "headphones"

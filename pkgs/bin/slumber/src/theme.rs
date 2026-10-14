@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct Color {
     pub r: u8,
     pub g: u8,
@@ -20,20 +21,11 @@ impl Color {
 
     #[inline(always)]
     pub const fn to_argb_u32(self) -> u32 {
-        ((self.a as u32) << 24)
-            | ((self.r as u32) << 16)
-            | ((self.g as u32) << 8)
-            | (self.b as u32)
-    }
-
-    #[inline(always)]
-    pub const fn from_argb_u32(val: u32) -> Self {
-        Self {
-            a: ((val >> 24) & 0xFF) as u8,
-            r: ((val >> 16) & 0xFF) as u8,
-            g: ((val >> 8) & 0xFF) as u8,
-            b: (val & 0xFF) as u8,
-        }
+        let alpha = self.a as u32;
+        (alpha << 24)
+            | (((self.r as u32 * alpha + 127) / 255) << 16)
+            | (((self.g as u32 * alpha + 127) / 255) << 8)
+            | ((self.b as u32 * alpha + 127) / 255)
     }
 
     pub const fn with_alpha(mut self, a: u8) -> Self {
@@ -53,26 +45,30 @@ impl Color {
     }
 
     #[inline(always)]
-    pub fn blend_over(self, bg: Self) -> Self {
-        if self.a == 255 {
-            return self;
-        }
-        if self.a == 0 {
-            return bg;
-        }
-        let alpha = self.a as u32;
-        let inv_alpha = 255 - alpha;
-        let out_a = (alpha + (bg.a as u32 * inv_alpha) / 255).min(255) as u8;
-        Self {
-            r: ((self.r as u32 * alpha + bg.r as u32 * inv_alpha) / 255) as u8,
-            g: ((self.g as u32 * alpha + bg.g as u32 * inv_alpha) / 255) as u8,
-            b: ((self.b as u32 * alpha + bg.b as u32 * inv_alpha) / 255) as u8,
-            a: out_a,
-        }
+    pub fn blend_over_pixel(self, background: u32) -> u32 {
+        blend_premultiplied(self.to_argb_u32(), background)
     }
 }
 
+/// Source-over for Wayland's premultiplied ARGB pixels.
+#[inline(always)]
+pub fn blend_premultiplied(foreground: u32, background: u32) -> u32 {
+    let alpha = foreground >> 24;
+    if alpha == 255 {
+        return foreground;
+    }
+    if alpha == 0 {
+        return background;
+    }
+    let inverse = 255 - alpha;
+    let channel = |shift: u32| {
+        ((foreground >> shift) & 255) + (((background >> shift) & 255) * inverse + 127) / 255
+    };
+    (channel(24) << 24) | (channel(16) << 16) | (channel(8) << 8) | channel(0)
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct Theme {
     pub name: String,
     // Accents
@@ -235,16 +231,6 @@ impl Theme {
             base: Color::rgb(0xef, 0xf1, 0xf5),
             mantle: Color::rgb(0xe6, 0xe9, 0xef),
             crust: Color::rgb(0xdc, 0xe0, 0xe8),
-        }
-    }
-
-    pub fn from_name(name: &str) -> Option<Self> {
-        match name.to_lowercase().as_str() {
-            "mocha" => Some(Self::mocha()),
-            "macchiato" => Some(Self::macchiato()),
-            "frappe" | "frappé" => Some(Self::frappe()),
-            "latte" => Some(Self::latte()),
-            _ => None,
         }
     }
 

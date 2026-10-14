@@ -1,0 +1,7 @@
+{
+  "title": "ZOWIE Battery",
+  "settings.refresh_seconds.label": "Refresh interval (seconds)",
+  "settings.refresh_seconds.description": "How often to read the battery through zowie-batt",
+  "settings.low_percent.label": "Low battery threshold (%)",
+  "settings.low_percent.description": "At or below this estimated level the indicator turns red"
+}

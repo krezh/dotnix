@@ -27,6 +27,11 @@ craneLib.buildPackage rec {
     makeWrapper
   ];
 
+  postInstall = ''
+    wrapProgram $out/bin/slumber \
+      --prefix PATH : ${lib.makeBinPath [ pkgs.fontconfig ]}
+  '';
+
   meta = {
     description = "Fast, reactive Wayland/Hyprland screensaver with Catppuccin themes and animations";
     platforms = lib.platforms.linux;

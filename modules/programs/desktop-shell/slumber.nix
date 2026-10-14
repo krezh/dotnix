@@ -5,7 +5,8 @@
         enable = true;
         animation = "waves";
         showClock = true;
-        opacity = 0.75;
+        spanOutputs = true;
+        opacity = 0.0;
         font = "Rubik";
       };
     };

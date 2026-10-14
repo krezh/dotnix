@@ -1,0 +1,12 @@
+[[plugin]]
+id = "krezh/headsetcontrol"
+name = "HeadsetControl"
+version = "0.1.0"
+updated_at = 1792010468
+added_at = 1792010468
+author = "krezh"
+license = "MIT"
+icon = "headphones"
+description = "Shows headset battery levels reported by HeadsetControl."
+plugin_api = 31
+tags = ["bar", "indicator", "hardware"]

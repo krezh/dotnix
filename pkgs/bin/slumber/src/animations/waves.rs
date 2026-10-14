@@ -1,7 +1,13 @@
+use std::num::NonZeroUsize;
+use std::thread;
+
 use crate::animations::Animation;
 use crate::canvas::Canvas;
 use crate::rng::Rng;
-use crate::theme::{Color, Theme};
+use crate::theme::{blend_premultiplied, Color, Theme};
+
+/// Upper bound on the horizontal bands a frame is rendered in, one thread each.
+const MAX_BANDS: usize = 16;
 
 struct WaveLayer {
     base_ratio: f32,
@@ -25,6 +31,90 @@ struct WaveLayer {
 pub struct AuroraWaves {
     layers: Vec<WaveLayer>,
     time: f32,
+    /// Every layer's crest at every column pair of the current frame, reused across frames.
+    crests: Vec<Crest>,
+    bands: usize,
+}
+
+#[derive(Clone, Copy)]
+struct Crest {
+    /// Canvas row of the crest.
+    y: f32,
+    color: Color,
+    spine: Color,
+}
+
+/// What every band of a frame shares; each band renders its own rows of the canvas.
+#[derive(Clone, Copy)]
+struct Frame<'a> {
+    layers: &'a [WaveLayer],
+    crests: &'a [Crest],
+    width: usize,
+    columns: usize,
+    scale: f32,
+    glow_height: f32,
+    background: u32,
+}
+
+impl Frame<'_> {
+    fn render_band(self, pixels: &mut [u32], first_row: usize) {
+        pixels.fill(self.background);
+        let top = first_row as i32;
+        let bottom = top + (pixels.len() / self.width) as i32 - 1;
+        for (layer, crests) in self.layers.iter().zip(self.crests.chunks_exact(self.columns)) {
+            let curtain_h = layer.curtain_height * self.scale;
+            let inv_curtain_h = 1.0 / curtain_h;
+            let spine_alpha = (0.85 * layer.alpha).clamp(0.0, 1.0);
+            for (column, crest) in crests.iter().enumerate() {
+                let x = column * 2;
+                let y_start = ((crest.y - curtain_h).floor() as i32).max(top);
+                let y_end = ((crest.y + self.glow_height).ceil() as i32).min(bottom);
+                for y in y_start..=y_end {
+                    let diff = y as f32 - crest.y;
+                    let intensity = if diff < 0.0 {
+                        let progress = 1.0 - (-diff * inv_curtain_h);
+                        if progress > 0.0 {
+                            progress * progress * (3.0 - 2.0 * progress) * 0.8
+                        } else {
+                            0.0
+                        }
+                    } else {
+                        let progress = 1.0 - (diff / self.glow_height);
+                        if progress > 0.0 {
+                            progress * progress * 0.6
+                        } else {
+                            0.0
+                        }
+                    };
+                    if intensity > 0.015 {
+                        let alpha = (crest.color.a as f32 * intensity * layer.alpha).min(255.0) as u8;
+                        if alpha > 0 {
+                            let row = &mut pixels[(y - top) as usize * self.width..][..self.width];
+                            Self::blend_pair(row, x, crest.color.with_alpha(alpha).to_argb_u32());
+                        }
+                    }
+                }
+
+                // Glowing spine
+                let crest_row = crest.y.round() as i32;
+                if (top..=bottom).contains(&crest_row) {
+                    let alpha = (crest.spine.a as f32 * spine_alpha).round() as u8;
+                    if alpha > 0 {
+                        let row = &mut pixels[(crest_row - top) as usize * self.width..][..self.width];
+                        Self::blend_pair(row, x, crest.spine.with_alpha(alpha).to_argb_u32());
+                    }
+                }
+            }
+        }
+    }
+
+    #[inline(always)]
+    fn blend_pair(row: &mut [u32], x: usize, foreground: u32) {
+        row[x] = blend_premultiplied(foreground, row[x]);
+        if let Some(next) = row.get_mut(x + 1) {
+            *next = blend_premultiplied(foreground, *next);
+        }
+    }
 }
 
 impl AuroraWaves {
@@ -59,7 +149,8 @@ impl AuroraWaves {
             });
         }
 
-        Self { layers, time: 0.0 }
+        let bands = thread::available_parallelism().map_or(1, NonZeroUsize::get).min(MAX_BANDS);
+        Self { layers, time: 0.0, crests: Vec::new(), bands }
     }
 
     #[inline(always)]
@@ -88,103 +179,81 @@ impl Animation for AuroraWaves {
         self.time += dt;
     }
 
+    /// Lays the waves out across the canvas viewport, so outputs sharing a spanning scene each draw
+    /// their slice of one set of waves.
     fn render(&mut self, canvas: &mut Canvas, theme: &Theme) {
-        // Soft backdrop with configured opacity
-        canvas.clear(theme.crust);
+        let view = canvas.viewport;
+        let width = canvas.width as usize;
+        let height = canvas.height as usize;
+        if width == 0 || height == 0 {
+            return;
+        }
+        // Waves scale with the scene's height and keep their proportions across its width, so a
+        // scene spanning several outputs continues the waves instead of stretching them.
+        let scale = view.height / 1080.0;
+        let glow_height = 35.0 * scale;
+        let columns = width.div_ceil(2);
 
-        let w = canvas.width as i32;
-        let h = canvas.height as f32;
-        let stride = canvas.width as usize;
-
+        // Rows the curtains touch; the rest of the canvas is only backdrop.
+        let (mut active_top, mut active_bottom) = (f32::MAX, f32::MIN);
+        self.crests.clear();
         for layer in &self.layers {
-            let drift = (self.time * layer.drift_speed + layer.drift_phase).sin() * (layer.drift_amp * h);
-            let base_y = layer.base_ratio * h + drift;
-            let curtain_h = layer.curtain_height;
-            let inv_curtain_h = 1.0 / curtain_h;
+            let drift = (self.time * layer.drift_speed + layer.drift_phase).sin() * (layer.drift_amp * view.height);
+            let base_y = layer.base_ratio * view.height + drift;
+            let curtain_h = layer.curtain_height * scale;
 
-            for x in (0..w).step_by(2) {
-                let xf = x as f32;
+            for column in 0..columns {
+                let scene_x = (column * 2) as f32 + view.x;
+                let wave_x = scene_x / scale;
 
                 // Multi-harmonic wide sweeping curve
-                let y1 = (xf * layer.freq1 + self.time * layer.speed1).sin() * layer.amp1;
-                let y2 = (xf * layer.freq2 - self.time * layer.speed2 + 1.4).cos() * layer.amp2;
-                let y3 = (xf * layer.freq3 + self.time * layer.speed3 + 3.1).sin() * layer.amp3;
-                let crest_y = base_y + y1 + y2 + y3;
+                let y1 = (wave_x * layer.freq1 + self.time * layer.speed1).sin() * layer.amp1;
+                let y2 = (wave_x * layer.freq2 - self.time * layer.speed2 + 1.4).cos() * layer.amp2;
+                let y3 = (wave_x * layer.freq3 + self.time * layer.speed3 + 3.1).sin() * layer.amp3;
+                let crest_y = base_y + (y1 + y2 + y3) * scale;
 
-                let height_factor = (crest_y / h).clamp(0.0, 1.0) * 0.4;
-                let color_t = (xf / w as f32) * 0.75 + self.time * 0.018 + layer.color_shift + height_factor;
-                let wave_color = Self::sample_palette(theme, color_t);
-
-                let y_start = ((crest_y - curtain_h).floor() as i32).max(0);
-                let y_end = ((crest_y + 35.0).ceil() as i32).min(canvas.height as i32 - 1);
-                if y_end <= y_start {
-                    continue;
-                }
-
-                let has_next = (x + 1) < w;
-                let mut idx0 = y_start as usize * stride + x as usize;
-                let mut idx1 = idx0 + 1;
-
-                for y in y_start..=y_end {
-                    let yf = y as f32;
-                    let diff = yf - crest_y;
-
-                    let intensity = if diff < 0.0 {
-                        let progress = 1.0 - (-diff * inv_curtain_h);
-                        if progress > 0.0 {
-                            progress * progress * (3.0 - 2.0 * progress) * 0.8
-                        } else {
-                            0.0
-                        }
-                    } else {
-                        let progress = 1.0 - (diff / 35.0);
-                        if progress > 0.0 {
-                            progress * progress * 0.6
-                        } else {
-                            0.0
-                        }
-                    };
-
-                    if intensity > 0.015 {
-                        let alpha = (wave_color.a as f32 * intensity * layer.alpha).min(255.0) as u32;
-                        if alpha > 0 {
-                            let inv_a = 255 - alpha;
-                            let wr = wave_color.r as u32 * alpha;
-                            let wg = wave_color.g as u32 * alpha;
-                            let wb = wave_color.b as u32 * alpha;
-
-                            let p0 = canvas.pixels[idx0];
-                            let r0 = ((p0 >> 16) & 0xFF) * inv_a + wr;
-                            let g0 = ((p0 >> 8) & 0xFF) * inv_a + wg;
-                            let b0 = (p0 & 0xFF) * inv_a + wb;
-                            let a0 = ((p0 >> 24) & 0xFF).max(alpha);
-                            canvas.pixels[idx0] = (a0 << 24) | ((r0 / 255) << 16) | ((g0 / 255) << 8) | (b0 / 255);
-
-                            if has_next {
-                                let p1 = canvas.pixels[idx1];
-                                let r1 = ((p1 >> 16) & 0xFF) * inv_a + wr;
-                                let g1 = ((p1 >> 8) & 0xFF) * inv_a + wg;
-                                let b1 = (p1 & 0xFF) * inv_a + wb;
-                                let a1 = ((p1 >> 24) & 0xFF).max(alpha);
-                                canvas.pixels[idx1] = (a1 << 24) | ((r1 / 255) << 16) | ((g1 / 255) << 8) | (b1 / 255);
-                            }
-                        }
-                    }
-
-                    idx0 += stride;
-                    idx1 += stride;
-                }
-
-                // Glowing spine
-                let crest_i = crest_y.round() as i32;
-                if crest_i >= 0 && crest_i < canvas.height as i32 {
-                    let spine_color = wave_color.lerp(theme.text, 0.45);
-                    canvas.blend_pixel_f32(x, crest_i, spine_color, 0.85 * layer.alpha);
-                    if has_next {
-                        canvas.blend_pixel_f32(x + 1, crest_i, spine_color, 0.85 * layer.alpha);
-                    }
-                }
+                let height_factor = (crest_y / view.height).clamp(0.0, 1.0) * 0.4;
+                let color_t = (scene_x / view.width) * 0.75 + self.time * 0.018 + layer.color_shift + height_factor;
+                let color = Self::sample_palette(theme, color_t);
+                let y = crest_y - view.y;
+                active_top = active_top.min(y - curtain_h);
+                active_bottom = active_bottom.max(y + glow_height);
+                self.crests.push(Crest { y, color, spine: color.lerp(theme.text, 0.45) });
             }
         }
+
+        let frame = Frame {
+            layers: &self.layers,
+            crests: &self.crests,
+            width,
+            columns,
+            scale,
+            glow_height,
+            // Soft backdrop with configured opacity
+            background: theme.crust.to_argb_u32(),
+        };
+        // Split the active rows evenly between bands, so no band is left with most of the curtains;
+        // the first and last bands also take the backdrop-only rows above and below them.
+        let active_top = (active_top.max(0.0) as usize).min(height);
+        let active_rows = (active_bottom.max(0.0) as usize).min(height).saturating_sub(active_top);
+        let bands = self.bands;
+        let mut rest = &mut *canvas.pixels;
+        let mut first_row = 0;
+        thread::scope(|scope| {
+            for band in 1..=bands {
+                let end_row = if band == bands { height } else { active_top + active_rows * band / bands };
+                let (pixels, tail) = rest.split_at_mut((end_row - first_row) * width);
+                rest = tail;
+                if !pixels.is_empty() {
+                    let start = first_row;
+                    if band == bands {
+                        frame.render_band(pixels, start);
+                    } else {
+                        scope.spawn(move || frame.render_band(pixels, start));
+                    }
+                }
+                first_row = end_row;
+            }
+        });
     }
 }

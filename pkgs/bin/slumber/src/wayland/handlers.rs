@@ -10,6 +10,8 @@ use smithay_client_toolkit::shm::{Shm, ShmHandler};
 use std::time::Instant;
 use wayland_client::protocol::{wl_callback, wl_keyboard, wl_output, wl_pointer, wl_seat, wl_surface};
 use wayland_client::{Connection, Dispatch, QueueHandle};
+use wayland_protocols::wp::fractional_scale::v1::client::{wp_fractional_scale_manager_v1, wp_fractional_scale_v1};
+use wayland_protocols::wp::viewporter::client::{wp_viewport, wp_viewporter};
 
 use super::App;
 
@@ -18,9 +20,13 @@ impl CompositorHandler for App {
         &mut self,
         _conn: &Connection,
         _qh: &QueueHandle<Self>,
-        _surface: &wl_surface::WlSurface,
-        _new_factor: i32,
+        surface: &wl_surface::WlSurface,
+        new_factor: i32,
     ) {
+        if let Some(idx) = self.surfaces.iter().position(|candidate| &candidate.surface == surface) {
+            self.surfaces[idx].integer_scale = new_factor.max(1);
+            self.refresh_surface(idx);
+        }
     }
 
     fn frame(
@@ -80,8 +86,11 @@ impl OutputHandler for App {
         &mut self,
         _conn: &Connection,
         _qh: &QueueHandle<Self>,
-        _output: wl_output::WlOutput,
+        output: wl_output::WlOutput,
     ) {
+        if let Some(info) = self.output_state.info(&output) {
+            self.update_output_surface(&output, &info);
+        }
     }
 
     fn output_destroyed(
@@ -95,34 +104,22 @@ impl OutputHandler for App {
 }
 
 impl LayerShellHandler for App {
-    fn closed(&mut self, _conn: &Connection, _qh: &QueueHandle<Self>, _layer: &LayerSurface) {
-        self.exit = true;
-        self.loop_signal.stop();
+    fn closed(&mut self, _conn: &Connection, _qh: &QueueHandle<Self>, layer: &LayerSurface) {
+        self.surfaces.retain(|surface| &surface.layer_surface != layer);
     }
 
     fn configure(
         &mut self,
         _conn: &Connection,
-        qh: &QueueHandle<Self>,
+        _qh: &QueueHandle<Self>,
         layer: &LayerSurface,
         configure: LayerSurfaceConfigure,
         _serial: u32,
     ) {
-        let mut target_idx = None;
-        for (i, surface) in self.surfaces.iter_mut().enumerate() {
-            if &surface.layer_surface == layer {
-                surface.configured = true;
-                surface.width = configure.new_size.0;
-                surface.height = configure.new_size.1;
-                target_idx = Some(i);
-                break;
-            }
-        }
-        if let Some(idx) = target_idx {
-            if !self.surfaces[idx].waiting_for_frame {
-                self.surfaces[idx].last_tick = Instant::now();
-                let _ = self.render_surface(idx, qh, 0.016);
-            }
+        if let Some(idx) = self.surfaces.iter().position(|surface| &surface.layer_surface == layer) {
+            self.surfaces[idx].configured = true;
+            self.surfaces[idx].configured_size = configure.new_size;
+            self.refresh_surface(idx);
         }
     }
 }
@@ -306,29 +303,39 @@ impl Dispatch<wl_callback::WlCallback, ()> for App {
         _event: wl_callback::Event,
         _data: &(),
         _conn: &Connection,
-        qh: &QueueHandle<Self>,
+        _qh: &QueueHandle<Self>,
     ) {
-        let mut target_idx = None;
-        for (idx, s) in state.surfaces.iter_mut().enumerate() {
-            if let Some(cb) = &s.frame_callback {
-                if cb == callback {
-                    s.waiting_for_frame = false;
-                    s.frame_callback = None;
-                    target_idx = Some(idx);
-                    break;
-                }
+        for surface in &mut state.surfaces {
+            if surface.frame_callback.as_ref() == Some(callback) {
+                surface.schedule.callback_pending = false;
+                surface.frame_callback = None;
+                break;
             }
-        }
-
-        if let Some(idx) = target_idx {
-            let now = Instant::now();
-            let dt = now.duration_since(state.surfaces[idx].last_tick).as_secs_f32().min(0.05);
-            state.surfaces[idx].last_tick = now;
-            state.advance_time();
-            let _ = state.render_surface(idx, qh, dt);
         }
     }
 }
+
+impl Dispatch<wp_fractional_scale_v1::WpFractionalScaleV1, wl_surface::WlSurface> for App {
+    fn event(
+        state: &mut Self,
+        _proxy: &wp_fractional_scale_v1::WpFractionalScaleV1,
+        event: wp_fractional_scale_v1::Event,
+        surface: &wl_surface::WlSurface,
+        _conn: &Connection,
+        _qh: &QueueHandle<Self>,
+    ) {
+        if let wp_fractional_scale_v1::Event::PreferredScale { scale } = event {
+            if let Some(idx) = state.surfaces.iter().position(|candidate| &candidate.surface == surface) {
+                state.surfaces[idx].preferred_scale = Some(scale);
+                state.refresh_surface(idx);
+            }
+        }
+    }
+}
+
+wayland_client::delegate_noop!(App: ignore wp_fractional_scale_manager_v1::WpFractionalScaleManagerV1);
+wayland_client::delegate_noop!(App: ignore wp_viewporter::WpViewporter);
+wayland_client::delegate_noop!(App: ignore wp_viewport::WpViewport);
 
 smithay_client_toolkit::delegate_dispatch2!(App);
 smithay_client_toolkit::delegate_registry!(App);

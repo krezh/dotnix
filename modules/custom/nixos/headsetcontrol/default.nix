@@ -12,10 +12,10 @@
         mkIf
         mkPackageOption
         ;
-      cfg = config.programs.headsetcontrol;
+      cfg = config.nixosModules.headsetcontrol;
     in
     {
-      options.programs.headsetcontrol = {
+      options.nixosModules.headsetcontrol = {
         enable = mkEnableOption "HeadsetControl — control USB headsets (sidetone, LEDs, equalizer, battery)";
         package = mkPackageOption pkgs "headsetcontrol" { };
       };

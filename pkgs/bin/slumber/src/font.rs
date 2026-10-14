@@ -1,5 +1,3 @@
-pub const FONT_WIDTH: i32 = 8;
-
 pub fn get_glyph(ch: char) -> &'static [u8; 8] {
     match ch {
         ' ' => &[0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00],
@@ -109,7 +107,7 @@ use crate::canvas::Canvas;
 use crate::theme::Color;
 
 pub struct FontRenderer {
-    pub font: Option<Font>,
+    font: Option<Font>,
 }
 
 impl FontRenderer {
@@ -144,49 +142,62 @@ impl FontRenderer {
         None
     }
 
-    pub fn draw_text(
-        &self,
-        canvas: &mut Canvas,
-        text: &str,
-        start_x: f32,
-        baseline_y: f32,
-        size_px: f32,
-        color: Color,
-    ) -> f32 {
+    pub fn rasterize_text(&self, text: &str, size_px: f32) -> TextMask {
         let Some(font) = &self.font else {
-            let scale = (size_px / 8.0).round().max(1.0) as i32;
-            canvas.draw_str(start_x as i32, (baseline_y - size_px) as i32, text, scale, color);
-            return start_x + (text.len() as f32 * 8.0 * scale as f32);
-        };
-
-        let mut pen_x = start_x;
-
-        for ch in text.chars() {
-            let (metrics, bitmap) = font.rasterize(ch, size_px);
-            let gx = pen_x + metrics.xmin as f32;
-            let gy = baseline_y - metrics.height as f32 - metrics.ymin as f32;
-
-            for r in 0..metrics.height {
-                for c in 0..metrics.width {
-                    let alpha_u8 = bitmap[r * metrics.width + c];
-                    if alpha_u8 > 0 {
-                        let px = (gx + c as f32).round() as i32;
-                        let py = (gy + r as f32).round() as i32;
-                        canvas.blend_pixel_f32(px, py, color, alpha_u8 as f32 / 255.0);
+            let scale = (size_px / 8.0).round().max(1.0) as usize;
+            let width = text.chars().count() * 8 * scale;
+            let height = if width == 0 { 0 } else { 8 * scale };
+            let mut pixels = vec![0; width * height];
+            for (index, ch) in text.chars().enumerate() {
+                for (row, bits) in get_glyph(ch).iter().enumerate() {
+                    for col in 0..8 {
+                        if bits & (0x80 >> col) != 0 {
+                            for dy in 0..scale {
+                                let y = row * scale + dy;
+                                let x = (index * 8 + col) * scale;
+                                pixels[y * width + x..y * width + x + scale].fill(255);
+                            }
+                        }
                     }
                 }
             }
+            return TextMask { width, height, pixels };
+        };
 
-            pen_x += metrics.advance_width;
+        let mut glyphs = Vec::with_capacity(text.chars().count());
+        let (mut pen, mut left, mut right) = (0.0f32, 0i32, 0i32);
+        let (mut top, mut bottom) = (0i32, 0i32);
+        for ch in text.chars() {
+            let (metrics, bitmap) = font.rasterize(ch, size_px);
+            let x = pen.round() as i32 + metrics.xmin;
+            let y = -(metrics.height as i32) - metrics.ymin;
+            left = left.min(x);
+            right = right.max(x + metrics.width as i32);
+            top = top.min(y);
+            bottom = bottom.max(y + metrics.height as i32);
+            pen += metrics.advance_width;
+            glyphs.push((x, y, metrics, bitmap));
         }
-
-        pen_x
+        right = right.max(pen.ceil() as i32);
+        let width = (right - left) as usize;
+        let height = (bottom - top) as usize;
+        let mut pixels = vec![0u8; width * height];
+        for (x, y, metrics, bitmap) in glyphs {
+            for row in 0..metrics.height {
+                for col in 0..metrics.width {
+                    let index = (y - top) as usize * width + row * width + (x - left) as usize + col;
+                    let foreground = bitmap[row * metrics.width + col] as u32;
+                    pixels[index] = (foreground + (pixels[index] as u32 * (255 - foreground) + 127) / 255) as u8;
+                }
+            }
+        }
+        TextMask { width, height, pixels }
     }
 
     pub fn measure_text(&self, text: &str, size_px: f32) -> (f32, f32) {
         let Some(font) = &self.font else {
             let scale = (size_px / 8.0).round().max(1.0);
-            return (text.len() as f32 * 8.0 * scale, 8.0 * scale);
+            return (text.chars().count() as f32 * 8.0 * scale, 8.0 * scale);
         };
 
         let mut total_w = 0.0;
@@ -199,5 +210,44 @@ impl FontRenderer {
         }
 
         (total_w, max_h)
+    }
+}
+
+#[derive(Default)]
+pub struct TextMask {
+    pub width: usize,
+    pub height: usize,
+    pixels: Vec<u8>,
+}
+
+impl TextMask {
+    /// Draws the mask with its top-left corner at a fractional position, spreading each mask pixel
+    /// over the canvas pixels it overlaps so slow motion glides instead of stepping a pixel at a time.
+    pub fn draw(&self, canvas: &mut Canvas, x: f32, y: f32, color: Color) {
+        let (left, top) = (x.floor(), y.floor());
+        let (fx, fy) = (x - left, y - top);
+        let weights = [(1.0 - fx) * (1.0 - fy), fx * (1.0 - fy), (1.0 - fx) * fy, fx * fy];
+        let coverage = |col: usize, row: usize| -> f32 {
+            if col < self.width && row < self.height { self.pixels[row * self.width + col] as f32 } else { 0.0 }
+        };
+        let (left, top) = (left as i32, top as i32);
+        for row in 0..=self.height {
+            let canvas_y = top + row as i32;
+            if canvas_y < 0 || canvas_y >= canvas.height as i32 {
+                continue;
+            }
+            for col in 0..=self.width {
+                // A destination pixel takes from the mask pixels shifted onto it: itself, its left,
+                // upper and upper-left neighbours. `wrapping_sub` makes the missing ones read as empty.
+                let (previous_col, previous_row) = (col.wrapping_sub(1), row.wrapping_sub(1));
+                let sample = coverage(col, row) * weights[0]
+                    + coverage(previous_col, row) * weights[1]
+                    + coverage(col, previous_row) * weights[2]
+                    + coverage(previous_col, previous_row) * weights[3];
+                if sample > 0.0 {
+                    canvas.blend_pixel_f32(left + col as i32, canvas_y, color, sample / 255.0);
+                }
+            }
+        }
     }
 }

@@ -6,7 +6,7 @@ edition = "2021"
 [dependencies]
 clap = { version = "4.5", features = ["derive"] }
 wayland-client = "0.31"
-wayland-protocols = { version = "0.32", features = ["client"] }
+wayland-protocols = { version = "0.32", features = ["client", "staging"] }
 wayland-protocols-wlr = { version = "0.3", features = ["client"] }
 smithay-client-toolkit = { version = "0.21", default-features = false, features = ["calloop", "xkbcommon"] }
 calloop = { version = "0.14", features = ["signals"] }

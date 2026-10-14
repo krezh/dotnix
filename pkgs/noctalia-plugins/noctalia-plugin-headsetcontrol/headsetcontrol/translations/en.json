@@ -1,0 +1,9 @@
+{
+  "title": "HeadsetControl",
+  "settings.refresh_seconds.label": "Refresh interval (seconds)",
+  "settings.refresh_seconds.description": "How often to query headsets through headsetcontrol",
+  "settings.low_percent.label": "Low battery threshold (%)",
+  "settings.low_percent.description": "At or below this level the indicator turns red",
+  "settings.glyph.label": "Icon",
+  "settings.glyph.description": "Glyph shown for each headset"
+}

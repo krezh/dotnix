@@ -2,6 +2,7 @@
   $schema: "https://docs.renovatebot.com/renovate-schema.json",
   extends: ["local>krezh/renovate-config"],
   platformAutomerge: true,
+  reviewers: ["krezh"],
   customManagers: [
     {
       customType: "regex",
@@ -32,7 +33,7 @@
   postUpdateOptions: ["gomodTidy"],
   lockFileMaintenance: {
     enabled: true,
-    schedule: ["every 6 hours"],
+    schedule: ["* */6 * * *"],
     automerge: true,
     automergeType: "pr",
     ignoreTests: false,

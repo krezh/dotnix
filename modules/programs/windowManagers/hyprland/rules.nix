@@ -65,6 +65,7 @@
             }
             {
               match.namespace = "^(slumber-screensaver)$";
+              animation = "fade";
               blur = true;
             }
             {

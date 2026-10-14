@@ -49,7 +49,11 @@
           binfmt = true;
         };
         sniffnet.enable = true;
+      };
+
+      nixosModules = {
         headsetcontrol.enable = true;
+        zowie-batt.enable = true;
       };
 
       catppuccin.sddm.enable = false;

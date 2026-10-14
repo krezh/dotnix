@@ -17,14 +17,15 @@ pub const ANIMATION_NAMES: &[&str] = &[
     "clock",
 ];
 
-pub fn create_animation(name: &str, rng: &mut Rng, font_family: &str) -> Box<dyn Animation> {
+pub fn create_animation(name: &str, rng: &mut Rng) -> Box<dyn Animation> {
     match name.to_lowercase().as_str() {
         "waves" => Box::new(waves::AuroraWaves::new(rng)),
         "starfield" => Box::new(starfield::Starfield::new(rng)),
-        "clock" => Box::new(clock::MinimalClock::new(rng, font_family)),
-        "random" | _ => {
+        "clock" => Box::new(clock::MinimalClock::new(rng)),
+        "random" => {
             let choice = *rng.choice(ANIMATION_NAMES);
-            create_animation(choice, rng, font_family)
+            create_animation(choice, rng)
         }
+        _ => unreachable!("animation names are validated before scene creation"),
     }
 }

@@ -9,13 +9,23 @@ mod wayland;
 #[cfg(test)]
 mod tests;
 
+use std::process::ExitCode;
+
 use clap::Parser;
 use config::{AppConfig, Cli};
-use lock::SingleInstanceLock;
+use lock::{LockError, SingleInstanceLock};
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let cli = Cli::parse();
+fn main() -> ExitCode {
+    match run(Cli::parse()) {
+        Ok(()) => ExitCode::SUCCESS,
+        Err(error) => {
+            eprintln!("slumber: {error}");
+            ExitCode::FAILURE
+        }
+    }
+}
 
+fn run(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
     if cli.list_animations {
         println!("Available animations:");
         for anim in animations::ANIMATION_NAMES {
@@ -34,11 +44,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         return Ok(());
     }
 
+    let config = AppConfig::load(&cli)?;
+    if cli.check_config {
+        println!("Configuration is valid.");
+        return Ok(());
+    }
+
     let _lock = match SingleInstanceLock::acquire() {
-        Ok(l) => l,
-        Err(_) => return Ok(()),
+        Ok(lock) => lock,
+        Err(LockError::AlreadyRunning) => return Ok(()),
+        Err(err) => return Err(err.into()),
     };
-    let config = AppConfig::load(&cli);
     wayland::run(config)?;
 
     Ok(())

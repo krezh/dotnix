@@ -86,6 +86,8 @@ _: {
               end = [
                 "krezh/omp-usage:bar"
                 "krezh/swix-check:bar"
+                "krezh/zowie-battery:bar"
+                "krezh/headsetcontrol:bar"
                 "audio_visualizer"
                 "tray"
                 "network"
@@ -144,6 +146,8 @@ _: {
             enabled = [
               "krezh/omp-usage"
               "krezh/swix-check"
+              "krezh/zowie-battery"
+              "krezh/headsetcontrol"
             ];
             source = [
               {
@@ -279,5 +283,9 @@ _: {
 
       xdg.dataFile."noctalia/plugins/omp-usage".source = "${pkgs.noctalia-plugin-omp-usage}/omp-usage";
       xdg.dataFile."noctalia/plugins/swix-check".source = "${pkgs.noctalia-plugin-swix-check}/swix-check";
+      xdg.dataFile."noctalia/plugins/zowie-battery".source =
+        "${pkgs.noctalia-plugin-zowie-battery}/zowie-battery";
+      xdg.dataFile."noctalia/plugins/headsetcontrol".source =
+        "${pkgs.noctalia-plugin-headsetcontrol}/headsetcontrol";
     };
 }

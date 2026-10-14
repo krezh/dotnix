@@ -1,0 +1,3 @@
+# Let the active seat user talk to the BenQ ZOWIE DW receiver (800a) and the
+# cabled DW mouse (800b) HID interfaces.
+KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="04a5", ATTRS{idProduct}=="800[ab]", TAG+="uaccess"

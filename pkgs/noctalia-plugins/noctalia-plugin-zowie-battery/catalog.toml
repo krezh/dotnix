@@ -1,0 +1,12 @@
+[[plugin]]
+id = "krezh/zowie-battery"
+name = "ZOWIE Battery"
+version = "0.1.0"
+updated_at = 1792010024
+added_at = 1792010024
+author = "krezh"
+license = "MIT"
+icon = "mouse"
+description = "Shows the battery level of a BenQ ZOWIE DW wireless mouse."
+plugin_api = 31
+tags = ["bar", "indicator", "hardware"]
