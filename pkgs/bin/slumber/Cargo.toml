@@ -11,7 +11,7 @@ wayland-protocols-wlr = { version = "0.3", features = ["client"] }
 smithay-client-toolkit = { version = "0.21", default-features = false, features = ["calloop", "xkbcommon"] }
 calloop = { version = "0.14", features = ["signals"] }
 serde = { version = "1.0", features = ["derive"] }
-toml = "0.8"
+toml = "0.9"
 chrono = "0.4"
 fontdue = "0.9"
 libc = "0.2"
