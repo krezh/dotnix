@@ -30,7 +30,7 @@
 
         settings = {
           theme = "dark";
-          model = "sonnet";
+          model = "default";
           verbose = true;
           includeCoAuthoredBy = false;
           autoMemoryEnabled = false;
