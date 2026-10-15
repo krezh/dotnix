@@ -16,6 +16,7 @@
         ueberzugpp
         vipsdisp
         fladder
+        plezy
       ];
 
       programs = {

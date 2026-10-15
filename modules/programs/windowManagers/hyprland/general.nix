@@ -14,6 +14,8 @@
     in
     {
       services.polkit-gnome.enable = true;
+      homeModules.dusk.enable = true;
+
       catppuccin.hyprland.enable = false;
       wayland.windowManager.hyprland = {
         enable = true;
@@ -83,11 +85,12 @@
               };
               shadow = {
                 enabled = true;
-                color = "rgba(00000030)";
-                offset = "4, 4";
-                range = 40;
+                color = "rgba(00000059)";
+                color_inactive = "rgba(00000059)";
+                # offset = "4, 4";
+                range = 18;
                 render_power = 3;
-                scale = 1.0;
+                # scale = 1.0;
               };
             };
 
@@ -167,8 +170,8 @@
             "windows, 1, spring:spring_window"
             "windowsIn, 1, spring:spring_window, popin 40%"
             "windowsOut, 1, spring:spring_window, popin 40%"
-            "border, off"
-            "borderangle, off"
+            "border, 4, bezier:md3_decel"
+            "borderangle, 30, bezier:md3_decel"
             "fade, off"
             "zoomFactor, 6, bezier:md3_decel"
             "layersIn, 3, spring:spring_menu, slide"
@@ -181,10 +184,6 @@
         };
       };
 
-      home.packages = [
-        pkgs.tray-tui
-        pkgs.hyprshade
-        pkgs.hyprshutdown
-      ];
+      home.packages = [ pkgs.hyprshade ];
     };
 }

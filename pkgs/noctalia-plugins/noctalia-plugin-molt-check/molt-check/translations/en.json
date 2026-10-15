@@ -1,0 +1,5 @@
+{
+  "title": "Molt Check",
+  "settings.refresh_minutes.label": "Refresh interval (minutes)",
+  "settings.refresh_minutes.description": "Minimum time between automatic molt check runs (manual refresh always runs); results are cached across restarts"
+}

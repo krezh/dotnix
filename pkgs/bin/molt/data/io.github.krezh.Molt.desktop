@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Molt
+GenericName=System Updates
+Comment=Update, build, activate, and clean up NixOS
+Exec=molt
+Icon=io.github.krezh.Molt
+Terminal=false
+Categories=System;PackageManager;
+Keywords=nixos;nix;update;rebuild;switch;cleanup;flake;

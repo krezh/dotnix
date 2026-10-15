@@ -6,7 +6,6 @@
     programs.helium = {
       enable = true;
 
-      # CLI flags passed to the browser
       commandLineArgs = [
         "--ozone-platform-hint=auto"
         "--enable-features=WaylandWindowDecorations"
@@ -23,9 +22,8 @@
         { id = "kdbmhfkmnlmbkgbabkdealhhbfhlmmon"; } # SteamDB
         { id = "oeakphpfoaeggagmgphfejmfjbhjfhhh"; } # YT Tweaks
         { id = "ffabmkklhbepgcgfonabamgnfafbdlkn"; } # GitZip for github
+        { id = "fcoeoabgfenejglbffodgkkbkcdhcgfn"; } # Claude
       ];
-
-      # nativeMessagingHosts = [ pkgs.browserpass ];
     };
   };
 }

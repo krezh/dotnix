@@ -34,7 +34,7 @@
       fileManager = mkProg pkgs.nautilus;
       passwords = mkProg pkgs.proton-pass;
       sysMonitor = mkProg pkgs.resources;
-      swix = mkProg osConfig.nixosModules.swix.package;
+      molt = mkProg osConfig.nixosModules.molt.package;
       hyprlock.run = "${lib.getExe config.programs.hyprlock.package} --grace 0";
       shell.run = "${lib.getExe config.programs.noctalia.package} msg";
       keybinds.run = lib.getExe pkgs.hyprland_keybinds;
@@ -121,8 +121,8 @@
               desc = "Toggle between audio devices";
             };
             "${mainMod} + U" = {
-              rule = exec swix.run;
-              desc = "Software Updates (Swix)";
+              rule = exec molt.run;
+              desc = "Software Updates (Molt)";
             };
             "${mainMod} + S" = {
               rule = exec screenshot.run;

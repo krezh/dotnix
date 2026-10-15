@@ -1,0 +1,131 @@
+/* ── Watchlist ─────────────────────────────────────────────────────────────── */
+
+.watchlist-header {
+  margin-bottom: 14px;
+}
+
+.watchlist-browser {
+  padding: 12px;
+}
+
+.watchlist-detail {
+  padding: 18px 20px;
+}
+
+.watchlist-search,
+.watchlist-track-entry {
+  border-radius: 8px;
+  min-height: 34px;
+}
+
+.watchlist-track-bar {
+  margin-bottom: 2px;
+}
+
+.watchlist-row,
+.watchlist-row:focus,
+.watchlist-row:focus-visible {
+  border-radius: 8px;
+  padding: 7px 10px;
+}
+
+.watchlist-row-title {
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.watchlist-row-sub {
+  color: var(--subtext0);
+  font-size: 12px;
+}
+
+.watchlist-detail-title {
+  color: var(--text);
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.watchlist-detail-meta {
+  color: var(--subtext0);
+  font-size: 13px;
+}
+
+/* Timeline rows: styled like inputs-history-row */
+.watchlist-timeline-row {
+  background-color: transparent;
+  background-image: none;
+  border: 0;
+  border-radius: 9px;
+  box-shadow: none;
+  color: var(--text);
+  outline: none;
+  padding: 0 10px 0 6px;
+  transition: background-color 120ms ease;
+
+}
+
+.watchlist-timeline-row:hover {
+  background-color: color-mix(in srgb, var(--surface0) 55%, transparent);
+}
+
+.watchlist-timeline-rail {
+  min-width: 20px;
+  background-image: linear-gradient(
+    to right,
+    transparent 9px,
+    var(--surface0) 9px,
+    var(--surface0) 11px,
+    transparent 11px
+  );
+}
+
+.watchlist-timeline-dot {
+  min-width: 10px;
+  min-height: 10px;
+  margin-top: 14px;
+  border-radius: 99px;
+  background-color: var(--surface2);
+  transition: background-color 150ms ease;
+}
+
+.watchlist-timeline-dot.reached {
+  background-color: var(--green);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--green) 35%, transparent);
+}
+
+.watchlist-timeline-dot.pending {
+  background-color: var(--yellow);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--yellow) 35%, transparent);
+}
+
+.watchlist-timeline-dot.open {
+  background-color: var(--mauve);
+}
+
+.watchlist-timeline-name {
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.watchlist-timeline-desc {
+  color: var(--subtext0);
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.watchlist-timeline-pill {
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 8px;
+}
+
+.watchlist-empty-text {
+  color: var(--subtext0);
+  font-size: 13px;
+  padding: 32px 16px;
+
+}

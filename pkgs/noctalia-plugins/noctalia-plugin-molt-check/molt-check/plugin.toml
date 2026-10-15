@@ -1,0 +1,30 @@
+id = "krezh/molt-check"
+name = "Molt Check"
+version = "0.1.0"
+plugin_api = 31
+author = "krezh"
+license = "MIT"
+icon = "snowflake"
+description = "Bar badge counting incoming flake changes from molt check; click to open molt."
+tags = ["bar", "indicator", "utility"]
+dependencies = ["molt"]
+
+[[setting]]
+key = "refresh_minutes"
+type = "int"
+label_key = "settings.refresh_minutes.label"
+description_key = "settings.refresh_minutes.description"
+default = 15
+min = 1
+max = 240
+
+[[service]]
+id = "service"
+entry = "service.luau"
+
+[[widget]]
+id = "bar"
+entry = "bar.luau"
+
+  [widget.actions]
+  right = "plugin krezh/molt-check:service all refresh"

@@ -43,27 +43,6 @@
 
           layer_rule = expandRules [
             {
-              match.namespace = "^(rofi)$";
-              blur = true;
-            }
-            {
-              match.namespace = "^(launcher)$";
-              animation = "popin 80%";
-              blur = true;
-            }
-            {
-              match.namespace = "^(walker)$";
-              animation = "popin 60%";
-              blur = true;
-            }
-            {
-              match.namespace = "^(swix)$";
-              blur = true;
-              # The layer surface's corners outside Swix's rounded panel are fully transparent;
-              # without this the blur shows there as a frosted rectangle.
-              ignore_alpha = 0.1;
-            }
-            {
               match.namespace = "^(slumber-screensaver)$";
               animation = "fade";
               blur = true;
@@ -79,6 +58,10 @@
             }
             {
               match.namespace = "^(noctalia:.*)$";
+              no_anim = true;
+            }
+            {
+              match.namespace = "^(dusk)$";
               no_anim = true;
             }
           ];

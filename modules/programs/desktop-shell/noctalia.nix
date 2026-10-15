@@ -39,13 +39,13 @@ _: {
             if [[ -n "$hyprland_signature" && -S "''${XDG_RUNTIME_DIR:?}/hypr/$hyprland_signature/.socket.sock" ]]; then
               case "$action" in
                 logout)
-                  exec ${lib.getExe pkgs.hyprshutdown}
+                  exec ${lib.getExe config.homeModules.dusk.package} logout
                   ;;
                 reboot)
-                  exec ${lib.getExe pkgs.hyprshutdown} -t "Restarting..." --post-cmd "reboot"
+                  exec ${lib.getExe config.homeModules.dusk.package} reboot
                   ;;
                 shutdown)
-                  exec ${lib.getExe pkgs.hyprshutdown} -t "Shutting down..." --post-cmd "shutdown -P 0"
+                  exec ${lib.getExe config.homeModules.dusk.package} shutdown
                   ;;
               esac
             fi
@@ -59,7 +59,7 @@ _: {
     {
       programs.noctalia = {
         enable = true;
-        systemd.enable = true;
+        systemd.enable = false;
 
         settings = {
           audio = {
@@ -85,7 +85,7 @@ _: {
               center = [ "workspaces" ];
               end = [
                 "krezh/omp-usage:bar"
-                "krezh/swix-check:bar"
+                "krezh/molt-check:bar"
                 "krezh/zowie-battery:bar"
                 "krezh/headsetcontrol:bar"
                 "audio_visualizer"
@@ -145,7 +145,7 @@ _: {
           plugins = {
             enabled = [
               "krezh/omp-usage"
-              "krezh/swix-check"
+              "krezh/molt-check"
               "krezh/zowie-battery"
               "krezh/headsetcontrol"
             ];
@@ -282,7 +282,7 @@ _: {
       };
 
       xdg.dataFile."noctalia/plugins/omp-usage".source = "${pkgs.noctalia-plugin-omp-usage}/omp-usage";
-      xdg.dataFile."noctalia/plugins/swix-check".source = "${pkgs.noctalia-plugin-swix-check}/swix-check";
+      xdg.dataFile."noctalia/plugins/molt-check".source = "${pkgs.noctalia-plugin-molt-check}/molt-check";
       xdg.dataFile."noctalia/plugins/zowie-battery".source =
         "${pkgs.noctalia-plugin-zowie-battery}/zowie-battery";
       xdg.dataFile."noctalia/plugins/headsetcontrol".source =

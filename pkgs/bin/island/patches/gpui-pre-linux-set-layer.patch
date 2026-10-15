@@ -1,0 +1,46 @@
+--- a/src/linux/wayland/window.rs
++++ b/src/linux/wayland/window.rs
+@@ -40,7 +40,7 @@
+     PromptLevel, RequestFrameOptions, ResizeEdge, Scene, Size, Tiling, WindowAppearance,
+     WindowBackgroundAppearance, WindowBounds, WindowControlArea, WindowControls, WindowDecorations,
+     WindowKind, WindowParams, WindowVisibility,
+-    layer_shell::{Anchor, LayerShellNotSupportedError},
++    layer_shell::{Anchor, Layer, LayerShellNotSupportedError},
+     popup::PopupOptions,
+     px, size,
+ };
+@@ -476,6 +476,20 @@
+         }
+     }
+ 
++    /// `set_layer` arrived in layer-shell version 2; older compositors raise a
++    /// fatal protocol error, so it is skipped there. Returns whether it applied.
++    fn set_layer(&self, layer: Layer) -> bool {
++        if let WaylandSurfaceState::LayerShell(WaylandLayerSurfaceState { layer_surface, .. }) =
++            self
++            && layer_surface.version() >= 2
++        {
++            layer_surface.set_layer(super::layer_shell::wayland_layer(layer));
++            true
++        } else {
++            false
++        }
++    }
++
+     /// An exclusive edge must be a single edge that the surface is anchored to,
+     /// otherwise the compositor raises a fatal `invalid_exclusive_edge` protocol
+     /// error. An invalid edge is logged and ignored. Returns whether it applied.
+@@ -2130,6 +2144,13 @@
+             state.surface.commit();
+         }
+     }
++
++    fn set_layer(&self, layer: Layer) {
++        let state = self.borrow();
++        if state.surface_state.set_layer(layer) {
++            state.surface.commit();
++        }
++    }
+ 
+     fn set_input_region(&self, region: Option<&[Bounds<Pixels>]>) {
+         let state = self.borrow();

@@ -1,0 +1,27 @@
+--- a/src/platform.rs
++++ b/src/platform.rs
+@@ -1333,6 +1333,8 @@
+     fn set_exclusive_zone(&self, _zone: Pixels) {}
+     #[cfg(all(target_os = "linux", feature = "wayland"))]
+     fn set_exclusive_edge(&self, _edge: layer_shell::Anchor) {}
++    #[cfg(all(target_os = "linux", feature = "wayland"))]
++    fn set_layer(&self, _layer: layer_shell::Layer) {}
+     fn set_input_region(&self, _region: Option<&[Bounds<Pixels>]>) {}
+     fn window_decorations(&self) -> Decorations {
+         Decorations::Server
+--- a/src/window.rs
++++ b/src/window.rs
+@@ -2502,6 +2502,13 @@
+         self.platform_window.set_exclusive_edge(edge);
+     }
+ 
++    /// Move a layer-shell surface to another layer. Ignored when the compositor's
++    /// layer-shell is older than version 2. (Wayland layer-shell windows only)
++    #[cfg(all(target_os = "linux", feature = "wayland"))]
++    pub fn set_layer(&self, layer: crate::layer_shell::Layer) {
++        self.platform_window.set_layer(layer);
++    }
++
+     /// Start an interactive window resize operation if this window is resizable.
+     pub fn start_window_resize(&self, edge: ResizeEdge) {
+         if self.is_resizable {

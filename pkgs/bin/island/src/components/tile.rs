@@ -1,0 +1,406 @@
+use gpui::{AnyElement, Div, FontWeight, SharedString, div, prelude::*, px, relative, rgb, rgba};
+
+use crate::{
+    components::{
+        card::{self, Stat},
+        chart::{Series, chart},
+    },
+    theme::{OVERLAY2, SUBTEXT1, SURFACE1, TEXT, TINT, TRACK_ALPHA, with_alpha},
+    ui::SMALL_SIZE,
+};
+
+/// Height of one row unit. A tile spans whole units, so every column of a board ends level.
+pub const UNIT: f32 = 196.0;
+const PAD: f32 = 14.0;
+const PART_GAP: f32 = 9.0;
+const CHART_H: f32 = 40.0;
+const TALL_CHART_H: f32 = 56.0;
+const CAPTION: f32 = 12.0;
+const LABEL_W: f32 = 70.0;
+const VALUE_W: f32 = 64.0;
+const CORE_COLUMNS: usize = 16;
+const CORE_GAP: f32 = 3.0;
+/// Partitions up to this count get roomy two-line rows; more switch to compact single lines.
+pub const ROOMY_VOLUMES: usize = 3;
+
+pub struct Tile {
+    pub id: SharedString,
+    /// Row units tall: 1 or 2.
+    pub span: usize,
+    pub title: Option<(SharedString, Option<Stat>)>,
+    pub parts: Vec<Part>,
+}
+
+pub struct Meter {
+    pub label: SharedString,
+    pub fraction: f32,
+    pub value: SharedString,
+    pub color: u32,
+}
+
+pub struct Volume {
+    pub mount: SharedString,
+    pub detail: SharedString,
+    pub usage: SharedString,
+    pub fraction: f32,
+    pub color: u32,
+}
+
+pub struct Segment {
+    pub weight: f32,
+    pub color: Option<u32>,
+}
+
+pub struct Drive {
+    pub name: SharedString,
+    pub size: SharedString,
+    pub segments: Vec<Segment>,
+}
+
+/// One building block of a tile. Parts stack top to bottom; `Spacer` pushes the rest down.
+pub enum Part {
+    /// A history chart; `grow` lets it take the tile's spare height.
+    Chart { series: Vec<Series>, grow: bool },
+    /// One small cell per core, lit by its load.
+    Cores { loads: Vec<f32>, color: u32 },
+    /// Label, bar and value rows; `scroll` lets a long list scroll inside the tile.
+    Meters { rows: Vec<Meter>, scroll: bool },
+    /// Inline values, each optionally led by a coloured dot.
+    Legend(Vec<(Option<u32>, SharedString)>),
+    /// Small labelled values in a three-wide grid.
+    Facts(Vec<(SharedString, SharedString)>),
+    /// A large name over secondary lines.
+    Hero { name: SharedString, lines: Vec<SharedString> },
+    /// Mounted partitions; density follows the count and the list scrolls past what fits.
+    Volumes(Vec<Volume>),
+    /// Physical drives as bars split into their partitions, under a small heading.
+    Drives(Vec<Drive>),
+    Spacer,
+}
+
+pub fn height(span: usize) -> f32 {
+    let span = span.max(1) as f32;
+    UNIT * span + card::GAP * (span - 1.0)
+}
+
+fn track() -> gpui::Rgba {
+    rgba(with_alpha(TINT, TRACK_ALPHA / 2))
+}
+
+fn bar(fraction: f32, color: u32, thickness: f32) -> Div {
+    div()
+        .flex_1()
+        .min_w(px(0.0))
+        .h(px(thickness))
+        .rounded_full()
+        .bg(track())
+        .overflow_hidden()
+        .child(div().h_full().rounded_full().w(relative(fraction.clamp(0.0, 1.0))).bg(rgb(color)))
+}
+
+fn hairline() -> gpui::Rgba {
+    rgba(with_alpha(SURFACE1, 0x59))
+}
+
+fn meters(rows: Vec<Meter>) -> Div {
+    div().flex().flex_col().gap(px(7.0)).children(rows.into_iter().map(|row| {
+        div()
+            .flex()
+            .items_center()
+            .gap(px(8.0))
+            .text_size(px(CAPTION))
+            .child(div().w(px(LABEL_W)).flex_none().truncate().text_color(rgb(SUBTEXT1)).child(row.label))
+            .child(bar(row.fraction, row.color, 5.0))
+            .child(
+                div()
+                    .w(px(VALUE_W))
+                    .flex_none()
+                    .flex()
+                    .justify_end()
+                    .whitespace_nowrap()
+                    .font_weight(FontWeight::SEMIBOLD)
+                    .child(row.value),
+            )
+    }))
+}
+
+fn cores(loads: Vec<f32>, color: u32) -> Div {
+    let inner = card::Size::Small.width() - 2.0 * PAD;
+    let cell = (inner - CORE_GAP * (CORE_COLUMNS - 1) as f32) / CORE_COLUMNS as f32;
+    div().flex().flex_wrap().gap(px(CORE_GAP)).children(loads.into_iter().map(move |load| {
+        div()
+            .w(px(cell))
+            .h(px(8.0))
+            .rounded(px(2.5))
+            .bg(rgb(color))
+            .opacity(0.15 + load.clamp(0.0, 1.0) * 0.85)
+    }))
+}
+
+fn legend(items: Vec<(Option<u32>, SharedString)>) -> Div {
+    div()
+        .flex()
+        .gap(px(12.0))
+        .text_size(px(CAPTION))
+        .font_weight(FontWeight::SEMIBOLD)
+        .text_color(rgb(SUBTEXT1))
+        .children(items.into_iter().map(|(dot, text)| {
+            div()
+                .flex()
+                .items_center()
+                .gap(px(5.0))
+                .whitespace_nowrap()
+                .when_some(dot, |item, color| {
+                    item.text_color(rgb(TEXT)).child(div().size(px(7.0)).flex_none().rounded_full().bg(rgb(color)))
+                })
+                .child(text)
+        }))
+}
+
+fn facts(items: Vec<(SharedString, SharedString)>) -> Div {
+    let mut rows = Vec::new();
+    let mut items = items.into_iter().peekable();
+    while items.peek().is_some() {
+        let row: Vec<_> = items.by_ref().take(3).collect();
+        rows.push(div().flex().gap(px(6.0)).children(row.into_iter().map(|(label, value)| {
+            div()
+                .flex_1()
+                .min_w(px(0.0))
+                .px(px(8.0))
+                .py(px(4.0))
+                .rounded(px(9.0))
+                .bg(rgba(with_alpha(TINT, 0x0d)))
+                .flex()
+                .flex_col()
+                .child(div().text_size(px(10.5)).text_color(rgb(OVERLAY2)).child(label))
+                .child(div().text_size(px(SMALL_SIZE)).font_weight(FontWeight::SEMIBOLD).truncate().child(value))
+        })));
+    }
+    div().flex().flex_col().gap(px(6.0)).children(rows)
+}
+
+fn hero(name: SharedString, lines: Vec<SharedString>) -> Div {
+    div()
+        .flex()
+        .flex_col()
+        .gap(px(4.0))
+        .child(div().text_size(px(20.0)).font_weight(FontWeight::BOLD).child(name))
+        .child(
+            div()
+                .flex()
+                .flex_col()
+                .text_size(px(CAPTION))
+                .text_color(rgb(SUBTEXT1))
+                .children(lines.into_iter().map(|line| div().truncate().child(line))),
+        )
+}
+
+fn volumes(id: SharedString, items: Vec<Volume>) -> AnyElement {
+    let roomy = items.len() <= ROOMY_VOLUMES;
+    div()
+        .id(id)
+        .flex_1()
+        .min_h(px(0.0))
+        .overflow_y_scroll()
+        .flex()
+        .flex_col()
+        .children(items.into_iter().enumerate().map(move |(index, volume)| {
+            let row = div()
+                .flex_none()
+                .when(index > 0, |row| row.border_t_1().border_color(hairline()));
+            if roomy {
+                row.flex()
+                    .flex_col()
+                    .gap(px(5.0))
+                    .py(px(9.0))
+                    .child(
+                        div()
+                            .flex()
+                            .justify_between()
+                            .gap(px(10.0))
+                            .text_size(px(SMALL_SIZE))
+                            .font_weight(FontWeight::SEMIBOLD)
+                            .child(div().min_w(px(0.0)).truncate().child(volume.mount))
+                            .child(div().flex_none().child(volume.usage)),
+                    )
+                    .child(div().flex().child(bar(volume.fraction, volume.color, 7.0)))
+                    .child(
+                        div()
+                            .flex()
+                            .justify_between()
+                            .text_size(px(11.0))
+                            .text_color(rgb(OVERLAY2))
+                            .child(div().min_w(px(0.0)).truncate().child(volume.detail))
+                            .child(div().flex_none().child(format!("{:.0}% used", volume.fraction * 100.0))),
+                    )
+            } else {
+                row.flex()
+                    .items_center()
+                    .gap(px(8.0))
+                    .py(px(5.0))
+                    .text_size(px(CAPTION))
+                    .child(div().flex_1().min_w(px(0.0)).truncate().text_color(rgb(SUBTEXT1)).child(volume.mount))
+                    .child(div().w(px(96.0)).flex_none().flex().child(bar(volume.fraction, volume.color, 5.0)))
+                    .child(
+                        div()
+                            .w(px(64.0))
+                            .flex_none()
+                            .flex()
+                            .justify_end()
+                            .whitespace_nowrap()
+                            .font_weight(FontWeight::SEMIBOLD)
+                            .child(volume.usage),
+                    )
+            }
+        }))
+        .into_any_element()
+}
+
+fn drives(items: Vec<Drive>) -> Div {
+    div()
+        .flex_none()
+        .flex()
+        .flex_col()
+        .gap(px(10.0))
+        .pt(px(12.0))
+        .border_t_1()
+        .border_color(hairline())
+        .child(
+            div()
+                .text_size(px(11.0))
+                .font_weight(FontWeight::SEMIBOLD)
+                .text_color(rgb(OVERLAY2))
+                .child("DRIVES"),
+        )
+        .children(items.into_iter().map(|drive| {
+            let total: f32 = drive.segments.iter().map(|segment| segment.weight).sum::<f32>().max(f32::EPSILON);
+            div()
+                .flex()
+                .flex_col()
+                .gap(px(6.0))
+                .child(
+                    div()
+                        .flex()
+                        .justify_between()
+                        .gap(px(10.0))
+                        .text_size(px(CAPTION))
+                        .text_color(rgb(SUBTEXT1))
+                        .child(div().min_w(px(0.0)).truncate().child(drive.name))
+                        .child(div().flex_none().font_weight(FontWeight::SEMIBOLD).text_color(rgb(TEXT)).child(drive.size)),
+                )
+                .child(
+                    div()
+                        .flex()
+                        .gap(px(2.0))
+                        .h(px(8.0))
+                        .rounded_full()
+                        .overflow_hidden()
+                        .bg(track())
+                        .children(drive.segments.into_iter().map(move |segment| {
+                            div()
+                                .h_full()
+                                .w(px(0.0))
+                                .flex_grow(segment.weight / total)
+                                .when_some(segment.color, |piece, color| piece.bg(rgb(color)))
+                        })),
+                )
+        }))
+}
+
+fn part(part: Part, id: &SharedString, index: usize, span: usize, phase: f32) -> AnyElement {
+    match part {
+        Part::Chart { series, grow } => div()
+            .relative()
+            .when(grow, |area| area.flex_1().min_h(px(CHART_H)))
+            .when(!grow, |area| area.flex_none().h(px(if span > 1 { TALL_CHART_H } else { CHART_H })))
+            .child(div().absolute().size_full().flex().child(chart(series, card::SLOTS, phase)))
+            .into_any_element(),
+        Part::Cores { loads, color } => cores(loads, color).into_any_element(),
+        Part::Meters { rows, scroll: false } => meters(rows).flex_none().into_any_element(),
+        Part::Meters { rows, scroll: true } => div()
+            .id(SharedString::from(format!("{id}-meters-{index}")))
+            .flex_1()
+            .min_h(px(0.0))
+            .overflow_y_scroll()
+            .child(meters(rows))
+            .into_any_element(),
+        Part::Legend(items) => legend(items).flex_none().into_any_element(),
+        Part::Facts(items) => facts(items).flex_none().into_any_element(),
+        Part::Hero { name, lines } => hero(name, lines).flex_none().into_any_element(),
+        Part::Volumes(items) => volumes(SharedString::from(format!("{id}-volumes")), items),
+        Part::Drives(items) => drives(items).into_any_element(),
+        Part::Spacer => div().flex_1().into_any_element(),
+    }
+}
+
+pub fn tile(tile: Tile, phase: f32) -> AnyElement {
+    let Tile { id, span, title, parts } = tile;
+    card::surface()
+        .w(px(card::Size::Small.width()))
+        .h(px(height(span)))
+        .flex_none()
+        .overflow_hidden()
+        .p(px(PAD))
+        .flex()
+        .flex_col()
+        .gap(px(PART_GAP))
+        .when_some(title, |tile, (title, value)| {
+            tile.child(
+                div()
+                    .flex_none()
+                    .flex()
+                    .items_baseline()
+                    .justify_between()
+                    .gap(px(12.0))
+                    .child(div().text_size(px(15.0)).font_weight(FontWeight::SEMIBOLD).child(title))
+                    .children(value.map(|value| {
+                        div()
+                            .text_size(px(15.0))
+                            .font_weight(FontWeight::SEMIBOLD)
+                            .whitespace_nowrap()
+                            .text_color(rgb(value.color))
+                            .child(value.text)
+                    })),
+            )
+        })
+        .map(|tile| {
+            // Parts after a spacer sit together at the bottom, one gap apart, with no extra gap
+            // around the spacer itself.
+            let mut parts = parts.into_iter().enumerate();
+            let top: Vec<AnyElement> = parts
+                .by_ref()
+                .take_while(|(_, piece)| !matches!(piece, Part::Spacer))
+                .map(|(index, piece)| part(piece, &id, index, span, phase))
+                .collect();
+            let bottom: Vec<AnyElement> = parts.map(|(index, piece)| part(piece, &id, index, span, phase)).collect();
+            tile.children(top).when(!bottom.is_empty(), |tile| {
+                tile.child(
+                    div()
+                        .flex_1()
+                        .min_h(px(0.0))
+                        .flex()
+                        .flex_col()
+                        .justify_end()
+                        .gap(px(PART_GAP))
+                        .children(bottom),
+                )
+            })
+        })
+        .into_any_element()
+}
+
+/// Columns of tiles side by side. Give every column the same total span so they end level.
+pub fn board(columns: Vec<Vec<Tile>>, phase: f32) -> AnyElement {
+    div()
+        .flex()
+        .items_start()
+        .gap(px(card::GAP))
+        .children(columns.into_iter().map(|column| {
+            div()
+                .flex()
+                .flex_col()
+                .gap(px(card::GAP))
+                .children(column.into_iter().map(|piece| tile(piece, phase)))
+        }))
+        .into_any_element()
+}

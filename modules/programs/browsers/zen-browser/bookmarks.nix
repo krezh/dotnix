@@ -33,25 +33,31 @@
             id = "chatgpt";
             url = "https://chatgpt.com/";
             position = 106;
-            isEssential = false;
+            isEssential = true;
           };
           "Claude" = {
             id = "claude";
             url = "https://claude.ai";
             position = 106;
-            isEssential = false;
+            isEssential = true;
+          };
+          "gemini" = {
+            id = "gemini";
+            url = "https://gemini.google.com";
+            position = 107;
+            isEssential = true;
           };
           "Kagi Assistant" = {
             id = "kagiassistant";
             url = "https://kagi.com/assistant";
-            position = 107;
-            isEssential = false;
+            position = 108;
+            isEssential = true;
           };
           "NixSearch" = {
             id = "nixsearch";
             url = "https://nixsearch.thekoppe.com/";
-            position = 108;
-            isEssential = false;
+            position = 109;
+            isEssential = true;
           };
         };
       };

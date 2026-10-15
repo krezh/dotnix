@@ -28,7 +28,7 @@
       fileManager = mkProg pkgs.nautilus;
       passwords = mkProg pkgs.proton-pass;
       sysMonitor = mkProg pkgs.resources;
-      swix = mkProg osConfig.nixosModules.swix.package;
+      molt = mkProg osConfig.nixosModules.molt.package;
       hyprlock.run = "${lib.getExe config.programs.hyprlock.package} --grace 0";
       shell.run = "${lib.getExe config.programs.noctalia.package} msg";
       mail.run = lib.getExe pkgs.protonmail-desktop;
@@ -107,8 +107,8 @@
               spawn-sh = "${audioSwitch} toggle";
             };
             "Mod+U" = {
-              _props.hotkey-overlay-title = "Software Updates (Swix)";
-              spawn-sh = swix.run;
+              _props.hotkey-overlay-title = "Software Updates (Molt)";
+              spawn-sh = molt.run;
             };
             "Mod+S" = {
               _props.hotkey-overlay-title = "Screenshot menu";

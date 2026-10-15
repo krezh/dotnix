@@ -30,7 +30,6 @@
 
         settings = {
           theme = "dark";
-          model = "default";
           verbose = true;
           includeCoAuthoredBy = false;
           autoMemoryEnabled = false;

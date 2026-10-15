@@ -15,21 +15,8 @@ const BOLD: &str = "\x1b[1m";
 const DIM: &str = "\x1b[2m";
 const RESET: &str = "\x1b[0m";
 
-const FILLED: char = '\u{2588}';
-const EMPTY: char = '\u{2591}';
 
-// ── Rendering ─────────────────────────────────────────────────────────────────
-
-/// Renders a block progress bar of the given character length.
-fn bar(pct: f64, length: usize) -> String {
-    let filled = ((pct / 100.0) * length as f64).round() as usize;
-    let filled = filled.min(length);
-    std::iter::repeat_n(FILLED, filled)
-        .chain(std::iter::repeat_n(EMPTY, length - filled))
-        .collect()
-}
-
-/// Formats a rate-limit usage percentage with a colored bar.
+/// Formats a rate-limit usage percentage with color coding.
 ///
 /// Thresholds: green below 80%, orange 80–89%, red 90%+.
 fn color_rate(pct: Option<f64>) -> String {
@@ -43,12 +30,12 @@ fn color_rate(pct: Option<f64>) -> String {
             } else {
                 GREEN
             };
-            format!("{color}{} {:.0}%{RESET}", bar(v, 8), v)
+            format!("{color}{:.0}%{RESET}", v)
         }
     }
 }
 
-/// Formats a context-window usage percentage with a colored bar.
+/// Formats a context-window usage percentage with color coding.
 ///
 /// Thresholds are tighter than rate limits (orange 70%+, red 80%+) because
 /// approaching the context limit degrades model quality before hitting the hard cap.
@@ -63,7 +50,7 @@ fn color_ctx(pct: Option<f64>) -> String {
             } else {
                 GREEN
             };
-            format!("{color}{} {:.0}%{RESET}", bar(v, 8), v)
+            format!("{color}{:.0}%{RESET}", v)
         }
     }
 }
@@ -187,9 +174,6 @@ struct JjStatus {
     id_prefix: String,
     id_rest: String,
     bookmark: Option<String>,
-    modified: u32,
-    added: u32,
-    deleted: u32,
     conflicts: u32,
 }
 
@@ -207,7 +191,7 @@ fn jj_cmd(cwd: &Path, args: &[&str]) -> Option<String> {
 }
 
 fn parse_jj_status(cwd: &Path) -> Option<JjStatus> {
-    // Lines: id prefix, id rest, empty flag, conflict flag, local bookmark names
+    // Lines: id prefix, id rest, conflict flag, local bookmark names
     let info = jj_cmd(
         cwd,
         &[
@@ -216,14 +200,13 @@ fn parse_jj_status(cwd: &Path) -> Option<JjStatus> {
             "-r",
             "@",
             "-T",
-            r#"change_id.shortest(8).prefix() ++ "\n" ++ change_id.shortest(8).rest() ++ "\n" ++ if(empty, "1", "0") ++ "\n" ++ if(conflict, "1", "0") ++ "\n" ++ bookmarks.filter(|b| !b.remote()).map(|b| b.name()).join(" ")"#,
+            r#"change_id.shortest(8).prefix() ++ "\n" ++ change_id.shortest(8).rest() ++ "\n" ++ if(conflict, "1", "0") ++ "\n" ++ bookmarks.filter(|b| !b.remote()).map(|b| b.name()).join(" ")"#,
         ],
     )?;
 
     let mut lines = info.lines();
     let id_prefix = lines.next()?.to_string();
     let id_rest = lines.next()?.to_string();
-    let is_empty = lines.next()? == "1";
     let has_conflict = lines.next()? == "1";
     let bookmarks_str = lines.next().unwrap_or("").trim().to_string();
 
@@ -232,27 +215,6 @@ fn parse_jj_status(cwd: &Path) -> Option<JjStatus> {
     } else {
         None
     };
-
-    let mut modified = 0u32;
-    let mut added = 0u32;
-    let mut deleted = 0u32;
-
-    if !is_empty {
-        if let Some(diff_out) = jj_cmd(cwd, &["diff", "--summary"]) {
-            for line in diff_out.lines() {
-                let b = line.as_bytes();
-                if b.len() >= 2 && b[1] == b' ' {
-                    match b[0] {
-                        b'M' => modified += 1,
-                        b'A' => added += 1,
-                        b'D' => deleted += 1,
-                        b'R' => modified += 1,
-                        _ => {}
-                    }
-                }
-            }
-        }
-    }
 
     let conflicts = if has_conflict {
         jj_cmd(cwd, &["resolve", "--list"])
@@ -266,9 +228,6 @@ fn parse_jj_status(cwd: &Path) -> Option<JjStatus> {
         id_prefix,
         id_rest,
         bookmark,
-        modified,
-        added,
-        deleted,
         conflicts,
     })
 }
@@ -289,15 +248,6 @@ fn format_jj_segment(cwd: &Path) -> Option<String> {
 
     if s.conflicts > 0 {
         parts.push(format!("{RED}!{}{RESET}", s.conflicts));
-    }
-    if s.added > 0 {
-        parts.push(format!("{GREEN}+{}{RESET}", s.added));
-    }
-    if s.modified > 0 {
-        parts.push(format!("{YELLOW}~{}{RESET}", s.modified));
-    }
-    if s.deleted > 0 {
-        parts.push(format!("{RED}-{}{RESET}", s.deleted));
     }
 
     Some(parts.join(" "))
@@ -492,33 +442,6 @@ fn format_git_segment(cwd: &Path) -> Option<String> {
     Some(parts.join(" "))
 }
 
-// ── Cost / session ────────────────────────────────────────────────────────────
-
-/// Formats the session's net line additions and deletions, or returns `None` when both are absent or zero.
-fn format_lines(data: &serde_json::Value) -> Option<String> {
-    let added = data["cost"]["total_lines_added"].as_i64();
-    let removed = data["cost"]["total_lines_removed"].as_i64();
-    match (added, removed) {
-        (None, None) => None,
-        (a, r) => {
-            let mut s = String::new();
-            if let Some(n) = a {
-                if n > 0 {
-                    s.push_str(&format!("{GREEN}+{n}{RESET}"));
-                }
-            }
-            if let Some(n) = r {
-                if n > 0 {
-                    if !s.is_empty() {
-                        s.push(' ');
-                    }
-                    s.push_str(&format!("{RED}-{n}{RESET}"));
-                }
-            }
-            if s.is_empty() { None } else { Some(s) }
-        }
-    }
-}
 
 // ── Main ──────────────────────────────────────────────────────────────────────
 
@@ -553,11 +476,6 @@ fn main() {
     // ── Model ────────────────────────────────────────────────────────────────
     if let Some(model) = data["model"]["display_name"].as_str() {
         parts.push(format!("{CYAN}{model}{RESET}"));
-    }
-
-    // ── Session lines ────────────────────────────────────────────────────────
-    if let Some(lines) = format_lines(&data) {
-        parts.push(lines);
     }
 
     // ── Rate limits ──────────────────────────────────────────────────────────
