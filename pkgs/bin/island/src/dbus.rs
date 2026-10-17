@@ -1,5 +1,3 @@
-//! island's own D-Bus name, which `island ctl` talks to, and helpers for talking to other services.
-
 use futures::channel::mpsc::UnboundedSender;
 use zbus::{
     Connection, ObjectPath, Proxy, block_on, connection,
@@ -18,9 +16,9 @@ use crate::{
 
 const INSTANCE: &str = "io.github.krezh.Island";
 
-/// A proxy for one read or call. zbus normally fetches every property of the object up front to
-/// cache them; island never uses that cache, so it would only cost a round trip, and a warning
-/// when the other side has just gone away.
+/// For one read or call. zbus normally fetches every property up front to cache them; island never
+/// uses that cache, so it would only cost a round trip, and a warning when the other side has just
+/// gone away.
 pub async fn uncached<'a>(
     connection: &Connection,
     destination: impl TryInto<BusName<'a>, Error: Into<zbus::Error>>,
@@ -36,7 +34,7 @@ pub async fn uncached<'a>(
         .await
 }
 
-/// Asks for `name` without queueing; false when another process has it.
+/// Without queueing; false when another process has the name.
 pub async fn claim(connection: &Connection, name: &'static str) -> Result<bool, String> {
     match connection.request_name_with_flags(name, RequestNameFlags::DO_NOT_QUEUE).await {
         Ok(reply) => Ok(reply == RequestNameReply::PrimaryOwner),
@@ -64,8 +62,7 @@ impl Controller {
     }
 }
 
-/// Claims island's name, so only one island runs, and serves `island ctl` on it, handing its
-/// commands to `controls`. The connection must be kept for as long as island runs.
+/// Claiming the name means only one island runs. Keep the connection for as long as island runs.
 pub fn serve(controls: UnboundedSender<Control>) -> Result<Connection, String> {
     let connection = block_on(async {
         let connection = connection::Builder::session()

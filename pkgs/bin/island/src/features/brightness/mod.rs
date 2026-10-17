@@ -1,6 +1,5 @@
-//! Brightness: `island ctl brightness …` sets the screen's brightness, through logind for a
-//! backlight or DDC/CI for an external monitor, and an OSD shows the new level. Neither tells of
-//! changes made elsewhere, so only these show.
+//! Neither logind nor DDC/CI tells of changes made elsewhere, so the OSD only shows changes made
+//! through `island ctl brightness`.
 
 mod device;
 
@@ -19,8 +18,7 @@ use crate::{
     theme::YELLOW,
 };
 
-/// The brightness after the latest change, and how many changes there have been, so a change that
-/// leaves the level where it was, such as up at full, still shows.
+/// Counts changes, so one that leaves the level where it was, such as up at full, still shows.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Level {
     value: f32,
@@ -31,7 +29,7 @@ pub struct Brightness {
     changes: Sender<Change>,
 }
 
-/// The level after `change`, or `None` without a screen to set.
+/// `None` without a screen to set.
 fn apply(change: Change) -> Option<f32> {
     match change {
         Change::Step(delta) => device::step(delta),

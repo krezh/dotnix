@@ -1,5 +1,3 @@
-//! ZOWIE mouse battery from `zowie-batt`: a gauge in the bar while a mouse or receiver is present.
-
 use std::{
     sync::mpsc::{self, RecvTimeoutError, Sender},
     time::Duration,
@@ -116,7 +114,6 @@ pub struct Zowie {
 }
 
 impl Zowie {
-    /// Reads the mouse battery now instead of at the next interval.
     pub fn refresh(&self) {
         let _ = self.refresh.send(());
     }

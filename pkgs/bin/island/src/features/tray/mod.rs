@@ -1,12 +1,11 @@
-//! Tray: apps' StatusNotifierItem icons in the bar. Each island animates its own icons in and out,
-//! icons that need attention pulse, and an item's menu opens as the island's Menu panel.
-
 mod sni;
 
 use std::{rc::Rc, time::Instant};
 
 use futures::channel::oneshot;
-use gpui::{AnyElement, Context, FontWeight, MouseButton, MouseDownEvent, SpringConfig, div, prelude::*, px, rgb};
+use gpui::{
+    AnyElement, ClickEvent, Context, FontWeight, MouseButton, MouseDownEvent, Pixels, SpringConfig, div, prelude::*, px, rgb,
+};
 use tracing::{debug, error, warn};
 
 use super::{Feature, Feed, IslandInfo, Local, WidgetCx};
@@ -23,12 +22,17 @@ use sni::{Client, Command, TrayItem};
 const ICON: f32 = 18.0;
 const MOTION: SpringConfig = SpringConfig::new(420.0, 34.0, 1.0);
 
-/// The width one icon takes in the bar.
 fn step(spacing: f32) -> f32 {
     ICON + 2.0 * bar::half(spacing)
 }
 
-/// An island's tray icons, each fading and sliding in or out on its own.
+fn anchor(event: &ClickEvent) -> Pixels {
+    match event {
+        ClickEvent::Keyboard(event) => event.bounds.center().x,
+        event => event.position().x,
+    }
+}
+
 pub struct Icons(Presence<TrayItem>);
 
 impl Default for Icons {
@@ -65,8 +69,11 @@ impl Tray {
         }
     }
 
-    /// Asks the item for its menu and shows it on `island` once it arrives.
-    fn open_menu(&self, key: String, title: String, cx: &mut Context<Island>) {
+    fn open_menu(&self, key: String, anchor: Pixels, island: &mut Island, cx: &mut Context<Island>) {
+        if island.menu_open_for(&key) {
+            island.close_menu(cx);
+            return;
+        }
         debug!(item = key, "opening the tray menu");
         let (reply, response) = oneshot::channel();
         self.send(Command::Menu(key.clone(), reply));
@@ -85,13 +92,13 @@ impl Tray {
                 return;
             }
             debug!(item = key, entries = root.children.len(), "showing the tray menu");
-            let pick = Rc::new(move |id, _: &mut Island, _: &mut Context<Island>| tray.send(Command::Click(key.clone(), id)));
-            let _ = island.update(cx, |island, cx| island.show_menu(title, root, pick, cx));
+            let item = key.clone();
+            let pick = Rc::new(move |id, _: &mut Island, _: &mut Context<Island>| tray.send(Command::Click(item.clone(), id)));
+            let _ = island.update(cx, |island, cx| island.show_menu(key, root, pick, anchor, cx));
         })
         .detach();
     }
 
-    /// The breathing opacity of the attention dot.
     fn pulse(&self) -> f32 {
         0.55 + 0.45 * (self.epoch.elapsed().as_secs_f32() * 3.0).sin()
     }
@@ -129,7 +136,6 @@ impl Feature for Tray {
             let presence = slot.presence.value().clamp(0.0, 1.0);
             let key = item.key.clone();
             let (click_key, menu_key, middle_key) = (key.clone(), key.clone(), key.clone());
-            let (click_title, menu_title) = (item.title.clone(), item.title.clone());
             let opens_menu = item.item_is_menu && item.has_menu;
             let has_menu = item.has_menu;
             w.base(format!("tray-{key}"))
@@ -156,9 +162,9 @@ impl Feature for Tray {
                             .bg(rgb(ACCENT)),
                     )
                 })
-                .on_click(w.on_island(move |tray: &Tray, _, _, cx| {
+                .on_click(w.on_island(move |tray: &Tray, event: &ClickEvent, island, cx| {
                     if opens_menu {
-                        tray.open_menu(click_key.clone(), click_title.clone(), cx);
+                        tray.open_menu(click_key.clone(), anchor(event), island, cx);
                     } else {
                         tray.send(Command::Activate(click_key.clone()));
                     }
@@ -167,7 +173,9 @@ impl Feature for Tray {
                     if has_menu {
                         slot.on_mouse_down(
                             MouseButton::Right,
-                            w.on_island(move |tray: &Tray, _, _, cx| tray.open_menu(menu_key.clone(), menu_title.clone(), cx)),
+                            w.on_island(move |tray: &Tray, event: &MouseDownEvent, island, cx| {
+                                tray.open_menu(menu_key.clone(), event.position.x, island, cx)
+                            }),
                         )
                     } else {
                         slot.on_mouse_down(

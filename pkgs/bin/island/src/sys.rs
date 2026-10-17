@@ -23,7 +23,7 @@ impl Samples {
     }
 }
 
-/// How often the system is sampled, and so how often the System panel updates.
+/// Also how often the System panel updates.
 pub const INTERVAL: Duration = Duration::from_secs(2);
 
 pub fn watch() -> Samples {
@@ -380,7 +380,7 @@ fn discrete_gpu() -> Option<PathBuf> {
         .max_by_key(|device| read_u64(&device.join("mem_info_vram_total")).unwrap_or(0))
 }
 
-/// Idle and total jiffies for the whole CPU and for each core, from /proc/stat.
+/// Idle and total jiffies for the whole CPU and for each core.
 fn read_cpu_times() -> Option<((u64, u64), Vec<(u64, u64)>)> {
     let stat = fs::read_to_string("/proc/stat").ok()?;
     let times = |line: &str| -> Option<(u64, u64)> {
@@ -445,7 +445,7 @@ fn read_net() -> Option<(u64, u64)> {
     Some(totals)
 }
 
-/// Bytes read and written by the physical drives (not their partitions), from /proc/diskstats.
+/// Physical drives only, not their partitions.
 fn read_disks(disks: &[String]) -> Option<(u64, u64)> {
     let stats = fs::read_to_string("/proc/diskstats").ok()?;
     let mut totals = (0u64, 0u64);
@@ -555,7 +555,6 @@ fn os_name() -> String {
         .unwrap_or_else(|| "Linux".to_owned())
 }
 
-/// NixOS system generation number, from the `system-<n>-link` the profile points at.
 fn generation() -> Option<u32> {
     let link = fs::read_link("/nix/var/nix/profiles/system").ok()?;
     link.file_name()?
@@ -623,7 +622,6 @@ fn mounts() -> Vec<Mount> {
     mounts
 }
 
-/// Physical drives with their partitions; partitions that are mounted carry their mount point.
 fn drives(partitions: &[Partition]) -> Vec<Drive> {
     let skip = ["loop", "ram", "zram", "dm-", "sr", "md", "nbd"];
     let mut drives: Vec<Drive> = fs::read_dir("/sys/block")

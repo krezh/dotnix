@@ -1,5 +1,3 @@
-//! The missed notifications on one island, sliding in and out as they come and go.
-
 use std::time::Instant;
 
 use gpui::SpringConfig;
@@ -12,7 +10,7 @@ use crate::{
 
 const ENTER_DRIFT: f32 = 12.0;
 const LEAVE_SLIDE: f32 = 56.0;
-/// The most of the list the notification center shows before it scrolls, about five cards.
+/// About five cards.
 const MAX_VISIBLE_H: f32 = 480.0;
 
 pub struct Row {
@@ -55,9 +53,8 @@ impl MissedList {
         &self.rows
     }
 
-    /// How tall the notification center shows the list: all of it, up to a most, past which it
-    /// scrolls. Known from the cards' heights alone, so the center never has to measure it, and
-    /// dismissing while the list overflows leaves the center's size alone.
+    /// Known from the cards' heights alone, so the center never has to measure it, and dismissing
+    /// while the list overflows leaves the center's size alone.
     pub fn visible_height(&self) -> f32 {
         self.height.min(MAX_VISIBLE_H)
     }

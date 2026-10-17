@@ -1,5 +1,3 @@
-//! Headset battery from `headsetcontrol`: a gauge in the bar while a headset reports its battery.
-
 use std::{
     sync::mpsc::{self, RecvTimeoutError, Sender},
     time::Duration,
@@ -94,7 +92,6 @@ pub struct Headset {
 }
 
 impl Headset {
-    /// Reads the headset now instead of at the next interval.
     fn refresh(&self) {
         let _ = self.refresh.send(());
     }

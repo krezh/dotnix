@@ -1,7 +1,3 @@
-//! Session: lock, log out, suspend, hibernate, reboot and shut down, from a Session panel, a
-//! System-panel button, a bar button and `island ctl session ACTION`. Each action asks logind
-//! unless `[session.commands]` gives it a command to run instead, such as a graceful exit tool.
-
 use std::{
     fs,
     sync::{Arc, Mutex},
@@ -25,9 +21,8 @@ use crate::{
     theme::{BLUE, MAUVE, PEACH, RED, TEAL, TEXT, YELLOW},
 };
 
-/// How long a button waits for its confirming second click.
 const CONFIRM: Duration = Duration::from_secs(4);
-/// How often the open panel redraws, so the uptime keeps up.
+/// So the uptime keeps up.
 const REFRESH: Duration = Duration::from_secs(30);
 
 const LOGIN: &str = "org.freedesktop.login1";
@@ -83,7 +78,6 @@ impl Action {
         }
     }
 
-    /// Its tile's colour.
     fn color(self) -> u32 {
         match self {
             Action::Lock => BLUE,
@@ -95,12 +89,12 @@ impl Action {
         }
     }
 
-    /// Whether it ends the session, so a click needs confirming.
+    /// A click on one needs confirming.
     fn ends_session(self) -> bool {
         matches!(self, Action::Logout | Action::Reboot | Action::Shutdown)
     }
 
-    /// The logind object, interface and method that carry it out.
+    /// Object, interface and method.
     fn logind(self) -> (&'static str, &'static str, &'static str) {
         match self {
             Action::Lock => (SESSION_PATH, SESSION, "Lock"),
@@ -113,7 +107,7 @@ impl Action {
     }
 }
 
-/// `[session.commands]`: an argv per action, run instead of asking logind; empty asks logind.
+/// An argv per action, run instead of asking logind; empty asks logind.
 #[derive(Clone, Debug, Default, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 struct Commands {
@@ -138,13 +132,10 @@ impl Commands {
     }
 }
 
-/// `[session]` in the config file.
 #[derive(Clone, Debug, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 struct Settings {
-    /// The panel's buttons, in order.
     actions: Vec<Action>,
-    /// Whether logging out, rebooting and shutting down from the panel take a second click.
     confirm: bool,
     commands: Commands,
 }
@@ -159,7 +150,6 @@ impl Default for Settings {
     }
 }
 
-/// Asks logind to carry out `action` for this session.
 fn logind(action: Action) -> zbus::Result<()> {
     block_on(async {
         let connection = Connection::system().await?;
@@ -199,14 +189,12 @@ struct Armed {
 
 #[derive(Clone)]
 pub struct Session {
-    /// Publishes the armed action.
     feed: Feed<Option<Action>>,
     settings: Settings,
     armed: Arc<Mutex<Armed>>,
 }
 
 impl Session {
-    /// Carries out `action` now.
     fn run(&self, action: Action) {
         self.disarm();
         let argv = self.settings.commands.of(action).to_vec();
@@ -233,7 +221,7 @@ impl Session {
         }
     }
 
-    /// A click on `action`'s button; true when it ran rather than waiting for a second click.
+    /// True when it ran rather than waiting for a second click.
     fn press(&self, action: Action) -> bool {
         if !(self.settings.confirm && action.ends_session()) {
             self.run(action);
@@ -306,7 +294,6 @@ impl Feature for Session {
         )
     }
 
-    /// Session: a large tile per action, with the uptime, or what a second click would do.
     fn panel<'a>(&self, armed: &Option<Action>, p: &PanelCx<'a>) -> Option<PanelView<'a>> {
         let tiles = self
             .settings

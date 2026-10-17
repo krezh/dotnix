@@ -1,9 +1,3 @@
-//! Clipboard: a history of what was copied (text, pictures and files), kept in island's database. The
-//! Clipboard panel takes the keyboard like the launcher: a list beside a preview of the selected
-//! entry. Type to search; Enter or a click puts the entry back on the clipboard and pastes it into
-//! the focused window, Shift+Enter only puts it back, Delete forgets it. `island ctl clipboard
-//! clear` forgets them all.
-
 mod paste;
 mod store;
 mod watch;
@@ -23,43 +17,39 @@ use gpui::{AnyElement, Keystroke, SharedString, prelude::*};
 use serde::Deserialize;
 use tracing::error;
 
-use super::{Feature, Feed, GlyphSpec, Local, PanelCx, WidgetCx, parse_settings};
+use super::{Feature, Feed, GlyphSpec, Local, Outcome, PanelCx, WidgetCx, parse_settings};
 use crate::{
     bar::GLYPH,
-    components::{icon, tooltip::Tip},
+    components::{
+        icon,
+        list::{self, ROWS},
+        tooltip::Tip,
+    },
     island::{Mode, Panel},
-    launcher::{self, Outcome, ROWS},
     panel::{AppRow, Block, Header, IconButton, LauncherView, PanelView, Preview, on},
     theme::TEXT,
 };
 
-/// The largest a picture's cached preview gets, twice the preview pane for sharp scaling.
+/// Twice the preview pane, for sharp scaling.
 const PREVIEW_W: u32 = 860;
 const PREVIEW_H: u32 = 720;
-/// How often the open panel redraws, so "5 min ago" keeps up.
+/// So "5 min ago" keeps up.
 const REFRESH: Duration = Duration::from_secs(30);
 
-/// `[clipboard]` in the config file.
 #[derive(Clone, Debug, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct Settings {
-    /// Entries kept, most recently used first.
     max_entries: usize,
-    /// Megabytes the whole history may take.
     max_total_mb: u64,
-    /// Copies larger than this many megabytes are not kept.
     max_item_mb: u64,
-    /// Keep pictures as well as text and files.
     images: bool,
     /// Put the newest entry back when the clipboard empties, such as when the app that copied
     /// something quits.
     persist: bool,
-    /// The keys pressed in the focused window to paste a picked entry, like `ctrl+v`; empty only
-    /// puts it on the clipboard.
+    /// Empty only puts a picked entry on the clipboard.
     paste: String,
-    /// The keys for terminals, which paste with `ctrl+shift+v`.
     terminal_paste: String,
-    /// The window classes of terminals.
+    /// Window classes.
     terminals: Vec<String>,
 }
 
@@ -95,7 +85,6 @@ impl Default for Settings {
 pub enum Kind {
     Text,
     Image,
-    /// A list of files, as a file manager copies them.
     Files,
 }
 
@@ -113,28 +102,24 @@ impl Kind {
     }
 }
 
-/// One kept copy, without its data.
+/// Without its data.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Entry {
     pub id: i64,
     pub kind: Kind,
     pub mime: String,
-    /// The start of its text: the text itself, or the files' paths one per line.
+    /// The start of the text, or the files' paths one per line.
     pub text: String,
-    /// Characters in its whole text.
+    /// In the whole text.
     pub chars: i64,
-    /// Bytes of data.
     pub size: i64,
-    /// A picture's width and height.
     pub dimensions: Option<(u32, u32)>,
     /// Unix seconds it was last copied or picked.
     pub used: i64,
-    /// Its cached preview picture.
     pub preview: Option<PathBuf>,
 }
 
 impl Entry {
-    /// One line to show for it.
     fn title(&self) -> String {
         match self.kind {
             Kind::Text => self.text.split_whitespace().collect::<Vec<_>>().join(" "),
@@ -160,7 +145,6 @@ impl Entry {
         format!("{what} · {}", ago(self.used))
     }
 
-    /// What the preview pane shows of it.
     fn preview(&self) -> Preview {
         match (&self.preview, self.kind) {
             (Some(picture), Kind::Image | Kind::Files) => Preview::Picture(picture.clone()),
@@ -169,7 +153,6 @@ impl Entry {
         }
     }
 
-    /// The line under the preview.
     fn about(&self) -> String {
         match self.kind {
             Kind::Text => format!(
@@ -213,7 +196,6 @@ fn ago(at: i64) -> String {
     }
 }
 
-/// The local files in a `text/uri-list`.
 pub fn files(uris: &[u8]) -> Vec<PathBuf> {
     String::from_utf8_lossy(uris)
         .lines()
@@ -225,7 +207,6 @@ pub fn files(uris: &[u8]) -> Vec<PathBuf> {
         .unwrap_or_default()
 }
 
-/// Decodes a URI's `%XX` escapes.
 fn unescape(text: &str) -> Option<String> {
     let mut bytes = Vec::with_capacity(text.len());
     let mut rest = text.bytes();
@@ -241,7 +222,6 @@ fn unescape(text: &str) -> Option<String> {
     String::from_utf8(bytes).ok()
 }
 
-/// The history, newest use first, and why the clipboard cannot be watched, if it cannot.
 #[derive(Clone, Default)]
 pub struct State {
     entries: Arc<Vec<Entry>>,
@@ -263,31 +243,27 @@ impl State {
     }
 }
 
-/// What the panel asks of the worker.
 pub enum Request {
-    /// Put this entry back on the clipboard, and paste it into the focused window.
     Select { id: i64, paste: bool },
     Delete(i64),
     Clear,
 }
 
-/// An island's search through the history.
 #[derive(Default)]
 pub struct Picker {
     query: String,
     selected: usize,
-    /// The first match shown.
     top: usize,
 }
 
 impl Picker {
     fn select(&mut self, position: usize, count: usize) {
         self.selected = position.min(count.saturating_sub(1));
-        self.top = launcher::reveal(self.selected, self.top, count);
+        self.top = list::reveal(self.selected, self.top, count);
     }
 
     fn step(&mut self, step: i32, count: usize) {
-        self.select(launcher::stepped(self.selected.min(count.saturating_sub(1)), step, count), count);
+        self.select(list::stepped(self.selected.min(count.saturating_sub(1)), step, count), count);
     }
 
     fn search(&mut self, change: impl FnOnce(&mut String)) {
@@ -306,7 +282,7 @@ impl Local for Picker {
 #[derive(Clone)]
 pub struct Clipboard {
     requests: Sender<Request>,
-    /// Wakes the worker, which waits on Wayland, to read its requests.
+    /// The worker waits on Wayland, so it needs waking to read its requests.
     wake: Option<Arc<UnixStream>>,
 }
 
@@ -374,13 +350,12 @@ impl Feature for Clipboard {
         )
     }
 
-    /// Clipboard: a search field over the history, beside a preview of the selected entry.
     fn panel<'a>(&self, state: &State, p: &PanelCx<'a>) -> Option<PanelView<'a>> {
         let picker = p.local::<Picker>()?;
         let matching = state.matching(&picker.query);
         let count = matching.len();
         let selected = picker.selected.min(count.saturating_sub(1));
-        let top = launcher::reveal(selected, picker.top, count);
+        let top = list::reveal(selected, picker.top, count);
         let rows = matching
             .iter()
             .enumerate()
@@ -454,12 +429,7 @@ impl Feature for Clipboard {
             }),
             "u" if keystroke.modifiers.control => picker.search(String::clear),
             _ => {
-                let typed = keystroke
-                    .key_char
-                    .as_deref()
-                    .filter(|_| !keystroke.modifiers.control && !keystroke.modifiers.alt)
-                    .filter(|text| text.chars().all(|char| !char.is_control()));
-                if let Some(text) = typed {
+                if let Some(text) = list::typed(keystroke) {
                     picker.search(|query| query.push_str(text));
                 }
             }

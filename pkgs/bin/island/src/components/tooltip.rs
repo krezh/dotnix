@@ -30,9 +30,7 @@ struct State {
     hover: Option<Hover>,
 }
 
-/// The island's tooltip layer. Widgets register their text whenever they render with [`Tip::tip`],
-/// and texts outlive the frame so widgets whose drawing is reused keep theirs; the island draws the
-/// hovered one with [`Tooltips::overlay`], so it follows the pointer and stays current.
+/// Texts outlive the frame, so widgets whose drawing is reused keep theirs.
 #[derive(Clone, Default)]
 pub struct Tooltips(Rc<RefCell<State>>);
 

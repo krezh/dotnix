@@ -1,11 +1,8 @@
-//! Discord-style Markdown in notification text, as chat apps and bots pass it through: bold,
-//! italic, underline, strikethrough, code, spoilers and masked links inline; headings, subtext,
-//! quotes and lists at the start of a line. A card shows its text as one flowing line, so line
-//! breaks join the lines up, and anything that does not close is kept as it was written.
+//! Discord-style Markdown, as chat apps and bots pass it through. A card shows its text as one
+//! flowing line, so line breaks join the lines up; anything that does not close is kept as written.
 
 use std::ops::Range;
 
-/// How a stretch of text is drawn.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct Style {
     pub bold: bool,
@@ -14,16 +11,14 @@ pub struct Style {
     pub strike: bool,
     pub code: bool,
     pub spoiler: bool,
-    /// The index of the link it belongs to, in [`Text::links`].
+    /// An index into [`Text::links`].
     pub link: Option<usize>,
 }
 
-/// Text with its Markdown taken out: what to show, how each stretch of it is drawn, and where its
-/// links go.
 #[derive(Debug, Default, PartialEq)]
 pub struct Text {
     pub text: String,
-    /// Stretches drawn other than plainly, in order, never overlapping.
+    /// In order, never overlapping.
     pub spans: Vec<(Range<usize>, Style)>,
     pub links: Vec<String>,
 }
@@ -44,7 +39,7 @@ impl Text {
         }
     }
 
-    /// The ranges of the links, in the order of [`Text::links`].
+    /// In the order of [`Text::links`].
     pub fn link_ranges(&self) -> Vec<Range<usize>> {
         (0..self.links.len())
             .map(|link| {
@@ -56,7 +51,6 @@ impl Text {
     }
 }
 
-/// `markdown` as one line of styled text.
 pub fn parse(markdown: &str) -> Text {
     let mut text = Text::default();
     let line = flow(markdown);
@@ -64,7 +58,6 @@ pub fn parse(markdown: &str) -> Text {
     text
 }
 
-/// What the line starts with once its block marker is gone, and whether it was a heading.
 fn unblock(line: &str) -> (&str, bool) {
     let trimmed = line.trim_start();
     for marker in ["### ", "## ", "# "] {
@@ -80,8 +73,7 @@ fn unblock(line: &str) -> (&str, bool) {
     (trimmed, false)
 }
 
-/// The lines of `markdown` as one, without their block markers: headings bold, list items
-/// bulleted, and a line that ends a sentence joined to the next with a space, any other with a dot.
+/// A line that ends a sentence is joined to the next with a space, any other with a dot.
 fn flow(markdown: &str) -> String {
     let mut joined = String::new();
     let mut fenced = false;
@@ -113,14 +105,14 @@ fn flow(markdown: &str) -> String {
     joined
 }
 
-/// Whether `char` is part of a word, which a `_` inside does not start or end italics in.
+/// A `_` inside a word does not start or end italics.
 fn wordy(char: Option<char>) -> bool {
     char.is_some_and(char::is_alphanumeric)
 }
 
-/// Where `closing` closes what opened just before `rest`, if it does: not at once, and for a single
-/// `*` or `_` not after a space, nor, for `_`, inside a word. In a longer run of the same
-/// character, such as `***`, it closes at the run's end, leaving the start to what opened inside.
+/// Not at once, and for a single `*` or `_` not after a space, nor, for `_`, inside a word. In a
+/// longer run of the same character, such as `***`, it closes at the run's end, leaving the start
+/// to what opened inside.
 fn closing_at(rest: &str, closing: &str) -> Option<usize> {
     let mut from = 0;
     while let Some(found) = rest[from..].find(closing) {
@@ -146,7 +138,6 @@ fn closing_at(rest: &str, closing: &str) -> Option<usize> {
     None
 }
 
-/// Adds `source` to `text`, inside `style`, reading its inline Markdown.
 fn inline(source: &str, style: Style, text: &mut Text) {
     let mut plain = String::new();
     let mut at = 0;
@@ -228,7 +219,7 @@ fn inline(source: &str, style: Style, text: &mut Text) {
     flush(&mut plain, text);
 }
 
-/// A masked link at the start of `rest`, `[label](url)`: its label, its URL and its length.
+/// `[label](url)`: its label, its URL and its length.
 fn link(rest: &str) -> Option<(&str, &str, usize)> {
     let inner = rest.strip_prefix('[')?;
     let label_end = inner.find("](")?;

@@ -1,6 +1,3 @@
-//! Clock: the date and time in the bar, and the calendar tab. Clicking the clock opens the calendar,
-//! right-clicking it the System panel; each island pages through months on its own.
-
 use std::{thread, time::Duration};
 
 use chrono::{DateTime, Local, Timelike};
@@ -19,19 +16,18 @@ const GAP: f32 = 10.0;
 /// How long after the minute turns the clock moves, so it never shows the minute before.
 const LATE: Duration = Duration::from_millis(5);
 
-/// The current minute, in minutes since the epoch.
+/// Minutes since the epoch.
 fn minute() -> i64 {
     Local::now().timestamp().div_euclid(60)
 }
 
-/// How long until the next minute starts.
 fn until_next_minute() -> Duration {
     let now = Local::now();
     let into = Duration::from_secs(now.second().into()) + Duration::from_nanos(now.nanosecond().min(999_999_999).into());
     Duration::from_secs(60).saturating_sub(into) + LATE
 }
 
-/// The month an island's calendar shows, in months away from the current one.
+/// Months away from the current one.
 #[derive(Default)]
 pub struct Month {
     offset: i32,
@@ -50,7 +46,7 @@ impl Feature for Clock {
     const PANEL: Option<&'static str> = Some("calendar");
     const TAB: Option<(&'static str, u8)> = Some(("Calendar", 0));
 
-    /// The minute shown, in minutes since the epoch.
+    /// Minutes since the epoch.
     type State = i64;
     type Local = Month;
     type Event = ();

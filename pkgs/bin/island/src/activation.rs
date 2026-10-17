@@ -15,7 +15,6 @@ use wayland_protocols::xdg::activation::v1::client::{
     xdg_activation_v1::XdgActivationV1,
 };
 
-/// Tokens kept alive at once; older ones are let go.
 const KEEP: usize = 8;
 
 #[derive(Default)]
@@ -52,7 +51,7 @@ pub struct Activation {
 }
 
 impl Activation {
-    /// A connection of island's own to the compositor; `None` when it offers no xdg-activation.
+    /// `None` when the compositor offers no xdg-activation.
     pub fn connect() -> Option<Self> {
         let connection = Connection::connect_to_env().ok()?;
         let (globals, queue) = registry_queue_init::<Received>(&connection).ok()?;
@@ -65,7 +64,7 @@ impl Activation {
         })
     }
 
-    /// A new token; `None` when the connection broke, after which it should be made again.
+    /// `None` when the connection broke, after which it should be made again.
     pub fn token(&mut self) -> Option<String> {
         let request = self.activation.get_activation_token(&self.queue.handle(), ());
         request.commit();

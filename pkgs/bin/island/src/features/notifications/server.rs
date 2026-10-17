@@ -1,6 +1,3 @@
-//! The `org.freedesktop.Notifications` server: turns what apps send into notifications, and tells
-//! them when theirs are closed or clicked.
-
 use std::{
     collections::HashMap,
     path::Path,
@@ -171,7 +168,6 @@ impl Server {
     }
 }
 
-/// Serves notifications until island stops, telling apps of every `signals` meanwhile.
 pub fn serve(feed: &Feed<State, Event>, signals: &Receiver<Signal>) -> Ended {
     let built = block_on(connection::Builder::session().serve_at(PATH, Server { feed: feed.clone() }).build());
     let connection = match built {
@@ -190,8 +186,7 @@ pub fn serve(feed: &Feed<State, Event>, signals: &Receiver<Signal>) -> Ended {
     Ended::Unwanted
 }
 
-/// A token that lets the app raise its window, made on island's own connection to the compositor,
-/// which is made again if it broke.
+/// Remakes the connection if it broke.
 fn activation_token(activation: &mut Option<Activation>) -> Option<String> {
     if activation.is_none() {
         *activation = Activation::connect();

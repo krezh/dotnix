@@ -12,7 +12,6 @@ usage: island ctl COMMAND
   open PANEL | toggle PANEL | close     PANEL: calendar, system, audio, media, notifications, session, clipboard, launcher
   log SPEC                             change what is logged until restart, e.g. debug or audio=debug";
 
-/// The help for `island ctl`, with every feature's commands.
 pub fn usage() -> String {
     format!("{USAGE}{}", features::usage())
 }
@@ -47,7 +46,6 @@ pub enum Control {
     Toggle(String),
     Close,
     Log(String),
-    /// A command for a feature, by its name.
     Feature(&'static str, Vec<String>),
 }
 

@@ -37,7 +37,6 @@ const TAB_GAP: f32 = 4.0;
 pub const TAB_STEP: f32 = TAB_W + TAB_GAP;
 const CLOSE_GAP: f32 = 16.0;
 
-/// The tab strip: island's own tabs and the features' tabs, by their place.
 fn tab_list() -> &'static [(Panel, &'static str)] {
     static TABS: LazyLock<Vec<(Panel, &'static str)>> = LazyLock::new(|| {
         let mut tabs = vec![(Panel::System, "System", 3)];
@@ -48,17 +47,15 @@ fn tab_list() -> &'static [(Panel, &'static str)] {
     &TABS
 }
 
-/// The tab the strip starts on: the first one.
 pub fn first_tab() -> Panel {
     tab_list().first().map_or(Panel::System, |(panel, _)| *panel)
 }
 
-/// The tab strip's width.
 pub fn strip_width() -> f32 {
     tab_list().len() as f32 * TAB_STEP - TAB_GAP
 }
 
-/// The tab header's width: the strip with room for the close button on both sides.
+/// The strip with room for the close button on both sides.
 pub fn tabs_width() -> f32 {
     strip_width() + 2.0 * (CLOSE_GAP + HEADER_H)
 }
@@ -70,7 +67,6 @@ pub struct Bar<'a> {
     pub layouts: &'a TextLayouts,
     pub held: &'a Presence<Held>,
     pub features: &'a Features,
-    /// This island's own part of each feature, by feature name.
     pub locals: &'a [(&'static str, Box<dyn AnyLocal>)],
     pub natural: &'a HashMap<Widget, Measured>,
     pub hover: bool,
@@ -79,7 +75,7 @@ pub struct Bar<'a> {
     pub side: f32,
 }
 
-/// The last state a feature widget showed, kept so it can still draw while it folds away.
+/// Kept so a feature widget can still draw while it folds away.
 pub type Held = Rc<dyn Any>;
 
 #[derive(Clone, Copy)]
@@ -100,12 +96,10 @@ impl<'a> Look<'a> {
         }
     }
 
-    /// A widget's inner padding on each side.
     pub(crate) fn half(self) -> f32 {
         self.half
     }
 
-    /// Whether the pointer is over the island, so hover tints apply.
     pub(crate) fn hover(self) -> bool {
         self.hover
     }
@@ -121,7 +115,6 @@ pub(crate) fn on<E: ?Sized>(
     }
 }
 
-/// A widget's inner padding on each side for the bar's `spacing`.
 pub fn half(spacing: f32) -> f32 {
     WIDGET_PAD + spacing / 2.0
 }
@@ -133,8 +126,7 @@ pub(crate) fn widget_base(id: impl Into<SharedString>, look: Look) -> Stateful<D
         .child(ui::inset_control(Radius::Control, look.inset, look.hover))
 }
 
-/// The widget shell with no hover or pointer of its own, for a widget made of several clickable
-/// parts that each show the hover tint themselves.
+/// For a widget made of several clickable parts that each show the hover tint themselves.
 pub(crate) fn widget_group(id: impl Into<SharedString>, look: Look) -> Stateful<Div> {
     div()
         .id(id.into())
@@ -153,7 +145,6 @@ pub struct Slots {
 }
 
 impl Slots {
-    /// The width of the widest small count.
     pub fn count(self) -> f32 {
         self.count
     }
@@ -175,11 +166,9 @@ pub(crate) fn slot(text: impl Into<SharedString>, width: f32) -> Div {
     div().min_w(px(width)).flex_none().whitespace_nowrap().child(motion::text("count", text))
 }
 
-/// Widget type: a glyph beside a vertical level meter.
 pub struct Gauge<'a> {
     pub glyph: Option<&'a Path>,
     pub glyph_color: u32,
-    /// A fresh reading asked for is on its way; the energy border runs round the widget meanwhile.
     pub busy: bool,
     pub level: Option<f32>,
     pub level_color: u32,
@@ -193,7 +182,6 @@ pub(crate) fn gauge(id: impl Into<SharedString>, look: Look, gauge: Gauge<'_>) -
         .child(energy(look, gauge.busy))
 }
 
-/// The energy border round a widget while `busy`, following its shape.
 pub(crate) fn energy(look: Look, busy: bool) -> impl IntoElement {
     energy::border("energy", Radius::Control, look.inset, busy)
 }
@@ -225,18 +213,16 @@ pub fn presence_key(Widget(name): Widget) -> String {
     name.to_owned()
 }
 
-/// The width a widget folds down to when it has nothing to show. Widgets that rest at 0 disappear;
-/// others keep a core (media keeps its icon) and fold only their detail.
+/// Widgets that rest at 0 disappear; others keep a core (media keeps its icon) and fold only their
+/// detail.
 pub fn rest_width(Widget(name): Widget, layout: &config::Bar, features: &Features) -> f32 {
     features
         .owning(name)
         .map_or(0.0, |feature| feature.rest_width(name, layout.spacing))
 }
 
-/// Clips `content` between `rest` and its natural width by `presence`, so a widget unfolds from its
-/// resting size and folds back to it. Widgets resting at 0 also fade as a whole. The natural width
-/// is measured into `natural`. Fully shown, a widget keeps its own width: clipping it to the width
-/// measured last frame would cut it off for a frame whenever it grows, such as tray icons sliding in.
+/// Fully shown, a widget keeps its own width: clipping it to the width measured last frame would
+/// cut it off for a frame whenever it grows, such as tray icons sliding in.
 fn collapse(content: AnyElement, presence: f32, rest: f32, natural: &Measured) -> AnyElement {
     let width = natural.get().map(|size| f32::from(size.width)).filter(|_| presence < 1.0);
     let inner = div().flex_none().relative().child(content).child(measure::probe(natural));
@@ -256,8 +242,7 @@ fn smoothstep(t: f32) -> f32 {
     t * t * (3.0 - 2.0 * t)
 }
 
-/// What one widget draws, built by its [`WidgetView`]. A feature widget draws the state it holds
-/// while it folds away.
+/// A feature widget draws the state it holds while it folds away.
 pub fn content(widget: Widget, bar: &Bar<'_>, island: &WeakEntity<Island>, cx: &App) -> Vec<AnyElement> {
     let look = Look::new(bar.hover, bar.layout.spacing, bar.tips);
     let Widget(name) = widget;
@@ -278,8 +263,7 @@ pub fn content(widget: Widget, bar: &Bar<'_>, island: &WeakEntity<Island>, cx: &
     feature.widget(name, &*state, &mut w, cx).into_iter().collect()
 }
 
-/// Places a widget's drawn `element` in the bar. Widgets fold by their presence and are left out
-/// entirely once gone, unless they rest at a visible core.
+/// Gone widgets are left out entirely, unless they rest at a visible core.
 fn place(widget: Widget, bar: &Bar<'_>, element: &dyn Fn(Widget) -> AnyElement) -> Option<AnyElement> {
     let key = presence_key(widget);
     let rest = rest_width(widget, bar.layout, bar.features);
@@ -292,8 +276,8 @@ fn place(widget: Widget, bar: &Bar<'_>, element: &dyn Fn(Widget) -> AnyElement) 
     Some(collapse(element(widget), presence, rest, natural))
 }
 
-/// One bar widget as its own view, so GPUI can replay its last drawing while the island is at rest.
-/// Scrolling text keeps its own clock, so a title gliding by redraws just this widget.
+/// Its own view, so GPUI can replay its last drawing while the island is at rest, and scrolling
+/// text redraws just this widget.
 pub struct WidgetView {
     kind: Widget,
     island: WeakEntity<Island>,
@@ -313,7 +297,6 @@ impl WidgetView {
         }
     }
 
-    /// Whether this widget's text is scrolling, so it redraws on its own clock.
     pub fn scrolling(&self) -> bool {
         self.ticker.is_some()
     }
@@ -361,7 +344,6 @@ pub fn edge(layout: &config::Bar) -> f32 {
     (EDGE - half(layout.spacing)).max(0.0)
 }
 
-/// The bar's layout around its widgets; `element` draws one widget, normally through its [`WidgetView`].
 pub fn bar(bar: Bar<'_>, element: &dyn Fn(Widget) -> AnyElement) -> AnyElement {
     let sections: Vec<Vec<AnyElement>> = [&bar.layout.left, &bar.layout.middle, &bar.layout.right]
         .into_iter()

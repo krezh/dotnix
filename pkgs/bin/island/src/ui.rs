@@ -1,9 +1,9 @@
 use std::sync::Arc;
 
-use gpui::{Canvas, Div, FontFeatures, FontWeight, Hsla, Rgba, div, hsla, prelude::*, px, rgb, rgba};
+use gpui::{Bounds, Canvas, Div, FontFeatures, FontWeight, Hsla, Pixels, Rgba, div, hsla, prelude::*, px, rgb, rgba};
 
 use crate::{
-    squircle,
+    shape::{self, Hang},
     theme::{
         FONT, HOVER_ALPHA, SELECTED_ALPHA, SHADOW_ALPHA, SURFACE, SURFACE_BORDER_ALPHA, SURFACE1, TEXT, TINT,
         with_alpha,
@@ -50,31 +50,29 @@ impl Radius {
     }
 }
 
-/// A shape that does not react to the pointer: a background, a track, a selection pill.
+/// Does not react to the pointer.
 pub fn shape(radius: Radius, fill: Option<Hsla>) -> Canvas<()> {
     let (radius, power) = radius.geometry();
-    squircle::fill(radius, power, fill, None)
+    shape::fill(radius, power, fill, None)
 }
 
-/// The surface of anything clickable: `rest`, with the one hover tint, [`hover_fill`], laid over it
-/// while the pointer is on it. Buttons, rows, tabs and bar widgets all draw through this (through
-/// `button::fill` or `bar::widget_base`), so every one of them shows hover, and the same way.
+/// Everything clickable draws through this, so every one of them shows hover, and the same way.
 /// `live` is whether the pointer is over the island at all: GPUI's own hover state goes stale once
 /// the pointer leaves the surface.
 pub fn control(radius: Radius, rest: Option<Hsla>, live: bool) -> Canvas<()> {
     let (radius, power) = radius.geometry();
-    squircle::fill(radius, power, rest, live.then(|| hover_fill().into()))
+    shape::fill(radius, power, rest, live.then(|| hover_fill().into()))
 }
 
-/// [`control`] drawn `inset` in from the sides, for bar widgets that share their padding.
+/// For bar widgets that share their padding.
 pub fn inset_control(radius: Radius, inset: f32, live: bool) -> Canvas<()> {
     let (radius, power) = radius.geometry();
-    squircle::inset_fill(radius, power, inset, None, live.then(|| hover_fill().into()))
+    shape::inset_fill(radius, power, inset, None, live.then(|| hover_fill().into()))
 }
 
 pub fn outlined(radius: Radius, fill: Hsla, border: Hsla) -> Canvas<()> {
     let (radius, power) = radius.geometry();
-    squircle::background(radius, power, fill, Some(border))
+    shape::background(radius, power, fill, Some(border))
 }
 
 pub fn surface_fill(opacity: f32) -> Hsla {
@@ -86,11 +84,14 @@ pub fn surface_border() -> Hsla {
 }
 
 pub fn shadow(radius: f32, power: f32, spread: f32) -> Canvas<()> {
-    squircle::outer_shadow(radius, power, hsla(0.0, 0.0, 0.0, SHADOW_ALPHA), spread)
+    shape::outer_shadow(radius, power, hsla(0.0, 0.0, 0.0, SHADOW_ALPHA), spread)
 }
 
-/// The one hover tint; only [`control`] and [`inset_control`] paint it, so every clickable thing
-/// shows hover the same way.
+pub fn joined_shadow(body: Bounds<Pixels>, radius: f32, power: f32, hang: Option<Hang>, spread: f32) -> Canvas<()> {
+    shape::joined_shadow(body, radius, power, hang, hsla(0.0, 0.0, 0.0, SHADOW_ALPHA), spread)
+}
+
+/// Private, so a one-off hover cannot be written.
 fn hover_fill() -> Rgba {
     rgba(with_alpha(TINT, HOVER_ALPHA))
 }

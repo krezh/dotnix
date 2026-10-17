@@ -1,6 +1,3 @@
-//! The energy border that marks running work, as Molt draws it: a beam of light running round the
-//! edge of a button or widget while what it started is under way, fading out once it is done.
-
 use std::{
     f32::consts::{FRAC_PI_2, TAU},
     time::{Duration, Instant},
@@ -14,23 +11,20 @@ use crate::{
     ui::Radius,
 };
 
-/// How long the beam takes to go round once.
 const LAP: Duration = Duration::from_millis(1400);
-/// How long the beam takes to fade out once the work is done.
 const FADE: Duration = Duration::from_millis(260);
-/// Where on the edge the beam starts, as a fraction of the way round from the top-left.
+/// A fraction of the way round from the top-left.
 const START: f32 = 0.12;
-/// How much of the edge the beam covers.
+/// The fraction of the edge the beam covers.
 const BEAM: f32 = 0.35;
 /// The height the beam's widths are drawn for; it scales with what it runs round.
 const UNIT_H: f32 = 30.0;
-/// Space between the dots that make up the beam, in px.
+/// Between the dots that make up the beam.
 const STEP: f32 = 0.75;
-/// How often the beam moves: smooth at its speed, without rebuilding the view at the display's
-/// full rate for as long as the work runs.
+/// Smooth at the beam's speed, without rebuilding the view at the display's full rate for as long
+/// as the work runs.
 const FRAME: Duration = Duration::from_micros(16_667);
 
-/// A rounded rectangle's edge, to walk along.
 struct Edge {
     x: f32,
     y: f32,
@@ -44,7 +38,7 @@ impl Edge {
         2.0 * (self.width - 2.0 * self.radius) + 2.0 * (self.height - 2.0 * self.radius) + TAU * self.radius
     }
 
-    /// The point `u` of the way round, clockwise from the start of the top edge.
+    /// `u` of the way round, clockwise from the start of the top edge.
     fn point(&self, u: f32) -> (f32, f32) {
         let Edge { x, y, width, height, radius: r } = *self;
         let across = width - 2.0 * r;
@@ -96,8 +90,7 @@ fn color(color: u32, alpha: f32) -> Hsla {
     Hsla::from(rgb(color)).opacity(alpha.clamp(0.0, 1.0))
 }
 
-/// The beam with its head `phase` of the way round `edge`: a tail that thins and fades behind a
-/// bright head.
+/// The head is `phase` of the way round; the tail thins and fades behind it.
 fn paint(edge: &Edge, phase: f32, opacity: f32, window: &mut Window) {
     let scale = edge.height / UNIT_H;
     let dots = ((BEAM * edge.length() / STEP).ceil() as usize).max(24);
@@ -119,14 +112,11 @@ fn paint(edge: &Edge, phase: f32, opacity: f32, window: &mut Window) {
 
 #[derive(Default)]
 struct Energy {
-    /// When the beam set off; `None` while there is no beam.
     since: Option<Instant>,
-    /// When it began fading out, once the work was done.
     fading: Option<Instant>,
 }
 
-/// Where the border is while there is no beam: out of the layout, like the beam, so what it sits
-/// in keeps its size and spacing either way.
+/// Out of the layout, like the beam, so what it sits in keeps its size and spacing either way.
 fn nothing() -> AnyElement {
     div().absolute().into_any_element()
 }
@@ -135,9 +125,8 @@ fn smoothstep(t: f32) -> f32 {
     t * t * (3.0 - 2.0 * t)
 }
 
-/// The energy border round its parent while `busy`, following the parent's `radius` drawn `inset`
-/// in from its sides as bar widgets are. The parent must be `relative`; `id` must be unique among
-/// its siblings.
+/// `inset` from the parent's sides, as bar widgets are drawn. The parent must be `relative`; `id`
+/// must be unique among its siblings.
 pub fn border(id: &'static str, radius: Radius, inset: f32, busy: bool) -> impl IntoElement {
     keyed(id, move |state: &mut Energy, _, cx| {
         let now = Instant::now();

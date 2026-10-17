@@ -1,6 +1,3 @@
-//! Hyprland: workspaces and fullscreen from its IPC sockets, workspace switching through its Lua
-//! dispatchers.
-
 use std::{
     collections::BTreeSet,
     env,

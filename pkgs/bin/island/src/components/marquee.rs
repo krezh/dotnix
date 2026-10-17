@@ -14,11 +14,11 @@ use gpui::{
 
 use crate::theme::{FONT, TEXT};
 
-/// Space between the end of one pass and the start of the next.
+/// Between the end of one pass and the start of the next.
 const GAP: f32 = 40.0;
-/// Constant glide speed, in px per second.
+/// Px per second.
 const SPEED: f32 = 28.0;
-/// Width of the soft fade at each edge of the slot.
+/// At each edge of the slot.
 const FADE: f32 = 18.0;
 /// Fade levels; glyphs sharing a level share a text run.
 const LEVELS: f32 = 24.0;
@@ -26,7 +26,6 @@ const CACHE_LIMIT: usize = 256;
 
 type Key = (SharedString, u32, u32);
 
-/// A shaped line: its width and every character's horizontal span.
 pub struct TextLayout {
     pub width: f32,
     glyphs: Vec<(Range<usize>, f32, f32)>,
@@ -50,27 +49,25 @@ impl Default for Layouts {
     }
 }
 
-/// How often scrolling text moves. Ambient motion does not need the display's full refresh rate
-/// (often 144–240 Hz), and each frame rebuilds the whole island.
+/// Ambient motion does not need the display's full refresh rate (often 144–240 Hz), and each frame
+/// rebuilds the whole island.
 pub const TICK: Duration = Duration::from_micros(33_333);
 
-/// Shaped text, measured lazily. Lookups made during render are shaped at the end of the frame by
-/// [`TextLayouts::resolve`], so elements built without a `Window` can still lay themselves out by text.
+/// Lookups made during render are shaped at the end of the frame by [`TextLayouts::resolve`], so
+/// elements built without a `Window` can still lay themselves out by text.
 #[derive(Clone, Default)]
 pub struct TextLayouts(Rc<RefCell<Layouts>>);
 
 impl TextLayouts {
-    /// Starts a frame: nothing is scrolling until a marquee says so.
     pub fn begin_frame(&self) {
         self.0.borrow_mut().scrolling = false;
     }
 
-    /// Whether any marquee rendered this frame is scrolling, so frames should keep coming.
     pub fn scrolling(&self) -> bool {
         self.0.borrow().scrolling
     }
 
-    /// Records that text is scrolling and returns the shared clock, in seconds.
+    /// The shared clock, in seconds.
     fn mark_scrolling(&self) -> f32 {
         let mut layouts = self.0.borrow_mut();
         layouts.scrolling = true;
@@ -87,7 +84,6 @@ impl TextLayouts {
         layout
     }
 
-    /// Shapes the text looked up this frame; returns whether anything new was shaped.
     pub fn resolve(&self, window: &mut Window) -> bool {
         let mut layouts = self.0.borrow_mut();
         if layouts.pending.is_empty() {
@@ -137,7 +133,6 @@ fn smoothstep(t: f32) -> f32 {
     t * t * (3.0 - 2.0 * t)
 }
 
-/// Per-glyph fades for one copy of the text drawn at `origin` inside a `slot`-wide window.
 fn edge_fades(layout: &TextLayout, origin: f32, slot: f32) -> Vec<(Range<usize>, HighlightStyle)> {
     let mut runs: Vec<(Range<usize>, f32)> = Vec::new();
     for (range, left, right) in &layout.glyphs {
@@ -163,8 +158,8 @@ fn edge_fades(layout: &TextLayout, origin: f32, slot: f32) -> Vec<(Range<usize>,
         .collect()
 }
 
-/// One line of text in a `slot`-wide space. Text that fits sits still; text that does not glides
-/// continuously in a seamless loop and dissolves softly into both edges instead of being clipped.
+/// Text that does not fit glides in a seamless loop and dissolves into both edges instead of being
+/// clipped.
 pub fn marquee(layouts: &TextLayouts, text: SharedString, size: f32, weight: FontWeight, slot: f32) -> Div {
     let line_h = (size * 1.4).ceil();
     let area = div().min_w(px(0.0)).h(px(line_h)).text_size(px(size)).font_weight(weight);

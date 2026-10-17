@@ -1,6 +1,3 @@
-//! Caffeine: keeps the screen awake while on. A badge in the bar while on (clicking it turns caffeine
-//! off), a System-panel toggle, and `island ctl caffeine on|off|toggle`.
-
 use std::cell::Cell;
 
 use gpui::{AnyElement, div, prelude::*, px, rgb};

@@ -24,7 +24,6 @@ pub struct Reconnect {
 }
 
 impl Reconnect {
-    /// Waits before connecting again after a connection made at `started` ended.
     pub fn wait(&mut self, started: Instant) {
         self.delay = if started.elapsed() >= RECONNECT_HELD {
             Duration::ZERO
@@ -35,11 +34,10 @@ impl Reconnect {
     }
 }
 
-/// How one run of a supervised worker ended.
 pub enum Ended {
-    /// island stopped listening; the worker is done for good.
+    /// Done for good.
     Unwanted,
-    /// The worker lost its source; it runs again after a pause.
+    /// Runs again after a pause.
     Failed(String),
 }
 
@@ -51,9 +49,8 @@ fn panic_message(payload: &(dyn Any + Send)) -> &str {
         .unwrap_or("unknown cause")
 }
 
-/// Runs `run` on its own thread and runs it again whenever it fails or panics, waiting longer after
-/// each quick failure, so a broken integration only stalls its own widget. Everything `run` captures
-/// outlives a restart; state it builds inside is rebuilt, so each run should publish afresh.
+/// Everything `run` captures outlives a restart; state it builds inside is rebuilt, so each run
+/// should publish afresh.
 pub fn supervise(name: &'static str, mut run: impl FnMut() -> Ended + Send + 'static) -> io::Result<()> {
     thread::Builder::new()
         .name(format!("island-{name}"))

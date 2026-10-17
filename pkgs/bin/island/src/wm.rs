@@ -8,10 +8,10 @@ pub struct Workspace {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Monitor {
     pub name: String,
-    /// Where the monitor sits on the desktop, in logical pixels.
+    /// Logical pixels.
     pub x: i32,
     pub y: i32,
-    /// Its logical width, after scaling and rotation.
+    /// Logical, after scaling and rotation.
     pub width: i32,
     pub focused: bool,
     pub active: Option<i64>,

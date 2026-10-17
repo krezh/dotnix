@@ -1,6 +1,3 @@
-//! Pasting into the focused window: a virtual keyboard presses the paste shortcut once the picked
-//! entry is on the clipboard, as `wtype` would.
-
 use std::{
     fs::File,
     io::{self, Write},
@@ -39,16 +36,15 @@ const MODIFIERS: [(&str, u32, u32); 6] = [
 const LETTER_ROWS: [(&str, u32); 3] = [("qwertyuiop", 16), ("asdfghjkl", 30), ("zxcvbnm", 44)];
 const INSERT: u32 = 110;
 
-/// A key with modifiers held, such as `ctrl+shift+v`.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Shortcut {
-    /// Each modifier's key code and mask bit, in the order they are pressed.
+    /// Key code and mask bit, in the order they are pressed.
     modifiers: Vec<(u32, u32)>,
     key: u32,
 }
 
 impl Shortcut {
-    /// Reads `ctrl+v`, `ctrl+shift+v`, `shift+insert` and the like; `None` for an empty one.
+    /// `None` for an empty one.
     pub fn parse(text: &str) -> Result<Option<Self>, String> {
         let text = text.trim().to_lowercase();
         if text.is_empty() {
@@ -103,7 +99,6 @@ impl Keyboard {
         })
     }
 
-    /// Presses and lets go of `shortcut`.
     pub fn press(&self, shortcut: &Shortcut) {
         let time = u32::try_from(self.started.elapsed().as_millis()).unwrap_or(u32::MAX);
         let mut mask = 0;

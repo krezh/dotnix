@@ -1,4 +1,3 @@
-//! Follows whether the session is locked, from logind, so notification contents can hide meanwhile.
 
 use futures::StreamExt;
 use zbus::{Connection, MatchRule, MessageStream, block_on, message::Type};

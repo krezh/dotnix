@@ -1,7 +1,3 @@
-//! Watches the clipboard over ext-data-control on island's own Wayland connection: copies each new
-//! selection into the store, hands an entry picked from the history back as the selection, and,
-//! with `persist`, hands the newest entry back when the clipboard empties.
-
 use std::{
     collections::HashMap,
     fs::File,
@@ -60,7 +56,6 @@ const PASTE_DELAY: Duration = Duration::from_millis(150);
 /// Tells published states apart across restarts of the worker.
 static VERSION: AtomicU64 = AtomicU64::new(0);
 
-/// A selection island serves: its source and the data for each type it offers.
 struct Served {
     source: ExtDataControlSourceV1,
     data: Vec<(String, Arc<Vec<u8>>)>,
@@ -68,13 +63,11 @@ struct Served {
 
 #[derive(Default)]
 struct Watch {
-    /// The types each live offer has announced.
     offers: HashMap<ObjectId, Vec<String>>,
-    /// The latest selection not yet looked at; `Some(None)` when the clipboard emptied.
+    /// `Some(None)` when the clipboard emptied.
     selection: Option<Option<ExtDataControlOfferV1>>,
     served: Option<Served>,
     finished: bool,
-    /// When to press the paste shortcut for an entry just picked.
     paste_at: Option<Instant>,
     /// Made on the first paste.
     keyboard: Option<Keyboard>,
@@ -165,7 +158,7 @@ impl Dispatch<ExtDataControlSourceV1, ()> for Watch {
     }
 }
 
-/// Writes `data` to an app pasting it, off the worker so a slow reader cannot hold it up.
+/// Off the worker, so a slow reader cannot hold it up.
 fn send(fd: OwnedFd, data: Arc<Vec<u8>>) {
     thread::spawn(move || {
         if let Err(error) = File::from(fd).write_all(&data) {
@@ -174,7 +167,6 @@ fn send(fd: OwnedFd, data: Arc<Vec<u8>>) {
     });
 }
 
-/// Waits up to `timeout` for `fd` to be readable; false on timeout.
 fn readable(fd: &impl AsRawFd, timeout: Duration) -> bool {
     let mut poll = libc::pollfd {
         fd: fd.as_raw_fd(),
@@ -185,8 +177,7 @@ fn readable(fd: &impl AsRawFd, timeout: Duration) -> bool {
     (unsafe { libc::poll(&mut poll, 1, millis) }) > 0
 }
 
-/// What `offer` holds as `mime`, or `None` when it is larger than `limit` or the app takes too
-/// long.
+/// `None` when it is larger than `limit` or the app takes too long.
 fn receive(connection: &Connection, offer: &ExtDataControlOfferV1, mime: &str, limit: usize) -> io::Result<Option<Vec<u8>>> {
     let (mut reader, writer) = io::pipe()?;
     offer.receive(mime.to_owned(), writer.as_fd());
@@ -216,8 +207,7 @@ fn receive(connection: &Connection, offer: &ExtDataControlOfferV1, mime: &str, l
     }
 }
 
-/// What to keep of an offer with these types: the kind and the type to ask for, in order of
-/// preference; empty for island's own selections and password managers' secrets.
+/// In order of preference; empty for island's own selections and password managers' secrets.
 fn wanted(mimes: &[String], images: bool) -> Vec<(Kind, String)> {
     let has = |wanted: &str| mimes.iter().any(|mime| mime == wanted);
     if has(MARKER) || has(SECRET) {
@@ -242,8 +232,7 @@ fn wanted(mimes: &[String], images: bool) -> Vec<(Kind, String)> {
     wanted
 }
 
-/// The first of `wanted` the offer hands over usefully: a list of local files, text that is not
-/// blank, or a picture.
+/// The first of `wanted` that is useful: local files, text that is not blank, or a picture.
 fn take(connection: &Connection, offer: &ExtDataControlOfferV1, wanted: Vec<(Kind, String)>, limit: usize) -> io::Result<Option<Clip>> {
     for (kind, mime) in wanted {
         let Some(data) = receive(connection, offer, &mime, limit)? else {
@@ -261,7 +250,6 @@ fn take(connection: &Connection, offer: &ExtDataControlOfferV1, wanted: Vec<(Kin
     Ok(None)
 }
 
-/// The types `clip` is offered as, each with its data.
 fn offered(clip: Clip) -> Vec<(String, Arc<Vec<u8>>)> {
     match clip.kind {
         Kind::Text => {
@@ -283,14 +271,12 @@ fn offered(clip: Clip) -> Vec<(String, Arc<Vec<u8>>)> {
     }
 }
 
-/// The open connection and everything the worker keeps between events.
 struct Worker<'a> {
     connection: Connection,
     queue_handle: QueueHandle<Watch>,
     manager: ExtDataControlManagerV1,
     device: ExtDataControlDeviceV1,
     seat: WlSeat,
-    /// Virtual keyboards, for pasting; `None` when the compositor offers none.
     keyboards: Option<ZwpVirtualKeyboardManagerV1>,
     store: Store,
     feed: &'a Feed<State>,
@@ -313,7 +299,7 @@ impl Worker<'_> {
         })
     }
 
-    /// Hands entry `id` out as the selection and moves it to the top.
+    /// Also moves the entry to the top.
     fn serve(&self, watch: &mut Watch, id: i64) {
         let clip = match self.store.get(id) {
             Ok(Some(clip)) => clip,
@@ -336,8 +322,7 @@ impl Worker<'_> {
         debug!(id, "serving a clipboard entry");
     }
 
-    /// Keeps what a new selection holds; an emptied clipboard gets the newest entry back with
-    /// `persist`.
+    /// An emptied clipboard gets the newest entry back with `persist`.
     fn selection(&self, watch: &mut Watch, offer: Option<ExtDataControlOfferV1>) -> io::Result<bool> {
         let Some(offer) = offer else {
             if self.settings.persist && watch.served.is_none() {
@@ -364,7 +349,6 @@ impl Worker<'_> {
         Ok(true)
     }
 
-    /// Presses the paste shortcut in the focused window: the terminal one when it is a terminal.
     fn paste(&self, watch: &mut Watch) {
         let Some(keyboards) = &self.keyboards else {
             return warn!("cannot paste: the compositor offers no virtual keyboards");
@@ -407,7 +391,6 @@ impl Worker<'_> {
     }
 }
 
-/// Empties the wake-up socket.
 fn drain(wake: &UnixStream) {
     let mut buffer = [0; 64];
     while matches!((&*wake).read(&mut buffer), Ok(read) if read > 0) {}

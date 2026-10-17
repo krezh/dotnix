@@ -1,4 +1,4 @@
-use gpui::{Bounds, Pixels, Window};
+use gpui::Window;
 use raw_window_handle::{HasDisplayHandle, HasWindowHandle, RawDisplayHandle, RawWindowHandle};
 use wayland_backend::client::{Backend, ObjectId};
 use wayland_client::{
@@ -19,8 +19,6 @@ use wayland_protocols::{
         zwp_idle_inhibitor_v1::ZwpIdleInhibitorV1,
     },
 };
-
-use crate::squircle;
 
 #[derive(Default)]
 struct State {
@@ -69,7 +67,7 @@ pub struct Effects {
     blur: Option<ExtBackgroundEffectSurfaceV1>,
     idle: Option<ZwpIdleInhibitManagerV1>,
     inhibitor: Option<ZwpIdleInhibitorV1>,
-    sent: Option<[i32; 4]>,
+    sent: Option<Vec<[i32; 4]>>,
 }
 
 impl Effects {
@@ -116,25 +114,19 @@ impl Effects {
         })
     }
 
-    pub fn set_blur(&mut self, bounds: Bounds<Pixels>, radius: f32, power: f32) {
+    pub fn set_blur(&mut self, rects: Vec<[i32; 4]>) {
         let Some(blur) = &self.blur else {
             return;
         };
-        let key = [
-            f32::from(bounds.origin.x).round() as i32,
-            f32::from(bounds.origin.y).round() as i32,
-            f32::from(bounds.size.width).round() as i32,
-            f32::from(bounds.size.height).round() as i32,
-        ];
-        if self.sent == Some(key) {
+        if self.sent.as_ref() == Some(&rects) {
             return;
         }
-        self.sent = Some(key);
 
         let region = self.compositor.create_region(&self.queue.handle(), ());
-        for [x, y, w, h] in squircle::region_rects(key, radius, power) {
-            region.add(x, y, w, h);
+        for [x, y, w, h] in &rects {
+            region.add(*x, *y, *w, *h);
         }
+        self.sent = Some(rects);
         blur.set_blur_region(Some(&region));
         region.destroy();
         let _ = self.conn.flush();

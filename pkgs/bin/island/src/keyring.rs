@@ -1,7 +1,4 @@
-//! The database key, kept in the Secret Service (gnome-keyring, KeePassXC and the like) so nobody
-//! manages it: island makes a random key the first time and reads it back on every start. The
-//! keyring is normally unlocked at login; a locked one is asked to unlock, which may show its
-//! prompt.
+//! A locked keyring is asked to unlock, which may show its prompt.
 
 use std::{collections::HashMap, time::Duration};
 
@@ -17,18 +14,16 @@ const SERVICE: &str = "org.freedesktop.Secret.Service";
 const COLLECTION: &str = "org.freedesktop.Secret.Collection";
 const ITEM: &str = "org.freedesktop.Secret.Item";
 const PROMPT: &str = "org.freedesktop.Secret.Prompt";
-/// How long an unlock prompt may wait for the user.
 const PROMPT_TIMEOUT: Duration = Duration::from_secs(120);
 
-/// A secret as the Secret Service sends it: session, parameters, value and content type.
+/// Session, parameters, value and content type.
 type Secret = (OwnedObjectPath, Vec<u8>, Vec<u8>, String);
 
-/// How island's key is found among the keyring's items.
 fn attributes() -> HashMap<&'static str, &'static str> {
     HashMap::from([("application", "island"), ("purpose", "database-key")])
 }
 
-/// Whether `path` is the Secret Service's "nothing" path.
+/// The Secret Service's "nothing" path.
 fn none(path: &OwnedObjectPath) -> bool {
     path.as_str() == "/"
 }
@@ -42,8 +37,7 @@ fn random_key() -> Result<Vec<u8>, String> {
     Ok(key)
 }
 
-/// Runs `prompt`, such as an unlock dialog, and waits for the user to finish with it; false when
-/// they dismissed it.
+/// False when the user dismissed it.
 fn run_prompt(connection: &Connection, prompt: &OwnedObjectPath) -> Result<bool, String> {
     if none(prompt) {
         return Ok(true);
@@ -83,7 +77,6 @@ fn run_prompt(connection: &Connection, prompt: &OwnedObjectPath) -> Result<bool,
     }
 }
 
-/// Unlocks `paths` if they are locked.
 fn unlock(connection: &Connection, service: &Proxy<'_>, paths: Vec<OwnedObjectPath>) -> Result<(), String> {
     let (_, prompt): (Vec<OwnedObjectPath>, OwnedObjectPath) =
         block_on(service.call("Unlock", &(paths,))).map_err(|error| format!("cannot unlock the keyring: {error}"))?;
@@ -94,7 +87,7 @@ fn unlock(connection: &Connection, service: &Proxy<'_>, paths: Vec<OwnedObjectPa
     }
 }
 
-/// The database key, made and stored the first time; `fresh` says whether it was just made.
+/// Made and stored the first time; the flag says whether it was just made.
 pub fn database_key() -> Result<(Vec<u8>, bool), String> {
     let connection = block_on(Connection::session()).map_err(|error| format!("no session bus: {error}"))?;
     let (service, session): (Proxy<'_>, OwnedObjectPath) = block_on(async {

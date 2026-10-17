@@ -7,10 +7,9 @@ use crate::{
         self, Feature, audio::Audio, caffeine::Caffeine, clock::Clock, headset::Headset, media::Media, molt::Molt,
         notifications::Notifications, tray::Tray, workspaces::Workspaces, zowie::Zowie,
     },
-    squircle, theme,
+    shape, theme,
 };
 
-/// A bar widget, by the layout name its feature gives it.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct Widget(pub &'static str);
 
@@ -58,7 +57,7 @@ impl Default for Bar {
 }
 
 impl Bar {
-    /// Every widget in the layout, left to right.
+    /// Left to right.
     pub fn widgets(&self) -> impl Iterator<Item = Widget> + '_ {
         self.left.iter().chain(&self.middle).chain(&self.right).copied()
     }
@@ -99,8 +98,8 @@ impl Default for Appearance {
     fn default() -> Self {
         Self {
             opacity: theme::DEFAULT_OPACITY,
-            radius: squircle::DEFAULT_RADIUS,
-            power: squircle::DEFAULT_POWER,
+            radius: shape::DEFAULT_RADIUS,
+            power: shape::DEFAULT_POWER,
             icon_theme: "hicolor".to_owned(),
         }
     }
@@ -141,7 +140,7 @@ impl Default for System {
 impl gpui::Global for System {}
 
 impl System {
-    /// The items of `all` whose mount point `mount_of` gives is shown, in the order they are shown.
+    /// In the order they are shown.
     pub fn shown_partitions<'a, T>(&self, all: &'a [T], mount_of: impl Fn(&T) -> &str) -> Vec<&'a T> {
         if self.partitions.is_empty() {
             all.iter()
@@ -186,7 +185,6 @@ pub struct Config {
 }
 
 impl Config {
-    /// Checks that every feature section belongs to a feature that takes it.
     fn check(self) -> Result<Self, String> {
         for (section, settings) in &self.features {
             features::check_settings(section, settings)?;

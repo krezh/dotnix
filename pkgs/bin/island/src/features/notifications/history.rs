@@ -1,7 +1,5 @@
-//! The notification history in island's encrypted database: every notification that arrives, kept
-//! for `history_days` days, which the panel's Earlier view lists. A worker owns the connection: it
-//! reads the history once at start, dropping what has aged out, then writes as notifications
-//! arrive or are forgotten.
+//! A worker owns the connection: it reads the history once at start, dropping what has aged out,
+//! then writes as notifications arrive or are forgotten.
 
 use std::{
     path::PathBuf,
@@ -18,7 +16,7 @@ use super::{
 };
 use crate::{components::icon::Picture, db, features::Feed, supervisor::Ended};
 
-/// The history's migrations, oldest first; only ever append.
+/// Only ever append.
 const MIGRATIONS: &[&str] = &["
 CREATE TABLE history (
     session INTEGER NOT NULL,
@@ -34,7 +32,7 @@ CREATE TABLE history (
 CREATE INDEX history_received ON history (received DESC);
 "];
 
-/// A notification in the history, and the island session it arrived in; the two name it.
+/// The session and the notification's id together name it.
 #[derive(Clone, Debug)]
 pub struct Earlier {
     pub session: i64,
@@ -47,7 +45,6 @@ impl Earlier {
     }
 }
 
-/// What the worker writes.
 pub enum Write {
     Record(Earlier),
     Forget(Vec<(i64, u32)>),
@@ -58,13 +55,12 @@ fn seconds(time: SystemTime) -> i64 {
         .map_or(0, |elapsed| i64::try_from(elapsed.as_secs()).unwrap_or(i64::MAX))
 }
 
-/// This island session, named by when it started; notifications ids count afresh in each.
+/// Named by when it started; notification ids count afresh in each.
 pub fn session() -> i64 {
     static STARTED: OnceLock<i64> = OnceLock::new();
     *STARTED.get_or_init(|| seconds(SystemTime::now()))
 }
 
-/// When an entry received at `received` is too old to keep, for a history kept `days` days.
 pub fn aged(received: SystemTime, days: u32) -> bool {
     SystemTime::now()
         .duration_since(received)
@@ -137,7 +133,6 @@ fn write(db: &mut Connection, write: Write) -> rusqlite::Result<()> {
     Ok(())
 }
 
-/// Reads the history and hands it to the feature, then writes what `writes` asks for.
 pub fn work(feed: &Feed<State, Event>, writes: &Receiver<Write>, days: u32) -> Ended {
     let mut db = match db::open("notifications", MIGRATIONS) {
         Ok(db) => db,

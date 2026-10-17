@@ -1,7 +1,5 @@
-//! The clipboard history in island's encrypted database: every entry with its data, most recently
-//! used first, pruned to the configured size. Picture previews are PNG files in
-//! `$XDG_RUNTIME_DIR`, which lives in memory, so nothing copied reaches the disk unencrypted; they
-//! are made again from the database after a login.
+//! Picture previews are files in `$XDG_RUNTIME_DIR`, which lives in memory, so nothing copied
+//! reaches the disk unencrypted; they are made again from the database after a login.
 
 use std::{
     fs,
@@ -17,7 +15,7 @@ use uuid::Uuid;
 use super::{Entry, Kind, PREVIEW_H, PREVIEW_W, Settings, files};
 use crate::db;
 
-/// The clipboard's migrations, oldest first; only ever append.
+/// Only ever append.
 const MIGRATIONS: &[&str] = &["
 CREATE TABLE clipboard (
     id INTEGER PRIMARY KEY,
@@ -37,10 +35,8 @@ CREATE INDEX clipboard_used ON clipboard (used DESC);
 
 /// How much of an entry's text is kept for searching and previews.
 const SEARCHED: usize = 4096;
-/// Files larger than this are not decoded for a preview.
 const PREVIEWED_FILE: u64 = 64 * 1024 * 1024;
 
-/// Something copied, as stored.
 pub struct Clip {
     pub kind: Kind,
     pub mime: String,
@@ -58,8 +54,7 @@ fn now() -> i64 {
         .map_or(0, |elapsed| i64::try_from(elapsed.as_secs()).unwrap_or(i64::MAX))
 }
 
-/// Writes a preview of the picture in `data`, or of the picture file at `file`, to `path`; its size
-/// when it was one.
+/// The picture's size, when it was one.
 fn write_preview(path: &Path, data: Option<&[u8]>, file: Option<&Path>) -> Option<(u32, u32)> {
     let picture = match (data, file) {
         (Some(data), _) => image::load_from_memory(data).ok()?,
@@ -91,7 +86,7 @@ impl Store {
         Ok(store)
     }
 
-    /// Writes the previews that are missing, such as after the preview size changed.
+    /// Such as after the preview size changed.
     fn fill_previews(&self) -> rusqlite::Result<()> {
         let mut statement = self.db.prepare("SELECT hash, kind, data FROM clipboard WHERE kind != 'text'")?;
         let mut rows = statement.query([])?;
@@ -116,7 +111,7 @@ impl Store {
         self.previews.join(format!("{hash}-{PREVIEW_W}x{PREVIEW_H}.png"))
     }
 
-    /// Keeps `clip`, or moves it to the top when it is already kept.
+    /// Moves it to the top when it is already kept.
     pub fn insert(&self, clip: &Clip) -> rusqlite::Result<()> {
         let hash = Uuid::new_v5(&Uuid::NAMESPACE_OID, &clip.data).simple().to_string();
         let preview = self.preview_path(&hash);
@@ -150,7 +145,6 @@ impl Store {
         Ok(())
     }
 
-    /// Every entry, most recently used first.
     pub fn list(&self) -> rusqlite::Result<Vec<Entry>> {
         let mut statement = self.db.prepare(
             "SELECT id, hash, kind, mime, substr(text, 1, ?1), length(text), size, width, height, used
@@ -189,14 +183,12 @@ impl Store {
             .optional()
     }
 
-    /// The most recently used entry.
     pub fn newest(&self) -> rusqlite::Result<Option<i64>> {
         self.db
             .query_row("SELECT id FROM clipboard ORDER BY used DESC LIMIT 1", [], |row| row.get(0))
             .optional()
     }
 
-    /// Moves `id` to the top.
     pub fn touch(&self, id: i64) -> rusqlite::Result<()> {
         self.db.execute("UPDATE clipboard SET used = ?1 WHERE id = ?2", params![now(), id])?;
         Ok(())
@@ -224,7 +216,6 @@ impl Store {
         Ok(())
     }
 
-    /// Drops the least recently used entries beyond `settings`' count and size.
     pub fn prune(&self, settings: &Settings) -> rusqlite::Result<()> {
         let rows: Vec<(i64, i64)> = self
             .db

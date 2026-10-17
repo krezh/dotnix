@@ -7,7 +7,7 @@ use gpui::{
 
 use crate::{
     components::{energy, icon, motion},
-    squircle,
+    shape,
     theme::{
         ACCENT, ACCENT_TINT_ALPHA, BASE, CONTROL_ALPHA, ON_ACCENT, SUBTEXT1, SURFACE1, TEXT, TINT,
         TRACK_ALPHA, with_alpha,
@@ -21,9 +21,8 @@ const TRACK_H: f32 = 18.0;
 const KNOB_INSET: f32 = 2.0;
 const KNOB: f32 = TRACK_H - 2.0 * KNOB_INSET;
 
-/// The base of every button: a `rest` fill, or none, with the standard hover tint over it while
-/// `hover` is on (see [`ui::control`]). Buttons say only whether they react, never how, so they all
-/// react the same way; pass false for one that is already selected.
+/// Buttons say only whether they react, never how, so they all react the same way; pass false for
+/// one that is already selected.
 pub fn fill(id: impl Into<SharedString>, radius: Radius, rest: Option<Hsla>, hover: bool) -> Stateful<Div> {
     div()
         .id(id.into())
@@ -40,12 +39,10 @@ pub fn ghost(id: impl Into<SharedString>, hover: bool) -> Stateful<Div> {
     fill(id, Radius::Control, None, hover)
 }
 
-/// The resting fill of a button with a surface: accent-tinted while `active`.
 fn surface_fill(active: bool) -> Hsla {
     rgba(if active { with_alpha(ACCENT, ACCENT_TINT_ALPHA) } else { with_alpha(SURFACE1, CONTROL_ALPHA) }).into()
 }
 
-/// A button with a surface, its content centred.
 pub fn surface(id: impl Into<SharedString>, active: bool, hover: bool) -> Stateful<Div> {
     fill(id, Radius::Control, Some(surface_fill(active)), hover)
         .h(px(CONTROL_H))
@@ -60,9 +57,7 @@ pub fn button(id: impl Into<SharedString>, label: impl Into<SharedString>, activ
     surface(id, active, hover).child(motion::text("label", label))
 }
 
-/// A [`button`] whose action takes a while, such as a check: the energy border runs round it while
-/// `busy`. Given `fits`, every label it can show, it keeps the width of the widest, so changing
-/// label never resizes it.
+/// Keeps the width of the widest of `fits`, so changing label never resizes it.
 pub fn busy(
     id: impl Into<SharedString>,
     label: impl Into<SharedString>,
@@ -80,9 +75,8 @@ pub const ACTION_W: f32 = 136.0;
 pub const ACTION_H: f32 = 96.0;
 const ACTION_GLYPH: f32 = 26.0;
 
-/// A large tile with a glyph over its label, such as a Session panel action. Like the System
-/// panel's tiles, the surface and label stay neutral and `color` marks only the glyph; the tile
-/// fills with it while `armed`, for an action waiting to be confirmed.
+/// `color` marks only the glyph, and fills the tile while `armed`, for an action waiting to be
+/// confirmed.
 pub fn action(
     id: impl Into<SharedString>,
     glyph: Option<&Path>,
@@ -112,14 +106,14 @@ pub fn action(
 pub const ICON_BUTTON: f32 = 36.0;
 const ICON_GLYPH: f32 = 18.0;
 
-/// How far a badge reaches past the top-right corner of what it sits on.
+/// Past the top-right corner of what the badge sits on.
 pub const BADGE_OVERHANG: f32 = 6.0;
 const BADGE_H: f32 = 17.0;
 /// The base-coloured ring that cuts a badge out of what it sits on.
 const BADGE_RING: f32 = 2.0;
 
-/// `target` with an optional count badge on its top-right corner. The overhang is reserved whether or not
-/// there is a badge, so the badge is never clipped by a scrolling parent and its coming and going moves nothing.
+/// The overhang is reserved whether or not there is a badge, so the badge is never clipped by a
+/// scrolling parent and its coming and going moves nothing.
 pub fn badged(id: impl Into<SharedString>, target: impl IntoElement, badge: Option<SharedString>) -> Stateful<Div> {
     div()
         .id(id.into())
@@ -140,7 +134,7 @@ pub fn badged(id: impl Into<SharedString>, target: impl IntoElement, badge: Opti
                     .min_w(px(BADGE_H))
                     .h(px(BADGE_H))
                     .p(px(BADGE_RING))
-                    .child(squircle::fill(radius, power, Some(rgb(BASE).into()), None))
+                    .child(shape::fill(radius, power, Some(rgb(BASE).into()), None))
                     .child(
                         div()
                             .relative()
@@ -152,14 +146,13 @@ pub fn badged(id: impl Into<SharedString>, target: impl IntoElement, badge: Opti
                             .text_size(px(10.5))
                             .font_weight(FontWeight::BOLD)
                             .text_color(rgb(ON_ACCENT))
-                            .child(squircle::fill(radius - BADGE_RING, power, Some(rgb(ACCENT).into()), None))
+                            .child(shape::fill(radius - BADGE_RING, power, Some(rgb(ACCENT).into()), None))
                             .child(motion::text("badge", count)),
                     ),
             )
         })
 }
 
-/// A square button showing a glyph, tinted when `active`; wrap it in [`badged`] for a count.
 pub fn icon(id: impl Into<SharedString>, glyph: Option<&Path>, active: bool, hover: bool) -> Stateful<Div> {
     let tint = if active { ACCENT } else { SUBTEXT1 };
     fill(id, Radius::Control, Some(surface_fill(active)), hover)

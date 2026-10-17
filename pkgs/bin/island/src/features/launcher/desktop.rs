@@ -127,9 +127,8 @@ pub fn launch(app: &App) -> Option<Launch> {
     })
 }
 
-/// How well `app` matches `query`, best highest: its name starts with it, a word of its name does,
-/// its name contains it, a keyword or its generic name does, or its name has the query's letters in
-/// order.
+/// Best highest: the name starts with the query, a word of it does, the name contains it, a keyword
+/// or the generic name does, or the name has the query's letters in order.
 fn tier(app: &App, query: &str) -> Option<u32> {
     let name = app.name.to_lowercase();
     if name.starts_with(query) {
@@ -153,9 +152,8 @@ fn tier(app: &App, query: &str) -> Option<u32> {
         .then_some(1)
 }
 
-/// The apps matching `query`, as indices into `apps`: the best kind of match first, then the most
-/// used by `ranks` (frecency by desktop id), then the shortest name, then by name. With no query,
-/// every app, the most used first.
+/// The best kind of match first, then the most used, then the shortest name, then by name. With no
+/// query, every app, the most used first.
 pub fn search(apps: &[App], query: &str, ranks: &HashMap<String, f64>) -> Vec<usize> {
     let query = query.trim().to_lowercase();
     let rank = |index: usize| ranks.get(&apps[index].id).copied().unwrap_or(0.0);

@@ -32,7 +32,6 @@ const REFRESH: Duration = Duration::from_millis(33);
 /// Images not painted for this long are released.
 const UNUSED: Duration = Duration::from_secs(2);
 
-/// One rendered image per tile shape, reused until it is due for a refresh.
 struct Cached {
     image: Arc<RenderImage>,
     made: Instant,

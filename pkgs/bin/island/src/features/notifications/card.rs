@@ -1,6 +1,3 @@
-//! A notification card, and the two stacks of them: the cards popping up as notifications arrive and
-//! the missed list in the panel.
-
 use std::time::{Duration, SystemTime};
 
 use chrono::Local;
@@ -41,12 +38,11 @@ const BODY_LINE: f32 = 17.0;
 const BODY_LINES: usize = 2;
 const ACTION_GAP: f32 = 8.0;
 
-/// Which stack a card is in, and its id there.
 #[derive(Clone, Copy)]
 pub enum Kind {
     Toast(u64),
     Missed(u32),
-    /// One in the history, by its session and id.
+    /// Session and id.
     Earlier(i64, u32),
 }
 
@@ -60,24 +56,19 @@ impl Kind {
     }
 }
 
-/// How a card is drawn and what clicking it does.
 pub struct Look {
-    /// Whether its contents are hidden.
     pub hidden: bool,
     pub activate: Handler,
     pub dismiss: Handler,
-    /// Each action button's handler, by its key.
     pub invoke: Vec<(String, Handler)>,
-    /// How long until a pop-up card hides itself, drawn as a draining bar along its bottom.
     pub countdown: Option<Countdown>,
 }
 
-/// What is left of a card's time.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Countdown {
-    /// The part of its time left, 0–1.
+    /// 0–1.
     pub left: f32,
-    /// How long that is while it counts down; `None` while paused.
+    /// `None` while paused.
     pub running: Option<Duration>,
     /// Counts each pause and resume, so the bar starts a new animation from where it is.
     pub round: u32,
@@ -87,8 +78,8 @@ const COUNTDOWN_H: f32 = 2.0;
 /// How strongly the countdown shows; it is a quiet part of the card's edge, not content.
 const COUNTDOWN_ALPHA: u8 = 0xb3;
 
-/// The card's bottom edge draining as its time runs out, and holding while paused: it lies on the
-/// border's straight stretch between the rounded corners, so it reads as the outline itself.
+/// Lies on the border's straight stretch between the rounded corners, so it reads as the outline
+/// itself.
 fn countdown_bar(kind: Kind, countdown: Countdown) -> AnyElement {
     let bar = div().h_full().rounded_full().bg(rgba(with_alpha(ACCENT, COUNTDOWN_ALPHA)));
     let bar = match countdown.running {
@@ -112,8 +103,6 @@ fn countdown_bar(kind: Kind, countdown: Countdown) -> AnyElement {
         .into_any_element()
 }
 
-/// How a stretch of Markdown is drawn: bold as semibold, links in the accent, code on a tint, and
-/// spoilers covered.
 fn highlight(style: markdown::Style) -> HighlightStyle {
     let line = |shown: bool| shown.then(|| px(1.0));
     let tint: Hsla = rgba(with_alpha(SURFACE1, CONTROL_ALPHA)).into();
@@ -138,7 +127,6 @@ fn highlight(style: markdown::Style) -> HighlightStyle {
     }
 }
 
-/// The body as the card shows it, its Markdown drawn; clicking a link opens it.
 fn body_text(kind: Kind, body: &str) -> AnyElement {
     let parsed = markdown::parse(body);
     let ranges = parsed.link_ranges();
@@ -158,7 +146,7 @@ fn body_text(kind: Kind, body: &str) -> AnyElement {
         .into_any_element()
 }
 
-/// How many lines the body takes as the card shows it, its Markdown read and its lines joined.
+/// With the Markdown read and its lines joined, as the card shows it.
 pub fn body_lines(body: &str, card_width: f32, window: &Window) -> usize {
     let body = markdown::parse(body).text;
     if body.is_empty() {
@@ -408,9 +396,8 @@ pub fn card(kind: Kind, notification: &Notification, look: Look, hover: bool, cx
         .into_any_element()
 }
 
-/// The missed list; `looks` holds each row's look, in the order of `rows.rows()`.
-/// The missed list, [`MissedList::visible_height`] tall: it states its own size from the cards'
-/// known heights rather than being measured, and scrolls past the most it shows.
+/// `looks` is in the order of `rows.rows()`. States its own size from the cards' known heights
+/// rather than being measured, and scrolls past the most it shows.
 pub fn missed(rows: &MissedList, looks: Vec<Look>, empty: SharedString, hover: bool, cx: &mut Context<Island>) -> AnyElement {
     if rows.is_empty() && rows.rows().is_empty() {
         return div()
@@ -462,7 +449,6 @@ const DAY_H: f32 = 22.0;
 /// How tall the Earlier list can be before it scrolls, as the missed list.
 const EARLIER_MAX_H: f32 = 480.0;
 
-/// The heading over a day's notifications: Today, Yesterday, or the date.
 fn day_label(day: chrono::NaiveDate) -> String {
     let today = Local::now().date_naive();
     match (today - day).num_days() {
@@ -476,7 +462,6 @@ fn day_of(notification: &Notification) -> chrono::NaiveDate {
     chrono::DateTime::<Local>::from(notification.received).date_naive()
 }
 
-/// The Earlier list's full height: each day's heading and its cards.
 fn earlier_extent(entries: &[Earlier]) -> f32 {
     let mut height = 0.0;
     let mut day = None;
@@ -491,12 +476,12 @@ fn earlier_extent(entries: &[Earlier]) -> f32 {
     height
 }
 
-/// How tall the Earlier view is: its list up to where it scrolls, or one line when it is empty.
+/// Up to where the list scrolls, or one line when it is empty.
 pub fn earlier_height(entries: &[Earlier]) -> f32 {
     if entries.is_empty() { 0.0 } else { earlier_extent(entries).min(EARLIER_MAX_H) }
 }
 
-/// The history, newest first, under a heading for each day; `looks` holds each entry's look.
+/// `looks` is in the order of `entries`.
 pub fn earlier(entries: Vec<Earlier>, looks: Vec<Look>, hover: bool, cx: &mut Context<Island>) -> AnyElement {
     if entries.is_empty() {
         return div()
@@ -543,8 +528,8 @@ pub fn earlier(entries: Vec<Earlier>, looks: Vec<Look>, hover: bool, cx: &mut Co
         .into_any_element()
 }
 
-/// The cards popping up; `looks` holds each card's look, in the order of `stack.cards()`, and
-/// `island_below` is how far the island reaches below the top of the cards.
+/// `looks` is in the order of `stack.cards()`; `island_below` is how far the island reaches below
+/// the top of the cards.
 pub fn toasts(stack: &Toasts, looks: Vec<Look>, island_below: f32, hover: bool, cx: &mut Context<Island>) -> AnyElement {
     let mut looks: Vec<Option<Look>> = looks.into_iter().map(Some).collect();
     let all = stack.cards();

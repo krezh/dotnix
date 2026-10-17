@@ -1,6 +1,3 @@
-//! Tabs within a panel, in the tab strip's style: fixed-width tabs, the selected one in the accent
-//! over the selection pill, which slides to the tab picked.
-
 use std::rc::Rc;
 
 use gpui::{AnimationExt, Context, Div, FontWeight, SharedString, SpringAnimation, SpringConfig, div, prelude::*, px, rgb};
@@ -16,10 +13,9 @@ const TAB_W: f32 = 96.0;
 const TAB_GAP: f32 = 4.0;
 const PILL_SPRING: SpringConfig = SpringConfig::new(420.0, 34.0, 1.0);
 
-/// Picks the tab at an index.
 pub type Select = Rc<dyn Fn(usize, &mut Island, &mut Context<Island>)>;
 
-/// `labels` as tabs, `selected` picked; `id` names them, and must be unique where they sit.
+/// `id` must be unique where the tabs sit.
 pub fn tabs(
     id: &str,
     labels: Vec<SharedString>,

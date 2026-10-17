@@ -44,7 +44,6 @@ pub enum Reason {
     Closed = 3,
 }
 
-/// What island tells the app that sent a notification.
 #[derive(Clone, Debug)]
 pub enum Signal {
     Closed(u32, Reason),

@@ -1,7 +1,5 @@
-//! Compositor backends: where island learns about monitors, workspaces and fullscreen windows, and
-//! how it switches workspaces. Exactly one runs, picked at startup by [`start`]; island itself only
-//! sees the neutral [`Snapshot`] model and [`backend`]. A new compositor implements [`Compositor`]
-//! and is listed once in [`compositors!`].
+//! A new compositor implements [`Compositor`] and is listed once in [`compositors!`]; the rest of
+//! island only sees [`Snapshot`] and [`backend`].
 
 mod hyprland;
 
@@ -15,31 +13,25 @@ use crate::{features::Feed, wm::Snapshot};
 pub trait Compositor: Send + Sync + Sized + 'static {
     const NAME: &'static str;
 
-    /// Whether this compositor is the one running.
     fn detect() -> bool;
 
-    /// Connects and starts the supervised event worker, publishing a [`Snapshot`] on every change;
-    /// `None` when it cannot connect.
+    /// Publishes a [`Snapshot`] on every change; `None` when it cannot connect.
     fn start(feed: Feed<Snapshot>) -> Option<Self>;
 
-    /// Switches to the workspace with this [`crate::wm::Workspace::id`].
     fn focus_workspace(&self, id: i64);
 
-    /// Moves `step` workspaces along on the focused monitor.
     fn focus_relative(&self, step: i32);
 
-    /// The compositor's gap above windows, so the island lines up with them.
+    /// So the island lines up with windows.
     fn top_gap(&self) -> Option<f32> {
         None
     }
 
-    /// The app id (class) of the focused window.
     fn focused_class(&self) -> Option<String> {
         None
     }
 }
 
-/// The running compositor with its type erased.
 pub trait Backend: Send + Sync {
     fn focus_workspace(&self, id: i64);
     fn focus_relative(&self, step: i32);
@@ -67,7 +59,6 @@ impl<C: Compositor> Backend for C {
 
 static BACKEND: OnceLock<Arc<dyn Backend>> = OnceLock::new();
 
-/// The running compositor, if island found one it supports.
 pub fn backend() -> Option<Arc<dyn Backend>> {
     BACKEND.get().cloned()
 }
@@ -88,8 +79,8 @@ fn try_start<C: Compositor>() -> Option<UnboundedReceiver<Snapshot>> {
 
 macro_rules! compositors {
     ($($compositor:ty),* $(,)?) => {
-        /// Starts the first supported compositor that is running. Without one, island still opens
-        /// on every output, with no workspaces and no fullscreen hiding.
+        /// Without a supported compositor, island still opens on every output, with no workspaces
+        /// and no fullscreen hiding.
         pub fn start() -> Option<UnboundedReceiver<Snapshot>> {
             let snapshots = None$(.or_else(try_start::<$compositor>))*;
             if snapshots.is_none() {

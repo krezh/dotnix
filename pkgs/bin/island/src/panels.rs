@@ -1,5 +1,3 @@
-use std::rc::Rc;
-
 use gpui::SharedString;
 
 use crate::{
@@ -9,9 +7,8 @@ use crate::{
         tile::{Drive, Meter as TileMeter, Part, Segment, Tile, Volume},
     },
     config,
-    island::{Island, Mode, Panel},
-    launcher::Search,
-    panel::{AppRow, Block, Button, Entry, Header, IconButton, LauncherView, PanelView, on},
+    island::{Island, Panel},
+    panel::{Block, Header, IconButton, PanelView},
     sys::SysStats,
     theme::{BLUE, GREEN, LAVENDER, MAUVE, PEACH, PINK, RED, SUBTEXT1, TEAL, YELLOW},
 };
@@ -59,7 +56,6 @@ fn short_duration(seconds: u64) -> String {
     }
 }
 
-/// Green when cool, through yellow and peach, to red when hot.
 fn heat(celsius: f32) -> u32 {
     match celsius {
         celsius if celsius >= 85.0 => RED,
@@ -434,7 +430,6 @@ fn temperatures_tile(stats: &SysStats) -> Tile {
     )
 }
 
-/// The System panel; `buttons` are the features' quick buttons.
 pub fn system(
     stats: &SysStats,
     settings: &config::System,
@@ -454,124 +449,10 @@ pub fn system(
     }
 }
 
-/// One entry of a menu, with its submenu.
-#[derive(Clone, Debug)]
-pub struct MenuNode {
-    pub id: i32,
-    pub label: String,
-    pub enabled: bool,
-    pub separator: bool,
-    pub toggle: Option<bool>,
-    pub children: Vec<MenuNode>,
-}
-
-/// What happens when a menu entry with this id is picked.
-pub type Pick = Rc<dyn Fn(i32, &mut Island, &mut gpui::Context<Island>)>;
-
-/// A menu shown as the island's Menu panel, such as a tray item's.
-#[derive(Clone)]
-pub struct MenuView {
-    pub title: String,
-    pub root: MenuNode,
-    /// The submenus entered, from the root.
-    pub path: Vec<usize>,
-    pub pick: Pick,
-}
-
-impl MenuView {
-    fn current(&self) -> &MenuNode {
-        self.path
-            .iter()
-            .fold(&self.root, |node, index| node.children.get(*index).unwrap_or(node))
-    }
-}
-
-pub fn menu(view: &MenuView) -> PanelView<'static> {
-    let current = view.current();
-    let entries = current
-        .children
-        .iter()
-        .enumerate()
-        .map(|(index, node)| {
-            let pick = view.pick.clone();
-            let id = node.id;
-            let submenu = !node.children.is_empty();
-            Entry {
-                id: format!("menu-{}-{index}", node.id).into(),
-                label: node.label.clone().into(),
-                enabled: node.enabled,
-                separator: node.separator,
-                check: node.toggle,
-                submenu,
-                on_click: Some(if submenu {
-                    on(move |island, cx| island.menu_enter(index, cx))
-                } else {
-                    on(move |island, cx| {
-                        pick(id, island, cx);
-                        island.set_mode(Mode::Collapsed, cx);
-                    })
-                }),
-            }
-        })
-        .collect();
-    let title = if view.path.is_empty() {
-        view.title.clone()
-    } else {
-        current.label.clone()
-    };
-    let buttons = if view.path.is_empty() {
-        Vec::new()
-    } else {
-        vec![Button {
-            id: "menu-back".into(),
-            label: "Back".into(),
-            active: false,
-            toggle: false,
-            fits: Vec::new(),
-            busy: false,
-            enabled: true,
-            on_click: on(|island, cx| island.menu_back(cx)),
-        }]
-    };
-    PanelView {
-        header: Header::Title(title.into(), buttons),
-        blocks: vec![Block::Menu(entries)],
-    }
-}
-
 pub fn panel<'a>(island: &'a Island, panel: Panel, cx: &gpui::App) -> PanelView<'a> {
     match panel {
         Panel::System => system(&island.stats, cx.global(), island.displays(), island.feature_buttons(cx)),
-        Panel::Menu => island.menu_view().map_or_else(empty, menu),
-        Panel::Launcher => island.search().map_or_else(empty, launcher),
         Panel::Feature(name) => island.feature_panel(name, cx).unwrap_or_else(empty),
         Panel::Popups => island.popups(cx).unwrap_or_else(empty),
-    }
-}
-
-pub fn launcher(search: &Search) -> PanelView<'static> {
-    let rows = search
-        .visible()
-        .map(|(position, app)| AppRow {
-            id: format!("app-{}", app.id).into(),
-            name: app.name.clone().into(),
-            detail: if app.generic.is_empty() { app.comment.clone() } else { app.generic.clone() }.into(),
-            icon: app.icon.clone(),
-            preview: false,
-            selected: position == search.selected,
-            on_click: on(move |island, cx| island.launch_app(position, cx)),
-            on_hover: on(move |island, cx| island.move_app_selection(|search| search.select(position), cx)),
-        })
-        .collect();
-    PanelView {
-        header: Header::None,
-        blocks: vec![Block::Launcher(LauncherView {
-            query: search.query.clone().into(),
-            placeholder: "Search apps".into(),
-            empty: "No apps found".into(),
-            rows,
-            on_step: Rc::new(|step, island, cx| island.move_app_selection(|search| search.step(step), cx)),
-            preview: None,
-        })],
     }
 }

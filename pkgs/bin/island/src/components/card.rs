@@ -28,7 +28,6 @@ impl Size {
     }
 }
 
-/// A short value with its colour, as shown in a card or tile header.
 pub struct Stat {
     pub text: SharedString,
     pub color: u32,

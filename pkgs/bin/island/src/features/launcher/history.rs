@@ -1,6 +1,5 @@
-//! The launcher's history in island's encrypted database: how often and how recently each app was
-//! launched, which ranks apps by frecency. It is read once in the background at startup and kept in
-//! memory; each launch counts there at once and is written to the database in the background.
+//! Read once in the background at startup and kept in memory; each launch counts there at once and
+//! is written to the database in the background.
 
 use std::{
     collections::HashMap,
@@ -14,7 +13,7 @@ use tracing::{debug, warn};
 
 use crate::db;
 
-/// The launcher's migrations, oldest first; only ever append.
+/// Only ever append.
 const MIGRATIONS: &[&str] = &["
 CREATE TABLE launches (
     app TEXT PRIMARY KEY,
@@ -23,19 +22,18 @@ CREATE TABLE launches (
 );
 "];
 
-/// How long it takes a launch to count for half as much, in seconds.
+/// Seconds.
 const HALF_LIFE: f64 = 14.0 * 86_400.0;
-/// How long an app is remembered after its last launch, in seconds.
+/// Seconds after an app's last launch.
 const FORGET: i64 = 365 * 86_400;
 
-/// How often an app was launched, and when last, in Unix seconds.
+/// The last launch is in Unix seconds.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Launches {
     pub count: u32,
     pub last: i64,
 }
 
-/// Every remembered app's launches by desktop id, once read from the database.
 static HISTORY: Mutex<Option<HashMap<String, Launches>>> = Mutex::new(None);
 
 fn now() -> i64 {
@@ -44,8 +42,7 @@ fn now() -> i64 {
         .map_or(0, |elapsed| i64::try_from(elapsed.as_secs()).unwrap_or(i64::MAX))
 }
 
-/// How much `launches` count at `now`: every launch, each weighing less the longer ago the last one
-/// was.
+/// Every launch counts, each weighing less the longer ago the last one was.
 pub fn frecency(launches: Launches, now: i64) -> f64 {
     let age = (now - launches.last).max(0) as f64;
     f64::from(launches.count) * 0.5_f64.powf(age / HALF_LIFE)
@@ -62,9 +59,8 @@ fn read() -> Result<HashMap<String, Launches>, String> {
     rows.collect::<Result<_, _>>().map_err(fail)
 }
 
-/// Reads the history from the database; call it off the UI thread, as it may wait on the keyring.
-/// A launch counted meanwhile is kept: each app has the larger of the two counts, since the
-/// database may or may not have that launch already.
+/// Call it off the UI thread, as it may wait on the keyring. A launch counted meanwhile is kept:
+/// each app has the larger of the two counts, since the database may or may not have it already.
 pub fn load() {
     let history = read().unwrap_or_else(|error| {
         warn!("{error}");
@@ -76,7 +72,7 @@ pub fn load() {
     *shared = Some(merge(history, counted));
 }
 
-/// `stored` with `counted` folded in, each app keeping the larger count and the later launch.
+/// Each app keeps the larger count and the later launch.
 fn merge(mut stored: HashMap<String, Launches>, counted: HashMap<String, Launches>) -> HashMap<String, Launches> {
     for (app, launches) in counted {
         let entry = stored.entry(app).or_insert(launches);
@@ -86,7 +82,6 @@ fn merge(mut stored: HashMap<String, Launches>, counted: HashMap<String, Launche
     stored
 }
 
-/// Every remembered app's frecency now, by desktop id.
 pub fn ranks() -> HashMap<String, f64> {
     let now = now();
     HISTORY
@@ -98,7 +93,6 @@ pub fn ranks() -> HashMap<String, f64> {
         .collect()
 }
 
-/// Counts a launch of `app`, by desktop id.
 pub fn record(app: &str) {
     let at = now();
     {
@@ -124,5 +118,5 @@ pub fn record(app: &str) {
 }
 
 #[cfg(test)]
-#[path = "launches_test.rs"]
+#[path = "history_test.rs"]
 mod tests;

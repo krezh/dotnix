@@ -1,6 +1,4 @@
-//! Audio: the default output's level in the bar, an Audio panel with both levels and device
-//! choices, the popup when a level or device changes, and `island ctl volume|mic …`. While the sound
-//! server is gone the widget stays, drawn as an error.
+//! While the sound server is gone the widget stays, drawn as an error.
 
 mod pulse;
 
@@ -25,7 +23,6 @@ use pulse::{AudioState, Mixer, Request, Target};
 /// One scroll notch or `up`/`down` step.
 const STEP: f32 = 0.05;
 
-/// The glyph key for an output at `volume`.
 fn speaker(volume: f32, muted: bool) -> &'static str {
     match volume {
         _ if muted || volume <= 0.0 => "volume-muted",
@@ -242,8 +239,8 @@ impl Feature for Audio {
         })
     }
 
-    /// A popup when a level or the default device changes. Nothing shows while connecting, or on
-    /// the first state after connecting, which only fills in the devices.
+    /// Nothing shows while connecting, or on the first state after connecting, which only fills in
+    /// the devices.
     fn osd(before: &AudioState, after: &AudioState) -> Option<Osd> {
         if !before.connected || (before.sinks.is_empty() && before.sources.is_empty()) {
             return None;

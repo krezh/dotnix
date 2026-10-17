@@ -1,6 +1,3 @@
-//! Motion for content that changes in place, such as text that morphs into its new value, and the
-//! element state that keeps such motion going from frame to frame.
-
 use std::{
     cell::Cell,
     marker::PhantomData,
@@ -13,13 +10,11 @@ use gpui::{
     Window, div, prelude::*, px,
 };
 
-/// How long text takes to morph.
 const MORPH: Duration = Duration::from_millis(320);
 /// How much of a morph each changing character takes to turn into its new one, when several do;
 /// they start one after another so the change runs along the text.
 const SPAN: f32 = 0.55;
 
-/// When a [`keyed`] element wants to be drawn again.
 pub enum Next {
     /// It is still; nothing more until something else redraws it.
     Rest,
@@ -148,13 +143,11 @@ where
 
 #[derive(Default)]
 struct Morph {
-    /// The text shown, once there is one.
     text: Option<SharedString>,
-    /// The text it is morphing from, and since when.
     from: Option<(SharedString, Instant)>,
 }
 
-/// Where `old` and `new` differ: the length of their shared start and of their shared end, in bytes.
+/// Lengths of the shared start and shared end, in bytes.
 fn shared(old: &str, new: &str) -> (usize, usize) {
     let start: usize = old
         .chars()
@@ -187,16 +180,13 @@ fn smoothstep(t: f32) -> f32 {
     t * t * (3.0 - 2.0 * t)
 }
 
-/// `text`, which morphs into its new value whenever it changes: what the old and new text share
-/// stays, and each other character turns into its new one in place, one after another along the
-/// text, its width following. It takes the font of where it sits; `id` must be unique among its
-/// siblings.
+/// What the old and new text share stays; each other character turns into its new one in place,
+/// one after another along the text. `id` must be unique among its siblings.
 pub fn text(id: impl Into<ElementId>, text: impl Into<SharedString>) -> impl IntoElement {
     morph(id, text.into(), Vec::new())
 }
 
-/// [`text`] that keeps one width, the widest of `fits` (every text it can show), so what it sits in
-/// never resizes as it changes. The text is centred in that width.
+/// Keeps the width of the widest of `fits`, so what it sits in never resizes as it changes.
 pub fn steady(id: impl Into<ElementId>, text: impl Into<SharedString>, fits: Vec<SharedString>) -> impl IntoElement {
     morph(id, text.into(), fits)
 }

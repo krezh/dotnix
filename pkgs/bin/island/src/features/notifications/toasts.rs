@@ -1,6 +1,3 @@
-//! The notification cards one island shows as they arrive, newest on top, each timing out on its
-//! own while the pop-up shows.
-
 use std::time::{Duration, Instant};
 
 use gpui::{SpringConfig, Window};
@@ -37,9 +34,7 @@ pub struct Card {
     /// When the card times out; set once it is visible while the pop-up shows, and cleared while
     /// the countdown is paused.
     pub due: Option<Instant>,
-    /// Its whole time, once it started counting down.
     lifetime: Option<Duration>,
-    /// What was left of its time when the countdown paused.
     paused: Option<Duration>,
     /// Counts each pause and resume, so its countdown bar animates afresh from where it is.
     round: u32,
@@ -54,8 +49,7 @@ impl Card {
         card::height(self.lines.unwrap_or(1), self.notification.buttons().next().is_some())
     }
 
-    /// What is left of its time, for its countdown bar; `None` while it is not counting down, such
-    /// as a critical one, which stays until dismissed.
+    /// `None` while it is not counting down, such as a critical one, which stays until dismissed.
     pub fn countdown(&self) -> Option<Countdown> {
         let lifetime = self.lifetime?;
         let (left, running) = match (self.paused, self.due) {
@@ -70,7 +64,6 @@ impl Card {
         })
     }
 
-    /// Starts a round of counting down at `now` with `left` of its time to go.
     fn count_from(&mut self, now: Instant, left: Duration) {
         let lifetime = self.lifetime.unwrap_or(left);
         self.due = Some(now + left);
@@ -79,7 +72,6 @@ impl Card {
         self.round += 1;
     }
 
-    /// Stops counting down.
     fn stop(&mut self) {
         self.due = None;
         self.paused = None;
@@ -87,7 +79,6 @@ impl Card {
     }
 }
 
-/// `left` as a part of `lifetime`, 0–1.
 fn fraction(left: Duration, lifetime: Duration) -> f32 {
     if lifetime.is_zero() {
         return 0.0;
@@ -102,9 +93,8 @@ pub struct Toasts {
     overflow: usize,
     footer_count: usize,
     pub footer: Spring,
-    /// Whether the island is showing the cards.
     shown: bool,
-    /// Whether the pointer is over the island, which pauses the countdowns.
+    /// Over the island, which pauses the countdowns.
     pointer: bool,
     motion: SpringConfig,
     fade_in: SpringConfig,
@@ -146,7 +136,6 @@ impl Toasts {
         self.cards.iter_mut().find(|card| card.id == id)
     }
 
-    /// The card still showing `notification`.
     pub fn live_card_for(&self, notification: u32) -> Option<u64> {
         self.cards
             .iter()
@@ -154,7 +143,7 @@ impl Toasts {
             .map(|card| card.id)
     }
 
-    /// Shows `notification`: in place of its card if it has one, otherwise as a new card on top.
+    /// In place of its card if it has one, otherwise as a new card on top.
     pub fn show(&mut self, notification: Notification) {
         match self.live_card_for(notification.id).and_then(|id| self.card_mut(id)) {
             Some(card) => {
@@ -189,12 +178,10 @@ impl Toasts {
         self.layout();
     }
 
-    /// Takes away the card showing `notification`, returning it.
     pub fn close(&mut self, notification: u32) -> Option<Notification> {
         self.dismiss(self.live_card_for(notification)?)
     }
 
-    /// Takes away card `id`, returning its notification.
     pub fn dismiss(&mut self, id: u64) -> Option<Notification> {
         let fade_out = self.fade_out;
         let card = self.card_mut(id).filter(|card| !card.leaving)?;
@@ -207,7 +194,6 @@ impl Toasts {
         Some(notification)
     }
 
-    /// The cards whose time has come by `now`.
     pub fn expired(&self, now: Instant) -> Vec<u64> {
         self.cards
             .iter()
@@ -216,7 +202,6 @@ impl Toasts {
             .collect()
     }
 
-    /// Gives card `id` until `until` before it times out.
     pub fn postpone(&mut self, id: u64, until: Instant) {
         if let Some(card) = self.card_mut(id) {
             let now = Instant::now();
@@ -224,20 +209,17 @@ impl Toasts {
         }
     }
 
-    /// The soonest a card times out.
     pub fn due(&self) -> Option<Instant> {
         self.cards.iter().filter_map(|card| card.due).min()
     }
 
-    /// The island started or stopped showing the cards; the visible ones start timing out once
-    /// it does.
+    /// Visible cards start timing out once the island shows them.
     pub fn set_shown(&mut self, shown: bool) {
         self.shown = shown;
         self.arm();
     }
 
-    /// The pointer came onto the island or left it: the countdowns pause while it is over, and
-    /// carry on from where they were once it leaves.
+    /// Countdowns pause while the pointer is over, and carry on from where they were once it leaves.
     pub fn set_pointer(&mut self, over: bool, now: Instant) {
         self.pointer = over;
         for card in &mut self.cards {
@@ -273,7 +255,7 @@ impl Toasts {
         }
     }
 
-    /// Measures the body text of new cards; true when any changed height.
+    /// True when any new card's body changed height.
     pub fn measure(&mut self, window: &Window) -> bool {
         let mut measured = false;
         for card in self.cards.iter_mut().filter(|card| card.lines.is_none()) {

@@ -18,6 +18,7 @@ use crate::{
         button,
         card,
         icon,
+        list::ROWS,
         marquee::{TextLayouts, marquee},
         motion,
         slider::{OnChange, slider},
@@ -26,7 +27,6 @@ use crate::{
         tooltip::{Tip, Tooltips},
     },
     island::{Island, Mode},
-    launcher,
     theme::{
         ACCENT, ACCENT_TINT_ALPHA, CONTROL_ALPHA, GREEN, ON_ACCENT, OVERLAY2, PEACH, SUBTEXT1, SURFACE1, TEXT, YELLOW,
         with_alpha,
@@ -50,10 +50,9 @@ pub struct Button {
     pub toggle: bool,
     /// Every label the button can show, when it changes label, so it keeps one width.
     pub fits: Vec<SharedString>,
-    /// What the button started is still going, such as a check; the energy border runs round it.
     pub busy: bool,
-    /// It can be clicked. A button that sometimes has nothing to do stays in place, drawn as
-    /// inactive, so the header keeps its size.
+    /// A button that sometimes has nothing to do stays in place, drawn as inactive, so the header
+    /// keeps its size.
     pub enabled: bool,
     pub on_click: Handler,
 }
@@ -61,12 +60,10 @@ pub struct Button {
 pub enum Header {
     Tabs,
     Title(SharedString, Vec<Button>),
-    /// Tabs between the panel's views, in the title's place.
     Views(Views),
     None,
 }
 
-/// A panel's views as tabs, with the buttons beside them.
 pub struct Views {
     pub tabs: Vec<SharedString>,
     pub selected: usize,
@@ -100,8 +97,7 @@ pub struct Meter {
     pub glyph: Option<PathBuf>,
     pub caption: SharedString,
     pub label: SharedString,
-    /// The level and whether it is muted; `None` shows only what the meter is of, such as a device
-    /// just switched to.
+    /// Level and muted; `None` shows only what the meter is of, such as a device just switched to.
     pub level: Option<(f32, bool)>,
     pub color: u32,
 }
@@ -120,7 +116,7 @@ pub struct MediaView {
     pub on_play: Handler,
     pub on_previous: Handler,
     pub on_next: Handler,
-    /// Seeks to a fraction of the track; `None` when the track has no length.
+    /// `None` when the track has no length.
     pub on_seek: Option<OnChange>,
 }
 
@@ -133,18 +129,14 @@ pub struct AppRow {
     pub preview: bool,
     pub selected: bool,
     pub on_click: Handler,
-    /// The pointer came over the row, which selects it.
+    /// Hovering a row selects it.
     pub on_hover: Handler,
 }
 
-/// Moves a list's selection by this many rows.
 pub type Step = Rc<dyn Fn(i32, &mut Island, &mut Context<Island>)>;
 
-/// What a list's preview pane shows of the selected row.
 pub enum Preview {
-    /// Text, wrapped and cut off at the bottom.
     Text(SharedString),
-    /// A picture, fitted.
     Picture(PathBuf),
     Empty,
 }
@@ -159,7 +151,6 @@ pub struct IconButton {
     pub on_click: Handler,
 }
 
-/// A large tile with a glyph over its label; see [`button::action`].
 pub struct ActionTile {
     pub id: SharedString,
     pub glyph: Option<PathBuf>,
@@ -170,7 +161,6 @@ pub struct ActionTile {
     pub on_click: Handler,
 }
 
-/// A month grid with buttons to page through months and back to today.
 pub struct CalendarView {
     /// Months away from the current one.
     pub offset: i32,
@@ -184,7 +174,7 @@ pub struct CommitRow {
     pub detail: SharedString,
 }
 
-/// Where something stands at one step of a path, such as a pull request at one branch.
+/// Such as a pull request at one branch.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum StepState {
     Reached,
@@ -198,28 +188,21 @@ pub struct PathStep {
     pub state: StepState,
 }
 
-/// Something moving through a fixed path of steps, such as a pull request through the branches
-/// it lands in, with a mark when it has reached what matters.
+/// Such as a pull request through the branches it lands in.
 pub struct PathRow {
     pub title: SharedString,
     pub detail: SharedString,
-    /// Shown as a mark beside the title, such as "Ready".
     pub done: Option<SharedString>,
     pub steps: Vec<PathStep>,
 }
 
-/// A search field over a fixed number of rows, for the launcher and other panels that take the
-/// keyboard.
 pub struct LauncherView {
     pub query: SharedString,
-    /// Shown in the empty search field.
     pub placeholder: SharedString,
     /// Shown when there are no rows and nothing is typed.
     pub empty: SharedString,
     pub rows: Vec<AppRow>,
-    /// The scroll wheel over the list.
     pub on_step: Step,
-    /// A pane beside the list showing the selected row, with a line about it.
     pub preview: Option<(Preview, SharedString)>,
 }
 
@@ -228,7 +211,6 @@ pub enum Block<'a> {
     Row(Vec<Block<'a>>),
     Launcher(LauncherView),
     Calendar(CalendarView),
-    Menu(Vec<Entry>),
     Levels(Vec<Level>),
     Meter(Meter),
     Choices(SharedString, Vec<Entry>),
@@ -236,20 +218,16 @@ pub enum Block<'a> {
     Note(SharedString),
     /// Commits, newest first.
     Commits(Vec<CommitRow>),
-    /// Things moving through their steps; see [`PathRow`].
     Paths(Vec<PathRow>),
-    /// Columns of fixed-size tiles; see `components::tile`.
+    /// Columns of tiles.
     Board(Vec<Vec<Tile>>),
-    /// A row of square icon buttons.
     Icons(Vec<IconButton>),
-    /// A row of large action tiles.
     Actions(Vec<ActionTile>),
-    /// A block its feature draws itself, for content no shared block covers such as notification
-    /// cards. The key stands in for its size: the panel is measured again when it changes.
+    /// The key stands in for the block's size: the panel is measured again when it changes.
     Custom(u64, Draw<'a>),
 }
 
-/// Draws a [`Block::Custom`], given how far the island reaches below the top of the block.
+/// Given how far the island reaches below the top of the block.
 pub type Draw<'a> = Box<dyn FnOnce(&Frame<'_>, f32, &mut Context<Island>) -> AnyElement + 'a>;
 
 pub struct PanelView<'a> {
@@ -272,7 +250,7 @@ pub struct Frame<'a> {
 const DAY_H: f32 = 40.0;
 const TODAY: f32 = 36.0;
 const DAY_GAP: f32 = 4.0;
-const ENTRY_H: f32 = 28.0;
+pub(crate) const ENTRY_H: f32 = 28.0;
 
 impl Block<'_> {
     fn hash_shape(&self, hasher: &mut DefaultHasher) {
@@ -297,9 +275,9 @@ impl Block<'_> {
             }
             Block::Icons(buttons) => buttons.len().hash(hasher),
             Block::Actions(tiles) => tiles.len().hash(hasher),
-            Block::Launcher(view) => (launcher::ROWS, view.preview.is_some()).hash(hasher),
+            Block::Launcher(view) => (ROWS, view.preview.is_some()).hash(hasher),
             Block::Media(view) => (view.art.is_some(), view.length.is_some()).hash(hasher),
-            Block::Menu(entries) | Block::Choices(_, entries) => {
+            Block::Choices(_, entries) => {
                 for entry in entries {
                     entry.label.hash(hasher);
                     (entry.separator, entry.check.is_some(), entry.submenu).hash(hasher);
@@ -396,7 +374,6 @@ fn views_header(views: Views, hover: bool, cx: &mut Context<Island>) -> AnyEleme
     header_row(tabs.into_any_element(), views.buttons, hover, cx)
 }
 
-/// A header: `leading`, such as the title, then the buttons and the close button.
 fn header_row(leading: AnyElement, buttons: Vec<Button>, hover: bool, cx: &mut Context<Island>) -> AnyElement {
     div()
         .h(px(HEADER_H))
@@ -437,8 +414,8 @@ fn button_element(button: Button, hover: bool, cx: &mut Context<Island>) -> AnyE
 }
 
 impl Block<'_> {
-    /// Draws the block; `at` names its place in the panel, unique and the same from frame to frame,
-    /// for the parts of it that keep state, such as morphing text.
+    /// `at` names the block's place in the panel, unique and stable across frames, for parts that
+    /// keep state, such as morphing text.
     fn render(self, at: &str, island_below: f32, frame: &Frame<'_>, cx: &mut Context<Island>) -> AnyElement {
         match self {
             Block::Card(title, size, blocks) => {
@@ -475,14 +452,6 @@ impl Block<'_> {
                 div().flex().gap(px(card::GAP)).children(children).into_any_element()
             }
             Block::Calendar(view) => calendar(view, frame.hover, cx),
-            Block::Menu(entries) => {
-                let checks = entries.iter().any(|entry| entry.check.is_some());
-                div()
-                    .flex()
-                    .flex_col()
-                    .children(entries.into_iter().map(|entry| entry_element(entry, checks, frame.hover, cx)))
-                    .into_any_element()
-            }
             Block::Levels(levels) => div()
                 .flex()
                 .flex_col()
@@ -582,7 +551,6 @@ const CAPTION_SIZE: f32 = 12.0;
 const STEP_DOT: f32 = 7.0;
 const STEP_LINK: f32 = 14.0;
 
-/// One step of a path: a dot and its label, coloured by where things stand there.
 fn step_element(step: PathStep) -> Div {
     let (mark, text) = match step.state {
         StepState::Reached => (GREEN, TEXT),
@@ -727,7 +695,7 @@ fn level_element(level: Level, hover: bool, cx: &mut Context<Island>) -> AnyElem
 }
 
 const LAUNCHER_W: f32 = 560.0;
-/// The list's width beside a preview pane, and the pane's.
+/// The list beside a preview pane.
 const LIST_W: f32 = 400.0;
 const PANE_W: f32 = 460.0;
 const PANE_GAP: f32 = 10.0;
@@ -740,7 +708,7 @@ const PREVIEW_W: f32 = 56.0;
 const PREVIEW_H: f32 = 40.0;
 const SELECTION_SPRING: SpringConfig = SpringConfig::new(560.0, 44.0, 1.0);
 
-/// A text caret that breathes rather than blinks: fully lit most of the cycle, easing out and back.
+/// Breathes rather than blinks: fully lit most of the cycle, easing out and back.
 fn caret() -> impl IntoElement {
     div()
         .flex_none()
@@ -760,7 +728,7 @@ thread_local! {
     static SCROLLED: Cell<f32> = const { Cell::new(0.0) };
 }
 
-/// Whole rows the scroll wheel moved, down being positive; touchpads add up across events.
+/// Down is positive; touchpads add up across events.
 fn rows_scrolled(event: &ScrollWheelEvent) -> i32 {
     let total = SCROLLED.get() - f32::from(event.delta.pixel_delta(px(APP_ROW_H)).y);
     let rows = (total / APP_ROW_H).trunc();
@@ -800,9 +768,8 @@ fn preview_pane(preview: Preview, detail: SharedString, height: f32) -> AnyEleme
         .into_any_element()
 }
 
-/// The launcher is always the same size: a search field over `launcher::ROWS` row slots, beside a
-/// preview pane when it has one. Typing only changes what fills the slots, so the island never
-/// reshapes mid-search, and the selection glides between rows on a spring instead of jumping.
+/// Always the same size: typing only changes what fills the [`ROWS`] slots, so the island
+/// never reshapes mid-search.
 fn launcher_element(view: LauncherView, hover: bool, cx: &mut Context<Island>) -> AnyElement {
     let search = card::surface()
         .flex_none()
@@ -865,7 +832,7 @@ fn launcher_element(view: LauncherView, hover: bool, cx: &mut Context<Island>) -
 
     let on_step = view.on_step;
     let width = if view.preview.is_some() { LIST_W } else { LAUNCHER_W };
-    let list_h = launcher::ROWS as f32 * APP_ROW_H + (launcher::ROWS - 1) as f32 * APP_ROW_GAP;
+    let list_h = ROWS as f32 * APP_ROW_H + (ROWS - 1) as f32 * APP_ROW_GAP;
     let list = div()
         .id("launcher-list")
         .relative()
@@ -932,8 +899,6 @@ const METER_W: f32 = 360.0;
 const METER_GLYPH: f32 = 22.0;
 const METER_TILE: f32 = 40.0;
 
-/// A level beside its glyph, with what it is of; without a level, only what it is of, the name in
-/// its colour, for a device just switched to.
 fn meter_element(meter: Meter, at: &str, cx: &mut Context<Island>) -> AnyElement {
     let muted = meter.level.is_some_and(|(_, muted)| muted);
     let tint = if muted { OVERLAY2 } else { meter.color };
@@ -1088,7 +1053,7 @@ fn media_element(view: MediaView, frame: &Frame<'_>, cx: &mut Context<Island>) -
         .into_any_element()
 }
 
-fn entry_element(entry: Entry, checks: bool, hover: bool, cx: &mut Context<Island>) -> AnyElement {
+pub(crate) fn entry_element(entry: Entry, checks: bool, hover: bool, cx: &mut Context<Island>) -> AnyElement {
     if entry.separator {
         return div()
             .py(px(4.0))

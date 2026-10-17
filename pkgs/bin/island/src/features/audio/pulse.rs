@@ -1,6 +1,3 @@
-//! The PulseAudio-protocol (pipewire-pulse) side of the volume feature: device and level state, and
-//! the requests that change them.
-
 use std::{
     cell::{Cell, RefCell},
     collections::HashMap,
@@ -56,7 +53,7 @@ pub struct Channel {
 
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct AudioState {
-    /// Whether the sound server is reachable; while it is not, there are no devices.
+    /// While not, there are no devices.
     pub connected: bool,
     pub sinks: Vec<Device>,
     pub sources: Vec<Device>,
@@ -360,7 +357,6 @@ fn run(requests: &Receiver<Request>, wake: &UnixStream, feed: &Feed<AudioState>)
     }
 }
 
-/// Starts the supervised sound-server worker, publishing to `feed`, and returns its mixer.
 pub fn start(feed: Feed<AudioState>) -> Mixer {
     let (sender, requests) = mpsc::channel();
     let wake = match UnixStream::pair() {

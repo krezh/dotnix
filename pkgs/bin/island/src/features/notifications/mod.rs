@@ -1,9 +1,3 @@
-//! Notifications: island's notification server. New notifications pop up as cards on every
-//! island; dismissing or acting on one takes it from all of them, and one that times out unseen
-//! everywhere, or arrives during do not disturb, waits in the notifications panel. A dot in the bar shows whether any are waiting, `island ctl dnd` and
-//! `island ctl private` switch do not disturb and hidden contents, and `island ctl clear` dismisses
-//! them all.
-
 mod card;
 mod history;
 mod lock;
@@ -43,24 +37,18 @@ use crate::{
     theme::{ACCENT, OVERLAY1},
 };
 
-/// How many missed notifications are kept; older ones are dropped.
 const KEEP: usize = 50;
 /// How much longer a card stays when its time comes while the pointer is over the island.
 const HOVER_GRACE: Duration = Duration::from_millis(1500);
-/// How often the open panel redraws, so "5m" keeps up.
+/// So "5m" keeps up.
 const REFRESH: Duration = Duration::from_secs(30);
 
-/// `[notifications]` in the config file.
 #[derive(Debug, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 struct Settings {
-    /// Hide every notification's contents to begin with.
     private: bool,
-    /// Apps whose contents are always hidden.
     private_apps: Vec<String>,
-    /// Hide contents while the session is locked.
     hide_on_lock: bool,
-    /// How many days the history keeps notifications.
     history_days: u32,
 }
 
@@ -76,28 +64,23 @@ impl Default for Settings {
 }
 
 pub enum Event {
-    /// An app sent a notification, new or in place of one it sent before.
+    /// New, or in place of one the app sent before.
     Show(Notification),
-    /// An app took its notification back.
     Close(u32),
-    /// The session was locked or unlocked.
     Locked(bool),
-    /// `island ctl clear`: every card and missed notification goes.
     Clear,
-    /// A notification's card timed out on one island; once no island shows it, it waits in the
-    /// missed list, or its app hears of it when transient.
+    /// Timed out on one island; once no island shows it, it waits in the missed list, or its app
+    /// hears of it when transient.
     Expired(Notification),
-    /// A notification's card was dismissed or acted on, on one island; it goes from the others.
+    /// Dismissed or acted on, on one island; it goes from the others.
     Withdrawn(u32),
-    /// The history as the database holds it, read at start.
     History(Vec<Earlier>),
 }
 
-/// The missed notifications and the history, newest first, and the switches every island shares.
 #[derive(Clone, Default)]
 pub struct State {
     missed: Arc<Vec<Notification>>,
-    /// Every notification the history keeps, this session's included.
+    /// This session's included.
     history: Arc<Vec<Earlier>>,
     dnd: bool,
     private: bool,
@@ -112,12 +95,10 @@ impl PartialEq for State {
     }
 }
 
-/// An island's cards: those popping up, and the missed list in its panel.
 #[derive(Default)]
 pub struct Cards {
     toasts: Toasts,
     missed: MissedList,
-    /// The panel shows the Earlier view rather than the missed list.
     earlier: bool,
 }
 
@@ -168,7 +149,7 @@ pub struct Notifications {
 }
 
 impl Notifications {
-    /// Keeps `notification` in the history, in place of one it replaces.
+    /// In place of one it replaces.
     fn remember(&self, notification: &Notification) {
         let earlier = Earlier {
             session: history::session(),
@@ -183,7 +164,7 @@ impl Notifications {
         });
     }
 
-    /// Takes the history read from the database in, keeping what this session added meanwhile.
+    /// Keeps what this session added meanwhile.
     fn load_history(&self, read: Vec<Earlier>) {
         self.change(|store| {
             let mut merged = read;
@@ -197,8 +178,7 @@ impl Notifications {
         });
     }
 
-    /// What the Earlier view lists: the history, without what is in the missed list, and without
-    /// actions, whose apps may be long gone.
+    /// Without what is in the missed list, and without actions, whose apps may be long gone.
     fn earlier(state: &State) -> Vec<Earlier> {
         let session = history::session();
         state
@@ -215,7 +195,6 @@ impl Notifications {
             .collect()
     }
 
-    /// Takes the entries named by `keys` out of the history.
     fn forget(&self, keys: Vec<(i64, u32)>) {
         if keys.is_empty() {
             return;
@@ -224,7 +203,6 @@ impl Notifications {
         let _ = self.history.send(Write::Forget(keys));
     }
 
-    /// Empties the Earlier view.
     fn clear_earlier(&self) {
         let keys = Self::earlier(&self.store.borrow()).iter().map(Earlier::key).collect();
         self.forget(keys);
@@ -241,7 +219,6 @@ impl Notifications {
         let _ = self.signals.send(signal);
     }
 
-    /// Whether `notification`'s contents are hidden.
     fn hidden(&self, state: &State, notification: &Notification) -> bool {
         state.private
             || (self.hide_on_lock && state.locked)
@@ -271,7 +248,6 @@ impl Notifications {
         }
     }
 
-    /// Takes `id` out of the missed list.
     fn take_missed(&self, id: u32) -> Option<Notification> {
         let index = self.store.borrow().missed.iter().position(|item| item.id == id)?;
         let mut taken = None;
@@ -315,8 +291,8 @@ impl Notifications {
         }
     }
 
-    /// Takes `card` away from this island for `reason`. One that timed out settles once no island
-    /// shows it ([`Event::Expired`]); any other goes from every island, and its app hears of it.
+    /// One that timed out settles once no island shows it ([`Event::Expired`]); any other goes from
+    /// every island, and its app hears of it.
     fn dismiss_card(&self, cards: &mut Cards, card: u64, reason: Reason) {
         let Some(notification) = cards.toasts.dismiss(card) else {
             return;
@@ -353,14 +329,13 @@ impl Notifications {
     }
 }
 
-/// A shape key for a block, from anything that decides its size.
+/// A [`panel::Block::Custom`] key, from anything that decides its size.
 fn shape(of: impl Hash) -> u64 {
     let mut hasher = DefaultHasher::new();
     of.hash(&mut hasher);
     hasher.finish()
 }
 
-/// Each action button's handler, by its key, from `handler` for a key.
 fn invoke(notification: &Notification, handler: impl Fn(String) -> Handler) -> Vec<(String, Handler)> {
     notification
         .buttons()

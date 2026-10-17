@@ -1,9 +1,5 @@
-//! Molt updates: `molt check` for the flake, fetching every 15 minutes or when asked to and
-//! otherwise checking against what was last fetched every minute, without the network, so the
-//! counts follow local changes such as a pull. A badge in the bar while changes are
-//! incoming, a watched pull request is ready or the check failed, an Updates panel listing the
-//! commits and molt's watchlist of pull requests on their way through the branches, and a
-//! System-panel button.
+//! Fetches every 15 minutes or when asked; in between, checks every minute against what was last
+//! fetched, without the network, so the counts follow local changes such as a pull.
 
 use std::{
     env, fs,
@@ -31,7 +27,6 @@ use crate::{
 const INTERVAL: Duration = Duration::from_secs(15 * 60);
 const TICK: Duration = Duration::from_secs(60);
 const TIMEOUT: Duration = Duration::from_secs(120);
-/// The check button's labels, at rest and while checking.
 const CHECK: &str = "Refresh";
 const CHECKING: &str = "Refreshing…";
 
@@ -52,7 +47,6 @@ pub struct Report {
 }
 
 impl Report {
-    /// How many watched pull requests have reached the branch the system follows.
     fn ready(&self) -> usize {
         self.watchlist.as_ref().map_or(0, |watchlist| watchlist.ready)
     }
@@ -66,7 +60,6 @@ pub struct Watchlist {
     pub prs: Vec<WatchedPr>,
 }
 
-/// A pull request molt watches, and how far it has travelled through the branches.
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct WatchedPr {
     pub pr_number: u64,
@@ -158,7 +151,6 @@ impl Updates {
         self.report.as_ref().map_or(0, Report::ready)
     }
 
-    /// One line for what there is: incoming changes and watched pull requests that are ready.
     fn summary(&self) -> String {
         let incoming = self.incoming();
         let ready = self.ready();
@@ -227,8 +219,8 @@ fn save(cache: &Cache) {
     }
 }
 
-/// Runs `molt check`. Only a `fetch` one touches the network, fetching the upstream and refreshing
-/// the watchlist from GitHub; without, it compares against what was last fetched.
+/// Only with `fetch` does it touch the network, fetching the upstream and refreshing the watchlist
+/// from GitHub.
 fn check(fetch: bool) -> Result<Report, String> {
     let args: &[&str] = if fetch { &["check", "--json"] } else { &["check", "--json", "--no-fetch"] };
     let output = run::output("molt", args, TIMEOUT)?;
@@ -251,12 +243,9 @@ fn open() {
     });
 }
 
-/// What the worker is asked for besides its own schedule.
 enum Request {
-    /// Fetch and check now, as Check now does.
     Fetch,
-    /// Check against what was last fetched now, without the network, such as when the panel
-    /// opens so it shows the latest.
+    /// Without the network.
     Look,
 }
 
@@ -323,7 +312,6 @@ pub struct Molt {
 }
 
 impl Molt {
-    /// Fetches and checks for updates now instead of at the next interval.
     fn refresh(&self) {
         let _ = self.requests.send(Request::Fetch);
     }
@@ -348,18 +336,13 @@ impl Feature for Molt {
         Self { requests }
     }
 
-    /// Checks against what was last fetched, so the panel opens on the latest without waiting for
-    /// the network.
+    /// So the panel opens on the latest without waiting for the network.
     fn panel_opened(&self) {
         let _ = self.requests.send(Request::Look);
     }
 
-    fn present(_: &str, state: &Updates) -> bool {
-        state.error.is_some() || state.incoming() > 0 || state.ready() > 0
-    }
-
-    /// The incoming changes in the accent; when there are none, the ready watched pull requests in
-    /// green, since an update now brings their fixes.
+    /// With no incoming changes, the ready watched pull requests show in green, since an update now
+    /// brings their fixes.
     fn widget(&self, _: &str, state: &Updates, w: &mut WidgetCx<'_>) -> Option<AnyElement> {
         let (text, color) = match (&state.error, state.incoming(), state.ready()) {
             (Some(_), _, _) => ("!".to_owned(), CRITICAL),
@@ -388,7 +371,6 @@ impl Feature for Molt {
         )
     }
 
-    /// Updates: what `molt check` last found for the flake, with a re-check and a way into Molt.
     fn panel<'a>(&self, state: &Updates, p: &PanelCx<'a>) -> Option<PanelView<'a>> {
         let buttons = vec![
             Button {

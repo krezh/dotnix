@@ -36,9 +36,7 @@ const FRAMERATE: f64 = RATE as f64 / HOP as f64;
 /// cava's default smoothing strength (0.77): higher is smoother and slower.
 const NOISE_REDUCTION: f64 = 0.77;
 
-/// Streams spectrum levels (0..=1 per bar) as `feed`'s live levels, about 30 per second while sound
-/// plays. Silence is sent once rather than every frame. Capture reconnects when the sound server
-/// comes back, and follows the default output when it changes.
+/// Silence is sent once rather than every frame.
 pub fn start<S: Send + 'static>(feed: Feed<S>) {
     let mut pace = Reconnect::default();
     let spawned = supervisor::supervise("visualizer", move || loop {
@@ -61,7 +59,6 @@ pub fn start<S: Send + 'static>(feed: Feed<S>) {
 }
 
 enum Ended {
-    /// island stopped listening.
     Unwanted,
     /// The default output changed; capture again right away.
     Moved,
@@ -161,7 +158,6 @@ fn capture<S: Send + 'static>(feed: &Feed<S>) -> Ended {
     }
 }
 
-/// Turns a stream of samples into smoothed, auto-scaled band levels.
 struct Analyser {
     ring: Vec<f32>,
     at: usize,

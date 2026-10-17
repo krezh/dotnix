@@ -63,19 +63,15 @@ pub struct Drive {
 pub enum Part {
     /// A history chart; `grow` lets it take the tile's spare height.
     Chart { series: Vec<Series>, grow: bool },
-    /// One small cell per core, lit by its load.
     Cores { loads: Vec<f32>, color: u32 },
     /// Label, bar and value rows; `scroll` lets a long list scroll inside the tile.
     Meters { rows: Vec<Meter>, scroll: bool },
-    /// Inline values, each optionally led by a coloured dot.
+    /// Each optionally led by a coloured dot.
     Legend(Vec<(Option<u32>, SharedString)>),
-    /// Small labelled values in a three-wide grid.
     Facts(Vec<(SharedString, SharedString)>),
-    /// A large name over secondary lines.
     Hero { name: SharedString, lines: Vec<SharedString> },
-    /// Mounted partitions; the list scrolls past what fits.
+    /// Scrolls past what fits.
     Volumes(Vec<Volume>),
-    /// Physical drives as bars split into their partitions, under a small heading.
     Drives(Vec<Drive>),
     Spacer,
 }
@@ -104,7 +100,7 @@ fn hairline() -> gpui::Rgba {
     rgba(with_alpha(SURFACE1, 0x59))
 }
 
-/// Meter rows; `key` names them for their morphing values.
+/// `key` names the rows for their morphing values.
 fn meters(rows: Vec<Meter>, key: &str) -> Div {
     div().flex().flex_col().gap(px(7.0)).children(rows.into_iter().enumerate().map(|(index, row)| {
         div()
@@ -160,7 +156,7 @@ fn legend(items: Vec<(Option<u32>, SharedString)>) -> Div {
         }))
 }
 
-/// Labelled values, three to a row; `key` names them for their morphing values.
+/// `key` names the values for their morphing.
 fn facts(items: Vec<(SharedString, SharedString)>, key: &str) -> Div {
     let mut rows = Vec::new();
     let mut items = items.into_iter().enumerate().peekable();
@@ -377,7 +373,7 @@ pub fn tile(tile: Tile, phase: f32) -> AnyElement {
         .into_any_element()
 }
 
-/// Columns of tiles side by side. Give every column the same total span so they end level.
+/// Give every column the same total span so they end level.
 pub fn board(columns: Vec<Vec<Tile>>, phase: f32) -> AnyElement {
     div()
         .flex()

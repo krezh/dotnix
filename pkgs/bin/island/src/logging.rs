@@ -1,7 +1,5 @@
-//! Logging through `tracing`. Under the service, entries go to the journal with their level and
-//! fields; on a terminal they print as coloured compact lines. Either way island keeps its recent
-//! entries in memory and streams them over its own log socket, which `island logs` reads, much as
-//! `hyprctl rollinglog` reads Hyprland.
+//! Recent entries are kept in memory and streamed over island's log socket for `island logs`, much
+//! as `hyprctl rollinglog` reads Hyprland.
 
 use std::{
     backtrace::{Backtrace, BacktraceStatus},
@@ -77,11 +75,10 @@ fn check_level(text: &str) -> Result<LevelFilter, String> {
         .map_err(|_| format!("'{text}' is not a log level (error, warn, info, debug, trace or off)"))
 }
 
-/// Builds the filter from a spec such as `debug` or `audio=debug,tray=trace`. A bare level applies
-/// to island; `NAME=LEVEL` names one of island's modules or features, or a dependency. Dependencies
-/// otherwise log
-/// warnings and errors only, since GPUI, wgpu and zbus are noisy. `at_least` raises island's level
-/// for connected `island logs --level` clients, never lowering it.
+/// `spec` is like `debug` or `audio=debug,tray=trace`: a bare level applies to island, `NAME=LEVEL`
+/// to one of its modules or features, or a dependency. Dependencies otherwise log warnings and
+/// errors only, since GPUI, wgpu and zbus are noisy. `at_least` raises island's level for connected
+/// `island logs --level` clients, never lowering it.
 fn filter(spec: &str, at_least: Option<LevelFilter>) -> Result<EnvFilter, String> {
     let mut island = check_level(DEFAULT)?;
     let mut directives = Vec::new();
@@ -136,7 +133,6 @@ fn module(target: &str) -> &str {
         .unwrap_or(target)
 }
 
-/// One log entry, as island keeps it and sends it to `island logs`.
 #[derive(Clone, Serialize, Deserialize)]
 struct Entry {
     /// Unix time in microseconds.
@@ -183,7 +179,7 @@ impl Entry {
     }
 }
 
-/// Collects an event's message and fields, text values unquoted.
+/// Text values unquoted.
 #[derive(Default)]
 struct Collect {
     message: String,
@@ -234,7 +230,6 @@ where
     }
 }
 
-/// What a client asks for when it connects to the log socket.
 #[derive(Serialize, Deserialize)]
 #[serde(default)]
 struct Request {
@@ -264,14 +259,11 @@ impl Request {
     }
 }
 
-/// Recent entries and the clients following them, plus what decides island's log filter.
 #[derive(Default)]
 struct Hub {
     backlog: Mutex<VecDeque<Arc<Entry>>>,
     clients: Mutex<Vec<SyncSender<Arc<Entry>>>>,
-    /// The spec from the environment, the config or `island ctl log`.
     configured: Mutex<String>,
-    /// Levels connected clients asked for, by client.
     raised: Mutex<HashMap<u64, LevelFilter>>,
 }
 
@@ -335,7 +327,6 @@ impl Hub {
     }
 }
 
-/// Feeds every logged entry to the hub.
 struct Rolling;
 
 impl<S: Subscriber> Layer<S> for Rolling {
@@ -344,8 +335,7 @@ impl<S: Subscriber> Layer<S> for Rolling {
     }
 }
 
-/// Starts logging with `spec` (see [`filter`]); an invalid spec falls back to the default and is
-/// reported once logging runs.
+/// An invalid `spec` falls back to the default and is reported once logging runs.
 pub fn init(spec: &str) {
     let (initial, invalid) = match filter(spec, None) {
         Ok(filter) => (filter, None),
@@ -374,7 +364,6 @@ pub fn init(spec: &str) {
     }
 }
 
-/// Swaps the filter while island runs, for `island ctl log`.
 pub fn set(spec: &str) -> Result<(), String> {
     filter(spec, None)?;
     *lock(&HUB.configured) = spec.to_owned();
@@ -383,8 +372,7 @@ pub fn set(spec: &str) -> Result<(), String> {
     Ok(())
 }
 
-/// Logs panics with their thread and location, so a crash on any thread is logged as an error entry
-/// instead of bare stderr text.
+/// So a crash on any thread is logged as an error entry instead of bare stderr text.
 pub fn catch_panics() {
     std::panic::set_hook(Box::new(|info| {
         let thread = thread::current();
@@ -460,8 +448,7 @@ fn serve_client(stream: UnixStream, client: u64) {
     debug!(client, "log client left");
 }
 
-/// Serves the log socket. Called once island owns its instance name, so a second island cannot take
-/// the socket over.
+/// Called once island owns its instance name, so a second island cannot take the socket over.
 pub fn serve() {
     let Some(path) = socket_path() else {
         warn!("XDG_RUNTIME_DIR is not set; island logs will not work");

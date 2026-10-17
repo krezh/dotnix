@@ -3,12 +3,11 @@ use std::{
     collections::HashMap,
     hash::{DefaultHasher, Hash, Hasher},
     rc::Rc,
-    sync::Arc,
     time::{Duration, Instant},
 };
 
 use gpui::{
-    AnyElement, App as Gpui, Bounds, Context, Entity, EventEmitter, Global, Keystroke, Pixels, Point, Render,
+    AnyElement, App as Gpui, Bounds, Context, Entity, EventEmitter, Global, Keystroke, MouseDownEvent, Pixels, Point, Render,
     ScrollHandle, ScrollDelta, ScrollWheelEvent, SpringConfig, StyleRefinement, Subscription, Task, WeakEntity, Window,
     div, layer_shell::Layer, point, prelude::*, px, size,
 };
@@ -24,15 +23,14 @@ use crate::{
         tooltip::Tooltips,
     },
     config::{self, Widget},
-    desktop::App,
     effects::Effects,
-    features::{self, AnyLocal, Features, IslandInfo, PanelCx},
+    features::{self, AnyLocal, Features, IslandInfo, Outcome, PanelCx},
     glyphs::Glyphs,
-    launcher::{Outcome, Search},
+    menu::{self, Menu, MenuNode, Pick},
     panel::{self, Frame},
-    panels::{self, MenuNode, MenuView, Pick},
+    panels,
+    shape,
     spring::Spring,
-    squircle,
     sys::{self, Samples, SysStats},
     presence::Presence,
     ui::{self, HEADER_H, INSET},
@@ -42,13 +40,10 @@ use crate::{
 pub const SURFACE_W: f32 = 1100.0;
 pub const SURFACE_H: f32 = 1000.0;
 
-/// The island's shape, and anything moving with it.
 pub(crate) const SHAPE_SPRING: SpringConfig = SpringConfig::new(420.0, 34.0, 1.0);
-/// Content fading in.
 pub(crate) const CONTENT_IN: SpringConfig = SpringConfig::new(170.0, 26.0, 1.0);
-/// Content fading out.
 pub(crate) const CONTENT_OUT: SpringConfig = SpringConfig::new(1100.0, 66.0, 1.0);
-/// Widgets folding in and out: critically damped and unhurried, so they glide without overshoot.
+/// Critically damped and unhurried, so folding widgets glide without overshoot.
 const FOLD_SPRING: SpringConfig = SpringConfig::new(150.0, 24.5, 1.0);
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -64,7 +59,7 @@ const SHADOW_SPREAD: f32 = 14.0;
 const LINES_PER_NOTCH: f32 = 3.0;
 const PIXELS_PER_NOTCH: f32 = 50.0;
 
-/// Whole wheel notches scrolled, keeping the remainder in `accumulated` for the next event.
+/// Keeps the remainder in `accumulated` for the next event.
 pub fn notches(accumulated: &mut f32, event: &ScrollWheelEvent) -> i32 {
     *accumulated += match event.delta {
         ScrollDelta::Lines(lines) => lines.y / LINES_PER_NOTCH,
@@ -80,16 +75,12 @@ const LEAVE_GRACE: Duration = Duration::from_millis(500);
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Panel {
     System,
-    Menu,
-    Launcher,
-    /// A feature's panel, by the feature's name.
     Feature(&'static str),
     /// Every feature pop-up with something to show, together, such as an OSD below notification
     /// cards.
     Popups,
 }
 
-/// Every open island, kept up to date by the shell for features that place something on them.
 #[derive(Default)]
 pub struct Placement {
     pub islands: Vec<WeakEntity<Island>>,
@@ -97,39 +88,37 @@ pub struct Placement {
 
 impl Global for Placement {}
 
+/// What an island needs covers over the outputs for while something of it is open.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Grab {
+    None,
+    /// Clicks outside the island, leaving the keyboard with the focused window.
+    Clicks,
+    Keyboard,
+}
+
 pub enum IslandEvent {
-    /// A panel that takes the keyboard opened.
-    KeyboardWanted,
-    /// The panel that took the keyboard closed.
-    KeyboardReleased,
+    Grab(Grab),
 }
 
 impl EventEmitter<IslandEvent> for Island {}
 
 impl Panel {
-    /// The built-in panels and the pop-ups; then a layer per registered feature for its panel.
-    const ALL: [Panel; 4] = [Panel::System, Panel::Menu, Panel::Launcher, Panel::Popups];
+    /// Feature panels' layers follow these.
+    const ALL: [Panel; 2] = [Panel::System, Panel::Popups];
 
     pub fn name(self) -> &'static str {
         match self {
             Panel::System => "system",
-            Panel::Menu => "menu",
-            Panel::Launcher => "launcher",
             Panel::Popups => "popups",
             Panel::Feature(name) => features::panel_of(name).unwrap_or(name),
         }
     }
 
-    /// Whether the panel takes the keyboard while open.
     fn takes_keyboard(self) -> bool {
-        match self {
-            Panel::Launcher => true,
-            Panel::Feature(name) => features::keyboard(name),
-            _ => false,
-        }
+        matches!(self, Panel::Feature(name) if features::keyboard(name))
     }
 
-    /// A panel `island ctl open` can name.
     pub fn parse(name: &str) -> Option<Self> {
         (name == Panel::System.name())
             .then_some(Panel::System)
@@ -174,7 +163,7 @@ struct Shape {
 }
 
 pub const COLLAPSED_H: f32 = 38.0;
-/// Space between the bar and a menu an app places below it.
+/// Between the bar and a menu an app draws itself.
 const MENU_GAP: f32 = 6.0;
 const HOVER_GROW: f32 = 4.0;
 
@@ -215,20 +204,19 @@ pub struct Island {
     opacity: f32,
     glow: f32,
     aura: Aura,
-    input_region: Option<Bounds<Pixels>>,
+    input_region: Vec<Bounds<Pixels>>,
     effects: Option<Option<Effects>>,
     samples: Samples,
     pub(crate) stats: SysStats,
     sys_task: Option<Task<()>>,
     leave_task: Option<Task<()>>,
-    /// Wakes the island when a feature's part of it is next due, and when.
     due: Option<(Instant, Task<()>)>,
     workspaces: Option<Snapshot>,
     display: Option<Uuid>,
     /// The compositor snapshot changed, so the island's monitor and the features' per-island
     /// parts need another look.
     monitor_stale: bool,
-    menu: Option<MenuView>,
+    menu: Option<Menu>,
     scroll: ScrollHandle,
     sizes: [Measured; LAYERS],
     pending: [Cell<Option<u64>>; LAYERS],
@@ -239,7 +227,6 @@ pub struct Island {
     layouts: TextLayouts,
     held: Presence<bar::Held>,
     features: Rc<Features>,
-    /// This island's own part of each feature, by feature name.
     locals: Vec<(&'static str, Box<dyn AnyLocal>)>,
     natural: HashMap<Widget, Measured>,
     drawn: HashMap<String, f32>,
@@ -247,17 +234,15 @@ pub struct Island {
     sized: bool,
     top: f32,
     layout: Rc<config::Bar>,
-    search: Option<Search>,
-    /// Redraws at `marquee::TICK` while text is scrolling; `None` when nothing moves on its own.
+    /// Redraws at `marquee::TICK` while text is scrolling.
     ticker: Option<Task<()>>,
     rendered: Instant,
-    /// Each bar widget's view and its last drawn size.
     widgets: HashMap<Widget, (Entity<bar::WidgetView>, Measured)>,
     /// Whether this frame changes anything beyond what widgets redraw themselves, so every widget is
     /// drawn afresh instead of reused.
     live: bool,
-    /// The layer-shell layer the surface is on: Top at rest, so real fullscreen windows cover it, and
-    /// Overlay whenever anything is open or animating.
+    /// Top at rest, so real fullscreen windows cover it; Overlay whenever anything is open or
+    /// animating.
     layer: Layer,
     _subscriptions: Vec<Subscription>,
 }
@@ -312,7 +297,7 @@ impl Island {
             opacity: startup.opacity,
             glow: startup.glow,
             aura: Aura::default(),
-            input_region: None,
+            input_region: Vec::new(),
             effects: None,
             samples: startup.samples,
             stats: SysStats::default(),
@@ -342,7 +327,6 @@ impl Island {
             slots: None,
             top: startup.top,
             layout: startup.layout,
-            search: None,
             ticker: None,
             rendered: Instant::now(),
             widgets,
@@ -354,68 +338,24 @@ impl Island {
         island
     }
 
-    pub fn search(&self) -> Option<&Search> {
-        self.search.as_ref()
+    pub fn input_region(&self) -> &[Bounds<Pixels>] {
+        &self.input_region
     }
 
-    pub fn open_launcher(&mut self, apps: Arc<Vec<App>>, cx: &mut Context<Self>) {
-        self.search = Some(Search::new(apps));
-        self.set_mode(Mode::Open(Panel::Launcher), cx);
-    }
-
-    pub fn mode(&self) -> Mode {
-        self.mode
-    }
-
-    /// Where the island takes input on its surface.
-    pub fn input_region(&self) -> Option<Bounds<Pixels>> {
-        self.input_region
-    }
-
-    /// A key pressed while a panel that takes the keyboard is open.
     pub fn key(&mut self, keystroke: &Keystroke, cx: &mut Context<Self>) {
-        match self.mode {
-            Mode::Open(Panel::Launcher) => {
-                let Some(search) = &mut self.search else {
-                    return;
-                };
-                match search.key(keystroke) {
-                    Outcome::Open => {
-                        self.retarget();
-                        self.kick(cx);
-                    }
-                    Outcome::Close => self.set_mode(Mode::Collapsed, cx),
-                }
-            }
-            Mode::Open(Panel::Feature(name)) => {
-                let features = self.features.clone();
-                let Some(feature) = features.get(name) else {
-                    return;
-                };
-                let mut outcome = Outcome::Close;
-                self.update_local(name, |local| outcome = feature.key(local, keystroke, cx));
-                match outcome {
-                    Outcome::Open => self.local_changed(name, cx),
-                    Outcome::Close => self.set_mode(Mode::Collapsed, cx),
-                }
-            }
-            _ => {}
+        let Mode::Open(Panel::Feature(name)) = self.mode else {
+            return;
+        };
+        let features = self.features.clone();
+        let Some(feature) = features.get(name) else {
+            return;
+        };
+        let mut outcome = Outcome::Close;
+        self.update_local(name, |local| outcome = feature.key(local, keystroke, cx));
+        match outcome {
+            Outcome::Open => self.local_changed(name, cx),
+            Outcome::Close => self.set_mode(Mode::Collapsed, cx),
         }
-    }
-
-    /// Moves the launcher's selection with `change`.
-    pub fn move_app_selection(&mut self, change: impl FnOnce(&mut Search), cx: &mut Context<Self>) {
-        if let Some(search) = &mut self.search {
-            change(search);
-            self.kick(cx);
-        }
-    }
-
-    pub fn launch_app(&mut self, position: usize, cx: &mut Context<Self>) {
-        if let Some(search) = &self.search {
-            search.launch(position);
-        }
-        self.set_mode(Mode::Collapsed, cx);
     }
 
     pub fn open_named(&mut self, name: &str, toggle: bool, cx: &mut Context<Self>) {
@@ -428,7 +368,6 @@ impl Island {
         }
     }
 
-    /// Keeps a fixed-rate redraw running while text scrolls, and stops it when nothing does.
     fn keep_ticking(&mut self, cx: &mut Context<Self>) {
         match (self.layouts.scrolling(), self.ticker.is_some()) {
             (true, false) => {
@@ -455,8 +394,7 @@ impl Island {
         self.mode == Mode::Collapsed && self.fullscreen && self.w.value() < 1.0
     }
 
-    /// A feature's live levels changed: redraw the widgets that draw them and the glow, without
-    /// re-fitting the bar. Nothing redraws while the bar is not showing.
+    /// Redraws without re-fitting the bar, and not at all while the bar is not showing.
     pub fn feature_live(&mut self, name: &'static str, cx: &mut Context<Self>) {
         if self.fullscreen || self.layers[COLLAPSED_LAYER].value() <= 0.001 {
             return;
@@ -503,8 +441,8 @@ impl Island {
         }
     }
 
-    /// A bar widget through its view: drawn afresh on live frames, otherwise its last drawing is
-    /// reused unless the widget asked to redraw.
+    /// Drawn afresh on live frames; otherwise the last drawing is reused unless the widget asked to
+    /// redraw.
     fn widget_element(&self, kind: Widget) -> AnyElement {
         let Some((view, size)) = self.widgets.get(&kind) else {
             return div().into_any_element();
@@ -523,34 +461,26 @@ impl Island {
         self.workspaces.as_ref().map_or(1, |snapshot| snapshot.monitors.len().max(1))
     }
 
-    pub fn menu_view(&self) -> Option<&MenuView> {
-        self.menu.as_ref()
-    }
-
-    /// Changes this island's own part of the feature called `name`; [`Island::local_changed`]
-    /// then brings the island up to date.
+    /// Follow with [`Island::local_changed`].
     pub fn update_local(&mut self, name: &str, action: impl FnOnce(&mut dyn AnyLocal)) {
         if let Some((_, local)) = self.locals.iter_mut().find(|(owner, _)| *owner == name) {
             action(&mut **local);
         }
     }
 
-    /// This island's own part of the feature called `name`.
     fn local(&self, name: &str) -> Option<&dyn AnyLocal> {
         self.locals.iter().find(|(owner, _)| *owner == name).map(|(_, local)| &**local)
     }
 
-    /// This island's own part of the feature called `name`, as its type.
     pub fn local_as<L: 'static>(&self, name: &str) -> Option<&L> {
         self.local(name)?.as_any().downcast_ref()
     }
 
-    /// This island's own part of the feature called `name` changed: shows the pop-ups once any has
-    /// something, takes them away once none has, and redraws.
+    /// Shows the pop-ups once any has something, and takes them away once none has.
     pub fn local_changed(&mut self, name: &'static str, cx: &mut Context<Self>) {
         let waiting = self.popup_waiting();
         match self.mode {
-            Mode::Collapsed if waiting => self.set_mode(Mode::Open(Panel::Popups), cx),
+            Mode::Collapsed if waiting && !self.menu_open() => self.set_mode(Mode::Open(Panel::Popups), cx),
             Mode::Open(Panel::Popups) if !waiting => self.set_mode(Mode::Collapsed, cx),
             Mode::Open(Panel::Popups) => self.retarget(),
             Mode::Open(Panel::Feature(open)) if open == name => self.retarget(),
@@ -560,12 +490,10 @@ impl Island {
         self.kick(cx);
     }
 
-    /// Whether any feature has a pop-up to show.
     fn popup_waiting(&self) -> bool {
         self.locals.iter().any(|(_, local)| local.popup())
     }
 
-    /// Wakes the island when the soonest feature part is due.
     fn arm_due(&mut self, cx: &mut Context<Self>) {
         let next = self.locals.iter().filter_map(|(_, local)| local.due()).min();
         if self.due.as_ref().map(|(at, _)| *at) == next {
@@ -580,7 +508,6 @@ impl Island {
         });
     }
 
-    /// Hands every feature part whose time has come to its feature.
     fn elapse(&mut self, cx: &mut Context<Self>) {
         self.due = None;
         let now = Instant::now();
@@ -610,35 +537,89 @@ impl Island {
         cx.notify();
     }
 
-    /// Shows `root` as the Menu panel; picking an entry calls `pick` with its id.
-    pub fn show_menu(&mut self, title: String, root: MenuNode, pick: Pick, cx: &mut Context<Self>) {
-        self.menu = Some(MenuView {
-            title,
-            root,
-            path: Vec::new(),
-            pick,
-        });
-        if self.mode == Mode::Open(Panel::Menu) {
-            self.retarget();
-            self.kick(cx);
-        } else {
-            self.set_mode(Mode::Open(Panel::Menu), cx);
+    /// `anchor` is across the island's surface; `source` names what opened the menu, for
+    /// [`Island::menu_open_for`].
+    pub fn show_menu(&mut self, source: String, root: MenuNode, pick: Pick, anchor: Pixels, cx: &mut Context<Self>) {
+        if self.mode != Mode::Collapsed || self.fullscreen {
+            return;
         }
+        let before = self.grab();
+        let anchor = f32::from(anchor);
+        match &mut self.menu {
+            Some(menu) => menu.replace(source, root, pick, anchor),
+            None => self.menu = Some(Menu::new(source, root, pick, anchor)),
+        }
+        debug!("menu opened");
+        self.sync_grab(before, cx);
+        self.kick(cx);
+    }
+
+    fn menu_open(&self) -> bool {
+        self.menu.as_ref().is_some_and(Menu::is_open)
+    }
+
+    pub fn menu_open_for(&self, source: &str) -> bool {
+        self.menu.as_ref().is_some_and(|menu| menu.is_open_for(source))
+    }
+
+    /// Also shows any pop-up that waited for the menu.
+    pub fn close_menu(&mut self, cx: &mut Context<Self>) {
+        if !self.menu_open() {
+            return;
+        }
+        let before = self.grab();
+        if let Some(menu) = &mut self.menu {
+            menu.close();
+        }
+        debug!("menu closed");
+        self.sync_grab(before, cx);
+        if self.popup_waiting() {
+            self.set_mode(Mode::Collapsed, cx);
+        }
+        self.kick(cx);
+    }
+
+    pub fn dismiss(&mut self, cx: &mut Context<Self>) {
+        self.close_menu(cx);
+        self.set_mode(Mode::Collapsed, cx);
     }
 
     pub fn menu_enter(&mut self, index: usize, cx: &mut Context<Self>) {
-        if let Some(menu) = &mut self.menu {
-            menu.path.push(index);
-            self.retarget();
+        if let Some(menu) = self.menu.as_mut().filter(|menu| menu.is_open()) {
+            menu.enter(index);
             self.kick(cx);
         }
     }
 
     pub fn menu_back(&mut self, cx: &mut Context<Self>) {
-        if let Some(menu) = &mut self.menu {
-            menu.path.pop();
-            self.retarget();
+        if let Some(menu) = self.menu.as_mut().filter(|menu| menu.is_open()) {
+            menu.back();
             self.kick(cx);
+        }
+    }
+
+    pub fn menu_pick(&mut self, id: i32, cx: &mut Context<Self>) {
+        let Some(pick) = self.menu.as_ref().filter(|menu| menu.is_open()).map(Menu::pick) else {
+            return;
+        };
+        self.close_menu(cx);
+        pick(id, self, cx);
+    }
+
+    fn grab(&self) -> Grab {
+        if matches!(self.mode, Mode::Open(panel) if panel.takes_keyboard()) {
+            Grab::Keyboard
+        } else if self.menu_open() {
+            Grab::Clicks
+        } else {
+            Grab::None
+        }
+    }
+
+    fn sync_grab(&self, before: Grab, cx: &mut Context<Self>) {
+        let grab = self.grab();
+        if grab != before {
+            cx.emit(IslandEvent::Grab(grab));
         }
     }
 
@@ -650,20 +631,17 @@ impl Island {
         if self.mode == mode {
             return;
         }
+        let before = self.grab();
         if let Mode::Open(Panel::Feature(name)) = self.mode {
             self.update_local(name, |local| local.panel_closed());
         }
-        if self.mode == Mode::Open(Panel::Launcher) {
-            self.search = None;
-        }
-        let keyboard = |mode| matches!(mode, Mode::Open(panel) if panel.takes_keyboard());
-        match (keyboard(self.mode), keyboard(mode)) {
-            (true, false) => cx.emit(IslandEvent::KeyboardReleased),
-            (false, true) => cx.emit(IslandEvent::KeyboardWanted),
-            _ => {}
+        // A menu hangs from the bar, so it goes at once when the island morphs into a panel.
+        if mode != Mode::Collapsed {
+            self.menu = None;
         }
         debug!(from = ?self.mode, to = ?mode, "mode changed");
         self.mode = mode;
+        self.sync_grab(before, cx);
         if let Mode::Open(Panel::Feature(name)) = mode
             && let Some(feature) = self.features.get(name)
         {
@@ -782,8 +760,6 @@ impl Island {
         self.held.sync(&items, self.sized);
     }
 
-    /// A feature published new state: redraw its widgets, and re-fit the bar in case one appeared,
-    /// disappeared or changed size.
     pub fn feature_changed(&mut self, name: &'static str, cx: &mut Context<Self>) {
         let widgets = self.features.get(name).map(|feature| feature.widgets()).unwrap_or_default();
         for widget in widgets {
@@ -812,7 +788,6 @@ impl Island {
         self.kick(cx);
     }
 
-    /// Brings every feature's part of this island up to date with the island's `monitor`.
     fn sync_locals(&mut self, monitor: Option<&Monitor>, cx: &Gpui) {
         let animate = self.sized;
         for (name, local) in &mut self.locals {
@@ -830,12 +805,10 @@ impl Island {
         PanelCx::new(cx.global::<Glyphs>().clone(), self.local(name))
     }
 
-    /// The panel of the feature called `name`.
     pub fn feature_panel(&self, name: &str, cx: &Gpui) -> Option<panel::PanelView<'_>> {
         self.features.get(name)?.panel(&mut self.panel_cx(name, cx), cx)
     }
 
-    /// The pop-up of every feature with something to show, one under another in registry order.
     pub fn popups(&self, cx: &Gpui) -> Option<panel::PanelView<'_>> {
         let blocks: Vec<_> = self
             .locals
@@ -850,7 +823,6 @@ impl Island {
         })
     }
 
-    /// The System panel's quick buttons from every running feature, in registry order.
     pub fn feature_buttons(&self, cx: &Gpui) -> Vec<panel::IconButton> {
         self.features
             .iter()
@@ -894,16 +866,14 @@ impl Island {
             .or_else(|| monitors.iter().find(|monitor| monitor.focused))
     }
 
-    /// `point` in the island's window as a position on the whole desktop, for apps that place a
-    /// window of their own there. The window is centred at the top of its monitor.
+    /// Assumes the window is centred at the top of its monitor.
     pub fn to_screen(&self, point: Point<Pixels>) -> Option<(i32, i32)> {
         let monitor = self.island_monitor()?;
         let left = monitor.x + (monitor.width - SURFACE_W as i32) / 2;
         Some((left + f32::from(point.x).round() as i32, monitor.y + f32::from(point.y).round() as i32))
     }
 
-    /// The desktop position just below the collapsed bar at `x` in the island's window, where a
-    /// menu an app draws itself should hang from.
+    /// Where a menu an app draws itself should hang from.
     pub fn below_bar(&self, x: Pixels) -> Option<(i32, i32)> {
         self.to_screen(point(x, px(self.top + COLLAPSED_H + MENU_GAP)))
     }
@@ -917,6 +887,9 @@ impl Island {
         self.monitor_stale = false;
         let monitor = self.island_monitor().cloned();
         self.fullscreen = monitor.as_ref().is_some_and(|monitor| monitor.fullscreen);
+        if self.fullscreen {
+            self.close_menu(cx);
+        }
         self.sync_locals(monitor.as_ref(), cx);
         if self.mode == Mode::Collapsed {
             self.retarget();
@@ -933,9 +906,8 @@ impl Island {
         self.set_mode(mode, cx);
     }
 
-    /// The pointer came onto the island or left it. Always redraws: everything clickable draws its
-    /// hover from this, and a panel drawn while the pointer was away would otherwise keep showing
-    /// no hover after it comes back.
+    /// Always redraws: everything clickable draws its hover from this, and a panel drawn while the
+    /// pointer was away would otherwise keep showing no hover after it comes back.
     fn set_hovered(&mut self, hovered: bool, cx: &mut Context<Self>) {
         if self.hovered == hovered {
             return;
@@ -1064,6 +1036,7 @@ impl Island {
             && self.tab_pill.is_settled()
             && self.locals.iter().all(|(_, local)| local.is_settled())
             && self.held.is_settled()
+            && self.menu.as_ref().is_none_or(Menu::is_settled)
             && self.mode != Mode::Open(Panel::System)
     }
 
@@ -1085,6 +1058,12 @@ impl Island {
         self.held.advance(dt, now);
         for layer in &mut self.layers {
             layer.advance(dt, now);
+        }
+        if let Some(menu) = &mut self.menu {
+            menu.advance(dt, now);
+        }
+        if self.menu.as_ref().is_some_and(Menu::is_gone) {
+            self.menu = None;
         }
 
         if let Some(anim) = &mut self.anim {
@@ -1250,9 +1229,17 @@ impl Render for Island {
         if self.apply_shape() {
             self.start_frames();
         }
+        let rest_radius = self.corner.0.min(COLLAPSED_H / 2.0);
+        let limit = self.bar_width().map(|bar| bar - 2.0 * (rest_radius + menu::FILLET));
+        if let Some(menu) = &mut self.menu {
+            menu.set_limit(limit.unwrap_or(menu::MAX_W));
+            if menu.collect() {
+                self.start_frames();
+            }
+        }
         self.live = self.last_frame.is_some();
         self.step(window);
-        let layer = if self.mode == Mode::Collapsed && self.is_settled() {
+        let layer = if self.mode == Mode::Collapsed && self.menu.is_none() && self.is_settled() {
             Layer::Top
         } else {
             Layer::Overlay
@@ -1274,17 +1261,29 @@ impl Render for Island {
         let x = ((f32::from(window.viewport_size().width) - w) / 2.0 * scale).round() / scale;
         let y = self.top;
 
-        let region = Bounds {
+        let body = Bounds {
             origin: point(px(x), px(y)),
             size: size(px(w), px(h)),
         };
-        if self.input_region != Some(region) {
-            window.set_input_region(Some(&[region]));
-            self.input_region = Some(region);
+        let corner = self.corner;
+        // Kept within the bar at rest, so the bar growing under the pointer never moves the menu.
+        // It is drawn before it shows, so its contents get measured.
+        let rest_w = self.bar_width().map_or(w, |rest| rest.min(w));
+        let rest_x = ((f32::from(window.viewport_size().width) - rest_w) / 2.0 * scale).round() / scale;
+        let rest = Bounds {
+            origin: point(px(rest_x), px(y)),
+            size: size(px(rest_w), px(h)),
+        };
+        let hung = self.menu.as_ref().map(|menu| menu.hang(rest, corner.0.min(h / 2.0), scale));
+        let hang = hung.filter(|hang| f32::from(hang.bounds.size.height) >= 0.5);
+        let region: Vec<Bounds<Pixels>> = std::iter::once(body).chain(hang.map(|hang| hang.bounds)).collect();
+        if self.input_region != region {
+            window.set_input_region(Some(&region));
+            self.input_region = region;
         }
         let awake = self.features.iter().any(|feature| feature.inhibits_idle(cx));
         if let Some(effects) = self.effects.get_or_insert_with(|| Effects::attach(window)) {
-            effects.set_blur(region, self.corner.0, self.corner.1);
+            effects.set_blur(shape::region(body, corner.0, corner.1, hang));
             effects.set_inhibit(awake);
         }
 
@@ -1309,10 +1308,11 @@ impl Render for Island {
             layers.push(self.chrome_element(w, place, cx));
         }
 
-        let corner = self.corner;
-        let body = squircle::background(
+        let surface = shape::joined(
+            body,
             corner.0,
             corner.1,
+            hang,
             ui::surface_fill(self.opacity),
             Some(ui::surface_border()),
         );
@@ -1333,17 +1333,11 @@ impl Render for Island {
             .w(px(w))
             .h(px(h))
             .overflow_hidden()
-            .child(body)
+            .on_any_mouse_down(cx.listener(|this, _: &MouseDownEvent, _, cx| this.close_menu(cx)))
             .children(glow)
             .children(layers);
-
-        let shadow = div()
-            .absolute()
-            .left(px(x))
-            .top(px(y))
-            .w(px(w))
-            .h(px(h))
-            .child(ui::shadow(corner.0, corner.1, SHADOW_SPREAD));
+        let menu = hung.zip(self.menu.as_ref()).map(|(hang, menu)| menu.element(&hang, self.hovered, cx));
+        let shadow = ui::joined_shadow(body, corner.0, corner.1, hang, SHADOW_SPREAD);
 
         self.drawn = self
             .held
@@ -1353,6 +1347,12 @@ impl Render for Island {
         let tooltip = self.tips.overlay(window);
         self.layouts.resolve(window);
         self.keep_ticking(cx);
-        div().size_full().child(shadow).child(island).children(tooltip)
+        div()
+            .size_full()
+            .child(shadow)
+            .child(surface)
+            .child(island)
+            .children(menu)
+            .children(tooltip)
     }
 }

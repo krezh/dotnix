@@ -1,7 +1,3 @@
-//! Workspaces: a dot per workspace on the island's own monitor, the active one wider. Dots slide in
-//! and out as workspaces come and go; each shows the hover tint round itself, clicking one switches
-//! to it and scrolling steps through them.
-
 use std::{cell::Cell, rc::Rc, time::Instant};
 
 use gpui::{AnyElement, ScrollWheelEvent, SharedString, SpringConfig, div, prelude::*, px, rgb};
@@ -37,11 +33,10 @@ struct Dot {
     presence: Spring,
 }
 
-/// An island's dots, for the workspaces of its own monitor.
 #[derive(Default)]
 pub struct Dots {
     dots: Vec<Dot>,
-    /// Scroll left over below a whole notch, shared with the scroll handler.
+    /// Shared with the scroll handler.
     scrolled: Rc<Cell<f32>>,
 }
 

@@ -11,9 +11,8 @@ use std::{
 use tracing::{error, info, warn};
 use zbus::{Connection, Variant, block_on};
 
-/// What to start: an argv plus the identity and directory it runs with.
 pub struct Launch {
-    /// Application id, the desktop file name without `.desktop`; names the unit.
+    /// The desktop file name without `.desktop`; names the unit.
     pub id: String,
     pub name: String,
     pub argv: Vec<String>,
@@ -32,9 +31,8 @@ const PRIVATE_ENV: [&str; 8] = [
     "LISTEN_FDNAMES",
 ];
 
-/// Starts the app as its own transient systemd user service in `app.slice`, so it outlives
-/// island and logs to the journal under its own name. Falls back to a detached process when the
-/// user manager cannot be reached.
+/// As its own transient user service, so it outlives island and logs under its own name; a
+/// detached process when the user manager cannot be reached.
 pub fn spawn(launch: Launch) {
     thread::spawn(move || {
         let Some(program) = resolve(&launch.argv[0]) else {
@@ -63,7 +61,7 @@ fn resolve(program: &str) -> Option<PathBuf> {
         .find(|candidate| candidate.is_file())
 }
 
-/// `app-<id>@<random>.service`, the XDG naming systemd and desktops use for launched apps.
+/// The XDG naming systemd and desktops use for launched apps.
 fn unit_name(id: &str) -> String {
     static COUNTER: AtomicU64 = AtomicU64::new(0);
     let escaped: String = id
@@ -140,9 +138,8 @@ fn detached(launch: &Launch, program: &Path) {
     }
 }
 
-/// Splits a desktop entry `Exec` line into an argv per the Desktop Entry spec: double-quoted
-/// arguments with `\"`, `` \` ``, `\$` and `\\` escapes, `%%` for a literal percent, and field codes
-/// dropped (island never passes files or URLs; `%c` becomes the app name, `%i` and `%k` are omitted).
+/// Per the Desktop Entry spec. Field codes are dropped, since island never passes files or URLs;
+/// `%c` becomes the app name.
 pub fn parse_exec(exec: &str, name: &str) -> Option<Vec<String>> {
     let mut argv = Vec::new();
     let mut current = String::new();

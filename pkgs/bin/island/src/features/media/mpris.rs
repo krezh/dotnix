@@ -1,5 +1,3 @@
-//! MPRIS players over D-Bus: the track to show, and play/pause, skip and seek.
-
 use std::{
     collections::{HashMap, HashSet},
     env,
@@ -112,8 +110,8 @@ fn micros(metadata: &HashMap<String, OwnedVariant>, key: &str) -> Option<f64> {
     })
 }
 
-/// The art at `url`: a local file, or a cached download. An `http` one not cached yet is
-/// downloaded in the background, at most once per run, and `changed` hears when it is in.
+/// An `http` one not cached yet is downloaded in the background, at most once per run, and
+/// `changed` hears when it is in.
 fn art(url: &str, changed: &Sender<Event>) -> Option<PathBuf> {
     static STARTED: Mutex<Option<HashSet<PathBuf>>> = Mutex::new(None);
 
@@ -333,8 +331,7 @@ fn worker(connection: &Connection, events: &Receiver<Event>, changed: &Sender<Ev
     }
 }
 
-/// Starts the supervised player worker, publishing the track to show to `feed`, and returns the
-/// handle controls go through; `None` without a session bus.
+/// `None` without a session bus.
 pub fn start(feed: Feed<Option<Track>>) -> Option<Player> {
     let connection = block_on(Connection::session()).ok()?;
     let (events, receiver) = mpsc::channel();

@@ -1,4 +1,4 @@
-use std::{rc::Rc, sync::Arc, time::Duration};
+use std::{rc::Rc, time::Duration};
 
 use futures::{StreamExt, channel::mpsc::UnboundedReceiver};
 use gpui::{
@@ -13,12 +13,10 @@ use uuid::Uuid;
 use crate::{
     config,
     control::Control,
-    desktop,
+    cover::{ClickCatcher, KeyGrab},
     features::{self, Features},
     glyphs::Glyphs,
-    island::{COLLAPSED_H, Island, IslandEvent, Mode, Panel, Placement, SURFACE_H, SURFACE_W, Startup},
-    launcher::{ClickCatcher, KeyGrab},
-    launches,
+    island::{COLLAPSED_H, Grab, Island, IslandEvent, Placement, SURFACE_H, SURFACE_W, Startup},
     sys::{self, Samples},
     wm::Snapshot,
 };
@@ -30,7 +28,6 @@ const STARTUP_ATTEMPTS: u32 = 10;
 #[derive(Clone)]
 pub struct Config {
     pub layout: Rc<config::Bar>,
-    /// The features' sections of the config file.
     pub features: Rc<toml::Table>,
     pub top: f32,
     pub corner: (f32, f32),
@@ -48,13 +45,11 @@ pub struct Shell {
     config: Config,
     features: Rc<Features>,
     samples: Samples,
-    apps: Arc<Vec<desktop::App>>,
-    /// The surface that holds the keyboard while a panel that takes it is open.
-    keyboard: Option<AnyWindowHandle>,
-    /// Surfaces over every other output meanwhile, so a click on any of them closes the panel.
+    /// Over the holder's output.
+    cover: Option<AnyWindowHandle>,
+    /// Over every other output.
     catchers: Vec<AnyWindowHandle>,
-    /// The island whose panel has the keyboard.
-    keyboard_island: Option<WeakEntity<Island>>,
+    holder: Option<(WeakEntity<Island>, Grab)>,
     subscriptions: Vec<Subscription>,
     slots: Vec<Slot>,
     workspaces: Option<Snapshot>,
@@ -63,8 +58,6 @@ pub struct Shell {
 
 struct Running(#[allow(dead_code)] Entity<Shell>);
 
-/// A transparent surface over the whole of `display`, above everything, while a panel takes the
-/// keyboard.
 fn cover(display: Option<DisplayId>, namespace: &str, keyboard: KeyboardInteractivity) -> WindowOptions {
     WindowOptions {
         titlebar: None,
@@ -139,17 +132,6 @@ impl Shell {
                 .detach();
             }
 
-            cx.spawn(async move |this, cx| {
-                let apps = cx
-                    .background_spawn(async {
-                        launches::load();
-                        desktop::load()
-                    })
-                    .await;
-                let _ = this.update(cx, |shell, _| shell.apps = Arc::new(apps));
-            })
-            .detach();
-
             Self::look_up_glyphs(cx);
             cx.set_global(Placement::default());
 
@@ -165,10 +147,9 @@ impl Shell {
                 config,
                 features,
                 samples: sys::watch(),
-                apps: Arc::new(Vec::new()),
-                keyboard: None,
+                cover: None,
                 catchers: Vec::new(),
-                keyboard_island: None,
+                holder: None,
                 subscriptions: Vec::new(),
                 slots: Vec::new(),
                 workspaces: None,
@@ -178,8 +159,7 @@ impl Shell {
         cx.set_global(Running(shell));
     }
 
-    /// Starts with no icons and looks them up in the background, so startup does not wait on the
-    /// icon theme.
+    /// In the background, so startup does not wait on the icon theme.
     fn look_up_glyphs(cx: &mut Context<Self>) {
         cx.set_global(Glyphs::default());
         cx.spawn(async move |_, cx| {
@@ -202,7 +182,6 @@ impl Shell {
         self.place(cx);
     }
 
-    /// Tells the features which islands are open.
     fn place(&self, cx: &mut Context<Self>) {
         let placement = Placement {
             islands: self.slots.iter().map(|slot| slot.island.clone()).collect(),
@@ -281,8 +260,8 @@ impl Shell {
                 };
                 let island = entity.downgrade();
                 self.subscriptions.push(cx.subscribe(&entity, |shell, island, event, cx| match event {
-                    IslandEvent::KeyboardWanted => shell.grab_keyboard(island, cx),
-                    IslandEvent::KeyboardReleased => shell.keyboard_released(&island, cx),
+                    IslandEvent::Grab(Grab::None) => shell.released(&island, cx),
+                    IslandEvent::Grab(grab) => shell.grab(island, *grab, cx),
                 }));
                 self.slots.push(Slot {
                     display,
@@ -296,7 +275,12 @@ impl Shell {
         }
     }
 
+    /// The island with something open, so `island ctl` acts on what is showing, or else the one on
+    /// the focused monitor.
     fn target(&self, cx: &App) -> Option<Entity<Island>> {
+        if let Some(holder) = self.holding() {
+            return Some(holder);
+        }
         let focused = self
             .workspaces
             .as_ref()
@@ -310,70 +294,56 @@ impl Shell {
             .or_else(|| self.islands().next())
     }
 
-    /// `island` closed its panel that took the keyboard; one that has since handed the keyboard to
-    /// another island changes nothing.
-    fn keyboard_released(&mut self, island: &Entity<Island>, cx: &mut Context<Self>) {
-        let holder = self.keyboard_island.as_ref().and_then(WeakEntity::upgrade);
-        if holder.is_none_or(|holder| holder.entity_id() == island.entity_id()) {
-            self.release_keyboard(cx);
+    fn holding(&self) -> Option<Entity<Island>> {
+        self.holder.as_ref().and_then(|(island, _)| island.upgrade())
+    }
+
+    /// An island already replaced as the holder changes nothing.
+    fn released(&mut self, island: &Entity<Island>, cx: &mut Context<Self>) {
+        if self.holding().is_none_or(|holder| holder.entity_id() == island.entity_id()) {
+            self.release(cx);
         }
     }
 
-    fn release_keyboard(&mut self, cx: &mut Context<Self>) {
-        self.keyboard_island = None;
+    fn release(&mut self, cx: &mut Context<Self>) {
+        self.holder = None;
         self.remove_covers(cx);
     }
 
-    /// Removes the surface holding the keyboard and the click catchers on the other outputs.
     fn remove_covers(&mut self, cx: &mut Context<Self>) {
-        for handle in self.keyboard.take().into_iter().chain(self.catchers.drain(..)) {
+        for handle in self.cover.take().into_iter().chain(self.catchers.drain(..)) {
             let _ = handle.update(cx, |_, window, _| window.remove_window());
         }
     }
 
     pub fn key(&mut self, keystroke: &Keystroke, cx: &mut Context<Self>) {
-        match self.keyboard_island.as_ref().and_then(WeakEntity::upgrade) {
+        match self.holding() {
             Some(island) => island.update(cx, |island, cx| island.key(keystroke, cx)),
-            None => self.release_keyboard(cx),
+            None => self.release(cx),
         }
     }
 
-    fn launcher(&mut self, toggle: bool, cx: &mut Context<Self>) {
-        let island = match self.keyboard_island.as_ref().and_then(WeakEntity::upgrade) {
-            Some(island) if island.read(cx).mode() == Mode::Open(Panel::Launcher) => {
-                if toggle {
-                    island.update(cx, |island, cx| island.set_mode(Mode::Collapsed, cx));
+    pub fn close_grabbed(&mut self, cx: &mut Context<Self>) {
+        match self.holding() {
+            Some(island) => island.update(cx, |island, cx| island.dismiss(cx)),
+            None => self.release(cx),
+        }
+    }
+
+    /// Closes what any other island had open.
+    fn grab(&mut self, island: Entity<Island>, grab: Grab, cx: &mut Context<Self>) {
+        match self.holder.replace((island.downgrade(), grab)) {
+            Some((previous, held)) => match previous.upgrade() {
+                Some(previous) if previous.entity_id() != island.entity_id() => {
+                    previous.update(cx, |previous, cx| previous.dismiss(cx));
+                    self.remove_covers(cx);
                 }
-                return;
-            }
-            Some(island) => island,
-            None => match self.target(cx) {
-                Some(island) => island,
-                None => return,
+                Some(_) if held == grab => {}
+                _ => self.remove_covers(cx),
             },
-        };
-        let apps = if self.apps.is_empty() { Arc::new(desktop::load()) } else { self.apps.clone() };
-        island.update(cx, |island, cx| island.open_launcher(apps, cx));
-    }
-
-    /// Closes the panel that has the keyboard, for a click outside the island.
-    pub fn close_keyboard_panel(&mut self, cx: &mut Context<Self>) {
-        match self.keyboard_island.as_ref().and_then(WeakEntity::upgrade) {
-            Some(island) => island.update(cx, |island, cx| island.set_mode(Mode::Collapsed, cx)),
-            None => self.release_keyboard(cx),
+            None => self.remove_covers(cx),
         }
-    }
-
-    /// Hands the keyboard to `island`, whose panel takes it, closing the panel of any other island
-    /// that had it. The surface holding the keyboard covers `island`'s output, and click catchers
-    /// cover every other output.
-    fn grab_keyboard(&mut self, island: Entity<Island>, cx: &mut Context<Self>) {
-        let previous = self.keyboard_island.replace(island.downgrade()).and_then(|previous| previous.upgrade());
-        if let Some(previous) = previous.filter(|previous| previous.entity_id() != island.entity_id()) {
-            previous.update(cx, |previous, cx| previous.set_mode(Mode::Collapsed, cx));
-            self.remove_covers(cx);
-        }
-        if self.keyboard.is_some() {
+        if self.cover.is_some() {
             return;
         }
         let display = self
@@ -382,12 +352,21 @@ impl Shell {
             .find(|slot| slot.island.entity_id() == island.entity_id())
             .and_then(|slot| slot.display);
         let shell = cx.entity().downgrade();
-        let grab = shell.clone();
-        match cx.open_window(cover(display, "island-keyboard", KeyboardInteractivity::OnDemand), move |_, cx| {
-            cx.new(|cx| KeyGrab::new(grab, &island, cx))
-        }) {
-            Ok(handle) => self.keyboard = Some(handle.into()),
-            Err(error) => error!("cannot grab the keyboard: {error:#}"),
+        let own = shell.clone();
+        let opened = if grab == Grab::Keyboard {
+            cx.open_window(cover(display, "island-keyboard", KeyboardInteractivity::OnDemand), move |_, cx| {
+                cx.new(|cx| KeyGrab::new(own, &island, cx))
+            })
+            .map(AnyWindowHandle::from)
+        } else {
+            cx.open_window(cover(display, "island-catcher", KeyboardInteractivity::None), move |_, cx| {
+                cx.new(|cx| ClickCatcher::around(own, &island, cx))
+            })
+            .map(AnyWindowHandle::from)
+        };
+        match opened {
+            Ok(handle) => self.cover = Some(handle),
+            Err(error) => error!(?grab, "cannot cover the island's output: {error:#}"),
         }
         let others: Vec<DisplayId> = self.slots.iter().filter_map(|slot| slot.display).filter(|other| Some(*other) != display).collect();
         for other in others {
@@ -403,8 +382,6 @@ impl Shell {
 
     fn control(&mut self, control: Control, cx: &mut Context<Self>) {
         match control {
-            Control::Open(name) if name == "launcher" => self.launcher(false, cx),
-            Control::Toggle(name) if name == "launcher" => self.launcher(true, cx),
             Control::Open(name) => {
                 if let Some(island) = self.target(cx) {
                     island.update(cx, |island, cx| island.open_named(&name, false, cx));
@@ -417,7 +394,7 @@ impl Shell {
             }
             Control::Close => {
                 for island in self.islands().collect::<Vec<_>>() {
-                    island.update(cx, |island, cx| island.set_mode(Mode::Collapsed, cx));
+                    island.update(cx, |island, cx| island.dismiss(cx));
                 }
             }
             Control::Feature(name, args) => {

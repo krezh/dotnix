@@ -4,6 +4,7 @@ pub mod card;
 pub mod chart;
 pub mod energy;
 pub mod icon;
+pub mod list;
 pub mod marquee;
 pub mod measure;
 pub mod motion;

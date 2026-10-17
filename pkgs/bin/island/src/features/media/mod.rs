@@ -1,7 +1,3 @@
-//! Media: what an MPRIS player is playing. Two bar widgets: `media` (icon and scrolling title,
-//! resting as a dimmed play icon when nothing plays) and `visualizer` (the music's spectrum while it
-//! plays). Also the Media panel, the glow behind the island, and `island ctl media …`.
-
 mod mpris;
 mod spectrum;
 
@@ -54,8 +50,8 @@ impl Media {
         Panel::Feature(<Self as Feature>::NAME)
     }
 
-    /// With a track: icon and title. Without one it rests as just a dimmed play icon, which the
-    /// title unfolds out of when something starts playing.
+    /// Without a track it rests as a dimmed play icon, which the title unfolds out of when
+    /// something starts playing.
     fn now_playing(track: Option<&Track>, w: &WidgetCx<'_>) -> AnyElement {
         let glyph = w.glyph(if track.is_some_and(|track| track.playing) { "pause" } else { "play" });
         let tint = if track.is_some() { ACCENT } else { OVERLAY2 };
@@ -118,7 +114,6 @@ impl Feature for Media {
     const LIVE: &'static [&'static str] = &[VISUALIZER];
     const PANEL: Option<&'static str> = Some("media");
     const TAB: Option<(&'static str, u8)> = Some(("Media", 1));
-    /// Keeps the play position moving while the panel is open.
     const PANEL_REFRESH: Option<Duration> = Some(Duration::from_millis(500));
     const USAGE: &'static str = "  media play-pause|next|previous";
 

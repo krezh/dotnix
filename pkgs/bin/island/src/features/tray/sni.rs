@@ -1,5 +1,4 @@
-//! StatusNotifierItem tray icons over D-Bus: island serves the watcher when no other app does,
-//! loads every registered item, and forwards clicks and menu picks to them.
+//! island serves the StatusNotifierWatcher when no other app does.
 
 use std::{
     collections::HashMap,
@@ -23,7 +22,7 @@ use zbus::{
 
 use tracing::{debug, info, warn};
 
-use crate::{dbus::uncached, features::Feed, icons, panels::MenuNode, supervisor::Ended};
+use crate::{dbus::uncached, features::Feed, icons, menu::MenuNode, supervisor::Ended};
 
 const WATCHER: &str = "org.kde.StatusNotifierWatcher";
 const WATCHER_PATH: &str = "/StatusNotifierWatcher";
@@ -164,7 +163,6 @@ fn pixmap(pixmaps: Vec<(i32, i32, Vec<u8>)>) -> Option<Arc<RenderImage>> {
     Some(Arc::new(RenderImage::new(vec![image::Frame::new(buffer)])))
 }
 
-/// The first of `names` that the item has.
 async fn first<T: DeserializeOwned + zbus::Type>(proxy: &Proxy<'_>, names: &[&str]) -> Option<T> {
     for name in names {
         if let Some(value) = property(proxy, name).await {
@@ -298,8 +296,7 @@ fn click(connection: &Connection, entry: &Entry, id: i32) {
     }
 }
 
-/// Calls `method` (`Activate`, `SecondaryActivate` or `ContextMenu`) at `x`, `y`, where the item
-/// may place a window of its own.
+/// The item may place a window of its own at `x`, `y`.
 fn activate(connection: &Connection, entry: &Entry, method: &str, x: i32, y: i32) {
     debug!(item = entry.item.key, method, x, y, "tray item activated");
     let sent = block_on(async {
@@ -473,8 +470,6 @@ fn worker(
     Ended::Unwanted
 }
 
-/// Starts the supervised tray worker, publishing the items to `feed`, and returns the client clicks
-/// go through.
 pub fn start(feed: Feed<Vec<TrayItem>>) -> Result<Client, String> {
     let connection = block_on(Connection::session()).map_err(|error| format!("tray: no session bus: {error}"))?;
     let (sender, receiver) = mpsc::channel();

@@ -1,8 +1,5 @@
-//! island's SQLite database, `$XDG_STATE_HOME/island/island.db`, shared by every part of island that
-//! keeps history. It is encrypted with SQLCipher, under a key kept in the keyring (see
-//! [`keyring`]), so nobody manages it. Each user opens its own connection with [`open`], naming
-//! itself and listing its migrations; the `schema` table remembers how many of each owner's
-//! migrations have run, so owners change their own tables without knowing of each other.
+//! The `schema` table remembers how many of each owner's migrations have run, so owners change
+//! their own tables without knowing of each other.
 
 use std::{
     env, fs,
@@ -17,15 +14,11 @@ use tracing::{info, warn};
 
 use crate::keyring;
 
-/// How long a connection waits for another one's write to finish.
 const BUSY: Duration = Duration::from_secs(5);
-/// How an unencrypted SQLite file starts.
 const PLAIN_HEADER: &[u8; 16] = b"SQLite format 3\0";
 
-/// The key, once read from the keyring.
 static KEY: Mutex<Option<Vec<u8>>> = Mutex::new(None);
 
-/// island's directory under `$XDG_<variable>`, or under `fallback` in the home directory.
 pub fn dir(variable: &str, fallback: &str) -> Option<PathBuf> {
     env::var_os(variable)
         .map(PathBuf::from)
@@ -33,8 +26,7 @@ pub fn dir(variable: &str, fallback: &str) -> Option<PathBuf> {
         .map(|base| base.join("island"))
 }
 
-/// island's directory in `$XDG_RUNTIME_DIR`: in memory, only the user's, and gone at logout, for
-/// things decrypted from the database.
+/// In memory, only the user's, and gone at logout, for things decrypted from the database.
 pub fn runtime_dir() -> Option<PathBuf> {
     env::var_os("XDG_RUNTIME_DIR").map(|base| PathBuf::from(base).join("island"))
 }
@@ -49,7 +41,6 @@ fn key() -> Result<Vec<u8>, String> {
     Ok(key)
 }
 
-/// The database at `path` opened with `key`, checked to be readable with it.
 fn unlock(path: &Path, key: &[u8]) -> rusqlite::Result<Connection> {
     let db = Connection::open(path)?;
     let hex: String = key.iter().map(|byte| format!("{byte:02x}")).collect();
@@ -58,9 +49,8 @@ fn unlock(path: &Path, key: &[u8]) -> rusqlite::Result<Connection> {
     Ok(db)
 }
 
-/// Moves a database the key cannot read out of the way: an unencrypted one from before encryption
-/// is deleted, so its history does not stay on disk in the clear; one encrypted under a key the
-/// keyring no longer has is kept beside it.
+/// An unencrypted one from before encryption is deleted, so its history does not stay on disk in
+/// the clear; one encrypted under a key the keyring no longer has is kept beside it.
 fn set_aside(path: &Path) -> Result<(), String> {
     let mut header = [0_u8; 16];
     let plain = fs::File::open(path).and_then(|mut file| file.read_exact(&mut header)).is_ok() && &header == PLAIN_HEADER;
@@ -79,8 +69,8 @@ fn set_aside(path: &Path) -> Result<(), String> {
     Ok(())
 }
 
-/// A connection to the database for `owner`, with `migrations` run in order: each one that has not
-/// run before runs once, in its own transaction. Only ever append to `migrations`.
+/// Each migration that has not run before runs once, in its own transaction. Only ever append to
+/// `migrations`.
 pub fn open(owner: &str, migrations: &[&str]) -> Result<Connection, String> {
     let state = dir("XDG_STATE_HOME", ".local/state").ok_or("no home directory")?;
     fs::create_dir_all(&state).map_err(|error| format!("cannot create {}: {error}", state.display()))?;

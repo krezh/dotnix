@@ -19,7 +19,6 @@ fn at(x: f32, y: f32) -> Point<Pixels> {
     point(px(x), px(y))
 }
 
-/// The area between `line` and `bottom`.
 fn paint_area(window: &mut Window, line: &[(f32, f32)], bottom: f32, color: Hsla) {
     let (Some(first), Some(last)) = (line.first(), line.last()) else {
         return;
