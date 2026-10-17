@@ -10,17 +10,13 @@ use std::{
 
 use gpui::RenderImage;
 use tracing::{debug, info, trace, warn};
-use zbus::{
-    blocking::{Connection, connection},
-    interface,
-    zvariant::OwnedValue,
-};
+use zbus::{Connection, OwnedVariant, block_on, connection, interface};
 
 use super::{
     Event, State,
     notification::{Action, Expire, Notification, Signal, next_id},
 };
-use crate::{components::icon::Picture, dbus, features::Feed, icons, supervisor::Ended};
+use crate::{activation::Activation, components::icon::Picture, dbus, features::Feed, icons, supervisor::Ended};
 
 const NAME: &str = "org.freedesktop.Notifications";
 const PATH: &str = "/org/freedesktop/Notifications";
@@ -29,21 +25,21 @@ struct Server {
     feed: Feed<State, Event>,
 }
 
-fn urgency(hints: &HashMap<String, OwnedValue>) -> u8 {
+fn urgency(hints: &HashMap<String, OwnedVariant>) -> u8 {
     hints
         .get("urgency")
         .and_then(|value| u8::try_from(value).ok())
         .unwrap_or(1)
 }
 
-fn hint_string(hints: &HashMap<String, OwnedValue>, key: &str) -> Option<String> {
+fn hint_string(hints: &HashMap<String, OwnedVariant>, key: &str) -> Option<String> {
     hints
         .get(key)
         .and_then(|value| String::try_from(value.clone()).ok())
         .filter(|value| !value.is_empty())
 }
 
-fn hint_bool(hints: &HashMap<String, OwnedValue>, key: &str) -> bool {
+fn hint_bool(hints: &HashMap<String, OwnedVariant>, key: &str) -> bool {
     hints.get(key).and_then(|value| bool::try_from(value).ok()).unwrap_or(false)
 }
 
@@ -79,7 +75,7 @@ fn pixels((width, height, stride, alpha, bits, channels, data): RawImage) -> Opt
     Some(Picture::Pixels(Arc::new(RenderImage::new(vec![image::Frame::new(buffer)]))))
 }
 
-fn image_hint(hints: &HashMap<String, OwnedValue>) -> Option<Picture> {
+fn image_hint(hints: &HashMap<String, OwnedVariant>) -> Option<Picture> {
     ["image-data", "image_data", "icon_data"]
         .into_iter()
         .find_map(|key| hints.get(key))
@@ -93,7 +89,7 @@ fn image_hint(hints: &HashMap<String, OwnedValue>) -> Option<Picture> {
         })
 }
 
-fn app_icon(app_icon: &str, app: &str, hints: &HashMap<String, OwnedValue>) -> Option<Picture> {
+fn app_icon(app_icon: &str, app: &str, hints: &HashMap<String, OwnedVariant>) -> Option<Picture> {
     icon_reference(app_icon)
         .or_else(|| hint_string(hints, "desktop-entry").and_then(|entry| icons::lookup(&entry)).map(Picture::File))
         .or_else(|| icons::lookup(&app.to_lowercase().replace(' ', "-")).map(Picture::File))
@@ -102,7 +98,7 @@ fn app_icon(app_icon: &str, app: &str, hints: &HashMap<String, OwnedValue>) -> O
 #[interface(name = "org.freedesktop.Notifications")]
 impl Server {
     fn get_capabilities(&self) -> Vec<&'static str> {
-        vec!["actions", "body", "icon-static", "persistence"]
+        vec!["actions", "action-icons", "body", "icon-static", "persistence"]
     }
 
     #[zbus(out_args("name", "vendor", "version", "spec_version"))]
@@ -119,7 +115,7 @@ impl Server {
         summary: String,
         body: String,
         actions: Vec<String>,
-        hints: HashMap<String, OwnedValue>,
+        hints: HashMap<String, OwnedVariant>,
         expire_timeout: i32,
     ) -> u32 {
         let id = if replaces_id == 0 { next_id() } else { replaces_id };
@@ -128,6 +124,7 @@ impl Server {
         } else {
             app_name
         };
+        let action_icons = hint_bool(&hints, "action-icons");
         let expire = match expire_timeout {
             0 => Expire::Never,
             timeout if timeout > 0 => Expire::After(Duration::from_millis(timeout.unsigned_abs().into())),
@@ -151,6 +148,7 @@ impl Server {
                 .map(|[key, label]| Action {
                     key: key.clone(),
                     label: label.clone(),
+                    icon: action_icons.then(|| icons::lookup(label)).flatten(),
                 })
                 .collect(),
             received: SystemTime::now(),
@@ -175,33 +173,51 @@ impl Server {
 
 /// Serves notifications until island stops, telling apps of every `signals` meanwhile.
 pub fn serve(feed: &Feed<State, Event>, signals: &Receiver<Signal>) -> Ended {
-    let connection = match connection::Builder::session()
-        .and_then(|builder| builder.serve_at(PATH, Server { feed: feed.clone() }))
-        .and_then(connection::Builder::build)
-    {
+    let built = block_on(connection::Builder::session().serve_at(PATH, Server { feed: feed.clone() }).build());
+    let connection = match built {
         Ok(connection) => connection,
         Err(error) => return Ended::Failed(format!("cannot connect to the session bus: {error}")),
     };
-    match dbus::claim(&connection, NAME) {
+    match block_on(dbus::claim(&connection, NAME)) {
         Ok(true) => info!(name = NAME, "serving notifications"),
         Ok(false) => warn!(name = NAME, "another notification daemon owns the name; notifications are off"),
         Err(error) => return Ended::Failed(error),
     }
+    let mut activation = None;
     for signal in signals {
-        emit(&connection, signal);
+        emit(&connection, &mut activation, signal);
     }
     Ended::Unwanted
 }
 
-fn emit(connection: &Connection, signal: Signal) {
+/// A token that lets the app raise its window, made on island's own connection to the compositor,
+/// which is made again if it broke.
+fn activation_token(activation: &mut Option<Activation>) -> Option<String> {
+    if activation.is_none() {
+        *activation = Activation::connect();
+    }
+    let token = activation.as_mut()?.token();
+    if token.is_none() {
+        *activation = None;
+    }
+    token
+}
+
+fn emit(connection: &Connection, activation: &mut Option<Activation>, signal: Signal) {
     let sent = match signal {
         Signal::Closed(id, reason) => {
             debug!(id, ?reason, "notification closed");
-            connection.emit_signal(None::<&str>, PATH, NAME, "NotificationClosed", &(id, reason as u32))
+            block_on(connection.emit_signal(None::<&str>, PATH, NAME, "NotificationClosed", &(id, reason as u32)))
         }
         Signal::Action(id, key) => {
             debug!(id, action = key, "notification action invoked");
-            connection.emit_signal(None::<&str>, PATH, NAME, "ActionInvoked", &(id, key))
+            if let Some(token) = activation_token(activation)
+                && let Err(error) =
+                    block_on(connection.emit_signal(None::<&str>, PATH, NAME, "ActivationToken", &(id, token)))
+            {
+                warn!("cannot emit a notification signal: {error}");
+            }
+            block_on(connection.emit_signal(None::<&str>, PATH, NAME, "ActionInvoked", &(id, key)))
         }
     };
     if let Err(error) = sent {

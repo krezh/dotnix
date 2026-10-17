@@ -1,5 +1,9 @@
-//! Molt updates: `molt check` for the flake every 15 minutes, a badge in the bar while changes are
-//! incoming or the check failed, an Updates panel listing the commits, and a System-panel button.
+//! Molt updates: `molt check` for the flake, fetching every 15 minutes or when asked to and
+//! otherwise checking against what was last fetched every minute, without the network, so the
+//! counts follow local changes such as a pull. A badge in the bar while changes are
+//! incoming, a watched pull request is ready or the check failed, an Updates panel listing the
+//! commits and molt's watchlist of pull requests on their way through the branches, and a
+//! System-panel button.
 
 use std::{
     env, fs,
@@ -17,16 +21,19 @@ use crate::{
     bar::{GLYPH, ICON_GAP},
     components::{card, icon, tooltip::Tip},
     island::{Mode, Panel},
-    panel::{Block, Button, CommitRow, Header, IconButton, PanelView, on},
+    panel::{Block, Button, CommitRow, Header, IconButton, PanelView, PathRow, PathStep, StepState, on},
     run,
     supervisor::Ended,
-    theme::{ACCENT, CRITICAL, SUBTEXT1},
+    theme::{ACCENT, CRITICAL, GREEN, SUBTEXT1},
     ui::SMALL_SIZE,
 };
 
 const INTERVAL: Duration = Duration::from_secs(15 * 60);
 const TICK: Duration = Duration::from_secs(60);
 const TIMEOUT: Duration = Duration::from_secs(120);
+/// The check button's labels, at rest and while checking.
+const CHECK: &str = "Refresh";
+const CHECKING: &str = "Refreshing…";
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Report {
@@ -39,6 +46,86 @@ pub struct Report {
     /// Newest incoming commits first; may be fewer than `incoming`.
     #[serde(default)]
     pub commits: Vec<Commit>,
+    /// The pull requests molt watches; absent before molt had a watchlist.
+    #[serde(default)]
+    pub watchlist: Option<Watchlist>,
+}
+
+impl Report {
+    /// How many watched pull requests have reached the branch the system follows.
+    fn ready(&self) -> usize {
+        self.watchlist.as_ref().map_or(0, |watchlist| watchlist.ready)
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Watchlist {
+    pub total: usize,
+    pub ready: usize,
+    #[serde(default)]
+    pub prs: Vec<WatchedPr>,
+}
+
+/// A pull request molt watches, and how far it has travelled through the branches.
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct WatchedPr {
+    pub pr_number: u64,
+    pub repo: String,
+    pub title: String,
+    /// Reached the branch the system follows.
+    pub ready: bool,
+    /// `open`, `merged` or `closed`.
+    pub state: String,
+    #[serde(default)]
+    pub merge_commit: Option<String>,
+    #[serde(default)]
+    pub branches: Vec<Branch>,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Branch {
+    pub name: String,
+    pub reached: bool,
+    /// `reached`, `pending` or `open`.
+    pub status: String,
+    /// Commits the branch still has to take in before it has the pull request.
+    #[serde(default)]
+    pub ahead_by: Option<usize>,
+}
+
+impl WatchedPr {
+    fn row(&self) -> PathRow {
+        let state = match self.state.as_str() {
+            "merged" => "Merged",
+            "open" => "Open",
+            "closed" => "Closed",
+            other => other,
+        };
+        let commit = self
+            .merge_commit
+            .as_deref()
+            .map(|sha| format!(" · {}", &sha[..sha.len().min(7)]))
+            .unwrap_or_default();
+        PathRow {
+            title: format!("#{} {}", self.pr_number, self.title).into(),
+            detail: format!("{} · {state}{commit}", self.repo).into(),
+            done: self.ready.then(|| "Ready".into()),
+            steps: self
+                .branches
+                .iter()
+                .map(|branch| PathStep {
+                    label: branch.name.clone().into(),
+                    state: match (branch.reached, branch.status.as_str()) {
+                        (true, _) => StepState::Reached,
+                        (false, "pending") => {
+                            StepState::Pending(branch.ahead_by.filter(|ahead| *ahead > 0).map(|ahead| format!("+{ahead}").into()))
+                        }
+                        _ => StepState::NotYet,
+                    },
+                })
+                .collect(),
+        }
+    }
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -54,6 +141,9 @@ pub struct Commit {
 pub struct Updates {
     pub report: Option<Report>,
     pub checking: bool,
+    /// The check under way was asked for, by Check now or a right-click, rather than due; only
+    /// then does the energy border run round the button and the widget.
+    pub refreshing: bool,
     pub error: Option<String>,
     /// Unix seconds of the last check attempt.
     pub checked_at: Option<u64>,
@@ -62,6 +152,25 @@ pub struct Updates {
 impl Updates {
     fn incoming(&self) -> u32 {
         self.report.as_ref().map_or(0, |report| report.incoming)
+    }
+
+    fn ready(&self) -> usize {
+        self.report.as_ref().map_or(0, Report::ready)
+    }
+
+    /// One line for what there is: incoming changes and watched pull requests that are ready.
+    fn summary(&self) -> String {
+        let incoming = self.incoming();
+        let ready = self.ready();
+        let ready = (ready > 0).then(|| {
+            format!("{} ready", plural(u32::try_from(ready).unwrap_or(u32::MAX), "watched PR", "watched PRs"))
+        });
+        match (incoming, ready) {
+            (0, None) => "Up to date".to_owned(),
+            (0, Some(ready)) => ready,
+            (incoming, None) => plural(incoming, "incoming change", "incoming changes"),
+            (incoming, Some(ready)) => format!("{} · {ready}", plural(incoming, "incoming change", "incoming changes")),
+        }
     }
 }
 
@@ -118,8 +227,11 @@ fn save(cache: &Cache) {
     }
 }
 
-fn check() -> Result<Report, String> {
-    let output = run::output("molt", &["check", "--json"], TIMEOUT)?;
+/// Runs `molt check`. Only a `fetch` one touches the network, fetching the upstream and refreshing
+/// the watchlist from GitHub; without, it compares against what was last fetched.
+fn check(fetch: bool) -> Result<Report, String> {
+    let args: &[&str] = if fetch { &["check", "--json"] } else { &["check", "--json", "--no-fetch"] };
+    let output = run::output("molt", args, TIMEOUT)?;
     if !output.success {
         return Err(if output.stderr.is_empty() {
             "molt check failed".to_owned()
@@ -139,7 +251,16 @@ fn open() {
     });
 }
 
-fn work(feed: &Feed<Updates>, refresh: &mpsc::Receiver<()>) -> Ended {
+/// What the worker is asked for besides its own schedule.
+enum Request {
+    /// Fetch and check now, as Check now does.
+    Fetch,
+    /// Check against what was last fetched now, without the network, such as when the panel
+    /// opens so it shows the latest.
+    Look,
+}
+
+fn work(feed: &Feed<Updates>, requests: &mpsc::Receiver<Request>) -> Ended {
     let mut cache = load();
     let mut state = Updates {
         report: cache.report.clone(),
@@ -151,48 +272,60 @@ fn work(feed: &Feed<Updates>, refresh: &mpsc::Receiver<()>) -> Ended {
     }
     let mut forced = false;
     loop {
-        if forced || now().saturating_sub(cache.attempted_at) >= INTERVAL.as_secs() {
+        let fetch = forced || now().saturating_sub(cache.attempted_at) >= INTERVAL.as_secs();
+        if fetch {
             state.checking = true;
+            state.refreshing = forced;
             if !feed.publish(state.clone()) {
                 return Ended::Unwanted;
             }
             cache.attempted_at = now();
             state.checked_at = Some(cache.attempted_at);
-            debug!(forced, "checking for updates");
-            match check() {
-                Ok(report) => {
+        }
+        debug!(forced, fetch, "checking for updates");
+        let checked = check(fetch);
+        let changed = match checked {
+            Ok(report) => {
+                if fetch {
                     info!(incoming = report.incoming, "update check finished");
-                    cache.report = Some(report.clone());
-                    state.report = Some(report);
-                    state.error = None;
                 }
-                Err(error) => {
-                    warn!("update check failed: {error}");
-                    state.error = Some(error);
-                }
+                let changed = state.report.as_ref() != Some(&report) || state.error.is_some();
+                cache.report = Some(report.clone());
+                state.report = Some(report);
+                state.error = None;
+                changed
             }
+            Err(error) => {
+                warn!(fetch, "update check failed: {error}");
+                let changed = state.error.as_ref() != Some(&error);
+                state.error = Some(error);
+                changed
+            }
+        };
+        if fetch || changed {
             state.checking = false;
+            state.refreshing = false;
             save(&cache);
             if !feed.publish(state.clone()) {
                 return Ended::Unwanted;
             }
         }
-        forced = match refresh.recv_timeout(TICK) {
-            Ok(()) => true,
-            Err(RecvTimeoutError::Timeout) => false,
+        forced = match requests.recv_timeout(TICK) {
+            Ok(Request::Fetch) => true,
+            Ok(Request::Look) | Err(RecvTimeoutError::Timeout) => false,
             Err(RecvTimeoutError::Disconnected) => return Ended::Unwanted,
         };
     }
 }
 
 pub struct Molt {
-    refresh: Sender<()>,
+    requests: Sender<Request>,
 }
 
 impl Molt {
-    /// Checks for updates now instead of at the next interval.
+    /// Fetches and checks for updates now instead of at the next interval.
     fn refresh(&self) {
-        let _ = self.refresh.send(());
+        let _ = self.requests.send(Request::Fetch);
     }
 
     fn panel_handle() -> Panel {
@@ -210,24 +343,33 @@ impl Feature for Molt {
     type Event = ();
 
     fn start(feed: Feed<Updates>) -> Self {
-        let (refresh, requests) = mpsc::channel();
-        feed.supervise(move |feed| work(feed, &requests));
-        Self { refresh }
+        let (requests, incoming) = mpsc::channel();
+        feed.supervise(move |feed| work(feed, &incoming));
+        Self { requests }
+    }
+
+    /// Checks against what was last fetched, so the panel opens on the latest without waiting for
+    /// the network.
+    fn panel_opened(&self) {
+        let _ = self.requests.send(Request::Look);
     }
 
     fn present(_: &str, state: &Updates) -> bool {
-        state.error.is_some() || state.incoming() > 0
+        state.error.is_some() || state.incoming() > 0 || state.ready() > 0
     }
 
+    /// The incoming changes in the accent; when there are none, the ready watched pull requests in
+    /// green, since an update now brings their fixes.
     fn widget(&self, _: &str, state: &Updates, w: &mut WidgetCx<'_>) -> Option<AnyElement> {
-        let (text, color) = match (&state.error, &state.report) {
-            (Some(_), _) => ("!".to_owned(), CRITICAL),
-            (None, Some(report)) => (report.incoming.to_string(), ACCENT),
-            (None, None) => (String::new(), SUBTEXT1),
+        let (text, color) = match (&state.error, state.incoming(), state.ready()) {
+            (Some(_), _, _) => ("!".to_owned(), CRITICAL),
+            (None, 0, ready) if ready > 0 => (ready.to_string(), GREEN),
+            (None, incoming, _) if state.report.is_some() => (incoming.to_string(), ACCENT),
+            _ => (String::new(), SUBTEXT1),
         };
         let tip = match (&state.error, &state.report) {
             (Some(error), _) => format!("molt check failed: {error}"),
-            (None, Some(report)) => plural(report.incoming, "incoming change", "incoming changes"),
+            (None, Some(_)) => state.summary(),
             (None, None) => "Molt".to_owned(),
         };
         Some(
@@ -239,6 +381,7 @@ impl Feature for Molt {
                 .tip(w.tips(), "bar-molt", tip)
                 .when_some(w.glyph("molt"), |badge, path| badge.child(icon::glyph(path, GLYPH, color)))
                 .child(w.count(text))
+                .child(w.energy(state.refreshing))
                 .on_click(w.toggle(Self::panel_handle()))
                 .on_mouse_down(MouseButton::Right, w.call(Molt::refresh))
                 .into_any_element(),
@@ -250,9 +393,12 @@ impl Feature for Molt {
         let buttons = vec![
             Button {
                 id: "molt-check".into(),
-                label: if state.checking { "Checking…" } else { "Check now" }.into(),
+                label: if state.checking { CHECKING } else { CHECK }.into(),
                 active: state.checking,
                 toggle: false,
+                fits: vec![CHECK.into(), CHECKING.into()],
+                busy: state.refreshing,
+                enabled: true,
                 on_click: p.call(Molt::refresh),
             },
             Button {
@@ -260,6 +406,9 @@ impl Feature for Molt {
                 label: "Open Molt".into(),
                 active: false,
                 toggle: false,
+                fits: Vec::new(),
+                busy: false,
+                enabled: true,
                 on_click: on(|island, cx| {
                     open();
                     island.set_mode(Mode::Collapsed, cx);
@@ -295,27 +444,48 @@ impl Feature for Molt {
             0 => "Updates".to_owned(),
             incoming => plural(incoming, "incoming change", "incoming changes"),
         };
+        let mut blocks = vec![block];
+        if let Some(watchlist) = state.report.as_ref().and_then(|report| report.watchlist.as_ref()).filter(|watchlist| !watchlist.prs.is_empty()) {
+            let title = match watchlist.ready {
+                0 => "Watchlist".to_owned(),
+                ready => format!("Watchlist · {ready} ready"),
+            };
+            blocks.push(Block::Card(
+                Some(title.into()),
+                card::Size::Large,
+                vec![Block::Paths(watchlist.prs.iter().map(WatchedPr::row).collect())],
+            ));
+        }
         Some(PanelView {
             header: Header::Title(title.into(), buttons),
-            blocks: vec![block],
+            blocks,
         })
     }
 
     fn system_button(&self, state: &Updates, p: &PanelCx<'_>) -> Option<IconButton> {
         let incoming = state.incoming();
+        let ready = state.ready();
         let label = match (&state.error, state.checking) {
             (_, true) => "Checking for updates…".to_owned(),
             (Some(_), false) => "The update check failed".to_owned(),
-            (None, false) if incoming > 0 => plural(incoming, "incoming change", "incoming changes"),
-            (None, false) => "Up to date".to_owned(),
+            (None, false) => state.summary(),
+        };
+        let badge = match (incoming, ready) {
+            (0, 0) => None,
+            (0, ready) => Some(ready.to_string().into()),
+            (incoming, _) => Some(incoming.to_string().into()),
         };
         Some(IconButton {
             id: "open-molt".into(),
             glyph: p.glyph("molt"),
             label: label.into(),
-            active: incoming > 0,
-            badge: (incoming > 0).then(|| incoming.to_string().into()),
+            active: incoming > 0 || ready > 0,
+            badge,
             on_click: on(|island, cx| island.set_mode(Mode::Open(Self::panel_handle()), cx)),
         })
     }
 }
+
+#[cfg(test)]
+#[path = "molt_test.rs"]
+mod tests;

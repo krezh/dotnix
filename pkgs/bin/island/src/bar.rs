@@ -7,9 +7,10 @@ use gpui::{
 
 use crate::{
     components::{
-        button, icon,
+        button, energy, icon,
         marquee::{self, TextLayouts},
         measure::{self, Measured},
+        motion,
         tooltip::Tooltips,
     },
     config::{self, Widget},
@@ -103,6 +104,11 @@ impl<'a> Look<'a> {
     pub(crate) fn half(self) -> f32 {
         self.half
     }
+
+    /// Whether the pointer is over the island, so hover tints apply.
+    pub(crate) fn hover(self) -> bool {
+        self.hover
+    }
 }
 
 pub(crate) fn on<E: ?Sized>(
@@ -121,16 +127,21 @@ pub fn half(spacing: f32) -> f32 {
 }
 
 pub(crate) fn widget_base(id: impl Into<SharedString>, look: Look) -> Stateful<Div> {
-    let over = look.hover.then(|| ui::hover_fill().into());
+    widget_group(id, look)
+        .cursor_pointer()
+        .when(look.hover, |widget| widget.hover(|style| style))
+        .child(ui::inset_control(Radius::Control, look.inset, look.hover))
+}
+
+/// The widget shell with no hover or pointer of its own, for a widget made of several clickable
+/// parts that each show the hover tint themselves.
+pub(crate) fn widget_group(id: impl Into<SharedString>, look: Look) -> Stateful<Div> {
     div()
         .id(id.into())
         .relative()
         .flex()
         .items_center()
         .justify_center()
-        .cursor_pointer()
-        .when(look.hover, |widget| widget.hover(|style| style))
-        .child(ui::inset_shape(Radius::Control, look.inset, over))
         .h(px(WIDGET_H))
         .flex_none()
         .px(px(look.half))
@@ -161,13 +172,15 @@ pub fn measure_slots(window: &Window) -> Slots {
 }
 
 pub(crate) fn slot(text: impl Into<SharedString>, width: f32) -> Div {
-    div().min_w(px(width)).flex_none().whitespace_nowrap().child(text.into())
+    div().min_w(px(width)).flex_none().whitespace_nowrap().child(motion::text("count", text))
 }
 
 /// Widget type: a glyph beside a vertical level meter.
 pub struct Gauge<'a> {
     pub glyph: Option<&'a Path>,
     pub glyph_color: u32,
+    /// A fresh reading asked for is on its way; the energy border runs round the widget meanwhile.
+    pub busy: bool,
     pub level: Option<f32>,
     pub level_color: u32,
 }
@@ -177,6 +190,12 @@ pub(crate) fn gauge(id: impl Into<SharedString>, look: Look, gauge: Gauge<'_>) -
         .gap(px(ICON_GAP))
         .when_some(gauge.glyph, |widget, path| widget.child(icon::glyph(path, GLYPH, gauge.glyph_color)))
         .child(meter(gauge.level, gauge.level_color))
+        .child(energy(look, gauge.busy))
+}
+
+/// The energy border round a widget while `busy`, following its shape.
+pub(crate) fn energy(look: Look, busy: bool) -> impl IntoElement {
+    energy::border("energy", Radius::Control, look.inset, busy)
 }
 
 
@@ -388,12 +407,11 @@ pub fn tabs(selected: Panel, pill_x: f32, strip_left: f32, hover: bool, cx: &mut
                         .left(px(pill_x))
                         .w(px(TAB_W))
                         .h(px(HEADER_H))
-                        .child(ui::shape(Radius::Row, Some(ui::selected_fill().into()), None)),
+                        .child(ui::shape(Radius::Row, Some(ui::selected_fill().into()))),
                 )
                 .children(tab_list().iter().map(|&(kind, label)| {
                     let selected = selected == kind;
-                    let over = (!selected && hover).then(|| ui::hover_fill().into());
-                    button::fill(SharedString::from(format!("tab-{}", kind.name())), Radius::Row, None, over)
+                    button::fill(SharedString::from(format!("tab-{}", kind.name())), Radius::Row, None, !selected && hover)
                         .w(px(TAB_W))
                         .h(px(HEADER_H))
                         .text_size(px(ui::TEXT_SIZE))

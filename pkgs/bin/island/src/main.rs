@@ -1,9 +1,10 @@
+mod activation;
 mod bar;
-mod brightness;
 mod components;
 mod compositor;
 mod config;
 mod control;
+mod db;
 mod dbus;
 mod desktop;
 mod effects;
@@ -11,8 +12,10 @@ mod features;
 mod glyphs;
 mod icons;
 mod island;
+mod keyring;
 mod launch;
 mod launcher;
+mod launches;
 mod logging;
 mod panel;
 mod panels;
@@ -176,10 +179,12 @@ fn main() {
         opacity: parsed.opacity.unwrap_or(appearance.opacity),
         glow: settings.visualizer.glow.max(0.0),
     };
+    let system = settings.system.clone();
 
     gpui_platform::application()
         .with_assets(icons::Files)
         .run(move |cx: &mut App| {
+            cx.set_global(system);
             Shell::start(config, incoming, workspaces, cx);
         });
     drop(bus);

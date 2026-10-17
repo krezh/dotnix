@@ -1,20 +1,22 @@
 //! MPRIS players over D-Bus: the track to show, and play/pause, skip and seek.
 
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     env,
     hash::{DefaultHasher, Hash, Hasher},
-    path::PathBuf,
-    sync::mpsc::{self, Receiver, RecvTimeoutError, Sender},
+    path::{Path, PathBuf},
+    sync::{
+        Mutex, PoisonError,
+        mpsc::{self, Receiver, RecvTimeoutError, Sender},
+    },
     thread,
     time::{Duration, Instant},
 };
 
+use futures::StreamExt;
 use zbus::{
-    MatchRule,
-    blocking::{Connection, MessageIterator, fdo::DBusProxy},
+    Connection, MatchRule, MessageStream, ObjectPath, OwnedObjectPath, OwnedVariant, Variant, block_on, fdo::DBusProxy,
     message::Type,
-    zvariant::{ObjectPath, OwnedObjectPath, OwnedValue, Value},
 };
 
 use tracing::{debug, info, trace, warn};
@@ -38,6 +40,7 @@ pub struct Track {
     pub playing: bool,
     pub read_at: Instant,
     track_id: Option<String>,
+    art_url: Option<String>,
 }
 
 impl Track {
@@ -81,16 +84,16 @@ impl Player {
     }
 }
 
-fn text(metadata: &HashMap<String, OwnedValue>, key: &str) -> String {
+fn text(metadata: &HashMap<String, OwnedVariant>, key: &str) -> String {
     metadata
         .get(key)
         .and_then(|value| match &**value {
-            Value::Str(text) => Some(text.to_string()),
-            Value::Array(items) => {
+            Variant::Str(text) => Some(text.to_string()),
+            Variant::Array(items) => {
                 let joined: Vec<String> = items
                     .iter()
                     .filter_map(|item| match item {
-                        Value::Str(text) => Some(text.to_string()),
+                        Variant::Str(text) => Some(text.to_string()),
                         _ => None,
                     })
                     .collect();
@@ -101,15 +104,19 @@ fn text(metadata: &HashMap<String, OwnedValue>, key: &str) -> String {
         .unwrap_or_default()
 }
 
-fn micros(metadata: &HashMap<String, OwnedValue>, key: &str) -> Option<f64> {
+fn micros(metadata: &HashMap<String, OwnedVariant>, key: &str) -> Option<f64> {
     metadata.get(key).and_then(|value| match &**value {
-        Value::I64(micros) => Some(*micros as f64 / 1e6),
-        Value::U64(micros) => Some(*micros as f64 / 1e6),
+        Variant::I64(micros) => Some(*micros as f64 / 1e6),
+        Variant::U64(micros) => Some(*micros as f64 / 1e6),
         _ => None,
     })
 }
 
-fn art(url: &str) -> Option<PathBuf> {
+/// The art at `url`: a local file, or a cached download. An `http` one not cached yet is
+/// downloaded in the background, at most once per run, and `changed` hears when it is in.
+fn art(url: &str, changed: &Sender<Event>) -> Option<PathBuf> {
+    static STARTED: Mutex<Option<HashSet<PathBuf>>> = Mutex::new(None);
+
     if let Some(path) = url.strip_prefix("file://") {
         return Some(PathBuf::from(path));
     }
@@ -127,7 +134,26 @@ fn art(url: &str) -> Option<PathBuf> {
     if path.exists() {
         return Some(path);
     }
-    std::fs::create_dir_all(&dir).ok()?;
+    let fresh = STARTED
+        .lock()
+        .unwrap_or_else(PoisonError::into_inner)
+        .get_or_insert_default()
+        .insert(path.clone());
+    if fresh {
+        let (url, changed) = (url.to_owned(), changed.clone());
+        let _ = thread::Builder::new().name("island-media-art".into()).spawn(move || {
+            if download(&url, &dir, &path).is_some() {
+                let _ = changed.send(Event::Changed);
+            } else {
+                debug!(url, "cannot download the album art");
+            }
+        });
+    }
+    None
+}
+
+fn download(url: &str, dir: &Path, path: &Path) -> Option<()> {
+    std::fs::create_dir_all(dir).ok()?;
     let agent: ureq::Agent = ureq::Agent::config_builder()
         .timeout_global(Some(Duration::from_secs(10)))
         .build()
@@ -136,22 +162,22 @@ fn art(url: &str) -> Option<PathBuf> {
     let bytes = response.into_body().with_config().limit(16 * 1024 * 1024).read_to_vec().ok()?;
     let partial = path.with_extension("part");
     std::fs::write(&partial, bytes).ok()?;
-    std::fs::rename(&partial, &path).ok()?;
-    Some(path)
+    std::fs::rename(&partial, path).ok()
 }
 
-fn read(connection: &Connection, player: &str) -> Option<Track> {
-    let proxy = uncached(connection, player.to_owned(), PATH, PLAYER).ok()?;
-    let status: String = proxy.get_property("PlaybackStatus").ok()?;
-    let metadata: HashMap<String, OwnedValue> = proxy.get_property("Metadata").unwrap_or_default();
-    let position = proxy.get_property::<i64>("Position").map_or(0.0, |micros| micros as f64 / 1e6);
-    let identity = uncached(connection, player.to_owned(), PATH, "org.mpris.MediaPlayer2")
-        .ok()
-        .and_then(|root| root.get_property::<String>("Identity").ok())
-        .unwrap_or_else(|| player.trim_start_matches(PREFIX).to_owned());
+async fn read(connection: &Connection, player: &str) -> Option<Track> {
+    let proxy = uncached(connection, player.to_owned(), PATH, PLAYER).await.ok()?;
+    let status: String = proxy.get_property("PlaybackStatus").await.ok()?;
+    let metadata: HashMap<String, OwnedVariant> = proxy.get_property("Metadata").await.unwrap_or_default();
+    let position = proxy.get_property::<i64>("Position").await.map_or(0.0, |micros| micros as f64 / 1e6);
+    let identity = match uncached(connection, player.to_owned(), PATH, "org.mpris.MediaPlayer2").await {
+        Ok(root) => root.get_property::<String>("Identity").await.ok(),
+        Err(_) => None,
+    }
+    .unwrap_or_else(|| player.trim_start_matches(PREFIX).to_owned());
     let track_id = metadata.get("mpris:trackid").and_then(|value| match &**value {
-        Value::ObjectPath(path) => Some(path.to_string()),
-        Value::Str(path) => Some(path.to_string()),
+        Variant::ObjectPath(path) => Some(path.to_string()),
+        Variant::Str(path) => Some(path.to_string()),
         _ => None,
     });
     Some(Track {
@@ -160,7 +186,8 @@ fn read(connection: &Connection, player: &str) -> Option<Track> {
         title: text(&metadata, "xesam:title"),
         artist: text(&metadata, "xesam:artist"),
         album: text(&metadata, "xesam:album"),
-        art: Some(text(&metadata, "mpris:artUrl")).filter(|url| !url.is_empty()).and_then(|url| art(&url)),
+        art: None,
+        art_url: Some(text(&metadata, "mpris:artUrl")).filter(|url| !url.is_empty()),
         length: micros(&metadata, "mpris:length").filter(|length| *length > 0.0),
         position,
         playing: status == "Playing",
@@ -169,13 +196,13 @@ fn read(connection: &Connection, player: &str) -> Option<Track> {
     })
 }
 
-fn current(connection: &Connection, preferred: &Option<String>) -> Option<Track> {
-    let names = DBusProxy::new(connection).ok()?.list_names().ok()?;
+fn current(connection: &Connection, preferred: &Option<String>, changed: &Sender<Event>) -> Option<Track> {
+    let names = block_on(async { DBusProxy::new(connection).await?.list_names().await }).ok()?;
     let tracks: Vec<Track> = names
         .iter()
         .map(|name| name.to_string())
         .filter(|name| name.starts_with(PREFIX))
-        .filter_map(|name| read(connection, &name))
+        .filter_map(|name| block_on(read(connection, &name)))
         .filter(|track| !track.title.is_empty())
         .collect();
     tracks
@@ -184,22 +211,26 @@ fn current(connection: &Connection, preferred: &Option<String>) -> Option<Track>
         .or_else(|| tracks.iter().find(|track| Some(&track.player) == preferred.as_ref()))
         .or_else(|| tracks.first())
         .cloned()
+        .map(|track| Track {
+            art: track.art_url.as_deref().and_then(|url| art(url, changed)),
+            ..track
+        })
 }
 
 fn control(connection: &Connection, track: &Track, control: Control) {
-    let Ok(proxy) = uncached(connection, track.player.clone(), PATH, PLAYER) else {
+    let Ok(proxy) = block_on(uncached(connection, track.player.clone(), PATH, PLAYER)) else {
         return;
     };
     debug!(player = track.identity, ?control, "media control");
     let sent = match control {
-        Control::PlayPause => proxy.call_method("PlayPause", &()),
-        Control::Next => proxy.call_method("Next", &()),
-        Control::Previous => proxy.call_method("Previous", &()),
+        Control::PlayPause => block_on(proxy.call_method("PlayPause", &())),
+        Control::Next => block_on(proxy.call_method("Next", &())),
+        Control::Previous => block_on(proxy.call_method("Previous", &())),
         Control::Seek(seconds) => {
             let Some(id) = track.track_id.as_deref().and_then(|id| ObjectPath::try_from(id).ok()) else {
                 return;
             };
-            proxy.call_method("SetPosition", &(OwnedObjectPath::from(id), (seconds * 1e6) as i64))
+            block_on(proxy.call_method("SetPosition", &(OwnedObjectPath::from(id), (seconds * 1e6) as i64)))
         }
     };
     if let Err(error) = sent {
@@ -212,32 +243,34 @@ fn listen(connection: &Connection, events: Sender<Event>) {
         MatchRule::builder()
             .msg_type(Type::Signal)
             .interface("org.freedesktop.DBus.Properties")
-            .and_then(|rule| rule.path(PATH))
-            .map(|rule| rule.build()),
+            .path(PATH)
+            .build(),
         MatchRule::builder()
             .msg_type(Type::Signal)
             .interface("org.freedesktop.DBus")
-            .and_then(|rule| rule.member("NameOwnerChanged"))
-            .map(|rule| rule.build()),
+            .member("NameOwnerChanged")
+            .build(),
     ];
     for rule in rules.into_iter().flatten() {
-        let Ok(iterator) = MessageIterator::for_match_rule(rule, connection, None) else {
+        let Ok(mut stream) = block_on(MessageStream::for_match_rule(rule, connection, None)) else {
             continue;
         };
         let events = events.clone();
         let _ = thread::Builder::new().name("island-media-signals".into()).spawn(move || {
-            for _ in iterator.flatten() {
-                if events.send(Event::Changed).is_err() {
-                    return;
+            block_on(async {
+                while let Some(message) = stream.next().await {
+                    if message.is_ok() && events.send(Event::Changed).is_err() {
+                        return;
+                    }
                 }
-            }
+            });
         });
     }
 }
 
-fn worker(connection: &Connection, events: &Receiver<Event>, feed: &Feed<Option<Track>>) -> Ended {
+fn worker(connection: &Connection, events: &Receiver<Event>, changed: &Sender<Event>, feed: &Feed<Option<Track>>) -> Ended {
     let mut preferred: Option<String> = None;
-    let mut last = current(connection, &mut preferred);
+    let mut last = current(connection, &preferred, changed);
     if let Some(track) = &last {
         preferred = Some(track.player.clone());
     }
@@ -245,7 +278,7 @@ fn worker(connection: &Connection, events: &Receiver<Event>, feed: &Feed<Option<
         return Ended::Unwanted;
     }
     let publish_current =|last: &mut Option<Track>, preferred: &mut Option<String>| {
-        let current = current(connection, preferred);
+        let current = current(connection, preferred, changed);
         if let Some(track) = &current {
             *preferred = Some(track.player.clone());
         }
@@ -303,7 +336,7 @@ fn worker(connection: &Connection, events: &Receiver<Event>, feed: &Feed<Option<
 /// Starts the supervised player worker, publishing the track to show to `feed`, and returns the
 /// handle controls go through; `None` without a session bus.
 pub fn start(feed: Feed<Option<Track>>) -> Option<Player> {
-    let connection = Connection::session().ok()?;
+    let connection = block_on(Connection::session()).ok()?;
     let (events, receiver) = mpsc::channel();
     let (controls, control_receiver) = mpsc::channel::<Control>();
     listen(&connection, events.clone());
@@ -318,6 +351,6 @@ pub fn start(feed: Feed<Option<Track>>) -> Option<Player> {
             }
         })
         .ok()?;
-    feed.supervise(move |feed| worker(&connection, &receiver, feed));
+    feed.supervise(move |feed| worker(&connection, &receiver, &events, feed));
     Some(Player { sender: controls })
 }

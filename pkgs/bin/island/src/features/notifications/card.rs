@@ -1,26 +1,29 @@
 //! A notification card, and the two stacks of them: the cards popping up as notifications arrive and
 //! the missed list in the panel.
 
-use std::time::SystemTime;
+use std::time::{Duration, SystemTime};
 
 use chrono::Local;
 use gpui::{
-    AnyElement, Context, FontWeight, Hsla, MouseButton, ObjectFit, SharedString, TextRun, Window, div, font,
-    prelude::*, px, rgb, rgba,
+    Animation, AnimationExt, AnyElement, Context, FontStyle, FontWeight, HighlightStyle, Hsla, InteractiveText,
+    MouseButton, ObjectFit, SharedString, StrikethroughStyle, StyledText, TextRun, UnderlineStyle, Window, div, font,
+    prelude::*, px, relative, rgb, rgba,
 };
 
 use super::{
+    history::Earlier,
+    markdown,
     missed_list::MissedList,
     notification::{DEFAULT_ACTION, Notification},
     toasts::Toasts,
 };
 use crate::{
-    components::{button, icon},
+    components::{button, icon, motion},
     island::Island,
     panel::Handler,
     theme::{
-        CARD_BORDER_ALPHA, CRITICAL, FONT, NOTIFICATION_ALPHA, ON_ACCENT, SUBTEXT1, SURFACE1, TEXT, app_color,
-        with_alpha,
+        ACCENT, CARD_BORDER_ALPHA, CONTROL_ALPHA, CRITICAL, FONT, NOTIFICATION_ALPHA, ON_ACCENT, SUBTEXT1, SURFACE1,
+        TEXT, app_color, with_alpha,
     },
     ui::{self, CONTROL_H, Radius, SMALL_SIZE, TEXT_SIZE, TIGHT_INSET, TITLE_SIZE},
 };
@@ -43,6 +46,8 @@ const ACTION_GAP: f32 = 8.0;
 pub enum Kind {
     Toast(u64),
     Missed(u32),
+    /// One in the history, by its session and id.
+    Earlier(i64, u32),
 }
 
 impl Kind {
@@ -50,6 +55,7 @@ impl Kind {
         match self {
             Kind::Toast(id) => format!("toast-{id}-{part}").into(),
             Kind::Missed(id) => format!("missed-{id}-{part}").into(),
+            Kind::Earlier(session, id) => format!("earlier-{session}-{id}-{part}").into(),
         }
     }
 }
@@ -62,9 +68,99 @@ pub struct Look {
     pub dismiss: Handler,
     /// Each action button's handler, by its key.
     pub invoke: Vec<(String, Handler)>,
+    /// How long until a pop-up card hides itself, drawn as a draining bar along its bottom.
+    pub countdown: Option<Countdown>,
 }
 
+/// What is left of a card's time.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Countdown {
+    /// The part of its time left, 0–1.
+    pub left: f32,
+    /// How long that is while it counts down; `None` while paused.
+    pub running: Option<Duration>,
+    /// Counts each pause and resume, so the bar starts a new animation from where it is.
+    pub round: u32,
+}
+
+const COUNTDOWN_H: f32 = 2.0;
+/// How strongly the countdown shows; it is a quiet part of the card's edge, not content.
+const COUNTDOWN_ALPHA: u8 = 0xb3;
+
+/// The card's bottom edge draining as its time runs out, and holding while paused: it lies on the
+/// border's straight stretch between the rounded corners, so it reads as the outline itself.
+fn countdown_bar(kind: Kind, countdown: Countdown) -> AnyElement {
+    let bar = div().h_full().rounded_full().bg(rgba(with_alpha(ACCENT, COUNTDOWN_ALPHA)));
+    let bar = match countdown.running {
+        Some(left) => bar
+            .w(relative(countdown.left))
+            .with_animation(
+                kind.element_id(&format!("countdown-{}", countdown.round)),
+                Animation::new(left),
+                move |bar, t| bar.w(relative(countdown.left * (1.0 - t))),
+            )
+            .into_any_element(),
+        None => bar.w(relative(countdown.left)).into_any_element(),
+    };
+    div()
+        .absolute()
+        .left(px(ui::PANEL_RADIUS))
+        .right(px(ui::PANEL_RADIUS))
+        .bottom_0()
+        .h(px(COUNTDOWN_H))
+        .child(bar)
+        .into_any_element()
+}
+
+/// How a stretch of Markdown is drawn: bold as semibold, links in the accent, code on a tint, and
+/// spoilers covered.
+fn highlight(style: markdown::Style) -> HighlightStyle {
+    let line = |shown: bool| shown.then(|| px(1.0));
+    let tint: Hsla = rgba(with_alpha(SURFACE1, CONTROL_ALPHA)).into();
+    let cover: Hsla = rgb(SURFACE1).into();
+    HighlightStyle {
+        font_weight: style.bold.then_some(FontWeight::SEMIBOLD),
+        font_style: style.italic.then_some(FontStyle::Italic),
+        underline: line(style.underline).map(|thickness| UnderlineStyle { thickness, ..UnderlineStyle::default() }),
+        strikethrough: line(style.strike)
+            .map(|thickness| StrikethroughStyle { thickness, ..StrikethroughStyle::default() }),
+        color: if style.spoiler {
+            Some(cover)
+        } else {
+            style.link.map(|_| rgb(ACCENT).into())
+        },
+        background_color: if style.spoiler {
+            Some(cover)
+        } else {
+            style.code.then_some(tint)
+        },
+        ..HighlightStyle::default()
+    }
+}
+
+/// The body as the card shows it, its Markdown drawn; clicking a link opens it.
+fn body_text(kind: Kind, body: &str) -> AnyElement {
+    let parsed = markdown::parse(body);
+    let ranges = parsed.link_ranges();
+    let highlights: Vec<_> = parsed.spans.iter().map(|(range, style)| (range.clone(), highlight(*style))).collect();
+    let links = parsed.links;
+    let styled = StyledText::new(parsed.text).with_highlights(highlights);
+    if links.is_empty() {
+        return styled.into_any_element();
+    }
+    InteractiveText::new(kind.element_id("links"), styled)
+        .on_click(ranges, move |index, _, cx| {
+            if let Some(url) = links.get(index) {
+                cx.stop_propagation();
+                cx.open_url(url);
+            }
+        })
+        .into_any_element()
+}
+
+/// How many lines the body takes as the card shows it, its Markdown read and its lines joined.
 pub fn body_lines(body: &str, card_width: f32, window: &Window) -> usize {
+    let body = markdown::parse(body).text;
     if body.is_empty() {
         return 0;
     }
@@ -82,7 +178,7 @@ pub fn body_lines(body: &str, card_width: f32, window: &Window) -> usize {
     let lines = window
         .text_system()
         .shape_text(
-            SharedString::from(body.to_owned()),
+            SharedString::from(body),
             px(BODY_SIZE),
             &[run],
             Some(px(card_width - 2.0 * PAD - ICON - ICON_GAP)),
@@ -99,8 +195,8 @@ pub fn height(body_lines: usize, buttons: bool) -> f32 {
         2.0 + BODY_LINE * body_lines as f32
     };
     let buttons = if buttons { ACTION_GAP + CONTROL_H } else { 0.0 };
-    let text = META_LINE + 2.0 + SUMMARY_LINE + body + buttons;
-    text.max(ICON) + 2.0 * PAD
+    let text = META_LINE + 2.0 + SUMMARY_LINE + body;
+    text.max(ICON) + buttons + 2.0 * PAD
 }
 
 pub fn missed_height(notification: &Notification) -> f32 {
@@ -156,26 +252,20 @@ pub fn card(kind: Kind, notification: &Notification, look: Look, hover: bool, cx
     };
     let body_lines = match kind {
         Kind::Toast(_) => BODY_LINES,
-        Kind::Missed(_) => 1,
+        Kind::Missed(_) | Kind::Earlier(..) => 1,
     };
     let group = kind.element_id("group");
     let trailing = match kind {
         Kind::Toast(_) => div()
             .text_color(rgb(SUBTEXT1))
-            .child(received_label(notification.received))
+            .child(motion::text(kind.element_id("received"), received_label(notification.received)))
             .into_any_element(),
-        Kind::Missed(_) => {
+        Kind::Missed(_) | Kind::Earlier(..) => {
             let dismiss = on(look.dismiss.clone(), true);
-            div()
-                .id(kind.element_id("dismiss"))
+            button::ghost(kind.element_id("dismiss"), hover)
                 .opacity(0.0)
                 .when(hover, |close| close.group_hover(group.clone(), |style| style.opacity(1.0)))
                 .size(px(META_LINE))
-                .flex()
-                .items_center()
-                .justify_center()
-                .rounded(px(4.0))
-                .cursor_pointer()
                 .text_color(rgb(SUBTEXT1))
                 .when(hover, |close| close.hover(|style| style.text_color(rgb(TEXT))))
                 .child("✕")
@@ -186,10 +276,16 @@ pub fn card(kind: Kind, notification: &Notification, look: Look, hover: bool, cx
     let meta = match kind {
         Kind::Toast(_) => notification.app.clone(),
         Kind::Missed(_) => format!("{} · {}", notification.app, received_label(notification.received)),
+        Kind::Earlier(..) => format!(
+            "{} · {}",
+            notification.app,
+            chrono::DateTime::<Local>::from(notification.received).format("%H:%M")
+        ),
     };
     let buttons = notification.buttons().next().is_some().then(|| {
         div()
             .mt(px(ACTION_GAP))
+            .ml(px(ICON + ICON_GAP))
             .h(px(CONTROL_H))
             .flex()
             .gap(px(6.0))
@@ -199,10 +295,12 @@ pub fn card(kind: Kind, notification: &Notification, look: Look, hover: bool, cx
                     .iter()
                     .find(|(key, _)| *key == action.key)
                     .map(|(_, handler)| on(handler.clone(), true));
-                button::button(kind.element_id(&format!("action-{}", action.key)), action.label.clone(), false, hover)
-                    .when_some(invoke, |button, invoke| {
-                        button.on_click(cx.listener(move |this, _, _, cx| invoke(this, cx)))
-                    })
+                let id = kind.element_id(&format!("action-{}", action.key));
+                match &action.icon {
+                    Some(glyph) => button::icon(id, Some(glyph), false, hover).size(px(CONTROL_H)),
+                    None => button::button(id, action.label.clone(), false, hover),
+                }
+                .when_some(invoke, |button, invoke| button.on_click(cx.listener(move |this, _, _, cx| invoke(this, cx))))
             }))
             .into_any_element()
     });
@@ -226,6 +324,64 @@ pub fn card(kind: Kind, notification: &Notification, look: Look, hover: bool, cx
     let background = ui::outlined(Radius::Panel, Hsla::from(rgba(with_alpha(SURFACE1, NOTIFICATION_ALPHA))), border);
     let activate = on(look.activate, false);
     let dismiss = on(look.dismiss, true);
+    let tile = div()
+        .size(px(ICON))
+        .flex_none()
+        .flex()
+        .items_center()
+        .justify_center()
+        .relative()
+        .map(|tile| match (&notification.image, &notification.icon) {
+            (Some(image), _) => tile.child(icon::rounded(image, ICON, ObjectFit::Cover, ui::CONTROL_RADIUS)),
+            (None, Some(app)) => tile.child(icon::picture(app, ICON, ObjectFit::Contain)),
+            (None, None) => tile
+                .child(ui::shape(Radius::Control, Some(rgb(tint).into())))
+                .text_color(rgb(ON_ACCENT))
+                .font_weight(FontWeight::SEMIBOLD)
+                .text_size(px(TITLE_SIZE))
+                .child(initial),
+        });
+    let text = div()
+        .flex_1()
+        .min_w(px(0.0))
+        .flex()
+        .flex_col()
+        .child(
+            div()
+                .h(px(META_LINE))
+                .line_height(px(META_LINE))
+                .flex()
+                .items_center()
+                .justify_between()
+                .text_size(px(SMALL_SIZE))
+                .text_color(rgb(SUBTEXT1))
+                .child(meta)
+                .child(trailing),
+        )
+        .child(
+            div()
+                .mt(px(2.0))
+                .h(px(SUMMARY_LINE))
+                .line_height(px(SUMMARY_LINE))
+                .text_size(px(TEXT_SIZE))
+                .font_weight(FontWeight::SEMIBOLD)
+                .when(notification.critical, |summary| summary.text_color(rgb(CRITICAL)))
+                .truncate()
+                .child(motion::text(kind.element_id("summary"), markdown::parse(&notification.summary).text)),
+        )
+        .when(!notification.body.is_empty(), |text| {
+            text.child(
+                div()
+                    .mt(px(2.0))
+                    .line_height(px(BODY_LINE))
+                    .text_size(px(BODY_SIZE))
+                    .line_clamp(body_lines)
+                    .max_h(px(BODY_LINE * body_lines as f32))
+                    .overflow_hidden()
+                    .text_ellipsis()
+                    .child(body_text(kind, &notification.body)),
+            )
+        });
 
     div()
         .id(kind.element_id("body"))
@@ -233,86 +389,32 @@ pub fn card(kind: Kind, notification: &Notification, look: Look, hover: bool, cx
         .relative()
         .size_full()
         .cursor_pointer()
+        .when(hover, |card| card.hover(|style| style))
         .on_click(cx.listener(move |this, _, _, cx| activate(this, cx)))
         .on_mouse_down(MouseButton::Right, cx.listener(move |this, _, _, cx| dismiss(this, cx)))
         .child(background)
+        .child(ui::control(Radius::Panel, None, hover))
         .child(
             ui::base()
                 .relative()
                 .size_full()
                 .p(px(PAD))
                 .flex()
-                .items_start()
-                .gap(px(ICON_GAP))
-                .child(
-                    div()
-                        .size(px(ICON))
-                        .flex_none()
-                        .flex()
-                        .items_center()
-                        .justify_center()
-                        .relative()
-                        .map(|tile| match (&notification.image, &notification.icon) {
-                            (Some(image), _) => tile.child(icon::rounded(image, ICON, ObjectFit::Cover, ui::CONTROL_RADIUS)),
-                            (None, Some(app)) => tile.child(icon::picture(app, ICON, ObjectFit::Contain)),
-                            (None, None) => tile
-                                .child(ui::shape(Radius::Control, Some(rgb(tint).into()), None))
-                                .text_color(rgb(ON_ACCENT))
-                                .font_weight(FontWeight::SEMIBOLD)
-                                .text_size(px(TITLE_SIZE))
-                                .child(initial),
-                        }),
-                )
-                .child(
-                    div()
-                        .flex_1()
-                        .min_w(px(0.0))
-                        .flex()
-                        .flex_col()
-                        .child(
-                            div()
-                                .h(px(META_LINE))
-                                .line_height(px(META_LINE))
-                                .flex()
-                                .items_center()
-                                .justify_between()
-                                .text_size(px(SMALL_SIZE))
-                                .text_color(rgb(SUBTEXT1))
-                                .child(meta)
-                                .child(trailing),
-                        )
-                        .child(
-                            div()
-                                .mt(px(2.0))
-                                .h(px(SUMMARY_LINE))
-                                .line_height(px(SUMMARY_LINE))
-                                .text_size(px(TEXT_SIZE))
-                                .font_weight(FontWeight::SEMIBOLD)
-                                .when(notification.critical, |summary| summary.text_color(rgb(CRITICAL)))
-                                .truncate()
-                                .child(notification.summary.clone()),
-                        )
-                        .when(!notification.body.is_empty(), |text| {
-                            text.child(
-                                div()
-                                    .mt(px(2.0))
-                                    .line_height(px(BODY_LINE))
-                                    .text_size(px(BODY_SIZE))
-                                    .line_clamp(body_lines)
-                                    .text_ellipsis()
-                                    .child(notification.body.clone()),
-                            )
-                        })
-                        .children(buttons),
-                ),
+                .flex_col()
+                .child(div().flex().items_center().gap(px(ICON_GAP)).child(tile).child(text))
+                .children(buttons),
         )
+        .when_some(look.countdown, |card, countdown| card.child(countdown_bar(kind, countdown)))
         .into_any_element()
 }
 
 /// The missed list; `looks` holds each row's look, in the order of `rows.rows()`.
+/// The missed list, [`MissedList::visible_height`] tall: it states its own size from the cards'
+/// known heights rather than being measured, and scrolls past the most it shows.
 pub fn missed(rows: &MissedList, looks: Vec<Look>, empty: SharedString, hover: bool, cx: &mut Context<Island>) -> AnyElement {
     if rows.is_empty() && rows.rows().is_empty() {
         return div()
+            .min_w(px(MIN_W))
             .py(px(14.0))
             .flex()
             .justify_center()
@@ -347,7 +449,98 @@ pub fn missed(rows: &MissedList, looks: Vec<Look>, empty: SharedString, hover: b
                 .child(card(Kind::Missed(row.notification.id), &row.notification, look, hover, cx)),
         );
     }
-    content.into_any_element()
+    div()
+        .id("missed-list")
+        .min_w(px(MIN_W))
+        .h(px(rows.visible_height()))
+        .overflow_y_scroll()
+        .child(content)
+        .into_any_element()
+}
+
+const DAY_H: f32 = 22.0;
+/// How tall the Earlier list can be before it scrolls, as the missed list.
+const EARLIER_MAX_H: f32 = 480.0;
+
+/// The heading over a day's notifications: Today, Yesterday, or the date.
+fn day_label(day: chrono::NaiveDate) -> String {
+    let today = Local::now().date_naive();
+    match (today - day).num_days() {
+        0 => "Today".to_owned(),
+        1 => "Yesterday".to_owned(),
+        _ => day.format("%A %-d %B").to_string(),
+    }
+}
+
+fn day_of(notification: &Notification) -> chrono::NaiveDate {
+    chrono::DateTime::<Local>::from(notification.received).date_naive()
+}
+
+/// The Earlier list's full height: each day's heading and its cards.
+fn earlier_extent(entries: &[Earlier]) -> f32 {
+    let mut height = 0.0;
+    let mut day = None;
+    for kept in entries {
+        let this = day_of(&kept.notification);
+        if day != Some(this) {
+            height += DAY_H;
+            day = Some(this);
+        }
+        height += missed_height(&kept.notification) + GAP;
+    }
+    height
+}
+
+/// How tall the Earlier view is: its list up to where it scrolls, or one line when it is empty.
+pub fn earlier_height(entries: &[Earlier]) -> f32 {
+    if entries.is_empty() { 0.0 } else { earlier_extent(entries).min(EARLIER_MAX_H) }
+}
+
+/// The history, newest first, under a heading for each day; `looks` holds each entry's look.
+pub fn earlier(entries: Vec<Earlier>, looks: Vec<Look>, hover: bool, cx: &mut Context<Island>) -> AnyElement {
+    if entries.is_empty() {
+        return div()
+            .min_w(px(MIN_W))
+            .py(px(14.0))
+            .flex()
+            .justify_center()
+            .text_size(px(SMALL_SIZE))
+            .text_color(rgb(SUBTEXT1))
+            .child("Nothing earlier")
+            .into_any_element();
+    }
+    let mut list = div().flex().flex_col().min_w(px(MIN_W));
+    let mut day = None;
+    for (kept, look) in entries.iter().zip(looks) {
+        let this = day_of(&kept.notification);
+        if day != Some(this) {
+            list = list.child(
+                div()
+                    .h(px(DAY_H))
+                    .flex()
+                    .items_center()
+                    .text_size(px(SMALL_SIZE))
+                    .font_weight(FontWeight::SEMIBOLD)
+                    .text_color(rgb(SUBTEXT1))
+                    .child(day_label(this)),
+            );
+            day = Some(this);
+        }
+        let (session, id) = kept.key();
+        list = list.child(
+            div()
+                .h(px(missed_height(&kept.notification)))
+                .mb(px(GAP))
+                .child(card(Kind::Earlier(session, id), &kept.notification, look, hover, cx)),
+        );
+    }
+    div()
+        .id("earlier-list")
+        .min_w(px(MIN_W))
+        .h(px(earlier_height(&entries)))
+        .overflow_y_scroll()
+        .child(list)
+        .into_any_element()
 }
 
 /// The cards popping up; `looks` holds each card's look, in the order of `stack.cards()`, and
@@ -397,7 +590,7 @@ pub fn toasts(stack: &Toasts, looks: Vec<Look>, island_below: f32, hover: bool, 
                 .text_size(px(SMALL_SIZE))
                 .text_color(rgb(SUBTEXT1))
                 .opacity(footer)
-                .child(format!("+{} more", stack.footer_count())),
+                .child(motion::text("toasts-more", format!("+{} more", stack.footer_count()))),
         );
     }
     content.into_any_element()

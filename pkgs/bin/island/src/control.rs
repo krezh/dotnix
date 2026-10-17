@@ -1,4 +1,4 @@
-use zbus::blocking::{Connection, Proxy};
+use zbus::{Connection, Proxy, block_on};
 
 pub const SERVICE: &str = "io.github.krezh.Island";
 pub const PATH: &str = "/io/github/krezh/Island";
@@ -9,8 +9,7 @@ use crate::features;
 const USAGE: &str = "\
 usage: island ctl COMMAND
 
-  open PANEL | toggle PANEL | close     PANEL: calendar, system, audio, media, notifications, launcher
-  brightness up|down|set PERCENT
+  open PANEL | toggle PANEL | close     PANEL: calendar, system, audio, media, notifications, session, clipboard, launcher
   log SPEC                             change what is logged until restart, e.g. debug or audio=debug";
 
 /// The help for `island ctl`, with every feature's commands.
@@ -47,7 +46,6 @@ pub enum Control {
     Open(String),
     Toggle(String),
     Close,
-    Brightness(Change),
     Log(String),
     /// A command for a feature, by its name.
     Feature(&'static str, Vec<String>),
@@ -63,7 +61,8 @@ pub fn change(args: &[&str], mute: bool) -> Result<Change, String> {
         ["down", amount] => percent(amount).map(|value| Change::Step(-value)),
         ["mute"] if mute => Ok(Change::ToggleMute),
         ["set", amount] => percent(amount).map(Change::Set),
-        _ => Err("expected up, down, set PERCENT or mute".to_owned()),
+        _ if mute => Err("expected up, down, set PERCENT or mute".to_owned()),
+        _ => Err("expected up, down or set PERCENT".to_owned()),
     }
 }
 
@@ -89,7 +88,6 @@ pub fn parse(args: &[String]) -> Result<Control, String> {
         ["open", panel] => Ok(Control::Open((*panel).to_owned())),
         ["toggle", panel] => Ok(Control::Toggle((*panel).to_owned())),
         ["close"] => Ok(Control::Close),
-        ["brightness", rest @ ..] => change(rest, false).map(Control::Brightness),
         ["log", spec] => Ok(Control::Log((*spec).to_owned())),
         all => match features::check_command(all) {
             Some(checked) => checked.map(|feature| Control::Feature(feature, all.iter().map(|arg| (*arg).to_owned()).collect())),
@@ -100,10 +98,10 @@ pub fn parse(args: &[String]) -> Result<Control, String> {
 
 pub fn send(args: Vec<String>) -> Result<(), String> {
     parse(&args)?;
-    let connection = Connection::session().map_err(|error| format!("no session bus: {error}"))?;
-    let proxy = Proxy::new(&connection, SERVICE, PATH, INTERFACE).map_err(|error| error.to_string())?;
-    let reply: String = proxy
-        .call("Run", &(args,))
-        .map_err(|error| format!("island is not running: {error}"))?;
+    let reply: String = block_on(async {
+        let connection = Connection::session().await.map_err(|error| format!("no session bus: {error}"))?;
+        let proxy = Proxy::new(&connection, SERVICE, PATH, INTERFACE).await.map_err(|error| error.to_string())?;
+        proxy.call("Run", &(args,)).await.map_err(|error| format!("island is not running: {error}"))
+    })?;
     if reply.is_empty() { Ok(()) } else { Err(reply) }
 }

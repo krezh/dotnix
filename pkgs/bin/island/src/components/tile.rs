@@ -4,6 +4,7 @@ use crate::{
     components::{
         card::{self, Stat},
         chart::{Series, chart},
+        motion,
     },
     theme::{OVERLAY2, SUBTEXT1, SURFACE1, TEXT, TINT, TRACK_ALPHA, with_alpha},
     ui::SMALL_SIZE,
@@ -20,8 +21,10 @@ const LABEL_W: f32 = 70.0;
 const VALUE_W: f32 = 64.0;
 const CORE_COLUMNS: usize = 16;
 const CORE_GAP: f32 = 3.0;
-/// Partitions up to this count get roomy two-line rows; more switch to compact single lines.
-pub const ROOMY_VOLUMES: usize = 3;
+/// Line heights tighter than gpui's default (≈1.6), so the host tile's hero and facts fit one unit and
+/// partition rows stay short.
+const HERO_LEADING: f32 = 1.4;
+const FACT_LEADING: f32 = 1.3;
 
 pub struct Tile {
     pub id: SharedString,
@@ -40,7 +43,6 @@ pub struct Meter {
 
 pub struct Volume {
     pub mount: SharedString,
-    pub detail: SharedString,
     pub usage: SharedString,
     pub fraction: f32,
     pub color: u32,
@@ -71,7 +73,7 @@ pub enum Part {
     Facts(Vec<(SharedString, SharedString)>),
     /// A large name over secondary lines.
     Hero { name: SharedString, lines: Vec<SharedString> },
-    /// Mounted partitions; density follows the count and the list scrolls past what fits.
+    /// Mounted partitions; the list scrolls past what fits.
     Volumes(Vec<Volume>),
     /// Physical drives as bars split into their partitions, under a small heading.
     Drives(Vec<Drive>),
@@ -102,8 +104,9 @@ fn hairline() -> gpui::Rgba {
     rgba(with_alpha(SURFACE1, 0x59))
 }
 
-fn meters(rows: Vec<Meter>) -> Div {
-    div().flex().flex_col().gap(px(7.0)).children(rows.into_iter().map(|row| {
+/// Meter rows; `key` names them for their morphing values.
+fn meters(rows: Vec<Meter>, key: &str) -> Div {
+    div().flex().flex_col().gap(px(7.0)).children(rows.into_iter().enumerate().map(|(index, row)| {
         div()
             .flex()
             .items_center()
@@ -113,13 +116,13 @@ fn meters(rows: Vec<Meter>) -> Div {
             .child(bar(row.fraction, row.color, 5.0))
             .child(
                 div()
-                    .w(px(VALUE_W))
+                    .min_w(px(VALUE_W))
                     .flex_none()
                     .flex()
                     .justify_end()
                     .whitespace_nowrap()
                     .font_weight(FontWeight::SEMIBOLD)
-                    .child(row.value),
+                    .child(motion::text(SharedString::from(format!("{key}-{index}")), row.value)),
             )
     }))
 }
@@ -157,12 +160,13 @@ fn legend(items: Vec<(Option<u32>, SharedString)>) -> Div {
         }))
 }
 
-fn facts(items: Vec<(SharedString, SharedString)>) -> Div {
+/// Labelled values, three to a row; `key` names them for their morphing values.
+fn facts(items: Vec<(SharedString, SharedString)>, key: &str) -> Div {
     let mut rows = Vec::new();
-    let mut items = items.into_iter().peekable();
+    let mut items = items.into_iter().enumerate().peekable();
     while items.peek().is_some() {
         let row: Vec<_> = items.by_ref().take(3).collect();
-        rows.push(div().flex().gap(px(6.0)).children(row.into_iter().map(|(label, value)| {
+        rows.push(div().flex().gap(px(6.0)).children(row.into_iter().map(|(index, (label, value))| {
             div()
                 .flex_1()
                 .min_w(px(0.0))
@@ -172,8 +176,15 @@ fn facts(items: Vec<(SharedString, SharedString)>) -> Div {
                 .bg(rgba(with_alpha(TINT, 0x0d)))
                 .flex()
                 .flex_col()
+                .line_height(relative(FACT_LEADING))
                 .child(div().text_size(px(10.5)).text_color(rgb(OVERLAY2)).child(label))
-                .child(div().text_size(px(SMALL_SIZE)).font_weight(FontWeight::SEMIBOLD).truncate().child(value))
+                .child(
+                    div()
+                        .text_size(px(SMALL_SIZE))
+                        .font_weight(FontWeight::SEMIBOLD)
+                        .truncate()
+                        .child(motion::text(SharedString::from(format!("{key}-{index}")), value)),
+                )
         })));
     }
     div().flex().flex_col().gap(px(6.0)).children(rows)
@@ -190,13 +201,13 @@ fn hero(name: SharedString, lines: Vec<SharedString>) -> Div {
                 .flex()
                 .flex_col()
                 .text_size(px(CAPTION))
+                .line_height(relative(HERO_LEADING))
                 .text_color(rgb(SUBTEXT1))
                 .children(lines.into_iter().map(|line| div().truncate().child(line))),
         )
 }
 
 fn volumes(id: SharedString, items: Vec<Volume>) -> AnyElement {
-    let roomy = items.len() <= ROOMY_VOLUMES;
     div()
         .id(id)
         .flex_1()
@@ -205,53 +216,30 @@ fn volumes(id: SharedString, items: Vec<Volume>) -> AnyElement {
         .flex()
         .flex_col()
         .children(items.into_iter().enumerate().map(move |(index, volume)| {
-            let row = div()
+            div()
                 .flex_none()
-                .when(index > 0, |row| row.border_t_1().border_color(hairline()));
-            if roomy {
-                row.flex()
-                    .flex_col()
-                    .gap(px(5.0))
-                    .py(px(9.0))
-                    .child(
-                        div()
-                            .flex()
-                            .justify_between()
-                            .gap(px(10.0))
-                            .text_size(px(SMALL_SIZE))
-                            .font_weight(FontWeight::SEMIBOLD)
-                            .child(div().min_w(px(0.0)).truncate().child(volume.mount))
-                            .child(div().flex_none().child(volume.usage)),
-                    )
-                    .child(div().flex().child(bar(volume.fraction, volume.color, 7.0)))
-                    .child(
-                        div()
-                            .flex()
-                            .justify_between()
-                            .text_size(px(11.0))
-                            .text_color(rgb(OVERLAY2))
-                            .child(div().min_w(px(0.0)).truncate().child(volume.detail))
-                            .child(div().flex_none().child(format!("{:.0}% used", volume.fraction * 100.0))),
-                    )
-            } else {
-                row.flex()
-                    .items_center()
-                    .gap(px(8.0))
-                    .py(px(5.0))
-                    .text_size(px(CAPTION))
-                    .child(div().flex_1().min_w(px(0.0)).truncate().text_color(rgb(SUBTEXT1)).child(volume.mount))
-                    .child(div().w(px(96.0)).flex_none().flex().child(bar(volume.fraction, volume.color, 5.0)))
-                    .child(
-                        div()
-                            .w(px(64.0))
-                            .flex_none()
-                            .flex()
-                            .justify_end()
-                            .whitespace_nowrap()
-                            .font_weight(FontWeight::SEMIBOLD)
-                            .child(volume.usage),
-                    )
-            }
+                .when(index > 0, |row| row.border_t_1().border_color(hairline()))
+                .flex()
+                .flex_col()
+                .gap(px(4.0))
+                .py(px(6.0))
+                .child(
+                    div()
+                        .flex()
+                        .justify_between()
+                        .gap(px(10.0))
+                        .text_size(px(CAPTION))
+                        .line_height(relative(FACT_LEADING))
+                        .child(div().min_w(px(0.0)).truncate().text_color(rgb(SUBTEXT1)).child(volume.mount))
+                        .child(
+                            div()
+                                .flex_none()
+                                .whitespace_nowrap()
+                                .font_weight(FontWeight::SEMIBOLD)
+                                .child(volume.usage),
+                        ),
+                )
+                .child(div().flex().child(bar(volume.fraction, volume.color, 5.0)))
         }))
         .into_any_element()
 }
@@ -316,16 +304,16 @@ fn part(part: Part, id: &SharedString, index: usize, span: usize, phase: f32) ->
             .child(div().absolute().size_full().flex().child(chart(series, card::SLOTS, phase)))
             .into_any_element(),
         Part::Cores { loads, color } => cores(loads, color).into_any_element(),
-        Part::Meters { rows, scroll: false } => meters(rows).flex_none().into_any_element(),
+        Part::Meters { rows, scroll: false } => meters(rows, &format!("{id}-meters-{index}")).flex_none().into_any_element(),
         Part::Meters { rows, scroll: true } => div()
             .id(SharedString::from(format!("{id}-meters-{index}")))
             .flex_1()
             .min_h(px(0.0))
             .overflow_y_scroll()
-            .child(meters(rows))
+            .child(meters(rows, &format!("{id}-meters-{index}")))
             .into_any_element(),
         Part::Legend(items) => legend(items).flex_none().into_any_element(),
-        Part::Facts(items) => facts(items).flex_none().into_any_element(),
+        Part::Facts(items) => facts(items, &format!("{id}-facts-{index}")).flex_none().into_any_element(),
         Part::Hero { name, lines } => hero(name, lines).flex_none().into_any_element(),
         Part::Volumes(items) => volumes(SharedString::from(format!("{id}-volumes")), items),
         Part::Drives(items) => drives(items).into_any_element(),
@@ -359,7 +347,7 @@ pub fn tile(tile: Tile, phase: f32) -> AnyElement {
                             .font_weight(FontWeight::SEMIBOLD)
                             .whitespace_nowrap()
                             .text_color(rgb(value.color))
-                            .child(value.text)
+                            .child(motion::text(SharedString::from(format!("{id}-stat")), value.text))
                     })),
             )
         })

@@ -46,11 +46,6 @@ switch_to_sink() {
     if [[ -n "$node_id" ]]; then
         echo "Switching to $sink_name (ID: $node_id)..."
         wpctl set-default "$node_id"
-
-        # Send notification if available
-        if command -v notify-send &> /dev/null; then
-            notify-send --transient "Audio Switched" "Now using: $sink_name" -t 2000
-        fi
     else
         echo "Error: $sink_name is not available"
         if command -v notify-send &> /dev/null; then

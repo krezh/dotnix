@@ -43,7 +43,6 @@ pub const HOVER_ALPHA: u8 = 0x26;
 pub const SELECTED_ALPHA: u8 = 0x33;
 pub const TRACK_ALPHA: u8 = 0x40;
 pub const ACCENT_TINT_ALPHA: u8 = 0x40;
-pub const ACCENT_HOVER_ALPHA: u8 = 0x66;
 pub const SURFACE: u32 = BASE;
 pub const SURFACE_BORDER_ALPHA: u8 = 0x66;
 pub const POPOVER_OPACITY: f32 = 0.95;

@@ -9,7 +9,7 @@ use std::{
 };
 
 use tracing::{error, info, warn};
-use zbus::{blocking::Connection, zvariant::Value};
+use zbus::{Connection, Variant, block_on};
 
 /// What to start: an argv plus the identity and directory it runs with.
 pub struct Launch {
@@ -88,27 +88,31 @@ fn transient_unit(launch: &Launch, program: &Path) -> zbus::Result<String> {
         .directory
         .as_ref()
         .map_or_else(|| "~".to_owned(), |directory| directory.to_string_lossy().into_owned());
-    let properties: Vec<(&str, Value)> = vec![
-        ("Description", Value::from(launch.name.as_str())),
-        ("Slice", Value::from("app.slice")),
-        ("Type", Value::from("exec")),
-        ("ExitType", Value::from("cgroup")),
-        ("OOMPolicy", Value::from("continue")),
-        ("CollectMode", Value::from("inactive-or-failed")),
-        ("WorkingDirectory", Value::from(directory)),
-        ("Environment", Value::from(environment)),
-        ("ExecStart", Value::from(exec_start)),
+    let properties: Vec<(&str, Variant)> = vec![
+        ("Description", Variant::from(launch.name.as_str())),
+        ("Slice", Variant::from("app.slice")),
+        ("Type", Variant::from("exec")),
+        ("ExitType", Variant::from("cgroup")),
+        ("OOMPolicy", Variant::from("continue")),
+        ("CollectMode", Variant::from("inactive-or-failed")),
+        ("WorkingDirectory", Variant::from(directory)),
+        ("Environment", Variant::from(environment)),
+        ("ExecStart", Variant::from(exec_start)),
     ];
-    let auxiliary: Vec<(&str, Vec<(&str, Value)>)> = Vec::new();
-    let connection = Connection::session()?;
+    let auxiliary: Vec<(&str, Vec<(&str, Variant)>)> = Vec::new();
     let unit = unit_name(&launch.id);
-    connection.call_method(
-        Some("org.freedesktop.systemd1"),
-        "/org/freedesktop/systemd1",
-        Some("org.freedesktop.systemd1.Manager"),
-        "StartTransientUnit",
-        &(unit.as_str(), "fail", properties, auxiliary),
-    )?;
+    block_on(async {
+        Connection::session()
+            .await?
+            .call_method(
+                Some("org.freedesktop.systemd1"),
+                "/org/freedesktop/systemd1",
+                Some("org.freedesktop.systemd1.Manager"),
+                "StartTransientUnit",
+                &(unit.as_str(), "fail", properties, auxiliary),
+            )
+            .await
+    })?;
     Ok(unit)
 }
 
@@ -184,43 +188,5 @@ pub fn parse_exec(exec: &str, name: &str) -> Option<Vec<String>> {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::parse_exec;
-
-    #[test]
-    fn splits_plain_words_and_drops_field_codes() {
-        assert_eq!(parse_exec("firefox %U", "Firefox"), Some(vec!["firefox".to_owned()]));
-        assert_eq!(
-            parse_exec("code --new-window %F", "Code"),
-            Some(vec!["code".to_owned(), "--new-window".to_owned()])
-        );
-    }
-
-    #[test]
-    fn keeps_quoted_arguments_together() {
-        assert_eq!(
-            parse_exec(r#"sh -c "echo \"hi there\" > \$HOME/x""#, "Sh"),
-            Some(vec!["sh".to_owned(), "-c".to_owned(), r#"echo "hi there" > $HOME/x"#.to_owned()])
-        );
-    }
-
-    #[test]
-    fn expands_percent_and_app_name() {
-        assert_eq!(
-            parse_exec("app --rate 100%% --title %c", "My App"),
-            Some(vec![
-                "app".to_owned(),
-                "--rate".to_owned(),
-                "100%".to_owned(),
-                "--title".to_owned(),
-                "My App".to_owned()
-            ])
-        );
-    }
-
-    #[test]
-    fn rejects_unterminated_quotes_and_empty_lines() {
-        assert_eq!(parse_exec(r#"app "broken"#, "App"), None);
-        assert_eq!(parse_exec("  %U ", "App"), None);
-    }
-}
+#[path = "launch_test.rs"]
+mod tests;

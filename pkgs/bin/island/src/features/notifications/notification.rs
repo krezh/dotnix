@@ -1,4 +1,5 @@
 use std::{
+    path::PathBuf,
     sync::atomic::{AtomicU32, Ordering},
     time::{Duration, SystemTime},
 };
@@ -16,6 +17,8 @@ pub enum Expire {
 pub struct Action {
     pub key: String,
     pub label: String,
+    /// The icon its label names, when the app asked for icons instead of text (`action-icons`).
+    pub icon: Option<PathBuf>,
 }
 
 #[derive(Clone, Debug)]

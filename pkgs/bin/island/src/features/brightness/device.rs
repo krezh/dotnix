@@ -5,7 +5,7 @@ use std::{
 };
 
 use ddc_hi::{Ddc, Display};
-use zbus::blocking::Connection;
+use zbus::{Connection, block_on};
 
 use crate::dbus::uncached;
 
@@ -29,16 +29,19 @@ fn set_backlight(device: &Path, level: f32) -> Option<()> {
     let max = read_number(&device.join("max_brightness"))?;
     let value = (level.clamp(0.01, 1.0) * max as f32).round() as u32;
     let name = device.file_name()?.to_string_lossy().into_owned();
-    let connection = Connection::system().ok()?;
-    let session = uncached(
-        &connection,
-        "org.freedesktop.login1",
-        "/org/freedesktop/login1/session/auto",
-        "org.freedesktop.login1.Session",
-    )
-    .ok()?;
-    session.call_method("SetBrightness", &("backlight", name.as_str(), value)).ok()?;
-    Some(())
+    block_on(async {
+        let connection = Connection::system().await.ok()?;
+        let session = uncached(
+            &connection,
+            "org.freedesktop.login1",
+            "/org/freedesktop/login1/session/auto",
+            "org.freedesktop.login1.Session",
+        )
+        .await
+        .ok()?;
+        session.call_method("SetBrightness", &("backlight", name.as_str(), value)).await.ok()?;
+        Some(())
+    })
 }
 
 fn displays() -> &'static Mutex<Vec<Display>> {

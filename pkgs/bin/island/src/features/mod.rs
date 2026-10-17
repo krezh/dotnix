@@ -3,12 +3,16 @@
 //! [`features!`]; nothing else in island names it.
 
 pub mod audio;
+pub mod brightness;
 pub mod caffeine;
+pub mod clipboard;
 pub mod clock;
 pub mod headset;
 pub mod media;
 pub mod molt;
 pub mod notifications;
+pub mod osd;
+pub mod session;
 pub mod tray;
 pub mod workspaces;
 pub mod zowie;
@@ -26,8 +30,8 @@ use futures::{
     channel::mpsc::{UnboundedSender, unbounded},
 };
 use gpui::{
-    AnyElement, AnyEntity, App, AppContext, Context, Div, Entity, EventEmitter, FontWeight, SharedString, Stateful,
-    Subscription, WeakEntity, Window,
+    AnyElement, AnyEntity, App, AppContext, Context, Div, Entity, EventEmitter, FontWeight, Keystroke, SharedString,
+    Stateful, Subscription, WeakEntity, Window,
 };
 use serde::de::DeserializeOwned;
 use tracing::{debug, error};
@@ -41,13 +45,15 @@ use crate::{
     },
     glyphs::Glyphs,
     island::{Island, Panel, Placement},
+    launcher::Outcome,
     panel::{self, Handler, IconButton, PanelView},
-    panels::Osd,
     supervisor::{self, Ended},
     wm::Monitor,
 };
 
 /// An icon a feature draws: its key and the theme names to try, in order.
+pub use osd::Osd;
+
 pub type GlyphSpec = (&'static str, &'static [&'static str]);
 
 pub trait Feature: Sized + 'static {
@@ -130,6 +136,9 @@ pub trait Feature: Sized + 'static {
     /// state such as a play position.
     const PANEL_REFRESH: Option<Duration> = None;
 
+    /// The panel opened on an island, such as to bring what it shows up to date.
+    fn panel_opened(&self) {}
+
     /// The panel for `state`; only asked for when [`Feature::PANEL`] is set. It reads the island's
     /// own part with [`PanelCx::local`] and changes it with [`PanelCx::on_local`].
     fn panel<'a>(&self, _: &Self::State, _: &PanelCx<'a>) -> Option<PanelView<'a>> {
@@ -147,7 +156,8 @@ pub trait Feature: Sized + 'static {
     /// over that island.
     fn elapse(&self, _local: &mut Self::Local, _hovered: bool) {}
 
-    /// The popup to show when the state changes from `before` to `after`, such as a volume change.
+    /// The OSD to show when the state changes from `before` to `after`, such as a volume change; it
+    /// goes to [`Local::osd`] on every island (see [`osd`]).
     fn osd(_before: &Self::State, _after: &Self::State) -> Option<Osd> {
         None
     }
@@ -176,6 +186,16 @@ pub trait Feature: Sized + 'static {
 
     /// Runs a command [`Feature::check`] accepted.
     fn command(&self, _: &Self::State, _args: &[&str]) {}
+
+    /// Whether the panel takes the keyboard while open, like the launcher; keys then go to
+    /// [`Feature::key`].
+    const KEYBOARD: bool = false;
+
+    /// A key pressed while the panel is open, with this island's own part of the feature; says
+    /// whether the panel stays open.
+    fn key(&self, _: &Self::State, _local: &mut Self::Local, _keystroke: &Keystroke) -> Outcome {
+        Outcome::Close
+    }
 }
 
 /// Where an island is, for its own part of a feature.
@@ -213,10 +233,16 @@ pub trait Local: 'static {
     /// The island started or stopped showing the feature's pop-up.
     fn popup_shown(&mut self, _shown: bool) {}
 
+    /// The pointer came onto the island (`over`) or left it, such as to pause a countdown.
+    fn pointer(&mut self, _over: bool) {}
+
     /// When it next needs [`Feature::elapse`], such as a card timing out.
     fn due(&self) -> Option<Instant> {
         None
     }
+
+    /// An OSD from [`Feature::osd`], which every island is given; see [`osd::Shown`].
+    fn osd(&mut self, _osd: Osd) {}
 
     /// Measures the text it lays out by, before drawing; true when that changed its layout.
     fn measure(&mut self, _window: &Window) -> bool {
@@ -275,6 +301,14 @@ impl<S, E> Clone for Feed<S, E> {
             settings: self.settings.clone(),
         }
     }
+}
+
+/// A feature's reading, and whether a fresh one asked for, such as by right-clicking its widget, is
+/// on its way, so the widget can show it is busy.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct Refreshed<T> {
+    pub value: T,
+    pub refreshing: bool,
 }
 
 /// `settings`, a section of the config file, as `T`.
@@ -338,8 +372,6 @@ pub struct Instance<F: Feature> {
     live: Vec<f32>,
 }
 
-impl<F: Feature> EventEmitter<Osd> for Instance<F> {}
-
 /// New live levels arrived.
 pub struct Live;
 
@@ -359,19 +391,19 @@ pub trait AnyFeature {
     fn widget(&self, widget: &str, snapshot: &dyn Any, w: &mut WidgetCx<'_>, cx: &App) -> Option<AnyElement>;
     fn glow(&self, cx: &App) -> Option<Vec<f32>>;
     fn panel<'a>(&self, p: &mut PanelCx<'a>, cx: &App) -> Option<PanelView<'a>>;
+    fn panel_opened(&self, cx: &App);
     fn popup<'a>(&self, p: &mut PanelCx<'a>, cx: &App) -> Option<PanelView<'a>>;
     fn elapse(&self, local: &mut dyn AnyLocal, hovered: bool, cx: &App);
     fn system_button(&self, p: &mut PanelCx<'_>, cx: &App) -> Option<IconButton>;
     fn inhibits_idle(&self, cx: &App) -> bool;
     fn command(&self, args: &[&str], cx: &App);
+    fn key(&self, local: &mut dyn AnyLocal, keystroke: &Keystroke, cx: &App) -> Outcome;
     /// A new island's own part of this feature, brought up to date.
     fn new_local(&self, island: &IslandInfo<'_>, cx: &App) -> Box<dyn AnyLocal>;
     fn sync_local(&self, local: &mut dyn AnyLocal, island: &IslandInfo<'_>, animate: bool, cx: &App);
     /// Calls [`Island::feature_changed`] whenever this feature's state changes, and
     /// [`Island::feature_live`] whenever its live levels do.
     fn observe(&self, cx: &mut Context<Island>) -> Vec<Subscription>;
-    /// Hands every popup this feature asks for to `show`.
-    fn on_osd(&self, show: Box<dyn Fn(Osd, &mut App)>, cx: &mut App) -> Subscription;
 }
 
 impl<F: Feature> AnyFeature for Entity<Instance<F>> {
@@ -419,6 +451,10 @@ impl<F: Feature> AnyFeature for Entity<Instance<F>> {
         instance.feature.panel(&instance.state, p)
     }
 
+    fn panel_opened(&self, cx: &App) {
+        self.read(cx).feature.panel_opened();
+    }
+
     fn popup<'a>(&self, p: &mut PanelCx<'a>, cx: &App) -> Option<PanelView<'a>> {
         p.entity = Some(self.clone().into_any());
         let instance = self.read(cx);
@@ -446,6 +482,14 @@ impl<F: Feature> AnyFeature for Entity<Instance<F>> {
         instance.feature.command(&instance.state, args);
     }
 
+    fn key(&self, local: &mut dyn AnyLocal, keystroke: &Keystroke, cx: &App) -> Outcome {
+        let Some(local) = local.as_any_mut().downcast_mut::<F::Local>() else {
+            return Outcome::Close;
+        };
+        let instance = self.read(cx);
+        instance.feature.key(&instance.state, local, keystroke)
+    }
+
     fn new_local(&self, island: &IslandInfo<'_>, cx: &App) -> Box<dyn AnyLocal> {
         let mut local = F::Local::default();
         F::sync_local(&self.read(cx).state, &mut local, island, false);
@@ -463,10 +507,6 @@ impl<F: Feature> AnyFeature for Entity<Instance<F>> {
             cx.observe(self, |island, _, cx| island.feature_changed(F::NAME, cx)),
             cx.subscribe(self, |island, _, _: &Live, cx| island.feature_live(F::NAME, cx)),
         ]
-    }
-
-    fn on_osd(&self, show: Box<dyn Fn(Osd, &mut App)>, cx: &mut App) -> Subscription {
-        cx.subscribe(self, move |_, osd: &Osd, cx| show(osd.clone(), cx))
     }
 }
 
@@ -532,7 +572,7 @@ fn start_one<F: Feature>(live: bool, settings: Option<toml::Value>, cx: &mut App
                     instance.state = state;
                     cx.notify();
                     if let Some(osd) = osd {
-                        cx.emit(osd);
+                        Islands::<F::Local>::new(F::NAME, cx).update_all(|local| local.osd(osd.clone()));
                     }
                 }
             });
@@ -567,36 +607,22 @@ pub struct IslandId(usize);
 pub struct Islands<'a, L> {
     name: &'static str,
     list: Vec<Entity<Island>>,
-    focused: Option<usize>,
     cx: &'a mut App,
     local: PhantomData<fn(&mut L)>,
 }
 
 impl<'a, L: Local> Islands<'a, L> {
     fn new(name: &'static str, cx: &'a mut App) -> Self {
-        let (list, focused) = match cx.try_global::<Placement>() {
-            Some(placement) => {
-                let list: Vec<Entity<Island>> = placement.islands.iter().filter_map(WeakEntity::upgrade).collect();
-                let focused = placement
-                    .focused
-                    .as_ref()
-                    .and_then(|focused| list.iter().position(|island| island.entity_id() == focused.entity_id()));
-                (list, focused)
-            }
-            None => (Vec::new(), None),
-        };
+        let list = cx
+            .try_global::<Placement>()
+            .map(|placement| placement.islands.iter().filter_map(WeakEntity::upgrade).collect())
+            .unwrap_or_default();
         Self {
             name,
-            focused: focused.or((!list.is_empty()).then_some(0)),
             list,
             cx,
             local: PhantomData,
         }
-    }
-
-    /// The island on the focused monitor, where something new appears.
-    pub fn focused(&self) -> Option<IslandId> {
-        self.focused.map(IslandId)
     }
 
     /// The first island whose own part passes `test`.
@@ -703,9 +729,25 @@ impl<'a> WidgetCx<'a> {
         bar::widget_base(id, self.look)
     }
 
+    /// The widget shell without a hover of its own, for a widget made of several clickable parts
+    /// that each show the hover tint, through `ui::control` with [`WidgetCx::hover`].
+    pub fn group(&self, id: impl Into<SharedString>) -> Stateful<Div> {
+        bar::widget_group(id, self.look)
+    }
+
+    /// Whether the pointer is over the island, so hover tints apply.
+    pub fn hover(&self) -> bool {
+        self.look.hover()
+    }
+
     /// A small count as wide as the widest one ("88"), so the widget keeps its width as it changes.
     pub fn count(&self, text: impl Into<SharedString>) -> Div {
         bar::slot(text, self.slots.count())
+    }
+
+    /// The energy border round the widget while `busy`, such as while a refresh asked for runs.
+    pub fn energy(&self, busy: bool) -> impl gpui::IntoElement {
+        bar::energy(self.look, busy)
     }
 
     /// A glyph beside a vertical level meter.
@@ -792,15 +834,24 @@ impl<'a> PanelCx<'a> {
     /// A handler that calls `action` with this feature's handle and this island's own part of it,
     /// then redraws the island.
     pub fn on_local<F: Feature>(&self, action: impl Fn(&F, &mut F::Local) + 'static) -> Handler {
+        let with = self.on_local_with::<F, ()>(move |feature, local, ()| action(feature, local));
+        panel::on(move |island, cx| with((), island, cx))
+    }
+
+    /// Like [`PanelCx::on_local`], for handlers given a value, such as the rows a list scrolled.
+    pub fn on_local_with<F: Feature, T: 'static>(
+        &self,
+        action: impl Fn(&F, &mut F::Local, T) + 'static,
+    ) -> Rc<dyn Fn(T, &mut Island, &mut Context<Island>)> {
         let instance = instance::<F>(&self.entity);
-        panel::on(move |island, cx| {
+        Rc::new(move |value, island, cx| {
             let Some(instance) = instance.as_ref().and_then(WeakEntity::upgrade) else {
                 return;
             };
             let feature = &instance.read(cx).feature;
             island.update_local(F::NAME, |local| {
                 if let Some(local) = local.as_any_mut().downcast_mut::<F::Local>() {
-                    action(feature, local);
+                    action(feature, local, value);
                 }
             });
             island.local_changed(F::NAME, cx);
@@ -814,6 +865,19 @@ impl<'a> PanelCx<'a> {
             if let Some(instance) = instance.as_ref().and_then(WeakEntity::upgrade) {
                 action(&instance.read(cx).feature);
             }
+        })
+    }
+
+    /// A handler that calls `action` with this feature's handle and the island, for actions that
+    /// also change the island, such as closing the panel.
+    pub fn on_island<F: Feature + Clone>(&self, action: impl Fn(&F, &mut Island, &mut Context<Island>) + 'static) -> Handler {
+        let instance = instance::<F>(&self.entity);
+        panel::on(move |island, cx| {
+            let Some(feature) = instance.as_ref().and_then(WeakEntity::upgrade).map(|instance| instance.read(cx).feature.clone())
+            else {
+                return;
+            };
+            action(&feature, island, cx);
         })
     }
 
@@ -885,6 +949,16 @@ macro_rules! features {
                 }
             )*
             None
+        }
+
+        /// Whether the panel of the feature called `feature` takes the keyboard.
+        pub fn keyboard(feature: &str) -> bool {
+            $(
+                if <$feature as Feature>::NAME == feature {
+                    return <$feature as Feature>::KEYBOARD;
+                }
+            )*
+            false
         }
 
         /// The panel name of the feature called `feature`.
@@ -961,5 +1035,8 @@ features![
     headset::Headset,
     zowie::Zowie,
     audio::Audio,
+    brightness::Brightness,
     media::Media,
+    session::Session,
+    clipboard::Clipboard,
 ];

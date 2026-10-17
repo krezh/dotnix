@@ -1,10 +1,13 @@
-//! Notifications: island's notification server. New notifications pop up as cards on the focused
-//! island; ones that time out unseen, or arrive during do not disturb, wait in the notifications
-//! panel. A dot in the bar shows whether any are waiting, and `island ctl dnd` and
-//! `island ctl private` switch do not disturb and hidden contents.
+//! Notifications: island's notification server. New notifications pop up as cards on every
+//! island; dismissing or acting on one takes it from all of them, and one that times out unseen
+//! everywhere, or arrives during do not disturb, waits in the notifications panel. A dot in the bar shows whether any are waiting, `island ctl dnd` and
+//! `island ctl private` switch do not disturb and hidden contents, and `island ctl clear` dismisses
+//! them all.
 
 mod card;
+mod history;
 mod lock;
+mod markdown;
 mod missed_list;
 mod notification;
 mod server;
@@ -12,6 +15,7 @@ mod toasts;
 
 use std::{
     cell::RefCell,
+    collections::HashSet,
     hash::{DefaultHasher, Hash, Hasher},
     sync::{
         Arc,
@@ -25,6 +29,7 @@ use serde::Deserialize;
 
 use self::{
     card::Look,
+    history::{Earlier, Write},
     missed_list::MissedList,
     notification::{DEFAULT_ACTION, Notification, Reason, Signal},
     toasts::Toasts,
@@ -34,7 +39,7 @@ use crate::{
     components::tooltip::Tip,
     control::{self, Switch},
     island::{Panel, REVEAL_DELAY},
-    panel::{Block, Button, Handler, Header, PanelView},
+    panel::{Block, Button, Handler, Header, PanelView, Views},
     theme::{ACCENT, OVERLAY1},
 };
 
@@ -55,6 +60,8 @@ struct Settings {
     private_apps: Vec<String>,
     /// Hide contents while the session is locked.
     hide_on_lock: bool,
+    /// How many days the history keeps notifications.
+    history_days: u32,
 }
 
 impl Default for Settings {
@@ -63,6 +70,7 @@ impl Default for Settings {
             private: false,
             private_apps: Vec::new(),
             hide_on_lock: true,
+            history_days: 7,
         }
     }
 }
@@ -74,12 +82,23 @@ pub enum Event {
     Close(u32),
     /// The session was locked or unlocked.
     Locked(bool),
+    /// `island ctl clear`: every card and missed notification goes.
+    Clear,
+    /// A notification's card timed out on one island; once no island shows it, it waits in the
+    /// missed list, or its app hears of it when transient.
+    Expired(Notification),
+    /// A notification's card was dismissed or acted on, on one island; it goes from the others.
+    Withdrawn(u32),
+    /// The history as the database holds it, read at start.
+    History(Vec<Earlier>),
 }
 
-/// The missed notifications, newest first, and the switches every island shares.
+/// The missed notifications and the history, newest first, and the switches every island shares.
 #[derive(Clone, Default)]
 pub struct State {
     missed: Arc<Vec<Notification>>,
+    /// Every notification the history keeps, this session's included.
+    history: Arc<Vec<Earlier>>,
     dnd: bool,
     private: bool,
     locked: bool,
@@ -98,9 +117,15 @@ impl PartialEq for State {
 pub struct Cards {
     toasts: Toasts,
     missed: MissedList,
+    /// The panel shows the Earlier view rather than the missed list.
+    earlier: bool,
 }
 
 impl Local for Cards {
+    fn panel_closed(&mut self) {
+        self.earlier = false;
+    }
+
     fn advance(&mut self, dt: f32, now: Instant) {
         self.toasts.advance(dt, now);
         self.missed.advance(dt, now);
@@ -118,6 +143,10 @@ impl Local for Cards {
         self.toasts.set_shown(shown);
     }
 
+    fn pointer(&mut self, over: bool) {
+        self.toasts.set_pointer(over, Instant::now());
+    }
+
     fn due(&self) -> Option<Instant> {
         self.toasts.due()
     }
@@ -132,11 +161,75 @@ pub struct Notifications {
     /// The truth the published state copies.
     store: RefCell<State>,
     signals: Sender<Signal>,
+    history: Sender<Write>,
+    history_days: u32,
     private_apps: Vec<String>,
     hide_on_lock: bool,
 }
 
 impl Notifications {
+    /// Keeps `notification` in the history, in place of one it replaces.
+    fn remember(&self, notification: &Notification) {
+        let earlier = Earlier {
+            session: history::session(),
+            notification: notification.clone(),
+        };
+        let days = self.history_days;
+        let _ = self.history.send(Write::Record(earlier.clone()));
+        self.change(|store| {
+            let history = Arc::make_mut(&mut store.history);
+            history.retain(|kept| kept.key() != earlier.key() && !history::aged(kept.notification.received, days));
+            history.insert(0, earlier);
+        });
+    }
+
+    /// Takes the history read from the database in, keeping what this session added meanwhile.
+    fn load_history(&self, read: Vec<Earlier>) {
+        self.change(|store| {
+            let mut merged = read;
+            for kept in store.history.iter() {
+                if !merged.iter().any(|read| read.key() == kept.key()) {
+                    merged.push(kept.clone());
+                }
+            }
+            merged.sort_by(|a, b| b.notification.received.cmp(&a.notification.received));
+            store.history = Arc::new(merged);
+        });
+    }
+
+    /// What the Earlier view lists: the history, without what is in the missed list, and without
+    /// actions, whose apps may be long gone.
+    fn earlier(state: &State) -> Vec<Earlier> {
+        let session = history::session();
+        state
+            .history
+            .iter()
+            .filter(|kept| !(kept.session == session && state.missed.iter().any(|missed| missed.id == kept.notification.id)))
+            .map(|kept| Earlier {
+                session: kept.session,
+                notification: Notification {
+                    actions: Vec::new(),
+                    ..kept.notification.clone()
+                },
+            })
+            .collect()
+    }
+
+    /// Takes the entries named by `keys` out of the history.
+    fn forget(&self, keys: Vec<(i64, u32)>) {
+        if keys.is_empty() {
+            return;
+        }
+        self.change(|store| Arc::make_mut(&mut store.history).retain(|kept| !keys.contains(&kept.key())));
+        let _ = self.history.send(Write::Forget(keys));
+    }
+
+    /// Empties the Earlier view.
+    fn clear_earlier(&self) {
+        let keys = Self::earlier(&self.store.borrow()).iter().map(Earlier::key).collect();
+        self.forget(keys);
+    }
+
     fn change(&self, change: impl FnOnce(&mut State)) {
         let mut store = self.store.borrow_mut();
         change(&mut store);
@@ -222,15 +315,16 @@ impl Notifications {
         }
     }
 
-    /// Takes `card` away for `reason`. One that timed out waits in the missed list unless its app
-    /// called it transient; the app hears of the others.
+    /// Takes `card` away from this island for `reason`. One that timed out settles once no island
+    /// shows it ([`Event::Expired`]); any other goes from every island, and its app hears of it.
     fn dismiss_card(&self, cards: &mut Cards, card: u64, reason: Reason) {
         let Some(notification) = cards.toasts.dismiss(card) else {
             return;
         };
-        if reason == Reason::Expired && !notification.transient {
-            self.add_missed(notification);
+        if reason == Reason::Expired {
+            self.feed.send(Event::Expired(notification));
         } else {
+            self.feed.send(Event::Withdrawn(notification.id));
             self.signal(Signal::Closed(notification.id, reason));
         }
     }
@@ -278,9 +372,10 @@ impl Feature for Notifications {
     const NAME: &'static str = "notifications";
     const PANEL: Option<&'static str> = Some("notifications");
     const PANEL_REFRESH: Option<Duration> = Some(REFRESH);
-    const COMMANDS: &'static [&'static str] = &["dnd", "private"];
+    const COMMANDS: &'static [&'static str] = &["dnd", "private", "clear"];
     const USAGE: &'static str = "  dnd on|off|toggle
-  private on|off|toggle                 hide notification contents";
+  private on|off|toggle                 hide notification contents
+  clear                                 dismiss every notification";
 
     type State = State;
     type Local = Cards;
@@ -291,10 +386,15 @@ impl Feature for Notifications {
         let (signals, outgoing) = mpsc::channel();
         feed.clone().supervise(move |feed| server::serve(feed, &outgoing));
         feed.clone().supervise(lock::follow);
+        let (history, writes) = mpsc::channel();
+        let days = settings.history_days;
+        feed.clone().supervise(move |feed| history::work(feed, &writes, days));
         let notifications = Self {
             feed,
             store: RefCell::default(),
             signals,
+            history,
+            history_days: settings.history_days,
             private_apps: settings.private_apps.iter().map(|app| app.to_lowercase()).collect(),
             hide_on_lock: settings.hide_on_lock,
         };
@@ -313,6 +413,7 @@ impl Feature for Notifications {
     fn event(&self, event: Event, islands: &mut Islands<'_, Cards>) {
         match event {
             Event::Show(notification) => {
+                self.remember(&notification);
                 let shown = islands.find(|cards| cards.toasts.live_card_for(notification.id).is_some());
                 let (missed, dnd) = {
                     let store = self.store.borrow();
@@ -320,19 +421,47 @@ impl Feature for Notifications {
                 };
                 if missed || (dnd && shown.is_none() && !notification.critical) {
                     self.add_missed(notification);
-                } else if let Some(island) = shown.or_else(|| islands.focused()) {
-                    islands.update(island, |cards| cards.toasts.show(notification));
+                } else {
+                    islands.update_all(|cards| cards.toasts.show(notification.clone()));
                 }
             }
             Event::Close(id) => {
-                islands.update_all(|cards| {
-                    if cards.toasts.close(id).is_some() {
-                        self.signal(Signal::Closed(id, Reason::Closed));
-                    }
-                });
+                let mut closed = false;
+                islands.update_all(|cards| closed |= cards.toasts.close(id).is_some());
+                if closed {
+                    self.signal(Signal::Closed(id, Reason::Closed));
+                }
                 self.close_missed(id);
             }
             Event::Locked(locked) => self.change(|store| store.locked = locked),
+            Event::Clear => {
+                let mut dismissed = HashSet::new();
+                islands.update_all(|cards| {
+                    let shown: Vec<u64> = cards.toasts.cards().iter().map(|shown| shown.id).collect();
+                    for card in shown {
+                        if let Some(notification) = cards.toasts.dismiss(card) {
+                            dismissed.insert(notification.id);
+                        }
+                    }
+                });
+                for id in dismissed {
+                    self.signal(Signal::Closed(id, Reason::Dismissed));
+                }
+                self.clear();
+            }
+            Event::Expired(notification) => {
+                if islands.find(|cards| cards.toasts.live_card_for(notification.id).is_some()).is_none() {
+                    if notification.transient {
+                        self.signal(Signal::Closed(notification.id, Reason::Expired));
+                    } else {
+                        self.add_missed(notification);
+                    }
+                }
+            }
+            Event::Withdrawn(id) => islands.update_all(|cards| {
+                cards.toasts.close(id);
+            }),
+            Event::History(read) => self.load_history(read),
         }
     }
 
@@ -376,12 +505,15 @@ impl Feature for Notifications {
 
     fn panel<'a>(&self, state: &State, p: &PanelCx<'a>) -> Option<PanelView<'a>> {
         let cards = p.local::<Cards>()?;
-        let mut buttons = vec![
+        let buttons = vec![
             Button {
                 id: "missed-private".into(),
                 label: "Private".into(),
                 active: state.private,
                 toggle: true,
+                fits: Vec::new(),
+                busy: false,
+                enabled: true,
                 on_click: p.call::<Self>(|notifications| notifications.set_private(Switch::Toggle)),
             },
             Button {
@@ -389,16 +521,55 @@ impl Feature for Notifications {
                 label: "Do not disturb".into(),
                 active: state.dnd,
                 toggle: true,
+                fits: Vec::new(),
+                busy: false,
+                enabled: true,
                 on_click: p.call::<Self>(|notifications| notifications.set_dnd(Switch::Toggle)),
             },
-        ];
-        if !cards.missed.is_empty() {
-            buttons.push(Button {
+            Button {
                 id: "missed-clear".into(),
                 label: "Clear".into(),
                 active: false,
                 toggle: false,
-                on_click: p.call::<Self>(Self::clear),
+                fits: Vec::new(),
+                busy: false,
+                enabled: if cards.earlier { !Self::earlier(state).is_empty() } else { !cards.missed.is_empty() },
+                on_click: p.on_local::<Self>(|notifications, cards| {
+                    if cards.earlier {
+                        notifications.clear_earlier();
+                    } else {
+                        notifications.clear();
+                    }
+                }),
+            },
+        ];
+        let header = Header::Views(Views {
+            tabs: vec!["Now".into(), "Earlier".into()],
+            selected: usize::from(cards.earlier),
+            on_select: p.on_local_with::<Self, usize>(|_, cards, tab| cards.earlier = tab == 1),
+            buttons,
+        });
+        if cards.earlier {
+            let entries = Self::earlier(state);
+            let looks = entries
+                .iter()
+                .map(|kept| {
+                    let key = kept.key();
+                    Look {
+                        countdown: None,
+                        hidden: self.hidden(state, &kept.notification),
+                        activate: p.call::<Self>(|_| {}),
+                        dismiss: p.call::<Self>(move |notifications| notifications.forget(vec![key])),
+                        invoke: Vec::new(),
+                    }
+                })
+                .collect();
+            return Some(PanelView {
+                header,
+                blocks: vec![Block::Custom(
+                    shape(card::earlier_height(&entries).to_bits()),
+                    Box::new(move |frame, _, cx| card::earlier(entries, looks, frame.hover, cx)),
+                )],
             });
         }
         let looks = cards
@@ -408,6 +579,7 @@ impl Feature for Notifications {
             .map(|row| {
                 let id = row.notification.id;
                 Look {
+                    countdown: None,
                     hidden: self.hidden(state, &row.notification),
                     activate: p.call::<Self>(move |notifications| notifications.activate_missed(id)),
                     dismiss: p.call::<Self>(move |notifications| notifications.dismiss_missed(id)),
@@ -420,9 +592,9 @@ impl Feature for Notifications {
         let empty = if state.dnd { "Nothing missed · do not disturb is on" } else { "Nothing missed" };
         let rows = &cards.missed;
         Some(PanelView {
-            header: Header::Title("Notifications".into(), buttons),
+            header,
             blocks: vec![Block::Custom(
-                shape((rows.is_empty(), rows.target_height().to_bits())),
+                shape((rows.is_empty(), rows.visible_height().to_bits())),
                 Box::new(move |frame, _, cx| card::missed(rows, looks, empty.into(), frame.hover, cx)),
             )],
         })
@@ -437,6 +609,7 @@ impl Feature for Notifications {
             .map(|shown| {
                 let id = shown.id;
                 Look {
+                    countdown: shown.countdown(),
                     hidden: self.hidden(state, &shown.notification),
                     activate: p.on_local::<Self>(move |notifications, cards| notifications.activate_card(cards, id)),
                     dismiss: p.on_local::<Self>(move |notifications, cards| {
@@ -459,10 +632,18 @@ impl Feature for Notifications {
     }
 
     fn check(args: &[&str]) -> Result<(), String> {
-        control::switch(&args[1..]).map(drop)
+        match args {
+            ["clear"] => Ok(()),
+            ["clear", ..] => Err("clear takes no arguments".to_owned()),
+            _ => control::switch(&args[1..]).map(drop),
+        }
     }
 
     fn command(&self, _: &State, args: &[&str]) {
+        if args == ["clear"] {
+            self.feed.send(Event::Clear);
+            return;
+        }
         let Ok(switch) = control::switch(&args[1..]) else {
             return;
         };

@@ -19,7 +19,7 @@ struct Cli {
     /// Flake reference; bare names try the active flake before nixpkgs
     flake_ref: Option<String>,
 
-    /// A specific version (e.g. 1.2.3, latest) or a range (1.0.0..latest, 1.0.0.., ..2.0.0)
+    /// A specific version (e.g. 1.2.3, latest) or a range excluding its start (1.0.0..latest, 1.0.0.., ..2.0.0)
     #[arg(value_name = "VERSION_OR_RANGE")]
     version_spec: Option<String>,
 

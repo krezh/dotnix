@@ -36,13 +36,40 @@
       sysMonitor = mkProg pkgs.resources;
       molt = mkProg osConfig.nixosModules.molt.package;
       hyprlock.run = "${lib.getExe config.programs.hyprlock.package} --grace 0";
-      shell.run = "${lib.getExe config.programs.noctalia.package} msg";
+      # shell.run = "${lib.getExe config.programs.noctalia.package} msg";
+      shell.run = "${lib.getExe config.homeModules.island.package} ctl";
       keybinds.run = lib.getExe pkgs.hyprland_keybinds;
       mail.run = lib.getExe pkgs.protonmail-desktop;
       audioControl = mkProgWith pkgs.pwvucontrol "--tab 4";
-      volume_script = lib.getExe pkgs.volume_script_hyprpanel;
-      brightness_script = lib.getExe pkgs.brightness_script_hyprpanel;
       audioSwitch = lib.getExe osConfig.nixosModules.wireplumber.audioSwitching.package;
+      volume =
+        let
+          wpctl = lib.getExe' pkgs.wireplumber "wpctl";
+        in
+        {
+          up = "${wpctl} set-volume -l 1.0 @DEFAULT_AUDIO_SINK@ 5%+";
+          down = "${wpctl} set-volume -l 1.0 @DEFAULT_AUDIO_SINK@ 5%-";
+          mute = "${wpctl} set-mute @DEFAULT_AUDIO_SINK@ toggle";
+        };
+
+      brightness =
+        let
+          brightnessctl = lib.getExe pkgs.brightnessctl;
+        in
+        {
+          up = "${brightnessctl} set 5%+ -q";
+          down = "${brightnessctl} set 5%- -n 5% -q";
+        };
+
+      media =
+        let
+          playerctl = lib.getExe pkgs.playerctl;
+        in
+        {
+          play = "${playerctl} play-pause";
+          prev = "${playerctl} previous";
+          next = "${playerctl} next";
+        };
 
       mainMod = "SUPER";
       mainModShift = "SUPER + SHIFT";
@@ -53,7 +80,8 @@
           bind = mkBinds {
             # Applications
             "${mainMod} + ESCAPE" = {
-              rule = exec "${shell.run} panel-toggle session";
+              # rule = exec "${shell.run} panel-toggle session";
+              rule = exec "${shell.run} toggle session";
               desc = "Session Menu";
             };
             "${mainMod} + L" = {
@@ -61,15 +89,18 @@
               desc = "Lockscreen";
             };
             "${mainMod} + R" = {
-              rule = exec "${shell.run} panel-toggle launcher";
+              # rule = exec "${shell.run} panel-toggle launcher";
+              rule = exec "${shell.run} toggle launcher";
               desc = "Application launcher";
             };
             "${mainMod} + N" = {
-              rule = exec "${shell.run} panel-toggle control-center notifications";
+              # rule = exec "${shell.run} panel-toggle control-center notifications";
+              rule = exec "${shell.run} toggle notifications";
               desc = "Notifications";
             };
             "${mainModShift} + N" = {
-              rule = exec "${shell.run} notification-clear-history";
+              # rule = exec "${shell.run} notification-clear-history";
+              rule = exec "${shell.run} clear";
               desc = "Clear notifications";
             };
             "${mainMod} + B" = {
@@ -97,7 +128,8 @@
               desc = "System Monitor";
             };
             "${mainMod} + V" = {
-              rule = exec "${shell.run} panel-toggle clipboard";
+              # rule = exec "${shell.run} panel-toggle clipboard";
+              rule = exec "${shell.run} toggle clipboard";
               desc = "Clipboard Manager";
             };
             "${mainMod} + K" = {
@@ -296,47 +328,47 @@
 
             # Media keys (locked)
             "XF86AudioMute" = {
-              rule = exec "${volume_script} mute";
+              rule = exec volume.mute;
               desc = "Toggle mute";
               locked = true;
             };
             "XF86AudioPlay" = {
-              rule = exec "${lib.getExe pkgs.playerctl} play-pause";
+              rule = exec media.play;
               desc = "Play/pause media";
               locked = true;
             };
             "XF86AudioPrev" = {
-              rule = exec "${lib.getExe pkgs.playerctl} previous";
+              rule = exec media.prev;
               desc = "Previous track";
               locked = true;
             };
             "XF86AudioNext" = {
-              rule = exec "${lib.getExe pkgs.playerctl} next";
+              rule = exec media.next;
               desc = "Next track";
               locked = true;
             };
 
             # Repeating keys (locked + repeat)
             "XF86MonBrightnessUp" = {
-              rule = exec "${brightness_script} up";
+              rule = exec brightness.up;
               desc = "Increase brightness";
               locked = true;
               repeating = true;
             };
             "XF86MonBrightnessDown" = {
-              rule = exec "${brightness_script} down";
+              rule = exec brightness.down;
               desc = "Decrease brightness";
               locked = true;
               repeating = true;
             };
             "XF86AudioRaiseVolume" = {
-              rule = exec "${volume_script} up";
+              rule = exec volume.up;
               desc = "Increase volume";
               locked = true;
               repeating = true;
             };
             "XF86AudioLowerVolume" = {
-              rule = exec "${volume_script} down";
+              rule = exec volume.down;
               desc = "Decrease volume";
               locked = true;
               repeating = true;

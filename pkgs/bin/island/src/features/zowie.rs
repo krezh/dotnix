@@ -9,7 +9,7 @@ use gpui::{AnyElement, MouseButton, prelude::*};
 use serde_json::Value;
 use tracing::{debug, warn};
 
-use super::{Feature, Feed, WidgetCx};
+use super::{Feature, Feed, Refreshed, WidgetCx};
 use crate::{
     bar::Gauge,
     components::tooltip::Tip,
@@ -128,47 +128,58 @@ impl Feature for Zowie {
     const COMMANDS: &'static [&'static str] = &["zowie"];
     const USAGE: &'static str = "  zowie refresh                         read the mouse battery now";
 
-    type State = Reading;
+    type State = Refreshed<Reading>;
     type Local = ();
     type Event = ();
 
-    fn start(feed: Feed<Reading>) -> Self {
+    fn start(feed: Feed<Refreshed<Reading>>) -> Self {
         let (refresh, requests) = mpsc::channel();
         feed.supervise(move |feed| {
-            let mut last = None;
+            let mut last: Option<Reading> = None;
+            let mut asked = false;
             loop {
+                if asked
+                    && let Some(value) = last.clone()
+                    && !feed.publish(Refreshed { value, refreshing: true })
+                {
+                    return Ended::Unwanted;
+                }
                 let reading = read();
-                if last.as_ref() != Some(&reading) {
-                    match &reading {
-                        Reading::Present(battery) => debug!(
-                            percent = battery.percent,
-                            voltage_mv = battery.voltage_mv,
-                            connection = battery.connection,
-                            power = ?battery.power,
-                            "zowie battery reading"
-                        ),
-                        Reading::Absent => debug!("no zowie mouse or receiver"),
-                        Reading::Failed(error) => warn!("cannot read zowie battery: {error}"),
+                if asked || last.as_ref() != Some(&reading) {
+                    if last.as_ref() != Some(&reading) {
+                        match &reading {
+                            Reading::Present(battery) => debug!(
+                                percent = battery.percent,
+                                voltage_mv = battery.voltage_mv,
+                                connection = battery.connection,
+                                power = ?battery.power,
+                                "zowie battery reading"
+                            ),
+                            Reading::Absent => debug!("no zowie mouse or receiver"),
+                            Reading::Failed(error) => warn!("cannot read zowie battery: {error}"),
+                        }
                     }
                     last = Some(reading.clone());
-                    if !feed.publish(reading) {
+                    if !feed.publish(Refreshed { value: reading, refreshing: false }) {
                         return Ended::Unwanted;
                     }
                 }
-                if let Err(RecvTimeoutError::Disconnected) = requests.recv_timeout(INTERVAL) {
-                    return Ended::Unwanted;
-                }
+                asked = match requests.recv_timeout(INTERVAL) {
+                    Ok(()) => true,
+                    Err(RecvTimeoutError::Timeout) => false,
+                    Err(RecvTimeoutError::Disconnected) => return Ended::Unwanted,
+                };
             }
         });
         Self { refresh }
     }
 
-    fn present(_: &str, state: &Reading) -> bool {
-        matches!(state, Reading::Present(_))
+    fn present(_: &str, state: &Refreshed<Reading>) -> bool {
+        matches!(state.value, Reading::Present(_))
     }
 
-    fn widget(&self, _: &str, state: &Reading, w: &mut WidgetCx<'_>) -> Option<AnyElement> {
-        let Reading::Present(battery) = state else {
+    fn widget(&self, _: &str, state: &Refreshed<Reading>, w: &mut WidgetCx<'_>) -> Option<AnyElement> {
+        let Reading::Present(battery) = &state.value else {
             return None;
         };
         let color = match battery.percent {
@@ -182,6 +193,7 @@ impl Feature for Zowie {
                 Gauge {
                     glyph: w.glyph("mouse"),
                     glyph_color: color,
+                    busy: state.refreshing,
                     level: Some(battery.percent as f32 / 100.0),
                     level_color: if battery.charging() {
                         GREEN

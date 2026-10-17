@@ -43,14 +43,14 @@ pub fn slider(
             SpringAnimation::new(FILL_SPRING).to(value),
             move |fill, level| {
                 fill.w(relative(level.clamp(0.0, 1.0)))
-                    .child(ui::shape(Radius::Pill, Some(rgb(color).into()), None))
+                    .child(ui::shape(Radius::Pill, Some(rgb(color).into())))
             },
         );
     let track = div()
         .relative()
         .w_full()
         .h(px(TRACK_H))
-        .child(ui::shape(Radius::Pill, Some(rgba(with_alpha(TINT, TRACK_ALPHA)).into()), None))
+        .child(ui::shape(Radius::Pill, Some(rgba(with_alpha(TINT, TRACK_ALPHA)).into())))
         .child(fill)
         .child({
             let bounds = bounds.clone();

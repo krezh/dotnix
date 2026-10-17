@@ -10,16 +10,15 @@ use std::{
     thread,
 };
 
-use futures::channel::oneshot;
+use futures::{StreamExt, channel::oneshot};
 use gpui::RenderImage;
+use serde::de::DeserializeOwned;
 use zbus::{
-    MatchRule,
-    blocking::{Connection, MessageIterator, Proxy, fdo::DBusProxy},
-    fdo::{RequestNameFlags, RequestNameReply},
+    Connection, MatchRule, MessageStream, OwnedObjectPath, OwnedVariant, Proxy, Variant, block_on,
+    fdo::{DBusProxy, RequestNameFlags, RequestNameReply},
     interface,
     message::{Header, Type},
     object_server::SignalEmitter,
-    zvariant::{OwnedObjectPath, OwnedValue, Value},
 };
 
 use tracing::{debug, info, warn};
@@ -146,12 +145,8 @@ struct Entry {
     item: TrayItem,
 }
 
-fn property<T>(proxy: &Proxy<'_>, name: &str) -> Option<T>
-where
-    T: TryFrom<OwnedValue>,
-    T::Error: Into<zbus::Error>,
-{
-    proxy.get_property::<T>(name).ok()
+async fn property<T: DeserializeOwned + zbus::Type>(proxy: &Proxy<'_>, name: &str) -> Option<T> {
+    proxy.get_property::<T>(name).await.ok()
 }
 
 fn pixmap(pixmaps: Vec<(i32, i32, Vec<u8>)>) -> Option<Arc<RenderImage>> {
@@ -169,34 +164,47 @@ fn pixmap(pixmaps: Vec<(i32, i32, Vec<u8>)>) -> Option<Arc<RenderImage>> {
     Some(Arc::new(RenderImage::new(vec![image::Frame::new(buffer)])))
 }
 
-fn load(connection: &Connection, bus: &str, path: &str, key: String) -> Option<Entry> {
-    let proxy = uncached(connection, bus.to_owned(), path.to_owned(), ITEM).ok()?;
-    let status: String = property(&proxy, "Status").unwrap_or_default();
+/// The first of `names` that the item has.
+async fn first<T: DeserializeOwned + zbus::Type>(proxy: &Proxy<'_>, names: &[&str]) -> Option<T> {
+    for name in names {
+        if let Some(value) = property(proxy, name).await {
+            return Some(value);
+        }
+    }
+    None
+}
+
+async fn load(connection: &Connection, bus: &str, path: &str, key: String) -> Option<Entry> {
+    let proxy = uncached(connection, bus.to_owned(), path.to_owned(), ITEM).await.ok()?;
+    let status: String = property(&proxy, "Status").await.unwrap_or_default();
     if status == "Passive" {
         return None;
     }
-    let title: String = property::<String>(&proxy, "Title")
-        .filter(|title| !title.is_empty())
-        .or_else(|| property(&proxy, "Id"))
-        .unwrap_or_default();
-    let theme_path: String = property(&proxy, "IconThemePath").unwrap_or_default();
+    let title: String = match property::<String>(&proxy, "Title").await.filter(|title| !title.is_empty()) {
+        Some(title) => title,
+        None => property(&proxy, "Id").await.unwrap_or_default(),
+    };
+    let theme_path: String = property(&proxy, "IconThemePath").await.unwrap_or_default();
     let name_key = if status == "NeedsAttention" { "AttentionIconName" } else { "IconName" };
     let pixmap_key = if status == "NeedsAttention" { "AttentionIconPixmap" } else { "IconPixmap" };
-    let icon = property::<String>(&proxy, name_key)
-        .or_else(|| property(&proxy, "IconName"))
+    let icon = match first::<String>(&proxy, &[name_key, "IconName"])
+        .await
         .and_then(|name| icons::lookup_in(&theme_path, &name))
-        .map(TrayIcon::File)
-        .or_else(|| {
-            property::<Vec<(i32, i32, Vec<u8>)>>(&proxy, pixmap_key)
-                .or_else(|| property(&proxy, "IconPixmap"))
-                .and_then(pixmap)
-                .map(TrayIcon::Pixels)
-        });
-    let menu: Option<OwnedObjectPath> = property(&proxy, "Menu").filter(|menu: &OwnedObjectPath| menu.as_str() != "/");
-    let owner = DBusProxy::new(connection)
-        .ok()
-        .and_then(|dbus| dbus.get_name_owner(bus.try_into().ok()?).ok())
-        .map_or_else(|| bus.to_owned(), |owner| owner.to_string());
+    {
+        Some(file) => Some(TrayIcon::File(file)),
+        None => first::<Vec<(i32, i32, Vec<u8>)>>(&proxy, &[pixmap_key, "IconPixmap"])
+            .await
+            .and_then(pixmap)
+            .map(TrayIcon::Pixels),
+    };
+    let menu: Option<OwnedObjectPath> =
+        property(&proxy, "Menu").await.filter(|menu: &OwnedObjectPath| menu.as_str() != "/");
+    let owner = async {
+        DBusProxy::new(connection).await.ok()?.get_name_owner(bus.try_into().ok()?).await.ok()
+    }
+    .await
+    .map_or_else(|| bus.to_owned(), |owner| owner.to_string());
+    let item_is_menu = property(&proxy, "ItemIsMenu").await.unwrap_or(false);
     Some(Entry {
         bus: bus.to_owned(),
         owner,
@@ -206,7 +214,7 @@ fn load(connection: &Connection, bus: &str, path: &str, key: String) -> Option<E
             title,
             icon,
             has_menu: menu.is_some(),
-            item_is_menu: property(&proxy, "ItemIsMenu").unwrap_or(false),
+            item_is_menu,
             attention: status == "NeedsAttention",
         },
         menu,
@@ -214,24 +222,24 @@ fn load(connection: &Connection, bus: &str, path: &str, key: String) -> Option<E
 }
 
 /// One dbusmenu entry, `(ia{sv}av)`, as its children arrive: a structure inside a variant.
-fn parse_node(value: &Value<'_>) -> Option<MenuNode> {
-    let Value::Structure(structure) = value else {
+fn parse_node(value: &Variant<'_>) -> Option<MenuNode> {
+    let Variant::Structure(structure) = value else {
         return None;
     };
     let fields = structure.fields();
     let id = i32::try_from(fields.first()?).ok()?;
-    let mut props: HashMap<String, OwnedValue> = HashMap::new();
-    if let Some(Value::Dict(dict)) = fields.get(1) {
-        props = HashMap::<String, OwnedValue>::try_from(dict.try_clone().ok()?).ok()?;
+    let mut props: HashMap<String, OwnedVariant> = HashMap::new();
+    if let Some(Variant::Dict(dict)) = fields.get(1) {
+        props = HashMap::<String, OwnedVariant>::try_from(dict.try_clone().ok()?).ok()?;
     }
-    let children: Vec<&Value<'_>> = match fields.get(2) {
-        Some(Value::Array(array)) => array.iter().collect(),
+    let children: Vec<&Variant<'_>> = match fields.get(2) {
+        Some(Variant::Array(array)) => array.iter().collect(),
         _ => Vec::new(),
     };
     menu_node(id, &props, &children)
 }
 
-fn menu_node(id: i32, props: &HashMap<String, OwnedValue>, children: &[&Value<'_>]) -> Option<MenuNode> {
+fn menu_node(id: i32, props: &HashMap<String, OwnedVariant>, children: &[&Variant<'_>]) -> Option<MenuNode> {
     let text = |key: &str| props.get(key).and_then(|value| String::try_from(value.try_clone().ok()?).ok());
     let flag = |key: &str| props.get(key).and_then(|value| bool::try_from(&**value).ok());
     if flag("visible") == Some(false) {
@@ -243,7 +251,7 @@ fn menu_node(id: i32, props: &HashMap<String, OwnedValue>, children: &[&Value<'_
     let children = children
         .iter()
         .filter_map(|child| match child {
-            Value::Value(inner) => parse_node(inner),
+            Variant::Variant(inner) => parse_node(inner),
             other => parse_node(other),
         })
         .collect();
@@ -259,17 +267,16 @@ fn menu_node(id: i32, props: &HashMap<String, OwnedValue>, children: &[&Value<'_
 
 fn fetch_menu(connection: &Connection, entry: &Entry) -> Result<MenuNode, String> {
     let path = entry.menu.as_ref().ok_or("the item has no menu")?;
-    let proxy = uncached(connection, entry.bus.clone(), path.to_string(), MENU).map_err(|error| error.to_string())?;
-    if let Err(error) = proxy.call_method("AboutToShow", &(0i32,)) {
+    let proxy = block_on(uncached(connection, entry.bus.clone(), path.to_string(), MENU)).map_err(|error| error.to_string())?;
+    if let Err(error) = block_on(proxy.call_method("AboutToShow", &(0i32,))) {
         debug!(item = entry.item.key, "AboutToShow failed, asking for the layout anyway: {error}");
     }
-    let reply = proxy
-        .call_method("GetLayout", &(0i32, -1i32, Vec::<&str>::new()))
+    let reply = block_on(proxy.call_method("GetLayout", &(0i32, -1i32, Vec::<&str>::new())))
         .map_err(|error| format!("GetLayout failed: {error}"))?;
     let body = reply.body();
-    let (revision, (id, props, children)): (u32, (i32, HashMap<String, OwnedValue>, Vec<OwnedValue>)) =
+    let (revision, (id, props, children)): (u32, (i32, HashMap<String, OwnedVariant>, Vec<OwnedVariant>)) =
         body.deserialize().map_err(|error| format!("cannot read the layout: {error}"))?;
-    let children: Vec<&Value<'_>> = children.iter().map(|child| &**child).collect();
+    let children: Vec<&Variant<'_>> = children.iter().map(|child| &**child).collect();
     let root = menu_node(id, &props, &children).ok_or("the menu's root is hidden")?;
     debug!(item = entry.item.key, revision, entries = root.children.len(), "tray menu fetched");
     Ok(root)
@@ -280,8 +287,12 @@ fn click(connection: &Connection, entry: &Entry, id: i32) {
         return;
     };
     debug!(item = entry.item.key, id, "tray menu entry clicked");
-    let sent = uncached(connection, entry.bus.clone(), path.to_string(), MENU)
-        .and_then(|proxy| proxy.call_method("Event", &(id, "clicked", Value::from(0i32), 0u32)));
+    let sent = block_on(async {
+        uncached(connection, entry.bus.clone(), path.to_string(), MENU)
+            .await?
+            .call_method("Event", &(id, "clicked", Variant::from(0i32), 0u32))
+            .await
+    });
     if let Err(error) = sent {
         warn!(item = entry.item.key, id, "tray menu click failed: {error}");
     }
@@ -291,34 +302,37 @@ fn click(connection: &Connection, entry: &Entry, id: i32) {
 /// may place a window of its own.
 fn activate(connection: &Connection, entry: &Entry, method: &str, x: i32, y: i32) {
     debug!(item = entry.item.key, method, x, y, "tray item activated");
-    let sent = uncached(connection, entry.bus.clone(), entry.path.clone(), ITEM)
-        .and_then(|proxy| proxy.call_method(method, &(x, y)));
+    let sent = block_on(async {
+        uncached(connection, entry.bus.clone(), entry.path.clone(), ITEM)
+            .await?
+            .call_method(method, &(x, y))
+            .await
+    });
     if let Err(error) = sent {
         warn!(item = entry.item.key, method, "tray activation failed: {error}");
     }
 }
 
 fn listen(connection: &Connection, rule: MatchRule<'static>, sender: Sender<Msg>, map: fn(&zbus::Message) -> Option<Msg>) {
-    let Ok(iterator) = MessageIterator::for_match_rule(rule, connection, None) else {
+    let Ok(mut stream) = block_on(MessageStream::for_match_rule(rule, connection, None)) else {
         return;
     };
     let _ = thread::Builder::new().name("island-tray-signals".into()).spawn(move || {
-        for message in iterator.flatten() {
-            if let Some(msg) = map(&message)
-                && sender.send(msg).is_err()
-            {
-                return;
+        block_on(async {
+            while let Some(message) = stream.next().await {
+                if let Ok(message) = message
+                    && let Some(msg) = map(&message)
+                    && sender.send(msg).is_err()
+                {
+                    return;
+                }
             }
-        }
+        });
     });
 }
 
 fn signal_rule(interface: &'static str) -> Option<MatchRule<'static>> {
-    MatchRule::builder()
-        .msg_type(Type::Signal)
-        .interface(interface)
-        .ok()
-        .map(|builder| builder.build())
+    MatchRule::builder().msg_type(Type::Signal).interface(interface).build().ok()
 }
 
 /// Recovers a lock a panicking worker held, so the watcher keeps serving its item list.
@@ -331,9 +345,13 @@ fn registered(connection: &Connection, items: &Mutex<Vec<String>>, own_watcher: 
     if own_watcher {
         return lock(items).clone();
     }
-    uncached(connection, WATCHER, WATCHER_PATH, WATCHER)
-        .and_then(|proxy| proxy.get_property("RegisteredStatusNotifierItems"))
-        .unwrap_or_default()
+    block_on(async {
+        uncached(connection, WATCHER, WATCHER_PATH, WATCHER)
+            .await?
+            .get_property("RegisteredStatusNotifierItems")
+            .await
+    })
+    .unwrap_or_default()
 }
 
 fn worker(
@@ -348,7 +366,7 @@ fn worker(
     if restarted {
         for service in registered(connection, items, own_watcher) {
             let (bus, path) = split(&service, None);
-            if let Some(entry) = load(connection, &bus, &path, format!("{bus}{path}")) {
+            if let Some(entry) = block_on(load(connection, &bus, &path, format!("{bus}{path}"))) {
                 entries.push(entry);
             }
         }
@@ -361,13 +379,13 @@ fn worker(
             return;
         }
         lock(items).retain(|item| item != key);
-        let _ = connection.emit_signal(
+        let _ = block_on(connection.emit_signal(
             None::<&str>,
             WATCHER_PATH,
             WATCHER,
             "StatusNotifierItemUnregistered",
             &(key,),
-        );
+        ));
     };
     for msg in receiver {
         let changed = match msg {
@@ -375,7 +393,7 @@ fn worker(
                 let (bus, path) = split(&service, sender.as_deref());
                 let key = format!("{bus}{path}");
                 entries.retain(|entry| entry.item.key != key);
-                match load(&connection, &bus, &path, key.clone()) {
+                match block_on(load(connection, &bus, &path, key.clone())) {
                     Some(entry) => {
                         debug!(item = key, title = entry.item.title, "tray item added");
                         entries.push(entry);
@@ -392,7 +410,7 @@ fn worker(
                     continue;
                 };
                 let old = entries.remove(index);
-                if let Some(entry) = load(&connection, &old.bus, &old.path, old.item.key.clone()) {
+                if let Some(entry) = block_on(load(connection, &old.bus, &old.path, old.item.key.clone())) {
                     entries.insert(index, entry);
                 }
                 true
@@ -458,22 +476,16 @@ fn worker(
 /// Starts the supervised tray worker, publishing the items to `feed`, and returns the client clicks
 /// go through.
 pub fn start(feed: Feed<Vec<TrayItem>>) -> Result<Client, String> {
-    let connection = Connection::session().map_err(|error| format!("tray: no session bus: {error}"))?;
+    let connection = block_on(Connection::session()).map_err(|error| format!("tray: no session bus: {error}"))?;
     let (sender, receiver) = mpsc::channel();
     let items = Arc::new(Mutex::new(Vec::new()));
 
-    connection
-        .object_server()
-        .at(
-            WATCHER_PATH,
-            Watcher {
-                items: items.clone(),
-                sender: Mutex::new(sender.clone()),
-            },
-        )
-        .map_err(|error| format!("tray: {error}"))?;
-    let own_watcher = connection
-        .request_name_with_flags(WATCHER, RequestNameFlags::DoNotQueue.into())
+    let watcher = Watcher {
+        items: items.clone(),
+        sender: Mutex::new(sender.clone()),
+    };
+    block_on(connection.object_server().at(WATCHER_PATH, watcher)).map_err(|error| format!("tray: {error}"))?;
+    let own_watcher = block_on(connection.request_name_with_flags(WATCHER, RequestNameFlags::DO_NOT_QUEUE))
         .is_ok_and(|reply| reply == RequestNameReply::PrimaryOwner);
     if own_watcher {
         info!("serving the tray watcher");
@@ -481,7 +493,7 @@ pub fn start(feed: Feed<Vec<TrayItem>>) -> Result<Client, String> {
         info!("using another app's tray watcher");
     }
     let host = format!("org.kde.StatusNotifierHost-{}", std::process::id());
-    let _ = connection.request_name(host.as_str());
+    let _ = block_on(connection.request_name(host.as_str()));
 
     if let Some(rule) = signal_rule(ITEM) {
         listen(&connection, rule, sender.clone(), |message| {
@@ -499,7 +511,7 @@ pub fn start(feed: Feed<Vec<TrayItem>>) -> Result<Client, String> {
         });
     }
     if own_watcher {
-        let _ = connection.emit_signal(None::<&str>, WATCHER_PATH, WATCHER, "StatusNotifierHostRegistered", &());
+        let _ = block_on(connection.emit_signal(None::<&str>, WATCHER_PATH, WATCHER, "StatusNotifierHostRegistered", &()));
     } else {
         if let Some(rule) = signal_rule(WATCHER) {
             listen(&connection, rule, sender.clone(), |message| {
@@ -510,9 +522,9 @@ pub fn start(feed: Feed<Vec<TrayItem>>) -> Result<Client, String> {
                 Some(Msg::Registered(service, None))
             });
         }
-        if let Ok(proxy) = uncached(&connection, WATCHER, WATCHER_PATH, WATCHER) {
-            let _ = proxy.call_method("RegisterStatusNotifierHost", &(host.as_str(),));
-            let existing: Vec<String> = proxy.get_property("RegisteredStatusNotifierItems").unwrap_or_default();
+        if let Ok(proxy) = block_on(uncached(&connection, WATCHER, WATCHER_PATH, WATCHER)) {
+            let _ = block_on(proxy.call_method("RegisterStatusNotifierHost", &(host.as_str(),)));
+            let existing: Vec<String> = block_on(proxy.get_property("RegisteredStatusNotifierItems")).unwrap_or_default();
             for service in existing {
                 let _ = sender.send(Msg::Registered(service, None));
             }

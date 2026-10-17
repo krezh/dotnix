@@ -1,5 +1,6 @@
 //! Workspaces: a dot per workspace on the island's own monitor, the active one wider. Dots slide in
-//! and out as workspaces come and go; clicking one switches to it and scrolling steps through them.
+//! and out as workspaces come and go; each shows the hover tint round itself, clicking one switches
+//! to it and scrolling steps through them.
 
 use std::{cell::Cell, rc::Rc, time::Instant};
 
@@ -12,6 +13,7 @@ use crate::{
     island,
     spring::Spring,
     theme::{ACCENT, CRITICAL, OVERLAY1, SUBTEXT1},
+    ui::{self, Radius},
     wm::Monitor,
 };
 
@@ -166,11 +168,12 @@ impl Feature for Workspaces {
             return None;
         }
         let scrolled = dots.scrolled.clone();
+        let hover = w.hover();
         Some(
-            w.base("bar-workspaces")
-                .pr(px((w.padding() - GAP).max(0.0)))
+            w.group("bar-workspaces")
+                .pl(px((w.padding() - GAP / 2.0).max(0.0)))
+                .pr(px((w.padding() - GAP / 2.0).max(0.0)))
                 .justify_start()
-                .cursor_default()
                 .on_scroll_wheel(move |event, _, _| scroll(&scrolled, event))
                 .children(dots.dots.iter().map(|dot| {
                     let presence = dot.presence.value().clamp(0.0, 1.0);
@@ -184,14 +187,31 @@ impl Feature for Workspaces {
                     let id = dot.id;
                     div()
                         .id(SharedString::from(format!("workspace-{id}")))
+                        .relative()
                         .h_full()
                         .w(px((width + GAP) * presence))
                         .flex()
                         .items_center()
+                        .justify_center()
                         .cursor_pointer()
+                        .when(hover, |cell| cell.hover(|style| style))
                         .opacity(presence)
                         .tip(w.tips(), format!("workspace-{id}"), format!("Workspace {id}"))
                         .on_click(move |_, _, _| focus(id))
+                        .child(
+                            div()
+                                .absolute()
+                                .size_full()
+                                .flex()
+                                .items_center()
+                                .child(
+                                    div()
+                                        .relative()
+                                        .w_full()
+                                        .h(px(DOT + GAP))
+                                        .child(ui::control(Radius::Pill, None, hover)),
+                                ),
+                        )
                         .child(div().w(px(width * presence)).h(px(DOT)).rounded_full().bg(color))
                 }))
                 .into_any_element(),

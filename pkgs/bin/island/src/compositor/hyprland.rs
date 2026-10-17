@@ -264,4 +264,9 @@ impl Compositor for Hyprland {
             .and_then(|top| top.parse().ok())
             .or_else(|| option["int"].as_f64().map(|value| value as f32))
     }
+
+    fn focused_class(&self) -> Option<String> {
+        let window: serde_json::Value = query("j/activewindow").ok()?;
+        window["class"].as_str().filter(|class| !class.is_empty()).map(str::to_owned)
+    }
 }

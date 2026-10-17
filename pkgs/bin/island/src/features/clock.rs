@@ -8,7 +8,7 @@ use gpui::{AnyElement, FontWeight, MouseButton, div, prelude::*, px};
 
 use super::{Feature, Feed, PanelCx, WidgetCx};
 use crate::{
-    components::tooltip::Tip,
+    components::{motion, tooltip::Tip},
     island::Panel,
     panel::{Block, CalendarView, Header, PanelView},
     supervisor::Ended,
@@ -77,12 +77,12 @@ impl Feature for Clock {
             w.base("bar-clock")
                 .gap(px(GAP))
                 .tip(w.tips(), "bar-clock", now.format("%A, %-d %B %Y").to_string())
-                .child(div().text_size(px(SMALL_SIZE)).child(now.format("%a %-d %b").to_string()))
+                .child(div().text_size(px(SMALL_SIZE)).child(motion::text("date", now.format("%a %-d %b").to_string())))
                 .child(
                     div()
                         .text_size(px(TITLE_SIZE))
                         .font_weight(FontWeight::BOLD)
-                        .child(now.format("%H:%M").to_string()),
+                        .child(motion::text("time", now.format("%H:%M").to_string())),
                 )
                 .on_click(w.toggle(Panel::Feature(Self::NAME)))
                 .on_mouse_down(MouseButton::Right, w.toggle(Panel::System))

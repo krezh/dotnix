@@ -54,5 +54,6 @@
       };
 
       hardware.cpu.amd.updateMicrocode = lib.mkDefault config.hardware.enableRedistributableFirmware;
+      hardware.i2c.enable = true; # DDC/CI monitor brightness: loads i2c-dev, makes the i2c group own /dev/i2c-*
     };
 }

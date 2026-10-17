@@ -32,11 +32,16 @@ craneLib.buildPackage rec {
 
   ISLAND_PCI_IDS = "${pkgs.hwdata}/share/hwdata/pci.ids";
 
+  # SQLCipher, bundled by rusqlite, encrypts with OpenSSL's libcrypto.
+  OPENSSL_LIB_DIR = "${lib.getLib pkgs.openssl}/lib";
+  OPENSSL_INCLUDE_DIR = "${lib.getDev pkgs.openssl}/include";
+
   buildInputs = with pkgs; [
     fontconfig
     freetype
     libpulseaudio
     libxkbcommon
+    openssl
     udev
     wayland
   ];
@@ -52,6 +57,8 @@ craneLib.buildPackage rec {
       cargoVendorDir
       buildInputs
       nativeBuildInputs
+      OPENSSL_LIB_DIR
+      OPENSSL_INCLUDE_DIR
       ;
   };
 

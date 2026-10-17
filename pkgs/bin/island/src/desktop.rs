@@ -1,5 +1,5 @@
 use std::{
-    collections::HashSet,
+    collections::{HashMap, HashSet},
     env, fs,
     path::{Path, PathBuf},
 };
@@ -127,39 +127,53 @@ pub fn launch(app: &App) -> Option<Launch> {
     })
 }
 
-fn score(app: &App, query: &str) -> Option<u32> {
+/// How well `app` matches `query`, best highest: its name starts with it, a word of its name does,
+/// its name contains it, a keyword or its generic name does, or its name has the query's letters in
+/// order.
+fn tier(app: &App, query: &str) -> Option<u32> {
     let name = app.name.to_lowercase();
     if name.starts_with(query) {
-        return Some(1000 - name.len() as u32);
+        return Some(5);
     }
     if name.split_whitespace().any(|word| word.starts_with(query)) {
-        return Some(800 - name.len() as u32);
+        return Some(4);
     }
     if name.contains(query) {
-        return Some(600);
+        return Some(3);
     }
     if app.keywords.iter().any(|keyword| keyword.starts_with(query))
         || app.generic.to_lowercase().contains(query)
     {
-        return Some(400);
+        return Some(2);
     }
     let mut chars = name.chars();
     query
         .chars()
         .all(|wanted| chars.any(|char| char == wanted))
-        .then_some(200)
+        .then_some(1)
 }
 
-pub fn search(apps: &[App], query: &str) -> Vec<usize> {
+/// The apps matching `query`, as indices into `apps`: the best kind of match first, then the most
+/// used by `ranks` (frecency by desktop id), then the shortest name, then by name. With no query,
+/// every app, the most used first.
+pub fn search(apps: &[App], query: &str, ranks: &HashMap<String, f64>) -> Vec<usize> {
     let query = query.trim().to_lowercase();
-    if query.is_empty() {
-        return (0..apps.len()).collect();
-    }
-    let mut scored: Vec<(u32, usize)> = apps
+    let rank = |index: usize| ranks.get(&apps[index].id).copied().unwrap_or(0.0);
+    let length = |index: usize| apps[index].name.chars().count();
+    let mut matched: Vec<(u32, usize)> = apps
         .iter()
         .enumerate()
-        .filter_map(|(index, app)| Some((score(app, &query)?, index)))
+        .filter_map(|(index, app)| Some((if query.is_empty() { 0 } else { tier(app, &query)? }, index)))
         .collect();
-    scored.sort_by(|a, b| b.0.cmp(&a.0).then(a.1.cmp(&b.1)));
-    scored.into_iter().map(|(_, index)| index).collect()
+    matched.sort_by(|a, b| {
+        b.0.cmp(&a.0)
+            .then(rank(b.1).total_cmp(&rank(a.1)))
+            .then_with(|| if query.is_empty() { std::cmp::Ordering::Equal } else { length(a.1).cmp(&length(b.1)) })
+            .then(a.1.cmp(&b.1))
+    });
+    matched.into_iter().map(|(_, index)| index).collect()
 }
+
+#[cfg(test)]
+#[path = "desktop_test.rs"]
+mod tests;

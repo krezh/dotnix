@@ -735,7 +735,7 @@ fn find_latest_release(session: &Session<'_>, repo: &RepoRef) -> Result<Release>
         .context("no releases found")
 }
 
-/// Collect every release between `from` and `to`, newest-first and inclusive.
+/// Collect every release after `from` up to and including `to`, newest-first.
 fn collect_range(
     session: &Session<'_>,
     repo: &RepoRef,
@@ -763,12 +763,11 @@ fn collect_range(
                 }
             }
 
-            let is_from = from.is_some_and(|f| tag_matches(&r.tag, f));
-            collected.push(r);
-            if is_from {
+            if from.is_some_and(|f| tag_matches(&r.tag, f)) {
                 found_from = true;
                 break 'outer;
             }
+            collected.push(r);
         }
     }
 

@@ -1,4 +1,4 @@
-use std::{path::Path, rc::Rc};
+use std::rc::Rc;
 
 use gpui::SharedString;
 
@@ -8,13 +8,10 @@ use crate::{
         chart::Series,
         tile::{Drive, Meter as TileMeter, Part, Segment, Tile, Volume},
     },
-    glyphs::Glyphs,
+    config,
     island::{Island, Mode, Panel},
     launcher::Search,
-    panel::{
-        AppRow, Block, Button, Entry, Header, IconButton, LauncherView, Meter, PanelView,
-        on,
-    },
+    panel::{AppRow, Block, Button, Entry, Header, IconButton, LauncherView, PanelView, on},
     sys::SysStats,
     theme::{BLUE, GREEN, LAVENDER, MAUVE, PEACH, PINK, RED, SUBTEXT1, TEAL, YELLOW},
 };
@@ -307,16 +304,15 @@ fn drive_model(model: &str) -> String {
         .join(" ")
 }
 
-fn storage_tile(stats: &SysStats) -> Tile {
+fn storage_tile(stats: &SysStats, settings: &config::System) -> Tile {
     const COLORS: [u32; 5] = [BLUE, LAVENDER, TEAL, MAUVE, PEACH];
-    let volumes: Vec<Volume> = stats
-        .partitions
-        .iter()
+    let volumes: Vec<Volume> = settings
+        .shown_partitions(&stats.partitions, |partition| partition.mount.as_str())
+        .into_iter()
         .map(|partition| {
             let fraction = partition.used as f32 / partition.total.max(1) as f32;
             Volume {
                 mount: partition.mount.clone().into(),
-                detail: format!("{} · {}", partition.device, partition.fs).into(),
                 usage: format!("{} / {}", size(partition.used), size(partition.total)).into(),
                 fraction,
                 color: if fraction >= 0.9 { RED } else { BLUE },
@@ -439,14 +435,19 @@ fn temperatures_tile(stats: &SysStats) -> Tile {
 }
 
 /// The System panel; `buttons` are the features' quick buttons.
-pub fn system(stats: &SysStats, displays: usize, buttons: Vec<IconButton>) -> PanelView<'static> {
+pub fn system(
+    stats: &SysStats,
+    settings: &config::System,
+    displays: usize,
+    buttons: Vec<IconButton>,
+) -> PanelView<'static> {
     PanelView {
         header: Header::Tabs,
         blocks: vec![
             Block::Icons(buttons),
             Block::Board(vec![
                 vec![cpu_tile(stats), memory_tile(stats), processes_tile(stats), power_tile(stats)],
-                vec![gpu_tile(stats), network_tile(stats), storage_tile(stats)],
+                vec![gpu_tile(stats), network_tile(stats), storage_tile(stats, settings)],
                 vec![host_tile(stats, displays), temperatures_tile(stats), disk_tile(stats)],
             ]),
         ],
@@ -526,6 +527,9 @@ pub fn menu(view: &MenuView) -> PanelView<'static> {
             label: "Back".into(),
             active: false,
             toggle: false,
+            fits: Vec::new(),
+            busy: false,
+            enabled: true,
             on_click: on(|island, cx| island.menu_back(cx)),
         }]
     };
@@ -535,44 +539,13 @@ pub fn menu(view: &MenuView) -> PanelView<'static> {
     }
 }
 
-/// A brief popup for a level that just changed, such as volume or brightness.
-#[derive(Clone, Debug, PartialEq)]
-pub struct Osd {
-    /// The glyph key of its icon.
-    pub glyph: &'static str,
-    pub color: u32,
-    /// What the level is of, e.g. "Output"; may be empty.
-    pub caption: &'static str,
-    pub label: String,
-    /// Whether the device itself changed, rather than its level.
-    pub switched: bool,
-    pub value: f32,
-    pub muted: bool,
-}
-
-pub fn osd(osd: Osd, glyphs: &Glyphs) -> PanelView<'static> {
-    PanelView {
-        header: Header::None,
-        blocks: vec![Block::Meter(Meter {
-            glyph: glyphs.get(osd.glyph).map(Path::to_path_buf),
-            caption: osd.caption.into(),
-            label: osd.label.into(),
-            switched: osd.switched,
-            value: osd.value,
-            muted: osd.muted,
-            color: osd.color,
-        })],
-    }
-}
-
 pub fn panel<'a>(island: &'a Island, panel: Panel, cx: &gpui::App) -> PanelView<'a> {
     match panel {
-        Panel::System => system(&island.stats, island.displays(), island.feature_buttons(cx)),
-        Panel::Osd => island.osd().map_or_else(empty, |current| osd(current, cx.global())),
+        Panel::System => system(&island.stats, cx.global(), island.displays(), island.feature_buttons(cx)),
         Panel::Menu => island.menu_view().map_or_else(empty, menu),
         Panel::Launcher => island.search().map_or_else(empty, launcher),
         Panel::Feature(name) => island.feature_panel(name, cx).unwrap_or_else(empty),
-        Panel::Popup(name) => island.feature_popup(name, cx).unwrap_or_else(empty),
+        Panel::Popups => island.popups(cx).unwrap_or_else(empty),
     }
 }
 
@@ -581,18 +554,24 @@ pub fn launcher(search: &Search) -> PanelView<'static> {
         .visible()
         .map(|(position, app)| AppRow {
             id: format!("app-{}", app.id).into(),
-            position,
             name: app.name.clone().into(),
             detail: if app.generic.is_empty() { app.comment.clone() } else { app.generic.clone() }.into(),
             icon: app.icon.clone(),
+            preview: false,
             selected: position == search.selected,
+            on_click: on(move |island, cx| island.launch_app(position, cx)),
+            on_hover: on(move |island, cx| island.move_app_selection(|search| search.select(position), cx)),
         })
         .collect();
     PanelView {
         header: Header::None,
         blocks: vec![Block::Launcher(LauncherView {
             query: search.query.clone().into(),
+            placeholder: "Search apps".into(),
+            empty: "No apps found".into(),
             rows,
+            on_step: Rc::new(|step, island, cx| island.move_app_selection(|search| search.step(step), cx)),
+            preview: None,
         })],
     }
 }

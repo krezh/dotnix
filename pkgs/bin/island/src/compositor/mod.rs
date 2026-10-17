@@ -32,6 +32,11 @@ pub trait Compositor: Send + Sync + Sized + 'static {
     fn top_gap(&self) -> Option<f32> {
         None
     }
+
+    /// The app id (class) of the focused window.
+    fn focused_class(&self) -> Option<String> {
+        None
+    }
 }
 
 /// The running compositor with its type erased.
@@ -39,6 +44,7 @@ pub trait Backend: Send + Sync {
     fn focus_workspace(&self, id: i64);
     fn focus_relative(&self, step: i32);
     fn top_gap(&self) -> Option<f32>;
+    fn focused_class(&self) -> Option<String>;
 }
 
 impl<C: Compositor> Backend for C {
@@ -52,6 +58,10 @@ impl<C: Compositor> Backend for C {
 
     fn top_gap(&self) -> Option<f32> {
         Compositor::top_gap(self)
+    }
+
+    fn focused_class(&self) -> Option<String> {
+        Compositor::focused_class(self)
     }
 }
 

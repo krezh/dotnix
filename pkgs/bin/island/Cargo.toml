@@ -15,9 +15,10 @@ raw-window-handle = "0.6"
 wayland-backend = { version = "0.3", features = ["client_system", "dlopen"] }
 wayland-client = "0.31"
 wayland-protocols = { version = "0.32", features = ["client", "staging", "unstable"] }
+wayland-protocols-misc = { version = "0.3", features = ["client"] }
 wayland-sys = { version = "0.31", features = ["client", "dlopen"] }
-zbus = "5"
-image = { version = "0.25", default-features = false }
+zbus = "6"
+image = { version = "0.25", default-features = false, features = ["bmp", "gif", "jpeg", "png", "webp"] }
 libc = "0.2"
 anyhow = "1"
 libpulse-binding = "2"
@@ -27,6 +28,7 @@ ddc-hi = "0.4"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 tracing-journald = "0.3"
+rusqlite = { version = "0.40", features = ["bundled-sqlcipher"] }
 
 [profile.release]
 opt-level = 3

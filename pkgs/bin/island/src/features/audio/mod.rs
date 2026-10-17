@@ -8,14 +8,16 @@ use std::cell::Cell;
 
 use gpui::{AnyElement, MouseButton, ScrollWheelEvent, SharedString, prelude::*};
 
-use super::{Feature, Feed, GlyphSpec, PanelCx, WidgetCx};
+use super::{
+    Feature, Feed, GlyphSpec, IslandInfo, PanelCx, WidgetCx,
+    osd::{self, Osd, Shown},
+};
 use crate::{
     bar::Gauge,
     components::{card, tooltip::Tip},
     control::{self, Change},
     island::{self, Panel},
     panel::{Block, Entry, Header, Level, PanelView},
-    panels::Osd,
     theme::{BLUE, CRITICAL, GREEN, MAUVE, OVERLAY2, PEACH, RED, TEXT, YELLOW},
 };
 use pulse::{AudioState, Mixer, Request, Target};
@@ -151,7 +153,7 @@ impl Feature for Audio {
   mic up|down|mute|set PERCENT          default input";
 
     type State = AudioState;
-    type Local = ();
+    type Local = Shown;
     type Event = ();
 
     fn start(feed: Feed<AudioState>) -> Self {
@@ -159,6 +161,18 @@ impl Feature for Audio {
             mixer: pulse::start(feed),
             scrolled: Cell::new(0.0),
         }
+    }
+
+    fn sync_local(_: &AudioState, shown: &mut Shown, island: &IslandInfo<'_>, _animate: bool) {
+        shown.sync(island);
+    }
+
+    fn popup<'a>(&self, _: &AudioState, p: &PanelCx<'a>) -> Option<PanelView<'a>> {
+        osd::popup(p)
+    }
+
+    fn elapse(&self, shown: &mut Shown, _hovered: bool) {
+        shown.expire();
     }
 
     /// Connected with no devices yet, so the widget waits for the first query instead of
@@ -181,6 +195,7 @@ impl Feature for Audio {
             Gauge {
                 glyph: w.glyph(speaker(channel.volume, channel.muted)),
                 glyph_color: if channel.muted { OVERLAY2 } else { TEXT },
+                busy: false,
                 level: (!channel.muted).then_some(channel.volume),
                 level_color: loudness_color(channel.volume),
             }
@@ -188,6 +203,7 @@ impl Feature for Audio {
             Gauge {
                 glyph: w.glyph(speaker(0.0, true)),
                 glyph_color: CRITICAL,
+                busy: false,
                 level: None,
                 level_color: OVERLAY2,
             }
@@ -245,9 +261,7 @@ impl Feature for Audio {
                 color,
                 caption,
                 label: device.description.clone(),
-                switched,
-                value: new.volume,
-                muted: new.muted,
+                level: (!switched).then_some((new.volume, new.muted)),
             })
         })
     }

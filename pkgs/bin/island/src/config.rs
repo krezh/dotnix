@@ -122,6 +122,42 @@ impl Default for Visualizer {
 
 #[derive(Clone, Debug, Deserialize)]
 #[serde(default, deny_unknown_fields)]
+pub struct System {
+    /// Mount points the Storage tile shows, in this order; empty shows every one not hidden.
+    pub partitions: Vec<String>,
+    /// Mount points the Storage tile leaves out when `partitions` is empty.
+    pub hidden_partitions: Vec<String>,
+}
+
+impl Default for System {
+    fn default() -> Self {
+        Self {
+            partitions: Vec::new(),
+            hidden_partitions: vec!["/boot".to_owned()],
+        }
+    }
+}
+
+impl gpui::Global for System {}
+
+impl System {
+    /// The items of `all` whose mount point `mount_of` gives is shown, in the order they are shown.
+    pub fn shown_partitions<'a, T>(&self, all: &'a [T], mount_of: impl Fn(&T) -> &str) -> Vec<&'a T> {
+        if self.partitions.is_empty() {
+            all.iter()
+                .filter(|item| !self.hidden_partitions.iter().any(|hidden| hidden == mount_of(item)))
+                .collect()
+        } else {
+            self.partitions
+                .iter()
+                .filter_map(|mount| all.iter().find(|item| mount_of(item) == mount))
+                .collect()
+        }
+    }
+}
+
+#[derive(Clone, Debug, Deserialize)]
+#[serde(default, deny_unknown_fields)]
 pub struct Log {
     /// What is logged: a level such as `debug`, or per module or feature like `audio=debug,tray=trace`.
     /// `ISLAND_LOG` overrides it.
@@ -142,6 +178,7 @@ pub struct Config {
     pub bar: Bar,
     pub appearance: Appearance,
     pub visualizer: Visualizer,
+    pub system: System,
     pub log: Log,
     /// Every other section, each a feature's by its name, such as `[notifications]`.
     #[serde(flatten)]
@@ -181,32 +218,5 @@ pub fn load(path: Option<PathBuf>) -> Result<Config, String> {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn layouts_name_feature_widgets() {
-        let bar: Bar = toml::from_str("left = [\"notifications\", \"clock\", \"zowie\"]").unwrap();
-        assert_eq!(bar.left, vec![Widget("notifications"), Widget("clock"), Widget("zowie")]);
-    }
-
-    #[test]
-    fn feature_sections_are_checked() {
-        let check = |raw: &str| toml::from_str::<Config>(raw).map_err(|error| error.to_string()).and_then(Config::check);
-        assert!(check("[notifications]\nprivate = true").is_ok());
-        let typo = check("[notifications]\nprivat = true").unwrap_err();
-        assert!(typo.contains("[notifications]"), "{typo}");
-        let unknown = check("[notificatons]\nprivate = true").unwrap_err();
-        assert!(unknown.contains("unknown section [notificatons]"), "{unknown}");
-        let none = check("[caffeine]\non = true").unwrap_err();
-        assert!(none.contains("takes no settings"), "{none}");
-    }
-
-    #[test]
-    fn unknown_widgets_list_the_known_ones() {
-        let error = toml::from_str::<Bar>("left = [\"headsett\"]").unwrap_err().to_string();
-        assert!(error.contains("unknown widget 'headsett'"), "{error}");
-        assert!(error.contains("headset"), "{error}");
-        assert!(error.contains("zowie"), "{error}");
-    }
-}
+#[path = "config_test.rs"]
+mod tests;

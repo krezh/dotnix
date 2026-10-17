@@ -1,4 +1,7 @@
-use gpui::{Bounds, Hsla, IntoElement, Window, canvas, fill, point, prelude::*, px, rgb, rgba, size};
+use gpui::{
+    Bounds, ContentMask, Hsla, IntoElement, PathBuilder, PathStyle, Pixels, Point, StrokeOptions, Window, canvas, fill,
+    point, prelude::*, px, rgb, rgba, size,
+};
 
 use crate::theme::{TINT, with_alpha};
 
@@ -12,15 +15,40 @@ pub struct Series {
     pub color: u32,
 }
 
-fn column(window: &mut Window, x: f32, width: f32, top: f32, bottom: f32, color: Hsla) {
-    if bottom > top {
-        window.paint_quad(fill(
-            Bounds {
-                origin: point(px(x), px(top)),
-                size: size(px(width), px(bottom - top)),
-            },
-            color,
-        ));
+fn at(x: f32, y: f32) -> Point<Pixels> {
+    point(px(x), px(y))
+}
+
+/// The area between `line` and `bottom`.
+fn paint_area(window: &mut Window, line: &[(f32, f32)], bottom: f32, color: Hsla) {
+    let (Some(first), Some(last)) = (line.first(), line.last()) else {
+        return;
+    };
+    let mut path = PathBuilder::fill();
+    path.move_to(at(first.0, bottom));
+    for (x, y) in line {
+        path.line_to(at(*x, *y));
+    }
+    path.line_to(at(last.0, bottom));
+    path.close();
+    if let Ok(path) = path.build() {
+        window.paint_path(path, color);
+    }
+}
+
+fn paint_line(window: &mut Window, line: &[(f32, f32)], color: Hsla) {
+    let Some(first) = line.first() else {
+        return;
+    };
+    // A miter limit of 1 bevels every corner, so a sharp spike doesn't grow a long point.
+    let style = StrokeOptions::default().with_line_width(LINE).with_miter_limit(1.0);
+    let mut path = PathBuilder::stroke(px(LINE)).with_style(PathStyle::Stroke(style));
+    path.move_to(at(first.0, first.1));
+    for (x, y) in &line[1..] {
+        path.line_to(at(*x, *y));
+    }
+    if let Ok(path) = path.build() {
+        window.paint_path(path, color);
     }
 }
 
@@ -29,89 +57,64 @@ pub fn chart(series: Vec<Series>, slots: usize, phase: f32) -> impl IntoElement 
     canvas(
         |_, _, _| {},
         move |bounds, (), window, _| {
-            let scale = window.scale_factor();
-            let pixel = 1.0 / scale;
+            let pixel = 1.0 / window.scale_factor();
             let x0 = f32::from(bounds.origin.x);
             let y0 = f32::from(bounds.origin.y);
             let w = f32::from(bounds.size.width);
             let h = f32::from(bounds.size.height);
             let right = x0 + w;
-            let floor = y0 + h - LINE / 2.0;
+            let bottom = y0 + h;
+            let floor = bottom - LINE / 2.0;
             let step = w / slots.saturating_sub(2).max(1) as f32;
             let y = |value: f32, max: f32| {
                 floor - (value / max.max(f32::EPSILON)).clamp(0.0, 1.0) * (h - LINE)
             };
-            column(window, x0, w, y0 + h - pixel, y0 + h, rgba(with_alpha(TINT, BASELINE_ALPHA)).into());
-            for (index, series) in series.iter().enumerate() {
-                let values = &series.values;
-                if values.len() < 2 {
-                    continue;
-                }
-                let newest = values.len() - 1;
-                let mut points: Vec<(f32, f32)> = values[..newest]
-                    .iter()
-                    .enumerate()
-                    .map(|(at, value)| {
-                        let back = (newest - 1 - at) as f32 + phase;
-                        (right - back * step, y(*value, series.max))
-                    })
-                    .filter(|(x, _)| *x >= x0 - step)
-                    .collect();
-                let head = values[newest - 1] + (values[newest] - values[newest - 1]) * phase;
-                points.push((right, y(head, series.max)));
-                let history_start = points[0].0;
-                if history_start > x0 {
-                    let floor = points.iter().map(|(_, level)| *level).fold(f32::MIN, f32::max);
-                    points.insert(0, (history_start, floor));
-                    points.insert(0, (x0, floor));
-                }
-                if points.len() < 2 {
-                    continue;
-                }
-                let color: Hsla = rgb(series.color).into();
-                let area: Hsla = rgba(with_alpha(series.color, FILL_ALPHA)).into();
-                let at = |x: f32, segment: usize| {
-                    let (ax, ay) = points[segment];
-                    let (bx, by) = points[segment + 1];
-                    let t = if bx > ax { ((x - ax) / (bx - ax)).clamp(0.0, 1.0) } else { 1.0 };
-                    ay + (by - ay) * t
-                };
-                let start = ((points[0].0.max(x0)) * scale).floor() as i64;
-                let end = (right * scale).ceil() as i64;
-                let mut segment = 0;
-                for device in start..end {
-                    let left = (device as f32 * pixel).max(points[0].0);
-                    let edge = ((device + 1) as f32 * pixel).min(right);
-                    if edge <= left {
+            window.paint_quad(fill(
+                Bounds {
+                    origin: at(x0, bottom - pixel),
+                    size: size(px(w), px(pixel)),
+                },
+                rgba(with_alpha(TINT, BASELINE_ALPHA)),
+            ));
+            window.with_content_mask(Some(ContentMask { bounds }), |window| {
+                for (index, series) in series.iter().enumerate() {
+                    let values = &series.values;
+                    if values.len() < 2 {
                         continue;
                     }
-                    while segment + 2 < points.len() && points[segment + 1].0 <= left {
-                        segment += 1;
+                    let newest = values.len() - 1;
+                    let mut points: Vec<(f32, f32)> = values[..newest]
+                        .iter()
+                        .enumerate()
+                        .map(|(at, value)| {
+                            let back = (newest - 1 - at) as f32 + phase;
+                            (right - back * step, y(*value, series.max))
+                        })
+                        .filter(|(x, _)| *x >= x0 - step)
+                        .collect();
+                    let head = values[newest - 1] + (values[newest] - values[newest - 1]) * phase;
+                    points.push((right, y(head, series.max)));
+                    let history = points.len();
+                    let history_start = points[0].0;
+                    if history_start > x0 {
+                        let floor = points.iter().map(|(_, level)| *level).fold(f32::MIN, f32::max);
+                        points.insert(0, (history_start, floor));
+                        points.insert(0, (x0, floor));
                     }
-                    let first = at(left, segment);
-                    let (mut high, mut low) = (first, first);
-                    let mut area_sum = 0.0;
-                    let mut cursor = (left, first);
-                    let mut walk = segment;
-                    loop {
-                        let stop = points[walk + 1].0.min(edge);
-                        let value = at(stop, walk);
-                        area_sum += (cursor.1 + value) / 2.0 * (stop - cursor.0);
-                        high = high.min(value);
-                        low = low.max(value);
-                        cursor = (stop, value);
-                        if stop >= edge || walk + 2 >= points.len() {
-                            break;
-                        }
-                        walk += 1;
+                    if points.len() < 2 {
+                        continue;
                     }
-                    let width = edge - left;
-                    if index == 0 && left >= history_start {
-                        column(window, left, width, area_sum / (cursor.0 - left).max(f32::EPSILON), y0 + h, area);
+                    if index == 0 {
+                        paint_area(
+                            window,
+                            &points[points.len() - history..],
+                            bottom,
+                            rgba(with_alpha(series.color, FILL_ALPHA)).into(),
+                        );
                     }
-                    column(window, left, width, high - LINE / 2.0, low + LINE / 2.0, color);
+                    paint_line(window, &points, rgb(series.color).into());
                 }
-            }
+            });
         },
     )
     .size_full()

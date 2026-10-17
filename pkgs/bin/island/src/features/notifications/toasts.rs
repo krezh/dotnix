@@ -5,7 +5,10 @@ use std::time::{Duration, Instant};
 
 use gpui::{SpringConfig, Window};
 
-use super::{card, notification::Notification};
+use super::{
+    card::{self, Countdown},
+    notification::Notification,
+};
 use crate::{
     island::{CONTENT_IN, CONTENT_OUT, REVEAL_DELAY, SHAPE_SPRING},
     spring::Spring,
@@ -17,6 +20,9 @@ const RETURN_DRIFT: f32 = 16.0;
 const LEAVE_SLIDE: f32 = 56.0;
 /// How long a card shows when its app leaves it to the server.
 const DURATION: Duration = Duration::from_millis(4500);
+/// The least time a card gets once the pointer leaves, so one paused near its end does not vanish
+/// the moment the pointer does.
+const RESUME_AT_LEAST: Duration = Duration::from_millis(1000);
 
 pub struct Card {
     pub id: u64,
@@ -28,14 +34,65 @@ pub struct Card {
     pub leaving: bool,
     pub visible: bool,
     shown_before: bool,
-    /// When the card times out; set once it is visible while the pop-up shows.
+    /// When the card times out; set once it is visible while the pop-up shows, and cleared while
+    /// the countdown is paused.
     pub due: Option<Instant>,
+    /// Its whole time, once it started counting down.
+    lifetime: Option<Duration>,
+    /// What was left of its time when the countdown paused.
+    paused: Option<Duration>,
+    /// Counts each pause and resume, so its countdown bar animates afresh from where it is.
+    round: u32,
+    /// The part of its time left, and the time that is, when this round of counting down started.
+    /// Fixed for the round: the bar's animation times itself from its first frame, so it must be
+    /// given the same start and length on every redraw.
+    round_from: (f32, Duration),
 }
 
 impl Card {
     pub fn height(&self) -> f32 {
         card::height(self.lines.unwrap_or(1), self.notification.buttons().next().is_some())
     }
+
+    /// What is left of its time, for its countdown bar; `None` while it is not counting down, such
+    /// as a critical one, which stays until dismissed.
+    pub fn countdown(&self) -> Option<Countdown> {
+        let lifetime = self.lifetime?;
+        let (left, running) = match (self.paused, self.due) {
+            (Some(left), _) => (fraction(left, lifetime), None),
+            (None, Some(_)) => (self.round_from.0, Some(self.round_from.1)),
+            (None, None) => return None,
+        };
+        Some(Countdown {
+            left,
+            running,
+            round: self.round,
+        })
+    }
+
+    /// Starts a round of counting down at `now` with `left` of its time to go.
+    fn count_from(&mut self, now: Instant, left: Duration) {
+        let lifetime = self.lifetime.unwrap_or(left);
+        self.due = Some(now + left);
+        self.paused = None;
+        self.round_from = (fraction(left, lifetime), left);
+        self.round += 1;
+    }
+
+    /// Stops counting down.
+    fn stop(&mut self) {
+        self.due = None;
+        self.paused = None;
+        self.lifetime = None;
+    }
+}
+
+/// `left` as a part of `lifetime`, 0–1.
+fn fraction(left: Duration, lifetime: Duration) -> f32 {
+    if lifetime.is_zero() {
+        return 0.0;
+    }
+    (left.as_secs_f32() / lifetime.as_secs_f32()).clamp(0.0, 1.0)
 }
 
 pub struct Toasts {
@@ -47,6 +104,8 @@ pub struct Toasts {
     pub footer: Spring,
     /// Whether the island is showing the cards.
     shown: bool,
+    /// Whether the pointer is over the island, which pauses the countdowns.
+    pointer: bool,
     motion: SpringConfig,
     fade_in: SpringConfig,
     fade_out: SpringConfig,
@@ -62,6 +121,7 @@ impl Default for Toasts {
             footer_count: 0,
             footer: Spring::new(0.0, CONTENT_OUT, 0.002),
             shown: false,
+            pointer: false,
             motion: SHAPE_SPRING,
             fade_in: CONTENT_IN,
             fade_out: CONTENT_OUT,
@@ -100,7 +160,7 @@ impl Toasts {
             Some(card) => {
                 card.notification = notification;
                 card.lines = None;
-                card.due = None;
+                card.stop();
             }
             None => {
                 let id = self.next_id;
@@ -118,6 +178,10 @@ impl Toasts {
                         visible: false,
                         shown_before: false,
                         due: None,
+                        lifetime: None,
+                        paused: None,
+                        round: 0,
+                        round_from: (1.0, Duration::ZERO),
                     },
                 );
             }
@@ -135,7 +199,7 @@ impl Toasts {
         let fade_out = self.fade_out;
         let card = self.card_mut(id).filter(|card| !card.leaving)?;
         card.leaving = true;
-        card.due = None;
+        card.stop();
         card.alpha.retarget(0.0, fade_out);
         card.x.retarget(LEAVE_SLIDE, fade_out);
         let notification = card.notification.clone();
@@ -155,7 +219,8 @@ impl Toasts {
     /// Gives card `id` until `until` before it times out.
     pub fn postpone(&mut self, id: u64, until: Instant) {
         if let Some(card) = self.card_mut(id) {
-            card.due = Some(until);
+            let now = Instant::now();
+            card.count_from(now, until.saturating_duration_since(now));
         }
     }
 
@@ -171,14 +236,39 @@ impl Toasts {
         self.arm();
     }
 
+    /// The pointer came onto the island or left it: the countdowns pause while it is over, and
+    /// carry on from where they were once it leaves.
+    pub fn set_pointer(&mut self, over: bool, now: Instant) {
+        self.pointer = over;
+        for card in &mut self.cards {
+            match (over, card.due, card.paused) {
+                (true, Some(due), _) => {
+                    card.paused = Some(due.saturating_duration_since(now));
+                    card.due = None;
+                    card.round += 1;
+                }
+                (false, _, Some(left)) => card.count_from(now, left.max(RESUME_AT_LEAST)),
+                _ => {}
+            }
+        }
+    }
+
     fn arm(&mut self) {
         if !self.shown {
             return;
         }
         let now = Instant::now();
         for card in &mut self.cards {
-            if card.visible && !card.leaving && card.due.is_none() {
-                card.due = card.notification.timeout(DURATION).map(|timeout| now + timeout);
+            if card.visible && !card.leaving && card.lifetime.is_none() {
+                let Some(timeout) = card.notification.timeout(DURATION) else {
+                    continue;
+                };
+                card.lifetime = Some(timeout);
+                if self.pointer {
+                    card.paused = Some(timeout);
+                } else {
+                    card.count_from(now, timeout);
+                }
             }
         }
     }
@@ -207,7 +297,7 @@ impl Toasts {
             live += 1;
             if heights.len() == MAX_VISIBLE {
                 card.visible = false;
-                card.due = None;
+                card.stop();
                 card.alpha.retarget(0.0, fade_out);
                 continue;
             }
@@ -264,3 +354,7 @@ impl Toasts {
                 .all(|card| card.y.is_settled() && card.x.is_settled() && card.alpha.is_settled())
     }
 }
+
+#[cfg(test)]
+#[path = "toasts_test.rs"]
+mod tests;

@@ -155,6 +155,7 @@ pub fn fill(radius: f32, power: f32, rest: Option<Hsla>, hover: Option<Hsla>) ->
     inset_fill(radius, power, 0.0, rest, hover)
 }
 
+/// `rest`, with `hover` laid over it while the pointer is inside, so a hover tint shows on any fill.
 pub fn inset_fill(radius: f32, power: f32, inset: f32, rest: Option<Hsla>, hover: Option<Hsla>) -> Canvas<()> {
     canvas(
         |_, _, _| {},
@@ -164,7 +165,10 @@ pub fn inset_fill(radius: f32, power: f32, inset: f32, rest: Option<Hsla>, hover
                 point(bounds.origin.x + px(inset), bounds.origin.y),
                 size((bounds.size.width - px(2.0 * inset)).max(px(0.0)), bounds.size.height),
             );
-            paint(shape, radius, power, if hovered { hover } else { rest }, None, window);
+            paint(shape, radius, power, rest, None, window);
+            if hovered {
+                paint(shape, radius, power, hover, None, window);
+            }
         },
     )
     .absolute()
