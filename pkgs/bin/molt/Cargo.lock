@@ -1146,6 +1146,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "molt"
+version = "0.1.0"
+dependencies = [
+ "dix",
+ "gdk4-wayland",
+ "gio",
+ "gtk4",
+ "gtk4-layer-shell",
+ "libc",
+ "nix-changelog",
+ "pulldown-cmark",
+ "rusqlite",
+ "rustix",
+ "serde",
+ "serde_json",
+ "size",
+ "toml",
+ "ureq",
+ "wayland-backend",
+ "wayland-client",
+ "wayland-protocols",
+]
+
+[[package]]
 name = "nix-changelog"
 version = "0.1.0"
 dependencies = [
@@ -1385,9 +1409,9 @@ dependencies = [
 
 [[package]]
 name = "rustls"
-version = "0.23.45"
+version = "0.23.46"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0d41d731c7d2f962d1ccc364cec258de3c0e93b38c2fb3ba97ac74513048d634"
+checksum = "48e13bd8c0e9365c43cfa5c9e8f9ad49d3c8444926c9aac819e0e4dc503c8fdf"
 dependencies = [
  "log",
  "once_cell",
@@ -1538,30 +1562,6 @@ name = "subtle"
 version = "2.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "13c2bddecc57b384dee18652358fb23172facb8a2c51ccc10d74c157bdea3292"
-
-[[package]]
-name = "molt"
-version = "0.1.0"
-dependencies = [
- "dix",
- "gdk4-wayland",
- "gio",
- "gtk4",
- "gtk4-layer-shell",
- "libc",
- "nix-changelog",
- "pulldown-cmark",
- "rusqlite",
- "rustix",
- "serde",
- "serde_json",
- "size",
- "toml",
- "ureq",
- "wayland-backend",
- "wayland-client",
- "wayland-protocols",
-]
 
 [[package]]
 name = "syn"
