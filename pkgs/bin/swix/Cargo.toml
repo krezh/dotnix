@@ -19,4 +19,4 @@ toml = "1.1"
 ureq = "3"
 
 [dev-dependencies]
-size = "0.5"
+size = "0.6"

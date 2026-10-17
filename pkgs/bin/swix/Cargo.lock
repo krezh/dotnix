@@ -321,7 +321,7 @@ dependencies = [
  "eyre",
  "itertools",
  "rusqlite",
- "size",
+ "size 0.5.0",
  "tracing",
  "tracing-subscriber",
  "unicode-width",
@@ -1446,6 +1446,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1b6709c7b6754dca1311b3c73e79fcce40dd414c782c66d88e8823030093b02b"
 
 [[package]]
+name = "size"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c48f464f8e2766494cb2223d1683ff6801dd56f0d07298500f9c970de2571cf0"
+
+[[package]]
 name = "slab"
 version = "0.4.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1490,7 +1496,7 @@ dependencies = [
  "rustix",
  "serde",
  "serde_json",
- "size",
+ "size 0.6.0",
  "toml",
  "ureq",
 ]
