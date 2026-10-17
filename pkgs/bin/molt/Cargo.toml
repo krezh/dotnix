@@ -23,4 +23,4 @@ wayland-client = "0.31"
 wayland-protocols = { version = "0.32", features = ["client", "staging"] }
 
 [dev-dependencies]
-size = "0.5"
+size = "0.6"
