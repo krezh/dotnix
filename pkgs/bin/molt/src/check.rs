@@ -111,12 +111,12 @@ pub(crate) fn run(arguments: impl IntoIterator<Item = OsString>) -> ExitCode {
         RepositoryKind::Jj => "jj",
     };
     let watchlist_report = if let Ok(Some(conn)) = open_db() {
-        if options.fetch {
-            if let Ok(current_prs) = list_prs(&conn) {
-                for pr in current_prs {
-                    if let Ok(refreshed) = fetch_pr(&pr.owner, &pr.repo, pr.pr_number, Some(pr.id), &CANCELLATION) {
-                        let _ = save_pr(&conn, &refreshed);
-                    }
+        if options.fetch
+            && let Ok(current_prs) = list_prs(&conn)
+        {
+            for pr in current_prs {
+                if let Ok(refreshed) = fetch_pr(&pr.owner, &pr.repo, pr.pr_number, Some(pr.id), &CANCELLATION) {
+                    let _ = save_pr(&conn, &refreshed);
                 }
             }
         }

@@ -296,7 +296,6 @@ mod tests {
     use std::num::NonZeroUsize;
 
     use ::dix::{DerivationSelectionStatus, PackageSizeDelta, VersionAmount};
-    use size::Size;
 
     fn package(
         name: &str,
@@ -311,7 +310,11 @@ mod tests {
             status,
             selection: DerivationSelectionStatus::Selected,
             has_omitted_versions,
-            size: PackageSizeDelta::new(Size::from_bytes(0), Size::from_bytes(size_delta)),
+            // Parsing lets dix pick the `size` version, so molt doesn't depend on it.
+            size: PackageSizeDelta::new(
+                "0".parse().unwrap(),
+                size_delta.to_string().parse().unwrap(),
+            ),
         }
     }
 
