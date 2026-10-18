@@ -61,7 +61,12 @@ pub fn routes(routes: Vec<Route>) -> AnyElement {
         .flex()
         .flex_col()
         .children(routes.into_iter().enumerate().map(|(index, route)| {
-            let mut stops = div().flex().flex_wrap().items_center().gap_y(px(4.0)).text_size(px(DETAIL_SIZE));
+            let mut stops = div()
+                .flex()
+                .flex_wrap()
+                .items_center()
+                .gap_y(px(4.0))
+                .text_size(px(DETAIL_SIZE));
             for (position, next) in route.stops.into_iter().enumerate() {
                 if position > 0 {
                     stops = stops.child(
@@ -80,7 +85,10 @@ pub fn routes(routes: Vec<Route>) -> AnyElement {
                 .flex_col()
                 .gap(px(4.0))
                 .py(px(8.0))
-                .when(index > 0, |row| row.border_t_1().border_color(rgba(with_alpha(SURFACE1, CONTROL_ALPHA))))
+                .when(index > 0, |row| {
+                    row.border_t_1()
+                        .border_color(rgba(with_alpha(SURFACE1, CONTROL_ALPHA)))
+                })
                 .child(
                     div()
                         .flex()

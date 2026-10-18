@@ -36,13 +36,20 @@ const PRIVATE_ENV: [&str; 8] = [
 pub fn spawn(launch: Launch) {
     thread::spawn(move || {
         let Some(program) = resolve(&launch.argv[0]) else {
-            error!(app = launch.name, program = launch.argv[0], "cannot launch: program not found in PATH");
+            error!(
+                app = launch.name,
+                program = launch.argv[0],
+                "cannot launch: program not found in PATH"
+            );
             return;
         };
         match transient_unit(&launch, &program) {
             Ok(unit) => info!(app = launch.name, unit, "launched"),
             Err(error) => {
-                warn!(app = launch.name, "systemd launch failed, starting it directly: {error}");
+                warn!(
+                    app = launch.name,
+                    "systemd launch failed, starting it directly: {error}"
+                );
                 detached(&launch, &program);
             }
         }
@@ -67,12 +74,17 @@ fn unit_name(id: &str) -> String {
     let escaped: String = id
         .bytes()
         .map(|byte| match byte {
-            b'a'..=b'z' | b'A'..=b'Z' | b'0'..=b'9' | b':' | b'_' | b'.' => (byte as char).to_string(),
+            b'a'..=b'z' | b'A'..=b'Z' | b'0'..=b'9' | b':' | b'_' | b'.' => {
+                (byte as char).to_string()
+            }
             _ => format!("\\x{byte:02x}"),
         })
         .collect();
-    let nanos = SystemTime::now().duration_since(UNIX_EPOCH).map_or(0, |time| time.as_nanos() as u64);
-    let random = nanos ^ (u64::from(std::process::id()) << 32) ^ COUNTER.fetch_add(1, Ordering::Relaxed);
+    let nanos = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map_or(0, |time| time.as_nanos() as u64);
+    let random =
+        nanos ^ (u64::from(std::process::id()) << 32) ^ COUNTER.fetch_add(1, Ordering::Relaxed);
     format!("app-{escaped}@{random:016x}.service")
 }
 
@@ -81,11 +93,15 @@ fn transient_unit(launch: &Launch, program: &Path) -> zbus::Result<String> {
         .filter(|(key, _)| !PRIVATE_ENV.contains(&key.as_str()))
         .map(|(key, value)| format!("{key}={value}"))
         .collect();
-    let exec_start = vec![(program.to_string_lossy().into_owned(), launch.argv.clone(), false)];
-    let directory = launch
-        .directory
-        .as_ref()
-        .map_or_else(|| "~".to_owned(), |directory| directory.to_string_lossy().into_owned());
+    let exec_start = vec![(
+        program.to_string_lossy().into_owned(),
+        launch.argv.clone(),
+        false,
+    )];
+    let directory = launch.directory.as_ref().map_or_else(
+        || "~".to_owned(),
+        |directory| directory.to_string_lossy().into_owned(),
+    );
     let properties: Vec<(&str, Variant)> = vec![
         ("Description", Variant::from(launch.name.as_str())),
         ("Slice", Variant::from("app.slice")),
@@ -122,7 +138,13 @@ fn detached(launch: &Launch, program: &Path) {
         .stdout(Stdio::null())
         .stderr(Stdio::null())
         .env_remove("NOTIFY_SOCKET")
-        .current_dir(launch.directory.clone().or_else(|| env::var_os("HOME").map(PathBuf::from)).unwrap_or_else(|| "/".into()));
+        .current_dir(
+            launch
+                .directory
+                .clone()
+                .or_else(|| env::var_os("HOME").map(PathBuf::from))
+                .unwrap_or_else(|| "/".into()),
+        );
     unsafe {
         command.pre_exec(|| {
             libc::setsid();

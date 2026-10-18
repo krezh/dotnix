@@ -44,7 +44,9 @@ pub(crate) fn compact_size(bytes: f64) -> String {
 
 /// Seconds from a Unix timestamp to `now`; future or invalid timestamps count as zero.
 pub(crate) fn seconds_since(now: SystemTime, timestamp: i64) -> u64 {
-    let now = now.duration_since(UNIX_EPOCH).map_or(0, |since| since.as_secs());
+    let now = now
+        .duration_since(UNIX_EPOCH)
+        .map_or(0, |since| since.as_secs());
     now.saturating_sub(u64::try_from(timestamp).unwrap_or(0))
 }
 
@@ -55,9 +57,8 @@ pub(crate) fn format_timestamp(timestamp: i64, format: &str) -> Option<String> {
 
 /// `3 hours`, `12 days`: an elapsed time for sentences such as "… ago" or "… old".
 pub(crate) fn duration_text(seconds: u64) -> String {
-    let plural = |count: u64, unit: &str| {
-        format!("{count} {unit}{}", if count == 1 { "" } else { "s" })
-    };
+    let plural =
+        |count: u64, unit: &str| format!("{count} {unit}{}", if count == 1 { "" } else { "s" });
     match seconds {
         0..60 => "under a minute".to_owned(),
         60..3_600 => plural(seconds / 60, "minute"),

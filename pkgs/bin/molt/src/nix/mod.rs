@@ -8,13 +8,13 @@ use std::time::{Duration, Instant};
 
 use molt::command::{self, OutputLimits};
 
-use errors::{nix_error_message, update_best_error};
 pub(crate) use errors::failed_derivations;
-use progress::NixProgressTracker;
-pub(crate) use progress::{FlakeFetch, NixBuildProgress, NixProgressMetric};
+use errors::{nix_error_message, update_best_error};
 /// Only tests build activity records by hand; the app reads them through `NixBuildProgress`.
 #[cfg(test)]
 pub(crate) use progress::NixActivityProgress;
+use progress::NixProgressTracker;
+pub(crate) use progress::{FlakeFetch, NixBuildProgress, NixProgressMetric};
 
 pub(crate) fn run_nix_command(
     command: &mut Command,

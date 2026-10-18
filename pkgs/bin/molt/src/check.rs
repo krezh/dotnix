@@ -4,14 +4,14 @@
 use std::ffi::OsString;
 use std::sync::atomic::{AtomicBool, Ordering};
 
-use gtk::glib::ExitCode;
-use serde::Serialize;
-use molt::command::CANCELLED;
 use crate::config::load_config;
 use crate::home::repository::{self, RepositoryKind};
-use crate::watchlist::{PrState, StepState};
 use crate::watchlist::db::{list_prs, open_db, save_pr};
 use crate::watchlist::github::fetch_pr;
+use crate::watchlist::{PrState, StepState};
+use gtk::glib::ExitCode;
+use molt::command::CANCELLED;
+use serde::Serialize;
 
 const USAGE: &str = "usage: molt check [--json] [--no-fetch]";
 const HELP: &str = "\
@@ -115,7 +115,13 @@ pub(crate) fn run(arguments: impl IntoIterator<Item = OsString>) -> ExitCode {
             && let Ok(current_prs) = list_prs(&conn)
         {
             for pr in current_prs {
-                if let Ok(refreshed) = fetch_pr(&pr.owner, &pr.repo, pr.pr_number, Some(pr.id), &CANCELLATION) {
+                if let Ok(refreshed) = fetch_pr(
+                    &pr.owner,
+                    &pr.repo,
+                    pr.pr_number,
+                    Some(pr.id),
+                    &CANCELLATION,
+                ) {
                     let _ = save_pr(&conn, &refreshed);
                 }
             }
@@ -210,21 +216,15 @@ fn print_text_report(
     vcs: &str,
     watchlist: Option<&WatchlistReport>,
 ) {
+    use crate::ui::{seconds_since, short_age};
     use std::io::IsTerminal;
     use std::time::SystemTime;
-    use crate::ui::{seconds_since, short_age};
 
     let color = std::io::stdout().is_terminal() && std::env::var_os("NO_COLOR").is_none();
 
     let (bold, dim, green, yellow, mauve, teal, reset) = if color {
         (
-            "\x1b[1m",
-            "\x1b[90m",
-            "\x1b[32m",
-            "\x1b[33m",
-            "\x1b[35m",
-            "\x1b[36m",
-            "\x1b[0m",
+            "\x1b[1m", "\x1b[90m", "\x1b[32m", "\x1b[33m", "\x1b[35m", "\x1b[36m", "\x1b[0m",
         )
     } else {
         ("", "", "", "", "", "", "")
@@ -235,7 +235,10 @@ fn print_text_report(
     // ── Repository ─────────────────────────────────────────────────────────────
     if status.incoming > 0 {
         let local_str = if status.local > 0 {
-            format!(" · {dim}{status_local} local{reset}", status_local = status.local)
+            format!(
+                " · {dim}{status_local} local{reset}",
+                status_local = status.local
+            )
         } else {
             String::new()
         };
@@ -248,18 +251,34 @@ fn print_text_report(
             let short_id = &commit.id[..commit.id.len().min(7)];
             let elapsed = short_age(seconds_since(now, commit.time));
             println!();
-            println!("  • {mauve}{short_id}{reset}  {bold}{}{reset}", commit.summary);
-            println!("    {dim}{}{reset} · {dim}{elapsed} ago{reset}", commit.author);
+            println!(
+                "  • {mauve}{short_id}{reset}  {bold}{}{reset}",
+                commit.summary
+            );
+            println!(
+                "    {dim}{}{reset} · {dim}{elapsed} ago{reset}",
+                commit.author
+            );
         }
 
         if status.incoming > 5 {
             println!();
-            println!("  {dim}… and {} more incoming commits{reset}", status.incoming - 5);
+            println!(
+                "  {dim}… and {} more incoming commits{reset}",
+                status.incoming - 5
+            );
         }
     } else {
         let local_str = if status.local > 0 {
-            let unit = if status.local == 1 { "change" } else { "changes" };
-            format!(" · {dim}{status_local} local {unit}{reset}", status_local = status.local)
+            let unit = if status.local == 1 {
+                "change"
+            } else {
+                "changes"
+            };
+            format!(
+                " · {dim}{status_local} local {unit}{reset}",
+                status_local = status.local
+            )
         } else {
             String::new()
         };
@@ -290,7 +309,10 @@ fn print_text_report(
 
     for pr in &wl.prs {
         println!();
-        println!("  • {mauve}{bold}#{}{reset}  {bold}{}{reset}", pr.pr_number, pr.title);
+        println!(
+            "  • {mauve}{bold}#{}{reset}  {bold}{}{reset}",
+            pr.pr_number, pr.title
+        );
 
         let state_str = match pr.state {
             "merged" => format!("{green}Merged{reset}"),
@@ -309,7 +331,10 @@ fn print_text_report(
             String::new()
         };
 
-        println!("    {teal}{}{reset} · {state_str}{commit_str}{ready_badge}", pr.repo);
+        println!(
+            "    {teal}{}{reset} · {state_str}{commit_str}{ready_badge}",
+            pr.repo
+        );
 
         let pipeline = pr
             .branches
@@ -347,10 +372,7 @@ fn parse(arguments: impl IntoIterator<Item = OsString>) -> Result<Option<Options
             Some("--no-fetch") => options.fetch = false,
             Some("-h" | "--help") => return Ok(None),
             _ => {
-                return Err(format!(
-                    "unknown argument: {}",
-                    argument.to_string_lossy()
-                ));
+                return Err(format!("unknown argument: {}", argument.to_string_lossy()));
             }
         }
     }

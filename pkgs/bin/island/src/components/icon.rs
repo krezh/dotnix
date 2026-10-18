@@ -1,4 +1,4 @@
-//! Drawing icons and pictures: tinted symbolic glyphs, full-color images, tray pixmaps.
+//! Drawing icons and pictures: tinted symbolic glyphs, full-color images, pixel buffers.
 
 use std::{
     fmt,
@@ -73,8 +73,4 @@ pub fn image(path: &Path, size: f32) -> AnyElement {
         .size(px(size))
         .object_fit(ObjectFit::Contain)
         .into_any_element()
-}
-
-pub fn tray(icon: &Picture, size: f32) -> AnyElement {
-    picture(icon, size, ObjectFit::Contain)
 }

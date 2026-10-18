@@ -124,3 +124,33 @@ fn tones_headings_by_their_words() {
     assert_eq!(heading_tone("Prefix handling renewed"), None);
     assert_eq!(heading_tone("@oh-my-pi/pi-agent-core"), None);
 }
+
+#[test]
+fn strips_headerlinks_and_pilcrow_from_headings() {
+    assert_eq!(
+        markdown_blocks(concat!(
+            "<h1>Mesa 26.2.5 Release Notes / 2026-10-14<a class=\"headerlink\" href=\"#mesa-26-2-5-release-notes-2026-10-14\" title=\"Link to this heading\">¶</a></h1>\n",
+            "<h2>Bug fixes ¶</h2>\n",
+            "<h3>Changes <a href=\"#changes\">#</a></h3>\n",
+            "<p>See <a href=\"https://mesa3d.org\">docs</a></p>",
+        )),
+        vec![
+            MarkdownBlock {
+                kind: MarkdownBlockKind::Heading(1),
+                markup: "Mesa 26.2.5 Release Notes / 2026-10-14".to_owned(),
+            },
+            MarkdownBlock {
+                kind: MarkdownBlockKind::Heading(2),
+                markup: "Bug fixes".to_owned(),
+            },
+            MarkdownBlock {
+                kind: MarkdownBlockKind::Heading(3),
+                markup: "Changes".to_owned(),
+            },
+            MarkdownBlock {
+                kind: MarkdownBlockKind::Paragraph,
+                markup: "See <a href=\"https://mesa3d.org\">docs</a>".to_owned(),
+            },
+        ]
+    );
+}

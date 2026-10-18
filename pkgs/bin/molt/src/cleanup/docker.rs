@@ -136,7 +136,9 @@ fn resolve_socket(
 fn unix_socket(host: &str, source: &str) -> Result<PathBuf, String> {
     host.strip_prefix("unix://")
         .map(PathBuf::from)
-        .ok_or_else(|| format!("{source} points to {host}; only unix:// Docker sockets are supported"))
+        .ok_or_else(|| {
+            format!("{source} points to {host}; only unix:// Docker sockets are supported")
+        })
 }
 
 fn current_context(config_dir: &Path) -> Option<String> {
@@ -566,7 +568,10 @@ mod tests {
     fn prune_sums_space_reclaimed_across_steps() {
         let fixture = Fixture::new();
         let (socket, server) = fixture.serve(vec![
-            plain("200 OK", r#"{"ContainersDeleted":["a"],"SpaceReclaimed":1}"#),
+            plain(
+                "200 OK",
+                r#"{"ContainersDeleted":["a"],"SpaceReclaimed":1}"#,
+            ),
             plain("200 OK", r#"{"NetworksDeleted":[]}"#),
             chunked(r#"{"VolumesDeleted":["v"],"SpaceReclaimed":20}"#),
             plain("200 OK", r#"{"ImagesDeleted":[],"SpaceReclaimed":300}"#),
@@ -649,7 +654,10 @@ mod tests {
         assert_eq!(labels, ["app:dev", "unused", "cacheid01234", "old"]);
         assert_eq!(group.items[0].bytes, Some(1000));
         assert!(group.items[0].detail.ends_with("· 1234567890ab"));
-        assert_eq!(group.items[3].detail, "Stopped container · Exited (0) 2 days ago");
+        assert_eq!(
+            group.items[3].detail,
+            "Stopped container · Exited (0) 2 days ago"
+        );
     }
 
     #[test]

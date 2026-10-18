@@ -3,8 +3,8 @@ use gtk::prelude::*;
 use nix_changelog::Changelog;
 use pulldown_cmark::{Event, HeadingLevel, Parser, Tag, TagEnd};
 
-use crate::ui::theme;
 use crate::ui::label;
+use crate::ui::theme;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum MarkdownBlockKind {
@@ -34,6 +34,8 @@ struct MarkdownBlocks {
     html_pending: String,
     in_comment: bool,
     preformatted: bool,
+    /// Depth of HTML elements whose content should be ignored (e.g. `<a class="headerlink">¶</a>`).
+    skip_depth: usize,
 }
 
 impl MarkdownBlocks {
@@ -47,12 +49,16 @@ impl MarkdownBlocks {
             return;
         };
         if kind != MarkdownBlockKind::Code {
-            self.markup.truncate(self.markup.trim_end_matches(' ').len());
+            self.markup
+                .truncate(self.markup.trim_end_matches(' ').len());
         }
         while let Some(close) = self.open_inline.pop() {
             self.markup.push_str(close);
         }
-        let markup = std::mem::take(&mut self.markup);
+        let mut markup = std::mem::take(&mut self.markup);
+        if matches!(kind, MarkdownBlockKind::Heading(_)) {
+            strip_heading_permalinks(&mut markup);
+        }
         if !markup.trim().is_empty() {
             self.blocks.push(MarkdownBlock { kind, markup });
         }
@@ -123,6 +129,9 @@ impl MarkdownBlocks {
 
     /// HTML text: entities decoded and, outside `<pre>`, whitespace runs collapsed to one space.
     fn push_html_text(&mut self, raw: &str) {
+        if self.skip_depth > 0 {
+            return;
+        }
         let text = decode_entities(raw);
         if self.preformatted {
             let text = if self.markup.is_empty() {
@@ -169,6 +178,14 @@ impl MarkdownBlocks {
         name.copy_from_slice(&tag.as_bytes()[..name_end]);
         name.make_ascii_lowercase();
         let attributes = &tag[name_end..];
+        if self.skip_depth > 0 {
+            if closing {
+                self.skip_depth -= 1;
+            } else {
+                self.skip_depth += 1;
+            }
+            return;
+        }
         match (&*name, closing) {
             ([b'h', level @ b'1'..=b'6'], false) => {
                 self.begin(MarkdownBlockKind::Heading(level - b'0'));
@@ -232,7 +249,11 @@ impl MarkdownBlocks {
             ),
             (b"code" | b"kbd" | b"samp" | b"tt", true) => self.close_inline("</span></tt>"),
             (b"a", false) => {
-                if let Some(href) = html_attribute(attributes, "href") {
+                let is_headerlink = html_attribute(attributes, "class")
+                    .is_some_and(|c| c == "headerlink" || c == "anchor" || c == "hash-link");
+                if is_headerlink {
+                    self.skip_depth = 1;
+                } else if let Some(href) = html_attribute(attributes, "href") {
                     let href = glib::markup_escape_text(&decode_entities(href));
                     self.open_inline(&format!("<a href=\"{href}\">"), "</a>");
                 }
@@ -262,12 +283,14 @@ impl MarkdownBlocks {
 /// Where the next tag starts: a `<` that opens an element, end tag, comment, or declaration,
 /// not a lone `<` in text.
 fn html_tag_start(html: &str) -> Option<usize> {
-    html.match_indices('<').map(|(index, _)| index).find(|&index| {
-        html[index + 1..]
-            .chars()
-            .next()
-            .is_some_and(|next| next.is_ascii_alphabetic() || matches!(next, '/' | '!' | '?'))
-    })
+    html.match_indices('<')
+        .map(|(index, _)| index)
+        .find(|&index| {
+            html[index + 1..]
+                .chars()
+                .next()
+                .is_some_and(|next| next.is_ascii_alphabetic() || matches!(next, '/' | '!' | '?'))
+        })
 }
 
 /// The index of the `>` closing the tag `html` starts with; quoted attribute values may hold `>`.
@@ -383,6 +406,7 @@ pub(crate) fn markdown_blocks(markdown: &str) -> Vec<MarkdownBlock> {
         html_pending: String::new(),
         in_comment: false,
         preformatted: false,
+        skip_depth: 0,
     };
     for event in Parser::new(markdown) {
         match event {
@@ -500,14 +524,16 @@ pub(crate) fn render(content: &gtk::Box, changelog: &Changelog) -> Vec<gtk::Box>
             content.append(&separator);
         }
         let section = gtk::Box::new(gtk::Orientation::Vertical, 10);
-        let tag = label(
-            &release.tag,
-            &["release-tag", "chip", "tinted", theme::tone(theme::VERSION)],
-            0.0,
-        );
-        tag.set_halign(gtk::Align::Start);
-        tag.set_tooltip_text(Some(&release.tag));
-        section.append(&tag);
+        if !release.tag.is_empty() {
+            let tag = label(
+                &release.tag,
+                &["release-tag", "chip", "tinted", theme::tone(theme::VERSION)],
+                0.0,
+            );
+            tag.set_halign(gtk::Align::Start);
+            tag.set_tooltip_text(Some(&release.tag));
+            section.append(&tag);
+        }
         // Headings like "Bug Fixes" tint themselves and the items under them, until the next
         // heading at the same or a higher level.
         let mut tone: Option<(u8, &'static str)> = None;
@@ -573,6 +599,25 @@ fn strip_markup(markup: &str) -> String {
         .replace("&quot;", "\"")
         .replace("&#39;", "'")
         .replace("&amp;", "&")
+}
+
+/// Strips trailing permalink anchors such as `<a href="#...">¶</a>` or `#` and trailing
+/// pilcrow symbols from heading markup.
+fn strip_heading_permalinks(markup: &mut String) {
+    if let Some(open) = markup.rfind("<a href=\"#") {
+        if markup[open..].ends_with("</a>") {
+            let inner = &markup[open + 10..markup.len() - 4];
+            if let Some(content_start) = inner.find('>') {
+                let text = &inner[content_start + 1..];
+                if text == "¶" || text == "#" || text.is_empty() {
+                    markup.truncate(open);
+                }
+            }
+        }
+    }
+    while markup.ends_with([' ', '\t', '\n', '¶']) {
+        markup.pop();
+    }
 }
 
 /// `tone` is the section's tone class; headings and bullets are drawn in it.

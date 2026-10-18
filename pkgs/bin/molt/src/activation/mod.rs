@@ -228,10 +228,7 @@ mod tests {
 
     #[test]
     fn validates_service_responses() {
-        assert_eq!(
-            parse_service_response(br#"{"status":"ok"}"#),
-            Ok(None)
-        );
+        assert_eq!(parse_service_response(br#"{"status":"ok"}"#), Ok(None));
         assert_eq!(
             parse_service_response(br#"{"status":"ok","output":"impact"}"#),
             Ok(Some("impact".to_owned()))

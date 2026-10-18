@@ -6,7 +6,9 @@ pub(super) struct CommandLine {
     pub(super) keybinds: Option<bool>,
 }
 
-pub(super) fn parse_command_line(arguments: Vec<std::ffi::OsString>) -> Result<CommandLine, String> {
+pub(super) fn parse_command_line(
+    arguments: Vec<std::ffi::OsString>,
+) -> Result<CommandLine, String> {
     let mut host = None;
     let mut keybinds = None;
     let mut arguments = arguments.into_iter().skip(1);

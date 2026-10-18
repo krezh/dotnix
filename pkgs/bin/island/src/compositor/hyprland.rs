@@ -34,7 +34,11 @@ struct RawMonitor {
 
 impl RawMonitor {
     fn logical_width(&self) -> i32 {
-        let width = if self.transform % 2 == 1 { self.height } else { self.width };
+        let width = if self.transform % 2 == 1 {
+            self.height
+        } else {
+            self.width
+        };
         (width / self.scale.max(0.1)).round() as i32
     }
 }
@@ -105,7 +109,10 @@ fn snapshot(urgent: &BTreeSet<i64>) -> io::Result<Snapshot> {
     let raw_monitors: Vec<RawMonitor> = query("j/monitors")?;
     let raw_workspaces: Vec<RawWorkspace> = query("j/workspaces")?;
     // `hasfullscreen` is also set for maximized windows, which leave the bar visible.
-    let fullscreen: BTreeSet<i64> = if raw_workspaces.iter().any(|workspace| workspace.hasfullscreen) {
+    let fullscreen: BTreeSet<i64> = if raw_workspaces
+        .iter()
+        .any(|workspace| workspace.hasfullscreen)
+    {
         query::<Vec<RawClient>>("j/clients")?
             .into_iter()
             .filter(|client| client.fullscreen & 2 != 0)
@@ -233,9 +240,11 @@ impl Compositor for Hyprland {
     fn start(feed: Feed<Snapshot>) -> Option<Self> {
         let path = socket_dir()?.join(".socket2.sock");
         let mut events = Some(UnixStream::connect(&path).ok()?);
-        feed.supervise(move |feed| match events.take().map_or_else(|| UnixStream::connect(&path), Ok) {
-            Ok(events) => follow(events, feed),
-            Err(error) => Ended::Failed(error.to_string()),
+        feed.supervise(move |feed| {
+            match events.take().map_or_else(|| UnixStream::connect(&path), Ok) {
+                Ok(events) => follow(events, feed),
+                Err(error) => Ended::Failed(error.to_string()),
+            }
         });
         Some(Self)
     }
@@ -248,7 +257,10 @@ impl Compositor for Hyprland {
 
     fn focus_relative(&self, step: i32) {
         let target = format!("m{step:+}");
-        if let Err(error) = dispatch(&format!("hl.dsp.focus({{workspace = {}}})", lua_string(&target))) {
+        if let Err(error) = dispatch(&format!(
+            "hl.dsp.focus({{workspace = {}}})",
+            lua_string(&target)
+        )) {
             warn!(step, "cannot switch workspace: {error}");
         }
     }
@@ -264,6 +276,9 @@ impl Compositor for Hyprland {
 
     fn focused_class(&self) -> Option<String> {
         let window: serde_json::Value = query("j/activewindow").ok()?;
-        window["class"].as_str().filter(|class| !class.is_empty()).map(str::to_owned)
+        window["class"]
+            .as_str()
+            .filter(|class| !class.is_empty())
+            .map(str::to_owned)
     }
 }

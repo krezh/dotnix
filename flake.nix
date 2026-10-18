@@ -194,6 +194,14 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
+    herdr-gpui = {
+      url = "github:penso/herdr-gpui";
+      inputs = {
+        nixpkgs.follows = "nixpkgs";
+        rust-overlay.follows = "rust-overlay";
+      };
+    };
+
     undo = {
       url = "github:edaywalid/undo";
       inputs.nixpkgs.follows = "nixpkgs";

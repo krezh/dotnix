@@ -153,14 +153,17 @@ mod tests {
         let rects = region_rects([10, 20, 100, 60], 15.0);
         let area: i32 = rects.iter().map(|[_, _, w, h]| w * h).sum();
         let expected = 100.0 * 60.0 - 4.0 * (1.0 - std::f32::consts::FRAC_PI_4) * 225.0;
-        assert!((area as f32 - expected).abs() < 40.0, "area {area}, expected ≈{expected}");
+        assert!(
+            (area as f32 - expected).abs() < 40.0,
+            "area {area}, expected ≈{expected}"
+        );
         let top = rects.iter().find(|[_, y, _, _]| *y == 20).unwrap();
-        let middle = rects.iter().find(|[_, y, _, h]| *y == 35 && *h > 1).unwrap();
-        assert!(top[0] > middle[0] && top[2] < middle[2]);
-        let mut rows: Vec<i32> = rects
+        let middle = rects
             .iter()
-            .flat_map(|[_, y, _, h]| *y..*y + *h)
-            .collect();
+            .find(|[_, y, _, h]| *y == 35 && *h > 1)
+            .unwrap();
+        assert!(top[0] > middle[0] && top[2] < middle[2]);
+        let mut rows: Vec<i32> = rects.iter().flat_map(|[_, y, _, h]| *y..*y + *h).collect();
         rows.sort_unstable();
         assert_eq!(rows, (20..80).collect::<Vec<_>>());
     }

@@ -197,7 +197,9 @@ pub struct Sampler {
 impl Default for Sampler {
     fn default() -> Self {
         let gpu = discrete_gpu();
-        let gpu_hwmon = gpu.as_deref().and_then(|device| first_dir(&device.join("hwmon")));
+        let gpu_hwmon = gpu
+            .as_deref()
+            .and_then(|device| first_dir(&device.join("hwmon")));
         let gpu_label = gpu.as_deref().map_or_else(String::new, gpu_name);
         let sensors = sensors(gpu_hwmon.as_deref());
         let storage_temp = sensors
@@ -212,7 +214,8 @@ impl Default for Sampler {
             prev_disk: None,
             prev_processes: HashMap::new(),
             prev_process_at: None,
-            cpu_temp: hwmon_temp("k10temp", "Tctl").or_else(|| hwmon_temp("coretemp", "Package id 0")),
+            cpu_temp: hwmon_temp("k10temp", "Tctl")
+                .or_else(|| hwmon_temp("coretemp", "Package id 0")),
             gpu_temp: gpu_hwmon.as_deref().and_then(|dir| temp_input(dir, "edge")),
             power: power_sources(gpu_hwmon.as_deref())
                 .into_iter()
@@ -252,7 +255,9 @@ impl Default for Sampler {
 }
 
 fn read_text(path: impl AsRef<Path>) -> String {
-    fs::read_to_string(path).map(|text| text.trim().to_owned()).unwrap_or_default()
+    fs::read_to_string(path)
+        .map(|text| text.trim().to_owned())
+        .unwrap_or_default()
 }
 
 fn read_u64(path: &Path) -> Option<u64> {
@@ -264,7 +269,11 @@ fn read_temp(path: &Path) -> Option<f32> {
 }
 
 fn first_dir(dir: &Path) -> Option<PathBuf> {
-    fs::read_dir(dir).ok()?.flatten().map(|entry| entry.path()).next()
+    fs::read_dir(dir)
+        .ok()?
+        .flatten()
+        .map(|entry| entry.path())
+        .next()
 }
 
 fn temp_input(dir: &Path, label: &str) -> Option<PathBuf> {
@@ -276,12 +285,15 @@ fn temp_input(dir: &Path, label: &str) -> Option<PathBuf> {
 }
 
 fn hwmon_temp(name: &str, label: &str) -> Option<PathBuf> {
-    fs::read_dir("/sys/class/hwmon").ok()?.flatten().find_map(|hwmon| {
-        let dir = hwmon.path();
-        fs::read_to_string(dir.join("name"))
-            .is_ok_and(|text| text.trim() == name)
-            .then(|| temp_input(&dir, label))?
-    })
+    fs::read_dir("/sys/class/hwmon")
+        .ok()?
+        .flatten()
+        .find_map(|hwmon| {
+            let dir = hwmon.path();
+            fs::read_to_string(dir.join("name"))
+                .is_ok_and(|text| text.trim() == name)
+                .then(|| temp_input(&dir, label))?
+        })
 }
 
 fn hwmons() -> Vec<(String, PathBuf)> {
@@ -302,7 +314,9 @@ fn sensors(gpu_hwmon: Option<&Path>) -> Vec<Probe> {
     let (mut nvme, mut ram) = (0, 0);
     let gpu_hwmon = gpu_hwmon.and_then(|dir| dir.canonicalize().ok());
     for (name, dir) in hwmons() {
-        let discrete = gpu_hwmon.as_deref().is_some_and(|gpu| dir.canonicalize().ok().as_deref() == Some(gpu));
+        let discrete = gpu_hwmon
+            .as_deref()
+            .is_some_and(|gpu| dir.canonicalize().ok().as_deref() == Some(gpu));
         let mut add = |label: String, input: Option<PathBuf>, rank: u32| {
             if let Some(path) = input.filter(|path| path.exists()) {
                 probes.push(Probe { label, path, rank });
@@ -312,7 +326,11 @@ fn sensors(gpu_hwmon: Option<&Path>) -> Vec<Probe> {
             "k10temp" => {
                 add("CPU".into(), temp_input(&dir, "Tctl"), 0);
                 for ccd in 1..=8 {
-                    add(format!("CCD {ccd}"), temp_input(&dir, &format!("Tccd{ccd}")), ccd);
+                    add(
+                        format!("CCD {ccd}"),
+                        temp_input(&dir, &format!("Tccd{ccd}")),
+                        ccd,
+                    );
                 }
             }
             "coretemp" => add("CPU".into(), temp_input(&dir, "Package id 0"), 0),
@@ -321,7 +339,11 @@ fn sensors(gpu_hwmon: Option<&Path>) -> Vec<Probe> {
                 add("Hotspot".into(), temp_input(&dir, "junction"), 21);
                 add("GPU mem".into(), temp_input(&dir, "mem"), 22);
             }
-            "amdgpu" => add("iGPU".into(), temp_input(&dir, "edge").or_else(|| Some(dir.join("temp1_input"))), 23),
+            "amdgpu" => add(
+                "iGPU".into(),
+                temp_input(&dir, "edge").or_else(|| Some(dir.join("temp1_input"))),
+                23,
+            ),
             "nvme" => {
                 nvme += 1;
                 add(
@@ -332,13 +354,25 @@ fn sensors(gpu_hwmon: Option<&Path>) -> Vec<Probe> {
             }
             "spd5118" | "jc42" => {
                 ram += 1;
-                add(format!("RAM {ram}"), Some(dir.join("temp1_input")), 50 + ram);
+                add(
+                    format!("RAM {ram}"),
+                    Some(dir.join("temp1_input")),
+                    50 + ram,
+                );
             }
-            name if name.contains("prom") => add("Chipset".into(), Some(dir.join("temp1_input")), 70),
-            name if name.starts_with("iwlwifi") || name.starts_with("mt79") || name.starts_with("ath") => {
+            name if name.contains("prom") => {
+                add("Chipset".into(), Some(dir.join("temp1_input")), 70)
+            }
+            name if name.starts_with("iwlwifi")
+                || name.starts_with("mt79")
+                || name.starts_with("ath") =>
+            {
                 add("Wi-Fi".into(), Some(dir.join("temp1_input")), 80);
             }
-            name if ["r8169", "igc", "e1000", "atlantic", "ixgbe", "bnxt"].iter().any(|nic| name.starts_with(nic)) => {
+            name if ["r8169", "igc", "e1000", "atlantic", "ixgbe", "bnxt"]
+                .iter()
+                .any(|nic| name.starts_with(nic)) =>
+            {
                 add("Network".into(), Some(dir.join("temp1_input")), 79);
             }
             _ => {}
@@ -355,13 +389,19 @@ fn power_sources(gpu_hwmon: Option<&Path>) -> Vec<Probe> {
         .into_iter()
         .filter(|(name, _)| name == "amdgpu")
         .filter_map(|(_, dir)| {
-            let discrete = gpu_hwmon.as_deref().is_some_and(|gpu| dir.canonicalize().ok().as_deref() == Some(gpu));
+            let discrete = gpu_hwmon
+                .as_deref()
+                .is_some_and(|gpu| dir.canonicalize().ok().as_deref() == Some(gpu));
             let path = ["power1_average", "power1_input"]
                 .into_iter()
                 .map(|file| dir.join(file))
                 .find(|path| path.exists())?;
             Some(Probe {
-                label: if discrete { "GPU".into() } else { "iGPU".into() },
+                label: if discrete {
+                    "GPU".into()
+                } else {
+                    "iGPU".into()
+                },
                 path,
                 rank: u32::from(!discrete),
             })
@@ -415,7 +455,9 @@ fn cpu_ghz() -> Option<f32> {
                 .file_name()
                 .to_str()
                 .and_then(|name| name.strip_prefix("cpu"))
-                .is_some_and(|rest| rest.chars().all(|char| char.is_ascii_digit()) && !rest.is_empty())
+                .is_some_and(|rest| {
+                    rest.chars().all(|char| char.is_ascii_digit()) && !rest.is_empty()
+                })
         })
         .filter_map(|entry| read_u64(&entry.path().join("cpufreq/scaling_cur_freq")))
         .collect();
@@ -430,7 +472,11 @@ fn read_net() -> Option<(u64, u64)> {
             continue;
         };
         let name = name.trim();
-        if name == "lo" || name.starts_with("docker") || name.starts_with("veth") || name.starts_with("br-") {
+        if name == "lo"
+            || name.starts_with("docker")
+            || name.starts_with("veth")
+            || name.starts_with("br-")
+        {
             continue;
         }
         let fields: Vec<u64> = counters
@@ -482,7 +528,9 @@ fn cpu_model() -> String {
                 .map(|(_, model)| {
                     model
                         .split_whitespace()
-                        .filter(|word| !word.ends_with("-Core") && *word != "Processor" && *word != "AMD")
+                        .filter(|word| {
+                            !word.ends_with("-Core") && *word != "Processor" && *word != "AMD"
+                        })
                         .collect::<Vec<_>>()
                         .join(" ")
                 })
@@ -496,7 +544,12 @@ fn marketing(entry: &str) -> String {
     let name = entry.split(['[', ']']).nth(1).unwrap_or(entry);
     let name = name.split('/').next().unwrap_or(name).trim();
     match name.rsplit_once(' ') {
-        Some((model, size)) if size.ends_with("GB") && size[..size.len() - 2].chars().all(|char| char.is_ascii_digit()) => {
+        Some((model, size))
+            if size.ends_with("GB")
+                && size[..size.len() - 2]
+                    .chars()
+                    .all(|char| char.is_ascii_digit()) =>
+        {
             model.to_owned()
         }
         _ => name.to_owned(),
@@ -522,7 +575,11 @@ fn pci_name(database: &str, vendor: &str, product: &str, subsystem: &str) -> Opt
 /// The card's name from the PCI database: the exact board from its subsystem entry
 /// (e.g. "Radeon RX 9070 XT"), else the chip's family, else just the vendor.
 fn gpu_name(device: &Path) -> String {
-    let id = |file: &str| read_text(device.join(file)).trim_start_matches("0x").to_lowercase();
+    let id = |file: &str| {
+        read_text(device.join(file))
+            .trim_start_matches("0x")
+            .to_lowercase()
+    };
     let (vendor, product) = (id("vendor"), id("device"));
     let subsystem = format!("{} {}", id("subsystem_vendor"), id("subsystem_device"));
     let named = option_env!("ISLAND_PCI_IDS")
@@ -544,7 +601,8 @@ fn os_name() -> String {
         .and_then(|release| {
             let field = |key: &str| {
                 release.lines().find_map(|line| {
-                    line.strip_prefix(key).map(|value| value.trim_matches('"').to_owned())
+                    line.strip_prefix(key)
+                        .map(|value| value.trim_matches('"').to_owned())
                 })
             };
             match (field("NAME="), field("VERSION_ID=")) {
@@ -567,16 +625,23 @@ fn generation() -> Option<u32> {
 
 /// The partition behind a device path, following device-mapper (LUKS, LVM) to what it sits on.
 fn backing_partition(device: &str) -> String {
-    let resolved = Path::new(device).canonicalize().unwrap_or_else(|_| PathBuf::from(device));
-    let mut name = resolved
-        .file_name()
-        .map_or_else(|| device.to_owned(), |name| name.to_string_lossy().into_owned());
+    let resolved = Path::new(device)
+        .canonicalize()
+        .unwrap_or_else(|_| PathBuf::from(device));
+    let mut name = resolved.file_name().map_or_else(
+        || device.to_owned(),
+        |name| name.to_string_lossy().into_owned(),
+    );
     for _ in 0..4 {
         if !name.starts_with("dm-") {
             break;
         }
         match first_dir(&Path::new("/sys/block").join(&name).join("slaves")) {
-            Some(slave) => name = slave.file_name().map_or(name, |slave| slave.to_string_lossy().into_owned()),
+            Some(slave) => {
+                name = slave
+                    .file_name()
+                    .map_or(name, |slave| slave.to_string_lossy().into_owned())
+            }
             None => break,
         }
     }
@@ -596,7 +661,10 @@ fn mounts() -> Vec<Mount> {
         other => 4 + other.len(),
     };
     let mut best: Vec<(String, Mount)> = Vec::new();
-    for line in fs::read_to_string("/proc/mounts").unwrap_or_default().lines() {
+    for line in fs::read_to_string("/proc/mounts")
+        .unwrap_or_default()
+        .lines()
+    {
         let fields: Vec<&str> = line.split_whitespace().collect();
         let [device, mount, kind, ..] = fields[..] else {
             continue;
@@ -687,7 +755,13 @@ fn program_name(raw: &str) -> String {
 fn program(pid_dir: &Path, comm: &str) -> String {
     fs::read_link(pid_dir.join("exe"))
         .ok()
-        .and_then(|exe| exe.file_name().map(|name| name.to_string_lossy().trim_end_matches(" (deleted)").to_owned()))
+        .and_then(|exe| {
+            exe.file_name().map(|name| {
+                name.to_string_lossy()
+                    .trim_end_matches(" (deleted)")
+                    .to_owned()
+            })
+        })
         .map_or_else(|| program_name(comm), |exe| program_name(&exe))
 }
 
@@ -696,7 +770,11 @@ fn process_ticks() -> (HashMap<u32, (String, u64)>, usize) {
     let mut ticks = HashMap::new();
     let mut count = 0;
     for entry in fs::read_dir("/proc").into_iter().flatten().flatten() {
-        let Some(pid) = entry.file_name().to_str().and_then(|name| name.parse::<u32>().ok()) else {
+        let Some(pid) = entry
+            .file_name()
+            .to_str()
+            .and_then(|name| name.parse::<u32>().ok())
+        else {
             continue;
         };
         let Ok(stat) = fs::read_to_string(entry.path().join("stat")) else {
@@ -708,8 +786,14 @@ fn process_ticks() -> (HashMap<u32, (String, u64)>, usize) {
         };
         let name = program(&entry.path(), &stat[open + 1..close]);
         let fields: Vec<&str> = stat[close + 1..].split_whitespace().collect();
-        let used = fields.get(11).and_then(|value| value.parse::<u64>().ok()).unwrap_or(0)
-            + fields.get(12).and_then(|value| value.parse::<u64>().ok()).unwrap_or(0);
+        let used = fields
+            .get(11)
+            .and_then(|value| value.parse::<u64>().ok())
+            .unwrap_or(0)
+            + fields
+                .get(12)
+                .and_then(|value| value.parse::<u64>().ok())
+                .unwrap_or(0);
         ticks.insert(pid, (name, used));
     }
     (ticks, count)
@@ -748,8 +832,19 @@ impl Sampler {
             }
             stats.cores = cores
                 .iter()
-                .zip(self.prev_cores.iter().copied().chain(std::iter::repeat((0, 0))))
-                .map(|(core, prev)| if prev.1 == 0 { 0.0 } else { busy(*core, prev).unwrap_or(0.0) })
+                .zip(
+                    self.prev_cores
+                        .iter()
+                        .copied()
+                        .chain(std::iter::repeat((0, 0))),
+                )
+                .map(|(core, prev)| {
+                    if prev.1 == 0 {
+                        0.0
+                    } else {
+                        busy(*core, prev).unwrap_or(0.0)
+                    }
+                })
                 .collect();
             self.prev_cpu = Some(total);
             self.prev_cores = cores;
@@ -802,7 +897,10 @@ impl Sampler {
             }
         }
         if stats.mem_total_kib > 0 {
-            push(&mut self.mem_history, stats.mem_used_kib as f32 / stats.mem_total_kib as f32);
+            push(
+                &mut self.mem_history,
+                stats.mem_used_kib as f32 / stats.mem_total_kib as f32,
+            );
         }
 
         stats.partitions = self
@@ -889,7 +987,10 @@ impl Sampler {
             top.truncate(TOP_PROCESSES);
             stats.processes = top;
         }
-        self.prev_processes = ticks.into_iter().map(|(pid, (_, used))| (pid, used)).collect();
+        self.prev_processes = ticks
+            .into_iter()
+            .map(|(pid, (_, used))| (pid, used))
+            .collect();
         self.prev_process_at = Some(now);
 
         if let Ok(loadavg) = fs::read_to_string("/proc/loadavg") {

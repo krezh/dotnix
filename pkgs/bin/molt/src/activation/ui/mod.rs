@@ -13,9 +13,9 @@ use molt::protocol::ActivationMode;
 
 use crate::activation::activate;
 use crate::app::mini::{MiniEnd, MiniStatus};
+use crate::app::state::{Operation, UiState};
 use crate::build::Target;
 use crate::report::Report;
-use crate::app::state::{Operation, UiState};
 use crate::ui::{EnergyOverlay, MorphLabel, WeakMorphLabel};
 
 pub(crate) use animation::{SwitchAnimation, smootherstep, switch_animation};

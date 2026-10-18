@@ -105,18 +105,18 @@
           {
             dry_run = cfg.dryRun;
             no_exit = cfg.noExit;
-            verbose = cfg.verbose;
+            inherit (cfg) verbose;
             no_fork = cfg.noFork;
             actions = lib.mapAttrs (_: action: {
               top_label = action.topLabel;
-              command = action.command;
+              inherit (action) command;
             }) cfg.actions;
             appearance = {
-              opacity = cfg.opacity;
+              inherit (cfg) opacity;
               panel_opacity = cfg.panelOpacity;
             };
           }
-          // lib.optionalAttrs (cfg.vt != null) { vt = cfg.vt; }
+          // lib.optionalAttrs (cfg.vt != null) { inherit (cfg) vt; }
         );
       };
     };

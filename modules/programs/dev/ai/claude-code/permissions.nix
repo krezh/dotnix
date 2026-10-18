@@ -76,6 +76,7 @@
             "mcp__plugin_claude-code-home-manager_konflate__*"
             "mcp__plugin_claude-code-home-manager_nixos__*"
             "mcp__plugin_claude-code-home-manager_mcp-tools__*"
+            "mcp__plugin_claude-code-home-manager_opentodo__*"
 
             # Safe web fetch from trusted domains
             "WebFetch(domain:wiki.hyprland.org)"

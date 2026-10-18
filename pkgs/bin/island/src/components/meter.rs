@@ -36,12 +36,23 @@ pub fn meter(meter: Meter, at: &str, cx: &mut Context<Island>) -> AnyElement {
         .flex()
         .items_center()
         .justify_center()
-        .child(ui::shape(Radius::Control, Some(rgba(with_alpha(tint, ACCENT_TINT_ALPHA)).into())))
-        .when_some(meter.glyph.as_deref(), |slot, path| slot.child(icon::glyph(path, GLYPH, tint)));
+        .child(ui::shape(
+            Radius::Control,
+            Some(rgba(with_alpha(tint, ACCENT_TINT_ALPHA)).into()),
+        ))
+        .when_some(meter.glyph.as_deref(), |slot, path| {
+            slot.child(icon::glyph(path, GLYPH, tint))
+        });
     let id = |part: &str| SharedString::from(format!("{at}-{part}"));
     let caption = motion::text(id("caption"), meter.caption.clone());
     let label = motion::text(id("label"), meter.label.clone());
-    let row = div().w(px(WIDTH)).px(px(4.0)).flex().items_center().gap(px(12.0)).child(tile);
+    let row = div()
+        .w(px(WIDTH))
+        .px(px(4.0))
+        .flex()
+        .items_center()
+        .gap(px(12.0))
+        .child(tile);
     let Some((value, muted)) = meter.level else {
         return row
             .child(
@@ -52,7 +63,12 @@ pub fn meter(meter: Meter, at: &str, cx: &mut Context<Island>) -> AnyElement {
                     .flex_col()
                     .gap(px(2.0))
                     .when(!meter.caption.is_empty(), |text| {
-                        text.child(div().text_size(px(SMALL_SIZE)).text_color(rgb(SUBTEXT1)).child(caption))
+                        text.child(
+                            div()
+                                .text_size(px(SMALL_SIZE))
+                                .text_color(rgb(SUBTEXT1))
+                                .child(caption),
+                        )
                     })
                     .child(
                         div()
@@ -80,12 +96,25 @@ pub fn meter(meter: Meter, at: &str, cx: &mut Context<Island>) -> AnyElement {
                     .child(caption),
             )
         })
-        .child(div().min_w(px(0.0)).truncate().font_weight(FontWeight::SEMIBOLD).child(label));
+        .child(
+            div()
+                .min_w(px(0.0))
+                .truncate()
+                .font_weight(FontWeight::SEMIBOLD)
+                .child(label),
+        );
     let amount = div()
         .flex_none()
         .font_weight(FontWeight::SEMIBOLD)
         .text_color(rgb(if muted { OVERLAY2 } else { TEXT }))
-        .child(motion::text(id("amount"), if muted { "Muted".to_owned() } else { format!("{percent}%") }));
+        .child(motion::text(
+            id("amount"),
+            if muted {
+                "Muted".to_owned()
+            } else {
+                format!("{percent}%")
+            },
+        ));
     row.child(
         div()
             .flex_1()
@@ -93,8 +122,22 @@ pub fn meter(meter: Meter, at: &str, cx: &mut Context<Island>) -> AnyElement {
             .flex()
             .flex_col()
             .gap(px(2.0))
-            .child(div().flex().items_baseline().justify_between().gap(px(12.0)).child(heading).child(amount))
-            .child(slider(id("slider"), if muted { 0.0 } else { value }, tint, None, cx)),
+            .child(
+                div()
+                    .flex()
+                    .items_baseline()
+                    .justify_between()
+                    .gap(px(12.0))
+                    .child(heading)
+                    .child(amount),
+            )
+            .child(slider(
+                id("slider"),
+                if muted { 0.0 } else { value },
+                tint,
+                None,
+                cx,
+            )),
     )
     .into_any_element()
 }

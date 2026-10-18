@@ -7,12 +7,16 @@ use std::{
 use ddc_hi::{Ddc, Display};
 use zbus::{Connection, block_on};
 
-use crate::dbus::uncached;
+use crate::{control::Change, dbus::uncached};
 
 const BRIGHTNESS: u8 = 0x10;
 
 fn backlight() -> Option<PathBuf> {
-    fs::read_dir("/sys/class/backlight").ok()?.flatten().map(|entry| entry.path()).next()
+    fs::read_dir("/sys/class/backlight")
+        .ok()?
+        .flatten()
+        .map(|entry| entry.path())
+        .next()
 }
 
 fn read_number(path: &Path) -> Option<u32> {
@@ -39,7 +43,10 @@ fn set_backlight(device: &Path, level: f32) -> Option<()> {
         )
         .await
         .ok()?;
-        session.call_method("SetBrightness", &("backlight", name.as_str(), value)).await.ok()?;
+        session
+            .call_method("SetBrightness", &("backlight", name.as_str(), value))
+            .await
+            .ok()?;
         Some(())
     })
 }
@@ -83,4 +90,13 @@ pub fn step(delta: f32) -> Option<f32> {
         None => set_ddc(next)?,
     }
     Some(next)
+}
+
+/// `None` without a screen to set.
+pub(super) fn apply(change: Change) -> Option<f32> {
+    match change {
+        Change::Step(delta) => step(delta),
+        Change::Set(value) => get().and_then(|current| step(value - current)),
+        Change::ToggleMute => get(),
+    }
 }

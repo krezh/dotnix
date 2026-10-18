@@ -1,4 +1,3 @@
-
 use futures::StreamExt;
 use zbus::{Connection, MatchRule, MessageStream, block_on, message::Type};
 
@@ -40,10 +39,11 @@ async fn watch(feed: &Feed<State, Event>) -> Ended {
         .interface("org.freedesktop.DBus.Properties")
         .member("PropertiesChanged")
         .build();
-    let mut stream = match async { MessageStream::for_match_rule(rule?, &connection, None).await }.await {
-        Ok(stream) => stream,
-        Err(error) => return Ended::Failed(error.to_string()),
-    };
+    let mut stream =
+        match async { MessageStream::for_match_rule(rule?, &connection, None).await }.await {
+            Ok(stream) => stream,
+            Err(error) => return Ended::Failed(error.to_string()),
+        };
     while let Some(message) = stream.next().await {
         if message.is_err() {
             continue;

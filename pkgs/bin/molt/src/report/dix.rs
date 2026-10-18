@@ -383,11 +383,35 @@ mod tests {
     #[test]
     fn converts_every_dix_status() {
         let changes = changes_from_diffs(&[
-            package("nixos-system-host-26.05", DiffStatus::Changed, 0, vec![], false),
-            package("a", DiffStatus::Added, 1, vec![VersionDiff::Added(one("1"))], false),
-            package("b", DiffStatus::Removed, -2, vec![VersionDiff::Removed(one("1"))], false),
+            package(
+                "nixos-system-host-26.05",
+                DiffStatus::Changed,
+                0,
+                vec![],
+                false,
+            ),
+            package(
+                "a",
+                DiffStatus::Added,
+                1,
+                vec![VersionDiff::Added(one("1"))],
+                false,
+            ),
+            package(
+                "b",
+                DiffStatus::Removed,
+                -2,
+                vec![VersionDiff::Removed(one("1"))],
+                false,
+            ),
             package("c", DiffStatus::Upgraded, 3, vec![changed("1", "2")], false),
-            package("d", DiffStatus::Downgraded, -4, vec![changed("2", "1")], false),
+            package(
+                "d",
+                DiffStatus::Downgraded,
+                -4,
+                vec![changed("2", "1")],
+                false,
+            ),
             package("e", DiffStatus::Changed, 0, vec![], false),
             package(
                 "X-Restart-Triggers-dbus-broker",
@@ -448,7 +472,10 @@ mod tests {
         assert_eq!(changes.len(), 10);
         assert_eq!(changes[0].name, "a");
         assert_eq!(changes[3].status, ChangeStatus::Downgraded);
-        assert_eq!((changes[3].old.as_str(), changes[3].new.as_str()), ("2", "1"));
+        assert_eq!(
+            (changes[3].old.as_str(), changes[3].new.as_str()),
+            ("2", "1")
+        );
         assert_eq!(changes[5].name, "chomp");
         assert_eq!(changes[5].old, "0.1.0");
         assert_eq!(changes[5].new, "...");
@@ -473,8 +500,7 @@ mod tests {
     #[test]
     fn rejects_paired_status_without_versions() {
         assert!(
-            changes_from_diffs(&[package("demo", DiffStatus::Upgraded, 0, vec![], false)])
-                .is_err()
+            changes_from_diffs(&[package("demo", DiffStatus::Upgraded, 0, vec![], false)]).is_err()
         );
     }
 }

@@ -23,7 +23,15 @@ struct Received {
 }
 
 impl Dispatch<WlRegistry, GlobalListContents> for Received {
-    fn event(_: &mut Self, _: &WlRegistry, _: <WlRegistry as wayland_client::Proxy>::Event, _: &GlobalListContents, _: &Connection, _: &QueueHandle<Self>) {}
+    fn event(
+        _: &mut Self,
+        _: &WlRegistry,
+        _: <WlRegistry as wayland_client::Proxy>::Event,
+        _: &GlobalListContents,
+        _: &Connection,
+        _: &QueueHandle<Self>,
+    ) {
+    }
 }
 
 delegate_noop!(Received: XdgActivationV1);
@@ -66,7 +74,9 @@ impl Activation {
 
     /// `None` when the connection broke, after which it should be made again.
     pub fn token(&mut self) -> Option<String> {
-        let request = self.activation.get_activation_token(&self.queue.handle(), ());
+        let request = self
+            .activation
+            .get_activation_token(&self.queue.handle(), ());
         request.commit();
         let mut received = Received::default();
         self.queue.roundtrip(&mut received).ok()?;
@@ -76,7 +86,10 @@ impl Activation {
         {
             oldest.destroy();
         }
-        debug!(token = received.token.is_some(), "asked for an activation token");
+        debug!(
+            token = received.token.is_some(),
+            "asked for an activation token"
+        );
         received.token
     }
 }

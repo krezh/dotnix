@@ -148,12 +148,13 @@ impl NixProgressTracker {
                     },
                 );
                 let (work_path, detail) = if activity_type == 101 {
-                    self.ancestor(parent, 108).map_or((None, None), |substitution| {
-                        (
-                            substitution.path.clone(),
-                            substitution.substituter.as_deref().map(cache_label),
-                        )
-                    })
+                    self.ancestor(parent, 108)
+                        .map_or((None, None), |substitution| {
+                            (
+                                substitution.path.clone(),
+                                substitution.substituter.as_deref().map(cache_label),
+                            )
+                        })
                 } else {
                     (path, None)
                 };
@@ -408,9 +409,7 @@ mod tests {
             .unwrap();
         assert!(tracker.snapshot().items.is_empty());
         // The first activity to stop after the fetch began closes it, even an untracked one.
-        tracker
-            .update(r#"@nix {"action":"stop","id":99}"#)
-            .unwrap();
+        tracker.update(r#"@nix {"action":"stop","id":99}"#).unwrap();
         assert!(tracker.snapshot().flake_fetches[0].finished.is_some());
         assert!(
             tracker

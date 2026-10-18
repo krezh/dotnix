@@ -19,7 +19,9 @@ impl Glyphs {
         Self(Arc::new(
             specs
                 .iter()
-                .filter_map(|(key, names)| Some((*key, names.iter().find_map(|name| icons::lookup(name))?)))
+                .filter_map(|(key, names)| {
+                    Some((*key, names.iter().find_map(|name| icons::lookup(name))?))
+                })
                 .collect(),
         ))
     }

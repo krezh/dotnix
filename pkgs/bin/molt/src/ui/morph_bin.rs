@@ -46,7 +46,10 @@ mod imp {
 
     impl ObjectImpl for MorphBin {
         fn dispose(&self) {
-            for child in [self.screen.take(), self.compact.take()].into_iter().flatten() {
+            for child in [self.screen.take(), self.compact.take()]
+                .into_iter()
+                .flatten()
+            {
                 child.unparent();
             }
         }
@@ -99,7 +102,9 @@ mod imp {
     impl WidgetImpl for MorphBin {
         fn request_mode(&self) -> gtk::SizeRequestMode {
             self.sizing_child()
-                .map_or(gtk::SizeRequestMode::ConstantSize, |child| child.request_mode())
+                .map_or(gtk::SizeRequestMode::ConstantSize, |child| {
+                    child.request_mode()
+                })
         }
 
         fn measure(&self, orientation: gtk::Orientation, for_size: i32) -> (i32, i32, i32, i32) {
@@ -108,10 +113,20 @@ mod imp {
         }
 
         fn size_allocate(&self, width: i32, height: i32, baseline: i32) {
-            if let Some(screen) = self.screen.borrow().as_ref().filter(|child| child.is_visible()) {
+            if let Some(screen) = self
+                .screen
+                .borrow()
+                .as_ref()
+                .filter(|child| child.is_visible())
+            {
                 screen.allocate(width, height, baseline, None);
             }
-            if let Some(compact) = self.compact.borrow().as_ref().filter(|child| child.is_visible()) {
+            if let Some(compact) = self
+                .compact
+                .borrow()
+                .as_ref()
+                .filter(|child| child.is_visible())
+            {
                 // Top centre: where the window's anchor keeps it once the window shrinks to it.
                 let (_, natural_width, _, _) = compact.measure(gtk::Orientation::Horizontal, -1);
                 let compact_width = natural_width.min(width);

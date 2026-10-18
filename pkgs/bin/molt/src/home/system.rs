@@ -76,7 +76,11 @@ mod tests {
         symlink("/nix/store/aaa-nixos-system", root.join("system-41-link")).unwrap();
         symlink("/nix/store/bbb-nixos-system", root.join("system-42-link")).unwrap();
         symlink("system-42-link", root.join("system")).unwrap();
-        symlink("/nix/store/aaa-nixos-system", root.join("home-manager-41-link")).unwrap();
+        symlink(
+            "/nix/store/aaa-nixos-system",
+            root.join("home-manager-41-link"),
+        )
+        .unwrap();
 
         assert_eq!(
             running_generation(&root, Path::new("/nix/store/aaa-nixos-system")),

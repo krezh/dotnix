@@ -4,8 +4,9 @@
 use std::{cell::Cell, rc::Rc};
 
 use gpui::{
-    AnimationExt, AnyElement, Bounds, Context, DispatchPhase, MouseButton, MouseDownEvent, MouseMoveEvent, MouseUpEvent,
-    Pixels, SharedString, SpringAnimation, SpringConfig, canvas, div, prelude::*, px, relative, rgb, rgba,
+    AnimationExt, AnyElement, Bounds, Context, DispatchPhase, MouseButton, MouseDownEvent,
+    MouseMoveEvent, MouseUpEvent, Pixels, SharedString, SpringAnimation, SpringConfig, canvas, div,
+    prelude::*, px, relative, rgb, rgba,
 };
 
 use crate::{
@@ -81,7 +82,15 @@ pub struct Slider {
 /// `live` is whether the pointer is over the island at all: GPUI's hover goes stale once it leaves.
 pub fn view(slider: Slider, live: bool, cx: &mut Context<Island>) -> AnyElement {
     let signal = slider.signal.map(|signal| signal.clamp(0.0, 1.0));
-    build(slider.id, slider.value, slider.color, signal, slider.on_change, live, cx)
+    build(
+        slider.id,
+        slider.value,
+        slider.color,
+        signal,
+        slider.on_change,
+        live,
+        cx,
+    )
 }
 
 fn build(
@@ -95,26 +104,25 @@ fn build(
 ) -> AnyElement {
     let value = value.clamp(0.0, 1.0);
     let bounds: Rc<Cell<Option<Bounds<Pixels>>>> = Rc::new(Cell::new(None));
-    let fill_color = if signal.is_some() { rgba(with_alpha(color, DIM_ALPHA)) } else { rgb(color) };
+    let fill_color = if signal.is_some() {
+        rgba(with_alpha(color, DIM_ALPHA))
+    } else {
+        rgb(color)
+    };
     let pointer = pointer::get(&id);
     // A hold outlasts the pointer leaving the island; hovering does not.
     let grip = Pointer {
         hovered: live && pointer.hovered,
         held: pointer.held,
     };
-    let fill = div()
-        .absolute()
-        .top_0()
-        .left_0()
-        .h_full()
-        .with_spring(
-            SharedString::from(format!("{id}-fill")),
-            SpringAnimation::new(FILL_SPRING).to(value),
-            move |fill, level| {
-                fill.w(relative(level.clamp(0.0, 1.0)))
-                    .child(ui::shape(Radius::Pill, Some(fill_color.into())))
-            },
-        );
+    let fill = div().absolute().top_0().left_0().h_full().with_spring(
+        SharedString::from(format!("{id}-fill")),
+        SpringAnimation::new(FILL_SPRING).to(value),
+        move |fill, level| {
+            fill.w(relative(level.clamp(0.0, 1.0)))
+                .child(ui::shape(Radius::Pill, Some(fill_color.into())))
+        },
+    );
     let signal = signal.filter(|signal| *signal > 0.0).map(|signal| {
         div()
             .absolute()
@@ -127,22 +135,24 @@ fn build(
     // The handle rides the fill's spring, on an element of its own so it is drawn over the signal.
     let rider = on_change.is_some().then(|| {
         let handle_id = id.clone();
-        div()
-            .absolute()
-            .top_0()
-            .left_0()
-            .h_full()
-            .with_spring(
-                SharedString::from(format!("{id}-rider")),
-                SpringAnimation::new(FILL_SPRING).to(value),
-                move |rider, level| rider.w(relative(level.clamp(0.0, 1.0))).child(handle(&handle_id, grip)),
-            )
+        div().absolute().top_0().left_0().h_full().with_spring(
+            SharedString::from(format!("{id}-rider")),
+            SpringAnimation::new(FILL_SPRING).to(value),
+            move |rider, level| {
+                rider
+                    .w(relative(level.clamp(0.0, 1.0)))
+                    .child(handle(&handle_id, grip))
+            },
+        )
     });
     let track = div()
         .relative()
         .w_full()
         .h(px(TRACK_H))
-        .child(ui::shape(Radius::Pill, Some(rgba(with_alpha(TINT, TRACK_ALPHA)).into())))
+        .child(ui::shape(
+            Radius::Pill,
+            Some(rgba(with_alpha(TINT, TRACK_ALPHA)).into()),
+        ))
         .child(fill)
         .children(signal)
         .children(rider)
@@ -152,24 +162,28 @@ fn build(
             // is 0 or 1, and it need not stay level with the bar.
             let follow = on_change.clone().filter(|_| grip.held);
             let (island, held_id) = (cx.weak_entity(), id.clone());
-            canvas(move |area, _, _| bounds.set(Some(area)), move |area, _, window, _| {
-                let Some(on_change) = follow else { return };
-                window.on_mouse_event(move |event: &MouseMoveEvent, phase, window, cx| {
-                    if phase != DispatchPhase::Bubble {
-                        return;
-                    }
-                    // Released where no release reached the slider, such as outside the island.
-                    if event.pressed_button != Some(MouseButton::Left) {
-                        pointer::set(&held_id, |grip| grip.held = false, window);
-                        return;
-                    }
-                    let width = f32::from(area.size.width);
-                    if width > 0.0 {
-                        let value = (f32::from(event.position.x - area.origin.x) / width).clamp(0.0, 1.0);
-                        let _ = island.update(cx, |this, cx| on_change(value, this, cx));
-                    }
-                });
-            })
+            canvas(
+                move |area, _, _| bounds.set(Some(area)),
+                move |area, _, window, _| {
+                    let Some(on_change) = follow else { return };
+                    window.on_mouse_event(move |event: &MouseMoveEvent, phase, window, cx| {
+                        if phase != DispatchPhase::Bubble {
+                            return;
+                        }
+                        // Released where no release reached the slider, such as outside the island.
+                        if event.pressed_button != Some(MouseButton::Left) {
+                            pointer::set(&held_id, |grip| grip.held = false, window);
+                            return;
+                        }
+                        let width = f32::from(area.size.width);
+                        if width > 0.0 {
+                            let value = (f32::from(event.position.x - area.origin.x) / width)
+                                .clamp(0.0, 1.0);
+                            let _ = island.update(cx, |this, cx| on_change(value, this, cx));
+                        }
+                    });
+                },
+            )
             .absolute()
             .size_full()
         });
@@ -183,8 +197,16 @@ fn build(
         let down_bounds = bounds.clone();
         let (hover_id, down_id, up_id, out_id) = (id.clone(), id.clone(), id.clone(), id);
         element = element
-            .map(|element| if grip.held { element.cursor_grabbing() } else { element.cursor_grab() })
-            .on_hover(move |hovered, window, _| pointer::set(&hover_id, |grip| grip.hovered = *hovered, window))
+            .map(|element| {
+                if grip.held {
+                    element.cursor_grabbing()
+                } else {
+                    element.cursor_grab()
+                }
+            })
+            .on_hover(move |hovered, window, _| {
+                pointer::set(&hover_id, |grip| grip.hovered = *hovered, window)
+            })
             .on_mouse_down(
                 MouseButton::Left,
                 cx.listener(move |this, event: &MouseDownEvent, window, cx| {

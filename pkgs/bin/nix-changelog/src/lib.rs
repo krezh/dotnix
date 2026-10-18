@@ -125,22 +125,55 @@ fn run_nix(session: &Session<'_>, args: &[&str], spawn_error: &str) -> Result<Ou
         .with_context(|| spawn_error.to_owned())?;
     // Drained concurrently so a chatty `nix` never blocks on a full pipe.
     let stdout = drain(child.stdout.take());
-    let stderr = drain(child.stderr.take());
+    let (stderr_tx, stderr_rx) = std::sync::mpsc::channel();
+    let stderr = drain_stderr(child.stderr.take(), stderr_tx);
     let status = loop {
         if (session.cancelled)() {
             let _ = kill_process_group(Pid::from_child(&child), Signal::KILL);
             let _ = child.wait();
             return Err(Cancelled.into());
         }
+        while let Ok(line) = stderr_rx.try_recv() {
+            (session.progress)(&line);
+        }
         match child.try_wait().with_context(|| spawn_error.to_owned())? {
             Some(status) => break status,
             None => thread::sleep(NIX_POLL_INTERVAL),
         }
     };
+    while let Ok(line) = stderr_rx.try_recv() {
+        (session.progress)(&line);
+    }
     Ok(Output {
         status,
         stdout: stdout.join().unwrap_or_default(),
         stderr: stderr.join().unwrap_or_default(),
+    })
+}
+
+fn drain_stderr(
+    pipe: Option<impl Read + Send + 'static>,
+    sender: std::sync::mpsc::Sender<String>,
+) -> JoinHandle<Vec<u8>> {
+    thread::spawn(move || {
+        use std::io::BufRead;
+        let mut full = Vec::new();
+        if let Some(pipe) = pipe {
+            let mut reader = std::io::BufReader::new(pipe);
+            let mut line = String::new();
+            while let Ok(n) = reader.read_line(&mut line) {
+                if n == 0 {
+                    break;
+                }
+                let trimmed = line.trim();
+                if !trimmed.is_empty() && !trimmed.starts_with("warning:") {
+                    let _ = sender.send(trimmed.to_string());
+                }
+                full.extend_from_slice(line.as_bytes());
+                line.clear();
+            }
+        }
+        full
     })
 }
 
@@ -513,8 +546,8 @@ pub fn resolve_package(
 
     for input in direct_inputs.iter().take_while(|input| input.rank > 0) {
         let input_ref = format!("{}#{package}", input.flake_ref);
-        if let Some(mut info) = try_candidate(session, &input_ref, package, version, &mut errors)?
-        {
+        (session.progress)(&format!("Checking direct input {}…", input.name));
+        if let Some(mut info) = try_candidate(session, &input_ref, package, version, &mut errors)? {
             info.flake_input = Some(input.name.clone());
             if info.meta.homepage.is_none() {
                 info.meta.homepage.clone_from(&input.repository);
@@ -641,6 +674,20 @@ fn repo_ref_from_url(url: &str) -> Option<RepoRef> {
     if owner.is_empty() || repo.is_empty() {
         return None;
     }
+    // Reject URLs that look like documentation pages rather than forge repos.
+    let is_file = |s: &str| {
+        s.ends_with(".html")
+            || s.ends_with(".htm")
+            || s.ends_with(".xml")
+            || s.ends_with(".php")
+            || s.ends_with(".asp")
+            || s.ends_with(".txt")
+            || s.ends_with(".md")
+            || s.ends_with(".json")
+    };
+    if is_file(&owner) || is_file(&repo) {
+        return None;
+    }
     Some(RepoRef { host, owner, repo })
 }
 
@@ -674,6 +721,10 @@ fn parse_version_spec(raw: &str) -> VersionSpec {
 /// Fetch one page of releases for a repo, normalizing across GitHub,
 /// GitLab, and Forgejo/Gitea's differing API shapes.
 fn fetch_releases_page(session: &Session<'_>, repo: &RepoRef, page: u32) -> Result<Vec<Release>> {
+    (session.progress)(&format!(
+        "Fetching releases for {}/{} (page {page}) from {}…",
+        repo.owner, repo.repo, repo.host
+    ));
     let (url, body_field) = match repo.host.as_str() {
         "github.com" => (
             format!(
@@ -712,6 +763,10 @@ fn fetch_releases_page(session: &Session<'_>, repo: &RepoRef, page: u32) -> Resu
 }
 
 fn find_release(session: &Session<'_>, repo: &RepoRef, wanted: &str) -> Result<Release> {
+    (session.progress)(&format!(
+        "Looking up release {} for {}/{}…",
+        wanted, repo.owner, repo.repo
+    ));
     for page in 1..=MAX_RELEASE_PAGES {
         let releases = fetch_releases_page(session, repo, page)?;
         if releases.is_empty() {
@@ -798,6 +853,175 @@ fn repo_ref_from_meta(meta: &Meta) -> Option<RepoRef> {
         .or_else(|| meta.changelog.as_deref().and_then(repo_ref_from_url))
 }
 
+/// Fetches `meta.changelog` directly when it doesn't point at a forge repository (e.g. a
+/// plain HTML release-notes page like mesa's).
+fn fetch_direct_changelog(session: &Session<'_>, url: &str, tag: &str) -> Result<Release> {
+    (session.progress)(&format!("Fetching changelog from {url}…"));
+    let body = fetch_text(session, url)?;
+    (session.progress)("Extracting changelog content…");
+    let body = extract_html_content(&body);
+    Ok(Release {
+        tag: tag.to_string(),
+        body,
+    })
+}
+
+/// Extracts the meaningful content from a full HTML document. Looks for `<main>` or
+/// `<article>` first, then `<body>`, and strips `<script>`, `<style>`, `<nav>`,
+/// `<footer>`, and `<header>` blocks. Returns the input unchanged if it isn't HTML.
+fn extract_html_content(html: &str) -> String {
+    // Not HTML at all — return as-is (plain text or markdown changelogs).
+    if !html.trim_start().starts_with('<') {
+        return html.to_string();
+    }
+
+    // Pick the narrowest content container.
+    let content = find_element_content(html, "main")
+        .or_else(|| find_element_content(html, "article"))
+        .or_else(|| find_element_content(html, "body"))
+        .unwrap_or(html);
+
+    // Strip non-content elements.
+    let stripped = strip_elements(
+        content,
+        &["script", "style", "nav", "footer", "header", "noscript"],
+    );
+
+    // Strip headerlink and permalink anchors (e.g. Sphinx's `<a class="headerlink" ...>¶</a>`).
+    strip_header_links(&stripped)
+}
+
+/// Removes header permalink anchors such as Sphinx's `<a class="headerlink" ...>¶</a>`,
+/// GitHub/MkDocs anchor tags, and links consisting solely of pilcrow (`¶`) or `#` symbols.
+fn strip_header_links(html: &str) -> String {
+    let mut result = String::with_capacity(html.len());
+    let mut rest = html;
+    while let Some(start) = rest.find("<a") {
+        let after = rest.as_bytes().get(start + 2).copied();
+        if !after.is_some_and(|b| b.is_ascii_whitespace()) {
+            result.push_str(&rest[..start + 2]);
+            rest = &rest[start + 2..];
+            continue;
+        }
+        let Some(tag_end) = rest[start..].find('>') else {
+            break;
+        };
+        let tag = &rest[start..start + tag_end + 1];
+        let Some(close_end) = rest[start + tag_end + 1..].find("</a>") else {
+            break;
+        };
+        let inner = &rest[start + tag_end + 1..start + tag_end + 1 + close_end];
+        let full_end = start + tag_end + 1 + close_end + 4;
+
+        let trimmed_inner = inner.trim();
+        let is_headerlink = tag.contains("headerlink")
+            || tag.contains("anchor")
+            || tag.contains("hash-link")
+            || trimmed_inner == "¶"
+            || trimmed_inner == "&para;"
+            || trimmed_inner == "&#182;"
+            || (tag.contains("href=\"#") && (trimmed_inner == "#" || trimmed_inner.is_empty()));
+
+        if is_headerlink {
+            result.push_str(&rest[..start]);
+            rest = &rest[full_end..];
+        } else {
+            result.push_str(&rest[..start + tag_end + 1]);
+            rest = &rest[start + tag_end + 1..];
+        }
+    }
+    result.push_str(rest);
+    result
+}
+
+/// Returns the inner HTML of the first occurrence of `<tag ...>...</tag>`.
+fn find_element_content<'a>(html: &'a str, tag: &str) -> Option<&'a str> {
+    let open_pattern = format!("<{tag}");
+    let close_pattern = format!("</{tag}>");
+
+    let open_start = html
+        .match_indices(&open_pattern)
+        .find(|(i, _)| {
+            // The character after the tag name must be whitespace or '>'.
+            html.as_bytes()
+                .get(i + open_pattern.len())
+                .is_some_and(|&b| b == b'>' || b.is_ascii_whitespace())
+        })?
+        .0;
+
+    // Skip past the opening tag's '>'.
+    let content_start = open_start + html[open_start..].find('>')? + 1;
+
+    // Find the matching close tag (no nesting support needed for these container elements).
+    let content_end = html[content_start..].find(&close_pattern)? + content_start;
+
+    Some(&html[content_start..content_end])
+}
+
+/// Removes every `<tag ...>...</tag>` block for each tag in `tags`. Handles nested
+/// occurrences by tracking depth.
+fn strip_elements(html: &str, tags: &[&str]) -> String {
+    let mut result = html.to_string();
+    for tag in tags {
+        result = strip_one_element(&result, tag);
+    }
+    result
+}
+
+fn strip_one_element(html: &str, tag: &str) -> String {
+    let open_pattern = format!("<{tag}");
+    let close_pattern = format!("</{tag}>");
+    let mut result = String::with_capacity(html.len());
+    let mut rest = html;
+    while let Some(open_pos) = rest.find(&open_pattern) {
+        // Verify it's actually an element open (followed by '>' or whitespace).
+        let after = rest.as_bytes().get(open_pos + open_pattern.len()).copied();
+        if !after.is_some_and(|b| b == b'>' || b.is_ascii_whitespace()) {
+            result.push_str(&rest[..open_pos + open_pattern.len()]);
+            rest = &rest[open_pos + open_pattern.len()..];
+            continue;
+        }
+        result.push_str(&rest[..open_pos]);
+        rest = &rest[open_pos..];
+        // Find the close, tracking nesting depth.
+        let mut depth: u32 = 1;
+        let mut cursor = rest[open_pattern.len()..]
+            .find('>')
+            .map(|i| i + open_pattern.len() + 1)
+            .unwrap_or(rest.len());
+        while depth > 0 {
+            let next_open = rest[cursor..].find(&open_pattern).and_then(|i| {
+                let after = rest
+                    .as_bytes()
+                    .get(cursor + i + open_pattern.len())
+                    .copied();
+                after
+                    .is_some_and(|b| b == b'>' || b.is_ascii_whitespace())
+                    .then_some(i)
+            });
+            let next_close = rest[cursor..].find(&close_pattern);
+            match (next_open, next_close) {
+                (Some(o), Some(c)) if o < c => {
+                    depth += 1;
+                    cursor += o + open_pattern.len();
+                }
+                (_, Some(c)) => {
+                    depth -= 1;
+                    cursor += c + close_pattern.len();
+                }
+                _ => {
+                    // Unterminated — skip the rest.
+                    cursor = rest.len();
+                    break;
+                }
+            }
+        }
+        rest = &rest[cursor..];
+    }
+    result.push_str(rest);
+    result
+}
+
 /// Releases for `version_spec` (single version, `latest`, or a `from..to` range) of an already
 /// resolved package, fetched from the repository its metadata points at.
 pub fn package_releases(
@@ -805,28 +1029,49 @@ pub fn package_releases(
     info: PackageInfo,
     version_spec: &str,
 ) -> Result<Changelog> {
-    let repo = repo_ref_from_meta(&info.meta).with_context(|| {
-        format!(
-            "couldn't determine the source repository for {} from its metadata",
-            info.pname
-        )
-    })?;
+    if let Some(repo) = repo_ref_from_meta(&info.meta) {
+        let releases = match parse_version_spec(version_spec) {
+            VersionSpec::Single(v) if v.eq_ignore_ascii_case("latest") => {
+                vec![find_latest_release(session, &repo)?]
+            }
+            VersionSpec::Single(v) => vec![find_release(session, &repo, &v)?],
+            VersionSpec::Range { from, to } => {
+                collect_range(session, &repo, from.as_deref(), to.as_deref())?
+            }
+        };
+        return Ok(Changelog {
+            pname: info.pname,
+            version: info.version,
+            description: info.meta.description,
+            releases,
+        });
+    }
 
-    let releases = match parse_version_spec(version_spec) {
-        VersionSpec::Single(v) if v.eq_ignore_ascii_case("latest") => {
-            vec![find_latest_release(session, &repo)?]
-        }
-        VersionSpec::Single(v) => vec![find_release(session, &repo, &v)?],
-        VersionSpec::Range { from, to } => {
-            collect_range(session, &repo, from.as_deref(), to.as_deref())?
-        }
-    };
-    Ok(Changelog {
-        pname: info.pname,
-        version: info.version,
-        description: info.meta.description,
-        releases,
-    })
+    // No forge repository detected — try fetching meta.changelog as a direct URL.
+    if let Some(changelog_url) = info.meta.changelog.as_deref() {
+        let release = fetch_direct_changelog(session, changelog_url, &info.version)
+            .with_context(|| format!("failed to fetch changelog from {changelog_url}"))?;
+        return Ok(Changelog {
+            pname: info.pname,
+            version: info.version,
+            description: info.meta.description,
+            releases: vec![release],
+        });
+    }
+
+    // Neither a forge repository nor a direct changelog URL was available.
+    match info.meta.homepage.as_deref() {
+        Some(homepage) => bail!(
+            "couldn't determine a release source for {}\n\
+             • homepage ({homepage}) does not point to a supported Git forge (GitHub, GitLab, Forgejo/Codeberg)\n\
+             • meta.changelog is not defined",
+            info.pname
+        ),
+        None => bail!(
+            "{} has no repository or changelog in its Nix metadata (meta.homepage and meta.changelog are unset)",
+            info.pname
+        ),
+    }
 }
 
 /// Releases for `version_spec` (single version, `latest`, or a `from..to` range) of `package`
@@ -922,5 +1167,157 @@ mod tests {
             inputs[0].flake_ref,
             "github:krezh/nix-cachyos-kernel/2222222222222222"
         );
+    }
+
+    #[test]
+    fn rejects_documentation_urls_as_repo_refs() {
+        // Direct HTML changelog pages must not be parsed as forge repos.
+        assert!(repo_ref_from_url("https://docs.mesa3d.org/relnotes/26.2.5.html").is_none());
+        assert!(repo_ref_from_url("https://example.com/docs/notes.htm").is_none());
+        assert!(repo_ref_from_url("https://example.com/api/schema.json").is_none());
+        assert!(repo_ref_from_url("https://example.com/readme.md/stuff").is_none());
+    }
+
+    #[test]
+    fn accepts_valid_forge_repo_urls() {
+        let gh = repo_ref_from_url("https://github.com/mesa/mesa").unwrap();
+        assert_eq!(gh.host, "github.com");
+        assert_eq!(gh.owner, "mesa");
+        assert_eq!(gh.repo, "mesa");
+
+        let gl = repo_ref_from_url("https://gitlab.com/foo/bar").unwrap();
+        assert_eq!(gl.host, "gitlab.com");
+        assert_eq!(gl.owner, "foo");
+        assert_eq!(gl.repo, "bar");
+
+        // Forgejo / self-hosted with .git suffix
+        let fg = repo_ref_from_url("https://codeberg.org/owner/repo.git").unwrap();
+        assert_eq!(fg.repo, "repo");
+    }
+
+    #[test]
+    fn repo_ref_from_meta_skips_doc_changelog() {
+        // When homepage doesn't look like a repo and changelog is a doc page,
+        // repo_ref_from_meta should return None.
+        let meta = Meta {
+            description: None,
+            homepage: Some("https://www.mesa3d.org/".into()),
+            changelog: Some("https://docs.mesa3d.org/relnotes/26.2.5.html".into()),
+        };
+        assert!(repo_ref_from_meta(&meta).is_none());
+    }
+
+    #[test]
+    fn repo_ref_from_meta_uses_homepage_over_changelog() {
+        let meta = Meta {
+            description: None,
+            homepage: Some("https://github.com/mesa/mesa".into()),
+            changelog: Some("https://docs.mesa3d.org/relnotes/26.2.5.html".into()),
+        };
+        let r = repo_ref_from_meta(&meta).unwrap();
+        assert_eq!(r.host, "github.com");
+        assert_eq!(r.owner, "mesa");
+        assert_eq!(r.repo, "mesa");
+    }
+
+    #[test]
+    fn extracts_main_content_from_html_page() {
+        let html = concat!(
+            "<!DOCTYPE html><html><head><title>Notes</title>",
+            "<style>body{}</style></head>",
+            "<body><nav><a>Home</a></nav>",
+            "<main class=\"body\">",
+            "<h1>Release</h1><p>Fixed bugs.</p>",
+            "</main>",
+            "<footer>Copyright</footer></body></html>"
+        );
+        let extracted = extract_html_content(html);
+        assert!(extracted.contains("<h1>Release</h1>"));
+        assert!(extracted.contains("<p>Fixed bugs.</p>"));
+        assert!(!extracted.contains("<nav>"));
+        assert!(!extracted.contains("<footer>"));
+        assert!(!extracted.contains("<style>"));
+        assert!(!extracted.contains("<title>"));
+    }
+
+    #[test]
+    fn falls_back_to_body_without_main() {
+        let html = concat!(
+            "<html><head><script>var x;</script></head>",
+            "<body><h1>Notes</h1><p>Content</p></body></html>"
+        );
+        let extracted = extract_html_content(html);
+        assert!(extracted.contains("<h1>Notes</h1>"));
+        assert!(!extracted.contains("<script>"));
+    }
+
+    #[test]
+    fn strips_nested_elements() {
+        let html = "<body><nav><div><a>Link</a></div></nav><p>Real</p></body>";
+        let extracted = extract_html_content(html);
+        assert!(extracted.contains("<p>Real</p>"));
+        assert!(!extracted.contains("<nav>"));
+        assert!(!extracted.contains("Link"));
+    }
+
+    #[test]
+    fn non_html_passes_through() {
+        let plain = "# Changelog\n\n- Fixed bug\n- Added feature\n";
+        assert_eq!(extract_html_content(plain), plain);
+    }
+
+    #[test]
+    fn strips_headerlinks_and_pilcrows_from_headings() {
+        let html = concat!(
+            "<main>",
+            "<h1>Mesa 26.2.5 Release Notes / 2026-10-14<a class=\"headerlink\" href=\"#mesa-26-2-5-release-notes-2026-10-14\" title=\"Link to this heading\">¶</a></h1>\n",
+            "<h2>Bug fixes<a class=\"headerlink\" href=\"#bug-fixes\" title=\"Link to this heading\">¶</a></h2>\n",
+            "<p>Check <a href=\"https://mesa3d.org\">website</a> for more.</p>",
+            "</main>"
+        );
+        let extracted = extract_html_content(html);
+        assert!(extracted.contains("<h1>Mesa 26.2.5 Release Notes / 2026-10-14</h1>"));
+        assert!(extracted.contains("<h2>Bug fixes</h2>"));
+        assert!(!extracted.contains('¶'));
+        assert!(!extracted.contains("headerlink"));
+        // Regular links are preserved.
+        assert!(extracted.contains("<a href=\"https://mesa3d.org\">website</a>"));
+    }
+
+    #[test]
+    fn reports_clear_error_when_no_repo_or_changelog_found() {
+        let session = Session {
+            flake_dir: std::path::Path::new("."),
+            cancelled: &|| false,
+            progress: &|_| (),
+        };
+        let info = PackageInfo {
+            pname: "lix".into(),
+            version: "2.95.3".into(),
+            meta: Meta {
+                description: None,
+                homepage: Some("https://lix.systems".into()),
+                changelog: None,
+            },
+            flake_input: None,
+        };
+        let err = package_releases(&session, info, "2.95.3")
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("lix"));
+        assert!(err.contains("https://lix.systems"));
+        assert!(err.contains("meta.changelog is not defined"));
+
+        let bare = PackageInfo {
+            pname: "mystery".into(),
+            version: "1.0".into(),
+            meta: Meta::default(),
+            flake_input: None,
+        };
+        let err2 = package_releases(&session, bare, "1.0")
+            .unwrap_err()
+            .to_string();
+        assert!(err2.contains("mystery"));
+        assert!(err2.contains("unset"));
     }
 }

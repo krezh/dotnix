@@ -92,12 +92,19 @@ mod imp {
             // Only transforms change while moving, so neither screen is laid out again.
             if let Some(child) = self.child.borrow().as_ref() {
                 let offset = graphene::Point::new(self.motion.get().offset, 0.0);
-                child.allocate(width, height, baseline, Some(gsk::Transform::new().translate(&offset)));
+                child.allocate(
+                    width,
+                    height,
+                    baseline,
+                    Some(gsk::Transform::new().translate(&offset)),
+                );
             }
             if let Some(previous) = self.previous.borrow().as_ref() {
                 // GTK requires a measure before every allocate; the results are cached.
                 previous.widget.measure(gtk::Orientation::Horizontal, -1);
-                previous.widget.measure(gtk::Orientation::Vertical, previous.width);
+                previous
+                    .widget
+                    .measure(gtk::Orientation::Vertical, previous.width);
                 let offset = graphene::Point::new(previous_x(previous, width), 0.0);
                 previous.widget.allocate(
                     previous.width,
@@ -210,7 +217,13 @@ impl SlideBin {
 
     /// Starts a screen change: `previous` holds the screen being left, which was
     /// `width` x `height`. Returns the change's generation.
-    pub(super) fn begin(&self, previous: &impl IsA<gtk::Widget>, width: i32, height: i32, above: bool) -> u64 {
+    pub(super) fn begin(
+        &self,
+        previous: &impl IsA<gtk::Widget>,
+        width: i32,
+        height: i32,
+        above: bool,
+    ) -> u64 {
         self.settle();
         // The previous screen is only drawn; clicks and keys go to the new one.
         previous.set_can_target(false);
@@ -244,7 +257,9 @@ impl SlideBin {
 
     /// Ends any screen change: drops the previous screen and puts the current one in place.
     pub(super) fn settle(&self) {
-        self.imp().generation.set(self.imp().generation.get().wrapping_add(1));
+        self.imp()
+            .generation
+            .set(self.imp().generation.get().wrapping_add(1));
         if let Some(previous) = self.imp().previous.take() {
             previous.widget.unparent();
         }

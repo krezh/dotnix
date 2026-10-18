@@ -160,10 +160,7 @@ impl Output {
 
 /// Lines in order with their fate, produced lazily: the common prefix and suffix are kept as is,
 /// and the middle is aligned by a longest-common-subsequence table when it fits `MAX_DIFF_CELLS`.
-fn edit_script<'a>(
-    old: &[&'a str],
-    new: &[&'a str],
-) -> impl Iterator<Item = (Op, &'a str)> {
+fn edit_script<'a>(old: &[&'a str], new: &[&'a str]) -> impl Iterator<Item = (Op, &'a str)> {
     let prefix = old.iter().zip(new).take_while(|(a, b)| a == b).count();
     let suffix = old[prefix..]
         .iter()
@@ -223,7 +220,11 @@ fn edit_script<'a>(
         .iter()
         .map(|line| (Op::Equal, *line))
         .chain(middle)
-        .chain(old[old.len() - suffix..].iter().map(|line| (Op::Equal, *line)))
+        .chain(
+            old[old.len() - suffix..]
+                .iter()
+                .map(|line| (Op::Equal, *line)),
+        )
 }
 
 #[cfg(test)]

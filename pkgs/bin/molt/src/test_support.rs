@@ -21,7 +21,10 @@ pub fn write_executable_script(path: &Path, body: &str) {
         .write_all(format!("#!/bin/sh\n{body}\n").as_bytes())
         .expect("failed to write the script");
     assert!(
-        writer.wait().expect("script writer did not finish").success(),
+        writer
+            .wait()
+            .expect("script writer did not finish")
+            .success(),
         "failed to write {}",
         path.display()
     );

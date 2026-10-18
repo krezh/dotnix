@@ -108,7 +108,12 @@ fn begin_change(root: &gtk::Box, above: bool) -> Option<(SlideBin, u64)> {
     // so its padding and styling stay the same.
     let previous = gtk::Box::new(root.orientation(), root.spacing());
     let classes = root.css_classes();
-    previous.set_css_classes(&classes.iter().map(glib::GString::as_str).collect::<Vec<_>>());
+    previous.set_css_classes(
+        &classes
+            .iter()
+            .map(glib::GString::as_str)
+            .collect::<Vec<_>>(),
+    );
     while let Some(child) = root.first_child() {
         root.remove(&child);
         previous.append(&child);
@@ -153,7 +158,11 @@ pub(crate) fn replace_screen(root: &gtk::Box) {
         return;
     };
     run_change(&bin, generation, SCREEN_FADE, ease_out, |bin, progress| {
-        bin.set_motion(Motion::default(), Motion::default(), f64::from(1.0 - progress));
+        bin.set_motion(
+            Motion::default(),
+            Motion::default(),
+            f64::from(1.0 - progress),
+        );
     });
 }
 
@@ -176,26 +185,32 @@ pub(crate) fn slide_screen(root: &gtk::Box, slide: Slide) {
     let width = bin.width() as f32;
     // `on_top` is the screen in front at `offset`; `under` sits behind it, pushed left and dimmed
     // by `depth`. Forward the new screen arrives on top; back the old one leaves on top.
-    run_change(&bin, generation, SCREEN_SLIDE, ease_in_out, move |bin, progress| {
-        let (offset, depth) = match slide {
-            Slide::Forward => (width * (1.0 - progress), progress),
-            Slide::Back => (width * progress, 1.0 - progress),
-        };
-        let on_top = Motion {
-            offset,
-            dim: 0.0,
-            shadow: true,
-        };
-        let under = Motion {
-            offset: -SLIDE_DEPTH * width * depth,
-            dim: SLIDE_DIM * depth,
-            shadow: false,
-        };
-        match slide {
-            Slide::Forward => bin.set_motion(on_top, under, 1.0),
-            Slide::Back => bin.set_motion(under, on_top, 1.0),
-        }
-    });
+    run_change(
+        &bin,
+        generation,
+        SCREEN_SLIDE,
+        ease_in_out,
+        move |bin, progress| {
+            let (offset, depth) = match slide {
+                Slide::Forward => (width * (1.0 - progress), progress),
+                Slide::Back => (width * progress, 1.0 - progress),
+            };
+            let on_top = Motion {
+                offset,
+                dim: 0.0,
+                shadow: true,
+            };
+            let under = Motion {
+                offset: -SLIDE_DEPTH * width * depth,
+                dim: SLIDE_DIM * depth,
+                shadow: false,
+            };
+            match slide {
+                Slide::Forward => bin.set_motion(on_top, under, 1.0),
+                Slide::Back => bin.set_motion(under, on_top, 1.0),
+            }
+        },
+    );
 }
 
 /// Callback run with the tween's value on every frame.
@@ -307,7 +322,10 @@ pub(crate) fn glide(
     target: f64,
 ) -> Rc<Cell<bool>> {
     let lower = adjustment.lower();
-    let target = target.clamp(lower, (adjustment.upper() - adjustment.page_size()).max(lower));
+    let target = target.clamp(
+        lower,
+        (adjustment.upper() - adjustment.page_size()).max(lower),
+    );
     let generation = glide_generation(adjustment, true);
     if !clock.is_mapped() {
         adjustment.set_value(target);

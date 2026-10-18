@@ -4,8 +4,9 @@
 use std::ops::Range;
 
 use gpui::{
-    AnyElement, FontStyle, FontWeight, HighlightStyle, Hsla, InteractiveText, SharedString, StrikethroughStyle,
-    StyledText, TextRun, UnderlineStyle, Window, div, font, prelude::*, px, rgb, rgba,
+    AnyElement, FontStyle, FontWeight, HighlightStyle, Hsla, InteractiveText, SharedString,
+    StrikethroughStyle, StyledText, TextRun, UnderlineStyle, Window, div, font, prelude::*, px,
+    rgb, rgba,
 };
 
 use crate::{
@@ -73,8 +74,14 @@ fn highlight(style: Style) -> HighlightStyle {
     HighlightStyle {
         font_weight: style.bold.then_some(FontWeight::SEMIBOLD),
         font_style: style.italic.then_some(FontStyle::Italic),
-        underline: line(style.underline).map(|thickness| UnderlineStyle { thickness, ..UnderlineStyle::default() }),
-        strikethrough: line(style.strike).map(|thickness| StrikethroughStyle { thickness, ..StrikethroughStyle::default() }),
+        underline: line(style.underline).map(|thickness| UnderlineStyle {
+            thickness,
+            ..UnderlineStyle::default()
+        }),
+        strikethrough: line(style.strike).map(|thickness| StrikethroughStyle {
+            thickness,
+            ..StrikethroughStyle::default()
+        }),
         color: if style.covered {
             Some(cover)
         } else {
@@ -107,13 +114,28 @@ pub fn wrapped_lines(text: &str, size: f32, width: f32, window: &Window) -> usiz
     };
     window
         .text_system()
-        .shape_text(SharedString::from(text.to_owned()), px(size), &[run], Some(px(width)), None)
-        .map_or(1, |lines| lines.iter().map(|line| line.wrap_boundaries.len() + 1).sum())
+        .shape_text(
+            SharedString::from(text.to_owned()),
+            px(size),
+            &[run],
+            Some(px(width)),
+            None,
+        )
+        .map_or(1, |lines| {
+            lines
+                .iter()
+                .map(|line| line.wrap_boundaries.len() + 1)
+                .sum()
+        })
 }
 
 /// Styled text, with its links clickable.
 fn styled(id: SharedString, text: Text) -> AnyElement {
-    let highlights: Vec<_> = text.spans.into_iter().map(|(range, style)| (range, highlight(style))).collect();
+    let highlights: Vec<_> = text
+        .spans
+        .into_iter()
+        .map(|(range, style)| (range, highlight(style)))
+        .collect();
     let styled = StyledText::new(text.text).with_highlights(highlights);
     if text.links.is_empty() {
         return styled.into_any_element();
@@ -157,10 +179,15 @@ pub fn text(text: Text, id: SharedString) -> AnyElement {
                 .line_height(px(BODY_LINE))
                 .text_size(px(BODY_SIZE))
                 .when_some(lines, |body, lines| {
-                    body.line_clamp(lines).max_h(px(BODY_LINE * lines as f32)).overflow_hidden().text_ellipsis()
+                    body.line_clamp(lines)
+                        .max_h(px(BODY_LINE * lines as f32))
+                        .overflow_hidden()
+                        .text_ellipsis()
                 })
                 .child(styled(id, text))
         }
     };
-    element.when_some(min_width, |element, width| element.min_w(px(width))).into_any_element()
+    element
+        .when_some(min_width, |element, width| element.min_w(px(width)))
+        .into_any_element()
 }

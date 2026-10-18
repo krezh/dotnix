@@ -1,6 +1,9 @@
 use std::{cell::RefCell, collections::HashMap, sync::Arc};
 
-use gpui::{Bounds, Canvas, Corners, Hsla, Pixels, RenderImage, Rgba, Window, canvas, point, prelude::*, px, size};
+use gpui::{
+    Bounds, Canvas, Corners, Hsla, Pixels, RenderImage, Rgba, Window, canvas, point, prelude::*,
+    px, size,
+};
 use image::{Frame, RgbaImage};
 
 pub const DEFAULT_RADIUS: f32 = 28.0;
@@ -24,7 +27,8 @@ thread_local! {
 fn channels(color: Option<Hsla>) -> [u8; 4] {
     color.map_or([0; 4], |color| {
         let color = Rgba::from(color);
-        [color.r, color.g, color.b, color.a].map(|value| (value.clamp(0.0, 1.0) * 255.0).round() as u8)
+        [color.r, color.g, color.b, color.a]
+            .map(|value| (value.clamp(0.0, 1.0) * 255.0).round() as u8)
     })
 }
 
@@ -33,7 +37,8 @@ fn distance(x: f32, y: f32, radius: f32, power: f32) -> f32 {
     if reach <= f32::EPSILON {
         return -radius;
     }
-    let slope = (x.powf(2.0 * power - 2.0) + y.powf(2.0 * power - 2.0)).sqrt() / reach.powf(power - 1.0);
+    let slope =
+        (x.powf(2.0 * power - 2.0) + y.powf(2.0 * power - 2.0)).sqrt() / reach.powf(power - 1.0);
     (reach - radius) / slope.max(1e-3)
 }
 
@@ -41,13 +46,27 @@ fn render(sprite: Sprite) -> Arc<RenderImage> {
     let radius = sprite.radius as f32;
     let power = f32::from_bits(sprite.power);
     let line = sprite.line as f32;
-    let [fill, border] = [sprite.fill, sprite.border].map(|color| color.map(|value| f32::from(value) / 255.0));
+    let [fill, border] =
+        [sprite.fill, sprite.border].map(|color| color.map(|value| f32::from(value) / 255.0));
     let last = sprite.radius - 1;
     let mut image = RgbaImage::new(sprite.radius, sprite.radius);
     for (column, row, pixel) in image.enumerate_pixels_mut() {
-        let column = if matches!(sprite.corner, 1 | 2) { last - column } else { column };
-        let row = if matches!(sprite.corner, 2 | 3) { last - row } else { row };
-        let signed = distance(radius - (column as f32 + 0.5), radius - (row as f32 + 0.5), radius, power);
+        let column = if matches!(sprite.corner, 1 | 2) {
+            last - column
+        } else {
+            column
+        };
+        let row = if matches!(sprite.corner, 2 | 3) {
+            last - row
+        } else {
+            row
+        };
+        let signed = distance(
+            radius - (column as f32 + 0.5),
+            radius - (row as f32 + 0.5),
+            radius,
+            power,
+        );
         let outer = (0.5 - signed).clamp(0.0, 1.0);
         let ring = outer - (0.5 - signed - line).clamp(0.0, 1.0);
         *pixel = blend(fill, border, fill[3] * outer, border[3] * ring);
@@ -61,10 +80,16 @@ fn blend(fill: [f32; 4], border: [f32; 4], fill_alpha: f32, border_alpha: f32) -
         if alpha <= 0.0 {
             return 0;
         }
-        let premultiplied = border[index] * border_alpha + fill[index] * fill_alpha * (1.0 - border_alpha);
+        let premultiplied =
+            border[index] * border_alpha + fill[index] * fill_alpha * (1.0 - border_alpha);
         ((premultiplied / alpha).clamp(0.0, 1.0) * 255.0).round() as u8
     };
-    image::Rgba([channel(2), channel(1), channel(0), (alpha * 255.0).round() as u8])
+    image::Rgba([
+        channel(2),
+        channel(1),
+        channel(0),
+        (alpha * 255.0).round() as u8,
+    ])
 }
 
 /// The image reaches one line past the corner, over the upper shape's edge and the lower one's
@@ -72,17 +97,26 @@ fn blend(fill: [f32; 4], border: [f32; 4], fill_alpha: f32, border_alpha: f32) -
 fn render_fillet(sprite: Sprite) -> Arc<RenderImage> {
     let radius = sprite.radius as f32;
     let line = sprite.line as f32;
-    let [fill, border] = [sprite.fill, sprite.border].map(|color| color.map(|value| f32::from(value) / 255.0));
+    let [fill, border] =
+        [sprite.fill, sprite.border].map(|color| color.map(|value| f32::from(value) / 255.0));
     let side = sprite.radius + sprite.line;
     let last = side - 1;
     let mut image = RgbaImage::new(side, side);
     for (column, row, pixel) in image.enumerate_pixels_mut() {
-        let column = if sprite.corner == 5 { last - column } else { column };
+        let column = if sprite.corner == 5 {
+            last - column
+        } else {
+            column
+        };
         let (x, y) = (column as f32 + 0.5, row as f32 + 0.5 - line);
         let outside = x.hypot(radius - y) - radius;
         let outer = (0.5 + outside).clamp(0.0, 1.0);
         let ring = outer - (0.5 + outside - line).clamp(0.0, 1.0);
-        let fill_alpha = if x < radius && y > 0.0 { fill[3] * outer } else { 0.0 };
+        let fill_alpha = if x < radius && y > 0.0 {
+            fill[3] * outer
+        } else {
+            0.0
+        };
         *pixel = blend(fill, border, fill_alpha, border[3] * ring);
     }
     Arc::new(RenderImage::new([Frame::new(image)]))
@@ -95,7 +129,13 @@ fn sprite(sprite: Sprite) -> Arc<RenderImage> {
         }
         sprites
             .entry(sprite)
-            .or_insert_with(|| if sprite.corner >= 4 { render_fillet(sprite) } else { render(sprite) })
+            .or_insert_with(|| {
+                if sprite.corner >= 4 {
+                    render_fillet(sprite)
+                } else {
+                    render(sprite)
+                }
+            })
             .clone()
     })
 }
@@ -109,14 +149,21 @@ struct Parts {
     lip: f32,
 }
 
-const WHOLE: Parts = Parts { top: true, gap: None, lip: 0.0 };
+const WHOLE: Parts = Parts {
+    top: true,
+    gap: None,
+    lip: 0.0,
+};
 
 fn around(from: f32, to: f32, gap: Option<(f32, f32)>) -> Vec<(f32, f32)> {
     let spans = match gap {
         Some((start, end)) => vec![(from, start.min(to)), (end.max(from), to)],
         None => vec![(from, to)],
     };
-    spans.into_iter().filter(|(start, end)| end > start).collect()
+    spans
+        .into_iter()
+        .filter(|(start, end)| end > start)
+        .collect()
 }
 
 pub fn paint(
@@ -150,7 +197,10 @@ fn paint_parts(
     if width <= 0.0 || height <= 0.0 {
         return;
     }
-    let corner = (radius * scale).round().min((width.min(height) / 2.0).floor()).max(0.0);
+    let corner = (radius * scale)
+        .round()
+        .min((width.min(height) / 2.0).floor())
+        .max(0.0);
     let line = scale.round().max(1.0);
     let area = |x: f32, y: f32, w: f32, h: f32| Bounds {
         origin: point(px(x / scale), px(y / scale)),
@@ -222,12 +272,22 @@ impl Hang {
     fn gap(&self, scale: f32) -> (f32, f32) {
         let fillet = (self.fillet * scale).round();
         let snap = |value: Pixels| (f32::from(value) * scale).round();
-        (snap(self.bounds.origin.x) - fillet, snap(self.bounds.right()) + fillet)
+        (
+            snap(self.bounds.origin.x) - fillet,
+            snap(self.bounds.right()) + fillet,
+        )
     }
 }
 
 /// `body` and `hang` are in the coordinates of the element this fills.
-pub fn joined(body: Bounds<Pixels>, radius: f32, power: f32, hang: Option<Hang>, fill: Hsla, border: Option<Hsla>) -> Canvas<()> {
+pub fn joined(
+    body: Bounds<Pixels>,
+    radius: f32,
+    power: f32,
+    hang: Option<Hang>,
+    fill: Hsla,
+    border: Option<Hsla>,
+) -> Canvas<()> {
     canvas(
         |_, _, _| {},
         move |_, (), window, _| {
@@ -238,10 +298,26 @@ pub fn joined(body: Bounds<Pixels>, radius: f32, power: f32, hang: Option<Hang>,
             let scale = window.scale_factor();
             let gap = hang.gap(scale);
             let fillet = (hang.fillet * scale).round();
-            let above = Parts { top: true, gap: Some(gap), lip: 0.0 };
-            let below = Parts { top: false, gap: None, lip: fillet };
+            let above = Parts {
+                top: true,
+                gap: Some(gap),
+                lip: 0.0,
+            };
+            let below = Parts {
+                top: false,
+                gap: None,
+                lip: fillet,
+            };
             paint_parts(body, radius, power, Some(fill), border, above, window);
-            paint_parts(hang.bounds, hang.radius, hang.power, Some(fill), border, below, window);
+            paint_parts(
+                hang.bounds,
+                hang.radius,
+                hang.power,
+                Some(fill),
+                border,
+                below,
+                window,
+            );
             if fillet < 1.0 {
                 return;
             }
@@ -287,14 +363,23 @@ pub fn fill(radius: f32, power: f32, rest: Option<Hsla>, hover: Option<Hsla>) ->
 }
 
 /// `rest`, with `hover` laid over it while the pointer is inside, so a hover tint shows on any fill.
-pub fn inset_fill(radius: f32, power: f32, inset: f32, rest: Option<Hsla>, hover: Option<Hsla>) -> Canvas<()> {
+pub fn inset_fill(
+    radius: f32,
+    power: f32,
+    inset: f32,
+    rest: Option<Hsla>,
+    hover: Option<Hsla>,
+) -> Canvas<()> {
     canvas(
         |_, _, _| {},
         move |bounds, (), window, _| {
             let hovered = hover.is_some() && bounds.contains(&window.mouse_position());
             let shape = Bounds::new(
                 point(bounds.origin.x + px(inset), bounds.origin.y),
-                size((bounds.size.width - px(2.0 * inset)).max(px(0.0)), bounds.size.height),
+                size(
+                    (bounds.size.width - px(2.0 * inset)).max(px(0.0)),
+                    bounds.size.height,
+                ),
             );
             paint(shape, radius, power, rest, None, window);
             if hovered {
@@ -336,16 +421,34 @@ fn render_shadow(piece: ShadowPiece) -> Arc<RenderImage> {
     let power = f32::from_bits(piece.power);
     let [red, green, blue, alpha] = piece.color;
     let pixel = |coverage: f32| {
-        image::Rgba([blue, green, red, (f32::from(alpha) * coverage).round().clamp(0.0, 255.0) as u8])
+        image::Rgba([
+            blue,
+            green,
+            red,
+            (f32::from(alpha) * coverage).round().clamp(0.0, 255.0) as u8,
+        ])
     };
     let side = piece.radius + piece.spread;
     let last = side - 1;
     let reach = side as f32;
     let mut image = RgbaImage::new(side, side);
     for (column, row, out) in image.enumerate_pixels_mut() {
-        let column = if matches!(piece.piece, 1 | 2) { last - column } else { column };
-        let row = if matches!(piece.piece, 2 | 3) { last - row } else { row };
-        let outside = distance(reach - (column as f32 + 0.5), reach - (row as f32 + 0.5), radius, power);
+        let column = if matches!(piece.piece, 1 | 2) {
+            last - column
+        } else {
+            column
+        };
+        let row = if matches!(piece.piece, 2 | 3) {
+            last - row
+        } else {
+            row
+        };
+        let outside = distance(
+            reach - (column as f32 + 0.5),
+            reach - (row as f32 + 0.5),
+            radius,
+            power,
+        );
         *out = pixel(shadow_alpha(outside, spread));
     }
     Arc::new(RenderImage::new([Frame::new(image)]))
@@ -356,7 +459,10 @@ fn shadow_piece(piece: ShadowPiece) -> Arc<RenderImage> {
         if pieces.len() > SPRITE_LIMIT {
             pieces.clear();
         }
-        pieces.entry(piece).or_insert_with(|| render_shadow(piece)).clone()
+        pieces
+            .entry(piece)
+            .or_insert_with(|| render_shadow(piece))
+            .clone()
     })
 }
 
@@ -366,28 +472,8 @@ fn shadow_piece(piece: ShadowPiece) -> Arc<RenderImage> {
 pub fn outer_shadow(radius: f32, power: f32, color: Hsla, spread: f32) -> Canvas<()> {
     canvas(
         |_, _, _| {},
-        move |bounds, (), window, _| paint_shadow(bounds, radius, power, color, spread, WHOLE, window),
-    )
-    .absolute()
-    .top_0()
-    .left_0()
-    .size_full()
-}
-
-pub fn joined_shadow(body: Bounds<Pixels>, radius: f32, power: f32, hang: Option<Hang>, color: Hsla, spread: f32) -> Canvas<()> {
-    canvas(
-        |_, _, _| {},
-        move |_, (), window, _| {
-            let Some(hang) = hang else {
-                paint_shadow(body, radius, power, color, spread, WHOLE, window);
-                return;
-            };
-            let gap = Some(hang.gap(window.scale_factor()));
-            paint_shadow(body, radius, power, color, spread, Parts { top: true, gap, lip: 0.0 }, window);
-            let mut below = hang.bounds;
-            below.origin.y += px(hang.fillet);
-            below.size.height -= px(hang.fillet);
-            paint_shadow(below, hang.radius, hang.power, color, spread, Parts { top: false, gap: None, lip: 0.0 }, window);
+        move |bounds, (), window, _| {
+            paint_shadow(bounds, radius, power, color, spread, WHOLE, window)
         },
     )
     .absolute()
@@ -396,7 +482,68 @@ pub fn joined_shadow(body: Bounds<Pixels>, radius: f32, power: f32, hang: Option
     .size_full()
 }
 
-fn paint_shadow(bounds: Bounds<Pixels>, radius: f32, power: f32, color: Hsla, spread: f32, parts: Parts, window: &mut Window) {
+pub fn joined_shadow(
+    body: Bounds<Pixels>,
+    radius: f32,
+    power: f32,
+    hang: Option<Hang>,
+    color: Hsla,
+    spread: f32,
+) -> Canvas<()> {
+    canvas(
+        |_, _, _| {},
+        move |_, (), window, _| {
+            let Some(hang) = hang else {
+                paint_shadow(body, radius, power, color, spread, WHOLE, window);
+                return;
+            };
+            let gap = Some(hang.gap(window.scale_factor()));
+            paint_shadow(
+                body,
+                radius,
+                power,
+                color,
+                spread,
+                Parts {
+                    top: true,
+                    gap,
+                    lip: 0.0,
+                },
+                window,
+            );
+            let mut below = hang.bounds;
+            below.origin.y += px(hang.fillet);
+            below.size.height -= px(hang.fillet);
+            paint_shadow(
+                below,
+                hang.radius,
+                hang.power,
+                color,
+                spread,
+                Parts {
+                    top: false,
+                    gap: None,
+                    lip: 0.0,
+                },
+                window,
+            );
+        },
+    )
+    .absolute()
+    .top_0()
+    .left_0()
+    .size_full()
+}
+
+fn paint_shadow(
+    bounds: Bounds<Pixels>,
+    radius: f32,
+    power: f32,
+    color: Hsla,
+    spread: f32,
+    parts: Parts,
+    window: &mut Window,
+) {
     let scale = window.scale_factor();
     let snap = |value: Pixels| (f32::from(value) * scale).round();
     let (left, top) = (snap(bounds.origin.x), snap(bounds.origin.y));
@@ -406,7 +553,10 @@ fn paint_shadow(bounds: Bounds<Pixels>, radius: f32, power: f32, color: Hsla, sp
     if width <= 0.0 || height <= 0.0 || spread_px < 1.0 {
         return;
     }
-    let corner = (radius * scale).round().min((width.min(height) / 2.0).floor()).max(0.0);
+    let corner = (radius * scale)
+        .round()
+        .min((width.min(height) / 2.0).floor())
+        .max(0.0);
     let side = corner + spread_px;
     let area = |x: f32, y: f32, w: f32, h: f32| Bounds {
         origin: point(px(x / scale), px(y / scale)),
@@ -425,9 +575,23 @@ fn paint_shadow(bounds: Bounds<Pixels>, radius: f32, power: f32, color: Hsla, sp
     // Corners are images drawn one texel per pixel.
     let corners = [
         (0, area(left - spread_px, top - spread_px, side, side)),
-        (1, area(right + spread_px - side, top - spread_px, side, side)),
-        (2, area(right + spread_px - side, bottom + spread_px - side, side, side)),
-        (3, area(left - spread_px, bottom + spread_px - side, side, side)),
+        (
+            1,
+            area(right + spread_px - side, top - spread_px, side, side),
+        ),
+        (
+            2,
+            area(
+                right + spread_px - side,
+                bottom + spread_px - side,
+                side,
+                side,
+            ),
+        ),
+        (
+            3,
+            area(left - spread_px, bottom + spread_px - side, side, side),
+        ),
     ];
     for (piece, at) in corners {
         if !parts.top && piece < 2 {
@@ -452,7 +616,11 @@ fn paint_shadow(bounds: Bounds<Pixels>, radius: f32, power: f32, color: Hsla, sp
         if parts.top {
             strips.push(area(left + corner, top - 1.0 - reach, span, 1.0));
         }
-        strips.extend(bottoms.iter().map(|(from, to)| area(*from, bottom + reach, to - from, 1.0)));
+        strips.extend(
+            bottoms
+                .iter()
+                .map(|(from, to)| area(*from, bottom + reach, to - from, 1.0)),
+        );
         for strip in strips {
             if f32::from(strip.size.width) > 0.0 && f32::from(strip.size.height) > 0.0 {
                 window.paint_quad(gpui::fill(strip, shade));
@@ -462,7 +630,13 @@ fn paint_shadow(bounds: Bounds<Pixels>, radius: f32, power: f32, color: Hsla, sp
 }
 
 fn whole(bounds: Bounds<Pixels>) -> [i32; 4] {
-    [bounds.origin.x, bounds.origin.y, bounds.size.width, bounds.size.height].map(|value| f32::from(value).round() as i32)
+    [
+        bounds.origin.x,
+        bounds.origin.y,
+        bounds.size.width,
+        bounds.size.height,
+    ]
+    .map(|value| f32::from(value).round() as i32)
 }
 
 pub fn region(body: Bounds<Pixels>, radius: f32, power: f32, hang: Option<Hang>) -> Vec<[i32; 4]> {

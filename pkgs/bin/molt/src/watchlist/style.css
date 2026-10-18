@@ -63,7 +63,6 @@
   outline: none;
   padding: 0 10px 0 6px;
   transition: background-color 120ms ease;
-
 }
 
 .watchlist-timeline-row:hover {
@@ -127,5 +126,4 @@
   color: var(--subtext0);
   font-size: 13px;
   padding: 32px 16px;
-
 }

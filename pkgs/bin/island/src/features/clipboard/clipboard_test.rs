@@ -6,7 +6,10 @@ use super::files;
 fn reads_local_files_from_a_uri_list() {
     assert_eq!(
         files(b"# comment\r\nfile:///home/me/My%20Notes.txt\r\nfile://localhost/tmp/a.png\r\n"),
-        vec![PathBuf::from("/home/me/My Notes.txt"), PathBuf::from("/tmp/a.png")]
+        vec![
+            PathBuf::from("/home/me/My Notes.txt"),
+            PathBuf::from("/tmp/a.png")
+        ]
     );
 }
 

@@ -7,7 +7,8 @@ use std::{
 
 use wayland_client::{QueueHandle, protocol::wl_seat::WlSeat};
 use wayland_protocols_misc::zwp_virtual_keyboard_v1::client::{
-    zwp_virtual_keyboard_manager_v1::ZwpVirtualKeyboardManagerV1, zwp_virtual_keyboard_v1::ZwpVirtualKeyboardV1,
+    zwp_virtual_keyboard_manager_v1::ZwpVirtualKeyboardManagerV1,
+    zwp_virtual_keyboard_v1::ZwpVirtualKeyboardV1,
 };
 
 /// The keymap the virtual keyboard types with; the compositor fills in the includes.
@@ -68,7 +69,11 @@ impl Shortcut {
                 .iter()
                 .find_map(|(row, first)| row.find(letter).map(|index| first + index as u32))
                 .ok_or_else(|| format!("unknown key '{letter}' in '{text}'"))?,
-            other => return Err(format!("unknown key '{other}' in '{text}'; use a letter or insert")),
+            other => {
+                return Err(format!(
+                    "unknown key '{other}' in '{text}'; use a letter or insert"
+                ));
+            }
         };
         Ok(Some(Self { modifiers, key }))
     }
@@ -80,7 +85,11 @@ pub struct Keyboard {
 }
 
 impl Keyboard {
-    pub fn new<D>(manager: &ZwpVirtualKeyboardManagerV1, seat: &WlSeat, queue: &QueueHandle<D>) -> io::Result<Self>
+    pub fn new<D>(
+        manager: &ZwpVirtualKeyboardManagerV1,
+        seat: &WlSeat,
+        queue: &QueueHandle<D>,
+    ) -> io::Result<Self>
     where
         D: wayland_client::Dispatch<ZwpVirtualKeyboardV1, ()> + 'static,
     {

@@ -70,7 +70,9 @@ pub fn widget(state: &AudioState, w: &mut WidgetCx<'_>) -> Option<AnyElement> {
     };
     Some(
         w.gauge("bar-volume", gauge)
-            .when_some(tip(state), |widget, text| widget.tip(w.tips(), "bar-volume", text))
+            .when_some(tip(state), |widget, text| {
+                widget.tip(w.tips(), "bar-volume", text)
+            })
             .on_click(w.toggle(Audio::panel_handle()))
             .on_mouse_down(
                 MouseButton::Right,

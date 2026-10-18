@@ -53,8 +53,9 @@ impl Motion {
     }
 
     fn offset(&self, now: i64) -> f64 {
-        self.glide
-            .map_or(0.0, |(from, started)| from * (1.0 - eased(started, now, GLIDE)))
+        self.glide.map_or(0.0, |(from, started)| {
+            from * (1.0 - eased(started, now, GLIDE))
+        })
     }
 
     fn opacity(&self, now: i64) -> f64 {
@@ -335,9 +336,9 @@ impl GlideBox {
         frame: &impl IsA<gtk::Widget>,
         origin: f64,
     ) {
-        self.imp()
-            .arrivals
-            .borrow_mut()
-            .insert(child.clone().upcast(), (frame.upcast_ref().downgrade(), origin));
+        self.imp().arrivals.borrow_mut().insert(
+            child.clone().upcast(),
+            (frame.upcast_ref().downgrade(), origin),
+        );
     }
 }

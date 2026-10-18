@@ -164,7 +164,8 @@ mod tests {
             ),
             ["/nix/store/c-molt-0.1.0.drv"]
         );
-        let dependent = "error: Cannot build '/nix/store/d-system.drv'.\n       Reason: 1 dependency failed.";
+        let dependent =
+            "error: Cannot build '/nix/store/d-system.drv'.\n       Reason: 1 dependency failed.";
         assert!(failed_derivations(dependent).is_empty());
         assert!(is_dependency_failure(dependent));
         assert_eq!(

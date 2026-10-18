@@ -9,7 +9,10 @@ fn reads_the_watchlist_and_lays_out_each_pr_s_path() {
     let report: Report = serde_json::from_str(CHECK).unwrap();
     let watchlist = report.watchlist.as_ref().unwrap();
     let row = watchlist.prs[0].row();
-    assert_eq!(row.title.as_ref(), "#573942 lixPackageSets.lix_2_95.lix: drop unsupported option mimalloc");
+    assert_eq!(
+        row.title.as_ref(),
+        "#573942 lixPackageSets.lix_2_95.lix: drop unsupported option mimalloc"
+    );
     assert_eq!(row.detail.as_ref(), "NixOS/nixpkgs · Merged · 982cb88");
     assert!(row.done.is_none());
     let states: Vec<StopState> = row.stops.into_iter().map(|stop| stop.state).collect();
@@ -42,7 +45,10 @@ fn sums_up_incoming_changes_and_ready_prs() {
     if let Some(watchlist) = report.watchlist.as_mut() {
         watchlist.ready = 1;
     }
-    assert_eq!(updates(&report).summary(), "5 incoming changes · 1 watched PR ready");
+    assert_eq!(
+        updates(&report).summary(),
+        "5 incoming changes · 1 watched PR ready"
+    );
     report.incoming = 0;
     assert_eq!(updates(&report).summary(), "1 watched PR ready");
 }

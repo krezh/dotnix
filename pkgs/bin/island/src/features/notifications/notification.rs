@@ -65,11 +65,15 @@ pub fn next_id() -> u32 {
 
 impl Notification {
     pub fn default_action(&self) -> bool {
-        self.actions.iter().any(|action| action.key == DEFAULT_ACTION)
+        self.actions
+            .iter()
+            .any(|action| action.key == DEFAULT_ACTION)
     }
 
     pub fn buttons(&self) -> impl Iterator<Item = &Action> {
-        self.actions.iter().filter(|action| action.key != DEFAULT_ACTION)
+        self.actions
+            .iter()
+            .filter(|action| action.key != DEFAULT_ACTION)
     }
 
     pub fn timeout(&self, default: Duration) -> Option<Duration> {

@@ -1,7 +1,12 @@
 { inputs, ... }:
 {
   flake.modules.homeManager.ai =
-    { pkgs, lib, ... }:
+    {
+      config,
+      pkgs,
+      lib,
+      ...
+    }:
     let
       llm-agents-nix = inputs.llm-agents-nix.packages.${pkgs.stdenv.hostPlatform.system};
 
@@ -10,10 +15,10 @@
 
       ompConfig = {
         modelRoles = {
-          default = "anthropic/claude-opus-5-5:high";
-          slow = "anthropic/claude-opus-5-5:xhigh";
+          default = "openai-codex/gpt-6.1-sol:high";
+          slow = "openai-codex/gpt-6.1-sol:xhigh";
           plan = "@slow";
-          smol = "anthropic/claude-haiku-5-5:low";
+          smol = "openai-codex/gpt-6-luna:low";
           commit = "@smol";
         };
         symbolPreset = "nerd";
@@ -73,17 +78,19 @@
 
       ompConfigFile = yamlFormat.generate "omp-config.yaml" ompConfig;
 
-      ompWrapped =
-        pkgs.writeShellScriptBin "omp" ''
-          set -euo pipefail
-          export PATH="${pkgs.nodejs}/bin:${pkgs.bun}/bin:${pkgs.infisical}/bin:$PATH"
-          export PI_CONFIG_DIR=".config/omp"
-          export PI_CONFIG_FILES="${ompConfigFile}"
-          if [ "''${1:-}" != usage ]; then
-            ${builtins.readFile ../lib/memini-env.sh}
-          fi
-          exec ${lib.getExe llm-agents-nix.omp} "$@"
-        '';
+      ompWrapped = pkgs.writeShellScriptBin "omp" ''
+        set -euo pipefail
+        export PATH="${pkgs.nodejs}/bin:${pkgs.bun}/bin:${pkgs.infisical}/bin:$PATH"
+        export PI_CONFIG_DIR=".config/omp"
+        export PI_CONFIG_FILES="${ompConfigFile}"
+        if [ "''${1:-}" != usage ]; then
+          ${builtins.readFile ../lib/memini-env.sh}
+        fi
+        if [ -r "${config.sops.secrets."opentodo/token".path}" ]; then
+          export OPENTODO_API_TOKEN="$(cat "${config.sops.secrets."opentodo/token".path}")"
+        fi
+        exec ${lib.getExe llm-agents-nix.omp} "$@"
+      '';
 
       ompPackage =
         pkgs.symlinkJoin {

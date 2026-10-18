@@ -10,8 +10,7 @@ use gtk::prelude::*;
 
 use crate::ui::theme;
 use crate::ui::{
-    FadeScroll, MorphLabel, Tween, animations_enabled, compact_size, duration_text, fade_in,
-    label,
+    FadeScroll, MorphLabel, Tween, animations_enabled, compact_size, duration_text, fade_in, label,
 };
 
 use super::evaluation::{InputRow, InputState};
@@ -473,7 +472,11 @@ impl WarningsCard {
         let empty = revealer(&placeholder, gtk::RevealerTransitionType::SlideDown, true);
         list.append(&empty);
         let more_label = MorphLabel::new("", &["build-card-note"], 0.0);
-        let more = revealer(&more_label.root, gtk::RevealerTransitionType::SlideDown, false);
+        let more = revealer(
+            &more_label.root,
+            gtk::RevealerTransitionType::SlideDown,
+            false,
+        );
         list.append(&more);
         let scroll = gtk::ScrolledWindow::new();
         scroll.add_css_class("see-through");

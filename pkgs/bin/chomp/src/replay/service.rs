@@ -73,12 +73,19 @@ fn handle_client(
             controller.start()?;
             Ok(ReplayReply::Status(controller.status()))
         }
-        ReplayCommand::Save { output } => {
-            let saved = controller.save(output)?;
+        ReplayCommand::Save {
+            output,
+            duration_seconds,
+        } => {
+            let saved = controller.save(output, duration_seconds)?;
             Ok(ReplayReply::Saved {
                 output: saved.path,
                 duration_millis: saved.duration.as_millis() as u64,
             })
+        }
+        ReplayCommand::Configure { duration_seconds } => {
+            let status = controller.configure(duration_seconds)?;
+            Ok(ReplayReply::Status(status))
         }
         ReplayCommand::Stop => {
             controller.stop()?;

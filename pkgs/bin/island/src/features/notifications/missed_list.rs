@@ -48,7 +48,6 @@ impl Default for MissedList {
 }
 
 impl MissedList {
-
     pub fn rows(&self) -> &[Row] {
         &self.rows
     }
@@ -120,7 +119,8 @@ impl MissedList {
             next.push(row);
         }
         self.height = (y - card::GAP).max(0.0);
-        self.rows.retain(|row| row.leaving && !row.alpha.is_settled());
+        self.rows
+            .retain(|row| row.leaving && !row.alpha.is_settled());
         self.rows.extend(next);
     }
 

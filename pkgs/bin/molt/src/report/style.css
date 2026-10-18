@@ -156,6 +156,38 @@
   font-size: 13px;
 }
 
+.changelog-loading-elapsed,
+.changelog-step-time {
+  color: var(--overlay1);
+  font-family: var(--mono-font);
+  font-size: 11.5px;
+}
+
+.changelog-steps-list {
+  padding-top: 6px;
+}
+
+.changelog-step-row {
+  padding: 2px 0;
+}
+
+.changelog-step-dot {
+  color: var(--overlay0);
+  font-size: 11px;
+}
+
+.changelog-step-text {
+  color: var(--subtext0);
+  font-family: var(--mono-font);
+  font-size: 11.5px;
+}
+
+.changelog-steps-card {
+  padding: 10px 12px;
+  background-color: color-mix(in srgb, var(--surface0) 40%, transparent);
+  border-radius: 8px;
+}
+
 .changelog-empty {
   color: var(--overlay1);
   font-size: 13px;

@@ -220,9 +220,8 @@ pub(super) fn change_list(
             .is_some_and(|(entry, name)| row_filter.matches(entry.status(), name))
     });
     // One header per section, in `SECTION_ORDER`, kept across filtering so its count morphs.
-    let headers = Rc::new(
-        SECTION_ORDER.map(|status| section_header(status, totals[status as usize])),
-    );
+    let headers =
+        Rc::new(SECTION_ORDER.map(|status| section_header(status, totals[status as usize])));
     // The row each header was last given to.
     let header_rows: RefCell<[Option<gtk::ListBoxRow>; 5]> = RefCell::default();
     let header_entries = Rc::clone(&entries);
@@ -503,10 +502,14 @@ fn line_counts(content: &ConfigContent) -> String {
         ConfigContent::Text { added, removed, .. } => {
             let mut counts = Vec::with_capacity(2);
             if *added > 0 {
-                counts.push(format!("<span foreground=\"{added_colour}\">+{added}</span>"));
+                counts.push(format!(
+                    "<span foreground=\"{added_colour}\">+{added}</span>"
+                ));
             }
             if *removed > 0 {
-                counts.push(format!("<span foreground=\"{removed_colour}\">−{removed}</span>"));
+                counts.push(format!(
+                    "<span foreground=\"{removed_colour}\">−{removed}</span>"
+                ));
             }
             counts.join(" ")
         }
@@ -597,7 +600,11 @@ pub(super) fn size_classes(base: &'static str, bytes: i64) -> Vec<&'static str> 
 }
 
 fn size_label(bytes: i64) -> gtk::Label {
-    let size = label(&signed_size(bytes), &size_classes("report-size", bytes), 1.0);
+    let size = label(
+        &signed_size(bytes),
+        &size_classes("report-size", bytes),
+        1.0,
+    );
     size.set_ellipsize(gtk::pango::EllipsizeMode::None);
     size
 }

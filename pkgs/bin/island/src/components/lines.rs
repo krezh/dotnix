@@ -24,7 +24,10 @@ pub fn lines(lines: Vec<Line>) -> AnyElement {
                 .flex_col()
                 .gap(px(2.0))
                 .py(px(8.0))
-                .when(index > 0, |row| row.border_t_1().border_color(rgba(with_alpha(SURFACE1, CONTROL_ALPHA))))
+                .when(index > 0, |row| {
+                    row.border_t_1()
+                        .border_color(rgba(with_alpha(SURFACE1, CONTROL_ALPHA)))
+                })
                 .child(
                     div()
                         .min_w(px(0.0))

@@ -14,8 +14,8 @@ use gtk::prelude::*;
 use molt::protocol::ActivationMode;
 
 use crate::activation::ui::{
-    SwitchView, connect_switch, current_hostname, requires_host_switch_confirmation,
-    switch_action, switch_animation,
+    SwitchView, connect_switch, current_hostname, requires_host_switch_confirmation, switch_action,
+    switch_animation,
 };
 use crate::app::state::UiState;
 use crate::build::Target;
@@ -160,11 +160,7 @@ pub(crate) fn show_report(
         } else {
             vec![("↑", "Scroll Up"), ("↓", "Scroll Down")]
         };
-        hints.extend([
-            ("S", "Switch now"),
-            ("←", "Back"),
-            ("Esc", "Close"),
-        ]);
+        hints.extend([("S", "Switch now"), ("←", "Back"), ("Esc", "Close")]);
         let hints = key_hints(&hints);
         hints.set_hexpand(true);
         hints.set_halign(gtk::Align::Center);
@@ -255,7 +251,10 @@ fn changes_panel(navigation: &ReportNavigation, restore: Option<ReportPosition>)
         let target = navigation.clone();
         let snapshot = Rc::clone(&snapshot);
         Rc::new(move |entry: &Entry| {
-            let position = snapshot.get().map(|snapshot| snapshot()).unwrap_or_default();
+            let position = snapshot
+                .get()
+                .map(|snapshot| snapshot())
+                .unwrap_or_default();
             let (window, root, state) = (&target.window, &target.root, Rc::clone(&target.state));
             match entry {
                 Entry::Package(change) => {

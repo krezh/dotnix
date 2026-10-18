@@ -70,14 +70,20 @@ fn read() -> Reading {
             output.stderr
         });
     };
-    let Some(percent) = report["percent"].as_u64().and_then(|p| u8::try_from(p).ok()) else {
+    let Some(percent) = report["percent"]
+        .as_u64()
+        .and_then(|p| u8::try_from(p).ok())
+    else {
         return Reading::Failed("missing or invalid percent in zowie-batt report".to_owned());
     };
     let voltage_mv = report["voltage_mv"]
         .as_u64()
         .and_then(|v| u32::try_from(v).ok())
         .unwrap_or(0);
-    let connection = report["connection"].as_str().unwrap_or("wireless").to_owned();
+    let connection = report["connection"]
+        .as_str()
+        .unwrap_or("wireless")
+        .to_owned();
     let power = report["power"].as_str().map(ToOwned::to_owned);
 
     Reading::Present(Battery {
@@ -121,9 +127,18 @@ impl Zowie {
 
 impl Feature for Zowie {
     const NAME: &'static str = "zowie";
-    const GLYPHS: &'static [super::GlyphSpec] = &[("mouse", &["input-mouse-symbolic", "input-mouse", "mouse-symbolic", "mouse"])];
+    const GLYPHS: &'static [super::GlyphSpec] = &[(
+        "mouse",
+        &[
+            "input-mouse-symbolic",
+            "input-mouse",
+            "mouse-symbolic",
+            "mouse",
+        ],
+    )];
     const COMMANDS: &'static [&'static str] = &["zowie"];
-    const USAGE: &'static str = "  zowie refresh                         read the mouse battery now";
+    const USAGE: &'static str =
+        "  zowie refresh                         read the mouse battery now";
 
     type State = Refreshed<Reading>;
     type Local = ();
@@ -137,7 +152,10 @@ impl Feature for Zowie {
             loop {
                 if asked
                     && let Some(value) = last.clone()
-                    && !feed.publish(Refreshed { value, refreshing: true })
+                    && !feed.publish(Refreshed {
+                        value,
+                        refreshing: true,
+                    })
                 {
                     return Ended::Unwanted;
                 }
@@ -157,7 +175,10 @@ impl Feature for Zowie {
                         }
                     }
                     last = Some(reading.clone());
-                    if !feed.publish(Refreshed { value: reading, refreshing: false }) {
+                    if !feed.publish(Refreshed {
+                        value: reading,
+                        refreshing: false,
+                    }) {
                         return Ended::Unwanted;
                     }
                 }
@@ -175,7 +196,12 @@ impl Feature for Zowie {
         matches!(state.value, Reading::Present(_))
     }
 
-    fn widget(&self, _: &str, state: &Refreshed<Reading>, w: &mut WidgetCx<'_>) -> Option<AnyElement> {
+    fn widget(
+        &self,
+        _: &str,
+        state: &Refreshed<Reading>,
+        w: &mut WidgetCx<'_>,
+    ) -> Option<AnyElement> {
         let Reading::Present(battery) = &state.value else {
             return None;
         };

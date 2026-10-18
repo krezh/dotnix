@@ -32,22 +32,42 @@ fn entry(session: i64, id: u32, summary: &str, age: Duration) -> Earlier {
 }
 
 fn summaries(db: &Connection, days: u32) -> Vec<String> {
-    read(db, days).unwrap().into_iter().map(|kept| kept.notification.summary).collect()
+    read(db, days)
+        .unwrap()
+        .into_iter()
+        .map(|kept| kept.notification.summary)
+        .collect()
 }
 
 #[test]
 fn keeps_notifications_newest_first() {
     let mut db = database();
-    write(&mut db, Write::Record(entry(1, 1, "older", Duration::from_secs(60)))).unwrap();
-    write(&mut db, Write::Record(entry(2, 1, "newer", Duration::from_secs(5)))).unwrap();
+    write(
+        &mut db,
+        Write::Record(entry(1, 1, "older", Duration::from_secs(60))),
+    )
+    .unwrap();
+    write(
+        &mut db,
+        Write::Record(entry(2, 1, "newer", Duration::from_secs(5))),
+    )
+    .unwrap();
     assert_eq!(summaries(&db, 7), ["newer", "older"]);
 }
 
 #[test]
 fn a_replacement_takes_its_place() {
     let mut db = database();
-    write(&mut db, Write::Record(entry(1, 4, "first", Duration::from_secs(9)))).unwrap();
-    write(&mut db, Write::Record(entry(1, 4, "replaced", Duration::from_secs(1)))).unwrap();
+    write(
+        &mut db,
+        Write::Record(entry(1, 4, "first", Duration::from_secs(9))),
+    )
+    .unwrap();
+    write(
+        &mut db,
+        Write::Record(entry(1, 4, "replaced", Duration::from_secs(1))),
+    )
+    .unwrap();
     assert_eq!(summaries(&db, 7), ["replaced"]);
 }
 

@@ -1,8 +1,8 @@
 use std::{any::Any, collections::HashMap, path::Path, rc::Rc, sync::LazyLock, time::Instant};
 
 use gpui::{
-    AnyElement, App, Context, Div, FontWeight, Render, SharedString, Stateful, Task,
-    WeakEntity, Window, div, prelude::*, px, rgb, rgba,
+    AnyElement, App, Context, Div, FontWeight, Render, SharedString, Stateful, Task, WeakEntity,
+    Window, div, prelude::*, px, rgb, rgba,
 };
 
 use crate::{
@@ -16,12 +16,9 @@ use crate::{
     config::{self, Widget},
     features::{self, AnyLocal, Features, WidgetCx},
     glyphs::Glyphs,
-    island::{Island, Panel, Mode},
+    island::{Island, Mode, Panel},
     presence::Presence,
-    theme::{
-        ACCENT, TEXT, TINT, TRACK_ALPHA,
-        with_alpha,
-    },
+    theme::{ACCENT, TEXT, TINT, TRACK_ALPHA, with_alpha},
     ui::{self, HEADER_H, Radius, SMALL_SIZE},
 };
 
@@ -40,15 +37,23 @@ const CLOSE_GAP: f32 = 16.0;
 fn tab_list() -> &'static [(Panel, &'static str)] {
     static TABS: LazyLock<Vec<(Panel, &'static str)>> = LazyLock::new(|| {
         let mut tabs = vec![(Panel::System, "System", 3)];
-        tabs.extend(features::tabs().into_iter().map(|(name, title, order)| (Panel::Feature(name), title, order)));
+        tabs.extend(
+            features::tabs()
+                .into_iter()
+                .map(|(name, title, order)| (Panel::Feature(name), title, order)),
+        );
         tabs.sort_by_key(|(_, _, order)| *order);
-        tabs.into_iter().map(|(panel, title, _)| (panel, title)).collect()
+        tabs.into_iter()
+            .map(|(panel, title, _)| (panel, title))
+            .collect()
     });
     &TABS
 }
 
 pub fn first_tab() -> Panel {
-    tab_list().first().map_or(Panel::System, |(panel, _)| *panel)
+    tab_list()
+        .first()
+        .map_or(Panel::System, |(panel, _)| *panel)
 }
 
 pub fn strip_width() -> f32 {
@@ -158,12 +163,20 @@ pub fn measure_slots(window: &Window) -> Slots {
             .fold(0.0, f32::max)
     };
     Slots {
-        count: widest(vec!["88".to_owned(), "!".to_owned()], SMALL_SIZE, FontWeight::SEMIBOLD),
+        count: widest(
+            vec!["88".to_owned(), "!".to_owned()],
+            SMALL_SIZE,
+            FontWeight::SEMIBOLD,
+        ),
     }
 }
 
 pub(crate) fn slot(text: impl Into<SharedString>, width: f32) -> Div {
-    div().min_w(px(width)).flex_none().whitespace_nowrap().child(motion::text("count", text))
+    div()
+        .min_w(px(width))
+        .flex_none()
+        .whitespace_nowrap()
+        .child(motion::text("count", text))
 }
 
 pub struct Gauge<'a> {
@@ -177,7 +190,9 @@ pub struct Gauge<'a> {
 pub(crate) fn gauge(id: impl Into<SharedString>, look: Look, gauge: Gauge<'_>) -> Stateful<Div> {
     widget_base(id, look)
         .gap(px(ICON_GAP))
-        .when_some(gauge.glyph, |widget, path| widget.child(icon::glyph(path, GLYPH, gauge.glyph_color)))
+        .when_some(gauge.glyph, |widget, path| {
+            widget.child(icon::glyph(path, GLYPH, gauge.glyph_color))
+        })
         .child(meter(gauge.level, gauge.level_color))
         .child(energy(look, gauge.busy))
 }
@@ -185,7 +200,6 @@ pub(crate) fn gauge(id: impl Into<SharedString>, look: Look, gauge: Gauge<'_>) -
 pub(crate) fn energy(look: Look, busy: bool) -> impl IntoElement {
     energy::border("energy", Radius::Control, look.inset, busy)
 }
-
 
 fn meter(level: Option<f32>, color: u32) -> Div {
     let level = level.unwrap_or(0.0).clamp(0.0, 1.0);
@@ -224,13 +238,22 @@ pub fn rest_width(Widget(name): Widget, layout: &config::Bar, features: &Feature
 /// Fully shown, a widget keeps its own width: clipping it to the width measured last frame would
 /// cut it off for a frame whenever it grows, such as tray icons sliding in.
 fn collapse(content: AnyElement, presence: f32, rest: f32, natural: &Measured) -> AnyElement {
-    let width = natural.get().map(|size| f32::from(size.width)).filter(|_| presence < 1.0);
-    let inner = div().flex_none().relative().child(content).child(measure::probe(natural));
+    let width = natural
+        .get()
+        .map(|size| f32::from(size.width))
+        .filter(|_| presence < 1.0);
+    let inner = div()
+        .flex_none()
+        .relative()
+        .child(content)
+        .child(measure::probe(natural));
     div()
         .flex_none()
         .flex()
         .overflow_hidden()
-        .when_some(width, |clip, width| clip.w(px(rest + (width - rest).max(0.0) * presence)))
+        .when_some(width, |clip, width| {
+            clip.w(px(rest + (width - rest).max(0.0) * presence))
+        })
         .when(width.is_none() && presence < 1.0, |clip| clip.w(px(rest)))
         .when(rest <= 0.0, |clip| clip.opacity(smoothstep(presence)))
         .child(inner)
@@ -243,7 +266,12 @@ fn smoothstep(t: f32) -> f32 {
 }
 
 /// A feature widget draws the state it holds while it folds away.
-pub fn content(widget: Widget, bar: &Bar<'_>, island: &WeakEntity<Island>, cx: &App) -> Vec<AnyElement> {
+pub fn content(
+    widget: Widget,
+    bar: &Bar<'_>,
+    island: &WeakEntity<Island>,
+    cx: &App,
+) -> Vec<AnyElement> {
     let look = Look::new(bar.hover, bar.layout.spacing, bar.tips);
     let Widget(name) = widget;
     let Some(feature) = bar.features.owning(name) else {
@@ -260,11 +288,18 @@ pub fn content(widget: Widget, bar: &Bar<'_>, island: &WeakEntity<Island>, cx: &
         .find(|(owner, _)| *owner == feature.name())
         .map(|(_, local)| &**local);
     let mut w = WidgetCx::new(look, bar.slots, bar.glyphs, bar.layouts, island, local);
-    feature.widget(name, &*state, &mut w, cx).into_iter().collect()
+    feature
+        .widget(name, &*state, &mut w, cx)
+        .into_iter()
+        .collect()
 }
 
 /// Gone widgets are left out entirely, unless they rest at a visible core.
-fn place(widget: Widget, bar: &Bar<'_>, element: &dyn Fn(Widget) -> AnyElement) -> Option<AnyElement> {
+fn place(
+    widget: Widget,
+    bar: &Bar<'_>,
+    element: &dyn Fn(Widget) -> AnyElement,
+) -> Option<AnyElement> {
     let key = presence_key(widget);
     let rest = rest_width(widget, bar.layout, bar.features);
     let natural = bar.natural.get(&widget)?;
@@ -329,7 +364,9 @@ impl Render for WidgetView {
         self.rendered = Instant::now();
         self.layouts.begin_frame();
         let content = match self.island.upgrade() {
-            Some(island) => island.read(cx).bar_widget(self.kind, &self.layouts, &self.island, cx),
+            Some(island) => island
+                .read(cx)
+                .bar_widget(self.kind, &self.layouts, &self.island, cx),
             None => Vec::new(),
         };
         if self.layouts.resolve(window) {
@@ -347,31 +384,44 @@ pub fn edge(layout: &config::Bar) -> f32 {
 pub fn bar(bar: Bar<'_>, element: &dyn Fn(Widget) -> AnyElement) -> AnyElement {
     let sections: Vec<Vec<AnyElement>> = [&bar.layout.left, &bar.layout.middle, &bar.layout.right]
         .into_iter()
-        .map(|widgets| widgets.iter().filter_map(|kind| place(*kind, &bar, element)).collect())
+        .map(|widgets| {
+            widgets
+                .iter()
+                .filter_map(|kind| place(*kind, &bar, element))
+                .collect()
+        })
         .collect();
     ui::base()
         .h_full()
         .px(px(edge(bar.layout)))
         .flex()
         .items_center()
-        .children(sections.into_iter().zip(bar.sections).enumerate().map(|(index, (section, probe))| {
-            let content = div()
-                .relative()
-                .flex()
-                .items_center()
-                .children(section)
-                .child(measure::probe(probe));
-            let outer = div().flex_none().flex().items_center().child(content);
-            match index {
-                1 => outer,
-                0 => outer.min_w(px(bar.side)).justify_start(),
-                _ => outer.min_w(px(bar.side)).justify_end(),
-            }
-        }))
+        .children(sections.into_iter().zip(bar.sections).enumerate().map(
+            |(index, (section, probe))| {
+                let content = div()
+                    .relative()
+                    .flex()
+                    .items_center()
+                    .children(section)
+                    .child(measure::probe(probe));
+                let outer = div().flex_none().flex().items_center().child(content);
+                match index {
+                    1 => outer,
+                    0 => outer.min_w(px(bar.side)).justify_start(),
+                    _ => outer.min_w(px(bar.side)).justify_end(),
+                }
+            },
+        ))
         .into_any_element()
 }
 
-pub fn tabs(selected: Panel, pill_x: f32, strip_left: f32, hover: bool, cx: &mut Context<Island>) -> AnyElement {
+pub fn tabs(
+    selected: Panel,
+    pill_x: f32,
+    strip_left: f32,
+    hover: bool,
+    cx: &mut Context<Island>,
+) -> AnyElement {
     ui::base()
         .relative()
         .size_full()
@@ -393,14 +443,21 @@ pub fn tabs(selected: Panel, pill_x: f32, strip_left: f32, hover: bool, cx: &mut
                 )
                 .children(tab_list().iter().map(|&(kind, label)| {
                     let selected = selected == kind;
-                    button::fill(SharedString::from(format!("tab-{}", kind.name())), Radius::Row, None, !selected && hover)
-                        .w(px(TAB_W))
-                        .h(px(HEADER_H))
-                        .text_size(px(ui::TEXT_SIZE))
-                        .font_weight(FontWeight::SEMIBOLD)
-                        .text_color(rgb(if selected { ACCENT } else { TEXT }))
-                        .child(label)
-                        .on_click(cx.listener(move |this, _, _, cx| this.set_mode(Mode::Open(kind), cx)))
+                    button::fill(
+                        SharedString::from(format!("tab-{}", kind.name())),
+                        Radius::Row,
+                        None,
+                        !selected && hover,
+                    )
+                    .w(px(TAB_W))
+                    .h(px(HEADER_H))
+                    .text_size(px(ui::TEXT_SIZE))
+                    .font_weight(FontWeight::SEMIBOLD)
+                    .text_color(rgb(if selected { ACCENT } else { TEXT }))
+                    .child(label)
+                    .on_click(
+                        cx.listener(move |this, _, _, cx| this.set_mode(Mode::Open(kind), cx)),
+                    )
                 })),
         )
         .child(

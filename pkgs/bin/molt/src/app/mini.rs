@@ -313,7 +313,9 @@ impl Inner {
                 let started = inner.ended_at.get().unwrap_or(now);
                 inner.ended_at.set(Some(started));
                 let ms = (now - started) as f64 / 1_000.0;
-                inner.morph.set(smootherstep(ms / f64::from(COMPLETION_MORPH_MS)));
+                inner
+                    .morph
+                    .set(smootherstep(ms / f64::from(COMPLETION_MORPH_MS)));
                 inner
                     .progress_alpha
                     .set(1.0 - smootherstep((ms - PROGRESS_HOLD_MS) / PROGRESS_HOLD_MS));
@@ -427,12 +429,14 @@ fn connect(inner: &Rc<Inner>, font: &str) {
     });
 
     let draw = Rc::downgrade(inner);
-    inner.progress.set_draw_func(move |_, context, width, height| {
-        let Some(inner) = draw.upgrade() else {
-            return;
-        };
-        draw_progress(&inner, context, f64::from(width), f64::from(height));
-    });
+    inner
+        .progress
+        .set_draw_func(move |_, context, width, height| {
+            let Some(inner) = draw.upgrade() else {
+                return;
+            };
+            draw_progress(&inner, context, f64::from(width), f64::from(height));
+        });
 
     for button in [&inner.action, &inner.restore_button] {
         let weak = Rc::downgrade(inner);

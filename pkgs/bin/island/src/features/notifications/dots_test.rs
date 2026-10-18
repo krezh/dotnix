@@ -22,7 +22,11 @@ fn every_dot_sits_on_whole_pixels_inside_the_square() {
     for count in 0..=MOST {
         for (left, top, size) in layout(count) {
             for value in [left, top, size] {
-                assert_eq!(value.fract(), 0.0, "{count} dots: {value} is not a whole pixel");
+                assert_eq!(
+                    value.fract(),
+                    0.0,
+                    "{count} dots: {value} is not a whole pixel"
+                );
             }
             assert!(left >= 0.0 && top >= 0.0 && left + size <= BOX && top + size <= BOX);
         }

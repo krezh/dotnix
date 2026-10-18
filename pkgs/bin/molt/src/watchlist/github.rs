@@ -6,8 +6,8 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use serde::Deserialize;
 
 use super::{ChannelStep, PrState, StepState, WatchedPr};
-use molt::command::CANCELLED;
 use crate::inputs::github::get;
+use molt::command::CANCELLED;
 
 const API: &str = "https://api.github.com";
 
@@ -47,7 +47,8 @@ pub(crate) fn parse_pr_ref(input: &str) -> Result<(String, String, u64), String>
     }
 
     // Full URL: https://github.com/owner/repo/pull/1234
-    if let Some(rest) = trimmed.strip_prefix("https://github.com/")
+    if let Some(rest) = trimmed
+        .strip_prefix("https://github.com/")
         .or_else(|| trimmed.strip_prefix("http://github.com/"))
         .or_else(|| trimmed.strip_prefix("github.com/"))
     {
@@ -102,7 +103,8 @@ pub(crate) fn fetch_pr(
     check_cancelled(cancellation)?;
 
     let pull_url = format!("{API}/repos/{owner}/{repo}/pulls/{pr_number}");
-    let response_body = get(&pull_url).map_err(|err| format!("failed to fetch PR #{pr_number}: {err}"))?;
+    let response_body =
+        get(&pull_url).map_err(|err| format!("failed to fetch PR #{pr_number}: {err}"))?;
     let pull: PullResponse = serde_json::from_str(&response_body)
         .map_err(|err| format!("invalid JSON from GitHub pulls API: {err}"))?;
 
@@ -120,18 +122,20 @@ pub(crate) fn fetch_pr(
         PrState::Open
     };
 
-    let target_channels: &[&str] = if owner.eq_ignore_ascii_case("NixOS") && repo.eq_ignore_ascii_case("nixpkgs") {
-        NIXPKGS_CHANNELS
-    } else {
-        &["master", "main"]
-    };
+    let target_channels: &[&str] =
+        if owner.eq_ignore_ascii_case("NixOS") && repo.eq_ignore_ascii_case("nixpkgs") {
+            NIXPKGS_CHANNELS
+        } else {
+            &["master", "main"]
+        };
 
     let mut channels = Vec::new();
 
     if let (PrState::Merged, Some(merge_commit)) = (pr_state, pull.merge_commit_sha.as_deref()) {
         for &channel in target_channels {
             check_cancelled(cancellation)?;
-            let compare_url = format!("{API}/repos/{owner}/{repo}/compare/{channel}...{merge_commit}");
+            let compare_url =
+                format!("{API}/repos/{owner}/{repo}/compare/{channel}...{merge_commit}");
             let step_state = match get(&compare_url) {
                 Ok(comp_body) => {
                     if let Ok(comp) = serde_json::from_str::<CompareResponse>(&comp_body) {

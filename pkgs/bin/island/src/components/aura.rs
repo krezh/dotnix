@@ -9,7 +9,9 @@ use std::{
     time::{Duration, Instant},
 };
 
-use gpui::{Bounds, Canvas, Corners, Pixels, RenderImage, Window, canvas, point, prelude::*, px, size};
+use gpui::{
+    Bounds, Canvas, Corners, Pixels, RenderImage, Window, canvas, point, prelude::*, px, size,
+};
 use image::{Frame, RgbaImage};
 
 use crate::theme::{BLUE, FLAMINGO, LAVENDER, MAUVE, PEACH, PINK, SAPPHIRE, SKY, YELLOW};
@@ -17,7 +19,9 @@ use crate::theme::{BLUE, FLAMINGO, LAVENDER, MAUVE, PEACH, PINK, SAPPHIRE, SKY, 
 /// Bands of light; levels beyond them are ignored and missing ones are silent.
 const BANDS: usize = 10;
 /// Colours from bass to treble; the assignment drifts slowly along this ring.
-const PALETTE: [u32; BANDS] = [BLUE, SAPPHIRE, SKY, LAVENDER, MAUVE, MAUVE, PINK, FLAMINGO, PEACH, YELLOW];
+const PALETTE: [u32; BANDS] = [
+    BLUE, SAPPHIRE, SKY, LAVENDER, MAUVE, MAUVE, PINK, FLAMINGO, PEACH, YELLOW,
+];
 /// How quickly the light follows the music, per second; lower breathes, higher flickers.
 const RESPONSE: f32 = 6.0;
 /// Seconds for the palette to advance one step.
@@ -92,11 +96,17 @@ impl Aura {
     pub fn update(&self, spectrum: &[f32], playing: bool) -> bool {
         let mut state = self.0.borrow_mut();
         let now = Instant::now();
-        let dt = state.last.map_or(0.0, |last| (now - last).as_secs_f32().min(0.1));
+        let dt = state
+            .last
+            .map_or(0.0, |last| (now - last).as_secs_f32().min(0.1));
         state.last = Some(now);
         let ease = (RESPONSE * dt).min(1.0);
         for (index, level) in state.levels.iter_mut().enumerate() {
-            let target = if playing { spectrum.get(index).copied().unwrap_or(0.0) } else { 0.0 };
+            let target = if playing {
+                spectrum.get(index).copied().unwrap_or(0.0)
+            } else {
+                0.0
+            };
             *level += (target - *level) * ease;
             if *level < SILENT && target == 0.0 {
                 *level = 0.0;
@@ -153,7 +163,10 @@ impl Aura {
         let columns = ((width / SAMPLE).ceil() as usize + 1).clamp(4, MAX_SAMPLES);
         let rows = ((height / SAMPLE).ceil() as usize + 1).clamp(2, MAX_SAMPLES);
         let shape = (columns, rows, strength.to_bits(), 0);
-        let due = state.images.get(&shape).is_none_or(|cached| now - cached.made >= REFRESH);
+        let due = state
+            .images
+            .get(&shape)
+            .is_none_or(|cached| now - cached.made >= REFRESH);
         if due {
             let image = render(&state, width, height, columns, rows, strength);
             let made = Cached {
@@ -175,7 +188,10 @@ impl Aura {
         let (step_x, step_y) = (width / (columns - 1) as f32, height / (rows - 1) as f32);
         let placed = Bounds::new(
             point(bounds.origin.x - px(step_x), bounds.origin.y - px(step_y)),
-            size(bounds.size.width + px(2.0 * step_x), bounds.size.height + px(2.0 * step_y)),
+            size(
+                bounds.size.width + px(2.0 * step_x),
+                bounds.size.height + px(2.0 * step_y),
+            ),
         );
         let corners = Corners::all(px(radius.clamp(0.0, width.min(height) / 2.0)));
         let _ = window.paint_image(bounds, placed, corners, cached.image.clone(), 0, false);
@@ -184,7 +200,14 @@ impl Aura {
 
 /// The light sampled on a `columns` × `rows` grid spanning the `width` × `height` area, plus one
 /// extra sample on every side (so the image is `columns + 2` × `rows + 2`).
-fn render(state: &State, width: f32, height: f32, columns: usize, rows: usize, strength: f32) -> Arc<RenderImage> {
+fn render(
+    state: &State,
+    width: f32,
+    height: f32,
+    columns: usize,
+    rows: usize,
+    strength: f32,
+) -> Arc<RenderImage> {
     let time = state.epoch.elapsed().as_secs_f32();
     let step = time / DRIFT;
     let (shift, blend) = (step.floor() as usize, smoothstep(step.fract()));
@@ -197,25 +220,33 @@ fn render(state: &State, width: f32, height: f32, columns: usize, rows: usize, s
         .enumerate()
         .filter(|(_, level)| **level > 0.0)
         .map(|(index, &level)| {
-            let [from, to] = [shift, shift + 1].map(|offset| rgb(PALETTE[(index + offset) % BANDS]));
-            let mix = [0, 1, 2].map(|channel| from[channel] + (to[channel] - from[channel]) * blend);
-            let sway = (step * TAU * (1.0 + index as f32 * 0.13) + index as f32 * 1.7).sin() * width * 0.05;
+            let [from, to] =
+                [shift, shift + 1].map(|offset| rgb(PALETTE[(index + offset) % BANDS]));
+            let mix =
+                [0, 1, 2].map(|channel| from[channel] + (to[channel] - from[channel]) * blend);
+            let sway = (step * TAU * (1.0 + index as f32 * 0.13) + index as f32 * 1.7).sin()
+                * width
+                * 0.05;
             let center_x = (index as f32 + 0.5) / BANDS as f32 * width + sway;
             let center_y = height * 1.1;
             let spread_x = width / BANDS as f32 * (1.1 + level) * 0.75 + SOFTNESS;
             let spread_y = height * (0.3 + level * 0.6) * 0.75 + SOFTNESS;
             let alpha = (0.11 * smoothstep(level / 0.15) + 0.22 * level) * strength;
-            let falloff = |count: usize, at: &dyn Fn(usize) -> f32, center: f32, spread: f32| -> Vec<f32> {
-                (0..count)
-                    .map(|sample| {
-                        let offset = (at(sample) - center) / spread;
-                        (-offset * offset).exp()
-                    })
-                    .collect()
-            };
+            let falloff =
+                |count: usize, at: &dyn Fn(usize) -> f32, center: f32, spread: f32| -> Vec<f32> {
+                    (0..count)
+                        .map(|sample| {
+                            let offset = (at(sample) - center) / spread;
+                            (-offset * offset).exp()
+                        })
+                        .collect()
+                };
             Light {
                 color: mix,
-                across: falloff(columns, &x_at, center_x, spread_x).into_iter().map(|value| value * alpha).collect(),
+                across: falloff(columns, &x_at, center_x, spread_x)
+                    .into_iter()
+                    .map(|value| value * alpha)
+                    .collect(),
                 down: falloff(rows, &y_at, center_y, spread_y),
             }
         })

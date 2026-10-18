@@ -75,6 +75,9 @@ mod tests {
         assert_eq!(short_duration(Duration::from_secs(42), false), "42 s");
         assert_eq!(short_duration(Duration::from_secs(198), false), "3:18");
         assert_eq!(transfer_text(38 << 20, 71 << 20), "38 / 71 MiB");
-        assert_eq!(activity_name("/nix/store/hash-molt-0.1.0.drv"), "molt-0.1.0");
+        assert_eq!(
+            activity_name("/nix/store/hash-molt-0.1.0.drv"),
+            "molt-0.1.0"
+        );
     }
 }

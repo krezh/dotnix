@@ -2,17 +2,11 @@
 //! plays on. Opening grows the chip itself into the list, spreading equally to both sides and
 //! down, as the island grows into a panel; closing folds it back into the chip.
 
-use std::{
-    cell::RefCell,
-    collections::HashMap,
-    path::PathBuf,
-    rc::Rc,
-    time::Instant,
-};
+use std::{cell::RefCell, collections::HashMap, path::PathBuf, rc::Rc, time::Instant};
 
 use gpui::{
-    AnyElement, Bounds, Context, FontWeight, Hsla, MouseDownEvent, Pixels, SharedString, Size, div, prelude::*, px, rgb,
-    rgba,
+    AnyElement, Bounds, Context, FontWeight, Hsla, MouseDownEvent, Pixels, SharedString, Size, div,
+    prelude::*, px, rgb, rgba,
 };
 
 use crate::{
@@ -97,7 +91,8 @@ impl Morph {
             if open {
                 self.grown.retarget(1.0, SHAPE_SPRING);
                 if self.revealed.value() < 0.05 {
-                    self.revealed.retarget_at(1.0, CONTENT_IN, now + REVEAL_DELAY);
+                    self.revealed
+                        .retarget_at(1.0, CONTENT_IN, now + REVEAL_DELAY);
                 } else {
                     self.revealed.retarget(1.0, CONTENT_IN);
                 }
@@ -148,13 +143,21 @@ fn choice_row(id: SharedString, choice: Choice, hover: bool) -> gpui::Stateful<g
         .font_weight(FontWeight::SEMIBOLD)
         .text_color(rgb(TEXT))
         .whitespace_nowrap()
-        .when_some(choice.glyph, |row, path| row.child(icon::glyph(&path, GLYPH, SUBTEXT1)))
+        .when_some(choice.glyph, |row, path| {
+            row.child(icon::glyph(&path, GLYPH, SUBTEXT1))
+        })
         .child(choice.label)
 }
 
 /// An unseen copy of the open list at its own size, laid out where nothing squeezes it, so the
 /// surface knows how big to grow and how wide the current choice's label is.
-fn measuring(id: &SharedString, current: Choice, others: &[(usize, Choice)], natural: &Measured, label: &Measured) -> AnyElement {
+fn measuring(
+    id: &SharedString,
+    current: Choice,
+    others: &[(usize, Choice)],
+    natural: &Measured,
+    label: &Measured,
+) -> AnyElement {
     let selected = div()
         .h(px(ROW_H))
         .px(px(ROW_PAD))
@@ -165,10 +168,20 @@ fn measuring(id: &SharedString, current: Choice, others: &[(usize, Choice)], nat
         .font_weight(FontWeight::SEMIBOLD)
         .whitespace_nowrap()
         .child(div().size(px(GLYPH)).flex_none())
-        .child(div().relative().child(current.label).child(measure::probe(label)));
-    let rows = others
-        .iter()
-        .map(|(index, choice)| choice_row(SharedString::from(format!("{id}-measure-{index}")), choice.clone(), false).into_any_element());
+        .child(
+            div()
+                .relative()
+                .child(current.label)
+                .child(measure::probe(label)),
+        );
+    let rows = others.iter().map(|(index, choice)| {
+        choice_row(
+            SharedString::from(format!("{id}-measure-{index}")),
+            choice.clone(),
+            false,
+        )
+        .into_any_element()
+    });
     ui::base()
         .absolute()
         .top_0()
@@ -209,9 +222,16 @@ fn surface(
     hover: bool,
     cx: &mut Context<Island>,
 ) -> AnyElement {
-    let Motion { grown, revealed, natural, label } = motion;
+    let Motion {
+        grown,
+        revealed,
+        natural,
+        label,
+    } = motion;
     let (chip_w, chip_h) = (f32::from(chip.size.width), f32::from(chip.size.height));
-    let (open_w, open_h) = natural.map_or((chip_w, chip_h), |size| (f32::from(size.width).max(chip_w), f32::from(size.height)));
+    let (open_w, open_h) = natural.map_or((chip_w, chip_h), |size| {
+        (f32::from(size.width).max(chip_w), f32::from(size.height))
+    });
     let w = mix(chip_w, open_w, grown).max(0.0);
     let h = mix(chip_h, open_h, grown).max(0.0);
     let look = grown.clamp(0.0, 1.0);
@@ -291,7 +311,9 @@ fn surface(
         .on_click(cx.listener(move |this, _, _, cx| toggle(this, cx)));
     let others = div()
         .absolute()
-        .top(px(INSET + ROW_H + ROW_SPACING - (1.0 - shown) * CONTENT_DRIFT))
+        .top(px(
+            INSET + ROW_H + ROW_SPACING - (1.0 - shown) * CONTENT_DRIFT
+        ))
         .left(px(offset + INSET))
         .w(px(open_w - 2.0 * INSET))
         .opacity(shown)
@@ -315,12 +337,22 @@ fn surface(
         .top(px(top))
         .w(px(w))
         .h(px(h))
-        .child(div().absolute().size_full().opacity(look).child(ui::shadow(radius, power, SHADOW_SPREAD)))
+        .child(div().absolute().size_full().opacity(look).child(ui::shadow(
+            radius,
+            power,
+            SHADOW_SPREAD,
+        )))
         .child(shape::background(radius, power, fill, Some(border)))
         .child(popovers.reach(radius, power))
         // Clipped square: a round clip would not follow the squircle drawn above, and the list's
         // inset keeps its rows clear of the corners.
-        .child(div().absolute().size_full().overflow_hidden().child(content))
+        .child(
+            div()
+                .absolute()
+                .size_full()
+                .overflow_hidden()
+                .child(content),
+        )
         .on_mouse_down_out(cx.listener(move |this, event: &MouseDownEvent, _, cx| {
             if !anchor.contains(&event.position) {
                 dismiss(this, cx);
@@ -331,12 +363,20 @@ fn surface(
 
 /// The chip, in place. While open or moving, the surface it grows into is drawn over everything,
 /// and the chip stays behind it unseen, keeping its place in the row.
-pub fn dropdown(dropdown: Dropdown, popovers: &Popovers, hover: bool, cx: &mut Context<Island>) -> AnyElement {
+pub fn dropdown(
+    dropdown: Dropdown,
+    popovers: &Popovers,
+    hover: bool,
+    cx: &mut Context<Island>,
+) -> AnyElement {
     let current = dropdown
         .selected
         .and_then(|index| dropdown.choices.get(index))
         .cloned()
-        .unwrap_or(Choice { label: SharedString::default(), glyph: None });
+        .unwrap_or(Choice {
+            label: SharedString::default(),
+            glyph: None,
+        });
     let (motion, shown, natural, label) = MORPHS.with_borrow_mut(|morphs| {
         let morph = morphs.entry(dropdown.id.clone()).or_insert_with(Morph::new);
         morph.advance(dropdown.open);
@@ -349,13 +389,23 @@ pub fn dropdown(dropdown: Dropdown, popovers: &Popovers, hover: bool, cx: &mut C
             natural: morph.natural.get(),
             label: morph.label.get(),
         };
-        (motion, morph.shown(), morph.natural.clone(), morph.label.clone())
+        (
+            motion,
+            morph.shown(),
+            morph.natural.clone(),
+            morph.label.clone(),
+        )
     });
     let toggle = dropdown.on_toggle.clone();
-    let chip = button::chip(dropdown.id.clone(), current.label.clone(), false, hover && !shown)
-        .child(popovers.anchor(dropdown.id.clone()))
-        .when(shown, |chip| chip.opacity(0.0))
-        .on_click(cx.listener(move |this, _, _, cx| toggle(this, cx)));
+    let chip = button::chip(
+        dropdown.id.clone(),
+        current.label.clone(),
+        false,
+        hover && !shown,
+    )
+    .child(popovers.anchor(dropdown.id.clone()))
+    .when(shown, |chip| chip.opacity(0.0))
+    .on_click(cx.listener(move |this, _, _, cx| toggle(this, cx)));
     if shown && let Some(bounds) = popovers.anchor_bounds(&dropdown.id) {
         let others: Vec<(usize, Choice)> = dropdown
             .choices
@@ -364,8 +414,16 @@ pub fn dropdown(dropdown: Dropdown, popovers: &Popovers, hover: bool, cx: &mut C
             .enumerate()
             .filter(|(index, _)| dropdown.selected != Some(*index))
             .collect();
-        popovers.show(measuring(&dropdown.id, current.clone(), &others, &natural, &label));
-        popovers.show(surface(dropdown, current, bounds, motion, popovers, hover, cx));
+        popovers.show(measuring(
+            &dropdown.id,
+            current.clone(),
+            &others,
+            &natural,
+            &label,
+        ));
+        popovers.show(surface(
+            dropdown, current, bounds, motion, popovers, hover, cx,
+        ));
     }
     chip.into_any_element()
 }

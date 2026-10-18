@@ -53,7 +53,6 @@ craneLib.buildPackage rec {
     wrapGAppsHook4
   ];
 
-
   preCheck = ''
     export HOME="$TMPDIR/home"
     export XDG_CACHE_HOME="$HOME/.cache"

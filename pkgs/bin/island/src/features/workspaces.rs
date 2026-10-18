@@ -4,9 +4,8 @@ use gpui::{AnyElement, ScrollWheelEvent, SharedString, SpringConfig, div, prelud
 
 use super::{Feature, Feed, IslandInfo, Local, WidgetCx};
 use crate::{
-    compositor,
     components::tooltip::Tip,
-    island,
+    compositor, island,
     spring::Spring,
     theme::{ACCENT, CRITICAL, OVERLAY1, SUBTEXT1},
     ui::{self, Radius},
@@ -58,7 +57,11 @@ impl Dots {
             } else {
                 DotState::Empty
             };
-            let width = if state == DotState::Active { ACTIVE_W } else { DOT };
+            let width = if state == DotState::Active {
+                ACTIVE_W
+            } else {
+                DOT
+            };
             let dot = match old.iter().position(|dot| dot.id == workspace.id) {
                 Some(index) => {
                     let mut dot = old.remove(index);
@@ -105,11 +108,14 @@ impl Local for Dots {
             dot.width.advance(dt, now);
             dot.presence.advance(dt, now);
         }
-        self.dots.retain(|dot| !(dot.presence.target() == 0.0 && dot.presence.is_settled()));
+        self.dots
+            .retain(|dot| !(dot.presence.target() == 0.0 && dot.presence.is_settled()));
     }
 
     fn is_settled(&self) -> bool {
-        self.dots.iter().all(|dot| dot.width.is_settled() && dot.presence.is_settled())
+        self.dots
+            .iter()
+            .all(|dot| dot.width.is_settled() && dot.presence.is_settled())
     }
 
     fn pending_width(&self, _spacing: f32) -> f32 {
@@ -191,23 +197,28 @@ impl Feature for Workspaces {
                         .cursor_pointer()
                         .when(hover, |cell| cell.hover(|style| style))
                         .opacity(presence)
-                        .tip(w.tips(), format!("workspace-{id}"), format!("Workspace {id}"))
+                        .tip(
+                            w.tips(),
+                            format!("workspace-{id}"),
+                            format!("Workspace {id}"),
+                        )
                         .on_click(move |_, _, _| focus(id))
                         .child(
-                            div()
-                                .absolute()
-                                .size_full()
-                                .flex()
-                                .items_center()
-                                .child(
-                                    div()
-                                        .relative()
-                                        .w_full()
-                                        .h(px(DOT + GAP))
-                                        .child(ui::control(Radius::Pill, None, hover)),
-                                ),
+                            div().absolute().size_full().flex().items_center().child(
+                                div()
+                                    .relative()
+                                    .w_full()
+                                    .h(px(DOT + GAP))
+                                    .child(ui::control(Radius::Pill, None, hover)),
+                            ),
                         )
-                        .child(div().w(px(width * presence)).h(px(DOT)).rounded_full().bg(color))
+                        .child(
+                            div()
+                                .w(px(width * presence))
+                                .h(px(DOT))
+                                .rounded_full()
+                                .bg(color),
+                        )
                 }))
                 .into_any_element(),
         )

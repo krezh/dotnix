@@ -7,23 +7,47 @@
     {
       homeModules.island = {
         enable = true;
-        opacity = config.var.opacity;
-        radius = config.var.rounding;
-        session = {
-          confirm = false;
-          commands = {
-            logout = [
-              dusk
-              "logout"
-            ];
-            reboot = [
-              dusk
-              "reboot"
-            ];
-            shutdown = [
-              dusk
-              "shutdown"
-            ];
+        appearance = {
+          opacity = config.var.opacity;
+          radius = config.var.rounding;
+        };
+        bar = {
+          left = [
+            "molt"
+            "ai"
+            "headset"
+            "zowie"
+            "media"
+          ];
+          middle = [ "workspaces" ];
+          right = [
+            "tray"
+            "caffeine"
+            "audio"
+            "clock"
+            "notifications"
+            "session"
+          ];
+          spacing = 4;
+        };
+        features = {
+          ai.disabledLimits.omp.google-antigravity = [ "3p-weekly:weekly" ];
+          session = {
+            confirm = false;
+            commands = {
+              logout = [
+                dusk
+                "logout"
+              ];
+              reboot = [
+                dusk
+                "reboot"
+              ];
+              shutdown = [
+                dusk
+                "shutdown"
+              ];
+            };
           };
         };
       };

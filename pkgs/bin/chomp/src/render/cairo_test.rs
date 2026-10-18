@@ -155,3 +155,134 @@ fn mode_palette_intro_scales_from_its_center() {
     assert!((entering.0 + entering.2).abs_diff(settled.0 + settled.2) <= 2);
     assert!((entering.1 + entering.3).abs_diff(settled.1 + settled.3) <= 2);
 }
+
+#[test]
+fn replay_heading_shows_active_app_and_state() {
+    use crate::replay::{ReplayStatus, ServiceState};
+
+    // Unavailable when status is None
+    let (text, active) = format_replay_heading(None);
+    assert_eq!(text, "Replay unavailable");
+    assert!(!active);
+
+    // Waiting for target without active app
+    let status = ReplayStatus {
+        state: ServiceState::WaitingForTarget,
+        ..Default::default()
+    };
+    let (text, active) = format_replay_heading(Some(&status));
+    assert_eq!(text, "Replay waiting for target");
+    assert!(!active);
+
+    // Waiting for target with active app being probed
+    let status = ReplayStatus {
+        state: ServiceState::WaitingForTarget,
+        target_app: Some("steam_app_default".to_string()),
+        target_title: Some("World of Warcraft".to_string()),
+        ..Default::default()
+    };
+    let (text, active) = format_replay_heading(Some(&status));
+    assert_eq!(
+        text,
+        "Replay waiting for target · World of Warcraft (steam_app_default)"
+    );
+    assert!(!active);
+
+    // Buffering with frames ready
+    let status = ReplayStatus {
+        state: ServiceState::Buffering,
+        target_app: Some("steam_app_default".to_string()),
+        target_title: Some("World of Warcraft".to_string()),
+        buffered_millis: 15_400,
+        buffered_bytes: 5_000_000,
+        ..Default::default()
+    };
+    let (text, active) = format_replay_heading(Some(&status));
+    assert_eq!(
+        text,
+        "Replay ready · 15.4s · World of Warcraft (steam_app_default)"
+    );
+    assert!(active);
+
+    // Retaining after exit retains frames and identifies the exited app
+    let status = ReplayStatus {
+        state: ServiceState::RetainingAfterExit,
+        target_app: Some("Battle.net".to_string()),
+        target_title: Some("Battle.net".to_string()),
+        buffered_millis: 30_000,
+        buffered_bytes: 10_000_000,
+        ..Default::default()
+    };
+    let (text, active) = format_replay_heading(Some(&status));
+    assert_eq!(text, "Replay retained · 30.0s · Battle.net");
+    assert!(active);
+}
+
+#[test]
+fn truncate_to_width_keeps_short_text_and_truncates_overflow() {
+    let surface = ImageSurface::create(Format::ARgb32, 400, 100).unwrap();
+    let ctx = CairoContext::new(&surface).unwrap();
+    ctx.select_font_face(
+        "sans-serif",
+        cairo::FontSlant::Normal,
+        cairo::FontWeight::Normal,
+    );
+    ctx.set_font_size(12.0);
+
+    let short = "Replay ready · 10.0s · Game";
+    let truncated_short = truncate_to_width(&ctx, short, 300.0).unwrap();
+    assert_eq!(truncated_short, short);
+
+    let long =
+        "Replay ready · 30.0s · Super Long Game Title That Exceeds The Narrow Palette Width By Far";
+    let truncated = truncate_to_width(&ctx, long, 150.0).unwrap();
+    assert!(truncated.ends_with('…'));
+    let measured = ctx.text_extents(&truncated).unwrap().x_advance();
+    assert!(measured <= 150.0);
+}
+
+#[test]
+fn mode_palette_renders_with_active_replay_app() {
+    use crate::replay::{ReplayStatus, ServiceState};
+
+    let config = RenderConfig::new(
+        "#89B4FA",
+        "#1E1E2E",
+        "#CDD6F4",
+        2,
+        0,
+        0.5,
+        "sans-serif".to_string(),
+        16,
+        FontWeight::Normal,
+    )
+    .unwrap();
+    let renderer = Renderer::new(1000, 700, config);
+    let style = crate::config::ModeSelectConfig::default()
+        .resolve(crate::theme::ThemeName::Catppuccin.palette());
+    let keybinds = crate::config::KeybindsConfig::default();
+    let mut buffer = vec![0; 1000 * 700 * 4];
+
+    let status = ReplayStatus {
+        state: ServiceState::Buffering,
+        target_app: Some("steam_app_default".to_string()),
+        target_title: Some("World of Warcraft".to_string()),
+        buffered_millis: 12_500,
+        buffered_bytes: 40_000_000,
+        ..Default::default()
+    };
+
+    let result = renderer.render_mode_select(
+        &mut buffer,
+        &keybinds,
+        &style,
+        false,
+        true,
+        Some(&status),
+        true,
+        None,
+        1.0,
+    );
+    assert!(result.is_ok());
+    assert!(buffer.iter().any(|&byte| byte != 0));
+}

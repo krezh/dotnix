@@ -6,8 +6,12 @@ window.dusk-window {
 }
 
 @keyframes dusk-pop-in {
-  from { transform: scale(0.4); }
-  to { transform: scale(1); }
+  from {
+    transform: scale(0.4);
+  }
+  to {
+    transform: scale(1);
+  }
 }
 
 .dusk-window .shutdown-card {
@@ -91,7 +95,7 @@ window.dusk-window {
 }
 
 .dusk-window .app-row:hover {
-  background-color: rgba(49, 50, 68, 0.60);
+  background-color: rgba(49, 50, 68, 0.6);
 }
 
 .dusk-window .app-dot {
@@ -188,7 +192,7 @@ window.dusk-window {
 
 .dusk-window .cancel-button {
   color: #cdd6f4;
-  background-color: rgba(49, 50, 68, 0.70);
+  background-color: rgba(49, 50, 68, 0.7);
 }
 
 .dusk-window .cancel-button:hover {

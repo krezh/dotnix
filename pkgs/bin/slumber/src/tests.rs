@@ -1,9 +1,9 @@
 #[cfg(test)]
 mod tests {
-    use crate::animations::{create_animation, ANIMATION_NAMES};
+    use crate::animations::{ANIMATION_NAMES, create_animation};
     use crate::canvas::Canvas;
     use crate::rng::Rng;
-    use crate::theme::{blend_premultiplied, Color, Theme};
+    use crate::theme::{Color, Theme, blend_premultiplied};
 
     #[test]
     fn translucent_pixels_use_premultiplied_source_over() {
@@ -13,9 +13,15 @@ mod tests {
         assert_eq!(blue.to_argb_u32(), 0x8000_0080);
         assert_eq!(red.blend_over_pixel(blue.to_argb_u32()), 0xc080_0040);
         assert_eq!(red.blend_over_pixel(0), red.to_argb_u32());
-        assert_eq!(blend_premultiplied(0, blue.to_argb_u32()), blue.to_argb_u32());
+        assert_eq!(
+            blend_premultiplied(0, blue.to_argb_u32()),
+            blue.to_argb_u32()
+        );
         assert_eq!(Color::rgb(255, 255, 255).with_alpha(0).to_argb_u32(), 0);
-        assert_eq!(Color::rgb(10, 20, 30).blend_over_pixel(blue.to_argb_u32()), 0xff0a_141e);
+        assert_eq!(
+            Color::rgb(10, 20, 30).blend_over_pixel(blue.to_argb_u32()),
+            0xff0a_141e
+        );
     }
 
     #[test]
@@ -40,7 +46,10 @@ mod tests {
             let mut animation = create_animation(name, &mut rng);
             for _ in 0..3 {
                 animation.update(1.0 / 60.0, width as u32, height as u32);
-                animation.render(&mut Canvas::new(&mut pixels, width as u32, height as u32), &theme);
+                animation.render(
+                    &mut Canvas::new(&mut pixels, width as u32, height as u32),
+                    &theme,
+                );
                 for &pixel in &pixels {
                     let alpha = pixel >> 24;
                     assert!((pixel >> 16) & 255 <= alpha, "{name}: red exceeds alpha");

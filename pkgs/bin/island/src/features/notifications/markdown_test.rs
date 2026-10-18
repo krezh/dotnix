@@ -1,7 +1,10 @@
 use super::{Style, parse};
 
 fn bold() -> Style {
-    Style { bold: true, ..Style::default() }
+    Style {
+        bold: true,
+        ..Style::default()
+    }
 }
 
 /// The text of `markdown` with each styled stretch shown, as `[stretch]`.
@@ -23,8 +26,16 @@ fn marked(markdown: &str) -> String {
 #[test]
 fn the_plex_bot_reads_as_text() {
     let parsed = parse("📺 Episode **22x07** of **Taskmaster** has been added!\nResolution: 1080p");
-    assert_eq!(parsed.text, "📺 Episode 22x07 of Taskmaster has been added! Resolution: 1080p");
-    let bold: Vec<&str> = parsed.spans.iter().filter(|(_, style)| *style == bold()).map(|(range, _)| &parsed.text[range.clone()]).collect();
+    assert_eq!(
+        parsed.text,
+        "📺 Episode 22x07 of Taskmaster has been added! Resolution: 1080p"
+    );
+    let bold: Vec<&str> = parsed
+        .spans
+        .iter()
+        .filter(|(_, style)| *style == bold())
+        .map(|(range, _)| &parsed.text[range.clone()])
+        .collect();
     assert_eq!(bold, ["22x07", "Taskmaster"]);
 }
 

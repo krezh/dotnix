@@ -4,12 +4,14 @@ use std::{
     path::{Path, PathBuf},
 };
 
+use super::settings::Settings;
+
 use crate::{
     icons,
     launch::{self, Launch},
 };
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct App {
     pub id: String,
     pub name: String,
@@ -22,15 +24,21 @@ pub struct App {
     pub icon: Option<PathBuf>,
 }
 
-fn dirs() -> Vec<PathBuf> {
+pub(super) fn dirs() -> Vec<PathBuf> {
     let home = env::var_os("HOME").map(PathBuf::from);
     let data_home = env::var_os("XDG_DATA_HOME")
         .map(PathBuf::from)
         .or_else(|| home.map(|home| home.join(".local/share")));
-    let data_dirs = env::var("XDG_DATA_DIRS").unwrap_or_else(|_| "/usr/local/share:/usr/share".to_owned());
+    let data_dirs =
+        env::var("XDG_DATA_DIRS").unwrap_or_else(|_| "/usr/local/share:/usr/share".to_owned());
     data_home
         .into_iter()
-        .chain(data_dirs.split(':').filter(|dir| !dir.is_empty()).map(PathBuf::from))
+        .chain(
+            data_dirs
+                .split(':')
+                .filter(|dir| !dir.is_empty())
+                .map(PathBuf::from),
+        )
         .map(|dir| dir.join("applications"))
         .collect()
 }
@@ -69,7 +77,13 @@ fn parse(path: &Path, id: String) -> Option<App> {
             "Name" => app.name = value,
             "GenericName" => app.generic = value,
             "Comment" => app.comment = value,
-            "Keywords" => app.keywords = value.split(';').filter(|word| !word.is_empty()).map(str::to_lowercase).collect(),
+            "Keywords" => {
+                app.keywords = value
+                    .split(';')
+                    .filter(|word| !word.is_empty())
+                    .map(str::to_lowercase)
+                    .collect()
+            }
             "Exec" => app.exec = value,
             "Terminal" => app.terminal = value == "true",
             "Path" if !value.is_empty() => app.directory = Some(PathBuf::from(value)),
@@ -86,20 +100,26 @@ fn parse(path: &Path, id: String) -> Option<App> {
     Some(app)
 }
 
-pub fn load() -> Vec<App> {
+pub(super) fn load(dirs: &[PathBuf]) -> Vec<App> {
     let mut seen = HashSet::new();
     let mut apps = Vec::new();
-    for dir in dirs() {
+    for dir in dirs {
         let Ok(entries) = fs::read_dir(&dir) else {
             continue;
         };
         let mut paths: Vec<PathBuf> = entries.flatten().map(|entry| entry.path()).collect();
         paths.sort();
         for path in paths {
-            if path.extension().is_none_or(|extension| extension != "desktop") {
+            if path
+                .extension()
+                .is_none_or(|extension| extension != "desktop")
+            {
                 continue;
             }
-            let Some(id) = path.file_name().map(|name| name.to_string_lossy().into_owned()) else {
+            let Some(id) = path
+                .file_name()
+                .map(|name| name.to_string_lossy().into_owned())
+            else {
                 continue;
             };
             if !seen.insert(id.clone()) {
@@ -114,10 +134,11 @@ pub fn load() -> Vec<App> {
     apps
 }
 
-pub fn launch(app: &App) -> Option<Launch> {
+pub(super) fn launch(app: &App, settings: &Settings) -> Option<Launch> {
     let mut argv = launch::parse_exec(&app.exec, &app.name)?;
     if app.terminal {
-        argv.insert(0, "xdg-terminal-exec".to_owned());
+        settings.check().ok()?;
+        argv.splice(0..0, settings.terminal.iter().cloned());
     }
     Some(Launch {
         id: app.id.trim_end_matches(".desktop").to_owned(),
@@ -140,7 +161,10 @@ fn tier(app: &App, query: &str) -> Option<u32> {
     if name.contains(query) {
         return Some(3);
     }
-    if app.keywords.iter().any(|keyword| keyword.starts_with(query))
+    if app
+        .keywords
+        .iter()
+        .any(|keyword| keyword.starts_with(query))
         || app.generic.to_lowercase().contains(query)
     {
         return Some(2);
@@ -161,12 +185,27 @@ pub fn search(apps: &[App], query: &str, ranks: &HashMap<String, f64>) -> Vec<us
     let mut matched: Vec<(u32, usize)> = apps
         .iter()
         .enumerate()
-        .filter_map(|(index, app)| Some((if query.is_empty() { 0 } else { tier(app, &query)? }, index)))
+        .filter_map(|(index, app)| {
+            Some((
+                if query.is_empty() {
+                    0
+                } else {
+                    tier(app, &query)?
+                },
+                index,
+            ))
+        })
         .collect();
     matched.sort_by(|a, b| {
         b.0.cmp(&a.0)
             .then(rank(b.1).total_cmp(&rank(a.1)))
-            .then_with(|| if query.is_empty() { std::cmp::Ordering::Equal } else { length(a.1).cmp(&length(b.1)) })
+            .then_with(|| {
+                if query.is_empty() {
+                    std::cmp::Ordering::Equal
+                } else {
+                    length(a.1).cmp(&length(b.1))
+                }
+            })
             .then(a.1.cmp(&b.1))
     });
     matched.into_iter().map(|(_, index)| index).collect()

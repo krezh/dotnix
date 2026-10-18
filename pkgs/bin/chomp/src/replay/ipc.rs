@@ -12,14 +12,22 @@ const MAX_MESSAGE_SIZE: usize = 64 * 1024;
 #[serde(rename_all = "snake_case")]
 pub enum ReplayCommand {
     Start,
-    Save { output: Option<PathBuf> },
+    Save {
+        output: Option<PathBuf>,
+        #[serde(default)]
+        duration_seconds: Option<u32>,
+    },
+    Configure {
+        duration_seconds: u32,
+    },
     Stop,
     Status,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum ServiceState {
+    #[default]
     WaitingForTarget,
     Buffering,
     RetainingAfterExit,
@@ -27,10 +35,16 @@ pub enum ServiceState {
     Failed,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct ReplayStatus {
     pub state: ServiceState,
     pub target: Option<String>,
+    #[serde(default)]
+    pub target_app: Option<String>,
+    #[serde(default)]
+    pub target_title: Option<String>,
+    #[serde(default)]
+    pub duration_seconds: u32,
     pub buffered_millis: u64,
     pub buffered_bytes: u64,
     pub message: Option<String>,
@@ -43,6 +57,58 @@ impl ReplayStatus {
             self.state,
             ServiceState::Buffering | ServiceState::RetainingAfterExit
         ) && self.buffered_millis > 0
+    }
+
+    /// Human-friendly representation of the active capture target application.
+    pub fn active_app(&self) -> Option<String> {
+        let app = self
+            .target_app
+            .as_deref()
+            .map(str::trim)
+            .filter(|s| !s.is_empty());
+        let title = self
+            .target_title
+            .as_deref()
+            .map(str::trim)
+            .filter(|s| !s.is_empty());
+
+        match (app, title) {
+            (Some(app), Some(title)) => {
+                if app.eq_ignore_ascii_case(title) {
+                    Some(title.to_string())
+                } else {
+                    Some(format!("{title} ({app})"))
+                }
+            }
+            (Some(app), None) => Some(app.to_string()),
+            (None, Some(title)) => Some(title.to_string()),
+            (None, None) => {
+                let target = self.target.as_deref()?.trim();
+                if target.is_empty() {
+                    return None;
+                }
+                let target_without_addr = if let Some(idx) = target.rfind(" (0x") {
+                    &target[..idx]
+                } else {
+                    target
+                };
+                if let Some((class, title)) = target_without_addr.split_once(" — ") {
+                    let class = class.trim();
+                    let title = title.trim();
+                    if class.eq_ignore_ascii_case(title) {
+                        Some(title.to_string())
+                    } else if !title.is_empty() && !class.is_empty() {
+                        Some(format!("{title} ({class})"))
+                    } else if !title.is_empty() {
+                        Some(title.to_string())
+                    } else {
+                        Some(class.to_string())
+                    }
+                } else {
+                    Some(target_without_addr.to_string())
+                }
+            }
+        }
     }
 }
 

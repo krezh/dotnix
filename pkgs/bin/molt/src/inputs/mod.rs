@@ -8,9 +8,9 @@ use std::process::Command;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::time::Duration;
 
+use molt::command::{self, OutputLimits};
 use serde::Deserialize;
 use serde_json::Value;
-use molt::command::{self, OutputLimits};
 
 #[derive(Clone, Debug)]
 pub(crate) struct LockUpdate {
@@ -175,9 +175,7 @@ pub(crate) fn update(
     let temporary = temporary_lock_path(&lock);
     let before = read_lock(&lock)?;
     let mut command = Command::new(NIX);
-    command
-        .current_dir(directory)
-        .args(["flake", "update"]);
+    command.current_dir(directory).args(["flake", "update"]);
     if let Some(input) = input {
         command.arg(input);
     }
@@ -221,8 +219,12 @@ pub(crate) fn update_at_revision(
 }
 
 pub(crate) fn restore(update: &LockUpdate) -> Result<(), String> {
-    let current = fs::read(&update.path)
-        .map_err(|error| format!("failed to read {} before undo: {error}", update.path.display()))?;
+    let current = fs::read(&update.path).map_err(|error| {
+        format!(
+            "failed to read {} before undo: {error}",
+            update.path.display()
+        )
+    })?;
     if current != update.after {
         return Err(format!(
             "{} changed after the Molt update; refusing to overwrite it",
@@ -702,15 +704,16 @@ mod tests {
 
     #[test]
     fn refuses_to_overwrite_a_lock_edited_during_the_update() {
-        let root =
-            std::env::temp_dir().join(format!("molt-lock-race-test-{}", std::process::id()));
+        let root = std::env::temp_dir().join(format!("molt-lock-race-test-{}", std::process::id()));
         let _ = fs::remove_dir_all(&root);
         fs::create_dir_all(&root).unwrap();
         let lock = root.join("flake.lock");
         fs::write(&lock, b"edited").unwrap();
         let temporary = temporary_lock_path(&lock);
         fs::write(&temporary, b"new").unwrap();
-        assert!(commit_lock_update(lock.clone(), temporary.clone(), Some(b"old".to_vec())).is_err());
+        assert!(
+            commit_lock_update(lock.clone(), temporary.clone(), Some(b"old".to_vec())).is_err()
+        );
         assert_eq!(fs::read(&lock).unwrap(), b"edited");
         assert!(!temporary.exists());
         fs::remove_dir_all(root).unwrap();

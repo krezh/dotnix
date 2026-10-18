@@ -14,7 +14,10 @@ use super::{
 use crate::{
     components::card::{self, Look, Title},
     features::{PanelCx, headset},
-    panel::{ActionTile, Block, Choice, Dropdown, FrameView, Header, Item, Lead, Mark, PanelView, Slider, Trail},
+    panel::{
+        ActionTile, Block, Choice, Dropdown, FrameView, Header, Item, Lead, Mark, PanelView,
+        Slider, Trail,
+    },
     theme::{ACCENT, BLUE, CRITICAL, GREEN, MAUVE, OVERLAY2, RED, app_color},
 };
 
@@ -24,7 +27,11 @@ const SPEAKING: f32 = 0.35;
 const CLIPPING: f32 = 0.97;
 
 pub fn amount(volume: f32, muted: bool) -> String {
-    if muted { "Muted".to_owned() } else { format!("{}%", (volume * 100.0).round() as i32) }
+    if muted {
+        "Muted".to_owned()
+    } else {
+        format!("{}%", (volume * 100.0).round() as i32)
+    }
 }
 
 fn hint(peak: Peak, muted: bool) -> (SharedString, u32) {
@@ -37,14 +44,33 @@ fn hint(peak: Peak, muted: bool) -> (SharedString, u32) {
 }
 
 /// The default device's volume, with what it hears under it.
-fn volume(state: &AudioState, target: Target, peaks: &HashMap<Probe, Peak>, p: &PanelCx<'_>) -> Option<Block> {
+fn volume(
+    state: &AudioState,
+    target: Target,
+    peaks: &HashMap<Probe, Peak>,
+    p: &PanelCx<'_>,
+) -> Option<Block> {
     let device = state.default_device(target)?;
     let channel = state.channel(target);
     let (id, glyph, color, probe) = match target {
-        Target::Output => ("level-output", glyphs::speaker(channel.volume, channel.muted), BLUE, Probe::Output),
-        Target::Input => ("level-input", glyphs::microphone(channel.muted), MAUVE, Probe::Input),
+        Target::Output => (
+            "level-output",
+            glyphs::speaker(channel.volume, channel.muted),
+            BLUE,
+            Probe::Output,
+        ),
+        Target::Input => (
+            "level-input",
+            glyphs::microphone(channel.muted),
+            MAUVE,
+            Probe::Input,
+        ),
     };
-    let peak = if channel.muted { Peak::default() } else { peaks.get(&probe).copied().unwrap_or_default() };
+    let peak = if channel.muted {
+        Peak::default()
+    } else {
+        peaks.get(&probe).copied().unwrap_or_default()
+    };
     let tint = if channel.muted { OVERLAY2 } else { color };
     let mut under = vec![
         Block::Slider(Slider {
@@ -52,7 +78,9 @@ fn volume(state: &AudioState, target: Target, peaks: &HashMap<Probe, Peak>, p: &
             value: if channel.muted { 0.0 } else { channel.volume },
             color,
             signal: None,
-            on_change: Some(p.slider(move |audio: &Audio, value| audio.send(Request::SetVolume(target, value)))),
+            on_change: Some(
+                p.slider(move |audio: &Audio, value| audio.send(Request::SetVolume(target, value))),
+            ),
         }),
         Block::Segments(peak.level, peak.hold),
     ];
@@ -74,7 +102,10 @@ fn volume(state: &AudioState, target: Target, peaks: &HashMap<Probe, Peak>, p: &
         title: device.description.clone().into(),
         title_color: None,
         detail: SharedString::default(),
-        trail: vec![Trail::Text(amount(channel.volume, channel.muted).into(), tint)],
+        trail: vec![Trail::Text(
+            amount(channel.volume, channel.muted).into(),
+            tint,
+        )],
     };
     Some(Block::Item(item, under))
 }
@@ -84,7 +115,9 @@ fn devices(state: &AudioState, target: Target, p: &PanelCx<'_>) -> Vec<Block> {
     if devices.len() < 2 {
         return Vec::new();
     }
-    let current = state.default_device(target).map(|device| device.name.clone());
+    let current = state
+        .default_device(target)
+        .map(|device| device.name.clone());
     let headset = headset::latest().map(|battery| battery.name);
     let color = match target {
         Target::Output => BLUE,
@@ -101,7 +134,9 @@ fn devices(state: &AudioState, target: Target, p: &PanelCx<'_>) -> Vec<Block> {
                 label: device.description.clone().into(),
                 color,
                 armed: current.as_deref() == Some(device.name.as_str()),
-                on_click: p.call(move |audio: &Audio| audio.send(Request::SetDefault(target, name.clone()))),
+                on_click: p.call(move |audio: &Audio| {
+                    audio.send(Request::SetDefault(target, name.clone()))
+                }),
             }
         })
         .collect();
@@ -149,7 +184,13 @@ fn recording(state: &AudioState) -> Vec<Block> {
 }
 
 /// An app's own volume, with what it plays inside the slider and where it plays in a dropdown.
-fn app_item(audio: &Audio, state: &AudioState, app: &App, peaks: &HashMap<Probe, Peak>, p: &PanelCx<'_>) -> Block {
+fn app_item(
+    audio: &Audio,
+    state: &AudioState,
+    app: &App,
+    peaks: &HashMap<Probe, Peak>,
+    p: &PanelCx<'_>,
+) -> Block {
     let index = app.index;
     let choosing = audio.choosing.get() == Some(index);
     let id = format!("app-{index}");
@@ -168,7 +209,11 @@ fn app_item(audio: &Audio, state: &AudioState, app: &App, peaks: &HashMap<Probe,
         selected: state.sinks.iter().position(|sink| sink.index == app.device),
         open: choosing,
         on_toggle: p.call(move |audio: &Audio| {
-            audio.choosing.set(if audio.choosing.get() == Some(index) { None } else { Some(index) });
+            audio.choosing.set(if audio.choosing.get() == Some(index) {
+                None
+            } else {
+                Some(index)
+            });
         }),
         on_select: p.pick(move |audio: &Audio, choice: usize| {
             audio.choosing.set(None);
@@ -178,14 +223,25 @@ fn app_item(audio: &Audio, state: &AudioState, app: &App, peaks: &HashMap<Probe,
         }),
     };
     // Twilight playing two streams shows two rows; their names tell them apart.
-    let shared = state.playing.iter().filter(|other| other.name == app.name).count() > 1;
-    let detail = if shared { app.stream.clone() } else { String::new() };
+    let shared = state
+        .playing
+        .iter()
+        .filter(|other| other.name == app.name)
+        .count()
+        > 1;
+    let detail = if shared {
+        app.stream.clone()
+    } else {
+        String::new()
+    };
     let slider = Block::Slider(Slider {
         id: id.clone().into(),
         value: if app.muted { 0.0 } else { app.volume },
         color: ACCENT,
         signal: Some(peaks.get(&Probe::App(index)).map_or(0.0, |peak| peak.level)),
-        on_change: Some(p.slider(move |audio: &Audio, value| audio.send(Request::SetAppVolume(index, value)))),
+        on_change: Some(
+            p.slider(move |audio: &Audio, value| audio.send(Request::SetAppVolume(index, value))),
+        ),
     });
     let frame = FrameView {
         id: format!("{id}-frame").into(),
@@ -210,7 +266,10 @@ fn app_item(audio: &Audio, state: &AudioState, app: &App, peaks: &HashMap<Probe,
         detail: detail.into(),
         trail: vec![
             Trail::Dropdown(device),
-            Trail::Text(amount(app.volume, app.muted).into(), if app.muted { OVERLAY2 } else { ACCENT }),
+            Trail::Text(
+                amount(app.volume, app.muted).into(),
+                if app.muted { OVERLAY2 } else { ACCENT },
+            ),
         ],
     };
     Block::Frame(frame, vec![Block::Item(item, vec![slider])])
@@ -227,15 +286,30 @@ pub fn panel<'a>(audio: &Audio, state: &AudioState, p: &PanelCx<'a>) -> PanelVie
             if target == Target::Input {
                 blocks.extend(recording(state));
             }
-            let format = state.default_device(target).map(|device| device.format.clone()).unwrap_or_default();
-            Some(Block::Card(Some(Title::with_detail(title, format)), card::Size::Medium, blocks))
+            let format = state
+                .default_device(target)
+                .map(|device| device.format.clone())
+                .unwrap_or_default();
+            Some(Block::Card(
+                Some(Title::with_detail(title, format)),
+                card::Size::Medium,
+                blocks,
+            ))
         })
         .collect();
     if sides.is_empty() {
-        let note = if state.connected { "No audio devices" } else { "No sound server" };
+        let note = if state.connected {
+            "No audio devices"
+        } else {
+            "No sound server"
+        };
         return PanelView {
             header: Header::Tabs,
-            blocks: vec![Block::Card(None, card::Size::Medium, vec![Block::note(note)])],
+            blocks: vec![Block::Card(
+                None,
+                card::Size::Medium,
+                vec![Block::note(note)],
+            )],
         };
     }
     let mut blocks = Vec::new();
@@ -244,8 +318,16 @@ pub fn panel<'a>(audio: &Audio, state: &AudioState, p: &PanelCx<'a>) -> PanelVie
     }
     blocks.push(Block::Row(sides));
     if !state.playing.is_empty() {
-        let apps = state.playing.iter().map(|app| app_item(audio, state, app, &peaks, p)).collect();
-        blocks.push(Block::Card(Some("Apps".into()), card::Size::Wide, vec![Block::Grid(2, apps)]));
+        let apps = state
+            .playing
+            .iter()
+            .map(|app| app_item(audio, state, app, &peaks, p))
+            .collect();
+        blocks.push(Block::Card(
+            Some("Apps".into()),
+            card::Size::Wide,
+            vec![Block::Grid(2, apps)],
+        ));
     }
     PanelView {
         header: Header::Tabs,

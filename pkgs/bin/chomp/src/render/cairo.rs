@@ -300,39 +300,7 @@ impl Renderer {
         })?;
 
         if replay_state.visible {
-            let (replay_text, replay_is_active) = match replay_status {
-                Some(status) if status.can_save() => {
-                    let text = format!(
-                        "Replay ready · {:.1}s",
-                        status.buffered_millis as f64 / 1000.0
-                    );
-                    (text, true)
-                }
-                Some(status) => match status.state {
-                    crate::replay::ServiceState::WaitingForTarget => {
-                        ("Replay waiting for target".to_string(), false)
-                    }
-                    crate::replay::ServiceState::Buffering => {
-                        let text = format!(
-                            "Replay buffering · {:.1}s",
-                            status.buffered_millis as f64 / 1000.0
-                        );
-                        (text, false)
-                    }
-                    crate::replay::ServiceState::RetainingAfterExit => {
-                        let text = format!(
-                            "Replay retained · {:.1}s",
-                            status.buffered_millis as f64 / 1000.0
-                        );
-                        (text, false)
-                    }
-                    crate::replay::ServiceState::Suspended => {
-                        ("Replay suspended".to_string(), false)
-                    }
-                    crate::replay::ServiceState::Failed => ("Replay failed".to_string(), false),
-                },
-                None => ("Replay unavailable".to_string(), false),
-            };
+            let (replay_text, replay_is_active) = format_replay_heading(replay_status);
 
             if replay_is_active {
                 ctx.set_source_rgba(replay_color.r, replay_color.g, replay_color.b, 1.0);
@@ -344,8 +312,10 @@ impl Renderer {
                     style.description_opacity * 0.72,
                 );
             }
+            let max_heading_width = (bounds.width - 32.0).max(1.0);
+            let display_text = truncate_to_width(&ctx, &replay_text, max_heading_width)?;
             ctx.move_to(bounds.x + 16.0, layout.replay_heading_y + 13.0);
-            ctx.show_text(&replay_text)?;
+            ctx.show_text(&display_text)?;
         }
 
         for item in layout.items() {
@@ -991,6 +961,71 @@ impl Renderer {
 
         Ok(())
     }
+}
+
+pub(crate) fn format_replay_heading(
+    status: Option<&crate::replay::ReplayStatus>,
+) -> (String, bool) {
+    match status {
+        Some(status) => {
+            let app = status.active_app();
+            let (prefix, is_active) = match status.state {
+                crate::replay::ServiceState::Buffering if status.can_save() => (
+                    format!(
+                        "Replay ready · {:.1}s",
+                        status.buffered_millis as f64 / 1000.0
+                    ),
+                    true,
+                ),
+                crate::replay::ServiceState::Buffering => ("Replay buffering".to_string(), false),
+                crate::replay::ServiceState::RetainingAfterExit if status.can_save() => (
+                    format!(
+                        "Replay retained · {:.1}s",
+                        status.buffered_millis as f64 / 1000.0
+                    ),
+                    true,
+                ),
+                crate::replay::ServiceState::RetainingAfterExit => {
+                    ("Replay retained".to_string(), false)
+                }
+                crate::replay::ServiceState::WaitingForTarget => {
+                    ("Replay waiting for target".to_string(), false)
+                }
+                crate::replay::ServiceState::Suspended => ("Replay suspended".to_string(), false),
+                crate::replay::ServiceState::Failed => ("Replay failed".to_string(), false),
+            };
+            let text = match app {
+                Some(app) => format!("{prefix} · {app}"),
+                None => prefix,
+            };
+            (text, is_active)
+        }
+        None => ("Replay unavailable".to_string(), false),
+    }
+}
+
+pub(crate) fn truncate_to_width(ctx: &CairoContext, text: &str, max_width: f64) -> Result<String> {
+    if ctx.text_extents(text)?.x_advance() <= max_width {
+        return Ok(text.to_string());
+    }
+
+    let ellipsis = "…";
+    let ellipsis_width = ctx.text_extents(ellipsis)?.x_advance();
+    if ellipsis_width > max_width {
+        return Ok(String::new());
+    }
+
+    let available = max_width - ellipsis_width;
+    let mut best_end = 0;
+    for (idx, _) in text.char_indices() {
+        if ctx.text_extents(&text[..idx])?.x_advance() > available {
+            break;
+        }
+        best_end = idx;
+    }
+
+    let trimmed = text[..best_end].trim_end_matches([' ', '·']);
+    Ok(format!("{trimmed}{ellipsis}"))
 }
 
 #[cfg(test)]

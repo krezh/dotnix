@@ -28,8 +28,9 @@ use std::{
 use chrono::{DateTime, Local, Utc};
 use serde::{Deserialize, Serialize};
 use tracing::{
-    Event, Level, Subscriber, debug, error, info,
+    Event, Level, Subscriber, debug, error,
     field::{Field, Visit},
+    info,
     level_filters::LevelFilter,
     warn,
 };
@@ -71,8 +72,9 @@ fn lock<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
 }
 
 fn check_level(text: &str) -> Result<LevelFilter, String> {
-    text.parse::<LevelFilter>()
-        .map_err(|_| format!("'{text}' is not a log level (error, warn, info, debug, trace or off)"))
+    text.parse::<LevelFilter>().map_err(|_| {
+        format!("'{text}' is not a log level (error, warn, info, debug, trace or off)")
+    })
 }
 
 /// `spec` is like `debug` or `audio=debug,tray=trace`: a bare level applies to island, `NAME=LEVEL`
@@ -82,7 +84,11 @@ fn check_level(text: &str) -> Result<LevelFilter, String> {
 fn filter(spec: &str, at_least: Option<LevelFilter>) -> Result<EnvFilter, String> {
     let mut island = check_level(DEFAULT)?;
     let mut directives = Vec::new();
-    for part in spec.split(',').map(str::trim).filter(|part| !part.is_empty()) {
+    for part in spec
+        .split(',')
+        .map(str::trim)
+        .filter(|part| !part.is_empty())
+    {
         match part.split_once('=') {
             None => island = check_level(part)?,
             Some((name, level)) => {
@@ -97,7 +103,9 @@ fn filter(spec: &str, at_least: Option<LevelFilter>) -> Result<EnvFilter, String
     }
     let island = at_least.map_or(island, |raised| island.max(raised));
     let spec = format!("warn,{CRATE}={island},{}", directives.join(","));
-    EnvFilter::builder().parse(spec).map_err(|error| error.to_string())
+    EnvFilter::builder()
+        .parse(spec)
+        .map_err(|error| error.to_string())
 }
 
 /// Whether stderr is the journal stream systemd gave the service, rather than a terminal that merely
@@ -163,7 +171,11 @@ impl Entry {
                 "DEBUG" => "34",
                 _ => "35",
             };
-            write!(line, "\x1b[2m{time}\x1b[0m \x1b[{tint}m{level:>5}\x1b[0m \x1b[2m{}:\x1b[0m ", self.module)
+            write!(
+                line,
+                "\x1b[2m{time}\x1b[0m \x1b[{tint}m{level:>5}\x1b[0m \x1b[2m{}:\x1b[0m ",
+                self.module
+            )
         } else {
             write!(line, "{time} {level:>5} {}: ", self.module)
         };
@@ -191,7 +203,8 @@ impl Visit for Collect {
         if field.name() == "message" {
             self.message = value.to_owned();
         } else {
-            self.fields.push((field.name().to_owned(), value.to_owned()));
+            self.fields
+                .push((field.name().to_owned(), value.to_owned()));
         }
     }
 
@@ -199,7 +212,8 @@ impl Visit for Collect {
         if field.name() == "message" {
             self.message = format!("{value:?}");
         } else {
-            self.fields.push((field.name().to_owned(), format!("{value:?}")));
+            self.fields
+                .push((field.name().to_owned(), format!("{value:?}")));
         }
     }
 }
@@ -224,7 +238,12 @@ where
     S: Subscriber + for<'a> LookupSpan<'a>,
     N: for<'a> FormatFields<'a> + 'static,
 {
-    fn format_event(&self, _: &FmtContext<'_, S, N>, mut writer: Writer<'_>, event: &Event<'_>) -> fmt::Result {
+    fn format_event(
+        &self,
+        _: &FmtContext<'_, S, N>,
+        mut writer: Writer<'_>,
+        event: &Event<'_>,
+    ) -> fmt::Result {
         let color = writer.has_ansi_escapes();
         writeln!(writer, "{}", entry(event).render(color))
     }
@@ -282,7 +301,11 @@ impl Hub {
         lock(&self.clients).retain(|client| client.try_send(entry.clone()).is_ok());
     }
 
-    fn subscribe(&self, request: &Request, level: Option<Level>) -> (Vec<Arc<Entry>>, Option<mpsc::Receiver<Arc<Entry>>>) {
+    fn subscribe(
+        &self,
+        request: &Request,
+        level: Option<Level>,
+    ) -> (Vec<Arc<Entry>>, Option<mpsc::Receiver<Arc<Entry>>>) {
         let backlog = lock(&self.backlog);
         let receiver = request.follow.then(|| {
             let (sender, receiver) = mpsc::sync_channel(CLIENT_QUEUE);
@@ -339,11 +362,16 @@ impl<S: Subscriber> Layer<S> for Rolling {
 pub fn init(spec: &str) {
     let (initial, invalid) = match filter(spec, None) {
         Ok(filter) => (filter, None),
-        Err(error) => (EnvFilter::new(format!("warn,{CRATE}={DEFAULT}")), Some(error)),
+        Err(error) => (
+            EnvFilter::new(format!("warn,{CRATE}={DEFAULT}")),
+            Some(error),
+        ),
     };
     *lock(&HUB.configured) = if invalid.is_none() { spec } else { DEFAULT }.to_owned();
     let (initial, handle) = reload::Layer::new(initial);
-    let journal = stderr_is_journal().then(|| tracing_journald::layer().ok()).flatten();
+    let journal = stderr_is_journal()
+        .then(|| tracing_journald::layer().ok())
+        .flatten();
     let terminal = journal.is_none().then(|| {
         tracing_subscriber::fmt::layer()
             .with_writer(io::stderr)
@@ -392,7 +420,8 @@ pub fn catch_panics() {
 }
 
 fn socket_path() -> Option<PathBuf> {
-    env::var_os("XDG_RUNTIME_DIR").map(|runtime| PathBuf::from(runtime).join("island").join("logs.sock"))
+    env::var_os("XDG_RUNTIME_DIR")
+        .map(|runtime| PathBuf::from(runtime).join("island").join("logs.sock"))
 }
 
 /// Whether a client that sends nothing after its request has hung up.
@@ -422,8 +451,17 @@ fn serve_client(stream: UnixStream, client: u64) {
         return;
     }
     let request: Request = serde_json::from_str(&line).unwrap_or_default();
-    let level: Option<Level> = request.level.as_deref().and_then(|level| level.parse().ok());
-    debug!(client, level = request.level, module = request.module, follow = request.follow, "log client connected");
+    let level: Option<Level> = request
+        .level
+        .as_deref()
+        .and_then(|level| level.parse().ok());
+    debug!(
+        client,
+        level = request.level,
+        module = request.module,
+        follow = request.follow,
+        "log client connected"
+    );
     let (recent, receiver) = HUB.subscribe(&request, level);
     let mut stream = stream;
     if !recent.iter().all(|entry| send(&mut stream, entry)) {
@@ -494,11 +532,15 @@ fn parse_logs(args: Vec<String>) -> Result<Request, String> {
         match arg.as_str() {
             "-n" | "--lines" => {
                 let value = args.next().ok_or("-n needs a number")?;
-                request.lines = value.parse().map_err(|_| format!("'{value}' is not a number"))?;
+                request.lines = value
+                    .parse()
+                    .map_err(|_| format!("'{value}' is not a number"))?;
             }
             "--level" => {
                 let value = args.next().ok_or("--level needs a level")?;
-                value.parse::<Level>().map_err(|_| format!("'{value}' is not a log level"))?;
+                value
+                    .parse::<Level>()
+                    .map_err(|_| format!("'{value}' is not a log level"))?;
                 request.level = Some(value);
             }
             "--module" => request.module = Some(args.next().ok_or("--module needs a name")?),

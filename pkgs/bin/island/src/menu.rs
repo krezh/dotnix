@@ -8,7 +8,10 @@ use std::{
     time::Instant,
 };
 
-use gpui::{AnyElement, Bounds, Context, FontWeight, Pixels, SharedString, Size, div, point, prelude::*, px, rgb, rgba, size};
+use gpui::{
+    AnyElement, Bounds, Context, FontWeight, Pixels, SharedString, Size, div, point, prelude::*,
+    px, rgb, rgba, size,
+};
 
 use crate::{
     components::{
@@ -39,7 +42,11 @@ fn entry_element(entry: Entry, checks: bool, hover: bool, cx: &mut Context<Islan
     if entry.separator {
         return div()
             .py(px(4.0))
-            .child(div().h(px(1.0)).bg(rgba(with_alpha(SURFACE1, CONTROL_ALPHA))))
+            .child(
+                div()
+                    .h(px(1.0))
+                    .bg(rgba(with_alpha(SURFACE1, CONTROL_ALPHA))),
+            )
             .into_any_element();
     }
     let enabled = entry.enabled && entry.on_click.is_some();
@@ -62,7 +69,9 @@ fn entry_element(entry: Entry, checks: bool, hover: bool, cx: &mut Context<Islan
             )
         })
         .child(div().flex_1().min_w(px(0.0)).truncate().child(entry.label))
-        .when(entry.submenu, |row| row.child(div().text_color(rgb(SUBTEXT1)).child("›")))
+        .when(entry.submenu, |row| {
+            row.child(div().text_color(rgb(SUBTEXT1)).child("›"))
+        })
         .when_some(entry.on_click.filter(|_| entry.enabled), |row, handler| {
             row.on_click(cx.listener(move |this, _, _, cx| handler(this, cx)))
         })
@@ -147,13 +156,18 @@ impl Menu {
     }
 
     fn current(&self) -> &MenuNode {
-        self.path
-            .iter()
-            .fold(&self.root, |node, index| node.children.get(*index).unwrap_or(node))
+        self.path.iter().fold(&self.root, |node, index| {
+            node.children.get(*index).unwrap_or(node)
+        })
     }
 
     pub fn enter(&mut self, index: usize) {
-        if self.current().children.get(index).is_some_and(|node| !node.children.is_empty()) {
+        if self
+            .current()
+            .children
+            .get(index)
+            .is_some_and(|node| !node.children.is_empty())
+        {
             self.path.push(index);
             self.grow();
         }
@@ -199,7 +213,12 @@ impl Menu {
         self.limit.to_bits().hash(&mut hasher);
         for node in &self.current().children {
             node.label.hash(&mut hasher);
-            (node.separator, node.toggle.is_some(), node.children.is_empty()).hash(&mut hasher);
+            (
+                node.separator,
+                node.toggle.is_some(),
+                node.children.is_empty(),
+            )
+                .hash(&mut hasher);
         }
         hasher.finish()
     }
@@ -228,7 +247,8 @@ impl Menu {
         self.h.retarget(h, SHAPE_SPRING);
         if self.content.target() != 1.0 {
             if self.content.value() < 0.05 {
-                self.content.retarget_at(1.0, CONTENT_IN, Instant::now() + REVEAL_DELAY);
+                self.content
+                    .retarget_at(1.0, CONTENT_IN, Instant::now() + REVEAL_DELAY);
             } else {
                 self.content.retarget(1.0, CONTENT_IN);
             }
@@ -259,7 +279,12 @@ impl Menu {
         let frozen = self.frozen.filter(|(frozen, _)| *frozen == key);
         let content = self.contents(hover, cx);
         let content = match frozen {
-            Some((_, size)) => div().flex_none().w(size.width).h(size.height).child(content).into_any_element(),
+            Some((_, size)) => div()
+                .flex_none()
+                .w(size.width)
+                .h(size.height)
+                .child(content)
+                .into_any_element(),
             None => {
                 self.pending.set(Some(key));
                 div()

@@ -11,7 +11,9 @@ pub(crate) fn db_path() -> Option<PathBuf> {
     let base = std::env::var_os("XDG_DATA_HOME")
         .map(PathBuf::from)
         .filter(|path| path.is_absolute())
-        .or_else(|| std::env::var_os("HOME").map(|home| PathBuf::from(home).join(".local/share")))?;
+        .or_else(|| {
+            std::env::var_os("HOME").map(|home| PathBuf::from(home).join(".local/share"))
+        })?;
     Some(base.join("molt").join("watchlist.db"))
 }
 

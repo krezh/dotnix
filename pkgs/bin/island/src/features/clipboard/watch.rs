@@ -30,12 +30,16 @@ use wayland_protocols::ext::data_control::v1::client::{
 };
 
 use wayland_protocols_misc::zwp_virtual_keyboard_v1::client::{
-    zwp_virtual_keyboard_manager_v1::ZwpVirtualKeyboardManagerV1, zwp_virtual_keyboard_v1::ZwpVirtualKeyboardV1,
+    zwp_virtual_keyboard_manager_v1::ZwpVirtualKeyboardManagerV1,
+    zwp_virtual_keyboard_v1::ZwpVirtualKeyboardV1,
 };
 
 use super::{
-    Kind, Request, Settings, State, files,
+    entry::{Kind, files},
     paste::{Keyboard, Shortcut},
+    runtime::Request,
+    settings::Settings,
+    state::State,
     store::{Clip, Store},
 };
 use crate::{compositor, features::Feed, supervisor::Ended};
@@ -46,7 +50,13 @@ const MARKER: &str = "application/x-island-clipboard";
 const SECRET: &str = "x-kde-passwordManagerHint";
 const URI_LIST: &str = "text/uri-list";
 /// Text types, preferred first.
-const TEXT: [&str; 5] = ["text/plain;charset=utf-8", "text/plain", "UTF8_STRING", "STRING", "TEXT"];
+const TEXT: [&str; 5] = [
+    "text/plain;charset=utf-8",
+    "text/plain",
+    "UTF8_STRING",
+    "STRING",
+    "TEXT",
+];
 /// How long an app gets to hand over what it copied.
 const TRANSFER: Duration = Duration::from_secs(3);
 /// How long after picking an entry the paste shortcut is pressed, so the island has let go of the
@@ -74,7 +84,15 @@ struct Watch {
 }
 
 impl Dispatch<WlRegistry, GlobalListContents> for Watch {
-    fn event(_: &mut Self, _: &WlRegistry, _: <WlRegistry as Proxy>::Event, _: &GlobalListContents, _: &Connection, _: &QueueHandle<Self>) {}
+    fn event(
+        _: &mut Self,
+        _: &WlRegistry,
+        _: <WlRegistry as Proxy>::Event,
+        _: &GlobalListContents,
+        _: &Connection,
+        _: &QueueHandle<Self>,
+    ) {
+    }
 }
 
 delegate_noop!(Watch: ignore WlSeat);
@@ -139,10 +157,14 @@ impl Dispatch<ExtDataControlSourceV1, ()> for Watch {
         _: &Connection,
         _: &QueueHandle<Self>,
     ) {
-        let current = watch.served.as_ref().filter(|served| served.source == *source);
+        let current = watch
+            .served
+            .as_ref()
+            .filter(|served| served.source == *source);
         match event {
             ext_data_control_source_v1::Event::Send { mime_type, fd } => {
-                let data = current.and_then(|served| served.data.iter().find(|(mime, _)| *mime == mime_type));
+                let data = current
+                    .and_then(|served| served.data.iter().find(|(mime, _)| *mime == mime_type));
                 if let Some((_, data)) = data {
                     send(fd, data.clone());
                 }
@@ -178,7 +200,12 @@ fn readable(fd: &impl AsRawFd, timeout: Duration) -> bool {
 }
 
 /// `None` when it is larger than `limit` or the app takes too long.
-fn receive(connection: &Connection, offer: &ExtDataControlOfferV1, mime: &str, limit: usize) -> io::Result<Option<Vec<u8>>> {
+fn receive(
+    connection: &Connection,
+    offer: &ExtDataControlOfferV1,
+    mime: &str,
+    limit: usize,
+) -> io::Result<Option<Vec<u8>>> {
     let (mut reader, writer) = io::pipe()?;
     offer.receive(mime.to_owned(), writer.as_fd());
     drop(writer);
@@ -221,10 +248,11 @@ fn wanted(mimes: &[String], images: bool) -> Vec<(Kind, String)> {
         wanted.push((Kind::Text, text.to_owned()));
     }
     if images {
-        let picture = mimes
-            .iter()
-            .find(|mime| *mime == "image/png")
-            .or_else(|| mimes.iter().find(|mime| mime.starts_with("image/") && !mime.starts_with("image/svg")));
+        let picture = mimes.iter().find(|mime| *mime == "image/png").or_else(|| {
+            mimes
+                .iter()
+                .find(|mime| mime.starts_with("image/") && !mime.starts_with("image/svg"))
+        });
         if let Some(picture) = picture {
             wanted.push((Kind::Image, picture.clone()));
         }
@@ -233,7 +261,12 @@ fn wanted(mimes: &[String], images: bool) -> Vec<(Kind, String)> {
 }
 
 /// The first of `wanted` that is useful: local files, text that is not blank, or a picture.
-fn take(connection: &Connection, offer: &ExtDataControlOfferV1, wanted: Vec<(Kind, String)>, limit: usize) -> io::Result<Option<Clip>> {
+fn take(
+    connection: &Connection,
+    offer: &ExtDataControlOfferV1,
+    wanted: Vec<(Kind, String)>,
+    limit: usize,
+) -> io::Result<Option<Clip>> {
     for (kind, mime) in wanted {
         let Some(data) = receive(connection, offer, &mime, limit)? else {
             continue;
@@ -254,16 +287,24 @@ fn offered(clip: Clip) -> Vec<(String, Arc<Vec<u8>>)> {
     match clip.kind {
         Kind::Text => {
             let data = Arc::new(clip.data);
-            TEXT.into_iter().map(|mime| (mime.to_owned(), data.clone())).collect()
+            TEXT.into_iter()
+                .map(|mime| (mime.to_owned(), data.clone()))
+                .collect()
         }
         Kind::Image => vec![(clip.mime, Arc::new(clip.data))],
         Kind::Files => {
-            let paths: Vec<String> = files(&clip.data).iter().map(|path| path.display().to_string()).collect();
+            let paths: Vec<String> = files(&clip.data)
+                .iter()
+                .map(|path| path.display().to_string())
+                .collect();
             let uris = String::from_utf8_lossy(&clip.data).into_owned();
             let text = Arc::new(paths.join("\n").into_bytes());
             vec![
                 (URI_LIST.to_owned(), Arc::new(clip.data)),
-                ("x-special/gnome-copied-files".to_owned(), Arc::new(format!("copy\n{}", uris.trim_end()).into_bytes())),
+                (
+                    "x-special/gnome-copied-files".to_owned(),
+                    Arc::new(format!("copy\n{}", uris.trim_end()).into_bytes()),
+                ),
                 (TEXT[0].to_owned(), text.clone()),
                 (TEXT[1].to_owned(), text),
             ]
@@ -323,7 +364,11 @@ impl Worker<'_> {
     }
 
     /// An emptied clipboard gets the newest entry back with `persist`.
-    fn selection(&self, watch: &mut Watch, offer: Option<ExtDataControlOfferV1>) -> io::Result<bool> {
+    fn selection(
+        &self,
+        watch: &mut Watch,
+        offer: Option<ExtDataControlOfferV1>,
+    ) -> io::Result<bool> {
         let Some(offer) = offer else {
             if self.settings.persist && watch.served.is_none() {
                 if let Ok(Some(newest)) = self.store.newest() {
@@ -334,18 +379,37 @@ impl Worker<'_> {
             return Ok(false);
         };
         let mimes = watch.offers.remove(&offer.id()).unwrap_or_default();
-        let wanted = wanted(&mimes, self.settings.images);
-        let limit = usize::try_from(self.settings.max_item_mb.saturating_mul(1024 * 1024)).unwrap_or(usize::MAX);
-        let clip = if wanted.is_empty() { None } else { take(&self.connection, &offer, wanted, limit)? };
+        let wanted = wanted(&mimes, self.settings.history.images);
+        let limit = usize::try_from(
+            self.settings
+                .history
+                .max_item_mb
+                .saturating_mul(1024 * 1024),
+        )
+        .unwrap_or(usize::MAX);
+        let clip = if wanted.is_empty() {
+            None
+        } else {
+            take(&self.connection, &offer, wanted, limit)?
+        };
         offer.destroy();
         let Some(clip) = clip else {
             return Ok(false);
         };
-        if let Err(error) = self.store.insert(&clip).and_then(|()| self.store.prune(self.settings)) {
+        if let Err(error) = self
+            .store
+            .insert(&clip)
+            .and_then(|()| self.store.prune(self.settings))
+        {
             warn!("cannot keep the copy: {error}");
             return Ok(false);
         }
-        debug!(kind = clip.kind.word(), mime = clip.mime, bytes = clip.data.len(), "kept a copy");
+        debug!(
+            kind = clip.kind.word(),
+            mime = clip.mime,
+            bytes = clip.data.len(),
+            "kept a copy"
+        );
         Ok(true)
     }
 
@@ -354,17 +418,27 @@ impl Worker<'_> {
             return warn!("cannot paste: the compositor offers no virtual keyboards");
         };
         let class = compositor::backend().and_then(|backend| backend.focused_class());
-        let terminal = class
-            .as_deref()
-            .is_some_and(|class| self.settings.terminals.iter().any(|terminal| terminal.eq_ignore_ascii_case(class)));
-        let keys = if terminal { &self.settings.terminal_paste } else { &self.settings.paste };
+        let terminal = class.as_deref().is_some_and(|class| {
+            self.settings
+                .paste
+                .terminals
+                .iter()
+                .any(|terminal| terminal.eq_ignore_ascii_case(class))
+        });
+        let keys = if terminal {
+            &self.settings.paste.terminal_keys
+        } else {
+            &self.settings.paste.keys
+        };
         let Ok(Some(shortcut)) = Shortcut::parse(keys) else {
             return;
         };
         if watch.keyboard.is_none() {
             match Keyboard::new(keyboards, &self.seat, &self.queue_handle) {
                 Ok(keyboard) => watch.keyboard = Some(keyboard),
-                Err(error) => return warn!("cannot make a virtual keyboard to paste with: {error}"),
+                Err(error) => {
+                    return warn!("cannot make a virtual keyboard to paste with: {error}");
+                }
             }
         }
         if let Some(keyboard) = &watch.keyboard {
@@ -396,14 +470,21 @@ fn drain(wake: &UnixStream) {
     while matches!((&*wake).read(&mut buffer), Ok(read) if read > 0) {}
 }
 
-fn connect<'a>(feed: &'a Feed<State>, settings: &'a Settings) -> Result<(Worker<'a>, wayland_client::EventQueue<Watch>), String> {
-    let connection = Connection::connect_to_env().map_err(|error| format!("cannot connect to Wayland: {error}"))?;
-    let (globals, queue) = registry_queue_init::<Watch>(&connection).map_err(|error| error.to_string())?;
+fn connect<'a>(
+    feed: &'a Feed<State>,
+    settings: &'a Settings,
+) -> Result<(Worker<'a>, wayland_client::EventQueue<Watch>), String> {
+    let connection = Connection::connect_to_env()
+        .map_err(|error| format!("cannot connect to Wayland: {error}"))?;
+    let (globals, queue) =
+        registry_queue_init::<Watch>(&connection).map_err(|error| error.to_string())?;
     let queue_handle = queue.handle();
     let manager: ExtDataControlManagerV1 = globals
         .bind(&queue_handle, 1..=1, ())
         .map_err(|_| "the compositor does not offer ext-data-control".to_owned())?;
-    let seat: WlSeat = globals.bind(&queue_handle, 1..=7, ()).map_err(|_| "the compositor has no seat".to_owned())?;
+    let seat: WlSeat = globals
+        .bind(&queue_handle, 1..=7, ())
+        .map_err(|_| "the compositor has no seat".to_owned())?;
     let device = manager.get_data_device(&seat, &queue_handle, ());
     let keyboards = globals.bind(&queue_handle, 1..=1, ()).ok();
     let store = Store::open()?;
@@ -421,7 +502,12 @@ fn connect<'a>(feed: &'a Feed<State>, settings: &'a Settings) -> Result<(Worker<
     Ok((worker, queue))
 }
 
-pub fn run(feed: &Feed<State>, requests: &Receiver<Request>, wake: &UnixStream, settings: &Settings) -> Ended {
+pub(super) fn run(
+    feed: &Feed<State>,
+    requests: &Receiver<Request>,
+    wake: &UnixStream,
+    settings: &Settings,
+) -> Ended {
     let (worker, mut queue) = match connect(feed, settings) {
         Ok(connected) => connected,
         Err(error) => {

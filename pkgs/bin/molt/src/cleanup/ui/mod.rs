@@ -14,19 +14,17 @@ use std::time::Duration;
 use gtk::glib;
 use gtk::prelude::*;
 
-use crate::cleanup::{
-    self, CleanupEvent, CleanupGroup, CleanupKind, DiskUsage, ScanEvent, Volume,
-};
-use crate::config::CleanupPolicy;
 use crate::app::state::{Operation, UiState};
 use crate::cleanup::CleanupEstimate;
+use crate::cleanup::{self, CleanupEvent, CleanupGroup, CleanupKind, DiskUsage, ScanEvent, Volume};
+use crate::config::CleanupPolicy;
+use crate::home::ui::back_to_home_button;
+use crate::ui::EnergyOverlay;
 use crate::ui::theme;
 use crate::ui::{
     MorphLabel, Tween, action_close_button, fade_in, fit_screen, format_size, label,
     replace_screen, title,
 };
-use crate::home::ui::back_to_home_button;
-use crate::ui::EnergyOverlay;
 use items::CleanupItems;
 use plan::CleanupPlan;
 
@@ -119,13 +117,14 @@ impl CleanupView {
         let busy = self.scanning.get() || self.rescanning.get();
         self.action
             .set_sensitive(!busy && count > 0 && policy.is_ok() && current);
-        self.action_label.set_text(&if busy || (policy.is_ok() && !current) {
-            "Scanning".to_owned()
-        } else if count == 0 {
-            "Nothing selected".to_owned()
-        } else {
-            format!("Clean {size}")
-        });
+        self.action_label
+            .set_text(&if busy || (policy.is_ok() && !current) {
+                "Scanning".to_owned()
+            } else if count == 0 {
+                "Nothing selected".to_owned()
+            } else {
+                format!("Clean {size}")
+            });
         if !self.scanning.get() {
             self.status.set_text(match &policy {
                 Err(error) => error,
@@ -185,10 +184,8 @@ impl CleanupView {
             self.storage.set_visible_child_name("placeholder");
             return;
         }
-        self.available.set_text(&format!(
-            "{} available",
-            format_size(available(&volumes))
-        ));
+        self.available
+            .set_text(&format!("{} available", format_size(available(&volumes))));
         let shown = self.storage.visible_child_name().as_deref() == Some("volumes");
         let rows = volumes
             .into_iter()
@@ -257,7 +254,6 @@ impl CleanupView {
         policy.validate()?;
         Ok(policy)
     }
-
 }
 
 pub(crate) fn show_cleanup(
@@ -275,7 +271,11 @@ pub(crate) fn show_cleanup(
     fit_screen(window, &state);
 
     let header = cleanup_header();
-    let status = MorphLabel::new("Inspecting every available cleaner", &["cleanup-status"], 1.0);
+    let status = MorphLabel::new(
+        "Inspecting every available cleaner",
+        &["cleanup-status"],
+        1.0,
+    );
     status.root.set_hexpand(true);
     let spinner = gtk::Spinner::new();
     spinner.start();
@@ -494,7 +494,9 @@ fn watch_scan(
                 .borrow()
                 .values()
                 .filter(|group| group.available)
-                .fold(0_u64, |total, group| total.saturating_add(group.reclaimable));
+                .fold(0_u64, |total, group| {
+                    total.saturating_add(group.reclaimable)
+                });
             CleanupEstimate::save(reclaimable);
         }
         view.rescanning.set(false);
@@ -564,7 +566,11 @@ fn running_status(running: &[CleanupKind]) -> String {
             category_title(*first),
             category_title(*second)
         ),
-        [first, rest @ ..] => format!("Cleaning {} and {} more", category_title(*first), rest.len()),
+        [first, rest @ ..] => format!(
+            "Cleaning {} and {} more",
+            category_title(*first),
+            rest.len()
+        ),
     }
 }
 
@@ -597,7 +603,10 @@ fn cleanup_confirmation(view: &CleanupView) -> String {
             )
         });
     }
-    if selected.iter().any(|group| group.kind == CleanupKind::Docker) {
+    if selected
+        .iter()
+        .any(|group| group.kind == CleanupKind::Docker)
+    {
         policies.push("prune all unused Docker data".to_owned());
     }
     if selected
@@ -737,9 +746,9 @@ fn cleanup_header() -> gtk::Box {
 
 /// Free space across `volumes`.
 fn available(volumes: &[Volume]) -> u64 {
-    volumes
-        .iter()
-        .fold(0_u64, |total, volume| total.saturating_add(volume.usage.available))
+    volumes.iter().fold(0_u64, |total, volume| {
+        total.saturating_add(volume.usage.available)
+    })
 }
 
 struct StorageCard {
@@ -985,7 +994,9 @@ impl StorageMeter {
 
     /// The levels drawn this frame.
     fn levels(&self) -> MeterLevels {
-        self.from.get().toward(&self.to.get(), self.progress.value())
+        self.from
+            .get()
+            .toward(&self.to.get(), self.progress.value())
     }
 
     fn set(&self, levels: MeterLevels) {
@@ -1010,7 +1021,11 @@ fn storage_card() -> StorageCard {
     let volumes = gtk::Grid::new();
     volumes.set_column_spacing(12);
     volumes.set_row_spacing(6);
-    let placeholder = label("Reading filesystem capacity", &["cleanup-storage-detail"], 0.0);
+    let placeholder = label(
+        "Reading filesystem capacity",
+        &["cleanup-storage-detail"],
+        0.0,
+    );
     let stack = gtk::Stack::new();
     stack.set_transition_type(gtk::StackTransitionType::Crossfade);
     stack.set_transition_duration(200);
@@ -1027,8 +1042,11 @@ fn storage_card() -> StorageCard {
     selection.append(&selected_label);
     let selected = Tween::new(&selected_label, 0.0);
     selected.on_frame(move |bytes| selected_label.set_text(&format_size(bytes.round() as u64)));
-    let selection_detail =
-        MorphLabel::new("to reclaim · 0 categories", &["cleanup-storage-detail"], 0.0);
+    let selection_detail = MorphLabel::new(
+        "to reclaim · 0 categories",
+        &["cleanup-storage-detail"],
+        0.0,
+    );
     selection.append(&selection_detail.root);
     root.append(&selection);
     StorageCard {

@@ -11,11 +11,7 @@ pub trait Animation: Send {
     fn render(&mut self, canvas: &mut Canvas, theme: &Theme);
 }
 
-pub const ANIMATION_NAMES: &[&str] = &[
-    "waves",
-    "starfield",
-    "clock",
-];
+pub const ANIMATION_NAMES: &[&str] = &["waves", "starfield", "clock"];
 
 pub fn create_animation(name: &str, rng: &mut Rng) -> Box<dyn Animation> {
     match name.to_lowercase().as_str() {

@@ -14,6 +14,7 @@ use wayland_client::Connection;
 use super::hardware::HardwareEncoder;
 use super::ipc::{ReplayStatus, ServiceState};
 use crate::cli::Settings;
+use crate::compositor::backend::hyprland::TaggedWindow;
 use crate::compositor::{self, protocol::hyprland_toplevel::HyprlandToplevelCapture};
 
 pub struct SavedReplay {
@@ -84,11 +85,58 @@ impl PacketRing {
             self.drain_before(retain);
         }
     }
+    fn set_duration(&mut self, duration: Duration) {
+        self.duration_micros = duration.as_micros() as i64;
+        if let Some(last) = self.packets.back() {
+            let cutoff = last.timestamp_micros - self.duration_micros;
+            let retain = self
+                .packets
+                .iter()
+                .enumerate()
+                .filter(|(_, packet)| packet.packet.is_key() && packet.timestamp_micros <= cutoff)
+                .map(|(index, _)| index)
+                .next_back();
+            if let Some(retain) = retain {
+                self.drain_before(retain);
+            }
+        }
+    }
+
+    fn packets_for_duration(&self, duration: Option<Duration>) -> (Vec<ffmpeg::Packet>, Duration) {
+        if self.packets.is_empty() {
+            return (Vec::new(), Duration::ZERO);
+        }
+        let last = self.packets.back().unwrap();
+
+        let start_index = match duration {
+            Some(requested) => {
+                let requested_micros = requested.as_micros() as i64;
+                let cutoff = last.timestamp_micros.saturating_sub(requested_micros);
+                self.packets
+                    .iter()
+                    .enumerate()
+                    .filter(|(_, p)| p.packet.is_key() && p.timestamp_micros <= cutoff)
+                    .map(|(idx, _)| idx)
+                    .next_back()
+                    .unwrap_or(0)
+            }
+            None => 0,
+        };
+
+        let packets = self
+            .packets
+            .range(start_index..)
+            .map(|p| p.packet.clone())
+            .collect();
+        let start_ts = self.packets[start_index].timestamp_micros;
+        let actual_duration =
+            Duration::from_micros(last.timestamp_micros.saturating_sub(start_ts) as u64);
+        (packets, actual_duration)
+    }
 
     fn set_max_bytes(&mut self, max_bytes: u64) {
         self.max_bytes = max_bytes;
     }
-
     fn drain_before(&mut self, retain: usize) {
         for _ in 0..retain {
             if let Some(packet) = self.packets.pop_front() {
@@ -164,6 +212,9 @@ impl ReplayController {
             status: ReplayStatus {
                 state: ServiceState::WaitingForTarget,
                 target: None,
+                target_app: None,
+                target_title: None,
+                duration_seconds: self.settings.replay.duration_seconds,
                 buffered_millis: 0,
                 buffered_bytes: 0,
                 message: None,
@@ -214,6 +265,9 @@ impl ReplayController {
             return ReplayStatus {
                 state: ServiceState::Suspended,
                 target: None,
+                target_app: None,
+                target_title: None,
+                duration_seconds: self.settings.replay.duration_seconds,
                 buffered_millis: 0,
                 buffered_bytes: 0,
                 message: None,
@@ -227,7 +281,32 @@ impl ReplayController {
             .clone()
     }
 
-    pub fn save(&self, output: Option<PathBuf>) -> Result<SavedReplay> {
+    pub fn configure(&mut self, duration_seconds: u32) -> Result<ReplayStatus> {
+        anyhow::ensure!(
+            (5..=600).contains(&duration_seconds),
+            "capture.replay.duration_seconds must be between 5 and 600"
+        );
+        let duration = Duration::from_secs(duration_seconds as u64);
+        self.settings.replay.duration_seconds = duration_seconds;
+        if let Some(worker) = &self.worker {
+            let mut shared = worker
+                .shared
+                .lock()
+                .map_err(|_| anyhow::anyhow!("Replay buffer lock is poisoned"))?;
+            shared.ring.set_duration(duration);
+            shared.status.duration_seconds = duration_seconds;
+            update_status(&mut shared);
+            Ok(shared.status.clone())
+        } else {
+            Ok(self.status())
+        }
+    }
+
+    pub fn save(
+        &self,
+        output: Option<PathBuf>,
+        duration_seconds: Option<u32>,
+    ) -> Result<SavedReplay> {
         let worker = self
             .worker
             .as_ref()
@@ -242,18 +321,13 @@ impl ReplayController {
                 .clone()
                 .context("Replay encoder is waiting for a tagged game")?;
             anyhow::ensure!(!shared.ring.packets.is_empty(), "Replay buffer is empty");
-            let packets = shared
-                .ring
-                .packets
-                .iter()
-                .map(|packet| packet.packet.clone())
-                .collect::<Vec<_>>();
-            (
-                packets,
-                parameters,
-                shared.time_base,
-                shared.ring.buffered_duration(),
-            )
+            let requested = duration_seconds.map(|s| Duration::from_secs(s as u64));
+            let (packets, duration) = shared.ring.packets_for_duration(requested);
+            anyhow::ensure!(
+                !packets.is_empty(),
+                "No replay packets available for requested duration"
+            );
+            (packets, parameters, shared.time_base, duration)
         };
         let output = match output {
             Some(path) => path,
@@ -293,16 +367,7 @@ fn capture_loop(
             .as_deref()
             .context("capture.replay.hyprland_tag is required")?;
         let windows = compositor::backend::hyprland::get_tagged_windows(tag)?;
-        let selected = windows
-            .iter()
-            .find(|window| Some(window.address) == current_address)
-            .or_else(|| {
-                windows
-                    .iter()
-                    .filter(|window| window.focus_history_id >= 0)
-                    .min_by_key(|window| window.focus_history_id)
-            })
-            .or_else(|| windows.first());
+        let selected = select_target(&windows, current_address);
 
         let Some(window) = selected else {
             let missing_since = target_missing_since.get_or_insert_with(Instant::now);
@@ -316,6 +381,8 @@ fn capture_loop(
                 state.ring.clear();
                 state.parameters = None;
                 state.status.target = None;
+                state.status.target_app = None;
+                state.status.target_title = None;
                 state.status.message = None;
                 encoder = None;
                 current_address = None;
@@ -339,6 +406,8 @@ fn capture_loop(
                         "{} — {} (0x{:x})",
                         window.class, window.title, window.address
                     ));
+                    state.status.target_app = Some(window.class.clone());
+                    state.status.target_title = Some(window.title.clone());
                     state.status.message = Some(format!("Waiting for capture target: {error:#}"));
                     drop(state);
                     thread::sleep(Duration::from_millis(250));
@@ -371,6 +440,8 @@ fn capture_loop(
                 "{} — {} (0x{:x})",
                 window.class, window.title, window.address
             ));
+            state.status.target_app = Some(window.class.clone());
+            state.status.target_title = Some(window.title.clone());
             state.status.message = None;
             encoder = Some(next);
             current_address = Some(window.address);
@@ -414,6 +485,24 @@ fn capture_loop(
         }
     }
     Ok(())
+}
+
+fn select_target(windows: &[TaggedWindow], current_address: Option<u64>) -> Option<&TaggedWindow> {
+    windows
+        .iter()
+        .filter(|window| window.focus_history_id >= 0)
+        .min_by_key(|window| {
+            (
+                window.focus_history_id,
+                Some(window.address) != current_address,
+            )
+        })
+        .or_else(|| {
+            windows
+                .iter()
+                .find(|window| Some(window.address) == current_address)
+        })
+        .or_else(|| windows.first())
 }
 
 fn update_status(shared: &mut SharedCapture) {

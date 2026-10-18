@@ -1,5 +1,6 @@
 //! A feature implements [`Feature`] and is listed once in [`features!`]; nothing else names it.
 
+pub mod ai;
 pub mod audio;
 pub mod brightness;
 pub mod caffeine;
@@ -29,8 +30,8 @@ use futures::{
     channel::mpsc::{UnboundedSender, unbounded},
 };
 use gpui::{
-    AnyElement, AnyEntity, App, AppContext, Context, Div, Entity, EventEmitter, FontWeight, Keystroke, SharedString,
-    Stateful, Subscription, WeakEntity, Window,
+    AnyElement, AnyEntity, App, AppContext, Context, Div, Entity, EventEmitter, FontWeight,
+    Keystroke, SharedString, Stateful, Subscription, WeakEntity, Window,
 };
 use serde::de::DeserializeOwned;
 use tracing::{debug, error};
@@ -78,11 +79,17 @@ pub trait Feature: Sized + 'static {
     fn event(&self, _event: Self::Event, _islands: &mut Islands<'_, Self::Local>) {}
 
     fn check_settings(_settings: &toml::Value) -> Result<(), String> {
-        Err(format!("[{}] takes no settings", Self::NAME))
+        Err(format!("[features.{}] takes no settings", Self::NAME))
     }
 
     /// `animate` is false before the island is first laid out, so things appear in place.
-    fn sync_local(_state: &Self::State, _local: &mut Self::Local, _island: &IslandInfo<'_>, _animate: bool) {}
+    fn sync_local(
+        _state: &Self::State,
+        _local: &mut Self::Local,
+        _island: &IslandInfo<'_>,
+        _animate: bool,
+    ) {
+    }
 
     fn initial() -> Self::State {
         Self::State::default()
@@ -233,7 +240,10 @@ fn answers<F: Feature>(word: &str) -> bool {
 }
 
 fn widgets_of<F: Feature>() -> impl Iterator<Item = &'static str> {
-    F::WIDGETS.iter().copied().chain(F::WIDGETS.is_empty().then_some(F::NAME))
+    F::WIDGETS
+        .iter()
+        .copied()
+        .chain(F::WIDGETS.is_empty().then_some(F::NAME))
 }
 
 pub struct Feed<S, E = ()> {
@@ -264,7 +274,10 @@ pub struct Refreshed<T> {
 }
 
 pub fn parse_settings<T: DeserializeOwned>(settings: &toml::Value) -> Result<T, String> {
-    settings.clone().try_into().map_err(|error: toml::de::Error| error.to_string().trim().to_owned())
+    settings
+        .clone()
+        .try_into()
+        .map_err(|error: toml::de::Error| error.to_string().trim().to_owned())
 }
 
 impl<S: Send + 'static, E: Send + 'static> Feed<S, E> {
@@ -283,7 +296,9 @@ impl<S: Send + 'static, E: Send + 'static> Feed<S, E> {
     }
 
     pub fn send(&self, event: E) -> bool {
-        self.events.as_ref().is_some_and(|events| events.unbounded_send(event).is_ok())
+        self.events
+            .as_ref()
+            .is_some_and(|events| events.unbounded_send(event).is_ok())
     }
 
     pub fn settings<T: DeserializeOwned + Default>(&self) -> T {
@@ -298,7 +313,9 @@ impl<S: Send + 'static, E: Send + 'static> Feed<S, E> {
     }
 
     pub fn publish_live(&self, levels: Vec<f32>) -> bool {
-        self.live.as_ref().is_some_and(|live| live.unbounded_send(levels).is_ok())
+        self.live
+            .as_ref()
+            .is_some_and(|live| live.unbounded_send(levels).is_ok())
     }
 
     pub fn supervise(self, mut run: impl FnMut(&Feed<S, E>) -> Ended + Send + 'static) {
@@ -328,7 +345,13 @@ pub trait AnyFeature {
     /// Kept by island so a folding widget can still draw what it last showed.
     fn snapshot(&self, cx: &App) -> Rc<dyn Any>;
     fn rest_width(&self, widget: &str, spacing: f32) -> f32;
-    fn widget(&self, widget: &str, snapshot: &dyn Any, w: &mut WidgetCx<'_>, cx: &App) -> Option<AnyElement>;
+    fn widget(
+        &self,
+        widget: &str,
+        snapshot: &dyn Any,
+        w: &mut WidgetCx<'_>,
+        cx: &App,
+    ) -> Option<AnyElement>;
     fn glow(&self, cx: &App) -> Option<Vec<f32>>;
     fn panel<'a>(&self, p: &mut PanelCx<'a>, cx: &App) -> Option<PanelView>;
     fn panel_opened(&self, cx: &App);
@@ -339,7 +362,13 @@ pub trait AnyFeature {
     fn command(&self, args: &[&str], cx: &App);
     fn key(&self, local: &mut dyn AnyLocal, keystroke: &Keystroke, cx: &App) -> Outcome;
     fn new_local(&self, island: &IslandInfo<'_>, cx: &App) -> Box<dyn AnyLocal>;
-    fn sync_local(&self, local: &mut dyn AnyLocal, island: &IslandInfo<'_>, animate: bool, cx: &App);
+    fn sync_local(
+        &self,
+        local: &mut dyn AnyLocal,
+        island: &IslandInfo<'_>,
+        animate: bool,
+        cx: &App,
+    );
     fn observe(&self, cx: &mut Context<Island>) -> Vec<Subscription>;
 }
 
@@ -368,7 +397,13 @@ impl<F: Feature> AnyFeature for Entity<Instance<F>> {
         F::rest_width(widget, spacing)
     }
 
-    fn widget(&self, widget: &str, snapshot: &dyn Any, w: &mut WidgetCx<'_>, cx: &App) -> Option<AnyElement> {
+    fn widget(
+        &self,
+        widget: &str,
+        snapshot: &dyn Any,
+        w: &mut WidgetCx<'_>,
+        cx: &App,
+    ) -> Option<AnyElement> {
         let state = snapshot.downcast_ref::<F::State>()?;
         let instance = self.read(cx);
         w.entity = Some(self.clone().into_any());
@@ -433,7 +468,13 @@ impl<F: Feature> AnyFeature for Entity<Instance<F>> {
         Box::new(local)
     }
 
-    fn sync_local(&self, local: &mut dyn AnyLocal, island: &IslandInfo<'_>, animate: bool, cx: &App) {
+    fn sync_local(
+        &self,
+        local: &mut dyn AnyLocal,
+        island: &IslandInfo<'_>,
+        animate: bool,
+        cx: &App,
+    ) {
         if let Some(local) = local.as_any_mut().downcast_mut::<F::Local>() {
             F::sync_local(&self.read(cx).state, local, island, animate);
         }
@@ -442,7 +483,9 @@ impl<F: Feature> AnyFeature for Entity<Instance<F>> {
     fn observe(&self, cx: &mut Context<Island>) -> Vec<Subscription> {
         vec![
             cx.observe(self, |island, _, cx| island.feature_changed(F::NAME, cx)),
-            cx.subscribe(self, |island, _, _: &Live, cx| island.feature_live(F::NAME, cx)),
+            cx.subscribe(self, |island, _, _: &Live, cx| {
+                island.feature_live(F::NAME, cx)
+            }),
         ]
     }
 }
@@ -452,7 +495,10 @@ pub struct Features(Vec<Rc<dyn AnyFeature>>);
 
 impl Features {
     pub fn get(&self, name: &str) -> Option<&dyn AnyFeature> {
-        self.0.iter().find(|feature| feature.name() == name).map(|feature| &**feature)
+        self.0
+            .iter()
+            .find(|feature| feature.name() == name)
+            .map(|feature| &**feature)
     }
 
     pub fn owning(&self, widget: &str) -> Option<&dyn AnyFeature> {
@@ -464,7 +510,11 @@ impl Features {
     }
 }
 
-fn start_one<F: Feature>(live: bool, settings: Option<toml::Value>, cx: &mut App) -> Rc<dyn AnyFeature> {
+fn start_one<F: Feature>(
+    live: bool,
+    settings: Option<toml::Value>,
+    cx: &mut App,
+) -> Rc<dyn AnyFeature> {
     let (sender, mut states) = unbounded();
     let (events, mut arrived) = unbounded();
     let mut feed = Feed::new(F::NAME, sender);
@@ -505,7 +555,8 @@ fn start_one<F: Feature>(live: bool, settings: Option<toml::Value>, cx: &mut App
                     instance.state = state;
                     cx.notify();
                     if let Some(osd) = osd {
-                        Islands::<F::Local>::new(F::NAME, cx).update_all(|local| local.osd(osd.clone()));
+                        Islands::<F::Local>::new(F::NAME, cx)
+                            .update_all(|local| local.osd(osd.clone()));
                     }
                 }
             });
@@ -546,7 +597,13 @@ impl<'a, L: Local> Islands<'a, L> {
     fn new(name: &'static str, cx: &'a mut App) -> Self {
         let list = cx
             .try_global::<Placement>()
-            .map(|placement| placement.islands.iter().filter_map(WeakEntity::upgrade).collect())
+            .map(|placement| {
+                placement
+                    .islands
+                    .iter()
+                    .filter_map(WeakEntity::upgrade)
+                    .collect()
+            })
             .unwrap_or_default();
         Self {
             name,
@@ -559,7 +616,12 @@ impl<'a, L: Local> Islands<'a, L> {
     pub fn find(&self, test: impl Fn(&L) -> bool) -> Option<IslandId> {
         self.list
             .iter()
-            .position(|island| island.read(&*self.cx).local_as::<L>(self.name).is_some_and(&test))
+            .position(|island| {
+                island
+                    .read(&*self.cx)
+                    .local_as::<L>(self.name)
+                    .is_some_and(&test)
+            })
             .map(IslandId)
     }
 
@@ -640,7 +702,13 @@ impl<'a> WidgetCx<'a> {
     }
 
     /// Scrolls when the text does not fit `slot`; the widget then redraws on its own clock.
-    pub fn marquee(&self, text: impl Into<SharedString>, size: f32, weight: FontWeight, slot: f32) -> Div {
+    pub fn marquee(
+        &self,
+        text: impl Into<SharedString>,
+        size: f32,
+        weight: FontWeight,
+        slot: f32,
+    ) -> Div {
         marquee::marquee(self.layouts, text.into(), size, weight, slot)
     }
 
@@ -683,7 +751,10 @@ impl<'a> WidgetCx<'a> {
         bar::on(self.island, move |island, _, cx| island.toggle(panel, cx))
     }
 
-    pub fn call<F: Feature, E: ?Sized>(&self, action: impl Fn(&F) + 'static) -> impl Fn(&E, &mut Window, &mut App) + 'static {
+    pub fn call<F: Feature, E: ?Sized>(
+        &self,
+        action: impl Fn(&F) + 'static,
+    ) -> impl Fn(&E, &mut Window, &mut App) + 'static {
         self.on_event(move |feature: &F, _: &E| action(feature))
     }
 
@@ -694,7 +765,10 @@ impl<'a> WidgetCx<'a> {
         let instance = instance::<F>(&self.entity);
         let island = self.island.clone();
         move |event, _, cx| {
-            let Some(feature) = instance.as_ref().and_then(WeakEntity::upgrade).map(|instance| instance.read(cx).feature.clone())
+            let Some(feature) = instance
+                .as_ref()
+                .and_then(WeakEntity::upgrade)
+                .map(|instance| instance.read(cx).feature.clone())
             else {
                 return;
             };
@@ -771,10 +845,16 @@ impl<'a> PanelCx<'a> {
         })
     }
 
-    pub fn on_island<F: Feature + Clone>(&self, action: impl Fn(&F, &mut Island, &mut Context<Island>) + 'static) -> Handler {
+    pub fn on_island<F: Feature + Clone>(
+        &self,
+        action: impl Fn(&F, &mut Island, &mut Context<Island>) + 'static,
+    ) -> Handler {
         let instance = instance::<F>(&self.entity);
         panel::on(move |island, cx| {
-            let Some(feature) = instance.as_ref().and_then(WeakEntity::upgrade).map(|instance| instance.read(cx).feature.clone())
+            let Some(feature) = instance
+                .as_ref()
+                .and_then(WeakEntity::upgrade)
+                .map(|instance| instance.read(cx).feature.clone())
             else {
                 return;
             };
@@ -833,10 +913,10 @@ macro_rules! features {
         pub fn check_settings(section: &str, settings: &toml::Value) -> Result<(), String> {
             $(
                 if <$feature as Feature>::NAME == section {
-                    return <$feature as Feature>::check_settings(settings).map_err(|error| format!("[{section}]: {error}"));
+                    return <$feature as Feature>::check_settings(settings).map_err(|error| format!("[features.{section}]: {error}"));
                 }
             )*
-            Err(format!("unknown section [{section}]"))
+            Err(format!("unknown section [features.{section}]"))
         }
 
         pub fn glyphs() -> Vec<GlyphSpec> {
@@ -929,6 +1009,7 @@ features![
     tray::Tray,
     caffeine::Caffeine,
     molt::Molt,
+    ai::Ai,
     headset::Headset,
     zowie::Zowie,
     audio::Audio,

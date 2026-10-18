@@ -4,7 +4,7 @@ use std::thread;
 use crate::animations::Animation;
 use crate::canvas::Canvas;
 use crate::rng::Rng;
-use crate::theme::{blend_premultiplied, Color, Theme};
+use crate::theme::{Color, Theme, blend_premultiplied};
 
 /// Upper bound on the horizontal bands a frame is rendered in, one thread each.
 const MAX_BANDS: usize = 16;
@@ -61,7 +61,11 @@ impl Frame<'_> {
         pixels.fill(self.background);
         let top = first_row as i32;
         let bottom = top + (pixels.len() / self.width) as i32 - 1;
-        for (layer, crests) in self.layers.iter().zip(self.crests.chunks_exact(self.columns)) {
+        for (layer, crests) in self
+            .layers
+            .iter()
+            .zip(self.crests.chunks_exact(self.columns))
+        {
             let curtain_h = layer.curtain_height * self.scale;
             let inv_curtain_h = 1.0 / curtain_h;
             let spine_alpha = (0.85 * layer.alpha).clamp(0.0, 1.0);
@@ -87,7 +91,8 @@ impl Frame<'_> {
                         }
                     };
                     if intensity > 0.015 {
-                        let alpha = (crest.color.a as f32 * intensity * layer.alpha).min(255.0) as u8;
+                        let alpha =
+                            (crest.color.a as f32 * intensity * layer.alpha).min(255.0) as u8;
                         if alpha > 0 {
                             let row = &mut pixels[(y - top) as usize * self.width..][..self.width];
                             Self::blend_pair(row, x, crest.color.with_alpha(alpha).to_argb_u32());
@@ -100,7 +105,8 @@ impl Frame<'_> {
                 if (top..=bottom).contains(&crest_row) {
                     let alpha = (crest.spine.a as f32 * spine_alpha).round() as u8;
                     if alpha > 0 {
-                        let row = &mut pixels[(crest_row - top) as usize * self.width..][..self.width];
+                        let row =
+                            &mut pixels[(crest_row - top) as usize * self.width..][..self.width];
                         Self::blend_pair(row, x, crest.spine.with_alpha(alpha).to_argb_u32());
                     }
                 }
@@ -149,8 +155,15 @@ impl AuroraWaves {
             });
         }
 
-        let bands = thread::available_parallelism().map_or(1, NonZeroUsize::get).min(MAX_BANDS);
-        Self { layers, time: 0.0, crests: Vec::new(), bands }
+        let bands = thread::available_parallelism()
+            .map_or(1, NonZeroUsize::get)
+            .min(MAX_BANDS);
+        Self {
+            layers,
+            time: 0.0,
+            crests: Vec::new(),
+            bands,
+        }
     }
 
     #[inline(always)]
@@ -198,7 +211,8 @@ impl Animation for AuroraWaves {
         let (mut active_top, mut active_bottom) = (f32::MAX, f32::MIN);
         self.crests.clear();
         for layer in &self.layers {
-            let drift = (self.time * layer.drift_speed + layer.drift_phase).sin() * (layer.drift_amp * view.height);
+            let drift = (self.time * layer.drift_speed + layer.drift_phase).sin()
+                * (layer.drift_amp * view.height);
             let base_y = layer.base_ratio * view.height + drift;
             let curtain_h = layer.curtain_height * scale;
 
@@ -213,12 +227,19 @@ impl Animation for AuroraWaves {
                 let crest_y = base_y + (y1 + y2 + y3) * scale;
 
                 let height_factor = (crest_y / view.height).clamp(0.0, 1.0) * 0.4;
-                let color_t = (scene_x / view.width) * 0.75 + self.time * 0.018 + layer.color_shift + height_factor;
+                let color_t = (scene_x / view.width) * 0.75
+                    + self.time * 0.018
+                    + layer.color_shift
+                    + height_factor;
                 let color = Self::sample_palette(theme, color_t);
                 let y = crest_y - view.y;
                 active_top = active_top.min(y - curtain_h);
                 active_bottom = active_bottom.max(y + glow_height);
-                self.crests.push(Crest { y, color, spine: color.lerp(theme.text, 0.45) });
+                self.crests.push(Crest {
+                    y,
+                    color,
+                    spine: color.lerp(theme.text, 0.45),
+                });
             }
         }
 
@@ -235,13 +256,19 @@ impl Animation for AuroraWaves {
         // Split the active rows evenly between bands, so no band is left with most of the curtains;
         // the first and last bands also take the backdrop-only rows above and below them.
         let active_top = (active_top.max(0.0) as usize).min(height);
-        let active_rows = (active_bottom.max(0.0) as usize).min(height).saturating_sub(active_top);
+        let active_rows = (active_bottom.max(0.0) as usize)
+            .min(height)
+            .saturating_sub(active_top);
         let bands = self.bands;
         let mut rest = &mut *canvas.pixels;
         let mut first_row = 0;
         thread::scope(|scope| {
             for band in 1..=bands {
-                let end_row = if band == bands { height } else { active_top + active_rows * band / bands };
+                let end_row = if band == bands {
+                    height
+                } else {
+                    active_top + active_rows * band / bands
+                };
                 let (pixels, tail) = rest.split_at_mut((end_row - first_row) * width);
                 rest = tail;
                 if !pixels.is_empty() {

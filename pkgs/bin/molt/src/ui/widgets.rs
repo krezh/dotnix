@@ -369,10 +369,7 @@ pub(crate) fn key_hints(hints: &[(&str, &str)]) -> gtk::FlowBox {
 
 /// Fixed two-to-one split between a main panel and a side column; homogeneous columns keep the
 /// split put however wide either side's content wants to be.
-pub(crate) fn phase_grid(
-    main: &impl IsA<gtk::Widget>,
-    side: &impl IsA<gtk::Widget>,
-) -> gtk::Grid {
+pub(crate) fn phase_grid(main: &impl IsA<gtk::Widget>, side: &impl IsA<gtk::Widget>) -> gtk::Grid {
     let grid = gtk::Grid::new();
     grid.set_column_homogeneous(true);
     grid.set_column_spacing(16);

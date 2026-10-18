@@ -19,10 +19,12 @@ craneLib.buildPackage rec {
     inherit src;
     overrideVendorCargoPackage =
       p: drv:
-      if lib.elem p.name [
-        "gpui-pre"
-        "gpui-pre-linux"
-      ] then
+      if
+        lib.elem p.name [
+          "gpui-pre"
+          "gpui-pre-linux"
+        ]
+      then
         drv.overrideAttrs (old: {
           patches = (old.patches or [ ]) ++ [ ./patches/${p.name}-set-layer.patch ];
         })

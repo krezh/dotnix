@@ -31,8 +31,21 @@ pub fn layout(count: usize) -> Vec<(f32, f32, f32)> {
         2 => vec![(0.0, middle, PAIR), (PAIR_STEP, middle, PAIR)],
         3 => vec![two(0.0, 0.0), two(1.0, 0.0), (middle, PAIR_STEP, PAIR)],
         4 => vec![two(0.0, 0.0), two(1.0, 0.0), two(0.0, 1.0), two(1.0, 1.0)],
-        5 => vec![three(0.0, 0.0), three(2.0, 0.0), three(1.0, 1.0), three(0.0, 2.0), three(2.0, 2.0)],
-        6 => vec![three(0.0, 0.0), three(2.0, 0.0), three(0.0, 1.0), three(2.0, 1.0), three(0.0, 2.0), three(2.0, 2.0)],
+        5 => vec![
+            three(0.0, 0.0),
+            three(2.0, 0.0),
+            three(1.0, 1.0),
+            three(0.0, 2.0),
+            three(2.0, 2.0),
+        ],
+        6 => vec![
+            three(0.0, 0.0),
+            three(2.0, 0.0),
+            three(0.0, 1.0),
+            three(2.0, 1.0),
+            three(0.0, 2.0),
+            three(2.0, 2.0),
+        ],
         7 => vec![
             three(0.0, 0.0),
             three(2.0, 0.0),
@@ -52,7 +65,9 @@ pub fn layout(count: usize) -> Vec<(f32, f32, f32)> {
             three(1.0, 2.0),
             three(2.0, 2.0),
         ],
-        _ => (0..3).flat_map(|row| (0..3).map(move |column| three(column as f32, row as f32))).collect(),
+        _ => (0..3)
+            .flat_map(|row| (0..3).map(move |column| three(column as f32, row as f32)))
+            .collect(),
     }
 }
 
@@ -101,7 +116,9 @@ impl Dots {
         for (index, slot) in self.slots.iter_mut().enumerate() {
             let (x, y, size) = spots
                 .get(index)
-                .map_or((CENTRE, CENTRE, 0.0), |&(left, top, size)| (left + size / 2.0, top + size / 2.0, size));
+                .map_or((CENTRE, CENTRE, 0.0), |&(left, top, size)| {
+                    (left + size / 2.0, top + size / 2.0, size)
+                });
             if jump {
                 slot.x.reset(x);
                 slot.y.reset(y);
@@ -128,22 +145,28 @@ impl Dots {
     }
 
     pub fn is_settled(&self) -> bool {
-        self.slots.iter().all(|slot| slot.x.is_settled() && slot.y.is_settled() && slot.size.is_settled())
+        self.slots
+            .iter()
+            .all(|slot| slot.x.is_settled() && slot.y.is_settled() && slot.size.is_settled())
     }
 
     pub fn element(&self, color: u32) -> Div {
-        div().relative().size(px(BOX)).flex_none().children(self.slots.iter().filter_map(|slot| {
-            let size = slot.size.value().max(0.0).round();
-            (size >= 1.0).then(|| {
-                div()
-                    .absolute()
-                    .left(px((slot.x.value() - size / 2.0).round()))
-                    .top(px((slot.y.value() - size / 2.0).round()))
-                    .size(px(size))
-                    .rounded_full()
-                    .bg(rgb(color))
-            })
-        }))
+        div()
+            .relative()
+            .size(px(BOX))
+            .flex_none()
+            .children(self.slots.iter().filter_map(|slot| {
+                let size = slot.size.value().max(0.0).round();
+                (size >= 1.0).then(|| {
+                    div()
+                        .absolute()
+                        .left(px((slot.x.value() - size / 2.0).round()))
+                        .top(px((slot.y.value() - size / 2.0).round()))
+                        .size(px(size))
+                        .rounded_full()
+                        .bg(rgb(color))
+                })
+            }))
     }
 }
 

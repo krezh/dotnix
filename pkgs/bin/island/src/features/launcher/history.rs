@@ -39,7 +39,9 @@ static HISTORY: Mutex<Option<HashMap<String, Launches>>> = Mutex::new(None);
 fn now() -> i64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
-        .map_or(0, |elapsed| i64::try_from(elapsed.as_secs()).unwrap_or(i64::MAX))
+        .map_or(0, |elapsed| {
+            i64::try_from(elapsed.as_secs()).unwrap_or(i64::MAX)
+        })
 }
 
 /// Every launch counts, each weighing less the longer ago the last one was.
@@ -51,10 +53,24 @@ pub fn frecency(launches: Launches, now: i64) -> f64 {
 fn read() -> Result<HashMap<String, Launches>, String> {
     let db = db::open("launcher", MIGRATIONS)?;
     let fail = |error: rusqlite::Error| format!("cannot read the launch history: {error}");
-    db.execute("DELETE FROM launches WHERE last < ?1", params![now() - FORGET]).map_err(fail)?;
-    let mut statement = db.prepare("SELECT app, count, last FROM launches").map_err(fail)?;
+    db.execute(
+        "DELETE FROM launches WHERE last < ?1",
+        params![now() - FORGET],
+    )
+    .map_err(fail)?;
+    let mut statement = db
+        .prepare("SELECT app, count, last FROM launches")
+        .map_err(fail)?;
     let rows = statement
-        .query_map([], |row| Ok((row.get::<_, String>(0)?, Launches { count: row.get(1)?, last: row.get(2)? })))
+        .query_map([], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                Launches {
+                    count: row.get(1)?,
+                    last: row.get(2)?,
+                },
+            ))
+        })
         .map_err(fail)?;
     rows.collect::<Result<_, _>>().map_err(fail)
 }
@@ -67,13 +83,18 @@ pub fn load() {
         HashMap::new()
     });
     debug!(apps = history.len(), "read the launch history");
-    let mut shared = HISTORY.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+    let mut shared = HISTORY
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
     let counted = shared.take().unwrap_or_default();
     *shared = Some(merge(history, counted));
 }
 
 /// Each app keeps the larger count and the later launch.
-fn merge(mut stored: HashMap<String, Launches>, counted: HashMap<String, Launches>) -> HashMap<String, Launches> {
+fn merge(
+    mut stored: HashMap<String, Launches>,
+    counted: HashMap<String, Launches>,
+) -> HashMap<String, Launches> {
     for (app, launches) in counted {
         let entry = stored.entry(app).or_insert(launches);
         entry.count = entry.count.max(launches.count);
@@ -96,25 +117,32 @@ pub fn ranks() -> HashMap<String, f64> {
 pub fn record(app: &str) {
     let at = now();
     {
-        let mut shared = HISTORY.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
-        let launches = shared.get_or_insert_default().entry(app.to_owned()).or_insert(Launches { count: 0, last: at });
+        let mut shared = HISTORY
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        let launches = shared
+            .get_or_insert_default()
+            .entry(app.to_owned())
+            .or_insert(Launches { count: 0, last: at });
         launches.count += 1;
         launches.last = at;
     }
     let app = app.to_owned();
-    let _ = thread::Builder::new().name("island-launches".into()).spawn(move || {
-        let written = db::open("launcher", MIGRATIONS).and_then(|db| {
-            db.execute(
-                "INSERT INTO launches (app, count, last) VALUES (?1, 1, ?2)
+    let _ = thread::Builder::new()
+        .name("island-launches".into())
+        .spawn(move || {
+            let written = db::open("launcher", MIGRATIONS).and_then(|db| {
+                db.execute(
+                    "INSERT INTO launches (app, count, last) VALUES (?1, 1, ?2)
                  ON CONFLICT (app) DO UPDATE SET count = count + 1, last = excluded.last",
-                params![app, at],
-            )
-            .map_err(|error| format!("cannot save a launch: {error}"))
+                    params![app, at],
+                )
+                .map_err(|error| format!("cannot save a launch: {error}"))
+            });
+            if let Err(error) = written {
+                warn!(app, "{error}");
+            }
         });
-        if let Err(error) = written {
-            warn!(app, "{error}");
-        }
-    });
 }
 
 #[cfg(test)]

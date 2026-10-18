@@ -7,10 +7,11 @@ use chrono::Local;
 use gpui::{SharedString, Window};
 
 use super::{
+    Cards, Event, Notifications,
     history::Earlier,
     markdown,
     missed_list::MissedList,
-    notification::{DEFAULT_ACTION, Notification},
+    notification::{DEFAULT_ACTION, Notification, Reason, Signal},
     toasts::Toasts,
 };
 use crate::{
@@ -20,7 +21,8 @@ use crate::{
         text,
     },
     panel::{
-        self, Block, ButtonRow, Countdown, FrameView, Handler, IconButton, Mark, Place, Placed, Text, TextStyle, Tone,
+        self, Block, ButtonRow, Countdown, FrameView, Handler, IconButton, Mark, Place, Placed,
+        Text, TextStyle, Tone,
     },
     theme::{CRITICAL, app_color},
     ui::{CONTROL_H, TIGHT_INSET},
@@ -32,6 +34,7 @@ pub const FOOTER_H: f32 = 18.0;
 const ICON: f32 = 36.0;
 const BODY_LINES: usize = 2;
 const DAY_H: f32 = 22.0;
+const EMPTY_H: f32 = 52.0;
 /// How tall the Earlier list can be before it scrolls, as the missed list.
 const EARLIER_MAX_H: f32 = 480.0;
 
@@ -61,6 +64,54 @@ pub struct Look {
     pub countdown: Option<Countdown>,
 }
 
+pub(super) fn invoke(
+    notification: &Notification,
+    handler: impl Fn(String) -> Handler,
+) -> Vec<(String, Handler)> {
+    notification
+        .buttons()
+        .map(|action| (action.key.clone(), handler(action.key.clone())))
+        .collect()
+}
+
+impl Notifications {
+    /// One that timed out settles once no island shows it; any other goes from every island.
+    pub(super) fn dismiss_card(&self, cards: &mut Cards, card: u64, reason: Reason) {
+        let Some(notification) = cards.toasts.dismiss(card) else {
+            return;
+        };
+        if reason == Reason::Expired {
+            self.feed.send(Event::Expired(notification));
+        } else {
+            self.feed.send(Event::Withdrawn(notification.id));
+            self.signal(Signal::Closed(notification.id, reason));
+        }
+    }
+
+    pub(super) fn activate_card(&self, cards: &mut Cards, card: u64) {
+        let target = cards
+            .toasts
+            .cards()
+            .iter()
+            .find(|shown| shown.id == card && shown.notification.default_action())
+            .map(|shown| shown.notification.id);
+        if let Some(notification) = target {
+            self.signal(Signal::Action(notification, DEFAULT_ACTION.to_owned()));
+        }
+        self.dismiss_card(cards, card, Reason::Dismissed);
+    }
+
+    pub(super) fn invoke_card(&self, cards: &mut Cards, card: u64, key: &str) {
+        let Some(shown) = cards.toasts.cards().iter().find(|shown| shown.id == card) else {
+            return;
+        };
+        self.signal(Signal::Action(shown.notification.id, key.to_owned()));
+        if !shown.notification.resident {
+            self.dismiss_card(cards, card, Reason::Dismissed);
+        }
+    }
+}
+
 /// With the markup read and its lines joined, as the card shows it.
 pub fn body_lines(body: &str, card_width: f32, window: &Window) -> usize {
     let width = card_width - 2.0 * card::RAISED_PAD - ICON - item::LEAD_GAP;
@@ -73,7 +124,11 @@ pub fn height(body_lines: usize, buttons: bool) -> f32 {
     } else {
         item::MESSAGE_GAP + text::BODY_LINE * body_lines as f32
     };
-    let buttons = if buttons { card::RAISED_GAP + CONTROL_H } else { 0.0 };
+    let buttons = if buttons {
+        card::RAISED_GAP + CONTROL_H
+    } else {
+        0.0
+    };
     let text = item::OVERLINE_H + item::MESSAGE_GAP + item::HEADLINE_H + body;
     text.max(ICON) + buttons + 2.0 * card::RAISED_PAD
 }
@@ -92,12 +147,16 @@ pub fn toasts_height(heights: &[f32], footer: bool) -> f32 {
 }
 
 fn received_label(received: SystemTime) -> String {
-    let minutes = received.elapsed().map_or(0, |elapsed| elapsed.as_secs() / 60);
+    let minutes = received
+        .elapsed()
+        .map_or(0, |elapsed| elapsed.as_secs() / 60);
     match minutes {
         0 => "now".to_owned(),
         1..60 => format!("{minutes}m"),
         60..1440 => format!("{}h", minutes / 60),
-        _ => chrono::DateTime::<Local>::from(received).format("%b %-d").to_string(),
+        _ => chrono::DateTime::<Local>::from(received)
+            .format("%b %-d")
+            .to_string(),
     }
 }
 
@@ -133,21 +192,44 @@ fn body(body: &str, lines: usize) -> Text {
 fn redacted(notification: &Notification) -> Notification {
     Notification {
         summary: "New notification".to_owned(),
-        body: if notification.body.is_empty() { String::new() } else { "Contents hidden".to_owned() },
-        actions: notification.actions.iter().filter(|action| action.key == DEFAULT_ACTION).cloned().collect(),
+        body: if notification.body.is_empty() {
+            String::new()
+        } else {
+            "Contents hidden".to_owned()
+        },
+        actions: notification
+            .actions
+            .iter()
+            .filter(|action| action.key == DEFAULT_ACTION)
+            .cloned()
+            .collect(),
         image: None,
         ..notification.clone()
     }
 }
 
 fn message(kind: Kind, notification: &Notification, look: Look) -> Block {
-    let notification = if look.hidden { redacted(notification) } else { notification.clone() };
+    let notification = if look.hidden {
+        redacted(notification)
+    } else {
+        notification.clone()
+    };
     let frame_id = kind.element_id("body");
     let (overline, trail) = match kind {
-        Kind::Toast(_) => (notification.app.clone(), Trail::Faint(received_label(notification.received).into())),
+        Kind::Toast(_) => (
+            notification.app.clone(),
+            Trail::Faint(received_label(notification.received).into()),
+        ),
         Kind::Missed(_) => (
-            format!("{} · {}", notification.app, received_label(notification.received)),
-            Trail::Close { group: frame_id.clone(), on_click: look.dismiss.clone() },
+            format!(
+                "{} · {}",
+                notification.app,
+                received_label(notification.received)
+            ),
+            Trail::Close {
+                group: frame_id.clone(),
+                on_click: look.dismiss.clone(),
+            },
         ),
         Kind::Earlier(..) => (
             format!(
@@ -155,10 +237,17 @@ fn message(kind: Kind, notification: &Notification, look: Look) -> Block {
                 notification.app,
                 chrono::DateTime::<Local>::from(notification.received).format("%H:%M")
             ),
-            Trail::Close { group: frame_id.clone(), on_click: look.dismiss.clone() },
+            Trail::Close {
+                group: frame_id.clone(),
+                on_click: look.dismiss.clone(),
+            },
         ),
     };
-    let tint = if notification.critical { CRITICAL } else { app_color(&notification.app) };
+    let tint = if notification.critical {
+        CRITICAL
+    } else {
+        app_color(&notification.app)
+    };
     let mark = match (&notification.image, &notification.icon) {
         (Some(image), _) => Mark::Picture(image.clone(), true),
         (None, Some(app)) => Mark::Picture(app.clone(), false),
@@ -184,7 +273,11 @@ fn message(kind: Kind, notification: &Notification, look: Look) -> Block {
         Kind::Toast(_) => BODY_LINES,
         Kind::Missed(_) | Kind::Earlier(..) => 1,
     };
-    let under = if notification.body.is_empty() { Vec::new() } else { vec![Block::Text(body(&notification.body, lines))] };
+    let under = if notification.body.is_empty() {
+        Vec::new()
+    } else {
+        vec![Block::Text(body(&notification.body, lines))]
+    };
     let buttons: Vec<IconButton> = notification
         .buttons()
         .map(|action| IconButton {
@@ -203,11 +296,17 @@ fn message(kind: Kind, notification: &Notification, look: Look) -> Block {
         .collect();
     let mut blocks = vec![Block::Item(item, under)];
     if !buttons.is_empty() {
-        blocks.push(Block::Buttons(ButtonRow { buttons, compact: true, indent: ICON + item::LEAD_GAP }));
+        blocks.push(Block::Buttons(ButtonRow {
+            buttons,
+            compact: true,
+            indent: ICON + item::LEAD_GAP,
+        }));
     }
     let frame = FrameView {
         id: frame_id,
-        look: FrameLook::Raised { urgent: notification.critical },
+        look: FrameLook::Raised {
+            urgent: notification.critical,
+        },
         on_click: Some(look.activate),
         on_dismiss: Some(look.dismiss),
         countdown: look.countdown,
@@ -216,15 +315,29 @@ fn message(kind: Kind, notification: &Notification, look: Look) -> Block {
 }
 
 fn place(x: f32, y: f32, height: f32, opacity: f32) -> Place {
-    Place { x, y, height, opacity, from_bottom: false }
+    Place {
+        x,
+        y,
+        height,
+        opacity,
+        from_bottom: false,
+    }
 }
 
 /// `looks` is in the order of `rows.rows()`. States its own size from the cards' known heights
 /// rather than being measured, and scrolls past the most it shows.
 pub fn missed(rows: &MissedList, looks: Vec<Look>, empty: &'static str) -> Block {
-    if rows.is_empty() && rows.rows().is_empty() {
-        return Block::Text(Text { min_width: Some(MIN_W), ..Text::new(Tone::Note, empty) });
-    }
+    let empty = rows.is_empty().then(|| {
+        let outgoing = rows
+            .rows()
+            .iter()
+            .map(|row| row.alpha.value().clamp(0.0, 1.0))
+            .fold(0.0, f32::max);
+        (
+            place(0.0, 0.0, EMPTY_H, 1.0 - outgoing),
+            Block::note(empty),
+        )
+    });
     let mut looks: Vec<Option<Look>> = looks.into_iter().map(Some).collect();
     let all = rows.rows();
     // Leaving ones go underneath.
@@ -235,16 +348,27 @@ pub fn missed(rows: &MissedList, looks: Vec<Look>, empty: &'static str) -> Block
     for index in ordered {
         let row = &all[index];
         let alpha = row.alpha.value().clamp(0.0, 1.0);
-        let Some(look) = looks.get_mut(index).and_then(Option::take) else { continue };
+        let Some(look) = looks.get_mut(index).and_then(Option::take) else {
+            continue;
+        };
         if alpha > 0.001 {
             let at = place(row.x.value(), row.y.value(), row.height(), alpha);
-            blocks.push((at, message(Kind::Missed(row.notification.id), &row.notification, look)));
+            blocks.push((
+                at,
+                message(Kind::Missed(row.notification.id), &row.notification, look),
+            ));
         }
     }
+    let visible = if empty.is_some() {
+        EMPTY_H
+    } else {
+        rows.visible_height()
+    };
+    blocks.extend(empty);
     Block::Placed(Placed {
         width: MIN_W,
-        height: rows.extent(),
-        visible: Some(rows.visible_height()),
+        height: rows.extent().max(visible),
+        visible: Some(visible),
         blocks,
     })
 }
@@ -265,7 +389,10 @@ fn day_of(notification: &Notification) -> chrono::NaiveDate {
 /// `looks` is in the order of `entries`: each day's heading, then its notifications.
 pub fn earlier(entries: Vec<Earlier>, looks: Vec<Look>) -> Block {
     if entries.is_empty() {
-        return Block::Text(Text { min_width: Some(MIN_W), ..Text::new(Tone::Note, "Nothing earlier") });
+        return Block::Text(Text {
+            min_width: Some(MIN_W),
+            ..Text::new(Tone::Note, "Nothing earlier")
+        });
     }
     let mut blocks = Vec::new();
     let mut y = 0.0;
@@ -279,7 +406,10 @@ pub fn earlier(entries: Vec<Earlier>, looks: Vec<Look>) -> Block {
         }
         let (session, id) = kept.key();
         let height = missed_height(&kept.notification);
-        blocks.push((place(0.0, y, height, 1.0), message(Kind::Earlier(session, id), &kept.notification, look)));
+        blocks.push((
+            place(0.0, y, height, 1.0),
+            message(Kind::Earlier(session, id), &kept.notification, look),
+        ));
         y += height + GAP;
     }
     Block::Placed(Placed {
@@ -302,15 +432,26 @@ pub fn toasts(stack: &Toasts, looks: Vec<Look>) -> Block {
     for index in ordered {
         let shown = &all[index];
         let alpha = shown.alpha.value().clamp(0.0, 1.0);
-        let Some(look) = looks.get_mut(index).and_then(Option::take) else { continue };
+        let Some(look) = looks.get_mut(index).and_then(Option::take) else {
+            continue;
+        };
         if alpha > 0.001 {
             let at = place(shown.x.value(), shown.y.value(), shown.height(), alpha);
-            blocks.push((at, message(Kind::Toast(shown.id), &shown.notification, look)));
+            blocks.push((
+                at,
+                message(Kind::Toast(shown.id), &shown.notification, look),
+            ));
         }
     }
     let footer = stack.footer.value().clamp(0.0, 1.0);
     if footer > 0.001 {
-        let at = Place { x: 0.0, y: TIGHT_INSET, height: FOOTER_H, opacity: footer, from_bottom: true };
+        let at = Place {
+            x: 0.0,
+            y: TIGHT_INSET,
+            height: FOOTER_H,
+            opacity: footer,
+            from_bottom: true,
+        };
         blocks.push((at, Block::note(format!("+{} more", stack.footer_count()))));
     }
     Block::Placed(Placed {
@@ -320,3 +461,7 @@ pub fn toasts(stack: &Toasts, looks: Vec<Look>) -> Block {
         blocks,
     })
 }
+
+#[cfg(test)]
+#[path = "card_test.rs"]
+mod tests;

@@ -29,7 +29,11 @@ pub fn segments(level: f32, hold: f32) -> Div {
         .children((0..SEGMENTS).map(|index| {
             let at = (index as f32 + 0.5) / SEGMENTS as f32;
             let lit = at <= level || (hold > level && (at - hold).abs() < half);
-            let fill = if lit { rgb(color(at)) } else { rgba(with_alpha(TINT, TRACK_ALPHA)) };
+            let fill = if lit {
+                rgb(color(at))
+            } else {
+                rgba(with_alpha(TINT, TRACK_ALPHA))
+            };
             div().flex_1().h_full().rounded(px(1.0)).bg(fill)
         }))
 }

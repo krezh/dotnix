@@ -36,7 +36,10 @@ pub async fn uncached<'a>(
 
 /// Without queueing; false when another process has the name.
 pub async fn claim(connection: &Connection, name: &'static str) -> Result<bool, String> {
-    match connection.request_name_with_flags(name, RequestNameFlags::DO_NOT_QUEUE).await {
+    match connection
+        .request_name_with_flags(name, RequestNameFlags::DO_NOT_QUEUE)
+        .await
+    {
         Ok(reply) => Ok(reply == RequestNameReply::PrimaryOwner),
         Err(zbus::Error::NameTaken) => Ok(false),
         Err(error) => Err(format!("cannot request {name}: {error}")),
@@ -70,7 +73,9 @@ pub fn serve(controls: UnboundedSender<Control>) -> Result<Connection, String> {
             .build()
             .await
             .map_err(|error| format!("cannot connect to the session bus: {error}"))?;
-        claim(&connection, INSTANCE).await.map(|claimed| claimed.then_some(connection))
+        claim(&connection, INSTANCE)
+            .await
+            .map(|claimed| claimed.then_some(connection))
     })?
     .ok_or("another island is already running")?;
     info!(name = INSTANCE, "claimed the instance name");

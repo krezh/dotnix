@@ -4,10 +4,10 @@ mod config;
 mod font;
 mod lock;
 mod rng;
-mod theme;
-mod wayland;
 #[cfg(test)]
 mod tests;
+mod theme;
+mod wayland;
 
 use std::process::ExitCode;
 

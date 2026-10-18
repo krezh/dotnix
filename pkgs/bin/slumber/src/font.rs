@@ -99,12 +99,11 @@ pub fn get_glyph(ch: char) -> &'static [u8; 8] {
     }
 }
 
-
+use crate::canvas::Canvas;
+use crate::theme::Color;
 use fontdue::{Font, FontSettings};
 use std::path::{Path, PathBuf};
 use std::process::Command;
-use crate::canvas::Canvas;
-use crate::theme::Color;
 
 pub struct FontRenderer {
     font: Option<Font>,
@@ -113,9 +112,8 @@ pub struct FontRenderer {
 impl FontRenderer {
     pub fn new(family_or_path: &str) -> Self {
         let font_data = Self::load_font_data(family_or_path);
-        let font = font_data.and_then(|bytes| {
-            Font::from_bytes(bytes, FontSettings::default()).ok()
-        });
+        let font =
+            font_data.and_then(|bytes| Font::from_bytes(bytes, FontSettings::default()).ok());
         Self { font }
     }
 
@@ -161,7 +159,11 @@ impl FontRenderer {
                     }
                 }
             }
-            return TextMask { width, height, pixels };
+            return TextMask {
+                width,
+                height,
+                pixels,
+            };
         };
 
         let mut glyphs = Vec::with_capacity(text.chars().count());
@@ -185,13 +187,20 @@ impl FontRenderer {
         for (x, y, metrics, bitmap) in glyphs {
             for row in 0..metrics.height {
                 for col in 0..metrics.width {
-                    let index = (y - top) as usize * width + row * width + (x - left) as usize + col;
+                    let index =
+                        (y - top) as usize * width + row * width + (x - left) as usize + col;
                     let foreground = bitmap[row * metrics.width + col] as u32;
-                    pixels[index] = (foreground + (pixels[index] as u32 * (255 - foreground) + 127) / 255) as u8;
+                    pixels[index] = (foreground
+                        + (pixels[index] as u32 * (255 - foreground) + 127) / 255)
+                        as u8;
                 }
             }
         }
-        TextMask { width, height, pixels }
+        TextMask {
+            width,
+            height,
+            pixels,
+        }
     }
 
     pub fn measure_text(&self, text: &str, size_px: f32) -> (f32, f32) {
@@ -226,9 +235,18 @@ impl TextMask {
     pub fn draw(&self, canvas: &mut Canvas, x: f32, y: f32, color: Color) {
         let (left, top) = (x.floor(), y.floor());
         let (fx, fy) = (x - left, y - top);
-        let weights = [(1.0 - fx) * (1.0 - fy), fx * (1.0 - fy), (1.0 - fx) * fy, fx * fy];
+        let weights = [
+            (1.0 - fx) * (1.0 - fy),
+            fx * (1.0 - fy),
+            (1.0 - fx) * fy,
+            fx * fy,
+        ];
         let coverage = |col: usize, row: usize| -> f32 {
-            if col < self.width && row < self.height { self.pixels[row * self.width + col] as f32 } else { 0.0 }
+            if col < self.width && row < self.height {
+                self.pixels[row * self.width + col] as f32
+            } else {
+                0.0
+            }
         };
         let (left, top) = (left as i32, top as i32);
         for row in 0..=self.height {

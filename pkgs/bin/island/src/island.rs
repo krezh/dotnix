@@ -7,9 +7,10 @@ use std::{
 };
 
 use gpui::{
-    AnyElement, App as Gpui, Bounds, Context, Entity, EventEmitter, Global, Keystroke, MouseDownEvent, Pixels, Point, Render,
-    ScrollHandle, ScrollDelta, ScrollWheelEvent, SpringConfig, StyleRefinement, Subscription, Task, WeakEntity, Window,
-    div, layer_shell::Layer, point, prelude::*, px, size,
+    AnyElement, App as Gpui, Bounds, Context, Entity, EventEmitter, Global, Keystroke,
+    MouseDownEvent, Pixels, Point, Render, ScrollDelta, ScrollHandle, ScrollWheelEvent,
+    SpringConfig, StyleRefinement, Subscription, Task, WeakEntity, Window, div, layer_shell::Layer,
+    point, prelude::*, px, size,
 };
 use tracing::debug;
 use uuid::Uuid;
@@ -30,10 +31,10 @@ use crate::{
     menu::{self, Menu, MenuNode, Pick},
     panel::{self, Frame},
     panels,
+    presence::Presence,
     shape,
     spring::Spring,
     sys::{self, Samples, SysStats},
-    presence::Presence,
     ui::{self, HEADER_H, INSET},
     wm::{Monitor, Snapshot},
 };
@@ -127,7 +128,12 @@ impl Panel {
     }
 
     fn layer(self) -> usize {
-        let feature = |name| features::NAMES.iter().position(|feature| *feature == name).unwrap_or(0);
+        let feature = |name| {
+            features::NAMES
+                .iter()
+                .position(|feature| *feature == name)
+                .unwrap_or(0)
+        };
         let index = match self {
             Panel::Feature(name) => Self::ALL.len() + feature(name),
             _ => Self::ALL.iter().position(|kind| *kind == self).unwrap_or(0),
@@ -139,7 +145,9 @@ impl Panel {
         let index = layer.checked_sub(1)?;
         match index.checked_sub(Self::ALL.len()) {
             None => Self::ALL.get(index).copied(),
-            Some(feature) => features::NAMES.get(feature).map(|name| Panel::Feature(name)),
+            Some(feature) => features::NAMES
+                .get(feature)
+                .map(|name| Panel::Feature(name)),
         }
     }
 }
@@ -256,14 +264,18 @@ impl Island {
         layers[COLLAPSED_LAYER] = Spring::new(1.0, CONTENT_IN, 0.002);
 
         let this = cx.weak_entity();
-        let widgets = [&startup.layout.left, &startup.layout.middle, &startup.layout.right]
-            .into_iter()
-            .flatten()
-            .map(|kind| {
-                let view = cx.new(|_| bar::WidgetView::new(*kind, this.clone()));
-                (*kind, (view, measure::measured()))
-            })
-            .collect();
+        let widgets = [
+            &startup.layout.left,
+            &startup.layout.middle,
+            &startup.layout.right,
+        ]
+        .into_iter()
+        .flatten()
+        .map(|kind| {
+            let view = cx.new(|_| bar::WidgetView::new(*kind, this.clone()));
+            (*kind, (view, measure::measured()))
+        })
+        .collect();
 
         let glyphs_subscription = cx.observe_global::<Glyphs>(|this, cx| {
             this.sync_held(cx);
@@ -273,7 +285,12 @@ impl Island {
             this.kick(cx);
         });
         let mut subscriptions = vec![glyphs_subscription];
-        subscriptions.extend(startup.features.iter().flat_map(|feature| feature.observe(cx)));
+        subscriptions.extend(
+            startup
+                .features
+                .iter()
+                .flat_map(|feature| feature.observe(cx)),
+        );
         let nowhere = IslandInfo {
             monitor: None,
             panel_open: false,
@@ -320,7 +337,11 @@ impl Island {
             popovers: Popovers::default(),
             held: Presence::new(FOLD_SPRING),
             drawn: HashMap::new(),
-            natural: startup.layout.widgets().map(|kind| (kind, measure::measured())).collect(),
+            natural: startup
+                .layout
+                .widgets()
+                .map(|kind| (kind, measure::measured()))
+                .collect(),
             features: startup.features.clone(),
             locals,
             layouts: TextLayouts::default(),
@@ -402,13 +423,14 @@ impl Island {
         if self.fullscreen || self.layers[COLLAPSED_LAYER].value() <= 0.001 {
             return;
         }
-        let live = self.features.get(name).map_or(&[][..], |feature| feature.live_widgets());
+        let live = self
+            .features
+            .get(name)
+            .map_or(&[][..], |feature| feature.live_widgets());
         let moving: Vec<Entity<bar::WidgetView>> = self
             .widgets
             .iter()
-            .filter(|(kind, (view, _))| {
-                live.contains(&kind.0) || view.read(cx).scrolling()
-            })
+            .filter(|(kind, (view, _))| live.contains(&kind.0) || view.read(cx).scrolling())
             .map(|(_, (view, _))| view.clone())
             .collect();
         for view in moving {
@@ -440,7 +462,9 @@ impl Island {
             hover: self.hovered,
             slots: self.slots.unwrap_or_default(),
             sections: &self.sections,
-            side: self.section_widths(Fold::Now).map_or(0.0, |[left, _, right]| left.max(right)),
+            side: self
+                .section_widths(Fold::Now)
+                .map_or(0.0, |[left, _, right]| left.max(right)),
         }
     }
 
@@ -453,15 +477,27 @@ impl Island {
         let element = match size.get() {
             Some(drawn) if !self.live => view
                 .clone()
-                .cached(StyleRefinement::default().flex_none().w(drawn.width).h(drawn.height))
+                .cached(
+                    StyleRefinement::default()
+                        .flex_none()
+                        .w(drawn.width)
+                        .h(drawn.height),
+                )
                 .into_any_element(),
             _ => view.clone().into_any_element(),
         };
-        div().flex_none().relative().child(element).child(measure::probe(size)).into_any_element()
+        div()
+            .flex_none()
+            .relative()
+            .child(element)
+            .child(measure::probe(size))
+            .into_any_element()
     }
 
     pub fn displays(&self) -> usize {
-        self.workspaces.as_ref().map_or(1, |snapshot| snapshot.monitors.len().max(1))
+        self.workspaces
+            .as_ref()
+            .map_or(1, |snapshot| snapshot.monitors.len().max(1))
     }
 
     /// Follow with [`Island::local_changed`].
@@ -472,7 +508,10 @@ impl Island {
     }
 
     fn local(&self, name: &str) -> Option<&dyn AnyLocal> {
-        self.locals.iter().find(|(owner, _)| *owner == name).map(|(_, local)| &**local)
+        self.locals
+            .iter()
+            .find(|(owner, _)| *owner == name)
+            .map(|(_, local)| &**local)
     }
 
     pub fn local_as<L: 'static>(&self, name: &str) -> Option<&L> {
@@ -483,7 +522,9 @@ impl Island {
     pub fn local_changed(&mut self, name: &'static str, cx: &mut Context<Self>) {
         let waiting = self.popup_waiting();
         match self.mode {
-            Mode::Collapsed if waiting && !self.menu_open() => self.set_mode(Mode::Open(Panel::Popups), cx),
+            Mode::Collapsed if waiting && !self.menu_open() => {
+                self.set_mode(Mode::Open(Panel::Popups), cx)
+            }
             Mode::Open(Panel::Popups) if !waiting => self.set_mode(Mode::Collapsed, cx),
             Mode::Open(Panel::Popups) => self.retarget(),
             Mode::Open(Panel::Feature(open)) if open == name => self.retarget(),
@@ -498,13 +539,19 @@ impl Island {
     }
 
     fn arm_due(&mut self, cx: &mut Context<Self>) {
-        let next = self.locals.iter().filter_map(|(_, local)| local.due()).min();
+        let next = self
+            .locals
+            .iter()
+            .filter_map(|(_, local)| local.due())
+            .min();
         if self.due.as_ref().map(|(at, _)| *at) == next {
             return;
         }
         self.due = next.map(|at| {
             let task = cx.spawn(async move |this, cx| {
-                cx.background_executor().timer(at.saturating_duration_since(Instant::now())).await;
+                cx.background_executor()
+                    .timer(at.saturating_duration_since(Instant::now()))
+                    .await;
                 let _ = this.update(cx, |this, cx| this.elapse(cx));
             });
             (at, task)
@@ -542,7 +589,14 @@ impl Island {
 
     /// `anchor` is across the island's surface; `source` names what opened the menu, for
     /// [`Island::menu_open_for`].
-    pub fn show_menu(&mut self, source: String, root: MenuNode, pick: Pick, anchor: Pixels, cx: &mut Context<Self>) {
+    pub fn show_menu(
+        &mut self,
+        source: String,
+        root: MenuNode,
+        pick: Pick,
+        anchor: Pixels,
+        cx: &mut Context<Self>,
+    ) {
         if self.mode != Mode::Collapsed || self.fullscreen {
             return;
         }
@@ -562,7 +616,9 @@ impl Island {
     }
 
     pub fn menu_open_for(&self, source: &str) -> bool {
-        self.menu.as_ref().is_some_and(|menu| menu.is_open_for(source))
+        self.menu
+            .as_ref()
+            .is_some_and(|menu| menu.is_open_for(source))
     }
 
     /// Also shows any pop-up that waited for the menu.
@@ -602,7 +658,12 @@ impl Island {
     }
 
     pub fn menu_pick(&mut self, id: i32, cx: &mut Context<Self>) {
-        let Some(pick) = self.menu.as_ref().filter(|menu| menu.is_open()).map(Menu::pick) else {
+        let Some(pick) = self
+            .menu
+            .as_ref()
+            .filter(|menu| menu.is_open())
+            .map(Menu::pick)
+        else {
             return;
         };
         self.close_menu(cx);
@@ -688,7 +749,8 @@ impl Island {
 
     fn collect_measurements(&mut self) {
         for index in 0..LAYERS {
-            if let (Some(size), Some(key)) = (self.sizes[index].take(), self.pending[index].take()) {
+            if let (Some(size), Some(key)) = (self.sizes[index].take(), self.pending[index].take())
+            {
                 self.frozen[index] = Some((
                     key,
                     Shape {
@@ -717,17 +779,28 @@ impl Island {
         let mut pending = Vec::new();
         if fold == Fold::Target {
             for (name, local) in &self.locals {
-                let widget = self.features.get(name).and_then(|feature| feature.widgets().first().copied());
+                let widget = self
+                    .features
+                    .get(name)
+                    .and_then(|feature| feature.widgets().first().copied());
                 if let Some(widget) = widget {
                     pending.push((Widget(widget), local.pending_width(self.layout.spacing)));
                 }
             }
         }
         for slot in self.held.iter() {
-            let Some(kind) = self.layout.widgets().find(|kind| bar::presence_key(*kind) == slot.key) else {
+            let Some(kind) = self
+                .layout
+                .widgets()
+                .find(|kind| bar::presence_key(*kind) == slot.key)
+            else {
                 continue;
             };
-            let natural = self.natural.get(&kind).and_then(|probe| probe.get()).map_or(0.0, |size| f32::from(size.width));
+            let natural = self
+                .natural
+                .get(&kind)
+                .and_then(|probe| probe.get())
+                .map_or(0.0, |size| f32::from(size.width));
             let span = (natural - bar::rest_width(kind, &self.layout, &self.features)).max(0.0);
             let drawn = self.drawn.get(&slot.key).copied().unwrap_or(0.0);
             let wanted = match fold {
@@ -756,7 +829,10 @@ impl Island {
             .widgets()
             .filter_map(|kind| {
                 let Widget(widget) = kind;
-                let feature = self.features.owning(widget).filter(|feature| feature.present(widget, cx))?;
+                let feature = self
+                    .features
+                    .owning(widget)
+                    .filter(|feature| feature.present(widget, cx))?;
                 Some((bar::presence_key(kind), feature.snapshot(cx)))
             })
             .collect();
@@ -764,7 +840,11 @@ impl Island {
     }
 
     pub fn feature_changed(&mut self, name: &'static str, cx: &mut Context<Self>) {
-        let widgets = self.features.get(name).map(|feature| feature.widgets()).unwrap_or_default();
+        let widgets = self
+            .features
+            .get(name)
+            .map(|feature| feature.widgets())
+            .unwrap_or_default();
         for widget in widgets {
             if let Some((view, _)) = self.widgets.get(&Widget(widget)) {
                 view.update(cx, |_, cx| cx.notify());
@@ -776,9 +856,10 @@ impl Island {
             monitor: monitor.as_ref(),
             panel_open: self.mode == Mode::Open(Panel::Feature(name)),
         };
-        if let (Some(feature), Some((_, local))) =
-            (self.features.get(name), self.locals.iter_mut().find(|(owner, _)| *owner == name))
-        {
+        if let (Some(feature), Some((_, local))) = (
+            self.features.get(name),
+            self.locals.iter_mut().find(|(owner, _)| *owner == name),
+        ) {
             feature.sync_local(&mut **local, &here, animate, cx);
         }
         self.sync_held(cx);
@@ -809,7 +890,9 @@ impl Island {
     }
 
     pub fn feature_panel(&self, name: &str, cx: &Gpui) -> Option<panel::PanelView> {
-        self.features.get(name)?.panel(&mut self.panel_cx(name, cx), cx)
+        self.features
+            .get(name)?
+            .panel(&mut self.panel_cx(name, cx), cx)
     }
 
     pub fn popups(&self, cx: &Gpui) -> Option<panel::PanelView> {
@@ -817,7 +900,11 @@ impl Island {
             .locals
             .iter()
             .filter(|(_, local)| local.popup())
-            .filter_map(|(name, _)| self.features.get(name)?.popup(&mut self.panel_cx(name, cx), cx))
+            .filter_map(|(name, _)| {
+                self.features
+                    .get(name)?
+                    .popup(&mut self.panel_cx(name, cx), cx)
+            })
             .flat_map(|view| view.blocks)
             .collect();
         (!blocks.is_empty()).then_some(panel::PanelView {
@@ -873,7 +960,10 @@ impl Island {
     pub fn to_screen(&self, point: Point<Pixels>) -> Option<(i32, i32)> {
         let monitor = self.island_monitor()?;
         let left = monitor.x + (monitor.width - SURFACE_W as i32) / 2;
-        Some((left + f32::from(point.x).round() as i32, monitor.y + f32::from(point.y).round() as i32))
+        Some((
+            left + f32::from(point.x).round() as i32,
+            monitor.y + f32::from(point.y).round() as i32,
+        ))
     }
 
     /// Where a menu an app draws itself should hang from.
@@ -1102,14 +1192,22 @@ impl Island {
         }
     }
 
-    fn layer_element(&self, index: usize, shape: (f32, f32), place: Place, cx: &mut Context<Self>) -> AnyElement {
+    fn layer_element(
+        &self,
+        index: usize,
+        shape: (f32, f32),
+        place: Place,
+        cx: &mut Context<Self>,
+    ) -> AnyElement {
         let opacity = self.layers[index].value().clamp(0.0, 1.0);
         let (w, h) = shape;
         let drift = (1.0 - opacity) * CONTENT_DRIFT;
         let mut content_w = None;
         let content = match Panel::from_layer(index) {
             None => {
-                let bar = bar::bar(self.bar_parts(&self.layouts, cx), &|kind| self.widget_element(kind));
+                let bar = bar::bar(self.bar_parts(&self.layouts, cx), &|kind| {
+                    self.widget_element(kind)
+                });
                 content_w = self.bar_size.get().map(|size| f32::from(size.width));
                 div()
                     .relative()
@@ -1128,7 +1226,8 @@ impl Island {
                     island_h: h,
                     min_width: frozen.map_or(0.0, |(_, shape)| shape.w),
                     max_width: frozen.map_or(SURFACE_W - 2.0 * SHADOW_SPREAD, |(_, shape)| shape.w),
-                    max_height: frozen.map_or(SURFACE_H - self.top - SHADOW_SPREAD, |(_, shape)| shape.h),
+                    max_height: frozen
+                        .map_or(SURFACE_H - self.top - SHADOW_SPREAD, |(_, shape)| shape.h),
                     phase: self.last_sample.elapsed().as_secs_f32() / sys::INTERVAL.as_secs_f32(),
                     layouts: &self.layouts,
                     tips: &self.tips,
@@ -1138,7 +1237,11 @@ impl Island {
                 match frozen {
                     Some((_, shape)) => {
                         content_w = Some(shape.w);
-                        div().w(px(shape.w)).h(px(shape.h)).child(content).into_any_element()
+                        div()
+                            .w(px(shape.w))
+                            .h(px(shape.h))
+                            .child(content)
+                            .into_any_element()
                     }
                     None => {
                         self.pending[index].set(Some(key));
@@ -1161,8 +1264,13 @@ impl Island {
             .opacity(opacity);
         match content_w {
             Some(content_w) => {
-                let screen_left = ((place.viewport - content_w) / 2.0 * place.scale).round() / place.scale;
-                let top = if index == COLLAPSED_LAYER { ((h - COLLAPSED_H) / 2.0).max(0.0) } else { 0.0 };
+                let screen_left =
+                    ((place.viewport - content_w) / 2.0 * place.scale).round() / place.scale;
+                let top = if index == COLLAPSED_LAYER {
+                    ((h - COLLAPSED_H) / 2.0).max(0.0)
+                } else {
+                    0.0
+                };
                 layer
                     .child(
                         div()
@@ -1186,7 +1294,8 @@ impl Island {
 
     fn chrome_element(&self, w: f32, place: Place, cx: &mut Context<Self>) -> AnyElement {
         let opacity = self.chrome.value().clamp(0.0, 1.0);
-        let strip_screen = ((place.viewport - bar::strip_width()) / 2.0 * place.scale).round() / place.scale;
+        let strip_screen =
+            ((place.viewport - bar::strip_width()) / 2.0 * place.scale).round() / place.scale;
         let strip_left = strip_screen - place.x - INSET;
         div()
             .absolute()
@@ -1195,7 +1304,13 @@ impl Island {
             .w(px(w - 2.0 * INSET))
             .h(px(HEADER_H))
             .opacity(opacity)
-            .child(bar::tabs(self.tab, self.tab_pill.value(), strip_left, self.hovered, cx))
+            .child(bar::tabs(
+                self.tab,
+                self.tab_pill.value(),
+                strip_left,
+                self.hovered,
+                cx,
+            ))
             .into_any_element()
     }
 }
@@ -1209,7 +1324,10 @@ impl Render for Island {
         self.layouts.begin_frame();
         if self.glow > 0.0 {
             let levels = self.features.iter().find_map(|feature| feature.glow(cx));
-            if self.aura.update(levels.as_deref().unwrap_or_default(), levels.is_some()) {
+            if self
+                .aura
+                .update(levels.as_deref().unwrap_or_default(), levels.is_some())
+            {
                 window.request_animation_frame();
             }
         }
@@ -1234,7 +1352,9 @@ impl Render for Island {
             self.start_frames();
         }
         let rest_radius = self.corner.0.min(COLLAPSED_H / 2.0);
-        let limit = self.bar_width().map(|bar| bar - 2.0 * (rest_radius + menu::FILLET));
+        let limit = self
+            .bar_width()
+            .map(|bar| bar - 2.0 * (rest_radius + menu::FILLET));
         if let Some(menu) = &mut self.menu {
             menu.set_limit(limit.unwrap_or(menu::MAX_W));
             if menu.collect() {
@@ -1253,7 +1373,9 @@ impl Render for Island {
             window.set_layer(layer);
             self.layer = layer;
         }
-        if self.mode == Mode::Collapsed && !self.fullscreen && self.folding()
+        if self.mode == Mode::Collapsed
+            && !self.fullscreen
+            && self.folding()
             && let Some(width) = self.bar_width_at(Fold::Now)
         {
             self.w.reset(self.collapsed_width(width, self.hovered));
@@ -1274,12 +1396,16 @@ impl Render for Island {
         // Kept within the bar at rest, so the bar growing under the pointer never moves the menu.
         // It is drawn before it shows, so its contents get measured.
         let rest_w = self.bar_width().map_or(w, |rest| rest.min(w));
-        let rest_x = ((f32::from(window.viewport_size().width) - rest_w) / 2.0 * scale).round() / scale;
+        let rest_x =
+            ((f32::from(window.viewport_size().width) - rest_w) / 2.0 * scale).round() / scale;
         let rest = Bounds {
             origin: point(px(rest_x), px(y)),
             size: size(px(rest_w), px(h)),
         };
-        let hung = self.menu.as_ref().map(|menu| menu.hang(rest, corner.0.min(h / 2.0), scale));
+        let hung = self
+            .menu
+            .as_ref()
+            .map(|menu| menu.hang(rest, corner.0.min(h / 2.0), scale));
         let hang = hung.filter(|hang| f32::from(hang.bounds.size.height) >= 0.5);
         let floating = self.popovers.reached();
         let region: Vec<Bounds<Pixels>> = std::iter::once(body)
@@ -1290,7 +1416,10 @@ impl Render for Island {
             window.set_input_region(Some(&region));
             self.input_region = region;
         }
-        let awake = self.features.iter().any(|feature| feature.inhibits_idle(cx));
+        let awake = self
+            .features
+            .iter()
+            .any(|feature| feature.inhibits_idle(cx));
         if let Some(effects) = self.effects.get_or_insert_with(|| Effects::attach(window)) {
             let mut blur = shape::region(body, corner.0, corner.1, hang);
             for reach in &floating {
@@ -1330,13 +1459,14 @@ impl Render for Island {
             Some(ui::surface_border()),
         );
         let bar_shown = self.layers[COLLAPSED_LAYER].value().clamp(0.0, 1.0);
-        let glow = (self.glow > 0.0 && !hidden && bar_shown > 0.001 && self.aura.is_lit()).then(|| {
-            div()
-                .absolute()
-                .size_full()
-                .opacity(bar_shown)
-                .child(self.aura.element(self.glow, corner.0))
-        });
+        let glow =
+            (self.glow > 0.0 && !hidden && bar_shown > 0.001 && self.aura.is_lit()).then(|| {
+                div()
+                    .absolute()
+                    .size_full()
+                    .opacity(bar_shown)
+                    .child(self.aura.element(self.glow, corner.0))
+            });
 
         let island = div()
             .id("island")
@@ -1349,7 +1479,9 @@ impl Render for Island {
             .on_any_mouse_down(cx.listener(|this, _: &MouseDownEvent, _, cx| this.close_menu(cx)))
             .children(glow)
             .children(layers);
-        let menu = hung.zip(self.menu.as_ref()).map(|(hang, menu)| menu.element(&hang, self.hovered, cx));
+        let menu = hung
+            .zip(self.menu.as_ref())
+            .map(|(hang, menu)| menu.element(&hang, self.hovered, cx));
         let shadow = ui::joined_shadow(body, corner.0, corner.1, hang, SHADOW_SPREAD);
 
         self.drawn = self

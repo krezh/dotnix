@@ -131,16 +131,16 @@
         home.packages = [ cfg.package ];
 
         xdg.configFile."slumber/config.toml".source = tomlFormat.generate "slumber-config.toml" {
-          animation = cfg.animation;
-          theme = cfg.theme;
-          fps = cfg.fps;
+          inherit (cfg) animation;
+          inherit (cfg) theme;
+          inherit (cfg) fps;
           motion_threshold = cfg.motionThreshold;
           grace_ms = cfg.graceMs;
-          cycle = cfg.cycle;
+          inherit (cfg) cycle;
           show_clock = cfg.showClock;
-          opacity = cfg.opacity;
-          font = cfg.font;
-          speed = cfg.speed;
+          inherit (cfg) opacity;
+          inherit (cfg) font;
+          inherit (cfg) speed;
           clock_drift = cfg.clockDrift;
           transition_ms = cfg.transitionMs;
           sync_outputs = cfg.syncOutputs;

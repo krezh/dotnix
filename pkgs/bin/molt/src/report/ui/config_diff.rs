@@ -2,15 +2,14 @@ use std::rc::Rc;
 
 use gtk::prelude::*;
 
-use crate::report::config_diff::{ConfigChange, ConfigContent, DiffLine, DiffLineKind};
-use crate::report::Report;
 use crate::app::state::UiState;
+use crate::report::Report;
+use crate::report::config_diff::{ConfigChange, ConfigContent, DiffLine, DiffLineKind};
+use crate::report::ui::{ReportPosition, show_report};
 use crate::ui::theme;
 use crate::ui::{
-    FadeScroll, Slide, action_close_button, back_button, fit_screen, key_hints, label,
-    slide_screen,
+    FadeScroll, Slide, action_close_button, back_button, fit_screen, key_hints, label, slide_screen,
 };
-use crate::report::ui::{ReportPosition, show_report};
 
 /// One generated file's changes against the active generation, as a unified diff.
 pub(crate) fn show_config_diff(

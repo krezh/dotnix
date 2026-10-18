@@ -293,8 +293,7 @@ impl InputsView {
             self.history_empty.set_text(message);
         } else {
             self.history_empty.set_text_immediate(message);
-            self.history_stack
-                .set_visible_child_name(HISTORY_MESSAGE);
+            self.history_stack.set_visible_child_name(HISTORY_MESSAGE);
         }
     }
 

@@ -48,7 +48,9 @@ pub struct Report {
 
 impl Report {
     fn ready(&self) -> usize {
-        self.watchlist.as_ref().map_or(0, |watchlist| watchlist.ready)
+        self.watchlist
+            .as_ref()
+            .map_or(0, |watchlist| watchlist.ready)
     }
 }
 
@@ -110,9 +112,12 @@ impl WatchedPr {
                     label: branch.name.clone().into(),
                     state: match (branch.reached, branch.status.as_str()) {
                         (true, _) => StopState::Reached,
-                        (false, "pending") => {
-                            StopState::Pending(branch.ahead_by.filter(|ahead| *ahead > 0).map(|ahead| format!("+{ahead}").into()))
-                        }
+                        (false, "pending") => StopState::Pending(
+                            branch
+                                .ahead_by
+                                .filter(|ahead| *ahead > 0)
+                                .map(|ahead| format!("+{ahead}").into()),
+                        ),
                         _ => StopState::NotYet,
                     },
                 })
@@ -155,13 +160,23 @@ impl Updates {
         let incoming = self.incoming();
         let ready = self.ready();
         let ready = (ready > 0).then(|| {
-            format!("{} ready", plural(u32::try_from(ready).unwrap_or(u32::MAX), "watched PR", "watched PRs"))
+            format!(
+                "{} ready",
+                plural(
+                    u32::try_from(ready).unwrap_or(u32::MAX),
+                    "watched PR",
+                    "watched PRs"
+                )
+            )
         });
         match (incoming, ready) {
             (0, None) => "Up to date".to_owned(),
             (0, Some(ready)) => ready,
             (incoming, None) => plural(incoming, "incoming change", "incoming changes"),
-            (incoming, Some(ready)) => format!("{} · {ready}", plural(incoming, "incoming change", "incoming changes")),
+            (incoming, Some(ready)) => format!(
+                "{} · {ready}",
+                plural(incoming, "incoming change", "incoming changes")
+            ),
         }
     }
 }
@@ -222,7 +237,11 @@ fn save(cache: &Cache) {
 /// Only with `fetch` does it touch the network, fetching the upstream and refreshing the watchlist
 /// from GitHub.
 fn check(fetch: bool) -> Result<Report, String> {
-    let args: &[&str] = if fetch { &["check", "--json"] } else { &["check", "--json", "--no-fetch"] };
+    let args: &[&str] = if fetch {
+        &["check", "--json"]
+    } else {
+        &["check", "--json", "--no-fetch"]
+    };
     let output = run::output("molt", args, TIMEOUT)?;
     if !output.success {
         return Err(if output.stderr.is_empty() {
@@ -323,7 +342,10 @@ impl Molt {
 
 impl Feature for Molt {
     const NAME: &'static str = "molt";
-    const GLYPHS: &'static [GlyphSpec] = &[("molt", &["io.github.krezh.Molt-symbolic", "io.github.krezh.Molt"])];
+    const GLYPHS: &'static [GlyphSpec] = &[(
+        "molt",
+        &["io.github.krezh.Molt-symbolic", "io.github.krezh.Molt"],
+    )];
     const PANEL: Option<&'static str> = Some("molt");
 
     type State = Updates;
@@ -362,7 +384,9 @@ impl Feature for Molt {
                 .font_weight(FontWeight::SEMIBOLD)
                 .text_color(rgb(color))
                 .tip(w.tips(), "bar-molt", tip)
-                .when_some(w.glyph("molt"), |badge, path| badge.child(icon::glyph(path, GLYPH, color)))
+                .when_some(w.glyph("molt"), |badge, path| {
+                    badge.child(icon::glyph(path, GLYPH, color))
+                })
                 .child(w.count(text))
                 .child(w.energy(state.refreshing))
                 .on_click(w.toggle(Self::panel_handle()))
@@ -402,9 +426,13 @@ impl Feature for Molt {
             (Some(error), _) => card(Block::note(format!("The last check failed: {error}"))),
             (None, None) if state.checking => card(Block::note("Checking for updates…")),
             (None, None) => card(Block::note("Not checked yet")),
-            (None, Some(report)) if report.commits.is_empty() => card(Block::note(
-                if report.incoming == 0 { "Up to date" } else { "Check again to list the commits" },
-            )),
+            (None, Some(report)) if report.commits.is_empty() => {
+                card(Block::note(if report.incoming == 0 {
+                    "Up to date"
+                } else {
+                    "Check again to list the commits"
+                }))
+            }
             (None, Some(report)) => card(Block::Lines(
                 report
                     .commits
@@ -427,7 +455,12 @@ impl Feature for Molt {
             incoming => plural(incoming, "incoming change", "incoming changes"),
         };
         let mut blocks = vec![block];
-        if let Some(watchlist) = state.report.as_ref().and_then(|report| report.watchlist.as_ref()).filter(|watchlist| !watchlist.prs.is_empty()) {
+        if let Some(watchlist) = state
+            .report
+            .as_ref()
+            .and_then(|report| report.watchlist.as_ref())
+            .filter(|watchlist| !watchlist.prs.is_empty())
+        {
             let title = match watchlist.ready {
                 0 => "Watchlist".to_owned(),
                 ready => format!("Watchlist · {ready} ready"),
@@ -435,7 +468,9 @@ impl Feature for Molt {
             blocks.push(Block::Card(
                 Some(title.into()),
                 card::Size::Large,
-                vec![Block::Routes(watchlist.prs.iter().map(WatchedPr::row).collect())],
+                vec![Block::Routes(
+                    watchlist.prs.iter().map(WatchedPr::row).collect(),
+                )],
             ));
         }
         Some(PanelView {

@@ -5,6 +5,9 @@ fn replay_status_truthfully_reflects_save_readiness() {
     let mut status = ReplayStatus {
         state: ServiceState::Buffering,
         target: Some("game".to_string()),
+        target_app: None,
+        target_title: None,
+        duration_seconds: 30,
         buffered_millis: 12500,
         buffered_bytes: 1024 * 1024 * 50,
         message: None,

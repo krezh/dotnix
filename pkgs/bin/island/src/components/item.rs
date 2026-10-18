@@ -54,7 +54,10 @@ pub enum Trail {
     Status(SharedString, u32),
     Dropdown(Dropdown),
     /// A ✕ that shows while the pointer is over `group`, such as the frame the item is in.
-    Close { group: SharedString, on_click: Handler },
+    Close {
+        group: SharedString,
+        on_click: Handler,
+    },
 }
 
 /// A row: an optional lead, a title line, and whatever the item holds under the title.
@@ -72,9 +75,12 @@ pub struct Item {
 
 fn lead_element(id: SharedString, lead: Lead, hover: bool, cx: &mut Context<Island>) -> AnyElement {
     let (size, fill) = lead.size.map_or((LEAD, 0.8), |size| (size, 1.0));
-    let tint = lead
-        .tint
-        .map(|color| ui::shape(Radius::Control, Some(rgba(with_alpha(color, ACCENT_TINT_ALPHA)).into())));
+    let tint = lead.tint.map(|color| {
+        ui::shape(
+            Radius::Control,
+            Some(rgba(with_alpha(color, ACCENT_TINT_ALPHA)).into()),
+        )
+    });
     let glow = lead
         .glow
         .filter(|(_, strength)| *strength > 0.0)
@@ -108,7 +114,13 @@ fn lead_element(id: SharedString, lead: Lead, hover: bool, cx: &mut Context<Isla
     }
 }
 
-fn trail_element(id: SharedString, trail: Trail, popovers: &Popovers, hover: bool, cx: &mut Context<Island>) -> AnyElement {
+fn trail_element(
+    id: SharedString,
+    trail: Trail,
+    popovers: &Popovers,
+    hover: bool,
+    cx: &mut Context<Island>,
+) -> AnyElement {
     match trail {
         Trail::Text(text, color) => div()
             .flex_none()
@@ -138,10 +150,14 @@ fn trail_element(id: SharedString, trail: Trail, popovers: &Popovers, hover: boo
         Trail::Close { group, on_click } => button::ghost(id, hover)
             .flex_none()
             .opacity(0.0)
-            .when(hover, |close| close.group_hover(group, |style| style.opacity(1.0)))
+            .when(hover, |close| {
+                close.group_hover(group, |style| style.opacity(1.0))
+            })
             .size(px(OVERLINE_H))
             .text_color(rgb(SUBTEXT1))
-            .when(hover, |close| close.hover(|style| style.text_color(rgb(TEXT))))
+            .when(hover, |close| {
+                close.hover(|style| style.text_color(rgb(TEXT)))
+            })
             .child("✕")
             .on_click(cx.listener(move |this, _, _, cx| {
                 cx.stop_propagation();
@@ -152,14 +168,24 @@ fn trail_element(id: SharedString, trail: Trail, popovers: &Popovers, hover: boo
 }
 
 /// `children` go under the title, beside the lead.
-pub fn item(item: Item, children: Vec<AnyElement>, popovers: &Popovers, hover: bool, cx: &mut Context<Island>) -> AnyElement {
+pub fn item(
+    item: Item,
+    children: Vec<AnyElement>,
+    popovers: &Popovers,
+    hover: bool,
+    cx: &mut Context<Island>,
+) -> AnyElement {
     let id = |part: &str| SharedString::from(format!("{}-{part}", item.id));
-    let lead = item.lead.map(|lead| lead_element(id("lead"), lead, hover, cx));
+    let lead = item
+        .lead
+        .map(|lead| lead_element(id("lead"), lead, hover, cx));
     let trail: Vec<AnyElement> = item
         .trail
         .into_iter()
         .enumerate()
-        .map(|(index, trail)| trail_element(id(&format!("trail-{index}")), trail, popovers, hover, cx))
+        .map(|(index, trail)| {
+            trail_element(id(&format!("trail-{index}")), trail, popovers, hover, cx)
+        })
         .collect();
     let title_color = item.title_color;
     let column = div().flex_1().min_w(px(0.0)).flex().flex_col();

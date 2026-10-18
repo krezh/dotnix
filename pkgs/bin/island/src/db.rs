@@ -45,7 +45,9 @@ fn unlock(path: &Path, key: &[u8]) -> rusqlite::Result<Connection> {
     let db = Connection::open(path)?;
     let hex: String = key.iter().map(|byte| format!("{byte:02x}")).collect();
     db.execute_batch(&format!("PRAGMA key = \"x'{hex}'\";"))?;
-    db.query_row("SELECT count(*) FROM sqlite_master", [], |row| row.get::<_, i64>(0))?;
+    db.query_row("SELECT count(*) FROM sqlite_master", [], |row| {
+        row.get::<_, i64>(0)
+    })?;
     Ok(db)
 }
 
@@ -53,17 +55,25 @@ fn unlock(path: &Path, key: &[u8]) -> rusqlite::Result<Connection> {
 /// the clear; one encrypted under a key the keyring no longer has is kept beside it.
 fn set_aside(path: &Path) -> Result<(), String> {
     let mut header = [0_u8; 16];
-    let plain = fs::File::open(path).and_then(|mut file| file.read_exact(&mut header)).is_ok() && &header == PLAIN_HEADER;
+    let plain = fs::File::open(path)
+        .and_then(|mut file| file.read_exact(&mut header))
+        .is_ok()
+        && &header == PLAIN_HEADER;
     for suffix in ["-wal", "-shm"] {
         let _ = fs::remove_file(path.with_extension(format!("db{suffix}")));
     }
     if plain {
-        fs::remove_file(path).map_err(|error| format!("cannot remove the unencrypted {}: {error}", path.display()))?;
+        fs::remove_file(path).map_err(|error| {
+            format!("cannot remove the unencrypted {}: {error}", path.display())
+        })?;
         info!(path = %path.display(), "removed the unencrypted database from before encryption");
     } else {
-        let seconds = SystemTime::now().duration_since(UNIX_EPOCH).map_or(0, |elapsed| elapsed.as_secs());
+        let seconds = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map_or(0, |elapsed| elapsed.as_secs());
         let aside = path.with_extension(format!("db.unreadable-{seconds}"));
-        fs::rename(path, &aside).map_err(|error| format!("cannot move {} aside: {error}", path.display()))?;
+        fs::rename(path, &aside)
+            .map_err(|error| format!("cannot move {} aside: {error}", path.display()))?;
         warn!(kept = %aside.display(), "the keyring's key does not open the database; starting a new one");
     }
     Ok(())
@@ -73,7 +83,8 @@ fn set_aside(path: &Path) -> Result<(), String> {
 /// `migrations`.
 pub fn open(owner: &str, migrations: &[&str]) -> Result<Connection, String> {
     let state = dir("XDG_STATE_HOME", ".local/state").ok_or("no home directory")?;
-    fs::create_dir_all(&state).map_err(|error| format!("cannot create {}: {error}", state.display()))?;
+    fs::create_dir_all(&state)
+        .map_err(|error| format!("cannot create {}: {error}", state.display()))?;
     let path = state.join("island.db");
     let fail = |error: rusqlite::Error| format!("{}: {error}", path.display());
     let key = key()?;
@@ -86,17 +97,27 @@ pub fn open(owner: &str, migrations: &[&str]) -> Result<Connection, String> {
         Err(error) => return Err(fail(error)),
     };
     db.busy_timeout(BUSY).map_err(fail)?;
-    db.pragma_update(None, "temp_store", "MEMORY").map_err(fail)?;
+    db.pragma_update(None, "temp_store", "MEMORY")
+        .map_err(fail)?;
     db.pragma_update_and_check(None, "journal_mode", "WAL", |row| row.get::<_, String>(0))
         .map_err(fail)?;
-    db.execute_batch("CREATE TABLE IF NOT EXISTS schema (owner TEXT PRIMARY KEY, version INTEGER NOT NULL)")
-        .map_err(fail)?;
+    db.execute_batch(
+        "CREATE TABLE IF NOT EXISTS schema (owner TEXT PRIMARY KEY, version INTEGER NOT NULL)",
+    )
+    .map_err(fail)?;
     let done: i64 = db
-        .query_row("SELECT version FROM schema WHERE owner = ?1", params![owner], |row| row.get(0))
+        .query_row(
+            "SELECT version FROM schema WHERE owner = ?1",
+            params![owner],
+            |row| row.get(0),
+        )
         .optional()
         .map_err(fail)?
         .unwrap_or(0);
-    for (version, migration) in (1_i64..).zip(migrations).skip(usize::try_from(done).unwrap_or(0)) {
+    for (version, migration) in (1_i64..)
+        .zip(migrations)
+        .skip(usize::try_from(done).unwrap_or(0))
+    {
         let transaction = db.transaction().map_err(fail)?;
         transaction.execute_batch(migration).map_err(fail)?;
         transaction

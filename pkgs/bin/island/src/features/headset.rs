@@ -44,7 +44,9 @@ pub fn latest() -> Option<Battery> {
 
 /// Keeps readings frequent for as long as this is called.
 pub fn watch() {
-    let Ok(mut until) = WATCHED_UNTIL.lock() else { return };
+    let Ok(mut until) = WATCHED_UNTIL.lock() else {
+        return;
+    };
     let now = Instant::now();
     let started = !until.is_some_and(|until| until > now);
     *until = Some(now + WATCH_FOR);
@@ -54,7 +56,9 @@ pub fn watch() {
 }
 
 fn watched() -> bool {
-    WATCHED_UNTIL.lock().is_ok_and(|until| until.is_some_and(|until| until > Instant::now()))
+    WATCHED_UNTIL
+        .lock()
+        .is_ok_and(|until| until.is_some_and(|until| until > Instant::now()))
 }
 
 /// Game and chat volume, 0 to 1, from the dial's 0 (all game) to 128 (all chat).
@@ -109,7 +113,9 @@ fn read() -> Reading {
                     .or_else(|| device["product"].as_str())
                     .unwrap_or("Headset")
                     .to_owned(),
-                level: battery["level"].as_i64().and_then(|level| u8::try_from(level).ok()),
+                level: battery["level"]
+                    .as_i64()
+                    .and_then(|level| u8::try_from(level).ok()),
                 charging: status == "BATTERY_CHARGING",
                 chatmix: device["chatmix"].as_i64(),
             })
@@ -127,7 +133,9 @@ pub fn battery_color(level: u8) -> u32 {
 }
 
 fn tip(battery: &Battery) -> String {
-    let level = battery.level.map_or("battery unknown".to_owned(), |level| format!("{level}%"));
+    let level = battery
+        .level
+        .map_or("battery unknown".to_owned(), |level| format!("{level}%"));
     let state = if battery.charging { " · charging" } else { "" };
     format!("{} · {level}{state}", battery.name)
 }
@@ -144,7 +152,10 @@ impl Headset {
 
 impl Feature for Headset {
     const NAME: &'static str = "headset";
-    const GLYPHS: &'static [super::GlyphSpec] = &[("headset", &["audio-headset-symbolic", "audio-headphones-symbolic"])];
+    const GLYPHS: &'static [super::GlyphSpec] = &[(
+        "headset",
+        &["audio-headset-symbolic", "audio-headphones-symbolic"],
+    )];
 
     type State = Refreshed<Reading>;
     type Local = ();
@@ -161,7 +172,10 @@ impl Feature for Headset {
             loop {
                 if asked
                     && let Some(value) = last.clone()
-                    && !feed.publish(Refreshed { value, refreshing: true })
+                    && !feed.publish(Refreshed {
+                        value,
+                        refreshing: true,
+                    })
                 {
                     return Ended::Unwanted;
                 }
@@ -186,11 +200,18 @@ impl Feature for Headset {
                         }
                     }
                     last = Some(reading.clone());
-                    if !feed.publish(Refreshed { value: reading, refreshing: false }) {
+                    if !feed.publish(Refreshed {
+                        value: reading,
+                        refreshing: false,
+                    }) {
                         return Ended::Unwanted;
                     }
                 }
-                let interval = if watched() { WATCHED_INTERVAL } else { INTERVAL };
+                let interval = if watched() {
+                    WATCHED_INTERVAL
+                } else {
+                    INTERVAL
+                };
                 asked = match requests.recv_timeout(interval) {
                     Ok(Wake::Asked) => true,
                     Ok(Wake::Watched) => false,
@@ -206,7 +227,12 @@ impl Feature for Headset {
         matches!(state.value, Reading::Present(_))
     }
 
-    fn widget(&self, _: &str, state: &Refreshed<Reading>, w: &mut WidgetCx<'_>) -> Option<AnyElement> {
+    fn widget(
+        &self,
+        _: &str,
+        state: &Refreshed<Reading>,
+        w: &mut WidgetCx<'_>,
+    ) -> Option<AnyElement> {
         let Reading::Present(battery) = &state.value else {
             return None;
         };

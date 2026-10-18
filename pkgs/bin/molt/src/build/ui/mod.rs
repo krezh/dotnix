@@ -31,9 +31,9 @@ use crate::ui::{
 use activity::GroupedList;
 use failure::{ErrorCard, LogView, error_summary};
 use progress::{
-    DownloadsCard, EvaluationCard, INPUT_GROUPS, ProgressCard, WORK_GROUPS, WarningsCard,
-    WorkPlan, WorkSummary, clock, download_bytes, fail_open_fetches, input_rows,
-    last_evaluation, remember_evaluation,
+    DownloadsCard, EvaluationCard, INPUT_GROUPS, ProgressCard, WORK_GROUPS, WarningsCard, WorkPlan,
+    WorkSummary, clock, download_bytes, fail_open_fetches, input_rows, last_evaluation,
+    remember_evaluation,
 };
 use timeline::{BuildTimeline, PhaseHeader, phase_header, step_name};
 
@@ -286,7 +286,9 @@ pub(crate) fn start_build(
             }
         }
         if let Some(update) = evaluation_update {
-            screen.warnings.extend(&update.warnings[evaluation_warnings..]);
+            screen
+                .warnings
+                .extend(&update.warnings[evaluation_warnings..]);
             evaluation_warnings = update.warnings.len();
             fetches.clone_from(&update.flake_fetches);
             inputs_changed = true;
@@ -359,8 +361,8 @@ pub(crate) fn start_build(
                             note.push_str(" · ↓ ");
                             note.push_str(&compact_size(downloaded as f64));
                         }
-                        let share = (summary.total > 0)
-                            .then(|| finished as f64 / summary.total as f64);
+                        let share =
+                            (summary.total > 0).then(|| finished as f64 / summary.total as f64);
                         (note, share)
                     }
                     BuildPhase::Compare => (
@@ -570,7 +572,12 @@ fn show_failure(
             target,
             after,
         ),
-        Err(error) => show_home(&retry_window, &retry_root, Rc::clone(&retry_state), Err(error)),
+        Err(error) => show_home(
+            &retry_window,
+            &retry_root,
+            Rc::clone(&retry_state),
+            Err(error),
+        ),
     });
     failed_footer.append(&retry);
     screen.footer.add_child(&failed_footer);

@@ -16,9 +16,18 @@ const DATABASE: &str = "\
 
 #[test]
 fn finds_boards_past_comment_lines() {
-    assert_eq!(pci_name(DATABASE, "1002", "7550", "148c 2435").as_deref(), Some("Radeon RX 9070 XT"));
-    assert_eq!(pci_name(DATABASE, "1002", "7550", "1da2 e490").as_deref(), Some("Radeon RX 9070"));
-    assert_eq!(pci_name(DATABASE, "1002", "13c0", "1462 7e51").as_deref(), Some("Radeon Graphics"));
+    assert_eq!(
+        pci_name(DATABASE, "1002", "7550", "148c 2435").as_deref(),
+        Some("Radeon RX 9070 XT")
+    );
+    assert_eq!(
+        pci_name(DATABASE, "1002", "7550", "1da2 e490").as_deref(),
+        Some("Radeon RX 9070")
+    );
+    assert_eq!(
+        pci_name(DATABASE, "1002", "13c0", "1462 7e51").as_deref(),
+        Some("Radeon Graphics")
+    );
     assert_eq!(pci_name(DATABASE, "1002", "ffff", "0000 0000"), None);
 }
 
@@ -35,7 +44,13 @@ fn program_names_drop_nix_wrapper_decoration() {
 #[test]
 fn marketing_names_come_from_pci_ids_entries() {
     assert_eq!(marketing("Radeon RX 9070 XT 16GB"), "Radeon RX 9070 XT");
-    assert_eq!(marketing("Navi 48 [Radeon RX 9070/9070 XT/9070 GRE]"), "Radeon RX 9070");
-    assert_eq!(marketing("Navi 48 XTX [Sapphire Pulse Radeon RX 9070 XT]"), "Sapphire Pulse Radeon RX 9070 XT");
+    assert_eq!(
+        marketing("Navi 48 [Radeon RX 9070/9070 XT/9070 GRE]"),
+        "Radeon RX 9070"
+    );
+    assert_eq!(
+        marketing("Navi 48 XTX [Sapphire Pulse Radeon RX 9070 XT]"),
+        "Sapphire Pulse Radeon RX 9070 XT"
+    );
     assert_eq!(marketing("GeForce RTX 4090"), "GeForce RTX 4090");
 }

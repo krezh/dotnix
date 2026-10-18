@@ -7,12 +7,12 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use gtk::prelude::{ButtonExt, WidgetExt};
 use nix_changelog::Changelog;
 
+use crate::activation::ui::SwitchConfirmation;
 use crate::app::mini::Mini;
 use crate::build::Target;
 use crate::config::Appearance;
 use crate::inputs::LockUpdate;
 use crate::report::Report;
-use crate::activation::ui::SwitchConfirmation;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(crate) enum Operation {

@@ -21,7 +21,16 @@ fn matches_a_shared_word() {
 
 #[test]
 fn a_formless_device_of_the_headset_is_a_headset() {
-    assert_eq!(device(&named("A50 System", Form::Card), Some(HEADSET)), "device-headset");
-    assert_eq!(device(&named("A50 System", Form::Card), None), "device-card");
-    assert_eq!(device(&named("Argon Speakers", Form::Speakers), Some(HEADSET)), "device-speakers");
+    assert_eq!(
+        device(&named("A50 System", Form::Card), Some(HEADSET)),
+        "device-headset"
+    );
+    assert_eq!(
+        device(&named("A50 System", Form::Card), None),
+        "device-card"
+    );
+    assert_eq!(
+        device(&named("Argon Speakers", Form::Speakers), Some(HEADSET)),
+        "device-speakers"
+    );
 }

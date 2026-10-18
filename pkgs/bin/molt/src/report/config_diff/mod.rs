@@ -319,9 +319,10 @@ impl Walk<'_> {
             _ => {
                 let unchanged = match (&old, &new) {
                     (Some(Contents::Binary(old)), Some(Contents::Binary(new))) => old == new,
-                    (Some(Contents::Large(old, old_size)), Some(Contents::Large(new, new_size))) => {
-                        old_size == new_size && same_bytes(old, new)
-                    }
+                    (
+                        Some(Contents::Large(old, old_size)),
+                        Some(Contents::Large(new, new_size)),
+                    ) => old_size == new_size && same_bytes(old, new),
                     (Some(Contents::Directory), Some(Contents::Directory)) => true,
                     _ => false,
                 };

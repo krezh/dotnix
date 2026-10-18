@@ -219,13 +219,17 @@ impl GroupedList {
                 }
             }
             row.apply(content);
-            row.energy.root.set_visible(row.matches(&self.query.borrow()));
+            row.energy
+                .root
+                .set_visible(row.matches(&self.query.borrow()));
             return;
         }
         let mut row = ListRow::new(self.has_column);
         self.place(&row.energy.root, content.group);
         row.apply(content);
-        row.energy.root.set_visible(row.matches(&self.query.borrow()));
+        row.energy
+            .root
+            .set_visible(row.matches(&self.query.borrow()));
         rows.insert(key.to_owned(), row);
     }
 
@@ -269,10 +273,8 @@ impl GroupedList {
                 index + 1,
                 &format!("{} {}", self.specs[index].name, totals[index]),
             );
-            self.tabs.set_option_visible(
-                index + 1,
-                !self.specs[index].optional || totals[index] > 0,
-            );
+            self.tabs
+                .set_option_visible(index + 1, !self.specs[index].optional || totals[index] > 0);
         }
         self.tabs.set_label(0, &format!("All {}", rows.len()));
         self.eyebrow

@@ -27,6 +27,7 @@ toml = "1"
 ddc-hi = "0.4"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+notify = { version = "8.2", default-features = false }
 tracing-journald = "0.3"
 rusqlite = { version = "0.40", features = ["bundled-sqlcipher"] }
 

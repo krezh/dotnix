@@ -53,9 +53,18 @@ fn ours(name: &str) -> bool {
     name == "island" || name.starts_with("island ")
 }
 
-fn app(index: u32, device: u32, stream: Option<&str>, properties: &Proplist, volume: &ChannelVolumes, muted: bool) -> App {
+fn app(
+    index: u32,
+    device: u32,
+    stream: Option<&str>,
+    properties: &Proplist,
+    volume: &ChannelVolumes,
+    muted: bool,
+) -> App {
     let stream = stream.unwrap_or_default().to_owned();
-    let name = properties.get_str("application.name").unwrap_or_else(|| stream.clone());
+    let name = properties
+        .get_str("application.name")
+        .unwrap_or_else(|| stream.clone());
     let icon = ["application.icon_name", "application.process.binary"]
         .iter()
         .filter_map(|key| properties.get_str(key))
@@ -102,7 +111,11 @@ impl Query {
                     description: info.description.as_deref().unwrap_or_default().to_owned(),
                     form: form(&info.proplist),
                     format: format(&info.sample_spec),
-                    monitor: info.monitor_source_name.as_deref().unwrap_or_default().to_owned(),
+                    monitor: info
+                        .monitor_source_name
+                        .as_deref()
+                        .unwrap_or_default()
+                        .to_owned(),
                     volume: level(&info.volume),
                     muted: info.mute,
                     channels: info.volume.len(),
@@ -113,17 +126,19 @@ impl Query {
         {
             let (answers, remaining) = (answers.clone(), remaining.clone());
             introspect.get_source_info_list(move |result| match result {
-                ListResult::Item(info) if info.monitor_of_sink.is_none() => answers.borrow_mut().sources.push(Device {
-                    index: info.index,
-                    name: info.name.as_deref().unwrap_or_default().to_owned(),
-                    description: info.description.as_deref().unwrap_or_default().to_owned(),
-                    form: form(&info.proplist),
-                    format: format(&info.sample_spec),
-                    monitor: String::new(),
-                    volume: level(&info.volume),
-                    muted: info.mute,
-                    channels: info.volume.len(),
-                }),
+                ListResult::Item(info) if info.monitor_of_sink.is_none() => {
+                    answers.borrow_mut().sources.push(Device {
+                        index: info.index,
+                        name: info.name.as_deref().unwrap_or_default().to_owned(),
+                        description: info.description.as_deref().unwrap_or_default().to_owned(),
+                        form: form(&info.proplist),
+                        format: format(&info.sample_spec),
+                        monitor: String::new(),
+                        volume: level(&info.volume),
+                        muted: info.mute,
+                        channels: info.volume.len(),
+                    })
+                }
                 ListResult::Item(_) => {}
                 ListResult::End | ListResult::Error => remaining.set(remaining.get() - 1),
             });
@@ -132,8 +147,14 @@ impl Query {
             let (answers, remaining) = (answers.clone(), remaining.clone());
             introspect.get_server_info(move |info| {
                 answers.borrow_mut().defaults = Some((
-                    info.default_sink_name.as_deref().unwrap_or_default().to_owned(),
-                    info.default_source_name.as_deref().unwrap_or_default().to_owned(),
+                    info.default_sink_name
+                        .as_deref()
+                        .unwrap_or_default()
+                        .to_owned(),
+                    info.default_source_name
+                        .as_deref()
+                        .unwrap_or_default()
+                        .to_owned(),
                 ));
                 remaining.set(remaining.get() - 1);
             });
@@ -142,7 +163,14 @@ impl Query {
             let (answers, remaining) = (answers.clone(), remaining.clone());
             introspect.get_sink_input_info_list(move |result| match result {
                 ListResult::Item(info) => {
-                    let app = app(info.index, info.sink, info.name.as_deref(), &info.proplist, &info.volume, info.mute);
+                    let app = app(
+                        info.index,
+                        info.sink,
+                        info.name.as_deref(),
+                        &info.proplist,
+                        &info.volume,
+                        info.mute,
+                    );
                     if !ours(&app.name) {
                         answers.borrow_mut().playing.push(app);
                     }
@@ -154,7 +182,14 @@ impl Query {
             let (answers, remaining) = (answers.clone(), remaining.clone());
             introspect.get_source_output_info_list(move |result| match result {
                 ListResult::Item(info) => {
-                    let app = app(info.index, info.source, info.name.as_deref(), &info.proplist, &info.volume, info.mute);
+                    let app = app(
+                        info.index,
+                        info.source,
+                        info.name.as_deref(),
+                        &info.proplist,
+                        &info.volume,
+                        info.mute,
+                    );
                     if !ours(&app.name) {
                         answers.borrow_mut().recording.push(app);
                     }
@@ -173,7 +208,12 @@ impl Query {
         let mut answers = std::mem::take(&mut *self.answers.borrow_mut());
         let (default_sink, default_source) = answers.defaults.unwrap_or_default();
         // Recording a sink's monitor is listening to what plays, not using a microphone.
-        answers.recording.retain(|app| answers.sources.iter().any(|source| source.index == app.device));
+        answers.recording.retain(|app| {
+            answers
+                .sources
+                .iter()
+                .any(|source| source.index == app.device)
+        });
         Some(AudioState {
             connected: true,
             sinks: answers.sinks,

@@ -1,7 +1,7 @@
-pub(crate) mod mini;
-pub(crate) mod state;
 mod cli;
 mod keys;
+pub(crate) mod mini;
+pub(crate) mod state;
 mod style;
 
 use std::cell::RefCell;
@@ -214,7 +214,8 @@ fn build_ui(app: &gtk::Application) -> UiController {
         // The controller runs in the capture phase, so a focused text field would otherwise lose
         // letters ("s" switching) and cursor keys to the shortcuts. Escape and list scrolling
         // still work from inside a filter.
-        if gtk::prelude::GtkWindowExt::focus(&key_window).is_some_and(|widget| widget.is::<gtk::Text>())
+        if gtk::prelude::GtkWindowExt::focus(&key_window)
+            .is_some_and(|widget| widget.is::<gtk::Text>())
             && !matches!(
                 action,
                 KeyAction::Close | KeyAction::ScrollUp | KeyAction::ScrollDown
@@ -361,9 +362,11 @@ fn claim_keyboard(window: &gtk::ApplicationWindow, state: &Rc<UiState>) {
         let Some(window) = click_window.upgrade() else {
             return;
         };
-        let on_text = window.pick(x, y, gtk::PickFlags::DEFAULT).is_some_and(|widget| {
-            widget.is::<gtk::Text>() || widget.ancestor(gtk::Text::static_type()).is_some()
-        });
+        let on_text = window
+            .pick(x, y, gtk::PickFlags::DEFAULT)
+            .is_some_and(|widget| {
+                widget.is::<gtk::Text>() || widget.ancestor(gtk::Text::static_type()).is_some()
+            });
         window.set_keyboard_mode(if on_text && !minimized() {
             KeyboardMode::Exclusive
         } else {
@@ -372,9 +375,9 @@ fn claim_keyboard(window: &gtk::ApplicationWindow, state: &Rc<UiState>) {
     });
     window.add_controller(click);
     window.connect_focus_widget_notify(|window| {
-        if !gtk::prelude::GtkWindowExt::focus(window).is_some_and(|widget| widget.is::<gtk::Text>()) {
+        if !gtk::prelude::GtkWindowExt::focus(window).is_some_and(|widget| widget.is::<gtk::Text>())
+        {
             window.set_keyboard_mode(KeyboardMode::None);
         }
     });
 }
-

@@ -33,7 +33,10 @@ fn rate(bytes_per_second: f64) -> String {
     }
 }
 
-fn row(label: impl Into<SharedString>, value: impl Into<SharedString>) -> (SharedString, SharedString) {
+fn row(
+    label: impl Into<SharedString>,
+    value: impl Into<SharedString>,
+) -> (SharedString, SharedString) {
     (label.into(), value.into())
 }
 
@@ -76,15 +79,40 @@ fn nice_peak<'a>(values: impl IntoIterator<Item = &'a f32>, floor: f32) -> f32 {
         .unwrap_or(peak)
 }
 
-fn series(values: &[f32], max: f32, color: u32) -> Series {
+fn series(
+    values: &[f32],
+    max: f32,
+    color: u32,
+    label: impl Into<SharedString>,
+    format: fn(f32) -> String,
+) -> Series {
     Series {
         values: values.to_vec(),
         max,
         color,
+        label: label.into(),
+        format,
     }
 }
 
-fn tile_meter(label: impl Into<SharedString>, fraction: f32, value: impl Into<SharedString>, color: u32) -> TileMeter {
+fn percent(value: f32) -> String {
+    format!("{:.0}%", value * 100.0)
+}
+
+fn temperature(value: f32) -> String {
+    format!("{value:.0}°C")
+}
+
+fn watts(value: f32) -> String {
+    format!("{value:.0} W")
+}
+
+fn tile_meter(
+    label: impl Into<SharedString>,
+    fraction: f32,
+    value: impl Into<SharedString>,
+    color: u32,
+) -> TileMeter {
     TileMeter {
         label: label.into(),
         fraction,
@@ -98,13 +126,16 @@ fn titled(id: &str, span: usize, title: &str, value: Option<card::Stat>, parts: 
         id: id.to_owned().into(),
         span,
         title: Some((title.to_owned().into(), value)),
+        on_click: None,
         parts,
     }
 }
 
 fn cpu_tile(stats: &SysStats) -> Tile {
     let legend = [
-        stats.cpu_temp.map(|temp| (Some(MAUVE), format!("{temp:.0}°C"))),
+        stats
+            .cpu_temp
+            .map(|temp| (Some(MAUVE), format!("{temp:.0}°C"))),
         stats.cpu_ghz.map(|ghz| (None, format!("{ghz:.2} GHz"))),
         Some((None, format!("{} threads", stats.threads))),
     ];
@@ -115,21 +146,45 @@ fn cpu_tile(stats: &SysStats) -> Tile {
         Some(stat(format!("{:.0}%", stats.cpu * 100.0), PINK)),
         vec![
             Part::Chart {
-                series: vec![series(&stats.cpu_history, 1.0, PINK), series(&stats.cpu_temp_history, 100.0, MAUVE)],
+                series: vec![
+                    series(&stats.cpu_history, 1.0, PINK, "Usage", percent),
+                    series(
+                        &stats.cpu_temp_history,
+                        100.0,
+                        MAUVE,
+                        "Temperature",
+                        temperature,
+                    ),
+                ],
                 grow: true,
             },
             Part::Cores {
                 loads: stats.cores.clone(),
                 color: PINK,
             },
-            Part::Legend(legend.into_iter().flatten().map(|(dot, text)| (dot, text.into())).collect()),
+            Part::Legend(
+                legend
+                    .into_iter()
+                    .flatten()
+                    .map(|(dot, text)| (dot, text.into()))
+                    .collect(),
+            ),
         ],
     )
 }
 
 fn gpu_tile(stats: &SysStats) -> Tile {
     let Some(gpu) = stats.gpu else {
-        return titled("tile-gpu", 1, "GPU", None, vec![Part::Spacer, Part::Legend(vec![(None, "No GPU found".into())])]);
+        return titled(
+            "tile-gpu",
+            1,
+            "GPU",
+            None,
+            vec![
+                Part::Spacer,
+                Part::Legend(vec![(None, "No GPU found".into())]),
+            ],
+        );
     };
     let legend = [
         gpu.temp.map(|temp| (Some(PEACH), format!("{temp:.0}°C"))),
@@ -143,7 +198,16 @@ fn gpu_tile(stats: &SysStats) -> Tile {
         Some(stat(format!("{:.0}%", gpu.busy * 100.0), PINK)),
         vec![
             Part::Chart {
-                series: vec![series(&stats.gpu_history, 1.0, PINK), series(&stats.gpu_temp_history, 100.0, PEACH)],
+                series: vec![
+                    series(&stats.gpu_history, 1.0, PINK, "Usage", percent),
+                    series(
+                        &stats.gpu_temp_history,
+                        100.0,
+                        PEACH,
+                        "Temperature",
+                        temperature,
+                    ),
+                ],
                 grow: true,
             },
             Part::Meters {
@@ -155,7 +219,13 @@ fn gpu_tile(stats: &SysStats) -> Tile {
                 )],
                 scroll: false,
             },
-            Part::Legend(legend.into_iter().flatten().map(|(dot, text)| (dot, text.into())).collect()),
+            Part::Legend(
+                legend
+                    .into_iter()
+                    .flatten()
+                    .map(|(dot, text)| (dot, text.into()))
+                    .collect(),
+            ),
         ],
     )
 }
@@ -166,14 +236,22 @@ fn memory_tile(stats: &SysStats) -> Tile {
     let mut rows = vec![tile_meter(
         "RAM",
         share(stats.mem_used_kib, stats.mem_total_kib),
-        format!("{} / {}", size(kib(stats.mem_used_kib)), size(kib(stats.mem_total_kib))),
+        format!(
+            "{} / {}",
+            size(kib(stats.mem_used_kib)),
+            size(kib(stats.mem_total_kib))
+        ),
         PEACH,
     )];
     if stats.swap_total_kib > 0 {
         rows.push(tile_meter(
             "Swap",
             share(stats.swap_used_kib, stats.swap_total_kib),
-            format!("{} / {}", size(kib(stats.swap_used_kib)), size(kib(stats.swap_total_kib))),
+            format!(
+                "{} / {}",
+                size(kib(stats.swap_used_kib)),
+                size(kib(stats.swap_total_kib))
+            ),
             YELLOW,
         ));
     }
@@ -181,24 +259,42 @@ fn memory_tile(stats: &SysStats) -> Tile {
         "tile-memory",
         1,
         "Memory",
-        Some(stat(format!("{:.0}%", share(stats.mem_used_kib, stats.mem_total_kib) * 100.0), PEACH)),
+        Some(stat(
+            format!(
+                "{:.0}%",
+                share(stats.mem_used_kib, stats.mem_total_kib) * 100.0
+            ),
+            PEACH,
+        )),
         vec![
             Part::Chart {
-                series: vec![series(&stats.mem_history, 1.0, PEACH)],
+                series: vec![series(&stats.mem_history, 1.0, PEACH, "RAM", percent)],
                 grow: true,
             },
-            Part::Meters { rows, scroll: false },
+            Part::Meters {
+                rows,
+                scroll: false,
+            },
         ],
     )
 }
 
 fn processes_tile(stats: &SysStats) -> Tile {
-    let busiest = stats.processes.iter().map(|process| process.cpu).fold(f32::EPSILON, f32::max);
+    let busiest = stats
+        .processes
+        .iter()
+        .map(|process| process.cpu)
+        .fold(f32::EPSILON, f32::max);
     let rows = stats
         .processes
         .iter()
         .map(|process| {
-            tile_meter(process.name.clone(), process.cpu / busiest, format!("{:.1}%", process.cpu * 100.0), PINK)
+            tile_meter(
+                process.name.clone(),
+                process.cpu / busiest,
+                format!("{:.1}%", process.cpu * 100.0),
+                PINK,
+            )
         })
         .collect();
     titled(
@@ -206,14 +302,29 @@ fn processes_tile(stats: &SysStats) -> Tile {
         1,
         "Processes",
         Some(stat(stats.process_count.to_string(), SUBTEXT1)),
-        vec![Part::Spacer, Part::Meters { rows, scroll: false }],
+        vec![
+            Part::Spacer,
+            Part::Meters {
+                rows,
+                scroll: false,
+            },
+        ],
     )
 }
 
 fn power_tile(stats: &SysStats) -> Tile {
     const COLORS: [u32; 3] = [YELLOW, TEAL, MAUVE];
     if stats.power.is_empty() {
-        return titled("tile-power", 1, "Power", None, vec![Part::Spacer, Part::Legend(vec![(None, "No power sensors".into())])]);
+        return titled(
+            "tile-power",
+            1,
+            "Power",
+            None,
+            vec![
+                Part::Spacer,
+                Part::Legend(vec![(None, "No power sensors".into())]),
+            ],
+        );
     }
     let peak = nice_peak(stats.power.iter().flat_map(|source| &source.history), 10.0);
     let total: f32 = stats.power.iter().map(|source| source.watts).sum();
@@ -228,7 +339,9 @@ fn power_tile(stats: &SysStats) -> Tile {
                     .power
                     .iter()
                     .zip(COLORS)
-                    .map(|(source, color)| series(&source.history, peak, color))
+                    .map(|(source, color)| {
+                        series(&source.history, peak, color, source.label.clone(), watts)
+                    })
                     .collect(),
                 grow: true,
             },
@@ -237,7 +350,12 @@ fn power_tile(stats: &SysStats) -> Tile {
                     .power
                     .iter()
                     .zip(COLORS)
-                    .map(|(source, color)| (Some(color), format!("{:.0} W {}", source.watts, source.label).into()))
+                    .map(|(source, color)| {
+                        (
+                            Some(color),
+                            format!("{:.0} W {}", source.watts, source.label).into(),
+                        )
+                    })
                     .collect(),
             ),
         ],
@@ -245,7 +363,10 @@ fn power_tile(stats: &SysStats) -> Tile {
 }
 
 fn network_tile(stats: &SysStats) -> Tile {
-    let peak = nice_peak(stats.rx_history.iter().chain(&stats.tx_history), 64.0 * 1024.0);
+    let peak = nice_peak(
+        stats.rx_history.iter().chain(&stats.tx_history),
+        64.0 * 1024.0,
+    );
     titled(
         "tile-network",
         1,
@@ -253,7 +374,14 @@ fn network_tile(stats: &SysStats) -> Tile {
         Some(stat(format!("↓ {}", rate(stats.rx_rate)), TEAL)),
         vec![
             Part::Chart {
-                series: vec![series(&stats.rx_history, peak, TEAL), series(&stats.tx_history, peak, PEACH)],
+                series: vec![
+                    series(&stats.rx_history, peak, TEAL, "Download", |value| {
+                        rate(value as f64)
+                    }),
+                    series(&stats.tx_history, peak, PEACH, "Upload", |value| {
+                        rate(value as f64)
+                    }),
+                ],
                 grow: true,
             },
             Part::Legend(vec![
@@ -265,7 +393,10 @@ fn network_tile(stats: &SysStats) -> Tile {
 }
 
 fn disk_tile(stats: &SysStats) -> Tile {
-    let peak = nice_peak(stats.read_history.iter().chain(&stats.write_history), 1024.0 * 1024.0);
+    let peak = nice_peak(
+        stats.read_history.iter().chain(&stats.write_history),
+        1024.0 * 1024.0,
+    );
     titled(
         "tile-disk",
         1,
@@ -273,7 +404,14 @@ fn disk_tile(stats: &SysStats) -> Tile {
         Some(stat(format!("R {}", rate(stats.read_rate)), TEAL)),
         vec![
             Part::Chart {
-                series: vec![series(&stats.read_history, peak, TEAL), series(&stats.write_history, peak, PEACH)],
+                series: vec![
+                    series(&stats.read_history, peak, TEAL, "Read", |value| {
+                        rate(value as f64)
+                    }),
+                    series(&stats.write_history, peak, PEACH, "Write", |value| {
+                        rate(value as f64)
+                    }),
+                ],
                 grow: true,
             },
             Part::Legend(vec![
@@ -290,7 +428,9 @@ fn drive_model(model: &str) -> String {
         let digits = word.trim_end_matches(|char: char| char.is_ascii_alphabetic());
         let unit = &word[digits.len()..];
         !digits.is_empty()
-            && digits.chars().all(|char| char.is_ascii_digit() || char == '.')
+            && digits
+                .chars()
+                .all(|char| char.is_ascii_digit() || char == '.')
             && ["TB", "GB", "T", "G"].contains(&unit.to_uppercase().as_str())
     };
     model
@@ -303,11 +443,13 @@ fn drive_model(model: &str) -> String {
 fn storage_tile(stats: &SysStats, settings: &config::System) -> Tile {
     const COLORS: [u32; 5] = [BLUE, LAVENDER, TEAL, MAUVE, PEACH];
     let volumes: Vec<Volume> = settings
+        .storage
         .shown_partitions(&stats.partitions, |partition| partition.mount.as_str())
         .into_iter()
         .map(|partition| {
             let fraction = partition.used as f32 / partition.total.max(1) as f32;
             Volume {
+                id: partition.mount.clone().into(),
                 mount: partition.mount.clone().into(),
                 usage: format!("{} / {}", size(partition.used), size(partition.total)).into(),
                 fraction,
@@ -331,7 +473,9 @@ fn storage_tile(stats: &SysStats, settings: &config::System) -> Tile {
                         color: part.mount.as_ref().and_then(|_| palette.next()),
                     })
                     .collect();
-                let free = drive.size.saturating_sub(drive.parts.iter().map(|part| part.size).sum());
+                let free = drive
+                    .size
+                    .saturating_sub(drive.parts.iter().map(|part| part.size).sum());
                 if free > drive.size / 100 {
                     segments.push(Segment {
                         weight: free as f32,
@@ -340,7 +484,11 @@ fn storage_tile(stats: &SysStats, settings: &config::System) -> Tile {
                 }
                 let model = drive_model(&drive.model);
                 Drive {
-                    name: if model.is_empty() { drive.name.clone().into() } else { model.into() },
+                    name: if model.is_empty() {
+                        drive.name.clone().into()
+                    } else {
+                        model.into()
+                    },
                     size: size(drive.size).into(),
                     segments,
                 }
@@ -381,10 +529,18 @@ fn host_tile(stats: &SysStats, displays: usize) -> Tile {
         id: "tile-host".into(),
         span: 1,
         title: None,
+        on_click: None,
         parts: vec![
             Part::Hero {
-                name: if info.hostname.is_empty() { "This computer".into() } else { info.hostname.clone().into() },
-                lines: vec![format!("{} · Linux {}", info.os, info.kernel).into(), hardware.into()],
+                name: if info.hostname.is_empty() {
+                    "This computer".into()
+                } else {
+                    info.hostname.clone().into()
+                },
+                lines: vec![
+                    format!("{} · Linux {}", info.os, info.kernel).into(),
+                    hardware.into(),
+                ],
             },
             Part::Spacer,
             Part::Facts(facts),
@@ -393,13 +549,20 @@ fn host_tile(stats: &SysStats, displays: usize) -> Tile {
 }
 
 fn temperatures_tile(stats: &SysStats) -> Tile {
-    let hottest = stats.sensors.iter().map(|sensor| sensor.celsius).fold(f32::MIN, f32::max);
+    let hottest = stats
+        .sensors
+        .iter()
+        .map(|sensor| sensor.celsius)
+        .fold(f32::MIN, f32::max);
     let histories = [
         (&stats.cpu_temp_history, MAUVE, "CPU"),
         (&stats.gpu_temp_history, PEACH, "GPU"),
         (&stats.storage_temp_history, TEAL, "NVMe"),
     ];
-    let shown: Vec<_> = histories.into_iter().filter(|(history, _, _)| !history.is_empty()).collect();
+    let shown: Vec<_> = histories
+        .into_iter()
+        .filter(|(history, _, _)| !history.is_empty())
+        .collect();
     titled(
         "tile-temperatures",
         2,
@@ -407,10 +570,20 @@ fn temperatures_tile(stats: &SysStats) -> Tile {
         (hottest > f32::MIN).then(|| stat(format!("{hottest:.0}°C"), heat(hottest))),
         vec![
             Part::Chart {
-                series: shown.iter().map(|(history, color, _)| series(history, 100.0, *color)).collect(),
+                series: shown
+                    .iter()
+                    .map(|(history, color, label)| {
+                        series(history, 100.0, *color, *label, temperature)
+                    })
+                    .collect(),
                 grow: false,
             },
-            Part::Legend(shown.iter().map(|(_, color, label)| (Some(*color), (*label).into())).collect()),
+            Part::Legend(
+                shown
+                    .iter()
+                    .map(|(_, color, label)| (Some(*color), (*label).into()))
+                    .collect(),
+            ),
             Part::Meters {
                 rows: stats
                     .sensors
@@ -439,11 +612,28 @@ pub fn system(
     PanelView {
         header: Header::Tabs,
         blocks: vec![
-            Block::Buttons(ButtonRow { buttons, compact: false, indent: 0.0 }),
+            Block::Buttons(ButtonRow {
+                buttons,
+                compact: false,
+                indent: 0.0,
+            }),
             Block::Board(vec![
-                vec![cpu_tile(stats), memory_tile(stats), processes_tile(stats), power_tile(stats)],
-                vec![gpu_tile(stats), network_tile(stats), storage_tile(stats, settings)],
-                vec![host_tile(stats, displays), temperatures_tile(stats), disk_tile(stats)],
+                vec![
+                    cpu_tile(stats),
+                    memory_tile(stats),
+                    processes_tile(stats),
+                    power_tile(stats),
+                ],
+                vec![
+                    gpu_tile(stats),
+                    network_tile(stats),
+                    storage_tile(stats, settings),
+                ],
+                vec![
+                    host_tile(stats, displays),
+                    temperatures_tile(stats),
+                    disk_tile(stats),
+                ],
             ]),
         ],
     }
@@ -451,7 +641,12 @@ pub fn system(
 
 pub fn panel<'a>(island: &'a Island, panel: Panel, cx: &gpui::App) -> PanelView {
     match panel {
-        Panel::System => system(&island.stats, cx.global(), island.displays(), island.feature_buttons(cx)),
+        Panel::System => system(
+            &island.stats,
+            cx.global(),
+            island.displays(),
+            island.feature_buttons(cx),
+        ),
         Panel::Feature(name) => island.feature_panel(name, cx).unwrap_or_else(empty),
         Panel::Popups => island.popups(cx).unwrap_or_else(empty),
     }

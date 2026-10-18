@@ -226,10 +226,15 @@ fn render_repository_status(widgets: &RepositoryWidgets, status: &RepositoryStat
         .card
         .detail
         .set_text(&format!("{} · {}", status.kind.name(), status.upstream));
-    widgets.check.card.detail.root.set_tooltip_text(Some(&format!(
-        "{} incoming · {} local",
-        status.incoming, status.local
-    )));
+    widgets
+        .check
+        .card
+        .detail
+        .root
+        .set_tooltip_text(Some(&format!(
+            "{} incoming · {} local",
+            status.incoming, status.local
+        )));
     if status.incoming > 0 {
         let pending = if status.local > 0 {
             format!("{} incoming · {} local", status.incoming, status.local)
@@ -249,7 +254,11 @@ fn render_repository_status(widgets: &RepositoryWidgets, status: &RepositoryStat
         if status.local == 0 {
             set_card_status(&widgets.check.card, "Up to date", Some("success"));
         } else {
-            set_card_status(&widgets.check.card, &format!("{} local", status.local), None);
+            set_card_status(
+                &widgets.check.card,
+                &format!("{} local", status.local),
+                None,
+            );
         }
         widgets.update.reveal.set_reveal_child(false);
     }

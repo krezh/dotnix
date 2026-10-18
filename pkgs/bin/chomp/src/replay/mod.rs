@@ -43,6 +43,12 @@ pub fn control(settings: &Settings, action: ReplayAction) -> Result<Option<PathB
                 .clone()
                 .map(absolute_output_path)
                 .transpose()?,
+            duration_seconds: settings.replay_duration,
+        },
+        ReplayAction::Configure => ipc::ReplayCommand::Configure {
+            duration_seconds: settings
+                .replay_duration
+                .unwrap_or(settings.replay.duration_seconds),
         },
         ReplayAction::Stop => ipc::ReplayCommand::Stop,
         ReplayAction::Status => ipc::ReplayCommand::Status,
@@ -54,11 +60,20 @@ pub fn control(settings: &Settings, action: ReplayAction) -> Result<Option<PathB
             if let Some(target) = status.target {
                 println!("Target: {target}");
             }
-            println!(
-                "Buffer: {:.1}s, {:.1} MiB",
-                status.buffered_millis as f64 / 1000.0,
-                status.buffered_bytes as f64 / 1024.0 / 1024.0
-            );
+            if status.duration_seconds > 0 {
+                println!(
+                    "Buffer: {:.1}s / {:.1}s, {:.1} MiB",
+                    status.buffered_millis as f64 / 1000.0,
+                    status.duration_seconds as f64,
+                    status.buffered_bytes as f64 / 1024.0 / 1024.0
+                );
+            } else {
+                println!(
+                    "Buffer: {:.1}s, {:.1} MiB",
+                    status.buffered_millis as f64 / 1000.0,
+                    status.buffered_bytes as f64 / 1024.0 / 1024.0
+                );
+            }
             if let Some(message) = status.message {
                 println!("Message: {message}");
             }

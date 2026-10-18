@@ -111,7 +111,9 @@ pub(crate) fn input_rows(
     let mut taken = vec![false; inputs.len()];
     for fetch in fetches {
         let state = match fetch.finished.or(evaluation_done) {
-            Some(finished) => InputState::Fetched(finished.saturating_duration_since(fetch.started)),
+            Some(finished) => {
+                InputState::Fetched(finished.saturating_duration_since(fetch.started))
+            }
             None => InputState::Fetching(fetch.started),
         };
         let reference = fetch
@@ -279,7 +281,10 @@ mod tests {
     #[test]
     fn source_matches_need_whole_path_segments() {
         assert!(mentions("github:nixos/nixpkgs/rev", "nixos/nixpkgs"));
-        assert!(!mentions("github:nixos/nixpkgs-wayland/rev", "nixos/nixpkgs"));
+        assert!(!mentions(
+            "github:nixos/nixpkgs-wayland/rev",
+            "nixos/nixpkgs"
+        ));
         assert!(!mentions("github:xnixos/nixpkgs/rev", "nixos/nixpkgs"));
         assert_eq!(fetch_name("github:catppuccin/nix/abc"), "nix");
         assert_eq!(fetch_name("git+https://example.com/a/repo.git"), "repo");

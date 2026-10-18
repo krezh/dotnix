@@ -1,8 +1,45 @@
-//! Keyboard navigation for searchable lists, such as the launcher's and the clipboard's.
+//! State and keyboard navigation for searchable lists.
 
 use gpui::Keystroke;
 
 pub const ROWS: usize = 8;
+
+#[derive(Default)]
+pub struct Selection {
+    pub(crate) query: String,
+    pub(crate) selected: usize,
+    pub(crate) top: usize,
+}
+
+impl Selection {
+    pub(crate) fn select(&mut self, position: usize, count: usize) {
+        self.selected = position.min(count.saturating_sub(1));
+        self.top = reveal(self.selected, self.top, count);
+    }
+
+    pub(crate) fn step(&mut self, step: i32, count: usize) {
+        self.select(
+            stepped(self.selected.min(count.saturating_sub(1)), step, count),
+            count,
+        );
+    }
+
+    pub(crate) fn search(&mut self, change: impl FnOnce(&mut String)) {
+        change(&mut self.query);
+        self.selected = 0;
+        self.top = 0;
+    }
+
+    pub(crate) fn reset(&mut self) {
+        *self = Self::default();
+    }
+}
+
+impl crate::features::Local for Selection {
+    fn panel_closed(&mut self) {
+        self.reset();
+    }
+}
 
 /// Text typed into a search field, leaving shortcuts and control keys out.
 pub fn typed(keystroke: &Keystroke) -> Option<&str> {
@@ -27,8 +64,12 @@ pub fn reveal(selected: usize, top: usize, count: usize) -> usize {
 }
 
 pub fn stepped(selected: usize, step: i32, count: usize) -> usize {
-    let moved = i64::try_from(selected).unwrap_or(i64::MAX).saturating_add(i64::from(step));
-    usize::try_from(moved.max(0)).unwrap_or(0).min(count.saturating_sub(1))
+    let moved = i64::try_from(selected)
+        .unwrap_or(i64::MAX)
+        .saturating_add(i64::from(step));
+    usize::try_from(moved.max(0))
+        .unwrap_or(0)
+        .min(count.saturating_sub(1))
 }
 
 #[cfg(test)]

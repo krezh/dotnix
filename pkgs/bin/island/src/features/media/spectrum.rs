@@ -1,12 +1,7 @@
 //! A spectrum of whatever is playing, captured from the default output's monitor through the
 //! PulseAudio protocol (served by pipewire-pulse) and analysed in-process: no external tools.
 
-use std::{
-    cell::Cell,
-    f32::consts::PI,
-    rc::Rc,
-    time::Instant,
-};
+use std::{cell::Cell, f32::consts::PI, rc::Rc, time::Instant};
 
 use libpulse_binding::{
     context::{Context, FlagSet as ContextFlags, State, subscribe::InterestMaskSet},
@@ -39,17 +34,19 @@ const NOISE_REDUCTION: f64 = 0.77;
 /// Silence is sent once rather than every frame.
 pub fn start<S: Send + 'static>(feed: Feed<S>) {
     let mut pace = Reconnect::default();
-    let spawned = supervisor::supervise("visualizer", move || loop {
-        let started = Instant::now();
-        match capture(&feed) {
-            Ended::Unwanted => return supervisor::Ended::Unwanted,
-            Ended::Moved => debug!("default output changed, capturing it instead"),
-            Ended::Stopped => {
-                debug!("capture stopped, reconnecting");
-                if !feed.publish_live(vec![0.0; BARS]) {
-                    return supervisor::Ended::Unwanted;
+    let spawned = supervisor::supervise("visualizer", move || {
+        loop {
+            let started = Instant::now();
+            match capture(&feed) {
+                Ended::Unwanted => return supervisor::Ended::Unwanted,
+                Ended::Moved => debug!("default output changed, capturing it instead"),
+                Ended::Stopped => {
+                    debug!("capture stopped, reconnecting");
+                    if !feed.publish_live(vec![0.0; BARS]) {
+                        return supervisor::Ended::Unwanted;
+                    }
+                    pace.wait(started);
                 }
-                pace.wait(started);
             }
         }
     });
@@ -111,7 +108,14 @@ fn capture<S: Send + 'static>(feed: &Feed<S>) -> Ended {
         minreq: u32::MAX,
         fragsize: (HOP * size_of::<f32>()) as u32,
     };
-    if stream.connect_record(Some("@DEFAULT_MONITOR@"), Some(&attr), StreamFlags::ADJUST_LATENCY).is_err() {
+    if stream
+        .connect_record(
+            Some("@DEFAULT_MONITOR@"),
+            Some(&attr),
+            StreamFlags::ADJUST_LATENCY,
+        )
+        .is_err()
+    {
         return Ended::Stopped;
     }
     loop {
@@ -139,8 +143,9 @@ fn capture<S: Send + 'static>(feed: &Feed<S>) -> Ended {
             match stream.peek() {
                 Ok(PeekResult::Data(bytes)) => {
                     for sample in bytes.chunks_exact(4) {
-                        if let Some(levels) = analyser.push(f32::from_le_bytes([sample[0], sample[1], sample[2], sample[3]]))
-                            && !feed.publish_live(levels)
+                        if let Some(levels) = analyser.push(f32::from_le_bytes([
+                            sample[0], sample[1], sample[2], sample[3],
+                        ])) && !feed.publish_live(levels)
                         {
                             let _ = stream.disconnect();
                             return Ended::Unwanted;
@@ -200,7 +205,10 @@ impl Analyser {
             .iter()
             .map(|&(low, high)| {
                 let upper_hz = f64::from(high as f32 * bin_hz);
-                SIXTEEN_BIT * upper_hz.powf(0.85) / 2f64.powi(28) / (WINDOW as f64).log2() / (high - low) as f64
+                SIXTEEN_BIT * upper_hz.powf(0.85)
+                    / 2f64.powi(28)
+                    / (WINDOW as f64).log2()
+                    / (high - low) as f64
             })
             .collect();
         Self {
@@ -259,7 +267,9 @@ impl Analyser {
             .zip(&self.eq)
             .map(|(&(low, high), eq)| {
                 let high = high.min(WINDOW / 2);
-                let sum: f64 = (low..high).map(|bin| f64::from(re[bin]).hypot(f64::from(im[bin]))).sum();
+                let sum: f64 = (low..high)
+                    .map(|bin| f64::from(re[bin]).hypot(f64::from(im[bin])))
+                    .sum();
                 sum * eq * self.sens
             })
             .collect();
@@ -271,7 +281,9 @@ impl Analyser {
         for (index, value) in out.iter_mut().enumerate() {
             // Gravity: a falling bar keeps its last peak and drops with growing speed.
             if *value < self.previous[index] {
-                *value = (self.peak[index] * (1.0 - self.fall[index] * self.fall[index] * gravity_mod)).max(0.0);
+                *value = (self.peak[index]
+                    * (1.0 - self.fall[index] * self.fall[index] * gravity_mod))
+                    .max(0.0);
                 self.fall[index] += 0.028;
             } else {
                 self.peak[index] = *value;
@@ -318,9 +330,15 @@ impl Fft {
         Self {
             re: vec![0.0; size],
             im: vec![0.0; size],
-            cos: (0..size / 2).map(|k| (-2.0 * PI * k as f32 / size as f32).cos()).collect(),
-            sin: (0..size / 2).map(|k| (-2.0 * PI * k as f32 / size as f32).sin()).collect(),
-            reverse: (0..size).map(|index| index.reverse_bits() >> (usize::BITS - bits)).collect(),
+            cos: (0..size / 2)
+                .map(|k| (-2.0 * PI * k as f32 / size as f32).cos())
+                .collect(),
+            sin: (0..size / 2)
+                .map(|k| (-2.0 * PI * k as f32 / size as f32).sin())
+                .collect(),
+            reverse: (0..size)
+                .map(|index| index.reverse_bits() >> (usize::BITS - bits))
+                .collect(),
         }
     }
 
@@ -345,7 +363,10 @@ impl Fft {
                 for k in 0..half {
                     let (c, s) = (self.cos[k * stride], self.sin[k * stride]);
                     let (a, b) = (start + k, start + k + half);
-                    let (br, bi) = (self.re[b] * c - self.im[b] * s, self.re[b] * s + self.im[b] * c);
+                    let (br, bi) = (
+                        self.re[b] * c - self.im[b] * s,
+                        self.re[b] * s + self.im[b] * c,
+                    );
                     self.re[b] = self.re[a] - br;
                     self.im[b] = self.im[a] - bi;
                     self.re[a] += br;

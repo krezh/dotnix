@@ -16,12 +16,12 @@ pub(crate) use animation::{
     Slide, Tween, ease_in_out, fade_in, glide, replace_screen, slide_screen,
 };
 pub(crate) use energy::{EnergyOverlay, draw_energy_capsule};
-pub(crate) use morph_bin::MorphBin;
 pub(crate) use fade_scroll::FadeScroll;
 pub(crate) use format::{
     byte_unit, compact_size, duration_text, format_size, format_timestamp, seconds_since,
     short_age, signed_size,
 };
+pub(crate) use morph_bin::MorphBin;
 pub(crate) use segmented::SegmentedControl;
 pub(crate) use slide_bin::SlideBin;
 pub(crate) use widgets::*;

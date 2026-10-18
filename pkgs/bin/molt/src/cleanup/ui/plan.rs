@@ -172,7 +172,8 @@ impl CleanupPlan {
     /// Locks or unlocks what to clean; item lists stay browsable either way.
     pub(super) fn set_sensitive(&self, sensitive: bool) {
         for row in self.rows.values() {
-            row.selection.set_sensitive(sensitive && row.selectable.get());
+            row.selection
+                .set_sensitive(sensitive && row.selectable.get());
         }
         self.generations.set_sensitive(sensitive);
         self.journals.set_sensitive(sensitive);
@@ -228,7 +229,8 @@ impl CleanupPlan {
         match result {
             Ok(bytes) => {
                 row.set_outcome(Some("success"));
-                row.size.set_text(&format!("{} cleaned", format_size(*bytes)));
+                row.size
+                    .set_text(&format!("{} cleaned", format_size(*bytes)));
                 row.size.root.set_tooltip_text(None);
             }
             Err(error) => {
@@ -276,7 +278,8 @@ impl PlanRow {
                 self.root.remove_css_class(class);
             }
         }
-        self.slot.set_visible_child_name(outcome.unwrap_or("selection"));
+        self.slot
+            .set_visible_child_name(outcome.unwrap_or("selection"));
     }
 }
 

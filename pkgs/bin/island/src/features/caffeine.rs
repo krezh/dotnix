@@ -31,7 +31,10 @@ fn cup() -> &'static (PathBuf, Rising) {
             .enumerate()
             .map(|(index, wisp)| icons::bundle(&format!("caffeine-wisp-{index}"), wisp))
             .collect();
-        (icons::bundle("caffeine-cup", CUP), Rising { parts, from: RIM })
+        (
+            icons::bundle("caffeine-cup", CUP),
+            Rising { parts, from: RIM },
+        )
     })
 }
 
@@ -56,7 +59,10 @@ impl Caffeine {
 
 impl Feature for Caffeine {
     const NAME: &'static str = "caffeine";
-    const GLYPHS: &'static [GlyphSpec] = &[("caffeine", &["caffeine-cup-full-symbolic", "caffeine-cup-full"])];
+    const GLYPHS: &'static [GlyphSpec] = &[(
+        "caffeine",
+        &["caffeine-cup-full-symbolic", "caffeine-cup-full"],
+    )];
     const USAGE: &'static str = "  caffeine on|off|toggle                keep the screen awake";
 
     type State = bool;
@@ -82,7 +88,9 @@ impl Feature for Caffeine {
         Some(
             w.base("bar-caffeine")
                 .tip(w.tips(), "bar-caffeine", "Caffeine is on")
-                .when_some(w.glyph("caffeine"), |badge, path| badge.child(icon::glyph(path, GLYPH, ACCENT)))
+                .when_some(w.glyph("caffeine"), |badge, path| {
+                    badge.child(icon::glyph(path, GLYPH, ACCENT))
+                })
                 .on_click(w.call(Caffeine::toggle))
                 .into_any_element(),
         )
@@ -94,7 +102,12 @@ impl Feature for Caffeine {
             id: "toggle-caffeine".into(),
             glyph: Some(glyph.clone()),
             rising: Some(steam.clone()),
-            label: if *on { "Caffeine is on" } else { "Caffeine is off" }.into(),
+            label: if *on {
+                "Caffeine is on"
+            } else {
+                "Caffeine is off"
+            }
+            .into(),
             active: *on,
             badge: None,
             on_click: p.call(Caffeine::toggle),

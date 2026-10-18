@@ -4,8 +4,9 @@ use serde::{Deserialize, Deserializer, de::Error as _};
 
 use crate::{
     features::{
-        self, Feature, audio::Audio, caffeine::Caffeine, clock::Clock, headset::Headset, media::Media, molt::Molt,
-        notifications::Notifications, tray::Tray, workspaces::Workspaces, zowie::Zowie,
+        self, Feature, ai::Ai, audio::Audio, caffeine::Caffeine, clock::Clock, headset::Headset,
+        media::Media, molt::Molt, notifications::Notifications, tray::Tray, workspaces::Workspaces,
+        zowie::Zowie,
     },
     shape, theme,
 };
@@ -15,7 +16,10 @@ pub struct Widget(pub &'static str);
 
 impl Widget {
     pub fn parse(name: &str) -> Option<Self> {
-        features::widget_names().into_iter().find(|widget| *widget == name).map(Widget)
+        features::widget_names()
+            .into_iter()
+            .find(|widget| *widget == name)
+            .map(Widget)
     }
 }
 
@@ -23,7 +27,10 @@ impl<'de> Deserialize<'de> for Widget {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         let name = String::deserialize(deserializer)?;
         Widget::parse(&name).ok_or_else(|| {
-            D::Error::custom(format!("unknown widget '{name}'; known: {}", features::widget_names().join(", ")))
+            D::Error::custom(format!(
+                "unknown widget '{name}'; known: {}",
+                features::widget_names().join(", ")
+            ))
         })
     }
 }
@@ -44,13 +51,18 @@ impl Default for Bar {
             left: vec![
                 Widget(Tray::NAME),
                 Widget(Molt::NAME),
+                Widget(Ai::NAME),
                 Widget(Headset::NAME),
                 Widget(Zowie::NAME),
                 Widget(Audio::NAME),
                 Widget(Caffeine::NAME),
             ],
             middle: vec![Widget(Workspaces::NAME)],
-            right: vec![Widget(Media::NAME), Widget(Clock::NAME), Widget(Notifications::NAME)],
+            right: vec![
+                Widget(Media::NAME),
+                Widget(Clock::NAME),
+                Widget(Notifications::NAME),
+            ],
             spacing: 4.0,
         }
     }
@@ -59,7 +71,11 @@ impl Default for Bar {
 impl Bar {
     /// Left to right.
     pub fn widgets(&self) -> impl Iterator<Item = Widget> + '_ {
-        self.left.iter().chain(&self.middle).chain(&self.right).copied()
+        self.left
+            .iter()
+            .chain(&self.middle)
+            .chain(&self.right)
+            .copied()
     }
 
     pub fn section_of(&self, widget: Widget) -> Option<usize> {
@@ -119,16 +135,24 @@ impl Default for Visualizer {
     }
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Default, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct System {
+    pub storage: Storage,
+}
+
+impl gpui::Global for System {}
+
+#[derive(Clone, Debug, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct Storage {
     /// Mount points the Storage tile shows, in this order; empty shows every one not hidden.
     pub partitions: Vec<String>,
     /// Mount points the Storage tile leaves out when `partitions` is empty.
     pub hidden_partitions: Vec<String>,
 }
 
-impl Default for System {
+impl Default for Storage {
     fn default() -> Self {
         Self {
             partitions: Vec::new(),
@@ -137,14 +161,21 @@ impl Default for System {
     }
 }
 
-impl gpui::Global for System {}
-
-impl System {
+impl Storage {
     /// In the order they are shown.
-    pub fn shown_partitions<'a, T>(&self, all: &'a [T], mount_of: impl Fn(&T) -> &str) -> Vec<&'a T> {
+    pub fn shown_partitions<'a, T>(
+        &self,
+        all: &'a [T],
+        mount_of: impl Fn(&T) -> &str,
+    ) -> Vec<&'a T> {
         if self.partitions.is_empty() {
             all.iter()
-                .filter(|item| !self.hidden_partitions.iter().any(|hidden| hidden == mount_of(item)))
+                .filter(|item| {
+                    !self
+                        .hidden_partitions
+                        .iter()
+                        .any(|hidden| hidden == mount_of(item))
+                })
                 .collect()
         } else {
             self.partitions
@@ -172,21 +203,26 @@ impl Default for Log {
 }
 
 #[derive(Clone, Debug, Default, Deserialize)]
-#[serde(default)]
+#[serde(default, deny_unknown_fields)]
 pub struct Config {
     pub bar: Bar,
     pub appearance: Appearance,
+    pub features: Features,
+    pub log: Log,
+}
+
+#[derive(Clone, Debug, Default, Deserialize)]
+#[serde(default)]
+pub struct Features {
     pub visualizer: Visualizer,
     pub system: System,
-    pub log: Log,
-    /// Every other section, each a feature's by its name, such as `[notifications]`.
     #[serde(flatten)]
-    pub features: toml::Table,
+    pub settings: toml::Table,
 }
 
 impl Config {
     fn check(self) -> Result<Self, String> {
-        for (section, settings) in &self.features {
+        for (section, settings) in &self.features.settings {
             features::check_settings(section, settings)?;
         }
         Ok(self)
@@ -210,7 +246,9 @@ pub fn load(path: Option<PathBuf>) -> Result<Config, String> {
             .map_err(|error| error.to_string())
             .and_then(Config::check)
             .map_err(|error| format!("{}: {error}", path.display())),
-        Err(error) if !explicit && error.kind() == std::io::ErrorKind::NotFound => Ok(Config::default()),
+        Err(error) if !explicit && error.kind() == std::io::ErrorKind::NotFound => {
+            Ok(Config::default())
+        }
         Err(error) => Err(format!("{}: {error}", path.display())),
     }
 }

@@ -31,7 +31,9 @@ window.update-popup.background {
   box-shadow: none;
   color: var(--base);
   outline: none;
-  transition: background-color 120ms ease, color 120ms ease;
+  transition:
+    background-color 120ms ease,
+    color 120ms ease;
 }
 
 .accent-button:hover,
@@ -53,7 +55,10 @@ window.update-popup.background {
   box-shadow: none;
   color: var(--text);
   outline: none;
-  transition: background-color 120ms ease, color 120ms ease, border-color 120ms ease;
+  transition:
+    background-color 120ms ease,
+    color 120ms ease,
+    border-color 120ms ease;
 }
 
 .surface-button:hover {

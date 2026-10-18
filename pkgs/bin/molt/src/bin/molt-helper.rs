@@ -8,10 +8,10 @@ use std::time::{Duration, Instant};
 use molt::command::{self, OutputLimits};
 use molt::protocol::{ActivationMode, HelperResponse, OwnedHelperRequest};
 
-#[path = "molt_helper/cleanup.rs"]
-mod cleanup;
 #[path = "molt_helper/cancellation.rs"]
 mod cancellation;
+#[path = "molt_helper/cleanup.rs"]
+mod cleanup;
 
 const MAX_REQUEST_BYTES: usize = 4096;
 const MAX_OUTPUT_BYTES: usize = 32 * 1024;
@@ -381,10 +381,10 @@ fn bounded_output(bytes: &[u8]) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::os::unix::fs::symlink;
-    use std::sync::atomic::{AtomicU64, Ordering};
     use molt::protocol::{HelperRequest, OwnedHelperRequest};
     use molt::test_support::write_executable_script;
+    use std::os::unix::fs::symlink;
+    use std::sync::atomic::{AtomicU64, Ordering};
 
     static FIXTURE_ID: AtomicU64 = AtomicU64::new(0);
 

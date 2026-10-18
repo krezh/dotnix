@@ -2,8 +2,8 @@ use std::{rc::Rc, time::Duration};
 
 use futures::{StreamExt, channel::mpsc::UnboundedReceiver};
 use gpui::{
-    AnyWindowHandle, App, AppContext, Bounds, Context, DisplayId, Entity, Global, Keystroke, Size, Subscription,
-    WeakEntity, WindowBackgroundAppearance, WindowBounds, WindowKind, WindowOptions,
+    AnyWindowHandle, App, AppContext, Bounds, Context, DisplayId, Entity, Global, Keystroke, Size,
+    Subscription, WeakEntity, WindowBackgroundAppearance, WindowBounds, WindowKind, WindowOptions,
     layer_shell::{Anchor, KeyboardInteractivity, Layer, LayerShellOptions},
     point, px,
 };
@@ -58,7 +58,11 @@ pub struct Shell {
 
 struct Running(#[allow(dead_code)] Entity<Shell>);
 
-fn cover(display: Option<DisplayId>, namespace: &str, keyboard: KeyboardInteractivity) -> WindowOptions {
+fn cover(
+    display: Option<DisplayId>,
+    namespace: &str,
+    keyboard: KeyboardInteractivity,
+) -> WindowOptions {
     WindowOptions {
         titlebar: None,
         // A layer surface anchored to every edge fills the output only when it asks for no size;
@@ -110,7 +114,10 @@ impl Shell {
 
             cx.spawn(async move |this, cx| {
                 while let Some(control) = controls.next().await {
-                    if this.update(cx, |shell, cx| shell.control(control, cx)).is_err() {
+                    if this
+                        .update(cx, |shell, cx| shell.control(control, cx))
+                        .is_err()
+                    {
                         break;
                     }
                 }
@@ -163,7 +170,9 @@ impl Shell {
     fn look_up_glyphs(cx: &mut Context<Self>) {
         cx.set_global(Glyphs::default());
         cx.spawn(async move |_, cx| {
-            let glyphs = cx.background_spawn(async { Glyphs::resolve(&features::glyphs()) }).await;
+            let glyphs = cx
+                .background_spawn(async { Glyphs::resolve(&features::glyphs()) })
+                .await;
             cx.update(|cx| cx.set_global(glyphs));
         })
         .detach();
@@ -196,11 +205,15 @@ impl Shell {
         let mut kept = Vec::with_capacity(self.slots.len());
         for slot in self.slots.drain(..) {
             let gone = slot.island.upgrade().is_none()
-                || slot.display.is_some_and(|display| !present.contains(&display))
+                || slot
+                    .display
+                    .is_some_and(|display| !present.contains(&display))
                 || (slot.display.is_none() && !present.is_empty());
             if gone {
                 info!(output = ?slot.display, "closing the island of a removed output");
-                let _ = slot.window.update(cx, |_, window, _| window.remove_window());
+                let _ = slot
+                    .window
+                    .update(cx, |_, window, _| window.remove_window());
             } else {
                 kept.push(slot);
             }
@@ -259,10 +272,13 @@ impl Shell {
                     return;
                 };
                 let island = entity.downgrade();
-                self.subscriptions.push(cx.subscribe(&entity, |shell, island, event, cx| match event {
-                    IslandEvent::Grab(Grab::None) => shell.released(&island, cx),
-                    IslandEvent::Grab(grab) => shell.grab(island, *grab, cx),
-                }));
+                self.subscriptions.push(cx.subscribe(
+                    &entity,
+                    |shell, island, event, cx| match event {
+                        IslandEvent::Grab(Grab::None) => shell.released(&island, cx),
+                        IslandEvent::Grab(grab) => shell.grab(island, *grab, cx),
+                    },
+                ));
                 self.slots.push(Slot {
                     display,
                     window: handle.into(),
@@ -295,12 +311,17 @@ impl Shell {
     }
 
     fn holding(&self) -> Option<Entity<Island>> {
-        self.holder.as_ref().and_then(|(island, _)| island.upgrade())
+        self.holder
+            .as_ref()
+            .and_then(|(island, _)| island.upgrade())
     }
 
     /// An island already replaced as the holder changes nothing.
     fn released(&mut self, island: &Entity<Island>, cx: &mut Context<Self>) {
-        if self.holding().is_none_or(|holder| holder.entity_id() == island.entity_id()) {
+        if self
+            .holding()
+            .is_none_or(|holder| holder.entity_id() == island.entity_id())
+        {
             self.release(cx);
         }
     }
@@ -354,26 +375,34 @@ impl Shell {
         let shell = cx.entity().downgrade();
         let own = shell.clone();
         let opened = if grab == Grab::Keyboard {
-            cx.open_window(cover(display, "island-keyboard", KeyboardInteractivity::OnDemand), move |_, cx| {
-                cx.new(|cx| KeyGrab::new(own, &island, cx))
-            })
+            cx.open_window(
+                cover(display, "island-keyboard", KeyboardInteractivity::OnDemand),
+                move |_, cx| cx.new(|cx| KeyGrab::new(own, &island, cx)),
+            )
             .map(AnyWindowHandle::from)
         } else {
-            cx.open_window(cover(display, "island-catcher", KeyboardInteractivity::None), move |_, cx| {
-                cx.new(|cx| ClickCatcher::around(own, &island, cx))
-            })
+            cx.open_window(
+                cover(display, "island-catcher", KeyboardInteractivity::None),
+                move |_, cx| cx.new(|cx| ClickCatcher::around(own, &island, cx)),
+            )
             .map(AnyWindowHandle::from)
         };
         match opened {
             Ok(handle) => self.cover = Some(handle),
             Err(error) => error!(?grab, "cannot cover the island's output: {error:#}"),
         }
-        let others: Vec<DisplayId> = self.slots.iter().filter_map(|slot| slot.display).filter(|other| Some(*other) != display).collect();
+        let others: Vec<DisplayId> = self
+            .slots
+            .iter()
+            .filter_map(|slot| slot.display)
+            .filter(|other| Some(*other) != display)
+            .collect();
         for other in others {
             let shell = shell.clone();
-            match cx.open_window(cover(Some(other), "island-catcher", KeyboardInteractivity::None), move |_, cx| {
-                cx.new(|_| ClickCatcher::new(shell))
-            }) {
+            match cx.open_window(
+                cover(Some(other), "island-catcher", KeyboardInteractivity::None),
+                move |_, cx| cx.new(|_| ClickCatcher::new(shell)),
+            ) {
                 Ok(handle) => self.catchers.push(handle.into()),
                 Err(error) => warn!(output = ?other, "cannot cover the output: {error:#}"),
             }

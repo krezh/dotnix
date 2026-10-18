@@ -9,8 +9,8 @@ use std::time::Duration;
 use gtk::glib;
 use gtk::prelude::*;
 
-use crate::build::derivation_log;
 use crate::app::state::UiState;
+use crate::build::derivation_log;
 use crate::build::ui::progress::{activity_name, card};
 use crate::ui::{FadeScroll, MorphLabel, centered_icon, label};
 

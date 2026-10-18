@@ -122,8 +122,9 @@ pub(super) fn collect_store(cancellation: &AtomicBool) -> Result<(), String> {
 fn path_sizes(paths: &[String], cancellation: &AtomicBool) -> Result<Vec<Option<u64>>, String> {
     match database_sizes(NIX_DATABASE, paths) {
         Ok(sizes) => Ok(sizes),
-        Err(_) => command_sizes(paths, cancellation)
-            .map(|sizes| sizes.into_iter().map(Some).collect()),
+        Err(_) => {
+            command_sizes(paths, cancellation).map(|sizes| sizes.into_iter().map(Some).collect())
+        }
     }
 }
 
@@ -332,10 +333,8 @@ mod tests {
 
     #[test]
     fn reads_database_sizes_in_path_order_and_skips_collected_paths() {
-        let database = std::env::temp_dir().join(format!(
-            "molt-nix-db-test-{}.sqlite",
-            std::process::id()
-        ));
+        let database =
+            std::env::temp_dir().join(format!("molt-nix-db-test-{}.sqlite", std::process::id()));
         let _ = fs::remove_file(&database);
         let connection = Connection::open(&database).unwrap();
         connection

@@ -10,9 +10,9 @@ use std::sync::LazyLock;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
+use molt::command::CANCELLED;
 use serde::Deserialize;
 use serde_json::Value;
-use molt::command::CANCELLED;
 
 use super::{FlakeInput, HISTORY_LIMIT, NIX, RevisionRecord, revision_ref};
 

@@ -90,6 +90,14 @@ pub struct Args {
     #[arg(long, value_enum, conflicts_with_all = ["mode", "ocr", "status"])]
     pub replay: Option<ReplayAction>,
 
+    /// Instant replay duration in seconds (overrides config buffer duration or clips save duration)
+    #[arg(
+        long,
+        visible_alias = "duration",
+        value_name = "SECONDS",
+        value_parser = clap::value_parser!(u32).range(5..=600)
+    )]
+    pub replay_duration: Option<u32>,
     /// Internal systemd service entry point
     #[arg(long, hide = true)]
     pub replay_service: bool,
@@ -173,6 +181,7 @@ impl CaptureRequest {
 pub enum ReplayAction {
     Start,
     Save,
+    Configure,
     Stop,
     Status,
 }
@@ -209,6 +218,7 @@ pub struct Settings {
     pub recording: RecordingOptions,
     pub replay: ReplayConfig,
     pub replay_action: Option<ReplayAction>,
+    pub replay_duration: Option<u32>,
     pub output: Option<PathBuf>,
     pub zipline_url: String,
     pub zipline_token: PathBuf,
@@ -264,8 +274,15 @@ impl Args {
                 bitrate: config.capture.video.bitrate,
                 codec: config.capture.video.codec,
             },
-            replay: config.capture.replay,
+            replay: {
+                let mut replay = config.capture.replay;
+                if let Some(duration) = self.replay_duration {
+                    replay.duration_seconds = duration;
+                }
+                replay
+            },
             replay_action: self.replay,
+            replay_duration: self.replay_duration,
             output: self.output,
             zipline_url: self.zipline_url.unwrap_or(config.upload.zipline.url),
             zipline_token: expand_home(

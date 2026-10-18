@@ -258,8 +258,14 @@ impl WorkPlan {
     /// The row for `path`, tagged with its store hash when another item shares its name.
     pub(crate) fn content(&self, path: &str, now: Instant) -> Option<RowContent> {
         let mut content = self.items.get(path)?.content(path, now);
-        if self.names.get(&content.title).is_some_and(|count| *count > 1) {
-            content.tag = store_hash(path).map(|hash| format!("· {hash}")).unwrap_or_default();
+        if self
+            .names
+            .get(&content.title)
+            .is_some_and(|count| *count > 1)
+        {
+            content.tag = store_hash(path)
+                .map(|hash| format!("· {hash}"))
+                .unwrap_or_default();
         }
         Some(content)
     }
@@ -324,7 +330,10 @@ fn merge<'a>(items: &mut HashMap<&'a str, WorkItem>, path: &'a str, item: WorkIt
 
 /// `3k9f2a1` from `/nix/store/3k9f2a1…-molt-0.1.0.drv`.
 fn store_hash(path: &str) -> Option<&str> {
-    path.strip_prefix("/nix/store/")?.split('-').next()?.get(..7)
+    path.strip_prefix("/nix/store/")?
+        .split('-')
+        .next()?
+        .get(..7)
 }
 
 /// Time left as remaining work times the mean finished build, once that mean exists.
@@ -403,7 +412,10 @@ mod tests {
         });
         let mut plan = WorkPlan::default();
         let changed = plan.update(&progress, started);
-        assert_eq!(changed, ["/nix/store/h-alpha.drv", "/nix/store/h-bravo.drv"]);
+        assert_eq!(
+            changed,
+            ["/nix/store/h-alpha.drv", "/nix/store/h-bravo.drv"]
+        );
         assert_eq!(
             plan.get("/nix/store/h-bravo.drv").unwrap().state,
             WorkState::Building
@@ -437,8 +449,12 @@ mod tests {
         let path = "/nix/store/3k9f2a1abc-molt-0.1.0.drv";
         let mut progress = NixBuildProgress::default();
         // Newest activity first, as snapshots list them.
-        progress.items.push(building(path, "Compiling gtk4 v0.11.5", started));
-        progress.items.push(building(path, "Compiling glib v0.22.0", started));
+        progress
+            .items
+            .push(building(path, "Compiling gtk4 v0.11.5", started));
+        progress
+            .items
+            .push(building(path, "Compiling glib v0.22.0", started));
         let mut plan = WorkPlan::default();
         assert_eq!(plan.update(&progress, started), [path]);
         let content = plan.content(path, started).unwrap();
@@ -457,7 +473,9 @@ mod tests {
 
         // Work nix was still doing when it stopped returns to Queued.
         let other = "/nix/store/bbbbbbbbbb-glib-2.84.drv";
-        progress.items.push(building(other, "Compiling glib", started));
+        progress
+            .items
+            .push(building(other, "Compiling glib", started));
         plan.update(&progress, started);
         assert_eq!(plan.interrupt(), [other]);
         assert_eq!(plan.get(other).unwrap().state, WorkState::Queued);
@@ -477,7 +495,9 @@ mod tests {
         plan.update(&progress, started);
         assert_eq!(plan.content(first, started).unwrap().tag, "");
 
-        progress.items.push(building(second, "Compiling molt", started));
+        progress
+            .items
+            .push(building(second, "Compiling molt", started));
         let mut changed = plan.update(&progress, started);
         changed.sort();
         assert_eq!(changed, [first, second]);
@@ -490,9 +510,10 @@ mod tests {
     fn estimate_needs_three_finished_builds() {
         let mut progress = NixBuildProgress::default();
         for (name, seconds) in [("a", 10), ("b", 20)] {
-            progress
-                .completed
-                .insert(format!("/nix/store/h-{name}.drv"), Duration::from_secs(seconds));
+            progress.completed.insert(
+                format!("/nix/store/h-{name}.drv"),
+                Duration::from_secs(seconds),
+            );
         }
         progress.planned.insert("/nix/store/h-d.drv".to_owned());
         progress.planned.insert("/nix/store/h-e.drv".to_owned());

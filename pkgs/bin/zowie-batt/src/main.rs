@@ -132,21 +132,26 @@ impl Device {
 
 /// Rough single-cell LiPo resting-voltage curve (mV, %); an estimate, not from firmware.
 const CURVE: [(u32, u32); 10] = [
-    (4200, 100), (4100, 90), (4000, 80), (3900, 65), (3800, 50),
-    (3750, 40), (3700, 30), (3650, 20), (3550, 10), (3400, 0),
+    (4200, 100),
+    (4100, 90),
+    (4000, 80),
+    (3900, 65),
+    (3800, 50),
+    (3750, 40),
+    (3700, 30),
+    (3650, 20),
+    (3550, 10),
+    (3400, 0),
 ];
 
 fn estimate_pct(mv: u32) -> u32 {
     if mv >= CURVE[0].0 {
         return 100;
     }
-    CURVE
-        .windows(2)
-        .find(|w| mv >= w[1].0)
-        .map_or(0, |w| {
-            let ((hv, hp), (lv, lp)) = (w[0], w[1]);
-            lp + ((mv - lv) * (hp - lp) + (hv - lv) / 2) / (hv - lv)
-        })
+    CURVE.windows(2).find(|w| mv >= w[1].0).map_or(0, |w| {
+        let ((hv, hp), (lv, lp)) = (w[0], w[1]);
+        lp + ((mv - lv) * (hp - lp) + (hv - lv) / 2) / (hv - lv)
+    })
 }
 
 fn parse_cmd(arg: &str) -> Option<u8> {
@@ -157,7 +162,11 @@ fn parse_cmd(arg: &str) -> Option<u8> {
 }
 
 fn hex(report: &Report) -> String {
-    report.iter().map(|b| format!("{b:02x}")).collect::<Vec<_>>().join(" ")
+    report
+        .iter()
+        .map(|b| format!("{b:02x}"))
+        .collect::<Vec<_>>()
+        .join(" ")
 }
 
 enum Failure {
@@ -243,7 +252,10 @@ fn run() -> Result<(), Failure> {
             Some("usb") => ", on USB power".into(),
             Some(p) => format!(", on {p} power"),
         };
-        println!("{}: battery {mv} mV (~{pct}%), {connection}{power}", node.display());
+        println!(
+            "{}: battery {mv} mV (~{pct}%), {connection}{power}",
+            node.display()
+        );
     }
     Ok(())
 }

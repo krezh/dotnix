@@ -7,6 +7,7 @@ PASSWORD_FILE="$3"
 JSON_CONFIG="$4"
 REPO_PATH="$5"
 REQUIRE_MOUNT="${6:-false}"
+ICON="${7:-kopia}"
 
 
 KOPIA_PASSWORD="$(cat "$PASSWORD_FILE")"
@@ -38,9 +39,9 @@ for pattern in "${EXCLUDES[@]}"; do [[ -n "$pattern" ]] && KOPIA_POLICY_ARGS+=("
 notify() {
   local title="$1" message="$2" urgency="${3:-normal}"
   if [[ $urgency == "critical" ]]; then
-    notify-send "$title" "❌ $message" --icon=dialog-error --urgency="$urgency"
+    notify-send --app-name="Kopia" --icon="$ICON" --urgency="$urgency" "$title" "❌ $message"
   else
-    notify-send --transient -t 5000 "$title" "✅ $message" --icon=dialog-information --urgency="$urgency"
+    notify-send --app-name="Kopia" --icon="$ICON" --urgency="$urgency" --transient -t 5000 "$title" "✅ $message"
   fi
 }
 

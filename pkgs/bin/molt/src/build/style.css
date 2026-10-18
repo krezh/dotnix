@@ -44,7 +44,10 @@
 .build-row {
   border-radius: 7px;
   padding: 3px 16px 3px 14px;
-  transition: background-color 200ms ease, min-height 200ms ease, padding 200ms ease;
+  transition:
+    background-color 200ms ease,
+    min-height 200ms ease,
+    padding 200ms ease;
 }
 
 .build-row.active {
@@ -69,7 +72,10 @@
   border-radius: 50%;
   min-height: 7px;
   min-width: 7px;
-  transition: background-color 200ms ease, min-height 200ms ease, min-width 200ms ease;
+  transition:
+    background-color 200ms ease,
+    min-height 200ms ease,
+    min-width 200ms ease;
 }
 
 .build-row.active .build-row-dot {

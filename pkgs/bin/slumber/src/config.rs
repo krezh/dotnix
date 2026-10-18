@@ -205,18 +205,33 @@ impl FileConfig {
             ));
         }
         if !self.opacity.is_finite() || !(0.0..=1.0).contains(&self.opacity) {
-            return Err(format!("opacity must be finite and between 0.0 and 1.0, got {}", self.opacity));
+            return Err(format!(
+                "opacity must be finite and between 0.0 and 1.0, got {}",
+                self.opacity
+            ));
         }
         if !self.speed.is_finite() || !(0.05..=10.0).contains(&self.speed) {
-            return Err(format!("speed must be finite and between 0.05 and 10.0, got {}", self.speed));
+            return Err(format!(
+                "speed must be finite and between 0.05 and 10.0, got {}",
+                self.speed
+            ));
         }
         if self.font.trim().is_empty() {
             return Err("font must be a nonempty family name or font path".into());
         }
-        for (name, format) in [("time_format", &self.time_format), ("date_format", &self.date_format)] {
+        for (name, format) in [
+            ("time_format", &self.time_format),
+            ("date_format", &self.date_format),
+        ] {
             let timestamp = chrono::DateTime::from_timestamp(0, 0).expect("Unix epoch is valid");
-            if timestamp.format(format).write_to(&mut FormatValidator).is_err() {
-                return Err(format!("{name} contains an invalid chrono strftime directive: {format:?}"));
+            if timestamp
+                .format(format)
+                .write_to(&mut FormatValidator)
+                .is_err()
+            {
+                return Err(format!(
+                    "{name} contains an invalid chrono strftime directive: {format:?}"
+                ));
             }
         }
         Ok(())
@@ -251,7 +266,10 @@ impl AppConfig {
         Self::load_with_default(cli, default_path.as_deref())
     }
 
-    fn load_with_default(cli: &Cli, default_path: Option<&Path>) -> Result<Self, Box<dyn std::error::Error>> {
+    fn load_with_default(
+        cli: &Cli,
+        default_path: Option<&Path>,
+    ) -> Result<Self, Box<dyn std::error::Error>> {
         let config_path = cli.config.as_deref().or(default_path);
         let mut cfg: FileConfig = match config_path {
             Some(path) => match fs::read_to_string(path) {
@@ -265,7 +283,9 @@ impl AppConfig {
                 Err(err) if cli.config.is_none() && err.kind() == std::io::ErrorKind::NotFound => {
                     FileConfig::default()
                 }
-                Err(err) => return Err(format!("cannot read config {}: {err}", path.display()).into()),
+                Err(err) => {
+                    return Err(format!("cannot read config {}: {err}", path.display()).into());
+                }
             },
             None => FileConfig::default(),
         };
@@ -286,7 +306,8 @@ impl AppConfig {
         cfg.span_outputs = cli.span_outputs.unwrap_or(cfg.span_outputs);
         cfg.time_format = cli.time_format.clone().unwrap_or(cfg.time_format);
         cfg.date_format = cli.date_format.clone().unwrap_or(cfg.date_format);
-        cfg.validate().map_err(|err| format!("invalid command-line configuration: {err}"))?;
+        cfg.validate()
+            .map_err(|err| format!("invalid command-line configuration: {err}"))?;
 
         let theme: Theme = if let Some(path) = &cli.custom_theme {
             let content = fs::read_to_string(path)
@@ -359,12 +380,16 @@ mod tests {
         AppConfig::load_with_default(&cli, Some(&missing)).unwrap();
 
         cli.config = Some(missing.clone());
-        let error = AppConfig::load_with_default(&cli, None).unwrap_err().to_string();
+        let error = AppConfig::load_with_default(&cli, None)
+            .unwrap_err()
+            .to_string();
         assert!(error.contains(&missing.display().to_string()));
         assert!(error.contains("cannot read config"));
 
         cli.config = None;
-        let error = AppConfig::load_with_default(&cli, Some(&directory.0)).unwrap_err().to_string();
+        let error = AppConfig::load_with_default(&cli, Some(&directory.0))
+            .unwrap_err()
+            .to_string();
         assert!(error.contains("cannot read config"));
     }
 
@@ -398,7 +423,9 @@ mod tests {
             let path = directory.write("config.toml", content);
             let mut cli = Cli::try_parse_from(["slumber"]).unwrap();
             cli.config = Some(path.clone());
-            let error = AppConfig::load_with_default(&cli, None).unwrap_err().to_string();
+            let error = AppConfig::load_with_default(&cli, None)
+                .unwrap_err()
+                .to_string();
             assert!(error.contains(expected), "{content}: {error}");
             assert!(error.contains(&path.display().to_string()), "{error}");
         }
@@ -419,8 +446,13 @@ mod tests {
             vec!["--date-format=%"],
         ] {
             let cli = Cli::try_parse_from(std::iter::once("slumber").chain(args)).unwrap();
-            let error = AppConfig::load_with_default(&cli, None).unwrap_err().to_string();
-            assert!(error.contains("invalid command-line configuration"), "{error}");
+            let error = AppConfig::load_with_default(&cli, None)
+                .unwrap_err()
+                .to_string();
+            assert!(
+                error.contains("invalid command-line configuration"),
+                "{error}"
+            );
         }
         assert!(Cli::try_parse_from(["slumber", "--animation=typo"]).is_err());
         assert!(Cli::try_parse_from(["slumber", "--theme=typo"]).is_err());
@@ -430,10 +462,18 @@ mod tests {
     #[test]
     fn cli_overrides_file_values_including_false() {
         let directory = ConfigDirectory::new();
-        let path = directory.write("config.toml", "show_clock = true\nclock_drift = true\nsync_outputs = true\n");
+        let path = directory.write(
+            "config.toml",
+            "show_clock = true\nclock_drift = true\nsync_outputs = true\n",
+        );
         let mut cli = Cli::try_parse_from([
-            "slumber", "--clock=false", "--clock-drift=false", "--sync-outputs", "false",
-        ]).unwrap();
+            "slumber",
+            "--clock=false",
+            "--clock-drift=false",
+            "--sync-outputs",
+            "false",
+        ])
+        .unwrap();
         cli.config = Some(path);
         let cfg = AppConfig::load_with_default(&cli, None).unwrap();
         assert!(!cfg.show_clock);
@@ -459,23 +499,36 @@ mod tests {
         let mut cli = Cli::try_parse_from(["slumber"]).unwrap();
         let missing = directory.0.join("missing-theme.toml");
         cli.custom_theme = Some(missing.clone());
-        let error = AppConfig::load_with_default(&cli, None).unwrap_err().to_string();
+        let error = AppConfig::load_with_default(&cli, None)
+            .unwrap_err()
+            .to_string();
         assert!(error.contains(&missing.display().to_string()));
         assert!(error.contains("cannot read custom theme"));
 
         for content in [
             "name = [".into(),
             "name = 'incomplete'".into(),
-            format!("unknown = true\n{}", toml::to_string(&Theme::mocha()).unwrap()),
-            toml::to_string(&Theme::mocha()).unwrap().replace("[base]", "[base]\nunknown = 1"),
+            format!(
+                "unknown = true\n{}",
+                toml::to_string(&Theme::mocha()).unwrap()
+            ),
+            toml::to_string(&Theme::mocha())
+                .unwrap()
+                .replace("[base]", "[base]\nunknown = 1"),
         ] {
             let path = directory.write("theme.toml", &content);
             cli.custom_theme = Some(path.clone());
-            let error = AppConfig::load_with_default(&cli, None).unwrap_err().to_string();
+            let error = AppConfig::load_with_default(&cli, None)
+                .unwrap_err()
+                .to_string();
             assert!(error.contains(&path.display().to_string()));
             assert!(error.contains("invalid custom theme"));
         }
-        cli.custom_theme = Some(directory.write("theme.toml", &toml::to_string(&Theme::latte()).unwrap()));
-        assert_eq!(AppConfig::load_with_default(&cli, None).unwrap().theme.name, "latte");
+        cli.custom_theme =
+            Some(directory.write("theme.toml", &toml::to_string(&Theme::latte()).unwrap()));
+        assert_eq!(
+            AppConfig::load_with_default(&cli, None).unwrap().theme.name,
+            "latte"
+        );
     }
 }

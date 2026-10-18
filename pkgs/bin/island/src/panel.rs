@@ -13,20 +13,21 @@ use gpui::{AnyElement, Context, FontWeight, ScrollHandle, SharedString, div, pre
 
 use crate::{
     components::{
-        button, calendar, card, item,
-        lines,
+        button, calendar, card, item, lines,
         list::ROWS,
         marquee::TextLayouts,
         meter, motion, player,
         popover::Popovers,
-        route,
-        search, segments, slider, tabs, text,
+        route, search, segments, slider, tabs, text,
         tile::{self, Tile},
         tooltip::{Tip, Tooltips},
     },
     island::{Island, Mode},
     theme::OVERLAY2,
-    ui::{self, BLOCK_GAP, CARD_PAD, CONTROL_H, HEADER_GAP, HEADER_H, HEADING_SIZE, INSET, TIGHT_INSET, TITLE_SIZE},
+    ui::{
+        self, BLOCK_GAP, CARD_PAD, CONTROL_H, HEADER_GAP, HEADER_H, HEADING_SIZE, INSET,
+        TIGHT_INSET, TITLE_SIZE,
+    },
 };
 
 pub use crate::components::{
@@ -201,7 +202,11 @@ impl Block {
             Block::Calendar(_) | Block::Slider(_) | Block::Segments(..) => {}
             Block::Text(text) => text.lines.hash(hasher),
             // What it shows decides its size, not where its blocks are in their motion.
-            Block::Placed(placed) => placed.visible.unwrap_or(placed.height).to_bits().hash(hasher),
+            Block::Placed(placed) => placed
+                .visible
+                .unwrap_or(placed.height)
+                .to_bits()
+                .hash(hasher),
             Block::Meter(meter) => meter.level.is_some().hash(hasher),
             Block::Tiles(tiles) => tiles.len().hash(hasher),
             Block::Item(item, blocks) => {
@@ -232,7 +237,11 @@ impl Block {
             }
             Block::Board(columns) => {
                 for column in columns {
-                    column.iter().map(|tile| tile.span).collect::<Vec<_>>().hash(hasher);
+                    column
+                        .iter()
+                        .map(|tile| tile.span)
+                        .collect::<Vec<_>>()
+                        .hash(hasher);
                 }
             }
             Block::Buttons(row) => (row.buttons.len(), row.compact).hash(hasher),
@@ -276,7 +285,12 @@ impl PanelView {
             _ => INSET,
         };
         let header = match self.header {
-            Header::Tabs => Some(div().h(px(HEADER_H)).min_w(px(crate::bar::tabs_width())).into_any_element()),
+            Header::Tabs => Some(
+                div()
+                    .h(px(HEADER_H))
+                    .min_w(px(crate::bar::tabs_width()))
+                    .into_any_element(),
+            ),
             Header::Title(title, buttons) => Some(title_header(title, buttons, frame.hover, cx)),
             Header::Views(views) => Some(views_header(views, frame.hover, cx)),
             Header::None => None,
@@ -290,7 +304,11 @@ impl PanelView {
             .max_w(px(frame.max_width))
             .max_h(px(frame.max_height))
             .p(px(inset))
-            .when_some(header, |panel, header| panel.child(header).child(div().h(px(HEADER_GAP)).flex_none()))
+            .when_some(header, |panel, header| {
+                panel
+                    .child(header)
+                    .child(div().h(px(HEADER_GAP)).flex_none())
+            })
             .child(
                 div()
                     .id("panel-body")
@@ -304,7 +322,12 @@ impl PanelView {
     }
 }
 
-fn title_header(title: SharedString, buttons: Vec<Button>, hover: bool, cx: &mut Context<Island>) -> AnyElement {
+fn title_header(
+    title: SharedString,
+    buttons: Vec<Button>,
+    hover: bool,
+    cx: &mut Context<Island>,
+) -> AnyElement {
     let title = div()
         .min_w(px(0.0))
         .truncate()
@@ -315,11 +338,23 @@ fn title_header(title: SharedString, buttons: Vec<Button>, hover: bool, cx: &mut
 }
 
 fn views_header(views: Views, hover: bool, cx: &mut Context<Island>) -> AnyElement {
-    let tabs = tabs::tabs("panel-views", views.tabs, views.selected, views.on_select, hover, cx);
+    let tabs = tabs::tabs(
+        "panel-views",
+        views.tabs,
+        views.selected,
+        views.on_select,
+        hover,
+        cx,
+    );
     header_row(tabs.into_any_element(), views.buttons, hover, cx)
 }
 
-fn header_row(leading: AnyElement, buttons: Vec<Button>, hover: bool, cx: &mut Context<Island>) -> AnyElement {
+fn header_row(
+    leading: AnyElement,
+    buttons: Vec<Button>,
+    hover: bool,
+    cx: &mut Context<Island>,
+) -> AnyElement {
     div()
         .h(px(HEADER_H))
         .flex_none()
@@ -334,7 +369,11 @@ fn header_row(leading: AnyElement, buttons: Vec<Button>, hover: bool, cx: &mut C
                 .flex_none()
                 .items_center()
                 .gap(px(6.0))
-                .children(buttons.into_iter().map(|button| button_element(button, hover, cx)))
+                .children(
+                    buttons
+                        .into_iter()
+                        .map(|button| button_element(button, hover, cx)),
+                )
                 .child(
                     button::close("panel-close", hover)
                         .on_click(cx.listener(|this, _, _, cx| this.set_mode(Mode::Collapsed, cx))),
@@ -349,12 +388,24 @@ fn button_element(button: Button, hover: bool, cx: &mut Context<Island>) -> AnyE
     let element = if button.toggle {
         button::toggle(button.id, button.label, button.active, hover)
     } else {
-        button::busy(button.id, button.label, button.fits, button.active, button.busy, hover)
+        button::busy(
+            button.id,
+            button.label,
+            button.fits,
+            button.active,
+            button.busy,
+            hover,
+        )
     };
     if button.enabled {
-        element.on_click(cx.listener(move |this, _, _, cx| handler(this, cx))).into_any_element()
+        element
+            .on_click(cx.listener(move |this, _, _, cx| handler(this, cx)))
+            .into_any_element()
     } else {
-        element.text_color(rgb(OVERLAY2)).cursor_default().into_any_element()
+        element
+            .text_color(rgb(OVERLAY2))
+            .cursor_default()
+            .into_any_element()
     }
 }
 
@@ -368,7 +419,10 @@ fn card_title(title: card::Title, at: &str) -> impl IntoElement {
             div()
                 .text_size(px(TITLE_SIZE))
                 .font_weight(FontWeight::SEMIBOLD)
-                .child(motion::text(SharedString::from(format!("{at}-title")), title.text)),
+                .child(motion::text(
+                    SharedString::from(format!("{at}-title")),
+                    title.text,
+                )),
         )
         .when(!title.detail.is_empty(), |line| {
             line.child(
@@ -377,7 +431,10 @@ fn card_title(title: card::Title, at: &str) -> impl IntoElement {
                     .truncate()
                     .text_size(px(CAPTION_SIZE))
                     .text_color(rgb(OVERLAY2))
-                    .child(motion::text(SharedString::from(format!("{at}-detail")), title.detail)),
+                    .child(motion::text(
+                        SharedString::from(format!("{at}-detail")),
+                        title.detail,
+                    )),
             )
         })
 }
@@ -385,7 +442,13 @@ fn card_title(title: card::Title, at: &str) -> impl IntoElement {
 impl Block {
     /// `at` names the block's place in the panel, unique and stable across frames, for parts that
     /// keep state, such as morphing text.
-    fn render(self, at: &str, island_below: f32, frame: &Frame<'_>, cx: &mut Context<Island>) -> AnyElement {
+    fn render(
+        self,
+        at: &str,
+        island_below: f32,
+        frame: &Frame<'_>,
+        cx: &mut Context<Island>,
+    ) -> AnyElement {
         match self {
             Block::Card(title, size, blocks) => {
                 let children = render_all(blocks, at, island_below, frame, cx);
@@ -403,17 +466,29 @@ impl Block {
             }
             Block::Row(blocks) => {
                 let children = render_all(blocks, at, island_below, frame, cx);
-                div().flex().gap(px(card::GAP)).children(children).into_any_element()
+                div()
+                    .flex()
+                    .gap(px(card::GAP))
+                    .children(children)
+                    .into_any_element()
             }
             Block::Grid(columns, blocks) => {
                 let columns = columns.max(1);
-                let mut cells = render_all(blocks, at, island_below, frame, cx).into_iter().peekable();
+                let mut cells = render_all(blocks, at, island_below, frame, cx)
+                    .into_iter()
+                    .peekable();
                 let mut rows = Vec::new();
                 while cells.peek().is_some() {
-                    let row = (0..columns).map(|_| div().flex_1().min_w(px(0.0)).children(cells.next()));
+                    let row =
+                        (0..columns).map(|_| div().flex_1().min_w(px(0.0)).children(cells.next()));
                     rows.push(div().flex().items_start().gap(px(GRID_GAP)).children(row));
                 }
-                div().flex().flex_col().gap(px(GRID_GAP)).children(rows).into_any_element()
+                div()
+                    .flex()
+                    .flex_col()
+                    .gap(px(GRID_GAP))
+                    .children(rows)
+                    .into_any_element()
             }
             Block::Item(item, blocks) => {
                 let children = render_all(blocks, at, island_below, frame, cx);
@@ -433,15 +508,22 @@ impl Block {
             Block::Player(view) => player::player(view, frame.layouts, frame.hover, cx),
             Block::Lines(entries) => lines::lines(entries),
             Block::Routes(entries) => route::routes(entries),
-            Block::Board(columns) => tile::board(columns, frame.phase),
+            Block::Board(columns) => tile::board(columns, frame.phase, frame.hover, frame.tips, cx),
             Block::Buttons(row) => buttons(row, frame, cx),
             Block::Actions(tiles) => div()
                 .flex()
                 .gap(px(card::GAP))
                 .children(tiles.into_iter().map(|tile| {
                     let handler = tile.on_click;
-                    button::action(tile.id, tile.glyph.as_deref(), tile.label, tile.color, tile.armed, frame.hover)
-                        .on_click(cx.listener(move |this, _, _, cx| handler(this, cx)))
+                    button::action(
+                        tile.id,
+                        tile.glyph.as_deref(),
+                        tile.label,
+                        tile.color,
+                        tile.armed,
+                        frame.hover,
+                    )
+                    .on_click(cx.listener(move |this, _, _, cx| handler(this, cx)))
                 }))
                 .into_any_element(),
             Block::Tiles(tiles) => div()
@@ -449,8 +531,16 @@ impl Block {
                 .gap(px(8.0))
                 .children(tiles.into_iter().map(|tile| {
                     let handler = tile.on_click;
-                    button::pick(tile.id, tile.glyph.as_deref(), tile.label, tile.color, tile.armed, frame.hover, frame.layouts)
-                        .on_click(cx.listener(move |this, _, _, cx| handler(this, cx)))
+                    button::pick(
+                        tile.id,
+                        tile.glyph.as_deref(),
+                        tile.label,
+                        tile.color,
+                        tile.armed,
+                        frame.hover,
+                        frame.layouts,
+                    )
+                    .on_click(cx.listener(move |this, _, _, cx| handler(this, cx)))
                 }))
                 .into_any_element(),
         }
@@ -460,7 +550,11 @@ impl Block {
 /// Clicks stay with the button, so one inside something clickable, such as a message, does only
 /// its own thing.
 fn buttons(row: ButtonRow, frame: &Frame<'_>, cx: &mut Context<Island>) -> AnyElement {
-    let gap = if row.compact { COMPACT_GAP } else { BUTTON_GAP - button::BADGE_OVERHANG };
+    let gap = if row.compact {
+        COMPACT_GAP
+    } else {
+        BUTTON_GAP - button::BADGE_OVERHANG
+    };
     div()
         .flex()
         .ml(px(row.indent))
@@ -472,36 +566,61 @@ fn buttons(row: ButtonRow, frame: &Frame<'_>, cx: &mut Context<Island>) -> AnyEl
                 handler(this, cx);
             });
             let element = match button.glyph {
-                Some(glyph) => button::icon(button.id.clone(), Some(&glyph), button.rising.as_ref(), button.active, frame.hover)
-                    .when(row.compact, |icon| icon.size(px(CONTROL_H)))
-                    .tip(frame.tips, button.id.clone(), button.label),
+                Some(glyph) => button::icon(
+                    button.id.clone(),
+                    Some(&glyph),
+                    button.rising.as_ref(),
+                    button.active,
+                    frame.hover,
+                )
+                .when(row.compact, |icon| icon.size(px(CONTROL_H)))
+                .tip(frame.tips, button.id.clone(), button.label),
                 None => button::button(button.id.clone(), button.label, button.active, frame.hover),
             }
             .on_click(click);
             if row.compact {
                 element.into_any_element()
             } else {
-                button::badged(format!("{}-badged", button.id), element, button.badge).into_any_element()
+                button::badged(format!("{}-badged", button.id), element, button.badge)
+                    .into_any_element()
             }
         }))
         .into_any_element()
 }
 
-fn placed_element(placed: Placed, at: &str, island_below: f32, frame: &Frame<'_>, cx: &mut Context<Island>) -> AnyElement {
-    let blocks = placed.blocks.into_iter().enumerate().map(|(index, (place, block))| {
-        let top = if place.from_bottom { island_below - place.y - place.height } else { place.y };
-        div()
-            .absolute()
-            .left(px(place.x))
-            .top(px(top))
-            .w_full()
-            .h(px(place.height))
-            .opacity(place.opacity.clamp(0.0, 1.0))
-            .flex()
-            .items_center()
-            .child(block.render(&format!("{at}-{index}"), island_below, frame, cx))
-    });
-    let content = div().relative().min_w(px(placed.width)).h(px(placed.height)).children(blocks);
+fn placed_element(
+    placed: Placed,
+    at: &str,
+    island_below: f32,
+    frame: &Frame<'_>,
+    cx: &mut Context<Island>,
+) -> AnyElement {
+    let blocks = placed
+        .blocks
+        .into_iter()
+        .enumerate()
+        .map(|(index, (place, block))| {
+            let top = if place.from_bottom {
+                island_below - place.y - place.height
+            } else {
+                place.y
+            };
+            div()
+                .absolute()
+                .left(px(place.x))
+                .top(px(top))
+                .w_full()
+                .h(px(place.height))
+                .opacity(place.opacity.clamp(0.0, 1.0))
+                .flex()
+                .items_center()
+                .child(block.render(&format!("{at}-{index}"), island_below, frame, cx))
+        });
+    let content = div()
+        .relative()
+        .min_w(px(placed.width))
+        .h(px(placed.height))
+        .children(blocks);
     match placed.visible {
         Some(visible) => div()
             .id(SharedString::from(format!("{at}-scroll")))
@@ -514,7 +633,13 @@ fn placed_element(placed: Placed, at: &str, island_below: f32, frame: &Frame<'_>
     }
 }
 
-fn render_all(blocks: Vec<Block>, at: &str, island_below: f32, frame: &Frame<'_>, cx: &mut Context<Island>) -> Vec<AnyElement> {
+fn render_all(
+    blocks: Vec<Block>,
+    at: &str,
+    island_below: f32,
+    frame: &Frame<'_>,
+    cx: &mut Context<Island>,
+) -> Vec<AnyElement> {
     blocks
         .into_iter()
         .enumerate()

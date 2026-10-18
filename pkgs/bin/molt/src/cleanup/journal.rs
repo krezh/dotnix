@@ -60,7 +60,9 @@ impl JournalUsage {
                 }
                 let metadata = file.metadata()?;
                 if metadata.is_file() {
-                    self.bytes = self.bytes.saturating_add(metadata.blocks().saturating_mul(512));
+                    self.bytes = self
+                        .bytes
+                        .saturating_add(metadata.blocks().saturating_mul(512));
                     self.files += 1;
                 }
             }
@@ -85,10 +87,8 @@ mod tests {
     #[test]
     fn sums_journal_files_one_level_below_the_root() {
         let id = FIXTURE_ID.fetch_add(1, Ordering::Relaxed);
-        let root = std::env::temp_dir().join(format!(
-            "molt-journal-test-{}-{id}",
-            std::process::id()
-        ));
+        let root =
+            std::env::temp_dir().join(format!("molt-journal-test-{}-{id}", std::process::id()));
         let _ = fs::remove_dir_all(&root);
         let machine = root.join("0973a0b630bb47618257da19580125ad");
         fs::create_dir_all(&machine).unwrap();

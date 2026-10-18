@@ -143,7 +143,13 @@ struct Settings {
 impl Default for Settings {
     fn default() -> Self {
         Self {
-            actions: vec![Action::Lock, Action::Logout, Action::Suspend, Action::Reboot, Action::Shutdown],
+            actions: vec![
+                Action::Lock,
+                Action::Logout,
+                Action::Suspend,
+                Action::Reboot,
+                Action::Shutdown,
+            ],
             confirm: true,
             commands: Commands::default(),
         }
@@ -171,7 +177,11 @@ fn uptime() -> Option<String> {
         .next()?
         .parse::<f64>()
         .ok()? as u64;
-    let (days, hours, minutes) = (seconds / 86_400, seconds % 86_400 / 3600, seconds % 3600 / 60);
+    let (days, hours, minutes) = (
+        seconds / 86_400,
+        seconds % 86_400 / 3600,
+        seconds % 3600 / 60,
+    );
     Some(match (days, hours) {
         (0, 0) => format!("Up {minutes} min"),
         (0, _) => format!("Up {hours} h {minutes} min"),
@@ -215,7 +225,10 @@ impl Session {
     }
 
     fn disarm(&self) {
-        let mut armed = self.armed.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+        let mut armed = self
+            .armed
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
         if armed.action.take().is_some() {
             self.feed.publish(None);
         }
@@ -227,7 +240,10 @@ impl Session {
             self.run(action);
             return true;
         }
-        let mut armed = self.armed.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+        let mut armed = self
+            .armed
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
         if armed.action == Some(action) {
             drop(armed);
             self.run(action);
@@ -241,7 +257,9 @@ impl Session {
         let (shared, feed) = (self.armed.clone(), self.feed.clone());
         thread::spawn(move || {
             thread::sleep(CONFIRM);
-            let mut armed = shared.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+            let mut armed = shared
+                .lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner());
             if armed.generation == generation && armed.action.take().is_some() {
                 feed.publish(None);
             }
@@ -257,11 +275,30 @@ impl Session {
 impl Feature for Session {
     const NAME: &'static str = "session";
     const GLYPHS: &'static [GlyphSpec] = &[
-        ("session-lock", &["system-lock-screen-symbolic", "changes-prevent-symbolic"]),
-        ("session-logout", &["system-log-out-symbolic", "application-exit-symbolic"]),
-        ("session-suspend", &["system-suspend-symbolic", "media-playback-pause-symbolic"]),
-        ("session-hibernate", &["system-hibernate-symbolic", "system-suspend-hibernate-symbolic", "drive-harddisk-symbolic"]),
-        ("session-reboot", &["system-reboot-symbolic", "view-refresh-symbolic"]),
+        (
+            "session-lock",
+            &["system-lock-screen-symbolic", "changes-prevent-symbolic"],
+        ),
+        (
+            "session-logout",
+            &["system-log-out-symbolic", "application-exit-symbolic"],
+        ),
+        (
+            "session-suspend",
+            &["system-suspend-symbolic", "media-playback-pause-symbolic"],
+        ),
+        (
+            "session-hibernate",
+            &[
+                "system-hibernate-symbolic",
+                "system-suspend-hibernate-symbolic",
+                "drive-harddisk-symbolic",
+            ],
+        ),
+        (
+            "session-reboot",
+            &["system-reboot-symbolic", "view-refresh-symbolic"],
+        ),
         ("session-shutdown", &["system-shutdown-symbolic"]),
     ];
     const PANEL: Option<&'static str> = Some("session");
@@ -288,7 +325,9 @@ impl Feature for Session {
         Some(
             w.base("bar-session")
                 .tip(w.tips(), "bar-session", "Session")
-                .when_some(w.glyph("session-shutdown"), |button, path| button.child(icon::glyph(path, GLYPH, TEXT)))
+                .when_some(w.glyph("session-shutdown"), |button, path| {
+                    button.child(icon::glyph(path, GLYPH, TEXT))
+                })
                 .on_click(w.toggle(Self::panel_handle()))
                 .into_any_element(),
         )

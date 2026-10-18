@@ -37,12 +37,20 @@ struct Edge {
 
 impl Edge {
     fn length(&self) -> f32 {
-        2.0 * (self.width - 2.0 * self.radius) + 2.0 * (self.height - 2.0 * self.radius) + TAU * self.radius
+        2.0 * (self.width - 2.0 * self.radius)
+            + 2.0 * (self.height - 2.0 * self.radius)
+            + TAU * self.radius
     }
 
     /// `u` of the way round, clockwise from the start of the top edge.
     fn point(&self, u: f32) -> (f32, f32) {
-        let Edge { x, y, width, height, radius: r } = *self;
+        let Edge {
+            x,
+            y,
+            width,
+            height,
+            radius: r,
+        } = *self;
         let across = width - 2.0 * r;
         let down = height - 2.0 * r;
         let arc = FRAC_PI_2 * r;
@@ -84,7 +92,10 @@ impl Edge {
 }
 
 fn dot(window: &mut Window, (x, y): (f32, f32), diameter: f32, color: Hsla) {
-    let bounds = Bounds::new(point(px(x - diameter / 2.0), px(y - diameter / 2.0)), size(px(diameter), px(diameter)));
+    let bounds = Bounds::new(
+        point(px(x - diameter / 2.0), px(y - diameter / 2.0)),
+        size(px(diameter), px(diameter)),
+    );
     window.paint_quad(gpui::fill(bounds, color).corner_radii(px(diameter / 2.0)));
 }
 
@@ -104,9 +115,19 @@ fn paint(edge: &Edge, phase: f32, opacity: f32, window: &mut Window) {
         // than the beam is meant to look there.
         let target = lit * lit * 0.95 * opacity;
         let alpha = 1.0 - (1.0 - target).powf(STEP / diameter);
-        dot(window, edge.point(phase - BEAM * behind), diameter, color(SAPPHIRE, alpha));
+        dot(
+            window,
+            edge.point(phase - BEAM * behind),
+            diameter,
+            color(SAPPHIRE, alpha),
+        );
     }
-    dot(window, edge.point(phase - BEAM), 1.4 * scale, color(SAPPHIRE, 0.12 * opacity));
+    dot(
+        window,
+        edge.point(phase - BEAM),
+        1.4 * scale,
+        color(SAPPHIRE, 0.12 * opacity),
+    );
     let head = edge.point(phase);
     dot(window, head, 4.0 * scale, color(SKY, 0.70 * opacity));
     dot(window, head, 1.8 * scale, color(TEXT, 0.80 * opacity));
@@ -142,15 +163,23 @@ pub fn border(id: &'static str, radius: Radius, inset: f32, busy: bool) -> impl 
             return (nothing(), Next::Rest);
         };
         let still = cx.reduce_motion();
-        let fade = state
-            .fading
-            .map(|fading| if still { 1.0 } else { now.duration_since(fading).as_secs_f32() / FADE.as_secs_f32() });
+        let fade = state.fading.map(|fading| {
+            if still {
+                1.0
+            } else {
+                now.duration_since(fading).as_secs_f32() / FADE.as_secs_f32()
+            }
+        });
         if fade.is_some_and(|fade| fade >= 1.0) {
             *state = Energy::default();
             return (nothing(), Next::Rest);
         }
         let opacity = 1.0 - smoothstep(fade.unwrap_or(0.0));
-        let phase = if still { START } else { START + now.duration_since(since).as_secs_f32() / LAP.as_secs_f32() };
+        let phase = if still {
+            START
+        } else {
+            START + now.duration_since(since).as_secs_f32() / LAP.as_secs_f32()
+        };
         let (corner, _) = radius.geometry();
         let beam = canvas(
             |_, _, _| {},
@@ -174,7 +203,14 @@ pub fn border(id: &'static str, radius: Radius, inset: f32, busy: bool) -> impl 
         .top_0()
         .left_0()
         .size_full();
-        (beam.into_any_element(), if still { Next::Rest } else { Next::After(FRAME) })
+        (
+            beam.into_any_element(),
+            if still {
+                Next::Rest
+            } else {
+                Next::After(FRAME)
+            },
+        )
     })
 }
 

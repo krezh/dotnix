@@ -2,7 +2,10 @@
 
 use std::rc::Rc;
 
-use gpui::{AnimationExt, Context, Div, FontWeight, SharedString, SpringAnimation, SpringConfig, div, prelude::*, px, rgb};
+use gpui::{
+    AnimationExt, Context, Div, FontWeight, SharedString, SpringAnimation, SpringConfig, div,
+    prelude::*, px, rgb,
+};
 
 use crate::{
     components::button,
@@ -49,13 +52,18 @@ pub fn tabs(
         .children(labels.into_iter().enumerate().map(|(index, label)| {
             let picked = index == selected;
             let select = on_select.clone();
-            button::fill(SharedString::from(format!("{id}-{index}")), Radius::Row, None, !picked && hover)
-                .w(px(TAB_W))
-                .h(px(HEADER_H))
-                .text_size(px(TEXT_SIZE))
-                .font_weight(FontWeight::SEMIBOLD)
-                .text_color(rgb(if picked { ACCENT } else { TEXT }))
-                .child(label)
-                .on_click(cx.listener(move |this, _, _, cx| select(index, this, cx)))
+            button::fill(
+                SharedString::from(format!("{id}-{index}")),
+                Radius::Row,
+                None,
+                !picked && hover,
+            )
+            .w(px(TAB_W))
+            .h(px(HEADER_H))
+            .text_size(px(TEXT_SIZE))
+            .font_weight(FontWeight::SEMIBOLD)
+            .text_color(rgb(if picked { ACCENT } else { TEXT }))
+            .child(label)
+            .on_click(cx.listener(move |this, _, _, cx| select(index, this, cx)))
         }))
 }

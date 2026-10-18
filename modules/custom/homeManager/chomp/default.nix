@@ -206,7 +206,13 @@
                     };
                     hyprlandTag = lib.mkOption {
                       type = lib.types.nonEmptyStr;
-                      description = "Hyprland window tag selecting the game capture target.";
+                      description = ''
+                        Hyprland window tag selecting eligible replay targets.
+                        Replay follows the most recently focused tagged window,
+                        including games opened by a tagged launcher. Switching
+                        targets starts a fresh replay buffer; focusing an
+                        untagged window does not switch the target.
+                      '';
                     };
                     driDevice = lib.mkOption {
                       type = lib.types.str;

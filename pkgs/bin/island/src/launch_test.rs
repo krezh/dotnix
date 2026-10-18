@@ -2,7 +2,10 @@ use super::parse_exec;
 
 #[test]
 fn splits_plain_words_and_drops_field_codes() {
-    assert_eq!(parse_exec("firefox %U", "Firefox"), Some(vec!["firefox".to_owned()]));
+    assert_eq!(
+        parse_exec("firefox %U", "Firefox"),
+        Some(vec!["firefox".to_owned()])
+    );
     assert_eq!(
         parse_exec("code --new-window %F", "Code"),
         Some(vec!["code".to_owned(), "--new-window".to_owned()])
@@ -13,7 +16,11 @@ fn splits_plain_words_and_drops_field_codes() {
 fn keeps_quoted_arguments_together() {
     assert_eq!(
         parse_exec(r#"sh -c "echo \"hi there\" > \$HOME/x""#, "Sh"),
-        Some(vec!["sh".to_owned(), "-c".to_owned(), r#"echo "hi there" > $HOME/x"#.to_owned()])
+        Some(vec![
+            "sh".to_owned(),
+            "-c".to_owned(),
+            r#"echo "hi there" > $HOME/x"#.to_owned()
+        ])
     );
 }
 

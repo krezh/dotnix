@@ -20,8 +20,8 @@ mod panel;
 mod panels;
 mod presence;
 mod run;
-mod shell;
 mod shape;
+mod shell;
 mod spring;
 mod supervisor;
 mod sys;
@@ -66,11 +66,19 @@ fn parse_args(mut args: impl Iterator<Item = String>) -> Result<Args, String> {
     let mut parsed = Args::default();
     while let Some(arg) = args.next() {
         match arg.as_str() {
-            "--config" => parsed.config = Some(PathBuf::from(args.next().ok_or("--config needs a path")?)),
-            "--radius" => parsed.radius = Some(parse_number(args.next(), "--radius", 0.0..=f32::MAX)?),
+            "--config" => {
+                parsed.config = Some(PathBuf::from(args.next().ok_or("--config needs a path")?))
+            }
+            "--radius" => {
+                parsed.radius = Some(parse_number(args.next(), "--radius", 0.0..=f32::MAX)?)
+            }
             "--power" => parsed.power = Some(parse_number(args.next(), "--power", 1.0..=f32::MAX)?),
-            "--opacity" => parsed.opacity = Some(parse_number(args.next(), "--opacity", 0.0..=1.0)?),
-            "--icon-theme" => parsed.icon_theme = Some(args.next().ok_or("--icon-theme needs a theme name")?),
+            "--opacity" => {
+                parsed.opacity = Some(parse_number(args.next(), "--opacity", 0.0..=1.0)?)
+            }
+            "--icon-theme" => {
+                parsed.icon_theme = Some(args.next().ok_or("--icon-theme needs a theme name")?)
+            }
             "-h" | "--help" => {
                 println!("{USAGE}");
                 std::process::exit(0);
@@ -131,7 +139,9 @@ fn main() {
             std::process::exit(2);
         }
     };
-    let from_env = std::env::var("ISLAND_LOG").ok().filter(|spec| !spec.trim().is_empty());
+    let from_env = std::env::var("ISLAND_LOG")
+        .ok()
+        .filter(|spec| !spec.trim().is_empty());
     logging::init(from_env.as_deref().unwrap_or(logging::DEFAULT));
     logging::catch_panics();
     info!(version = env!("CARGO_PKG_VERSION"), "starting");
@@ -155,7 +165,11 @@ fn main() {
     }
     let appearance = &settings.appearance;
 
-    icons::set_theme(parsed.icon_theme.unwrap_or_else(|| appearance.icon_theme.clone()));
+    icons::set_theme(
+        parsed
+            .icon_theme
+            .unwrap_or_else(|| appearance.icon_theme.clone()),
+    );
     let (controls, incoming) = unbounded();
     let bus = match dbus::serve(controls) {
         Ok(bus) => bus,
@@ -169,16 +183,18 @@ fn main() {
     let workspaces = compositor::start();
     let config = Config {
         layout: Rc::new(settings.bar.clone()),
-        features: Rc::new(settings.features.clone()),
-        top: compositor::backend().and_then(|backend| backend.top_gap()).unwrap_or(10.0),
+        features: Rc::new(settings.features.settings),
+        top: compositor::backend()
+            .and_then(|backend| backend.top_gap())
+            .unwrap_or(10.0),
         corner: (
             parsed.radius.unwrap_or(appearance.radius),
             parsed.power.unwrap_or(appearance.power),
         ),
         opacity: parsed.opacity.unwrap_or(appearance.opacity),
-        glow: settings.visualizer.glow.max(0.0),
+        glow: settings.features.visualizer.glow.max(0.0),
     };
-    let system = settings.system.clone();
+    let system = settings.features.system;
 
     gpui_platform::application()
         .with_assets(icons::Files)

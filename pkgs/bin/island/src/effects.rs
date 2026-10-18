@@ -139,7 +139,8 @@ impl Effects {
         match (&self.idle, self.inhibitor.take()) {
             (_, Some(inhibitor)) => inhibitor.destroy(),
             (Some(idle), None) => {
-                self.inhibitor = Some(idle.create_inhibitor(&self.surface, &self.queue.handle(), ()));
+                self.inhibitor =
+                    Some(idle.create_inhibitor(&self.surface, &self.queue.handle(), ()));
             }
             (None, None) => return,
         }

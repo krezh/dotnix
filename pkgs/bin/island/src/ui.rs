@@ -1,12 +1,15 @@
 use std::sync::Arc;
 
-use gpui::{Bounds, Canvas, Div, FontFeatures, FontWeight, Hsla, Pixels, Rgba, div, hsla, prelude::*, px, rgb, rgba};
+use gpui::{
+    Bounds, Canvas, Div, FontFeatures, FontWeight, Hsla, Pixels, Rgba, div, hsla, prelude::*, px,
+    rgb, rgba,
+};
 
 use crate::{
     shape::{self, Hang},
     theme::{
-        FONT, HOVER_ALPHA, SELECTED_ALPHA, SHADOW_ALPHA, SURFACE, SURFACE_BORDER_ALPHA, SURFACE1, TEXT, TINT,
-        with_alpha,
+        FONT, HOVER_ALPHA, SELECTED_ALPHA, SHADOW_ALPHA, SURFACE, SURFACE_BORDER_ALPHA, SURFACE1,
+        TEXT, TINT, with_alpha,
     },
 };
 
@@ -67,7 +70,13 @@ pub fn control(radius: Radius, rest: Option<Hsla>, live: bool) -> Canvas<()> {
 /// For bar widgets that share their padding.
 pub fn inset_control(radius: Radius, inset: f32, live: bool) -> Canvas<()> {
     let (radius, power) = radius.geometry();
-    shape::inset_fill(radius, power, inset, None, live.then(|| hover_fill().into()))
+    shape::inset_fill(
+        radius,
+        power,
+        inset,
+        None,
+        live.then(|| hover_fill().into()),
+    )
 }
 
 pub fn outlined(radius: Radius, fill: Hsla, border: Hsla) -> Canvas<()> {
@@ -87,8 +96,21 @@ pub fn shadow(radius: f32, power: f32, spread: f32) -> Canvas<()> {
     shape::outer_shadow(radius, power, hsla(0.0, 0.0, 0.0, SHADOW_ALPHA), spread)
 }
 
-pub fn joined_shadow(body: Bounds<Pixels>, radius: f32, power: f32, hang: Option<Hang>, spread: f32) -> Canvas<()> {
-    shape::joined_shadow(body, radius, power, hang, hsla(0.0, 0.0, 0.0, SHADOW_ALPHA), spread)
+pub fn joined_shadow(
+    body: Bounds<Pixels>,
+    radius: f32,
+    power: f32,
+    hang: Option<Hang>,
+    spread: f32,
+) -> Canvas<()> {
+    shape::joined_shadow(
+        body,
+        radius,
+        power,
+        hang,
+        hsla(0.0, 0.0, 0.0, SHADOW_ALPHA),
+        spread,
+    )
 }
 
 /// Private, so a one-off hover cannot be written.

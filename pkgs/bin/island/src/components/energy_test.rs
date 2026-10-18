@@ -34,7 +34,10 @@ fn stays_on_the_edge() {
     let edge = edge();
     for step in 0..400 {
         let (x, y) = edge.point(step as f32 / 400.0);
-        assert!((10.0 - 0.01..=110.01).contains(&x) && (20.0 - 0.01..=50.01).contains(&y), "{x}, {y}");
+        assert!(
+            (10.0 - 0.01..=110.01).contains(&x) && (20.0 - 0.01..=50.01).contains(&y),
+            "{x}, {y}"
+        );
     }
 }
 
@@ -47,6 +50,9 @@ fn moves_evenly() {
         let (ax, ay) = edge.point(step as f32 / steps as f32);
         let (bx, by) = edge.point((step + 1) as f32 / steps as f32);
         let moved = ((bx - ax).powi(2) + (by - ay).powi(2)).sqrt();
-        assert!((moved - expected).abs() < expected * 0.05, "step {step}: {moved} vs {expected}");
+        assert!(
+            (moved - expected).abs() < expected * 0.05,
+            "step {step}: {moved} vs {expected}"
+        );
     }
 }

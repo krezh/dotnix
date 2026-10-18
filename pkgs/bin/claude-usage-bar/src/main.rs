@@ -15,7 +15,6 @@ const BOLD: &str = "\x1b[1m";
 const DIM: &str = "\x1b[2m";
 const RESET: &str = "\x1b[0m";
 
-
 /// Formats a rate-limit usage percentage with color coding.
 ///
 /// Thresholds: green below 80%, orange 80–89%, red 90%+.
@@ -441,7 +440,6 @@ fn format_git_segment(cwd: &Path) -> Option<String> {
 
     Some(parts.join(" "))
 }
-
 
 // ── Main ──────────────────────────────────────────────────────────────────────
 

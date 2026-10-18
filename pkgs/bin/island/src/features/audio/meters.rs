@@ -111,7 +111,9 @@ fn open(context: &mut Context, source: &str, app: Option<u32>) -> Option<Stream>
         fragsize: size_of::<f32>() as u32,
     };
     let flags = StreamFlags::PEAK_DETECT | StreamFlags::ADJUST_LATENCY | StreamFlags::DONT_MOVE;
-    stream.connect_record(Some(source), Some(&attr), flags).ok()?;
+    stream
+        .connect_record(Some(source), Some(&attr), flags)
+        .ok()?;
     Some(stream)
 }
 
@@ -122,7 +124,8 @@ fn loudest(stream: &mut Stream) -> Option<f32> {
         match stream.peek() {
             Ok(PeekResult::Data(bytes)) => {
                 for sample in bytes.chunks_exact(4) {
-                    let peak = f32::from_le_bytes([sample[0], sample[1], sample[2], sample[3]]).abs();
+                    let peak =
+                        f32::from_le_bytes([sample[0], sample[1], sample[2], sample[3]]).abs();
                     loudest = Some(loudest.map_or(peak, |loudest| loudest.max(peak)));
                 }
                 let _ = stream.discard();
@@ -169,9 +172,13 @@ impl Meters {
     }
 
     fn measure(&mut self, levels: &mut Levels) {
-        levels.peaks.retain(|probe, _| self.open.iter().any(|((open, _, _), _)| open == probe));
+        levels
+            .peaks
+            .retain(|probe, _| self.open.iter().any(|((open, _, _), _)| open == probe));
         for ((probe, _, _), stream) in &mut self.open {
-            let Some(peak) = loudest(stream) else { continue };
+            let Some(peak) = loudest(stream) else {
+                continue;
+            };
             let entry = levels.peaks.entry(*probe).or_default();
             entry.level = loudness(peak).max(entry.level - FALL);
             entry.hold = entry.level.max(entry.hold - HOLD_FALL);

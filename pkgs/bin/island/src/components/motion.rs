@@ -8,8 +8,8 @@ use std::{
 };
 
 use gpui::{
-    AnyElement, App, Bounds, Element, ElementId, GlobalElementId, InspectorElementId, LayoutId, Pixels, SharedString,
-    Window, div, prelude::*, px,
+    AnyElement, App, Bounds, Element, ElementId, GlobalElementId, InspectorElementId, LayoutId,
+    Pixels, SharedString, Window, div, prelude::*, px,
 };
 
 const MORPH: Duration = Duration::from_millis(320);
@@ -90,31 +90,34 @@ where
         cx: &mut App,
     ) -> (LayoutId, AnyElement) {
         let build = self.build.take().expect("an element is laid out once");
-        window.with_element_state(id.expect("keyed elements have an id"), |slot: Option<Slot<S>>, window| {
-            let mut slot = slot.unwrap_or_else(|| Slot {
-                state: S::default(),
-                pending: Rc::new(Cell::new(false)),
-            });
-            let (mut element, next) = build(&mut slot.state, window, cx);
-            match next {
-                Next::Rest => {}
-                Next::Frame => window.request_animation_frame(),
-                Next::After(delay) => {
-                    if !slot.pending.replace(true) {
-                        let pending = slot.pending.clone();
-                        let view = window.current_view();
-                        window
-                            .spawn(cx, async move |cx| {
-                                cx.background_executor().timer(delay).await;
-                                pending.set(false);
-                                cx.update(move |_, cx| cx.notify(view)).ok();
-                            })
-                            .detach();
+        window.with_element_state(
+            id.expect("keyed elements have an id"),
+            |slot: Option<Slot<S>>, window| {
+                let mut slot = slot.unwrap_or_else(|| Slot {
+                    state: S::default(),
+                    pending: Rc::new(Cell::new(false)),
+                });
+                let (mut element, next) = build(&mut slot.state, window, cx);
+                match next {
+                    Next::Rest => {}
+                    Next::Frame => window.request_animation_frame(),
+                    Next::After(delay) => {
+                        if !slot.pending.replace(true) {
+                            let pending = slot.pending.clone();
+                            let view = window.current_view();
+                            window
+                                .spawn(cx, async move |cx| {
+                                    cx.background_executor().timer(delay).await;
+                                    pending.set(false);
+                                    cx.update(move |_, cx| cx.notify(view)).ok();
+                                })
+                                .detach();
+                        }
                     }
                 }
-            }
-            ((element.request_layout(window, cx), element), slot)
-        })
+                ((element.request_layout(window, cx), element), slot)
+            },
+        )
     }
 
     fn prepaint(
@@ -189,11 +192,19 @@ pub fn text(id: impl Into<ElementId>, text: impl Into<SharedString>) -> impl Int
 }
 
 /// Keeps the width of the widest of `fits`, so what it sits in never resizes as it changes.
-pub fn steady(id: impl Into<ElementId>, text: impl Into<SharedString>, fits: Vec<SharedString>) -> impl IntoElement {
+pub fn steady(
+    id: impl Into<ElementId>,
+    text: impl Into<SharedString>,
+    fits: Vec<SharedString>,
+) -> impl IntoElement {
     morph(id, text.into(), fits)
 }
 
-fn morph(id: impl Into<ElementId>, text: SharedString, fits: Vec<SharedString>) -> impl IntoElement {
+fn morph(
+    id: impl Into<ElementId>,
+    text: SharedString,
+    fits: Vec<SharedString>,
+) -> impl IntoElement {
     keyed(id, move |state: &mut Morph, window, cx| {
         let style = window.text_style();
         let size = style.font_size.to_pixels(window.rem_size());
@@ -202,10 +213,16 @@ fn morph(id: impl Into<ElementId>, text: SharedString, fits: Vec<SharedString>) 
             if part.is_empty() {
                 0.0
             } else {
-                f32::from(window.text_system().layout_line(part, size, &[style.to_run(part.len())], None).width)
+                f32::from(
+                    window
+                        .text_system()
+                        .layout_line(part, size, &[style.to_run(part.len())], None)
+                        .width,
+                )
             }
         };
-        let held = (!fits.is_empty()).then(|| fits.iter().chain([&text]).map(&width).fold(0.0, f32::max));
+        let held =
+            (!fits.is_empty()).then(|| fits.iter().chain([&text]).map(&width).fold(0.0, f32::max));
         let hold = |element: AnyElement| match held {
             Some(held) => div()
                 .flex()
@@ -236,7 +253,11 @@ fn morph(id: impl Into<ElementId>, text: SharedString, fits: Vec<SharedString>) 
             return (hold(text.into_any_element()), Next::Rest);
         };
         let (start, end) = shared(old, &text);
-        let characters = |part: &str| part.chars().map(|char| SharedString::from(char.to_string())).collect::<Vec<_>>();
+        let characters = |part: &str| {
+            part.chars()
+                .map(|char| SharedString::from(char.to_string()))
+                .collect::<Vec<_>>()
+        };
         let gone = characters(&old[start..old.len() - end]);
         let come = characters(&text[start..text.len() - end]);
         let count = gone.len().max(come.len());
@@ -251,19 +272,37 @@ fn morph(id: impl Into<ElementId>, text: SharedString, fits: Vec<SharedString>) 
                 .h(line)
                 .w(px(from_w + (to_w - from_w) * turned))
                 .when_some(from.cloned(), |slot, char| {
-                    slot.child(div().absolute().left_0().top_0().opacity(1.0 - turned).child(char))
+                    slot.child(
+                        div()
+                            .absolute()
+                            .left_0()
+                            .top_0()
+                            .opacity(1.0 - turned)
+                            .child(char),
+                    )
                 })
                 .when_some(to.cloned(), |slot, char| {
-                    slot.child(div().absolute().left_0().top_0().opacity(turned).child(char))
+                    slot.child(
+                        div()
+                            .absolute()
+                            .left_0()
+                            .top_0()
+                            .opacity(turned)
+                            .child(char),
+                    )
                 })
         }));
         let element = div()
             .flex()
             .flex_none()
             .whitespace_nowrap()
-            .when(start > 0, |row| row.child(SharedString::from(text[..start].to_owned())))
+            .when(start > 0, |row| {
+                row.child(SharedString::from(text[..start].to_owned()))
+            })
             .child(changing)
-            .when(end > 0, |row| row.child(SharedString::from(text[text.len() - end..].to_owned())))
+            .when(end > 0, |row| {
+                row.child(SharedString::from(text[text.len() - end..].to_owned()))
+            })
             .into_any_element();
         (hold(element), Next::Frame)
     })

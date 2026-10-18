@@ -34,7 +34,11 @@ fn counts_down_pauses_under_the_pointer_and_carries_on() {
     let fresh = toasts.cards()[0].countdown().unwrap();
     assert!(fresh.left > 0.99);
     assert_eq!(fresh.running, Some(Duration::from_secs(4)));
-    assert_eq!(toasts.cards()[0].countdown(), Some(fresh), "the same on every redraw");
+    assert_eq!(
+        toasts.cards()[0].countdown(),
+        Some(fresh),
+        "the same on every redraw"
+    );
 
     toasts.set_pointer(true, start + Duration::from_secs(1));
     let paused = toasts.cards()[0].countdown().unwrap();
@@ -47,10 +51,22 @@ fn counts_down_pauses_under_the_pointer_and_carries_on() {
     let resumed = toasts.cards()[0].countdown().unwrap();
     assert!((resumed.left - 0.75).abs() < 0.01, "{}", resumed.left);
     let running = resumed.running.unwrap();
-    assert!(running.abs_diff(Duration::from_secs(3)) < Duration::from_millis(50), "{running:?}");
+    assert!(
+        running.abs_diff(Duration::from_secs(3)) < Duration::from_millis(50),
+        "{running:?}"
+    );
     assert!(resumed.round > paused.round);
-    assert!(toasts.expired(later + running - Duration::from_millis(1)).is_empty(), "not before the bar empties");
-    assert_eq!(toasts.expired(later + running).len(), 1, "as the bar empties");
+    assert!(
+        toasts
+            .expired(later + running - Duration::from_millis(1))
+            .is_empty(),
+        "not before the bar empties"
+    );
+    assert_eq!(
+        toasts.expired(later + running).len(),
+        1,
+        "as the bar empties"
+    );
 }
 
 #[test]

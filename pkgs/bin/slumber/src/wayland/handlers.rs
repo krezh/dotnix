@@ -2,15 +2,23 @@ use smithay_client_toolkit::compositor::CompositorHandler;
 use smithay_client_toolkit::output::{OutputHandler, OutputState};
 use smithay_client_toolkit::registry::{ProvidesRegistryState, RegistryState};
 use smithay_client_toolkit::registry_handlers;
-use smithay_client_toolkit::seat::keyboard::{KeyEvent, KeyboardHandler, Keysym, Modifiers, RawModifiers};
+use smithay_client_toolkit::seat::keyboard::{
+    KeyEvent, KeyboardHandler, Keysym, Modifiers, RawModifiers,
+};
 use smithay_client_toolkit::seat::pointer::{PointerEvent, PointerEventKind, PointerHandler};
 use smithay_client_toolkit::seat::{Capability, SeatHandler, SeatState};
-use smithay_client_toolkit::shell::wlr_layer::{LayerShellHandler, LayerSurface, LayerSurfaceConfigure};
+use smithay_client_toolkit::shell::wlr_layer::{
+    LayerShellHandler, LayerSurface, LayerSurfaceConfigure,
+};
 use smithay_client_toolkit::shm::{Shm, ShmHandler};
 use std::time::Instant;
-use wayland_client::protocol::{wl_callback, wl_keyboard, wl_output, wl_pointer, wl_seat, wl_surface};
+use wayland_client::protocol::{
+    wl_callback, wl_keyboard, wl_output, wl_pointer, wl_seat, wl_surface,
+};
 use wayland_client::{Connection, Dispatch, QueueHandle};
-use wayland_protocols::wp::fractional_scale::v1::client::{wp_fractional_scale_manager_v1, wp_fractional_scale_v1};
+use wayland_protocols::wp::fractional_scale::v1::client::{
+    wp_fractional_scale_manager_v1, wp_fractional_scale_v1,
+};
 use wayland_protocols::wp::viewporter::client::{wp_viewport, wp_viewporter};
 
 use super::App;
@@ -23,7 +31,11 @@ impl CompositorHandler for App {
         surface: &wl_surface::WlSurface,
         new_factor: i32,
     ) {
-        if let Some(idx) = self.surfaces.iter().position(|candidate| &candidate.surface == surface) {
+        if let Some(idx) = self
+            .surfaces
+            .iter()
+            .position(|candidate| &candidate.surface == surface)
+        {
             self.surfaces[idx].integer_scale = new_factor.max(1);
             self.refresh_surface(idx);
         }
@@ -105,7 +117,8 @@ impl OutputHandler for App {
 
 impl LayerShellHandler for App {
     fn closed(&mut self, _conn: &Connection, _qh: &QueueHandle<Self>, layer: &LayerSurface) {
-        self.surfaces.retain(|surface| &surface.layer_surface != layer);
+        self.surfaces
+            .retain(|surface| &surface.layer_surface != layer);
     }
 
     fn configure(
@@ -116,7 +129,11 @@ impl LayerShellHandler for App {
         configure: LayerSurfaceConfigure,
         _serial: u32,
     ) {
-        if let Some(idx) = self.surfaces.iter().position(|surface| &surface.layer_surface == layer) {
+        if let Some(idx) = self
+            .surfaces
+            .iter()
+            .position(|surface| &surface.layer_surface == layer)
+        {
             self.surfaces[idx].configured = true;
             self.surfaces[idx].configured_size = configure.new_size;
             self.refresh_surface(idx);
@@ -161,7 +178,8 @@ impl SeatHandler for App {
         }
     }
 
-    fn remove_seat(&mut self, _conn: &Connection, _qh: &QueueHandle<Self>, _seat: wl_seat::WlSeat) {}
+    fn remove_seat(&mut self, _conn: &Connection, _qh: &QueueHandle<Self>, _seat: wl_seat::WlSeat) {
+    }
 }
 
 impl PointerHandler for App {
@@ -181,7 +199,9 @@ impl PointerHandler for App {
                 }
                 PointerEventKind::Motion { .. } => {
                     let now = Instant::now();
-                    if now.duration_since(self.start_time).as_millis() < self.config.grace_ms as u128 {
+                    if now.duration_since(self.start_time).as_millis()
+                        < self.config.grace_ms as u128
+                    {
                         self.last_pointer_pos = Some((event.position.0, event.position.1));
                         continue;
                     }
@@ -325,7 +345,11 @@ impl Dispatch<wp_fractional_scale_v1::WpFractionalScaleV1, wl_surface::WlSurface
         _qh: &QueueHandle<Self>,
     ) {
         if let wp_fractional_scale_v1::Event::PreferredScale { scale } = event {
-            if let Some(idx) = state.surfaces.iter().position(|candidate| &candidate.surface == surface) {
+            if let Some(idx) = state
+                .surfaces
+                .iter()
+                .position(|candidate| &candidate.surface == surface)
+            {
                 state.surfaces[idx].preferred_scale = Some(scale);
                 state.refresh_surface(idx);
             }

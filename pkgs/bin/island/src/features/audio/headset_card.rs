@@ -14,7 +14,9 @@ use crate::{
 };
 
 fn battery_line(battery: &Battery) -> (String, u32) {
-    let level = battery.level.map_or("Battery unknown".to_owned(), |level| format!("{level}%"));
+    let level = battery
+        .level
+        .map_or("Battery unknown".to_owned(), |level| format!("{level}%"));
     let color = match battery.level {
         _ if battery.charging => GREEN,
         Some(level) => headset::battery_color(level),
@@ -68,7 +70,10 @@ pub fn headset_card(battery: Battery, p: &PanelCx<'_>) -> Block {
         let (game, chat) = headset::chatmix(value);
         cells.push(Block::Grid(
             2,
-            vec![reading("chatmix-game", "Game", game, BLUE), reading("chatmix-chat", "Chat", chat, MAUVE)],
+            vec![
+                reading("chatmix-game", "Game", game, BLUE),
+                reading("chatmix-chat", "Chat", chat, MAUVE),
+            ],
         ));
     }
     Block::Card(None, card::Size::Wide, vec![Block::Grid(2, cells)])

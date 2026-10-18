@@ -22,7 +22,11 @@ use super::filesystem::{directory_size, display_path, home, remove_counted};
 use super::model::{CleanupGroup, CleanupItem, CleanupKind};
 
 /// What a trimmed prefix keeps, relative to `compatdata/<appid>`.
-const KEPT: [&str; 3] = ["pfx/drive_c/users", "pfx/drive_c/ProgramData", "pfx/user.reg"];
+const KEPT: [&str; 3] = [
+    "pfx/drive_c/users",
+    "pfx/drive_c/ProgramData",
+    "pfx/user.reg",
+];
 
 /// Proton builds umu-launcher downloads, updates, and removes on its own.
 const UMU_PROTON: &str = "UMU-Proton";
@@ -90,7 +94,9 @@ impl Steam {
 
 /// The Steam libraries, for the disk usage of the filesystems this cleanup frees space on.
 pub(super) fn library_roots() -> Vec<PathBuf> {
-    Steam::find().map(|steam| steam.libraries).unwrap_or_default()
+    Steam::find()
+        .map(|steam| steam.libraries)
+        .unwrap_or_default()
 }
 
 pub(super) fn scan_leftovers(cancellation: &AtomicBool) -> CleanupGroup {
@@ -277,8 +283,10 @@ impl<'a> Removal<'a> {
 
     fn refuse(&mut self, path: &Path) {
         self.count += 1;
-        self.failures
-            .push(format!("refused path outside the Steam libraries: {}", path.display()));
+        self.failures.push(format!(
+            "refused path outside the Steam libraries: {}",
+            path.display()
+        ));
     }
 
     fn finish(self) -> Result<u64, String> {
@@ -370,7 +378,10 @@ fn proton_uses(steam_root: &Path, home: &Path) -> Vec<String> {
         data.join("faugus-launcher/games.json"),
         config.join("heroic/config.json"),
     ];
-    for directory in [config.join("heroic/GamesConfig"), config.join("lutris/games")] {
+    for directory in [
+        config.join("heroic/GamesConfig"),
+        config.join("lutris/games"),
+    ] {
         if let Ok(entries) = fs::read_dir(directory) {
             files.extend(entries.flatten().map(|entry| entry.path()));
         }
@@ -563,7 +574,12 @@ fn file_name(path: &Path) -> String {
         .map_or_else(String::new, |name| name.to_string_lossy().into_owned())
 }
 
-fn item(path: PathBuf, home: &Path, label: String, cancellation: &AtomicBool) -> Option<CleanupItem> {
+fn item(
+    path: PathBuf,
+    home: &Path,
+    label: String,
+    cancellation: &AtomicBool,
+) -> Option<CleanupItem> {
     let bytes = paths_size(std::slice::from_ref(&path), cancellation)?;
     Some(CleanupItem {
         label,
@@ -607,7 +623,10 @@ fn group(kind: CleanupKind, mut items: Vec<CleanupItem>, note: &str) -> CleanupG
         let Ok(metadata) = fs::metadata(path) else {
             continue;
         };
-        match volumes.iter_mut().find(|(device, _)| *device == metadata.dev()) {
+        match volumes
+            .iter_mut()
+            .find(|(device, _)| *device == metadata.dev())
+        {
             Some((_, total)) => *total = total.saturating_add(bytes),
             None => volumes.push((metadata.dev(), bytes)),
         }
@@ -638,8 +657,8 @@ mod tests {
     impl Fixture {
         fn new() -> Self {
             let id = FIXTURE_ID.fetch_add(1, Ordering::Relaxed);
-            let root = std::env::temp_dir()
-                .join(format!("molt-games-test-{}-{id}", std::process::id()));
+            let root =
+                std::env::temp_dir().join(format!("molt-games-test-{}-{id}", std::process::id()));
             let _ = fs::remove_dir_all(&root);
             fs::create_dir_all(&root).unwrap();
             Self { root }
@@ -665,10 +684,13 @@ mod tests {
         // Keys as indices into a table written after the apps.
         let mut keys: Vec<String> = Vec::new();
         let mut key = |name: &str| -> [u8; 4] {
-            let index = keys.iter().position(|known| known == name).unwrap_or_else(|| {
-                keys.push(name.to_owned());
-                keys.len() - 1
-            });
+            let index = keys
+                .iter()
+                .position(|known| known == name)
+                .unwrap_or_else(|| {
+                    keys.push(name.to_owned());
+                    keys.len() - 1
+                });
             (index as u32).to_le_bytes()
         };
         let mut body = Vec::new();
@@ -781,8 +803,14 @@ mod tests {
     fn prefixes_of_reinstalled_games_and_paths_outside_libraries_are_left_alone() {
         let fixture = Fixture::new();
         for prefix in ["100", "200"] {
-            fixture.write(&format!("steamapps/compatdata/{prefix}/pfx/drive_c/windows/a.dll"), "x");
-            fixture.write(&format!("steamapps/compatdata/{prefix}/pfx/drive_c/users/save"), "x");
+            fixture.write(
+                &format!("steamapps/compatdata/{prefix}/pfx/drive_c/windows/a.dll"),
+                "x",
+            );
+            fixture.write(
+                &format!("steamapps/compatdata/{prefix}/pfx/drive_c/users/save"),
+                "x",
+            );
         }
         fixture.write("elsewhere/100/pfx/drive_c/windows/a.dll", "x");
         let steam = Steam {

@@ -31,7 +31,9 @@ pub fn mark(mark: &Mark, size: f32, fill: f32) -> AnyElement {
     match mark {
         Mark::Glyph(path, color) => icon::glyph(path, (size * 0.56).round(), *color),
         Mark::Image(path) => icon::image(path, picture),
-        Mark::Picture(source, true) => icon::rounded(source, picture, ObjectFit::Cover, CONTROL_RADIUS),
+        Mark::Picture(source, true) => {
+            icon::rounded(source, picture, ObjectFit::Cover, CONTROL_RADIUS)
+        }
         Mark::Picture(source, false) => icon::picture(source, picture, ObjectFit::Contain),
         Mark::Letter(text, color) => div()
             .relative()
@@ -44,7 +46,12 @@ pub fn mark(mark: &Mark, size: f32, fill: f32) -> AnyElement {
             .text_size(px((picture * 0.45).round()))
             .font_weight(FontWeight::SEMIBOLD)
             .text_color(rgb(ON_ACCENT))
-            .child(text.chars().next().map(|first| first.to_uppercase().to_string()).unwrap_or_default())
+            .child(
+                text.chars()
+                    .next()
+                    .map(|first| first.to_uppercase().to_string())
+                    .unwrap_or_default(),
+            )
             .into_any_element(),
     }
 }

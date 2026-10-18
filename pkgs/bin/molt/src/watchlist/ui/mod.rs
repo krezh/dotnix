@@ -10,6 +10,9 @@ use std::time::Duration;
 use gtk::glib;
 use gtk::prelude::*;
 
+use super::db::{delete_pr, list_prs, open_db, save_pr};
+use super::github::{fetch_pr, parse_pr_ref};
+use super::{PrState, StepState, WatchedPr};
 use crate::app::state::UiState;
 use crate::config::Config;
 use crate::home::ui::back_to_home_button;
@@ -17,9 +20,6 @@ use crate::ui::{
     FadeScroll, MorphLabel, action_close_button, centered_icon, clear, field, fit_screen, label,
     replace_screen, theme, title,
 };
-use super::db::{delete_pr, list_prs, open_db, save_pr};
-use super::github::{fetch_pr, parse_pr_ref};
-use super::{PrState, StepState, WatchedPr};
 
 const HISTORY_MESSAGE: &str = "message";
 const HISTORY_TIMELINE: &str = "timeline";
@@ -76,7 +76,11 @@ impl WatchlistView {
         if prs.is_empty() {
             let empty_row = gtk::ListBoxRow::new();
             empty_row.set_selectable(false);
-            let empty_label = label("No pull requests tracked yet", &["watchlist-empty-text"], 0.5);
+            let empty_label = label(
+                "No pull requests tracked yet",
+                &["watchlist-empty-text"],
+                0.5,
+            );
             empty_row.set_child(Some(&empty_label));
             self.list.append(&empty_row);
         } else {
@@ -101,7 +105,9 @@ impl WatchlistView {
     }
 
     fn select_id(&self, id: i64) {
-        if let Some(row) = list_rows(&self.list).find(|row| row.widget_name().as_str() == id.to_string()) {
+        if let Some(row) =
+            list_rows(&self.list).find(|row| row.widget_name().as_str() == id.to_string())
+        {
             self.list.select_row(Some(&row));
         }
         self.show_detail_for_id(id);
@@ -117,7 +123,8 @@ impl WatchlistView {
 
         self.detail_title.set_text(&pr.title);
         self.detail_num.set_text(&format!("#{}", pr.pr_number));
-        self.detail_repo.set_text(&format!("{}/{}", pr.owner, pr.repo));
+        self.detail_repo
+            .set_text(&format!("{}/{}", pr.owner, pr.repo));
 
         let (state_text, state_tone) = match pr.pr_state {
             PrState::Merged => ("Merged", theme::GREEN),
@@ -135,7 +142,8 @@ impl WatchlistView {
             let short_sha = &sha[..sha.len().min(12)];
             self.status_commit_label.set_text(short_sha);
             self.status_commit_btn.set_visible(true);
-            self.status_commit_btn.set_tooltip_text(Some(&format!("Open commit {short_sha} on GitHub")));
+            self.status_commit_btn
+                .set_tooltip_text(Some(&format!("Open commit {short_sha} on GitHub")));
 
             let date_str = pr.merged_at.as_deref().map_or_else(
                 || "· Merged into master".to_owned(),
@@ -183,7 +191,10 @@ impl WatchlistView {
                 match channel.state {
                     StepState::Reached => (
                         format!("Landed in branch at {short_sha}"),
-                        Some(format!("https://github.com/{}/{}/commit/{sha}", pr.owner, pr.repo)),
+                        Some(format!(
+                            "https://github.com/{}/{}/commit/{sha}",
+                            pr.owner, pr.repo
+                        )),
                     ),
                     StepState::Pending { ahead_by } if ahead_by > 0 => {
                         let unit = if ahead_by == 1 { "commit" } else { "commits" };
@@ -221,7 +232,11 @@ impl WatchlistView {
             );
         }
 
-        let reached_count = pr.channels.iter().filter(|c| c.state == StepState::Reached).count();
+        let reached_count = pr
+            .channels
+            .iter()
+            .filter(|c| c.state == StepState::Reached)
+            .count();
         let total_channels = pr.channels.len();
         self.history_summary.set_text(&format!(
             "{reached_count} reached · {} pending",
@@ -243,7 +258,9 @@ impl WatchlistView {
         self.open_button.set_sensitive(false);
         self.untrack_button.set_sensitive(false);
         clear(&self.history_list);
-        self.history_empty.set_text("Select a pull request from the list, or track a new PR using the input above.");
+        self.history_empty.set_text(
+            "Select a pull request from the list, or track a new PR using the input above.",
+        );
         self.history_stack.set_visible_child_name(HISTORY_MESSAGE);
     }
 
@@ -420,7 +437,11 @@ pub(crate) fn show_watchlist(
     history_header.append(&history_summary.root);
     history_panel.append(&history_header);
 
-    let history_empty = MorphLabel::new("Select a pull request from the list", &["inputs-history-empty"], 0.0);
+    let history_empty = MorphLabel::new(
+        "Select a pull request from the list",
+        &["inputs-history-empty"],
+        0.0,
+    );
     history_empty.root.set_valign(gtk::Align::Start);
 
     let history_list = gtk::Box::new(gtk::Orientation::Vertical, 0);
@@ -681,7 +702,13 @@ fn connect_watchlist_signals(view: &Rc<WatchlistView>) {
         std::thread::spawn(move || {
             let mut updated_list = Vec::new();
             for pr in current_prs {
-                if let Ok(refreshed) = fetch_pr(&pr.owner, &pr.repo, pr.pr_number, Some(pr.id), &cancellation) {
+                if let Ok(refreshed) = fetch_pr(
+                    &pr.owner,
+                    &pr.repo,
+                    pr.pr_number,
+                    Some(pr.id),
+                    &cancellation,
+                ) {
                     updated_list.push(refreshed);
                 } else {
                     updated_list.push(pr);
@@ -742,11 +769,20 @@ fn watchlist_row(pr: &WatchedPr) -> gtk::ListBoxRow {
     row_content.append(&copy);
 
     let (badge_text, badge_classes): (String, Vec<&str>) = if pr.is_ready() {
-        ("Ready".to_owned(), vec!["chip", "tinted", theme::tone(theme::GREEN)])
+        (
+            "Ready".to_owned(),
+            vec!["chip", "tinted", theme::tone(theme::GREEN)],
+        )
     } else if pr.pr_state == PrState::Merged {
-        ("Waiting".to_owned(), vec!["chip", "tinted", theme::tone(theme::YELLOW)])
+        (
+            "Waiting".to_owned(),
+            vec!["chip", "tinted", theme::tone(theme::YELLOW)],
+        )
     } else if pr.pr_state == PrState::Open {
-        ("Open".to_owned(), vec!["chip", "tinted", theme::tone(theme::MAUVE)])
+        (
+            "Open".to_owned(),
+            vec!["chip", "tinted", theme::tone(theme::MAUVE)],
+        )
     } else {
         ("Closed".to_owned(), vec!["chip"])
     };
@@ -811,13 +847,20 @@ fn append_timeline_step(
     name_label.set_ellipsize(gtk::pango::EllipsizeMode::None);
     copy.append(&name_label);
 
-    let desc_label = label(description, &["inputs-history-summary", "watchlist-timeline-desc"], 0.0);
+    let desc_label = label(
+        description,
+        &["inputs-history-summary", "watchlist-timeline-desc"],
+        0.0,
+    );
     desc_label.set_ellipsize(gtk::pango::EllipsizeMode::None);
     copy.append(&desc_label);
     row.append(&copy);
 
     let (pill_text, pill_classes): (String, Vec<&str>) = match state {
-        StepState::Reached => ("✓ In branch".to_owned(), vec!["chip", "tinted", theme::tone(theme::GREEN)]),
+        StepState::Reached => (
+            "✓ In branch".to_owned(),
+            vec!["chip", "tinted", theme::tone(theme::GREEN)],
+        ),
         StepState::Pending { ahead_by } if ahead_by > 0 => {
             let unit = if ahead_by == 1 { "commit" } else { "commits" };
             (
@@ -825,7 +868,10 @@ fn append_timeline_step(
                 vec!["chip", "tinted", theme::tone(theme::YELLOW)],
             )
         }
-        StepState::Pending { .. } => ("⏳ Waiting".to_owned(), vec!["chip", "tinted", theme::tone(theme::YELLOW)]),
+        StepState::Pending { .. } => (
+            "⏳ Waiting".to_owned(),
+            vec!["chip", "tinted", theme::tone(theme::YELLOW)],
+        ),
         StepState::Open => ("⋯ Pending".to_owned(), vec!["chip"]),
     };
     let pill = label(&pill_text, &pill_classes, 0.5);

@@ -10,6 +10,12 @@
       servers = {
         konflate.url = "https://konflate.plexuz.xyz/mcp";
         mcp-tools.url = "https://mcp.plexuz.xyz/mcp";
+        opentodo = {
+          url = "https://opentodo.plexuz.xyz/mcp";
+          headers = {
+            Authorization = "Bearer \${OPENTODO_API_TOKEN}";
+          };
+        };
       };
     };
   };

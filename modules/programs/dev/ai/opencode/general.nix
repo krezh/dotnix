@@ -1,7 +1,12 @@
 { inputs, ... }:
 {
   flake.modules.homeManager.ai =
-    { pkgs, lib, ... }:
+    {
+      config,
+      pkgs,
+      lib,
+      ...
+    }:
     let
       llm-agents-nix = inputs.llm-agents-nix.packages.${pkgs.stdenv.hostPlatform.system};
       opencodeWrapped =
@@ -9,6 +14,9 @@
           set -euo pipefail
           export PATH="${pkgs.infisical}/bin:$PATH"
           ${builtins.readFile ../lib/memini-env.sh}
+          if [ -r "${config.sops.secrets."opentodo/token".path}" ]; then
+            export OPENTODO_API_TOKEN="$(cat "${config.sops.secrets."opentodo/token".path}")"
+          fi
           exec ${lib.getExe llm-agents-nix.opencode} "$@"
         ''
         // {

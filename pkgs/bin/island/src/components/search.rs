@@ -4,8 +4,8 @@
 use std::{cell::Cell, path::PathBuf, rc::Rc, time::Duration};
 
 use gpui::{
-    Animation, AnimationExt, AnyElement, Context, FontWeight, ScrollWheelEvent, SharedString, SpringAnimation,
-    SpringConfig, div, prelude::*, px, rgb,
+    Animation, AnimationExt, AnyElement, Context, FontWeight, ScrollWheelEvent, SharedString,
+    SpringAnimation, SpringConfig, div, prelude::*, px, rgb,
 };
 
 use crate::{
@@ -70,9 +70,12 @@ fn caret() -> impl IntoElement {
         .rounded_full()
         .bg(rgb(ACCENT))
         .with_animation(
-            "launcher-caret",
+            "search-caret",
             Animation::new(Duration::from_millis(1100)).repeat(),
-            |caret, t| caret.opacity(((t * std::f32::consts::TAU).cos() * 1.6).clamp(-1.0, 1.0) * 0.5 + 0.5),
+            |caret, t| {
+                caret
+                    .opacity(((t * std::f32::consts::TAU).cos() * 1.6).clamp(-1.0, 1.0) * 0.5 + 0.5)
+            },
         )
 }
 
@@ -109,7 +112,13 @@ fn preview_pane(preview: Preview, detail: SharedString, height: f32) -> AnyEleme
         .flex()
         .flex_col()
         .gap(px(10.0))
-        .child(div().flex_1().min_h(px(0.0)).overflow_hidden().child(content))
+        .child(
+            div()
+                .flex_1()
+                .min_h(px(0.0))
+                .overflow_hidden()
+                .child(content),
+        )
         .child(
             div()
                 .flex_none()
@@ -134,7 +143,12 @@ pub fn search(view: SearchView, hover: bool, cx: &mut Context<Island>) -> AnyEle
         .text_size(px(HEADING_SIZE))
         .map(|field| {
             if view.query.is_empty() {
-                field.child(caret()).child(div().pl(px(4.0)).text_color(rgb(OVERLAY2)).child(view.placeholder.clone()))
+                field.child(caret()).child(
+                    div()
+                        .pl(px(4.0))
+                        .text_color(rgb(OVERLAY2))
+                        .child(view.placeholder.clone()),
+                )
             } else {
                 field
                     .child(div().min_w(px(0.0)).truncate().child(view.query.clone()))
@@ -148,14 +162,25 @@ pub fn search(view: SearchView, hover: bool, cx: &mut Context<Island>) -> AnyEle
         let handler = row.on_click;
         let entered = row.on_hover;
         let slot = if row.preview {
-            div().w(px(PREVIEW_W)).h(px(PREVIEW_H)).flex().items_center().justify_center().when_some(
-                row.icon.as_deref(),
-                |slot, path| slot.child(gpui::img(path.to_path_buf()).size_full().object_fit(gpui::ObjectFit::Contain)),
-            )
+            div()
+                .w(px(PREVIEW_W))
+                .h(px(PREVIEW_H))
+                .flex()
+                .items_center()
+                .justify_center()
+                .when_some(row.icon.as_deref(), |slot, path| {
+                    slot.child(
+                        gpui::img(path.to_path_buf())
+                            .size_full()
+                            .object_fit(gpui::ObjectFit::Contain),
+                    )
+                })
         } else {
             div()
                 .size(px(ICON))
-                .when_some(row.icon.as_deref(), |slot, path| slot.child(icon::image(path, ICON)))
+                .when_some(row.icon.as_deref(), |slot, path| {
+                    slot.child(icon::image(path, ICON))
+                })
         };
         button::fill(row.id, Radius::Row, None, hover && !row.selected)
             .flex_none()
@@ -170,9 +195,21 @@ pub fn search(view: SearchView, hover: bool, cx: &mut Context<Island>) -> AnyEle
                     .min_w(px(0.0))
                     .flex()
                     .flex_col()
-                    .child(div().text_size(px(TITLE_SIZE)).font_weight(FontWeight::SEMIBOLD).truncate().child(row.name))
+                    .child(
+                        div()
+                            .text_size(px(TITLE_SIZE))
+                            .font_weight(FontWeight::SEMIBOLD)
+                            .truncate()
+                            .child(row.name),
+                    )
                     .when(!row.detail.is_empty(), |text| {
-                        text.child(div().text_size(px(SMALL_SIZE)).text_color(rgb(SUBTEXT1)).truncate().child(row.detail))
+                        text.child(
+                            div()
+                                .text_size(px(SMALL_SIZE))
+                                .text_color(rgb(SUBTEXT1))
+                                .truncate()
+                                .child(row.detail),
+                        )
                     }),
             )
             .on_click(cx.listener(move |this, _, _, cx| handler(this, cx)))
@@ -184,10 +221,14 @@ pub fn search(view: SearchView, hover: bool, cx: &mut Context<Island>) -> AnyEle
     });
 
     let on_step = view.on_step;
-    let width = if view.preview.is_some() { LIST_W } else { WIDTH };
+    let width = if view.preview.is_some() {
+        LIST_W
+    } else {
+        WIDTH
+    };
     let list_h = ROWS as f32 * ROW_H + (ROWS - 1) as f32 * ROW_GAP;
     let list = div()
-        .id("launcher-list")
+        .id("search-list")
         .relative()
         .flex_none()
         .w(px(width))
@@ -207,12 +248,21 @@ pub fn search(view: SearchView, hover: bool, cx: &mut Context<Island>) -> AnyEle
                     .right_0()
                     .h(px(ROW_H))
                     .child(ui::shape(Radius::Row, Some(ui::selected_fill().into())))
-                    .with_spring("launcher-selection", SpringAnimation::new(SELECTION_SPRING).to(top), |pill, top| {
-                        pill.top(top)
-                    }),
+                    .with_spring(
+                        "search-selection",
+                        SpringAnimation::new(SELECTION_SPRING).to(top),
+                        |pill, top| pill.top(top),
+                    ),
             )
         })
-        .child(div().relative().flex().flex_col().gap(px(ROW_GAP)).children(rows))
+        .child(
+            div()
+                .relative()
+                .flex()
+                .flex_col()
+                .gap(px(ROW_GAP))
+                .children(rows),
+        )
         .when(empty, |list| {
             list.child(
                 div()

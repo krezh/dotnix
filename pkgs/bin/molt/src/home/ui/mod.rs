@@ -6,24 +6,24 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use gtk::prelude::*;
 
+use crate::app::state::UiState;
+use crate::build::ui::{AfterBuild, start_build};
 use crate::build::{Target, active_profile};
 use crate::cleanup::CleanupEstimate;
-use crate::config::{Config, load_config};
-use crate::inputs::{self, FlakeInput};
-use crate::app::state::UiState;
-use crate::ui::theme;
-use crate::home::system::{self, SystemStatus};
-use crate::build::ui::{AfterBuild, start_build};
 use crate::cleanup::ui::show_cleanup;
+use crate::config::{Config, load_config};
+use crate::home::system::{self, SystemStatus};
+use crate::inputs::ui::show_inputs;
+use crate::inputs::{self, FlakeInput};
+use crate::report::ui::show_report;
+use crate::ui::EnergyOverlay;
+use crate::ui::theme;
 use crate::ui::{
     MorphLabel, action_close_button, back_button, duration_text, fit_window, format_size,
     format_timestamp, label, replace_screen, seconds_since, short_age, title,
 };
-use crate::inputs::ui::show_inputs;
-use crate::report::ui::show_report;
 use crate::watchlist::db::{open_db, summary};
 use crate::watchlist::ui::show_watchlist;
-use crate::ui::EnergyOverlay;
 use repository::{
     RepositoryCheckWidgets, RepositoryWidgets, connect_repository_actions,
     repository_update_action, start_repository_check,
@@ -160,12 +160,7 @@ pub(crate) fn show_home(
         cards.push(card.root);
     }
 
-    let repository_card = home_card(
-        "Repository",
-        "",
-        "folder-remote-symbolic",
-        theme::PINK,
-    );
+    let repository_card = home_card("Repository", "", "folder-remote-symbolic", theme::PINK);
     set_card_status(&repository_card, "Checking", None);
     let (repository_check_button, repository_check_label) =
         home_card_action("Check", Some('R'), &state);
@@ -183,12 +178,7 @@ pub(crate) fn show_home(
         || "Manage flake.lock".to_owned(),
         |inputs| format!("{} direct inputs", inputs.len()),
     );
-    let inputs_card = home_card(
-        "Inputs",
-        &input_count,
-        "view-list-symbolic",
-        theme::VERSION,
-    );
+    let inputs_card = home_card("Inputs", &input_count, "view-list-symbolic", theme::VERSION);
     if let Some(summary) = flake_inputs.as_deref().and_then(input_age_summary) {
         set_card_status(&inputs_card, &summary, Some("muted"));
     }
@@ -301,7 +291,11 @@ pub(crate) fn show_home(
     let count = cards.len();
     for (index, card) in cards.iter().enumerate() {
         // An odd card out spans the full row instead of leaving a hole beside it.
-        let width = if index + 1 == count && count % 2 == 1 { 2 } else { 1 };
+        let width = if index + 1 == count && count % 2 == 1 {
+            2
+        } else {
+            1
+        };
         dashboard.attach(card, (index % 2) as i32, (index / 2) as i32, width, 1);
     }
 
@@ -350,7 +344,10 @@ fn home_header(config: &Config, system: &SystemStatus) -> gtk::Box {
     heading.set_hexpand(true);
     heading.append(&title("Molt"));
     let host = Target::NixOs.flake(config).ok();
-    let version = system.version.as_deref().map(|version| format!("NixOS {version}"));
+    let version = system
+        .version
+        .as_deref()
+        .map(|version| format!("NixOS {version}"));
     let subtitle = match (host, version) {
         (Some(host), Some(version)) => format!("{host} · {version}"),
         (Some(host), None) => host.to_owned(),

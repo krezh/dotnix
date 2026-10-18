@@ -1,10 +1,6 @@
 //! `island ctl volume …` and `island ctl mic …`.
 
-use super::{
-    Audio,
-    request::Request,
-    state::Target,
-};
+use super::{Audio, request::Request, state::Target};
 use crate::control::{self, Change};
 
 pub const COMMANDS: &[&str] = &["volume", "mic"];
@@ -20,7 +16,11 @@ pub fn run(audio: &Audio, args: &[&str]) {
     let Ok(change) = control::change(&args[1..], true) else {
         return;
     };
-    let target = if args[0] == "mic" { Target::Input } else { Target::Output };
+    let target = if args[0] == "mic" {
+        Target::Input
+    } else {
+        Target::Output
+    };
     audio.send(match change {
         Change::Step(delta) => Request::Step(target, delta),
         Change::Set(value) => Request::SetVolume(target, value),

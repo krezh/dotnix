@@ -77,7 +77,9 @@ impl AudioState {
             Target::Output => &self.default_sink,
             Target::Input => &self.default_source,
         };
-        self.devices(target).iter().find(|device| &device.name == name)
+        self.devices(target)
+            .iter()
+            .find(|device| &device.name == name)
     }
 
     pub fn default_device_mut(&mut self, target: Target) -> Option<&mut Device> {
@@ -89,10 +91,11 @@ impl AudioState {
     }
 
     pub fn channel(&self, target: Target) -> Channel {
-        self.default_device(target).map_or_else(Channel::default, |device| Channel {
-            volume: device.volume,
-            muted: device.muted,
-        })
+        self.default_device(target)
+            .map_or_else(Channel::default, |device| Channel {
+                volume: device.volume,
+                muted: device.muted,
+            })
     }
 
     pub fn sink(&self, index: u32) -> Option<&Device> {

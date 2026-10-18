@@ -26,7 +26,7 @@
           };
           Service = {
             Type = "oneshot";
-            ExecStart = "${pkgs.writeShellScript "kopia-backup" (builtins.readFile ./scripts/backup.sh)} ${name} ${configFile} ${passwordFile} ${configJson} ${cfg.repository.path} ${lib.boolToString cfg.repository.requireMountPoint}";
+            ExecStart = "${pkgs.writeShellScript "kopia-backup" (builtins.readFile ./scripts/backup.sh)} ${name} ${configFile} ${passwordFile} ${configJson} ${cfg.repository.path} ${lib.boolToString cfg.repository.requireMountPoint} ${cfg.notificationIcon}";
             Environment = [ "KOPIA_CHECK_FOR_UPDATES=false" ];
           };
         };
@@ -222,6 +222,12 @@
             description = "Enable Kopia desktop GUI";
           };
         };
+
+        notificationIcon = lib.mkOption {
+          type = lib.types.path;
+          default = ./icons/kopia.svg;
+          description = "Icon to use for Kopia notifications";
+        };
       };
 
       config = lib.mkIf cfg.enable {
@@ -230,6 +236,8 @@
           pkgs.kopia-manager
         ]
         ++ lib.optionals cfg.gui.enable [ pkgs.kopia-ui ];
+
+        xdg.dataFile."icons/hicolor/scalable/apps/kopia.svg".source = cfg.notificationIcon;
 
         systemd.user.services = {
           kopia-init = {
@@ -256,7 +264,7 @@
             };
             Service = {
               Type = "oneshot";
-              ExecStart = "${pkgs.writeShellScript "kopia-maintenance" (builtins.readFile ./scripts/maintenance.sh)} ${configFile} ${cfg.repository.passwordFile}";
+              ExecStart = "${pkgs.writeShellScript "kopia-maintenance" (builtins.readFile ./scripts/maintenance.sh)} ${configFile} ${cfg.repository.passwordFile} ${cfg.notificationIcon}";
               Environment = "KOPIA_CHECK_FOR_UPDATES=false";
             };
           };

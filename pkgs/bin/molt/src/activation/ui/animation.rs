@@ -82,7 +82,8 @@ impl SwitchAnimation {
         self.icon.remove_css_class("switch-activity-icon");
         self.icon.remove_css_class("switch-error-icon");
         self.icon.add_css_class("switch-success-icon");
-        self.title.set_text(mode_text(self.mode.get()).complete_title);
+        self.title
+            .set_text(mode_text(self.mode.get()).complete_title);
         self.elapsed
             .set_text(&format!("✓ in {:.1}s", elapsed.as_secs_f64()));
         self.elapsed.remove_css_class("error");

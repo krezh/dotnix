@@ -62,7 +62,12 @@ fn log_change(before: &AudioState, after: &AudioState) {
     );
 }
 
-fn run(requests: &Receiver<Request>, wake: &UnixStream, feed: &Feed<AudioState>, levels: &Mutex<Levels>) -> Option<()> {
+fn run(
+    requests: &Receiver<Request>,
+    wake: &UnixStream,
+    feed: &Feed<AudioState>,
+    levels: &Mutex<Levels>,
+) -> Option<()> {
     let mut mainloop = Mainloop::new()?;
     let waker = wake.try_clone().ok()?;
     let _wake_event = mainloop.new_io_event(
@@ -86,7 +91,10 @@ fn run(requests: &Receiver<Request>, wake: &UnixStream, feed: &Feed<AudioState>,
             _ => {}
         }
     }
-    info!(server = context.get_server().as_deref().unwrap_or("unknown"), "connected to the sound server");
+    info!(
+        server = context.get_server().as_deref().unwrap_or("unknown"),
+        "connected to the sound server"
+    );
 
     let dirty = Rc::new(Cell::new(true));
     let subscribed = dirty.clone();
@@ -145,12 +153,16 @@ pub fn start(feed: Feed<AudioState>) -> Mixer {
             let _ = waker.set_nonblocking(true);
             let mut pace = Reconnect::default();
             let levels = levels.clone();
-            feed.supervise(move |feed| loop {
-                let started = Instant::now();
-                if run(&requests, &waker, feed, &levels).is_some() || !feed.publish(AudioState::default()) {
-                    return Ended::Unwanted;
+            feed.supervise(move |feed| {
+                loop {
+                    let started = Instant::now();
+                    if run(&requests, &waker, feed, &levels).is_some()
+                        || !feed.publish(AudioState::default())
+                    {
+                        return Ended::Unwanted;
+                    }
+                    pace.wait(started);
                 }
-                pace.wait(started);
             });
             Some(Arc::new(wake))
         }
@@ -159,5 +171,9 @@ pub fn start(feed: Feed<AudioState>) -> Mixer {
             None
         }
     };
-    Mixer { sender, wake, levels }
+    Mixer {
+        sender,
+        wake,
+        levels,
+    }
 }

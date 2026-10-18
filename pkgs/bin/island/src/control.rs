@@ -9,7 +9,7 @@ use crate::features;
 const USAGE: &str = "\
 usage: island ctl COMMAND
 
-  open PANEL | toggle PANEL | close     PANEL: calendar, system, audio, media, notifications, session, clipboard, launcher
+  open PANEL | toggle PANEL | close     PANEL: calendar, system, ai, audio, media, notifications, session, clipboard, launcher
   log SPEC                             change what is logged until restart, e.g. debug or audio=debug";
 
 pub fn usage() -> String {
@@ -88,7 +88,9 @@ pub fn parse(args: &[String]) -> Result<Control, String> {
         ["close"] => Ok(Control::Close),
         ["log", spec] => Ok(Control::Log((*spec).to_owned())),
         all => match features::check_command(all) {
-            Some(checked) => checked.map(|feature| Control::Feature(feature, all.iter().map(|arg| (*arg).to_owned()).collect())),
+            Some(checked) => checked.map(|feature| {
+                Control::Feature(feature, all.iter().map(|arg| (*arg).to_owned()).collect())
+            }),
             None => Err("unknown command".to_owned()),
         },
     }
@@ -97,9 +99,16 @@ pub fn parse(args: &[String]) -> Result<Control, String> {
 pub fn send(args: Vec<String>) -> Result<(), String> {
     parse(&args)?;
     let reply: String = block_on(async {
-        let connection = Connection::session().await.map_err(|error| format!("no session bus: {error}"))?;
-        let proxy = Proxy::new(&connection, SERVICE, PATH, INTERFACE).await.map_err(|error| error.to_string())?;
-        proxy.call("Run", &(args,)).await.map_err(|error| format!("island is not running: {error}"))
+        let connection = Connection::session()
+            .await
+            .map_err(|error| format!("no session bus: {error}"))?;
+        let proxy = Proxy::new(&connection, SERVICE, PATH, INTERFACE)
+            .await
+            .map_err(|error| error.to_string())?;
+        proxy
+            .call("Run", &(args,))
+            .await
+            .map_err(|error| format!("island is not running: {error}"))
     })?;
     if reply.is_empty() { Ok(()) } else { Err(reply) }
 }

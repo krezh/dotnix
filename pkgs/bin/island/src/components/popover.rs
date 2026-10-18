@@ -18,7 +18,14 @@ pub fn surface(radius: Radius) -> Div {
     div()
         .relative()
         .m(px(SHADOW_SPREAD))
-        .child(div().absolute().top_0().left_0().size_full().child(ui::shadow(radius, power, SHADOW_SPREAD)))
+        .child(
+            div()
+                .absolute()
+                .top_0()
+                .left_0()
+                .size_full()
+                .child(ui::shadow(radius, power, SHADOW_SPREAD)),
+        )
         .child(shape::background(
             radius,
             power,
@@ -67,7 +74,11 @@ impl Popovers {
         };
         let start = f32::from(within.origin.x) + margin;
         let end = f32::from(within.right()) - margin - width;
-        if end < start { start } else { left.clamp(start, end) }
+        if end < start {
+            start
+        } else {
+            left.clamp(start, end)
+        }
     }
 
     /// Records where `id` is drawn; put it inside the element a popover grows from.
@@ -91,7 +102,13 @@ impl Popovers {
     pub fn reach(&self, radius: f32, power: f32) -> impl IntoElement {
         let state = self.0.clone();
         canvas(
-            move |bounds, _, _| state.borrow_mut().reaching.push(Reach { bounds, radius, power }),
+            move |bounds, _, _| {
+                state.borrow_mut().reaching.push(Reach {
+                    bounds,
+                    radius,
+                    power,
+                })
+            },
             |_, _, _, _| {},
         )
         .absolute()
@@ -118,7 +135,15 @@ impl Popovers {
         state.reached = std::mem::take(&mut state.reaching);
         let animating = std::mem::take(&mut state.animating);
         let shown = std::mem::take(&mut state.shown);
-        let overlay = (!shown.is_empty()).then(|| div().absolute().top_0().left_0().size_full().children(shown).into_any_element());
+        let overlay = (!shown.is_empty()).then(|| {
+            div()
+                .absolute()
+                .top_0()
+                .left_0()
+                .size_full()
+                .children(shown)
+                .into_any_element()
+        });
         (overlay, animating)
     }
 }

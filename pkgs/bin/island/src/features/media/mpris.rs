@@ -13,8 +13,8 @@ use std::{
 
 use futures::StreamExt;
 use zbus::{
-    Connection, MatchRule, MessageStream, ObjectPath, OwnedObjectPath, OwnedVariant, Variant, block_on, fdo::DBusProxy,
-    message::Type,
+    Connection, MatchRule, MessageStream, ObjectPath, OwnedObjectPath, OwnedVariant, Variant,
+    block_on, fdo::DBusProxy, message::Type,
 };
 
 use tracing::{debug, info, trace, warn};
@@ -43,7 +43,11 @@ pub struct Track {
 
 impl Track {
     pub fn position_now(&self) -> f64 {
-        let elapsed = if self.playing { self.read_at.elapsed().as_secs_f64() } else { 0.0 };
+        let elapsed = if self.playing {
+            self.read_at.elapsed().as_secs_f64()
+        } else {
+            0.0
+        };
         let position = self.position + elapsed;
         self.length.map_or(position, |length| position.min(length))
     }
@@ -139,13 +143,15 @@ fn art(url: &str, changed: &Sender<Event>) -> Option<PathBuf> {
         .insert(path.clone());
     if fresh {
         let (url, changed) = (url.to_owned(), changed.clone());
-        let _ = thread::Builder::new().name("island-media-art".into()).spawn(move || {
-            if download(&url, &dir, &path).is_some() {
-                let _ = changed.send(Event::Changed);
-            } else {
-                debug!(url, "cannot download the album art");
-            }
-        });
+        let _ = thread::Builder::new()
+            .name("island-media-art".into())
+            .spawn(move || {
+                if download(&url, &dir, &path).is_some() {
+                    let _ = changed.send(Event::Changed);
+                } else {
+                    debug!(url, "cannot download the album art");
+                }
+            });
     }
     None
 }
@@ -157,27 +163,47 @@ fn download(url: &str, dir: &Path, path: &Path) -> Option<()> {
         .build()
         .into();
     let response = agent.get(url).call().ok()?;
-    let bytes = response.into_body().with_config().limit(16 * 1024 * 1024).read_to_vec().ok()?;
+    let bytes = response
+        .into_body()
+        .with_config()
+        .limit(16 * 1024 * 1024)
+        .read_to_vec()
+        .ok()?;
     let partial = path.with_extension("part");
     std::fs::write(&partial, bytes).ok()?;
     std::fs::rename(&partial, path).ok()
 }
 
 async fn read(connection: &Connection, player: &str) -> Option<Track> {
-    let proxy = uncached(connection, player.to_owned(), PATH, PLAYER).await.ok()?;
+    let proxy = uncached(connection, player.to_owned(), PATH, PLAYER)
+        .await
+        .ok()?;
     let status: String = proxy.get_property("PlaybackStatus").await.ok()?;
-    let metadata: HashMap<String, OwnedVariant> = proxy.get_property("Metadata").await.unwrap_or_default();
-    let position = proxy.get_property::<i64>("Position").await.map_or(0.0, |micros| micros as f64 / 1e6);
-    let identity = match uncached(connection, player.to_owned(), PATH, "org.mpris.MediaPlayer2").await {
+    let metadata: HashMap<String, OwnedVariant> =
+        proxy.get_property("Metadata").await.unwrap_or_default();
+    let position = proxy
+        .get_property::<i64>("Position")
+        .await
+        .map_or(0.0, |micros| micros as f64 / 1e6);
+    let identity = match uncached(
+        connection,
+        player.to_owned(),
+        PATH,
+        "org.mpris.MediaPlayer2",
+    )
+    .await
+    {
         Ok(root) => root.get_property::<String>("Identity").await.ok(),
         Err(_) => None,
     }
     .unwrap_or_else(|| player.trim_start_matches(PREFIX).to_owned());
-    let track_id = metadata.get("mpris:trackid").and_then(|value| match &**value {
-        Variant::ObjectPath(path) => Some(path.to_string()),
-        Variant::Str(path) => Some(path.to_string()),
-        _ => None,
-    });
+    let track_id = metadata
+        .get("mpris:trackid")
+        .and_then(|value| match &**value {
+            Variant::ObjectPath(path) => Some(path.to_string()),
+            Variant::Str(path) => Some(path.to_string()),
+            _ => None,
+        });
     Some(Track {
         player: player.to_owned(),
         identity,
@@ -194,7 +220,11 @@ async fn read(connection: &Connection, player: &str) -> Option<Track> {
     })
 }
 
-fn current(connection: &Connection, preferred: &Option<String>, changed: &Sender<Event>) -> Option<Track> {
+fn current(
+    connection: &Connection,
+    preferred: &Option<String>,
+    changed: &Sender<Event>,
+) -> Option<Track> {
     let names = block_on(async { DBusProxy::new(connection).await?.list_names().await }).ok()?;
     let tracks: Vec<Track> = names
         .iter()
@@ -206,7 +236,11 @@ fn current(connection: &Connection, preferred: &Option<String>, changed: &Sender
     tracks
         .iter()
         .find(|track| track.playing)
-        .or_else(|| tracks.iter().find(|track| Some(&track.player) == preferred.as_ref()))
+        .or_else(|| {
+            tracks
+                .iter()
+                .find(|track| Some(&track.player) == preferred.as_ref())
+        })
         .or_else(|| tracks.first())
         .cloned()
         .map(|track| Track {
@@ -225,14 +259,25 @@ fn control(connection: &Connection, track: &Track, control: Control) {
         Control::Next => block_on(proxy.call_method("Next", &())),
         Control::Previous => block_on(proxy.call_method("Previous", &())),
         Control::Seek(seconds) => {
-            let Some(id) = track.track_id.as_deref().and_then(|id| ObjectPath::try_from(id).ok()) else {
+            let Some(id) = track
+                .track_id
+                .as_deref()
+                .and_then(|id| ObjectPath::try_from(id).ok())
+            else {
                 return;
             };
-            block_on(proxy.call_method("SetPosition", &(OwnedObjectPath::from(id), (seconds * 1e6) as i64)))
+            block_on(proxy.call_method(
+                "SetPosition",
+                &(OwnedObjectPath::from(id), (seconds * 1e6) as i64),
+            ))
         }
     };
     if let Err(error) = sent {
-        warn!(player = track.identity, ?control, "media control failed: {error}");
+        warn!(
+            player = track.identity,
+            ?control,
+            "media control failed: {error}"
+        );
     }
 }
 
@@ -254,19 +299,26 @@ fn listen(connection: &Connection, events: Sender<Event>) {
             continue;
         };
         let events = events.clone();
-        let _ = thread::Builder::new().name("island-media-signals".into()).spawn(move || {
-            block_on(async {
-                while let Some(message) = stream.next().await {
-                    if message.is_ok() && events.send(Event::Changed).is_err() {
-                        return;
+        let _ = thread::Builder::new()
+            .name("island-media-signals".into())
+            .spawn(move || {
+                block_on(async {
+                    while let Some(message) = stream.next().await {
+                        if message.is_ok() && events.send(Event::Changed).is_err() {
+                            return;
+                        }
                     }
-                }
+                });
             });
-        });
     }
 }
 
-fn worker(connection: &Connection, events: &Receiver<Event>, changed: &Sender<Event>, feed: &Feed<Option<Track>>) -> Ended {
+fn worker(
+    connection: &Connection,
+    events: &Receiver<Event>,
+    changed: &Sender<Event>,
+    feed: &Feed<Option<Track>>,
+) -> Ended {
     let mut preferred: Option<String> = None;
     let mut last = current(connection, &preferred, changed);
     if let Some(track) = &last {
@@ -275,7 +327,7 @@ fn worker(connection: &Connection, events: &Receiver<Event>, changed: &Sender<Ev
     if !feed.publish(last.clone()) {
         return Ended::Unwanted;
     }
-    let publish_current =|last: &mut Option<Track>, preferred: &mut Option<String>| {
+    let publish_current = |last: &mut Option<Track>, preferred: &mut Option<String>| {
         let current = current(connection, preferred, changed);
         if let Some(track) = &current {
             *preferred = Some(track.player.clone());
@@ -288,7 +340,11 @@ fn worker(connection: &Connection, events: &Receiver<Event>, changed: &Sender<Ev
         if !unchanged {
             match (&current, &*last) {
                 (Some(new), old) if old.as_ref().is_none_or(|old| old.player != new.player) => {
-                    info!(player = new.identity, bus = new.player, "following a media player");
+                    info!(
+                        player = new.identity,
+                        bus = new.player,
+                        "following a media player"
+                    );
                 }
                 (None, Some(old)) => info!(player = old.identity, "media player gone"),
                 _ => {}

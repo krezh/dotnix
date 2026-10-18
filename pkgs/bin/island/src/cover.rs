@@ -1,6 +1,6 @@
 use gpui::{
-    Bounds, Context, Entity, FocusHandle, KeyDownEvent, KeyUpEvent, Keystroke, MouseDownEvent, Pixels, Render, Size,
-    Subscription, WeakEntity, Window, div, point, prelude::*, px,
+    Bounds, Context, Entity, FocusHandle, KeyDownEvent, KeyUpEvent, Keystroke, MouseDownEvent,
+    Pixels, Render, Size, Subscription, WeakEntity, Window, div, point, prelude::*, px,
 };
 
 use crate::{
@@ -44,15 +44,29 @@ impl KeyGrab {
 /// `holes` are in the island surface's coordinates; it is centred at the top of the same output.
 fn outside(viewport: Size<Pixels>, holes: &[Bounds<Pixels>]) -> Vec<Bounds<Pixels>> {
     let shift = (viewport.width - px(SURFACE_W)) / 2.0;
-    let full = Bounds::from_corners(point(px(0.0), px(0.0)), point(viewport.width, viewport.height));
+    let full = Bounds::from_corners(
+        point(px(0.0), px(0.0)),
+        point(viewport.width, viewport.height),
+    );
     holes.iter().fold(vec![full], |region, hole| {
         let hole = Bounds::new(point(hole.origin.x + shift, hole.origin.y), hole.size);
-        region.into_iter().flat_map(|rect| cut(rect, hole)).collect()
+        region
+            .into_iter()
+            .flat_map(|rect| cut(rect, hole))
+            .collect()
     })
 }
 
-fn follow(island: &WeakEntity<Island>, region: &mut Vec<Bounds<Pixels>>, window: &mut Window, cx: &gpui::App) {
-    let holes = island.upgrade().map(|island| island.read(cx).input_region().to_vec()).unwrap_or_default();
+fn follow(
+    island: &WeakEntity<Island>,
+    region: &mut Vec<Bounds<Pixels>>,
+    window: &mut Window,
+    cx: &gpui::App,
+) {
+    let holes = island
+        .upgrade()
+        .map(|island| island.read(cx).input_region().to_vec())
+        .unwrap_or_default();
     let wanted = outside(window.viewport_size(), &holes);
     if wanted != *region {
         window.set_input_region(Some(&wanted));
@@ -61,14 +75,23 @@ fn follow(island: &WeakEntity<Island>, region: &mut Vec<Bounds<Pixels>>, window:
 }
 
 fn cut(rect: Bounds<Pixels>, hole: Bounds<Pixels>) -> Vec<Bounds<Pixels>> {
-    let (left, top) = (hole.origin.x.max(rect.origin.x), hole.origin.y.max(rect.origin.y));
-    let (right, bottom) = (hole.right().min(rect.right()), hole.bottom().min(rect.bottom()));
+    let (left, top) = (
+        hole.origin.x.max(rect.origin.x),
+        hole.origin.y.max(rect.origin.y),
+    );
+    let (right, bottom) = (
+        hole.right().min(rect.right()),
+        hole.bottom().min(rect.bottom()),
+    );
     if left >= right || top >= bottom {
         return vec![rect];
     }
     [
         Bounds::from_corners(rect.origin, point(rect.right(), top)),
-        Bounds::from_corners(point(rect.origin.x, bottom), point(rect.right(), rect.bottom())),
+        Bounds::from_corners(
+            point(rect.origin.x, bottom),
+            point(rect.right(), rect.bottom()),
+        ),
         Bounds::from_corners(point(rect.origin.x, top), point(left, bottom)),
         Bounds::from_corners(point(right, top), point(rect.right(), bottom)),
     ]
@@ -96,7 +119,8 @@ impl Render for KeyGrab {
                 let _ = this.shell.update(cx, |shell, cx| shell.key(&keystroke, cx));
             }))
             .on_key_up(cx.listener(|this, event: &KeyUpEvent, _, cx| {
-                let Some(keystroke) = this.held.take_if(|held| held.key == event.keystroke.key) else {
+                let Some(keystroke) = this.held.take_if(|held| held.key == event.keystroke.key)
+                else {
                     return;
                 };
                 let _ = this.shell.update(cx, |shell, cx| shell.key(&keystroke, cx));
@@ -125,7 +149,11 @@ impl ClickCatcher {
         }
     }
 
-    pub fn around(shell: WeakEntity<Shell>, island: &Entity<Island>, cx: &mut Context<Self>) -> Self {
+    pub fn around(
+        shell: WeakEntity<Shell>,
+        island: &Entity<Island>,
+        cx: &mut Context<Self>,
+    ) -> Self {
         Self {
             shell,
             island: Some(island.downgrade()),
@@ -140,9 +168,11 @@ impl Render for ClickCatcher {
         if let Some(island) = &self.island {
             follow(island, &mut self.region, window, cx);
         }
-        div().size_full().on_any_mouse_down(cx.listener(|this, _: &MouseDownEvent, _, cx| {
-            let _ = this.shell.update(cx, |shell, cx| shell.close_grabbed(cx));
-        }))
+        div()
+            .size_full()
+            .on_any_mouse_down(cx.listener(|this, _: &MouseDownEvent, _, cx| {
+                let _ = this.shell.update(cx, |shell, cx| shell.close_grabbed(cx));
+            }))
     }
 }
 

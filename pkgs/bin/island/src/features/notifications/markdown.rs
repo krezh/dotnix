@@ -34,7 +34,9 @@ impl Text {
             return;
         }
         match self.spans.last_mut() {
-            Some((range, last)) if *last == style && range.end == start => range.end = self.text.len(),
+            Some((range, last)) if *last == style && range.end == start => {
+                range.end = self.text.len()
+            }
             _ => self.spans.push((start..self.text.len(), style)),
         }
     }
@@ -43,7 +45,11 @@ impl Text {
     pub fn link_ranges(&self) -> Vec<Range<usize>> {
         (0..self.links.len())
             .map(|link| {
-                let mut ranges = self.spans.iter().filter(|(_, style)| style.link == Some(link)).map(|(range, _)| range);
+                let mut ranges = self
+                    .spans
+                    .iter()
+                    .filter(|(_, style)| style.link == Some(link))
+                    .map(|(range, _)| range);
                 let first = ranges.next().map_or(0..0, Clone::clone);
                 ranges.fold(first, |all, range| all.start..range.end)
             })
@@ -81,7 +87,11 @@ fn flow(markdown: &str) -> String {
         if raw.trim_start().starts_with("```") {
             fenced = !fenced;
         }
-        let (line, heading) = if fenced { (raw.trim(), false) } else { unblock(raw) };
+        let (line, heading) = if fenced {
+            (raw.trim(), false)
+        } else {
+            unblock(raw)
+        };
         let line = match line.strip_prefix("- ").or_else(|| line.strip_prefix("* ")) {
             Some(item) if !fenced => format!("• {item}"),
             _ => line.to_owned(),
@@ -148,7 +158,9 @@ fn inline(source: &str, style: Style, text: &mut Text) {
     while at < source.len() {
         let rest = &source[at..];
         let previous = source[..at].chars().next_back();
-        if let Some(escaped) = rest.strip_prefix('\\').and_then(|after| after.chars().next())
+        if let Some(escaped) = rest
+            .strip_prefix('\\')
+            .and_then(|after| after.chars().next())
             && "\\*_~`|[]()<>#-".contains(escaped)
         {
             plain.push(escaped);
@@ -167,7 +179,13 @@ fn inline(source: &str, style: Style, text: &mut Text) {
         });
         if let Some((content, length)) = code {
             flush(&mut plain, text);
-            text.push(content, Style { code: true, ..style });
+            text.push(
+                content,
+                Style {
+                    code: true,
+                    ..style
+                },
+            );
             at += length;
             continue;
         }
@@ -188,12 +206,30 @@ fn inline(source: &str, style: Style, text: &mut Text) {
             continue;
         }
         let pairs: [(&str, fn(Style) -> Style); 6] = [
-            ("**", |style| Style { bold: true, ..style }),
-            ("__", |style| Style { underline: true, ..style }),
-            ("~~", |style| Style { strike: true, ..style }),
-            ("||", |style| Style { spoiler: true, ..style }),
-            ("*", |style| Style { italic: true, ..style }),
-            ("_", |style| Style { italic: true, ..style }),
+            ("**", |style| Style {
+                bold: true,
+                ..style
+            }),
+            ("__", |style| Style {
+                underline: true,
+                ..style
+            }),
+            ("~~", |style| Style {
+                strike: true,
+                ..style
+            }),
+            ("||", |style| Style {
+                spoiler: true,
+                ..style
+            }),
+            ("*", |style| Style {
+                italic: true,
+                ..style
+            }),
+            ("_", |style| Style {
+                italic: true,
+                ..style
+            }),
         ];
         let opened = pairs.into_iter().find_map(|(marker, styled)| {
             let inner = rest.strip_prefix(marker)?;
@@ -225,15 +261,23 @@ fn link(rest: &str) -> Option<(&str, &str, usize)> {
     let label_end = inner.find("](")?;
     let after = &inner[label_end + 2..];
     let url_end = after.find(')')?;
-    let url = after[..url_end].trim().trim_start_matches('<').trim_end_matches('>');
+    let url = after[..url_end]
+        .trim()
+        .trim_start_matches('<')
+        .trim_end_matches('>');
     let label = &inner[..label_end];
-    (!label.is_empty() && (url.starts_with("http://") || url.starts_with("https://")))
-        .then_some((label, url, 1 + label_end + 2 + url_end + 1))
+    (!label.is_empty() && (url.starts_with("http://") || url.starts_with("https://"))).then_some((
+        label,
+        url,
+        1 + label_end + 2 + url_end + 1,
+    ))
 }
 
 /// A custom emoji at the start of `rest`, `<:name:id>` or `<a:name:id>`: its name and its length.
 fn custom_emoji(rest: &str) -> Option<(&str, usize)> {
-    let inner = rest.strip_prefix("<a:").or_else(|| rest.strip_prefix("<:"))?;
+    let inner = rest
+        .strip_prefix("<a:")
+        .or_else(|| rest.strip_prefix("<:"))?;
     let end = inner.find('>')?;
     let (name, id) = inner[..end].split_once(':')?;
     (!name.is_empty() && !id.is_empty() && id.chars().all(|char| char.is_ascii_digit()))

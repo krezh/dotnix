@@ -13,6 +13,10 @@
           mcp-tools = {
             url = config.programs.mcp.servers.mcp-tools.url;
           };
+          opentodo = {
+            url = config.programs.mcp.servers.opentodo.url;
+            headers = config.programs.mcp.servers.opentodo.headers;
+          };
           memini = {
             url = "\${MEMINI_BASE_URL}/mcp";
             headers = {

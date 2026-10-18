@@ -22,6 +22,7 @@
           "r2/accessSecret" = { };
           "hetzner/accessID" = { };
           "hetzner/accessSecret" = { };
+          "opentodo/token" = { };
         };
       };
       home.sessionVariables = {

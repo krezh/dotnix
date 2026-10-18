@@ -154,7 +154,10 @@ impl SegmentedControl {
         let following = Rc::clone(&self.following);
         self.thumb.add_tick_callback(move |thumb, clock| {
             thumb.queue_draw();
-            if following.get().is_some_and(|until| clock.frame_time() < until) {
+            if following
+                .get()
+                .is_some_and(|until| clock.frame_time() < until)
+            {
                 glib::ControlFlow::Continue
             } else {
                 following.set(None);

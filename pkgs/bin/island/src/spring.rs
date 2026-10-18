@@ -63,7 +63,10 @@ impl Spring {
         }
         self.hold_until = None;
         self.state = self.config.step(self.state, self.target, dt);
-        if self.config.is_settled(self.state, self.target, self.epsilon) {
+        if self
+            .config
+            .is_settled(self.state, self.target, self.epsilon)
+        {
             self.state = SpringState {
                 position: self.target,
                 velocity: 0.0,

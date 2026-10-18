@@ -8,11 +8,26 @@ pub const GLYPHS: &[GlyphSpec] = &[
     ("volume-medium", &["audio-volume-medium-symbolic"]),
     ("volume-low", &["audio-volume-low-symbolic"]),
     ("volume-muted", &["audio-volume-muted-symbolic"]),
-    ("mic", &["microphone-sensitivity-high-symbolic", "audio-input-microphone-symbolic"]),
+    (
+        "mic",
+        &[
+            "microphone-sensitivity-high-symbolic",
+            "audio-input-microphone-symbolic",
+        ],
+    ),
     ("mic-muted", &["microphone-sensitivity-muted-symbolic"]),
-    ("device-headset", &["audio-headset-symbolic", "audio-headphones-symbolic"]),
-    ("device-speakers", &["audio-speakers-symbolic", "audio-card-symbolic"]),
-    ("device-card", &["audio-card-symbolic", "audio-speakers-symbolic"]),
+    (
+        "device-headset",
+        &["audio-headset-symbolic", "audio-headphones-symbolic"],
+    ),
+    (
+        "device-speakers",
+        &["audio-speakers-symbolic", "audio-card-symbolic"],
+    ),
+    (
+        "device-card",
+        &["audio-card-symbolic", "audio-speakers-symbolic"],
+    ),
 ];
 
 pub fn speaker(volume: f32, muted: bool) -> &'static str {
@@ -39,7 +54,9 @@ fn of_headset(description: &str, headset: &str) -> bool {
 
 pub fn device(device: &Device, headset: Option<&str>) -> &'static str {
     let form = match device.form {
-        Form::Card if headset.is_some_and(|name| of_headset(&device.description, name)) => Form::Headset,
+        Form::Card if headset.is_some_and(|name| of_headset(&device.description, name)) => {
+            Form::Headset
+        }
         form => form,
     };
     match form {

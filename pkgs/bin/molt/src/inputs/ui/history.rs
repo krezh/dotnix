@@ -138,14 +138,14 @@ fn render_history(view: &Rc<InputsView>) {
             append_timeline_row(view, record, position, TimelineKind::Unplaced, now);
         }
         view.history_status.add_css_class("warning");
-        view.history_status.set_text("Locked commit not in recent history");
+        view.history_status
+            .set_text("Locked commit not in recent history");
         view.lock_upstream.set_text("· not in recent history");
     }
     if records.is_empty() {
         view.show_history_message("No other remote revisions found");
     } else {
-        view.history_stack
-            .set_visible_child_name(HISTORY_TIMELINE);
+        view.history_stack.set_visible_child_name(HISTORY_TIMELINE);
     }
 }
 
@@ -222,7 +222,11 @@ fn timeline_content(record: &RevisionRecord, kind: TimelineKind, now: SystemTime
     copy.append(&summary);
     content.append(&copy);
 
-    let date = label(&relative_date(&record.date, now), &["inputs-history-date"], 1.0);
+    let date = label(
+        &relative_date(&record.date, now),
+        &["inputs-history-date"],
+        1.0,
+    );
     date.set_valign(gtk::Align::Start);
     date.set_margin_top(9);
     date.set_tooltip_text(Some(&history_date(&record.date)));

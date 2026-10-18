@@ -10,7 +10,7 @@
         workspaces = true;
         auto_sync = true;
         sync_frequency = "1m";
-        search_mode = "fuzzy";
+        search_mode = "daemon-fuzzy";
         store_failed = false;
         show_preview = true;
         filter_mode = "workspace";

@@ -17,6 +17,7 @@
         "audio"
         "media"
         "molt"
+        "ai"
         "headset"
         "zowie"
         "caffeine"
@@ -41,42 +42,69 @@
         };
       configFile = toml.generate "island.toml" {
         bar = {
-          inherit (cfg.bar) left middle right spacing;
+          inherit (cfg.bar)
+            left
+            middle
+            right
+            spacing
+            ;
         };
         appearance = {
-          inherit (cfg) opacity radius power;
-          icon_theme = cfg.iconTheme;
+          inherit (cfg.appearance) opacity radius power;
+          icon_theme = cfg.appearance.iconTheme;
         };
-        notifications = {
-          inherit (cfg.notifications) private;
-          private_apps = cfg.notifications.privateApps;
-          hide_on_lock = cfg.notifications.hideOnLock;
-          history_days = cfg.notifications.historyDays;
-        };
-        visualizer = {
-          inherit (cfg.visualizer) glow;
-        };
-        session = {
-          inherit (cfg.session) actions confirm commands;
-        };
-        clipboard = {
-          inherit (cfg.clipboard)
-            images
-            persist
-            paste
-            terminals
-            ;
-          terminal_paste = cfg.clipboard.terminalPaste;
-          max_entries = cfg.clipboard.maxEntries;
-          max_total_mb = cfg.clipboard.maxTotalMb;
-          max_item_mb = cfg.clipboard.maxItemMb;
-        };
-        system = {
-          inherit (cfg.system) partitions;
-          hidden_partitions = cfg.system.hiddenPartitions;
+        features = {
+          notifications = {
+            privacy = {
+              inherit (cfg.features.notifications.privacy) private;
+              private_apps = cfg.features.notifications.privacy.privateApps;
+              hide_on_lock = cfg.features.notifications.privacy.hideOnLock;
+            };
+            history_days = cfg.features.notifications.historyDays;
+          };
+          visualizer = {
+            inherit (cfg.features.visualizer) glow;
+          };
+          ai = {
+            inherit (cfg.features.ai) sources;
+            refresh_minutes = cfg.features.ai.refreshMinutes;
+            disabled_limits = cfg.features.ai.disabledLimits;
+            widget = {
+              inherit (cfg.features.ai.widget) display;
+              show_badge = cfg.features.ai.widget.showBadge;
+            };
+            alerts = {
+              inherit (cfg.features.ai.alerts) notifications;
+              high_usage_threshold = cfg.features.ai.alerts.highUsageThreshold;
+              pace_alerts = cfg.features.ai.alerts.paceAlerts;
+            };
+          };
+          session = {
+            inherit (cfg.features.session) actions confirm commands;
+          };
+          launcher = {
+            inherit (cfg.features.launcher) terminal;
+          };
+          clipboard = {
+            history = {
+              inherit (cfg.features.clipboard.history) images;
+              max_entries = cfg.features.clipboard.history.maxEntries;
+              max_total_mb = cfg.features.clipboard.history.maxTotalMb;
+              max_item_mb = cfg.features.clipboard.history.maxItemMb;
+            };
+            inherit (cfg.features.clipboard) persist;
+            paste = {
+              inherit (cfg.features.clipboard.paste) keys terminals;
+              terminal_keys = cfg.features.clipboard.paste.terminalKeys;
+            };
+          };
+          system.storage = {
+            inherit (cfg.features.system.storage) partitions;
+            hidden_partitions = cfg.features.system.storage.hiddenPartitions;
+          };
         };
         log = {
-          level = cfg.logLevel;
+          inherit (cfg.log) level;
         };
       };
     in
@@ -94,6 +122,7 @@
           left = section [
             "tray"
             "molt"
+            "ai"
             "headset"
             "zowie"
             "audio"
@@ -113,45 +142,45 @@
           };
         };
 
-        opacity = lib.mkOption {
+        appearance.opacity = lib.mkOption {
           type = lib.types.numbers.between 0 1;
           default = 0.45;
           description = "Opacity of the island body.";
         };
 
-        radius = lib.mkOption {
+        appearance.radius = lib.mkOption {
           type = lib.types.numbers.nonnegative;
           default = 28;
           description = "Corner radius in pixels.";
         };
 
-        power = lib.mkOption {
+        appearance.power = lib.mkOption {
           type = lib.types.numbers.positive;
           default = 2;
           description = "Corner superellipse power: 2 is circular, 4 a squircle.";
         };
 
-        iconTheme = lib.mkOption {
+        appearance.iconTheme = lib.mkOption {
           type = lib.types.str;
           default = if config.gtk.iconTheme != null then config.gtk.iconTheme.name else "hicolor";
           defaultText = lib.literalExpression ''config.gtk.iconTheme.name or "hicolor"'';
           description = "Icon theme used for tray icons, app icons and bar glyphs.";
         };
 
-        logLevel = lib.mkOption {
+        log.level = lib.mkOption {
           type = lib.types.str;
           default = "info";
           example = "audio=debug,tray=trace";
           description = "What island logs: a level (error, warn, info, debug, trace) or per module or feature like audio=debug. Follow it with `island logs`.";
         };
 
-        visualizer.glow = lib.mkOption {
+        features.visualizer.glow = lib.mkOption {
           type = lib.types.numbers.between 0 1;
           default = 0.5;
           description = "Strength of the music glow behind the bar while media plays; 0 turns it off.";
         };
 
-        system = {
+        features.system.storage = {
           partitions = lib.mkOption {
             type = lib.types.listOf lib.types.str;
             default = [ ];
@@ -168,7 +197,7 @@
           };
         };
 
-        session = {
+        features.session = {
           actions = lib.mkOption {
             type = lib.types.listOf (lib.types.enum sessionActions);
             default = [
@@ -195,23 +224,123 @@
           );
         };
 
-        clipboard = {
-          maxEntries = lib.mkOption {
+        features.ai = {
+          sources = lib.mkOption {
+            type = lib.types.listOf (
+              lib.types.enum [
+                "omp"
+                "claude"
+              ]
+            );
+            default = [
+              "omp"
+              "claude"
+            ];
+            description = ''
+              AI usage harnesses, in overview and tooltip order. Each harness has its own
+              account tiles, refresh status and issues. Accounts without quotas or saved
+              reset credits are hidden, along with harnesses that have no visible accounts;
+              accounts that do not expose usage are omitted, not treated as refresh errors.
+              Actual refresh and credential failures remain available as diagnostics.
+              omp runs `omp usage --json` from PATH; claude reads Claude Code's existing
+              OAuth login. Empty disables collection.
+            '';
+          };
+          disabledLimits = lib.mkOption {
+            type = lib.types.submodule {
+              options = lib.genAttrs [ "omp" "claude" ] (
+                source:
+                lib.mkOption {
+                  type = lib.types.attrsOf (lib.types.listOf lib.types.str);
+                  default = { };
+                  description = "Quota IDs disabled for ${source}, keyed by provider ID.";
+                }
+              );
+            };
+            default = { };
+            example = {
+              omp.google-antigravity = [ "3p-weekly:weekly" ];
+            };
+            description = ''
+              Quotas excluded from the overview, widget, tooltip and notifications.
+              Rules apply to every account of the selected provider within that harness.
+              Shared quota pools use their scope.sharedGroup ID; other quotas use their
+              limit ID from `omp usage --json`. Claude Code uses provider ID `anthropic`
+              and OAuth window IDs such as `five_hour` and `seven_day`.
+              The example disables Antigravity's shared Claude/GPT pool, leaving Gemini
+              and standalone Claude quotas enabled.
+            '';
+          };
+          refreshMinutes = lib.mkOption {
+            type = lib.types.ints.between 1 60;
+            default = 5;
+            description = "Minutes between AI quota refreshes.";
+          };
+          alerts.highUsageThreshold = lib.mkOption {
+            type = lib.types.numbers.between 50 99;
+            default = 75;
+            description = "Quota percentage at which healthy usage becomes a high-usage alert.";
+          };
+          alerts.paceAlerts = lib.mkOption {
+            type = lib.types.bool;
+            default = true;
+            description = "Warn when the current usage rate would exhaust a quota before its reset.";
+          };
+          alerts.notifications = lib.mkOption {
+            type = lib.types.bool;
+            default = true;
+            description = "Notify when AI quotas become high, exhausted or available again.";
+          };
+          widget.display = lib.mkOption {
+            type = lib.types.enum [
+              "worst"
+              "providers"
+            ];
+            default = "worst";
+            description = "Show the most urgent quota alert or each provider's headline usage in the AI bar widget. Each badge uses the provider icon of the account supplying its quota or countdown.";
+          };
+          widget.showBadge = lib.mkOption {
+            type = lib.types.bool;
+            default = true;
+            description = "Show the reset countdown or usage badge in the AI widget's worst-alert mode.";
+          };
+        };
+
+        features.launcher.terminal = lib.mkOption {
+          type = lib.types.nonEmptyListOf lib.types.str;
+          default = [ "xdg-terminal-exec" ];
+          example = [
+            "foot"
+            "-e"
+          ];
+          description = ''
+            Terminal command (argv) prepended to desktop entries with Terminal=true.
+            Arguments are kept verbatim, without shell parsing; ordinary apps are unchanged.
+            The equivalent island TOML is:
+            ```toml
+            [features.launcher]
+            terminal = ["foot", "-e"]
+            ```
+          '';
+        };
+
+        features.clipboard = {
+          history.maxEntries = lib.mkOption {
             type = lib.types.ints.positive;
             default = 200;
             description = "Clipboard history entries kept, most recently used first.";
           };
-          maxTotalMb = lib.mkOption {
+          history.maxTotalMb = lib.mkOption {
             type = lib.types.ints.positive;
             default = 256;
             description = "Megabytes the whole clipboard history may take.";
           };
-          maxItemMb = lib.mkOption {
+          history.maxItemMb = lib.mkOption {
             type = lib.types.ints.positive;
             default = 32;
             description = "Copies larger than this many megabytes are not kept.";
           };
-          images = lib.mkOption {
+          history.images = lib.mkOption {
             type = lib.types.bool;
             default = true;
             description = "Keep copied pictures as well as text and files.";
@@ -221,17 +350,17 @@
             default = true;
             description = "Put the newest entry back on the clipboard when it empties, such as when the app that copied something quits.";
           };
-          paste = lib.mkOption {
+          paste.keys = lib.mkOption {
             type = lib.types.str;
             default = "ctrl+v";
             description = "Keys pressed in the focused window to paste a picked entry; modifiers ctrl, shift, alt, super and a letter or insert. Empty only puts the entry on the clipboard.";
           };
-          terminalPaste = lib.mkOption {
+          paste.terminalKeys = lib.mkOption {
             type = lib.types.str;
             default = "ctrl+shift+v";
-            description = "Keys pressed instead of paste when the focused window is one of terminals.";
+            description = "Keys pressed instead of paste.keys when the focused window is one of paste.terminals.";
           };
-          terminals = lib.mkOption {
+          paste.terminals = lib.mkOption {
             type = lib.types.listOf lib.types.str;
             default = [
               "com.mitchellh.ghostty"
@@ -245,23 +374,23 @@
               "org.kde.konsole"
               "xterm"
             ];
-            description = "Window classes of terminals, which paste with terminalPaste.";
+            description = "Window classes of terminals, which paste with terminalKeys.";
           };
         };
 
-        notifications = {
-          private = lib.mkOption {
+        features.notifications = {
+          privacy.private = lib.mkOption {
             type = lib.types.bool;
             default = false;
             description = "Hide notification contents by default.";
           };
-          privateApps = lib.mkOption {
+          privacy.privateApps = lib.mkOption {
             type = lib.types.listOf lib.types.str;
             default = [ ];
             example = [ "Signal" ];
             description = "Apps whose notification contents are always hidden.";
           };
-          hideOnLock = lib.mkOption {
+          privacy.hideOnLock = lib.mkOption {
             type = lib.types.bool;
             default = true;
             description = "Hide notification contents while the session is locked.";

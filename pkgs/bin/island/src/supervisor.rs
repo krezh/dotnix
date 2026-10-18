@@ -51,7 +51,10 @@ fn panic_message(payload: &(dyn Any + Send)) -> &str {
 
 /// Everything `run` captures outlives a restart; state it builds inside is rebuilt, so each run
 /// should publish afresh.
-pub fn supervise(name: &'static str, mut run: impl FnMut() -> Ended + Send + 'static) -> io::Result<()> {
+pub fn supervise(
+    name: &'static str,
+    mut run: impl FnMut() -> Ended + Send + 'static,
+) -> io::Result<()> {
     thread::Builder::new()
         .name(format!("island-{name}"))
         .spawn(move || {

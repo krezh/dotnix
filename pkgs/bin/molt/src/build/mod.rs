@@ -1,5 +1,5 @@
-pub(crate) mod ui;
 mod target;
+pub(crate) mod ui;
 
 use std::env;
 use std::fs;

@@ -23,7 +23,8 @@ fn minute() -> i64 {
 
 fn until_next_minute() -> Duration {
     let now = Local::now();
-    let into = Duration::from_secs(now.second().into()) + Duration::from_nanos(now.nanosecond().min(999_999_999).into());
+    let into = Duration::from_secs(now.second().into())
+        + Duration::from_nanos(now.nanosecond().min(999_999_999).into());
     Duration::from_secs(60).saturating_sub(into) + LATE
 }
 
@@ -72,8 +73,16 @@ impl Feature for Clock {
         Some(
             w.base("bar-clock")
                 .gap(px(GAP))
-                .tip(w.tips(), "bar-clock", now.format("%A, %-d %B %Y").to_string())
-                .child(div().text_size(px(SMALL_SIZE)).child(motion::text("date", now.format("%a %-d %b").to_string())))
+                .tip(
+                    w.tips(),
+                    "bar-clock",
+                    now.format("%A, %-d %B %Y").to_string(),
+                )
+                .child(
+                    div()
+                        .text_size(px(SMALL_SIZE))
+                        .child(motion::text("date", now.format("%a %-d %b").to_string())),
+                )
                 .child(
                     div()
                         .text_size(px(TITLE_SIZE))

@@ -56,7 +56,10 @@ impl Mixer {
     }
 
     pub fn peaks(&self) -> HashMap<Probe, Peak> {
-        self.levels.lock().map(|mut levels| levels.read()).unwrap_or_default()
+        self.levels
+            .lock()
+            .map(|mut levels| levels.read())
+            .unwrap_or_default()
     }
 }
 
@@ -73,9 +76,17 @@ pub fn stepped(current: f32, delta: f32) -> f32 {
     }
     const GRID: f32 = 0.05;
     let notches = delta / GRID;
-    let size = if (notches - notches.round()).abs() < 1e-3 { GRID } else { delta.abs() };
+    let size = if (notches - notches.round()).abs() < 1e-3 {
+        GRID
+    } else {
+        delta.abs()
+    };
     let position = current / size;
-    let grid = if delta > 0.0 { (position + 1e-3).floor() } else { (position - 1e-3).ceil() };
+    let grid = if delta > 0.0 {
+        (position + 1e-3).floor()
+    } else {
+        (position - 1e-3).ceil()
+    };
     let moved = grid + (delta / size).round();
     ((moved * size).clamp(0.0, 1.0) * 1000.0).round() / 1000.0
 }
@@ -107,7 +118,8 @@ impl Intents {
 
     /// Puts what was just asked for over a fresh state from the server.
     pub fn honour(&mut self, state: &mut AudioState) {
-        self.0.retain(|_, intent| intent.at.is_some_and(|at| at.elapsed() < INTENT_HOLD));
+        self.0
+            .retain(|_, intent| intent.at.is_some_and(|at| at.elapsed() < INTENT_HOLD));
         let devices = state
             .sinks
             .iter_mut()
@@ -130,8 +142,16 @@ impl Intents {
     }
 }
 
-fn set_volume(introspect: &mut Introspector, state: &mut AudioState, intents: &mut Intents, target: Target, value: f32) {
-    let Some(device) = state.default_device_mut(target) else { return };
+fn set_volume(
+    introspect: &mut Introspector,
+    state: &mut AudioState,
+    intents: &mut Intents,
+    target: Target,
+    value: f32,
+) {
+    let Some(device) = state.default_device_mut(target) else {
+        return;
+    };
     device.volume = value.clamp(0.0, 1.0);
     intents.remember(device.name.clone()).volume = Some(device.volume);
     let volume = volumes(device.channels, device.volume);
@@ -142,21 +162,42 @@ fn set_volume(introspect: &mut Introspector, state: &mut AudioState, intents: &m
 }
 
 /// Sends the request on and changes `state` to match at once, ahead of the server's answer.
-pub fn apply(context: &mut Context, state: &mut AudioState, intents: &mut Intents, request: Request) {
+pub fn apply(
+    context: &mut Context,
+    state: &mut AudioState,
+    intents: &mut Intents,
+    request: Request,
+) {
     let mut introspect = context.introspect();
     match request {
-        Request::SetVolume(target, value) => set_volume(&mut introspect, state, intents, target, value),
+        Request::SetVolume(target, value) => {
+            set_volume(&mut introspect, state, intents, target, value)
+        }
         Request::Step(target, delta) => {
-            let Some(current) = state.default_device(target).map(|device| device.volume) else { return };
-            set_volume(&mut introspect, state, intents, target, stepped(current, delta));
+            let Some(current) = state.default_device(target).map(|device| device.volume) else {
+                return;
+            };
+            set_volume(
+                &mut introspect,
+                state,
+                intents,
+                target,
+                stepped(current, delta),
+            );
         }
         Request::ToggleMute(target) => {
-            let Some(device) = state.default_device_mut(target) else { return };
+            let Some(device) = state.default_device_mut(target) else {
+                return;
+            };
             device.muted = !device.muted;
             intents.remember(device.name.clone()).muted = Some(device.muted);
             match target {
-                Target::Output => drop(introspect.set_sink_mute_by_name(&device.name, device.muted, None)),
-                Target::Input => drop(introspect.set_source_mute_by_name(&device.name, device.muted, None)),
+                Target::Output => {
+                    drop(introspect.set_sink_mute_by_name(&device.name, device.muted, None))
+                }
+                Target::Input => {
+                    drop(introspect.set_source_mute_by_name(&device.name, device.muted, None))
+                }
             }
         }
         Request::SetDefault(target, name) => match target {
@@ -164,19 +205,28 @@ pub fn apply(context: &mut Context, state: &mut AudioState, intents: &mut Intent
             Target::Input => drop(context.set_default_source(&name, |_| {})),
         },
         Request::SetAppVolume(index, value) => {
-            let Some(app) = state.playing.iter_mut().find(|app| app.index == index) else { return };
+            let Some(app) = state.playing.iter_mut().find(|app| app.index == index) else {
+                return;
+            };
             app.volume = value.clamp(0.0, 1.0);
             intents.remember(app_key(index)).volume = Some(app.volume);
             drop(introspect.set_sink_input_volume(index, &volumes(app.channels, app.volume), None));
         }
         Request::ToggleAppMute(index) => {
-            let Some(app) = state.playing.iter_mut().find(|app| app.index == index) else { return };
+            let Some(app) = state.playing.iter_mut().find(|app| app.index == index) else {
+                return;
+            };
             app.muted = !app.muted;
             intents.remember(app_key(index)).muted = Some(app.muted);
             drop(introspect.set_sink_input_mute(index, app.muted, None));
         }
         Request::MoveApp(index, sink) => {
-            let Some(to) = state.sinks.iter().find(|device| device.name == sink).map(|device| device.index) else {
+            let Some(to) = state
+                .sinks
+                .iter()
+                .find(|device| device.name == sink)
+                .map(|device| device.index)
+            else {
                 return;
             };
             if let Some(app) = state.playing.iter_mut().find(|app| app.index == index) {

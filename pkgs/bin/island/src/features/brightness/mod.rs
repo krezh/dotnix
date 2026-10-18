@@ -2,41 +2,17 @@
 //! through `island ctl brightness`.
 
 mod device;
-
-use std::sync::mpsc::{self, Sender};
-
-use tracing::warn;
+mod runtime;
+mod state;
 
 use super::{
     Feature, Feed, GlyphSpec, IslandInfo, PanelCx,
     osd::{self, Osd, Shown},
 };
-use crate::{
-    control::{self, Change},
-    panel::PanelView,
-    supervisor::Ended,
-    theme::YELLOW,
-};
+use crate::panel::PanelView;
 
-/// Counts changes, so one that leaves the level where it was, such as up at full, still shows.
-#[derive(Clone, Debug, Default, PartialEq)]
-pub struct Level {
-    value: f32,
-    changes: u64,
-}
-
-pub struct Brightness {
-    changes: Sender<Change>,
-}
-
-/// `None` without a screen to set.
-fn apply(change: Change) -> Option<f32> {
-    match change {
-        Change::Step(delta) => device::step(delta),
-        Change::Set(value) => device::get().and_then(|current| device::step(value - current)),
-        Change::ToggleMute => device::get(),
-    }
-}
+pub use runtime::Brightness;
+pub use state::Level;
 
 impl Feature for Brightness {
     const NAME: &'static str = "brightness";
@@ -49,25 +25,7 @@ impl Feature for Brightness {
     type Event = ();
 
     fn start(feed: Feed<Level>) -> Self {
-        let (changes, requests) = mpsc::channel();
-        feed.supervise(move |feed| {
-            let mut level = Level::default();
-            for change in &requests {
-                let Some(value) = apply(change) else {
-                    warn!(?change, "cannot change the brightness: no backlight or DDC/CI monitor");
-                    continue;
-                };
-                level = Level {
-                    value,
-                    changes: level.changes + 1,
-                };
-                if !feed.publish(level.clone()) {
-                    return Ended::Unwanted;
-                }
-            }
-            Ended::Unwanted
-        });
-        Self { changes }
+        Self::start(feed)
     }
 
     fn sync_local(_: &Level, shown: &mut Shown, island: &IslandInfo<'_>, _animate: bool) {
@@ -83,22 +41,14 @@ impl Feature for Brightness {
     }
 
     fn osd(before: &Level, after: &Level) -> Option<Osd> {
-        (after.changes != before.changes).then(|| Osd {
-            glyph: "brightness",
-            color: YELLOW,
-            caption: "",
-            label: "Brightness".to_owned(),
-            level: Some((after.value, false)),
-        })
+        state::osd(before, after)
     }
 
     fn check(args: &[&str]) -> Result<(), String> {
-        control::change(&args[1..], false).map(drop)
+        runtime::check(args)
     }
 
     fn command(&self, _: &Level, args: &[&str]) {
-        if let Ok(change) = control::change(&args[1..], false) {
-            let _ = self.changes.send(change);
-        }
+        self.command(args);
     }
 }

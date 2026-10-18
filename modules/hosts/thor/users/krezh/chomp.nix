@@ -18,7 +18,10 @@
             token = config.home-manager.users.${user}.sops.secrets."zipline/token".path;
             useOriginalName = true;
           };
-          capture.replay.hyprlandTag = "games";
+          capture.replay = {
+            hyprlandTag = "games";
+            durationSeconds = 60;
+          };
         };
       };
     };

@@ -173,7 +173,11 @@ fn git_status(root: &Path, cancellation: &AtomicBool) -> Result<RepositoryStatus
     let (local, incoming) = parse_counts(&counts, "git revision comparison")?;
     let log = git_text(
         root,
-        ["log", "--format=%h%x1f%an%x1f%ct%x1f%s", "HEAD..@{upstream}"],
+        [
+            "log",
+            "--format=%h%x1f%an%x1f%ct%x1f%s",
+            "HEAD..@{upstream}",
+        ],
         "git incoming log",
         cancellation,
     )?;
@@ -269,7 +273,12 @@ fn jj_status(
         "--template",
         r#"commit_id.short(12) ++ "\x1f" ++ author.name() ++ "\x1f" ++ committer.timestamp().format("%s") ++ "\x1f" ++ description.first_line() ++ "\n""#,
     ]);
-    let output = run(&mut command, "jj incoming log", cancellation, COMMAND_TIMEOUT)?;
+    let output = run(
+        &mut command,
+        "jj incoming log",
+        cancellation,
+        COMMAND_TIMEOUT,
+    )?;
     Ok(RepositoryStatus {
         kind: RepositoryKind::Jj,
         upstream: "trunk".to_owned(),
@@ -587,7 +596,11 @@ mod tests {
         let status = check(&fixture.local, true, &cancellation()).unwrap();
         assert_eq!(status.kind, RepositoryKind::Git);
         assert_eq!(status.incoming, 1);
-        let summaries: Vec<&str> = status.commits.iter().map(|commit| commit.summary.as_str()).collect();
+        let summaries: Vec<&str> = status
+            .commits
+            .iter()
+            .map(|commit| commit.summary.as_str())
+            .collect();
         assert_eq!(summaries, ["remote"]);
         assert!(status.commits[0].time > 0);
 
@@ -616,7 +629,11 @@ mod tests {
         let status = check(&fixture.local, true, &cancellation()).unwrap();
         assert_eq!(status.kind, RepositoryKind::Jj);
         assert_eq!(status.incoming, 2);
-        let summaries: Vec<&str> = status.commits.iter().map(|commit| commit.summary.as_str()).collect();
+        let summaries: Vec<&str> = status
+            .commits
+            .iter()
+            .map(|commit| commit.summary.as_str())
+            .collect();
         assert_eq!(summaries, ["second", "remote"]);
         // The `local` commit plus the empty working-copy commit `jj commit` leaves on top.
         assert_eq!(status.local, 2);

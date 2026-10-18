@@ -5,22 +5,26 @@ use std::time::{Duration, Instant};
 
 use smithay_client_toolkit::compositor::CompositorState;
 use smithay_client_toolkit::output::{OutputInfo, OutputState};
-use smithay_client_toolkit::registry::RegistryState;
 use smithay_client_toolkit::reexports::calloop::signals::{Signal, Signals};
 use smithay_client_toolkit::reexports::calloop::{EventLoop, LoopSignal};
 use smithay_client_toolkit::reexports::calloop_wayland_source::WaylandSource;
+use smithay_client_toolkit::registry::RegistryState;
 use smithay_client_toolkit::seat::SeatState;
-use smithay_client_toolkit::shell::wlr_layer::{Anchor, KeyboardInteractivity, Layer, LayerShell, LayerSurface};
-use smithay_client_toolkit::shm::slot::SlotPool;
+use smithay_client_toolkit::shell::wlr_layer::{
+    Anchor, KeyboardInteractivity, Layer, LayerShell, LayerSurface,
+};
 use smithay_client_toolkit::shm::Shm;
+use smithay_client_toolkit::shm::slot::SlotPool;
 use wayland_client::globals::registry_queue_init;
 use wayland_client::protocol::{wl_callback, wl_output, wl_pointer, wl_shm, wl_surface};
 use wayland_client::{Connection, QueueHandle};
-use wayland_protocols::wp::fractional_scale::v1::client::{wp_fractional_scale_manager_v1, wp_fractional_scale_v1};
+use wayland_protocols::wp::fractional_scale::v1::client::{
+    wp_fractional_scale_manager_v1, wp_fractional_scale_v1,
+};
 use wayland_protocols::wp::viewporter::client::{wp_viewport, wp_viewporter};
 
 use crate::animations::clock::ClockOverlay;
-use crate::animations::{create_animation, Animation, ANIMATION_NAMES};
+use crate::animations::{ANIMATION_NAMES, Animation, create_animation};
 use crate::canvas::{Canvas, Viewport};
 use crate::config::AppConfig;
 use crate::font::FontRenderer;
@@ -35,7 +39,10 @@ struct FrameSchedule {
 
 impl FrameSchedule {
     fn new(now: Instant) -> Self {
-        Self { next: now, callback_pending: false }
+        Self {
+            next: now,
+            callback_pending: false,
+        }
     }
 
     fn deadline(&self, configured: bool) -> Option<Instant> {
@@ -45,7 +52,11 @@ impl FrameSchedule {
     /// Keeps the cadence while slightly late, so render time does not push every later frame back.
     fn committed(&mut self, rendered_at: Instant, interval: Duration) {
         let next = self.next + interval;
-        self.next = if next >= rendered_at { next } else { rendered_at + interval };
+        self.next = if next >= rendered_at {
+            next
+        } else {
+            rendered_at + interval
+        };
         self.callback_pending = true;
     }
 }
@@ -68,10 +79,15 @@ struct Scene {
 
 impl Scene {
     fn new(config: &AppConfig, rng: &mut Rng, now: Instant) -> Self {
-        let name = ANIMATION_NAMES.iter().copied()
+        let name = ANIMATION_NAMES
+            .iter()
+            .copied()
             .find(|name| name.eq_ignore_ascii_case(&config.animation))
             .unwrap_or_else(|| *rng.choice(ANIMATION_NAMES));
-        let initial_index = ANIMATION_NAMES.iter().position(|candidate| *candidate == name).unwrap();
+        let initial_index = ANIMATION_NAMES
+            .iter()
+            .position(|candidate| *candidate == name)
+            .unwrap();
         Self {
             animation: create_animation(name, rng),
             name,
@@ -84,8 +100,17 @@ impl Scene {
         }
     }
 
-    fn advance(&mut self, now: Instant, config: &AppConfig, rng: &mut Rng, width: u32, height: u32) {
-        let generation = if config.cycle == 0 { 0 } else {
+    fn advance(
+        &mut self,
+        now: Instant,
+        config: &AppConfig,
+        rng: &mut Rng,
+        width: u32,
+        height: u32,
+    ) {
+        let generation = if config.cycle == 0 {
+            0
+        } else {
             now.duration_since(self.origin).as_secs() / config.cycle
         };
         if generation != self.generation {
@@ -106,7 +131,11 @@ impl Scene {
             self.previous = None;
         }
         if now > self.last_update {
-            self.animation.update(now.duration_since(self.last_update).as_secs_f32() * config.speed, width, height);
+            self.animation.update(
+                now.duration_since(self.last_update).as_secs_f32() * config.speed,
+                width,
+                height,
+            );
             self.last_update = now;
         }
     }
@@ -148,7 +177,8 @@ pub struct OutputSurface {
 impl OutputSurface {
     fn refresh_size(&mut self) -> RenderResult {
         let logical = configured_size(self.configured_size, self.output_size);
-        let integer_scale = (self.integer_scale.max(1) as u32).checked_mul(120)
+        let integer_scale = (self.integer_scale.max(1) as u32)
+            .checked_mul(120)
             .ok_or("integer output scale exceeds the supported range")?;
         let scale = if self.viewport.is_some() {
             self.preferred_scale.unwrap_or(integer_scale)
@@ -168,7 +198,8 @@ impl OutputSurface {
     }
 
     fn deadline(&self) -> Option<Instant> {
-        self.schedule.deadline(self.configured && self.buffer_size.0 > 0 && self.buffer_size.1 > 0)
+        self.schedule
+            .deadline(self.configured && self.buffer_size.0 > 0 && self.buffer_size.1 > 0)
     }
 }
 
@@ -184,8 +215,18 @@ impl Drop for OutputSurface {
 }
 
 fn configured_size(configure: (u32, u32), fallback: (u32, u32)) -> (u32, u32) {
-    (if configure.0 == 0 { fallback.0 } else { configure.0 },
-     if configure.1 == 0 { fallback.1 } else { configure.1 })
+    (
+        if configure.0 == 0 {
+            fallback.0
+        } else {
+            configure.0
+        },
+        if configure.1 == 0 {
+            fallback.1
+        } else {
+            configure.1
+        },
+    )
 }
 
 fn scaled_size(logical: (u32, u32), scale: u32) -> Result<(u32, u32), Box<dyn std::error::Error>> {
@@ -207,14 +248,24 @@ fn output_logical_size(info: &OutputInfo) -> (u32, u32) {
     if let Some((width, height)) = info.logical_size {
         return (width.max(0) as u32, height.max(0) as u32);
     }
-    let Some(mode) = info.modes.iter().find(|mode| mode.current) else { return (0, 0) };
+    let Some(mode) = info.modes.iter().find(|mode| mode.current) else {
+        return (0, 0);
+    };
     let (mut width, mut height) = mode.dimensions;
-    if matches!(info.transform, wl_output::Transform::_90 | wl_output::Transform::_270
-        | wl_output::Transform::Flipped90 | wl_output::Transform::Flipped270) {
+    if matches!(
+        info.transform,
+        wl_output::Transform::_90
+            | wl_output::Transform::_270
+            | wl_output::Transform::Flipped90
+            | wl_output::Transform::Flipped270
+    ) {
         std::mem::swap(&mut width, &mut height);
     }
     let scale = info.scale_factor.max(1) as u32;
-    ((width.max(0) as u32).div_ceil(scale), (height.max(0) as u32).div_ceil(scale))
+    (
+        (width.max(0) as u32).div_ceil(scale),
+        (height.max(0) as u32).div_ceil(scale),
+    )
 }
 
 /// A whole number of the output's refresh periods, the one nearest the target frame rate, so every
@@ -228,7 +279,10 @@ fn frame_interval(fps: u32, refresh_mhz: i32) -> Duration {
 }
 
 fn refresh_mhz(info: &OutputInfo) -> i32 {
-    info.modes.iter().find(|mode| mode.current).map_or(0, |mode| mode.refresh_rate)
+    info.modes
+        .iter()
+        .find(|mode| mode.current)
+        .map_or(0, |mode| mode.refresh_rate)
 }
 
 /// One output's slice of the desktop all outputs span, in that output's buffer pixels. Outputs are
@@ -244,9 +298,17 @@ fn span_viewport(
     }
     let (left, top, right, bottom) = outputs
         .filter(|(_, (width, height))| *width > 0 && *height > 0)
-        .fold((i32::MAX, i32::MAX, i32::MIN, i32::MIN), |(left, top, right, bottom), ((x, y), (width, height))| {
-            (left.min(x), top.min(y), right.max(x + width as i32), bottom.max(y + height as i32))
-        });
+        .fold(
+            (i32::MAX, i32::MAX, i32::MIN, i32::MIN),
+            |(left, top, right, bottom), ((x, y), (width, height))| {
+                (
+                    left.min(x),
+                    top.min(y),
+                    right.max(x + width as i32),
+                    bottom.max(y + height as i32),
+                )
+            },
+        );
     if left >= right || top >= bottom {
         return None;
     }
@@ -261,15 +323,19 @@ fn span_viewport(
 }
 
 fn transition_weight(now: Instant, start: Instant, duration: Duration) -> u32 {
-    if duration.is_zero() { return 256; }
-    let t = (now.saturating_duration_since(start).as_secs_f64() / duration.as_secs_f64()).clamp(0.0, 1.0);
+    if duration.is_zero() {
+        return 256;
+    }
+    let t = (now.saturating_duration_since(start).as_secs_f64() / duration.as_secs_f64())
+        .clamp(0.0, 1.0);
     (t * t * (3.0 - 2.0 * t) * 256.0).round() as u32
 }
 
 fn mix_pixel(from: u32, to: u32, weight: u32) -> u32 {
     let inverse = 256 - weight;
     let rb = (((from & 0x00ff00ff) * inverse + (to & 0x00ff00ff) * weight) >> 8) & 0x00ff00ff;
-    let ag = ((((from >> 8) & 0x00ff00ff) * inverse + ((to >> 8) & 0x00ff00ff) * weight) >> 8) & 0x00ff00ff;
+    let ag = ((((from >> 8) & 0x00ff00ff) * inverse + ((to >> 8) & 0x00ff00ff) * weight) >> 8)
+        & 0x00ff00ff;
     rb | (ag << 8)
 }
 
@@ -299,9 +365,14 @@ pub struct App {
 impl App {
     fn fail_surface(&mut self, idx: usize, error: impl std::fmt::Display) {
         let surface = &self.surfaces[idx];
-        self.error = Some(format!("output {} (logical {}x{}, buffer {}x{}): {error}",
-            surface.label, surface.logical_size.0, surface.logical_size.1,
-            surface.buffer_size.0, surface.buffer_size.1));
+        self.error = Some(format!(
+            "output {} (logical {}x{}, buffer {}x{}): {error}",
+            surface.label,
+            surface.logical_size.0,
+            surface.logical_size.1,
+            surface.buffer_size.0,
+            surface.buffer_size.1
+        ));
         self.exit = true;
         self.loop_signal.stop();
     }
@@ -313,7 +384,11 @@ impl App {
     }
 
     fn update_output_surface(&mut self, output: &wl_output::WlOutput, info: &OutputInfo) {
-        if let Some(idx) = self.surfaces.iter().position(|surface| &surface.output == output) {
+        if let Some(idx) = self
+            .surfaces
+            .iter()
+            .position(|surface| &surface.output == output)
+        {
             let surface = &mut self.surfaces[idx];
             surface.integer_scale = info.scale_factor.max(1);
             surface.output_size = output_logical_size(info);
@@ -330,34 +405,49 @@ impl App {
         let viewport = if self.config.span_outputs {
             let surface = &self.surfaces[idx];
             span_viewport(
-                self.surfaces.iter().map(|output| (output.position, output.logical_size)),
-                surface.position, surface.logical_size, surface.buffer_size,
+                self.surfaces
+                    .iter()
+                    .map(|output| (output.position, output.logical_size)),
+                surface.position,
+                surface.logical_size,
+                surface.buffer_size,
             )
         } else {
             None
         };
         let surface = &mut self.surfaces[idx];
         let (width, height) = surface.buffer_size;
-        let scene = surface.scene.as_mut().or(self.shared_scene.as_mut()).unwrap();
+        let scene = surface
+            .scene
+            .as_mut()
+            .or(self.shared_scene.as_mut())
+            .unwrap();
         scene.advance(now, &self.config, &mut self.rng, width, height);
         let duration = Duration::from_millis(self.config.transition_ms);
         if !surface.presented {
             surface.transition = (!duration.is_zero()).then_some(Transition {
-                started: now, from_scene: false, pixels: None,
+                started: now,
+                from_scene: false,
+                pixels: None,
             });
         } else if surface.scene_generation != scene.generation {
             surface.transition = (scene.previous.is_some()).then_some(Transition {
-                started: scene.started, from_scene: true, pixels: None,
+                started: scene.started,
+                from_scene: true,
+                pixels: None,
             });
         }
         surface.scene_generation = scene.generation;
         let elapsed = now.duration_since(self.start_time).as_secs_f32();
-        let weight = surface.transition.as_ref()
-            .map_or(256, |transition| transition_weight(now, transition.started, duration));
+        let weight = surface.transition.as_ref().map_or(256, |transition| {
+            transition_weight(now, transition.started, duration)
+        });
         if weight == 256 {
             surface.transition = None;
         }
-        let pixel_count = (width as usize).checked_mul(height as usize).ok_or("SHM pixel count overflow")?;
+        let pixel_count = (width as usize)
+            .checked_mul(height as usize)
+            .ok_or("SHM pixel count overflow")?;
         if let Some(transition) = &mut surface.transition {
             if transition.from_scene && transition.pixels.is_none() {
                 if let Some(previous) = &mut scene.previous {
@@ -379,7 +469,12 @@ impl App {
             surface.pool = Some(SlotPool::new(pool_size, &self.shm_state)?);
         }
         let pool = surface.pool.as_mut().unwrap();
-        let (buffer, bytes) = pool.create_buffer(width as i32, height as i32, width as i32 * 4, wl_shm::Format::Argb8888)?;
+        let (buffer, bytes) = pool.create_buffer(
+            width as i32,
+            height as i32,
+            width as i32 * 4,
+            wl_shm::Format::Argb8888,
+        )?;
         // SHM slots are aligned, but reject an incompatible mapping rather than presenting stale bytes.
         let (prefix, pixels, suffix) = unsafe { bytes.align_to_mut::<u32>() };
         if !prefix.is_empty() || !suffix.is_empty() || pixels.len() != pixel_count {
@@ -408,10 +503,14 @@ impl App {
             surface.surface.set_buffer_scale(1);
             viewport.set_destination(surface.logical_size.0 as i32, surface.logical_size.1 as i32);
         } else {
-            surface.surface.set_buffer_scale(surface.integer_scale.max(1));
+            surface
+                .surface
+                .set_buffer_scale(surface.integer_scale.max(1));
         }
         buffer.attach_to(&surface.surface)?;
-        surface.surface.damage_buffer(0, 0, width as i32, height as i32);
+        surface
+            .surface
+            .damage_buffer(0, 0, width as i32, height as i32);
         surface.frame_callback = Some(surface.surface.frame(&self.qh, ()));
         surface.surface.commit();
         surface.schedule.committed(now, surface.frame_interval);
@@ -420,10 +519,15 @@ impl App {
     }
 
     fn tick(&mut self) {
-        if self.exit { return; }
+        if self.exit {
+            return;
+        }
         let now = Instant::now();
         for idx in 0..self.surfaces.len() {
-            if self.surfaces[idx].deadline().is_some_and(|deadline| deadline <= now) {
+            if self.surfaces[idx]
+                .deadline()
+                .is_some_and(|deadline| deadline <= now)
+            {
                 if let Err(error) = self.render_surface(idx, now) {
                     self.fail_surface(idx, error);
                     break;
@@ -433,15 +537,28 @@ impl App {
     }
 
     fn next_timeout(&self, now: Instant) -> Option<Duration> {
-        self.surfaces.iter().filter_map(OutputSurface::deadline)
-            .min().map(|deadline| deadline.saturating_duration_since(now))
+        self.surfaces
+            .iter()
+            .filter_map(OutputSurface::deadline)
+            .min()
+            .map(|deadline| deadline.saturating_duration_since(now))
     }
 
     pub fn add_output_surface(&mut self, output: &wl_output::WlOutput, info: &OutputInfo) {
-        if self.surfaces.iter().any(|surface| &surface.output == output) { return; }
+        if self
+            .surfaces
+            .iter()
+            .any(|surface| &surface.output == output)
+        {
+            return;
+        }
         let surface = self.compositor_state.create_surface(&self.qh);
         let layer_surface = self.layer_shell.create_layer_surface(
-            &self.qh, surface.clone(), Layer::Overlay, Some("slumber-screensaver"), Some(output),
+            &self.qh,
+            surface.clone(),
+            Layer::Overlay,
+            Some("slumber-screensaver"),
+            Some(output),
         );
         let (fractional_scale, viewport) = match (&self.fractional_manager, &self.viewporter) {
             (Some(manager), Some(viewporter)) => (
@@ -456,21 +573,43 @@ impl App {
         layer_surface.set_size(0, 0);
         surface.commit();
         let now = Instant::now();
-        let scene = if self.config.sync_outputs { None } else {
+        let scene = if self.config.sync_outputs {
+            None
+        } else {
             Some(Scene::new(&self.config, &mut self.rng, now))
         };
         self.surfaces.push(OutputSurface {
-            output: output.clone(), layer_surface, surface,
-            label: info.name.clone().unwrap_or_else(|| format!("{} {}", info.make, info.model)),
-            logical_size: (0, 0), configured_size: (0, 0), output_size: output_logical_size(info),
+            output: output.clone(),
+            layer_surface,
+            surface,
+            label: info
+                .name
+                .clone()
+                .unwrap_or_else(|| format!("{} {}", info.make, info.model)),
+            logical_size: (0, 0),
+            configured_size: (0, 0),
+            output_size: output_logical_size(info),
             position: info.logical_position.unwrap_or_default(),
             frame_interval: frame_interval(self.config.fps, refresh_mhz(info)),
-            buffer_size: (0, 0), integer_scale: info.scale_factor.max(1), preferred_scale: None,
-            fractional_scale, viewport, configured: false, pool: None, frame_callback: None,
-            schedule: FrameSchedule::new(now), scene, scene_generation: 0,
-            clock: ClockOverlay::new(Arc::clone(&self.font_renderer), &self.config.time_format,
-                &self.config.date_format, self.config.clock_drift),
-            transition: None, presented: false,
+            buffer_size: (0, 0),
+            integer_scale: info.scale_factor.max(1),
+            preferred_scale: None,
+            fractional_scale,
+            viewport,
+            configured: false,
+            pool: None,
+            frame_callback: None,
+            schedule: FrameSchedule::new(now),
+            scene,
+            scene_generation: 0,
+            clock: ClockOverlay::new(
+                Arc::clone(&self.font_renderer),
+                &self.config.time_format,
+                &self.config.date_format,
+                self.config.clock_drift,
+            ),
+            transition: None,
+            presented: false,
         });
         self.refresh_surface(self.surfaces.len() - 1);
     }
@@ -493,12 +632,30 @@ pub fn run(config: AppConfig) -> RenderResult {
     let mut rng = Rng::from_time();
     let start_time = Instant::now();
     let font_renderer = Arc::new(FontRenderer::new(&config.font));
-    let shared_scene = config.sync_outputs.then(|| Scene::new(&config, &mut rng, start_time));
+    let shared_scene = config
+        .sync_outputs
+        .then(|| Scene::new(&config, &mut rng, start_time));
     let mut app = App {
-        registry_state, seat_state, output_state, compositor_state, shm_state, layer_shell,
-        loop_signal, qh: qh.clone(), fractional_manager, viewporter, config,
-        surfaces: Vec::new(), pointer: None, rng, start_time, last_pointer_pos: None,
-        font_renderer, shared_scene, error: None, exit: false,
+        registry_state,
+        seat_state,
+        output_state,
+        compositor_state,
+        shm_state,
+        layer_shell,
+        loop_signal,
+        qh: qh.clone(),
+        fractional_manager,
+        viewporter,
+        config,
+        surfaces: Vec::new(),
+        pointer: None,
+        rng,
+        start_time,
+        last_pointer_pos: None,
+        font_renderer,
+        shared_scene,
+        error: None,
+        exit: false,
     };
     let outputs: Vec<_> = app.output_state.outputs().collect();
     for output in outputs {
@@ -510,13 +667,17 @@ pub fn run(config: AppConfig) -> RenderResult {
         .insert(event_loop.handle())
         .map_err(|error| format!("failed to insert Wayland event source: {error:?}"))?;
     let signals = Signals::new(&[Signal::SIGINT, Signal::SIGTERM, Signal::SIGUSR1])?;
-    event_loop.handle().insert_source(signals, move |_sig, _meta, app: &mut App| {
-        app.exit = true;
-        app.loop_signal.stop();
-    })?;
+    event_loop
+        .handle()
+        .insert_source(signals, move |_sig, _meta, app: &mut App| {
+            app.exit = true;
+            app.loop_signal.stop();
+        })?;
     while !app.exit {
         app.tick();
-        if app.exit { break; }
+        if app.exit {
+            break;
+        }
         event_loop.dispatch(app.next_timeout(Instant::now()), &mut app)?;
     }
     if let Some(error) = app.error {
@@ -612,7 +773,9 @@ mod tests {
 
     #[test]
     fn frame_interval_is_a_whole_number_of_refresh_periods() {
-        let periods = |fps, refresh_mhz| frame_interval(fps, refresh_mhz).as_secs_f64() * refresh_mhz as f64 / 1000.0;
+        let periods = |fps, refresh_mhz| {
+            frame_interval(fps, refresh_mhz).as_secs_f64() * refresh_mhz as f64 / 1000.0
+        };
         assert!((periods(60, 143_998) - 2.0).abs() < 1e-6);
         assert!((periods(60, 239_970) - 4.0).abs() < 1e-6);
         assert!((periods(240, 59_940) - 1.0).abs() < 1e-6);
@@ -621,12 +784,32 @@ mod tests {
 
     #[test]
     fn span_viewport_places_each_output_within_the_desktop() {
-        let outputs = [((0, 0), (2560, 1440)), ((2560, 200), (1920, 1080)), ((9000, 0), (0, 0))];
-        let viewport = |position, logical, buffer| span_viewport(outputs.into_iter(), position, logical, buffer);
-        assert_eq!(viewport((0, 0), (2560, 1440), (2560, 1440)),
-            Some(Viewport { x: 0.0, y: 0.0, width: 4480.0, height: 1440.0 }));
-        assert_eq!(viewport((2560, 200), (1920, 1080), (2880, 1620)),
-            Some(Viewport { x: 3840.0, y: 300.0, width: 6720.0, height: 2160.0 }));
+        let outputs = [
+            ((0, 0), (2560, 1440)),
+            ((2560, 200), (1920, 1080)),
+            ((9000, 0), (0, 0)),
+        ];
+        let viewport = |position, logical, buffer| {
+            span_viewport(outputs.into_iter(), position, logical, buffer)
+        };
+        assert_eq!(
+            viewport((0, 0), (2560, 1440), (2560, 1440)),
+            Some(Viewport {
+                x: 0.0,
+                y: 0.0,
+                width: 4480.0,
+                height: 1440.0
+            })
+        );
+        assert_eq!(
+            viewport((2560, 200), (1920, 1080), (2880, 1620)),
+            Some(Viewport {
+                x: 3840.0,
+                y: 300.0,
+                width: 6720.0,
+                height: 2160.0
+            })
+        );
         assert_eq!(viewport((9000, 0), (0, 0), (0, 0)), None);
     }
 }

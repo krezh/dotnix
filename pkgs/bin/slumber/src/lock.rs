@@ -1,5 +1,5 @@
-use std::fs::OpenOptions;
 use std::fmt;
+use std::fs::OpenOptions;
 use std::io;
 use std::os::fd::AsRawFd;
 use std::path::{Path, PathBuf};
@@ -18,7 +18,9 @@ impl fmt::Display for LockError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::AlreadyRunning => f.write_str("another instance of slumber is already running"),
-            Self::Io { path, source } => write!(f, "cannot acquire lock {}: {source}", path.display()),
+            Self::Io { path, source } => {
+                write!(f, "cannot acquire lock {}: {source}", path.display())
+            }
         }
     }
 }
@@ -48,7 +50,10 @@ impl SingleInstanceLock {
             .create(true)
             .truncate(false)
             .open(path)
-            .map_err(|source| LockError::Io { path: path.into(), source })?;
+            .map_err(|source| LockError::Io {
+                path: path.into(),
+                source,
+            })?;
 
         let fd = file.as_raw_fd();
         let ret = unsafe { libc::flock(fd, libc::LOCK_EX | libc::LOCK_NB) };
@@ -57,7 +62,10 @@ impl SingleInstanceLock {
             return Err(if source.kind() == io::ErrorKind::WouldBlock {
                 LockError::AlreadyRunning
             } else {
-                LockError::Io { path: path.into(), source }
+                LockError::Io {
+                    path: path.into(),
+                    source,
+                }
             });
         }
 

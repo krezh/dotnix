@@ -58,7 +58,10 @@ impl Page {
             };
             ItemRow::from_root(&root).bind(&entry.borrow::<Entry>().item, bind_largest.get());
         });
-        let list = gtk::ListView::new(Some(gtk::NoSelection::new(Some(filtered.clone()))), Some(factory));
+        let list = gtk::ListView::new(
+            Some(gtk::NoSelection::new(Some(filtered.clone()))),
+            Some(factory),
+        );
         list.add_css_class("cleanup-items-list");
         let scroll = gtk::ScrolledWindow::new();
         scroll.add_css_class("cleanup-items-scroll");
@@ -136,7 +139,11 @@ impl CleanupItems {
         header.append(&summary.root);
         root.append(&header);
 
-        let note = label("", &["cleanup-items-note", "notice", theme::tone(theme::YELLOW)], 0.0);
+        let note = label(
+            "",
+            &["cleanup-items-note", "notice", theme::tone(theme::YELLOW)],
+            0.0,
+        );
         note.set_ellipsize(gtk::pango::EllipsizeMode::None);
         note.set_wrap(true);
         note.set_wrap_mode(gtk::pango::WrapMode::WordChar);
@@ -245,7 +252,12 @@ impl CleanupItems {
         }
         self.note_reveal.set_reveal_child(group.note.is_some());
 
-        let largest = group.items.iter().filter_map(|item| item.bytes).max().unwrap_or(0);
+        let largest = group
+            .items
+            .iter()
+            .filter_map(|item| item.bytes)
+            .max()
+            .unwrap_or(0);
         let mut items: Vec<&CleanupItem> = group.items.iter().collect();
         // Items sized only at cleanup time (Nix generations) lead, then the largest first.
         items.sort_by_key(|item| Reverse(item.bytes.unwrap_or(u64::MAX)));

@@ -2,10 +2,7 @@ use std::time::{Duration, Instant};
 
 use gpui::{SpringConfig, Window};
 
-use super::{
-    card,
-    notification::Notification,
-};
+use super::{card, notification::Notification};
 use crate::{
     island::{CONTENT_IN, CONTENT_OUT, REVEAL_DELAY, SHAPE_SPRING},
     panel::Countdown,
@@ -47,7 +44,10 @@ pub struct Card {
 
 impl Card {
     pub fn height(&self) -> f32 {
-        card::height(self.lines.unwrap_or(1), self.notification.buttons().next().is_some())
+        card::height(
+            self.lines.unwrap_or(1),
+            self.notification.buttons().next().is_some(),
+        )
     }
 
     /// `None` while it is not counting down, such as a critical one, which stays until dismissed.
@@ -146,7 +146,10 @@ impl Toasts {
 
     /// In place of its card if it has one, otherwise as a new card on top.
     pub fn show(&mut self, notification: Notification) {
-        match self.live_card_for(notification.id).and_then(|id| self.card_mut(id)) {
+        match self
+            .live_card_for(notification.id)
+            .and_then(|id| self.card_mut(id))
+        {
             Some(card) => {
                 card.notification = notification;
                 card.lines = None;
@@ -260,7 +263,11 @@ impl Toasts {
     pub fn measure(&mut self, window: &Window) -> bool {
         let mut measured = false;
         for card in self.cards.iter_mut().filter(|card| card.lines.is_none()) {
-            card.lines = Some(card::body_lines(&card.notification.body, card::MIN_W, window));
+            card.lines = Some(card::body_lines(
+                &card.notification.body,
+                card::MIN_W,
+                window,
+            ));
             measured = true;
         }
         if measured {
@@ -326,7 +333,8 @@ impl Toasts {
             card.alpha.advance(dt, now);
         }
         self.footer.advance(dt, now);
-        self.cards.retain(|card| !(card.leaving && card.alpha.is_settled()));
+        self.cards
+            .retain(|card| !(card.leaving && card.alpha.is_settled()));
     }
 
     pub fn is_settled(&self) -> bool {

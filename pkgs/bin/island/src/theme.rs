@@ -27,9 +27,9 @@ pub fn app_color(app: &str) -> u32 {
     const COLORS: [u32; 12] = [
         BLUE, MAUVE, PEACH, GREEN, TEAL, PINK, SKY, YELLOW, LAVENDER, SAPPHIRE, MAROON, FLAMINGO,
     ];
-    let hash = app
-        .bytes()
-        .fold(0u32, |hash, byte| hash.wrapping_mul(31).wrapping_add(byte.into()));
+    let hash = app.bytes().fold(0u32, |hash, byte| {
+        hash.wrapping_mul(31).wrapping_add(byte.into())
+    });
     COLORS[hash as usize % COLORS.len()]
 }
 

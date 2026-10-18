@@ -23,7 +23,12 @@ impl<'a> Canvas<'a> {
             pixels,
             width,
             height,
-            viewport: Viewport { x: 0.0, y: 0.0, width: width as f32, height: height as f32 },
+            viewport: Viewport {
+                x: 0.0,
+                y: 0.0,
+                width: width as f32,
+                height: height as f32,
+            },
         }
     }
 
@@ -56,7 +61,14 @@ impl<'a> Canvas<'a> {
         }
     }
 
-    pub fn draw_line_aa(&mut self, mut x0: f32, mut y0: f32, mut x1: f32, mut y1: f32, color: Color) {
+    pub fn draw_line_aa(
+        &mut self,
+        mut x0: f32,
+        mut y0: f32,
+        mut x1: f32,
+        mut y1: f32,
+        color: Color,
+    ) {
         let steep = (y1 - y0).abs() > (x1 - x0).abs();
         if steep {
             std::mem::swap(&mut x0, &mut y0);

@@ -1,118 +1,16 @@
+mod icons;
+mod menu;
+mod runtime;
 mod sni;
+mod widget;
 
-use std::{rc::Rc, time::Instant};
+use gpui::AnyElement;
 
-use futures::channel::oneshot;
-use gpui::{
-    AnyElement, ClickEvent, Context, FontWeight, MouseButton, MouseDownEvent, Pixels, SpringConfig, div, prelude::*, px,
-    relative, rgb,
-};
-use tracing::{debug, error, warn};
+use super::{Feature, Feed, IslandInfo, WidgetCx};
+use sni::TrayItem;
 
-use super::{Feature, Feed, IslandInfo, Local, WidgetCx};
-use crate::{
-    bar,
-    components::{icon, tooltip::Tip},
-    island::Island,
-    presence::Presence,
-    theme::PEACH,
-    ui::SMALL_SIZE,
-};
-use sni::{Client, Command, TrayItem};
-
-const ICON: f32 = 18.0;
-/// The line under an icon that wants attention.
-const LINE_SHORT: f32 = 6.0;
-const LINE_LONG: f32 = 16.0;
-const LINE_H: f32 = 3.0;
-const LINE_LIFT: f32 = 3.0;
-const MOTION: SpringConfig = SpringConfig::new(420.0, 34.0, 1.0);
-
-fn step(spacing: f32) -> f32 {
-    ICON + 2.0 * bar::half(spacing)
-}
-
-fn anchor(event: &ClickEvent) -> Pixels {
-    match event {
-        ClickEvent::Keyboard(event) => event.bounds.center().x,
-        event => event.position().x,
-    }
-}
-
-pub struct Icons(Presence<TrayItem>);
-
-impl Default for Icons {
-    fn default() -> Self {
-        Self(Presence::new(MOTION))
-    }
-}
-
-impl Local for Icons {
-    fn advance(&mut self, dt: f32, now: Instant) {
-        self.0.advance(dt, now);
-    }
-
-    /// Icons that need attention breathe, so they keep frames coming.
-    fn is_settled(&self) -> bool {
-        self.0.is_settled() && !self.0.iter().any(|slot| slot.item.attention)
-    }
-
-    fn pending_width(&self, spacing: f32) -> f32 {
-        self.0.pending_width(step(spacing))
-    }
-}
-
-#[derive(Clone)]
-pub struct Tray {
-    client: Option<Client>,
-    epoch: Instant,
-}
-
-impl Tray {
-    fn send(&self, command: Command) {
-        if let Some(client) = &self.client {
-            client.send(command);
-        }
-    }
-
-    fn open_menu(&self, key: String, anchor: Pixels, island: &mut Island, cx: &mut Context<Island>) {
-        if island.menu_open_for(&key) {
-            island.close_menu(cx);
-            return;
-        }
-        debug!(item = key, "opening the tray menu");
-        let (reply, response) = oneshot::channel();
-        self.send(Command::Menu(key.clone(), reply));
-        let tray = self.clone();
-        cx.spawn(async move |island, cx| {
-            let root = match response.await {
-                Ok(Some(root)) => root,
-                Ok(None) => return,
-                Err(_) => {
-                    warn!(item = key, "the tray worker dropped the menu request");
-                    return;
-                }
-            };
-            if root.children.is_empty() {
-                debug!(item = key, "the tray menu is empty");
-                return;
-            }
-            debug!(item = key, entries = root.children.len(), "showing the tray menu");
-            let item = key.clone();
-            let pick = Rc::new(move |id, _: &mut Island, _: &mut Context<Island>| tray.send(Command::Click(item.clone(), id)));
-            let _ = island.update(cx, |island, cx| island.show_menu(key, root, pick, anchor, cx));
-        })
-        .detach();
-    }
-
-    /// Where an app that wants attention is in its breath, from 0 to 1 and back, easing at both
-    /// ends.
-    fn breath(&self) -> f32 {
-        const CYCLE: f32 = 1.8;
-        let phase = self.epoch.elapsed().as_secs_f32() / CYCLE * std::f32::consts::TAU;
-        0.5 - 0.5 * phase.cos()
-    }
-}
+pub use icons::Icons;
+pub use runtime::Tray;
 
 impl Feature for Tray {
     const NAME: &'static str = "tray";
@@ -122,91 +20,14 @@ impl Feature for Tray {
     type Event = ();
 
     fn start(feed: Feed<Vec<TrayItem>>) -> Self {
-        let client = sni::start(feed).inspect_err(|error| error!("{error}")).ok();
-        Self {
-            client,
-            epoch: Instant::now(),
-        }
+        Self::start(feed)
     }
 
     fn sync_local(items: &Vec<TrayItem>, icons: &mut Icons, _: &IslandInfo<'_>, animate: bool) {
-        let keyed: Vec<(String, TrayItem)> = items.iter().map(|item| (item.key.clone(), item.clone())).collect();
-        icons.0.sync(&keyed, animate);
+        icons::sync(items, icons, animate);
     }
 
     fn widget(&self, _: &str, _: &Vec<TrayItem>, w: &mut WidgetCx<'_>) -> Option<AnyElement> {
-        let icons = w.local::<Icons>()?;
-        if icons.0.iter().next().is_none() {
-            return None;
-        }
-        let half = w.padding();
-        let breath = self.breath();
-        let slots = icons.0.iter().map(|slot| {
-            let item = &slot.item;
-            let presence = slot.presence.value().clamp(0.0, 1.0);
-            let key = item.key.clone();
-            let (click_key, menu_key, middle_key) = (key.clone(), key.clone(), key.clone());
-            let opens_menu = item.item_is_menu && item.has_menu;
-            let has_menu = item.has_menu;
-            w.base(format!("tray-{key}"))
-                .relative()
-                .w(px((ICON + 2.0 * half) * presence))
-                .px(px(half * presence))
-                .overflow_hidden()
-                .opacity(presence)
-                .when(!item.title.is_empty(), |slot| slot.tip(w.tips(), format!("tray-{key}"), item.title.clone()))
-                .when_some(item.icon.as_ref(), |slot, picture| slot.child(icon::tray(picture, ICON)))
-                .when(item.icon.is_none(), |slot| {
-                    slot.text_size(px(SMALL_SIZE))
-                        .font_weight(FontWeight::SEMIBOLD)
-                        .child(item.title.chars().next().map(String::from).unwrap_or_default())
-                })
-                // A short line under the icon that slowly stretches and settles.
-                .when(item.attention, |slot| {
-                    let width = LINE_SHORT + (LINE_LONG - LINE_SHORT) * breath;
-                    slot.child(
-                        div()
-                            .absolute()
-                            .bottom(px(LINE_LIFT))
-                            .left(relative(0.5))
-                            .ml(px(-width / 2.0))
-                            .w(px(width))
-                            .h(px(LINE_H))
-                            .rounded_full()
-                            .opacity(0.55 + 0.45 * breath)
-                            .bg(rgb(PEACH)),
-                    )
-                })
-                .on_click(w.on_island(move |tray: &Tray, event: &ClickEvent, island, cx| {
-                    if opens_menu {
-                        tray.open_menu(click_key.clone(), anchor(event), island, cx);
-                    } else {
-                        tray.send(Command::Activate(click_key.clone()));
-                    }
-                }))
-                .map(|slot| {
-                    if has_menu {
-                        slot.on_mouse_down(
-                            MouseButton::Right,
-                            w.on_island(move |tray: &Tray, event: &MouseDownEvent, island, cx| {
-                                tray.open_menu(menu_key.clone(), event.position.x, island, cx)
-                            }),
-                        )
-                    } else {
-                        slot.on_mouse_down(
-                            MouseButton::Right,
-                            w.on_island(move |tray: &Tray, event: &MouseDownEvent, island, _| {
-                                let (x, y) = island.below_bar(event.position.x).unwrap_or_default();
-                                tray.send(Command::ContextMenu(menu_key.clone(), x, y));
-                            }),
-                        )
-                    }
-                })
-                .on_mouse_down(
-                    MouseButton::Middle,
-                    w.call(move |tray: &Tray| tray.send(Command::Secondary(middle_key.clone()))),
-                )
-        });
-        Some(div().flex_none().flex().items_center().children(slots).into_any_element())
+        self.widget_view(w)
     }
 }

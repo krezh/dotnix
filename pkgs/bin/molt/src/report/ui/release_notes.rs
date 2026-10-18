@@ -8,17 +8,17 @@ use std::time::{Duration, Instant};
 
 use gtk::glib;
 use gtk::prelude::*;
-use nix_changelog::{Changelog, Release, Session};
 use molt::command::CANCELLED;
+use nix_changelog::{Changelog, Release, Session};
 
-use crate::report::{Change, Report};
 use crate::app::state::UiState;
 use crate::report::ui::changelog::render as render_changelog;
+use crate::report::ui::{ReportPosition, show_report};
+use crate::report::{Change, Report};
 use crate::ui::{
     FadeScroll, MorphLabel, Slide, Tween, action_close_button, back_button, fit_screen, glide,
     key_hints, label, slide_screen,
 };
-use crate::report::ui::{ReportPosition, show_report};
 use split_layout::SplitLayout;
 
 const CHANGELOG_TIMEOUT: Duration = Duration::from_secs(2 * 60);
@@ -124,9 +124,11 @@ pub(crate) fn show_changelog(
         return;
     }
     let (sender, receiver) = mpsc::channel();
+    let (progress_tx, progress_rx) = mpsc::channel();
     let worker_cancellation = Arc::clone(&cancellation);
     thread::spawn(move || {
         let started = Instant::now();
+        let progress_tx = progress_tx.clone();
         let result = nix_changelog::releases(
             &Session {
                 flake_dir: &flake_dir,
@@ -134,7 +136,9 @@ pub(crate) fn show_changelog(
                     worker_cancellation.load(Ordering::Relaxed)
                         || started.elapsed() > CHANGELOG_TIMEOUT
                 },
-                progress: &|_| {},
+                progress: &move |msg| {
+                    let _ = progress_tx.send(msg.to_string());
+                },
             },
             &name,
             &version_spec,
@@ -159,6 +163,10 @@ pub(crate) fn show_changelog(
         if callback_cancellation.load(Ordering::Relaxed) {
             return glib::ControlFlow::Break;
         }
+        while let Ok(step) = progress_rx.try_recv() {
+            view.add_step(&step);
+        }
+        view.tick();
         match receiver.try_recv() {
             Ok(Ok(changelog)) => {
                 view.show(&changelog);
@@ -237,6 +245,12 @@ struct NotesView {
     notes: FadeScroll,
     content: gtk::Box,
     scroller: gtk::ScrolledWindow,
+    started: Instant,
+    loading_label: gtk::Label,
+    elapsed_label: gtk::Label,
+    steps_list: gtk::Box,
+    steps_scroller: gtk::ScrolledWindow,
+    steps: Rc<RefCell<Vec<(String, Duration)>>>,
 }
 
 impl NotesView {
@@ -255,19 +269,41 @@ impl NotesView {
         bar.append(&source.root);
         panel.append(&bar);
 
-        let loading = gtk::Box::new(gtk::Orientation::Horizontal, 10);
+        let started = Instant::now();
+        let steps = Rc::new(RefCell::new(Vec::new()));
+
+        let loading = gtk::Box::new(gtk::Orientation::Vertical, 10);
         loading.add_css_class("changelog-content");
-        loading.set_valign(gtk::Align::Start);
+        loading.set_valign(gtk::Align::Fill);
+        loading.set_vexpand(true);
+
+        let header = gtk::Box::new(gtk::Orientation::Horizontal, 10);
+        header.add_css_class("changelog-loading-header");
         let spinner = gtk::Spinner::new();
         spinner.set_size_request(16, 16);
         spinner.start();
-        loading.append(&spinner);
-        loading.append(&label(
+        header.append(&spinner);
+        let loading_label = label(
             "Looking up release notes…",
             &["changelog-loading-label"],
             0.0,
-        ));
+        );
+        loading_label.set_hexpand(true);
+        loading_label.set_ellipsize(gtk::pango::EllipsizeMode::End);
+        header.append(&loading_label);
 
+        let elapsed_label = label("0.0 s", &["changelog-loading-elapsed"], 1.0);
+        header.append(&elapsed_label);
+        loading.append(&header);
+
+        let steps_list = gtk::Box::new(gtk::Orientation::Vertical, 4);
+        steps_list.add_css_class("changelog-steps-list");
+        let steps_scroller = gtk::ScrolledWindow::new();
+        steps_scroller.add_css_class("see-through");
+        steps_scroller.set_policy(gtk::PolicyType::Never, gtk::PolicyType::Automatic);
+        steps_scroller.set_vexpand(true);
+        steps_scroller.set_child(Some(&steps_list));
+        loading.append(&FadeScroll::new(&steps_scroller));
         let content = gtk::Box::new(gtk::Orientation::Vertical, 18);
         content.add_css_class("changelog-content");
         content.set_vexpand(true);
@@ -303,7 +339,44 @@ impl NotesView {
             notes,
             content,
             scroller,
+            started,
+            loading_label,
+            elapsed_label,
+            steps_list,
+            steps_scroller,
+            steps,
         }
+    }
+
+    fn add_step(&self, step: &str) {
+        let elapsed = self.started.elapsed();
+        self.loading_label.set_text(step);
+        let time_str = crate::build::ui::progress::short_duration(elapsed, true);
+        self.elapsed_label.set_text(&time_str);
+
+        let row = gtk::Box::new(gtk::Orientation::Horizontal, 8);
+        row.add_css_class("changelog-step-row");
+        let dot = label("•", &["changelog-step-dot"], 0.0);
+        let text = label(step, &["changelog-step-text"], 0.0);
+        text.set_hexpand(true);
+        text.set_ellipsize(gtk::pango::EllipsizeMode::End);
+        text.set_tooltip_text(Some(step));
+        let time = label(&time_str, &["changelog-step-time"], 1.0);
+        row.append(&dot);
+        row.append(&text);
+        row.append(&time);
+        self.steps_list.append(&row);
+
+        let adj = self.steps_scroller.vadjustment();
+        adj.set_value(adj.upper());
+
+        self.steps.borrow_mut().push((step.to_owned(), elapsed));
+    }
+
+    fn tick(&self) {
+        let elapsed = self.started.elapsed();
+        self.elapsed_label
+            .set_text(&crate::build::ui::progress::short_duration(elapsed, true));
     }
 
     fn show(&self, changelog: &Changelog) {
@@ -340,6 +413,44 @@ impl NotesView {
         message.set_selectable(true);
         notice.append(&message);
         self.content.append(&notice);
+
+        let steps = self.steps.borrow();
+        if !steps.is_empty() {
+            let total = self.started.elapsed();
+            let card = gtk::Box::new(gtk::Orientation::Vertical, 6);
+            card.add_css_class("changelog-steps-card");
+            card.set_margin_top(12);
+            let title = label(
+                &format!(
+                    "STEPS ATTEMPTED · {}",
+                    crate::build::ui::progress::short_duration(total, true)
+                ),
+                &["panel-eyebrow"],
+                0.0,
+            );
+            card.append(&title);
+            for (step, elapsed) in steps.iter() {
+                let row = gtk::Box::new(gtk::Orientation::Horizontal, 8);
+                row.add_css_class("changelog-step-row");
+                let dot = label("•", &["changelog-step-dot"], 0.0);
+                let text = label(step, &["changelog-step-text"], 0.0);
+                text.set_hexpand(true);
+                text.set_wrap(true);
+                text.set_wrap_mode(gtk::pango::WrapMode::WordChar);
+                text.set_selectable(true);
+                let time = label(
+                    &crate::build::ui::progress::short_duration(*elapsed, true),
+                    &["changelog-step-time"],
+                    1.0,
+                );
+                row.append(&dot);
+                row.append(&text);
+                row.append(&time);
+                card.append(&row);
+            }
+            self.content.append(&card);
+        }
+
         self.pages.set_visible_child(&self.notes);
     }
 

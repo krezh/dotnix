@@ -4,14 +4,16 @@
 use std::time::Duration;
 
 use gpui::{
-    Animation, AnimationExt, AnyElement, Context, Div, Hsla, MouseButton, SharedString, div, prelude::*, px, relative,
-    rgba,
+    Animation, AnimationExt, AnyElement, Context, Div, Hsla, MouseButton, SharedString, div,
+    prelude::*, px, relative, rgba,
 };
 
 use crate::{
     island::Island,
     panel::Handler,
-    theme::{ACCENT, CARD_ALPHA, CARD_BORDER_ALPHA, CRITICAL, NOTIFICATION_ALPHA, SURFACE1, with_alpha},
+    theme::{
+        ACCENT, CARD_ALPHA, CARD_BORDER_ALPHA, CRITICAL, NOTIFICATION_ALPHA, SURFACE1, with_alpha,
+    },
     ui::{self, Radius},
 };
 
@@ -56,7 +58,10 @@ pub struct FrameView {
 /// Lies on the border's straight stretch between the rounded corners, so it reads as the outline
 /// itself.
 fn countdown_bar(id: &SharedString, countdown: Countdown) -> AnyElement {
-    let bar = div().h_full().rounded_full().bg(rgba(with_alpha(ACCENT, COUNTDOWN_ALPHA)));
+    let bar = div()
+        .h_full()
+        .rounded_full()
+        .bg(rgba(with_alpha(ACCENT, COUNTDOWN_ALPHA)));
     let bar = match countdown.running {
         Some(left) => bar
             .w(relative(countdown.left))
@@ -79,8 +84,19 @@ fn countdown_bar(id: &SharedString, countdown: Countdown) -> AnyElement {
 }
 
 /// Its `id` also names the group hovering it reveals parts of, such as a ✕.
-pub fn frame(frame: FrameView, children: Vec<AnyElement>, hover: bool, cx: &mut Context<Island>) -> AnyElement {
-    let FrameView { id, look, on_click, on_dismiss, countdown } = frame;
+pub fn frame(
+    frame: FrameView,
+    children: Vec<AnyElement>,
+    hover: bool,
+    cx: &mut Context<Island>,
+) -> AnyElement {
+    let FrameView {
+        id,
+        look,
+        on_click,
+        on_dismiss,
+        countdown,
+    } = frame;
     let urgent = matches!(look, Look::Raised { urgent: true });
     let element = match look {
         Look::Inset => div()
@@ -90,7 +106,10 @@ pub fn frame(frame: FrameView, children: Vec<AnyElement>, hover: bool, cx: &mut 
             .flex()
             .flex_col()
             .gap(px(INSET_GAP))
-            .child(ui::shape(Radius::Control, Some(rgba(with_alpha(SURFACE1, CARD_ALPHA)).into())))
+            .child(ui::shape(
+                Radius::Control,
+                Some(rgba(with_alpha(SURFACE1, CARD_ALPHA)).into()),
+            ))
             .children(children),
         Look::Raised { .. } => {
             let border: Hsla = if urgent {
@@ -102,8 +121,14 @@ pub fn frame(frame: FrameView, children: Vec<AnyElement>, hover: bool, cx: &mut 
                 .id(id.clone())
                 .relative()
                 .size_full()
-                .child(ui::outlined(Radius::Panel, rgba(with_alpha(SURFACE1, NOTIFICATION_ALPHA)).into(), border))
-                .when(on_click.is_some(), |frame| frame.child(ui::control(Radius::Panel, None, hover)))
+                .child(ui::outlined(
+                    Radius::Panel,
+                    rgba(with_alpha(SURFACE1, NOTIFICATION_ALPHA)).into(),
+                    border,
+                ))
+                .when(on_click.is_some(), |frame| {
+                    frame.child(ui::control(Radius::Panel, None, hover))
+                })
                 .child(
                     div()
                         .relative()
@@ -133,7 +158,9 @@ pub fn frame(frame: FrameView, children: Vec<AnyElement>, hover: bool, cx: &mut 
                 }),
             )
         })
-        .when_some(countdown, |frame, countdown| frame.child(countdown_bar(&id, countdown)))
+        .when_some(countdown, |frame, countdown| {
+            frame.child(countdown_bar(&id, countdown))
+        })
         .into_any_element()
 }
 
