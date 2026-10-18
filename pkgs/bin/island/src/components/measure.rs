@@ -1,3 +1,5 @@
+//! Reports an element's drawn size, for layouts that size themselves to their content.
+
 use std::{cell::Cell, rc::Rc};
 
 use gpui::{IntoElement, Pixels, Size, canvas, prelude::*};

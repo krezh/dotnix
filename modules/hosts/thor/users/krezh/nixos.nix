@@ -27,7 +27,7 @@ in
         kubernetes
         office
         hyprland
-        niri
+        umbriel
         gaming
       ];
     };

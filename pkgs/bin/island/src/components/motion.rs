@@ -1,3 +1,5 @@
+//! Text that morphs into its new value instead of jumping, and state kept across frames.
+
 use std::{
     cell::Cell,
     marker::PhantomData,

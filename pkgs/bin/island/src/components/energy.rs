@@ -1,3 +1,5 @@
+//! A moving border showing something is busy, such as a refresh on its way.
+
 use std::{
     f32::consts::{FRAC_PI_2, TAU},
     time::{Duration, Instant},

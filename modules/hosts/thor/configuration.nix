@@ -13,7 +13,7 @@
         openssh
         gaming
         hyprland
-        niri
+        umbriel
         containers
         wooting
         inputs.silentSDDM.nixosModules.default

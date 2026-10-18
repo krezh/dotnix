@@ -4,7 +4,8 @@ use std::{rc::Rc, time::Instant};
 
 use futures::channel::oneshot;
 use gpui::{
-    AnyElement, ClickEvent, Context, FontWeight, MouseButton, MouseDownEvent, Pixels, SpringConfig, div, prelude::*, px, rgb,
+    AnyElement, ClickEvent, Context, FontWeight, MouseButton, MouseDownEvent, Pixels, SpringConfig, div, prelude::*, px,
+    relative, rgb,
 };
 use tracing::{debug, error, warn};
 
@@ -14,12 +15,17 @@ use crate::{
     components::{icon, tooltip::Tip},
     island::Island,
     presence::Presence,
-    theme::ACCENT,
+    theme::PEACH,
     ui::SMALL_SIZE,
 };
 use sni::{Client, Command, TrayItem};
 
 const ICON: f32 = 18.0;
+/// The line under an icon that wants attention.
+const LINE_SHORT: f32 = 6.0;
+const LINE_LONG: f32 = 16.0;
+const LINE_H: f32 = 3.0;
+const LINE_LIFT: f32 = 3.0;
 const MOTION: SpringConfig = SpringConfig::new(420.0, 34.0, 1.0);
 
 fn step(spacing: f32) -> f32 {
@@ -46,7 +52,7 @@ impl Local for Icons {
         self.0.advance(dt, now);
     }
 
-    /// Icons that need attention pulse, so they keep frames coming.
+    /// Icons that need attention breathe, so they keep frames coming.
     fn is_settled(&self) -> bool {
         self.0.is_settled() && !self.0.iter().any(|slot| slot.item.attention)
     }
@@ -99,8 +105,12 @@ impl Tray {
         .detach();
     }
 
-    fn pulse(&self) -> f32 {
-        0.55 + 0.45 * (self.epoch.elapsed().as_secs_f32() * 3.0).sin()
+    /// Where an app that wants attention is in its breath, from 0 to 1 and back, easing at both
+    /// ends.
+    fn breath(&self) -> f32 {
+        const CYCLE: f32 = 1.8;
+        let phase = self.epoch.elapsed().as_secs_f32() / CYCLE * std::f32::consts::TAU;
+        0.5 - 0.5 * phase.cos()
     }
 }
 
@@ -130,7 +140,7 @@ impl Feature for Tray {
             return None;
         }
         let half = w.padding();
-        let pulse = self.pulse();
+        let breath = self.breath();
         let slots = icons.0.iter().map(|slot| {
             let item = &slot.item;
             let presence = slot.presence.value().clamp(0.0, 1.0);
@@ -151,15 +161,20 @@ impl Feature for Tray {
                         .font_weight(FontWeight::SEMIBOLD)
                         .child(item.title.chars().next().map(String::from).unwrap_or_default())
                 })
+                // A short line under the icon that slowly stretches and settles.
                 .when(item.attention, |slot| {
+                    let width = LINE_SHORT + (LINE_LONG - LINE_SHORT) * breath;
                     slot.child(
                         div()
                             .absolute()
-                            .bottom(px(2.0))
-                            .size(px(5.0))
+                            .bottom(px(LINE_LIFT))
+                            .left(relative(0.5))
+                            .ml(px(-width / 2.0))
+                            .w(px(width))
+                            .h(px(LINE_H))
                             .rounded_full()
-                            .opacity(pulse)
-                            .bg(rgb(ACCENT)),
+                            .opacity(0.55 + 0.45 * breath)
+                            .bg(rgb(PEACH)),
                     )
                 })
                 .on_click(w.on_island(move |tray: &Tray, event: &ClickEvent, island, cx| {

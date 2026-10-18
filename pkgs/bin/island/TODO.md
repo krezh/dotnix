@@ -1,10 +1,5 @@
 # island TODO
 
-## Verify live
-- [ ] Launcher morph and typing
-- [ ] Hover fills, switch and slider springs, volume scroll
-- [ ] Brightness on thor over DDC/CI
-
 ## Integration
 - [ ] Make the terminal for terminal apps configurable (now `xdg-terminal-exec`)
 - [ ] Another bar's exclusive zone (Noctalia) moves the island down, so `Island::to_screen` is off

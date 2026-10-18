@@ -1,4 +1,10 @@
-use std::path::Path;
+//! Everything clickable: plain and toggle buttons, icon buttons, action and pick tiles, chips.
+
+use std::{
+    cell::RefCell,
+    collections::HashMap,
+    path::{Path, PathBuf},
+};
 
 use gpui::{
     AnimationExt, Div, FontWeight, Hsla, SharedString, SpringAnimation, SpringConfig, Stateful, div, prelude::*, px, rgb,
@@ -6,7 +12,13 @@ use gpui::{
 };
 
 use crate::{
-    components::{energy, icon, motion},
+    components::{
+        energy, icon,
+        marquee::{self, TextLayouts},
+        measure::{self, Measured},
+        motion, pointer,
+    },
+    island::{CONTENT_IN, SHAPE_SPRING},
     shape,
     theme::{
         ACCENT, ACCENT_TINT_ALPHA, BASE, CONTROL_ALPHA, ON_ACCENT, SUBTEXT1, SURFACE1, TEXT, TINT,
@@ -69,6 +81,74 @@ pub fn busy(
     surface(id, active, hover)
         .child(motion::steady("label", label, fits))
         .child(energy::border("energy", Radius::Control, 0.0, busy))
+}
+
+const PICK_H: f32 = 72.0;
+const PICK_GLYPH: f32 = 22.0;
+const PICK_PAD: f32 = 8.0;
+
+thread_local! {
+    /// Each pick tile's drawn size, which its name has to fit.
+    static PICK_SIZES: RefCell<HashMap<SharedString, Measured>> = RefCell::default();
+}
+
+/// One of several to choose between, sharing its row equally with the others; the chosen one is
+/// tinted with `color`. A name too long for the tile dissolves into its edge, and scrolls through
+/// while the tile is hovered.
+pub fn pick(
+    id: impl Into<SharedString>,
+    glyph: Option<&Path>,
+    label: impl Into<SharedString>,
+    color: u32,
+    chosen: bool,
+    hover: bool,
+    layouts: &TextLayouts,
+) -> Stateful<Div> {
+    let id = id.into();
+    let label = label.into();
+    let (rest, text) = if chosen {
+        (rgba(with_alpha(color, ACCENT_TINT_ALPHA)).into(), color)
+    } else {
+        (surface_fill(false), TEXT)
+    };
+    let size = PICK_SIZES.with_borrow_mut(|sizes| sizes.entry(id.clone()).or_insert_with(measure::measured).clone());
+    let slot = size.get().map_or(0.0, |size| f32::from(size.width) - 2.0 * PICK_PAD);
+    let name = if slot > 0.0 {
+        let hovered = hover && pointer::get(&id).hovered;
+        marquee::marquee_on_hover(layouts, &id, label, SMALL_SIZE, FontWeight::SEMIBOLD, slot, hovered).into_any_element()
+    } else {
+        div().max_w_full().truncate().child(label).into_any_element()
+    };
+    let hover_id = id.clone();
+    fill(id, Radius::Control, Some(rest), hover && !chosen)
+        .flex_1()
+        .min_w(px(0.0))
+        .h(px(PICK_H))
+        .px(px(PICK_PAD))
+        .flex_col()
+        .gap(px(8.0))
+        .text_size(px(SMALL_SIZE))
+        .font_weight(FontWeight::SEMIBOLD)
+        .text_color(rgb(text))
+        .when_some(glyph, |tile, path| tile.child(icon::glyph(path, PICK_GLYPH, text)))
+        .child(name)
+        .child(measure::probe(&size))
+        .on_hover(move |hovered, window, _| pointer::set(&hover_id, |pointer| pointer.hovered = *hovered, window))
+}
+
+const CHIP_H: f32 = 24.0;
+
+/// A small button showing a current choice, which opens the others.
+pub fn chip(id: impl Into<SharedString>, label: impl Into<SharedString>, open: bool, hover: bool) -> Stateful<Div> {
+    fill(id, Radius::Badge, Some(surface_fill(open)), hover)
+        .flex_none()
+        .h(px(CHIP_H))
+        .px(px(8.0))
+        .gap(px(4.0))
+        .text_size(px(12.0))
+        .font_weight(FontWeight::SEMIBOLD)
+        .text_color(rgb(if open { ACCENT } else { SUBTEXT1 }))
+        .child(label.into())
 }
 
 pub const ACTION_W: f32 = 136.0;
@@ -153,12 +233,68 @@ pub fn badged(id: impl Into<SharedString>, target: impl IntoElement, badge: Opti
         })
 }
 
-pub fn icon(id: impl Into<SharedString>, glyph: Option<&Path>, active: bool, hover: bool) -> Stateful<Div> {
+/// How far below its place a rising part starts, as a share of the glyph.
+const RISE: f32 = 3.0 / 16.0;
+
+/// Parts drawn over an icon button's glyph only while it is active, each the glyph's full size.
+/// Turning on, they rise into place one after another out of the line at `from` (a share of the
+/// glyph down from its top), as steam out of a cup; turning off, they fade where they are.
+#[derive(Clone)]
+pub struct Rising {
+    pub parts: Vec<PathBuf>,
+    pub from: f32,
+}
+
+fn rising(id: SharedString, rising: &Rising, active: bool, tint: u32) -> impl IntoElement {
+    let parts = rising.parts.clone();
+    let count = parts.len();
+    // Off settles more gently than on, with nothing to overshoot.
+    let spring = if active { SHAPE_SPRING } else { CONTENT_IN };
+    div()
+        .absolute()
+        .top_0()
+        .left_0()
+        .w(px(ICON_GLYPH))
+        .h(px(ICON_GLYPH * rising.from))
+        .overflow_hidden()
+        .with_spring(id, SpringAnimation::new(spring).to(active), move |clip, strength| {
+            clip.children(parts.iter().enumerate().map(|(index, part)| {
+                // The last to come is the first to go.
+                let order = if active { index } else { count - 1 - index };
+                let share = (strength.0 * 1.3 - order as f32 * 0.15).clamp(0.0, 1.0);
+                let lift = if active { (1.0 - share) * RISE * ICON_GLYPH } else { 0.0 };
+                div()
+                    .absolute()
+                    .left_0()
+                    .top(px(lift))
+                    .opacity(share)
+                    .child(icon::glyph(part, ICON_GLYPH, tint))
+            }))
+        })
+}
+
+pub fn icon(
+    id: impl Into<SharedString>,
+    glyph: Option<&Path>,
+    parts: Option<&Rising>,
+    active: bool,
+    hover: bool,
+) -> Stateful<Div> {
+    let id = id.into();
     let tint = if active { ACCENT } else { SUBTEXT1 };
+    let rise_id = SharedString::from(format!("{id}-rising"));
     fill(id, Radius::Control, Some(surface_fill(active)), hover)
         .flex_none()
         .size(px(ICON_BUTTON))
-        .when_some(glyph, |button, path| button.child(icon::glyph(path, ICON_GLYPH, tint)))
+        .when_some(glyph, |button, path| {
+            button.child(
+                div()
+                    .relative()
+                    .size(px(ICON_GLYPH))
+                    .child(icon::glyph(path, ICON_GLYPH, tint))
+                    .when_some(parts, |glyph, parts| glyph.child(rising(rise_id, parts, active, tint))),
+            )
+        })
 }
 
 pub fn switch(id: impl Into<SharedString>, on: bool) -> impl IntoElement {

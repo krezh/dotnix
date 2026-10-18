@@ -26,7 +26,7 @@ use crate::{
         tooltip::Tip,
     },
     island::{Mode, Panel},
-    panel::{AppRow, Block, Header, IconButton, LauncherView, PanelView, Preview, on},
+    panel::{Block, Header, IconButton, PanelView, Preview, SearchRow, SearchView, on},
     theme::TEXT,
 };
 
@@ -350,7 +350,7 @@ impl Feature for Clipboard {
         )
     }
 
-    fn panel<'a>(&self, state: &State, p: &PanelCx<'a>) -> Option<PanelView<'a>> {
+    fn panel<'a>(&self, state: &State, p: &PanelCx<'a>) -> Option<PanelView> {
         let picker = p.local::<Picker>()?;
         let matching = state.matching(&picker.query);
         let count = matching.len();
@@ -368,7 +368,7 @@ impl Feature for Clipboard {
                     Kind::Image => "clipboard-image",
                     Kind::Files => "clipboard-files",
                 };
-                AppRow {
+                SearchRow {
                     id: format!("clip-{id}").into(),
                     name: entry.title().into(),
                     detail: entry.detail().into(),
@@ -389,7 +389,7 @@ impl Feature for Clipboard {
         };
         Some(PanelView {
             header: Header::None,
-            blocks: vec![Block::Launcher(LauncherView {
+            blocks: vec![Block::Search(SearchView {
                 query: picker.query.clone().into(),
                 placeholder: "Search the clipboard".into(),
                 empty: state.error.clone().unwrap_or_else(|| "Nothing copied yet".to_owned()).into(),
@@ -441,6 +441,7 @@ impl Feature for Clipboard {
         Some(IconButton {
             id: "open-clipboard".into(),
             glyph: p.glyph("clipboard"),
+            rising: None,
             label: "Clipboard".into(),
             active: false,
             badge: None,

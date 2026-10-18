@@ -1,3 +1,5 @@
+//! Drawing icons and pictures: tinted symbolic glyphs, full-color images, tray pixmaps.
+
 use std::{
     fmt,
     path::{Path, PathBuf},

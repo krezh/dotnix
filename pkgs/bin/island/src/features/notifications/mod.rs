@@ -1,4 +1,5 @@
 mod card;
+mod dots;
 mod history;
 mod lock;
 mod markdown;
@@ -10,7 +11,6 @@ mod toasts;
 use std::{
     cell::RefCell,
     collections::HashSet,
-    hash::{DefaultHasher, Hash, Hasher},
     sync::{
         Arc,
         mpsc::{self, Sender},
@@ -18,11 +18,12 @@ use std::{
     time::{Duration, Instant},
 };
 
-use gpui::{AnyElement, Window, div, prelude::*, px, rgb};
+use gpui::{AnyElement, Window, prelude::*};
 use serde::Deserialize;
 
 use self::{
     card::Look,
+    dots::Dots,
     history::{Earlier, Write},
     missed_list::MissedList,
     notification::{DEFAULT_ACTION, Notification, Reason, Signal},
@@ -33,7 +34,7 @@ use crate::{
     components::tooltip::Tip,
     control::{self, Switch},
     island::{Panel, REVEAL_DELAY},
-    panel::{Block, Button, Handler, Header, PanelView, Views},
+    panel::{Button, Handler, Header, PanelView, Views},
     theme::{ACCENT, OVERLAY1},
 };
 
@@ -100,6 +101,7 @@ pub struct Cards {
     toasts: Toasts,
     missed: MissedList,
     earlier: bool,
+    dots: Dots,
 }
 
 impl Local for Cards {
@@ -110,10 +112,11 @@ impl Local for Cards {
     fn advance(&mut self, dt: f32, now: Instant) {
         self.toasts.advance(dt, now);
         self.missed.advance(dt, now);
+        self.dots.advance(dt, now);
     }
 
     fn is_settled(&self) -> bool {
-        self.toasts.is_settled() && self.missed.is_settled()
+        self.toasts.is_settled() && self.missed.is_settled() && self.dots.is_settled()
     }
 
     fn popup(&self) -> bool {
@@ -329,13 +332,6 @@ impl Notifications {
     }
 }
 
-/// A [`panel::Block::Custom`] key, from anything that decides its size.
-fn shape(of: impl Hash) -> u64 {
-    let mut hasher = DefaultHasher::new();
-    of.hash(&mut hasher);
-    hasher.finish()
-}
-
 fn invoke(notification: &Notification, handler: impl Fn(String) -> Handler) -> Vec<(String, Handler)> {
     notification
         .buttons()
@@ -383,6 +379,7 @@ impl Feature for Notifications {
 
     fn sync_local(state: &State, cards: &mut Cards, island: &IslandInfo<'_>, animate: bool) {
         cards.missed.sync(&state.missed, animate && island.panel_open, Instant::now() + REVEAL_DELAY);
+        cards.dots.show(state.missed.len(), animate);
     }
 
     fn event(&self, event: Event, islands: &mut Islands<'_, Cards>) {
@@ -453,13 +450,8 @@ impl Feature for Notifications {
 
     fn widget(&self, _: &str, state: &State, w: &mut WidgetCx<'_>) -> Option<AnyElement> {
         let missed = state.missed.len();
-        let color = if missed > 0 { ACCENT } else { OVERLAY1 };
-        let icon = div().size(px(10.0)).rounded_full();
-        let icon = if state.dnd {
-            icon.border_2().border_color(rgb(color))
-        } else {
-            icon.bg(rgb(color))
-        };
+        let color = if missed > 0 && !state.dnd { ACCENT } else { OVERLAY1 };
+        let icon = w.local::<Cards>().map(|cards| cards.dots.element(color));
         let tip = match (missed, state.dnd) {
             (0, false) => "No missed notifications".to_owned(),
             (0, true) => "Do not disturb is on".to_owned(),
@@ -472,13 +464,13 @@ impl Feature for Notifications {
         Some(
             w.base("bar-notifications")
                 .tip(w.tips(), "bar-notifications", tip)
-                .child(icon)
+                .children(icon)
                 .on_click(w.toggle(Panel::Feature(Self::NAME)))
                 .into_any_element(),
         )
     }
 
-    fn panel<'a>(&self, state: &State, p: &PanelCx<'a>) -> Option<PanelView<'a>> {
+    fn panel<'a>(&self, state: &State, p: &PanelCx<'a>) -> Option<PanelView> {
         let cards = p.local::<Cards>()?;
         let buttons = vec![
             Button {
@@ -541,10 +533,7 @@ impl Feature for Notifications {
                 .collect();
             return Some(PanelView {
                 header,
-                blocks: vec![Block::Custom(
-                    shape(card::earlier_height(&entries).to_bits()),
-                    Box::new(move |frame, _, cx| card::earlier(entries, looks, frame.hover, cx)),
-                )],
+                blocks: vec![card::earlier(entries, looks)],
             });
         }
         let looks = cards
@@ -565,17 +554,13 @@ impl Feature for Notifications {
             })
             .collect();
         let empty = if state.dnd { "Nothing missed · do not disturb is on" } else { "Nothing missed" };
-        let rows = &cards.missed;
         Some(PanelView {
             header,
-            blocks: vec![Block::Custom(
-                shape((rows.is_empty(), rows.visible_height().to_bits())),
-                Box::new(move |frame, _, cx| card::missed(rows, looks, empty.into(), frame.hover, cx)),
-            )],
+            blocks: vec![card::missed(&cards.missed, looks, empty)],
         })
     }
 
-    fn popup<'a>(&self, state: &State, p: &PanelCx<'a>) -> Option<PanelView<'a>> {
+    fn popup<'a>(&self, state: &State, p: &PanelCx<'a>) -> Option<PanelView> {
         let cards = p.local::<Cards>()?;
         let looks = cards
             .toasts
@@ -596,13 +581,9 @@ impl Feature for Notifications {
                 }
             })
             .collect();
-        let stack = &cards.toasts;
         Some(PanelView {
             header: Header::None,
-            blocks: vec![Block::Custom(
-                shape(stack.height().to_bits()),
-                Box::new(move |frame, below, cx| card::toasts(stack, looks, below, frame.hover, cx)),
-            )],
+            blocks: vec![card::toasts(&cards.toasts, looks)],
         })
     }
 

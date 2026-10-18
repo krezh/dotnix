@@ -1,3 +1,5 @@
+//! The glow behind the bar that follows what is playing.
+
 use std::{
     cell::RefCell,
     collections::HashMap,

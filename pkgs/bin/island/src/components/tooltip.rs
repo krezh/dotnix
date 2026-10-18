@@ -1,3 +1,5 @@
+//! Hover tooltips, drawn over everything after a short delay.
+
 use std::{
     cell::RefCell,
     collections::HashMap,

@@ -1,3 +1,5 @@
+//! Text that scrolls when it does not fit, and the text measuring it relies on.
+
 use std::{
     cell::RefCell,
     collections::{HashMap, HashSet},
@@ -133,11 +135,15 @@ fn smoothstep(t: f32) -> f32 {
     t * t * (3.0 - 2.0 * t)
 }
 
-fn edge_fades(layout: &TextLayout, origin: f32, slot: f32) -> Vec<(Range<usize>, HighlightStyle)> {
+/// The left edge fades by `left`, 0 to 1: still text starts at that edge, so it eases in as the
+/// text starts to move and out as it comes to rest.
+fn edge_fades(layout: &TextLayout, origin: f32, slot: f32, left: f32) -> Vec<(Range<usize>, HighlightStyle)> {
     let mut runs: Vec<(Range<usize>, f32)> = Vec::new();
-    for (range, left, right) in &layout.glyphs {
-        let center = origin + (left + right) / 2.0;
-        let visibility = smoothstep(center.min(slot - center) / FADE);
+    for (range, start, end) in &layout.glyphs {
+        let center = origin + (start + end) / 2.0;
+        let right_side = smoothstep((slot - center) / FADE);
+        let left_side = 1.0 - left * (1.0 - smoothstep(center / FADE));
+        let visibility = right_side.min(left_side);
         let fade = ((1.0 - visibility) * LEVELS).round() / LEVELS;
         match runs.last_mut() {
             Some((last, last_fade)) if *last_fade == fade && last.end == range.start => last.end = range.end,
@@ -166,10 +172,56 @@ pub fn marquee(layouts: &TextLayouts, text: SharedString, size: f32, weight: Fon
     let Some(layout) = layouts.get(&text, size, weight).filter(|layout| layout.width > slot) else {
         return area.flex().items_center().child(div().min_w(px(0.0)).truncate().child(text));
     };
-    let cycle = layout.width + GAP;
     // Position follows the clock rather than a per-frame animation, so motion is equally smooth at
     // any frame rate; the owner keeps frames coming at `TICK` while `scrolling()` reports true.
-    let offset = (layouts.mark_scrolling() * SPEED) % cycle;
+    let offset = (layouts.mark_scrolling() * SPEED) % (layout.width + GAP);
+    passes(area, &text, &layout, slot, offset, 1.0)
+}
+
+thread_local! {
+    /// When each text hovered right now started to glide.
+    static GLIDES: RefCell<HashMap<SharedString, Instant>> = RefCell::default();
+}
+
+/// As [`marquee`], but text that does not fit glides only while `hovered`, from where it rests,
+/// and is back at rest the moment it is not. At rest it dissolves into its right edge.
+pub fn marquee_on_hover(
+    layouts: &TextLayouts,
+    id: &SharedString,
+    text: SharedString,
+    size: f32,
+    weight: FontWeight,
+    slot: f32,
+    hovered: bool,
+) -> Div {
+    let line_h = (size * 1.4).ceil();
+    let area = div().min_w(px(0.0)).h(px(line_h)).text_size(px(size)).font_weight(weight);
+    let layout = layouts.get(&text, size, weight).filter(|layout| layout.width > slot);
+    let since = GLIDES.with_borrow_mut(|glides| {
+        if hovered && layout.is_some() {
+            Some(*glides.entry(id.clone()).or_insert_with(Instant::now))
+        } else {
+            glides.remove(id);
+            None
+        }
+    });
+    let Some(layout) = layout else {
+        return area.flex().items_center().child(div().min_w(px(0.0)).truncate().child(text));
+    };
+    let area = area.w(px(slot));
+    let Some(since) = since else {
+        return passes(area, &text, &layout, slot, 0.0, 0.0);
+    };
+    layouts.mark_scrolling();
+    let travelled = since.elapsed().as_secs_f32() * SPEED;
+    // The left edge starts unfaded, as at rest, and fades in as the text moves off it.
+    let edge = (travelled / FADE).clamp(0.0, 1.0);
+    passes(area, &text, &layout, slot, travelled % (layout.width + GAP), edge)
+}
+
+/// Two passes of the text, `offset` along the loop, so one follows straight on from the other.
+fn passes(area: Div, text: &SharedString, layout: &TextLayout, slot: f32, offset: f32, left: f32) -> Div {
+    let cycle = layout.width + GAP;
     area.relative().overflow_hidden().child(div().absolute().top_0().left_0().size_full().children((0..2).map(
         |pass| {
             let origin = pass as f32 * cycle - offset;
@@ -181,7 +233,7 @@ pub fn marquee(layouts: &TextLayouts, text: SharedString, size: f32, weight: Fon
                 .flex()
                 .items_center()
                 .whitespace_nowrap()
-                .child(StyledText::new(text.clone()).with_highlights(edge_fades(&layout, origin, slot)))
+                .child(StyledText::new(text.clone()).with_highlights(edge_fades(layout, origin, slot, left)))
         },
     )))
 }

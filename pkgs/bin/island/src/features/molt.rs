@@ -17,7 +17,7 @@ use crate::{
     bar::{GLYPH, ICON_GAP},
     components::{card, icon, tooltip::Tip},
     island::{Mode, Panel},
-    panel::{Block, Button, CommitRow, Header, IconButton, PanelView, PathRow, PathStep, StepState, on},
+    panel::{Block, Button, Header, IconButton, Line, PanelView, Route, Stop, StopState, on},
     run,
     supervisor::Ended,
     theme::{ACCENT, CRITICAL, GREEN, SUBTEXT1},
@@ -87,7 +87,7 @@ pub struct Branch {
 }
 
 impl WatchedPr {
-    fn row(&self) -> PathRow {
+    fn row(&self) -> Route {
         let state = match self.state.as_str() {
             "merged" => "Merged",
             "open" => "Open",
@@ -99,21 +99,21 @@ impl WatchedPr {
             .as_deref()
             .map(|sha| format!(" · {}", &sha[..sha.len().min(7)]))
             .unwrap_or_default();
-        PathRow {
+        Route {
             title: format!("#{} {}", self.pr_number, self.title).into(),
             detail: format!("{} · {state}{commit}", self.repo).into(),
             done: self.ready.then(|| "Ready".into()),
-            steps: self
+            stops: self
                 .branches
                 .iter()
-                .map(|branch| PathStep {
+                .map(|branch| Stop {
                     label: branch.name.clone().into(),
                     state: match (branch.reached, branch.status.as_str()) {
-                        (true, _) => StepState::Reached,
+                        (true, _) => StopState::Reached,
                         (false, "pending") => {
-                            StepState::Pending(branch.ahead_by.filter(|ahead| *ahead > 0).map(|ahead| format!("+{ahead}").into()))
+                            StopState::Pending(branch.ahead_by.filter(|ahead| *ahead > 0).map(|ahead| format!("+{ahead}").into()))
                         }
-                        _ => StepState::NotYet,
+                        _ => StopState::NotYet,
                     },
                 })
                 .collect(),
@@ -371,7 +371,7 @@ impl Feature for Molt {
         )
     }
 
-    fn panel<'a>(&self, state: &Updates, p: &PanelCx<'a>) -> Option<PanelView<'a>> {
+    fn panel<'a>(&self, state: &Updates, p: &PanelCx<'a>) -> Option<PanelView> {
         let buttons = vec![
             Button {
                 id: "molt-check".into(),
@@ -397,19 +397,19 @@ impl Feature for Molt {
                 }),
             },
         ];
-        let card = |block: Block<'static>| Block::Card(None, card::Size::Large, vec![block]);
+        let card = |block: Block| Block::Card(None, card::Size::Large, vec![block]);
         let block = match (&state.error, &state.report) {
-            (Some(error), _) => card(Block::Note(format!("The last check failed: {error}").into())),
-            (None, None) if state.checking => card(Block::Note("Checking for updates…".into())),
-            (None, None) => card(Block::Note("Not checked yet".into())),
-            (None, Some(report)) if report.commits.is_empty() => card(Block::Note(
-                if report.incoming == 0 { "Up to date" } else { "Check again to list the commits" }.into(),
+            (Some(error), _) => card(Block::note(format!("The last check failed: {error}"))),
+            (None, None) if state.checking => card(Block::note("Checking for updates…")),
+            (None, None) => card(Block::note("Not checked yet")),
+            (None, Some(report)) if report.commits.is_empty() => card(Block::note(
+                if report.incoming == 0 { "Up to date" } else { "Check again to list the commits" },
             )),
-            (None, Some(report)) => card(Block::Commits(
+            (None, Some(report)) => card(Block::Lines(
                 report
                     .commits
                     .iter()
-                    .map(|commit| CommitRow {
+                    .map(|commit| Line {
                         summary: commit.summary.clone().into(),
                         detail: format!(
                             "{} · {} · {}",
@@ -435,7 +435,7 @@ impl Feature for Molt {
             blocks.push(Block::Card(
                 Some(title.into()),
                 card::Size::Large,
-                vec![Block::Paths(watchlist.prs.iter().map(WatchedPr::row).collect())],
+                vec![Block::Routes(watchlist.prs.iter().map(WatchedPr::row).collect())],
             ));
         }
         Some(PanelView {
@@ -460,6 +460,7 @@ impl Feature for Molt {
         Some(IconButton {
             id: "open-molt".into(),
             glyph: p.glyph("molt"),
+            rising: None,
             label: label.into(),
             active: incoming > 0 || ready > 0,
             badge,

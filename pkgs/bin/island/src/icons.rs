@@ -3,7 +3,7 @@ use std::{
     collections::{HashMap, HashSet},
     env, fs,
     path::{Path, PathBuf},
-    sync::OnceLock,
+    sync::{LazyLock, Mutex, OnceLock},
 };
 
 use gpui::{AssetSource, SharedString};
@@ -12,6 +12,9 @@ pub struct Files;
 
 impl AssetSource for Files {
     fn load(&self, path: &str) -> anyhow::Result<Option<Cow<'static, [u8]>>> {
+        if let Some(bytes) = BUNDLED.lock().ok().and_then(|bundled| bundled.get(path).copied()) {
+            return Ok(Some(Cow::Borrowed(bytes)));
+        }
         Ok(fs::read(path).ok().map(Cow::Owned))
     }
 
@@ -24,6 +27,18 @@ const TARGET_SIZE: u32 = 32;
 
 static THEME: OnceLock<String> = OnceLock::new();
 static INDEX: OnceLock<HashMap<String, PathBuf>> = OnceLock::new();
+/// Glyphs island carries itself, by the path they are drawn from.
+static BUNDLED: LazyLock<Mutex<HashMap<String, &'static [u8]>>> = LazyLock::new(Mutex::default);
+
+/// Makes `svg` drawable as a glyph from the returned path, such as for parts of an icon that no
+/// theme draws separately.
+pub fn bundle(name: &str, svg: &'static str) -> PathBuf {
+    let path = format!("bundled/{name}.svg");
+    if let Ok(mut bundled) = BUNDLED.lock() {
+        bundled.insert(path.clone(), svg.as_bytes());
+    }
+    PathBuf::from(path)
+}
 
 pub fn set_theme(theme: String) {
     let _ = THEME.set(theme);

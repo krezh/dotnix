@@ -8,13 +8,13 @@ use crate::{
     },
     config,
     island::{Island, Panel},
-    panel::{Block, Header, IconButton, PanelView},
+    panel::{Block, ButtonRow, Header, IconButton, PanelView},
     sys::SysStats,
     theme::{BLUE, GREEN, LAVENDER, MAUVE, PEACH, PINK, RED, SUBTEXT1, TEAL, YELLOW},
 };
 
 /// Nothing, for a panel whose content went away while it closes.
-fn empty<'a>() -> PanelView<'a> {
+fn empty<'a>() -> PanelView {
     PanelView {
         header: Header::None,
         blocks: Vec::new(),
@@ -435,11 +435,11 @@ pub fn system(
     settings: &config::System,
     displays: usize,
     buttons: Vec<IconButton>,
-) -> PanelView<'static> {
+) -> PanelView {
     PanelView {
         header: Header::Tabs,
         blocks: vec![
-            Block::Icons(buttons),
+            Block::Buttons(ButtonRow { buttons, compact: false, indent: 0.0 }),
             Block::Board(vec![
                 vec![cpu_tile(stats), memory_tile(stats), processes_tile(stats), power_tile(stats)],
                 vec![gpu_tile(stats), network_tile(stats), storage_tile(stats, settings)],
@@ -449,7 +449,7 @@ pub fn system(
     }
 }
 
-pub fn panel<'a>(island: &'a Island, panel: Panel, cx: &gpui::App) -> PanelView<'a> {
+pub fn panel<'a>(island: &'a Island, panel: Panel, cx: &gpui::App) -> PanelView {
     match panel {
         Panel::System => system(&island.stats, cx.global(), island.displays(), island.feature_buttons(cx)),
         Panel::Feature(name) => island.feature_panel(name, cx).unwrap_or_else(empty),

@@ -1,3 +1,5 @@
+//! The System panel's board of stat tiles, laid out in columns that end level.
+
 use gpui::{AnyElement, Div, FontWeight, SharedString, div, prelude::*, px, relative, rgb, rgba};
 
 use crate::{

@@ -1,3 +1,5 @@
+//! A row of tabs with a pill sliding to the selected one.
+
 use std::rc::Rc;
 
 use gpui::{AnimationExt, Context, Div, FontWeight, SharedString, SpringAnimation, SpringConfig, div, prelude::*, px, rgb};

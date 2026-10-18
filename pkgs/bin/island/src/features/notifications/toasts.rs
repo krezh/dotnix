@@ -3,11 +3,12 @@ use std::time::{Duration, Instant};
 use gpui::{SpringConfig, Window};
 
 use super::{
-    card::{self, Countdown},
+    card,
     notification::Notification,
 };
 use crate::{
     island::{CONTENT_IN, CONTENT_OUT, REVEAL_DELAY, SHAPE_SPRING},
+    panel::Countdown,
     spring::Spring,
 };
 

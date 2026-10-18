@@ -294,7 +294,7 @@ impl Feature for Session {
         )
     }
 
-    fn panel<'a>(&self, armed: &Option<Action>, p: &PanelCx<'a>) -> Option<PanelView<'a>> {
+    fn panel<'a>(&self, armed: &Option<Action>, p: &PanelCx<'a>) -> Option<PanelView> {
         let tiles = self
             .settings
             .actions
@@ -318,7 +318,7 @@ impl Feature for Session {
         };
         Some(PanelView {
             header: Header::None,
-            blocks: vec![Block::Actions(tiles), Block::Note(note.into())],
+            blocks: vec![Block::Actions(tiles), Block::note(note)],
         })
     }
 
@@ -326,6 +326,7 @@ impl Feature for Session {
         Some(IconButton {
             id: "open-session".into(),
             glyph: p.glyph("session-shutdown"),
+            rising: None,
             label: "Session".into(),
             active: false,
             badge: None,

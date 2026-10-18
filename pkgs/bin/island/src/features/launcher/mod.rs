@@ -11,7 +11,7 @@ use crate::{
     components::list::{self, ROWS},
     island::Mode,
     launch,
-    panel::{AppRow, Block, Header, LauncherView, PanelView, on},
+    panel::{Block, Header, PanelView, SearchRow, SearchView, on},
     supervisor::Ended,
 };
 use desktop::App;
@@ -95,7 +95,7 @@ impl Feature for Launcher {
         Self
     }
 
-    fn panel<'a>(&self, apps: &Apps, p: &PanelCx<'a>) -> Option<PanelView<'a>> {
+    fn panel<'a>(&self, apps: &Apps, p: &PanelCx<'a>) -> Option<PanelView> {
         let search = p.local::<Search>()?;
         let matching = apps.matching(&search.query);
         let count = matching.len();
@@ -108,7 +108,7 @@ impl Feature for Launcher {
             .take(ROWS)
             .map(|(position, app)| {
                 let picked = (*app).clone();
-                AppRow {
+                SearchRow {
                     id: format!("app-{}", app.id).into(),
                     name: app.name.clone().into(),
                     detail: if app.generic.is_empty() { &app.comment } else { &app.generic }.clone().into(),
@@ -125,7 +125,7 @@ impl Feature for Launcher {
             .collect();
         Some(PanelView {
             header: Header::None,
-            blocks: vec![Block::Launcher(LauncherView {
+            blocks: vec![Block::Search(SearchView {
                 query: search.query.clone().into(),
                 placeholder: "Search apps".into(),
                 empty: "No apps found".into(),

@@ -20,6 +20,7 @@ use crate::{
         aura::Aura,
         marquee::{self, TextLayouts},
         measure::{self, Measured},
+        popover::Popovers,
         tooltip::Tooltips,
     },
     config::{self, Widget},
@@ -54,7 +55,7 @@ enum Fold {
 /// How long new content waits for the island to make room before it fades in.
 pub(crate) const REVEAL_DELAY: Duration = Duration::from_millis(90);
 const MAX_STEP: Duration = Duration::from_millis(50);
-const CONTENT_DRIFT: f32 = 8.0;
+pub(crate) const CONTENT_DRIFT: f32 = 8.0;
 const SHADOW_SPREAD: f32 = 14.0;
 const LINES_PER_NOTCH: f32 = 3.0;
 const PIXELS_PER_NOTCH: f32 = 50.0;
@@ -224,6 +225,7 @@ pub struct Island {
     bar_size: Measured,
     sections: [Measured; 3],
     tips: Tooltips,
+    popovers: Popovers,
     layouts: TextLayouts,
     held: Presence<bar::Held>,
     features: Rc<Features>,
@@ -315,6 +317,7 @@ impl Island {
             bar_size: measure::measured(),
             sections: std::array::from_fn(|_| measure::measured()),
             tips: Tooltips::default(),
+            popovers: Popovers::default(),
             held: Presence::new(FOLD_SPRING),
             drawn: HashMap::new(),
             natural: startup.layout.widgets().map(|kind| (kind, measure::measured())).collect(),
@@ -697,7 +700,7 @@ impl Island {
         }
     }
 
-    fn panel_key(&self, panel: &panel::PanelView<'_>) -> u64 {
+    fn panel_key(&self, panel: &panel::PanelView) -> u64 {
         let mut hasher = DefaultHasher::new();
         panel.key().hash(&mut hasher);
         hasher.finish()
@@ -805,11 +808,11 @@ impl Island {
         PanelCx::new(cx.global::<Glyphs>().clone(), self.local(name))
     }
 
-    pub fn feature_panel(&self, name: &str, cx: &Gpui) -> Option<panel::PanelView<'_>> {
+    pub fn feature_panel(&self, name: &str, cx: &Gpui) -> Option<panel::PanelView> {
         self.features.get(name)?.panel(&mut self.panel_cx(name, cx), cx)
     }
 
-    pub fn popups(&self, cx: &Gpui) -> Option<panel::PanelView<'_>> {
+    pub fn popups(&self, cx: &Gpui) -> Option<panel::PanelView> {
         let blocks: Vec<_> = self
             .locals
             .iter()
@@ -1129,6 +1132,7 @@ impl Island {
                     phase: self.last_sample.elapsed().as_secs_f32() / sys::INTERVAL.as_secs_f32(),
                     layouts: &self.layouts,
                     tips: &self.tips,
+                    popovers: &self.popovers,
                 };
                 let content = panel.render(&frame, cx);
                 match frozen {
@@ -1266,6 +1270,7 @@ impl Render for Island {
             size: size(px(w), px(h)),
         };
         let corner = self.corner;
+        self.popovers.set_within(body);
         // Kept within the bar at rest, so the bar growing under the pointer never moves the menu.
         // It is drawn before it shows, so its contents get measured.
         let rest_w = self.bar_width().map_or(w, |rest| rest.min(w));
@@ -1276,14 +1281,22 @@ impl Render for Island {
         };
         let hung = self.menu.as_ref().map(|menu| menu.hang(rest, corner.0.min(h / 2.0), scale));
         let hang = hung.filter(|hang| f32::from(hang.bounds.size.height) >= 0.5);
-        let region: Vec<Bounds<Pixels>> = std::iter::once(body).chain(hang.map(|hang| hang.bounds)).collect();
+        let floating = self.popovers.reached();
+        let region: Vec<Bounds<Pixels>> = std::iter::once(body)
+            .chain(hang.map(|hang| hang.bounds))
+            .chain(floating.iter().map(|reach| reach.bounds))
+            .collect();
         if self.input_region != region {
             window.set_input_region(Some(&region));
             self.input_region = region;
         }
         let awake = self.features.iter().any(|feature| feature.inhibits_idle(cx));
         if let Some(effects) = self.effects.get_or_insert_with(|| Effects::attach(window)) {
-            effects.set_blur(shape::region(body, corner.0, corner.1, hang));
+            let mut blur = shape::region(body, corner.0, corner.1, hang);
+            for reach in &floating {
+                blur.extend(shape::region(reach.bounds, reach.radius, reach.power, None));
+            }
+            effects.set_blur(blur);
             effects.set_inhibit(awake);
         }
 
@@ -1344,6 +1357,10 @@ impl Render for Island {
             .iter()
             .map(|slot| (slot.key.clone(), slot.presence.value().clamp(0.0, 1.0)))
             .collect();
+        let (popover, moving) = self.popovers.overlay();
+        if moving {
+            window.request_animation_frame();
+        }
         let tooltip = self.tips.overlay(window);
         self.layouts.resolve(window);
         self.keep_ticking(cx);
@@ -1353,6 +1370,7 @@ impl Render for Island {
             .child(surface)
             .child(island)
             .children(menu)
+            .children(popover)
             .children(tooltip)
     }
 }

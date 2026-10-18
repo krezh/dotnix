@@ -64,7 +64,7 @@ impl Local for Shown {
     }
 }
 
-pub fn popup<'a>(p: &PanelCx<'a>) -> Option<PanelView<'a>> {
+pub fn popup<'a>(p: &PanelCx<'a>) -> Option<PanelView> {
     let osd = p.local::<Shown>()?.osd.clone()?;
     Some(PanelView {
         header: Header::None,

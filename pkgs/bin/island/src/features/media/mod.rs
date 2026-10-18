@@ -10,7 +10,7 @@ use crate::{
     bar::{self, GLYPH, ICON_GAP},
     components::{card, icon, tooltip::Tip},
     island::Panel,
-    panel::{Block, Header, MediaView, PanelView},
+    panel::{Block, Header, PanelView, PlayerView},
     theme::{ACCENT, OVERLAY2},
     ui::SMALL_SIZE,
 };
@@ -155,10 +155,10 @@ impl Feature for Media {
         playing(state).then_some(live)
     }
 
-    fn panel<'a>(&self, state: &Option<Track>, p: &PanelCx<'a>) -> Option<PanelView<'a>> {
+    fn panel<'a>(&self, state: &Option<Track>, p: &PanelCx<'a>) -> Option<PanelView> {
         let glyph = |key: &str| p.glyph(key);
         let block = match state {
-            Some(track) => Block::Media(MediaView {
+            Some(track) => Block::Player(PlayerView {
                 art: track.art.clone(),
                 title: track.title.clone().into(),
                 artist: track.artist.clone().into(),
@@ -176,7 +176,7 @@ impl Feature for Media {
                     p.slider(move |media: &Media, value| media.send(Control::Seek(length * f64::from(value))))
                 }),
             }),
-            None => Block::Note("Nothing is playing".into()),
+            None => Block::note("Nothing is playing"),
         };
         Some(PanelView {
             header: Header::Tabs,

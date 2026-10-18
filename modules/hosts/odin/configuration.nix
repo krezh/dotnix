@@ -16,7 +16,7 @@ in
           mail
           ai
           hyprland
-          niri
+          umbriel
           desktop-shell
           desktop-utils
         ];
@@ -28,7 +28,7 @@ in
         desktop-utils
         openssh
         hyprland
-        niri
+        umbriel
         containers
         inputs.self.modules.nixos.${user}
       ];

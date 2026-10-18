@@ -1,4 +1,5 @@
-_: {
+{ inputs, ... }:
+{
   flake.modules.homeManager.desktop-shell =
     {
       config,
@@ -12,7 +13,7 @@ _: {
           name = "session-action";
           text = ''
             action=''${1:?missing session action}
-            niri_socket=''${NIRI_SOCKET:-}
+            umbriel_socket=''${UMBRIEL_SOCKET:-}
             hyprland_signature=''${HYPRLAND_INSTANCE_SIGNATURE:-}
             case "$action" in
               logout | reboot | shutdown) ;;
@@ -22,10 +23,12 @@ _: {
                 ;;
             esac
 
-            if [[ -n "$niri_socket" && -S "$niri_socket" ]]; then
+            if [[ -n "$umbriel_socket" && -S "$umbriel_socket" ]]; then
               case "$action" in
                 logout)
-                  exec ${lib.getExe pkgs.niri} msg action quit --skip-confirmation
+                  exec ${
+                    lib.getExe inputs.umbriel.packages.${pkgs.stdenv.hostPlatform.system}.default
+                  } msg session-quit:skip-confirmation
                   ;;
                 reboot)
                   exec ${lib.getExe' pkgs.systemd "systemctl"} reboot

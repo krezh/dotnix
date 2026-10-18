@@ -1,6 +1,9 @@
 use std::{
-    sync::mpsc::{self, RecvTimeoutError, Sender},
-    time::Duration,
+    sync::{
+        Mutex,
+        mpsc::{self, RecvTimeoutError, Sender},
+    },
+    time::{Duration, Instant},
 };
 
 use gpui::{AnyElement, MouseButton, prelude::*};
@@ -18,8 +21,50 @@ use crate::{
 };
 
 const INTERVAL: Duration = Duration::from_secs(60);
+/// While the audio panel shows ChatMix, so turning the dial shows up soon.
+const WATCHED_INTERVAL: Duration = Duration::from_secs(2);
+const WATCH_FOR: Duration = Duration::from_secs(2);
 const TIMEOUT: Duration = Duration::from_secs(15);
 const LOW: u8 = 15;
+
+/// The latest reading, for the audio panel.
+static LATEST: Mutex<Option<Battery>> = Mutex::new(None);
+static WATCHED_UNTIL: Mutex<Option<Instant>> = Mutex::new(None);
+static WAKE: Mutex<Option<Sender<Wake>>> = Mutex::new(None);
+
+enum Wake {
+    /// Right-clicked: the widget shows it is busy until the reading arrives.
+    Asked,
+    Watched,
+}
+
+pub fn latest() -> Option<Battery> {
+    LATEST.lock().ok()?.clone()
+}
+
+/// Keeps readings frequent for as long as this is called.
+pub fn watch() {
+    let Ok(mut until) = WATCHED_UNTIL.lock() else { return };
+    let now = Instant::now();
+    let started = !until.is_some_and(|until| until > now);
+    *until = Some(now + WATCH_FOR);
+    if started && let Some(wake) = WAKE.lock().ok().and_then(|wake| wake.clone()) {
+        let _ = wake.send(Wake::Watched);
+    }
+}
+
+fn watched() -> bool {
+    WATCHED_UNTIL.lock().is_ok_and(|until| until.is_some_and(|until| until > Instant::now()))
+}
+
+/// Game and chat volume, 0 to 1, from the dial's 0 (all game) to 128 (all chat).
+pub fn chatmix(value: i64) -> (f32, f32) {
+    const MIDDLE: f32 = 64.0;
+    let value = value.clamp(0, 128) as f32;
+    let game = ((128.0 - value) / MIDDLE).min(1.0);
+    let chat = (value / MIDDLE).min(1.0);
+    (game, chat)
+}
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Battery {
@@ -72,7 +117,7 @@ fn read() -> Reading {
         .map_or(Reading::Absent, Reading::Present)
 }
 
-fn battery_color(level: u8) -> u32 {
+pub fn battery_color(level: u8) -> u32 {
     match level {
         level if level <= LOW => RED,
         ..=40 => PEACH,
@@ -88,12 +133,12 @@ fn tip(battery: &Battery) -> String {
 }
 
 pub struct Headset {
-    refresh: Sender<()>,
+    refresh: Sender<Wake>,
 }
 
 impl Headset {
     fn refresh(&self) {
-        let _ = self.refresh.send(());
+        let _ = self.refresh.send(Wake::Asked);
     }
 }
 
@@ -107,6 +152,9 @@ impl Feature for Headset {
 
     fn start(feed: Feed<Refreshed<Reading>>) -> Self {
         let (refresh, requests) = mpsc::channel();
+        if let Ok(mut wake) = WAKE.lock() {
+            *wake = Some(refresh.clone());
+        }
         feed.supervise(move |feed| {
             let mut last: Option<Reading> = None;
             let mut asked = false;
@@ -118,6 +166,12 @@ impl Feature for Headset {
                     return Ended::Unwanted;
                 }
                 let reading = read();
+                if let Ok(mut latest) = LATEST.lock() {
+                    *latest = match &reading {
+                        Reading::Present(battery) => Some(battery.clone()),
+                        _ => None,
+                    };
+                }
                 if asked || last.as_ref() != Some(&reading) {
                     if last.as_ref() != Some(&reading) {
                         match &reading {
@@ -136,8 +190,10 @@ impl Feature for Headset {
                         return Ended::Unwanted;
                     }
                 }
-                asked = match requests.recv_timeout(INTERVAL) {
-                    Ok(()) => true,
+                let interval = if watched() { WATCHED_INTERVAL } else { INTERVAL };
+                asked = match requests.recv_timeout(interval) {
+                    Ok(Wake::Asked) => true,
+                    Ok(Wake::Watched) => false,
                     Err(RecvTimeoutError::Timeout) => false,
                     Err(RecvTimeoutError::Disconnected) => return Ended::Unwanted,
                 };

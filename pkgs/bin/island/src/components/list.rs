@@ -1,3 +1,5 @@
+//! Keyboard navigation for searchable lists, such as the launcher's and the clipboard's.
+
 use gpui::Keystroke;
 
 pub const ROWS: usize = 8;

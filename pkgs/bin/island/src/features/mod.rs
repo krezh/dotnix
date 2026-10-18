@@ -38,6 +38,7 @@ use tracing::{debug, error};
 use crate::{
     bar::{self, Gauge, Look, Slots},
     components::{
+        dropdown::Select,
         marquee::{self, TextLayouts},
         slider::OnChange,
         tooltip::Tooltips,
@@ -122,12 +123,12 @@ pub trait Feature: Sized + 'static {
 
     fn panel_opened(&self) {}
 
-    fn panel<'a>(&self, _: &Self::State, _: &PanelCx<'a>) -> Option<PanelView<'a>> {
+    fn panel<'a>(&self, _: &Self::State, _: &PanelCx<'a>) -> Option<PanelView> {
         None
     }
 
     /// Takes the bar's place while [`Local::popup`] says so; the pointer leaving does not close it.
-    fn popup<'a>(&self, _: &Self::State, _: &PanelCx<'a>) -> Option<PanelView<'a>> {
+    fn popup<'a>(&self, _: &Self::State, _: &PanelCx<'a>) -> Option<PanelView> {
         None
     }
 
@@ -329,9 +330,9 @@ pub trait AnyFeature {
     fn rest_width(&self, widget: &str, spacing: f32) -> f32;
     fn widget(&self, widget: &str, snapshot: &dyn Any, w: &mut WidgetCx<'_>, cx: &App) -> Option<AnyElement>;
     fn glow(&self, cx: &App) -> Option<Vec<f32>>;
-    fn panel<'a>(&self, p: &mut PanelCx<'a>, cx: &App) -> Option<PanelView<'a>>;
+    fn panel<'a>(&self, p: &mut PanelCx<'a>, cx: &App) -> Option<PanelView>;
     fn panel_opened(&self, cx: &App);
-    fn popup<'a>(&self, p: &mut PanelCx<'a>, cx: &App) -> Option<PanelView<'a>>;
+    fn popup<'a>(&self, p: &mut PanelCx<'a>, cx: &App) -> Option<PanelView>;
     fn elapse(&self, local: &mut dyn AnyLocal, hovered: bool, cx: &App);
     fn system_button(&self, p: &mut PanelCx<'_>, cx: &App) -> Option<IconButton>;
     fn inhibits_idle(&self, cx: &App) -> bool;
@@ -380,7 +381,7 @@ impl<F: Feature> AnyFeature for Entity<Instance<F>> {
         F::glow(&instance.state, &instance.live).map(<[f32]>::to_vec)
     }
 
-    fn panel<'a>(&self, p: &mut PanelCx<'a>, cx: &App) -> Option<PanelView<'a>> {
+    fn panel<'a>(&self, p: &mut PanelCx<'a>, cx: &App) -> Option<PanelView> {
         F::PANEL?;
         p.entity = Some(self.clone().into_any());
         let instance = self.read(cx);
@@ -391,7 +392,7 @@ impl<F: Feature> AnyFeature for Entity<Instance<F>> {
         self.read(cx).feature.panel_opened();
     }
 
-    fn popup<'a>(&self, p: &mut PanelCx<'a>, cx: &App) -> Option<PanelView<'a>> {
+    fn popup<'a>(&self, p: &mut PanelCx<'a>, cx: &App) -> Option<PanelView> {
         p.entity = Some(self.clone().into_any());
         let instance = self.read(cx);
         instance.feature.popup(&instance.state, p)
@@ -786,6 +787,16 @@ impl<'a> PanelCx<'a> {
         Rc::new(move |value, _, cx| {
             if let Some(instance) = instance.as_ref().and_then(WeakEntity::upgrade) {
                 action(&instance.read(cx).feature, value);
+            }
+        })
+    }
+
+    /// For a dropdown: called with the index of the choice picked.
+    pub fn pick<F: Feature>(&self, action: impl Fn(&F, usize) + 'static) -> Select {
+        let instance = instance::<F>(&self.entity);
+        Rc::new(move |index, _, cx| {
+            if let Some(instance) = instance.as_ref().and_then(WeakEntity::upgrade) {
+                action(&instance.read(cx).feature, index);
             }
         })
     }

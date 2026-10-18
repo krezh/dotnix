@@ -1,40 +1,48 @@
+//! The panel: a header and the blocks a feature describes it with, laid out from components.
+//! Blocks are general; nothing here knows which feature uses them, and each draws through its own
+//! component.
+
 use std::{
-    cell::Cell,
     hash::{DefaultHasher, Hash, Hasher},
     mem::discriminant,
     path::PathBuf,
     rc::Rc,
-    time::Duration as StdDuration,
 };
 
-use chrono::{Datelike, Duration, Local, Months, NaiveDate};
-use gpui::{
-    Animation, AnimationExt, AnyElement, Context, Div, FontWeight, ScrollHandle, ScrollWheelEvent, SharedString,
-    SpringAnimation, SpringConfig, div, prelude::*, px, rgb, rgba,
-};
+use gpui::{AnyElement, Context, FontWeight, ScrollHandle, SharedString, div, prelude::*, px, rgb};
 
 use crate::{
     components::{
-        button,
-        card,
-        icon,
+        button, calendar, card, item,
+        lines,
         list::ROWS,
-        marquee::{TextLayouts, marquee},
-        motion,
-        slider::{OnChange, slider},
-        tabs,
+        marquee::TextLayouts,
+        meter, motion, player,
+        popover::Popovers,
+        route,
+        search, segments, slider, tabs, text,
         tile::{self, Tile},
         tooltip::{Tip, Tooltips},
     },
     island::{Island, Mode},
-    theme::{
-        ACCENT, ACCENT_TINT_ALPHA, CONTROL_ALPHA, GREEN, ON_ACCENT, OVERLAY2, PEACH, SUBTEXT1, SURFACE1, TEXT, YELLOW,
-        with_alpha,
-    },
-    ui::{
-        self, BLOCK_GAP, CARD_PAD, Radius, HEADER_GAP, HEADER_H, HEADING_SIZE, INSET, SMALL_SIZE, TEXT_SIZE, TIGHT_INSET,
-        TITLE_SIZE,
-    },
+    theme::OVERLAY2,
+    ui::{self, BLOCK_GAP, CARD_PAD, CONTROL_H, HEADER_GAP, HEADER_H, HEADING_SIZE, INSET, TIGHT_INSET, TITLE_SIZE},
+};
+
+pub use crate::components::{
+    badge::Mark,
+    button::Rising,
+    calendar::CalendarView,
+    card::{Countdown, FrameView},
+    dropdown::{Choice, Dropdown},
+    item::{Item, Lead, Trail},
+    lines::Line,
+    meter::Meter,
+    player::PlayerView,
+    route::{Route, Stop, StopState},
+    search::{Preview, SearchRow, SearchView},
+    slider::Slider,
+    text::{Style as TextStyle, Text, Tone},
 };
 
 pub type Handler = Rc<dyn Fn(&mut Island, &mut Context<Island>)>;
@@ -71,84 +79,45 @@ pub struct Views {
     pub buttons: Vec<Button>,
 }
 
-pub struct Entry {
-    pub id: SharedString,
-    pub label: SharedString,
-    pub enabled: bool,
-    pub separator: bool,
-    pub check: Option<bool>,
-    pub submenu: bool,
-    pub on_click: Option<Handler>,
-}
-
-pub struct Level {
-    pub id: SharedString,
-    pub label: SharedString,
-    pub detail: SharedString,
-    pub glyph: Option<PathBuf>,
-    pub value: f32,
-    pub muted: bool,
-    pub color: u32,
-    pub on_change: Option<OnChange>,
-    pub on_mute: Option<Handler>,
-}
-
-pub struct Meter {
-    pub glyph: Option<PathBuf>,
-    pub caption: SharedString,
-    pub label: SharedString,
-    /// Level and muted; `None` shows only what the meter is of, such as a device just switched to.
-    pub level: Option<(f32, bool)>,
-    pub color: u32,
-}
-
-pub struct MediaView {
-    pub art: Option<PathBuf>,
-    pub title: SharedString,
-    pub artist: SharedString,
-    pub album: SharedString,
-    pub source: SharedString,
-    pub position: f64,
-    pub length: Option<f64>,
-    pub play: Option<PathBuf>,
-    pub previous: Option<PathBuf>,
-    pub next: Option<PathBuf>,
-    pub on_play: Handler,
-    pub on_previous: Handler,
-    pub on_next: Handler,
-    /// `None` when the track has no length.
-    pub on_seek: Option<OnChange>,
-}
-
-pub struct AppRow {
-    pub id: SharedString,
-    pub name: SharedString,
-    pub detail: SharedString,
-    pub icon: Option<PathBuf>,
-    /// The icon is a picture to preview, drawn wider than an app icon.
-    pub preview: bool,
-    pub selected: bool,
-    pub on_click: Handler,
-    /// Hovering a row selects it.
-    pub on_hover: Handler,
-}
-
-pub type Step = Rc<dyn Fn(i32, &mut Island, &mut Context<Island>)>;
-
-pub enum Preview {
-    Text(SharedString),
-    Picture(PathBuf),
-    Empty,
-}
-
+/// Shows its glyph, with its label as the tooltip; without a glyph, its label.
 pub struct IconButton {
     pub id: SharedString,
     pub glyph: Option<PathBuf>,
-    /// Shown as the tooltip.
+    /// Parts of the glyph that rise in while the button is active.
+    pub rising: Option<Rising>,
     pub label: SharedString,
     pub active: bool,
     pub badge: Option<SharedString>,
     pub on_click: Handler,
+}
+
+pub struct ButtonRow {
+    pub buttons: Vec<IconButton>,
+    /// Control-sized and closer together, such as a message's actions.
+    pub compact: bool,
+    /// From the left, such as to line up with an item's text past its lead.
+    pub indent: f32,
+}
+
+/// Where a block sits in a [`Block::Placed`], and how faded.
+pub struct Place {
+    pub x: f32,
+    pub y: f32,
+    pub height: f32,
+    pub opacity: f32,
+    /// `y` counts up from where the island ends, such as a footer that keeps to the bottom as
+    /// the island grows.
+    pub from_bottom: bool,
+}
+
+/// Blocks each at its own place, such as cards sliding and fading as a list changes.
+pub struct Placed {
+    pub width: f32,
+    pub height: f32,
+    /// Shows this much and scrolls the rest.
+    pub visible: Option<f32>,
+    /// Back to front.
+    pub blocks: Vec<(Place, Block)>,
 }
 
 pub struct ActionTile {
@@ -161,78 +130,38 @@ pub struct ActionTile {
     pub on_click: Handler,
 }
 
-pub struct CalendarView {
-    /// Months away from the current one.
-    pub offset: i32,
-    pub on_previous: Handler,
-    pub on_next: Handler,
-    pub on_today: Handler,
-}
-
-pub struct CommitRow {
-    pub summary: SharedString,
-    pub detail: SharedString,
-}
-
-/// Such as a pull request at one branch.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub enum StepState {
-    Reached,
-    /// On its way, with how far it has to go, such as "+63".
-    Pending(Option<SharedString>),
-    NotYet,
-}
-
-pub struct PathStep {
-    pub label: SharedString,
-    pub state: StepState,
-}
-
-/// Such as a pull request through the branches it lands in.
-pub struct PathRow {
-    pub title: SharedString,
-    pub detail: SharedString,
-    pub done: Option<SharedString>,
-    pub steps: Vec<PathStep>,
-}
-
-pub struct LauncherView {
-    pub query: SharedString,
-    pub placeholder: SharedString,
-    /// Shown when there are no rows and nothing is typed.
-    pub empty: SharedString,
-    pub rows: Vec<AppRow>,
-    pub on_step: Step,
-    pub preview: Option<(Preview, SharedString)>,
-}
-
-pub enum Block<'a> {
-    Card(Option<SharedString>, card::Size, Vec<Block<'a>>),
-    Row(Vec<Block<'a>>),
-    Launcher(LauncherView),
+pub enum Block {
+    Card(Option<card::Title>, card::Size, Vec<Block>),
+    Row(Vec<Block>),
+    /// This many equal columns, filled a row at a time; cells line up at the top.
+    Grid(usize, Vec<Block>),
+    /// The blocks go under its title.
+    Item(Item, Vec<Block>),
+    /// Blocks on a surface of their own, such as one of many in a grid, or a message.
+    Frame(FrameView, Vec<Block>),
+    Placed(Placed),
+    Slider(Slider),
+    /// A level and its recent peak, both 0 to 1.
+    Segments(f32, f32),
+    Text(Text),
+    Search(SearchView),
     Calendar(CalendarView),
-    Levels(Vec<Level>),
     Meter(Meter),
-    Choices(SharedString, Vec<Entry>),
-    Media(MediaView),
-    Note(SharedString),
-    /// Commits, newest first.
-    Commits(Vec<CommitRow>),
-    Paths(Vec<PathRow>),
+    Player(PlayerView),
+    /// Two-line entries, such as commits, newest first.
+    Lines(Vec<Line>),
+    Routes(Vec<Route>),
     /// Columns of tiles.
     Board(Vec<Vec<Tile>>),
-    Icons(Vec<IconButton>),
+    Buttons(ButtonRow),
     Actions(Vec<ActionTile>),
-    /// The key stands in for the block's size: the panel is measured again when it changes.
-    Custom(u64, Draw<'a>),
+    /// Tiles sharing the width, the armed one chosen, such as devices to switch to.
+    Tiles(Vec<ActionTile>),
 }
 
-/// Given how far the island reaches below the top of the block.
-pub type Draw<'a> = Box<dyn FnOnce(&Frame<'_>, f32, &mut Context<Island>) -> AnyElement + 'a>;
-
-pub struct PanelView<'a> {
+pub struct PanelView {
     pub header: Header,
-    pub blocks: Vec<Block<'a>>,
+    pub blocks: Vec<Block>,
 }
 
 pub struct Frame<'a> {
@@ -245,26 +174,59 @@ pub struct Frame<'a> {
     pub phase: f32,
     pub layouts: &'a TextLayouts,
     pub tips: &'a Tooltips,
+    pub popovers: &'a Popovers,
 }
 
-const DAY_H: f32 = 40.0;
-const TODAY: f32 = 36.0;
-const DAY_GAP: f32 = 4.0;
-pub(crate) const ENTRY_H: f32 = 28.0;
+const GRID_GAP: f32 = 10.0;
+const CAPTION_SIZE: f32 = 12.0;
+const BUTTON_GAP: f32 = 8.0;
+const COMPACT_GAP: f32 = 6.0;
 
-impl Block<'_> {
+impl Block {
+    pub fn note(text: impl Into<SharedString>) -> Self {
+        Block::Text(Text::new(Tone::Note, text))
+    }
+
+    pub fn heading(text: impl Into<SharedString>) -> Self {
+        Block::Text(Text::new(Tone::Heading, text))
+    }
+
+    pub fn caption(text: impl Into<SharedString>, color: u32) -> Self {
+        Block::Text(Text::new(Tone::Caption(color), text))
+    }
+
     fn hash_shape(&self, hasher: &mut DefaultHasher) {
         discriminant(self).hash(hasher);
         match self {
-            Block::Calendar(_) | Block::Note(_) => {}
+            Block::Calendar(_) | Block::Slider(_) | Block::Segments(..) => {}
+            Block::Text(text) => text.lines.hash(hasher),
+            // What it shows decides its size, not where its blocks are in their motion.
+            Block::Placed(placed) => placed.visible.unwrap_or(placed.height).to_bits().hash(hasher),
             Block::Meter(meter) => meter.level.is_some().hash(hasher),
-            Block::Levels(levels) => levels.len().hash(hasher),
-            Block::Commits(rows) => rows.len().hash(hasher),
-            Block::Paths(rows) => {
-                for row in rows {
-                    row.done.is_some().hash(hasher);
-                    for step in &row.steps {
-                        (&step.label, &step.state).hash(hasher);
+            Block::Tiles(tiles) => tiles.len().hash(hasher),
+            Block::Item(item, blocks) => {
+                (item.lead.is_some(), item.trail.len()).hash(hasher);
+                for block in blocks {
+                    block.hash_shape(hasher);
+                }
+            }
+            Block::Frame(_, blocks) | Block::Row(blocks) => {
+                for block in blocks {
+                    block.hash_shape(hasher);
+                }
+            }
+            Block::Grid(columns, blocks) => {
+                columns.hash(hasher);
+                for block in blocks {
+                    block.hash_shape(hasher);
+                }
+            }
+            Block::Lines(lines) => lines.len().hash(hasher),
+            Block::Routes(routes) => {
+                for route in routes {
+                    route.done.is_some().hash(hasher);
+                    for stop in &route.stops {
+                        (&stop.label, &stop.state).hash(hasher);
                     }
                 }
             }
@@ -273,24 +235,12 @@ impl Block<'_> {
                     column.iter().map(|tile| tile.span).collect::<Vec<_>>().hash(hasher);
                 }
             }
-            Block::Icons(buttons) => buttons.len().hash(hasher),
+            Block::Buttons(row) => (row.buttons.len(), row.compact).hash(hasher),
             Block::Actions(tiles) => tiles.len().hash(hasher),
-            Block::Launcher(view) => (ROWS, view.preview.is_some()).hash(hasher),
-            Block::Media(view) => (view.art.is_some(), view.length.is_some()).hash(hasher),
-            Block::Choices(_, entries) => {
-                for entry in entries {
-                    entry.label.hash(hasher);
-                    (entry.separator, entry.check.is_some(), entry.submenu).hash(hasher);
-                }
-            }
-            Block::Custom(shape, _) => shape.hash(hasher),
+            Block::Search(view) => (ROWS, view.preview.is_some()).hash(hasher),
+            Block::Player(view) => (view.art.is_some(), view.length.is_some()).hash(hasher),
             Block::Card(title, size, blocks) => {
                 (title.is_some(), size).hash(hasher);
-                for block in blocks {
-                    block.hash_shape(hasher);
-                }
-            }
-            Block::Row(blocks) => {
                 for block in blocks {
                     block.hash_shape(hasher);
                 }
@@ -299,7 +249,7 @@ impl Block<'_> {
     }
 }
 
-impl PanelView<'_> {
+impl PanelView {
     pub fn key(&self) -> u64 {
         let mut hasher = DefaultHasher::new();
         discriminant(&self.header).hash(&mut hasher);
@@ -332,12 +282,7 @@ impl PanelView<'_> {
             Header::None => None,
         };
         let island_below = frame.island_h - inset;
-        let blocks: Vec<AnyElement> = self
-            .blocks
-            .into_iter()
-            .enumerate()
-            .map(|(index, block)| block.render(&format!("block-{index}"), island_below, frame, cx))
-            .collect();
+        let blocks = render_all(self.blocks, "block", island_below, frame, cx);
         ui::base()
             .flex()
             .flex_col()
@@ -413,17 +358,37 @@ fn button_element(button: Button, hover: bool, cx: &mut Context<Island>) -> AnyE
     }
 }
 
-impl Block<'_> {
+fn card_title(title: card::Title, at: &str) -> impl IntoElement {
+    div()
+        .flex()
+        .items_baseline()
+        .justify_between()
+        .gap(px(12.0))
+        .child(
+            div()
+                .text_size(px(TITLE_SIZE))
+                .font_weight(FontWeight::SEMIBOLD)
+                .child(motion::text(SharedString::from(format!("{at}-title")), title.text)),
+        )
+        .when(!title.detail.is_empty(), |line| {
+            line.child(
+                div()
+                    .min_w(px(0.0))
+                    .truncate()
+                    .text_size(px(CAPTION_SIZE))
+                    .text_color(rgb(OVERLAY2))
+                    .child(motion::text(SharedString::from(format!("{at}-detail")), title.detail)),
+            )
+        })
+}
+
+impl Block {
     /// `at` names the block's place in the panel, unique and stable across frames, for parts that
     /// keep state, such as morphing text.
     fn render(self, at: &str, island_below: f32, frame: &Frame<'_>, cx: &mut Context<Island>) -> AnyElement {
         match self {
             Block::Card(title, size, blocks) => {
-                let children: Vec<AnyElement> = blocks
-                    .into_iter()
-                    .enumerate()
-                    .map(|(index, block)| block.render(&format!("{at}-{index}"), island_below, frame, cx))
-                    .collect();
+                let children = render_all(blocks, at, island_below, frame, cx);
                 card::surface()
                     .w(px(size.width()))
                     .flex_none()
@@ -432,76 +397,44 @@ impl Block<'_> {
                     .flex()
                     .flex_col()
                     .gap(px(12.0))
-                    .when_some(title, |group, title| {
-                        group.child(
-                            div()
-                                .text_size(px(TITLE_SIZE))
-                                .font_weight(FontWeight::SEMIBOLD)
-                                .child(motion::text(SharedString::from(format!("{at}-title")), title)),
-                        )
-                    })
+                    .when_some(title, |group, title| group.child(card_title(title, at)))
                     .children(children)
                     .into_any_element()
             }
             Block::Row(blocks) => {
-                let children: Vec<AnyElement> = blocks
-                    .into_iter()
-                    .enumerate()
-                    .map(|(index, block)| block.render(&format!("{at}-{index}"), island_below, frame, cx))
-                    .collect();
+                let children = render_all(blocks, at, island_below, frame, cx);
                 div().flex().gap(px(card::GAP)).children(children).into_any_element()
             }
-            Block::Calendar(view) => calendar(view, frame.hover, cx),
-            Block::Levels(levels) => div()
-                .flex()
-                .flex_col()
-                .gap(px(14.0))
-                .children(levels.into_iter().map(|level| level_element(level, frame.hover, cx)))
-                .into_any_element(),
-            Block::Choices(title, entries) => {
-                let checks = entries.iter().any(|entry| entry.check.is_some());
-                div()
-                    .flex()
-                    .flex_col()
-                    .child(
-                        div()
-                            .pb(px(6.0))
-                            .text_size(px(SMALL_SIZE))
-                            .font_weight(FontWeight::SEMIBOLD)
-                            .child(title),
-                    )
-                    .children(entries.into_iter().map(|entry| entry_element(entry, checks, frame.hover, cx)))
-                    .into_any_element()
+            Block::Grid(columns, blocks) => {
+                let columns = columns.max(1);
+                let mut cells = render_all(blocks, at, island_below, frame, cx).into_iter().peekable();
+                let mut rows = Vec::new();
+                while cells.peek().is_some() {
+                    let row = (0..columns).map(|_| div().flex_1().min_w(px(0.0)).children(cells.next()));
+                    rows.push(div().flex().items_start().gap(px(GRID_GAP)).children(row));
+                }
+                div().flex().flex_col().gap(px(GRID_GAP)).children(rows).into_any_element()
             }
-            Block::Media(view) => media_element(view, frame, cx),
-            Block::Meter(meter) => meter_element(meter, at, cx),
-            Block::Launcher(view) => launcher_element(view, frame.hover, cx),
-            Block::Note(text) => div()
-                .py(px(14.0))
-                .flex()
-                .justify_center()
-                .text_size(px(SMALL_SIZE))
-                .text_color(rgb(SUBTEXT1))
-                .child(motion::text(SharedString::from(format!("{at}-note")), text))
-                .into_any_element(),
-            Block::Commits(rows) => commits(rows),
-            Block::Paths(rows) => paths(rows),
+            Block::Item(item, blocks) => {
+                let children = render_all(blocks, at, island_below, frame, cx);
+                item::item(item, children, frame.popovers, frame.hover, cx)
+            }
+            Block::Frame(view, blocks) => {
+                let children = render_all(blocks, at, island_below, frame, cx);
+                card::frame(view, children, frame.hover, cx)
+            }
+            Block::Placed(placed) => placed_element(placed, at, island_below, frame, cx),
+            Block::Slider(slider) => slider::view(slider, frame.hover, cx),
+            Block::Segments(level, hold) => segments::segments(level, hold).into_any_element(),
+            Block::Text(content) => text::text(content, SharedString::from(format!("{at}-text"))),
+            Block::Search(view) => search::search(view, frame.hover, cx),
+            Block::Calendar(view) => calendar::calendar(view, frame.hover, cx),
+            Block::Meter(view) => meter::meter(view, at, cx),
+            Block::Player(view) => player::player(view, frame.layouts, frame.hover, cx),
+            Block::Lines(entries) => lines::lines(entries),
+            Block::Routes(entries) => route::routes(entries),
             Block::Board(columns) => tile::board(columns, frame.phase),
-            Block::Icons(buttons) => div()
-                .flex()
-                .gap(px(8.0 - button::BADGE_OVERHANG))
-                .children(buttons.into_iter().map(|button| {
-                    let handler = button.on_click;
-                    let key = button.id.clone();
-                    button::badged(
-                        format!("{}-badged", button.id),
-                        button::icon(button.id, button.glyph.as_deref(), button.active, frame.hover)
-                            .tip(frame.tips, key, button.label)
-                            .on_click(cx.listener(move |this, _, _, cx| handler(this, cx))),
-                        button.badge,
-                    )
-                }))
-                .into_any_element(),
+            Block::Buttons(row) => buttons(row, frame, cx),
             Block::Actions(tiles) => div()
                 .flex()
                 .gap(px(card::GAP))
@@ -511,688 +444,80 @@ impl Block<'_> {
                         .on_click(cx.listener(move |this, _, _, cx| handler(this, cx)))
                 }))
                 .into_any_element(),
-            Block::Custom(_, draw) => draw(frame, island_below, cx),
+            Block::Tiles(tiles) => div()
+                .flex()
+                .gap(px(8.0))
+                .children(tiles.into_iter().map(|tile| {
+                    let handler = tile.on_click;
+                    button::pick(tile.id, tile.glyph.as_deref(), tile.label, tile.color, tile.armed, frame.hover, frame.layouts)
+                        .on_click(cx.listener(move |this, _, _, cx| handler(this, cx)))
+                }))
+                .into_any_element(),
         }
     }
 }
 
-fn commits(rows: Vec<CommitRow>) -> AnyElement {
+/// Clicks stay with the button, so one inside something clickable, such as a message, does only
+/// its own thing.
+fn buttons(row: ButtonRow, frame: &Frame<'_>, cx: &mut Context<Island>) -> AnyElement {
+    let gap = if row.compact { COMPACT_GAP } else { BUTTON_GAP - button::BADGE_OVERHANG };
     div()
         .flex()
-        .flex_col()
-        .children(rows.into_iter().enumerate().map(|(index, row)| {
-            div()
-                .flex()
-                .flex_col()
-                .gap(px(2.0))
-                .py(px(8.0))
-                .when(index > 0, |row| row.border_t_1().border_color(rgba(with_alpha(SURFACE1, CONTROL_ALPHA))))
-                .child(
-                    div()
-                        .min_w(px(0.0))
-                        .truncate()
-                        .text_size(px(SMALL_SIZE))
-                        .font_weight(FontWeight::SEMIBOLD)
-                        .child(row.summary),
-                )
-                .child(
-                    div()
-                        .min_w(px(0.0))
-                        .truncate()
-                        .text_size(px(CAPTION_SIZE))
-                        .text_color(rgb(SUBTEXT1))
-                        .child(row.detail),
-                )
-        }))
-        .into_any_element()
-}
-
-const CAPTION_SIZE: f32 = 12.0;
-const STEP_DOT: f32 = 7.0;
-const STEP_LINK: f32 = 14.0;
-
-fn step_element(step: PathStep) -> Div {
-    let (mark, text) = match step.state {
-        StepState::Reached => (GREEN, TEXT),
-        StepState::Pending(_) => (YELLOW, TEXT),
-        StepState::NotYet => (OVERLAY2, OVERLAY2),
-    };
-    let dot = div().size(px(STEP_DOT)).flex_none().rounded_full();
-    let dot = match step.state {
-        StepState::NotYet => dot.border_1().border_color(rgb(mark)),
-        _ => dot.bg(rgb(mark)),
-    };
-    let mut element = div()
-        .flex()
-        .flex_none()
-        .items_center()
-        .gap(px(6.0))
-        .child(dot)
-        .child(div().text_color(rgb(text)).child(step.label));
-    if let StepState::Pending(Some(left)) = step.state {
-        element = element.child(div().text_color(rgb(SUBTEXT1)).child(left));
-    }
-    element
-}
-
-fn paths(rows: Vec<PathRow>) -> AnyElement {
-    div()
-        .flex()
-        .flex_col()
-        .children(rows.into_iter().enumerate().map(|(index, row)| {
-            let mut steps = div().flex().flex_wrap().items_center().gap_y(px(4.0)).text_size(px(CAPTION_SIZE));
-            for (position, step) in row.steps.into_iter().enumerate() {
-                if position > 0 {
-                    steps = steps.child(
-                        div()
-                            .w(px(STEP_LINK))
-                            .mx(px(6.0))
-                            .h(px(1.0))
-                            .flex_none()
-                            .bg(rgba(with_alpha(SURFACE1, CONTROL_ALPHA))),
-                    );
-                }
-                steps = steps.child(step_element(step));
+        .ml(px(row.indent))
+        .gap(px(gap))
+        .children(row.buttons.into_iter().map(|button| {
+            let handler = button.on_click;
+            let click = cx.listener(move |this, _, _, cx| {
+                cx.stop_propagation();
+                handler(this, cx);
+            });
+            let element = match button.glyph {
+                Some(glyph) => button::icon(button.id.clone(), Some(&glyph), button.rising.as_ref(), button.active, frame.hover)
+                    .when(row.compact, |icon| icon.size(px(CONTROL_H)))
+                    .tip(frame.tips, button.id.clone(), button.label),
+                None => button::button(button.id.clone(), button.label, button.active, frame.hover),
             }
-            div()
-                .flex()
-                .flex_col()
-                .gap(px(4.0))
-                .py(px(8.0))
-                .when(index > 0, |row| row.border_t_1().border_color(rgba(with_alpha(SURFACE1, CONTROL_ALPHA))))
-                .child(
-                    div()
-                        .flex()
-                        .items_center()
-                        .justify_between()
-                        .gap(px(12.0))
-                        .child(
-                            div()
-                                .min_w(px(0.0))
-                                .truncate()
-                                .text_size(px(SMALL_SIZE))
-                                .font_weight(FontWeight::SEMIBOLD)
-                                .child(row.title),
-                        )
-                        .when_some(row.done, |line, done| {
-                            line.child(
-                                div()
-                                    .flex_none()
-                                    .text_size(px(CAPTION_SIZE))
-                                    .font_weight(FontWeight::SEMIBOLD)
-                                    .text_color(rgb(GREEN))
-                                    .child(done),
-                            )
-                        }),
-                )
-                .child(
-                    div()
-                        .min_w(px(0.0))
-                        .truncate()
-                        .text_size(px(CAPTION_SIZE))
-                        .text_color(rgb(SUBTEXT1))
-                        .child(row.detail),
-                )
-                .child(steps)
-        }))
-        .into_any_element()
-}
-
-fn level_element(level: Level, hover: bool, cx: &mut Context<Island>) -> AnyElement {
-    let percent = (level.value * 100.0).round() as i32;
-    let glyph_color = if level.muted { OVERLAY2 } else { level.color };
-    let mute = button::ghost(SharedString::from(format!("{}-mute", level.id)), hover && level.on_mute.is_some())
-        .size(px(HEADER_H))
-        .flex_none()
-        .when_some(level.glyph.as_deref(), |mute, path| mute.child(icon::glyph(path, 18.0, glyph_color)))
-        .when_some(level.on_mute, |mute, handler| {
-            mute.on_click(cx.listener(move |this, _, _, cx| handler(this, cx)))
-        });
-    let id = |part: &str| SharedString::from(format!("{}-{part}", level.id));
-    let amount = if level.muted { "Muted".to_owned() } else { format!("{percent}%") };
-    let (label, detail, amount) =
-        (motion::text(id("label"), level.label), motion::text(id("detail"), level.detail.clone()), motion::text(id("amount"), amount));
-    let slider = slider(level.id.clone(), if level.muted { 0.0 } else { level.value }, level.color, level.on_change, cx);
-    div()
-        .flex()
-        .items_center()
-        .gap(px(12.0))
-        .child(mute)
-        .child(
-            div()
-                .flex_1()
-                .min_w(px(0.0))
-                .flex()
-                .flex_col()
-                .gap(px(4.0))
-                .child(
-                    div()
-                        .flex()
-                        .justify_between()
-                        .gap(px(12.0))
-                        .text_size(px(SMALL_SIZE))
-                        .child(
-                            div()
-                                .min_w(px(0.0))
-                                .flex()
-                                .gap(px(6.0))
-                                .child(div().min_w(px(0.0)).truncate().font_weight(FontWeight::SEMIBOLD).child(label))
-                                .when(!level.detail.is_empty(), |line| {
-                                    line.child(div().min_w(px(0.0)).truncate().child(detail))
-                                }),
-                        )
-                        .child(
-                            div()
-                                .flex_none()
-                                .font_weight(FontWeight::SEMIBOLD)
-                                .text_color(rgb(glyph_color))
-                                .child(amount),
-                        ),
-                )
-                .child(slider),
-        )
-        .into_any_element()
-}
-
-const LAUNCHER_W: f32 = 560.0;
-/// The list beside a preview pane.
-const LIST_W: f32 = 400.0;
-const PANE_W: f32 = 460.0;
-const PANE_GAP: f32 = 10.0;
-const SEARCH_H: f32 = 48.0;
-const CARET_H: f32 = 22.0;
-const APP_ROW_H: f32 = 48.0;
-const APP_ROW_GAP: f32 = 2.0;
-const APP_ICON: f32 = 30.0;
-const PREVIEW_W: f32 = 56.0;
-const PREVIEW_H: f32 = 40.0;
-const SELECTION_SPRING: SpringConfig = SpringConfig::new(560.0, 44.0, 1.0);
-
-/// Breathes rather than blinks: fully lit most of the cycle, easing out and back.
-fn caret() -> impl IntoElement {
-    div()
-        .flex_none()
-        .w(px(2.0))
-        .h(px(CARET_H))
-        .rounded_full()
-        .bg(rgb(ACCENT))
-        .with_animation(
-            "launcher-caret",
-            Animation::new(StdDuration::from_millis(1100)).repeat(),
-            |caret, t| caret.opacity(((t * std::f32::consts::TAU).cos() * 1.6).clamp(-1.0, 1.0) * 0.5 + 0.5),
-        )
-}
-
-thread_local! {
-    /// Pixels scrolled over a list that do not yet add up to a whole row.
-    static SCROLLED: Cell<f32> = const { Cell::new(0.0) };
-}
-
-/// Down is positive; touchpads add up across events.
-fn rows_scrolled(event: &ScrollWheelEvent) -> i32 {
-    let total = SCROLLED.get() - f32::from(event.delta.pixel_delta(px(APP_ROW_H)).y);
-    let rows = (total / APP_ROW_H).trunc();
-    SCROLLED.set(total - rows * APP_ROW_H);
-    rows as i32
-}
-
-fn preview_pane(preview: Preview, detail: SharedString, height: f32) -> AnyElement {
-    let content = match preview {
-        Preview::Text(text) => div()
-            .text_size(px(SMALL_SIZE))
-            .child(text)
-            .into_any_element(),
-        Preview::Picture(path) => gpui::img(path)
-            .size_full()
-            .object_fit(gpui::ObjectFit::Contain)
-            .into_any_element(),
-        Preview::Empty => div().into_any_element(),
-    };
-    card::surface()
-        .w(px(PANE_W))
-        .h(px(height))
-        .flex_none()
-        .p(px(CARD_PAD))
-        .flex()
-        .flex_col()
-        .gap(px(10.0))
-        .child(div().flex_1().min_h(px(0.0)).overflow_hidden().child(content))
-        .child(
-            div()
-                .flex_none()
-                .truncate()
-                .text_size(px(SMALL_SIZE))
-                .text_color(rgb(SUBTEXT1))
-                .child(detail),
-        )
-        .into_any_element()
-}
-
-/// Always the same size: typing only changes what fills the [`ROWS`] slots, so the island
-/// never reshapes mid-search.
-fn launcher_element(view: LauncherView, hover: bool, cx: &mut Context<Island>) -> AnyElement {
-    let search = card::surface()
-        .flex_none()
-        .h(px(SEARCH_H))
-        .px(px(16.0))
-        .flex()
-        .items_center()
-        .gap(px(1.0))
-        .text_size(px(HEADING_SIZE))
-        .map(|field| {
-            if view.query.is_empty() {
-                field.child(caret()).child(div().pl(px(4.0)).text_color(rgb(OVERLAY2)).child(view.placeholder.clone()))
+            .on_click(click);
+            if row.compact {
+                element.into_any_element()
             } else {
-                field
-                    .child(div().min_w(px(0.0)).truncate().child(view.query.clone()))
-                    .child(caret())
-            }
-        });
-
-    let selected = view.rows.iter().position(|row| row.selected);
-    let empty = view.rows.is_empty();
-    let rows = view.rows.into_iter().map(|row| {
-        let handler = row.on_click;
-        let entered = row.on_hover;
-        let slot = if row.preview {
-            div().w(px(PREVIEW_W)).h(px(PREVIEW_H)).flex().items_center().justify_center().when_some(
-                row.icon.as_deref(),
-                |slot, path| slot.child(gpui::img(path.to_path_buf()).size_full().object_fit(gpui::ObjectFit::Contain)),
-            )
-        } else {
-            div()
-                .size(px(APP_ICON))
-                .when_some(row.icon.as_deref(), |slot, path| slot.child(icon::image(path, APP_ICON)))
-        };
-        button::fill(row.id, Radius::Row, None, hover && !row.selected)
-            .flex_none()
-            .h(px(APP_ROW_H))
-            .px(px(10.0))
-            .justify_start()
-            .gap(px(12.0))
-            .child(slot.flex_none())
-            .child(
-                div()
-                    .flex_1()
-                    .min_w(px(0.0))
-                    .flex()
-                    .flex_col()
-                    .child(div().text_size(px(TITLE_SIZE)).font_weight(FontWeight::SEMIBOLD).truncate().child(row.name))
-                    .when(!row.detail.is_empty(), |text| {
-                        text.child(div().text_size(px(SMALL_SIZE)).text_color(rgb(SUBTEXT1)).truncate().child(row.detail))
-                    }),
-            )
-            .on_click(cx.listener(move |this, _, _, cx| handler(this, cx)))
-            .on_hover(cx.listener(move |this, hovered: &bool, _, cx| {
-                if *hovered {
-                    entered(this, cx);
-                }
-            }))
-    });
-
-    let on_step = view.on_step;
-    let width = if view.preview.is_some() { LIST_W } else { LAUNCHER_W };
-    let list_h = ROWS as f32 * APP_ROW_H + (ROWS - 1) as f32 * APP_ROW_GAP;
-    let list = div()
-        .id("launcher-list")
-        .relative()
-        .flex_none()
-        .w(px(width))
-        .h(px(list_h))
-        .on_scroll_wheel(cx.listener(move |this, event: &ScrollWheelEvent, _, cx| {
-            let step = rows_scrolled(event);
-            if step != 0 {
-                on_step(step, this, cx);
+                button::badged(format!("{}-badged", button.id), element, button.badge).into_any_element()
             }
         }))
-        .when_some(selected, |list, index| {
-            let top = px(index as f32 * (APP_ROW_H + APP_ROW_GAP));
-            list.child(
-                div()
-                    .absolute()
-                    .left_0()
-                    .right_0()
-                    .h(px(APP_ROW_H))
-                    .child(ui::shape(Radius::Row, Some(ui::selected_fill().into())))
-                    .with_spring("launcher-selection", SpringAnimation::new(SELECTION_SPRING).to(top), |pill, top| {
-                        pill.top(top)
-                    }),
-            )
-        })
-        .child(div().relative().flex().flex_col().gap(px(APP_ROW_GAP)).children(rows))
-        .when(empty, |list| {
-            list.child(
-                div()
-                    .absolute()
-                    .inset_0()
-                    .flex()
-                    .items_center()
-                    .justify_center()
-                    .text_color(rgb(SUBTEXT1))
-                    .child(if view.query.is_empty() {
-                        view.empty.clone()
-                    } else {
-                        SharedString::from(format!("Nothing matches “{}”", view.query))
-                    }),
-            )
-        });
+        .into_any_element()
+}
 
-    let body = match view.preview {
-        Some((preview, detail)) => div()
+fn placed_element(placed: Placed, at: &str, island_below: f32, frame: &Frame<'_>, cx: &mut Context<Island>) -> AnyElement {
+    let blocks = placed.blocks.into_iter().enumerate().map(|(index, (place, block))| {
+        let top = if place.from_bottom { island_below - place.y - place.height } else { place.y };
+        div()
+            .absolute()
+            .left(px(place.x))
+            .top(px(top))
+            .w_full()
+            .h(px(place.height))
+            .opacity(place.opacity.clamp(0.0, 1.0))
             .flex()
-            .gap(px(PANE_GAP))
-            .child(list)
-            .child(preview_pane(preview, detail, list_h))
+            .items_center()
+            .child(block.render(&format!("{at}-{index}"), island_below, frame, cx))
+    });
+    let content = div().relative().min_w(px(placed.width)).h(px(placed.height)).children(blocks);
+    match placed.visible {
+        Some(visible) => div()
+            .id(SharedString::from(format!("{at}-scroll")))
+            .min_w(px(placed.width))
+            .h(px(visible))
+            .overflow_y_scroll()
+            .child(content)
             .into_any_element(),
-        None => list.into_any_element(),
-    };
-    div()
-        .flex()
-        .flex_col()
-        .gap(px(10.0))
-        .child(search)
-        .child(body)
-        .into_any_element()
-}
-
-const METER_W: f32 = 360.0;
-const METER_GLYPH: f32 = 22.0;
-const METER_TILE: f32 = 40.0;
-
-fn meter_element(meter: Meter, at: &str, cx: &mut Context<Island>) -> AnyElement {
-    let muted = meter.level.is_some_and(|(_, muted)| muted);
-    let tint = if muted { OVERLAY2 } else { meter.color };
-    let tile = div()
-        .relative()
-        .size(px(METER_TILE))
-        .flex_none()
-        .flex()
-        .items_center()
-        .justify_center()
-        .child(ui::shape(Radius::Control, Some(rgba(with_alpha(tint, ACCENT_TINT_ALPHA)).into())))
-        .when_some(meter.glyph.as_deref(), |slot, path| slot.child(icon::glyph(path, METER_GLYPH, tint)));
-    let id = |part: &str| SharedString::from(format!("{at}-{part}"));
-    let caption = motion::text(id("caption"), meter.caption.clone());
-    let label = motion::text(id("label"), meter.label.clone());
-    let row = div().w(px(METER_W)).px(px(4.0)).flex().items_center().gap(px(12.0)).child(tile);
-    let Some((value, muted)) = meter.level else {
-        return row
-            .child(
-                div()
-                    .flex_1()
-                    .min_w(px(0.0))
-                    .flex()
-                    .flex_col()
-                    .gap(px(2.0))
-                    .when(!meter.caption.is_empty(), |text| {
-                        text.child(div().text_size(px(SMALL_SIZE)).text_color(rgb(SUBTEXT1)).child(caption))
-                    })
-                    .child(
-                        div()
-                            .min_w(px(0.0))
-                            .truncate()
-                            .font_weight(FontWeight::SEMIBOLD)
-                            .text_color(rgb(meter.color))
-                            .child(label),
-                    ),
-            )
-            .into_any_element();
-    };
-    let percent = (value * 100.0).round() as i32;
-    let heading = div()
-        .flex()
-        .items_baseline()
-        .gap(px(8.0))
-        .min_w(px(0.0))
-        .when(!meter.caption.is_empty(), |line| {
-            line.child(
-                div()
-                    .flex_none()
-                    .text_size(px(SMALL_SIZE))
-                    .text_color(rgb(SUBTEXT1))
-                    .child(caption),
-            )
-        })
-        .child(div().min_w(px(0.0)).truncate().font_weight(FontWeight::SEMIBOLD).child(label));
-    let amount = div()
-        .flex_none()
-        .font_weight(FontWeight::SEMIBOLD)
-        .text_color(rgb(if muted { OVERLAY2 } else { TEXT }))
-        .child(motion::text(id("amount"), if muted { "Muted".to_owned() } else { format!("{percent}%") }));
-    row.child(
-        div()
-            .flex_1()
-            .min_w(px(0.0))
-            .flex()
-            .flex_col()
-            .gap(px(2.0))
-            .child(div().flex().items_baseline().justify_between().gap(px(12.0)).child(heading).child(amount))
-            .child(slider(id("slider"), if muted { 0.0 } else { value }, tint, None, cx)),
-    )
-    .into_any_element()
-}
-
-fn clock_text(seconds: f64) -> String {
-    let seconds = seconds.max(0.0) as u64;
-    format!("{}:{:02}", seconds / 60, seconds % 60)
-}
-
-fn media_element(view: MediaView, frame: &Frame<'_>, cx: &mut Context<Island>) -> AnyElement {
-    const ART: f32 = 112.0;
-    const ART_GAP: f32 = 16.0;
-    let hover = frame.hover;
-    let text_w = card::Size::Large.width() - 2.0 * CARD_PAD - ART - ART_GAP;
-    let line = |text: SharedString, size: f32, weight: FontWeight| marquee(frame.layouts, text, size, weight, text_w);
-    let art = div()
-        .size(px(ART))
-        .flex_none()
-        .rounded(px(ui::PANEL_RADIUS))
-        .overflow_hidden()
-        .bg(rgba(with_alpha(SURFACE1, CONTROL_ALPHA)))
-        .when_some(view.art.clone(), |art, path| {
-            art.child(gpui::img(path).size_full().object_fit(gpui::ObjectFit::Cover))
-        });
-    let control = |id: &'static str, glyph: Option<PathBuf>, size: f32, primary: bool, action: Handler, cx: &mut Context<Island>| {
-        let (rest, tint) = if primary { (Some(rgb(ACCENT).into()), ON_ACCENT) } else { (None, TEXT) };
-        button::fill(id, Radius::Pill, rest, hover)
-            .size(px(size))
-            .flex_none()
-            .when_some(glyph, |control, path| control.child(icon::glyph(&path, size * 0.45, tint)))
-            .on_click(cx.listener(move |this, _, _, cx| action(this, cx)))
-    };
-    let progress = view.length.map(|length| {
-        let fraction = (view.position / length.max(1.0)) as f32;
-        div()
-            .flex()
-            .flex_col()
-            .gap(px(4.0))
-            .child(slider("media-progress", fraction, ACCENT, view.on_seek.clone(), cx))
-            .child(
-                div()
-                    .flex()
-                    .justify_between()
-                    .text_size(px(SMALL_SIZE))
-                    .text_color(rgb(SUBTEXT1))
-                    .child(motion::text("media-position", clock_text(view.position)))
-                    .child(motion::text("media-length", clock_text(length))),
-            )
-    });
-    div()
-        .flex()
-        .gap(px(ART_GAP))
-        .child(art)
-        .child(
-            div()
-                .flex_1()
-                .min_w(px(0.0))
-                .flex()
-                .flex_col()
-                .justify_between()
-                .child(
-                    div()
-                        .flex()
-                        .flex_col()
-                        .gap(px(2.0))
-                        .child(div().text_size(px(SMALL_SIZE)).text_color(rgb(SUBTEXT1)).child(view.source))
-                        .child(line(view.title, TITLE_SIZE, FontWeight::SEMIBOLD))
-                        .child(line(view.artist, TEXT_SIZE, FontWeight::MEDIUM))
-                        .when(!view.album.is_empty(), |text| text.child(line(view.album, SMALL_SIZE, FontWeight::MEDIUM))),
-                )
-                .children(progress)
-                .child(
-                    div()
-                        .flex()
-                        .justify_center()
-                        .items_center()
-                        .gap(px(12.0))
-                        .child(control("media-previous", view.previous, 36.0, false, view.on_previous, cx))
-                        .child(control("media-play", view.play, 44.0, true, view.on_play, cx))
-                        .child(control("media-next", view.next, 36.0, false, view.on_next, cx)),
-                ),
-        )
-        .into_any_element()
-}
-
-pub(crate) fn entry_element(entry: Entry, checks: bool, hover: bool, cx: &mut Context<Island>) -> AnyElement {
-    if entry.separator {
-        return div()
-            .py(px(4.0))
-            .child(div().h(px(1.0)).bg(rgba(with_alpha(SURFACE1, CONTROL_ALPHA))))
-            .into_any_element();
+        None => content.into_any_element(),
     }
-    let enabled = entry.enabled && entry.on_click.is_some();
-    let mark = entry.check.map(|on| if on { "✓" } else { "" });
-    button::ghost(entry.id, hover && enabled)
-        .h(px(ENTRY_H))
-        .px(px(8.0))
-        .justify_start()
-        .gap(px(8.0))
-        .text_size(px(SMALL_SIZE))
-        .text_color(rgb(if enabled { TEXT } else { OVERLAY2 }))
-        .when(!enabled, |row| row.cursor_default())
-        .when(checks, |row| {
-            row.child(
-                div()
-                    .w(px(14.0))
-                    .flex_none()
-                    .text_color(rgb(ACCENT))
-                    .child(mark.unwrap_or_default()),
-            )
-        })
-        .child(div().flex_1().min_w(px(0.0)).truncate().child(entry.label))
-        .when(entry.submenu, |row| row.child(div().text_color(rgb(SUBTEXT1)).child("›")))
-        .when_some(entry.on_click.filter(|_| entry.enabled), |row, handler| {
-            row.on_click(cx.listener(move |this, _, _, cx| handler(this, cx)))
-        })
-        .into_any_element()
 }
 
-fn calendar(view: CalendarView, hover: bool, cx: &mut Context<Island>) -> AnyElement {
-    let offset = view.offset;
-    let today = Local::now().date_naive();
-    let first_of_today = NaiveDate::from_ymd_opt(today.year(), today.month(), 1).unwrap_or(today);
-    let first = if offset >= 0 {
-        first_of_today.checked_add_months(Months::new(offset.unsigned_abs()))
-    } else {
-        first_of_today.checked_sub_months(Months::new(offset.unsigned_abs()))
-    }
-    .unwrap_or(first_of_today);
-    let start = first - Duration::days(first.weekday().num_days_from_monday().into());
-    let weekend = |weekday: i64| weekday >= 5;
-
-    let nav = |id: &'static str, glyph: &'static str, handler: Handler, cx: &mut Context<Island>| {
-        button::ghost(id, hover)
-            .size(px(HEADER_H))
-            .text_size(px(HEADING_SIZE))
-            .child(glyph)
-            .on_click(cx.listener(move |this, _, _, cx| handler(this, cx)))
-    };
-    let on_today = view.on_today;
-    let back = (offset != 0).then(|| {
-        button::ghost("calendar-today", hover)
-            .h(px(HEADER_H))
-            .px(px(12.0))
-            .text_size(px(SMALL_SIZE))
-            .font_weight(FontWeight::SEMIBOLD)
-            .text_color(rgb(ACCENT))
-            .child("Today")
-            .on_click(cx.listener(move |this, _, _, cx| on_today(this, cx)))
-    });
-
-    let weekdays = div().flex().children(["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].iter().enumerate().map(
-        |(index, day)| {
-            div()
-                .flex_1()
-                .flex()
-                .justify_center()
-                .text_size(px(SMALL_SIZE))
-                .font_weight(FontWeight::SEMIBOLD)
-                .text_color(rgb(if weekend(index as i64) { PEACH } else { TEXT }))
-                .child(*day)
-        },
-    ));
-
-    let weeks = (0..6).map(|week| {
-        div().flex().gap(px(DAY_GAP)).children((0..7).map(|weekday| {
-            let date = start + Duration::days(week * 7 + weekday);
-            let in_month = date.month() == first.month();
-            let is_today = date == today;
-            div()
-                .flex_1()
-                .min_w(px(DAY_H))
-                .h(px(DAY_H))
-                .flex()
-                .items_center()
-                .justify_center()
-                .text_color(rgb(match (is_today, in_month) {
-                    (true, _) => ON_ACCENT,
-                    (false, true) => TEXT,
-                    (false, false) => OVERLAY2,
-                }))
-                .child(
-                    div()
-                        .relative()
-                        .size(px(TODAY))
-                        .flex()
-                        .items_center()
-                        .justify_center()
-                        .when(is_today, |cell| {
-                            cell.child(ui::shape(Radius::Control, Some(rgb(ACCENT).into())))
-                                .font_weight(FontWeight::BOLD)
-                        })
-                        .child(date.day().to_string()),
-                )
-        }))
-    });
-
-    div()
-        .flex()
-        .flex_col()
-        .gap(px(DAY_GAP))
-        .child(
-            div()
-                .flex()
-                .items_center()
-                .justify_between()
-                .pb(px(6.0))
-                .child(
-                    div()
-                        .pl(px(8.0))
-                        .text_size(px(HEADING_SIZE))
-                        .font_weight(FontWeight::SEMIBOLD)
-                        .child(first.format("%B %Y").to_string()),
-                )
-                .child(
-                    div()
-                        .flex()
-                        .items_center()
-                        .gap(px(2.0))
-                        .children(back)
-                        .child(nav("calendar-prev", "‹", view.on_previous.clone(), cx))
-                        .child(nav("calendar-next", "›", view.on_next.clone(), cx)),
-                ),
-        )
-        .child(div().pb(px(4.0)).child(weekdays))
-        .children(weeks)
-        .into_any_element()
+fn render_all(blocks: Vec<Block>, at: &str, island_below: f32, frame: &Frame<'_>, cx: &mut Context<Island>) -> Vec<AnyElement> {
+    blocks
+        .into_iter()
+        .enumerate()
+        .map(|(index, block)| block.render(&format!("{at}-{index}"), island_below, frame, cx))
+        .collect()
 }

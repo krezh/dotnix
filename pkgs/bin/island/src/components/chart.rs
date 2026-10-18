@@ -1,3 +1,5 @@
+//! A history drawn as smooth lines, such as CPU use over the last minute.
+
 use gpui::{
     Bounds, ContentMask, Hsla, IntoElement, PathBuilder, PathStyle, Pixels, Point, StrokeOptions, Window, canvas, fill,
     point, prelude::*, px, rgb, rgba, size,

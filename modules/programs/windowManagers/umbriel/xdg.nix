@@ -1,6 +1,6 @@
 {
-  flake.modules.homeManager.niri =
-    { pkgs, config, ... }:
+  flake.modules.homeManager.umbriel =
+    { pkgs, ... }:
     {
       xdg.portal = {
         enable = true;
@@ -8,9 +8,9 @@
           xdg-desktop-portal-gnome
           xdg-desktop-portal-gtk
         ];
-        configPackages = [ config.wayland.windowManager.niri.package ];
-        config.niri = {
+        config.umbriel = {
           default = [
+            "umbriel"
             "gnome"
             "gtk"
           ];

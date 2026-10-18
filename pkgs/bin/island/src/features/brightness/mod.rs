@@ -74,7 +74,7 @@ impl Feature for Brightness {
         shown.sync(island);
     }
 
-    fn popup<'a>(&self, _: &Level, p: &PanelCx<'a>) -> Option<PanelView<'a>> {
+    fn popup<'a>(&self, _: &Level, p: &PanelCx<'a>) -> Option<PanelView> {
         osd::popup(p)
     }
 

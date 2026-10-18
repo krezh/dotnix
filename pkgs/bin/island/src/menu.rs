@@ -1,4 +1,5 @@
-//! Menus hang below the bar instead of morphing the island into a panel.
+//! The island's own menus, such as a tray item's: they hang below the bar instead of morphing the
+//! island into a panel. Only the island opens them; panels and features never use their rows.
 
 use std::{
     cell::Cell,
@@ -7,7 +8,7 @@ use std::{
     time::Instant,
 };
 
-use gpui::{AnyElement, Bounds, Context, FontWeight, Pixels, Size, div, point, prelude::*, px, rgb, size};
+use gpui::{AnyElement, Bounds, Context, FontWeight, Pixels, SharedString, Size, div, point, prelude::*, px, rgb, rgba, size};
 
 use crate::{
     components::{
@@ -15,12 +16,58 @@ use crate::{
         measure::{self, Measured},
     },
     island::{CONTENT_IN, CONTENT_OUT, Island, REVEAL_DELAY, SHAPE_SPRING},
-    panel::{self, ENTRY_H, Entry},
+    panel::{self, Handler},
     shape::Hang,
     spring::Spring,
-    theme::SUBTEXT1,
+    theme::{ACCENT, CONTROL_ALPHA, OVERLAY2, SUBTEXT1, SURFACE1, TEXT, with_alpha},
     ui::{self, CONTROL_RADIUS, PANEL_RADIUS, Radius, SMALL_SIZE},
 };
+
+const ENTRY_H: f32 = 28.0;
+
+struct Entry {
+    id: SharedString,
+    label: SharedString,
+    enabled: bool,
+    separator: bool,
+    check: Option<bool>,
+    submenu: bool,
+    on_click: Option<Handler>,
+}
+
+fn entry_element(entry: Entry, checks: bool, hover: bool, cx: &mut Context<Island>) -> AnyElement {
+    if entry.separator {
+        return div()
+            .py(px(4.0))
+            .child(div().h(px(1.0)).bg(rgba(with_alpha(SURFACE1, CONTROL_ALPHA))))
+            .into_any_element();
+    }
+    let enabled = entry.enabled && entry.on_click.is_some();
+    let mark = entry.check.map(|on| if on { "✓" } else { "" });
+    button::ghost(entry.id, hover && enabled)
+        .h(px(ENTRY_H))
+        .px(px(8.0))
+        .justify_start()
+        .gap(px(8.0))
+        .text_size(px(SMALL_SIZE))
+        .text_color(rgb(if enabled { TEXT } else { OVERLAY2 }))
+        .when(!enabled, |row| row.cursor_default())
+        .when(checks, |row| {
+            row.child(
+                div()
+                    .w(px(14.0))
+                    .flex_none()
+                    .text_color(rgb(ACCENT))
+                    .child(mark.unwrap_or_default()),
+            )
+        })
+        .child(div().flex_1().min_w(px(0.0)).truncate().child(entry.label))
+        .when(entry.submenu, |row| row.child(div().text_color(rgb(SUBTEXT1)).child("›")))
+        .when_some(entry.on_click.filter(|_| entry.enabled), |row, handler| {
+            row.on_click(cx.listener(move |this, _, _, cx| handler(this, cx)))
+        })
+        .into_any_element()
+}
 
 /// Keeps the entries' hover pills concentric with the menu's corners.
 const PAD: f32 = PANEL_RADIUS - CONTROL_RADIUS;
@@ -276,7 +323,7 @@ impl Menu {
                 submenu: false,
                 on_click: None,
             };
-            panel::entry_element(line, false, hover, cx)
+            entry_element(line, false, hover, cx)
         });
         let entries: Vec<AnyElement> = node
             .children
@@ -298,7 +345,7 @@ impl Menu {
                         panel::on(move |island, cx| island.menu_pick(id, cx))
                     }),
                 };
-                panel::entry_element(entry, checks, hover, cx)
+                entry_element(entry, checks, hover, cx)
             })
             .collect();
         ui::base()

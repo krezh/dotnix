@@ -86,7 +86,7 @@ impl Feature for Clock {
         )
     }
 
-    fn panel<'a>(&self, _: &i64, p: &PanelCx<'a>) -> Option<PanelView<'a>> {
+    fn panel<'a>(&self, _: &i64, p: &PanelCx<'a>) -> Option<PanelView> {
         let offset = p.local::<Month>().map_or(0, |month| month.offset);
         Some(PanelView {
             header: Header::Tabs,
