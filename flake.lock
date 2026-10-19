@@ -866,11 +866,11 @@
         "systems": "systems_3"
       },
       "locked": {
-        "lastModified": 1792380537,
-        "narHash": "sha256-KRtCZ5dZuRY52ArZY8ZjXMX6Xaw3xQ1fC0oqtkhxXkA=",
+        "lastModified": 1792383685,
+        "narHash": "sha256-eV04X/XH5DWNjJe86njd+Q6IckFDrCtqKTt88ZstBfA=",
         "owner": "nix-community",
         "repo": "nix4vscode",
-        "rev": "4e3685a98f403cc290ced3d8788bb08af32f89f4",
+        "rev": "b0e423a609631a379e8b72a9847f8da7e7b6c60e",
         "type": "github"
       },
       "original": {
