@@ -2,8 +2,6 @@
   lib,
   craneLib,
   pkgs,
-  makeWrapper,
-  wrapGAppsHook4,
 }:
 craneLib.buildPackage rec {
   # The root spans `pkgs/bin` so the `nix-changelog` path dependency is in the source.
@@ -25,7 +23,6 @@ craneLib.buildPackage rec {
   buildInputs = with pkgs; [
     gtk4
     gtk4-layer-shell
-    adwaita-icon-theme
   ];
 
   env = {
@@ -49,8 +46,6 @@ craneLib.buildPackage rec {
   nativeBuildInputs = with pkgs; [
     pkg-config
     git
-    makeWrapper
-    wrapGAppsHook4
   ];
 
   preCheck = ''
@@ -83,17 +78,6 @@ craneLib.buildPackage rec {
       "$out/share/icons/hicolor/scalable/apps/io.github.krezh.Molt.svg"
     install -Dm644 ${./data/io.github.krezh.Molt-symbolic.svg} \
       "$out/share/icons/hicolor/symbolic/apps/io.github.krezh.Molt-symbolic.svg"
-  '';
-
-  preFixup = ''
-    gappsWrapperArgs+=(
-      --prefix PATH : ${
-        lib.makeBinPath [
-          pkgs.git
-          pkgs.jujutsu
-        ]
-      }
-    )
   '';
 
   meta = {

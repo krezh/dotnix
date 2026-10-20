@@ -1,14 +1,13 @@
-mod glide;
-
 use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
 use std::rc::{Rc, Weak};
 
 use gtk::prelude::*;
+use gtk::subclass::prelude::*;
+use gtk::{gio, glib};
 
 use crate::ui::theme;
 use crate::ui::{EnergyOverlay, FadeScroll, MorphLabel, SegmentedControl, Tween, field, label};
-use glide::GlideBox;
 
 /// Length of a row's state change: marker crossfade, detail and bar reveals.
 const ROW_TRANSITION_MS: u32 = 200;
@@ -58,6 +57,26 @@ pub(crate) struct RowContent {
     pub(crate) fraction: f64,
 }
 
+impl RowContent {
+    /// What a row widget holds while no item is bound to it.
+    fn unbound() -> Self {
+        Self {
+            group: usize::MAX,
+            look: RowLook::Idle,
+            title: String::new(),
+            tag: String::new(),
+            column: String::new(),
+            detail: String::new(),
+            value: String::new(),
+            fraction: -1.0,
+        }
+    }
+
+    fn search_text(&self) -> String {
+        format!("{}\n{}", self.title, self.column).to_lowercase()
+    }
+}
+
 pub(crate) struct GroupSpec {
     pub(crate) name: &'static str,
     /// `tone-*` class colouring the section label and row markers.
@@ -68,16 +87,105 @@ pub(crate) struct GroupSpec {
     pub(crate) optional: bool,
 }
 
-struct Group {
-    section: gtk::Box,
-    header: MorphLabel,
-    rows: GlideBox,
+mod imp {
+    use super::*;
+
+    #[derive(Default)]
+    pub(super) struct RowItem {
+        pub(super) content: RefCell<Option<RowContent>>,
+        pub(super) search_text: RefCell<String>,
+        /// When the row entered its group, ordering it within the group.
+        pub(super) entered: Cell<u64>,
+        /// The row widget showing this item while one is bound to it.
+        pub(super) bound: RefCell<Weak<RefCell<ListRow>>>,
+    }
+
+    #[glib::object_subclass]
+    impl ObjectSubclass for RowItem {
+        const NAME: &'static str = "MoltRowItem";
+        type Type = super::RowItem;
+    }
+
+    impl ObjectImpl for RowItem {}
+}
+
+glib::wrapper! {
+    /// One keyed row's content in the list model; widgets exist only for rows on screen.
+    struct RowItem(ObjectSubclass<imp::RowItem>);
+}
+
+impl RowItem {
+    fn new(content: RowContent, entered: u64) -> Self {
+        let item = glib::Object::new::<Self>();
+        let imp = item.imp();
+        imp.search_text.replace(content.search_text());
+        imp.content.replace(Some(content));
+        imp.entered.set(entered);
+        item
+    }
+
+    fn group(&self) -> usize {
+        self.imp()
+            .content
+            .borrow()
+            .as_ref()
+            .map_or(0, |content| content.group)
+    }
+
+    fn matches(&self, query: &str) -> bool {
+        query.is_empty() || self.imp().search_text.borrow().contains(query)
+    }
+
+    /// Updates content that keeps the row in place, redrawing its widget if it has one.
+    fn update(&self, content: RowContent) {
+        let imp = self.imp();
+        if let Some(row) = imp.bound.borrow().upgrade() {
+            row.borrow_mut().apply(content.clone());
+        }
+        imp.content.replace(Some(content));
+    }
+}
+
+fn row_item(object: &glib::Object) -> &RowItem {
+    object
+        .downcast_ref()
+        .expect("grouped lists hold only row items")
+}
+
+/// A row's item and its index in the store, which only ever grows.
+struct Entry {
+    item: RowItem,
+    index: usize,
+}
+
+/// A section header and the group it currently heads.
+struct SectionHeader {
+    root: gtk::Box,
+    label: MorphLabel,
+    group: Cell<usize>,
+}
+
+impl SectionHeader {
+    fn show(&self, specs: &[GroupSpec], group: usize, shown: &[usize]) {
+        let previous = self.group.replace(group);
+        if previous != group {
+            if let Some(spec) = specs.get(previous) {
+                self.root.remove_css_class(theme::tone(spec.tone));
+            }
+            self.root.add_css_class(theme::tone(specs[group].tone));
+        }
+        self.label.set_text(&format!(
+            "{} · {}",
+            specs[group].name,
+            shown.get(group).copied().unwrap_or_default()
+        ));
+    }
 }
 
 /// A filterable list of keyed rows grouped into sections, with a tab per group.
 ///
-/// Rows are created once per key and updated in place; a row changing group moves its widget,
-/// so progress ticks never rebuild the list. Rows and sections glide to their new places.
+/// Rows live in a list model and only the ones on screen get widgets, so a build planning
+/// thousands of paths costs no more to draw than one planning a dozen.
 pub(crate) struct GroupedList {
     pub(crate) root: gtk::Box,
     pub(crate) scroll: gtk::ScrolledWindow,
@@ -85,13 +193,26 @@ pub(crate) struct GroupedList {
     eyebrow_text: &'static str,
     specs: &'static [GroupSpec],
     tabs: SegmentedControl,
-    content: GlideBox,
-    groups: Vec<Group>,
+    body: gtk::Stack,
+    list_page: gtk::Widget,
     empty: gtk::Label,
     empty_text: &'static str,
-    has_column: bool,
-    rows: RefCell<HashMap<String, ListRow>>,
-    query: RefCell<String>,
+    store: gio::ListStore,
+    filter: gtk::CustomFilter,
+    entries: RefCell<HashMap<String, Entry>>,
+    /// Rows created since the last refresh, added to the store in one batch.
+    pending: RefCell<Vec<RowItem>>,
+    /// Bumped as rows enter a group.
+    entered: Cell<u64>,
+    /// Whether the list was scrolled to the top before the current batch of changes.
+    top_before: Cell<Option<bool>>,
+    /// Whether a scroll back to the top is waiting for the next layout.
+    returning: Rc<Cell<bool>>,
+    tab: Rc<Cell<usize>>,
+    query: Rc<RefCell<String>>,
+    headers: Rc<RefCell<HashMap<gtk::ListHeader, SectionHeader>>>,
+    /// Rows matching the filter per group, as the section headers count them.
+    shown: Rc<RefCell<Vec<usize>>>,
 }
 
 impl GroupedList {
@@ -130,36 +251,158 @@ impl GroupedList {
         rule.add_css_class("build-list-rule");
         root.append(&rule);
 
-        let content = GlideBox::new(0);
-        content.add_css_class("build-list");
-        let groups = specs
-            .iter()
-            .map(|spec| {
-                let section = gtk::Box::new(gtk::Orientation::Vertical, 0);
-                section.add_css_class("build-section");
-                section.add_css_class(theme::tone(spec.tone));
-                section.set_visible(false);
-                let header = MorphLabel::new(spec.name, &["phase-section-label"], 0.0);
-                section.append(&header.root);
-                let rows = GlideBox::new(4);
-                section.append(&rows);
-                content.append(&section);
-                Group {
-                    section,
-                    header,
-                    rows,
-                }
+        let tab = Rc::new(Cell::new(0));
+        let query = Rc::new(RefCell::new(String::new()));
+        let store = gio::ListStore::new::<RowItem>();
+        // Rows keep the order they entered their group in, newest first where the group says.
+        let sorter = gtk::CustomSorter::new(move |a, b| {
+            let key = |item: &RowItem| {
+                let group = item.group();
+                let entered = item.imp().entered.get() as i64;
+                let newest_first = specs.get(group).is_some_and(|spec| spec.newest_first);
+                (group, if newest_first { -entered } else { entered })
+            };
+            key(row_item(a)).cmp(&key(row_item(b))).into()
+        });
+        let sections =
+            gtk::CustomSorter::new(|a, b| row_item(a).group().cmp(&row_item(b).group()).into());
+        let sorted = gtk::SortListModel::new(Some(store.clone()), Some(sorter));
+        sorted.set_section_sorter(Some(&sections));
+        let filter = {
+            let (tab, query) = (Rc::clone(&tab), Rc::clone(&query));
+            gtk::CustomFilter::new(move |object| {
+                let item = row_item(object);
+                let tab = tab.get();
+                (tab == 0 || tab == item.group() + 1) && item.matches(&query.borrow())
             })
-            .collect();
-        let empty = label(empty_text, &["build-list-empty"], 0.0);
-        empty.set_wrap(true);
-        content.append(&empty);
+        };
+        let filtered = gtk::FilterListModel::new(Some(sorted), Some(filter.clone()));
+
+        let rows = Rc::new(RefCell::new(HashMap::<gtk::ListItem, Rc<RefCell<ListRow>>>::new()));
+        let factory = gtk::SignalListItemFactory::new();
+        factory.connect_setup({
+            let rows = Rc::clone(&rows);
+            move |_, object| {
+                let Some(list_item) = object.downcast_ref::<gtk::ListItem>() else {
+                    return;
+                };
+                list_item.set_activatable(false);
+                list_item.set_selectable(false);
+                list_item.set_focusable(false);
+                let row = ListRow::new(specs, has_column);
+                list_item.set_child(Some(&row.energy.root));
+                rows.borrow_mut()
+                    .insert(list_item.clone(), Rc::new(RefCell::new(row)));
+            }
+        });
+        factory.connect_bind({
+            let rows = Rc::clone(&rows);
+            move |_, object| {
+                let Some(list_item) = object.downcast_ref::<gtk::ListItem>() else {
+                    return;
+                };
+                let (Some(item), Some(row)) = (
+                    list_item.item().and_downcast::<RowItem>(),
+                    rows.borrow().get(list_item).cloned(),
+                ) else {
+                    return;
+                };
+                if let Some(content) = item.imp().content.borrow().clone() {
+                    row.borrow_mut().show(content);
+                }
+                item.imp().bound.replace(Rc::downgrade(&row));
+            }
+        });
+        factory.connect_unbind({
+            let rows = Rc::clone(&rows);
+            move |_, object| {
+                let Some(list_item) = object.downcast_ref::<gtk::ListItem>() else {
+                    return;
+                };
+                let Some(row) = rows.borrow().get(list_item).cloned() else {
+                    return;
+                };
+                if let Some(item) = list_item.item().and_downcast::<RowItem>() {
+                    let bound = item.imp().bound.borrow().upgrade();
+                    if bound.is_some_and(|bound| Rc::ptr_eq(&bound, &row)) {
+                        item.imp().bound.replace(Weak::new());
+                    }
+                }
+                row.borrow_mut().clear();
+            }
+        });
+        factory.connect_teardown(move |_, object| {
+            if let Some(list_item) = object.downcast_ref::<gtk::ListItem>() {
+                rows.borrow_mut().remove(list_item);
+            }
+        });
+
+        let headers = Rc::new(RefCell::new(HashMap::<gtk::ListHeader, SectionHeader>::new()));
+        let shown = Rc::new(RefCell::new(vec![0; specs.len()]));
+        let header_factory = gtk::SignalListItemFactory::new();
+        header_factory.connect_setup({
+            let headers = Rc::clone(&headers);
+            move |_, object| {
+                let Some(list_header) = object.downcast_ref::<gtk::ListHeader>() else {
+                    return;
+                };
+                let root = gtk::Box::new(gtk::Orientation::Vertical, 0);
+                root.add_css_class("build-section");
+                let label = MorphLabel::new("", &["phase-section-label"], 0.0);
+                root.append(&label.root);
+                list_header.set_child(Some(&root));
+                headers.borrow_mut().insert(
+                    list_header.clone(),
+                    SectionHeader {
+                        root,
+                        label,
+                        group: Cell::new(usize::MAX),
+                    },
+                );
+            }
+        });
+        header_factory.connect_bind({
+            let (headers, shown) = (Rc::clone(&headers), Rc::clone(&shown));
+            move |_, object| {
+                let Some(list_header) = object.downcast_ref::<gtk::ListHeader>() else {
+                    return;
+                };
+                let Some(item) = list_header.item().and_downcast::<RowItem>() else {
+                    return;
+                };
+                if let Some(header) = headers.borrow().get(list_header) {
+                    header.show(specs, item.group(), &shown.borrow());
+                }
+            }
+        });
+        header_factory.connect_teardown({
+            let headers = Rc::clone(&headers);
+            move |_, object| {
+                if let Some(list_header) = object.downcast_ref::<gtk::ListHeader>() {
+                    headers.borrow_mut().remove(list_header);
+                }
+            }
+        });
+
+        let view = gtk::ListView::new(Some(gtk::NoSelection::new(Some(filtered))), Some(factory));
+        view.set_header_factory(Some(&header_factory));
+        view.add_css_class("build-list");
+        view.set_can_focus(false);
         let scroll = gtk::ScrolledWindow::new();
         scroll.add_css_class("see-through");
         scroll.set_policy(gtk::PolicyType::Never, gtk::PolicyType::Automatic);
         scroll.set_vexpand(true);
-        scroll.set_child(Some(&content));
-        root.append(&FadeScroll::new(&scroll));
+        scroll.set_child(Some(&view));
+        let list_page = FadeScroll::new(&scroll).upcast::<gtk::Widget>();
+        let empty = label(empty_text, &["build-list-empty"], 0.0);
+        empty.set_wrap(true);
+        empty.set_valign(gtk::Align::Start);
+        let body = gtk::Stack::new();
+        body.set_vexpand(true);
+        body.add_child(&list_page);
+        body.add_child(&empty);
+        body.set_visible_child(&empty);
+        root.append(&body);
 
         let list = Rc::new(Self {
             root,
@@ -168,19 +411,31 @@ impl GroupedList {
             eyebrow_text,
             specs,
             tabs,
-            content,
-            groups,
+            body,
+            list_page,
             empty,
             empty_text,
-            has_column,
-            rows: RefCell::new(HashMap::new()),
-            query: RefCell::new(String::new()),
+            store,
+            filter,
+            entries: RefCell::new(HashMap::new()),
+            pending: RefCell::new(Vec::new()),
+            entered: Cell::new(0),
+            top_before: Cell::new(None),
+            returning: Rc::new(Cell::new(false)),
+            tab,
+            query,
+            headers,
+            shown,
         });
-        for option in &list.tabs.options {
+        for (index, option) in list.tabs.options.iter().enumerate() {
             let list = Rc::downgrade(&list);
             option.connect_toggled(move |option| {
                 if option.is_active() {
-                    with_list(&list, |list| list.refresh());
+                    with_list(&list, |list| {
+                        list.tab.set(index);
+                        list.filter.changed(gtk::FilterChange::Different);
+                        list.refresh();
+                    });
                 }
             });
         }
@@ -188,11 +443,7 @@ impl GroupedList {
         search.connect_search_changed(move |search| {
             with_list(&weak, |list| {
                 list.query.replace(search.text().trim().to_lowercase());
-                let query = list.query.borrow();
-                for row in list.rows.borrow().values() {
-                    row.energy.root.set_visible(row.matches(&query));
-                }
-                drop(query);
+                list.filter.changed(gtk::FilterChange::Different);
                 list.refresh();
             });
         });
@@ -201,94 +452,136 @@ impl GroupedList {
 
     /// Creates or updates the row for `key`; call [`Self::refresh`] after a batch.
     pub(crate) fn upsert(&self, key: &str, content: RowContent) {
-        let mut rows = self.rows.borrow_mut();
-        if let Some(row) = rows.get_mut(key) {
-            if row.content == content {
-                return;
-            }
-            if row.content.group != content.group {
-                let widget = &row.energy.root;
-                let from = &self.groups[row.content.group].rows;
-                let origin = from.drawn_y(widget, &self.content);
-                from.remove(widget);
-                self.place(widget, content.group);
-                if let Some(origin) = origin {
-                    self.groups[content.group]
-                        .rows
-                        .arrive(widget, &self.content, origin);
+        let mut entries = self.entries.borrow_mut();
+        if let Some(entry) = entries.get_mut(key) {
+            let in_place = {
+                let current = entry.item.imp().content.borrow();
+                let Some(current) = current.as_ref() else {
+                    return;
+                };
+                if *current == content {
+                    return;
                 }
+                current.group == content.group
+                    && current.title == content.title
+                    && current.column == content.column
+            };
+            if in_place {
+                entry.item.update(content);
+            } else {
+                // A new item, not the same one moved: the list keeps its scroll position
+                // instead of following the row to its new group.
+                let item = self.new_item(content);
+                self.note_top();
+                self.replace(entry.index, &item);
+                entry.item = item;
             }
-            row.apply(content);
-            row.energy
-                .root
-                .set_visible(row.matches(&self.query.borrow()));
             return;
         }
-        let mut row = ListRow::new(self.has_column);
-        self.place(&row.energy.root, content.group);
-        row.apply(content);
-        row.energy
-            .root
-            .set_visible(row.matches(&self.query.borrow()));
-        rows.insert(key.to_owned(), row);
+        self.note_top();
+        let item = self.new_item(content);
+        let mut pending = self.pending.borrow_mut();
+        let index = self.store.n_items() as usize + pending.len();
+        pending.push(item.clone());
+        entries.insert(key.to_owned(), Entry { item, index });
     }
 
-    fn place(&self, widget: &gtk::Overlay, group: usize) {
-        let rows = &self.groups[group].rows;
-        if self.specs[group].newest_first {
-            rows.prepend(widget);
+    fn new_item(&self, content: RowContent) -> RowItem {
+        let entered = self.entered.get() + 1;
+        self.entered.set(entered);
+        RowItem::new(content, entered)
+    }
+
+    fn replace(&self, index: usize, item: &RowItem) {
+        let stored = self.store.n_items() as usize;
+        if index < stored {
+            self.store.splice(index as u32, 1, std::slice::from_ref(item));
         } else {
-            rows.append(widget);
+            self.pending.borrow_mut()[index - stored] = item.clone();
         }
     }
 
-    /// Recounts groups and applies the active tab and filter to sections.
+    /// Records, before the first change of a batch, whether the list sits at its top.
+    fn note_top(&self) {
+        if self.top_before.get().is_none() {
+            let adjustment = self.scroll.vadjustment();
+            self.top_before
+                .set(Some(adjustment.value() <= adjustment.lower() + 1.0));
+        }
+    }
+
+    /// Scrolls back to the top once the changed rows are laid out. The list view keeps its
+    /// top row in place, so rows inserted above it would otherwise push the view down.
+    fn keep_top(&self) {
+        if self.returning.replace(true) {
+            return;
+        }
+        let adjustment = self.scroll.vadjustment();
+        let returning = Rc::clone(&self.returning);
+        let laid_out = Cell::new(false);
+        self.scroll.add_tick_callback(move |_, _| {
+            // Tick callbacks run before layout: the first frame lays the new rows out.
+            if !laid_out.replace(true) {
+                return glib::ControlFlow::Continue;
+            }
+            adjustment.set_value(adjustment.lower());
+            returning.set(false);
+            glib::ControlFlow::Break
+        });
+    }
+
+    /// Adds new rows, recounts groups, and applies the active tab and filter to the tabs.
     pub(crate) fn refresh(&self) {
-        let rows = self.rows.borrow();
-        let mut totals = vec![0_usize; self.groups.len()];
-        let mut shown = vec![0_usize; self.groups.len()];
-        for row in rows.values() {
-            totals[row.content.group] += 1;
-            // `get_visible` is the row's own flag; `is_visible` also requires visible ancestors,
-            // which would keep a hidden section's rows from ever counting and the section hidden.
-            if row.energy.root.get_visible() {
-                shown[row.content.group] += 1;
+        let pending = std::mem::take(&mut *self.pending.borrow_mut());
+        if !pending.is_empty() {
+            self.note_top();
+            self.store.extend_from_slice(&pending);
+        }
+        if self.top_before.take() == Some(true) {
+            self.keep_top();
+        }
+        let entries = self.entries.borrow();
+        let query = self.query.borrow();
+        let mut totals = vec![0_usize; self.specs.len()];
+        let mut shown = vec![0_usize; self.specs.len()];
+        for entry in entries.values() {
+            let group = entry.item.group();
+            totals[group] += 1;
+            if entry.item.matches(&query) {
+                shown[group] += 1;
             }
         }
-        let tab = self
-            .tabs
-            .options
-            .iter()
-            .position(|option| option.is_active())
-            .unwrap_or(0);
+        let tab = self.tab.get();
         let mut any = false;
-        for (index, group) in self.groups.iter().enumerate() {
-            let visible = shown[index] > 0 && (tab == 0 || tab == index + 1);
-            any |= visible;
-            group.section.set_visible(visible);
-            group
-                .header
-                .set_text(&format!("{} · {}", self.specs[index].name, shown[index]));
-            self.tabs.set_label(
-                index + 1,
-                &format!("{} {}", self.specs[index].name, totals[index]),
-            );
+        for (index, spec) in self.specs.iter().enumerate() {
+            any |= shown[index] > 0 && (tab == 0 || tab == index + 1);
             self.tabs
-                .set_option_visible(index + 1, !self.specs[index].optional || totals[index] > 0);
+                .set_label(index + 1, &format!("{} {}", spec.name, totals[index]));
+            self.tabs
+                .set_option_visible(index + 1, !spec.optional || totals[index] > 0);
         }
-        self.tabs.set_label(0, &format!("All {}", rows.len()));
+        for header in self.headers.borrow().values() {
+            let group = header.group.get();
+            if group < self.specs.len() {
+                header.show(self.specs, group, &shown);
+            }
+        }
+        *self.shown.borrow_mut() = shown;
+        self.tabs.set_label(0, &format!("All {}", entries.len()));
         self.eyebrow
-            .set_text(&format!("{} · {}", self.eyebrow_text, rows.len()));
-        self.empty.set_visible(!any);
-        if !any {
+            .set_text(&format!("{} · {}", self.eyebrow_text, entries.len()));
+        if any {
+            self.body.set_visible_child(&self.list_page);
+        } else {
             set_text(
                 &self.empty,
-                if self.query.borrow().is_empty() {
+                if query.is_empty() {
                     self.empty_text
                 } else {
                     "Nothing matches the filter"
                 },
             );
+            self.body.set_visible_child(&self.empty);
         }
     }
 }
@@ -320,9 +613,9 @@ struct ListRow {
     bar_slot: gtk::Revealer,
     fraction: Tween,
     value: gtk::Label,
+    specs: &'static [GroupSpec],
     has_column: bool,
     content: RowContent,
-    search_text: String,
 }
 
 fn row_revealer(
@@ -337,7 +630,7 @@ fn row_revealer(
 }
 
 impl ListRow {
-    fn new(has_column: bool) -> Self {
+    fn new(specs: &'static [GroupSpec], has_column: bool) -> Self {
         let card = gtk::Box::new(gtk::Orientation::Horizontal, 10);
         card.add_css_class("build-row");
         card.set_hexpand(true);
@@ -423,19 +716,39 @@ impl ListRow {
             bar_slot,
             fraction,
             value,
+            specs,
             has_column,
-            content: RowContent {
-                group: usize::MAX,
-                look: RowLook::Idle,
-                title: String::new(),
-                tag: String::new(),
-                column: String::new(),
-                detail: String::new(),
-                value: String::new(),
-                fraction: -1.0,
-            },
-            search_text: String::new(),
+            content: RowContent::unbound(),
         }
+    }
+
+    /// Shows a newly bound item's content at once, without the state-change transitions.
+    fn show(&mut self, content: RowContent) {
+        self.set_transitions(0);
+        self.fraction.jump(content.fraction);
+        self.apply(content);
+        self.set_transitions(ROW_TRANSITION_MS);
+    }
+
+    fn set_transitions(&self, duration: u32) {
+        self.marker.set_transition_duration(duration);
+        for slot in [&self.column_slot, &self.detail_slot, &self.bar_slot] {
+            slot.set_transition_duration(duration);
+        }
+    }
+
+    /// Lets go of the item the row showed, so the widget can be reused for another. The text
+    /// stays in `content`, matching the labels, so the next item only rewrites what differs.
+    fn clear(&mut self) {
+        if self.content.look == RowLook::Active {
+            self.energy.stop();
+        }
+        if let Some(spec) = self.specs.get(self.content.group) {
+            self.energy.root.remove_css_class(theme::tone(spec.tone));
+        }
+        self.card.remove_css_class(self.content.look.class());
+        self.content.group = usize::MAX;
+        self.content.look = RowLook::Idle;
     }
 
     fn apply(&mut self, content: RowContent) {
@@ -444,6 +757,15 @@ impl ListRow {
         // lands at once instead of sliding up from the last transfer's.
         if previous.fraction != content.fraction {
             self.fraction.set(content.fraction);
+        }
+        // The group's tone colours the row's dot.
+        if previous.group != content.group {
+            if let Some(spec) = self.specs.get(previous.group) {
+                self.energy.root.remove_css_class(theme::tone(spec.tone));
+            }
+            if let Some(spec) = self.specs.get(content.group) {
+                self.energy.root.add_css_class(theme::tone(spec.tone));
+            }
         }
         if previous.look != content.look || previous.group == usize::MAX {
             self.card.remove_css_class(previous.look.class());
@@ -475,7 +797,6 @@ impl ListRow {
             set_text(&self.title, &content.title);
             set_text(&self.column, &content.column);
             self.title.set_tooltip_text(Some(&content.title));
-            self.search_text = format!("{}\n{}", content.title, content.column).to_lowercase();
         }
         if previous.tag != content.tag {
             set_text(&self.tag, &content.tag);
@@ -488,9 +809,5 @@ impl ListRow {
             set_text(&self.value, &content.value);
         }
         self.content = content;
-    }
-
-    fn matches(&self, query: &str) -> bool {
-        query.is_empty() || self.search_text.contains(query)
     }
 }

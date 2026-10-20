@@ -243,7 +243,16 @@
               accounts that do not expose usage are omitted, not treated as refresh errors.
               Actual refresh and credential failures remain available as diagnostics.
               omp runs `omp usage --json` from PATH; claude reads Claude Code's existing
-              OAuth login. Empty disables collection.
+              OAuth login without renewing or modifying it. Successful Claude reports are
+              saved per account and organization in Island's encrypted database, without
+              credentials. A matching local identity restores the last report on startup;
+              environment-token logins need an online profile lookup to establish identity.
+              Restored reports are marked cached until verified, or stale after a failed
+              refresh, with their original fetch time. Passed reset times remain unverified;
+              cached data never implies a quota reset or generates usage alerts.
+              Expired-login warnings are logged once until the failure changes or clears.
+              Credential renewal is picked up on the next poll or `island ctl ai refresh`.
+              Empty disables collection.
             '';
           };
           disabledLimits = lib.mkOption {

@@ -1,3 +1,4 @@
+mod cache;
 mod detail;
 mod format;
 mod harness;

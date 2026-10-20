@@ -2,17 +2,20 @@ use std::time::Duration;
 
 use serde_json::Value;
 
-use super::state::{Credits, Severity, Source, SourceReport};
+use super::state::{Credits, Provider, Severity, Source, SourceReport};
 
 mod claude;
 mod omp;
 
 const TIMEOUT: Duration = Duration::from_secs(20);
 
-pub(super) fn fetch(source: Source) -> Result<SourceReport, String> {
+pub(super) fn fetch(
+    source: Source,
+    publish_cached: impl FnOnce(Option<String>, Option<Provider>),
+) -> Result<SourceReport, String> {
     match source {
         Source::Omp => omp::fetch(),
-        Source::Claude => claude::fetch(),
+        Source::Claude => claude::fetch(publish_cached),
     }
 }
 

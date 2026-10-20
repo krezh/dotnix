@@ -15,7 +15,7 @@ use super::{
     notify,
     settings::Settings,
     sources,
-    state::{Source, SourceReport, State},
+    state::{Provider, Source, SourceReport, State},
 };
 use crate::{features::Feed, supervisor::Ended};
 
@@ -23,6 +23,7 @@ const TICK: Duration = Duration::from_secs(5);
 
 enum Message {
     Refresh,
+    Snapshot(Option<String>, Option<Provider>),
     Read(Source, Result<SourceReport, String>),
 }
 
@@ -52,7 +53,10 @@ fn begin(state: &mut State, settings: &Settings, sender: &Sender<Message>) -> us
         if let Err(error) = thread::Builder::new()
             .name(format!("ai-{}", source.name()))
             .spawn(move || {
-                let _ = replies.send(Message::Read(source, sources::fetch(source)));
+                let result = sources::fetch(source, |identity, snapshot| {
+                    let _ = replies.send(Message::Snapshot(identity, snapshot));
+                });
+                let _ = replies.send(Message::Read(source, result));
             })
         {
             let _ = sender.send(Message::Read(
@@ -94,6 +98,10 @@ fn work(
                 pending.store(false, Ordering::Relaxed);
                 queued = true;
             }
+            Ok(Message::Snapshot(identity, snapshot)) => {
+                tracker.restore_claude(&mut state, identity.as_deref(), snapshot, settings);
+                changed = true;
+            }
             Ok(Message::Read(source, result)) => {
                 match &result {
                     Ok(report) => debug!(
@@ -102,7 +110,15 @@ fn work(
                         issues = report.issues.len(),
                         "AI usage refreshed"
                     ),
-                    Err(error) => warn!(source = source.name(), "AI usage refresh failed: {error}"),
+                    Err(error) => {
+                        let repeated = source == Source::Claude
+                            && state.issues.iter().any(|issue| {
+                                issue.source == source && issue.message == *error
+                            });
+                        if !repeated {
+                            warn!(source = source.name(), "AI usage refresh failed: {error}");
+                        }
+                    }
                 }
                 let notices = tracker.apply(&mut state, source, result, settings);
                 in_flight = in_flight.saturating_sub(1);

@@ -15,7 +15,7 @@ use crate::{
     },
     features::PanelCx,
     panel::Block,
-    theme::{RED, SUBTEXT1, TEAL, YELLOW},
+    theme::{OVERLAY2, RED, SUBTEXT1, TEAL, YELLOW},
 };
 
 fn compact(text: &str, max: usize) -> Cow<'_, str> {
@@ -35,15 +35,16 @@ fn identity(provider: &Provider) -> String {
 
 fn footer(provider: &Provider, now: i64) -> Vec<Part> {
     let mut cues: Vec<(Option<u32>, SharedString)> = Vec::new();
-    if provider.stale {
-        cues.push((Some(YELLOW), "Stale · refresh failed".into()));
-    }
+    cues.push((
+        if provider.freshness.is_fresh() { None } else { Some(YELLOW) },
+        format::freshness(provider.freshness).into(),
+    ));
     let exhausted = provider
         .limits
         .iter()
         .filter(|limit| limit.severity == Severity::Exhausted)
         .count();
-    if exhausted > 0 {
+    if exhausted > 0 && provider.freshness.is_fresh() {
         cues.push((
             Some(RED),
             if exhausted == 1 {
@@ -52,7 +53,7 @@ fn footer(provider: &Provider, now: i64) -> Vec<Part> {
                 format!("{exhausted} limits exhausted").into()
             },
         ));
-    } else if !provider.stale {
+    } else if provider.freshness.is_fresh() {
         if let Some(at) = provider
             .limits
             .iter()
@@ -128,15 +129,19 @@ fn tile(provider: &Provider, providers: &[&Provider], p: &PanelCx<'_>, now: i64)
                 .iter()
                 .map(|limit| {
                     let label = compact(&limit.label, 16);
-                    let mount = match limit.resets_at {
-                        Some(at) => format!("{label} · {}", format::countdown(at, now)),
-                        None => format!("{label} · reset unknown"),
-                    };
+                    let mount = format!(
+                        "{label} · {}",
+                        format::reset(limit.resets_at, provider.freshness, now),
+                    );
                     Volume {
                         mount: mount.into(),
                         usage: format::percent(limit.used).into(),
                         fraction: (limit.used / 100.0).clamp(0.0, 1.0) as f32,
-                        color: format::quota_color(limit),
+                        color: if provider.freshness.is_fresh() {
+                            format::quota_color(limit)
+                        } else {
+                            OVERLAY2
+                        },
                         id: limit.id.clone().into(),
                     }
                 })
@@ -214,7 +219,7 @@ pub(super) fn blocks(ai: &Ai, state: &State, view: &View, p: &PanelCx<'_>, now: 
                 .map(|provider| {
                     count += 1;
                     refreshed = refreshed.min(provider.fetched_at);
-                    stale |= provider.stale;
+                    stale |= !provider.freshness.is_fresh();
                     vec![tile(provider, &providers, p, now)]
                 })
                 .collect();

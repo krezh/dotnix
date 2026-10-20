@@ -415,6 +415,13 @@ impl DownloadsCard {
     }
 }
 
+/// A nix warning without its `warning:` prefix, which the card's heading already says.
+pub(crate) fn warning_text(warning: &str) -> &str {
+    warning
+        .strip_prefix("warning:")
+        .map_or(warning, str::trim_start)
+}
+
 /// A revealer around `child` that starts `revealed`.
 fn revealer(
     child: &impl IsA<gtk::Widget>,
@@ -509,20 +516,33 @@ impl WarningsCard {
         card
     }
 
-    /// A copy with the same warnings for the failure column. It stops taking the column's spare
-    /// height, so the error card above it can, and grows with its content up to a cap instead.
+    /// A copy with the same warnings for the failure column.
     pub(crate) fn compact_copy(&self) -> Rc<Self> {
-        let copy = Self::new();
-        copy.root.set_vexpand(false);
-        copy.scroll.set_vexpand(false);
-        copy.scroll.set_propagate_natural_height(true);
-        copy.scroll.set_max_content_height(220);
+        let texts = self
+            .labels
+            .borrow()
+            .iter()
+            .map(|line| line.text().to_string())
+            .collect::<Vec<_>>();
+        let copy = Self::compact(&texts);
         copy.reveal.set_reveal_child(self.reveal.reveals_child());
-        for line in self.labels.borrow().iter() {
-            copy.push(&line.text());
-        }
         copy.sync();
         copy
+    }
+
+    /// A card holding `warnings` for a column it shares. It stops taking the column's spare
+    /// height, so the card above it can, and grows with its content up to a cap instead.
+    pub(crate) fn compact(warnings: &[String]) -> Rc<Self> {
+        let card = Self::new();
+        card.root.set_vexpand(false);
+        card.scroll.set_vexpand(false);
+        card.scroll.set_propagate_natural_height(true);
+        card.scroll.set_max_content_height(220);
+        for warning in warnings {
+            card.push(warning_text(warning));
+        }
+        card.sync();
+        card
     }
 
     /// Adds warnings not seen before; nix repeats some across evaluation and build. Pass only
@@ -530,10 +550,7 @@ impl WarningsCard {
     pub(crate) fn extend(&self, warnings: &[String]) {
         let mut added = false;
         for warning in warnings {
-            let text = warning
-                .strip_prefix("warning:")
-                .map_or(warning.as_str(), str::trim_start);
-            if let Some(row) = self.push(text) {
+            if let Some(row) = self.push(warning_text(warning)) {
                 fade_in(&row);
                 added = true;
             }

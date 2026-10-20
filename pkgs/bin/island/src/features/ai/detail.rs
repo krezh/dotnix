@@ -1,6 +1,6 @@
 use super::{
     format,
-    state::{Limit, Provider, Severity},
+    state::{Freshness, Limit, Provider, Severity},
     view::Account,
 };
 use crate::{
@@ -14,8 +14,12 @@ fn body(text: impl Into<gpui::SharedString>) -> Block {
     Block::Text(Text::new(Tone::Body, text))
 }
 
-fn quota(account_id: &str, limit: &Limit, now: i64) -> Block {
-    let color = format::quota_color(limit);
+fn quota(account_id: &str, limit: &Limit, freshness: Freshness, now: i64) -> Block {
+    let color = if freshness.is_fresh() {
+        format::quota_color(limit)
+    } else {
+        OVERLAY2
+    };
     let mut label = Text::new(Tone::Body, limit.label.clone());
     label.spans.push((
         0..limit.label.len(),
@@ -43,18 +47,21 @@ fn quota(account_id: &str, limit: &Limit, now: i64) -> Block {
         }),
     ];
     if limit.severity != Severity::Ok {
-        content.push(Block::caption(format::status(limit.severity), color));
+        content.push(Block::caption(
+            if freshness.is_fresh() {
+                format::status(limit.severity).to_owned()
+            } else {
+                format!("Last reported: {}", format::status(limit.severity))
+            },
+            color,
+        ));
     }
+    let reset = format::reset(limit.resets_at, freshness, now);
     content.push(body(match limit.resets_at {
-        Some(at) if at <= now => format!("Reset due now · {}", format::exact(at)),
-        Some(at) => format!(
-            "Resets in {} · {}",
-            format::countdown(at, now),
-            format::exact(at)
-        ),
-        None => "Reset time not reported".to_owned(),
+        Some(at) => format!("{reset} · {}", format::exact(at)),
+        None => reset,
     }));
-    if let Some(at) = limit.exhausts_at {
+    if let Some(at) = limit.exhausts_at.filter(|_| freshness.is_fresh()) {
         content.push(body(if at <= now {
             format!("Projected exhaustion due now · {}", format::exact(at))
         } else {
@@ -100,10 +107,13 @@ pub(super) fn blocks(provider: &Provider, _p: &PanelCx<'_>, now: i64) -> Vec<Blo
             OVERLAY2,
         ),
     ];
-    if provider.stale {
-        identity.push(Block::caption("Stale data", YELLOW));
+    identity.push(Block::caption(
+        format::freshness(provider.freshness),
+        if provider.freshness.is_fresh() { SUBTEXT1 } else { YELLOW },
+    ));
+    if !provider.freshness.is_fresh() {
         identity.push(body(
-            "The latest refresh failed; quotas are from the last successful report.",
+            "Quotas are from the last successful report and are not verified.",
         ));
     }
     if let Some(credits) = &provider.credits {
@@ -135,7 +145,7 @@ pub(super) fn blocks(provider: &Provider, _p: &PanelCx<'_>, now: i64) -> Vec<Blo
             blocks.push(Block::Row(
                 limits
                     .iter()
-                    .map(|limit| quota(&account_id, limit, now))
+                    .map(|limit| quota(&account_id, limit, provider.freshness, now))
                     .collect(),
             ));
         }

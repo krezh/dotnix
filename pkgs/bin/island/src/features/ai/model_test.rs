@@ -27,7 +27,7 @@ fn report(source: Source, used: f64) -> SourceReport {
                 expires_at: Some(NOW + 86_400_000),
             }),
             fetched_at: NOW,
-            stale: false,
+            freshness: Freshness::Fresh,
         }],
         issues: Vec::new(),
     }
@@ -121,17 +121,12 @@ fn failed_source_retains_data_and_does_not_announce_false_recovery() {
         .iter()
         .find(|provider| provider.source == Source::Omp)
         .unwrap();
-    assert!(stale.stale);
+    assert_eq!(stale.freshness, Freshness::Stale);
     assert_eq!(stale.limits[0].used, 100.0);
     assert_eq!(stale.credits.as_ref().unwrap().count, 2);
-    assert!(
-        !state
-            .providers
-            .iter()
-            .find(|provider| provider.source == Source::Claude)
-            .unwrap()
-            .stale
-    );
+    assert!(state.providers.iter()
+        .find(|provider| provider.source == Source::Claude)
+        .unwrap().freshness.is_fresh());
     assert_eq!(state.issues.len(), 1);
     assert!(
         tracker
@@ -144,14 +139,9 @@ fn failed_source_retains_data_and_does_not_announce_false_recovery() {
             .is_empty()
     );
     assert!(state.issues.is_empty());
-    assert!(
-        !state
-            .providers
-            .iter()
-            .find(|provider| provider.source == Source::Omp)
-            .unwrap()
-            .stale
-    );
+    assert!(state.providers.iter()
+        .find(|provider| provider.source == Source::Omp)
+        .unwrap().freshness.is_fresh());
 }
 
 #[test]
@@ -309,7 +299,7 @@ fn partial_account_failure_keeps_that_accounts_last_quota() {
             .is_empty()
     );
     assert_eq!(state.providers[0].limits[0].severity, Severity::Exhausted);
-    assert!(state.providers[0].stale);
+    assert_eq!(state.providers[0].freshness, Freshness::Stale);
     assert_eq!(
         tracker
             .apply(
@@ -419,4 +409,70 @@ fn disabling_a_limit_is_silent_and_other_limits_still_notify() {
     );
     assert_eq!(exhausted.len(), 1);
     assert!(exhausted[0].critical);
+}
+
+#[test]
+fn restored_snapshot_is_historical_until_a_successful_refresh() {
+    let mut tracker = Tracker::default();
+    let mut state = State::default();
+    let settings = settings();
+    let mut cached = report(Source::Claude, 100.0).providers.remove(0);
+    let identity = cached.id.clone();
+    cached.limits[0].resets_at = Some(NOW - 1);
+    cached.limits[0].exhausts_at = Some(NOW - 100);
+    tracker.restore_claude(&mut state, Some(&identity), Some(cached), &settings);
+    assert_eq!(state.providers[0].freshness, Freshness::Cached);
+    assert_eq!(state.providers[0].fetched_at, NOW);
+    assert_eq!(state.providers[0].limits[0].used, 100.0);
+    assert_eq!(state.providers[0].limits[0].resets_at, Some(NOW - 1));
+    assert_eq!(state.providers[0].limits[0].exhausts_at, None);
+    assert!(tracker.apply(&mut state, Source::Claude,
+        Err("Claude login expired".into()), &settings).is_empty());
+    assert_eq!(state.providers[0].freshness, Freshness::Stale);
+    assert_eq!(state.providers[0].limits[0].used, 100.0);
+    assert!(tracker.apply(&mut state, Source::Claude,
+        Ok(report(Source::Claude, 0.0)), &settings).is_empty());
+    assert_eq!(state.providers[0].freshness, Freshness::Fresh);
+    assert_eq!(state.providers[0].limits[0].used, 0.0);
+    assert!(state.issues.is_empty());
+}
+
+#[test]
+fn selecting_another_claude_account_removes_old_usage_even_without_a_snapshot() {
+    let mut tracker = Tracker::default();
+    let mut state = State::default();
+    let settings = settings();
+    tracker.apply(&mut state, Source::Omp, Ok(report(Source::Omp, 20.0)), &settings);
+    tracker.apply(&mut state, Source::Claude, Ok(report(Source::Claude, 100.0)), &settings);
+    tracker.restore_claude(&mut state, Some("other-account"), None, &settings);
+    assert!(state.providers.iter().all(|provider| provider.source == Source::Omp));
+    assert!(tracker.apply(&mut state, Source::Claude, Err("offline".into()), &settings).is_empty());
+    assert!(state.providers.iter().all(|provider| provider.source == Source::Omp));
+
+    let mut cached = report(Source::Claude, 60.0).providers.remove(0);
+    cached.id = "other-account".into();
+    tracker.restore_claude(&mut state, Some("other-account"), Some(cached), &settings);
+    let restored = state.providers.iter().find(|provider| provider.source == Source::Claude).unwrap();
+    assert_eq!(restored.id, "other-account");
+    assert_eq!(restored.limits[0].used, 60.0);
+    tracker.restore_claude(&mut state, None, None, &settings);
+    assert!(state.providers.iter().all(|provider| provider.source == Source::Omp));
+}
+
+#[test]
+fn repeated_snapshot_reads_never_replace_live_usage_or_revive_a_failed_refresh() {
+    let mut tracker = Tracker::default();
+    let mut state = State::default();
+    let settings = settings();
+    let cached = report(Source::Claude, 100.0).providers.remove(0);
+    let identity = cached.id.clone();
+    tracker.apply(&mut state, Source::Claude, Ok(report(Source::Claude, 25.0)), &settings);
+    tracker.restore_claude(&mut state, Some(&identity), Some(cached.clone()), &settings);
+    assert_eq!(state.providers[0].limits[0].used, 25.0);
+    assert_eq!(state.providers[0].freshness, Freshness::Fresh);
+    tracker.apply(&mut state, Source::Claude, Err("expired".into()), &settings);
+    tracker.restore_claude(&mut state, Some(&identity), Some(cached), &settings);
+    assert_eq!(state.providers[0].limits[0].used, 25.0);
+    assert_eq!(state.providers[0].freshness, Freshness::Stale);
+    assert_eq!(state.issues[0].message, "expired");
 }

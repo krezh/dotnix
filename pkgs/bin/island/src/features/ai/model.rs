@@ -2,7 +2,7 @@ use std::{collections::HashMap, sync::Arc};
 
 use super::{
     settings::Settings,
-    state::{Issue, Limit, Provider, Severity, Source, SourceReport, State},
+    state::{Freshness, Issue, Limit, Provider, Severity, Source, SourceReport, State},
 };
 
 #[derive(Debug, PartialEq)]
@@ -88,6 +88,38 @@ fn notice(provider: &Provider, limit: &Limit, before: Severity) -> Option<Notice
 }
 
 impl Tracker {
+    pub(super) fn restore_claude(
+        &mut self,
+        state: &mut State,
+        identity: Option<&str>,
+        snapshot: Option<Provider>,
+        settings: &Settings,
+    ) {
+        Arc::make_mut(&mut state.providers).retain(|provider| {
+            provider.source != Source::Claude || Some(provider.id.as_str()) == identity
+        });
+        self.previous.retain(|(source, id, _), _| {
+            *source != Source::Claude || Some(id.as_str()) == identity
+        });
+        if state.providers.iter().any(|provider| provider.source == Source::Claude) {
+            return;
+        }
+        if let Some(mut provider) = snapshot.filter(|provider| {
+            provider.source == Source::Claude && Some(provider.id.as_str()) == identity
+        }) {
+            provider.freshness = Freshness::Cached;
+            for limit in &mut provider.limits {
+                limit.exhausts_at = None;
+            }
+            self.apply(
+                state,
+                Source::Claude,
+                Ok(SourceReport { providers: vec![provider], issues: Vec::new() }),
+                settings,
+            );
+        }
+    }
+
     pub(super) fn apply(
         &mut self,
         state: &mut State,
@@ -104,7 +136,7 @@ impl Tracker {
                     .iter_mut()
                     .filter(|provider| provider.source == source)
                 {
-                    provider.stale = true;
+                    provider.freshness = Freshness::Stale;
                 }
                 issues.push(Issue {
                     source,
@@ -130,7 +162,7 @@ impl Tracker {
                     .any(|issue| issue.account == previous.account)
             {
                 let mut stale = previous.clone();
-                stale.stale = true;
+                stale.freshness = Freshness::Stale;
                 report.providers.push(stale);
             }
         }
@@ -143,14 +175,14 @@ impl Tracker {
             {
                 provider.limits.retain(|limit| !limits.contains(&limit.id));
             }
-            if !provider.stale {
+            if provider.freshness.is_fresh() {
                 for limit in &mut provider.limits {
                     project(limit, provider.fetched_at, settings);
                 }
             }
             for limit in &provider.limits {
                 let key = (source, provider.id.clone(), limit.id.clone());
-                if settings.alerts.notifications && !provider.stale {
+                if settings.alerts.notifications && provider.freshness.is_fresh() {
                     if let Some(before) = self
                         .previous
                         .get(&key)
@@ -161,7 +193,9 @@ impl Tracker {
                         }
                     }
                 }
-                next.insert(key, limit.severity);
+                if provider.freshness != Freshness::Cached {
+                    next.insert(key, limit.severity);
+                }
             }
         }
         self.previous

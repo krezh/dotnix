@@ -68,7 +68,9 @@ pub(super) fn system_button(ai: &Ai, state: &State, p: &PanelCx<'_>) -> IconButt
     let worst = state.worst();
     let badge = if ai.settings.widget.show_badge {
         worst
-            .map(|(_, limit)| format::badge(limit, format::now(), true).into())
+            .map(|(provider, limit)| {
+                format::badge(limit, provider.freshness, format::now(), true).into()
+            })
             .or_else(|| (!state.issues.is_empty()).then(|| "!".into()))
     } else {
         None

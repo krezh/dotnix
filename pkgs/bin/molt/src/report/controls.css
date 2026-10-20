@@ -35,6 +35,34 @@
   margin-top: 10px;
 }
 
+/* The subtitle's warnings pill: a tinted chip that brightens on hover and while open. */
+.report-warnings-pill,
+.report-warnings-pill:hover,
+.report-warnings-pill:active,
+.report-warnings-pill:focus {
+  background-color: color-mix(in srgb, var(--tone) 14%, transparent);
+  background-image: none;
+  border: 0;
+  border-radius: 6px;
+  box-shadow: none;
+  color: var(--tone);
+  font-size: 11px;
+  font-weight: 600;
+  min-height: 0;
+  outline: none;
+  padding: 2px 9px 2px 7px;
+  transition: background-color 120ms ease;
+}
+
+.report-warnings-pill:hover,
+.report-warnings-pill.open {
+  background-color: color-mix(in srgb, var(--tone) 26%, transparent);
+}
+
+.report-warnings-pill:focus-visible {
+  box-shadow: inset 0 0 0 1px var(--focus);
+}
+
 .report-service-units > flowboxchild {
   background-color: transparent;
   background-image: none;

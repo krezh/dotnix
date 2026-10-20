@@ -11,6 +11,27 @@
   color: var(--overlay1);
 }
 
+/* The list view and its own row and header nodes stay bare over the panel; rows sit 4px apart. */
+.build-list,
+.build-list > row,
+.build-list > row:hover,
+.build-list > row:selected,
+.build-list > header {
+  background-color: transparent;
+  background-image: none;
+  box-shadow: none;
+  outline: none;
+  padding: 0;
+}
+
+.build-list > row {
+  padding-bottom: 4px;
+}
+
+.build-list {
+  padding-bottom: 6px;
+}
+
 /* "Show all" is a quiet text toggle, not an action button. */
 .build-link-button,
 .build-link-button:hover,

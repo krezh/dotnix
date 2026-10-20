@@ -273,3 +273,18 @@
   font-size: 12px;
   padding: 8px 12px;
 }
+
+/* ── Warnings ──────────────────────────────────────────────────────────────── */
+
+.report-warnings-list {
+  padding: 12px 8px 6px 8px;
+}
+
+.report-warning {
+  padding: 8px 12px;
+}
+
+.report-warning-text {
+  font-family: var(--mono-font);
+  font-size: 11.5px;
+}

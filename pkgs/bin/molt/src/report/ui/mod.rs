@@ -5,6 +5,7 @@ pub(crate) mod config_diff;
 mod lists;
 pub(crate) mod release_notes;
 mod side;
+mod warnings;
 
 use std::cell::OnceCell;
 use std::rc::Rc;
@@ -30,6 +31,7 @@ use config_diff::show_config_diff;
 use lists::{Entry, change_list, store_path_footer};
 use release_notes::show_changelog;
 use side::side_column;
+use warnings::warnings_switch;
 
 /// The change list's tab, filter text, and scroll offset, kept across a visit to a changelog or
 /// a file diff.
@@ -67,14 +69,12 @@ pub(crate) fn show_report(
 
     let timeline = BuildTimeline::new(&state.appearance.sans_font);
     timeline.set_complete();
-    root.append(
-        &phase_header(
-            ready_title(report.target),
-            &report_subtitle(&report),
-            &timeline,
-        )
-        .root,
+    let header = phase_header(
+        ready_title(report.target),
+        &report_subtitle(&report),
+        &timeline,
     );
+    root.append(&header.root);
 
     let navigation = ReportNavigation {
         window: window.clone(),
@@ -84,6 +84,11 @@ pub(crate) fn show_report(
     };
     let entrance = restore.is_none();
     let packages = changes_panel(&navigation, restore);
+    let main: gtk::Widget = if report.warnings.is_empty() {
+        packages.upcast()
+    } else {
+        warnings_switch(&header.subtitle_row, &packages, &report.warnings, &state).upcast()
+    };
 
     let activity = switch_animation(
         report.target.name(),
@@ -100,7 +105,7 @@ pub(crate) fn show_report(
     surface.add_child(&side);
     surface.add_child(&activity.root);
     surface.set_visible_child(&side);
-    root.append(&phase_grid(&packages, &surface));
+    root.append(&phase_grid(&main, &surface));
 
     let requires_confirmation = requires_host_switch_confirmation(
         report.target,

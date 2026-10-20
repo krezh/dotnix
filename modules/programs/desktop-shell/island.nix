@@ -28,7 +28,7 @@
             "notifications"
             "session"
           ];
-          spacing = 4;
+          spacing = 0;
         };
         features = {
           ai.disabledLimits.omp.google-antigravity = [ "3p-weekly:weekly" ];

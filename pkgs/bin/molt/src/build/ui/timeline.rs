@@ -386,6 +386,8 @@ fn draw_step_glow(context: &gtk::cairo::Context, glow: &gtk::cairo::ImageSurface
 pub(crate) struct PhaseHeader {
     pub(crate) root: gtk::Box,
     pub(crate) title: MorphLabel,
+    /// The subtitle's row, where a screen can add a pill after it.
+    pub(crate) subtitle_row: gtk::Box,
 }
 
 pub(crate) fn phase_header(title: &str, subtitle: &str, timeline: &BuildTimeline) -> PhaseHeader {
@@ -396,11 +398,17 @@ pub(crate) fn phase_header(title: &str, subtitle: &str, timeline: &BuildTimeline
     text.set_valign(gtk::Align::Center);
     let title = MorphLabel::new(title, &["phase-title"], 0.0);
     text.append(&title.root);
-    text.append(&label(subtitle, &["phase-subtitle"], 0.0));
+    let subtitle_row = gtk::Box::new(gtk::Orientation::Horizontal, 10);
+    subtitle_row.append(&label(subtitle, &["phase-subtitle"], 0.0));
+    text.append(&subtitle_row);
     root.append(&text);
     timeline.root.set_halign(gtk::Align::End);
     root.append(&timeline.root);
-    PhaseHeader { root, title }
+    PhaseHeader {
+        root,
+        title,
+        subtitle_row,
+    }
 }
 
 fn advance_timeline(current: f64, target: f64, elapsed: f64) -> f64 {

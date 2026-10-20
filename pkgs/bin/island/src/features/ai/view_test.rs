@@ -1,5 +1,5 @@
 use super::*;
-use crate::features::ai::state::{Credits, Limit, Severity};
+use crate::features::ai::state::{Credits, Freshness, Limit, Severity};
 
 fn provider(source: Source, id: &str, used: f64) -> Provider {
     Provider {
@@ -21,7 +21,7 @@ fn provider(source: Source, id: &str, used: f64) -> Provider {
         }],
         credits: None,
         fetched_at: 1000,
-        stale: false,
+        freshness: Freshness::Fresh,
     }
 }
 
@@ -159,7 +159,7 @@ fn empty_accounts_are_hidden_but_zero_usage_and_saved_credits_remain_visible() {
         expires_at: Some(5000),
     });
     let mut zero_usage = provider(Source::Omp, "zero", 0.0);
-    zero_usage.stale = true;
+    zero_usage.freshness = Freshness::Stale;
     let mut credits = provider(Source::Omp, "credits", 0.0);
     credits.limits.clear();
     credits.credits = Some(Credits {
@@ -208,4 +208,41 @@ fn an_account_becoming_empty_closes_its_detail_and_returns_at_the_end_when_popul
             (Source::Omp, "one".to_owned())
         ]
     );
+}
+
+#[test]
+fn unverified_badges_preserve_usage_instead_of_counting_down_to_reset() {
+    use crate::features::ai::format;
+
+    let mut account = provider(Source::Claude, "cached", 87.0);
+    let limit = &mut account.limits[0];
+    limit.resets_at = Some(120_000);
+    limit.severity = Severity::Exhausted;
+    for freshness in [Freshness::Cached, Freshness::Stale] {
+        let before_reset = format::badge(limit, freshness, 60_000, true);
+        let at_reset = format::badge(limit, freshness, 120_000, true);
+        let after_reset = format::badge(limit, freshness, 180_000, true);
+        assert_eq!(before_reset, at_reset);
+        assert_eq!(at_reset, after_reset);
+        assert!(after_reset.contains(&format::percent(87.0)));
+        assert_ne!(
+            before_reset,
+            format::badge(limit, Freshness::Fresh, 60_000, true),
+        );
+    }
+    assert_eq!(limit.used, 87.0);
+}
+
+#[test]
+fn unverified_reset_changes_at_the_boundary_without_claiming_a_new_window() {
+    use crate::features::ai::format;
+
+    let at = Some(120_000);
+    for freshness in [Freshness::Cached, Freshness::Stale] {
+        let before = format::reset(at, freshness, 119_999);
+        let passed = format::reset(at, freshness, 120_000);
+        assert_ne!(before, passed);
+        assert_eq!(passed, format::reset(at, freshness, 180_000));
+        assert_ne!(passed, format::reset(at, Freshness::Fresh, 120_000));
+    }
 }

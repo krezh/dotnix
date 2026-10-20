@@ -30,23 +30,26 @@ jobs:
     permissions:
       contents: read
     outputs:
-      nix: ${{ steps.filter.outputs.nix }}
+      nix: ${{ steps.filter.outputs.all_changed_and_modified_files_count != '0' }}
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          fetch-depth: 0
           persist-credentials: false
 
       - name: Filter Nix changes
-        uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
+        uses: tj-actions/changed-files@9426d40962ed5378910ee2e21d5f8c6fcbf2dd96 # v47.0.6
         id: filter
         with:
-          filters: |
-            nix:
-              - "**/*.nix"
-              - "pkgs/**"
-              - "flake.nix"
-              - "flake.lock"
+          base_sha: ${{ github.event_name == 'push' && github.event.before || '' }}
+          skip_initial_fetch: true
+          output_renamed_files_as_deleted_and_added: true
+          files: |
+            **/*.nix
+            pkgs/**
+            flake.nix
+            flake.lock
 
   generate-matrix:
     name: Generate Build Matrix

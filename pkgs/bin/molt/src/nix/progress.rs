@@ -17,9 +17,11 @@ pub(crate) struct NixBuildProgress {
     pub(crate) active_transfers: usize,
     pub(crate) copy_paths: NixProgressMetric,
     pub(crate) copy_bytes: NixProgressMetric,
+    /// Paths nix newly planned since the previous snapshot.
     pub(crate) planned: HashSet<String>,
-    /// Finished builds and downloads by store path, with how long each ran.
+    /// Builds and downloads finished since the previous snapshot, with how long each ran.
     pub(crate) completed: HashMap<String, Duration>,
+    /// Paths newly failed since the previous snapshot.
     pub(crate) failed: HashSet<String>,
     pub(crate) items: Vec<NixActivityProgress>,
 }
@@ -75,6 +77,9 @@ pub(crate) struct NixProgressTracker {
     transfers_finished: bool,
     /// `progress.warnings` as a set, for deduplication.
     known_warnings: HashSet<String>,
+    /// Every path planned or failed so far; snapshots carry only the new ones.
+    known_planned: HashSet<String>,
+    known_failed: HashSet<String>,
 }
 
 impl NixProgressTracker {
@@ -186,8 +191,10 @@ impl NixProgressTracker {
                             && let Some(path) = item.path
                         {
                             if activity.metric.failed > 0 {
-                                self.progress.failed.insert(path);
-                            } else if !self.progress.failed.contains(&path) {
+                                if self.known_failed.insert(path.clone()) {
+                                    self.progress.failed.insert(path);
+                                }
+                            } else if !self.known_failed.contains(&path) {
                                 let ran = item.started.map_or(Duration::ZERO, |at| at.elapsed());
                                 self.progress.completed.insert(path, ran);
                             }
@@ -247,7 +254,10 @@ impl NixProgressTracker {
                 if level == Some(0) {
                     for path in failed_derivations(&strip_ansi(message)) {
                         self.progress.completed.remove(&path);
-                        changed |= self.progress.failed.insert(path);
+                        if self.known_failed.insert(path.clone()) {
+                            self.progress.failed.insert(path);
+                            changed = true;
+                        }
                     }
                 }
                 if level == Some(1) {
@@ -291,8 +301,10 @@ impl NixProgressTracker {
                     if path.starts_with("/nix/store/")
                         && !path.contains(char::is_whitespace)
                         && (fetched_paths || path.ends_with(".drv"))
+                        && self.known_planned.insert(path.to_owned())
                     {
-                        changed |= self.progress.planned.insert(path.to_owned());
+                        self.progress.planned.insert(path.to_owned());
+                        changed = true;
                     }
                 }
                 if !changed {
@@ -304,6 +316,7 @@ impl NixProgressTracker {
         Some(())
     }
 
+    /// The progress so far, with planned, completed and failed paths since the last snapshot.
     pub(crate) fn snapshot(&mut self) -> NixBuildProgress {
         self.progress.builds = self.metric(104);
         self.progress.downloads = self.metric(101);
@@ -320,7 +333,11 @@ impl NixProgressTracker {
             .rev()
             .filter_map(|id| self.work_items.get(id).cloned())
             .collect();
-        self.progress.clone()
+        let snapshot = self.progress.clone();
+        self.progress.planned.clear();
+        self.progress.completed.clear();
+        self.progress.failed.clear();
+        snapshot
     }
 
     /// Whether the last running file transfer stopped since the last call.

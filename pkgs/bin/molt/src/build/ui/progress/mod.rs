@@ -5,7 +5,9 @@ mod evaluation;
 mod format;
 mod work;
 
-pub(crate) use cards::{DownloadsCard, EvaluationCard, ProgressCard, WarningsCard, card};
+pub(crate) use cards::{
+    DownloadsCard, EvaluationCard, ProgressCard, WarningsCard, card, warning_text,
+};
 pub(crate) use evaluation::{
     INPUT_GROUPS, fail_open_fetches, input_rows, last_evaluation, remember_evaluation,
 };

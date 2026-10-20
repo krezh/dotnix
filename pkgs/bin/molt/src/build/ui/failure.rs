@@ -45,7 +45,10 @@ fn log_tail(log: &str, max_lines: usize) -> (&str, usize) {
 }
 
 /// A button that copies `text()` to the clipboard and briefly confirms it.
-fn copy_button(caption: &'static str, text: impl Fn() -> String + 'static) -> gtk::Button {
+pub(crate) fn copy_button(
+    caption: &'static str,
+    text: impl Fn() -> String + 'static,
+) -> gtk::Button {
     let caption_label = MorphLabel::new(caption, &[], 0.5);
     let button = gtk::Button::new();
     button.set_child(Some(&caption_label.root));

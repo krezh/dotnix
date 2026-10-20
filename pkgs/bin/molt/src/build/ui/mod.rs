@@ -252,9 +252,10 @@ pub(crate) fn start_build(
         let mut finished = None;
         let mut consumed = false;
         let mut inputs_changed = false;
-        // Snapshots are cumulative, so only the newest one per command matters each tick.
+        // Evaluation snapshots are cumulative, so only the newest matters each tick; build
+        // snapshots carry only the paths that changed, so each one is folded in.
         let mut evaluation_update = None;
-        let mut build_update = None;
+        let mut build_updates = Vec::new();
         for event in receiver.try_iter() {
             consumed = true;
             match event {
@@ -282,7 +283,7 @@ pub(crate) fn start_build(
                 BuildEvent::Update(BuildUpdate::Nix(BuildPhase::Evaluate, update)) => {
                     evaluation_update = Some(update);
                 }
-                BuildEvent::Update(BuildUpdate::Nix(_, update)) => build_update = Some(update),
+                BuildEvent::Update(BuildUpdate::Nix(_, update)) => build_updates.push(update),
             }
         }
         if let Some(update) = evaluation_update {
@@ -294,10 +295,10 @@ pub(crate) fn start_build(
             inputs_changed = true;
         }
         let mut work_changed = Vec::new();
-        if let Some(update) = build_update {
+        for update in build_updates {
             screen.warnings.extend(&update.warnings[build_warnings..]);
             build_warnings = update.warnings.len();
-            work_changed = plan.update(&update, now);
+            work_changed.extend(plan.update(&update, now));
             progress = *update;
         }
 
@@ -477,18 +478,18 @@ fn show_failure(
         screen.input_list.refresh();
         Rc::clone(&screen.input_list)
     } else {
+        // The last snapshot still lists the work in flight, which `interrupt` sends back to Queued.
         failed.progress.failed.extend(derivations.iter().cloned());
+        let mut changed = failed.plan.update(failed.progress, now);
+        changed.extend(failed.plan.interrupt());
         let mut known = failed
-            .progress
-            .failed
-            .iter()
-            .filter(|path| path.ends_with(".drv") && !derivations.contains(path))
-            .cloned()
+            .plan
+            .failed()
+            .filter(|path| path.ends_with(".drv") && !derivations.iter().any(|named| named == path))
+            .map(str::to_owned)
             .collect::<Vec<_>>();
         known.sort();
         derivations.extend(known);
-        let mut changed = failed.plan.update(failed.progress, now);
-        changed.extend(failed.plan.interrupt());
         for path in &changed {
             if let Some(content) = failed.plan.content(path, now) {
                 screen.work_list.upsert(path, content);

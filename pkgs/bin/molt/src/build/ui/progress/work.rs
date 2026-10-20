@@ -149,8 +149,8 @@ pub(crate) struct WorkSummary {
 #[derive(Default)]
 pub(crate) struct WorkPlan {
     items: HashMap<String, WorkItem>,
-    /// How many items share each display name; shared names get a store-hash tag.
-    names: HashMap<String, usize>,
+    /// The paths holding each display name; shared names get a store-hash tag.
+    names: HashMap<String, Vec<String>>,
 }
 
 impl WorkPlan {
@@ -233,18 +233,12 @@ impl WorkPlan {
         }
         added.sort_by_cached_key(|path| (activity_name(path), path.clone()));
         for path in &added {
-            let name = activity_name(path);
-            let count = self.names.entry(name.clone()).or_default();
-            *count += 1;
+            let holders = self.names.entry(activity_name(path)).or_default();
             // The first holder of a name now needs its tag too.
-            if *count == 2 {
-                changed.extend(
-                    self.items
-                        .keys()
-                        .filter(|other| *other != path && activity_name(other) == name)
-                        .cloned(),
-                );
+            if let [first] = holders.as_slice() {
+                changed.push(first.clone());
             }
+            holders.push(path.clone());
         }
         changed.extend(added);
         changed
@@ -261,7 +255,7 @@ impl WorkPlan {
         if self
             .names
             .get(&content.title)
-            .is_some_and(|count| *count > 1)
+            .is_some_and(|holders| holders.len() > 1)
         {
             content.tag = store_hash(path)
                 .map(|hash| format!("· {hash}"))
@@ -281,6 +275,13 @@ impl WorkPlan {
             }
         }
         moved
+    }
+
+    pub(crate) fn failed(&self) -> impl Iterator<Item = &str> {
+        self.items
+            .iter()
+            .filter(|(_, item)| item.state == WorkState::Failed)
+            .map(|(path, _)| path.as_str())
     }
 
     /// Paths of builds in flight, the only rows whose text changes with time alone.

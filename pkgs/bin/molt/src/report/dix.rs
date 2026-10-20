@@ -41,6 +41,7 @@ pub(crate) fn report_from_diff(
         operational_impact: Ok(Vec::new()),
         config: Ok(Arc::default()),
         built_in: None,
+        warnings: Vec::new(),
     })
 }
 

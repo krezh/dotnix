@@ -1,8 +1,8 @@
 use std::{cmp::Ordering, sync::Arc};
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq, Hash)]
 #[serde(rename_all = "lowercase")]
 pub enum Source {
     Omp,
@@ -18,7 +18,7 @@ impl Source {
     }
 }
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, Copy, Debug, Default, Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Severity {
     #[default]
     Ok,
@@ -26,7 +26,7 @@ pub enum Severity {
     Exhausted,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
 pub struct Limit {
     pub(super) id: String,
     pub(super) label: String,
@@ -38,13 +38,27 @@ pub struct Limit {
     pub(super) exhausts_at: Option<i64>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
 pub struct Credits {
     pub(super) count: u64,
     pub(super) expires_at: Option<i64>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum Freshness {
+    Cached,
+    #[default]
+    Fresh,
+    Stale,
+}
+
+impl Freshness {
+    pub(super) fn is_fresh(self) -> bool {
+        self == Self::Fresh
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
 pub struct Provider {
     pub(super) source: Source,
     pub(super) id: String,
@@ -55,7 +69,8 @@ pub struct Provider {
     pub(super) limits: Vec<Limit>,
     pub(super) credits: Option<Credits>,
     pub(super) fetched_at: i64,
-    pub(super) stale: bool,
+    #[serde(skip)]
+    pub(super) freshness: Freshness,
 }
 
 impl Provider {

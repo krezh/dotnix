@@ -1,6 +1,6 @@
 use chrono::{Local, TimeZone, Utc};
 
-use super::state::{Limit, Provider, Severity, Source};
+use super::state::{Freshness, Limit, Provider, Severity, Source};
 use crate::theme::{BLUE, CRITICAL, GREEN, MAUVE, YELLOW};
 
 pub(super) fn now() -> i64 {
@@ -94,7 +94,30 @@ pub(super) fn glyph(provider: &Provider) -> &'static str {
     }
 }
 
-pub(super) fn badge(limit: &Limit, now: i64, countdown: bool) -> String {
+pub(super) fn freshness(freshness: Freshness) -> &'static str {
+    match freshness {
+        Freshness::Cached => "Cached · pending verification",
+        Freshness::Fresh => "Fresh",
+        Freshness::Stale => "Stale · refresh failed",
+    }
+}
+
+pub(super) fn reset(at: Option<i64>, freshness: Freshness, now: i64) -> String {
+    match at {
+        Some(at) if at <= now && !freshness.is_fresh() => {
+            "Reset passed · refresh required".to_owned()
+        }
+        Some(at) if at <= now => "Reset due now".to_owned(),
+        Some(at) if freshness.is_fresh() => format!("Resets in {}", countdown(at, now)),
+        Some(at) => format!("Recorded reset in {} · unverified", countdown(at, now)),
+        None => "Reset time not reported".to_owned(),
+    }
+}
+
+pub(super) fn badge(limit: &Limit, freshness: Freshness, now: i64, countdown: bool) -> String {
+    if !freshness.is_fresh() {
+        return format!("{}?", percent(limit.used));
+    }
     if countdown {
         if let Some(at) = limit.resets_at {
             return self::countdown(at, now);

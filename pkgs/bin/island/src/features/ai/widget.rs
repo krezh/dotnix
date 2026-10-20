@@ -20,45 +20,56 @@ pub(super) fn tooltip(ai: &Ai, state: &State) -> String {
     if ai.settings.sources.is_empty() {
         return "AI usage · disabled".to_owned();
     }
-    let mut text = String::with_capacity(ai.settings.sources.len() * 64);
+    let now = format::now();
+    let mut text = String::with_capacity(ai.settings.sources.len() * 96);
     for &source in &ai.settings.sources {
-        let mut count = 0;
-        let mut severity = Severity::Ok;
-        let mut has_limits = false;
-        let mut stale = false;
         for provider in state
             .providers
             .iter()
             .filter(|provider| provider.source == source && !provider.is_empty())
         {
-            count += 1;
-            severity = severity.max(provider.severity());
-            has_limits |= !provider.limits.is_empty();
-            stale |= provider.stale;
+            if !text.is_empty() {
+                text.push('\n');
+            }
+            let _ = write!(text, "{} · {}", source.name(), provider.name);
+            if !provider.account.is_empty() {
+                let _ = write!(text, " · {}", provider.account);
+            }
+            let _ = write!(
+                text,
+                " · {} · Last success: {}",
+                format::freshness(provider.freshness),
+                format::ago(provider.fetched_at, now),
+            );
+            if provider.freshness.is_fresh() {
+                if provider.limits.is_empty() {
+                    text.push_str(" · saved resets");
+                } else {
+                    let _ = write!(text, " · {}", format::status(provider.severity()));
+                }
+            } else {
+                for limit in &provider.limits {
+                    let _ = write!(
+                        text,
+                        "\n  {} · {} last reported",
+                        limit.label,
+                        format::percent(limit.used),
+                    );
+                    if limit.resets_at.is_some_and(|at| at <= now) {
+                        let _ = write!(
+                            text,
+                            " · {}",
+                            format::reset(limit.resets_at, provider.freshness, now),
+                        );
+                    }
+                }
+            }
         }
-        if count == 0 {
-            continue;
-        }
-        let has_issues = state.issues.iter().any(|issue| issue.source == source);
-        let status = match severity {
-            Severity::Exhausted => "quota exhausted",
-            Severity::High => "high usage",
-            Severity::Ok if has_limits => "within quota",
-            Severity::Ok => "saved resets",
-        };
-        if !text.is_empty() {
-            text.push('\n');
-        }
-        text.push_str(source.name());
-        if count > 1 {
-            let _ = write!(text, " · {count} accounts");
-        }
-        text.push_str(" · ");
-        text.push_str(status);
-        if stale {
-            text.push_str(" · stale");
-        } else if has_issues {
-            text.push_str(" · source issue");
+        for issue in state.issues.iter().filter(|issue| issue.source == source) {
+            if !text.is_empty() {
+                text.push('\n');
+            }
+            let _ = write!(text, "{} · {}", source.name(), issue.message);
         }
     }
     if text.is_empty() {
@@ -91,7 +102,7 @@ fn account_icon(provider: &Provider, tint: u32, w: &WidgetCx<'_>) -> AnyElement 
 }
 
 fn provider_badge(provider: &Provider, now: i64, w: &WidgetCx<'_>) -> AnyElement {
-    let tint = if provider.stale {
+    let tint = if !provider.freshness.is_fresh() {
         OVERLAY2
     } else {
         format::color(provider.severity())
@@ -106,6 +117,7 @@ fn provider_badge(provider: &Provider, now: i64, w: &WidgetCx<'_>) -> AnyElement
         .when_some(provider.headline(), |badge, limit| {
             badge.child(format::badge(
                 limit,
+                provider.freshness,
                 now,
                 limit.severity == Severity::Exhausted,
             ))
@@ -140,7 +152,13 @@ pub(super) fn widget(ai: &Ai, state: &State, w: &WidgetCx<'_>) -> AnyElement {
                     SUBTEXT1
                 }
             },
-            |(_, limit)| format::color(limit.severity),
+            |(provider, limit)| {
+                if provider.freshness.is_fresh() {
+                    format::color(limit.severity)
+                } else {
+                    OVERLAY2
+                }
+            },
         );
         let selected_icon = match worst {
             Some((provider, _)) => account_icon(provider, tint, w),
@@ -151,8 +169,8 @@ pub(super) fn widget(ai: &Ai, state: &State, w: &WidgetCx<'_>) -> AnyElement {
         };
         base = base.text_color(rgb(tint)).child(selected_icon);
         if ai.settings.widget.show_badge {
-            if let Some((_, limit)) = worst {
-                base = base.child(format::badge(limit, now, true));
+            if let Some((provider, limit)) = worst {
+                base = base.child(format::badge(limit, provider.freshness, now, true));
             } else if !state.issues.is_empty() {
                 base = base.child("!");
             }

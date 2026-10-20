@@ -106,6 +106,8 @@ pub(crate) struct Report {
     pub(crate) config: Result<Arc<ConfigDiff>, String>,
     /// Wall time from evaluation start to the finished comparison, when built this session.
     pub(crate) built_in: Option<Duration>,
+    /// Warnings nix printed while evaluating and building, each once, in the order first seen.
+    pub(crate) warnings: Vec<String>,
 }
 
 #[cfg(test)]

@@ -4,7 +4,7 @@ use serde_json::Value;
 
 use super::{TIMEOUT, credits, number, percentage, severity, text, timestamp};
 use crate::{
-    features::ai::state::{Issue, Limit, Provider, Source, SourceReport},
+    features::ai::state::{Freshness, Issue, Limit, Provider, Source, SourceReport},
     run,
 };
 
@@ -67,7 +67,7 @@ fn parse(value: &Value, now: i64) -> Result<SourceReport, String> {
                 limits: Vec::new(),
                 credits: report.get("resetCredits").and_then(credits),
                 fetched_at,
-                stale: false,
+                freshness: Freshness::Fresh,
             });
             index
         });

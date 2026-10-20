@@ -604,14 +604,14 @@ fn strip_markup(markup: &str) -> String {
 /// Strips trailing permalink anchors such as `<a href="#...">¶</a>` or `#` and trailing
 /// pilcrow symbols from heading markup.
 fn strip_heading_permalinks(markup: &mut String) {
-    if let Some(open) = markup.rfind("<a href=\"#") {
-        if markup[open..].ends_with("</a>") {
-            let inner = &markup[open + 10..markup.len() - 4];
-            if let Some(content_start) = inner.find('>') {
-                let text = &inner[content_start + 1..];
-                if text == "¶" || text == "#" || text.is_empty() {
-                    markup.truncate(open);
-                }
+    if let Some(open) = markup.rfind("<a href=\"#")
+        && markup[open..].ends_with("</a>")
+    {
+        let inner = &markup[open + 10..markup.len() - 4];
+        if let Some(content_start) = inner.find('>') {
+            let text = &inner[content_start + 1..];
+            if text == "¶" || text == "#" || text.is_empty() {
+                markup.truncate(open);
             }
         }
     }

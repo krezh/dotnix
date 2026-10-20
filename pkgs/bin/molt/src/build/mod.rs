@@ -1,6 +1,7 @@
 mod target;
 pub(crate) mod ui;
 
+use std::cell::RefCell;
 use std::env;
 use std::fs;
 use std::path::PathBuf;
@@ -73,6 +74,19 @@ pub(crate) fn build_report(
     progress: impl Fn(BuildUpdate),
 ) -> Result<Report, String> {
     let started = std::time::Instant::now();
+    // Kept for the report; snapshots list each command's warnings so far, and nix repeats some
+    // across evaluation and build.
+    let warnings = RefCell::new(Vec::<String>::new());
+    let nix_progress = |phase: BuildPhase, update: NixBuildProgress| {
+        let mut known = warnings.borrow_mut();
+        for warning in &update.warnings {
+            if !known.contains(warning) {
+                known.push(warning.clone());
+            }
+        }
+        drop(known);
+        progress(BuildUpdate::Nix(phase, Box::new(update)));
+    };
     let flake = target.flake(config)?;
     let attr = match target {
         Target::HomeManager => format!(".#homeConfigurations.{flake}.activationPackage"),
@@ -90,7 +104,7 @@ pub(crate) fn build_report(
         "nix eval drvPath",
         cancellation,
         EVALUATION_TIMEOUT,
-        |update| progress(BuildUpdate::Nix(BuildPhase::Evaluate, Box::new(update))),
+        |update| nix_progress(BuildPhase::Evaluate, update),
     )?;
     let derivation = String::from_utf8_lossy(&derivation.stdout);
     let derivation = derivation.trim();
@@ -120,7 +134,7 @@ pub(crate) fn build_report(
         "nix build",
         cancellation,
         BUILD_TIMEOUT,
-        |update| progress(BuildUpdate::Nix(BuildPhase::Build, Box::new(update))),
+        |update| nix_progress(BuildPhase::Build, update),
     )?;
     let output = PathBuf::from(
         String::from_utf8_lossy(&build.stdout)
@@ -175,6 +189,7 @@ pub(crate) fn build_report(
         report.operational_impact = activation::analyze_nixos(&report.output, cancellation);
     }
     report.built_in = Some(started.elapsed());
+    report.warnings = warnings.into_inner();
     Ok(report)
 }
 
