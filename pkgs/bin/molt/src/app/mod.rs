@@ -247,7 +247,9 @@ fn build_ui(app: &gtk::Application) -> UiController {
             }
             KeyAction::Switch => {
                 let confirmation = key_state.switch_confirmations.borrow().first().cloned();
-                if key_state.operation.get() == Operation::Idle
+                if key_state.operation.get() == Operation::Idle && key_state.is_home() {
+                    key_state.activate_home_action('s')
+                } else if key_state.operation.get() == Operation::Idle
                     && let Some(confirmation) = confirmation
                 {
                     confirmation.key_press();

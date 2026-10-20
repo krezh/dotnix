@@ -1,6 +1,6 @@
 //! The report screen, and the changelog and file-diff screens it opens.
 
-mod changelog;
+pub(crate) mod changelog;
 pub(crate) mod config_diff;
 mod lists;
 pub(crate) mod release_notes;

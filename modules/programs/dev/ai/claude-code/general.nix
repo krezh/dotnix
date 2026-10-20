@@ -35,6 +35,7 @@
             Use the `memini` MCP plugin for all memory operations instead.
             If memini is unavailable, proceed without persistent memory rather than falling back to the file-based system.
         '';
+        configDir = "${config.xdg.configHome}/claude";
 
         settings = {
           theme = "dark";

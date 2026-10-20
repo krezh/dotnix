@@ -14,6 +14,7 @@ const CSS: &str = concat!(
     include_str!("../activation/style.css"),
     include_str!("../report/style.css"),
     include_str!("../watchlist/style.css"),
+    include_str!("../search/style.css"),
     include_str!("../ui/tones.css"),
 );
 
@@ -24,6 +25,7 @@ const CONTROLS_CSS: &str = concat!(
     include_str!("../inputs/controls.css"),
     include_str!("../build/controls.css"),
     include_str!("../report/controls.css"),
+    include_str!("../search/controls.css"),
 );
 
 pub(super) fn load_css() {

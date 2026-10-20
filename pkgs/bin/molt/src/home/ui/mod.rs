@@ -16,10 +16,11 @@ use crate::home::system::{self, SystemStatus};
 use crate::inputs::ui::show_inputs;
 use crate::inputs::{self, FlakeInput};
 use crate::report::ui::show_report;
+use crate::search::ui::show_search;
 use crate::ui::EnergyOverlay;
 use crate::ui::theme;
 use crate::ui::{
-    MorphLabel, action_close_button, back_button, duration_text, fit_window, format_size,
+    FadeScroll, MorphLabel, action_close_button, back_button, duration_text, fit_window, format_size,
     format_timestamp, label, replace_screen, seconds_since, short_age, title,
 };
 use crate::watchlist::db::{open_db, summary};
@@ -80,7 +81,6 @@ pub(crate) fn show_home(
     };
 
     let preferred_width = 900 + if state.appearance.keybinds { 60 } else { 0 };
-    fit_window(window, &state, (preferred_width, 520), (720, 460));
 
     let home = gtk::Box::new(gtk::Orientation::Vertical, 14);
     home.add_css_class("home");
@@ -198,6 +198,23 @@ pub(crate) fn show_home(
     inputs_card.actions.append(&inputs_button);
     cards.push(inputs_card.root);
 
+    let search_card = home_card(
+        "Search",
+        "Packages, NixOS & Home Manager options",
+        "system-search-symbolic",
+        theme::ACCENT,
+    );
+    set_card_status(&search_card, "search.nixos.org", Some("muted"));
+    let (search_button, _) = home_card_action("Search", Some('S'), &state);
+    let search_window = window.clone();
+    let search_root = root.clone();
+    let search_state = Rc::clone(&state);
+    search_button.connect_clicked(move |_| {
+        show_search(&search_window, &search_root, Rc::clone(&search_state));
+    });
+    search_card.actions.append(&search_button);
+    cards.push(search_card.root);
+
     let cleanup_card = home_card(
         "Cleanup",
         "Generations, journals, caches, trash",
@@ -308,12 +325,24 @@ pub(crate) fn show_home(
         "report-close-label",
     ));
 
-    home.append(&dashboard);
-    let dashboard_spacer = gtk::Box::new(gtk::Orientation::Vertical, 0);
-    dashboard_spacer.set_vexpand(true);
-    home.append(&dashboard_spacer);
+    let dashboard_scroll = gtk::ScrolledWindow::new();
+    dashboard_scroll.add_css_class("see-through");
+    dashboard_scroll.set_policy(gtk::PolicyType::Never, gtk::PolicyType::Automatic);
+    dashboard_scroll.set_vexpand(true);
+    dashboard_scroll.set_propagate_natural_height(true);
+    dashboard_scroll.set_child(Some(&dashboard));
+    home.append(&FadeScroll::new(&dashboard_scroll));
     home.append(&footer);
     root.append(&home);
+
+    // Keep every card visible unless the monitor forces scrolling.
+    let (_, natural_height, _, _) = root.measure(gtk::Orientation::Vertical, preferred_width);
+    fit_window(
+        window,
+        &state,
+        (preferred_width, natural_height.max(520)),
+        (720, 460),
+    );
 
     let widgets = Rc::new(RepositoryWidgets {
         check: repository_check,

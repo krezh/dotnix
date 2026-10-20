@@ -9,6 +9,7 @@ mod home;
 mod inputs;
 mod nix;
 mod report;
+mod search;
 mod ui;
 mod watchlist;
 
