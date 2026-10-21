@@ -40,6 +40,12 @@
   },
   packageRules: [
     {
+      description: "Treat CachyOS kernel revisions as builds, not prereleases",
+      matchManagers: ["custom.regex"],
+      matchPackageNames: ["krezh/nix-cachyos-kernel"],
+      versioning: "regex:^v?(?<major>\\d+)\\.(?<minor>\\d+)\\.(?<patch>\\d+)-(?<build>\\d+)$",
+    },
+    {
       matchManagers: ["custom.regex"],
       matchFileNames: ["pkgs/**/*.nix"],
       postUpgradeTasks: {
@@ -75,7 +81,7 @@
       ignoreTests: false,
     },
     {
-      description: "Update flake.lock after bumping a flake input's semver tag",
+      description: "Update flake.lock after bumping a flake input's version tag",
       matchManagers: ["custom.regex"],
       matchFileNames: ["flake.nix"],
       postUpgradeTasks: {
