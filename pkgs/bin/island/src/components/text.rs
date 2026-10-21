@@ -12,13 +12,14 @@ use gpui::{
 use crate::{
     components::motion,
     theme::{ACCENT, CONTROL_ALPHA, FONT, SUBTEXT1, SURFACE1, TEXT, with_alpha},
-    ui::SMALL_SIZE,
+    ui::{SMALL_SIZE, TEXT_SIZE},
 };
 
 const CAPTION_SIZE: f32 = 12.0;
 /// A body line, so wrapped text keeps an even rhythm.
 pub const BODY_LINE: f32 = 17.0;
 pub const BODY_SIZE: f32 = SMALL_SIZE;
+const READING_LINE: f32 = 22.0;
 
 pub enum Tone {
     /// Names what follows.
@@ -29,6 +30,8 @@ pub enum Tone {
     Note,
     /// Running text, such as a message.
     Body,
+    /// Longer text meant to be read, such as a reply: larger, with room between its lines.
+    Reading,
 }
 
 #[derive(Clone, Copy, Default)]
@@ -52,6 +55,8 @@ pub struct Text {
     /// Longer text ends in an ellipsis.
     pub lines: Option<usize>,
     pub min_width: Option<f32>,
+    /// Longer lines wrap, or with `lines` end in an ellipsis, rather than widening what holds it.
+    pub max_width: Option<f32>,
 }
 
 impl Text {
@@ -63,6 +68,7 @@ impl Text {
             links: Vec::new(),
             lines: None,
             min_width: None,
+            max_width: None,
         }
     }
 }
@@ -154,6 +160,7 @@ fn styled(id: SharedString, text: Text) -> AnyElement {
 /// `id` keeps its morphing text and links apart from any other's.
 pub fn text(text: Text, id: SharedString) -> AnyElement {
     let min_width = text.min_width;
+    let max_width = text.max_width;
     let element = match text.tone {
         Tone::Heading => div()
             .text_size(px(SMALL_SIZE))
@@ -173,14 +180,21 @@ pub fn text(text: Text, id: SharedString) -> AnyElement {
             .text_size(px(SMALL_SIZE))
             .text_color(rgb(SUBTEXT1))
             .child(motion::text(id, text.text)),
-        Tone::Body => {
+        Tone::Body | Tone::Reading => {
             let lines = text.lines;
+            let reading = matches!(text.tone, Tone::Reading);
+            let (size, line) = if reading {
+                (TEXT_SIZE, READING_LINE)
+            } else {
+                (BODY_SIZE, BODY_LINE)
+            };
             div()
-                .line_height(px(BODY_LINE))
-                .text_size(px(BODY_SIZE))
+                .line_height(px(line))
+                .text_size(px(size))
+                .when(reading, |prose| prose.font_weight(FontWeight::NORMAL))
                 .when_some(lines, |body, lines| {
                     body.line_clamp(lines)
-                        .max_h(px(BODY_LINE * lines as f32))
+                        .max_h(px(line * lines as f32))
                         .overflow_hidden()
                         .text_ellipsis()
                 })
@@ -189,5 +203,6 @@ pub fn text(text: Text, id: SharedString) -> AnyElement {
     };
     element
         .when_some(min_width, |element, width| element.min_w(px(width)))
+        .when_some(max_width, |element, width| element.max_w(px(width)).truncate())
         .into_any_element()
 }

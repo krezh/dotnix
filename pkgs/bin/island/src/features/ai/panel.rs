@@ -1,32 +1,17 @@
 use super::{
-    Ai, detail, format, overview,
+    Ai, asking, chat, format, overview, sessions,
     state::{Severity, State},
-    view::View,
+    view::{Tab, View},
     widget,
 };
 use crate::{
     features::PanelCx,
     island::{Mode, Panel},
-    panel::{Block, Button, Header, IconButton, PanelView, on},
+    panel::{Block, Button, Header, IconButton, PanelView, Views, on},
 };
 
-pub(super) fn panel(ai: &Ai, state: &State, p: &PanelCx<'_>) -> Option<PanelView> {
-    let view = p.local::<View>()?;
-    let selected = view.selected(state);
-    let mut buttons = Vec::with_capacity(2);
-    if selected.is_some() {
-        buttons.push(Button {
-            id: "ai-back".into(),
-            label: "Back".into(),
-            active: false,
-            toggle: false,
-            fits: Vec::new(),
-            busy: false,
-            enabled: true,
-            on_click: p.on_local::<Ai>(|_, view| view.back()),
-        });
-    }
-    buttons.push(Button {
+fn usage(ai: &Ai, state: &State, view: &View, p: &PanelCx<'_>) -> (Vec<Button>, Vec<Block>) {
+    let buttons = vec![Button {
         id: "ai-refresh".into(),
         label: if state.refreshing {
             "Refreshing…"
@@ -40,27 +25,47 @@ pub(super) fn panel(ai: &Ai, state: &State, p: &PanelCx<'_>) -> Option<PanelView
         busy: state.refreshing,
         enabled: !ai.settings.sources.is_empty() && !state.refreshing,
         on_click: p.call(Ai::refresh),
-    });
-    let now = format::now();
-    let (title, blocks) = match selected {
-        Some(provider) => {
-            let mut blocks = detail::blocks(provider, p, now);
-            for issue in state.issues.iter().filter(|issue| {
-                issue.source == provider.source
-                    && (issue.account.is_empty() || issue.account == provider.account)
-            }) {
-                blocks.push(Block::note(issue.message.clone()));
-            }
-            (provider.name.clone(), blocks)
-        }
-        None => (
-            "AI usage".to_owned(),
-            overview::blocks(ai, state, view, p, now),
-        ),
+    }];
+    (buttons, overview::blocks(ai, state, view, format::now()))
+}
+
+pub(super) fn panel(ai: &Ai, state: &State, p: &PanelCx<'_>) -> Option<PanelView> {
+    let view = p.local::<View>()?;
+    let (buttons, blocks) = match view.tab {
+        Tab::Sessions => (Vec::new(), sessions::blocks(state, view, p)),
+        Tab::Chat => chat::panel(ai, state, view, p),
+        Tab::Usage => usage(ai, state, view, p),
     };
     Some(PanelView {
-        header: Header::Title(title.into(), buttons),
+        header: Header::Views(Views {
+            tabs: Tab::ALL.iter().map(|tab| tab.label().into()).collect(),
+            selected: Tab::ALL.iter().position(|tab| *tab == view.tab).unwrap_or(0),
+            on_select: p.on_local_with::<Ai, usize>(|_, view, index| {
+                view.tab = Tab::ALL[index.min(Tab::ALL.len() - 1)];
+            }),
+            buttons,
+        }),
         blocks,
+    })
+}
+
+/// The requests waiting on you, oldest on top, each until it is answered or runs out of time.
+pub(super) fn popup(state: &State, p: &PanelCx<'_>) -> Option<PanelView> {
+    let view = p.local::<View>()?;
+    if state.requests.is_empty() && view.leaving.is_empty() {
+        return None;
+    }
+    let waiting = state
+        .requests
+        .iter()
+        .map(|request| asking::frame(request, view, p, true, false));
+    let leaving = view
+        .leaving
+        .iter()
+        .map(|(request, _)| asking::frame(request, view, p, false, true));
+    Some(PanelView {
+        header: Header::None,
+        blocks: waiting.chain(leaving).collect(),
     })
 }
 

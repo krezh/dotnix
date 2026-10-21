@@ -1,5 +1,6 @@
 use super::*;
 use crate::features::ai::state::Credits;
+use std::sync::Arc;
 
 const NOW: i64 = 1_800_000_000_000;
 
@@ -21,6 +22,7 @@ fn report(source: Source, used: f64) -> SourceReport {
                 duration_ms: Some(18_000_000),
                 severity: Severity::Ok,
                 exhausts_at: None,
+                expected: None,
             }],
             credits: Some(Credits {
                 count: 2,
@@ -208,8 +210,9 @@ fn pace_requires_history_and_only_warns_before_the_reset() {
         .remove(0);
     projected.resets_at = Some(NOW + 7_200_000);
     projected.duration_ms = Some(10_000_000);
-    project(&mut projected, NOW, &settings);
-    assert_eq!(projected.exhausts_at, Some(NOW + 2_800_000));
+    project(&mut projected, NOW, &[], &settings);
+    let out = projected.exhausts_at.unwrap();
+    assert!((out - (NOW + 2_800_000)).abs() < 1_000);
     assert_eq!(projected.severity, Severity::High);
 
     let mut burst = report(Source::Omp, 50.0)
@@ -219,7 +222,7 @@ fn pace_requires_history_and_only_warns_before_the_reset() {
         .remove(0);
     burst.resets_at = Some(NOW + 9_500_000);
     burst.duration_ms = Some(10_000_000);
-    project(&mut burst, NOW, &settings);
+    project(&mut burst, NOW, &[], &settings);
     assert_eq!(burst.exhausts_at, None);
     assert_eq!(burst.severity, Severity::Ok);
 
@@ -230,7 +233,7 @@ fn pace_requires_history_and_only_warns_before_the_reset() {
         .remove(0);
     sustainable.resets_at = Some(NOW + 7_200_000);
     sustainable.duration_ms = Some(10_000_000);
-    project(&mut sustainable, NOW, &settings);
+    project(&mut sustainable, NOW, &[], &settings);
     assert_eq!(sustainable.exhausts_at, None);
     assert_eq!(sustainable.severity, Severity::Ok);
 }
@@ -243,7 +246,7 @@ fn authoritative_status_cannot_be_lowered_by_threshold_or_disabled_pace_alerts()
         .limits
         .remove(0);
     limit.severity = Severity::Exhausted;
-    project(&mut limit, NOW, &settings());
+    project(&mut limit, NOW, &[], &settings());
     assert_eq!(limit.severity, Severity::Exhausted);
     let mut tracker = Tracker::default();
     let mut state = State::default();
@@ -541,4 +544,52 @@ fn repeated_snapshot_reads_never_replace_live_usage_or_revive_a_failed_refresh()
     assert_eq!(state.providers[0].limits[0].used, 25.0);
     assert_eq!(state.providers[0].freshness, Freshness::Stale);
     assert_eq!(state.issues[0].message, "expired");
+}
+
+fn reading(id: &str, used: f64, resets_at: Option<i64>) -> Reading {
+    Reading {
+        id: id.to_owned(),
+        used,
+        resets_at,
+    }
+}
+
+#[test]
+fn the_status_line_moves_known_limits_and_keeps_the_rest_of_the_reading() {
+    let mut state = State::default();
+    let mut known = report(Source::Claude, 20.0);
+    known.providers[0].freshness = Freshness::Stale;
+    state.providers = Arc::new(known.providers);
+    let later = NOW + 60_000;
+    let moved = status_line(
+        &state,
+        &[
+            reading("five_hour", 42.5, Some(NOW + 7_200_000)),
+            reading("seven_day", 10.0, None),
+        ],
+        later,
+    )
+    .unwrap();
+    let provider = &moved.providers[0];
+    assert_eq!(provider.limits.len(), 1);
+    assert_eq!(provider.limits[0].used, 42.5);
+    assert_eq!(provider.limits[0].remaining, 57.5);
+    assert_eq!(provider.limits[0].resets_at, Some(NOW + 7_200_000));
+    assert_eq!(provider.fetched_at, later);
+    assert_eq!(provider.freshness, Freshness::Fresh);
+    assert_eq!(provider.plan, "Pro");
+    assert_eq!(provider.credits.as_ref().unwrap().count, 2);
+}
+
+#[test]
+fn the_status_line_needs_one_claude_account_to_lay_over() {
+    let readings = [reading("five_hour", 50.0, None)];
+    let mut state = State::default();
+    assert!(status_line(&state, &readings, NOW).is_none());
+    let mut two = report(Source::Claude, 20.0).providers;
+    let mut other = two[0].clone();
+    other.id = "anthropic:account-two".to_owned();
+    two.push(other);
+    state.providers = Arc::new(two);
+    assert!(status_line(&state, &readings, NOW).is_none());
 }

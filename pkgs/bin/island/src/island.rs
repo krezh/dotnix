@@ -40,7 +40,8 @@ use crate::{
     wm::{Monitor, Snapshot},
 };
 
-pub const SURFACE_W: f32 = 1100.0;
+/// Room for panels wider than the bar, such as a list beside text to read.
+pub const SURFACE_W: f32 = 1240.0;
 pub const SURFACE_H: f32 = 1000.0;
 
 pub(crate) const SHAPE_SPRING: SpringConfig = SpringConfig::new(420.0, 34.0, 1.0);
@@ -233,8 +234,14 @@ pub struct Island {
     monitor_stale: bool,
     menu: Option<Menu>,
     scroll: ScrollHandle,
+    /// Each column of a panel's side-by-side columns scrolls on its own.
+    columns: [ScrollHandle; panel::COLUMNS],
+    /// Set as a panel opens, so a column it follows starts at its end.
+    opened: Cell<bool>,
     sizes: [Measured; LAYERS],
     pending: [Cell<Option<u64>>; LAYERS],
+    /// The grab last asked of the shell.
+    grabbed: Grab,
     frozen: [Option<(u64, Shape)>; LAYERS],
     bar_size: Measured,
     sections: [Measured; 3],
@@ -335,8 +342,11 @@ impl Island {
             display: None,
             menu: None,
             scroll: ScrollHandle::new(),
+            columns: std::array::from_fn(|_| ScrollHandle::new()),
+            opened: Cell::new(false),
             sizes: std::array::from_fn(|_| measure::measured()),
             pending: std::array::from_fn(|_| Cell::new(None)),
+            grabbed: Grab::None,
             frozen: [None; LAYERS],
             bar_size: measure::measured(),
             sections: std::array::from_fn(|_| measure::measured()),
@@ -389,13 +399,26 @@ impl Island {
         }
     }
 
-    pub fn open_named(&mut self, name: &str, toggle: bool, cx: &mut Context<Self>) {
-        if let Some(kind) = Panel::parse(name) {
-            if toggle {
-                self.toggle(kind, cx);
-            } else {
-                self.set_mode(Mode::Open(kind), cx);
-            }
+    /// `view` turns a feature's panel to that view as it opens; a toggle that closes it ignores it.
+    pub fn open_named(
+        &mut self,
+        name: &str,
+        view: Option<&str>,
+        toggle: bool,
+        cx: &mut Context<Self>,
+    ) {
+        let Some(kind) = Panel::parse(name) else {
+            return;
+        };
+        let closing = toggle && self.mode == Mode::Open(kind);
+        if let (Some(view), Panel::Feature(feature), false) = (view, kind, closing) {
+            self.update_local(feature, |local| local.show(view));
+            self.local_changed(feature, cx);
+        }
+        if toggle {
+            self.toggle(kind, cx);
+        } else {
+            self.set_mode(Mode::Open(kind), cx);
         }
     }
 
@@ -537,6 +560,8 @@ impl Island {
             Mode::Open(Panel::Feature(open)) if open == name => self.retarget(),
             _ => {}
         }
+        // A view can take or let go of the keys as it changes, such as switching tabs.
+        self.sync_grab(cx);
         self.arm_due(cx);
         self.kick(cx);
     }
@@ -607,14 +632,13 @@ impl Island {
         if self.mode != Mode::Collapsed || self.fullscreen {
             return;
         }
-        let before = self.grab();
         let anchor = f32::from(anchor);
         match &mut self.menu {
             Some(menu) => menu.replace(source, root, pick, anchor),
             None => self.menu = Some(Menu::new(source, root, pick, anchor)),
         }
         debug!("menu opened");
-        self.sync_grab(before, cx);
+        self.sync_grab(cx);
         self.kick(cx);
     }
 
@@ -633,12 +657,11 @@ impl Island {
         if !self.menu_open() {
             return;
         }
-        let before = self.grab();
         if let Some(menu) = &mut self.menu {
             menu.close();
         }
         debug!("menu closed");
-        self.sync_grab(before, cx);
+        self.sync_grab(cx);
         if self.popup_waiting() {
             self.set_mode(Mode::Collapsed, cx);
         }
@@ -678,7 +701,14 @@ impl Island {
     }
 
     fn grab(&self) -> Grab {
-        if matches!(self.mode, Mode::Open(panel) if panel.takes_keyboard()) {
+        let wants_keys = |panel: Panel| {
+            panel.takes_keyboard()
+                && match panel {
+                    Panel::Feature(name) => self.local(name).is_none_or(|local| local.keyboard()),
+                    _ => true,
+                }
+        };
+        if matches!(self.mode, Mode::Open(panel) if wants_keys(panel)) {
             Grab::Keyboard
         } else if self.menu_open() {
             Grab::Clicks
@@ -687,9 +717,10 @@ impl Island {
         }
     }
 
-    fn sync_grab(&self, before: Grab, cx: &mut Context<Self>) {
+    fn sync_grab(&mut self, cx: &mut Context<Self>) {
         let grab = self.grab();
-        if grab != before {
+        if grab != self.grabbed {
+            self.grabbed = grab;
             cx.emit(IslandEvent::Grab(grab));
         }
     }
@@ -702,7 +733,6 @@ impl Island {
         if self.mode == mode {
             return;
         }
-        let before = self.grab();
         if let Mode::Open(Panel::Feature(name)) = self.mode {
             self.update_local(name, |local| local.panel_closed());
         }
@@ -712,13 +742,17 @@ impl Island {
         }
         debug!(from = ?self.mode, to = ?mode, "mode changed");
         self.mode = mode;
-        self.sync_grab(before, cx);
+        self.sync_grab(cx);
         if let Mode::Open(Panel::Feature(name)) = mode
             && let Some(feature) = self.features.get(name)
         {
             feature.panel_opened(cx);
         }
         self.scroll.set_offset(point(px(0.0), px(0.0)));
+        for column in &self.columns {
+            column.set_offset(point(px(0.0), px(0.0)));
+        }
+        self.opened.set(true);
         self.retarget();
 
         let refresh = match mode {
@@ -1233,6 +1267,8 @@ impl Island {
                 let frame = Frame {
                     hover: self.hovered,
                     scroll: &self.scroll,
+                    columns: &self.columns,
+                    opened: &self.opened,
                     island_h: h,
                     min_width: frozen.map_or(0.0, |(_, shape)| shape.w),
                     max_width: frozen.map_or(SURFACE_W - 2.0 * SHADOW_SIDE, |(_, shape)| shape.w),
@@ -1456,6 +1492,11 @@ impl Render for Island {
             })
             .map(|index| self.layer_element(index, (w, h), place, cx))
             .collect();
+        // A panel drawn just to be measured needs one more frame to take its new size, even once
+        // everything else has settled.
+        if self.pending.iter().any(|pending| pending.get().is_some()) {
+            window.request_animation_frame();
+        }
         if self.chrome.value() > 0.001 {
             layers.push(self.chrome_element(w, place, cx));
         }

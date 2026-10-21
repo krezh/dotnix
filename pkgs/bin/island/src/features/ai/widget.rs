@@ -4,15 +4,20 @@ use gpui::{AnyElement, FontWeight, MouseButton, div, prelude::*, px, rgb};
 
 use super::{
     Ai, format, logos,
+    session::Activity,
     settings::Display,
     state::{Provider, Severity, State},
 };
 use crate::{
     bar::{GLYPH, ICON_GAP},
-    components::{icon, tooltip::Tip},
+    components::{
+        button::{self, Badge},
+        icon,
+        tooltip::Tip,
+    },
     features::WidgetCx,
     island::Panel,
-    theme::{ACCENT, CRITICAL, OVERLAY2, SUBTEXT1},
+    theme::{ACCENT, CRITICAL, OVERLAY2, SUBTEXT1, YELLOW},
     ui::SMALL_SIZE,
 };
 
@@ -101,19 +106,38 @@ fn account_icon(provider: &Provider, tint: u32, w: &WidgetCx<'_>) -> AnyElement 
     }
 }
 
-fn provider_badge(provider: &Provider, now: i64, w: &WidgetCx<'_>) -> AnyElement {
+/// How many Claude Code requests wait on you, as a yellow count on a mark's corner.
+fn waiting(icon: AnyElement, state: &State) -> AnyElement {
+    let count = state.requests.len();
+    let badge = (count > 0).then(|| Badge {
+        text: count.to_string().into(),
+        color: YELLOW,
+    });
+    button::badged("bar-ai-waiting", icon, badge, false).into_any_element()
+}
+
+fn provider_badge(
+    provider: &Provider,
+    now: i64,
+    state: Option<&State>,
+    w: &WidgetCx<'_>,
+) -> AnyElement {
     let tint = if !provider.freshness.is_fresh() {
         OVERLAY2
     } else {
         format::color(provider.severity())
     };
+    let icon = account_icon(provider, tint, w);
     div()
         .flex_none()
         .flex()
         .items_center()
         .gap(px(ICON_GAP))
         .text_color(rgb(tint))
-        .child(account_icon(provider, tint, w))
+        .child(match state {
+            Some(state) => waiting(icon, state),
+            None => icon,
+        })
         .when_some(provider.headline(), |badge, limit| {
             badge.child(format::badge(
                 limit,
@@ -125,8 +149,14 @@ fn provider_badge(provider: &Provider, now: i64, w: &WidgetCx<'_>) -> AnyElement
         .into_any_element()
 }
 
+/// One mark for usage and Claude Code alike: a session at work runs the moving border, and
+/// requests waiting on you show as a count on the mark.
 pub(super) fn widget(ai: &Ai, state: &State, w: &WidgetCx<'_>) -> AnyElement {
     let now = format::now();
+    let working = state
+        .sessions
+        .iter()
+        .any(|session| session.activity == Activity::Working);
     let mut base = w
         .base("bar-ai")
         .gap(px(ICON_GAP))
@@ -139,7 +169,9 @@ pub(super) fn widget(ai: &Ai, state: &State, w: &WidgetCx<'_>) -> AnyElement {
         .filter(|provider| !provider.is_empty())
         .peekable();
     if ai.settings.widget.display == Display::Providers && providers.peek().is_some() {
-        base = base.children(providers.map(|provider| provider_badge(provider, now, w)));
+        base = base.children(providers.enumerate().map(|(index, provider)| {
+            provider_badge(provider, now, (index == 0).then_some(state), w)
+        }));
     } else {
         let worst = state.worst();
         let tint = worst.map_or_else(
@@ -167,7 +199,9 @@ pub(super) fn widget(ai: &Ai, state: &State, w: &WidgetCx<'_>) -> AnyElement {
                 None => div().child("AI").into_any_element(),
             },
         };
-        base = base.text_color(rgb(tint)).child(selected_icon);
+        base = base
+            .text_color(rgb(tint))
+            .child(waiting(selected_icon, state));
         if ai.settings.widget.show_badge {
             if let Some((provider, limit)) = worst {
                 base = base.child(format::badge(limit, provider.freshness, now, true));
@@ -176,7 +210,7 @@ pub(super) fn widget(ai: &Ai, state: &State, w: &WidgetCx<'_>) -> AnyElement {
             }
         }
     }
-    base.child(w.energy(state.refreshing))
+    base.child(w.energy(state.refreshing || working))
         .on_click(w.toggle(Panel::Feature("ai")))
         .on_mouse_down(MouseButton::Right, w.call(Ai::refresh))
         .into_any_element()

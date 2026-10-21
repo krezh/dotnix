@@ -84,6 +84,13 @@
               high_usage_threshold = cfg.features.ai.alerts.highUsageThreshold;
               pace_alerts = cfg.features.ai.alerts.paceAlerts;
             };
+            sessions = {
+              inherit (cfg.features.ai.sessions) enable;
+              answer_seconds = cfg.features.ai.sessions.answerSeconds;
+            };
+            chat = {
+              inherit (cfg.features.ai.chat) command model;
+            };
           };
           session = {
             inherit (cfg.features.session) actions confirm commands;
@@ -330,6 +337,30 @@
             type = lib.types.bool;
             default = true;
             description = "Show the reset countdown or usage badge in the AI widget's worst-alert mode.";
+          };
+          sessions.enable = lib.mkOption {
+            type = lib.types.bool;
+            default = true;
+            description = "Follow Claude Code sessions through their hooks and answer their permission requests and questions from island.";
+          };
+          sessions.answerSeconds = lib.mkOption {
+            type = lib.types.ints.between 5 3600;
+            default = 60;
+            description = "Seconds a request waits for an answer in island before it goes back to the terminal. Keep it below the hook's own timeout.";
+          };
+          chat.command = lib.mkOption {
+            type = lib.types.str;
+            default = "claude";
+            description = "Claude Code command the chat runs, by name on the PATH or as a full path.";
+          };
+          chat.model = lib.mkOption {
+            type = lib.types.enum [
+              "haiku"
+              "sonnet"
+              "opus"
+            ];
+            default = "sonnet";
+            description = "Model a new chat starts with.";
           };
         };
 

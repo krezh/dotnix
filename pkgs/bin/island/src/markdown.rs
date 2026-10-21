@@ -1,5 +1,6 @@
 //! Discord-style Markdown, as chat apps and bots pass it through. A card shows its text as one
-//! flowing line, so line breaks join the lines up; anything that does not close is kept as written.
+//! flowing line, so line breaks join the lines up; a longer reply keeps its paragraphs and fenced
+//! code. Anything that does not close is kept as written.
 
 use std::ops::Range;
 
@@ -62,6 +63,68 @@ pub fn parse(markdown: &str) -> Text {
     let line = flow(markdown);
     inline(&line, Style::default(), &mut text);
     text
+}
+
+/// One stretch of a longer reply.
+#[derive(Debug, PartialEq)]
+pub enum Block {
+    /// Its lines kept apart, with list items as bullets and headings in bold.
+    Paragraph(Text),
+    /// Kept line for line, with the language named after the opening fence, if any.
+    Code { language: String, lines: Vec<String> },
+}
+
+fn paragraph(lines: &mut Vec<String>, blocks: &mut Vec<Block>) {
+    if lines.is_empty() {
+        return;
+    }
+    let mut text = Text::default();
+    inline(&lines.join("\n"), Style::default(), &mut text);
+    blocks.push(Block::Paragraph(text));
+    lines.clear();
+}
+
+/// Paragraphs split at blank lines and fenced code; a fence still open, such as one arriving, runs
+/// to the end.
+pub fn blocks(markdown: &str) -> Vec<Block> {
+    let mut blocks = Vec::new();
+    let mut lines: Vec<String> = Vec::new();
+    let mut code: Option<(String, Vec<String>)> = None;
+    for raw in markdown.lines() {
+        if let Some(rest) = raw.trim_start().strip_prefix("```") {
+            match code.take() {
+                Some((language, lines)) => blocks.push(Block::Code { language, lines }),
+                None => {
+                    paragraph(&mut lines, &mut blocks);
+                    code = Some((rest.trim().to_owned(), Vec::new()));
+                }
+            }
+            continue;
+        }
+        if let Some((_, code_lines)) = &mut code {
+            code_lines.push(raw.trim_end().to_owned());
+            continue;
+        }
+        if raw.trim().is_empty() {
+            paragraph(&mut lines, &mut blocks);
+            continue;
+        }
+        let (line, heading) = unblock(raw);
+        let line = match line.strip_prefix("- ").or_else(|| line.strip_prefix("* ")) {
+            Some(item) => format!("• {}", item.trim_end()),
+            None => line.trim_end().to_owned(),
+        };
+        lines.push(if heading { format!("**{line}**") } else { line });
+    }
+    if let Some((language, code_lines)) = code {
+        paragraph(&mut lines, &mut blocks);
+        blocks.push(Block::Code {
+            language,
+            lines: code_lines,
+        });
+    }
+    paragraph(&mut lines, &mut blocks);
+    blocks
 }
 
 fn unblock(line: &str) -> (&str, bool) {

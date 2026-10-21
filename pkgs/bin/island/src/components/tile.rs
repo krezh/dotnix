@@ -1,17 +1,19 @@
 //! Boards of stat tiles, laid out in columns that end level.
 
 use gpui::{
-    AnyElement, Context, Div, FontWeight, SharedString, div, prelude::*, px, relative, rgb, rgba,
+    AnimationExt, AnyElement, Context, Div, FontWeight, SharedString, SpringAnimation, div,
+    prelude::*, px, relative, rgb, rgba,
 };
 
 use crate::{
     components::{
         card::{self, Stat},
-        chart::{Series, chart},
+        chart::{self, Guide, Series, chart},
         motion,
+        ring::{self, Ring, Rings},
         tooltip::Tooltips,
     },
-    island::Island,
+    island::{CONTENT_IN, Island},
     panel::Handler,
     theme::{OVERLAY2, SUBTEXT1, SURFACE1, TEXT, TINT, TRACK_ALPHA, with_alpha},
     ui::{self, Radius, SMALL_SIZE},
@@ -24,7 +26,14 @@ const PART_GAP: f32 = 9.0;
 const CHART_H: f32 = 40.0;
 const TALL_CHART_H: f32 = 56.0;
 const CAPTION: f32 = 12.0;
+const MARK_W: f32 = 2.0;
+/// How far a meter's mark reaches past its bar, above and below.
+const MARK_OVERHANG: f32 = 3.0;
 const LABEL_W: f32 = 70.0;
+const RINGS: f32 = 92.0;
+const RINGS_GAP: f32 = 14.0;
+const DOT: f32 = 6.0;
+const DETAIL: f32 = 10.5;
 const VALUE_W: f32 = 64.0;
 const CORE_COLUMNS: usize = 16;
 const CORE_GAP: f32 = 3.0;
@@ -47,6 +56,17 @@ pub struct Meter {
     pub fraction: f32,
     pub value: SharedString,
     pub color: u32,
+    /// A tick across the bar at this fraction, such as how much of a quota's window has passed.
+    pub mark: Option<f32>,
+}
+
+/// A line beside rings: a dot in its ring's color, what it is and its value, and a fainter detail
+/// under them.
+pub struct Row {
+    pub color: Option<u32>,
+    pub label: SharedString,
+    pub value: SharedString,
+    pub detail: SharedString,
 }
 
 pub struct Volume {
@@ -75,6 +95,13 @@ pub enum Part {
         series: Vec<Series>,
         grow: bool,
     },
+    /// One window filling as it passes, `slots` samples wide, against an optional dashed guide;
+    /// it takes the tile's spare height.
+    Window {
+        series: Vec<Series>,
+        slots: usize,
+        guide: Option<Guide>,
+    },
     Cores {
         loads: Vec<f32>,
         color: u32,
@@ -83,6 +110,14 @@ pub enum Part {
     Meters {
         rows: Vec<Meter>,
         scroll: bool,
+    },
+    /// Concentric rings around a value, outermost first, beside rows naming what they show.
+    Rings {
+        rings: Vec<Ring>,
+        value: SharedString,
+        value_color: u32,
+        label: SharedString,
+        rows: Vec<Row>,
     },
     /// Each optionally led by a coloured dot.
     Legend(Vec<(Option<u32>, SharedString)>),
@@ -106,11 +141,10 @@ fn track() -> gpui::Rgba {
     rgba(with_alpha(TINT, TRACK_ALPHA / 2))
 }
 
-fn bar(fraction: f32, color: u32, thickness: f32) -> Div {
-    div()
-        .flex_1()
-        .min_w(px(0.0))
-        .h(px(thickness))
+/// `id` keeps its fill and mark gliding to new values rather than jumping.
+fn bar(id: &str, fraction: f32, color: u32, thickness: f32, mark: Option<f32>) -> Div {
+    let fill = div()
+        .size_full()
         .rounded_full()
         .bg(track())
         .overflow_hidden()
@@ -118,9 +152,37 @@ fn bar(fraction: f32, color: u32, thickness: f32) -> Div {
             div()
                 .h_full()
                 .rounded_full()
-                .w(relative(fraction.clamp(0.0, 1.0)))
-                .bg(rgb(color)),
-        )
+                .bg(rgb(color))
+                .with_spring(
+                    SharedString::from(format!("{id}-fill")),
+                    SpringAnimation::new(CONTENT_IN).to(fraction.clamp(0.0, 1.0)),
+                    |fill, at| fill.w(relative(at.clamp(0.0, 1.0))),
+                ),
+        );
+    let mark_id = SharedString::from(format!("{id}-mark"));
+    div()
+        .relative()
+        .flex_1()
+        .min_w(px(0.0))
+        .h(px(thickness))
+        .child(fill)
+        .when_some(mark, |bar, mark| {
+            bar.child(
+                div()
+                    .absolute()
+                    .top(px(-MARK_OVERHANG))
+                    .ml(px(-MARK_W / 2.0))
+                    .w(px(MARK_W))
+                    .h(px(thickness + 2.0 * MARK_OVERHANG))
+                    .rounded_full()
+                    .bg(rgb(TEXT))
+                    .with_spring(
+                        mark_id,
+                        SpringAnimation::new(CONTENT_IN).to(mark.clamp(0.0, 1.0)),
+                        |tick, at| tick.left(relative(at.clamp(0.0, 1.0))),
+                    ),
+            )
+        })
 }
 
 fn hairline() -> gpui::Rgba {
@@ -147,7 +209,13 @@ fn meters(rows: Vec<Meter>, key: &str) -> Div {
                         .text_color(rgb(SUBTEXT1))
                         .child(row.label),
                 )
-                .child(bar(row.fraction, row.color, 5.0))
+                .child(bar(
+                    &format!("{key}-bar-{index}"),
+                    row.fraction,
+                    row.color,
+                    5.0,
+                    row.mark,
+                ))
                 .child(
                     div()
                         .min_w(px(VALUE_W))
@@ -161,6 +229,69 @@ fn meters(rows: Vec<Meter>, key: &str) -> Div {
                             row.value,
                         )),
                 )
+        }))
+}
+
+/// `key` names the rows for their morphing values.
+fn rows(rows: Vec<Row>, key: &str) -> Div {
+    div()
+        .flex_1()
+        .min_w(px(0.0))
+        .flex()
+        .flex_col()
+        .gap(px(5.0))
+        .children(rows.into_iter().enumerate().map(|(index, row)| {
+            div()
+                .flex()
+                .flex_col()
+                .line_height(relative(FACT_LEADING))
+                .child(
+                    div()
+                        .flex()
+                        .items_center()
+                        .gap(px(6.0))
+                        .text_size(px(CAPTION))
+                        .when_some(row.color, |line, color| {
+                            line.child(
+                                div()
+                                    .size(px(DOT))
+                                    .flex_none()
+                                    .rounded_full()
+                                    .bg(rgb(color)),
+                            )
+                        })
+                        .child(
+                            div()
+                                .flex_1()
+                                .min_w(px(0.0))
+                                .truncate()
+                                .text_color(rgb(SUBTEXT1))
+                                .child(row.label),
+                        )
+                        .child(
+                            div()
+                                .flex_none()
+                                .whitespace_nowrap()
+                                .font_weight(FontWeight::SEMIBOLD)
+                                .child(motion::text(
+                                    SharedString::from(format!("{key}-{index}")),
+                                    row.value,
+                                )),
+                        ),
+                )
+                .when(!row.detail.is_empty(), |entry| {
+                    entry.child(
+                        div()
+                            .when(row.color.is_some(), |detail| detail.pl(px(DOT + 6.0)))
+                            .truncate()
+                            .text_size(px(DETAIL))
+                            .text_color(rgb(OVERLAY2))
+                            .child(motion::text(
+                                SharedString::from(format!("{key}-{index}-detail")),
+                                row.detail,
+                            )),
+                    )
+                })
         }))
 }
 
@@ -209,12 +340,24 @@ fn legend(items: Vec<(Option<u32>, SharedString)>) -> Div {
 
 /// `key` names the values for their morphing.
 fn facts(items: Vec<(SharedString, SharedString)>, key: &str) -> Div {
+    colored_facts(
+        items
+            .into_iter()
+            .map(|(label, value)| (label, value, None))
+            .collect(),
+        key,
+    )
+}
+
+/// Also a panel block of its own, outside a tile; a value with a color shows in it, such as a
+/// state.
+pub fn colored_facts(items: Vec<(SharedString, SharedString, Option<u32>)>, key: &str) -> Div {
     let mut rows = Vec::new();
     let mut items = items.into_iter().enumerate().peekable();
     while items.peek().is_some() {
         let row: Vec<_> = items.by_ref().take(3).collect();
         rows.push(div().flex().gap(px(6.0)).children(row.into_iter().map(
-            |(index, (label, value))| {
+            |(index, (label, value, color))| {
                 div()
                     .flex_1()
                     .min_w(px(0.0))
@@ -235,6 +378,7 @@ fn facts(items: Vec<(SharedString, SharedString)>, key: &str) -> Div {
                         div()
                             .text_size(px(SMALL_SIZE))
                             .font_weight(FontWeight::SEMIBOLD)
+                            .when_some(color, |value, color| value.text_color(rgb(color)))
                             .truncate()
                             .child(motion::text(
                                 SharedString::from(format!("{key}-{index}")),
@@ -247,7 +391,8 @@ fn facts(items: Vec<(SharedString, SharedString)>, key: &str) -> Div {
     div().flex().flex_col().gap(px(6.0)).children(rows)
 }
 
-fn hero(name: SharedString, lines: Vec<SharedString>) -> Div {
+/// Also a panel block of its own, outside a tile.
+pub fn hero(name: SharedString, lines: Vec<SharedString>) -> Div {
     div()
         .flex()
         .flex_col()
@@ -313,7 +458,13 @@ fn volumes(id: SharedString, items: Vec<Volume>) -> AnyElement {
                                 )),
                         ),
                 )
-                .child(div().flex().child(bar(volume.fraction, volume.color, 5.0)))
+                .child(div().flex().child(bar(
+                    &format!("{id}-{}-bar", volume.id),
+                    volume.fraction,
+                    volume.color,
+                    5.0,
+                    None,
+                )))
         }))
         .into_any_element()
 }
@@ -404,6 +555,22 @@ fn part(
                 tips,
             )))
             .into_any_element(),
+        Part::Window {
+            series,
+            slots,
+            guide,
+        } => div()
+            .relative()
+            .flex_1()
+            .min_h(px(CHART_H))
+            .child(div().absolute().size_full().flex().child(chart::window(
+                format!("{id}-window-{index}").into(),
+                series,
+                slots,
+                guide,
+                tips,
+            )))
+            .into_any_element(),
         Part::Cores { loads, color } => cores(loads, color).into_any_element(),
         Part::Meters {
             rows,
@@ -417,6 +584,27 @@ fn part(
             .min_h(px(0.0))
             .overflow_y_scroll()
             .child(meters(rows, &format!("{id}-meters-{index}")))
+            .into_any_element(),
+        Part::Rings {
+            rings,
+            value,
+            value_color,
+            label,
+            rows: lines,
+        } => div()
+            .flex_none()
+            .flex()
+            .items_center()
+            .gap(px(RINGS_GAP))
+            .child(ring::rings(Rings {
+                id: format!("{id}-rings-{index}").into(),
+                size: RINGS,
+                rings,
+                value,
+                value_color,
+                label,
+            }))
+            .child(rows(lines, &format!("{id}-rows-{index}")))
             .into_any_element(),
         Part::Legend(items) => legend(items).flex_none().into_any_element(),
         Part::Facts(items) => facts(items, &format!("{id}-facts-{index}"))
@@ -517,7 +705,8 @@ pub fn tile(
         .into_any_element()
 }
 
-/// Give every column the same total span so they end level.
+/// Give every column the same total span so they end level. Columns that fall short of the
+/// panel's width sit in its middle, such as the last of several rows.
 pub fn board(
     columns: Vec<Vec<Tile>>,
     phase: f32,
@@ -527,6 +716,7 @@ pub fn board(
 ) -> AnyElement {
     div()
         .flex()
+        .justify_center()
         .items_start()
         .gap(px(card::GAP))
         .children(columns.into_iter().map(|column| {

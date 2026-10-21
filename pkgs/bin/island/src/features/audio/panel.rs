@@ -249,6 +249,8 @@ fn app_item(
         on_click: None,
         on_dismiss: None,
         countdown: None,
+        selected: false,
+        motion: crate::components::card::Motion::Still,
     };
     let item = Item {
         id: id.into(),

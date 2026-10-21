@@ -5,7 +5,6 @@ mod dots;
 mod events;
 mod history;
 mod lock;
-mod markdown;
 mod missed;
 mod missed_list;
 mod notification;

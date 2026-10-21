@@ -18,6 +18,7 @@ fn provider(source: Source, id: &str, used: f64) -> Provider {
             duration_ms: None,
             severity: Severity::Ok,
             exhausts_at: None,
+            expected: None,
         }],
         credits: None,
         fetched_at: 1000,
@@ -40,7 +41,7 @@ fn order(view: &View, state: &State) -> Vec<(Source, String)> {
 }
 
 #[test]
-fn refresh_changes_values_without_moving_open_tiles_or_losing_selection() {
+fn refresh_changes_values_without_moving_open_tiles() {
     let initial = state(vec![
         provider(Source::Omp, "one", 20.0),
         provider(Source::Omp, "two", 10.0),
@@ -48,7 +49,6 @@ fn refresh_changes_values_without_moving_open_tiles_or_losing_selection() {
     let mut view = View::default();
     view.sync(&initial, false);
     view.sync(&initial, true);
-    view.select(Account::of(&initial.providers[1]));
 
     let updated = state(vec![
         provider(Source::Omp, "two", 90.0),
@@ -62,36 +62,22 @@ fn refresh_changes_values_without_moving_open_tiles_or_losing_selection() {
             (Source::Omp, "two".to_owned())
         ]
     );
-    let selected = view.selected(&updated).unwrap();
-    assert_eq!(selected.id, "two");
-    assert_eq!(selected.limits[0].used, 90.0);
-    view.back();
-    assert!(view.selected(&updated).is_none());
-    assert_eq!(
-        order(&view, &updated),
-        [
-            (Source::Omp, "one".to_owned()),
-            (Source::Omp, "two".to_owned())
-        ]
-    );
 }
 
 #[test]
-fn removed_selection_returns_to_overview_and_new_accounts_append() {
+fn removed_accounts_go_and_new_accounts_append() {
     let initial = state(vec![
         provider(Source::Omp, "one", 10.0),
         provider(Source::Omp, "two", 20.0),
     ]);
     let mut view = View::default();
     view.sync(&initial, true);
-    view.select(Account::of(&initial.providers[0]));
 
     let updated = state(vec![
         provider(Source::Omp, "new", 100.0),
         provider(Source::Omp, "two", 20.0),
     ]);
     view.sync(&updated, true);
-    assert!(view.selected(&updated).is_none());
     assert_eq!(
         order(&view, &updated),
         [
@@ -102,19 +88,11 @@ fn removed_selection_returns_to_overview_and_new_accounts_append() {
 }
 
 #[test]
-fn matching_account_ids_from_different_clients_never_cross_select() {
+fn matching_account_ids_from_different_clients_stay_apart() {
     let initial = state(vec![
         provider(Source::Omp, "same", 10.0),
         provider(Source::Claude, "same", 90.0),
     ]);
-    let mut view = View::default();
-    view.sync(&initial, true);
-    view.select(Account::of(&initial.providers[1]));
-    assert_eq!(view.selected(&initial).unwrap().source, Source::Claude);
-
-    let updated = state(vec![provider(Source::Omp, "same", 15.0)]);
-    view.sync(&updated, true);
-    assert!(view.selected(&updated).is_none());
     assert_ne!(
         Account::of(&initial.providers[0]).element_id(),
         Account::of(&initial.providers[1]).element_id()
@@ -122,14 +100,13 @@ fn matching_account_ids_from_different_clients_never_cross_select() {
 }
 
 #[test]
-fn closing_discards_detail_and_next_open_uses_current_urgency_order() {
+fn next_open_uses_current_urgency_order() {
     let initial = state(vec![
         provider(Source::Omp, "one", 90.0),
         provider(Source::Omp, "two", 10.0),
     ]);
     let mut view = View::default();
     view.sync(&initial, true);
-    view.select(Account::of(&initial.providers[0]));
     view.panel_closed();
 
     let updated = state(vec![
@@ -138,7 +115,6 @@ fn closing_discards_detail_and_next_open_uses_current_urgency_order() {
     ]);
     view.sync(&updated, false);
     view.sync(&updated, true);
-    assert!(view.selected(&updated).is_none());
     assert_eq!(
         order(&view, &updated),
         [
@@ -180,19 +156,17 @@ fn empty_accounts_are_hidden_but_zero_usage_and_saved_credits_remain_visible() {
 }
 
 #[test]
-fn an_account_becoming_empty_closes_its_detail_and_returns_at_the_end_when_populated() {
+fn an_account_becoming_empty_returns_at_the_end_when_populated() {
     let initial = state(vec![
         provider(Source::Omp, "one", 30.0),
         provider(Source::Omp, "two", 10.0),
     ]);
     let mut view = View::default();
     view.sync(&initial, true);
-    view.select(Account::of(&initial.providers[0]));
     let mut empty = initial.providers[0].clone();
     empty.limits.clear();
     let updated = state(vec![empty, initial.providers[1].clone()]);
     view.sync(&updated, true);
-    assert!(view.selected(&updated).is_none());
     assert_eq!(order(&view, &updated), [(Source::Omp, "two".to_owned())]);
 
     let restored = state(vec![
@@ -200,7 +174,6 @@ fn an_account_becoming_empty_closes_its_detail_and_returns_at_the_end_when_popul
         provider(Source::Omp, "two", 10.0),
     ]);
     view.sync(&restored, true);
-    assert!(view.selected(&restored).is_none());
     assert_eq!(
         order(&view, &restored),
         [
@@ -245,4 +218,22 @@ fn unverified_reset_changes_at_the_boundary_without_claiming_a_new_window() {
         assert_eq!(passed, format::reset(at, freshness, 180_000));
         assert_ne!(passed, format::reset(at, Freshness::Fresh, 120_000));
     }
+}
+
+#[test]
+fn questions_move_on_only_once_something_is_picked() {
+    let mut view = View::default();
+    view.next_question(7);
+    assert_eq!(view.picks(7).step, 0);
+
+    view.pick(7, 1, false);
+    view.pick(7, 2, false);
+    assert_eq!(view.picks(7).chosen, vec![vec![2]]);
+    view.next_question(7);
+    assert_eq!(view.picks(7).step, 1);
+
+    view.pick(7, 0, true);
+    view.pick(7, 2, true);
+    view.pick(7, 0, true);
+    assert_eq!(view.picks(7).chosen[1], vec![2]);
 }

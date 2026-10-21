@@ -13,14 +13,16 @@ use gpui::{AnyElement, Context, FontWeight, ScrollHandle, SharedString, div, pre
 
 use crate::{
     components::{
-        button, calendar, card, item, lines,
+        button, calendar, card, code, input, item, lines,
         list::ROWS,
         marquee::TextLayouts,
         meter, motion, player,
         popover::Popovers,
-        route, search, segments, slider, tabs, text,
+        reveal, route, search, segments, slider, tabs, text,
         tile::{self, Tile},
+        timeline::{self, Timeline},
         tooltip::{Tip, Tooltips},
+        transcript,
     },
     island::{Island, Mode},
     theme::OVERLAY2,
@@ -35,6 +37,9 @@ pub use crate::components::{
     button::Rising,
     calendar::CalendarView,
     card::{Countdown, FrameView},
+    code::{Change, Code, CodeLine, Motion as CodeMotion},
+    input::{Edit, InputView},
+    transcript::{Piece, Transcript, Turn},
     dropdown::{Choice, Dropdown},
     item::{Item, Lead, Trail},
     lines::Line,
@@ -158,6 +163,18 @@ pub enum Block {
     Actions(Vec<ActionTile>),
     /// Tiles sharing the width, the armed one chosen, such as devices to switch to.
     Tiles(Vec<ActionTile>),
+    Code(Code),
+    Input(InputView),
+    Transcript(Transcript),
+    /// Side by side, each scrolling on its own once taller than a panel's room, such as a list
+    /// beside what is picked in it.
+    Columns(Vec<Block>),
+    /// Label and value chips, three to a row, as a tile shows them; a value may have a color.
+    Facts(Vec<(SharedString, SharedString, Option<u32>)>),
+    /// A large name over fainter lines, as a tile shows a host.
+    Hero(SharedString, Vec<SharedString>),
+    /// Lanes along one stretch of time from now.
+    Timeline(Timeline),
 }
 
 pub struct PanelView {
@@ -168,6 +185,10 @@ pub struct PanelView {
 pub struct Frame<'a> {
     pub hover: bool,
     pub scroll: &'a ScrollHandle,
+    /// One for each column of a [`Block::Columns`].
+    pub columns: &'a [ScrollHandle; COLUMNS],
+    /// True on the first drawing after the panel opened; the columns clear it.
+    pub opened: &'a std::cell::Cell<bool>,
     pub island_h: f32,
     pub min_width: f32,
     pub max_width: f32,
@@ -179,6 +200,13 @@ pub struct Frame<'a> {
 }
 
 const GRID_GAP: f32 = 10.0;
+/// The most a column of [`Block::Columns`] shows before it scrolls, leaving the island its header
+/// and edges within its tallest.
+const COLUMN_H: f32 = 600.0;
+/// The most columns side by side, each with its own scroll.
+pub const COLUMNS: usize = 4;
+/// How near its end a followed panel counts as being read there.
+const FOLLOW_SLACK: f32 = 24.0;
 const CAPTION_SIZE: f32 = 12.0;
 const BUTTON_GAP: f32 = 8.0;
 const COMPACT_GAP: f32 = 6.0;
@@ -194,6 +222,20 @@ impl Block {
 
     pub fn caption(text: impl Into<SharedString>, color: u32) -> Self {
         Block::Text(Text::new(Tone::Caption(color), text))
+    }
+
+    /// Whether it, or anything in it, is a conversation the panel should follow to its end.
+    fn follows_end(&self) -> bool {
+        match self {
+            Block::Transcript(_) => true,
+            Block::Card(_, _, blocks)
+            | Block::Row(blocks)
+            | Block::Columns(blocks)
+            | Block::Grid(_, blocks)
+            | Block::Frame(_, blocks)
+            | Block::Item(_, blocks) => blocks.iter().any(Block::follows_end),
+            _ => false,
+        }
     }
 
     fn hash_shape(&self, hasher: &mut DefaultHasher) {
@@ -215,7 +257,7 @@ impl Block {
                     block.hash_shape(hasher);
                 }
             }
-            Block::Frame(_, blocks) | Block::Row(blocks) => {
+            Block::Frame(_, blocks) | Block::Row(blocks) | Block::Columns(blocks) => {
                 for block in blocks {
                     block.hash_shape(hasher);
                 }
@@ -247,6 +289,41 @@ impl Block {
             Block::Buttons(row) => (row.buttons.len(), row.compact).hash(hasher),
             Block::Actions(tiles) => tiles.len().hash(hasher),
             Block::Search(view) => (ROWS, view.preview.is_some()).hash(hasher),
+            Block::Code(code) => {
+                (code.heading.is_some(), code.wrap, code.lines.len()).hash(hasher);
+                if code.wrap {
+                    for line in &code.lines {
+                        line.text.hash(hasher);
+                    }
+                }
+            }
+            Block::Facts(items) => items.len().hash(hasher),
+            Block::Hero(_, lines) => lines.len().hash(hasher),
+            Block::Timeline(view) => view.lanes.len().hash(hasher),
+            // Text that wraps decides the height, so the panel grows as it is typed or arrives.
+            Block::Input(view) => view.text.hash(hasher),
+            Block::Transcript(transcript) => {
+                for turn in &transcript.turns {
+                    match turn {
+                        Turn::Mine(text) => text.text.hash(hasher),
+                        Turn::Theirs {
+                            pieces,
+                            streaming,
+                            actions,
+                            ..
+                        } => {
+                            (streaming, actions.len()).hash(hasher);
+                            for piece in pieces {
+                                match piece {
+                                    Piece::Text(text) => text.text.hash(hasher),
+                                    Piece::Code(code) => code.lines.len().hash(hasher),
+                                }
+                            }
+                        }
+                        Turn::Waiting { .. } => 0u8.hash(hasher),
+                    }
+                }
+            }
             Block::Player(view) => (view.art.is_some(), view.length.is_some()).hash(hasher),
             Block::Card(title, size, blocks) => {
                 (title.is_some(), size).hash(hasher);
@@ -284,6 +361,19 @@ impl PanelView {
             Header::None => TIGHT_INSET,
             _ => INSET,
         };
+        // Each view rises in as its tab is picked.
+        let page = match &self.header {
+            Header::Views(views) => Some(views.selected),
+            _ => None,
+        };
+        // A conversation keeps its newest text in view while you read at its end; scrolled back
+        // to read something earlier, it stays where you are.
+        if self.blocks.iter().any(Block::follows_end) {
+            let (offset, end) = (frame.scroll.offset().y, frame.scroll.max_offset().y);
+            if f32::from(end + offset).abs() < FOLLOW_SLACK {
+                frame.scroll.scroll_to_bottom();
+            }
+        }
         let header = match self.header {
             Header::Tabs => Some(
                 div()
@@ -316,7 +406,16 @@ impl PanelView {
                     .min_h(px(0.0))
                     .overflow_y_scroll()
                     .track_scroll(frame.scroll)
-                    .child(div().flex().flex_col().gap(px(BLOCK_GAP)).children(blocks)),
+                    .child({
+                        let column = div().flex().flex_col().gap(px(BLOCK_GAP)).children(blocks);
+                        match page {
+                            Some(page) => reveal::appear(
+                                SharedString::from(format!("panel-page-{page}")),
+                                column,
+                            ),
+                            None => column.into_any_element(),
+                        }
+                    }),
             )
             .into_any_element()
     }
@@ -334,7 +433,7 @@ fn title_header(
         .text_size(px(HEADING_SIZE))
         .font_weight(FontWeight::SEMIBOLD)
         .child(motion::text("panel-title", title));
-    header_row(title.into_any_element(), buttons, hover, cx)
+    header_row(title.into_any_element(), false, buttons, hover, cx)
 }
 
 fn views_header(views: Views, hover: bool, cx: &mut Context<Island>) -> AnyElement {
@@ -346,11 +445,13 @@ fn views_header(views: Views, hover: bool, cx: &mut Context<Island>) -> AnyEleme
         hover,
         cx,
     );
-    header_row(tabs.into_any_element(), views.buttons, hover, cx)
+    header_row(tabs.into_any_element(), true, views.buttons, hover, cx)
 }
 
+/// `centred` puts `leading` in the middle, with equal room either side, as the bar's tabs sit.
 fn header_row(
     leading: AnyElement,
+    centred: bool,
     buttons: Vec<Button>,
     hover: bool,
     cx: &mut Context<Island>,
@@ -362,11 +463,15 @@ fn header_row(
         .items_center()
         .justify_between()
         .gap(px(16.0))
+        .when(centred, |row| row.child(div().flex_1().min_w(px(0.0))))
         .child(leading)
         .child(
             div()
                 .flex()
-                .flex_none()
+                // Never narrower than its buttons, so a tight panel moves the tabs aside rather
+                // than drawing the buttons over them.
+                .when(centred, |end| end.flex_1().flex_shrink_0().justify_end())
+                .when(!centred, |end| end.flex_none())
                 .items_center()
                 .gap(px(6.0))
                 .children(
@@ -472,6 +577,35 @@ impl Block {
                     .children(children)
                     .into_any_element()
             }
+            Block::Columns(blocks) => {
+                let opened = frame.opened.replace(false);
+                div()
+                    .flex()
+                    .items_start()
+                    .gap(px(card::GAP))
+                    .children(blocks.into_iter().take(COLUMNS).enumerate().map(
+                        |(index, block)| {
+                            let at = format!("{at}-column-{index}");
+                            let scroll = &frame.columns[index];
+                            // A column holding a conversation starts at its newest part, and
+                            // keeps to it while read there; scrolled back, it stays put.
+                            if block.follows_end() {
+                                let (offset, end) = (scroll.offset().y, scroll.max_offset().y);
+                                if opened || f32::from(end + offset).abs() < FOLLOW_SLACK {
+                                    scroll.scroll_to_bottom();
+                                }
+                            }
+                            div()
+                                .id(SharedString::from(at.clone()))
+                                .flex_none()
+                                .max_h(px(COLUMN_H))
+                                .overflow_y_scroll()
+                                .track_scroll(scroll)
+                                .child(block.render(&at, island_below, frame, cx))
+                        },
+                    ))
+                    .into_any_element()
+            }
             Block::Grid(columns, blocks) => {
                 let columns = columns.max(1);
                 let mut cells = render_all(blocks, at, island_below, frame, cx)
@@ -510,6 +644,12 @@ impl Block {
             Block::Routes(entries) => route::routes(entries),
             Block::Board(columns) => tile::board(columns, frame.phase, frame.hover, frame.tips, cx),
             Block::Buttons(row) => buttons(row, frame, cx),
+            Block::Code(lines) => code::code(at, lines, frame.hover, cx),
+            Block::Input(view) => input::input(view, frame.hover, cx),
+            Block::Transcript(turns) => transcript::transcript(turns, frame.hover, cx),
+            Block::Facts(items) => tile::colored_facts(items, at).into_any_element(),
+            Block::Hero(name, lines) => tile::hero(name, lines).into_any_element(),
+            Block::Timeline(view) => timeline::timeline(view, at),
             Block::Actions(tiles) => div()
                 .flex()
                 .gap(px(card::GAP))
@@ -581,7 +721,11 @@ fn buttons(row: ButtonRow, frame: &Frame<'_>, cx: &mut Context<Island>) -> AnyEl
             if row.compact {
                 element.into_any_element()
             } else {
-                button::badged(format!("{}-badged", button.id), element, button.badge)
+                let badge = button.badge.map(|text| button::Badge {
+                    text,
+                    color: crate::theme::ACCENT,
+                });
+                button::badged(format!("{}-badged", button.id), element, badge, true)
                     .into_any_element()
             }
         }))

@@ -4,15 +4,17 @@
 use std::time::Duration;
 
 use gpui::{
-    Animation, AnimationExt, AnyElement, Context, Div, Hsla, MouseButton, SharedString, div,
-    prelude::*, px, relative, rgba,
+    Animation, AnimationExt, AnyElement, Context, Div, Hsla, MouseButton, Rgba, SharedString,
+    SpringAnimation, div, prelude::*, px, relative, rgba,
 };
 
 use crate::{
-    island::Island,
+    components::reveal,
+    island::{CONTENT_IN as SELECT_SPRING, Island},
     panel::Handler,
     theme::{
-        ACCENT, CARD_ALPHA, CARD_BORDER_ALPHA, CRITICAL, NOTIFICATION_ALPHA, SURFACE1, with_alpha,
+        ACCENT, CARD_ALPHA, CARD_BORDER_ALPHA, CRITICAL, NOTIFICATION_ALPHA,
+        SURFACE1, with_alpha,
     },
     ui::{self, Radius},
 };
@@ -53,6 +55,20 @@ pub struct FrameView {
     /// On a right click.
     pub on_dismiss: Option<Handler>,
     pub countdown: Option<Countdown>,
+    /// Tinted as the chosen one of several, such as a picked answer; the tint eases in and out.
+    pub selected: bool,
+    pub motion: Motion,
+}
+
+/// How a frame comes and goes, for one that is not placed and moved by its owner.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum Motion {
+    #[default]
+    Still,
+    /// Rises in the first time it is drawn.
+    Appear,
+    /// Slides out, such as one just answered; its owner keeps it drawn for [`reveal::LEAVE`].
+    Leave,
 }
 
 /// Lies on the border's straight stretch between the rounded corners, so it reads as the outline
@@ -96,8 +112,13 @@ pub fn frame(
         on_click,
         on_dismiss,
         countdown,
+        selected,
+        motion,
     } = frame;
     let urgent = matches!(look, Look::Raised { urgent: true });
+    let resting: Hsla = rgba(with_alpha(SURFACE1, CARD_ALPHA)).into();
+    // The same quiet fill a picked tab has, so choosing reads the same everywhere.
+    let chosen: Hsla = ui::selected_fill().into();
     let element = match look {
         Look::Inset => div()
             .id(id.clone())
@@ -106,10 +127,20 @@ pub fn frame(
             .flex()
             .flex_col()
             .gap(px(INSET_GAP))
-            .child(ui::shape(
-                Radius::Control,
-                Some(rgba(with_alpha(SURFACE1, CARD_ALPHA)).into()),
-            ))
+            .child(
+                // Pinned to the corner: unpinned, it would start inside the padding.
+                div().absolute().top_0().left_0().size_full().with_spring(
+                    SharedString::from(format!("{id}-tint")),
+                    SpringAnimation::new(SELECT_SPRING).to(selected),
+                    move |tint, phase| {
+                        let t = phase.0.clamp(0.0, 1.0);
+                        tint.child(ui::shape(Radius::Control, Some(mix(resting, chosen, t))))
+                    },
+                ),
+            )
+            .when(on_click.is_some(), |frame| {
+                frame.child(ui::control(Radius::Control, None, hover && !selected))
+            })
             .children(children),
         Look::Raised { .. } => {
             let border: Hsla = if urgent {
@@ -117,17 +148,21 @@ pub fn frame(
             } else {
                 rgba(with_alpha(SURFACE1, CARD_BORDER_ALPHA)).into()
             };
+            let calm: Hsla = rgba(with_alpha(SURFACE1, NOTIFICATION_ALPHA)).into();
             div()
                 .id(id.clone())
                 .relative()
                 .size_full()
-                .child(ui::outlined(
-                    Radius::Panel,
-                    rgba(with_alpha(SURFACE1, NOTIFICATION_ALPHA)).into(),
-                    border,
+                .child(div().absolute().top_0().left_0().size_full().with_spring(
+                    SharedString::from(format!("{id}-tint")),
+                    SpringAnimation::new(SELECT_SPRING).to(selected),
+                    move |tint, phase| {
+                        let t = phase.0.clamp(0.0, 1.0);
+                        tint.child(ui::outlined(Radius::Panel, mix(calm, chosen, t), border))
+                    },
                 ))
                 .when(on_click.is_some(), |frame| {
-                    frame.child(ui::control(Radius::Panel, None, hover))
+                    frame.child(ui::control(Radius::Panel, None, hover && !selected))
                 })
                 .child(
                     div()
@@ -141,7 +176,7 @@ pub fn frame(
                 )
         }
     };
-    element
+    let element = element
         .group(id.clone())
         .when_some(on_click, |frame, handler| {
             frame
@@ -160,8 +195,25 @@ pub fn frame(
         })
         .when_some(countdown, |frame, countdown| {
             frame.child(countdown_bar(&id, countdown))
-        })
-        .into_any_element()
+        });
+    match motion {
+        Motion::Still => element.into_any_element(),
+        Motion::Appear => reveal::appear(SharedString::from(format!("{id}-appear")), element),
+        Motion::Leave => reveal::leave(SharedString::from(format!("{id}-leave")), element),
+    }
+}
+
+/// Partway from one color to another.
+fn mix(from: Hsla, to: Hsla, t: f32) -> Hsla {
+    let (from, to) = (Rgba::from(from), Rgba::from(to));
+    let at = |a: f32, b: f32| a + (b - a) * t;
+    Rgba {
+        r: at(from.r, to.r),
+        g: at(from.g, to.g),
+        b: at(from.b, to.b),
+        a: at(from.a, to.a),
+    }
+    .into()
 }
 
 pub const WIDTH: f32 = 270.0;
@@ -177,6 +229,12 @@ pub enum Size {
     Large,
     /// As wide as two medium cards side by side.
     Wide,
+    /// As wide as a board of three small tiles, so a panel keeps one width across its views.
+    Full,
+    /// For text to read, such as a conversation: about 85 characters a line at reading size.
+    Reading,
+    /// As wide as a board of this many small tiles.
+    Tiles(usize),
 }
 
 impl Size {
@@ -186,6 +244,12 @@ impl Size {
             Size::Medium => 360.0,
             Size::Large => 2.0 * WIDTH + GAP,
             Size::Wide => 2.0 * Size::Medium.width() + GAP,
+            Size::Full => 3.0 * WIDTH + 2.0 * GAP,
+            Size::Reading => 760.0,
+            Size::Tiles(count) => {
+                let count = count.max(1) as f32;
+                count * WIDTH + (count - 1.0) * GAP
+            }
         }
     }
 }

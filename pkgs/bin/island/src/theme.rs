@@ -49,6 +49,8 @@ pub const POPOVER_OPACITY: f32 = 0.95;
 pub const SHADOW_ALPHA: f32 = 0.2;
 
 pub const FONT: &str = "Rubik";
+/// For code and commands; the system's monospace face (`style.fonts.mono`).
+pub const MONO: &str = "Monaspace Neon NF";
 
 pub const fn with_alpha(rgb: u32, alpha: u8) -> u32 {
     (rgb << 8) | alpha as u32

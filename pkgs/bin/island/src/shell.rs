@@ -416,14 +416,18 @@ impl Shell {
 
     fn control(&mut self, control: Control, cx: &mut Context<Self>) {
         match control {
-            Control::Open(name) => {
+            Control::Open(name, view) => {
                 if let Some(island) = self.target(cx) {
-                    island.update(cx, |island, cx| island.open_named(&name, false, cx));
+                    island.update(cx, |island, cx| {
+                        island.open_named(&name, view.as_deref(), false, cx)
+                    });
                 }
             }
-            Control::Toggle(name) => {
+            Control::Toggle(name, view) => {
                 if let Some(island) = self.target(cx) {
-                    island.update(cx, |island, cx| island.open_named(&name, true, cx));
+                    island.update(cx, |island, cx| {
+                        island.open_named(&name, view.as_deref(), true, cx)
+                    });
                 }
             }
             Control::Close => {

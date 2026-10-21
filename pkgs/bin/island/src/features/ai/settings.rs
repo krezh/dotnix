@@ -21,6 +21,26 @@ pub(super) struct Settings {
     pub(super) refresh_minutes: u64,
     pub(super) widget: Widget,
     pub(super) alerts: Alerts,
+    pub(super) sessions: Sessions,
+    pub(super) chat: Chat,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub(super) struct Chat {
+    /// Claude Code, by name on the PATH or as a full path.
+    pub(super) command: String,
+    /// The model a new chat starts with: haiku, sonnet or opus.
+    pub(super) model: String,
+}
+
+impl Default for Chat {
+    fn default() -> Self {
+        Self {
+            command: "claude".to_owned(),
+            model: "sonnet".to_owned(),
+        }
+    }
 }
 
 impl Default for Settings {
@@ -31,6 +51,27 @@ impl Default for Settings {
             refresh_minutes: 5,
             widget: Widget::default(),
             alerts: Alerts::default(),
+            sessions: Sessions::default(),
+            chat: Chat::default(),
+        }
+    }
+}
+
+#[derive(Clone, Debug, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub(super) struct Sessions {
+    /// Follow Claude Code sessions and answer their requests.
+    pub(super) enable: bool,
+    /// How long a request waits for an answer before it goes back to the terminal; shorter than
+    /// the hook's own timeout.
+    pub(super) answer_seconds: u64,
+}
+
+impl Default for Sessions {
+    fn default() -> Self {
+        Self {
+            enable: true,
+            answer_seconds: 60,
         }
     }
 }
@@ -73,6 +114,12 @@ pub(super) fn check(settings: &toml::Value) -> Result<(), String> {
     let settings: Settings = parse_settings(settings)?;
     if !(1..=60).contains(&settings.refresh_minutes) {
         return Err("refresh_minutes must be from 1 to 60".to_owned());
+    }
+    if !["haiku", "sonnet", "opus"].contains(&settings.chat.model.as_str()) {
+        return Err("chat.model must be haiku, sonnet or opus".to_owned());
+    }
+    if !(5..=3600).contains(&settings.sessions.answer_seconds) {
+        return Err("sessions.answer_seconds must be from 5 to 3600".to_owned());
     }
     if !(50.0..=99.0).contains(&settings.alerts.high_usage_threshold) {
         return Err("alerts.high_usage_threshold must be from 50 to 99".to_owned());

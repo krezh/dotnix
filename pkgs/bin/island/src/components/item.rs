@@ -144,7 +144,7 @@ fn trail_element(
             .font_weight(FontWeight::SEMIBOLD)
             .text_color(rgb(color))
             .child(div().size(px(8.0)).rounded_full().bg(rgb(color)))
-            .child(text)
+            .child(motion::text(id, text))
             .into_any_element(),
         Trail::Dropdown(picker) => dropdown::dropdown(picker, popovers, hover, cx),
         Trail::Close { group, on_click } => button::ghost(id, hover)

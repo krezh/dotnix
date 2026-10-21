@@ -105,6 +105,7 @@ impl WatchedPr {
             title: format!("#{} {}", self.pr_number, self.title).into(),
             detail: format!("{} · {state}{commit}", self.repo).into(),
             done: self.ready.then(|| "Ready".into()),
+            vertical: false,
             stops: self
                 .branches
                 .iter()

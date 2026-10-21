@@ -9,7 +9,9 @@ use crate::features;
 const USAGE: &str = "\
 usage: island ctl COMMAND
 
-  open PANEL | toggle PANEL | close     PANEL: calendar, system, ai, audio, media, notifications, session, clipboard, launcher
+  open PANEL [VIEW] | toggle PANEL [VIEW] | close
+                                       PANEL: calendar, system, ai, audio, media, notifications, session, clipboard, launcher
+                                       VIEW: ai sessions, chat or usage
   log SPEC                             change what is logged until restart, e.g. debug or audio=debug";
 
 pub fn usage() -> String {
@@ -42,8 +44,9 @@ impl Switch {
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Control {
-    Open(String),
-    Toggle(String),
+    /// A panel, and the view to open it on.
+    Open(String, Option<String>),
+    Toggle(String, Option<String>),
     Close,
     Log(String),
     Feature(&'static str, Vec<String>),
@@ -80,11 +83,30 @@ pub fn switch(args: &[&str]) -> Result<Switch, String> {
     }
 }
 
+/// One of the views `panel` opens on, or why not.
+fn view(panel: &str, view: &str) -> Result<String, String> {
+    let views = features::views(panel);
+    if views.contains(&view) {
+        Ok(view.to_owned())
+    } else if views.is_empty() {
+        Err(format!("the {panel} panel has no views"))
+    } else {
+        Err(format!(
+            "the {panel} panel has no view '{view}'; it has {}",
+            views.join(", ")
+        ))
+    }
+}
+
 pub fn parse(args: &[String]) -> Result<Control, String> {
     let args: Vec<&str> = args.iter().map(String::as_str).collect();
     match args.as_slice() {
-        ["open", panel] => Ok(Control::Open((*panel).to_owned())),
-        ["toggle", panel] => Ok(Control::Toggle((*panel).to_owned())),
+        ["open", panel] => Ok(Control::Open((*panel).to_owned(), None)),
+        ["toggle", panel] => Ok(Control::Toggle((*panel).to_owned(), None)),
+        ["open", panel, shown] => Ok(Control::Open((*panel).to_owned(), Some(view(panel, shown)?))),
+        ["toggle", panel, shown] => {
+            Ok(Control::Toggle((*panel).to_owned(), Some(view(panel, shown)?)))
+        }
         ["close"] => Ok(Control::Close),
         ["log", spec] => Ok(Control::Log((*spec).to_owned())),
         all => match features::check_command(all) {
@@ -112,3 +134,7 @@ pub fn send(args: Vec<String>) -> Result<(), String> {
     })?;
     if reply.is_empty() { Ok(()) } else { Err(reply) }
 }
+
+#[cfg(test)]
+#[path = "control_test.rs"]
+mod tests;

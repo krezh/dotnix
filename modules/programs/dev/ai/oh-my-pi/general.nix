@@ -15,10 +15,10 @@
 
       ompConfig = {
         modelRoles = {
-          default = "openai-codex/gpt-6.1-sol:high";
-          slow = "openai-codex/gpt-6.1-sol:xhigh";
-          plan = "@slow";
+          default = "openai-codex/gpt-5.6-sol:high";
+          slow = "openai-codex/gpt-5.6-sol:xhigh";
           smol = "openai-codex/gpt-6-luna:low";
+          plan = "@slow";
           commit = "@smol";
         };
         symbolPreset = "nerd";

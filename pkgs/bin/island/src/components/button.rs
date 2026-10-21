@@ -238,28 +238,37 @@ const BADGE_H: f32 = 17.0;
 /// The base-coloured ring that cuts a badge out of what it sits on.
 const BADGE_RING: f32 = 2.0;
 
-/// The overhang is reserved whether or not there is a badge, so the badge is never clipped by a
-/// scrolling parent and its coming and going moves nothing.
+/// A count on the corner of something, such as how many wait.
+pub struct Badge {
+    pub text: SharedString,
+    pub color: u32,
+}
+
+/// With `reserve`, the overhang is kept whether or not there is a badge, so the badge is never
+/// clipped by a scrolling parent and its coming and going moves nothing. Without it, as where
+/// there is no room to spare, the badge hangs over the corner and makes room only beside it.
 pub fn badged(
     id: impl Into<SharedString>,
     target: impl IntoElement,
-    badge: Option<SharedString>,
+    badge: Option<Badge>,
+    reserve: bool,
 ) -> Stateful<Div> {
+    let overhang = px(BADGE_OVERHANG);
     div()
         .id(id.into())
         .relative()
         .flex_none()
-        .pt(px(BADGE_OVERHANG))
-        .pr(px(BADGE_OVERHANG))
+        .when(reserve, |wrapper| wrapper.pt(overhang).pr(overhang))
+        .when(!reserve && badge.is_some(), |wrapper| wrapper.mr(overhang))
         .child(target)
-        .when_some(badge, |wrapper, count| {
+        .when_some(badge, |wrapper, badge| {
             // The fill's corners are the ring's less its width, so the two stay concentric.
             let (radius, power) = Radius::Badge.geometry();
             wrapper.child(
                 div()
                     .absolute()
-                    .top_0()
-                    .right_0()
+                    .when(reserve, |corner| corner.top_0().right_0())
+                    .when(!reserve, |corner| corner.top(-overhang).right(-overhang))
                     .flex()
                     .min_w(px(BADGE_H))
                     .h(px(BADGE_H))
@@ -279,10 +288,10 @@ pub fn badged(
                             .child(shape::fill(
                                 radius - BADGE_RING,
                                 power,
-                                Some(rgb(ACCENT).into()),
+                                Some(rgb(badge.color).into()),
                                 None,
                             ))
-                            .child(motion::text("badge", count)),
+                            .child(motion::text("badge", badge.text)),
                     ),
             )
         })

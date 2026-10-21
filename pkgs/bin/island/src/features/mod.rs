@@ -166,6 +166,19 @@ pub trait Feature: Sized + 'static {
 
     fn command(&self, _: &Self::State, _args: &[&str]) {}
 
+    /// Views its panel can be opened on, such as its tabs: `island ctl open PANEL VIEW`.
+    const VIEWS: &'static [&'static str] = &[];
+
+    /// A top-level command of its own, such as `island ai-hook`, for a caller that waits for the
+    /// running island's answer. Empty for none.
+    const CLIENT: &'static str = "";
+
+    /// Runs in the calling process with the words after `CLIENT`; the process exits with what it
+    /// returns.
+    fn client(_args: &[String]) -> i32 {
+        0
+    }
+
     const KEYBOARD: bool = false;
 
     fn key(&self, _: &Self::State, _local: &mut Self::Local, _keystroke: &Keystroke) -> Outcome {
@@ -197,6 +210,15 @@ pub trait Local: 'static {
     fn popup(&self) -> bool {
         false
     }
+
+    /// While its panel shows, whether it wants the keys; a feature that takes the keyboard can let
+    /// go of it on a view with nothing to type into.
+    fn keyboard(&self) -> bool {
+        true
+    }
+
+    /// Turns its panel to `view`, one of the feature's `VIEWS`, as it is opened on it.
+    fn show(&mut self, _view: &str) {}
 
     fn popup_shown(&mut self, _shown: bool) {}
 
@@ -943,6 +965,16 @@ macro_rules! features {
             false
         }
 
+        /// The views the panel named `panel` can be opened on.
+        pub fn views(panel: &str) -> &'static [&'static str] {
+            $(
+                if <$feature as Feature>::PANEL == Some(panel) {
+                    return <$feature as Feature>::VIEWS;
+                }
+            )*
+            &[]
+        }
+
         pub fn panel_of(feature: &str) -> Option<&'static str> {
             $(
                 if <$feature as Feature>::NAME == feature {
@@ -969,6 +1001,16 @@ macro_rules! features {
             $(
                 if answers::<$feature>(word) {
                     return Some(<$feature as Feature>::check(args).map(|()| <$feature as Feature>::NAME));
+                }
+            )*
+            None
+        }
+
+        /// The client of the feature whose `CLIENT` is `word`.
+        pub fn client(word: &str) -> Option<fn(&[String]) -> i32> {
+            $(
+                if !<$feature as Feature>::CLIENT.is_empty() && <$feature as Feature>::CLIENT == word {
+                    return Some(<$feature as Feature>::client);
                 }
             )*
             None

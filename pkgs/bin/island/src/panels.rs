@@ -118,6 +118,7 @@ fn tile_meter(
         fraction,
         value: value.into(),
         color,
+        mark: None,
     }
 }
 

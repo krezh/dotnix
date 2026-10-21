@@ -2,7 +2,7 @@ use std::{env, fs, path::PathBuf, time::Duration};
 
 use serde_json::Value;
 
-use super::{TIMEOUT, number, percentage, severity, text, timestamp};
+use super::{Failure, TIMEOUT, number, percentage, severity, text, timestamp};
 use crate::features::ai::{
     cache,
     state::{Credits, Freshness, Issue, Limit, Provider, Source, SourceReport},
@@ -24,13 +24,13 @@ struct Login {
 
 pub(super) fn fetch(
     publish_cached: impl FnOnce(Option<String>, Option<Provider>),
-) -> Result<SourceReport, String> {
+) -> Result<SourceReport, Failure> {
     let now = chrono::Utc::now().timestamp_millis();
     let mut login = match discover() {
         Ok(login) => login,
         Err(error) => {
             publish_cached(None, None);
-            return Err(error);
+            return Err(error.into());
         }
     };
     let identity = login.identity();
@@ -60,7 +60,8 @@ pub(super) fn fetch(
         if login.account_id.is_empty() {
             return Err(
                 "Claude usage login has no account identity; sign in with a Claude subscription"
-                    .to_owned(),
+                    .to_owned()
+                    .into(),
             );
         }
     }
@@ -238,7 +239,7 @@ fn apply_profile(login: &mut Login, profile: &Value) {
     }
 }
 
-fn get(agent: &ureq::Agent, url: &'static str, token: &str) -> Result<Value, String> {
+fn get(agent: &ureq::Agent, url: &'static str, token: &str) -> Result<Value, Failure> {
     let mut response = agent
         .get(url)
         .header("Authorization", format!("Bearer {token}"))
@@ -251,8 +252,20 @@ fn get(agent: &ureq::Agent, url: &'static str, token: &str) -> Result<Value, Str
                 .to_owned()
         })?;
     let status = response.status().as_u16();
+    if status == 429 {
+        let asked = response
+            .headers()
+            .get("retry-after")
+            .and_then(|value| value.to_str().ok())
+            .and_then(|seconds| seconds.trim().parse::<u64>().ok())
+            .map(Duration::from_secs);
+        return Err(Failure {
+            message: http_error(status),
+            wait: Some(asked),
+        });
+    }
     if status != 200 {
-        return Err(http_error(status));
+        return Err(http_error(status).into());
     }
     let bytes = response
         .body_mut()
@@ -260,7 +273,8 @@ fn get(agent: &ureq::Agent, url: &'static str, token: &str) -> Result<Value, Str
         .limit(1024 * 1024)
         .read_to_vec()
         .map_err(|_| "Could not read Claude usage API response".to_owned())?;
-    serde_json::from_slice(&bytes).map_err(|_| "Claude usage API returned invalid JSON".to_owned())
+    serde_json::from_slice(&bytes)
+        .map_err(|_| "Claude usage API returned invalid JSON".to_owned().into())
 }
 
 fn http_error(status: u16) -> String {
@@ -423,6 +437,7 @@ fn make_limit(
         duration_ms,
         severity: severity(None, used),
         exhausts_at: None,
+        expected: None,
     })
 }
 

@@ -115,3 +115,41 @@ fn spoilers_and_custom_emoji() {
     assert_eq!(parse("hi <:wave:123456>").text, "hi :wave:");
     assert_eq!(parse("a <b> c").text, "a <b> c");
 }
+
+#[test]
+fn blocks_keep_paragraphs_lists_and_fenced_code() {
+    let reply = "jj has no stash.\nStart a change:\n\n```sh\njj new @-\n```\n- keep **it**\n- or squash";
+    let parsed = super::blocks(reply);
+    assert_eq!(parsed.len(), 3);
+    match &parsed[0] {
+        super::Block::Paragraph(text) => assert_eq!(text.text, "jj has no stash.\nStart a change:"),
+        other => panic!("expected a paragraph, got {other:?}"),
+    }
+    assert_eq!(
+        parsed[1],
+        super::Block::Code {
+            language: "sh".to_owned(),
+            lines: vec!["jj new @-".to_owned()],
+        }
+    );
+    match &parsed[2] {
+        super::Block::Paragraph(text) => {
+            assert_eq!(text.text, "• keep it\n• or squash");
+            // "•" takes three bytes.
+            assert_eq!(text.spans, vec![(9..11, bold())]);
+        }
+        other => panic!("expected a paragraph, got {other:?}"),
+    }
+}
+
+#[test]
+fn a_fence_still_arriving_runs_to_the_end() {
+    let parsed = super::blocks("Run:\n```\nnix build");
+    assert_eq!(
+        parsed[1],
+        super::Block::Code {
+            language: String::new(),
+            lines: vec!["nix build".to_owned()],
+        }
+    );
+}

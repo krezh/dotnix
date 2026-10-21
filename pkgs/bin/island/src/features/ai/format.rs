@@ -1,4 +1,4 @@
-use chrono::{Local, TimeZone, Utc};
+use chrono::{Local, TimeZone, Timelike, Utc};
 
 use super::state::{Freshness, Limit, Provider, Severity, Source};
 use crate::theme::{BLUE, CRITICAL, GREEN, MAUVE, YELLOW};
@@ -15,6 +15,16 @@ pub(super) fn percent(value: f64) -> String {
     }
 }
 
+/// How much of the limit's window has passed, from 0 to 1, when it says how long its window is.
+pub(super) fn elapsed(limit: &Limit, now: i64) -> Option<f32> {
+    let (reset, duration) = (limit.resets_at?, limit.duration_ms?);
+    if duration <= 0 {
+        return None;
+    }
+    let start = reset - duration;
+    Some(((now - start) as f64 / duration as f64).clamp(0.0, 1.0) as f32)
+}
+
 pub(super) fn countdown(at: i64, now: i64) -> String {
     let minutes = at.saturating_sub(now).max(0).saturating_add(59_999) / 60_000;
     match minutes {
@@ -25,12 +35,24 @@ pub(super) fn countdown(at: i64, now: i64) -> String {
     }
 }
 
-pub(super) fn exact(at: i64) -> String {
-    Local
-        .timestamp_millis_opt(at)
-        .single()
-        .map(|time| time.format("%a %b %-d, %H:%M %Z").to_string())
-        .unwrap_or_else(|| "unknown time".to_owned())
+/// When something is due, as you would say it: soon as a countdown, such as "in 1h 27m"; later as
+/// a day and a rounded local hour, such as "tomorrow 09:00" or "Fri 15:00".
+pub(super) fn when(at: i64, now: i64) -> String {
+    const SOON_MS: i64 = 6 * 60 * 60 * 1000;
+    const HALF_HOUR_MS: i64 = 30 * 60 * 1000;
+    if at - now < SOON_MS {
+        return format!("in {}", countdown(at, now));
+    }
+    let local = |time: i64| Local.timestamp_millis_opt(time).single();
+    let (Some(due), Some(today)) = (local(at + HALF_HOUR_MS), local(now)) else {
+        return format!("in {}", countdown(at, now));
+    };
+    let day = match (due.date_naive() - today.date_naive()).num_days() {
+        0 => "today".to_owned(),
+        1 => "tomorrow".to_owned(),
+        _ => due.format("%a").to_string(),
+    };
+    format!("{day} {:02}:00", due.hour())
 }
 
 pub(super) fn ago(at: i64, now: i64) -> String {

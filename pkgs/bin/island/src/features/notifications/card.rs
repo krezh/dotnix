@@ -9,7 +9,6 @@ use gpui::{SharedString, Window};
 use super::{
     Cards, Event, Notifications,
     history::Earlier,
-    markdown,
     missed_list::MissedList,
     notification::{DEFAULT_ACTION, Notification, Reason, Signal},
     toasts::Toasts,
@@ -20,6 +19,7 @@ use crate::{
         item::{self, Item, Lead, Trail},
         text,
     },
+    markdown,
     panel::{
         self, Block, ButtonRow, Countdown, FrameView, Handler, IconButton, Mark, Place, Placed,
         Text, TextStyle, Tone,
@@ -310,6 +310,9 @@ fn message(kind: Kind, notification: &Notification, look: Look) -> Block {
         on_click: Some(look.activate),
         on_dismiss: Some(look.dismiss),
         countdown: look.countdown,
+        selected: false,
+        // Placed and moved by the toast stack itself.
+        motion: card::Motion::Still,
     };
     Block::Frame(frame, blocks)
 }

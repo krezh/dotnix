@@ -4,7 +4,6 @@
     let
       sharedSkills = {
         code-comments = inputs.code-comments.outPath;
-        herdr = "${inputs.herdr}/skills/herdr/SKILL.md";
       };
     in
     {

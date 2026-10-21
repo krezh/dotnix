@@ -155,6 +155,7 @@ fn parse_limit(raw: &Value) -> Result<Limit, String> {
             .filter(|duration| *duration > 0),
         severity: severity(text(raw, "status"), used),
         exhausts_at: None,
+        expected: None,
     })
 }
 

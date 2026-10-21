@@ -1,13 +1,48 @@
 use std::{fs, path::PathBuf};
 
-use super::{MIGRATIONS, load_from, save_to};
-use crate::features::ai::state::{Credits, Freshness, Limit, Provider, Severity, Source};
+use super::{MIGRATIONS, keep_to, load_from, save_to, windows_from};
+use crate::features::ai::{
+    history::Window,
+    state::{Credits, Freshness, Limit, Provider, Severity, Source},
+};
 use rusqlite::{Connection, params};
 
 fn database() -> Connection {
     let db = Connection::open_in_memory().unwrap();
-    db.execute_batch(MIGRATIONS[0]).unwrap();
+    for migration in MIGRATIONS {
+        db.execute_batch(migration).unwrap();
+    }
     db
+}
+
+fn window(start: i64, samples: Vec<(i64, f64)>) -> Window {
+    Window {
+        provider: "claude:account-a:org-a".to_owned(),
+        limit: "five_hour".to_owned(),
+        start,
+        duration: 1_000,
+        samples,
+    }
+}
+
+#[test]
+fn samples_come_back_as_the_window_they_were_kept_in() {
+    let db = database();
+    let mut kept = window(10_000, vec![(10_100, 5.0)]);
+    keep_to(&db, &kept).unwrap();
+    kept.samples.push((10_400, 12.5));
+    keep_to(&db, &kept).unwrap();
+    assert_eq!(windows_from(&db, 10_500).unwrap(), vec![kept]);
+}
+
+#[test]
+fn a_new_window_lets_go_of_the_last_and_ended_ones_are_not_loaded() {
+    let db = database();
+    keep_to(&db, &window(10_000, vec![(10_100, 5.0)])).unwrap();
+    let next = window(11_000, vec![(11_050, 1.0)]);
+    keep_to(&db, &next).unwrap();
+    assert_eq!(windows_from(&db, 11_100).unwrap(), vec![next]);
+    assert_eq!(windows_from(&db, 12_000).unwrap(), Vec::new());
 }
 
 fn provider(identity: &str) -> Provider {
@@ -27,6 +62,7 @@ fn provider(identity: &str) -> Provider {
             duration_ms: Some(18_000_000),
             severity: Severity::Ok,
             exhausts_at: None,
+            expected: None,
         }],
         credits: Some(Credits {
             count: 20,

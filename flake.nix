@@ -189,11 +189,6 @@
       };
     };
 
-    herdr = {
-      url = "github:ogulcancelik/herdr";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-
     undo = {
       url = "github:edaywalid/undo";
       inputs.nixpkgs.follows = "nixpkgs";

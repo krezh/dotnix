@@ -45,7 +45,7 @@
           remoteControlAtStartup = false;
 
           statusLine = {
-            command = "${pkgs.claude-usage-bar}/bin/claude-usage-bar";
+            command = lib.mkDefault "${pkgs.claude-usage-bar}/bin/claude-usage-bar";
             type = "command";
           };
 

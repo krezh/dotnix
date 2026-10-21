@@ -4,6 +4,7 @@ mod components;
 mod compositor;
 mod config;
 mod control;
+mod copy;
 mod cover;
 mod db;
 mod dbus;
@@ -15,6 +16,7 @@ mod island;
 mod keyring;
 mod launch;
 mod logging;
+mod markdown;
 mod menu;
 mod panel;
 mod panels;
@@ -129,6 +131,12 @@ fn main() {
         Some("logs") => {
             args.next();
             logging::logs(args.collect());
+        }
+        Some(word) => {
+            if let Some(client) = features::client(word) {
+                args.next();
+                std::process::exit(client(&args.collect::<Vec<_>>()));
+            }
         }
         _ => {}
     }

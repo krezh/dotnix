@@ -9,12 +9,28 @@ mod omp;
 
 const TIMEOUT: Duration = Duration::from_secs(20);
 
+/// Why a source could not be read; `wait` when it asked to be left alone, for as long as it said.
+#[derive(Debug)]
+pub(super) struct Failure {
+    pub(super) message: String,
+    pub(super) wait: Option<Option<Duration>>,
+}
+
+impl From<String> for Failure {
+    fn from(message: String) -> Self {
+        Self {
+            message,
+            wait: None,
+        }
+    }
+}
+
 pub(super) fn fetch(
     source: Source,
     publish_cached: impl FnOnce(Option<String>, Option<Provider>),
-) -> Result<SourceReport, String> {
+) -> Result<SourceReport, Failure> {
     match source {
-        Source::Omp => omp::fetch(),
+        Source::Omp => omp::fetch().map_err(Failure::from),
         Source::Claude => claude::fetch(publish_cached),
     }
 }

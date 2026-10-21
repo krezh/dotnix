@@ -2,6 +2,12 @@ use std::{cmp::Ordering, sync::Arc};
 
 use serde::{Deserialize, Serialize};
 
+use super::{
+    conversation::Chat,
+    history::Window,
+    session::{Request, Session},
+};
+
 #[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq, Hash)]
 #[serde(rename_all = "lowercase")]
 pub enum Source {
@@ -36,6 +42,9 @@ pub struct Limit {
     pub(super) duration_ms: Option<i64>,
     pub(super) severity: Severity,
     pub(super) exhausts_at: Option<i64>,
+    /// How much of the window is expected to be used by its reset, by the forecast.
+    #[serde(skip)]
+    pub(super) expected: Option<f64>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
@@ -134,6 +143,11 @@ pub struct State {
     pub(super) refreshing: bool,
     pub(super) attempted_at: Option<i64>,
     pub(super) now: i64,
+    pub(super) sessions: Arc<Vec<Session>>,
+    /// Oldest first.
+    pub(super) requests: Arc<Vec<Request>>,
+    pub(super) chat: Arc<Chat>,
+    pub(super) windows: Arc<Vec<Window>>,
 }
 
 impl PartialEq for State {
@@ -143,6 +157,10 @@ impl PartialEq for State {
             && self.attempted_at == other.attempted_at
             && Arc::ptr_eq(&self.providers, &other.providers)
             && Arc::ptr_eq(&self.issues, &other.issues)
+            && Arc::ptr_eq(&self.sessions, &other.sessions)
+            && Arc::ptr_eq(&self.requests, &other.requests)
+            && Arc::ptr_eq(&self.chat, &other.chat)
+            && Arc::ptr_eq(&self.windows, &other.windows)
     }
 }
 

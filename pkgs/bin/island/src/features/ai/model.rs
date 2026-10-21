@@ -1,9 +1,54 @@
 use std::{collections::HashMap, sync::Arc};
 
+use chrono::{Local, TimeZone, Timelike};
+
 use super::{
+    forecast,
+    hook::Reading,
     settings::Settings,
     state::{Freshness, Issue, Limit, Provider, Severity, Source, SourceReport, State},
 };
+
+/// Claude's numbers as Claude Code's status line reads them, laid over the usage API's last
+/// reading, which names the account and its other limits. Nothing while there is no such reading
+/// yet, or more than one Claude account to choose between.
+pub(super) fn status_line(state: &State, readings: &[Reading], now: i64) -> Option<SourceReport> {
+    let mut claude = state
+        .providers
+        .iter()
+        .filter(|provider| provider.source == Source::Claude);
+    let known = claude.next()?;
+    if claude.next().is_some() || readings.is_empty() {
+        return None;
+    }
+    let mut provider = known.clone();
+    for reading in readings {
+        let Some(limit) = provider
+            .limits
+            .iter_mut()
+            .find(|limit| limit.id == reading.id)
+        else {
+            continue;
+        };
+        limit.used = reading.used.clamp(0.0, 100.0);
+        limit.remaining = 100.0 - limit.used;
+        if reading.resets_at.is_some() {
+            limit.resets_at = reading.resets_at;
+        }
+        limit.severity = if limit.used >= 100.0 {
+            Severity::Exhausted
+        } else {
+            Severity::Ok
+        };
+        limit.exhausts_at = None;
+    }
+    provider.fetched_at = now;
+    provider.freshness = Freshness::Fresh;
+    Some(SourceReport {
+        providers: vec![provider],
+        issues: Vec::new(),
+    })
+}
 
 #[derive(Debug, PartialEq)]
 pub(super) struct Notice {
@@ -17,30 +62,26 @@ pub(super) struct Tracker {
     previous: HashMap<(Source, String, String), Severity>,
 }
 
-fn project(limit: &mut Limit, measured_at: i64, settings: &Settings) {
+/// The local hour of a time, which the forecast counts nights by.
+fn local_hour(at: i64) -> u32 {
+    Local
+        .timestamp_millis_opt(at)
+        .single()
+        .map_or(12, |time| time.hour())
+}
+
+/// `readings` are the window's earlier readings, which the forecast reads the recent pace from.
+fn project(limit: &mut Limit, measured_at: i64, readings: &[(i64, f64)], settings: &Settings) {
     if limit.used >= 100.0 {
         limit.severity = Severity::Exhausted;
     } else if limit.used >= settings.alerts.high_usage_threshold {
         limit.severity = limit.severity.max(Severity::High);
     }
-    limit.exhausts_at = match (limit.resets_at, limit.duration_ms) {
-        (Some(reset), Some(duration))
-            if limit.severity != Severity::Exhausted
-                && duration > 0
-                && reset > measured_at
-                && (5.0..100.0).contains(&limit.used) =>
-        {
-            let elapsed = duration.saturating_sub(reset.saturating_sub(measured_at));
-            if elapsed as f64 >= duration as f64 * 0.1 && elapsed <= duration {
-                let remaining = (100.0 - limit.used) * elapsed as f64 / limit.used;
-                let exhaustion = measured_at.saturating_add(remaining as i64);
-                (exhaustion < reset).then_some(exhaustion)
-            } else {
-                None
-            }
-        }
-        _ => None,
-    };
+    let seen = (limit.severity != Severity::Exhausted)
+        .then(|| forecast::forecast(limit, readings, measured_at, local_hour))
+        .flatten();
+    limit.expected = seen.as_ref().map(|seen| seen.expected);
+    limit.exhausts_at = seen.and_then(|seen| seen.exhausts_at);
     if settings.alerts.pace_alerts && limit.exhausts_at.is_some() {
         limit.severity = limit.severity.max(Severity::High);
     }
@@ -184,7 +225,12 @@ impl Tracker {
             }
             if provider.freshness.is_fresh() {
                 for limit in &mut provider.limits {
-                    project(limit, provider.fetched_at, settings);
+                    let readings = state
+                        .windows
+                        .iter()
+                        .find(|window| window.provider == provider.id && window.limit == limit.id)
+                        .map_or(&[][..], |window| &window.samples[..]);
+                    project(limit, provider.fetched_at, readings, settings);
                 }
             }
             for limit in &provider.limits {
