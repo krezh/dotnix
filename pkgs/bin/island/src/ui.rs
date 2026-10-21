@@ -96,21 +96,29 @@ pub fn shadow(radius: f32, power: f32, spread: f32) -> Canvas<()> {
     shape::outer_shadow(radius, power, hsla(0.0, 0.0, 0.0, SHADOW_ALPHA), spread)
 }
 
-pub fn joined_shadow(
+/// The island's shadow: a 1 px edge line and a soft ambient layer dropped below it, after macOS
+/// menus. `strength` scales both; 0 draws nothing.
+pub fn drop_shadow(
     body: Bounds<Pixels>,
     radius: f32,
-    power: f32,
     hang: Option<Hang>,
-    spread: f32,
+    strength: f32,
 ) -> Canvas<()> {
-    shape::joined_shadow(
-        body,
-        radius,
-        power,
-        hang,
-        hsla(0.0, 0.0, 0.0, SHADOW_ALPHA),
-        spread,
-    )
+    let layers = [
+        shape::Layer {
+            alpha: 0.3 * strength,
+            drop: 0.0,
+            blur: 0.0,
+            spread: 1.0,
+        },
+        shape::Layer {
+            alpha: 0.35 * strength,
+            drop: 10.0,
+            blur: 15.0,
+            spread: 0.0,
+        },
+    ];
+    shape::joined_drop_shadow(body, radius, hang, layers)
 }
 
 /// Private, so a one-off hover cannot be written.

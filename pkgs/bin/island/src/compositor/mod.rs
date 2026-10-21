@@ -30,6 +30,12 @@ pub trait Compositor: Send + Sync + Sized + 'static {
     fn focused_class(&self) -> Option<String> {
         None
     }
+
+    /// Where this process's island surface on `monitor` sits on the desktop, in logical pixels.
+    /// Another bar's exclusive zone moves it off the monitor's top edge.
+    fn surface_origin(&self, _monitor: &str) -> Option<(i32, i32)> {
+        None
+    }
 }
 
 pub trait Backend: Send + Sync {
@@ -37,6 +43,7 @@ pub trait Backend: Send + Sync {
     fn focus_relative(&self, step: i32);
     fn top_gap(&self) -> Option<f32>;
     fn focused_class(&self) -> Option<String>;
+    fn surface_origin(&self, monitor: &str) -> Option<(i32, i32)>;
 }
 
 impl<C: Compositor> Backend for C {
@@ -54,6 +61,10 @@ impl<C: Compositor> Backend for C {
 
     fn focused_class(&self) -> Option<String> {
         Compositor::focused_class(self)
+    }
+
+    fn surface_origin(&self, monitor: &str) -> Option<(i32, i32)> {
+        Compositor::surface_origin(self, monitor)
     }
 }
 

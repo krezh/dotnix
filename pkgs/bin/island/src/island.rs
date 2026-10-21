@@ -24,6 +24,7 @@ use crate::{
         popover::Popovers,
         tooltip::Tooltips,
     },
+    compositor,
     config::{self, Widget},
     effects::Effects,
     features::{self, AnyLocal, Features, IslandInfo, Outcome, PanelCx},
@@ -57,7 +58,10 @@ enum Fold {
 pub(crate) const REVEAL_DELAY: Duration = Duration::from_millis(90);
 const MAX_STEP: Duration = Duration::from_millis(50);
 pub(crate) const CONTENT_DRIFT: f32 = 8.0;
-const SHADOW_SPREAD: f32 = 14.0;
+/// How far the drop shadow reaches past the island's sides and bottom: three sigmas of its blur,
+/// plus its drop below.
+const SHADOW_SIDE: f32 = 45.0;
+const SHADOW_BELOW: f32 = 55.0;
 const LINES_PER_NOTCH: f32 = 3.0;
 const PIXELS_PER_NOTCH: f32 = 50.0;
 
@@ -184,6 +188,7 @@ pub struct Startup {
     pub top: f32,
     pub corner: (f32, f32),
     pub opacity: f32,
+    pub shadow: f32,
     pub glow: f32,
     pub workspaces: Option<Snapshot>,
     pub features: Rc<Features>,
@@ -211,6 +216,7 @@ pub struct Island {
     anim: Option<AnimStats>,
     corner: (f32, f32),
     opacity: f32,
+    shadow: f32,
     glow: f32,
     aura: Aura,
     input_region: Vec<Bounds<Pixels>>,
@@ -314,6 +320,7 @@ impl Island {
             anim: None,
             corner: startup.corner,
             opacity: startup.opacity,
+            shadow: startup.shadow,
             glow: startup.glow,
             aura: Aura::default(),
             input_region: Vec::new(),
@@ -956,13 +963,16 @@ impl Island {
             .or_else(|| monitors.iter().find(|monitor| monitor.focused))
     }
 
-    /// Assumes the window is centred at the top of its monitor.
+    /// Asks the compositor where the window is, else assumes it is centred at the top of its
+    /// monitor.
     pub fn to_screen(&self, point: Point<Pixels>) -> Option<(i32, i32)> {
         let monitor = self.island_monitor()?;
-        let left = monitor.x + (monitor.width - SURFACE_W as i32) / 2;
+        let (left, top) = compositor::backend()
+            .and_then(|backend| backend.surface_origin(&monitor.name))
+            .unwrap_or((monitor.x + (monitor.width - SURFACE_W as i32) / 2, monitor.y));
         Some((
             left + f32::from(point.x).round() as i32,
-            monitor.y + f32::from(point.y).round() as i32,
+            top + f32::from(point.y).round() as i32,
         ))
     }
 
@@ -1225,9 +1235,9 @@ impl Island {
                     scroll: &self.scroll,
                     island_h: h,
                     min_width: frozen.map_or(0.0, |(_, shape)| shape.w),
-                    max_width: frozen.map_or(SURFACE_W - 2.0 * SHADOW_SPREAD, |(_, shape)| shape.w),
+                    max_width: frozen.map_or(SURFACE_W - 2.0 * SHADOW_SIDE, |(_, shape)| shape.w),
                     max_height: frozen
-                        .map_or(SURFACE_H - self.top - SHADOW_SPREAD, |(_, shape)| shape.h),
+                        .map_or(SURFACE_H - self.top - SHADOW_BELOW, |(_, shape)| shape.h),
                     phase: self.last_sample.elapsed().as_secs_f32() / sys::INTERVAL.as_secs_f32(),
                     layouts: &self.layouts,
                     tips: &self.tips,
@@ -1482,7 +1492,7 @@ impl Render for Island {
         let menu = hung
             .zip(self.menu.as_ref())
             .map(|(hang, menu)| menu.element(&hang, self.hovered, cx));
-        let shadow = ui::joined_shadow(body, corner.0, corner.1, hang, SHADOW_SPREAD);
+        let shadow = ui::drop_shadow(body, corner.0, hang, self.shadow);
 
         self.drawn = self
             .held

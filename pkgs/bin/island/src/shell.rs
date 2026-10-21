@@ -21,6 +21,9 @@ use crate::{
     wm::Snapshot,
 };
 
+/// The island's layer-shell namespace, which compositors list its surfaces under.
+pub const NAMESPACE: &str = "island";
+
 const DISPLAY_POLL: Duration = Duration::from_secs(2);
 const STARTUP_POLL: Duration = Duration::from_millis(100);
 const STARTUP_ATTEMPTS: u32 = 10;
@@ -32,6 +35,7 @@ pub struct Config {
     pub top: f32,
     pub corner: (f32, f32),
     pub opacity: f32,
+    pub shadow: f32,
     pub glow: f32,
 }
 
@@ -240,6 +244,7 @@ impl Shell {
             top: self.config.top,
             corner: self.config.corner,
             opacity: self.config.opacity,
+            shadow: self.config.shadow,
             glow: self.config.glow,
             workspaces: self.workspaces.clone(),
             features: self.features.clone(),
@@ -252,11 +257,11 @@ impl Shell {
                 size: Size::new(px(SURFACE_W), px(SURFACE_H)),
             })),
             display_id: display,
-            app_id: Some("island".to_string()),
+            app_id: Some(NAMESPACE.to_string()),
             window_background: WindowBackgroundAppearance::Transparent,
             inactive_frame_interval: None,
             kind: WindowKind::LayerShell(LayerShellOptions {
-                namespace: "island".to_string(),
+                namespace: NAMESPACE.to_string(),
                 layer: Layer::Top,
                 anchor: Anchor::TOP,
                 exclusive_zone: Some(px(self.config.top + COLLAPSED_H)),

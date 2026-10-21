@@ -109,7 +109,11 @@ pub(super) fn blocks(provider: &Provider, _p: &PanelCx<'_>, now: i64) -> Vec<Blo
     ];
     identity.push(Block::caption(
         format::freshness(provider.freshness),
-        if provider.freshness.is_fresh() { SUBTEXT1 } else { YELLOW },
+        if provider.freshness.is_fresh() {
+            SUBTEXT1
+        } else {
+            YELLOW
+        },
     ));
     if !provider.freshness.is_fresh() {
         identity.push(body(

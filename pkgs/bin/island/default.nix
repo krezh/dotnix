@@ -10,6 +10,11 @@ let
     libxkbcommon
   ];
   src = craneLib.cleanCargoSource ./.;
+  cratePatches = {
+    gpui-pre = [ ./patches/gpui-pre-set-layer.patch ];
+    gpui-pre-linux = [ ./patches/gpui-pre-linux-set-layer.patch ];
+    gpui-pre-wgpu = [ ./patches/gpui-pre-wgpu-drop-shadow-clip.patch ];
+  };
 in
 craneLib.buildPackage rec {
   inherit src;
@@ -19,14 +24,9 @@ craneLib.buildPackage rec {
     inherit src;
     overrideVendorCargoPackage =
       p: drv:
-      if
-        lib.elem p.name [
-          "gpui-pre"
-          "gpui-pre-linux"
-        ]
-      then
+      if cratePatches ? ${p.name} then
         drv.overrideAttrs (old: {
-          patches = (old.patches or [ ]) ++ [ ./patches/${p.name}-set-layer.patch ];
+          patches = (old.patches or [ ]) ++ cratePatches.${p.name};
         })
       else
         drv;

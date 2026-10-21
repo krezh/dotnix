@@ -621,7 +621,11 @@ fn strip_heading_permalinks(markup: &mut String) {
 }
 
 /// `tone` is the section's tone class; headings and bullets are drawn in it.
-pub(crate) fn append_markdown_block(section: &gtk::Box, block: MarkdownBlock, tone: Option<&'static str>) {
+pub(crate) fn append_markdown_block(
+    section: &gtk::Box,
+    block: MarkdownBlock,
+    tone: Option<&'static str>,
+) {
     let toned = |classes: &[&'static str]| {
         let mut classes = classes.to_vec();
         if let Some(tone) = tone {

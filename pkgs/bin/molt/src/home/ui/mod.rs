@@ -20,8 +20,8 @@ use crate::search::ui::show_search;
 use crate::ui::EnergyOverlay;
 use crate::ui::theme;
 use crate::ui::{
-    FadeScroll, MorphLabel, action_close_button, back_button, duration_text, fit_window, format_size,
-    format_timestamp, label, replace_screen, seconds_since, short_age, title,
+    FadeScroll, MorphLabel, action_close_button, back_button, duration_text, fit_window,
+    format_size, format_timestamp, label, replace_screen, seconds_since, short_age, title,
 };
 use crate::watchlist::db::{open_db, summary};
 use crate::watchlist::ui::show_watchlist;

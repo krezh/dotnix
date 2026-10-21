@@ -50,7 +50,13 @@
             ;
         };
         appearance = {
-          inherit (cfg.appearance) opacity radius power;
+          inherit (cfg.appearance)
+            opacity
+            radius
+            power
+            border
+            shadow
+            ;
           icon_theme = cfg.appearance.iconTheme;
         };
         features = {
@@ -158,6 +164,18 @@
           type = lib.types.numbers.positive;
           default = 2;
           description = "Corner superellipse power: 2 is circular, 4 a squircle.";
+        };
+
+        appearance.border = lib.mkOption {
+          type = lib.types.numbers.nonnegative;
+          default = 1;
+          description = "Width of the outline around the island, popovers and cards, in pixels; 0 turns it off.";
+        };
+
+        appearance.shadow = lib.mkOption {
+          type = lib.types.numbers.nonnegative;
+          default = 1;
+          description = "Strength of the island's drop shadow; 0 turns it off.";
         };
 
         appearance.iconTheme = lib.mkOption {

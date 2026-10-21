@@ -30,8 +30,6 @@
       shell = "${lib.getExe config.programs.noctalia.package} msg";
       mail = mkProg pkgs.protonmail-desktop;
       audioControl = "${lib.getExe pkgs.pwvucontrol} --tab 4";
-      volumeScript = lib.getExe pkgs.volume_script_hyprpanel;
-      brightnessScript = lib.getExe pkgs.brightness_script_hyprpanel;
       audioSwitch = lib.getExe osConfig.nixosModules.wireplumber.audioSwitching.package;
 
       isThor = osConfig.networking.hostName == "thor";
@@ -136,14 +134,10 @@
         "Mod+Shift+End" = "column-move-to-last";
         "Mod+Tab" = noRepeat "workspace-focus-last";
 
-        "XF86AudioMute" = locked (spawn "${volumeScript} mute");
         "XF86AudioPlay" = locked (spawn "${lib.getExe pkgs.playerctl} play-pause");
         "XF86AudioPrev" = locked (spawn "${lib.getExe pkgs.playerctl} previous");
         "XF86AudioNext" = locked (spawn "${lib.getExe pkgs.playerctl} next");
-        "XF86MonBrightnessUp" = locked (spawn "${brightnessScript} up");
-        "XF86MonBrightnessDown" = locked (spawn "${brightnessScript} down");
-        "XF86AudioRaiseVolume" = locked (spawn "${volumeScript} up");
-        "XF86AudioLowerVolume" = locked (spawn "${volumeScript} down");
+
         "Mod+WheelDown" = {
           action = "workspace-next";
           cooldown_ms = 150;

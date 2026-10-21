@@ -46,7 +46,6 @@
           # Local Packages
           flate
           towonel
-          klim
           kubestr
           k8s-format
           talswitcher

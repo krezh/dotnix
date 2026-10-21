@@ -396,19 +396,13 @@ fn part(
                 area.flex_none()
                     .h(px(if span > 1 { TALL_CHART_H } else { CHART_H }))
             })
-            .child(
-                div()
-                    .absolute()
-                    .size_full()
-                    .flex()
-                    .child(chart(
-                        format!("{id}-chart-{index}").into(),
-                        series,
-                        card::SLOTS,
-                        phase,
-                        tips,
-                    )),
-            )
+            .child(div().absolute().size_full().flex().child(chart(
+                format!("{id}-chart-{index}").into(),
+                series,
+                card::SLOTS,
+                phase,
+                tips,
+            )))
             .into_any_element(),
         Part::Cores { loads, color } => cores(loads, color).into_any_element(),
         Part::Meters {

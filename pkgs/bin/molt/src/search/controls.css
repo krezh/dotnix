@@ -1,4 +1,18 @@
-.search-entry { min-height: 38px; font-size: 16px; }
-.search-button { min-height: 30px; min-width: 76px; padding: 4px 10px; font-size: 12px; border-radius: 6px; }
-.search-button:disabled { opacity: 0.45; }
-.search-row { padding: 10px 8px; border-radius: 6px; }
+.search-entry {
+  min-height: 38px;
+  font-size: 16px;
+}
+.search-button {
+  min-height: 30px;
+  min-width: 76px;
+  padding: 4px 10px;
+  font-size: 12px;
+  border-radius: 6px;
+}
+.search-button:disabled {
+  opacity: 0.45;
+}
+.search-row {
+  padding: 10px 8px;
+  border-radius: 6px;
+}

@@ -278,7 +278,9 @@ impl GroupedList {
         };
         let filtered = gtk::FilterListModel::new(Some(sorted), Some(filter.clone()));
 
-        let rows = Rc::new(RefCell::new(HashMap::<gtk::ListItem, Rc<RefCell<ListRow>>>::new()));
+        let rows = Rc::new(RefCell::new(
+            HashMap::<gtk::ListItem, Rc<RefCell<ListRow>>>::new(),
+        ));
         let factory = gtk::SignalListItemFactory::new();
         factory.connect_setup({
             let rows = Rc::clone(&rows);
@@ -337,7 +339,9 @@ impl GroupedList {
             }
         });
 
-        let headers = Rc::new(RefCell::new(HashMap::<gtk::ListHeader, SectionHeader>::new()));
+        let headers = Rc::new(RefCell::new(
+            HashMap::<gtk::ListHeader, SectionHeader>::new(),
+        ));
         let shown = Rc::new(RefCell::new(vec![0; specs.len()]));
         let header_factory = gtk::SignalListItemFactory::new();
         header_factory.connect_setup({
@@ -495,7 +499,8 @@ impl GroupedList {
     fn replace(&self, index: usize, item: &RowItem) {
         let stored = self.store.n_items() as usize;
         if index < stored {
-            self.store.splice(index as u32, 1, std::slice::from_ref(item));
+            self.store
+                .splice(index as u32, 1, std::slice::from_ref(item));
         } else {
             self.pending.borrow_mut()[index - stored] = item.clone();
         }

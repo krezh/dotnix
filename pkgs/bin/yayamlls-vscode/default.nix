@@ -28,17 +28,14 @@ buildNpmPackage (finalAttrs: {
     pkgs.jq
   ];
 
-  postPatch = ''
-    ${lib.getExe pkgs.jq} --arg ver "^${lib.versions.major pkgs.vscodium.version}.${lib.versions.minor pkgs.vscodium.version}.0" \
-      '.engines.vscode = $ver | .devDependencies["@types/vscode"] = $ver' \
-      package.json > package.json.tmp
-    mv package.json.tmp package.json
-  '';
-
   buildPhase = "vsce package";
 
   installPhase = ''
     unzip -q yayamlls-*.vsix -d unpacked
+    ${lib.getExe pkgs.jq} --arg ver "^${lib.versions.major pkgs.vscodium.version}.${lib.versions.minor pkgs.vscodium.version}.0" \
+      '.engines.vscode = $ver' \
+      unpacked/extension/package.json > unpacked/extension/package.json.tmp
+    mv unpacked/extension/package.json.tmp unpacked/extension/package.json
     mkdir -p "$out/share/vscode/extensions/home-operations.yayamlls"
     cp -r unpacked/extension/. "$out/share/vscode/extensions/home-operations.yayamlls/"
   '';

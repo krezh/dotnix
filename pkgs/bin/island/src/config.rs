@@ -107,6 +107,12 @@ pub struct Appearance {
     pub radius: f32,
     #[serde(deserialize_with = "number")]
     pub power: f32,
+    /// Width of the outline around the island, popovers and cards; 0 turns it off.
+    #[serde(deserialize_with = "number")]
+    pub border: f32,
+    /// Strength of the island's drop shadow; 0 turns it off.
+    #[serde(deserialize_with = "number")]
+    pub shadow: f32,
     pub icon_theme: String,
 }
 
@@ -116,6 +122,8 @@ impl Default for Appearance {
             opacity: theme::DEFAULT_OPACITY,
             radius: shape::DEFAULT_RADIUS,
             power: shape::DEFAULT_POWER,
+            border: shape::DEFAULT_BORDER,
+            shadow: 1.0,
             icon_theme: "hicolor".to_owned(),
         }
     }

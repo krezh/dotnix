@@ -164,6 +164,7 @@ fn main() {
         warn!(spec = settings.log.level, "ignoring [log] level: {error}");
     }
     let appearance = &settings.appearance;
+    shape::set_border(appearance.border);
 
     icons::set_theme(
         parsed
@@ -192,6 +193,7 @@ fn main() {
             parsed.power.unwrap_or(appearance.power),
         ),
         opacity: parsed.opacity.unwrap_or(appearance.opacity),
+        shadow: appearance.shadow.max(0.0),
         glow: settings.features.visualizer.glow.max(0.0),
     };
     let system = settings.features.system;

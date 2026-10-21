@@ -333,10 +333,7 @@ pub fn missed(rows: &MissedList, looks: Vec<Look>, empty: &'static str) -> Block
             .iter()
             .map(|row| row.alpha.value().clamp(0.0, 1.0))
             .fold(0.0, f32::max);
-        (
-            place(0.0, 0.0, EMPTY_H, 1.0 - outgoing),
-            Block::note(empty),
-        )
+        (place(0.0, 0.0, EMPTY_H, 1.0 - outgoing), Block::note(empty))
     });
     let mut looks: Vec<Option<Look>> = looks.into_iter().map(Some).collect();
     let all = rows.rows();

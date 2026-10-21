@@ -63,7 +63,10 @@ fn snapshots_survive_reopening_without_changing_source_values() {
     }
     {
         let db = Connection::open(&path).unwrap();
-        assert_eq!(load_from(&db, &original.id).unwrap(), Some(cached(original)));
+        assert_eq!(
+            load_from(&db, &original.id).unwrap(),
+            Some(cached(original))
+        );
     }
     fs::remove_dir_all(path.parent().unwrap()).unwrap();
 }
@@ -122,7 +125,10 @@ fn only_fresh_claude_snapshots_can_replace_last_known_good() {
     incoming.limits[0].remaining = 58.0;
     incoming.fetched_at += 20_000;
     save_to(&db, &incoming).unwrap();
-    assert_eq!(load_from(&db, &incoming.id).unwrap(), Some(cached(incoming)));
+    assert_eq!(
+        load_from(&db, &incoming.id).unwrap(),
+        Some(cached(incoming))
+    );
 }
 
 #[test]
@@ -131,7 +137,10 @@ fn loading_clears_exhaustion_projections() {
     let mut original = provider("claude:account-a:org-a");
     original.limits[0].exhausts_at = Some(original.fetched_at + 60_000);
     save_to(&db, &original).unwrap();
-    assert_eq!(load_from(&db, &original.id).unwrap(), Some(cached(original)));
+    assert_eq!(
+        load_from(&db, &original.id).unwrap(),
+        Some(cached(original))
+    );
 }
 
 #[test]

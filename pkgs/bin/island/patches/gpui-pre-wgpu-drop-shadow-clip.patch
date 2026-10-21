@@ -1,0 +1,14 @@
+--- a/src/shaders.wgsl
++++ b/src/shaders.wgsl
+@@ -1040,6 +1040,11 @@
+         let element_distance = quad_sdf(input.position.xy, shadow.element_bounds,
+                                         shadow.element_corner_radii);
+         alpha *= saturate(0.5 - element_distance);
++    } else {
++        // A drop shadow stays outside its element, so it never darkens a translucent fill.
++        let element_distance = quad_sdf(input.position.xy, shadow.element_bounds,
++                                        shadow.element_corner_radii);
++        alpha *= saturate(0.5 + element_distance);
+     }
+
+     return blend_color(input.color, alpha);

@@ -1,5 +1,5 @@
 use std::{
-    collections::BTreeSet,
+    collections::{BTreeSet, HashMap},
     env,
     io::{self, BufRead, BufReader, Read, Write},
     os::unix::net::UnixStream,
@@ -12,6 +12,7 @@ use tracing::{info, trace, warn};
 use super::Compositor;
 use crate::{
     features::Feed,
+    shell::NAMESPACE,
     supervisor::Ended,
     wm::{Monitor, Snapshot, Workspace},
 };
@@ -64,6 +65,20 @@ struct RawClient {
     /// Fullscreen mode bits: 1 is maximized, 2 is real fullscreen.
     #[serde(default)]
     fullscreen: u8,
+}
+
+/// One output's layer surfaces, keyed by layer ("0" background … "3" overlay).
+#[derive(Deserialize)]
+struct RawLayers {
+    levels: HashMap<String, Vec<RawLayer>>,
+}
+
+#[derive(Deserialize)]
+struct RawLayer {
+    x: i32,
+    y: i32,
+    namespace: String,
+    pid: u32,
 }
 
 fn socket_dir() -> Option<PathBuf> {
@@ -280,5 +295,17 @@ impl Compositor for Hyprland {
             .as_str()
             .filter(|class| !class.is_empty())
             .map(str::to_owned)
+    }
+
+    fn surface_origin(&self, monitor: &str) -> Option<(i32, i32)> {
+        let mut outputs: HashMap<String, RawLayers> = query("j/layers").ok()?;
+        let pid = std::process::id();
+        outputs
+            .remove(monitor)?
+            .levels
+            .into_values()
+            .flatten()
+            .find(|layer| layer.namespace == NAMESPACE && layer.pid == pid)
+            .map(|layer| (layer.x, layer.y))
     }
 }

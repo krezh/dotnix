@@ -89,10 +89,15 @@ impl Queue {
     }
 
     fn remember(&mut self, scope: SearchScope, offset: usize, results: Rc<SearchResults>) {
-        self.cache.retain(|page| page.scope != scope || page.offset != offset);
+        self.cache
+            .retain(|page| page.scope != scope || page.offset != offset);
         if self.cache.len() == CACHED_PAGES {
             // First pages stay populated even after browsing many later pages.
-            let oldest = self.cache.iter().position(|page| page.offset != 0).unwrap_or(0);
+            let oldest = self
+                .cache
+                .iter()
+                .position(|page| page.offset != 0)
+                .unwrap_or(0);
             self.cache.remove(oldest);
         }
         self.cache.push_back(CachedPage {
@@ -164,7 +169,11 @@ fn search_pages(
 ) -> Result<SearchPages, String> {
     let count = if prefetch { SearchScope::ALL.len() } else { 1 };
     let scopes = std::iter::once(request.scope)
-        .chain(SearchScope::ALL.into_iter().filter(|scope| *scope != request.scope))
+        .chain(
+            SearchScope::ALL
+                .into_iter()
+                .filter(|scope| *scope != request.scope),
+        )
         .take(count);
     let mut scoped_request = request.clone();
     let mut pages = Vec::with_capacity(count);
@@ -334,9 +343,10 @@ impl Controller {
         match completion {
             Some(Ok((client, request, result))) => {
                 self.receiver.take();
-                let cancelled = self.active.take().is_none_or(|(_, cancellation)| {
-                    cancellation.load(Ordering::Relaxed)
-                });
+                let cancelled = self
+                    .active
+                    .take()
+                    .is_none_or(|(_, cancellation)| cancellation.load(Ordering::Relaxed));
                 self.client.replace(Some(client));
                 let outcome = self.queue.borrow_mut().finish(&request, result, cancelled);
                 if let Err(error) = outcome {
@@ -431,11 +441,15 @@ mod tests {
             "package_attr_name": name,
         }))
         .unwrap();
-        queue.remember(scope, offset, Rc::new(SearchResults {
-            total: 109,
-            elapsed: Duration::from_millis(250),
-            items: vec![super::super::model::SearchResultItem::Package(package)],
-        }));
+        queue.remember(
+            scope,
+            offset,
+            Rc::new(SearchResults {
+                total: 109,
+                elapsed: Duration::from_millis(250),
+                items: vec![super::super::model::SearchResultItem::Package(package)],
+            }),
+        );
     }
 
     fn cached_name(results: &SearchResults) -> &str {
@@ -518,11 +532,15 @@ mod tests {
         queue.replace("hyprland".into(), SearchScope::HomeManagerOptions, 0, true);
         let request = queue.take_ready().unwrap();
         assert!(queue.complete(&request));
-        queue.remember(SearchScope::HomeManagerOptions, 0, Rc::new(SearchResults {
-            total: 0,
-            elapsed: Duration::ZERO,
-            items: Vec::new(),
-        }));
+        queue.remember(
+            SearchScope::HomeManagerOptions,
+            0,
+            Rc::new(SearchResults {
+                total: 0,
+                elapsed: Duration::ZERO,
+                items: Vec::new(),
+            }),
+        );
         queue.replace("hyprland".into(), SearchScope::HomeManagerOptions, 0, true);
         assert_eq!(queue.take_cached().unwrap().1.total, 0);
         assert!(queue.take_ready().is_none());
@@ -535,22 +553,50 @@ mod tests {
 
     fn category_pages() -> SearchPages {
         use super::super::model::SearchResultItem;
-        let package = || serde_json::from_value(serde_json::json!({
-            "package_attr_name": "hyprland",
-        })).unwrap();
-        let option = |name| serde_json::from_value(serde_json::json!({
-            "option_name": name,
-        })).unwrap();
+        let package = || {
+            serde_json::from_value(serde_json::json!({
+                "package_attr_name": "hyprland",
+            }))
+            .unwrap()
+        };
+        let option = |name| {
+            serde_json::from_value(serde_json::json!({
+                "option_name": name,
+            }))
+            .unwrap()
+        };
         [
             (SearchScope::All, 109, SearchResultItem::Package(package())),
-            (SearchScope::Packages, 71, SearchResultItem::Package(package())),
-            (SearchScope::NixOsOptions, 11, SearchResultItem::NixOsOption(option("programs.hyprland.enable"))),
-            (SearchScope::HomeManagerOptions, 27, SearchResultItem::HomeManagerOption(option("wayland.windowManager.hyprland.enable"))),
-        ].into_iter().map(|(scope, total, item)| (scope, SearchResults {
-            total,
-            elapsed: Duration::from_millis(100),
-            items: vec![item],
-        })).collect()
+            (
+                SearchScope::Packages,
+                71,
+                SearchResultItem::Package(package()),
+            ),
+            (
+                SearchScope::NixOsOptions,
+                11,
+                SearchResultItem::NixOsOption(option("programs.hyprland.enable")),
+            ),
+            (
+                SearchScope::HomeManagerOptions,
+                27,
+                SearchResultItem::HomeManagerOption(option(
+                    "wayland.windowManager.hyprland.enable",
+                )),
+            ),
+        ]
+        .into_iter()
+        .map(|(scope, total, item)| {
+            (
+                scope,
+                SearchResults {
+                    total,
+                    elapsed: Duration::from_millis(100),
+                    items: vec![item],
+                },
+            )
+        })
+        .collect()
     }
 
     #[test]
@@ -593,7 +639,9 @@ mod tests {
         let (selected, results) = queue.take_cached().unwrap();
         assert_eq!(selected.scope, SearchScope::HomeManagerOptions);
         assert_eq!(results.total, 27);
-        assert!(matches!(&results.items[0], super::super::model::SearchResultItem::HomeManagerOption(hit) if hit.name == "wayland.windowManager.hyprland.enable"));
+        assert!(
+            matches!(&results.items[0], super::super::model::SearchResultItem::HomeManagerOption(hit) if hit.name == "wayland.windowManager.hyprland.enable")
+        );
         assert!(queue.take_ready().is_none());
     }
 
@@ -609,7 +657,9 @@ mod tests {
             } else if transition == 2 {
                 queue.close();
             }
-            queue.finish(&request, Ok(category_pages()), transition == 1).unwrap();
+            queue
+                .finish(&request, Ok(category_pages()), transition == 1)
+                .unwrap();
             assert!(queue.take_cached().is_none());
             assert_eq!(queue.take_ready().is_some(), transition != 2);
         }
@@ -621,7 +671,12 @@ mod tests {
         queue.replace("hyprland".into(), SearchScope::All, 0, true);
         let request = queue.take_ready().unwrap();
         queue.replace("hyprland".into(), SearchScope::Packages, 0, true);
-        assert_eq!(queue.finish(&request, Err("Search failed: HTTP 503".into()), false).unwrap_err(), "Search failed: HTTP 503");
+        assert_eq!(
+            queue
+                .finish(&request, Err("Search failed: HTTP 503".into()), false)
+                .unwrap_err(),
+            "Search failed: HTTP 503"
+        );
         assert!(queue.take_cached().is_none());
         assert!(queue.take_ready().is_none());
         queue.replace("hyprland".into(), SearchScope::Packages, 0, true);

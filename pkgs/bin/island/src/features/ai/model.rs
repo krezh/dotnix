@@ -101,7 +101,11 @@ impl Tracker {
         self.previous.retain(|(source, id, _), _| {
             *source != Source::Claude || Some(id.as_str()) == identity
         });
-        if state.providers.iter().any(|provider| provider.source == Source::Claude) {
+        if state
+            .providers
+            .iter()
+            .any(|provider| provider.source == Source::Claude)
+        {
             return;
         }
         if let Some(mut provider) = snapshot.filter(|provider| {
@@ -114,7 +118,10 @@ impl Tracker {
             self.apply(
                 state,
                 Source::Claude,
-                Ok(SourceReport { providers: vec![provider], issues: Vec::new() }),
+                Ok(SourceReport {
+                    providers: vec![provider],
+                    issues: Vec::new(),
+                }),
                 settings,
             );
         }

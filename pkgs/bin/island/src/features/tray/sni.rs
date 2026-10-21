@@ -10,7 +10,6 @@ use std::{
 };
 
 use futures::{StreamExt, channel::oneshot};
-use gpui::RenderImage;
 use serde::de::DeserializeOwned;
 use zbus::{
     Connection, MatchRule, MessageStream, OwnedObjectPath, OwnedVariant, Proxy, Variant, block_on,
@@ -22,6 +21,7 @@ use zbus::{
 
 use tracing::{debug, info, warn};
 
+use super::raster;
 use crate::{dbus::uncached, features::Feed, icons, menu::MenuNode, supervisor::Ended};
 
 const WATCHER: &str = "org.kde.StatusNotifierWatcher";
@@ -31,6 +31,9 @@ const MENU: &str = "com.canonical.dbusmenu";
 const DEFAULT_PATH: &str = "/StatusNotifierItem";
 
 pub use crate::components::icon::Picture as TrayIcon;
+
+/// An item's `ToolTip`: icon name, icon pixmaps, title and description.
+type ToolTip = (String, Vec<(i32, i32, Vec<u8>)>, String, String);
 
 #[derive(Clone, PartialEq)]
 pub struct TrayItem {
@@ -154,21 +157,6 @@ async fn property<T: DeserializeOwned + zbus::Type>(proxy: &Proxy<'_>, name: &st
     proxy.get_property::<T>(name).await.ok()
 }
 
-fn pixmap(pixmaps: Vec<(i32, i32, Vec<u8>)>) -> Option<Arc<RenderImage>> {
-    let (width, height, data) = pixmaps
-        .into_iter()
-        .filter(|(width, height, data)| {
-            *width > 0 && *height > 0 && data.len() == (*width as usize) * (*height as usize) * 4
-        })
-        .min_by_key(|(width, _, _)| width.abs_diff(32))?;
-    let mut bgra = Vec::with_capacity(data.len());
-    for [a, r, g, b] in data.as_chunks::<4>().0 {
-        bgra.extend_from_slice(&[*b, *g, *r, *a]);
-    }
-    let buffer = image::RgbaImage::from_raw(width as u32, height as u32, bgra)?;
-    Some(Arc::new(RenderImage::new(vec![image::Frame::new(buffer)])))
-}
-
 async fn first<T: DeserializeOwned + zbus::Type>(proxy: &Proxy<'_>, names: &[&str]) -> Option<T> {
     for name in names {
         if let Some(value) = property(proxy, name).await {
@@ -186,12 +174,21 @@ async fn load(connection: &Connection, bus: &str, path: &str, key: String) -> Op
     if status == "Passive" {
         return None;
     }
-    let title: String = match property::<String>(&proxy, "Title")
+    // Electron leaves Title empty and names the item only in its tooltip; Id is a last resort,
+    // as it is often internal (`vesktop_status_icon_1`).
+    let title = match property::<String>(&proxy, "Title")
         .await
         .filter(|title| !title.is_empty())
     {
         Some(title) => title,
-        None => property(&proxy, "Id").await.unwrap_or_default(),
+        None => match property::<ToolTip>(&proxy, "ToolTip")
+            .await
+            .map(|(_, _, title, _)| title)
+            .filter(|title| !title.is_empty())
+        {
+            Some(title) => title,
+            None => property(&proxy, "Id").await.unwrap_or_default(),
+        },
     };
     let theme_path: String = property(&proxy, "IconThemePath").await.unwrap_or_default();
     let name_key = if status == "NeedsAttention" {
@@ -208,11 +205,15 @@ async fn load(connection: &Connection, bus: &str, path: &str, key: String) -> Op
         .await
         .and_then(|name| icons::lookup_in(&theme_path, &name))
     {
-        Some(file) => Some(TrayIcon::File(file)),
+        Some(file) if icons::is_svg(&file) => Some(TrayIcon::File(file)),
+        Some(file) => raster::file(&file),
+        None => None,
+    };
+    let icon = match icon {
+        Some(icon) => Some(icon),
         None => first::<Vec<(i32, i32, Vec<u8>)>>(&proxy, &[pixmap_key, "IconPixmap"])
             .await
-            .and_then(pixmap)
-            .map(TrayIcon::Pixels),
+            .and_then(raster::pixmap),
     };
     let menu: Option<OwnedObjectPath> = property(&proxy, "Menu")
         .await

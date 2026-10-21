@@ -53,12 +53,18 @@ fn dismissing_last_or_clearing_keeps_the_final_empty_height_through_the_fade() {
         for frame in 0..=120 {
             let view = layout(&rows);
             assert_eq!(view.visible, Some(empty_height), "frame {frame}");
-            rows.advance(1.0 / 60.0, now + Duration::from_secs_f32(frame as f32 / 60.0));
+            rows.advance(
+                1.0 / 60.0,
+                now + Duration::from_secs_f32(frame as f32 / 60.0),
+            );
         }
         assert!(rows.rows().is_empty());
         let settled = layout(&rows);
-        assert!(settled.blocks.iter().any(|(place, block)| {
-            matches!(block, Block::Text(_)) && place.opacity == 1.0
-        }));
+        assert!(
+            settled
+                .blocks
+                .iter()
+                .any(|(place, block)| { matches!(block, Block::Text(_)) && place.opacity == 1.0 })
+        );
     }
 }

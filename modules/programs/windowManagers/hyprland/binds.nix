@@ -38,7 +38,6 @@
       hyprlock.run = "${lib.getExe config.programs.hyprlock.package} --grace 0";
       # shell.run = "${lib.getExe config.programs.noctalia.package} msg";
       shell.run = "${lib.getExe config.homeModules.island.package} ctl";
-      keybinds.run = lib.getExe pkgs.hyprland_keybinds;
       mail.run = lib.getExe pkgs.protonmail-desktop;
       audioControl = mkProgWith pkgs.pwvucontrol "--tab 4";
       audioSwitch = lib.getExe osConfig.nixosModules.wireplumber.audioSwitching.package;
@@ -131,10 +130,6 @@
               # rule = exec "${shell.run} panel-toggle clipboard";
               rule = exec "${shell.run} toggle clipboard";
               desc = "Clipboard Manager";
-            };
-            "${mainMod} + K" = {
-              rule = exec keybinds.run;
-              desc = "Show keybinds";
             };
             "${mainMod} + G" = {
               rule = exec "[float] ${audioControl.run}";

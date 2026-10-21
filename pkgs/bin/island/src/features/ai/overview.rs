@@ -36,7 +36,11 @@ fn identity(provider: &Provider) -> String {
 fn footer(provider: &Provider, now: i64) -> Vec<Part> {
     let mut cues: Vec<(Option<u32>, SharedString)> = Vec::new();
     cues.push((
-        if provider.freshness.is_fresh() { None } else { Some(YELLOW) },
+        if provider.freshness.is_fresh() {
+            None
+        } else {
+            Some(YELLOW)
+        },
         format::freshness(provider.freshness).into(),
     ));
     let exhausted = provider

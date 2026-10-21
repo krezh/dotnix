@@ -1,14 +1,35 @@
-use std::{cell::RefCell, collections::HashMap, sync::Arc};
+use std::{
+    cell::RefCell,
+    collections::HashMap,
+    sync::{
+        Arc,
+        atomic::{AtomicU32, Ordering},
+    },
+};
 
 use gpui::{
-    Bounds, Canvas, Corners, Hsla, Pixels, RenderImage, Rgba, Window, canvas, point, prelude::*,
-    px, size,
+    Bounds, BoxShadow, Canvas, ContentMask, Corners, Hsla, Pixels, RenderImage, Rgba, Window,
+    canvas, hsla, point, prelude::*, px, size,
 };
 use image::{Frame, RgbaImage};
 
 pub const DEFAULT_RADIUS: f32 = 28.0;
 pub const DEFAULT_POWER: f32 = 2.0;
+pub const DEFAULT_BORDER: f32 = 1.0;
 const SPRITE_LIMIT: usize = 512;
+
+/// Outline width in logical pixels, as `f32` bits; set once from the config.
+static BORDER: AtomicU32 = AtomicU32::new(DEFAULT_BORDER.to_bits());
+
+pub fn set_border(width: f32) {
+    BORDER.store(width.max(0.0).to_bits(), Ordering::Relaxed);
+}
+
+/// The outline width in device pixels, or `None` when outlines are off.
+fn line(scale: f32) -> Option<f32> {
+    let width = f32::from_bits(BORDER.load(Ordering::Relaxed));
+    (width > 0.0).then(|| (width * scale).round().max(1.0))
+}
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
 struct Sprite {
@@ -186,10 +207,12 @@ fn paint_parts(
     parts: Parts,
     window: &mut Window,
 ) {
+    let scale = window.scale_factor();
+    let border = border.filter(|_| line(scale).is_some());
+    let line = line(scale).unwrap_or(0.0);
     if fill.is_none() && border.is_none() {
         return;
     }
-    let scale = window.scale_factor();
     let snap = |value: Pixels| (f32::from(value) * scale).round();
     let (left, top) = (snap(bounds.origin.x), snap(bounds.origin.y));
     let (right, bottom) = (snap(bounds.right()), snap(bounds.bottom()));
@@ -201,7 +224,6 @@ fn paint_parts(
         .round()
         .min((width.min(height) / 2.0).floor())
         .max(0.0);
-    let line = scale.round().max(1.0);
     let area = |x: f32, y: f32, w: f32, h: f32| Bounds {
         origin: point(px(x / scale), px(y / scale)),
         size: size(px(w / scale), px(h / scale)),
@@ -321,7 +343,8 @@ pub fn joined(
             if fillet < 1.0 {
                 return;
             }
-            let line = scale.round().max(1.0);
+            let border = border.filter(|_| line(scale).is_some());
+            let line = line(scale).unwrap_or(0.0);
             let side = fillet + line;
             let top = (f32::from(body.bottom()) * scale).round() - line;
             for (corner, x) in [(4, gap.0), (5, gap.1 - side)] {
@@ -482,51 +505,73 @@ pub fn outer_shadow(radius: f32, power: f32, color: Hsla, spread: f32) -> Canvas
     .size_full()
 }
 
-pub fn joined_shadow(
+/// One layer of a drop shadow, in logical pixels. `blur` is the Gaussian's sigma, half of a CSS
+/// blur radius.
+#[derive(Clone, Copy)]
+pub struct Layer {
+    pub alpha: f32,
+    pub drop: f32,
+    pub blur: f32,
+    pub spread: f32,
+}
+
+/// Black drop shadows around `body` and a shape hanging from it, blurred on the GPU. They stay
+/// outside both shapes, so neither translucent fill darkens; corners are circular, as GPUI's are.
+pub fn joined_drop_shadow<const N: usize>(
     body: Bounds<Pixels>,
     radius: f32,
-    power: f32,
     hang: Option<Hang>,
-    color: Hsla,
-    spread: f32,
+    layers: [Layer; N],
 ) -> Canvas<()> {
     canvas(
         |_, _, _| {},
-        move |_, (), window, _| {
+        move |bounds, (), window, _| {
+            let shadows: Vec<BoxShadow> = layers
+                .iter()
+                .filter(|layer| layer.alpha > 0.0)
+                .map(|layer| BoxShadow {
+                    color: hsla(0.0, 0.0, 0.0, layer.alpha.min(1.0)),
+                    offset: point(px(0.0), px(layer.drop)),
+                    blur_radius: px(layer.blur),
+                    spread_radius: px(layer.spread),
+                    inset: false,
+                })
+                .collect();
+            if shadows.is_empty() {
+                return;
+            }
             let Some(hang) = hang else {
-                paint_shadow(body, radius, power, color, spread, WHOLE, window);
+                window.paint_drop_shadows(body, Corners::all(px(radius)), &shadows);
                 return;
             };
-            let gap = Some(hang.gap(window.scale_factor()));
-            paint_shadow(
-                body,
-                radius,
-                power,
-                color,
-                spread,
-                Parts {
-                    top: true,
-                    gap,
-                    lip: 0.0,
-                },
-                window,
-            );
-            let mut below = hang.bounds;
-            below.origin.y += px(hang.fillet);
-            below.size.height -= px(hang.fillet);
-            paint_shadow(
-                below,
-                hang.radius,
-                hang.power,
-                color,
-                spread,
-                Parts {
-                    top: false,
-                    gap: None,
-                    lip: 0.0,
-                },
-                window,
-            );
+            // Each shape's shadow is kept off the other: the body's above the seam and beside the
+            // hanging shape, the hanging shape's below the seam.
+            let seam = body.bottom();
+            let left = hang.bounds.left() - px(hang.fillet);
+            let right = hang.bounds.right() + px(hang.fillet);
+            let clip = |x0: Pixels, y0: Pixels, x1: Pixels, y1: Pixels| ContentMask {
+                bounds: Bounds::from_corners(point(x0, y0), point(x1, y1)),
+            };
+            let body_masks = [
+                clip(bounds.left(), bounds.top(), bounds.right(), seam),
+                clip(bounds.left(), seam, left, bounds.bottom()),
+                clip(right, seam, bounds.right(), bounds.bottom()),
+            ];
+            for mask in body_masks {
+                window.with_content_mask(Some(mask), |window| {
+                    window.paint_drop_shadows(body, Corners::all(px(radius)), &shadows);
+                });
+            }
+            let hang_corners = Corners {
+                top_left: px(0.0),
+                top_right: px(0.0),
+                bottom_right: px(hang.radius),
+                bottom_left: px(hang.radius),
+            };
+            let below = clip(bounds.left(), seam, bounds.right(), bounds.bottom());
+            window.with_content_mask(Some(below), |window| {
+                window.paint_drop_shadows(hang.bounds, hang_corners, &shadows);
+            });
         },
     )
     .absolute()

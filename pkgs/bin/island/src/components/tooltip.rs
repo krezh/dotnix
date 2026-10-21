@@ -49,7 +49,11 @@ impl Tooltips {
 
     pub fn update(&self, key: &SharedString, text: String, window: &mut Window) {
         let mut state = self.0.borrow_mut();
-        if state.texts.get(key).is_none_or(|previous| previous.as_ref() != text) {
+        if state
+            .texts
+            .get(key)
+            .is_none_or(|previous| previous.as_ref() != text)
+        {
             state.texts.insert(key.clone(), text.into());
             window.refresh();
         }
@@ -91,30 +95,31 @@ impl Tooltips {
     pub fn track(&self, element: Stateful<Div>, key: SharedString) -> Stateful<Div> {
         let (hover_state, move_state) = (self.0.clone(), self.0.clone());
         let move_key = key.clone();
-        element.on_hover(move |hovered, window, _| {
-            let mut state = hover_state.borrow_mut();
-            if *hovered {
-                state.hover = Some(Hover {
-                    key: key.clone(),
-                    at: window.mouse_position(),
-                    since: Instant::now(),
-                });
-            } else if state.hover.as_ref().is_some_and(|hover| hover.key == key) {
-                state.hover = None;
-            }
-            window.refresh();
-        })
-        .on_mouse_move(move |event: &MouseMoveEvent, window, _| {
-            if let Some(hover) = move_state
-                .borrow_mut()
-                .hover
-                .as_mut()
-                .filter(|hover| hover.key == move_key)
-            {
-                hover.at = event.position;
+        element
+            .on_hover(move |hovered, window, _| {
+                let mut state = hover_state.borrow_mut();
+                if *hovered {
+                    state.hover = Some(Hover {
+                        key: key.clone(),
+                        at: window.mouse_position(),
+                        since: Instant::now(),
+                    });
+                } else if state.hover.as_ref().is_some_and(|hover| hover.key == key) {
+                    state.hover = None;
+                }
                 window.refresh();
-            }
-        })
+            })
+            .on_mouse_move(move |event: &MouseMoveEvent, window, _| {
+                if let Some(hover) = move_state
+                    .borrow_mut()
+                    .hover
+                    .as_mut()
+                    .filter(|hover| hover.key == move_key)
+                {
+                    hover.at = event.position;
+                    window.refresh();
+                }
+            })
     }
 }
 

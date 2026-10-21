@@ -10,6 +10,7 @@
         appearance = {
           opacity = config.var.opacity;
           radius = config.var.rounding;
+          border = 1;
         };
         bar = {
           left = [

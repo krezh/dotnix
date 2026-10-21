@@ -158,11 +158,15 @@ fn strips_headerlinks_and_pilcrow_from_headings() {
 #[test]
 fn renders_option_html_with_entities_inline_code_and_multiline_example() {
     assert_eq!(
-        markdown_blocks("<p>Enable <code>a &lt; b</code> &amp; friends.</p>\n<pre><code>{\n  enabled = false;\n  count = 0;\n}</code></pre>"),
+        markdown_blocks(
+            "<p>Enable <code>a &lt; b</code> &amp; friends.</p>\n<pre><code>{\n  enabled = false;\n  count = 0;\n}</code></pre>"
+        ),
         vec![
             MarkdownBlock {
                 kind: MarkdownBlockKind::Paragraph,
-                markup: "Enable <tt><span foreground=\"#fab387\">a &lt; b</span></tt> &amp; friends.".into(),
+                markup:
+                    "Enable <tt><span foreground=\"#fab387\">a &lt; b</span></tt> &amp; friends."
+                        .into(),
             },
             MarkdownBlock {
                 kind: MarkdownBlockKind::Code,

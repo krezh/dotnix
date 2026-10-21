@@ -10,8 +10,8 @@
     extra-trusted-public-keys = [
       "krezh:orJlBHtC8lGYpXoH6ORLMpBR7zrgfgGIgm1/xT8Lbvs="
       "nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs="
-      "umbriel.cachix.org-1:JfNq/2yg2S6D6z4Z2dVSZrZlDPQTKtexB6GAVLD98nw="
       "niks3.numtide.com-1:DTx8wZduET09hRmMtKdQDxNNthLQETkc/yaX7M4qK0g="
+      "umbriel.cachix.org-1:JfNq/2yg2S6D6z4Z2dVSZrZlDPQTKtexB6GAVLD98nw="
     ];
   };
 
@@ -192,14 +192,6 @@
     herdr = {
       url = "github:ogulcancelik/herdr";
       inputs.nixpkgs.follows = "nixpkgs";
-    };
-
-    herdr-gpui = {
-      url = "github:penso/herdr-gpui";
-      inputs = {
-        nixpkgs.follows = "nixpkgs";
-        rust-overlay.follows = "rust-overlay";
-      };
     };
 
     undo = {

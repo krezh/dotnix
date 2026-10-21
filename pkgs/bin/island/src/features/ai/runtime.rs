@@ -112,9 +112,10 @@ fn work(
                     ),
                     Err(error) => {
                         let repeated = source == Source::Claude
-                            && state.issues.iter().any(|issue| {
-                                issue.source == source && issue.message == *error
-                            });
+                            && state
+                                .issues
+                                .iter()
+                                .any(|issue| issue.source == source && issue.message == *error);
                         if !repeated {
                             warn!(source = source.name(), "AI usage refresh failed: {error}");
                         }

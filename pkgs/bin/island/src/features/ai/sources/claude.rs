@@ -34,13 +34,15 @@ pub(super) fn fetch(
         }
     };
     let identity = login.identity();
-    let snapshot = identity.as_deref().and_then(|identity| match cache::load(identity) {
-        Ok(snapshot) => snapshot,
-        Err(error) => {
-            tracing::warn!("cannot restore Claude usage cache: {error}");
-            None
-        }
-    });
+    let snapshot = identity
+        .as_deref()
+        .and_then(|identity| match cache::load(identity) {
+            Ok(snapshot) => snapshot,
+            Err(error) => {
+                tracing::warn!("cannot restore Claude usage cache: {error}");
+                None
+            }
+        });
     publish_cached(identity, snapshot);
     login.check_expiry(now)?;
     let agent: ureq::Agent = ureq::Agent::config_builder()
