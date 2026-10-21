@@ -23,11 +23,11 @@
 stdenv.mkDerivation (finalAttrs: {
   pname = "strata";
   # renovate: datasource=github-releases depName=lgse/strata
-  version = "1.0.0";
+  version = "1.1.0";
 
   src = fetchurl {
     url = "https://github.com/lgse/strata/releases/download/v${finalAttrs.version}/strata-${finalAttrs.version}-x86_64-unknown-linux-gnu.tar.gz";
-    hash = "sha256-4VCVogEWUTKogDLfFey+q3laE9bKzE67lD4nbDX/SS4=";
+    hash = "sha256-yyknz7+F6v7x+qUxYwPfnOUYMcejcCBPigaL2DxpB5M=";
   };
 
   sourceRoot = "strata-${finalAttrs.version}-x86_64-unknown-linux-gnu";
