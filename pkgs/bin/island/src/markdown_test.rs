@@ -1,4 +1,25 @@
-use super::{Style, parse};
+use super::{Style, parse, plain};
+
+#[test]
+fn plain_text_drops_the_marks_and_keeps_code() {
+    assert_eq!(plain("**2**"), "2");
+    assert_eq!(
+        plain("# Sum\nIt is *two*.\n\n```rust\nlet x = 1 + 1;\n```"),
+        "Sum\nIt is two.\n\nlet x = 1 + 1;"
+    );
+}
+
+#[test]
+fn plain_text_keeps_each_links_address() {
+    assert_eq!(
+        plain("See [the docs](https://example.com/docs) for more."),
+        "See the docs (https://example.com/docs) for more."
+    );
+    assert_eq!(
+        plain("[https://example.com](https://example.com)"),
+        "https://example.com"
+    );
+}
 
 fn bold() -> Style {
     Style {

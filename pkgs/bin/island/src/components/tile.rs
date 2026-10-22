@@ -8,7 +8,7 @@ use gpui::{
 use crate::{
     components::{
         card::{self, Stat},
-        chart::{self, Guide, Series, chart},
+        chart::{Series, chart},
         motion,
         ring::{self, Ring, Rings},
         tooltip::Tooltips,
@@ -94,13 +94,6 @@ pub enum Part {
     Chart {
         series: Vec<Series>,
         grow: bool,
-    },
-    /// One window filling as it passes, `slots` samples wide, against an optional dashed guide;
-    /// it takes the tile's spare height.
-    Window {
-        series: Vec<Series>,
-        slots: usize,
-        guide: Option<Guide>,
     },
     Cores {
         loads: Vec<f32>,
@@ -552,22 +545,6 @@ fn part(
                 series,
                 card::SLOTS,
                 phase,
-                tips,
-            )))
-            .into_any_element(),
-        Part::Window {
-            series,
-            slots,
-            guide,
-        } => div()
-            .relative()
-            .flex_1()
-            .min_h(px(CHART_H))
-            .child(div().absolute().size_full().flex().child(chart::window(
-                format!("{id}-window-{index}").into(),
-                series,
-                slots,
-                guide,
                 tips,
             )))
             .into_any_element(),

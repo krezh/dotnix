@@ -1,5 +1,5 @@
 use super::{
-    Ai, asking, chat, format, overview, sessions,
+    Ai, asking, chat, format, jelly, overview, sessions,
     state::{Severity, State},
     view::{Tab, View},
     widget,
@@ -7,7 +7,7 @@ use super::{
 use crate::{
     features::PanelCx,
     island::{Mode, Panel},
-    panel::{Block, Button, Header, IconButton, PanelView, Views, on},
+    panel::{Block, Button, Header, IconButton, PanelView, TabLabel, Views, on},
 };
 
 fn usage(ai: &Ai, state: &State, view: &View, p: &PanelCx<'_>) -> (Vec<Button>, Vec<Block>) {
@@ -38,7 +38,14 @@ pub(super) fn panel(ai: &Ai, state: &State, p: &PanelCx<'_>) -> Option<PanelView
     };
     Some(PanelView {
         header: Header::Views(Views {
-            tabs: Tab::ALL.iter().map(|tab| tab.label().into()).collect(),
+            lead: jelly::lead(state, view, p),
+            tabs: Tab::ALL
+                .iter()
+                .map(|tab| TabLabel {
+                    label: tab.label().into(),
+                    glyph: p.glyph(tab.glyph()),
+                })
+                .collect(),
             selected: Tab::ALL.iter().position(|tab| *tab == view.tab).unwrap_or(0),
             on_select: p.on_local_with::<Ai, usize>(|_, view, index| {
                 view.tab = Tab::ALL[index.min(Tab::ALL.len() - 1)];
@@ -58,11 +65,11 @@ pub(super) fn popup(state: &State, p: &PanelCx<'_>) -> Option<PanelView> {
     let waiting = state
         .requests
         .iter()
-        .map(|request| asking::frame(request, view, p, true, false));
+        .map(|request| asking::frame(request, view, p, Some(state.hold), false));
     let leaving = view
         .leaving
         .iter()
-        .map(|(request, _)| asking::frame(request, view, p, false, true));
+        .map(|(request, _)| asking::frame(request, view, p, None, true));
     Some(PanelView {
         header: Header::None,
         blocks: waiting.chain(leaving).collect(),

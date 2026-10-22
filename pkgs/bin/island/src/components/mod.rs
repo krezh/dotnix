@@ -13,6 +13,7 @@ pub mod item;
 pub mod lines;
 pub mod list;
 pub mod marquee;
+pub mod mascot;
 pub mod measure;
 pub mod meter;
 pub mod motion;

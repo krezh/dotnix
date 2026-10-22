@@ -58,6 +58,7 @@ pub fn headset_card(battery: Battery, p: &PanelCx<'_>) -> Block {
             faded: false,
             size: None,
             on_click: None,
+            top: false,
         }),
         overline: None,
         title: battery.name.into(),

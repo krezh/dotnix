@@ -63,6 +63,7 @@ pub fn request(hook: &Hook, id: u64, now: i64, expires_at: i64) -> Option<Reques
                 subject,
                 reason: text(input, "description"),
                 suggestion: suggestion.clone(),
+                input: input.clone(),
             }
         }
         Hook::Questions { input, .. } => {
@@ -91,5 +92,6 @@ pub fn request(hook: &Hook, id: u64, now: i64, expires_at: i64) -> Option<Reques
         ask,
         received_at: now,
         expires_at,
+        lifetime: expires_at - now,
     })
 }

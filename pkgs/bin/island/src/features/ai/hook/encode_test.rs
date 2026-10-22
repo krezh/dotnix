@@ -11,6 +11,7 @@ fn request(ask: Ask) -> Request {
         ask,
         received_at: 0,
         expires_at: 0,
+        lifetime: 0,
     }
 }
 
@@ -20,6 +21,7 @@ fn permission() -> Request {
         subject: "nix build".to_owned(),
         reason: String::new(),
         suggestion: Some(json!({"type": "addRules", "rules": [{"toolName": "Bash", "ruleContent": "nix build:*"}], "behavior": "allow", "destination": "localSettings"})),
+        input: json!({"command": "nix build"}),
     })
 }
 

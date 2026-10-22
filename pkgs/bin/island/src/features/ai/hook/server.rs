@@ -11,11 +11,12 @@ pub const NAME: &str = "io.github.krezh.Island.Ai";
 pub const PATH: &str = "/io/github/krezh/Island/Ai";
 pub const INTERFACE: &str = "io.github.krezh.Island.Ai";
 
-/// A hook call on its way to the feature's worker.
+/// A hook call on its way to the feature's worker, with when its hook started, in milliseconds
+/// since the epoch.
 pub enum Call {
-    Tell(Hook),
+    Tell(Hook, i64),
     /// Waits for what to print.
-    Ask(Hook, oneshot::Sender<String>),
+    Ask(Hook, i64, oneshot::Sender<String>),
 }
 
 struct Server {
@@ -24,8 +25,9 @@ struct Server {
 
 #[interface(name = "io.github.krezh.Island.Ai")]
 impl Server {
-    /// What the hook prints: a decision as JSON, or nothing.
-    async fn hook(&self, event: String, input: String) -> String {
+    /// What the hook prints: a decision as JSON, or nothing. `at` is when the hook started, in
+    /// milliseconds since the epoch, since hooks that run on their own can arrive out of order.
+    async fn hook(&self, event: String, input: String, at: i64) -> String {
         let hook = match parse(&event, &input) {
             Ok(hook) => hook,
             Err(error) => {
@@ -35,11 +37,11 @@ impl Server {
         };
         debug!(event, session = hook.from().session, "Claude Code hook");
         if !hook.blocks() {
-            let _ = self.calls.send(Call::Tell(hook));
+            let _ = self.calls.send(Call::Tell(hook, at));
             return String::new();
         }
         let (reply, answer) = oneshot::channel();
-        if self.calls.send(Call::Ask(hook, reply)).is_err() {
+        if self.calls.send(Call::Ask(hook, at, reply)).is_err() {
             return String::new();
         }
         answer.await.unwrap_or_default()

@@ -7,9 +7,10 @@
 
 ## Structure
 
-- `mod.rs` only collects: `mod` lines plus the thinnest glue, such as `impl Feature` with each
-  method a one-line call. Real code goes in small files named for what they do (`widget.rs`,
-  `panel.rs`, `state.rs`, …).
+- `mod.rs` only collects: `mod` lines and `pub use` re-exports, nothing else. No `impl` blocks
+  (not even `impl Feature`), structs, consts, functions or macros. Code goes in small files named
+  for what they do (`widget.rs`, `panel.rs`, `state.rs`, …); a feature's `impl Feature` goes in its
+  `feature.rs`.
 - Tests live in a sibling `<name>_test.rs`, wired with `#[cfg(test)] #[path = "<name>_test.rs"] mod tests;`.
 
 ## UI is built from components

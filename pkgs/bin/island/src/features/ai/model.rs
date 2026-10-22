@@ -52,6 +52,8 @@ pub(super) fn status_line(state: &State, readings: &[Reading], now: i64) -> Opti
 
 #[derive(Debug, PartialEq)]
 pub(super) struct Notice {
+    /// Who it is from, as the notification names it.
+    pub(super) app: &'static str,
     pub(super) title: String,
     pub(super) body: String,
     pub(super) critical: bool,
@@ -122,6 +124,7 @@ fn notice(provider: &Provider, limit: &Limit, before: Severity) -> Option<Notice
         Severity::Ok => return None,
     };
     Some(Notice {
+        app: "Island AI",
         title,
         body,
         critical,

@@ -3,7 +3,7 @@ use std::time::Duration;
 use super::{
     Ai, format, harness,
     session::{Answer, Ask, Request},
-    state::Source,
+    state::{Hold, Source},
     view::View,
 };
 use crate::{
@@ -22,6 +22,15 @@ use crate::{
 /// As wide as a notification, so the two read as one kind of thing.
 const MIN_W: f32 = 380.0;
 const LEAD: f32 = 36.0;
+/// Jelly in Claude's mark's place: large enough for its face, as in the panel's header.
+const JELLY_LEAD: f32 = 52.0;
+/// The check box or radio dot before each option.
+const CHOICE: f32 = 20.0;
+
+/// The lead's side, which the text and buttons under the title line up past.
+fn lead(view: &View) -> f32 {
+    if view.pose().is_some() { JELLY_LEAD } else { LEAD }
+}
 
 fn title(request: &Request, picks_step: usize) -> String {
     match &request.ask {
@@ -51,15 +60,15 @@ fn button(id: String, label: &str, active: bool, on_click: crate::panel::Handler
     }
 }
 
-fn buttons(buttons: Vec<IconButton>) -> Block {
+fn buttons(buttons: Vec<IconButton>, lead: f32) -> Block {
     Block::Buttons(ButtonRow {
         buttons,
         compact: true,
-        indent: LEAD + item::LEAD_GAP,
+        indent: lead + item::LEAD_GAP,
     })
 }
 
-fn permission_blocks(request: &Request, at: &str, p: &PanelCx<'_>) -> Vec<Block> {
+fn permission_blocks(request: &Request, at: &str, view: &View, p: &PanelCx<'_>) -> Vec<Block> {
     let Ask::Permission {
         subject,
         reason,
@@ -95,10 +104,13 @@ fn permission_blocks(request: &Request, at: &str, p: &PanelCx<'_>) -> Vec<Block>
         motion: CodeMotion::Still,
     })];
     under.push(Block::Text(Text {
-        min_width: Some(MIN_W - LEAD - item::LEAD_GAP),
+        min_width: Some(MIN_W - lead(view) - item::LEAD_GAP),
         ..Text::new(Tone::Caption(OVERLAY2), reason.clone())
     }));
-    vec![Block::Item(item_for(request, at, 0), under), buttons(row)]
+    vec![
+        Block::Item(item_for(request, at, 0, view), under),
+        buttons(row, lead(view)),
+    ]
 }
 
 fn question_blocks(request: &Request, at: &str, view: &View, p: &PanelCx<'_>) -> Vec<Block> {
@@ -113,7 +125,7 @@ fn question_blocks(request: &Request, at: &str, view: &View, p: &PanelCx<'_>) ->
     let last = step + 1 == questions.len();
     let multi = question.multi;
     let mut under = vec![Block::Text(Text {
-        min_width: Some(MIN_W - LEAD - item::LEAD_GAP),
+        min_width: Some(MIN_W - lead(view) - item::LEAD_GAP),
         ..Text::new(
             Tone::Caption(SUBTEXT1),
             format!(
@@ -121,7 +133,7 @@ fn question_blocks(request: &Request, at: &str, view: &View, p: &PanelCx<'_>) ->
                 question.header,
                 step + 1,
                 questions.len(),
-                if multi { " · pick any" } else { "" }
+                if multi { " · pick one or more" } else { "" }
             ),
         )
     })];
@@ -141,7 +153,19 @@ fn question_blocks(request: &Request, at: &str, view: &View, p: &PanelCx<'_>) ->
             vec![Block::Item(
                 Item {
                     id: format!("{at}-q{step}-option-{index}-item").into(),
-                    lead: None,
+                    lead: Some(Lead {
+                        mark: Some(Mark::Choice {
+                            key: format!("{at}-q{step}-option-{index}-choice").into(),
+                            picked,
+                            many: multi,
+                        }),
+                        tint: None,
+                        glow: None,
+                        faded: false,
+                        size: Some(CHOICE),
+                        on_click: None,
+                        top: false,
+                    }),
                     overline: None,
                     title: label.clone().into(),
                     title_color: None,
@@ -158,6 +182,14 @@ fn question_blocks(request: &Request, at: &str, view: &View, p: &PanelCx<'_>) ->
         .collect();
     // Next and Send wait for a pick: plain until then, and doing nothing when pressed.
     let ready = !chosen.is_empty();
+    // A question that takes several answers counts them on the button.
+    let label = |text: &str| {
+        if multi && ready {
+            format!("{text} ({})", chosen.len())
+        } else {
+            text.to_owned()
+        }
+    };
     let next = if last {
         let send = p.on_local::<Ai>(move |ai, view| {
             let picks = view.picks(id);
@@ -179,11 +211,11 @@ fn question_blocks(request: &Request, at: &str, view: &View, p: &PanelCx<'_>) ->
                 .collect();
             ai.answer(id, Answer::Picked(picked));
         });
-        button(format!("{at}-send"), "Send answers", ready, send)
+        button(format!("{at}-send"), &label("Send answers"), ready, send)
     } else {
         button(
             format!("{at}-next"),
-            "Next",
+            &label("Next"),
             ready,
             p.on_local::<Ai>(move |_, view| view.next_question(id)),
         )
@@ -195,25 +227,32 @@ fn question_blocks(request: &Request, at: &str, view: &View, p: &PanelCx<'_>) ->
         p.call::<Ai>(move |ai| ai.answer(id, Answer::Terminal)),
     );
     vec![
-        Block::Item(item_for(request, at, step), under),
-        buttons(vec![terminal, next]),
+        Block::Item(item_for(request, at, step, view), under),
+        buttons(vec![terminal, next], lead(view)),
     ]
 }
 
-fn item_for(request: &Request, at: &str, step: usize) -> Item {
+/// Led by Jelly when it is on, otherwise Claude's mark.
+fn item_for(request: &Request, at: &str, step: usize, view: &View) -> Item {
     let now = format::now();
+    let pose = view.pose();
+    // Jelly stands at the top of the card, beside its first lines.
+    let top = pose.is_some();
+    let tint = pose.is_none().then_some(PEACH);
+    let mark = pose.map_or_else(
+        || Mark::Glyph(harness::glyph(Source::Claude).to_path_buf(), PEACH),
+        Mark::Mascot,
+    );
     Item {
         id: format!("{at}-item").into(),
         lead: Some(Lead {
-            mark: Some(Mark::Glyph(
-                harness::glyph(Source::Claude).to_path_buf(),
-                PEACH,
-            )),
-            tint: Some(PEACH),
+            mark: Some(mark),
+            tint,
             glow: None,
             faded: false,
-            size: Some(LEAD),
+            size: Some(lead(view)),
             on_click: None,
+            top,
         }),
         overline: Some(format!("Claude Code · {}", request.project).into()),
         title: title(request, step).into(),
@@ -223,32 +262,44 @@ fn item_for(request: &Request, at: &str, step: usize) -> Item {
     }
 }
 
+/// The time `request` has left as of the last hold or release, paused while held.
+fn countdown(request: &Request, hold: Hold) -> Option<Countdown> {
+    if request.lifetime <= 0 {
+        return None;
+    }
+    let from = hold.since.unwrap_or(hold.released_at).max(request.received_at);
+    let left_ms = (request.expires_at - from).max(0);
+    Some(Countdown {
+        left: (left_ms as f32 / request.lifetime as f32).min(1.0),
+        running: hold
+            .since
+            .is_none()
+            .then(|| Duration::from_millis(u64::try_from(left_ms).unwrap_or(0))),
+        round: hold.round,
+    })
+}
+
 /// One request as a card of its own, with what it asks and the ways to answer. `countdown` shows
 /// the time it has left, as a pop-up does; `leaving` slides out one just answered.
 pub(super) fn frame(
     request: &Request,
     view: &View,
     p: &PanelCx<'_>,
-    countdown: bool,
+    countdown: Option<Hold>,
     leaving: bool,
 ) -> Block {
     let at = format!("ai-request-{}", request.id);
     let blocks = match request.ask {
-        Ask::Permission { .. } => permission_blocks(request, &at, p),
+        Ask::Permission { .. } => permission_blocks(request, &at, view, p),
         Ask::Questions { .. } => question_blocks(request, &at, view, p),
     };
-    let total = u64::try_from(request.expires_at - request.received_at).unwrap_or(0);
     Block::Frame(
         FrameView {
             id: at.clone().into(),
             look: Look::Raised { urgent: false },
             on_click: None,
             on_dismiss: None,
-            countdown: (countdown && total > 0).then(|| Countdown {
-                left: 1.0,
-                running: Some(Duration::from_millis(total)),
-                round: 0,
-            }),
+            countdown: countdown.and_then(|hold| self::countdown(request, hold)),
             selected: false,
             motion: if leaving {
                 Motion::Leave
@@ -259,3 +310,7 @@ pub(super) fn frame(
         blocks,
     )
 }
+
+#[cfg(test)]
+#[path = "asking_test.rs"]
+mod tests;

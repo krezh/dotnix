@@ -34,7 +34,8 @@
           {
             type = "command";
             command = run event;
-            timeout = sessions.answerSeconds + 15;
+            # island hands a request back after an hour at most (requests::MOST_MS), even while held.
+            timeout = 60 * 60 + 15;
           }
         ];
       };
@@ -42,6 +43,7 @@
     lib.mkIf (island.enable && sessions.enable) {
       homeModules.island.features.ai.chat.command = lib.getExe config.programs.claude-code.package;
       programs.claude-code.settings.statusLine.command = "${statusLine}";
+      programs.claude-code.settings.preferredNotifChannel = "notifications_disabled";
       programs.claude-code.settings.hooks = {
         SessionStart = tell "SessionStart" "*";
         SessionEnd = tell "SessionEnd" "*";

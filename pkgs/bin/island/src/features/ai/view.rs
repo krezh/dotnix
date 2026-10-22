@@ -1,14 +1,26 @@
 use std::{
     collections::{HashMap, HashSet},
-    sync::Arc,
+    sync::{
+        Arc,
+        atomic::{AtomicU64, Ordering},
+    },
     time::Instant,
 };
 
 use super::{
-    session::Request,
+    jelly,
+    runtime::Held,
+    session::{Activity, Request},
+    settings::Mascot,
     state::{Provider, Source, State},
 };
-use crate::{components::reveal, features::Local};
+use crate::{
+    components::{
+        mascot::{Body, Mood, Pose},
+        reveal,
+    },
+    features::Local,
+};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(super) struct Account {
@@ -44,6 +56,15 @@ pub enum Tab {
 impl Tab {
     pub(super) const ALL: [Tab; 3] = [Tab::Sessions, Tab::Chat, Tab::Usage];
 
+    /// The glyph shown for it, by its key in the feature's glyphs.
+    pub(super) fn glyph(self) -> &'static str {
+        match self {
+            Tab::Sessions => "ai-sessions",
+            Tab::Chat => "ai-chat",
+            Tab::Usage => "ai-usage",
+        }
+    }
+
     pub(super) fn label(self) -> &'static str {
         match self {
             Tab::Sessions => "Sessions",
@@ -60,8 +81,20 @@ pub struct Picks {
     pub(super) chosen: Vec<Vec<usize>>,
 }
 
+/// Tells one island's view from another's, as the pointer holds requests over it.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) struct Number(pub(super) u64);
+
+impl Default for Number {
+    fn default() -> Self {
+        static NEXT: AtomicU64 = AtomicU64::new(0);
+        Self(NEXT.fetch_add(1, Ordering::Relaxed))
+    }
+}
+
 #[derive(Default)]
 pub struct View {
+    pub(super) number: Number,
     order: Vec<Account>,
     seen: Option<Arc<Vec<Provider>>>,
     open: bool,
@@ -83,6 +116,14 @@ pub struct View {
     known: Vec<Request>,
     /// Ones just gone, still sliding out, until then.
     pub(super) leaving: Vec<(Request, Instant)>,
+    /// This island's Jelly, unless the mascot is off.
+    jelly: Option<Body>,
+    /// The pointer is over the island.
+    near: bool,
+    /// What waits on you is held while the pointer is over the island.
+    pub(super) held: Option<Held>,
+    /// Sessions at work as last seen, to cheer when one finishes.
+    working: HashSet<String>,
 }
 
 impl View {
@@ -97,6 +138,7 @@ impl View {
             self.leaving.push((gone.clone(), now + reveal::LEAVE));
         }
         self.known = state.requests.to_vec();
+        self.sync_jelly(state, now);
         if open && !self.open {
             self.seen_steps = state
                 .sessions
@@ -157,6 +199,46 @@ impl View {
 }
 
 impl View {
+    fn sync_jelly(&mut self, state: &State, now: Instant) {
+        if state.mascot == Mascot::Off {
+            self.jelly = None;
+            return;
+        }
+        let mood = jelly::mood(state, self.near);
+        let seed = self.number.0;
+        let body = self
+            .jelly
+            .get_or_insert_with(|| Body::new(state.mascot == Mascot::Lively, mood, now, seed));
+        body.set(mood, now);
+        let working: HashSet<String> = state
+            .sessions
+            .iter()
+            .filter(|session| session.activity == Activity::Working)
+            .map(|session| session.id.clone())
+            .collect();
+        // A session that stopped working and now waits for your next prompt has finished.
+        let finished = self.working.iter().any(|id| {
+            state
+                .sessions
+                .iter()
+                .any(|session| session.id == *id && session.activity == Activity::Idle)
+        });
+        if finished && state.requests.is_empty() {
+            body.cheer(now);
+        }
+        self.working = working;
+    }
+
+    pub(super) fn pose(&self) -> Option<Pose> {
+        self.jelly.as_ref().map(|body| body.pose(Instant::now()))
+    }
+
+    pub(super) fn poke(&mut self) {
+        if let Some(body) = &mut self.jelly {
+            body.poke(Instant::now());
+        }
+    }
+
     pub(super) fn set_pending(&mut self, ids: Vec<u64>) {
         self.picks.retain(|id, _| ids.contains(id));
         self.pending = ids;
@@ -236,15 +318,40 @@ impl Local for View {
     }
 
     fn due(&self) -> Option<Instant> {
-        self.leaving.iter().map(|(_, until)| *until).min()
+        self.leaving
+            .iter()
+            .map(|(_, until)| *until)
+            .chain(self.jelly.as_ref().and_then(Body::due))
+            .min()
+    }
+
+    fn advance(&mut self, dt: f32, now: Instant) {
+        if let Some(body) = &mut self.jelly {
+            body.step(dt, now);
+        }
+    }
+
+    fn is_settled(&self) -> bool {
+        self.jelly.as_ref().is_none_or(Body::is_settled)
+    }
+
+    fn pointer(&mut self, over: bool) {
+        self.near = over;
+        if let Some(body) = &mut self.jelly {
+            let mood = body.mood();
+            body.set(Mood { near: over, ..mood }, Instant::now());
+        }
     }
 }
 
 impl View {
-    /// Lets go of the requests that have finished sliding out.
+    /// Lets go of the requests that have finished sliding out, and wakes Jelly for what is due.
     pub(super) fn settle(&mut self) {
         let now = Instant::now();
         self.leaving.retain(|(_, until)| *until > now);
+        if let Some(body) = &mut self.jelly {
+            body.wake(now);
+        }
     }
 }
 

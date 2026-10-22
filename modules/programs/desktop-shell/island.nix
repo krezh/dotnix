@@ -32,7 +32,10 @@
           spacing = 0;
         };
         features = {
-          ai.disabledLimits.omp.google-antigravity = [ "3p-weekly:weekly" ];
+          ai = {
+            disabledLimits.omp.google-antigravity = [ "3p-weekly:weekly" ];
+            mascot = "lively";
+          };
           session = {
             confirm = false;
             commands = {

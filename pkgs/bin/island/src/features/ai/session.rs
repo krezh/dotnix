@@ -116,6 +116,8 @@ pub enum Ask {
         reason: String,
         /// The first rule Claude Code suggests, as it sent it, for Always.
         suggestion: Option<Value>,
+        /// The tool's input as sent, to know the call once it has run.
+        input: Value,
     },
     Questions {
         questions: Vec<Question>,
@@ -132,7 +134,10 @@ pub struct Request {
     pub(super) project: String,
     pub(super) ask: Ask,
     pub(super) received_at: i64,
+    /// Moves later by the time it was held.
     pub(super) expires_at: i64,
+    /// The time it was given as it came, which its countdown bar is a part of.
+    pub(super) lifetime: i64,
 }
 
 /// Sent to the islands rather than kept in the state.

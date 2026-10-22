@@ -97,7 +97,7 @@ fn turns(chat: &Chat, p: &PanelCx<'_>) -> Vec<Turn> {
             let streaming = chat.busy && last;
             let mut actions = Vec::new();
             if !streaming {
-                actions.push(("Copy".into(), copier(line.text.clone())));
+                actions.push(("Copy".into(), copier(markdown::plain(&line.text))));
                 if last && chat.error.is_some() {
                     actions.push(("Retry".into(), p.call::<Ai>(Ai::chat_retry)));
                 }
@@ -148,6 +148,7 @@ fn welcome(p: &PanelCx<'_>) -> Vec<Block> {
                     faded: false,
                     size: Some(LEAD),
                     on_click: None,
+                    top: false,
                 }),
                 overline: Some("Claude".into()),
                 title: "Ask something quick".into(),
@@ -166,24 +167,6 @@ fn welcome(p: &PanelCx<'_>) -> Vec<Block> {
             indent: LEAD + item::LEAD_GAP,
         }),
     ]
-}
-
-/// The keys as small caps: Enter sends, Shift+Enter breaks the line.
-fn keys() -> Block {
-    let text = "Enter to send  ·  Shift+Enter for a new line";
-    let cap = TextStyle {
-        code: true,
-        ..TextStyle::default()
-    };
-    let enter = text.find("Enter").unwrap_or(0);
-    let shift = text.find("Shift+Enter").unwrap_or(0);
-    Block::Text(Text {
-        spans: vec![
-            (enter..enter + "Enter".len(), cap),
-            (shift..shift + "Shift+Enter".len(), cap),
-        ],
-        ..Text::new(Tone::Body, text)
-    })
 }
 
 pub(super) fn panel(
@@ -232,6 +215,8 @@ pub(super) fn panel(
         blocks.push(Block::caption(error.clone(), RED));
     }
     let ready = !chat.busy && !view.draft.trim().is_empty();
+    // The field comes after the card, so it stays at the panel's foot.
+    let mut blocks = vec![Block::Card(None, card::Size::Full, blocks)];
     blocks.push(Block::Input(InputView {
         id: "ai-chat-input".into(),
         text: view.draft.clone().into(),
@@ -243,6 +228,5 @@ pub(super) fn panel(
         }),
         busy: chat.busy,
     }));
-    blocks.push(keys());
-    (buttons, vec![Block::Card(None, card::Size::Full, blocks)])
+    (buttons, blocks)
 }

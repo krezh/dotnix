@@ -1,5 +1,4 @@
-//! A history drawn as smooth lines, such as CPU use over the last minute; or one stretch of time
-//! filling as it passes, such as a quota's window, against a dashed guide.
+//! A history drawn as smooth lines, such as CPU use over the last minute.
 
 use std::fmt::Write;
 
@@ -16,10 +15,6 @@ use crate::{
 const LINE: f32 = 3.0;
 const FILL_ALPHA: u8 = 0x26;
 const BASELINE_ALPHA: u8 = 0x1a;
-const GUIDE_LINE: f32 = 1.5;
-const DASH: f32 = 4.0;
-const DASH_GAP: f32 = 4.0;
-const HEAD_DOT: f32 = 7.0;
 
 pub struct Series {
     pub values: Vec<f32>,
@@ -27,22 +22,6 @@ pub struct Series {
     pub color: u32,
     pub label: SharedString,
     pub format: fn(f32) -> String,
-}
-
-/// A dashed straight line across a window chart, such as an even pace from empty to full.
-pub struct Guide {
-    pub from: f32,
-    pub to: f32,
-    pub max: f32,
-    pub color: u32,
-}
-
-/// How values are spread across the chart.
-enum Layout {
-    /// The newest at the right edge, scrolling left as `phase` goes from 0 to 1.
-    History { phase: f32 },
-    /// From the left edge, each sample one of `slots` steps into the window, the newest marked.
-    Window { guide: Option<Guide> },
 }
 
 fn at(x: f32, y: f32) -> Point<Pixels> {
@@ -113,48 +92,7 @@ fn text(series: &[Series], slots: usize, phase: f32, fraction: f32) -> String {
     text
 }
 
-/// The value at `fraction` across a window chart of `slots` steps, if it has been reached.
-fn window_sample(values: &[f32], slots: usize, fraction: f32) -> Option<f32> {
-    if !(0.0..=1.0).contains(&fraction) {
-        return None;
-    }
-    let index = (fraction * slots.saturating_sub(1) as f32).round() as usize;
-    values.get(index).copied()
-}
-
-fn window_text(series: &[Series], slots: usize, fraction: f32) -> String {
-    let mut text = String::new();
-    for series in series {
-        if let Some(value) = window_sample(&series.values, slots, fraction) {
-            if !text.is_empty() {
-                text.push('\n');
-            }
-            let _ = write!(text, "{}: {}", series.label, (series.format)(value));
-        }
-    }
-    text
-}
-
-fn paint_dashes(window: &mut Window, from: (f32, f32), to: (f32, f32), color: Hsla) {
-    let (dx, dy) = (to.0 - from.0, to.1 - from.1);
-    let length = dx.hypot(dy);
-    if length <= 0.0 {
-        return;
-    }
-    let (ux, uy) = (dx / length, dy / length);
-    let mut path = PathBuilder::stroke(px(GUIDE_LINE));
-    let mut start = 0.0;
-    while start < length {
-        let end = (start + DASH).min(length);
-        path.move_to(at(from.0 + ux * start, from.1 + uy * start));
-        path.line_to(at(from.0 + ux * end, from.1 + uy * end));
-        start = end + DASH_GAP;
-    }
-    if let Ok(path) = path.build() {
-        window.paint_path(path, color);
-    }
-}
-
+/// The newest value at the right edge, scrolling left as `phase` goes from 0 to 1.
 pub fn chart(
     id: SharedString,
     series: Vec<Series>,
@@ -162,35 +100,7 @@ pub fn chart(
     phase: f32,
     tips: &Tooltips,
 ) -> impl IntoElement {
-    plot(
-        id,
-        series,
-        slots,
-        Layout::History {
-            phase: phase.clamp(0.0, 1.0),
-        },
-        tips,
-    )
-}
-
-/// `slots` is how many samples fill the window; the values so far start at its left edge.
-pub fn window(
-    id: SharedString,
-    series: Vec<Series>,
-    slots: usize,
-    guide: Option<Guide>,
-    tips: &Tooltips,
-) -> impl IntoElement {
-    plot(id, series, slots, Layout::Window { guide }, tips)
-}
-
-fn plot(
-    id: SharedString,
-    series: Vec<Series>,
-    slots: usize,
-    layout: Layout,
-    tips: &Tooltips,
-) -> impl IntoElement {
+    let phase = phase.clamp(0.0, 1.0);
     let (chart_id, chart_tips) = (id.clone(), tips.clone());
     let plot = canvas(
         |_, _, _| {},
@@ -200,15 +110,10 @@ fn plot(
             let y0 = f32::from(bounds.origin.y);
             let w = f32::from(bounds.size.width);
             let h = f32::from(bounds.size.height);
-            let right = x0 + w;
             let bottom = y0 + h;
             if let Some(at) = chart_tips.position(&chart_id) {
                 let text = if bounds.contains(&at) && w > 0.0 {
-                    let fraction = (f32::from(at.x) - x0) / w;
-                    match layout {
-                        Layout::History { phase } => text(&series, slots, phase, fraction),
-                        Layout::Window { .. } => window_text(&series, slots, fraction),
-                    }
+                    text(&series, slots, phase, (f32::from(at.x) - x0) / w)
                 } else {
                     String::new()
                 };
@@ -226,37 +131,13 @@ fn plot(
                 rgba(with_alpha(TINT, BASELINE_ALPHA)),
             ));
             window.with_content_mask(Some(ContentMask { bounds }), |window| {
-                if let Layout::Window {
-                    guide: Some(guide), ..
-                } = &layout
-                {
-                    paint_dashes(
-                        window,
-                        (x0, y(guide.from, guide.max)),
-                        (right, y(guide.to, guide.max)),
-                        rgb(guide.color).into(),
-                    );
-                }
                 for (index, series) in series.iter().enumerate() {
                     let values = &series.values;
                     if values.len() < 2 {
                         continue;
                     }
-                    let (points, history) = match layout {
-                        Layout::History { phase } => {
-                            history_points(values, series.max, slots, phase, x0, w, &y)
-                        }
-                        Layout::Window { .. } => {
-                            let step = w / slots.saturating_sub(1).max(1) as f32;
-                            let points: Vec<(f32, f32)> = values
-                                .iter()
-                                .enumerate()
-                                .map(|(at, value)| (x0 + at as f32 * step, y(*value, series.max)))
-                                .collect();
-                            let len = points.len();
-                            (points, len)
-                        }
-                    };
+                    let (points, history) =
+                        history_points(values, series.max, slots, phase, x0, w, &y);
                     if points.len() < 2 {
                         continue;
                     }
@@ -269,18 +150,6 @@ fn plot(
                         );
                     }
                     paint_line(window, &points, rgb(series.color).into());
-                    if let (Layout::Window { .. }, Some(&(x, y))) = (&layout, points.last()) {
-                        window.paint_quad(
-                            fill(
-                                Bounds {
-                                    origin: at(x - HEAD_DOT / 2.0, y - HEAD_DOT / 2.0),
-                                    size: size(px(HEAD_DOT), px(HEAD_DOT)),
-                                },
-                                rgb(series.color),
-                            )
-                            .corner_radii(px(HEAD_DOT / 2.0)),
-                        );
-                    }
                 }
             });
         },

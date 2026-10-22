@@ -43,6 +43,9 @@ pub struct Lead {
     /// The square's side, with the mark filling it; otherwise a standard square the mark sits in.
     pub size: Option<f32>,
     pub on_click: Option<Handler>,
+    /// Stands at the top, beside the first lines, rather than centred on the row, such as a large
+    /// lead beside a tall card.
+    pub top: bool,
 }
 
 /// What sits at the end of the first line, in order.
@@ -88,10 +91,20 @@ fn lead_element(id: SharedString, lead: Lead, hover: bool, cx: &mut Context<Isla
             let alpha = (strength.clamp(0.0, 1.0) * GLOW_ALPHA) as u8;
             ui::shape(Radius::Control, Some(rgba(with_alpha(color, alpha)).into()))
         });
+    // A mascot answers the pointer itself, so it goes without the grey hover behind.
+    let own_hover = matches!(lead.mark, Some(Mark::Mascot(_)));
     let mark = div()
         .when(lead.faded, |mark| mark.opacity(0.4))
         .children(lead.mark.as_ref().map(|mark| badge::mark(mark, size, fill)));
     match lead.on_click {
+        Some(handler) if own_hover => div()
+            .id(id)
+            .size(px(size))
+            .flex_none()
+            .cursor_pointer()
+            .child(mark)
+            .on_click(cx.listener(move |this, _, _, cx| handler(this, cx)))
+            .into_any_element(),
         Some(handler) => button::ghost(id, hover)
             .size(px(size))
             .flex_none()
@@ -176,6 +189,7 @@ pub fn item(
     cx: &mut Context<Island>,
 ) -> AnyElement {
     let id = |part: &str| SharedString::from(format!("{}-{part}", item.id));
+    let top = item.lead.as_ref().is_some_and(|lead| lead.top);
     let lead = item
         .lead
         .map(|lead| lead_element(id("lead"), lead, hover, cx));
@@ -251,7 +265,8 @@ pub fn item(
     };
     div()
         .flex()
-        .items_center()
+        .when(top, |row| row.items_start())
+        .when(!top, |row| row.items_center())
         .gap(px(LEAD_GAP))
         .children(lead)
         .child(column.children(children))

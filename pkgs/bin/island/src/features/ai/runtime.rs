@@ -11,6 +11,7 @@ use std::{
 use tracing::{debug, warn};
 
 use super::{
+    alerts::Alerts,
     cache,
     conversation::{Chat, Conversation, MODELS, model_index},
     converse::Streamed,
@@ -47,6 +48,8 @@ enum Message {
     Read(Source, Result<SourceReport, Failure>),
     Call(Call),
     Answer(u64, Answer),
+    /// The pointer came over an island, by its view's number, or left it.
+    Hold(u64, bool),
     Chat(ChatMessage),
 }
 
@@ -81,6 +84,15 @@ impl Ai {
         let _ = self.requests.send(Message::Answer(id, answer));
     }
 
+    /// Holds what waits on you while the pointer is over `island`, until the result is dropped.
+    pub(super) fn hold(&self, island: u64) -> Held {
+        let _ = self.requests.send(Message::Hold(island, true));
+        Held {
+            island,
+            requests: self.requests.clone(),
+        }
+    }
+
     pub(super) fn chat_send(&self, text: String) {
         let _ = self.requests.send(Message::Chat(ChatMessage::Send(text)));
     }
@@ -95,6 +107,19 @@ impl Ai {
 
     pub(super) fn chat_model(&self, model: usize) {
         let _ = self.requests.send(Message::Chat(ChatMessage::Model(model)));
+    }
+}
+
+/// One island's hold on what waits on you. Dropping it lets go, also when the island goes while
+/// the pointer is still over it, as when its monitor is unplugged.
+pub(super) struct Held {
+    island: u64,
+    requests: Sender<Message>,
+}
+
+impl Drop for Held {
+    fn drop(&mut self) {
+        let _ = self.requests.send(Message::Hold(self.island, false));
     }
 }
 
@@ -170,6 +195,10 @@ fn settle(state: &mut State, notices: Vec<Notice>) {
             warn!("{error}");
         }
     }
+    announce(notices);
+}
+
+fn announce(notices: Vec<Notice>) {
     if !notices.is_empty() {
         let _ = thread::Builder::new()
             .name("ai-notifications".to_owned())
@@ -178,20 +207,25 @@ fn settle(state: &mut State, notices: Vec<Notice>) {
 }
 
 /// True when it changed what is waiting on you.
-fn call(state: &mut State, waiting: &mut Waiting, settings: &Settings, call: Call) -> bool {
+fn call(
+    state: &mut State,
+    waiting: &mut Waiting,
+    alerts: &mut Alerts,
+    settings: &Settings,
+    call: Call,
+) -> bool {
     let at = now();
     match call {
-        Call::Tell(hook) => {
-            let ended = match &hook {
-                Hook::End { from } => requests::forget_session(state, waiting, &from.session),
-                _ => false,
-            };
+        Call::Tell(hook, told_at) => {
+            announce(alerts.tell(state, &hook, at).into_iter().collect());
+            let settled = requests::settle(state, waiting, &hook, told_at);
             hook::apply(Arc::make_mut(&mut state.sessions), &hook, at);
-            ended
+            settled
         }
-        Call::Ask(hook, reply) => {
+        Call::Ask(hook, asked_at, reply) => {
+            alerts.asked(&hook.from().session);
             let wait_ms = i64::try_from(settings.sessions.answer_seconds * 1000).unwrap_or(i64::MAX);
-            waiting.ask(state, &hook, reply, at, wait_ms);
+            waiting.ask(state, &hook, reply, asked_at.min(at), wait_ms);
             true
         }
     }
@@ -212,6 +246,7 @@ fn work(
     });
     let mut state = State {
         now: started,
+        mascot: settings.mascot,
         windows: Arc::new(windows),
         chat: Arc::new(Chat {
             model: model_index(&settings.chat.model),
@@ -221,6 +256,7 @@ fn work(
     };
     let mut tracker = Tracker::default();
     let mut waiting = Waiting::default();
+    let mut alerts = Alerts::default();
     let mut conversation = Conversation::default();
     let mut chatted = Instant::now();
     let mut in_flight = begin(&mut state, &settings.sources, sender);
@@ -239,7 +275,7 @@ fn work(
         return Ended::Unwanted;
     }
     loop {
-        let due = Waiting::next_due(&state).map(|at| {
+        let due = waiting.next_due(&state).into_iter().chain(alerts.next_due()).min().map(|at| {
             Instant::now() + Duration::from_millis(u64::try_from(at - now()).unwrap_or(0))
         });
         let timeout = due
@@ -327,7 +363,7 @@ fn work(
                 state.refreshing = in_flight > 0;
                 changed = true;
             }
-            Ok(Message::Call(Call::Tell(Hook::Usage { readings, .. }))) => {
+            Ok(Message::Call(Call::Tell(Hook::Usage { readings, .. }, _))) => {
                 if let Some(report) = model::status_line(&state, &readings, now()) {
                     claude_heard = Instant::now();
                     let notices = tracker.apply(&mut state, Source::Claude, Ok(report), settings);
@@ -336,12 +372,15 @@ fn work(
                 }
             }
             Ok(Message::Call(hook_call)) => {
-                asked = call(&mut state, &mut waiting, settings, hook_call);
+                asked = call(&mut state, &mut waiting, &mut alerts, settings, hook_call);
                 changed = true;
             }
             Ok(Message::Answer(id, answer)) => {
                 asked = waiting.answer(&mut state, id, &answer);
                 changed = asked;
+            }
+            Ok(Message::Hold(island, over)) => {
+                changed = waiting.hold(&mut state, island, over, now());
             }
             Ok(Message::Chat(message)) => {
                 chatted = Instant::now();
@@ -355,6 +394,7 @@ fn work(
             asked = true;
             changed = true;
         }
+        announce(alerts.due(&state, at));
         let instant = Instant::now();
         if in_flight == 0 && (queued || instant >= next_poll) {
             // Claude's usage API only when it allows, and when the status line has gone quiet

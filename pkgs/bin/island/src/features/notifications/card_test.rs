@@ -12,6 +12,7 @@ fn notification(id: u32) -> Notification {
         critical: false,
         icon: None,
         image: None,
+        lead: None,
         transient: false,
         resident: false,
         expire: Expire::Default,
@@ -25,6 +26,7 @@ fn layout(rows: &MissedList) -> Placed {
         .rows()
         .iter()
         .map(|_| Look {
+            lead: None,
             hidden: false,
             activate: panel::on(|_, _| {}),
             dismiss: panel::on(|_, _| {}),

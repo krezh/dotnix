@@ -30,6 +30,8 @@ pub struct Notification {
     pub critical: bool,
     pub icon: Option<Picture>,
     pub image: Option<Picture>,
+    /// The feature, by name, whose mark leads it in place of the icon (hint `x-island-lead`).
+    pub lead: Option<String>,
     pub transient: bool,
     pub resident: bool,
     pub expire: Expire,

@@ -25,7 +25,12 @@ pub enum Hook {
         done: bool,
         response: Value,
     },
-    Notice { from: Origin, kind: String },
+    /// What Claude Code would tell you in a desktop notification, such as that it waits for you.
+    Notice {
+        from: Origin,
+        kind: String,
+        message: String,
+    },
     Stop { from: Origin, reply: String },
     /// Blocks until answered.
     Permission {
@@ -132,6 +137,7 @@ pub fn parse(event: &str, json: &str) -> Result<Hook, String> {
         "ToolUse" if tool == "AskUserQuestion" => Hook::Notice {
             from,
             kind: String::new(),
+            message: String::new(),
         },
         "PreToolUse" | "ToolUse" | "PostToolUse" => Hook::Tool {
             from,
@@ -143,6 +149,7 @@ pub fn parse(event: &str, json: &str) -> Result<Hook, String> {
         "Notification" => Hook::Notice {
             from,
             kind: text(&value, "notification_type"),
+            message: text(&value, "message"),
         },
         "Stop" => Hook::Stop {
             from,

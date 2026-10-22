@@ -6,6 +6,7 @@ use super::{
     conversation::Chat,
     history::Window,
     session::{Request, Session},
+    settings::Mascot,
 };
 
 #[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq, Hash)]
@@ -136,6 +137,17 @@ pub struct SourceReport {
     pub(super) issues: Vec<Issue>,
 }
 
+/// Requests keep their time while the pointer is over an island.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct Hold {
+    /// Since when, while held.
+    pub(super) since: Option<i64>,
+    /// When it was last let go, which their countdowns carry on from.
+    pub(super) released_at: i64,
+    /// Counts each hold and release, so a countdown bar animates afresh from where it is.
+    pub(super) round: u32,
+}
+
 #[derive(Clone, Debug, Default)]
 pub struct State {
     pub(super) providers: Arc<Vec<Provider>>,
@@ -146,6 +158,9 @@ pub struct State {
     pub(super) sessions: Arc<Vec<Session>>,
     /// Oldest first.
     pub(super) requests: Arc<Vec<Request>>,
+    pub(super) hold: Hold,
+    /// From the settings, for each island's own Jelly.
+    pub(super) mascot: Mascot,
     pub(super) chat: Arc<Chat>,
     pub(super) windows: Arc<Vec<Window>>,
 }
@@ -155,6 +170,8 @@ impl PartialEq for State {
         self.now == other.now
             && self.refreshing == other.refreshing
             && self.attempted_at == other.attempted_at
+            && self.hold == other.hold
+            && self.mascot == other.mascot
             && Arc::ptr_eq(&self.providers, &other.providers)
             && Arc::ptr_eq(&self.issues, &other.issues)
             && Arc::ptr_eq(&self.sessions, &other.sessions)

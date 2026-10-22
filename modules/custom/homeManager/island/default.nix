@@ -72,7 +72,7 @@
             inherit (cfg.features.visualizer) glow;
           };
           ai = {
-            inherit (cfg.features.ai) sources;
+            inherit (cfg.features.ai) sources mascot;
             refresh_minutes = cfg.features.ai.refreshMinutes;
             disabled_limits = cfg.features.ai.disabledLimits;
             widget = {
@@ -325,6 +325,15 @@
             default = true;
             description = "Notify when AI quotas become high, exhausted or available again.";
           };
+          mascot = lib.mkOption {
+            type = lib.types.enum [
+              "off"
+              "calm"
+              "lively"
+            ];
+            default = "calm";
+            description = "Jelly, the Claude Code mascot in the AI widget, panel and pop-ups. Calm blinks and looks about and hops when something changes; lively also breathes and bounces while Claude works, which keeps island drawing frames.";
+          };
           widget.display = lib.mkOption {
             type = lib.types.enum [
               "worst"
@@ -359,7 +368,7 @@
               "sonnet"
               "opus"
             ];
-            default = "sonnet";
+            default = "haiku";
             description = "Model a new chat starts with.";
           };
         };

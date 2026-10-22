@@ -159,6 +159,7 @@ impl Server {
             id,
             icon: self::app_icon(&app_icon, &app, &hints),
             image: image_hint(&hints),
+            lead: hint_string(&hints, "x-island-lead"),
             transient: hint_bool(&hints, "transient"),
             resident: hint_bool(&hints, "resident"),
             app,

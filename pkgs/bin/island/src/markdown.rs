@@ -127,6 +127,28 @@ pub fn blocks(markdown: &str) -> Vec<Block> {
     blocks
 }
 
+/// The text as [`blocks`] shows it, without the marks: paragraphs and code blocks apart by a blank
+/// line, code line for line, and each link's address after its words, unless they are the address.
+pub fn plain(markdown: &str) -> String {
+    blocks(markdown)
+        .into_iter()
+        .map(|block| match block {
+            Block::Paragraph(text) => {
+                let mut plain = text.text.clone();
+                // From the end, so the ranges before stay where they are.
+                for (range, url) in text.link_ranges().into_iter().zip(&text.links).rev() {
+                    if text.text[range.clone()] != *url {
+                        plain.insert_str(range.end, &format!(" ({url})"));
+                    }
+                }
+                plain
+            }
+            Block::Code { lines, .. } => lines.join("\n"),
+        })
+        .collect::<Vec<_>>()
+        .join("\n\n")
+}
+
 fn unblock(line: &str) -> (&str, bool) {
     let trimmed = line.trim_start();
     for marker in ["### ", "## ", "# "] {

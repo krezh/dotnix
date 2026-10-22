@@ -30,6 +30,8 @@ CREATE TABLE history (
     PRIMARY KEY (session, id)
 );
 CREATE INDEX history_received ON history (received DESC);
+", "
+ALTER TABLE history ADD COLUMN lead TEXT;
 "];
 
 /// The session and the notification's id together name it.
@@ -72,7 +74,7 @@ fn read(db: &Connection, days: u32) -> rusqlite::Result<Vec<Earlier>> {
     let cutoff = seconds(SystemTime::now()) - i64::from(days) * 86_400;
     db.execute("DELETE FROM history WHERE received < ?1", params![cutoff])?;
     let mut statement = db.prepare(
-        "SELECT session, id, app, summary, body, critical, icon, received FROM history ORDER BY received DESC",
+        "SELECT session, id, app, summary, body, critical, icon, received, lead FROM history ORDER BY received DESC",
     )?;
     let rows = statement.query_map([], |row| {
         let received: i64 = row.get(7)?;
@@ -88,6 +90,7 @@ fn read(db: &Connection, days: u32) -> rusqlite::Result<Vec<Earlier>> {
                     .get::<_, Option<String>>(6)?
                     .map(|path| Picture::File(PathBuf::from(path))),
                 image: None,
+                lead: row.get(8)?,
                 transient: false,
                 resident: false,
                 expire: Expire::Default,
@@ -108,11 +111,11 @@ fn write(db: &mut Connection, write: Write) -> rusqlite::Result<()> {
                 _ => None,
             };
             db.execute(
-                "INSERT INTO history (session, id, app, summary, body, critical, icon, received)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
+                "INSERT INTO history (session, id, app, summary, body, critical, icon, received, lead)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)
                  ON CONFLICT (session, id) DO UPDATE SET app = excluded.app, summary = excluded.summary,
                     body = excluded.body, critical = excluded.critical, icon = excluded.icon,
-                    received = excluded.received",
+                    received = excluded.received, lead = excluded.lead",
                 params![
                     earlier.session,
                     notification.id,
@@ -121,7 +124,8 @@ fn write(db: &mut Connection, write: Write) -> rusqlite::Result<()> {
                     notification.body,
                     notification.critical,
                     icon,
-                    seconds(notification.received)
+                    seconds(notification.received),
+                    notification.lead
                 ],
             )?;
         }

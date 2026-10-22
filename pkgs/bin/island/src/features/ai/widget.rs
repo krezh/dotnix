@@ -7,12 +7,13 @@ use super::{
     session::Activity,
     settings::Display,
     state::{Provider, Severity, State},
+    view::View,
 };
 use crate::{
     bar::{GLYPH, ICON_GAP},
     components::{
         button::{self, Badge},
-        icon,
+        icon, mascot,
         tooltip::Tip,
     },
     features::WidgetCx,
@@ -20,6 +21,9 @@ use crate::{
     theme::{ACCENT, CRITICAL, OVERLAY2, SUBTEXT1, YELLOW},
     ui::SMALL_SIZE,
 };
+
+/// Jelly in the bar: a little larger than a glyph, as its face needs the room.
+const JELLY: f32 = 22.0;
 
 pub(super) fn tooltip(ai: &Ai, state: &State) -> String {
     if ai.settings.sources.is_empty() {
@@ -168,9 +172,16 @@ pub(super) fn widget(ai: &Ai, state: &State, w: &WidgetCx<'_>) -> AnyElement {
         .iter()
         .filter(|provider| !provider.is_empty())
         .peekable();
+    // Jelly leads the widget when it is on, and carries the count of requests waiting.
+    let jelly = w
+        .local::<View>()
+        .and_then(View::pose)
+        .map(|pose| waiting(mascot::mascot(pose, JELLY).into_any_element(), state));
+    let counted = jelly.is_none();
+    base = base.children(jelly);
     if ai.settings.widget.display == Display::Providers && providers.peek().is_some() {
         base = base.children(providers.enumerate().map(|(index, provider)| {
-            provider_badge(provider, now, (index == 0).then_some(state), w)
+            provider_badge(provider, now, (counted && index == 0).then_some(state), w)
         }));
     } else {
         let worst = state.worst();
@@ -192,16 +203,18 @@ pub(super) fn widget(ai: &Ai, state: &State, w: &WidgetCx<'_>) -> AnyElement {
                 }
             },
         );
-        let selected_icon = match worst {
-            Some((provider, _)) => account_icon(provider, tint, w),
-            None => match w.glyph("ai") {
-                Some(path) => icon::glyph(path, GLYPH, tint).into_any_element(),
-                None => div().child("AI").into_any_element(),
-            },
-        };
-        base = base
-            .text_color(rgb(tint))
-            .child(waiting(selected_icon, state));
+        // Jelly stands in for the account's icon.
+        if counted {
+            let selected_icon = match worst {
+                Some((provider, _)) => account_icon(provider, tint, w),
+                None => match w.glyph("ai") {
+                    Some(path) => icon::glyph(path, GLYPH, tint).into_any_element(),
+                    None => div().child("AI").into_any_element(),
+                },
+            };
+            base = base.child(waiting(selected_icon, state));
+        }
+        base = base.text_color(rgb(tint));
         if ai.settings.widget.show_badge {
             if let Some((provider, limit)) = worst {
                 base = base.child(format::badge(limit, provider.freshness, now, true));
@@ -210,7 +223,8 @@ pub(super) fn widget(ai: &Ai, state: &State, w: &WidgetCx<'_>) -> AnyElement {
             }
         }
     }
-    base.child(w.energy(state.refreshing || working))
+    // Jelly shows work and a refresh itself, so the energy border is only for the widget without it.
+    base.when(counted, |base| base.child(w.energy(state.refreshing || working)))
         .on_click(w.toggle(Panel::Feature("ai")))
         .on_mouse_down(MouseButton::Right, w.call(Ai::refresh))
         .into_any_element()

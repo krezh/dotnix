@@ -13,7 +13,7 @@ use gpui::{AnyElement, Context, FontWeight, ScrollHandle, SharedString, div, pre
 
 use crate::{
     components::{
-        button, calendar, card, code, input, item, lines,
+        badge, button, calendar, card, code, input, item, lines,
         list::ROWS,
         marquee::TextLayouts,
         meter, motion, player,
@@ -28,7 +28,7 @@ use crate::{
     theme::OVERLAY2,
     ui::{
         self, BLOCK_GAP, CARD_PAD, CONTROL_H, HEADER_GAP, HEADER_H, HEADING_SIZE, INSET,
-        TIGHT_INSET, TITLE_SIZE,
+        SMALL_SIZE, TIGHT_INSET, TITLE_SIZE,
     },
 };
 
@@ -48,6 +48,7 @@ pub use crate::components::{
     route::{Route, Stop, StopState},
     search::{Preview, SearchRow, SearchView},
     slider::Slider,
+    tabs::TabLabel,
     text::{Style as TextStyle, Text, Tone},
 };
 
@@ -78,8 +79,20 @@ pub enum Header {
     None,
 }
 
+/// What sits at the start of a header with tabs: a mark, with a faint line over a title beside it,
+/// such as who a panel is about and what it is doing.
+pub struct HeaderLead {
+    pub mark: Mark,
+    pub size: f32,
+    pub overline: SharedString,
+    pub title: SharedString,
+    pub on_click: Option<Handler>,
+}
+
 pub struct Views {
-    pub tabs: Vec<SharedString>,
+    /// At the start of the row, before the centred tabs; the header grows to fit it.
+    pub lead: Option<HeaderLead>,
+    pub tabs: Vec<TabLabel>,
     pub selected: usize,
     pub on_select: tabs::Select,
     pub buttons: Vec<Button>,
@@ -386,7 +399,15 @@ impl PanelView {
             Header::None => None,
         };
         let island_below = frame.island_h - inset;
-        let blocks = render_all(self.blocks, "block", island_below, frame, cx);
+        // An input, with whatever follows it, stays at the panel's foot below what scrolls, as a
+        // chat's message field does.
+        let mut blocks = self.blocks;
+        let foot = blocks
+            .iter()
+            .rposition(|block| matches!(block, Block::Input(_)))
+            .map_or_else(Vec::new, |at| blocks.split_off(at));
+        let foot = render_all(foot, "foot", island_below, frame, cx);
+        let blocks = render_all(blocks, "block", island_below, frame, cx);
         ui::base()
             .flex()
             .flex_col()
@@ -417,6 +438,16 @@ impl PanelView {
                         }
                     }),
             )
+            .when(!foot.is_empty(), |panel| {
+                panel.child(div().h(px(BLOCK_GAP)).flex_none()).child(
+                    div()
+                        .flex_none()
+                        .flex()
+                        .flex_col()
+                        .gap(px(BLOCK_GAP))
+                        .children(foot),
+                )
+            })
             .into_any_element()
     }
 }
@@ -433,7 +464,7 @@ fn title_header(
         .text_size(px(HEADING_SIZE))
         .font_weight(FontWeight::SEMIBOLD)
         .child(motion::text("panel-title", title));
-    header_row(title.into_any_element(), false, buttons, hover, cx)
+    header_row(title.into_any_element(), false, None, buttons, hover, cx)
 }
 
 fn views_header(views: Views, hover: bool, cx: &mut Context<Island>) -> AnyElement {
@@ -445,25 +476,76 @@ fn views_header(views: Views, hover: bool, cx: &mut Context<Island>) -> AnyEleme
         hover,
         cx,
     );
-    header_row(tabs.into_any_element(), true, views.buttons, hover, cx)
+    let lead = views.lead.map(|lead| header_lead(lead, cx));
+    header_row(tabs.into_any_element(), true, lead, views.buttons, hover, cx)
 }
 
-/// `centred` puts `leading` in the middle, with equal room either side, as the bar's tabs sit.
+fn header_lead(lead: HeaderLead, cx: &mut Context<Island>) -> AnyElement {
+    let mark = div()
+        .id("panel-lead-mark")
+        .size(px(lead.size))
+        .flex_none()
+        .child(badge::mark(&lead.mark, lead.size, 1.0))
+        .when_some(lead.on_click, |mark, handler| {
+            // The mark answers the pointer itself, so it goes without the grey hover behind.
+            mark.cursor_pointer()
+                .on_click(cx.listener(move |this, _, _, cx| handler(this, cx)))
+        });
+    div()
+        .min_w(px(0.0))
+        .flex()
+        .items_center()
+        .gap(px(10.0))
+        .child(mark)
+        .child(
+            div()
+                .min_w(px(0.0))
+                .flex()
+                .flex_col()
+                .child(
+                    div()
+                        .truncate()
+                        .text_size(px(SMALL_SIZE))
+                        .text_color(rgb(OVERLAY2))
+                        .child(lead.overline),
+                )
+                .child(
+                    div()
+                        .truncate()
+                        .font_weight(FontWeight::SEMIBOLD)
+                        .child(motion::text("panel-lead-title", lead.title)),
+                ),
+        )
+        .into_any_element()
+}
+
+/// `centred` puts `leading` in the middle, with equal room either side, as the bar's tabs sit,
+/// and `lead` at the start of that room.
 fn header_row(
     leading: AnyElement,
     centred: bool,
+    lead: Option<AnyElement>,
     buttons: Vec<Button>,
     hover: bool,
     cx: &mut Context<Island>,
 ) -> AnyElement {
     div()
-        .h(px(HEADER_H))
+        .min_h(px(HEADER_H))
         .flex_none()
         .flex()
         .items_center()
         .justify_between()
         .gap(px(16.0))
-        .when(centred, |row| row.child(div().flex_1().min_w(px(0.0))))
+        .when(centred, |row| {
+            row.child(
+                div()
+                    .flex_1()
+                    .min_w(px(0.0))
+                    .flex()
+                    .items_center()
+                    .children(lead),
+            )
+        })
         .child(leading)
         .child(
             div()

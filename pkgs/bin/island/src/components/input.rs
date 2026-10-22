@@ -1,5 +1,5 @@
 //! A text field that wraps onto more lines as you type, such as a message to send, with a send
-//! button beside it.
+//! button inside it at its end.
 
 use std::path::PathBuf;
 
@@ -18,7 +18,8 @@ use crate::{
 
 const LINE: f32 = 18.0;
 const PAD_X: f32 = 12.0;
-const PAD_Y: f32 = 10.0;
+/// Leaves room round the send button inside the field.
+const PAD_Y: f32 = 13.0;
 const CARET: &str = "▏";
 
 pub struct InputView {
@@ -107,29 +108,6 @@ pub fn input(view: InputView, hover: bool, cx: &mut Context<Island>) -> AnyEleme
             },
         ));
     }
-    let field = div()
-        .relative()
-        .flex_1()
-        .min_w(px(0.0))
-        .child(ui::shape(
-            Radius::Control,
-            Some(rgba(with_alpha(SURFACE1, CONTROL_ALPHA)).into()),
-        ))
-        .child(
-            div()
-                .relative()
-                .px(px(PAD_X))
-                .py(px(PAD_Y))
-                .max_h(px(LINE * view.max_lines.max(1) as f32 + 2.0 * PAD_Y))
-                .overflow_hidden()
-                .flex()
-                .flex_col()
-                .justify_end()
-                .text_size(px(SMALL_SIZE))
-                .line_height(px(LINE))
-                .child(StyledText::new(shown).with_highlights(highlights)),
-        )
-        .child(energy::border("input-busy", Radius::Control, 0.0, view.busy));
     let ready = view.on_send.is_some();
     let send = button::icon(
         SharedString::from(format!("{}-send", view.id)),
@@ -142,12 +120,40 @@ pub fn input(view: InputView, hover: bool, cx: &mut Context<Island>) -> AnyEleme
     .when_some(view.on_send, |send, handler| {
         send.on_click(cx.listener(move |this, _, _, cx| handler(this, cx)))
     });
+    // The send button sits inside the field at its end, level with the last line.
+    let inset = (LINE + 2.0 * PAD_Y - button::ICON_BUTTON) / 2.0;
     div()
-        .flex()
-        .items_end()
-        .gap(px(8.0))
-        .child(field)
-        .child(send)
+        .relative()
+        .min_w(px(0.0))
+        .child(ui::shape(
+            Radius::Control,
+            Some(rgba(with_alpha(SURFACE1, CONTROL_ALPHA)).into()),
+        ))
+        .child(
+            div()
+                .relative()
+                .flex()
+                .items_end()
+                .gap(px(8.0))
+                .pr(px(inset))
+                .child(
+                    div()
+                        .flex_1()
+                        .min_w(px(0.0))
+                        .px(px(PAD_X))
+                        .py(px(PAD_Y))
+                        .max_h(px(LINE * view.max_lines.max(1) as f32 + 2.0 * PAD_Y))
+                        .overflow_hidden()
+                        .flex()
+                        .flex_col()
+                        .justify_end()
+                        .text_size(px(SMALL_SIZE))
+                        .line_height(px(LINE))
+                        .child(StyledText::new(shown).with_highlights(highlights)),
+                )
+                .child(div().flex_none().pb(px(inset)).child(send)),
+        )
+        .child(energy::border("input-busy", Radius::Control, 0.0, view.busy))
         .into_any_element()
 }
 

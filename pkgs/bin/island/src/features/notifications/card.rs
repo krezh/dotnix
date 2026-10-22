@@ -19,6 +19,7 @@ use crate::{
         item::{self, Item, Lead, Trail},
         text,
     },
+    features::PanelCx,
     markdown,
     panel::{
         self, Block, ButtonRow, Countdown, FrameView, Handler, IconButton, Mark, Place, Placed,
@@ -57,11 +58,18 @@ impl Kind {
 }
 
 pub struct Look {
+    /// What another feature lends to lead it, in place of the app's icon.
+    pub lead: Option<Mark>,
     pub hidden: bool,
     pub activate: Handler,
     pub dismiss: Handler,
     pub invoke: Vec<(String, Handler)>,
     pub countdown: Option<Countdown>,
+}
+
+/// The mark the feature `notification` names lends, if any.
+pub(super) fn lead(notification: &Notification, p: &PanelCx<'_>) -> Option<Mark> {
+    p.lead(notification.lead.as_deref()?)
 }
 
 pub(super) fn invoke(
@@ -248,10 +256,11 @@ fn message(kind: Kind, notification: &Notification, look: Look) -> Block {
     } else {
         app_color(&notification.app)
     };
-    let mark = match (&notification.image, &notification.icon) {
-        (Some(image), _) => Mark::Picture(image.clone(), true),
-        (None, Some(app)) => Mark::Picture(app.clone(), false),
-        (None, None) => Mark::Letter(notification.app.clone().into(), tint),
+    let mark = match (look.lead, &notification.image, &notification.icon) {
+        (Some(lent), _, _) => lent,
+        (None, Some(image), _) => Mark::Picture(image.clone(), true),
+        (None, None, Some(app)) => Mark::Picture(app.clone(), false),
+        (None, None, None) => Mark::Letter(notification.app.clone().into(), tint),
     };
     let item = Item {
         id: kind.element_id("item"),
@@ -262,6 +271,7 @@ fn message(kind: Kind, notification: &Notification, look: Look) -> Block {
             faded: false,
             size: Some(ICON),
             on_click: None,
+            top: false,
         }),
         overline: Some(overline.into()),
         title: markdown::parse(&notification.summary).text.into(),

@@ -7,7 +7,9 @@ use crate::features::notifications::notification::{Expire, Notification};
 
 fn database() -> Connection {
     let db = Connection::open_in_memory().unwrap();
-    db.execute_batch(MIGRATIONS[0]).unwrap();
+    for migration in MIGRATIONS {
+        db.execute_batch(migration).unwrap();
+    }
     db
 }
 
@@ -22,6 +24,7 @@ fn entry(session: i64, id: u32, summary: &str, age: Duration) -> Earlier {
             critical: false,
             icon: None,
             image: None,
+            lead: None,
             transient: false,
             resident: false,
             expire: Expire::Default,

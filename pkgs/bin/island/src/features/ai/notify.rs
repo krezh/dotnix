@@ -3,7 +3,8 @@ use std::collections::HashMap;
 use tracing::warn;
 use zbus::{Connection, Variant, block_on};
 
-use super::model::Notice;
+use super::{Ai, model::Notice};
+use crate::features::Feature;
 
 pub(super) fn send(notices: Vec<Notice>) {
     let sent = block_on(async {
@@ -22,12 +23,14 @@ pub(super) fn send(notices: Vec<Notice>) {
                     Variant::from(if notice.critical { 2_u8 } else { 1_u8 }),
                 ),
                 ("desktop-entry", Variant::from("island")),
+                // Led by Jelly, which this feature lends under its name.
+                ("x-island-lead", Variant::from(Ai::NAME)),
             ]);
             let _: u32 = proxy
                 .call(
                     "Notify",
                     &(
-                        "Island AI",
+                        notice.app,
                         0_u32,
                         "",
                         notice.title,
@@ -42,6 +45,6 @@ pub(super) fn send(notices: Vec<Notice>) {
         Ok::<(), zbus::Error>(())
     });
     if sent.is_err() {
-        warn!("cannot deliver AI quota notifications");
+        warn!("cannot deliver AI notifications");
     }
 }

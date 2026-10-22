@@ -13,9 +13,22 @@ pub(super) enum Display {
     Providers,
 }
 
+/// How Jelly, the Claude Code mascot, moves.
+#[derive(Clone, Copy, Debug, Default, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum Mascot {
+    Off,
+    /// Blinks and looks about, and hops when something changes.
+    #[default]
+    Calm,
+    /// Breathes, and bounces while Claude works.
+    Lively,
+}
+
 #[derive(Clone, Debug, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub(super) struct Settings {
+    pub(super) mascot: Mascot,
     pub(super) sources: Vec<Source>,
     pub(super) disabled_limits: HashMap<Source, HashMap<String, HashSet<String>>>,
     pub(super) refresh_minutes: u64,
@@ -38,7 +51,7 @@ impl Default for Chat {
     fn default() -> Self {
         Self {
             command: "claude".to_owned(),
-            model: "sonnet".to_owned(),
+            model: "haiku".to_owned(),
         }
     }
 }
@@ -46,6 +59,7 @@ impl Default for Chat {
 impl Default for Settings {
     fn default() -> Self {
         Self {
+            mascot: Mascot::Calm,
             sources: vec![Source::Omp, Source::Claude],
             disabled_limits: HashMap::new(),
             refresh_minutes: 5,

@@ -926,8 +926,12 @@ impl Island {
         }
     }
 
-    fn panel_cx(&self, name: &str, cx: &Gpui) -> PanelCx<'_> {
-        PanelCx::new(cx.global::<Glyphs>().clone(), self.local(name))
+    fn panel_cx<'a>(&'a self, name: &str, cx: &'a Gpui) -> PanelCx<'a> {
+        let lend = move |lender: &str| {
+            let (_, local) = self.locals.iter().find(|(owner, _)| *owner == lender)?;
+            self.features.get(lender)?.lead(&**local, cx)
+        };
+        PanelCx::new(cx.global::<Glyphs>().clone(), self.local(name), Box::new(lend))
     }
 
     pub fn feature_panel(&self, name: &str, cx: &Gpui) -> Option<panel::PanelView> {
@@ -1050,8 +1054,12 @@ impl Island {
             return;
         }
         self.hovered = hovered;
-        for (_, local) in &mut self.locals {
+        let features = self.features.clone();
+        for (name, local) in &mut self.locals {
             local.pointer(hovered);
+            if let Some(feature) = features.get(name) {
+                feature.pointer(&mut **local, hovered, cx);
+            }
         }
         self.arm_due(cx);
         cx.notify();

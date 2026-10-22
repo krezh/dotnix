@@ -45,12 +45,3 @@ fn tooltip_formats_each_series_without_inventing_missing_history() {
     assert_eq!(text(&series, 6, 0.5, 0.625), "Usage: 25%");
     assert_eq!(text(&series, 6, 0.5, 0.0), "");
 }
-
-#[test]
-fn window_samples_start_at_the_left_edge_and_stop_at_the_newest() {
-    let values = [0.0, 10.0, 20.0];
-    assert_eq!(super::window_sample(&values, 5, 0.0), Some(0.0));
-    assert_eq!(super::window_sample(&values, 5, 0.5), Some(20.0));
-    assert_eq!(super::window_sample(&values, 5, 0.75), None);
-    assert_eq!(super::window_sample(&values, 5, 1.2), None);
-}

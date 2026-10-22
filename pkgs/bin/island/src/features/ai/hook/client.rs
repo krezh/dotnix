@@ -9,7 +9,7 @@ use super::server::{INTERFACE, NAME, PATH};
 use crate::dbus;
 
 /// Longer than any hook may run, so Claude Code's own timeout is the one that ends the wait.
-const WAIT: Duration = Duration::from_secs(60 * 60);
+const WAIT: Duration = Duration::from_secs(2 * 60 * 60);
 
 /// Passes one Claude Code hook to the running island and prints its answer. It always exits 0, at
 /// once when island is not running, so Claude Code carries on as if there were no hook.
@@ -22,6 +22,7 @@ pub fn run(args: &[String]) -> i32 {
     if std::env::var_os(crate::features::ai::converse::CHAT_ENV).is_some() {
         return 0;
     }
+    let at = chrono::Utc::now().timestamp_millis();
     let mut input = String::new();
     if std::io::stdin().read_to_string(&mut input).is_err() {
         return 0;
@@ -36,7 +37,7 @@ pub fn run(args: &[String]) -> i32 {
             return Ok(String::new());
         }
         let proxy = dbus::uncached(&connection, NAME, PATH, INTERFACE).await?;
-        proxy.call("Hook", &(event.as_str(), input.as_str())).await
+        proxy.call("Hook", &(event.as_str(), input.as_str(), at)).await
     });
     if let Ok(reply) = reply
         && !reply.is_empty()

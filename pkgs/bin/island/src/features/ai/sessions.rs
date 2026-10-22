@@ -95,6 +95,7 @@ fn mark(color: u32, size: f32) -> Lead {
         faded: false,
         size: Some(size),
         on_click: None,
+        top: false,
     }
 }
 
@@ -311,7 +312,7 @@ fn timeline(session: &Session, state: &State, view: &View, p: &PanelCx<'_>) -> V
                 .iter()
                 .filter(|request| request.session == session.id)
             {
-                blocks.push(asking::frame(request, view, p, false, false));
+                blocks.push(asking::frame(request, view, p, None, false));
             }
         }
         let turn = if latest && working {

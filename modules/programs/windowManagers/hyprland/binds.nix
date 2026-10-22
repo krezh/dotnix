@@ -102,6 +102,10 @@
               rule = exec "${shell.run} clear";
               desc = "Clear notifications";
             };
+            "${mainMod} + D" = {
+              rule = exec "${shell.run} toggle ai chat";
+              desc = "AI chat";
+            };
             "${mainMod} + B" = {
               rule = exec browser.run;
               desc = "Browser";

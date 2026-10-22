@@ -7,7 +7,7 @@ use super::{
 use crate::{
     control::Switch,
     features::PanelCx,
-    panel::{Button, Header, PanelView, Views},
+    panel::{Button, Header, PanelView, TabLabel, Views},
 };
 
 /// So "5m" keeps up.
@@ -59,7 +59,8 @@ impl Notifications {
             },
         ];
         let header = Header::Views(Views {
-            tabs: vec!["Now".into(), "Earlier".into()],
+            lead: None,
+            tabs: vec![TabLabel::text("Now"), TabLabel::text("Earlier")],
             selected: usize::from(cards.earlier),
             on_select: p.on_local_with::<Self, usize>(|_, cards, tab| cards.earlier = tab == 1),
             buttons,
@@ -71,6 +72,7 @@ impl Notifications {
                 .map(|kept| {
                     let key = kept.key();
                     Look {
+                        lead: card::lead(&kept.notification, p),
                         countdown: None,
                         hidden: self.hidden(state, &kept.notification),
                         activate: p.call::<Self>(|_| {}),
@@ -92,6 +94,7 @@ impl Notifications {
             .map(|row| {
                 let id = row.notification.id;
                 Look {
+                    lead: card::lead(&row.notification, p),
                     countdown: None,
                     hidden: self.hidden(state, &row.notification),
                     activate: p

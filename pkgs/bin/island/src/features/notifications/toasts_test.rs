@@ -12,6 +12,7 @@ fn notification(expire: Expire, critical: bool) -> Notification {
         critical,
         icon: None,
         image: None,
+        lead: None,
         transient: false,
         resident: false,
         expire,

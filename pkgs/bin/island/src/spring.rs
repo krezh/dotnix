@@ -45,6 +45,12 @@ impl Spring {
         self.hold_until = None;
     }
 
+    /// Adds to its speed, such as a knock that sets it moving.
+    pub fn kick(&mut self, velocity: f32) {
+        self.state.velocity += velocity;
+        self.hold_until = None;
+    }
+
     pub fn value(&self) -> f32 {
         self.state.position
     }

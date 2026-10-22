@@ -18,6 +18,7 @@ impl Notifications {
             .map(|shown| {
                 let id = shown.id;
                 Look {
+                    lead: card::lead(&shown.notification, p),
                     countdown: shown.countdown(),
                     hidden: self.hidden(state, &shown.notification),
                     activate: p.on_local::<Self>(move |notifications, cards| {
