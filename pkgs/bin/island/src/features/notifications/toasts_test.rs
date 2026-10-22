@@ -71,6 +71,72 @@ fn counts_down_pauses_under_the_pointer_and_carries_on() {
 }
 
 #[test]
+fn hidden_cards_wait_below_the_stack_and_rise_into_a_freed_place() {
+    let mut toasts = Toasts::default();
+    for id in 1..=4 {
+        toasts.show(Notification {
+            id,
+            ..notification(Expire::Default, false)
+        });
+    }
+    let below = |toasts: &Toasts| {
+        let live: Vec<_> = toasts.cards().iter().filter(|card| !card.leaving).collect();
+        live.windows(2)
+            .all(|pair| pair[0].y.target() < pair[1].y.target())
+    };
+    let later = Instant::now() + Duration::from_secs(1);
+    for _ in 0..120 {
+        toasts.advance(1.0 / 60.0, later);
+    }
+    let oldest = toasts.cards()[3].y.target();
+    assert_eq!(toasts.cards()[3].y.value(), oldest);
+    assert!(!toasts.cards()[3].visible);
+    assert!(below(&toasts), "newest on top, oldest at the bottom");
+
+    let top = toasts.cards()[0].id;
+    let before = toasts.drawn_y();
+    let height = toasts.height();
+    toasts.dismiss(top);
+    assert!(
+        toasts
+            .drawn_y()
+            .iter()
+            .zip(&before)
+            .all(|(now, was)| (now - was).abs() < 0.01),
+        "nothing jumps as the fold starts: {:?} then {before:?}",
+        toasts.drawn_y()
+    );
+    assert!((toasts.height() - height).abs() < 0.01, "nor does the island");
+    assert!(toasts.cards()[3].visible);
+    assert!(below(&toasts));
+
+    let mut last = toasts.drawn_y();
+    for frame in 1..=120 {
+        toasts.advance(1.0 / 60.0, later);
+        let Some(folding) = toasts.cards().iter().find(|card| card.leaving) else {
+            break;
+        };
+        let edge = toasts.drawn_y()[0] + folding.height() * folding.fold.value();
+        let drawn = toasts.drawn_y();
+        assert!(
+            drawn[1] >= edge - 0.01,
+            "frame {frame}: the card below never passes the folding edge"
+        );
+        assert!(
+            drawn.iter().zip(&last).all(|(now, was)| now <= was),
+            "frame {frame}: the rest only rise"
+        );
+        assert!(
+            toasts.height() <= height + 0.01,
+            "frame {frame}: the island never grows"
+        );
+        last = drawn;
+    }
+    let risen = toasts.cards().iter().rev().find(|card| !card.leaving).unwrap();
+    assert!(risen.y.value() < oldest, "the hidden one rose into the freed place");
+}
+
+#[test]
 fn a_card_shown_under_the_pointer_waits_and_critical_ones_never_count() {
     let mut toasts = Toasts::default();
     toasts.set_pointer(true, Instant::now());

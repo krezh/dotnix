@@ -45,6 +45,12 @@ impl Spring {
         self.hold_until = None;
     }
 
+    /// Moves it and where it is heading by the same amount, so it carries on as it was.
+    pub fn shift(&mut self, by: f32) {
+        self.state.position += by;
+        self.target += by;
+    }
+
     /// Adds to its speed, such as a knock that sets it moving.
     pub fn kick(&mut self, velocity: f32) {
         self.state.velocity += velocity;

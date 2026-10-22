@@ -6,7 +6,7 @@ use super::{Feature, Feed, GlyphSpec, PanelCx, WidgetCx};
 use crate::{
     bar::GLYPH,
     components::{icon, tooltip::Tip},
-    control::{self, Switch},
+    control::{self, Command, Group, Report, Row, SWITCH, Shown, Switch, Takes},
     icons,
     panel::{IconButton, Rising},
     theme::ACCENT,
@@ -63,7 +63,16 @@ impl Feature for Caffeine {
         "caffeine",
         &["caffeine-cup-full-symbolic", "caffeine-cup-full"],
     )];
-    const USAGE: &'static str = "  caffeine on|off|toggle                keep the screen awake";
+    const CONTROLS: &'static [Command] = &[Command {
+        name: "caffeine",
+        about: "Keep the screen awake",
+        group: Group::System,
+        takes: Takes::Forms {
+            forms: SWITCH,
+            bare: Some("Show whether it is on"),
+        },
+        examples: &["island ctl caffeine on"],
+    }];
 
     type State = bool;
     type Local = ();
@@ -114,13 +123,19 @@ impl Feature for Caffeine {
         })
     }
 
-    fn check(args: &[&str]) -> Result<(), String> {
-        control::switch(&args[1..]).map(drop)
+    fn command(&self, _: &bool, args: &[&str]) -> Report {
+        let row = |on| Row::new("Caffeine", Shown::Switch(on));
+        if args.len() == 1 {
+            return Report::shows(vec![row(self.on.get())]);
+        }
+        let Ok(switch) = control::switch(&args[1..]) else {
+            return Report::default();
+        };
+        self.set(switch);
+        Report::did(row(self.on.get()))
     }
 
-    fn command(&self, _: &bool, args: &[&str]) {
-        if let Ok(switch) = control::switch(&args[1..]) {
-            self.set(switch);
-        }
+    fn status(&self, on: &bool) -> Vec<Row> {
+        vec![Row::new("Caffeine", Shown::Switch(*on))]
     }
 }

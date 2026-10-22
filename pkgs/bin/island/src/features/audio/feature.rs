@@ -7,6 +7,7 @@ use gpui::AnyElement;
 
 use super::{commands, glyphs, panel, popup, pulse, runtime::Audio, state::AudioState, widget};
 use crate::{
+    control::{Command, Report, Row},
     features::{
         Feature, Feed, GlyphSpec, IslandInfo, PanelCx, WidgetCx, headset,
         osd::{self, Osd, Shown},
@@ -23,8 +24,7 @@ impl Feature for Audio {
     const PANEL: Option<&'static str> = Some("audio");
     const TAB: Option<(&'static str, u8)> = Some(("Audio", 2));
     const PANEL_REFRESH: Option<Duration> = Some(REFRESH);
-    const COMMANDS: &'static [&'static str] = commands::COMMANDS;
-    const USAGE: &'static str = commands::USAGE;
+    const CONTROLS: &'static [Command] = commands::CONTROLS;
 
     type State = AudioState;
     type Local = Shown;
@@ -81,11 +81,11 @@ impl Feature for Audio {
         popup::osd(before, after)
     }
 
-    fn check(args: &[&str]) -> Result<(), String> {
-        commands::check(args)
+    fn command(&self, state: &AudioState, args: &[&str]) -> Report {
+        commands::run(self, state, args)
     }
 
-    fn command(&self, _: &AudioState, args: &[&str]) {
-        commands::run(self, args);
+    fn status(&self, state: &AudioState) -> Vec<Row> {
+        commands::status(state)
     }
 }

@@ -11,13 +11,19 @@ use super::{
 
 /// Claude's numbers as Claude Code's status line reads them, laid over the usage API's last
 /// reading, which names the account and its other limits. Nothing while there is no such reading
-/// yet, or more than one Claude account to choose between.
+/// yet, or more than one Claude account to choose between. A reading whose reset has passed is
+/// from before it, as the status line repeats its last one until Claude Code asks again, so it is
+/// left out.
 pub(super) fn status_line(state: &State, readings: &[Reading], now: i64) -> Option<SourceReport> {
     let mut claude = state
         .providers
         .iter()
         .filter(|provider| provider.source == Source::Claude);
     let known = claude.next()?;
+    let readings: Vec<&Reading> = readings
+        .iter()
+        .filter(|reading| reading.resets_at.is_none_or(|at| at > now))
+        .collect();
     if claude.next().is_some() || readings.is_empty() {
         return None;
     }
@@ -48,6 +54,18 @@ pub(super) fn status_line(state: &State, readings: &[Reading], now: i64) -> Opti
         providers: vec![provider],
         issues: Vec::new(),
     })
+}
+
+/// The latest reset of a Claude limit that has passed, after which its reading is out of date.
+pub(super) fn passed_reset(state: &State, now: i64) -> Option<i64> {
+    state
+        .providers
+        .iter()
+        .filter(|provider| provider.source == Source::Claude)
+        .flat_map(|provider| &provider.limits)
+        .filter_map(|limit| limit.resets_at)
+        .filter(|at| *at <= now)
+        .max()
 }
 
 #[derive(Debug, PartialEq)]

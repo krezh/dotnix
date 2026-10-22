@@ -13,6 +13,7 @@ use super::{
     state::{Event, State},
 };
 use crate::{
+    control::{Command, Report, Row},
     features::{Feature, Feed, IslandInfo, Islands, PanelCx, WidgetCx},
     panel::PanelView,
 };
@@ -21,10 +22,7 @@ impl Feature for Notifications {
     const NAME: &'static str = "notifications";
     const PANEL: Option<&'static str> = Some("notifications");
     const PANEL_REFRESH: Option<Duration> = Some(panel::REFRESH);
-    const COMMANDS: &'static [&'static str] = &["dnd", "private", "clear"];
-    const USAGE: &'static str = "  dnd on|off|toggle
-  private on|off|toggle                 hide notification contents
-  clear                                 dismiss every notification";
+    const CONTROLS: &'static [Command] = commands::CONTROLS;
 
     type State = State;
     type Local = Cards;
@@ -62,11 +60,11 @@ impl Feature for Notifications {
         self.popup_view(state, p)
     }
 
-    fn check(args: &[&str]) -> Result<(), String> {
-        commands::check(args)
+    fn command(&self, state: &State, args: &[&str]) -> Report {
+        self.command(state, args)
     }
 
-    fn command(&self, _: &State, args: &[&str]) {
-        self.command(args);
+    fn status(&self, state: &State) -> Vec<Row> {
+        self.status(state)
     }
 }

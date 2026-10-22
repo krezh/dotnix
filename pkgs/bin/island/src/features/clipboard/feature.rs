@@ -8,6 +8,7 @@ use gpui::{AnyElement, Keystroke};
 use super::{commands, panel, runtime, runtime::Clipboard, settings, state::State, widget};
 use crate::{
     components::list::Selection,
+    control::{Command, Report},
     features::{Feature, Feed, GlyphSpec, Outcome, PanelCx, WidgetCx},
     panel::{IconButton, PanelView},
 };
@@ -22,8 +23,7 @@ impl Feature for Clipboard {
     ];
     const PANEL: Option<&'static str> = Some("clipboard");
     const PANEL_REFRESH: Option<Duration> = Some(Duration::from_secs(30));
-    const USAGE: &'static str =
-        "  clipboard clear                       forget the clipboard history";
+    const CONTROLS: &'static [Command] = commands::CONTROLS;
     const KEYBOARD: bool = true;
 
     type State = State;
@@ -54,11 +54,7 @@ impl Feature for Clipboard {
         widget::system_button(p)
     }
 
-    fn check(args: &[&str]) -> Result<(), String> {
-        commands::check(args)
-    }
-
-    fn command(&self, _: &State, args: &[&str]) {
+    fn command(&self, _: &State, args: &[&str]) -> Report {
         self.handle_command(args)
     }
 }

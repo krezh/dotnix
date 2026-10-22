@@ -106,6 +106,20 @@ fn text(value: &Value, key: &str) -> String {
         .to_owned()
 }
 
+/// The hook events [`parse`] reads.
+pub const EVENTS: &[&str] = &[
+    "SessionStart",
+    "SessionEnd",
+    "UserPromptSubmit",
+    "PreToolUse",
+    "ToolUse",
+    "PostToolUse",
+    "Notification",
+    "Stop",
+    "PermissionRequest",
+    "StatusLine",
+];
+
 /// `event` is the hook event's name as Claude Code gives it, such as "PreToolUse"; `json` is what
 /// it wrote to the hook's input.
 pub fn parse(event: &str, json: &str) -> Result<Hook, String> {

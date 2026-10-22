@@ -5,6 +5,7 @@ use super::{
     state::{self, Level},
 };
 use crate::{
+    control::{Command, Group, LEVEL, Report, Row, Takes},
     features::{
         Feature, Feed, GlyphSpec, IslandInfo, PanelCx,
         osd::{self, Osd, Shown},
@@ -15,8 +16,16 @@ use crate::{
 impl Feature for Brightness {
     const NAME: &'static str = "brightness";
     const GLYPHS: &'static [GlyphSpec] = &[("brightness", &["display-brightness-symbolic"])];
-    const COMMANDS: &'static [&'static str] = &["brightness"];
-    const USAGE: &'static str = "  brightness up|down|set PERCENT        screen";
+    const CONTROLS: &'static [Command] = &[Command {
+        name: "brightness",
+        about: "The screen's brightness",
+        group: Group::SoundAndScreen,
+        takes: Takes::Forms {
+            forms: LEVEL,
+            bare: Some("Show the brightness, once island has changed it"),
+        },
+        examples: &["island ctl brightness down 10"],
+    }];
 
     type State = Level;
     type Local = Shown;
@@ -42,11 +51,11 @@ impl Feature for Brightness {
         state::osd(before, after)
     }
 
-    fn check(args: &[&str]) -> Result<(), String> {
-        runtime::check(args)
+    fn command(&self, level: &Level, args: &[&str]) -> Report {
+        self.command(level, args)
     }
 
-    fn command(&self, _: &Level, args: &[&str]) {
-        self.command(args);
+    fn status(&self, level: &Level) -> Vec<Row> {
+        vec![runtime::row(level, None)]
     }
 }

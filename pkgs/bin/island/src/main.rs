@@ -1,5 +1,6 @@
 mod activation;
 mod bar;
+mod cli;
 mod components;
 mod compositor;
 mod config;
@@ -39,22 +40,6 @@ use tracing::{error, info, warn};
 
 use shell::{Config, Shell};
 
-const USAGE: &str = "\
-usage: island [--config PATH] [--radius PX] [--power P] [--opacity A] [--icon-theme NAME]
-       island ctl COMMAND   (see island ctl --help)
-       island logs          (see island logs --help)
-
-  --config PATH      config file (default $XDG_CONFIG_HOME/island/config.toml)
-  --radius PX        corner radius, overrides the config
-  --power P          corner curve: 2 circular, 4 squircle, overrides the config
-  --opacity A        body opacity 0–1, overrides the config
-  --icon-theme NAME  icon theme, overrides the config
-
-One island opens on every output and serves org.freedesktop.Notifications.
-ISLAND_LOG sets what is logged, overriding [log] level in the config: a level such as debug, or
-per module or feature like audio=debug,tray=trace. ISLAND_LOG=frames=debug logs every animation's frame count
-and worst frame gap.";
-
 #[derive(Default)]
 struct Args {
     config: Option<PathBuf>,
@@ -64,59 +49,41 @@ struct Args {
     icon_theme: Option<String>,
 }
 
-fn parse_args(mut args: impl Iterator<Item = String>) -> Result<Args, String> {
+fn parse_args(args: impl Iterator<Item = String>) -> Result<Args, cli::Mistake> {
+    let commands: Vec<&str> = cli::commands().iter().map(|sub| sub.name).collect();
     let mut parsed = Args::default();
-    while let Some(arg) = args.next() {
-        match arg.as_str() {
-            "--config" => {
-                parsed.config = Some(PathBuf::from(args.next().ok_or("--config needs a path")?))
-            }
-            "--radius" => {
-                parsed.radius = Some(parse_number(args.next(), "--radius", 0.0..=f32::MAX)?)
-            }
-            "--power" => parsed.power = Some(parse_number(args.next(), "--power", 1.0..=f32::MAX)?),
-            "--opacity" => {
-                parsed.opacity = Some(parse_number(args.next(), "--opacity", 0.0..=1.0)?)
-            }
-            "--icon-theme" => {
-                parsed.icon_theme = Some(args.next().ok_or("--icon-theme needs a theme name")?)
-            }
-            "-h" | "--help" => {
-                println!("{USAGE}");
-                std::process::exit(0);
-            }
-            other => return Err(format!("unknown argument '{other}'")),
+    for (opt, value) in cli::parse_options(cli::ISLAND, args, "island", &commands)? {
+        let value = value.unwrap_or_default();
+        match opt.long {
+            "config" => parsed.config = Some(PathBuf::from(value)),
+            "radius" => parsed.radius = Some(number(opt, &value, 0.0..=f32::MAX)?),
+            "power" => parsed.power = Some(number(opt, &value, 1.0..=f32::MAX)?),
+            "opacity" => parsed.opacity = Some(number(opt, &value, 0.0..=1.0)?),
+            _ => parsed.icon_theme = Some(value),
         }
     }
     Ok(parsed)
 }
 
-fn parse_number(
-    value: Option<String>,
-    flag: &str,
+fn number(
+    opt: &cli::Opt,
+    value: &str,
     range: std::ops::RangeInclusive<f32>,
-) -> Result<f32, String> {
-    let value = value.ok_or_else(|| format!("{flag} needs a number"))?;
+) -> Result<f32, cli::Mistake> {
     match value.parse::<f32>() {
         Ok(number) if range.contains(&number) => Ok(number),
-        _ => Err(format!(
-            "{flag} needs a number from {} to {}, got '{value}'",
-            range.start(),
-            range.end()
-        )),
-    }
-}
-
-fn ctl(args: Vec<String>) -> ! {
-    if args.is_empty() || args.iter().any(|arg| arg == "-h" || arg == "--help") {
-        println!("{}", control::usage());
-        std::process::exit(0);
-    }
-    match control::send(args) {
-        Ok(()) => std::process::exit(0),
-        Err(error) => {
-            eprintln!("island ctl: {error}\n\n{}", control::usage());
-            std::process::exit(2);
+        _ => {
+            let range = if *range.end() == f32::MAX {
+                format!("{} or more", range.start())
+            } else {
+                format!("from {} to {}", range.start(), range.end())
+            };
+            Err(cli::Mistake::new(
+                cli::Line::new()
+                    .push(cli::Tone::Command, opt.spelled())
+                    .plain(format!(" needs a number {range}, got "))
+                    .push(cli::Tone::Strong, value),
+            ))
         }
     }
 }
@@ -124,9 +91,23 @@ fn ctl(args: Vec<String>) -> ! {
 fn main() {
     let mut args = std::env::args().skip(1).peekable();
     match args.peek().map(String::as_str) {
+        Some("-h" | "--help") => {
+            cli::print_help(None);
+            std::process::exit(0);
+        }
         Some("ctl") => {
             args.next();
-            ctl(args.collect());
+            std::process::exit(control::run(args.collect()));
+        }
+        Some("completions") => {
+            args.next();
+            std::process::exit(cli::completions(args.collect()));
+        }
+        // What the completion scripts ask; not for typing.
+        Some("__complete") => {
+            let words: Vec<String> = args.skip(1).skip_while(|arg| arg != "--").skip(1).collect();
+            cli::print_completions(&words);
+            std::process::exit(0);
         }
         Some("logs") => {
             args.next();
@@ -140,10 +121,15 @@ fn main() {
         }
         _ => {}
     }
-    let parsed = match parse_args(args) {
+    let args: Vec<String> = args.collect();
+    if args.iter().any(|arg| arg == "-h" || arg == "--help") {
+        cli::print_help(None);
+        std::process::exit(0);
+    }
+    let parsed = match parse_args(args.into_iter()) {
         Ok(parsed) => parsed,
-        Err(error) => {
-            eprintln!("island: {error}\n\n{USAGE}");
+        Err(mistake) => {
+            cli::print_error(&mistake.lines());
             std::process::exit(2);
         }
     };

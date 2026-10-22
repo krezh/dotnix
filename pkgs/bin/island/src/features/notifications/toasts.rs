@@ -11,8 +11,6 @@ use crate::{
 
 pub const MAX_VISIBLE: usize = 3;
 const ENTER_DRIFT: f32 = 12.0;
-const RETURN_DRIFT: f32 = 16.0;
-const LEAVE_SLIDE: f32 = 56.0;
 /// How long a card shows when its app leaves it to the server.
 const DURATION: Duration = Duration::from_millis(4500);
 /// The least time a card gets once the pointer leaves, so one paused near its end does not vanish
@@ -24,7 +22,8 @@ pub struct Card {
     pub notification: Notification,
     pub lines: Option<usize>,
     pub y: Spring,
-    pub x: Spring,
+    /// How much of it shows: 1 for all of it, folding to 0 as it leaves.
+    pub fold: Spring,
     pub alpha: Spring,
     pub leaving: bool,
     pub visible: bool,
@@ -48,6 +47,15 @@ impl Card {
             self.lines.unwrap_or(1),
             self.notification.buttons().next().is_some(),
         )
+    }
+
+    /// The room a leaving card still takes from those below it.
+    fn folding(&self) -> f32 {
+        if self.leaving {
+            (self.height() + card::GAP) * self.fold.value()
+        } else {
+            0.0
+        }
     }
 
     /// `None` while it is not counting down, such as a critical one, which stays until dismissed.
@@ -91,6 +99,9 @@ pub struct Toasts {
     cards: Vec<Card>,
     next_id: u64,
     height: f32,
+    /// The most the island may take while cards fold away: what it took when the first of them
+    /// was dismissed, so one rising from below comes in at its bottom edge rather than growing it.
+    ceiling: Option<f32>,
     overflow: usize,
     footer_count: usize,
     pub footer: Spring,
@@ -108,6 +119,7 @@ impl Default for Toasts {
             cards: Vec::new(),
             next_id: 0,
             height: card::toasts_height(&[card::height(1, false)], false),
+            ceiling: None,
             overflow: 0,
             footer_count: 0,
             footer: Spring::new(0.0, CONTENT_OUT, 0.002),
@@ -125,8 +137,24 @@ impl Toasts {
         &self.cards
     }
 
+    /// Grows by what folding cards still take, so the island closes with them.
     pub fn height(&self) -> f32 {
-        self.height
+        let height = self.height + self.cards.iter().map(Card::folding).sum::<f32>();
+        self.ceiling.map_or(height, |ceiling| height.min(ceiling))
+    }
+
+    /// Where each card is drawn, in the order of [`Self::cards`]: below every card folding away
+    /// above it by what that one still takes, so they follow its edge up.
+    pub fn drawn_y(&self) -> Vec<f32> {
+        let mut above = 0.0;
+        self.cards
+            .iter()
+            .map(|card| {
+                let y = card.y.value() + above;
+                above += card.folding();
+                y
+            })
+            .collect()
     }
 
     pub fn is_empty(&self) -> bool {
@@ -165,7 +193,7 @@ impl Toasts {
                         notification,
                         lines: None,
                         y: Spring::new(-ENTER_DRIFT, self.motion, 0.1),
-                        x: Spring::new(0.0, self.fade_out, 0.1),
+                        fold: Spring::new(1.0, card::FOLD, 0.001),
                         alpha: Spring::new(0.0, self.fade_in, 0.002),
                         leaving: false,
                         visible: false,
@@ -179,6 +207,8 @@ impl Toasts {
                 );
             }
         }
+        // A new card may grow the island even while others fold away.
+        self.ceiling = None;
         self.layout();
     }
 
@@ -187,13 +217,26 @@ impl Toasts {
     }
 
     pub fn dismiss(&mut self, id: u64) -> Option<Notification> {
-        let fade_out = self.fade_out;
-        let card = self.card_mut(id).filter(|card| !card.leaving)?;
+        let index = self
+            .cards
+            .iter()
+            .position(|card| card.id == id && !card.leaving)?;
+        self.ceiling = Some(self.height());
+        let card = &mut self.cards[index];
         card.leaving = true;
         card.stop();
-        card.alpha.retarget(0.0, fade_out);
-        card.x.retarget(LEAVE_SLIDE, fade_out);
         let notification = card.notification.clone();
+        if card.visible {
+            card.fold.retarget(0.0, card::FOLD);
+            // Those below take their new places at once, and are drawn lower by what it still
+            // takes, so they rise with its edge.
+            let room = card.height() + card::GAP;
+            for below in &mut self.cards[index + 1..] {
+                below.y.shift(-room);
+            }
+        } else {
+            card.fold.reset(0.0);
+        }
         self.layout();
         Some(notification)
     }
@@ -283,8 +326,13 @@ impl Toasts {
         let mut heights = Vec::with_capacity(MAX_VISIBLE);
         let mut live = 0;
 
+        // Cards past the most shown keep their places below the others, newest on top, so the next
+        // one rises from the bottom as the stack moves up.
         for card in self.cards.iter_mut().filter(|card| !card.leaving) {
             live += 1;
+            let height = card.height();
+            card.y.retarget(y, motion);
+            y += height + card::GAP;
             if heights.len() == MAX_VISIBLE {
                 card.visible = false;
                 card.stop();
@@ -292,27 +340,24 @@ impl Toasts {
                 continue;
             }
 
-            if card.shown_before && !card.visible && card.alpha.value() < 0.05 {
-                card.y.reset(y + RETURN_DRIFT);
-            }
-            card.y.retarget(y, motion);
-            if card.alpha.value() < 0.05 {
+            // Only a new one waits for the island to grow before it shows.
+            if card.alpha.value() < 0.05 && !card.shown_before {
                 card.alpha.retarget_at(1.0, fade_in, reveal_at);
             } else {
                 card.alpha.retarget(1.0, fade_in);
             }
             card.visible = true;
             card.shown_before = true;
-
-            let height = card.height();
             heights.push(height);
-            y += height + card::GAP;
         }
 
         self.overflow = live - heights.len();
-        if !heights.is_empty() {
-            self.height = card::toasts_height(&heights, self.overflow > 0);
-        }
+        self.height = if heights.is_empty() {
+            // What the last one still takes includes a gap it no longer has below it.
+            card::toasts_height(&[], false) - card::GAP
+        } else {
+            card::toasts_height(&heights, self.overflow > 0)
+        };
         if self.overflow > 0 {
             self.footer_count = self.overflow;
             self.footer.retarget(1.0, fade_in);
@@ -329,12 +374,15 @@ impl Toasts {
     pub fn advance(&mut self, dt: f32, now: Instant) {
         for card in &mut self.cards {
             card.y.advance(dt, now);
-            card.x.advance(dt, now);
+            card.fold.advance(dt, now);
             card.alpha.advance(dt, now);
         }
         self.footer.advance(dt, now);
         self.cards
-            .retain(|card| !(card.leaving && card.alpha.is_settled()));
+            .retain(|card| !(card.leaving && card.fold.is_settled()));
+        if !self.cards.iter().any(|card| card.leaving) {
+            self.ceiling = None;
+        }
     }
 
     pub fn is_settled(&self) -> bool {
@@ -342,7 +390,7 @@ impl Toasts {
             && self
                 .cards
                 .iter()
-                .all(|card| card.y.is_settled() && card.x.is_settled() && card.alpha.is_settled())
+                .all(|card| card.y.is_settled() && card.fold.is_settled() && card.alpha.is_settled())
     }
 }
 

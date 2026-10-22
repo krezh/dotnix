@@ -14,6 +14,7 @@ use super::{Feature, Feed, GlyphSpec, PanelCx, WidgetCx, parse_settings};
 use crate::{
     bar::GLYPH,
     components::{icon, tooltip::Tip},
+    control::{Command, Group, Report, Row, Takes, Value, form},
     dbus::uncached,
     island::{Mode, Panel},
     launch::{self, Launch},
@@ -303,7 +304,23 @@ impl Feature for Session {
     ];
     const PANEL: Option<&'static str> = Some("session");
     const PANEL_REFRESH: Option<Duration> = Some(REFRESH);
-    const USAGE: &'static str = "  session lock|logout|suspend|hibernate|reboot|shutdown";
+    const CONTROLS: &'static [Command] = &[Command {
+        name: "session",
+        about: "Lock, log out, sleep or power off, without asking first",
+        group: Group::System,
+        takes: Takes::Forms {
+            forms: &[
+                form("lock", Value::Nothing, "Lock the screen"),
+                form("logout", Value::Nothing, "Log out"),
+                form("suspend", Value::Nothing, "Suspend to memory"),
+                form("hibernate", Value::Nothing, "Hibernate to disk"),
+                form("reboot", Value::Nothing, "Restart the computer"),
+                form("shutdown", Value::Nothing, "Shut the computer down"),
+            ],
+            bare: None,
+        },
+        examples: &["island ctl session lock"],
+    }];
 
     type State = Option<Action>;
     type Local = ();
@@ -373,16 +390,18 @@ impl Feature for Session {
         })
     }
 
-    fn check(args: &[&str]) -> Result<(), String> {
-        match args {
-            [_, word] if Action::parse(word).is_some() => Ok(()),
-            _ => Err("expected lock, logout, suspend, hibernate, reboot or shutdown".to_owned()),
-        }
-    }
-
-    fn command(&self, _: &Option<Action>, args: &[&str]) {
-        if let Some(action) = args.get(1).and_then(|word| Action::parse(word)) {
-            self.run(action);
-        }
+    fn command(&self, _: &Option<Action>, args: &[&str]) -> Report {
+        let Some(action) = args.get(1).and_then(|word| Action::parse(word)) else {
+            return Report::default();
+        };
+        self.run(action);
+        Report::did(Row::said(match action {
+            Action::Lock => "Locking the screen",
+            Action::Logout => "Logging out",
+            Action::Suspend => "Suspending",
+            Action::Hibernate => "Hibernating",
+            Action::Reboot => "Restarting",
+            Action::Shutdown => "Shutting down",
+        }))
     }
 }

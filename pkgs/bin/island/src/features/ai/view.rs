@@ -283,12 +283,9 @@ impl View {
         }
     }
 
-    /// Only once something is picked for the question being asked.
+    /// With nothing picked, this skips the question.
     pub(super) fn next_question(&mut self, id: u64) {
-        let picks = self.picks.entry(id).or_default();
-        if picks.chosen.get(picks.step).is_some_and(|chosen| !chosen.is_empty()) {
-            picks.step += 1;
-        }
+        self.picks.entry(id).or_default().step += 1;
     }
 }
 

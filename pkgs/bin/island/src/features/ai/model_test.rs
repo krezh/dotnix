@@ -582,6 +582,32 @@ fn the_status_line_moves_known_limits_and_keeps_the_rest_of_the_reading() {
 }
 
 #[test]
+fn the_status_line_leaves_out_readings_from_before_their_reset() {
+    let mut state = State::default();
+    state.providers = Arc::new(report(Source::Claude, 20.0).providers);
+    let passed = [reading("five_hour", 100.0, Some(NOW - 60_000))];
+    assert!(status_line(&state, &passed, NOW).is_none());
+    let mixed = [
+        reading("five_hour", 100.0, Some(NOW - 60_000)),
+        reading("seven_day", 30.0, Some(NOW + 60_000)),
+    ];
+    let moved = status_line(&state, &mixed, NOW).unwrap();
+    assert_eq!(moved.providers[0].limits[0].used, 20.0);
+}
+
+#[test]
+fn a_passed_claude_reset_is_found_and_upcoming_ones_are_not() {
+    let mut state = State::default();
+    let mut providers = report(Source::Claude, 100.0).providers;
+    providers[0].limits[0].resets_at = Some(NOW + 60_000);
+    state.providers = Arc::new(providers.clone());
+    assert_eq!(passed_reset(&state, NOW), None);
+    providers[0].limits[0].resets_at = Some(NOW - 60_000);
+    state.providers = Arc::new(providers);
+    assert_eq!(passed_reset(&state, NOW), Some(NOW - 60_000));
+}
+
+#[test]
 fn the_status_line_needs_one_claude_account_to_lay_over() {
     let readings = [reading("five_hour", 50.0, None)];
     let mut state = State::default();

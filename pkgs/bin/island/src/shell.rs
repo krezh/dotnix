@@ -12,7 +12,7 @@ use uuid::Uuid;
 
 use crate::{
     config,
-    control::Control,
+    control::{Asked, Control, Report, Row},
     cover::{ClickCatcher, KeyGrab},
     features::{self, Features},
     glyphs::Glyphs,
@@ -95,7 +95,7 @@ impl Global for Running {}
 impl Shell {
     pub fn start(
         config: Config,
-        mut controls: UnboundedReceiver<Control>,
+        mut controls: UnboundedReceiver<Asked>,
         workspaces: Option<UnboundedReceiver<Snapshot>>,
         cx: &mut App,
     ) {
@@ -117,13 +117,12 @@ impl Shell {
             .detach();
 
             cx.spawn(async move |this, cx| {
-                while let Some(control) = controls.next().await {
-                    if this
-                        .update(cx, |shell, cx| shell.control(control, cx))
-                        .is_err()
-                    {
+                while let Some(Asked { control, answer }) = controls.next().await {
+                    let Ok(answered) = this.update(cx, |shell, cx| shell.control(control, cx))
+                    else {
                         break;
-                    }
+                    };
+                    let _ = answer.send(answered);
                 }
             })
             .detach();
@@ -414,34 +413,66 @@ impl Shell {
         }
     }
 
-    fn control(&mut self, control: Control, cx: &mut Context<Self>) {
+    fn open_panel(
+        &mut self,
+        name: &str,
+        view: Option<&str>,
+        toggle: bool,
+        cx: &mut Context<Self>,
+    ) -> Result<Report, String> {
+        let island = self.target(cx).ok_or("No island is showing")?;
+        let open = island.update(cx, |island, cx| island.open_named(name, view, toggle, cx));
+        let output = island
+            .read(cx)
+            .output()
+            .map(|output| format!(" on {output}"))
+            .unwrap_or_default();
+        let shown = view.map(|view| format!(" on {view}")).unwrap_or_default();
+        Ok(Report::did(Row::said(if open {
+            format!("Opened {name}{shown}{output}")
+        } else {
+            format!("Closed {name}{output}")
+        })))
+    }
+
+    fn status(&self, cx: &App) -> Report {
+        let outputs: Vec<String> = self
+            .workspaces
+            .iter()
+            .flat_map(|snapshot| snapshot.monitors.iter().map(|monitor| monitor.name.clone()))
+            .collect();
+        let on = if outputs.is_empty() {
+            String::new()
+        } else {
+            format!(" · running on {}", outputs.join(", "))
+        };
+        Report {
+            title: Some(format!("island {}{on}", env!("CARGO_PKG_VERSION"))),
+            changed: false,
+            rows: self.features.status(cx),
+        }
+    }
+
+    fn control(&mut self, control: Control, cx: &mut Context<Self>) -> Result<Report, String> {
         match control {
-            Control::Open(name, view) => {
-                if let Some(island) = self.target(cx) {
-                    island.update(cx, |island, cx| {
-                        island.open_named(&name, view.as_deref(), false, cx)
-                    });
-                }
-            }
-            Control::Toggle(name, view) => {
-                if let Some(island) = self.target(cx) {
-                    island.update(cx, |island, cx| {
-                        island.open_named(&name, view.as_deref(), true, cx)
-                    });
-                }
-            }
+            Control::Open(name, view) => self.open_panel(&name, view.as_deref(), false, cx),
+            Control::Toggle(name, view) => self.open_panel(&name, view.as_deref(), true, cx),
             Control::Close => {
                 for island in self.islands().collect::<Vec<_>>() {
                     island.update(cx, |island, cx| island.dismiss(cx));
                 }
+                Ok(Report::did(Row::said("Closed what was open")))
             }
             Control::Feature(name, args) => {
-                if let Some(feature) = self.features.get(name) {
-                    let args: Vec<&str> = args.iter().map(String::as_str).collect();
-                    feature.command(&args, cx);
-                }
+                let feature = self
+                    .features
+                    .get(name)
+                    .ok_or_else(|| format!("The {name} feature is not running"))?;
+                let args: Vec<&str> = args.iter().map(String::as_str).collect();
+                Ok(feature.command(&args, cx))
             }
-            Control::Log(_) => {}
+            Control::Status => Ok(self.status(cx)),
+            Control::Log(_) => Ok(Report::default()),
         }
     }
 }

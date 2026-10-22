@@ -221,19 +221,19 @@ fn unverified_reset_changes_at_the_boundary_without_claiming_a_new_window() {
 }
 
 #[test]
-fn questions_move_on_only_once_something_is_picked() {
+fn questions_move_on_with_a_pick_or_skipped() {
     let mut view = View::default();
-    view.next_question(7);
-    assert_eq!(view.picks(7).step, 0);
-
     view.pick(7, 1, false);
     view.pick(7, 2, false);
     assert_eq!(view.picks(7).chosen, vec![vec![2]]);
     view.next_question(7);
     assert_eq!(view.picks(7).step, 1);
 
+    view.next_question(7);
+    assert_eq!(view.picks(7).step, 2);
+
     view.pick(7, 0, true);
     view.pick(7, 2, true);
     view.pick(7, 0, true);
-    assert_eq!(view.picks(7).chosen[1], vec![2]);
+    assert_eq!(view.picks(7).chosen, vec![vec![2], vec![], vec![2]]);
 }

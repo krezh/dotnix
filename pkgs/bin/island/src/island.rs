@@ -406,9 +406,9 @@ impl Island {
         view: Option<&str>,
         toggle: bool,
         cx: &mut Context<Self>,
-    ) {
+    ) -> bool {
         let Some(kind) = Panel::parse(name) else {
-            return;
+            return false;
         };
         let closing = toggle && self.mode == Mode::Open(kind);
         if let (Some(view), Panel::Feature(feature), false) = (view, kind, closing) {
@@ -420,6 +420,7 @@ impl Island {
         } else {
             self.set_mode(Mode::Open(kind), cx);
         }
+        !closing
     }
 
     fn keep_ticking(&mut self, cx: &mut Context<Self>) {
@@ -988,6 +989,11 @@ impl Island {
         } else {
             Shape { w, h: COLLAPSED_H }
         }
+    }
+
+    /// The name of the output it is on, such as `DP-1`.
+    pub fn output(&self) -> Option<String> {
+        self.island_monitor().map(|monitor| monitor.name.clone())
     }
 
     fn island_monitor(&self) -> Option<&Monitor> {

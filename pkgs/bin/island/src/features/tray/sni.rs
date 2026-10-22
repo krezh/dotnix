@@ -151,6 +151,17 @@ struct Entry {
     path: String,
     menu: Option<OwnedObjectPath>,
     item: TrayItem,
+    /// Kept while hidden, so the item can show again when its status changes.
+    passive: bool,
+}
+
+/// What the tray shows: every item that is not passive.
+fn visible(entries: &[Entry]) -> Vec<TrayItem> {
+    entries
+        .iter()
+        .filter(|entry| !entry.passive)
+        .map(|entry| entry.item.clone())
+        .collect()
 }
 
 async fn property<T: DeserializeOwned + zbus::Type>(proxy: &Proxy<'_>, name: &str) -> Option<T> {
@@ -166,13 +177,40 @@ async fn first<T: DeserializeOwned + zbus::Type>(proxy: &Proxy<'_>, names: &[&st
     None
 }
 
-async fn load(connection: &Connection, bus: &str, path: &str, key: String) -> Option<Entry> {
+async fn load(connection: &Connection, bus: &str, path: &str, key: String) -> Result<Entry, String> {
     let proxy = uncached(connection, bus.to_owned(), path.to_owned(), ITEM)
         .await
-        .ok()?;
-    let status: String = property(&proxy, "Status").await.unwrap_or_default();
+        .map_err(|error| error.to_string())?;
+    let status: String = proxy
+        .get_property("Status")
+        .await
+        .map_err(|error| format!("cannot read its status: {error}"))?;
+    let owner = async {
+        DBusProxy::new(connection)
+            .await
+            .ok()?
+            .get_name_owner(bus.try_into().ok()?)
+            .await
+            .ok()
+    }
+    .await
+    .map_or_else(|| bus.to_owned(), |owner| owner.to_string());
     if status == "Passive" {
-        return None;
+        return Ok(Entry {
+            bus: bus.to_owned(),
+            owner,
+            path: path.to_owned(),
+            menu: None,
+            item: TrayItem {
+                key,
+                title: String::new(),
+                icon: None,
+                has_menu: false,
+                item_is_menu: false,
+                attention: false,
+            },
+            passive: true,
+        });
     }
     // Electron leaves Title empty and names the item only in its tooltip; Id is a last resort,
     // as it is often internal (`vesktop_status_icon_1`).
@@ -218,18 +256,8 @@ async fn load(connection: &Connection, bus: &str, path: &str, key: String) -> Op
     let menu: Option<OwnedObjectPath> = property(&proxy, "Menu")
         .await
         .filter(|menu: &OwnedObjectPath| menu.as_str() != "/");
-    let owner = async {
-        DBusProxy::new(connection)
-            .await
-            .ok()?
-            .get_name_owner(bus.try_into().ok()?)
-            .await
-            .ok()
-    }
-    .await
-    .map_or_else(|| bus.to_owned(), |owner| owner.to_string());
     let item_is_menu = property(&proxy, "ItemIsMenu").await.unwrap_or(false);
-    Some(Entry {
+    Ok(Entry {
         bus: bus.to_owned(),
         owner,
         path: path.to_owned(),
@@ -242,6 +270,7 @@ async fn load(connection: &Connection, bus: &str, path: &str, key: String) -> Op
             attention: status == "NeedsAttention",
         },
         menu,
+        passive: false,
     })
 }
 
@@ -446,11 +475,12 @@ fn worker(
     if restarted {
         for service in registered(connection, items, own_watcher) {
             let (bus, path) = split(&service, None);
-            if let Some(entry) = block_on(load(connection, &bus, &path, format!("{bus}{path}"))) {
-                entries.push(entry);
+            match block_on(load(connection, &bus, &path, format!("{bus}{path}"))) {
+                Ok(entry) => entries.push(entry),
+                Err(error) => warn!(item = service, "cannot read a tray item: {error}"),
             }
         }
-        if !feed.publish(entries.iter().map(|entry| entry.item.clone()).collect()) {
+        if !feed.publish(visible(&entries)) {
             return Ended::Unwanted;
         }
     }
@@ -474,11 +504,15 @@ fn worker(
                 let key = format!("{bus}{path}");
                 entries.retain(|entry| entry.item.key != key);
                 match block_on(load(connection, &bus, &path, key.clone())) {
-                    Some(entry) => {
-                        debug!(item = key, title = entry.item.title, "tray item added");
+                    Ok(entry) => {
+                        if entry.passive {
+                            debug!(item = key, "tray item added, passive for now");
+                        } else {
+                            debug!(item = key, title = entry.item.title, "tray item added");
+                        }
                         entries.push(entry);
                     }
-                    None => warn!(item = key, "cannot read a tray item"),
+                    Err(error) => warn!(item = key, "cannot read a tray item: {error}"),
                 }
                 true
             }
@@ -490,10 +524,11 @@ fn worker(
                     continue;
                 };
                 let old = entries.remove(index);
-                if let Some(entry) =
-                    block_on(load(connection, &old.bus, &old.path, old.item.key.clone()))
-                {
-                    entries.insert(index, entry);
+                match block_on(load(connection, &old.bus, &old.path, old.item.key.clone())) {
+                    Ok(entry) => entries.insert(index, entry),
+                    Err(error) => {
+                        debug!(item = old.item.key, "tray item dropped on change: {error}");
+                    }
                 }
                 true
             }
@@ -554,7 +589,7 @@ fn worker(
                 false
             }
         };
-        if changed && !feed.publish(entries.iter().map(|entry| entry.item.clone()).collect()) {
+        if changed && !feed.publish(visible(&entries)) {
             return Ended::Unwanted;
         }
     }

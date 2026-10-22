@@ -5,7 +5,7 @@ use std::{
     backtrace::{Backtrace, BacktraceStatus},
     collections::{HashMap, VecDeque},
     env,
-    fmt::{self, Write as _},
+    fmt,
     fs::{self, File},
     io::{self, BufRead, BufReader, IsTerminal, Read, Write as _},
     os::{
@@ -43,7 +43,10 @@ use tracing_subscriber::{
     util::SubscriberInitExt,
 };
 
-use crate::supervisor::{self, Ended};
+use crate::{
+    cli::{self, Line, Mistake, Tone},
+    supervisor::{self, Ended},
+};
 
 const CRATE: &str = "island";
 pub const DEFAULT: &str = "info";
@@ -53,17 +56,6 @@ const BACKLOG: usize = 1000;
 const CLIENT_QUEUE: usize = 1024;
 /// How often a waiting client is checked for having gone away.
 const CLIENT_CHECK: Duration = Duration::from_secs(1);
-
-pub const LOGS_USAGE: &str = "\
-usage: island logs [-n LINES] [--level LEVEL] [--module NAME] [--no-follow]
-
-  -n LINES        recent entries to show before following (default 50)
-  --level LEVEL   error, warn, info, debug or trace: show this level and more severe ones,
-                  raising what island logs to it while connected
-  --module NAME   only this module or feature, e.g. audio, media, tray, supervisor
-  --no-follow     print the recent entries and exit
-
-Reads the running island directly over its log socket, however it was started.";
 
 static FILTER: OnceLock<reload::Handle<EnvFilter, Registry>> = OnceLock::new();
 
@@ -162,32 +154,30 @@ impl Entry {
             .with_timezone(&Local)
             .format("%H:%M:%S%.3f");
         let level = self.level.as_str();
-        let mut line = String::new();
-        let _ = if color {
-            let tint = match level {
-                "ERROR" => "31",
-                "WARN" => "33",
-                "INFO" => "32",
-                "DEBUG" => "34",
-                _ => "35",
-            };
-            write!(
-                line,
-                "\x1b[2m{time}\x1b[0m \x1b[{tint}m{level:>5}\x1b[0m \x1b[2m{}:\x1b[0m ",
-                self.module
-            )
-        } else {
-            write!(line, "{time} {level:>5} {}: ", self.module)
+        let tone = match level {
+            "ERROR" => Tone::Bad,
+            "WARN" => Tone::Warning,
+            "INFO" => Tone::Good,
+            "DEBUG" => Tone::Command,
+            _ => Tone::Heading,
         };
-        line.push_str(&self.message);
-        for (name, value) in &self.fields {
-            let _ = if color {
-                write!(line, " \x1b[3m{name}\x1b[0m\x1b[2m=\x1b[0m{value}")
-            } else {
-                write!(line, " {name}={value}")
-            };
-        }
-        line
+        let line = Line::new()
+            .push(Tone::Faint, time.to_string())
+            .plain(" ")
+            .push(tone, format!("{level:>5}"))
+            .plain(" ")
+            .push(Tone::Muted, format!("{}:", self.module))
+            .plain(" ")
+            .plain(self.message.clone());
+        self.fields
+            .iter()
+            .fold(line, |line, (name, value)| {
+                line.plain(" ")
+                    .push(Tone::Italic, name.clone())
+                    .push(Tone::Faint, "=")
+                    .plain(value.clone())
+            })
+            .render(color)
     }
 }
 
@@ -525,37 +515,38 @@ pub fn serve() {
     }
 }
 
-fn parse_logs(args: Vec<String>) -> Result<Request, String> {
+fn parse_logs(args: Vec<String>) -> Result<Request, Mistake> {
     let mut request = Request::default();
-    let mut args = args.into_iter();
-    while let Some(arg) = args.next() {
-        match arg.as_str() {
-            "-n" | "--lines" => {
-                let value = args.next().ok_or("-n needs a number")?;
-                request.lines = value
-                    .parse()
-                    .map_err(|_| format!("'{value}' is not a number"))?;
+    for (opt, value) in cli::parse_options(cli::LOGS, args, "island logs", &[])? {
+        let value = value.unwrap_or_default();
+        match opt.long {
+            "lines" => {
+                request.lines = value.parse().map_err(|_| {
+                    Mistake::new(
+                        Line::new()
+                            .push(Tone::Command, opt.spelled())
+                            .plain(" needs a whole number, got ")
+                            .push(Tone::Strong, value.clone()),
+                    )
+                })?;
             }
-            "--level" => {
-                let value = args.next().ok_or("--level needs a level")?;
-                value
-                    .parse::<Level>()
-                    .map_err(|_| format!("'{value}' is not a log level"))?;
-                request.level = Some(value);
-            }
-            "--module" => request.module = Some(args.next().ok_or("--module needs a name")?),
-            "--no-follow" => request.follow = false,
-            other => return Err(format!("unknown argument '{other}'")),
+            "level" => request.level = Some(value),
+            "module" => request.module = Some(value),
+            _ => request.follow = false,
         }
     }
     Ok(request)
 }
 
-fn follow(request: &Request) -> Result<(), String> {
-    let path = socket_path().ok_or("XDG_RUNTIME_DIR is not set")?;
-    let mut stream = UnixStream::connect(&path).map_err(|_| "island is not running".to_owned())?;
-    let line = serde_json::to_string(request).map_err(|error| error.to_string())?;
-    writeln!(stream, "{line}").map_err(|error| format!("cannot reach island: {error}"))?;
+fn plain(text: impl Into<String>) -> Mistake {
+    Mistake::new(Line::new().plain(text))
+}
+
+fn follow(request: &Request) -> Result<(), Mistake> {
+    let path = socket_path().ok_or_else(|| plain("XDG_RUNTIME_DIR is not set"))?;
+    let mut stream = UnixStream::connect(&path).map_err(|_| cli::not_running())?;
+    let line = serde_json::to_string(request).map_err(|error| plain(error.to_string()))?;
+    writeln!(stream, "{line}").map_err(|error| plain(format!("Cannot reach island: {error}")))?;
     let color = use_color(&io::stdout());
     let mut stdout = io::stdout().lock();
     for line in BufReader::new(stream).lines() {
@@ -574,13 +565,20 @@ fn follow(request: &Request) -> Result<(), String> {
 
 pub fn logs(args: Vec<String>) -> ! {
     if args.iter().any(|arg| arg == "-h" || arg == "--help") {
-        println!("{LOGS_USAGE}");
+        cli::print_help(Some("logs"));
         std::process::exit(0);
     }
-    match parse_logs(args).and_then(|request| follow(&request)) {
+    let request = match parse_logs(args) {
+        Ok(request) => request,
+        Err(mistake) => {
+            cli::print_error(&mistake.lines());
+            std::process::exit(2);
+        }
+    };
+    match follow(&request) {
         Ok(()) => std::process::exit(0),
-        Err(error) => {
-            eprintln!("island logs: {error}");
+        Err(mistake) => {
+            cli::print_error(&mistake.lines());
             std::process::exit(1);
         }
     }

@@ -50,7 +50,15 @@ craneLib.buildPackage rec {
 
   nativeBuildInputs = with pkgs; [
     pkg-config
+    installShellFiles
   ];
+
+  postInstall = ''
+    installShellCompletion --cmd island \
+      --bash <($out/bin/island completions bash) \
+      --fish <($out/bin/island completions fish) \
+      --zsh <($out/bin/island completions zsh)
+  '';
 
   cargoArtifacts = craneLib.buildDepsOnly {
     inherit

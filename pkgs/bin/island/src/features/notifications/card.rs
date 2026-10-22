@@ -4,7 +4,7 @@
 use std::time::SystemTime;
 
 use chrono::Local;
-use gpui::{SharedString, Window};
+use gpui::{SharedString, SpringConfig, Window};
 
 use super::{
     Cards, Event, Notifications,
@@ -38,6 +38,8 @@ const DAY_H: f32 = 22.0;
 const EMPTY_H: f32 = 52.0;
 /// How tall the Earlier list can be before it scrolls, as the missed list.
 const EARLIER_MAX_H: f32 = 480.0;
+/// How a dismissed card folds away: it stays where it is while its bottom edge rises to its top.
+pub const FOLD: SpringConfig = SpringConfig::new(260.0, 30.0, 1.0);
 
 #[derive(Clone, Copy)]
 pub enum Kind {
@@ -216,7 +218,12 @@ fn redacted(notification: &Notification) -> Notification {
     }
 }
 
-fn message(kind: Kind, notification: &Notification, look: Look) -> Block {
+fn message(
+    kind: Kind,
+    notification: &Notification,
+    look: Look,
+    shown_height: Option<f32>,
+) -> Block {
     let notification = if look.hidden {
         redacted(notification)
     } else {
@@ -323,6 +330,7 @@ fn message(kind: Kind, notification: &Notification, look: Look) -> Block {
         selected: false,
         // Placed and moved by the toast stack itself.
         motion: card::Motion::Still,
+        shown_height,
     };
     Block::Frame(frame, blocks)
 }
@@ -344,28 +352,28 @@ pub fn missed(rows: &MissedList, looks: Vec<Look>, empty: &'static str) -> Block
         let outgoing = rows
             .rows()
             .iter()
-            .map(|row| row.alpha.value().clamp(0.0, 1.0))
+            .map(|row| row.fold.value().clamp(0.0, 1.0))
             .fold(0.0, f32::max);
         (place(0.0, 0.0, EMPTY_H, 1.0 - outgoing), Block::note(empty))
     });
     let mut looks: Vec<Option<Look>> = looks.into_iter().map(Some).collect();
-    let all = rows.rows();
-    // Leaving ones go underneath.
-    let ordered = (0..all.len())
-        .filter(|index| all[*index].leaving)
-        .chain((0..all.len()).filter(|index| !all[*index].leaving));
     let mut blocks = Vec::new();
-    for index in ordered {
-        let row = &all[index];
+    for (index, (row, y)) in rows.rows().iter().zip(rows.drawn_y()).enumerate() {
         let alpha = row.alpha.value().clamp(0.0, 1.0);
         let Some(look) = looks.get_mut(index).and_then(Option::take) else {
             continue;
         };
-        if alpha > 0.001 {
-            let at = place(row.x.value(), row.y.value(), row.height(), alpha);
+        let shown_height = folded(row.leaving, row.height(), row.fold.value());
+        if alpha > 0.001 && shown_height.is_none_or(|height| height > 0.5) {
+            let at = place(0.0, y, row.height(), alpha);
             blocks.push((
                 at,
-                message(Kind::Missed(row.notification.id), &row.notification, look),
+                message(
+                    Kind::Missed(row.notification.id),
+                    &row.notification,
+                    look,
+                    shown_height,
+                ),
             ));
         }
     }
@@ -418,7 +426,7 @@ pub fn earlier(entries: Vec<Earlier>, looks: Vec<Look>) -> Block {
         let height = missed_height(&kept.notification);
         blocks.push((
             place(0.0, y, height, 1.0),
-            message(Kind::Earlier(session, id), &kept.notification, look),
+            message(Kind::Earlier(session, id), &kept.notification, look, None),
         ));
         y += height + GAP;
     }
@@ -430,26 +438,30 @@ pub fn earlier(entries: Vec<Earlier>, looks: Vec<Look>) -> Block {
     })
 }
 
-/// `looks` is in the order of `stack.cards()`. The newest is drawn on top, leaving ones
-/// underneath, and the count of those that do not fit keeps to the island's bottom edge.
+/// How much of a leaving card shows as it folds away; `None` for one that is staying.
+fn folded(leaving: bool, height: f32, fold: f32) -> Option<f32> {
+    leaving.then(|| height * fold.clamp(0.0, 1.0))
+}
+
+/// `looks` is in the order of `stack.cards()`. The newest is drawn on top, and the count of those
+/// that do not fit keeps to the island's bottom edge.
 pub fn toasts(stack: &Toasts, looks: Vec<Look>) -> Block {
     let mut looks: Vec<Option<Look>> = looks.into_iter().map(Some).collect();
     let all = stack.cards();
-    let ordered = (0..all.len())
-        .filter(|index| all[*index].leaving)
-        .chain((0..all.len()).rev().filter(|index| !all[*index].leaving));
+    let drawn = stack.drawn_y();
     let mut blocks = Vec::new();
-    for index in ordered {
+    for index in (0..all.len()).rev() {
         let shown = &all[index];
         let alpha = shown.alpha.value().clamp(0.0, 1.0);
         let Some(look) = looks.get_mut(index).and_then(Option::take) else {
             continue;
         };
-        if alpha > 0.001 {
-            let at = place(shown.x.value(), shown.y.value(), shown.height(), alpha);
+        let shown_height = folded(shown.leaving, shown.height(), shown.fold.value());
+        if alpha > 0.001 && shown_height.is_none_or(|height| height > 0.5) {
+            let at = place(0.0, drawn[index], shown.height(), alpha);
             blocks.push((
                 at,
-                message(Kind::Toast(shown.id), &shown.notification, look),
+                message(Kind::Toast(shown.id), &shown.notification, look, shown_height),
             ));
         }
     }

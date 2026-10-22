@@ -6,7 +6,7 @@ use std::{
 use zbus::{block_on, connection, fdo::DBusProxy, names::BusName};
 
 use super::server::{INTERFACE, NAME, PATH};
-use crate::dbus;
+use crate::{cli, dbus};
 
 /// Longer than any hook may run, so Claude Code's own timeout is the one that ends the wait.
 const WAIT: Duration = Duration::from_secs(2 * 60 * 60);
@@ -14,8 +14,20 @@ const WAIT: Duration = Duration::from_secs(2 * 60 * 60);
 /// Passes one Claude Code hook to the running island and prints its answer. It always exits 0, at
 /// once when island is not running, so Claude Code carries on as if there were no hook.
 pub fn run(args: &[String]) -> i32 {
+    if args.iter().any(|arg| arg == "-h" || arg == "--help") {
+        cli::print_help(Some("ai-hook"));
+        return 0;
+    }
     let Some(event) = args.first() else {
-        eprintln!("usage: island ai-hook EVENT");
+        cli::print_error(
+            &cli::Mistake::new(
+                cli::Line::new()
+                    .push(cli::Tone::Command, "island ai-hook")
+                    .plain(" needs an event"),
+            )
+            .see_help("island ai-hook")
+            .lines(),
+        );
         return 0;
     };
     // island's own chat is not a session to follow.

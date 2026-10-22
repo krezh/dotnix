@@ -270,6 +270,8 @@ fn work(
     let mut claude_heard = fetched;
     // While the usage API asked to be left alone.
     let mut claude_wait: Option<Instant> = None;
+    // The latest passed reset the usage API was asked about, so each reset asks it only once.
+    let mut claude_reset: Option<i64> = None;
     let mut backoff = BACKOFF_FIRST;
     if !feed.publish(state.clone()) {
         return Ended::Unwanted;
@@ -396,11 +398,21 @@ fn work(
         }
         announce(alerts.due(&state, at));
         let instant = Instant::now();
+        let claude_allowed = claude_wait.is_none_or(|until| instant >= until);
+        // A reset that has passed leaves the last reading out of date, and the status line
+        // repeats it until Claude Code asks again, so the usage API is asked for the new window.
+        let reset = model::passed_reset(&state, at)
+            .filter(|reset| claude_reset.is_none_or(|asked| *reset > asked));
+        if reset.is_some() && claude_allowed {
+            queued = true;
+        }
         if in_flight == 0 && (queued || instant >= next_poll) {
-            // Claude's usage API only when it allows, and when the status line has gone quiet
-            // or a refresh was asked for by hand.
-            let claude = claude_wait.is_none_or(|until| instant >= until)
-                && (by_hand || instant.duration_since(claude_heard) >= CLAUDE_QUIET);
+            // Claude's usage API only when it allows, and when the status line has gone quiet,
+            // a reset has passed or a refresh was asked for by hand.
+            let claude = claude_allowed
+                && (by_hand
+                    || reset.is_some()
+                    || instant.duration_since(claude_heard) >= CLAUDE_QUIET);
             let asking: Vec<Source> = settings
                 .sources
                 .iter()
@@ -409,6 +421,7 @@ fn work(
                 .collect();
             if asking.contains(&Source::Claude) {
                 claude_heard = instant;
+                claude_reset = reset.or(claude_reset);
             }
             in_flight = begin(&mut state, &asking, sender);
             next_poll = instant + interval;
@@ -489,12 +502,5 @@ pub(super) fn start(feed: Feed<State, Event>) -> Ai {
         requests,
         pending,
         _hooks: hooks,
-    }
-}
-
-pub(super) fn check(args: &[&str]) -> Result<(), String> {
-    match args {
-        ["ai", "refresh"] => Ok(()),
-        _ => Err("expected ai refresh".to_owned()),
     }
 }

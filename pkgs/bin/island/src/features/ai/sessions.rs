@@ -120,6 +120,7 @@ fn list(sessions: &[&Session], shown: &str, p: &PanelCx<'_>) -> Block {
                     countdown: None,
                     selected: session.id == shown,
                     motion: Motion::Appear,
+                    shown_height: None,
                 },
                 vec![Block::Item(
                     Item {
@@ -244,6 +245,7 @@ fn step_block(session: &Session, step: &Step, following: bool, view: &View, p: &
             countdown: None,
             selected: false,
             motion: if fresh { Motion::Appear } else { Motion::Still },
+            shown_height: None,
         },
         vec![Block::Item(
             Item {

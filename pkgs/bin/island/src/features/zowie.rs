@@ -11,6 +11,7 @@ use super::{Feature, Feed, Refreshed, WidgetCx};
 use crate::{
     bar::Gauge,
     components::tooltip::Tip,
+    control::{self, Command, Group, Report, Row, Takes},
     island::Panel,
     run,
     supervisor::Ended,
@@ -136,9 +137,20 @@ impl Feature for Zowie {
             "mouse",
         ],
     )];
-    const COMMANDS: &'static [&'static str] = &["zowie"];
-    const USAGE: &'static str =
-        "  zowie refresh                         read the mouse battery now";
+    const CONTROLS: &'static [Command] = &[Command {
+        name: "zowie",
+        about: "Read the mouse battery now",
+        group: Group::System,
+        takes: Takes::Forms {
+            forms: &[control::form(
+                "refresh",
+                control::Value::Nothing,
+                "Read the mouse battery now",
+            )],
+            bare: None,
+        },
+        examples: &[],
+    }];
 
     type State = Refreshed<Reading>;
     type Local = ();
@@ -232,16 +244,11 @@ impl Feature for Zowie {
         )
     }
 
-    fn check(args: &[&str]) -> Result<(), String> {
-        match args {
-            [_, "refresh"] => Ok(()),
-            _ => Err("usage: island ctl zowie refresh".to_owned()),
+    fn command(&self, _: &Self::State, args: &[&str]) -> Report {
+        if !matches!(args, [_, "refresh"]) {
+            return Report::default();
         }
-    }
-
-    fn command(&self, _: &Self::State, args: &[&str]) {
-        if matches!(args, [_, "refresh"]) {
-            self.refresh();
-        }
+        self.refresh();
+        Report::did(Row::said("Reading the mouse battery"))
     }
 }

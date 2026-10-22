@@ -12,6 +12,7 @@ use super::{
     widget::{self, MEDIA, VISUALIZER},
 };
 use crate::{
+    control::{Command, Report, Row},
     features::{Feature, Feed, GlyphSpec, PanelCx, WidgetCx},
     panel::PanelView,
 };
@@ -29,7 +30,7 @@ impl Feature for Media {
     const PANEL: Option<&'static str> = Some("media");
     const TAB: Option<(&'static str, u8)> = Some(("Media", 1));
     const PANEL_REFRESH: Option<Duration> = Some(Duration::from_millis(500));
-    const USAGE: &'static str = "  media play-pause|next|previous";
+    const CONTROLS: &'static [Command] = commands::CONTROLS;
 
     type State = Option<Track>;
     type Local = ();
@@ -64,11 +65,11 @@ impl Feature for Media {
         self.panel_view(state, p)
     }
 
-    fn check(args: &[&str]) -> Result<(), String> {
-        commands::check(args)
+    fn command(&self, track: &Option<Track>, args: &[&str]) -> Report {
+        commands::run(self, track, args)
     }
 
-    fn command(&self, _: &Option<Track>, args: &[&str]) {
-        commands::run(self, args);
+    fn status(&self, track: &Option<Track>) -> Vec<Row> {
+        vec![commands::row(track)]
     }
 }

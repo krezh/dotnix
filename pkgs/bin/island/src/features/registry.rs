@@ -4,9 +4,11 @@ use std::time::Duration;
 
 use gpui::App;
 
+use crate::{cli::Client, control::Command};
+
 use super::{
     Feature, Features, GlyphSpec, ai, audio, brightness, caffeine, clipboard, clock,
-    feature::{answers, widgets_of},
+    feature::widgets_of,
     headset,
     instance::start_one,
     launcher, media, molt, notifications, session, tray, workspaces, zowie,
@@ -103,33 +105,34 @@ macro_rules! features {
             tabs
         }
 
-        /// `None` when no feature answers to the first word.
-        pub fn check_command(args: &[&str]) -> Option<Result<&'static str, String>> {
-            let word = args.first()?;
-            $(
-                if answers::<$feature>(word) {
-                    return Some(<$feature as Feature>::check(args).map(|()| <$feature as Feature>::NAME));
-                }
-            )*
-            None
+        /// Every feature's `island ctl` commands, each with the feature that answers it.
+        pub fn controls() -> Vec<(&'static str, &'static Command)> {
+            let mut all = Vec::new();
+            $(all.extend(<$feature as Feature>::CONTROLS.iter().map(|command| (<$feature as Feature>::NAME, command)));)*
+            all
         }
 
-        /// The client of the feature whose `CLIENT` is `word`.
+        /// The panels features have, in the order they are listed.
+        pub fn panels() -> Vec<&'static str> {
+            let mut all = Vec::new();
+            $(all.extend(<$feature as Feature>::PANEL);)*
+            all
+        }
+
+        /// The client of the feature whose `CLIENT` is named `word`.
         pub fn client(word: &str) -> Option<fn(&[String]) -> i32> {
             $(
-                if !<$feature as Feature>::CLIENT.is_empty() && <$feature as Feature>::CLIENT == word {
+                if <$feature as Feature>::CLIENT.is_some_and(|client| client.name == word) {
                     return Some(<$feature as Feature>::client);
                 }
             )*
             None
         }
 
-        pub fn usage() -> String {
-            [$(<$feature as Feature>::USAGE),*]
-                .into_iter()
-                .filter(|usage| !usage.is_empty())
-                .map(|usage| format!("\n{usage}"))
-                .collect()
+        pub fn clients() -> Vec<Client> {
+            let mut all = Vec::new();
+            $(all.extend(<$feature as Feature>::CLIENT);)*
+            all
         }
 
         /// Features with a panel or commands start even without a wanted widget, since they can be
@@ -138,7 +141,7 @@ macro_rules! features {
             let mut started = Vec::new();
             $(
                 if <$feature as Feature>::PANEL.is_some()
-                    || !<$feature as Feature>::USAGE.is_empty()
+                    || !<$feature as Feature>::CONTROLS.is_empty()
                     || widgets_of::<$feature>().any(&wanted)
                 {
                     let live = <$feature as Feature>::LIVE.iter().any(|widget| wanted(widget))

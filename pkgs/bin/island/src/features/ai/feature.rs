@@ -15,6 +15,8 @@ use super::{
     widget,
 };
 use crate::{
+    cli::Client,
+    control::{Command, Group, Report, Row, Takes, Value, form},
     features::{Feature, Feed, GlyphSpec, IslandInfo, Islands, Outcome, PanelCx, WidgetCx},
     panel::{IconButton, Mark, PanelView},
 };
@@ -56,9 +58,23 @@ impl Feature for Ai {
             &["speedometer-symbolic", "utilities-system-monitor-symbolic"],
         ),
     ];
-    const USAGE: &'static str = "  ai refresh";
+    const CONTROLS: &'static [Command] = &[Command {
+        name: "ai",
+        about: "Fetch AI usage now",
+        group: Group::System,
+        takes: Takes::Forms {
+            forms: &[form("refresh", Value::Nothing, "Fetch AI usage now")],
+            bare: None,
+        },
+        examples: &[],
+    }];
     const VIEWS: &'static [&'static str] = &["sessions", "chat", "usage"];
-    const CLIENT: &'static str = "ai-hook";
+    const CLIENT: Option<Client> = Some(Client {
+        name: "ai-hook",
+        about: "Hand island a Claude Code hook event; Claude Code's hooks run it",
+        value: "event",
+        values: hook::EVENTS,
+    });
     const KEYBOARD: bool = true;
 
     type State = State;
@@ -117,12 +133,9 @@ impl Feature for Ai {
         Some(panel::system_button(self, state, p))
     }
 
-    fn check(args: &[&str]) -> Result<(), String> {
-        runtime::check(args)
-    }
-
-    fn command(&self, _: &State, _: &[&str]) {
+    fn command(&self, _: &State, _: &[&str]) -> Report {
         self.refresh();
+        Report::did(Row::said("Fetching AI usage"))
     }
 
     fn client(args: &[String]) -> i32 {

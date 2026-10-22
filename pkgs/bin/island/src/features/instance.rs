@@ -15,6 +15,7 @@ use super::{
     feature::widgets_of, owner,
 };
 use crate::{
+    control::{Report, Row},
     island::Island,
     panel::{IconButton, Mark, PanelView},
 };
@@ -63,7 +64,8 @@ pub trait AnyFeature {
     fn lead(&self, local: &dyn AnyLocal, cx: &App) -> Option<Mark>;
     fn system_button(&self, p: &mut PanelCx<'_>, cx: &App) -> Option<IconButton>;
     fn inhibits_idle(&self, cx: &App) -> bool;
-    fn command(&self, args: &[&str], cx: &App);
+    fn command(&self, args: &[&str], cx: &App) -> Report;
+    fn status(&self, cx: &App) -> Vec<Row>;
     fn key(&self, local: &mut dyn AnyLocal, keystroke: &Keystroke, cx: &App) -> Outcome;
     fn new_local(&self, island: &IslandInfo<'_>, cx: &App) -> Box<dyn AnyLocal>;
     fn sync_local(
@@ -164,9 +166,14 @@ impl<F: Feature> AnyFeature for Entity<Instance<F>> {
         F::inhibits_idle(&self.read(cx).state)
     }
 
-    fn command(&self, args: &[&str], cx: &App) {
+    fn command(&self, args: &[&str], cx: &App) -> Report {
         let instance = self.read(cx);
-        instance.feature.command(&instance.state, args);
+        instance.feature.command(&instance.state, args)
+    }
+
+    fn status(&self, cx: &App) -> Vec<Row> {
+        let instance = self.read(cx);
+        instance.feature.status(&instance.state)
     }
 
     fn key(&self, local: &mut dyn AnyLocal, keystroke: &Keystroke, cx: &App) -> Outcome {
@@ -214,6 +221,11 @@ impl Features {
             .iter()
             .find(|feature| feature.name() == name)
             .map(|feature| &**feature)
+    }
+
+    /// Every running feature's rows for `island ctl`'s overview, in the registry's order.
+    pub fn status(&self, cx: &App) -> Vec<Row> {
+        self.0.iter().flat_map(|feature| feature.status(cx)).collect()
     }
 
     pub fn owning(&self, widget: &str) -> Option<&dyn AnyFeature> {

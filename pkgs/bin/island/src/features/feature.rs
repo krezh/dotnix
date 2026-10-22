@@ -10,6 +10,8 @@ use gpui::{AnyElement, Keystroke, Window};
 
 use super::{Feed, Islands, Osd, PanelCx, WidgetCx};
 use crate::{
+    cli::Client,
+    control::{Command, Report, Row},
     panel::{IconButton, Mark, PanelView},
     wm::Monitor,
 };
@@ -125,27 +127,30 @@ pub trait Feature: Sized + 'static {
         false
     }
 
-    /// Empty means just the feature's name.
-    const COMMANDS: &'static [&'static str] = &[];
+    /// The `island ctl` commands it answers. `island ctl` checks them against these before they
+    /// reach [`Feature::command`].
+    const CONTROLS: &'static [Command] = &[];
 
-    const USAGE: &'static str = "";
-
-    /// Runs in the calling process, so mistakes reach the caller.
-    fn check(_args: &[&str]) -> Result<(), String> {
-        Err(format!("{} takes no commands", Self::NAME))
+    /// Runs one of its `CONTROLS`, and answers with what it did or, given nothing after the
+    /// command's name, what the state is.
+    fn command(&self, _: &Self::State, _args: &[&str]) -> Report {
+        Report::default()
     }
 
-    fn command(&self, _: &Self::State, _args: &[&str]) {}
+    /// Its rows in `island ctl`'s overview of what island is doing.
+    fn status(&self, _: &Self::State) -> Vec<Row> {
+        Vec::new()
+    }
 
     /// Views its panel can be opened on, such as its tabs: `island ctl open PANEL VIEW`.
     const VIEWS: &'static [&'static str] = &[];
 
     /// A top-level command of its own, such as `island ai-hook`, for a caller that waits for the
-    /// running island's answer. Empty for none.
-    const CLIENT: &'static str = "";
+    /// running island's answer.
+    const CLIENT: Option<Client> = None;
 
-    /// Runs in the calling process with the words after `CLIENT`; the process exits with what it
-    /// returns.
+    /// Runs in the calling process with the words after the client's name; the process exits
+    /// with what it returns.
     fn client(_args: &[String]) -> i32 {
         0
     }
@@ -221,14 +226,6 @@ impl<T: Local> AnyLocal for T {
 
     fn as_any_mut(&mut self) -> &mut dyn Any {
         self
-    }
-}
-
-pub(super) fn answers<F: Feature>(word: &str) -> bool {
-    if F::COMMANDS.is_empty() {
-        F::NAME == word && !F::USAGE.is_empty()
-    } else {
-        F::COMMANDS.contains(&word)
     }
 }
 

@@ -253,6 +253,7 @@ fn app_item(
         countdown: None,
         selected: false,
         motion: crate::components::card::Motion::Still,
+        shown_height: None,
     };
     let item = Item {
         id: id.into(),

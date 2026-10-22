@@ -1,4 +1,4 @@
-use futures::channel::mpsc::UnboundedSender;
+use futures::channel::{mpsc::UnboundedSender, oneshot};
 use zbus::{
     Connection, ObjectPath, Proxy, block_on, connection,
     fdo::{RequestNameFlags, RequestNameReply},
@@ -10,7 +10,7 @@ use zbus::{
 use tracing::{debug, info};
 
 use crate::{
-    control::{self, Control},
+    control::{self, Asked, Control, Report, Row},
     logging,
 };
 
@@ -47,26 +47,35 @@ pub async fn claim(connection: &Connection, name: &'static str) -> Result<bool, 
 }
 
 struct Controller {
-    controls: UnboundedSender<Control>,
+    controls: UnboundedSender<Asked>,
 }
 
 #[interface(name = "io.github.krezh.Island.Control")]
 impl Controller {
-    fn run(&self, args: Vec<String>) -> String {
+    /// Waits for island's answer, so the caller can show what changed.
+    async fn run(&self, args: Vec<String>) -> String {
         debug!(?args, "control command");
-        match control::parse(&args) {
-            Ok(Control::Log(spec)) => logging::set(&spec).err().unwrap_or_default(),
-            Ok(command) => {
-                let _ = self.controls.unbounded_send(command);
-                String::new()
+        let answer = match control::parse(&args) {
+            Ok(Control::Log(spec)) => logging::set(&spec).map(|()| {
+                Report::did(Row::said(format!("Logging {spec} until island restarts")))
+            }),
+            Ok(control) => {
+                let (answer, answered) = oneshot::channel();
+                match self.controls.unbounded_send(Asked { control, answer }) {
+                    Ok(()) => answered
+                        .await
+                        .unwrap_or_else(|_| Err("island stopped before it answered".to_owned())),
+                    Err(_) => Err("island is shutting down".to_owned()),
+                }
             }
-            Err(error) => error,
-        }
+            Err(mistake) => Err(mistake.plain()),
+        };
+        control::encode(&answer)
     }
 }
 
 /// Claiming the name means only one island runs. Keep the connection for as long as island runs.
-pub fn serve(controls: UnboundedSender<Control>) -> Result<Connection, String> {
+pub fn serve(controls: UnboundedSender<Asked>) -> Result<Connection, String> {
     let connection = block_on(async {
         let connection = connection::Builder::session()
             .serve_at(control::PATH, Controller { controls })

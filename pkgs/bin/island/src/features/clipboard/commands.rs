@@ -6,6 +6,7 @@ use super::{
 };
 use crate::{
     components::list::{self, ROWS, Selection},
+    control::{Command, Group, Report, Row, Takes, Value, form},
     features::Outcome,
 };
 
@@ -52,16 +53,22 @@ impl Clipboard {
         Outcome::Open
     }
 
-    pub(super) fn handle_command(&self, args: &[&str]) {
-        if args == ["clipboard", "clear"] {
-            self.request(Request::Clear);
+    pub(super) fn handle_command(&self, args: &[&str]) -> Report {
+        if args != ["clipboard", "clear"] {
+            return Report::default();
         }
+        self.request(Request::Clear);
+        Report::did(Row::said("Forgot the clipboard history"))
     }
 }
 
-pub(super) fn check(args: &[&str]) -> Result<(), String> {
-    match args {
-        ["clipboard", "clear"] => Ok(()),
-        _ => Err("expected clipboard clear".to_owned()),
-    }
-}
+pub(super) const CONTROLS: &[Command] = &[Command {
+    name: "clipboard",
+    about: "Forget the clipboard history",
+    group: Group::System,
+    takes: Takes::Forms {
+        forms: &[form("clear", Value::Nothing, "Forget the clipboard history")],
+        bare: None,
+    },
+    examples: &[],
+}];

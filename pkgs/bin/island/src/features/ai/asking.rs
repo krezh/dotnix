@@ -149,6 +149,7 @@ fn question_blocks(request: &Request, at: &str, view: &View, p: &PanelCx<'_>) ->
                 countdown: None,
                 selected: picked,
                 motion: Motion::Appear,
+                shown_height: None,
             },
             vec![Block::Item(
                 Item {
@@ -180,8 +181,9 @@ fn question_blocks(request: &Request, at: &str, view: &View, p: &PanelCx<'_>) ->
         .iter()
         .map(|question| question.options.iter().map(|(label, _)| label.clone()).collect())
         .collect();
-    // Next and Send wait for a pick: plain until then, and doing nothing when pressed.
+    // Without a pick, Next skips the question; Send waits until some question has one.
     let ready = !chosen.is_empty();
+    let answered = picks.chosen.iter().any(|chosen| !chosen.is_empty());
     // A question that takes several answers counts them on the button.
     let label = |text: &str| {
         if multi && ready {
@@ -193,7 +195,7 @@ fn question_blocks(request: &Request, at: &str, view: &View, p: &PanelCx<'_>) ->
     let next = if last {
         let send = p.on_local::<Ai>(move |ai, view| {
             let picks = view.picks(id);
-            if picks.chosen.get(picks.step).is_none_or(Vec::is_empty) {
+            if picks.chosen.iter().all(Vec::is_empty) {
                 return;
             }
             let picked = labels
@@ -211,11 +213,11 @@ fn question_blocks(request: &Request, at: &str, view: &View, p: &PanelCx<'_>) ->
                 .collect();
             ai.answer(id, Answer::Picked(picked));
         });
-        button(format!("{at}-send"), &label("Send answers"), ready, send)
+        button(format!("{at}-send"), &label("Send answers"), answered, send)
     } else {
         button(
             format!("{at}-next"),
-            &label("Next"),
+            &if ready { label("Next") } else { "Skip".to_owned() },
             ready,
             p.on_local::<Ai>(move |_, view| view.next_question(id)),
         )
@@ -306,6 +308,7 @@ pub(super) fn frame(
             } else {
                 Motion::Appear
             },
+            shown_height: None,
         },
         blocks,
     )

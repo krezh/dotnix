@@ -58,6 +58,9 @@ pub struct FrameView {
     /// Tinted as the chosen one of several, such as a picked answer; the tint eases in and out.
     pub selected: bool,
     pub motion: Motion,
+    /// Shows only this much of a raised frame from its top, such as one folding away: its outline
+    /// closes above the cut, and what it holds keeps its size and is cut off. `None` for all of it.
+    pub shown_height: Option<f32>,
 }
 
 /// How a frame comes and goes, for one that is not placed and moved by its owner.
@@ -114,6 +117,7 @@ pub fn frame(
         countdown,
         selected,
         motion,
+        shown_height,
     } = frame;
     let urgent = matches!(look, Look::Raised { urgent: true });
     let resting: Hsla = rgba(with_alpha(SURFACE1, CARD_ALPHA)).into();
@@ -149,11 +153,29 @@ pub fn frame(
                 rgba(with_alpha(SURFACE1, CARD_BORDER_ALPHA)).into()
             };
             let calm: Hsla = rgba(with_alpha(SURFACE1, NOTIFICATION_ALPHA)).into();
+            // Where the outline and the hover fill are drawn.
+            let shape = || match shown_height {
+                Some(height) => div().absolute().top_0().left_0().w_full().h(px(height)),
+                None => div().absolute().top_0().left_0().size_full(),
+            };
+            let content = div()
+                .p(px(RAISED_PAD))
+                .flex()
+                .flex_col()
+                .gap(px(RAISED_GAP))
+                .children(children);
+            let content = match shown_height {
+                // Laid out at its own height, so the cut does not squeeze it.
+                Some(_) => shape()
+                    .overflow_hidden()
+                    .child(content.absolute().top_0().left_0().w_full()),
+                None => content.relative().size_full(),
+            };
             div()
                 .id(id.clone())
                 .relative()
                 .size_full()
-                .child(div().absolute().top_0().left_0().size_full().with_spring(
+                .child(shape().with_spring(
                     SharedString::from(format!("{id}-tint")),
                     SpringAnimation::new(SELECT_SPRING).to(selected),
                     move |tint, phase| {
@@ -162,18 +184,9 @@ pub fn frame(
                     },
                 ))
                 .when(on_click.is_some(), |frame| {
-                    frame.child(ui::control(Radius::Panel, None, hover && !selected))
+                    frame.child(shape().child(ui::control(Radius::Panel, None, hover && !selected)))
                 })
-                .child(
-                    div()
-                        .relative()
-                        .size_full()
-                        .p(px(RAISED_PAD))
-                        .flex()
-                        .flex_col()
-                        .gap(px(RAISED_GAP))
-                        .children(children),
-                )
+                .child(content)
         }
     };
     let element = element
