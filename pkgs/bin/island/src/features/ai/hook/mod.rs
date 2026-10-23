@@ -3,6 +3,7 @@ pub(super) mod client;
 mod encode;
 mod input;
 mod live;
+mod plugin;
 mod registry;
 pub(super) mod server;
 mod transcript;

@@ -1,11 +1,11 @@
-//! How island sees brightness: its level, the OSD it shows, and `island ctl brightness`.
+//! How island sees brightness: each screen's level, the OSD it shows, and `island ctl brightness`.
 
 use super::{
     runtime::{self, Brightness},
-    state::{self, Level},
+    state::{self, Levels},
 };
 use crate::{
-    control::{Command, Group, LEVEL, Report, Row, Takes},
+    control::{Command, Group, LEVEL, Reply, Row, Takes},
     features::{
         Feature, Feed, GlyphSpec, IslandInfo, PanelCx,
         osd::{self, Osd, Shown},
@@ -18,28 +18,33 @@ impl Feature for Brightness {
     const GLYPHS: &'static [GlyphSpec] = &[("brightness", &["display-brightness-symbolic"])];
     const CONTROLS: &'static [Command] = &[Command {
         name: "brightness",
-        about: "The screen's brightness",
+        about: "The screens' brightness",
         group: Group::SoundAndScreen,
-        takes: Takes::Forms {
+        takes: Takes::Aimed {
+            at: "monitor",
             forms: LEVEL,
-            bare: Some("Show the brightness, once island has changed it"),
+            bare: Some("Show the brightness"),
         },
-        examples: &["island ctl brightness down 10"],
+        examples: &[
+            "island ctl brightness down 10",
+            "island ctl brightness focused up",
+            "island ctl brightness DP-1 set 40",
+        ],
     }];
 
-    type State = Level;
+    type State = Levels;
     type Local = Shown;
     type Event = ();
 
-    fn start(feed: Feed<Level>) -> Self {
+    fn start(feed: Feed<Levels>) -> Self {
         Self::start(feed)
     }
 
-    fn sync_local(_: &Level, shown: &mut Shown, island: &IslandInfo<'_>, _animate: bool) {
+    fn sync_local(_: &Levels, shown: &mut Shown, island: &IslandInfo<'_>, _animate: bool) {
         shown.sync(island);
     }
 
-    fn popup<'a>(&self, _: &Level, p: &PanelCx<'a>) -> Option<PanelView> {
+    fn popup<'a>(&self, _: &Levels, p: &PanelCx<'a>) -> Option<PanelView> {
         osd::popup(p)
     }
 
@@ -47,15 +52,15 @@ impl Feature for Brightness {
         shown.expire();
     }
 
-    fn osd(before: &Level, after: &Level) -> Option<Osd> {
+    fn osd(before: &Levels, after: &Levels) -> Option<Osd> {
         state::osd(before, after)
     }
 
-    fn command(&self, level: &Level, args: &[&str]) -> Report {
-        self.command(level, args)
+    fn reply(&self, _: &Levels, args: &[&str]) -> Reply {
+        self.reply(args)
     }
 
-    fn status(&self, level: &Level) -> Vec<Row> {
-        vec![runtime::row(level, None)]
+    fn status(&self, levels: &Levels) -> Vec<Row> {
+        runtime::status(levels)
     }
 }

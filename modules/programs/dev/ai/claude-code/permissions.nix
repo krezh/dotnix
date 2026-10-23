@@ -114,6 +114,16 @@
             "Read(**/.decrypted~secrets.sops.*)"
             "Bash(sudo:*)"
             "Bash(nh os switch:*)"
+
+            # sops files are managed by hand only
+            "Bash(sops:*)"
+            "Bash(*sops *)"
+            "Bash(nix run *sops*)"
+            "Bash(nix shell *sops*)"
+            "Bash(nix-shell *sops*)"
+            "Edit(**/*.sops.*)"
+            "Edit(**/.sops.yaml)"
+            "Read(~/.config/sops/**)"
           ];
           defaultMode = "auto";
         };

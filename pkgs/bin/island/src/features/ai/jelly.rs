@@ -77,6 +77,7 @@ pub(super) fn mood(state: &State, near: bool) -> Mood {
         cheer_color: GREEN,
         near,
         loading: state.refreshing,
+        warning: !state.issues.is_empty(),
     }
 }
 

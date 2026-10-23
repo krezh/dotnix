@@ -18,6 +18,12 @@
         usbutils
       ];
 
+      networking.networkmanager.settings.connectivity = {
+        uri = "https://connectivitycheck.grapheneos.network/generate_204";
+        response = "";
+        interval = 300;
+      };
+
       programs.gdk-pixbuf.modulePackages = [ pkgs.librsvg ];
       environment.pathsToLink = [ "share/thumbnailers" ];
 

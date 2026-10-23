@@ -12,7 +12,8 @@ use std::{
 use futures::{StreamExt, channel::oneshot};
 use serde::de::DeserializeOwned;
 use zbus::{
-    Connection, MatchRule, MessageStream, OwnedObjectPath, OwnedVariant, Proxy, Variant, block_on,
+    Connection, MatchRule, MessageStream, OwnedObjectPath, OwnedVariant, Proxy, Variant, as_variant,
+    block_on,
     fdo::{DBusProxy, RequestNameFlags, RequestNameReply},
     interface,
     message::{Header, Type},
@@ -177,6 +178,31 @@ async fn first<T: DeserializeOwned + zbus::Type>(proxy: &Proxy<'_>, names: &[&st
     None
 }
 
+/// Read straight from the reply: `get_property` decodes into a generic `Variant` first, which
+/// holds each pixel byte as its own value, so a few large icons briefly cost hundreds of MB.
+async fn pixmaps(proxy: &Proxy<'_>, names: &[&str]) -> Option<Vec<(i32, i32, Vec<u8>)>> {
+    for name in names {
+        let Ok(reply) = proxy
+            .connection()
+            .call_method(
+                Some(proxy.destination().clone()),
+                proxy.path().clone(),
+                Some("org.freedesktop.DBus.Properties"),
+                "Get",
+                &(proxy.interface().as_str(), *name),
+            )
+            .await
+        else {
+            continue;
+        };
+        let body = reply.body();
+        if let Ok(pixmaps) = body.deserialize::<as_variant::Deserialize<'_, Vec<(i32, i32, Vec<u8>)>>>() {
+            return Some(pixmaps.0);
+        }
+    }
+    None
+}
+
 async fn load(connection: &Connection, bus: &str, path: &str, key: String) -> Result<Entry, String> {
     let proxy = uncached(connection, bus.to_owned(), path.to_owned(), ITEM)
         .await
@@ -249,7 +275,7 @@ async fn load(connection: &Connection, bus: &str, path: &str, key: String) -> Re
     };
     let icon = match icon {
         Some(icon) => Some(icon),
-        None => first::<Vec<(i32, i32, Vec<u8>)>>(&proxy, &[pixmap_key, "IconPixmap"])
+        None => pixmaps(&proxy, &[pixmap_key, "IconPixmap"])
             .await
             .and_then(raster::pixmap),
     };

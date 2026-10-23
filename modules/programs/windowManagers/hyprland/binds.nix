@@ -51,14 +51,10 @@
           mute = "${wpctl} set-mute @DEFAULT_AUDIO_SINK@ toggle";
         };
 
-      brightness =
-        let
-          brightnessctl = lib.getExe pkgs.brightnessctl;
-        in
-        {
-          up = "${brightnessctl} set 5%+ -q";
-          down = "${brightnessctl} set 5%- -n 5% -q";
-        };
+      brightness = {
+        up = "${shell.run} brightness focused up";
+        down = "${shell.run} brightness focused down";
+      };
 
       media =
         let
@@ -102,7 +98,7 @@
               rule = exec "${shell.run} clear";
               desc = "Clear notifications";
             };
-            "${mainMod} + D" = {
+            "${mainMod} + C" = {
               rule = exec "${shell.run} toggle ai chat";
               desc = "AI chat";
             };
@@ -178,7 +174,7 @@
               rule = mkInline "hl.dsp.window.kill()";
               desc = "Force close active window";
             };
-            "${mainMod} + C" = {
+            "${mainMod} + D" = {
               rule = mkInline "hl.dsp.window.float()";
               desc = "Toggle floating mode";
             };

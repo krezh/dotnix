@@ -69,6 +69,14 @@ impl Spring {
         self.state.position == self.target && self.state.velocity == 0.0
     }
 
+    /// The fastest it will go on its way from here: its speed and how far it has left to go, so a
+    /// swing reads the same at its turn as through its middle.
+    pub fn motion(&self) -> f32 {
+        let pull = self.config.stiffness / self.config.mass;
+        let left = self.target - self.state.position;
+        (self.state.velocity.powi(2) + pull * left.powi(2)).sqrt()
+    }
+
     pub fn advance(&mut self, dt: f32, now: Instant) {
         if self.is_settled() || self.hold_until.is_some_and(|start| now < start) {
             return;

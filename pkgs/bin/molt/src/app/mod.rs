@@ -259,7 +259,7 @@ fn build_ui(app: &gtk::Application) -> UiController {
                 }
             }
             KeyAction::ScrollUp => {
-                if key_state.scroll(&key_window, KeyAction::ScrollUp) {
+                if key_state.step_list(-1) || key_state.scroll(&key_window, KeyAction::ScrollUp) {
                     true
                 } else if key_state.is_home() {
                     key_state.focus_home(-1)
@@ -268,7 +268,7 @@ fn build_ui(app: &gtk::Application) -> UiController {
                 }
             }
             KeyAction::ScrollDown => {
-                if key_state.scroll(&key_window, KeyAction::ScrollDown) {
+                if key_state.step_list(1) || key_state.scroll(&key_window, KeyAction::ScrollDown) {
                     true
                 } else if key_state.is_home() {
                     key_state.focus_home(1)

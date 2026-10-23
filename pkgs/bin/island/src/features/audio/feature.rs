@@ -22,7 +22,7 @@ impl Feature for Audio {
     const NAME: &'static str = "audio";
     const GLYPHS: &'static [GlyphSpec] = glyphs::GLYPHS;
     const PANEL: Option<&'static str> = Some("audio");
-    const TAB: Option<(&'static str, u8)> = Some(("Audio", 2));
+    const TAB: Option<(&'static str, u8)> = Some(("Audio", 3));
     const PANEL_REFRESH: Option<Duration> = Some(REFRESH);
     const CONTROLS: &'static [Command] = commands::CONTROLS;
 

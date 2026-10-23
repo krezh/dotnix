@@ -14,15 +14,27 @@ use super::{
 };
 use crate::{
     control::{Command, Report, Row},
-    features::{Feature, Feed, IslandInfo, Islands, PanelCx, WidgetCx},
+    features::{Feature, Feed, GlyphSpec, IslandInfo, Islands, PanelCx, WidgetCx},
     panel::PanelView,
 };
 
 impl Feature for Notifications {
     const NAME: &'static str = "notifications";
     const PANEL: Option<&'static str> = Some("notifications");
+    const TAB: Option<(&'static str, u8)> = Some(("Notifications", 0));
     const PANEL_REFRESH: Option<Duration> = Some(panel::REFRESH);
     const CONTROLS: &'static [Command] = commands::CONTROLS;
+    const GLYPHS: &'static [GlyphSpec] = &[
+        (
+            "tab-notifications",
+            &["notifications-symbolic", "preferences-system-notifications-symbolic"],
+        ),
+        (
+            "notifications-now",
+            &["preferences-system-notifications-symbolic", "notifications-symbolic"],
+        ),
+        ("notifications-earlier", &["document-open-recent-symbolic"]),
+    ];
 
     type State = State;
     type Local = Cards;

@@ -13,9 +13,13 @@ pub mod generated {
     wayland_scanner::generate_client_code!("./protocols/hyprland-toplevel-export-v1.xml");
 }
 
+use std::io::ErrorKind;
+use std::time::{Duration, Instant};
+
 use anyhow::{Context, Result};
 use wayland_client::{
     Connection, Dispatch, QueueHandle, WEnum, delegate_noop,
+    backend::WaylandError,
     globals::GlobalListContents,
     protocol::{wl_buffer, wl_registry, wl_shm},
 };
@@ -29,6 +33,8 @@ use self::generated::{
     hyprland_toplevel_export_manager_v1::HyprlandToplevelExportManagerV1,
 };
 use crate::replay::hardware::HardwareFrame;
+
+const COPY_TIMEOUT: Duration = Duration::from_secs(1);
 
 struct CaptureState {
     width: Option<u32>,
@@ -267,9 +273,7 @@ impl HyprlandToplevelCapture {
             );
             let result = (|| {
                 frame.copy(&buffer, 1);
-                while !self.state.ready && !self.state.failed {
-                    self.event_queue.blocking_dispatch(&mut self.state)?;
-                }
+                self.wait_for_copy()?;
                 anyhow::ensure!(!self.state.failed, "Hyprland rejected DMA-BUF capture");
                 let timestamp = self
                     .state
@@ -283,5 +287,45 @@ impl HyprlandToplevelCapture {
         })();
         frame.destroy();
         result
+    }
+
+    /// Hyprland answers a copy only once the window renders again, so a window
+    /// that stops drawing or closes mid-copy would otherwise hang forever.
+    fn wait_for_copy(&mut self) -> Result<()> {
+        use std::os::fd::AsRawFd;
+
+        let deadline = Instant::now() + COPY_TIMEOUT;
+        loop {
+            self.event_queue.dispatch_pending(&mut self.state)?;
+            if self.state.ready || self.state.failed {
+                return Ok(());
+            }
+            self.event_queue.flush()?;
+            let Some(guard) = self.event_queue.prepare_read() else {
+                continue;
+            };
+            let remaining = deadline.saturating_duration_since(Instant::now());
+            anyhow::ensure!(!remaining.is_zero(), "Timed out waiting for toplevel frame");
+            let mut poll_fd = libc::pollfd {
+                fd: guard.connection_fd().as_raw_fd(),
+                events: libc::POLLIN,
+                revents: 0,
+            };
+            let timeout_ms = remaining.as_millis().clamp(1, i32::MAX as u128) as i32;
+            match unsafe { libc::poll(&mut poll_fd, 1, timeout_ms) } {
+                0 => {}
+                ready if ready > 0 => match guard.read() {
+                    Ok(_) => {}
+                    Err(WaylandError::Io(error)) if error.kind() == ErrorKind::WouldBlock => {}
+                    Err(error) => return Err(error).context("Failed to read Wayland events"),
+                },
+                _ => {
+                    let error = std::io::Error::last_os_error();
+                    if error.kind() != ErrorKind::Interrupted {
+                        return Err(error).context("Failed to poll the Wayland connection");
+                    }
+                }
+            }
+        }
     }
 }

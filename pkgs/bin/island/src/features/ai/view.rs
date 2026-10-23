@@ -332,6 +332,10 @@ impl Local for View {
         self.jelly.as_ref().is_none_or(Body::is_settled)
     }
 
+    fn is_drifting(&self) -> bool {
+        self.jelly.as_ref().is_some_and(Body::is_drifting)
+    }
+
     fn pointer(&mut self, over: bool) {
         self.near = over;
         if let Some(body) = &mut self.jelly {

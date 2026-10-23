@@ -4,38 +4,100 @@ use std::{
     ffi::CString,
     fs,
     path::{Path, PathBuf},
-    sync::{Arc, Mutex},
-    thread,
+    sync::{
+        Arc, Mutex,
+        atomic::{AtomicUsize, Ordering},
+        mpsc::{self, RecvTimeoutError, Sender},
+    },
     time::{Duration, Instant},
 };
 
 use crate::supervisor::{self, Ended};
 
+struct Latest {
+    stats: SysStats,
+    /// When the histories last advanced, which the graphs slide from.
+    at: Instant,
+    /// Bumped on every change, including the in-between refresh when the panel opens.
+    revision: u64,
+}
+
 #[derive(Clone)]
-pub struct Samples(Arc<Mutex<(SysStats, Instant)>>);
+pub struct Samples {
+    latest: Arc<Mutex<Latest>>,
+    watchers: Arc<AtomicUsize>,
+    wake: Sender<()>,
+}
 
 impl Samples {
-    pub fn latest(&self) -> (SysStats, Instant) {
-        self.0
-            .lock()
-            .map(|guard| guard.clone())
-            .unwrap_or_else(|_| (SysStats::default(), Instant::now()))
+    /// `None` while nothing changed since `revision`.
+    pub fn since(&self, revision: u64) -> Option<(SysStats, Instant, u64)> {
+        let latest = self.latest.lock().ok()?;
+        (latest.revision != revision).then(|| (latest.stats.clone(), latest.at, latest.revision))
+    }
+
+    /// The costly readings (processes, drives, sensors) are taken only while one is held.
+    pub fn watch(&self) -> Watch {
+        if self.watchers.fetch_add(1, Ordering::SeqCst) == 0 {
+            let _ = self.wake.send(());
+        }
+        Watch(self.watchers.clone())
+    }
+}
+
+pub struct Watch(Arc<AtomicUsize>);
+
+impl Drop for Watch {
+    fn drop(&mut self) {
+        self.0.fetch_sub(1, Ordering::SeqCst);
     }
 }
 
 /// Also how often the System panel updates.
 pub const INTERVAL: Duration = Duration::from_secs(2);
+/// Between the two process scans a CPU share needs, when someone starts watching.
+const FIRST_LOOK: Duration = Duration::from_millis(500);
 
 pub fn watch() -> Samples {
     let mut sampler = Sampler::default();
-    let shared = Arc::new(Mutex::new((sampler.sample(), Instant::now())));
-    let writer = shared.clone();
+    let watchers = Arc::new(AtomicUsize::new(0));
+    let latest = Arc::new(Mutex::new(Latest {
+        stats: sampler.sample(true),
+        at: Instant::now(),
+        revision: 1,
+    }));
+    let (wake, woken) = mpsc::channel();
+    let writer = latest.clone();
+    let watched = watchers.clone();
     let spawned = supervisor::supervise("sys", move || {
+        let mut next = Instant::now() + INTERVAL;
         loop {
-            thread::sleep(INTERVAL);
-            let stats = sampler.sample();
+            match woken.recv_timeout(next.saturating_duration_since(Instant::now())) {
+                Ok(()) => {
+                    // Fresh costly readings now, rather than up to an interval of stale ones.
+                    sampler.scan_processes();
+                    std::thread::sleep(FIRST_LOOK);
+                    let looked = sampler.look();
+                    match writer.lock() {
+                        Ok(mut latest) => {
+                            looked.apply(&mut latest.stats);
+                            latest.revision += 1;
+                        }
+                        Err(_) => return Ended::Unwanted,
+                    }
+                    continue;
+                }
+                Err(RecvTimeoutError::Timeout) => {}
+                Err(RecvTimeoutError::Disconnected) => return Ended::Unwanted,
+            }
+            next = Instant::now() + INTERVAL;
+            let stats = sampler.sample(watched.load(Ordering::SeqCst) > 0);
             match writer.lock() {
-                Ok(mut guard) => *guard = (stats, Instant::now()),
+                Ok(mut latest) => {
+                    latest.stats = stats;
+                    latest.at = Instant::now();
+                    latest.revision += 1;
+                }
                 Err(_) => return Ended::Unwanted,
             }
         }
@@ -43,7 +105,11 @@ pub fn watch() -> Samples {
     if let Err(error) = spawned {
         tracing::error!("system sampler failed to start: {error}");
     }
-    Samples(shared)
+    Samples {
+        latest,
+        watchers,
+        wake,
+    }
 }
 
 const HISTORY: usize = 40;
@@ -165,6 +231,28 @@ struct Mount {
     device: String,
 }
 
+/// What only the System panel shows and no history needs, so it is read only while watched.
+#[derive(Clone, Default)]
+struct Looked {
+    cpu_ghz: Option<f32>,
+    partitions: Vec<Partition>,
+    drives: Vec<Drive>,
+    sensors: Vec<Sensor>,
+    processes: Vec<Process>,
+    process_count: usize,
+}
+
+impl Looked {
+    fn apply(self, stats: &mut SysStats) {
+        stats.cpu_ghz = self.cpu_ghz;
+        stats.partitions = self.partitions;
+        stats.drives = self.drives;
+        stats.sensors = self.sensors;
+        stats.processes = self.processes;
+        stats.process_count = self.process_count;
+    }
+}
+
 pub struct Sampler {
     prev_cpu: Option<(u64, u64)>,
     prev_cores: Vec<(u64, u64)>,
@@ -172,6 +260,10 @@ pub struct Sampler {
     prev_disk: Option<(u64, u64, Instant)>,
     prev_processes: HashMap<u32, u64>,
     prev_process_at: Option<Instant>,
+    /// Program names by pid and start time, so each process's `exe` is read once.
+    programs: HashMap<(u32, u64), String>,
+    /// The last look, shown as is while nobody watches.
+    kept: Looked,
     cpu_temp: Option<PathBuf>,
     gpu: Option<PathBuf>,
     gpu_hwmon: Option<PathBuf>,
@@ -214,6 +306,8 @@ impl Default for Sampler {
             prev_disk: None,
             prev_processes: HashMap::new(),
             prev_process_at: None,
+            programs: HashMap::new(),
+            kept: Looked::default(),
             cpu_temp: hwmon_temp("k10temp", "Tctl")
                 .or_else(|| hwmon_temp("coretemp", "Package id 0")),
             gpu_temp: gpu_hwmon.as_deref().and_then(|dir| temp_input(dir, "edge")),
@@ -766,8 +860,10 @@ fn program(pid_dir: &Path, comm: &str) -> String {
 }
 
 /// CPU ticks per process, labelled by program, so a browser's many processes count as one.
-fn process_ticks() -> (HashMap<u32, (String, u64)>, usize) {
+/// `programs` keeps the names of the processes still running.
+fn process_ticks(programs: &mut HashMap<(u32, u64), String>) -> (HashMap<u32, (String, u64)>, usize) {
     let mut ticks = HashMap::new();
+    let mut known = HashMap::with_capacity(programs.len());
     let mut count = 0;
     for entry in fs::read_dir("/proc").into_iter().flatten().flatten() {
         let Some(pid) = entry
@@ -784,8 +880,16 @@ fn process_ticks() -> (HashMap<u32, (String, u64)>, usize) {
         let (Some(open), Some(close)) = (stat.find('('), stat.rfind(')')) else {
             continue;
         };
-        let name = program(&entry.path(), &stat[open + 1..close]);
         let fields: Vec<&str> = stat[close + 1..].split_whitespace().collect();
+        let started = fields
+            .get(19)
+            .and_then(|value| value.parse::<u64>().ok())
+            .unwrap_or(0);
+        let name = match programs.remove(&(pid, started)) {
+            Some(name) => name,
+            None => program(&entry.path(), &stat[open + 1..close]),
+        };
+        known.insert((pid, started), name.clone());
         let used = fields
             .get(11)
             .and_then(|value| value.parse::<u64>().ok())
@@ -796,6 +900,7 @@ fn process_ticks() -> (HashMap<u32, (String, u64)>, usize) {
                 .unwrap_or(0);
         ticks.insert(pid, (name, used));
     }
+    *programs = known;
     (ticks, count)
 }
 
@@ -818,7 +923,77 @@ fn rate(now: (u64, u64, Instant), prev: Option<(u64, u64, Instant)>) -> Option<(
 }
 
 impl Sampler {
-    pub fn sample(&mut self) -> SysStats {
+    /// Measures each program's CPU share since the last scan, and makes this the next one's base.
+    /// `None` on the first scan, which has nothing to measure from.
+    fn scan_processes(&mut self) -> (Option<Vec<Process>>, usize) {
+        let now = Instant::now();
+        let threads = std::thread::available_parallelism().map_or(1, usize::from);
+        let (ticks, count) = process_ticks(&mut self.programs);
+        let top = self.prev_process_at.map(|at| {
+            let seconds = now.duration_since(at).as_secs_f64().max(f64::EPSILON);
+            let mut by_name: HashMap<&str, u64> = HashMap::new();
+            for (pid, (name, used)) in &ticks {
+                let before = self.prev_processes.get(pid).copied().unwrap_or(*used);
+                *by_name.entry(name.as_str()).or_default() += used.saturating_sub(before);
+            }
+            let mut top: Vec<Process> = by_name
+                .into_iter()
+                .filter(|(_, delta)| *delta > 0)
+                .map(|(name, delta)| Process {
+                    name: name.to_owned(),
+                    cpu: (delta as f64 / TICKS / seconds / threads as f64) as f32,
+                })
+                .collect();
+            top.sort_by(|a, b| b.cpu.total_cmp(&a.cpu));
+            top.truncate(TOP_PROCESSES);
+            top
+        });
+        self.prev_processes = ticks
+            .into_iter()
+            .map(|(pid, (_, used))| (pid, used))
+            .collect();
+        self.prev_process_at = Some(now);
+        (top, count)
+    }
+
+    fn look(&mut self) -> Looked {
+        let partitions: Vec<Partition> = self
+            .mounts
+            .iter()
+            .filter_map(|mount| {
+                let (used, total) = statvfs(&mount.mount)?;
+                Some(Partition {
+                    mount: mount.mount.clone(),
+                    device: mount.device.clone(),
+                    used,
+                    total,
+                })
+            })
+            .collect();
+        let (processes, process_count) = self.scan_processes();
+        self.kept = Looked {
+            cpu_ghz: cpu_ghz(),
+            drives: drives(&partitions),
+            partitions,
+            sensors: self
+                .sensors
+                .iter()
+                .filter_map(|probe| {
+                    Some(Sensor {
+                        label: probe.label.clone(),
+                        celsius: read_temp(&probe.path)?,
+                    })
+                })
+                .collect(),
+            processes: processes.unwrap_or_default(),
+            process_count,
+        };
+        self.kept.clone()
+    }
+
+    /// What no history needs is read afresh only when `watched`, and otherwise kept from the last
+    /// look.
+    pub fn sample(&mut self, watched: bool) -> SysStats {
         let now = Instant::now();
         let mut stats = SysStats {
             threads: std::thread::available_parallelism().map_or(0, usize::from),
@@ -849,7 +1024,6 @@ impl Sampler {
             self.prev_cpu = Some(total);
             self.prev_cores = cores;
         }
-        stats.cpu_ghz = cpu_ghz();
         stats.cpu_temp = self.cpu_temp.as_deref().and_then(read_temp);
         if let Some(temp) = stats.cpu_temp {
             push(&mut self.cpu_temp_history, temp);
@@ -903,21 +1077,6 @@ impl Sampler {
             );
         }
 
-        stats.partitions = self
-            .mounts
-            .iter()
-            .filter_map(|mount| {
-                let (used, total) = statvfs(&mount.mount)?;
-                Some(Partition {
-                    mount: mount.mount.clone(),
-                    device: mount.device.clone(),
-                    used,
-                    total,
-                })
-            })
-            .collect();
-        stats.drives = drives(&stats.partitions);
-
         if let Some((rx, tx)) = read_net() {
             let sample = (rx, tx, now);
             if let Some((rx_rate, tx_rate)) = rate(sample, self.prev_net) {
@@ -939,16 +1098,6 @@ impl Sampler {
             self.prev_disk = Some(sample);
         }
 
-        stats.sensors = self
-            .sensors
-            .iter()
-            .filter_map(|probe| {
-                Some(Sensor {
-                    label: probe.label.clone(),
-                    celsius: read_temp(&probe.path)?,
-                })
-            })
-            .collect();
         if let Some(temp) = self.storage_temp.as_deref().and_then(read_temp) {
             push(&mut self.storage_temp_history, temp);
         }
@@ -966,32 +1115,12 @@ impl Sampler {
             })
             .collect();
 
-        let (ticks, count) = process_ticks();
-        stats.process_count = count;
-        if let Some(at) = self.prev_process_at {
-            let seconds = now.duration_since(at).as_secs_f64().max(f64::EPSILON);
-            let mut by_name: HashMap<&str, u64> = HashMap::new();
-            for (pid, (name, used)) in &ticks {
-                let before = self.prev_processes.get(pid).copied().unwrap_or(*used);
-                *by_name.entry(name.as_str()).or_default() += used.saturating_sub(before);
-            }
-            let mut top: Vec<Process> = by_name
-                .into_iter()
-                .filter(|(_, delta)| *delta > 0)
-                .map(|(name, delta)| Process {
-                    name: name.to_owned(),
-                    cpu: (delta as f64 / TICKS / seconds / stats.threads.max(1) as f64) as f32,
-                })
-                .collect();
-            top.sort_by(|a, b| b.cpu.total_cmp(&a.cpu));
-            top.truncate(TOP_PROCESSES);
-            stats.processes = top;
-        }
-        self.prev_processes = ticks
-            .into_iter()
-            .map(|(pid, (_, used))| (pid, used))
-            .collect();
-        self.prev_process_at = Some(now);
+        let looked = if watched {
+            self.look()
+        } else {
+            self.kept.clone()
+        };
+        looked.apply(&mut stats);
 
         if let Ok(loadavg) = fs::read_to_string("/proc/loadavg") {
             for (slot, value) in stats.load.iter_mut().zip(loadavg.split_whitespace()) {

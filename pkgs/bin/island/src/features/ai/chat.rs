@@ -153,6 +153,7 @@ fn welcome(p: &PanelCx<'_>) -> Vec<Block> {
                 overline: Some("Claude".into()),
                 title: "Ask something quick".into(),
                 title_color: None,
+                wrap: false,
                 detail: "".into(),
                 trail: Vec::new(),
             },
@@ -165,6 +166,7 @@ fn welcome(p: &PanelCx<'_>) -> Vec<Block> {
             buttons: starters,
             compact: true,
             indent: LEAD + item::LEAD_GAP,
+            menu: None,
         }),
     ]
 }
@@ -227,6 +229,7 @@ pub(super) fn panel(
             p.on_local::<Ai>(|ai, view| ai.chat_send(std::mem::take(&mut view.draft)))
         }),
         busy: chat.busy,
+        secret: false,
     }));
     (buttons, blocks)
 }

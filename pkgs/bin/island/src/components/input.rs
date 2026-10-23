@@ -33,7 +33,11 @@ pub struct InputView {
     pub on_send: Option<Handler>,
     /// A beam runs round the field while what was sent is being answered.
     pub busy: bool,
+    /// Shows a dot for each character, such as for a password.
+    pub secret: bool,
 }
+
+const SECRET_DOT: char = '•';
 
 /// What a key did to the text.
 #[derive(Debug, PartialEq, Eq)]
@@ -82,15 +86,20 @@ pub fn edit(text: &mut String, keystroke: &Keystroke) -> Edit {
 
 pub fn input(view: InputView, hover: bool, cx: &mut Context<Island>) -> AnyElement {
     let empty = view.text.is_empty();
+    let text = if view.secret {
+        SECRET_DOT.to_string().repeat(view.text.chars().count())
+    } else {
+        view.text.to_string()
+    };
     let shown = if empty {
         SharedString::from(format!("{CARET}{}", view.placeholder))
     } else {
-        SharedString::from(format!("{}{CARET}", view.text))
+        SharedString::from(format!("{text}{CARET}"))
     };
     let caret = if empty {
         0..CARET.len()
     } else {
-        view.text.len()..shown.len()
+        text.len()..shown.len()
     };
     let mut highlights = vec![(
         caret,

@@ -35,7 +35,7 @@ mod wm;
 use std::{path::PathBuf, rc::Rc};
 
 use futures::channel::mpsc::unbounded;
-use gpui::App;
+use gpui::{App, QuitMode};
 use tracing::{error, info, warn};
 
 use shell::{Config, Shell};
@@ -194,6 +194,9 @@ fn main() {
 
     gpui_platform::application()
         .with_assets(icons::Files)
+        // Unplugging every monitor closes every island; outliving that lets them reopen when
+        // outputs come back instead of exiting cleanly, which systemd would not restart.
+        .with_quit_mode(QuitMode::Explicit)
         .run(move |cx: &mut App| {
             cx.set_global(system);
             Shell::start(config, incoming, workspaces, cx);

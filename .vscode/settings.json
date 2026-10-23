@@ -1,0 +1,20 @@
+{
+  "nix.serverSettings": {
+    "nixd": {
+      "nixpkgs": {
+        "expr": "(builtins.getFlake \"git+file://${toString ./.}\").nixosConfigurations.thor.pkgs"
+      },
+      "options": {
+        "nixos": {
+          "expr": "(builtins.getFlake \"git+file://${toString ./.}\").nixosConfigurations.thor.options"
+        },
+        "home-manager": {
+          "expr": "(builtins.getFlake \"git+file://${toString ./.}\").nixosConfigurations.thor.options.home-manager.users.valueMeta.attrs.krezh.configuration.options"
+        },
+        "flake-parts": {
+          "expr": "let f = builtins.getFlake \"git+file://${toString ./.}\"; in f.debug.options // f.currentSystem.options"
+        }
+      }
+    }
+  }
+}

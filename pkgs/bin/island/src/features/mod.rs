@@ -2,6 +2,7 @@
 
 pub mod ai;
 pub mod audio;
+pub mod bluetooth;
 pub mod brightness;
 pub mod caffeine;
 pub mod clipboard;
@@ -10,6 +11,7 @@ pub mod headset;
 pub mod launcher;
 pub mod media;
 pub mod molt;
+pub mod network;
 pub mod notifications;
 pub mod osd;
 pub mod session;

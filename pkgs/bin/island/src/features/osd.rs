@@ -6,7 +6,7 @@ use std::time::{Duration, Instant};
 use super::{IslandInfo, Local, PanelCx};
 use crate::panel::{Block, Header, Meter, PanelView};
 
-const DURATION: Duration = Duration::from_millis(1500);
+pub const DURATION: Duration = Duration::from_millis(1500);
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Osd {
@@ -17,6 +17,8 @@ pub struct Osd {
     pub label: String,
     /// Level and muted; `None` when the device itself changed, which shows only the device.
     pub level: Option<(f32, bool)>,
+    /// [`DURATION`] for a change the user made; longer for news they did not cause.
+    pub lasts: Duration,
 }
 
 #[derive(Default)]
@@ -59,13 +61,18 @@ impl Local for Shown {
         if self.hovered && self.osd.is_none() && !self.fullscreen && osd.level.is_some() {
             return;
         }
+        self.until = Some(Instant::now() + osd.lasts);
         self.osd = Some(osd);
-        self.until = Some(Instant::now() + DURATION);
     }
 }
 
 pub fn popup<'a>(p: &PanelCx<'a>) -> Option<PanelView> {
-    let osd = p.local::<Shown>()?.osd.clone()?;
+    shown_popup(p.local::<Shown>()?, p)
+}
+
+/// For a feature whose own part holds a [`Shown`] beside other things, such as a card it asks with.
+pub fn shown_popup(shown: &Shown, p: &PanelCx<'_>) -> Option<PanelView> {
+    let osd = shown.osd.clone()?;
     Some(PanelView {
         header: Header::None,
         blocks: vec![Block::Meter(Meter {

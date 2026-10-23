@@ -1,4 +1,4 @@
-use super::spec::{self, Command, Takes, Value};
+use super::spec::{self, Command, Form, Takes, Value};
 use crate::cli::{Line, Mistake, Tone, either, listed};
 
 const CTL: &str = "island ctl";
@@ -126,65 +126,13 @@ fn check(command: &Command, rest: &[&str]) -> Result<(), Mistake> {
             [] => Ok(()),
             extra => Err(too_much(command, name.to_owned(), extra)),
         },
-        Takes::Forms { forms, bare } => {
-            let words: Vec<&str> = forms.iter().map(|form| form.word).collect();
-            let Some((&word, after)) = rest.split_first() else {
-                return match bare {
-                    Some(_) => Ok(()),
-                    None => Err(needs(command, format!("one of {}", either(&words)))
-                        .see_help(&help)),
-                };
+        Takes::Forms { forms, bare } => check_forms(command, forms, *bare, rest),
+        Takes::Aimed { forms, bare, .. } => {
+            let rest = match rest.split_first() {
+                Some((first, after)) if !forms.iter().any(|form| form.word == *first) => after,
+                _ => rest,
             };
-            let Some(form) = forms.iter().find(|form| form.word == word) else {
-                return Err(Mistake::new(
-                    Line::new()
-                        .push(Tone::Command, name)
-                        .plain(" has no ")
-                        .push(Tone::Strong, word),
-                )
-                .did_you_mean(word, words.iter().copied())
-                .hint(
-                    Line::new()
-                        .push(Tone::Faint, "It takes ")
-                        .plain(either(&words)),
-                ));
-            };
-            match (form.value, after) {
-                (Value::Nothing | Value::MaybePercent, []) => Ok(()),
-                (Value::Percent, []) => Err(Mistake::new(
-                    Line::new()
-                        .push(Tone::Command, format!("{name} {word}"))
-                        .plain(" needs a percentage"),
-                )
-                .hint(
-                    Line::new()
-                        .push(Tone::Faint, "Such as ")
-                        .push(Tone::Command, format!("island ctl {name} {word} 40")),
-                )),
-                (Value::Percent | Value::MaybePercent, [value]) => {
-                    percent(value).map(drop).map_err(|_| {
-                        Mistake::new(
-                            Line::new()
-                                .push(Tone::Strong, *value)
-                                .plain(" is not a percentage"),
-                        )
-                        .hint(
-                            Line::new()
-                                .push(Tone::Faint, "Give a number such as ")
-                                .push(Tone::Value, "40")
-                                .push(Tone::Faint, " or ")
-                                .push(Tone::Value, "40%"),
-                        )
-                        .see_help(&help)
-                    })
-                }
-                (Value::Nothing, extra) => Err(too_much(command, format!("{name} {word}"), extra)),
-                (_, [value, extra @ ..]) => Err(too_much(
-                    command,
-                    format!("{name} {word} {value}"),
-                    extra,
-                )),
-            }
+            check_forms(command, forms, *bare, rest)
         }
         Takes::Panel => {
             let panels = spec::panels();
@@ -225,6 +173,71 @@ fn check(command: &Command, rest: &[&str]) -> Result<(), Mistake> {
             [] => Err(needs(command, format!("a {what}")).see_help(&help)),
             [word, extra @ ..] => Err(too_much(command, format!("{name} {word}"), extra)),
         },
+    }
+}
+
+fn check_forms(
+    command: &Command,
+    forms: &[Form],
+    bare: Option<&str>,
+    rest: &[&str],
+) -> Result<(), Mistake> {
+    let name = command.name;
+    let help = path(command);
+    let words: Vec<&str> = forms.iter().map(|form| form.word).collect();
+    let Some((&word, after)) = rest.split_first() else {
+        return match bare {
+            Some(_) => Ok(()),
+            None => Err(needs(command, format!("one of {}", either(&words))).see_help(&help)),
+        };
+    };
+    let Some(form) = forms.iter().find(|form| form.word == word) else {
+        return Err(Mistake::new(
+            Line::new()
+                .push(Tone::Command, name)
+                .plain(" has no ")
+                .push(Tone::Strong, word),
+        )
+        .did_you_mean(word, words.iter().copied())
+        .hint(
+            Line::new()
+                .push(Tone::Faint, "It takes ")
+                .plain(either(&words)),
+        ));
+    };
+    match (form.value, after) {
+        (Value::Nothing | Value::MaybePercent, []) => Ok(()),
+        (Value::Percent, []) => Err(Mistake::new(
+            Line::new()
+                .push(Tone::Command, format!("{name} {word}"))
+                .plain(" needs a percentage"),
+        )
+        .hint(
+            Line::new()
+                .push(Tone::Faint, "Such as ")
+                .push(Tone::Command, format!("island ctl {name} {word} 40")),
+        )),
+        (Value::Percent | Value::MaybePercent, [value]) => percent(value).map(drop).map_err(|_| {
+            Mistake::new(
+                Line::new()
+                    .push(Tone::Strong, *value)
+                    .plain(" is not a percentage"),
+            )
+            .hint(
+                Line::new()
+                    .push(Tone::Faint, "Give a number such as ")
+                    .push(Tone::Value, "40")
+                    .push(Tone::Faint, " or ")
+                    .push(Tone::Value, "40%"),
+            )
+            .see_help(&help)
+        }),
+        (Value::Nothing, extra) => Err(too_much(command, format!("{name} {word}"), extra)),
+        (_, [value, extra @ ..]) => Err(too_much(
+            command,
+            format!("{name} {word} {value}"),
+            extra,
+        )),
     }
 }
 

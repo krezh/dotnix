@@ -11,7 +11,7 @@ use crate::{
         marquee::{self, TextLayouts},
         measure::{self, Measured},
         motion,
-        tooltip::Tooltips,
+        tooltip::{Tip, Tooltips},
     },
     config::{self, Widget},
     features::{self, AnyLocal, Features, WidgetCx},
@@ -29,14 +29,22 @@ pub const GLYPH: f32 = 15.0;
 pub const ICON_GAP: f32 = 6.0;
 const METER_W: f32 = 4.0;
 const METER_H: f32 = 16.0;
-const TAB_W: f32 = 96.0;
+/// Each tab shows its glyph, `tab-<panel>`, and names itself in a tooltip.
+const TAB_W: f32 = 48.0;
+const TAB_GLYPH: f32 = 18.0;
 const TAB_GAP: f32 = 4.0;
 pub const TAB_STEP: f32 = TAB_W + TAB_GAP;
 const CLOSE_GAP: f32 = 16.0;
 
+/// Island's own tab; each feature's tab glyph comes with the feature's glyphs.
+pub const GLYPHS: &[features::GlyphSpec] = &[(
+    "tab-system",
+    &["utilities-system-monitor-symbolic", "computer-symbolic"],
+)];
+
 fn tab_list() -> &'static [(Panel, &'static str)] {
     static TABS: LazyLock<Vec<(Panel, &'static str)>> = LazyLock::new(|| {
-        let mut tabs = vec![(Panel::System, "System", 3)];
+        let mut tabs = vec![(Panel::System, "System", 4)];
         tabs.extend(
             features::tabs()
                 .into_iter()
@@ -223,8 +231,8 @@ fn meter(level: Option<f32>, color: u32) -> Div {
         })
 }
 
-pub fn presence_key(Widget(name): Widget) -> String {
-    name.to_owned()
+pub fn presence_key(Widget(name): Widget) -> &'static str {
+    name
 }
 
 /// Widgets that rest at 0 disappear; others keep a core (media keeps its icon) and fold only their
@@ -420,8 +428,10 @@ pub fn tabs(
     pill_x: f32,
     strip_left: f32,
     hover: bool,
+    tips: &Tooltips,
     cx: &mut Context<Island>,
 ) -> AnyElement {
+    let glyphs = cx.global::<Glyphs>().clone();
     ui::base()
         .relative()
         .size_full()
@@ -443,18 +453,19 @@ pub fn tabs(
                 )
                 .children(tab_list().iter().map(|&(kind, label)| {
                     let selected = selected == kind;
-                    button::fill(
-                        SharedString::from(format!("tab-{}", kind.name())),
-                        Radius::Row,
-                        None,
-                        !selected && hover,
-                    )
-                    .w(px(TAB_W))
-                    .h(px(HEADER_H))
-                    .text_size(px(ui::TEXT_SIZE))
-                    .font_weight(FontWeight::SEMIBOLD)
-                    .text_color(rgb(if selected { ACCENT } else { TEXT }))
-                    .child(label)
+                    let id = SharedString::from(format!("tab-{}", kind.name()));
+                    let color = if selected { ACCENT } else { TEXT };
+                    let tab = button::fill(id.clone(), Radius::Row, None, !selected && hover)
+                        .w(px(TAB_W))
+                        .h(px(HEADER_H))
+                        .text_size(px(ui::TEXT_SIZE))
+                        .font_weight(FontWeight::SEMIBOLD)
+                        .text_color(rgb(color));
+                    match glyphs.get(&id) {
+                        Some(path) => tab.child(icon::glyph(path, TAB_GLYPH, color)),
+                        None => tab.child(label),
+                    }
+                    .tip(tips, id, label)
                     .on_click(
                         cx.listener(move |this, _, _, cx| this.set_mode(Mode::Open(kind), cx)),
                     )

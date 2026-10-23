@@ -3,7 +3,7 @@ use std::{thread, time::Duration};
 use chrono::{DateTime, Local, Timelike};
 use gpui::{AnyElement, FontWeight, MouseButton, div, prelude::*, px};
 
-use super::{Feature, Feed, PanelCx, WidgetCx};
+use super::{Feature, Feed, GlyphSpec, PanelCx, WidgetCx};
 use crate::{
     components::{motion, tooltip::Tip},
     island::Panel,
@@ -12,7 +12,7 @@ use crate::{
     ui::{SMALL_SIZE, TITLE_SIZE},
 };
 
-const GAP: f32 = 10.0;
+const GAP: f32 = 6.0;
 /// How long after the minute turns the clock moves, so it never shows the minute before.
 const LATE: Duration = Duration::from_millis(5);
 
@@ -45,7 +45,15 @@ pub struct Clock;
 impl Feature for Clock {
     const NAME: &'static str = "clock";
     const PANEL: Option<&'static str> = Some("calendar");
-    const TAB: Option<(&'static str, u8)> = Some(("Calendar", 0));
+    const TAB: Option<(&'static str, u8)> = Some(("Calendar", 1));
+    const GLYPHS: &'static [GlyphSpec] = &[(
+        "tab-calendar",
+        &[
+            "office-calendar-symbolic",
+            "lucide-calendar-symbolic",
+            "x-office-calendar-symbolic",
+        ],
+    )];
 
     /// Minutes since the epoch.
     type State = i64;
@@ -80,14 +88,14 @@ impl Feature for Clock {
                 )
                 .child(
                     div()
-                        .text_size(px(SMALL_SIZE))
-                        .child(motion::text("date", now.format("%a %-d %b").to_string())),
-                )
-                .child(
-                    div()
                         .text_size(px(TITLE_SIZE))
                         .font_weight(FontWeight::BOLD)
                         .child(motion::text("time", now.format("%H:%M").to_string())),
+                )
+                .child(
+                    div()
+                        .text_size(px(SMALL_SIZE))
+                        .child(motion::text("date", now.format("%a %-d").to_string())),
                 )
                 .on_click(w.toggle(Panel::Feature(Self::NAME)))
                 .on_mouse_down(MouseButton::Right, w.toggle(Panel::System))

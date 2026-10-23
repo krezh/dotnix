@@ -25,7 +25,7 @@ fn gib(bytes: f64) -> f64 {
     bytes / (1024.0 * 1024.0 * 1024.0)
 }
 
-fn rate(bytes_per_second: f64) -> String {
+pub(crate) fn rate(bytes_per_second: f64) -> String {
     match bytes_per_second {
         rate if rate >= 1024.0 * 1024.0 => format!("{:.1} MB/s", rate / (1024.0 * 1024.0)),
         rate if rate >= 1024.0 => format!("{:.1} kB/s", rate / 1024.0),
@@ -51,7 +51,7 @@ fn size(bytes: u64) -> String {
     }
 }
 
-fn short_duration(seconds: u64) -> String {
+pub(crate) fn short_duration(seconds: u64) -> String {
     let (days, hours, minutes) = (seconds / 86_400, (seconds / 3600) % 24, (seconds / 60) % 60);
     match days {
         0 => format!("{hours}h {minutes}m"),
@@ -69,7 +69,7 @@ fn heat(celsius: f32) -> u32 {
 }
 
 /// A round chart ceiling (1, 2 or 5 × 10ⁿ) above every value, never below `floor`.
-fn nice_peak<'a>(values: impl IntoIterator<Item = &'a f32>, floor: f32) -> f32 {
+pub(crate) fn nice_peak<'a>(values: impl IntoIterator<Item = &'a f32>, floor: f32) -> f32 {
     let peak = values.into_iter().copied().fold(floor, f32::max);
     let magnitude = 10f32.powf(peak.log10().floor());
     [1.0, 2.0, 5.0, 10.0]
@@ -79,7 +79,7 @@ fn nice_peak<'a>(values: impl IntoIterator<Item = &'a f32>, floor: f32) -> f32 {
         .unwrap_or(peak)
 }
 
-fn series(
+pub(crate) fn series(
     values: &[f32],
     max: f32,
     color: u32,
@@ -107,7 +107,7 @@ fn watts(value: f32) -> String {
     format!("{value:.0} W")
 }
 
-fn tile_meter(
+pub(crate) fn tile_meter(
     label: impl Into<SharedString>,
     fraction: f32,
     value: impl Into<SharedString>,
@@ -122,7 +122,7 @@ fn tile_meter(
     }
 }
 
-fn titled(id: &str, span: usize, title: &str, value: Option<card::Stat>, parts: Vec<Part>) -> Tile {
+pub(crate) fn titled(id: &str, span: usize, title: &str, value: Option<card::Stat>, parts: Vec<Part>) -> Tile {
     Tile {
         id: id.to_owned().into(),
         span,
@@ -617,6 +617,7 @@ pub fn system(
                 buttons,
                 compact: false,
                 indent: 0.0,
+                menu: None,
             }),
             Block::Board(vec![
                 vec![

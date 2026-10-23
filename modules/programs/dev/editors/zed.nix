@@ -7,6 +7,11 @@
       config,
       ...
     }:
+    let
+      alpha = lib.toLower (
+        lib.fixedWidthString 2 "0" (lib.toHexString (builtins.floor (config.var.opacity * 255)))
+      );
+    in
     {
       programs.zed-editor = {
         enable = true;
@@ -41,7 +46,7 @@
           ui_font_size = 17;
           ui_font_family = config.var.fonts.sans;
           buffer_font_size = 15;
-          buffer_font_family = "${config.var.fonts.mono}";
+          buffer_font_family = config.var.fonts.mono;
           relative_line_numbers = "disabled";
           tab_size = 2;
           minimap.show = "never";
@@ -101,7 +106,6 @@
                       };
                     })).options
                   '';
-                  flake_parts.expr = "let flake = builtins.getFlake (toString ./.); in flake.debug.options // flake.currentSystem.options";
                 };
               };
             };
@@ -125,6 +129,27 @@
           telemetry = {
             diagnostics = false;
             metrics = false;
+          };
+          theme_overrides."Catppuccin Mocha (blue)" = {
+            "background" = "#1e1e2e00";
+            "background.appearance" = "blurred";
+            "editor.background" = "#1e1e2e${alpha}";
+            "editor.gutter.background" = "#1e1e2e${alpha}";
+            "editor.subheader.background" = "#181825${alpha}";
+            "elevated_surface.background" = "#181825${alpha}";
+            "panel.background" = "#181825${alpha}";
+            "panel.overlay_background" = "#18182500";
+            "scrollbar.track.background" = "#11111b00";
+            "status_bar.background" = "#11111b${alpha}";
+            "surface.background" = "#181825${alpha}";
+            "tab.active_background" = "#1e1e2e00";
+            "tab.inactive_background" = "#0b0b1100";
+            "tab_bar.background" = "#11111b${alpha}";
+            "terminal.ansi.background" = "#1e1e2e00";
+            "terminal.background" = "#1e1e2e${alpha}";
+            "title_bar.background" = "#11111b${alpha}";
+            "title_bar.inactive_background" = "#171725${alpha}";
+            "toolbar.background" = "#1e1e2e${alpha}";
           };
         };
       };

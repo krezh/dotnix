@@ -101,11 +101,6 @@
       };
     };
 
-    zen-browser-catppuccin = {
-      url = "github:catppuccin/zen-browser/dbfa3f6b29ef46b57375a3745f20bb7a50702727";
-      flake = false;
-    };
-
     code-comments = {
       url = "github:pash7ka/code-comments";
       flake = false;

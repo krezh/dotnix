@@ -11,6 +11,7 @@ fn mood(activity: Activity) -> Mood {
         cheer_color: GREEN,
         near: false,
         loading: false,
+        warning: false,
     }
 }
 
@@ -84,7 +85,6 @@ fn asleep_it_shuts_its_eyes() {
     let mut body = Body::new(false, mood(Activity::Asleep), start, 0);
     let now = run(&mut body, start, 1.0);
     let pose = body.pose(now);
-    assert!(pose.asleep);
     assert!(pose.lid > 0.9);
 }
 
@@ -114,6 +114,38 @@ fn loading_shows_a_spinner_and_keeps_it_moving() {
 }
 
 #[test]
+fn a_warning_shows_a_still_badge_under_asking_and_loading() {
+    let start = Instant::now();
+    let warning = |activity| Mood {
+        warning: true,
+        ..mood(activity)
+    };
+    let mut body = Body::new(false, warning(Activity::Rest), start, 0);
+    // Only its frown moves: no blink or glance comes due.
+    body.next_blink = start + Duration::from_secs(60);
+    body.next_glance = start + Duration::from_secs(60);
+    let now = run(&mut body, start, 1.5);
+    assert!(body.is_settled());
+    let pose = body.pose(now);
+    assert!(matches!(pose.extra, Extra::Warning));
+    assert!(pose.worry > 0.9);
+
+    body.set(
+        Mood {
+            loading: true,
+            ..warning(Activity::Rest)
+        },
+        now,
+    );
+    assert!(matches!(body.pose(now).extra, Extra::Loading(_)));
+    body.set(warning(Activity::Asking), now);
+    assert!(matches!(body.pose(now).extra, Extra::Asking(_)));
+    // Asking, it gasps rather than frowns.
+    let now = run(&mut body, now, 1.0);
+    assert!(body.pose(now).worry < 0.1);
+}
+
+#[test]
 fn a_poke_sets_it_wobbling() {
     let start = Instant::now();
     let mut body = Body::new(false, mood(Activity::Rest), start, 0);
@@ -121,4 +153,42 @@ fn a_poke_sets_it_wobbling() {
     let now = run(&mut body, start, 0.1);
     assert!(!body.is_settled());
     assert!(body.pose(now).wobble.iter().any(|(_, size, _)| size.abs() > 0.01));
+}
+
+#[test]
+fn a_ringing_wobble_drifts_only_once_it_has_faded() {
+    let start = Instant::now();
+    let mut body = Body::new(false, mood(Activity::Rest), start, 0);
+    // Only the wobble moves: no blink or glance comes due.
+    body.next_blink = start + Duration::from_secs(60);
+    body.next_glance = start + Duration::from_secs(60);
+    body.jiggle(1.4);
+    let dt = 1.0 / 60.0;
+    let mut now = start;
+    let mut drifted = false;
+    for _ in 0..(6.0 / dt) as usize {
+        now += Duration::from_secs_f32(dt);
+        body.step(dt, now);
+        if body.is_settled() {
+            break;
+        }
+        // Once slow enough to drift, it never speeds back up to every frame.
+        assert!(!drifted || body.is_drifting());
+        drifted |= body.is_drifting();
+    }
+    assert!(drifted);
+}
+
+#[test]
+fn its_badge_shrinks_away_rather_than_vanishing() {
+    let start = Instant::now();
+    let mut body = Body::new(false, mood(Activity::Busy), start, 0);
+    let now = run(&mut body, start, 0.5);
+    body.set(mood(Activity::Rest), now);
+    let now = run(&mut body, now, 0.05);
+    let pose = body.pose(now);
+    assert!(matches!(pose.extra, Extra::Busy(_)));
+    assert!(pose.badge > 0.1 && pose.badge < 1.0);
+    let now = run(&mut body, now, 1.0);
+    assert!(body.pose(now).badge < 0.02);
 }

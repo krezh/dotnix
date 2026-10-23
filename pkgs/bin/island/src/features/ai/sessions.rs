@@ -129,6 +129,7 @@ fn list(sessions: &[&Session], shown: &str, p: &PanelCx<'_>) -> Block {
                         overline: Some(format::countdown(now, session.active_at).into()),
                         title: session.project.clone().into(),
                         title_color: None,
+                        wrap: false,
                         detail: "".into(),
                         trail: vec![Trail::Status(label.into(), color)],
                     },
@@ -254,6 +255,7 @@ fn step_block(session: &Session, step: &Step, following: bool, view: &View, p: &
                 overline: None,
                 title: hook::label(&step.verb, &step.target).into(),
                 title_color: None,
+                wrap: false,
                 detail: "".into(),
                 trail: vec![
                     Trail::Status("".into(), step_color(step.state)),

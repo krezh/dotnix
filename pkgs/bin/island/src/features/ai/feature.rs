@@ -74,6 +74,9 @@ impl Feature for Ai {
         about: "Hand island a Claude Code hook event; Claude Code's hooks run it",
         value: "event",
         values: hook::EVENTS,
+        note: Some(
+            "After --, a command such as a status line gets the same input. island ai-hook plugin <dir> writes the Claude Code plugin that runs these hooks.",
+        ),
     });
     const KEYBOARD: bool = true;
 

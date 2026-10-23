@@ -98,6 +98,8 @@ pub struct Client {
     /// What it takes, named so in help, and the values it knows.
     pub value: &'static str,
     pub values: &'static [&'static str],
+    /// A line under its help, such as what else it takes.
+    pub note: Option<&'static str>,
 }
 
 #[derive(Debug)]
@@ -151,7 +153,7 @@ pub fn commands() -> Vec<Sub> {
             name: client.name,
             about: client.about,
             takes: Takes::One(client.value, client.values),
-            note: None,
+            note: client.note,
             for_programs: true,
         }))
         .collect()

@@ -33,6 +33,8 @@ pub(crate) struct UiState {
     /// The report's activation confirmations: Switch first, the keyboard's target, then Boot.
     pub(crate) switch_confirmations: RefCell<Vec<SwitchConfirmation>>,
     pub(crate) back_button: RefCell<Option<gtk::Button>>,
+    /// Moves a screen's selection by a number of rows; Up and Down try it before scrolling.
+    pub(crate) list_step: RefCell<Option<Rc<dyn Fn(i32) -> bool>>>,
     pub(crate) operation: Cell<Operation>,
     pub(crate) generation: Cell<u64>,
     pub(crate) cancellation: RefCell<Option<Arc<AtomicBool>>>,
@@ -56,6 +58,7 @@ impl Default for UiState {
             scroll_glide: RefCell::new(None),
             switch_confirmations: RefCell::new(Vec::new()),
             back_button: RefCell::new(None),
+            list_step: RefCell::new(None),
             operation: Cell::new(Operation::Idle),
             generation: Cell::new(0),
             cancellation: RefCell::new(None),
@@ -83,6 +86,16 @@ impl UiState {
             confirmation.reset();
         }
         self.back_button.replace(None);
+        self.list_step.replace(None);
+    }
+
+    pub(crate) fn set_list_step(&self, step: impl Fn(i32) -> bool + 'static) {
+        self.list_step.replace(Some(Rc::new(step)));
+    }
+
+    pub(crate) fn step_list(&self, delta: i32) -> bool {
+        let step = self.list_step.borrow().clone();
+        step.is_some_and(|step| step(delta))
     }
 
     pub(crate) fn register_home_action(&self, key: char, button: &gtk::Button) {

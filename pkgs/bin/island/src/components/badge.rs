@@ -1,5 +1,5 @@
 //! A small picture standing for something in a row: a glyph, an app's icon, a picture, a letter,
-//! the mark a choice shows (a check box or a radio dot), or a mascot.
+//! the mark a choice shows (a check box or a radio dot), a mascot, or a ring with a value.
 
 use std::path::PathBuf;
 
@@ -12,9 +12,10 @@ use crate::{
     components::{
         icon::{self, Picture},
         mascot::{self, Pose},
+        ring::{self, Rings},
     },
     island::CONTENT_IN,
-    theme::{ACCENT, ON_ACCENT, OVERLAY1, with_alpha},
+    theme::{ACCENT, ON_ACCENT, OVERLAY1, TEXT, with_alpha},
     ui::{self, CONTROL_RADIUS, Radius},
 };
 
@@ -43,6 +44,14 @@ pub enum Mark {
     },
     /// A character as it stands now.
     Mascot(Pose),
+    /// A ring filled part way round, with a short value in it, such as a battery's charge. `key`
+    /// names its animation, so it glides to a new value in place.
+    Ring {
+        key: SharedString,
+        fraction: f32,
+        color: u32,
+        value: SharedString,
+    },
 }
 
 fn blend(from: Rgba, to: Rgba, t: f32) -> Hsla {
@@ -168,5 +177,23 @@ pub fn mark(mark: &Mark, size: f32, fill: f32) -> AnyElement {
             choice(key.clone(), *picked, *many, (picture * 0.9).round())
         }
         Mark::Mascot(pose) => mascot::mascot(pose.clone(), size).into_any_element(),
+        Mark::Ring {
+            key,
+            fraction,
+            color,
+            value,
+        } => ring::rings(Rings {
+            id: key.clone(),
+            size,
+            rings: vec![ring::Ring {
+                fraction: *fraction,
+                color: *color,
+                mark: None,
+                ahead: None,
+            }],
+            value: value.clone(),
+            value_color: TEXT,
+            label: SharedString::default(),
+        }),
     }
 }

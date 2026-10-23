@@ -1,5 +1,5 @@
-//! Neither logind nor DDC/CI tells of changes made elsewhere, so the OSD only shows changes made
-//! through `island ctl brightness`.
+//! Neither logind nor DDC/CI tells of changes made elsewhere, so a screen's level is as island last
+//! read or set it.
 
 mod device;
 mod feature;

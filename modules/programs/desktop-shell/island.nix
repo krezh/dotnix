@@ -24,6 +24,8 @@
           right = [
             "tray"
             "caffeine"
+            "network"
+            "bluetooth"
             "audio"
             "clock"
             "notifications"
@@ -31,6 +33,7 @@
           ];
           spacing = 0;
         };
+
         features = {
           ai = {
             disabledLimits.omp.google-antigravity = [ "3p-weekly:weekly" ];

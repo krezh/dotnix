@@ -24,6 +24,8 @@
         };
     in
     {
+      homeModules.island.features.ai.claudeCode.statusLine = "${pkgs.claude-usage-bar}/bin/claude-usage-bar";
+
       programs.claude-code = {
         enable = true;
         package = claudeWrapped;
@@ -43,6 +45,18 @@
           includeCoAuthoredBy = false;
           autoMemoryEnabled = false;
           remoteControlAtStartup = false;
+
+          hooks.PreToolUse = [
+            {
+              matcher = "Bash|WebFetch|WebSearch|Write|Edit";
+              hooks = [
+                {
+                  type = "command";
+                  command = "${lib.getExe pkgs.pii-egress-guard} ${config.sops.secrets."krezh/email".path}";
+                }
+              ];
+            }
+          ];
 
           statusLine = {
             command = lib.mkDefault "${pkgs.claude-usage-bar}/bin/claude-usage-bar";

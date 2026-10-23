@@ -1,39 +1,8 @@
 { inputs, ... }:
 {
   flake.modules.homeManager.browsers =
-    { pkgs, config, ... }:
+    { config, ... }:
     let
-      # Patch catppuccin to remove element separation
-      catppuccinPatched = pkgs.runCommand "catppuccin-zen-patched" { } ''
-                cp -r ${inputs.zen-browser-catppuccin}/themes/Mocha/Blue $out
-                chmod -R +w $out
-
-                # Remove element separation and webview border radius
-                sed -i 's/--zen-element-separation: 8px/--zen-element-separation: 0px/g' $out/userChrome.css
-                sed -i 's/--zen-webview-border-radius: 10px/--zen-webview-border-radius: 0px/g' $out/userChrome.css
-
-                # Fix dark-on-dark select dropdown: set panel item hover/active colors explicitly
-                cat >> $out/userChrome.css << 'EOF'
-
-        @media (prefers-color-scheme: dark) {
-          :root {
-            --panel-color: #cdd6f4 !important;
-            --panel-background: #1e1e2e !important;
-          }
-          #ContentSelectDropdown > menupopup {
-            color: #cdd6f4 !important;
-            color-scheme: dark !important;
-          }
-        }
-        EOF
-      '';
-
-      catppuccin = {
-        source = catppuccinPatched;
-        recursive = true;
-        force = true;
-      };
-
       lock = Value: {
         inherit Value;
         Status = "locked";
@@ -61,12 +30,15 @@
             "privacy.firstparty.isolate" = false;
             "privacy.partition.network_state" = false;
             "reader.parse-on-load.enabled" = false;
+            "devtools.chrome.enabled" = true;
+            "devtools.debugger.remote-enabled" = true;
 
             # https://docs.zen-browser.app/guides/about-config-flags
             "zen.theme.accent-color" = "#ffffff90";
             "zen.theme.border-radius" = toString config.var.rounding;
             "zen.theme.content-element-separation" = 0;
             "zen.theme.gradient" = false;
+            "zen.theme.acrylic-urlbar" = true;
             "zen.theme.gradient.show-custom-colors" = true;
             "zen.urlbar.replace-newtab" = true;
             "zen.urlbar.behavior" = "float";
@@ -154,7 +126,7 @@
             "media.videocontrols.picture-in-picture.enable-when-switching-tabs.enabled" = lock false;
 
             # Linux & Wayland
-            "widget.wayland.opaque-region.enabled" = lock true;
+            "widget.wayland.opaque-region.enabled" = lock false;
             "widget.wayland.fractional-scale.enabled" = lock true;
             "widget.gtk.rounded-bottom-corners.enabled" = lock true;
 
@@ -168,6 +140,10 @@
         };
       };
 
-      xdg.configFile."zen/${config.home.username}/chrome" = catppuccin;
+      xdg.configFile."zen/${config.home.username}/chrome" = {
+        source = ./chrome;
+        recursive = true;
+        force = true;
+      };
     };
 }

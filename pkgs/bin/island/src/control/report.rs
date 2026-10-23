@@ -110,6 +110,18 @@ impl Report {
     }
 }
 
+/// A [`Report`] now, or one that comes once slow work is done, so the UI does not wait for it.
+pub enum Reply {
+    Now(Report),
+    Later(oneshot::Receiver<Result<Report, String>>),
+}
+
+impl From<Report> for Reply {
+    fn from(report: Report) -> Self {
+        Reply::Now(report)
+    }
+}
+
 /// A command for the running island, with where its answer goes.
 pub struct Asked {
     pub control: Control,

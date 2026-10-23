@@ -5,7 +5,7 @@ use super::{
     state::{AudioState, Target},
 };
 use crate::{
-    features::Osd,
+    features::{Osd, osd::DURATION},
     theme::{BLUE, MAUVE},
 };
 
@@ -32,6 +32,7 @@ pub fn osd(before: &AudioState, after: &AudioState) -> Option<Osd> {
                 caption,
                 label: device.description.clone(),
                 level: (!switched).then_some((new.volume, new.muted)),
+                lasts: DURATION,
             })
         })
 }

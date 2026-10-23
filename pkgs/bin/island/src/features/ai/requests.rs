@@ -14,8 +14,8 @@ use super::{
 /// The least time a request gets once the pointer leaves, so one held near its end does not go
 /// the moment the pointer does.
 const RESUME_AT_LEAST_MS: i64 = 3000;
-/// The longest a request waits, held or not. Claude Code gives the hook a little longer (set in the
-/// claude-code island module), so an answer never goes to a hook it already ended.
+/// The longest a request waits, held or not. Claude Code gives the hook a little longer (set in
+/// `hook::plugin`), so an answer never goes to a hook it already ended.
 pub(super) const MOST_MS: i64 = 60 * 60 * 1000;
 
 /// Requests waiting on you, each with the hook call that waits for its answer.

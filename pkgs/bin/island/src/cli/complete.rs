@@ -16,6 +16,8 @@ enum At {
     Island,
     Ctl,
     Forms(&'static Command),
+    /// Before an aimed command's forms, where the word naming which one may also go.
+    Aimed(&'static Command),
     Panel,
     Views(&'static [&'static str]),
     Options(&'static [Opt]),
@@ -86,6 +88,7 @@ fn step(at: At, token: &str, resume: &mut Option<At>) -> At {
         {
             Some((_, command)) => match command.takes {
                 control::Takes::Forms { .. } => At::Forms(command),
+                control::Takes::Aimed { .. } => At::Aimed(command),
                 control::Takes::Panel => At::Panel,
                 control::Takes::Nothing | control::Takes::Word(_) => At::Done,
             },
@@ -93,6 +96,12 @@ fn step(at: At, token: &str, resume: &mut Option<At>) -> At {
         },
         // A percentage, if one follows, is the caller's to type.
         At::Forms(_) => At::Done,
+        At::Aimed(command) => match &command.takes {
+            control::Takes::Aimed { forms, .. } if !forms.iter().any(|form| form.word == token) => {
+                At::Forms(command)
+            }
+            _ => At::Done,
+        },
         At::Panel => At::Views(
             control::panels()
                 .into_iter()
@@ -128,8 +137,8 @@ fn offered(at: At) -> Answer {
                 word("--help", "Show the help"),
             ])
             .collect(),
-        At::Forms(command) => match &command.takes {
-            control::Takes::Forms { forms, .. } => forms
+        At::Forms(command) | At::Aimed(command) => match &command.takes {
+            control::Takes::Forms { forms, .. } | control::Takes::Aimed { forms, .. } => forms
                 .iter()
                 .map(|form| word(form.word, form.about))
                 .collect(),

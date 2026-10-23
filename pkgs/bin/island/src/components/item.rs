@@ -71,6 +71,8 @@ pub struct Item {
     pub overline: Option<SharedString>,
     pub title: SharedString,
     pub title_color: Option<u32>,
+    /// A longer title goes onto more lines rather than ending in an ellipsis.
+    pub wrap: bool,
     /// Fainter, after the title.
     pub detail: SharedString,
     pub trail: Vec<Trail>,
@@ -202,6 +204,7 @@ pub fn item(
         })
         .collect();
     let title_color = item.title_color;
+    let wrap = item.wrap;
     let column = div().flex_1().min_w(px(0.0)).flex().flex_col();
     let column = match item.overline {
         Some(overline) => column
@@ -221,12 +224,12 @@ pub fn item(
             )
             .child(
                 div()
-                    .h(px(HEADLINE_H))
+                    .min_h(px(HEADLINE_H))
                     .line_height(px(HEADLINE_H))
                     .text_size(px(TEXT_SIZE))
                     .font_weight(FontWeight::SEMIBOLD)
                     .when_some(title_color, |title, color| title.text_color(rgb(color)))
-                    .truncate()
+                    .when(!wrap, |title| title.h(px(HEADLINE_H)).truncate())
                     .child(motion::text(id("title"), item.title)),
             ),
         None => {
@@ -238,7 +241,7 @@ pub fn item(
                 .child(
                     div()
                         .min_w(px(0.0))
-                        .truncate()
+                        .when(!wrap, |title| title.truncate())
                         .font_weight(FontWeight::SEMIBOLD)
                         .when_some(title_color, |title, color| title.text_color(rgb(color)))
                         .child(motion::text(id("title"), item.title)),

@@ -218,7 +218,8 @@ pub(super) fn widget(ai: &Ai, state: &State, w: &WidgetCx<'_>) -> AnyElement {
         if ai.settings.widget.show_badge {
             if let Some((provider, limit)) = worst {
                 base = base.child(format::badge(limit, provider.freshness, now, true));
-            } else if !state.issues.is_empty() {
+            } else if counted && !state.issues.is_empty() {
+                // Jelly wears the warning itself.
                 base = base.child("!");
             }
         }

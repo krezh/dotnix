@@ -34,6 +34,7 @@ fn reading(id: &'static str, title: &'static str, value: f32, color: u32) -> Blo
         overline: None,
         title: title.into(),
         title_color: None,
+        wrap: false,
         detail: SharedString::default(),
         trail: vec![Trail::Text(amount(value, false).into(), color)],
     };
@@ -63,6 +64,7 @@ pub fn headset_card(battery: Battery, p: &PanelCx<'_>) -> Block {
         overline: None,
         title: battery.name.into(),
         title_color: None,
+        wrap: false,
         detail: SharedString::default(),
         trail: Vec::new(),
     };

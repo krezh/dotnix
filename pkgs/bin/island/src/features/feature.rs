@@ -11,7 +11,7 @@ use gpui::{AnyElement, Keystroke, Window};
 use super::{Feed, Islands, Osd, PanelCx, WidgetCx};
 use crate::{
     cli::Client,
-    control::{Command, Report, Row},
+    control::{Command, Reply, Report, Row},
     panel::{IconButton, Mark, PanelView},
     wm::Monitor,
 };
@@ -85,7 +85,7 @@ pub trait Feature: Sized + 'static {
     /// A feature with a panel runs even when the layout leaves its widget out.
     const PANEL: Option<&'static str> = None;
 
-    /// Title and place among the tabs; island's own System tab is 3.
+    /// Title and place among the tabs; island's own System tab is 4.
     const TAB: Option<(&'static str, u8)> = None;
 
     /// For content that moves without new state, such as a play position.
@@ -137,6 +137,11 @@ pub trait Feature: Sized + 'static {
         Report::default()
     }
 
+    /// [`Feature::command`], for a feature whose answer comes only once slow work is done.
+    fn reply(&self, state: &Self::State, args: &[&str]) -> Reply {
+        self.command(state, args).into()
+    }
+
     /// Its rows in `island ctl`'s overview of what island is doing.
     fn status(&self, _: &Self::State) -> Vec<Row> {
         Vec::new()
@@ -173,6 +178,12 @@ pub trait Local: 'static {
     /// While not settled, the island keeps drawing frames.
     fn is_settled(&self) -> bool {
         true
+    }
+
+    /// Unsettled, but only by slow motion, which the island draws at `marquee::TICK` rather than
+    /// every frame the display has.
+    fn is_drifting(&self) -> bool {
+        false
     }
 
     /// How much wider the widget becomes once it settles, so the island can fit its final size

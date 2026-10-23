@@ -283,6 +283,7 @@ fn message(
         overline: Some(overline.into()),
         title: markdown::parse(&notification.summary).text.into(),
         title_color: notification.critical.then_some(CRITICAL),
+        wrap: false,
         detail: SharedString::default(),
         trail: vec![trail],
     };
@@ -317,6 +318,7 @@ fn message(
             buttons,
             compact: true,
             indent: ICON + item::LEAD_GAP,
+            menu: None,
         }));
     }
     let frame = FrameView {

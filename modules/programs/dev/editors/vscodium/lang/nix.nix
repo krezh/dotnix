@@ -28,34 +28,17 @@
                         ];
                       })).options
                     '';
-                    home_manager.expr = ''
+                    home-manager.expr = ''
                       (let
                         pkgs = ${nixpkgs.expr};
                         lib = import ${inputs.home-manager}/modules/lib/stdlib-extended.nix pkgs.lib;
-                        flake = builtins.getFlake (toString ./.);
                       in (lib.evalModules {
-                        modules =
-                          ((import ${inputs.home-manager}/modules/modules.nix) {
-                            inherit lib pkgs;
-                            check = false;
-                          })
-                          ++ [
-                            flake.modules.homeManager.system-common
-                            flake.modules.homeManager.editors
-                            flake.modules.homeManager.modules
-                          ]
-                          ++ [
-                            {
-                              _module.args = {
-                                inherit pkgs;
-                                osConfig.system.stateVersion = "24.05";
-                              };
-                            }
-                          ];
+                        modules = (import ${inputs.home-manager}/modules/modules.nix) {
+                          inherit lib pkgs;
+                          check = false;
+                        };
                       })).options
                     '';
-                    flake_parts.expr = "let flake = builtins.getFlake (toString ./.); in flake.debug.options // flake.currentSystem.options";
-
                   };
                   diagnostic.suppress = [ ];
                   hiddenLanguageServerErrors = [ ];

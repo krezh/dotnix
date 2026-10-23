@@ -15,7 +15,7 @@ use super::{
     feature::widgets_of, owner,
 };
 use crate::{
-    control::{Report, Row},
+    control::{Reply, Row},
     island::Island,
     panel::{IconButton, Mark, PanelView},
 };
@@ -64,7 +64,7 @@ pub trait AnyFeature {
     fn lead(&self, local: &dyn AnyLocal, cx: &App) -> Option<Mark>;
     fn system_button(&self, p: &mut PanelCx<'_>, cx: &App) -> Option<IconButton>;
     fn inhibits_idle(&self, cx: &App) -> bool;
-    fn command(&self, args: &[&str], cx: &App) -> Report;
+    fn command(&self, args: &[&str], cx: &App) -> Reply;
     fn status(&self, cx: &App) -> Vec<Row>;
     fn key(&self, local: &mut dyn AnyLocal, keystroke: &Keystroke, cx: &App) -> Outcome;
     fn new_local(&self, island: &IslandInfo<'_>, cx: &App) -> Box<dyn AnyLocal>;
@@ -166,9 +166,9 @@ impl<F: Feature> AnyFeature for Entity<Instance<F>> {
         F::inhibits_idle(&self.read(cx).state)
     }
 
-    fn command(&self, args: &[&str], cx: &App) -> Report {
+    fn command(&self, args: &[&str], cx: &App) -> Reply {
         let instance = self.read(cx);
-        instance.feature.command(&instance.state, args)
+        instance.feature.reply(&instance.state, args)
     }
 
     fn status(&self, cx: &App) -> Vec<Row> {

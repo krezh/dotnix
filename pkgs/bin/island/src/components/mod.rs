@@ -1,3 +1,4 @@
+pub mod actions;
 pub mod aura;
 pub mod badge;
 pub mod button;
@@ -20,6 +21,7 @@ pub mod motion;
 pub mod player;
 pub mod pointer;
 pub mod popover;
+pub mod prompt;
 pub mod reveal;
 pub mod ring;
 pub mod route;

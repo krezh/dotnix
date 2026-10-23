@@ -2,7 +2,7 @@ use std::{rc::Rc, time::Duration};
 
 use futures::{StreamExt, channel::mpsc::UnboundedReceiver};
 use gpui::{
-    AnyWindowHandle, App, AppContext, Bounds, Context, DisplayId, Entity, Global, Keystroke, Size,
+    AnyWindowHandle, App, AppContext, Bounds, Context, DisplayEvent, DisplayId, Entity, Global, Keystroke, Size,
     Subscription, WeakEntity, WindowBackgroundAppearance, WindowBounds, WindowKind, WindowOptions,
     layer_shell::{Anchor, KeyboardInteractivity, Layer, LayerShellOptions},
     point, px,
@@ -12,7 +12,7 @@ use uuid::Uuid;
 
 use crate::{
     config,
-    control::{Asked, Control, Report, Row},
+    control::{Asked, Control, Reply, Report, Row},
     cover::{ClickCatcher, KeyGrab},
     features::{self, Features},
     glyphs::Glyphs,
@@ -24,9 +24,7 @@ use crate::{
 /// The island's layer-shell namespace, which compositors list its surfaces under.
 pub const NAMESPACE: &str = "island";
 
-const DISPLAY_POLL: Duration = Duration::from_secs(2);
-const STARTUP_POLL: Duration = Duration::from_millis(100);
-const STARTUP_ATTEMPTS: u32 = 10;
+const UNBOUND_AFTER: Duration = Duration::from_secs(1);
 
 #[derive(Clone)]
 pub struct Config {
@@ -100,19 +98,38 @@ impl Shell {
         cx: &mut App,
     ) {
         let shell = cx.new(|cx: &mut Context<Self>| {
-            cx.spawn(async move |this, cx| {
-                let mut attempts = 0;
-                loop {
-                    let Ok(opened) = this.update(cx, |shell, cx| {
-                        shell.reconcile(attempts >= STARTUP_ATTEMPTS, cx);
-                        shell.opened_any
-                    }) else {
-                        break;
-                    };
-                    attempts += 1;
-                    let wait = if opened { DISPLAY_POLL } else { STARTUP_POLL };
-                    cx.background_executor().timer(wait).await;
+            let this = cx.weak_entity();
+            let displays = cx.observe_displays(move |event, cx| {
+                if matches!(event, DisplayEvent::Added(_) | DisplayEvent::Removed(_)) {
+                    let _ = this.update(cx, |shell, cx| shell.reconcile(false, cx));
                 }
+            });
+            // The compositor closes an island's surface when its output goes, and may on its own.
+            // Deferred, as the shell closing its own covers lands here mid-update.
+            let this = cx.weak_entity();
+            let closed = cx.on_window_closed(move |cx, closed| {
+                let this = this.clone();
+                cx.defer(move |cx| {
+                    let _ = this.update(cx, |shell, cx| {
+                        if shell
+                            .slots
+                            .iter()
+                            .any(|slot| slot.window.window_id() == closed)
+                        {
+                            shell.reconcile(false, cx);
+                        }
+                    });
+                });
+            });
+
+            // With no output announced shortly after start, open one island unbound to any.
+            cx.spawn(async move |this, cx| {
+                cx.background_executor().timer(UNBOUND_AFTER).await;
+                let _ = this.update(cx, |shell, cx| {
+                    if !shell.opened_any {
+                        shell.reconcile(true, cx);
+                    }
+                });
             })
             .detach();
 
@@ -122,7 +139,23 @@ impl Shell {
                     else {
                         break;
                     };
-                    let _ = answer.send(answered);
+                    match answered {
+                        Ok(Reply::Later(report)) => cx
+                            .background_executor()
+                            .spawn(async move {
+                                let report = report.await.unwrap_or_else(|_| {
+                                    Err("island stopped before answering".to_owned())
+                                });
+                                let _ = answer.send(report);
+                            })
+                            .detach(),
+                        Ok(Reply::Now(report)) => {
+                            let _ = answer.send(Ok(report));
+                        }
+                        Err(err) => {
+                            let _ = answer.send(Err(err));
+                        }
+                    }
                 }
             })
             .detach();
@@ -160,12 +193,13 @@ impl Shell {
                 cover: None,
                 catchers: Vec::new(),
                 holder: None,
-                subscriptions: Vec::new(),
+                subscriptions: vec![displays, closed],
                 slots: Vec::new(),
                 workspaces: None,
                 opened_any: false,
             }
         });
+        shell.update(cx, |shell, cx| shell.reconcile(false, cx));
         cx.set_global(Running(shell));
     }
 
@@ -174,7 +208,9 @@ impl Shell {
         cx.set_global(Glyphs::default());
         cx.spawn(async move |_, cx| {
             let glyphs = cx
-                .background_spawn(async { Glyphs::resolve(&features::glyphs()) })
+                .background_spawn(async {
+                    Glyphs::resolve(&[features::glyphs(), crate::bar::GLYPHS.to_vec()].concat())
+                })
                 .await;
             cx.update(|cx| cx.set_global(glyphs));
         })
@@ -453,15 +489,19 @@ impl Shell {
         }
     }
 
-    fn control(&mut self, control: Control, cx: &mut Context<Self>) -> Result<Report, String> {
+    fn control(&mut self, control: Control, cx: &mut Context<Self>) -> Result<Reply, String> {
         match control {
-            Control::Open(name, view) => self.open_panel(&name, view.as_deref(), false, cx),
-            Control::Toggle(name, view) => self.open_panel(&name, view.as_deref(), true, cx),
+            Control::Open(name, view) => self
+                .open_panel(&name, view.as_deref(), false, cx)
+                .map(Reply::from),
+            Control::Toggle(name, view) => self
+                .open_panel(&name, view.as_deref(), true, cx)
+                .map(Reply::from),
             Control::Close => {
                 for island in self.islands().collect::<Vec<_>>() {
                     island.update(cx, |island, cx| island.dismiss(cx));
                 }
-                Ok(Report::did(Row::said("Closed what was open")))
+                Ok(Report::did(Row::said("Closed what was open")).into())
             }
             Control::Feature(name, args) => {
                 let feature = self
@@ -471,8 +511,8 @@ impl Shell {
                 let args: Vec<&str> = args.iter().map(String::as_str).collect();
                 Ok(feature.command(&args, cx))
             }
-            Control::Status => Ok(self.status(cx)),
-            Control::Log(_) => Ok(Report::default()),
+            Control::Status => Ok(self.status(cx).into()),
+            Control::Log(_) => Ok(Report::default().into()),
         }
     }
 }

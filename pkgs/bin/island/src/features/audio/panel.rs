@@ -102,6 +102,7 @@ fn volume(
         overline: None,
         title: device.description.clone().into(),
         title_color: None,
+        wrap: false,
         detail: SharedString::default(),
         trail: vec![Trail::Text(
             amount(channel.volume, channel.muted).into(),
@@ -174,6 +175,7 @@ fn recording(state: &AudioState) -> Vec<Block> {
             overline: None,
             title: app.name.clone().into(),
             title_color: None,
+            wrap: false,
             detail: SharedString::default(),
             trail: vec![Trail::Status("Recording".into(), CRITICAL)],
         };
@@ -269,6 +271,7 @@ fn app_item(
         overline: None,
         title: app.name.clone().into(),
         title_color: None,
+        wrap: false,
         detail: detail.into(),
         trail: vec![
             Trail::Dropdown(device),

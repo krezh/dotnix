@@ -224,6 +224,9 @@ pub struct Island {
     effects: Option<Option<Effects>>,
     samples: Samples,
     pub(crate) stats: SysStats,
+    revision: u64,
+    /// Held while the System panel is open, so the sampler reads what only it shows.
+    sys_watch: Option<sys::Watch>,
     sys_task: Option<Task<()>>,
     leave_task: Option<Task<()>>,
     due: Option<(Instant, Task<()>)>,
@@ -236,6 +239,8 @@ pub struct Island {
     scroll: ScrollHandle,
     /// Each column of a panel's side-by-side columns scrolls on its own.
     columns: [ScrollHandle; panel::COLUMNS],
+    /// A panel's one scrolling list of placed blocks, which draws only what is in view.
+    placed: ScrollHandle,
     /// Set as a panel opens, so a column it follows starts at its end.
     opened: Cell<bool>,
     sizes: [Measured; LAYERS],
@@ -257,8 +262,10 @@ pub struct Island {
     sized: bool,
     top: f32,
     layout: Rc<config::Bar>,
-    /// Redraws at `marquee::TICK` while text is scrolling.
+    /// Redraws at `marquee::TICK` while text is scrolling or the island is drifting.
     ticker: Option<Task<()>>,
+    /// Moving only slowly, so drawn at the ticker's pace rather than every frame the display has.
+    drifting: bool,
     rendered: Instant,
     widgets: HashMap<Widget, (Entity<bar::WidgetView>, Measured)>,
     /// Whether this frame changes anything beyond what widgets redraw themselves, so every widget is
@@ -334,6 +341,8 @@ impl Island {
             effects: None,
             samples: startup.samples,
             stats: SysStats::default(),
+            revision: 0,
+            sys_watch: None,
             sys_task: None,
             leave_task: None,
             due: None,
@@ -343,6 +352,7 @@ impl Island {
             menu: None,
             scroll: ScrollHandle::new(),
             columns: std::array::from_fn(|_| ScrollHandle::new()),
+            placed: ScrollHandle::new(),
             opened: Cell::new(false),
             sizes: std::array::from_fn(|_| measure::measured()),
             pending: std::array::from_fn(|_| Cell::new(None)),
@@ -369,6 +379,7 @@ impl Island {
             top: startup.top,
             layout: startup.layout,
             ticker: None,
+            drifting: false,
             rendered: Instant::now(),
             widgets,
             live: true,
@@ -424,13 +435,17 @@ impl Island {
     }
 
     fn keep_ticking(&mut self, cx: &mut Context<Self>) {
-        match (self.layouts.scrolling(), self.ticker.is_some()) {
+        match (
+            self.layouts.scrolling() || self.drifting,
+            self.ticker.is_some(),
+        ) {
             (true, false) => {
                 self.ticker = Some(cx.spawn(async move |this, cx| {
                     loop {
                         cx.background_executor().timer(marquee::TICK).await;
                         let tick = this.update(cx, |this, cx| {
                             if this.rendered.elapsed() >= marquee::TICK / 2 {
+                                this.redraw_drifting(cx);
                                 cx.notify();
                             }
                         });
@@ -467,7 +482,28 @@ impl Island {
         for view in moving {
             view.update(cx, |_, cx| cx.notify());
         }
+        self.redraw_drifting(cx);
         cx.notify();
+    }
+
+    /// While the island drifts the rest of the bar is reused, so only the widgets of the features
+    /// still moving draw afresh.
+    fn redraw_drifting(&self, cx: &mut Context<Self>) {
+        if !self.drifting {
+            return;
+        }
+        let views: Vec<Entity<bar::WidgetView>> = self
+            .locals
+            .iter()
+            .filter(|(_, local)| !local.is_settled())
+            .filter_map(|(name, _)| self.features.get(name))
+            .flat_map(|feature| feature.widgets())
+            .filter_map(|widget| self.widgets.get(&Widget(widget)))
+            .map(|(view, _)| view.clone())
+            .collect();
+        for view in views {
+            view.update(cx, |_, cx| cx.notify());
+        }
     }
 
     pub fn bar_widget(
@@ -756,7 +792,10 @@ impl Island {
         self.opened.set(true);
         self.retarget();
 
+        // The System panel's graphs slide with the clock; a few px a second needs no more than the
+        // ambient tick, not every vblank.
         let refresh = match mode {
+            Mode::Open(Panel::System) => Some(marquee::TICK),
             Mode::Open(Panel::Feature(name)) => features::panel_refresh(name),
             Mode::Open(Panel::Popups) => self
                 .locals
@@ -766,6 +805,7 @@ impl Island {
                 .min(),
             _ => None,
         };
+        self.sys_watch = (mode == Mode::Open(Panel::System)).then(|| self.samples.watch());
         self.sys_task = refresh.map(|every| {
             cx.spawn(async move |this, cx| {
                 loop {
@@ -818,7 +858,11 @@ impl Island {
         for (width, probe) in widths.iter_mut().zip(&self.sections) {
             *width = f32::from(probe.get()?.width);
         }
-        let mut pending = Vec::new();
+        let mut add = |kind, extra| {
+            if let Some(index) = self.layout.section_of(kind) {
+                widths[index] += extra;
+            }
+        };
         if fold == Fold::Target {
             for (name, local) in &self.locals {
                 let widget = self
@@ -826,7 +870,7 @@ impl Island {
                     .get(name)
                     .and_then(|feature| feature.widgets().first().copied());
                 if let Some(widget) = widget {
-                    pending.push((Widget(widget), local.pending_width(self.layout.spacing)));
+                    add(Widget(widget), local.pending_width(self.layout.spacing));
                 }
             }
         }
@@ -849,12 +893,7 @@ impl Island {
                 Fold::Target => slot.presence.target(),
                 Fold::Now => slot.presence.value().clamp(0.0, 1.0),
             };
-            pending.push((kind, span * (wanted - drawn)));
-        }
-        for (kind, extra) in pending {
-            if let Some(index) = self.layout.section_of(kind) {
-                widths[index] += extra;
-            }
+            add(kind, span * (wanted - drawn));
         }
         Some(widths)
     }
@@ -875,7 +914,7 @@ impl Island {
                     .features
                     .owning(widget)
                     .filter(|feature| feature.present(widget, cx))?;
-                Some((bar::presence_key(kind), feature.snapshot(cx)))
+                Some((bar::presence_key(kind).to_owned(), feature.snapshot(cx)))
             })
             .collect();
         self.held.sync(&items, self.sized);
@@ -1180,15 +1219,23 @@ impl Island {
     }
 
     fn is_settled(&self) -> bool {
+        self.still(|local| local.is_settled())
+    }
+
+    /// Unsettled only by features' slow motion, such as a lively mascot breathing.
+    fn is_drifting(&self) -> bool {
+        self.still(|local| local.is_settled() || local.is_drifting())
+    }
+
+    fn still(&self, local_still: impl Fn(&dyn AnyLocal) -> bool) -> bool {
         self.w.is_settled()
             && self.h.is_settled()
             && self.layers.iter().all(Spring::is_settled)
             && self.chrome.is_settled()
             && self.tab_pill.is_settled()
-            && self.locals.iter().all(|(_, local)| local.is_settled())
+            && self.locals.iter().all(|(_, local)| local_still(&**local))
             && self.held.is_settled()
             && self.menu.as_ref().is_none_or(Menu::is_settled)
-            && self.mode != Mode::Open(Panel::System)
     }
 
     fn step(&mut self, window: &mut Window) {
@@ -1224,6 +1271,7 @@ impl Island {
             anim.frames += 1;
         }
 
+        self.drifting = false;
         if self.is_settled() {
             self.last_frame = None;
             if let Some(anim) = self.anim.take() {
@@ -1238,15 +1286,19 @@ impl Island {
             }
         } else {
             self.last_frame = Some(now);
-            window.request_animation_frame();
+            // Slow motion goes on at the ticker's pace, which `keep_ticking` starts.
+            self.drifting = self.is_drifting();
+            if !self.drifting {
+                window.request_animation_frame();
+            }
         }
     }
 
     fn refresh_stats(&mut self) {
-        let (stats, at) = self.samples.latest();
-        if at != self.last_sample {
+        if let Some((stats, at, revision)) = self.samples.since(self.revision) {
             self.stats = stats;
             self.last_sample = at;
+            self.revision = revision;
         }
     }
 
@@ -1282,6 +1334,7 @@ impl Island {
                     hover: self.hovered,
                     scroll: &self.scroll,
                     columns: &self.columns,
+                    placed: &self.placed,
                     opened: &self.opened,
                     island_h: h,
                     min_width: frozen.map_or(0.0, |(_, shape)| shape.w),
@@ -1369,6 +1422,7 @@ impl Island {
                 self.tab_pill.value(),
                 strip_left,
                 self.hovered,
+                &self.tips,
                 cx,
             ))
             .into_any_element()
@@ -1421,7 +1475,9 @@ impl Render for Island {
                 self.start_frames();
             }
         }
-        self.live = self.last_frame.is_some();
+        // Drifting moves only features' own widgets, which `redraw_drifting` redraws; the rest of
+        // the bar can be reused.
+        self.live = self.last_frame.is_some() && !self.is_drifting();
         self.step(window);
         let layer = if self.mode == Mode::Collapsed && self.menu.is_none() && self.is_settled() {
             Layer::Top

@@ -58,6 +58,7 @@ craneLib.buildPackage rec {
       --bash <($out/bin/island completions bash) \
       --fish <($out/bin/island completions fish) \
       --zsh <($out/bin/island completions zsh)
+    $out/bin/island ai-hook plugin $out/share/island/claude-code
   '';
 
   cargoArtifacts = craneLib.buildDepsOnly {

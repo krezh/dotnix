@@ -44,7 +44,6 @@ in
       # Boot configuration
       boot = {
         plymouth.enable = true;
-        initrd.verbose = false;
         consoleLogLevel = 0;
         kernelParams = [
           "quiet"

@@ -4,6 +4,7 @@ use super::state::{Device, Form};
 use crate::features::GlyphSpec;
 
 pub const GLYPHS: &[GlyphSpec] = &[
+    ("tab-audio", &["audio-volume-high-symbolic"]),
     ("volume-high", &["audio-volume-high-symbolic"]),
     ("volume-medium", &["audio-volume-medium-symbolic"]),
     ("volume-low", &["audio-volume-low-symbolic"]),

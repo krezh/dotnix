@@ -1,5 +1,7 @@
 //! Boards of stat tiles, laid out in columns that end level.
 
+use std::path::PathBuf;
+
 use gpui::{
     AnimationExt, AnyElement, Context, Div, FontWeight, SharedString, SpringAnimation, div,
     prelude::*, px, relative, rgb, rgba,
@@ -9,7 +11,7 @@ use crate::{
     components::{
         card::{self, Stat},
         chart::{Series, chart},
-        motion,
+        icon, motion,
         ring::{self, Ring, Rings},
         tooltip::Tooltips,
     },
@@ -41,6 +43,11 @@ const CORE_GAP: f32 = 3.0;
 /// partition rows stay short.
 const HERO_LEADING: f32 = 1.4;
 const FACT_LEADING: f32 = 1.3;
+/// How far an entry's row reaches into the tile's padding on each side, so its text lines up with
+/// the rest of the tile and its highlight still has room round it.
+const ENTRY_BLEED: f32 = 8.0;
+const ENTRY_GLYPH: f32 = 16.0;
+const CHOSEN_ALPHA: u8 = 0x26;
 
 pub struct Tile {
     pub id: SharedString,
@@ -88,6 +95,27 @@ pub struct Drive {
     pub segments: Vec<Segment>,
 }
 
+/// What leads an entry: a glyph in a color, or a dot, such as whether something is up.
+pub enum EntryLead {
+    Glyph(Option<PathBuf>, u32),
+    Dot(u32),
+}
+
+/// One row of a list in a tile, such as a network to join; clickable when it has a handler.
+pub struct Entry {
+    /// Stable across frames, for its morphing text.
+    pub id: SharedString,
+    pub lead: Option<EntryLead>,
+    pub title: SharedString,
+    pub title_color: Option<u32>,
+    pub detail: SharedString,
+    pub value: SharedString,
+    pub value_color: u32,
+    /// The row tinted in this color, such as the one in use.
+    pub chosen: Option<u32>,
+    pub on_click: Option<Handler>,
+}
+
 /// One building block of a tile. Parts stack top to bottom; `Spacer` pushes the rest down.
 pub enum Part {
     /// A history chart; `grow` lets it take the tile's spare height.
@@ -122,6 +150,11 @@ pub enum Part {
     /// Scrolls past what fits.
     Volumes(Vec<Volume>),
     Drives(Vec<Drive>),
+    /// Rows of a list; `scroll` lets a long one scroll inside the tile.
+    Entries {
+        entries: Vec<Entry>,
+        scroll: bool,
+    },
     Spacer,
 }
 
@@ -524,6 +557,127 @@ fn drives(items: Vec<Drive>) -> Div {
         }))
 }
 
+fn entry_lead(lead: EntryLead) -> AnyElement {
+    match lead {
+        EntryLead::Glyph(path, color) => div()
+            .size(px(ENTRY_GLYPH))
+            .flex_none()
+            .children(path.map(|path| icon::glyph(&path, ENTRY_GLYPH, color)))
+            .into_any_element(),
+        EntryLead::Dot(color) => div()
+            .size(px(DOT + 1.0))
+            .flex_none()
+            .rounded_full()
+            .bg(rgb(color))
+            .into_any_element(),
+    }
+}
+
+/// `key` names the rows for their morphing text.
+fn entries(
+    items: Vec<Entry>,
+    key: &str,
+    scroll: bool,
+    hover: bool,
+    cx: &mut Context<Island>,
+) -> AnyElement {
+    let rows = items.into_iter().map(|entry| {
+        let row = SharedString::from(format!("{key}-{}", entry.id));
+        let clickable = entry.on_click.is_some();
+        let content = div()
+            .relative()
+            .flex()
+            .items_center()
+            .gap(px(10.0))
+            .px(px(ENTRY_BLEED))
+            .py(px(5.0))
+            .children(entry.lead.map(entry_lead))
+            .child(
+                div()
+                    .flex_1()
+                    .min_w(px(0.0))
+                    .flex()
+                    .flex_col()
+                    .line_height(relative(FACT_LEADING))
+                    .child(
+                        div()
+                            .truncate()
+                            .text_size(px(SMALL_SIZE))
+                            .font_weight(FontWeight::SEMIBOLD)
+                            .when_some(entry.title_color, |title, color| {
+                                title.text_color(rgb(color))
+                            })
+                            .child(entry.title),
+                    )
+                    .when(!entry.detail.is_empty(), |text| {
+                        text.child(
+                            div()
+                                .truncate()
+                                .text_size(px(DETAIL + 0.5))
+                                .text_color(rgb(OVERLAY2))
+                                .child(motion::text(
+                                    SharedString::from(format!("{row}-detail")),
+                                    entry.detail,
+                                )),
+                        )
+                    }),
+            )
+            .when(!entry.value.is_empty(), |line| {
+                line.child(
+                    div()
+                        .flex_none()
+                        .whitespace_nowrap()
+                        .text_size(px(CAPTION))
+                        .font_weight(FontWeight::SEMIBOLD)
+                        .text_color(rgb(entry.value_color))
+                        .child(motion::text(
+                            SharedString::from(format!("{row}-value")),
+                            entry.value,
+                        )),
+                )
+            });
+        div()
+            .id(row)
+            .relative()
+            .flex_none()
+            .when_some(entry.chosen, |row, color| {
+                row.child(ui::shape(
+                    Radius::Control,
+                    Some(rgba(with_alpha(color, CHOSEN_ALPHA)).into()),
+                ))
+            })
+            .when(clickable, |row| {
+                row.cursor_pointer()
+                    .when(hover, |row| row.hover(|style| style))
+                    .child(ui::control(Radius::Control, None, hover))
+            })
+            .child(content)
+            .when_some(entry.on_click, |row, action| {
+                row.on_click(cx.listener(move |island, _, _, cx| {
+                    cx.stop_propagation();
+                    action(island, cx);
+                }))
+            })
+    });
+    let list = div()
+        .mx(px(-ENTRY_BLEED))
+        .flex()
+        .flex_col()
+        .gap(px(2.0))
+        .children(rows);
+    if scroll {
+        div()
+            .id(SharedString::from(format!("{key}-scroll")))
+            .flex_1()
+            .min_h(px(0.0))
+            .overflow_y_scroll()
+            .child(list)
+            .into_any_element()
+    } else {
+        list.flex_none().into_any_element()
+    }
+}
+
 fn part(
     part: Part,
     id: &SharedString,
@@ -531,6 +685,8 @@ fn part(
     span: usize,
     phase: f32,
     tips: &Tooltips,
+    hover: bool,
+    cx: &mut Context<Island>,
 ) -> AnyElement {
     match part {
         Part::Chart { series, grow } => div()
@@ -590,6 +746,10 @@ fn part(
         Part::Hero { name, lines } => hero(name, lines).flex_none().into_any_element(),
         Part::Volumes(items) => volumes(SharedString::from(format!("{id}-volumes")), items),
         Part::Drives(items) => drives(items).into_any_element(),
+        Part::Entries {
+            entries: items,
+            scroll,
+        } => entries(items, &format!("{id}-entries-{index}"), scroll, hover, cx),
         Part::Spacer => div().flex_1().into_any_element(),
     }
 }
@@ -658,10 +818,10 @@ pub fn tile(
             let top: Vec<AnyElement> = parts
                 .by_ref()
                 .take_while(|(_, piece)| !matches!(piece, Part::Spacer))
-                .map(|(index, piece)| part(piece, &id, index, span, phase, tips))
+                .map(|(index, piece)| part(piece, &id, index, span, phase, tips, hover, cx))
                 .collect();
             let bottom: Vec<AnyElement> = parts
-                .map(|(index, piece)| part(piece, &id, index, span, phase, tips))
+                .map(|(index, piece)| part(piece, &id, index, span, phase, tips, hover, cx))
                 .collect();
             tile.children(top).when(!bottom.is_empty(), |tile| {
                 tile.child(

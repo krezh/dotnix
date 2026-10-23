@@ -65,6 +65,7 @@ fn buttons(buttons: Vec<IconButton>, lead: f32) -> Block {
         buttons,
         compact: true,
         indent: lead + item::LEAD_GAP,
+        menu: None,
     })
 }
 
@@ -170,10 +171,14 @@ fn question_blocks(request: &Request, at: &str, view: &View, p: &PanelCx<'_>) ->
                     overline: None,
                     title: label.clone().into(),
                     title_color: None,
-                    detail: description.clone().into(),
+                    wrap: true,
+                    detail: "".into(),
                     trail: Vec::new(),
                 },
-                Vec::new(),
+                (!description.is_empty())
+                    .then(|| Block::Text(Text::new(Tone::Caption(OVERLAY2), description.clone())))
+                    .into_iter()
+                    .collect(),
             )],
         ));
     }
@@ -259,6 +264,7 @@ fn item_for(request: &Request, at: &str, step: usize, view: &View) -> Item {
         overline: Some(format!("Claude Code · {}", request.project).into()),
         title: title(request, step).into(),
         title_color: None,
+        wrap: true,
         detail: "".into(),
         trail: vec![Trail::Faint(format::ago(request.received_at, now).into())],
     }

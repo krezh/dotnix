@@ -13,12 +13,12 @@ use gpui::{AnyElement, Context, FontWeight, ScrollHandle, SharedString, div, pre
 
 use crate::{
     components::{
-        badge, button, calendar, card, code, input, item, lines,
+        actions, badge, button, calendar, card, code, input, item, lines,
         list::ROWS,
         marquee::TextLayouts,
         meter, motion, player,
         popover::Popovers,
-        reveal, route, search, segments, slider, tabs, text,
+        prompt, reveal, route, search, segments, slider, tabs, text,
         tile::{self, Tile},
         timeline::{self, Timeline},
         tooltip::{Tip, Tooltips},
@@ -33,6 +33,7 @@ use crate::{
 };
 
 pub use crate::components::{
+    actions::{Action, Actions},
     badge::Mark,
     button::Rising,
     calendar::CalendarView,
@@ -45,6 +46,7 @@ pub use crate::components::{
     lines::Line,
     meter::Meter,
     player::PlayerView,
+    prompt::{PromptView, Reveal},
     route::{Route, Stop, StopState},
     search::{Preview, SearchRow, SearchView},
     slider::Slider,
@@ -116,6 +118,8 @@ pub struct ButtonRow {
     pub compact: bool,
     /// From the left, such as to line up with an item's text past its lead.
     pub indent: f32,
+    /// A menu of further actions at the row's far end.
+    pub menu: Option<Actions>,
 }
 
 /// Where a block sits in a [`Block::Placed`], and how faded.
@@ -188,6 +192,11 @@ pub enum Block {
     Hero(SharedString, Vec<SharedString>),
     /// Lanes along one stretch of time from now.
     Timeline(Timeline),
+    /// A small card over the whole panel asking for something, wherever it is in the blocks.
+    Prompt(PromptView),
+    /// A page's own views and their buttons, in a row at its top, for a tab of the panel that has
+    /// views of its own.
+    Views(Views),
 }
 
 pub struct PanelView {
@@ -200,6 +209,8 @@ pub struct Frame<'a> {
     pub scroll: &'a ScrollHandle,
     /// One for each column of a [`Block::Columns`].
     pub columns: &'a [ScrollHandle; COLUMNS],
+    /// For a [`Block::Placed`] that scrolls; a panel shows one at a time.
+    pub placed: &'a ScrollHandle,
     /// True on the first drawing after the panel opened; the columns clear it.
     pub opened: &'a std::cell::Cell<bool>,
     pub island_h: f32,
@@ -213,6 +224,9 @@ pub struct Frame<'a> {
 }
 
 const GRID_GAP: f32 = 10.0;
+/// How far past what a scrolling [`Block::Placed`] shows its blocks are still drawn, so ones
+/// scrolling in are ready.
+const PLACED_MARGIN: f32 = 240.0;
 /// The most a column of [`Block::Columns`] shows before it scrolls, leaving the island its header
 /// and edges within its tallest.
 const COLUMN_H: f32 = 600.0;
@@ -313,6 +327,9 @@ impl Block {
             Block::Facts(items) => items.len().hash(hasher),
             Block::Hero(_, lines) => lines.len().hash(hasher),
             Block::Timeline(view) => view.lanes.len().hash(hasher),
+            // It floats over the panel, so it never decides its size.
+            Block::Prompt(_) => {}
+            Block::Views(views) => (views.tabs.len(), views.buttons.len()).hash(hasher),
             // Text that wraps decides the height, so the panel grows as it is typed or arrives.
             Block::Input(view) => view.text.hash(hasher),
             Block::Transcript(transcript) => {
@@ -395,13 +412,17 @@ impl PanelView {
                     .into_any_element(),
             ),
             Header::Title(title, buttons) => Some(title_header(title, buttons, frame.hover, cx)),
-            Header::Views(views) => Some(views_header(views, frame.hover, cx)),
+            Header::Views(views) => Some(views_header(views, frame.hover, frame.tips, cx)),
             Header::None => None,
         };
         let island_below = frame.island_h - inset;
         // An input, with whatever follows it, stays at the panel's foot below what scrolls, as a
         // chat's message field does.
         let mut blocks = self.blocks;
+        let prompt = blocks
+            .iter()
+            .rposition(|block| matches!(block, Block::Prompt(_)))
+            .map(|at| blocks.remove(at).render("prompt", island_below, frame, cx));
         let foot = blocks
             .iter()
             .rposition(|block| matches!(block, Block::Input(_)))
@@ -409,6 +430,7 @@ impl PanelView {
         let foot = render_all(foot, "foot", island_below, frame, cx);
         let blocks = render_all(blocks, "block", island_below, frame, cx);
         ui::base()
+            .relative()
             .flex()
             .flex_col()
             .min_w(px(frame.min_width))
@@ -448,6 +470,7 @@ impl PanelView {
                         .children(foot),
                 )
             })
+            .children(prompt)
             .into_any_element()
     }
 }
@@ -467,17 +490,53 @@ fn title_header(
     header_row(title.into_any_element(), false, None, buttons, hover, cx)
 }
 
-fn views_header(views: Views, hover: bool, cx: &mut Context<Island>) -> AnyElement {
+fn views_header(
+    views: Views,
+    hover: bool,
+    tips: &Tooltips,
+    cx: &mut Context<Island>,
+) -> AnyElement {
     let tabs = tabs::tabs(
         "panel-views",
         views.tabs,
         views.selected,
         views.on_select,
         hover,
+        tips,
         cx,
     );
     let lead = views.lead.map(|lead| header_lead(lead, cx));
     header_row(tabs.into_any_element(), true, lead, views.buttons, hover, cx)
+}
+
+/// The views at the start and their buttons at the end, in a page rather than its header, so
+/// without the close button.
+fn views_row(views: Views, hover: bool, tips: &Tooltips, cx: &mut Context<Island>) -> AnyElement {
+    let tabs = tabs::tabs(
+        "page-views",
+        views.tabs,
+        views.selected,
+        views.on_select,
+        hover,
+        tips,
+        cx,
+    );
+    div()
+        .min_h(px(HEADER_H))
+        .flex()
+        .items_center()
+        .justify_between()
+        .gap(px(16.0))
+        .child(tabs)
+        .child(
+            div().flex().items_center().gap(px(6.0)).children(
+                views
+                    .buttons
+                    .into_iter()
+                    .map(|button| button_element(button, hover, cx)),
+            ),
+        )
+        .into_any_element()
 }
 
 fn header_lead(lead: HeaderLead, cx: &mut Context<Island>) -> AnyElement {
@@ -732,6 +791,8 @@ impl Block {
             Block::Facts(items) => tile::colored_facts(items, at).into_any_element(),
             Block::Hero(name, lines) => tile::hero(name, lines).into_any_element(),
             Block::Timeline(view) => timeline::timeline(view, at),
+            Block::Prompt(view) => prompt::prompt(view, frame.hover, cx),
+            Block::Views(views) => views_row(views, frame.hover, frame.tips, cx),
             Block::Actions(tiles) => div()
                 .flex()
                 .gap(px(card::GAP))
@@ -777,8 +838,12 @@ fn buttons(row: ButtonRow, frame: &Frame<'_>, cx: &mut Context<Island>) -> AnyEl
     } else {
         BUTTON_GAP - button::BADGE_OVERHANG
     };
+    let menu = row
+        .menu
+        .map(|menu| actions::actions(menu, frame.popovers, frame.tips, frame.hover, cx));
     div()
         .flex()
+        .items_center()
         .ml(px(row.indent))
         .gap(px(gap))
         .children(row.buttons.into_iter().map(|button| {
@@ -811,6 +876,7 @@ fn buttons(row: ButtonRow, frame: &Frame<'_>, cx: &mut Context<Island>) -> AnyEl
                     .into_any_element()
             }
         }))
+        .when_some(menu, |row, menu| row.child(div().flex_1()).child(menu))
         .into_any_element()
 }
 
@@ -821,17 +887,28 @@ fn placed_element(
     frame: &Frame<'_>,
     cx: &mut Context<Island>,
 ) -> AnyElement {
+    // Only what is in view, and a margin round it, is drawn: a long list of placed blocks would
+    // otherwise be laid out on every frame, however little of it shows.
+    let shown = placed.visible.map(|visible| {
+        let from = -f32::from(frame.placed.offset().y) - PLACED_MARGIN;
+        (from, from + visible + 2.0 * PLACED_MARGIN)
+    });
     let blocks = placed
         .blocks
         .into_iter()
         .enumerate()
-        .map(|(index, (place, block))| {
+        .filter_map(|(index, (place, block))| {
             let top = if place.from_bottom {
                 island_below - place.y - place.height
             } else {
                 place.y
             };
-            div()
+            if let Some((from, to)) = shown
+                && (top + place.height < from || top > to)
+            {
+                return None;
+            }
+            Some(div()
                 .absolute()
                 .left(px(place.x))
                 .top(px(top))
@@ -840,7 +917,7 @@ fn placed_element(
                 .opacity(place.opacity.clamp(0.0, 1.0))
                 .flex()
                 .items_center()
-                .child(block.render(&format!("{at}-{index}"), island_below, frame, cx))
+                .child(block.render(&format!("{at}-{index}"), island_below, frame, cx)))
         });
     let content = div()
         .relative()
@@ -853,6 +930,7 @@ fn placed_element(
             .min_w(px(placed.width))
             .h(px(visible))
             .overflow_y_scroll()
+            .track_scroll(frame.placed)
             .child(content)
             .into_any_element(),
         None => content.into_any_element(),

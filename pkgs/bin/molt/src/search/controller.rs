@@ -14,8 +14,8 @@ use gtk::{glib, prelude::*};
 
 use super::{
     client::SearchClient,
-    model::{PAGE_SIZE, SearchRequest, SearchResults, SearchScope},
-    ui::SearchView,
+    model::{PAGE_SIZE, SearchRequest, SearchResults, SearchScope, scoped_query},
+    ui::{SearchView, save_last_search},
 };
 use crate::app::state::UiState;
 
@@ -34,6 +34,8 @@ struct Queue {
     running: bool,
     closed: bool,
     cache: VecDeque<CachedPage>,
+    /// Each category's total for the current query, by `SearchScope::index`.
+    counts: [Option<usize>; 4],
 }
 
 impl Queue {
@@ -50,12 +52,14 @@ impl Queue {
             running: false,
             closed: false,
             cache: VecDeque::new(),
+            counts: [None; 4],
         }
     }
 
     fn replace(&mut self, query: String, scope: SearchScope, offset: usize, ready: bool) {
         if query != self.current.query {
             self.cache.clear();
+            self.counts = [None; 4];
         }
         self.current = SearchRequest {
             generation: self.current.generation.wrapping_add(1),
@@ -89,6 +93,7 @@ impl Queue {
     }
 
     fn remember(&mut self, scope: SearchScope, offset: usize, results: Rc<SearchResults>) {
+        self.counts[scope.index()] = Some(results.total);
         self.cache
             .retain(|page| page.scope != scope || page.offset != offset);
         if self.cache.len() == CACHED_PAGES {
@@ -155,6 +160,7 @@ impl Queue {
         self.closed = true;
         self.pending = None;
         self.cache.clear();
+        self.counts = [None; 4];
     }
 }
 
@@ -168,20 +174,25 @@ fn search_pages(
     prefetch: bool,
 ) -> Result<SearchPages, String> {
     let count = if prefetch { SearchScope::ALL.len() } else { 1 };
-    let scopes = std::iter::once(request.scope)
+    let scopes: Vec<SearchScope> = std::iter::once(request.scope)
         .chain(
             SearchScope::ALL
                 .into_iter()
                 .filter(|scope| *scope != request.scope),
         )
-        .take(count);
-    let mut scoped_request = request.clone();
-    let mut pages = Vec::with_capacity(count);
-    for scope in scopes {
-        scoped_request.scope = scope;
-        pages.push((scope, client.search(&scoped_request, cancellation)?));
-    }
-    Ok(pages)
+        .take(count)
+        .collect();
+    let requests: Vec<SearchRequest> = scopes
+        .iter()
+        .map(|&scope| SearchRequest {
+            scope,
+            ..request.clone()
+        })
+        .collect();
+    Ok(scopes
+        .into_iter()
+        .zip(client.search(&requests, cancellation)?)
+        .collect())
 }
 
 pub(super) struct Controller {
@@ -196,7 +207,7 @@ pub(super) struct Controller {
 
 impl Controller {
     pub(super) fn connect(view: Rc<SearchView>, state: &UiState) -> Rc<Self> {
-        let lifetime = Arc::new(AtomicBool::new(false));
+        let lifetime = Arc::clone(&view.lifetime);
         state.set_view_cancellation(&lifetime);
         let controller = Rc::new(Self {
             view,
@@ -209,16 +220,30 @@ impl Controller {
         });
         let weak = Rc::downgrade(&controller);
         controller.view.entry.connect_changed(move |entry| {
-            if let Some(controller) = weak.upgrade() {
-                let scope = controller.queue.borrow().current.scope;
-                controller.change(entry.text().to_string(), scope, 0, true);
+            let Some(controller) = weak.upgrade() else {
+                return;
+            };
+            let text = entry.text().to_string();
+            if let (Some(scope), rest) = scoped_query(&text) {
+                // A typed prefix picks the category and leaves only the query in the entry. The
+                // entry is rewritten once this change has finished being handled.
+                controller.view.select_scope(scope);
+                let rest = rest.to_owned();
+                let entry = entry.clone();
+                glib::idle_add_local_once(move || {
+                    entry.set_text(&rest);
+                    entry.set_position(-1);
+                });
+                return;
             }
+            controller.change(text, controller.view.scope(), 0, true);
         });
         for (option, scope) in controller.view.scopes.options.iter().zip(SearchScope::ALL) {
             let weak = Rc::downgrade(&controller);
             option.connect_toggled(move |option| {
                 if option.is_active()
                     && let Some(controller) = weak.upgrade()
+                    && !controller.view.syncing.get()
                 {
                     controller.change(controller.view.entry.text().to_string(), scope, 0, false);
                 }
@@ -282,6 +307,7 @@ impl Controller {
             queue.replace(query, scope, offset, !debounce);
             queue.take_cached()
         };
+        self.view.set_counts(self.queue.borrow().counts);
         if let Some((request, results)) = cached {
             self.view.present(&request.query, request.offset, results);
             return;
@@ -321,6 +347,7 @@ impl Controller {
         let Some(request) = self.queue.borrow_mut().take_ready() else {
             return;
         };
+        save_last_search(request.scope, &request.query);
         let prefetch = request.offset == 0 && self.queue.borrow().cache.is_empty();
         let mut client = self.client.borrow_mut().take().unwrap();
         let cancellation = Arc::new(AtomicBool::new(false));
@@ -349,6 +376,7 @@ impl Controller {
                     .is_none_or(|(_, cancellation)| cancellation.load(Ordering::Relaxed));
                 self.client.replace(Some(client));
                 let outcome = self.queue.borrow_mut().finish(&request, result, cancelled);
+                self.view.set_counts(self.queue.borrow().counts);
                 if let Err(error) = outcome {
                     self.view.failure(&error);
                 }
@@ -448,6 +476,7 @@ mod tests {
                 total: 109,
                 elapsed: Duration::from_millis(250),
                 items: vec![super::super::model::SearchResultItem::Package(package)],
+                revision: None,
             }),
         );
     }
@@ -539,6 +568,7 @@ mod tests {
                 total: 0,
                 elapsed: Duration::ZERO,
                 items: Vec::new(),
+                revision: None,
             }),
         );
         queue.replace("hyprland".into(), SearchScope::HomeManagerOptions, 0, true);
@@ -593,6 +623,7 @@ mod tests {
                     total,
                     elapsed: Duration::from_millis(100),
                     items: vec![item],
+                    revision: None,
                 },
             )
         })
@@ -625,6 +656,19 @@ mod tests {
             assert_eq!(queue.take_cached().unwrap().0.scope, scope);
             assert!(queue.take_ready().is_none());
         }
+    }
+
+    #[test]
+    fn category_totals_follow_the_current_query() {
+        let mut queue = Queue::new();
+        queue.replace("hyprland".into(), SearchScope::All, 0, true);
+        let request = queue.take_ready().unwrap();
+        queue.finish(&request, Ok(category_pages()), false).unwrap();
+        assert_eq!(queue.counts, [Some(109), Some(71), Some(11), Some(27)]);
+        queue.replace("hyprland".into(), SearchScope::Packages, 0, true);
+        assert_eq!(queue.counts[1], Some(71));
+        queue.replace("ripgrep".into(), SearchScope::Packages, 0, true);
+        assert_eq!(queue.counts, [None; 4]);
     }
 
     #[test]

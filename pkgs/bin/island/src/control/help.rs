@@ -1,6 +1,6 @@
 //! `island ctl --help`, and the help for one command, drawn from what the commands declare.
 
-use super::spec::{self, Command, Group, Takes, Value};
+use super::spec::{self, Command, Form, Group, Takes, Value};
 use crate::cli::{Line, Tone, heading, row, title, under, usage};
 
 /// Longer choices show as a placeholder in the overview, listed under the description.
@@ -19,23 +19,29 @@ fn value(value: Value) -> Line {
 
 fn choices_inline(command: &Command) -> bool {
     match &command.takes {
-        Takes::Forms { forms, .. } => {
+        Takes::Forms { forms, .. } | Takes::Aimed { forms, .. } => {
             forms.iter().map(|form| form.word.len() + 1).sum::<usize>() <= CHOICES_INLINE + 1
         }
         _ => true,
     }
 }
 
-/// How a command reads in the overview, such as `volume [up|down|set|mute]`.
-fn signature(command: &Command) -> Line {
-    let line = Line::new().push(Tone::Command, command.name);
-    match &command.takes {
-        Takes::Nothing => line,
-        Takes::Forms { forms: [only], bare: None } => line
+/// Such as ` [monitor]`, for the word an aimed command may take first.
+fn aimed_at(at: &str) -> Line {
+    Line::new()
+        .push(Tone::Faint, " [")
+        .push(Tone::Value, at)
+        .push(Tone::Faint, "]")
+}
+
+fn forms_signature(command: &Command, forms: &[Form], bare: Option<&str>) -> Line {
+    let line = Line::new();
+    match (forms, bare) {
+        ([only], None) => line
             .plain(" ")
             .push(Tone::Command, only.word)
             .append(value(only.value)),
-        Takes::Forms { forms, bare } => {
+        _ => {
             let (open, close) = if bare.is_some() { ("[", "]") } else { ("<", ">") };
             if choices_inline(command) {
                 let words: Vec<&str> = forms.iter().map(|form| form.word).collect();
@@ -49,6 +55,18 @@ fn signature(command: &Command) -> Line {
                 line.plain(" ").push(Tone::Value, "<action>")
             }
         }
+    }
+}
+
+/// How a command reads in the overview, such as `volume [up|down|set|mute]`.
+fn signature(command: &Command) -> Line {
+    let line = Line::new().push(Tone::Command, command.name);
+    match &command.takes {
+        Takes::Nothing => line,
+        Takes::Forms { forms, bare } => line.append(forms_signature(command, forms, *bare)),
+        Takes::Aimed { at, forms, bare } => line
+            .append(aimed_at(at))
+            .append(forms_signature(command, forms, *bare)),
         Takes::Panel => line
             .plain(" ")
             .push(Tone::Value, "<panel>")
@@ -60,7 +78,7 @@ fn signature(command: &Command) -> Line {
 /// What the overview lists under a command's description, such as the panels.
 fn listed(command: &Command) -> Option<String> {
     match &command.takes {
-        Takes::Forms { forms, .. } if !choices_inline(command) => Some(
+        Takes::Forms { forms, .. } | Takes::Aimed { forms, .. } if !choices_inline(command) => Some(
             forms
                 .iter()
                 .map(|form| form.word)
@@ -146,33 +164,50 @@ pub fn overview() -> Vec<Line> {
 }
 
 /// What follows the command's name in its usage, such as `[up|down [percent] | set <percent>]`.
+fn forms_usage(forms: &[Form], bare: Option<&str>) -> Line {
+    let spaced = forms.iter().any(|form| form.value != Value::Nothing);
+    let mut line = Line::new().plain(" ");
+    let wrap = bare.is_some() || forms.len() > 1;
+    let (open, close) = if bare.is_some() { ("[", "]") } else { ("<", ">") };
+    if wrap {
+        line = line.push(Tone::Faint, open);
+    }
+    for (index, form) in forms.iter().enumerate() {
+        if index > 0 {
+            line = line.push(Tone::Faint, if spaced { " | " } else { "|" });
+        }
+        line = line.push(Tone::Command, form.word).append(value(form.value));
+    }
+    if wrap {
+        line = line.push(Tone::Faint, close);
+    }
+    line
+}
+
 fn takes(command: &Command) -> Line {
     match &command.takes {
         Takes::Nothing => Line::new(),
-        Takes::Forms { forms, bare } => {
-            let spaced = forms.iter().any(|form| form.value != Value::Nothing);
-            let mut line = Line::new().plain(" ");
-            let wrap = bare.is_some() || forms.len() > 1;
-            let (open, close) = if bare.is_some() { ("[", "]") } else { ("<", ">") };
-            if wrap {
-                line = line.push(Tone::Faint, open);
-            }
-            for (index, form) in forms.iter().enumerate() {
-                if index > 0 {
-                    line = line.push(Tone::Faint, if spaced { " | " } else { "|" });
-                }
-                line = line.push(Tone::Command, form.word).append(value(form.value));
-            }
-            if wrap {
-                line = line.push(Tone::Faint, close);
-            }
-            line
-        }
+        Takes::Forms { forms, bare } => forms_usage(forms, *bare),
+        Takes::Aimed { at, forms, bare } => aimed_at(at).append(forms_usage(forms, *bare)),
         _ => {
             let signature = signature(command);
             Line(signature.0.into_iter().skip(1).collect())
         }
     }
+}
+
+fn form_rows<'a>(
+    forms: &'a [Form],
+    bare: Option<&'a str>,
+) -> impl Iterator<Item = (Line, String)> + 'a {
+    bare.map(|about| (Line::new().push(Tone::Faint, "(nothing)"), about.to_owned()))
+        .into_iter()
+        .chain(forms.iter().map(|form| {
+            (
+                Line::new().push(Tone::Command, form.word).append(value(form.value)),
+                form.about.to_owned(),
+            )
+        }))
 }
 
 /// Help for one command: every form it takes, what each does, and examples.
@@ -184,16 +219,13 @@ pub fn command(command: &Command) -> Vec<Line> {
         usage(Line::new().push(Tone::Command, name).append(takes(command))),
     ];
     let rows: Vec<(Line, String)> = match &command.takes {
-        Takes::Forms { forms, bare } => bare
-            .map(|about| (Line::new().push(Tone::Faint, "(nothing)"), about.to_owned()))
-            .into_iter()
-            .chain(forms.iter().map(|form| {
-                (
-                    Line::new().push(Tone::Command, form.word).append(value(form.value)),
-                    form.about.to_owned(),
-                )
-            }))
-            .collect(),
+        Takes::Forms { forms, bare } => form_rows(forms, *bare).collect(),
+        Takes::Aimed { at, forms, bare } => std::iter::once((
+            Line::new().push(Tone::Value, *at),
+            format!("Which {at}; all of them when left out"),
+        ))
+        .chain(form_rows(forms, *bare))
+        .collect(),
         Takes::Panel => spec::panels()
             .into_iter()
             .map(|(panel, views)| (Line::new().push(Tone::Command, panel), views.join(" ")))

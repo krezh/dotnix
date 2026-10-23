@@ -209,8 +209,14 @@ pub(crate) fn show_home(
     let search_window = window.clone();
     let search_root = root.clone();
     let search_state = Rc::clone(&state);
+    let search_config = config.clone();
     search_button.connect_clicked(move |_| {
-        show_search(&search_window, &search_root, Rc::clone(&search_state));
+        show_search(
+            &search_window,
+            &search_root,
+            Rc::clone(&search_state),
+            Some(search_config.clone()),
+        );
     });
     search_card.actions.append(&search_button);
     cards.push(search_card.root);

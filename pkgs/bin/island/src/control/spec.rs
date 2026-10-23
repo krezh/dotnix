@@ -52,6 +52,13 @@ pub enum Takes {
         forms: &'static [Form],
         bare: Option<&'static str>,
     },
+    /// As `Forms`, maybe after a word naming which of several it acts on, such as a monitor;
+    /// named `at` in help. Without that word it acts on all of them.
+    Aimed {
+        at: &'static str,
+        forms: &'static [Form],
+        bare: Option<&'static str>,
+    },
     /// A panel and, for one with views, maybe one of them.
     Panel,
     /// A word of the caller's own, named so in help.

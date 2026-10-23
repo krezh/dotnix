@@ -20,6 +20,7 @@ use crate::{
 impl Feature for Media {
     const NAME: &'static str = "media";
     const GLYPHS: &'static [GlyphSpec] = &[
+        ("tab-media", &["audio-x-generic-symbolic", "emblem-music-symbolic"]),
         ("play", &["media-playback-start-symbolic"]),
         ("pause", &["media-playback-pause-symbolic"]),
         ("next", &["media-skip-forward-symbolic"]),
@@ -28,7 +29,7 @@ impl Feature for Media {
     const WIDGETS: &'static [&'static str] = &[MEDIA, VISUALIZER];
     const LIVE: &'static [&'static str] = &[VISUALIZER];
     const PANEL: Option<&'static str> = Some("media");
-    const TAB: Option<(&'static str, u8)> = Some(("Media", 1));
+    const TAB: Option<(&'static str, u8)> = Some(("Media", 2));
     const PANEL_REFRESH: Option<Duration> = Some(Duration::from_millis(500));
     const CONTROLS: &'static [Command] = commands::CONTROLS;
 

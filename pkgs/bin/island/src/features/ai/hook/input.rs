@@ -147,8 +147,10 @@ pub fn parse(event: &str, json: &str) -> Result<Hook, String> {
             prompt: text(&value, "prompt"),
         },
         "PreToolUse" if tool == "AskUserQuestion" => Hook::Questions { from, input },
-        // The quiet hook on every tool, which leaves questions to the one that waits for them.
-        "ToolUse" if tool == "AskUserQuestion" => Hook::Notice {
+        // The quiet hook on every tool, which leaves questions to the one that waits for them, and
+        // the terminal's own question dialog, which is a permission prompt to Claude Code and comes
+        // only once you chose to answer there.
+        "ToolUse" | "PermissionRequest" if tool == "AskUserQuestion" => Hook::Notice {
             from,
             kind: String::new(),
             message: String::new(),

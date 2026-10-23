@@ -297,6 +297,14 @@ impl Compositor for Hyprland {
             .map(str::to_owned)
     }
 
+    fn focused_monitor(&self) -> Option<String> {
+        let monitors: Vec<RawMonitor> = query("j/monitors").ok()?;
+        monitors
+            .into_iter()
+            .find(|monitor| monitor.focused)
+            .map(|monitor| monitor.name)
+    }
+
     fn surface_origin(&self, monitor: &str) -> Option<(i32, i32)> {
         let mut outputs: HashMap<String, RawLayers> = query("j/layers").ok()?;
         let pid = std::process::id();

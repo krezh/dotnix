@@ -7,11 +7,11 @@ use gpui::App;
 use crate::{cli::Client, control::Command};
 
 use super::{
-    Feature, Features, GlyphSpec, ai, audio, brightness, caffeine, clipboard, clock,
+    Feature, Features, GlyphSpec, ai, audio, bluetooth, brightness, caffeine, clipboard, clock,
     feature::widgets_of,
     headset,
     instance::start_one,
-    launcher, media, molt, notifications, session, tray, workspaces, zowie,
+    launcher, media, molt, network, notifications, session, tray, workspaces, zowie,
 };
 
 macro_rules! features {
@@ -166,6 +166,8 @@ features![
     headset::Headset,
     zowie::Zowie,
     audio::Audio,
+    network::Network,
+    bluetooth::Bluetooth,
     brightness::Brightness,
     media::Media,
     session::Session,

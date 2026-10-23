@@ -24,6 +24,8 @@
         "session"
         "clipboard"
         "visualizer"
+        "network"
+        "bluetooth"
       ];
       sessionActions = [
         "lock"
@@ -114,6 +116,10 @@
           system.storage = {
             inherit (cfg.features.system.storage) partitions;
             hidden_partitions = cfg.features.system.storage.hiddenPartitions;
+          };
+          network = {
+            latency_target = cfg.features.network.latencyTarget;
+            dns_probe = cfg.features.network.dnsProbe;
           };
         };
         log = {
@@ -219,6 +225,19 @@
             type = lib.types.listOf lib.types.str;
             default = [ "/boot" ];
             description = "Mount points the Storage tile leaves out when partitions is empty.";
+          };
+        };
+
+        features.network = {
+          latencyTarget = lib.mkOption {
+            type = lib.types.str;
+            default = "1.1.1.1";
+            description = "IPv4 address on the internet the Network panel times pings to, besides the gateway. Pings go out only while the panel is open.";
+          };
+          dnsProbe = lib.mkOption {
+            type = lib.types.str;
+            default = "example.com";
+            description = "Name whose lookup the Network panel times against the connection's DNS server, now and then while the panel is open.";
           };
         };
 
@@ -359,8 +378,29 @@
           };
           chat.command = lib.mkOption {
             type = lib.types.str;
-            default = "claude";
+            default =
+              if config.programs.claude-code.enable then
+                lib.getExe config.programs.claude-code.package
+              else
+                "claude";
+            defaultText = lib.literalExpression ''lib.getExe config.programs.claude-code.package, or "claude" without programs.claude-code'';
             description = "Claude Code command the chat runs, by name on the PATH or as a full path.";
+          };
+          claudeCode.enable = lib.mkOption {
+            type = lib.types.bool;
+            default = cfg.features.ai.sessions.enable && config.programs.claude-code.enable;
+            defaultText = lib.literalExpression "features.ai.sessions.enable && programs.claude-code.enable";
+            description = ''
+              Wire programs.claude-code to island: install island's plugin, whose hooks hand it
+              every session event, pass the status line through island for its usage, and turn
+              off Claude Code's own notifications, which island's alerts replace.
+            '';
+          };
+          claudeCode.statusLine = lib.mkOption {
+            type = lib.types.nullOr lib.types.str;
+            default = null;
+            example = lib.literalExpression ''lib.getExe pkgs.claude-usage-bar'';
+            description = "Status line command that still draws Claude Code's status line once island has read it; null leaves it empty.";
           };
           chat.model = lib.mkOption {
             type = lib.types.enum [
@@ -471,6 +511,27 @@
       };
 
       config = lib.mkIf cfg.enable {
+        programs.claude-code = lib.mkIf cfg.features.ai.claudeCode.enable {
+          plugins.island = "${cfg.package}/share/island/claude-code";
+          settings = {
+            statusLine = {
+              type = "command";
+              command = lib.concatStringsSep " " (
+                [
+                  (lib.getExe cfg.package)
+                  "ai-hook"
+                  "StatusLine"
+                ]
+                ++ lib.optionals (cfg.features.ai.claudeCode.statusLine != null) [
+                  "--"
+                  cfg.features.ai.claudeCode.statusLine
+                ]
+              );
+            };
+            preferredNotifChannel = "notifications_disabled";
+          };
+        };
+
         home.packages = [ cfg.package ];
 
         xdg.configFile."island/config.toml".source = configFile;

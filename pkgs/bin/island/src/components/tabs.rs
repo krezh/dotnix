@@ -8,7 +8,10 @@ use gpui::{
 };
 
 use crate::{
-    components::{button, icon},
+    components::{
+        button, icon,
+        tooltip::{Tip, Tooltips},
+    },
     island::Island,
     theme::{ACCENT, TEXT},
     ui::{self, HEADER_H, Radius, TEXT_SIZE},
@@ -29,22 +32,14 @@ pub struct TabLabel {
     pub glyph: Option<PathBuf>,
 }
 
-impl TabLabel {
-    pub fn text(label: impl Into<SharedString>) -> Self {
-        Self {
-            label: label.into(),
-            glyph: None,
-        }
-    }
-}
-
-/// `id` must be unique where the tabs sit.
+/// `id` must be unique where the tabs sit. A tab showing its glyph names itself in a tooltip.
 pub fn tabs(
     id: &str,
     labels: Vec<TabLabel>,
     selected: usize,
     on_select: Select,
     hover: bool,
+    tips: &Tooltips,
     cx: &mut Context<Island>,
 ) -> Div {
     let tab_w = if !labels.is_empty() && labels.iter().all(|tab| tab.glyph.is_some()) {
@@ -76,19 +71,17 @@ pub fn tabs(
             let picked = index == selected;
             let select = on_select.clone();
             let color = if picked { ACCENT } else { TEXT };
-            let tab_button = button::fill(
-                SharedString::from(format!("{id}-{index}")),
-                Radius::Row,
-                None,
-                !picked && hover,
-            )
+            let tab_id = SharedString::from(format!("{id}-{index}"));
+            let tab_button = button::fill(tab_id.clone(), Radius::Row, None, !picked && hover)
             .w(px(tab_w))
             .h(px(HEADER_H))
             .text_size(px(TEXT_SIZE))
             .font_weight(FontWeight::SEMIBOLD)
             .text_color(rgb(color));
             match tab.glyph {
-                Some(path) => tab_button.child(icon::glyph(&path, GLYPH, color)),
+                Some(path) => tab_button
+                    .child(icon::glyph(&path, GLYPH, color))
+                    .tip(tips, tab_id, tab.label),
                 None => tab_button.child(tab.label),
             }
             .on_click(cx.listener(move |this, _, _, cx| select(index, this, cx)))
