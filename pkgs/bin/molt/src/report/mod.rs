@@ -1,8 +1,7 @@
-//! What a reviewed build changes: packages from dix, configuration files, release notes, and the
-//! services activation would touch.
+//! What a reviewed build changes: packages, configuration files, release notes, and the services
+//! activation would touch.
 
 pub(crate) mod config_diff;
-mod dix;
 mod services;
 pub(crate) mod ui;
 
@@ -12,10 +11,10 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use crate::build::{GcRoot, Target};
+use crate::closure::ClosureDiff;
 use crate::ui::theme;
 use config_diff::ConfigDiff;
 
-pub(crate) use self::dix::report_from_diff;
 pub(crate) use services::{ServiceGroup, service_impact};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -63,8 +62,7 @@ pub(crate) struct Change {
     pub(crate) size: i64,
 }
 
-/// Drops the versionless entries dix reports for generated files, such as `slumber-config.toml`:
-/// the report lists those files as configuration changes instead.
+/// Drops versionless generated files already listed as configuration changes.
 pub(crate) fn remove_config_files(changes: &mut Vec<Change>, config: &ConfigDiff) {
     let files = config
         .changes
@@ -108,6 +106,34 @@ pub(crate) struct Report {
     pub(crate) built_in: Option<Duration>,
     /// Warnings nix printed while evaluating and building, each once, in the order first seen.
     pub(crate) warnings: Vec<String>,
+}
+
+pub(crate) fn report_from_diff(metadata: ReportMetadata, diff: ClosureDiff) -> Report {
+    let ReportMetadata {
+        target,
+        flake,
+        flake_dir,
+        baseline,
+        profile,
+        output,
+        gc_root,
+    } = metadata;
+    Report {
+        target,
+        flake,
+        flake_dir,
+        baseline,
+        profile,
+        output,
+        _gc_root: gc_root,
+        changes: diff.changes,
+        paths: Some(diff.paths),
+        sizes: Some(diff.sizes),
+        operational_impact: Ok(Vec::new()),
+        config: Ok(Arc::default()),
+        built_in: None,
+        warnings: Vec::new(),
+    }
 }
 
 #[cfg(test)]

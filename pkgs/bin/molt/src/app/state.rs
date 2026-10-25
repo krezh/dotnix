@@ -24,6 +24,8 @@ pub(crate) enum Operation {
     Switching,
 }
 
+pub(crate) type ListStep = Rc<dyn Fn(i32) -> bool>;
+
 pub(crate) struct UiState {
     pub(crate) home_buttons: RefCell<Vec<gtk::Button>>,
     pub(crate) home_shortcuts: RefCell<HashMap<char, gtk::Button>>,
@@ -34,7 +36,7 @@ pub(crate) struct UiState {
     pub(crate) switch_confirmations: RefCell<Vec<SwitchConfirmation>>,
     pub(crate) back_button: RefCell<Option<gtk::Button>>,
     /// Moves a screen's selection by a number of rows; Up and Down try it before scrolling.
-    pub(crate) list_step: RefCell<Option<Rc<dyn Fn(i32) -> bool>>>,
+    pub(crate) list_step: RefCell<Option<ListStep>>,
     pub(crate) operation: Cell<Operation>,
     pub(crate) generation: Cell<u64>,
     pub(crate) cancellation: RefCell<Option<Arc<AtomicBool>>>,

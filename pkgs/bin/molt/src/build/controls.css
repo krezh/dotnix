@@ -11,11 +11,9 @@
   color: var(--overlay1);
 }
 
-/* The list view and its own row and header nodes stay bare over the panel; rows sit 4px apart. */
+/* Bare list nodes; rows keep their 4px spacing in every pointer and selection state. */
 .build-list,
 .build-list > row,
-.build-list > row:hover,
-.build-list > row:selected,
 .build-list > header {
   background-color: transparent;
   background-image: none;

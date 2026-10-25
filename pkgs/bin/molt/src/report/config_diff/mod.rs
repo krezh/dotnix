@@ -22,7 +22,7 @@ const STORE_PREFIX: &[u8] = b"/nix/store/";
 const STORE_HASH_LENGTH: usize = 32;
 /// Shown in place of a store hash, so `/nix/store/<hash>-foo` reads `/nix/store/…-foo`.
 const HASH_PLACEHOLDER: &str = "…";
-/// `etc` entries that are package content dix already reports.
+/// `etc` entries already listed as package changes.
 const ETC_SKIP: &[&str] = &["profiles"];
 /// Larger files are compared and listed, but not diffed.
 const MAX_TEXT_BYTES: u64 = 4 * 1024 * 1024;
@@ -59,8 +59,7 @@ pub(crate) struct ConfigChange {
     pub(crate) status: ChangeStatus,
     /// Where the file is installed: `/etc/nix/nix.conf`, `~/.config/ghostty/config`.
     pub(crate) path: String,
-    /// Name of the store path the file resolves to, without its hash: `slumber-config.toml`. dix
-    /// lists a generated file under this name as a package without a version.
+    /// Hashless store name, e.g. `slumber-config.toml`, also used for versionless package entries.
     pub(crate) store_name: Option<String>,
     pub(crate) content: ConfigContent,
 }

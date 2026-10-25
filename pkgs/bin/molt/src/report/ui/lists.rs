@@ -43,7 +43,7 @@ impl ListFilter {
     }
 }
 
-/// A row of the change list: a package from dix, or a generated configuration file.
+/// A row of the change list: a package or a generated configuration file.
 pub(super) enum Entry {
     Package(Change),
     File(ConfigChange),
@@ -534,18 +534,13 @@ pub(super) fn store_path_footer(paths: &[String]) -> gtk::Widget {
     footer.upcast()
 }
 
-/// A rebuild without a version change, e.g. after a dependency changed: dix reports the version
-/// once, twice, or not at all.
+/// A rebuild without a version change, e.g. after a dependency changed.
 fn is_rebuild(change: &Change) -> bool {
     change.status == ChangeStatus::Changed && (change.old.is_empty() || change.old == change.new)
 }
 
-fn has_changelog_versions(change: &Change) -> bool {
-    !change.new.is_empty() && change.old != "..." && change.new != "..."
-}
-
 fn has_changelog(change: &Change) -> bool {
-    has_changelog_versions(change) && !is_rebuild(change)
+    !change.new.is_empty() && !is_rebuild(change)
 }
 
 /// Pango markup for the version column, plus the same text unstyled for the tooltip. Never empty:
@@ -628,8 +623,6 @@ mod tests {
         let upgraded = |old, new| change(ChangeStatus::Upgraded, old, new);
         assert!(has_changelog(&upgraded("1.0", "2.0")));
         assert!(has_changelog(&change(ChangeStatus::Added, "", "2.0")));
-        assert!(!has_changelog(&upgraded("1.0", "...")));
-        assert!(!has_changelog(&upgraded("...", "2.0")));
         assert!(!has_changelog(&upgraded("1.0", "")));
         assert!(!has_changelog(&change(ChangeStatus::Changed, "", "0.1.0")));
         assert!(!has_changelog(&change(

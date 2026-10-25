@@ -17,7 +17,7 @@ const SIZE_QUERY_ARGUMENT_BYTES: usize = 512 * 1024;
 const NIX: &str = "nix";
 const NIX_STORE: &str = "nix-store";
 const NIX_ENV: &str = "nix-env";
-/// Opened read-only, the way `dix` reads closures, so the scan needs no `nix-store` per batch.
+/// Opened read-only so the scan needs no `nix-store` per batch.
 const NIX_DATABASE: &str = "file:/nix/var/nix/db/db.sqlite";
 
 pub(super) fn scan(cancellation: &AtomicBool, keep_generations: usize) -> CleanupGroup {

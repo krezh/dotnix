@@ -310,7 +310,6 @@ mod tests {
             error_summary("nix eval returned an invalid derivation path: x"),
             "nix eval returned an invalid derivation path: x"
         );
-        assert_eq!(error_summary("dix failed:\n"), "dix failed:");
     }
 
     #[test]

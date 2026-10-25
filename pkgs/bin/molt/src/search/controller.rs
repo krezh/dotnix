@@ -385,10 +385,10 @@ impl Controller {
             Some(Err(mpsc::TryRecvError::Disconnected)) => {
                 self.receiver.take();
                 self.client.replace(Some(SearchClient::new()));
-                if let Some((request, _)) = self.active.take() {
-                    if self.queue.borrow_mut().complete(&request) {
-                        self.view.failure("Search failed: search worker disconnected; Retry to start a new request");
-                    }
+                if let Some((request, _)) = self.active.take()
+                    && self.queue.borrow_mut().complete(&request)
+                {
+                    self.view.failure("Search failed: search worker disconnected; Retry to start a new request");
                 }
                 self.dispatch();
             }

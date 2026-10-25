@@ -4,6 +4,7 @@ mod build;
 mod cache;
 mod check;
 mod cleanup;
+mod closure;
 mod config;
 mod home;
 mod inputs;

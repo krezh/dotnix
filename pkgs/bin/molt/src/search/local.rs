@@ -132,8 +132,7 @@ fn last_error(stderr: &str) -> String {
     stderr
         .lines()
         .map(str::trim)
-        .filter(|line| line.starts_with("error:"))
-        .last()
+        .rfind(|line| line.starts_with("error:"))
         .or_else(|| stderr.lines().map(str::trim).rfind(|line| !line.is_empty()))
         .map_or_else(|| "nix eval failed".to_owned(), str::to_owned)
 }

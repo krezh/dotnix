@@ -11,6 +11,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
 use crate::activation;
+use crate::closure::query_diff;
 use crate::config::Config;
 use crate::nix::{NixBuildProgress, run, run_nix_command, strip_ansi};
 use crate::report::config_diff;
@@ -151,8 +152,8 @@ pub(crate) fn build_report(
     if cancellation.load(Ordering::Relaxed) {
         return Err(molt::command::CANCELLED.to_owned());
     }
-    let diff = ::dix::query_diff_report(&old, &output, false)
-        .map_err(|error| format!("dix closure diff failed: {error:#}"))?;
+    let diff =
+        query_diff(&old, &output).map_err(|error| format!("closure diff failed: {error}"))?;
     if cancellation.load(Ordering::Relaxed) {
         return Err(molt::command::CANCELLED.to_owned());
     }
@@ -167,8 +168,8 @@ pub(crate) fn build_report(
             output,
             gc_root,
         },
-        &diff,
-    )?;
+        diff,
+    );
     progress(BuildUpdate::Phase(
         BuildPhase::Compare,
         "Comparing generated configuration files...",
