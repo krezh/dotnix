@@ -15,8 +15,6 @@
 
       boot = {
         initrd = {
-          verbose = false;
-          # Modules the initrd needs to reach the root filesystem and the keyboard
           availableKernelModules = [
             "nvme" # root disk
             "ahci"

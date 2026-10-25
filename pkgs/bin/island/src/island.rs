@@ -204,6 +204,7 @@ struct AnimStats {
 
 pub struct Island {
     mode: Mode,
+    closing_panel: bool,
     hovered: bool,
     fullscreen: bool,
     slots: Option<bar::Slots>,
@@ -271,8 +272,7 @@ pub struct Island {
     /// Whether this frame changes anything beyond what widgets redraw themselves, so every widget is
     /// drawn afresh instead of reused.
     live: bool,
-    /// Top at rest, so real fullscreen windows cover it; Overlay whenever anything is open or
-    /// animating.
+    /// Overlay while a panel, popup or menu is open or closing; Top for the collapsed bar.
     layer: Layer,
     _subscriptions: Vec<Subscription>,
 }
@@ -383,6 +383,7 @@ impl Island {
             rendered: Instant::now(),
             widgets,
             live: true,
+            closing_panel: false,
             layer: Layer::Top,
             _subscriptions: subscriptions,
         };
@@ -778,6 +779,7 @@ impl Island {
             self.menu = None;
         }
         debug!(from = ?self.mode, to = ?mode, "mode changed");
+        self.closing_panel = mode == Mode::Collapsed;
         self.mode = mode;
         self.sync_grab(cx);
         if let Mode::Open(Panel::Feature(name)) = mode
@@ -1479,10 +1481,18 @@ impl Render for Island {
         // the bar can be reused.
         self.live = self.last_frame.is_some() && !self.is_drifting();
         self.step(window);
-        let layer = if self.mode == Mode::Collapsed && self.menu.is_none() && self.is_settled() {
-            Layer::Top
-        } else {
+        if self.closing_panel
+            && self.w.is_settled()
+            && self.h.is_settled()
+            && self.layers.iter().all(Spring::is_settled)
+            && self.chrome.is_settled()
+        {
+            self.closing_panel = false;
+        }
+        let layer = if self.mode != Mode::Collapsed || self.menu.is_some() || self.closing_panel {
             Layer::Overlay
+        } else {
+            Layer::Top
         };
         if layer != self.layer {
             debug!(?layer, "layer changed");
