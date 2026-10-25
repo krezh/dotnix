@@ -1,8 +1,6 @@
 //! How island sees media: the track playing, the widget and visualizer, the panel, and
 //! `island ctl media`.
 
-use std::time::Duration;
-
 use gpui::AnyElement;
 
 use super::{
@@ -30,7 +28,6 @@ impl Feature for Media {
     const LIVE: &'static [&'static str] = &[VISUALIZER];
     const PANEL: Option<&'static str> = Some("media");
     const TAB: Option<(&'static str, u8)> = Some(("Media", 2));
-    const PANEL_REFRESH: Option<Duration> = Some(Duration::from_millis(500));
     const CONTROLS: &'static [Command] = commands::CONTROLS;
 
     type State = Option<Track>;

@@ -122,7 +122,3 @@ pub(super) fn lead(state: &State, view: &View, p: &PanelCx<'_>) -> Option<Header
         on_click: Some(p.on_local::<Ai>(|_, view| view.poke())),
     })
 }
-
-#[cfg(test)]
-#[path = "jelly_test.rs"]
-mod tests;

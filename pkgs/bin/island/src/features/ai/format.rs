@@ -1,6 +1,8 @@
+use std::time::Duration;
+
 use chrono::{Local, TimeZone, Timelike, Utc};
 
-use super::state::{Freshness, Limit, Provider, Severity, Source};
+use super::state::{Freshness, Limit, Provider, Severity, Source, State};
 use crate::theme::{BLUE, CRITICAL, GREEN, MAUVE, YELLOW};
 
 pub(super) fn now() -> i64 {
@@ -146,4 +148,63 @@ pub(super) fn badge(limit: &Limit, freshness: Freshness, now: i64, countdown: bo
         }
     }
     percent(limit.used)
+}
+
+pub(super) fn next_countdown_ms(at: i64, now: i64) -> Option<u64> {
+    let left = u64::try_from(at - now).ok().filter(|&left| left > 0)?;
+    let minutes = (left + 59_999) / 60_000;
+    let threshold = if minutes < 1440 {
+        (minutes - 1) * 60_000
+    } else {
+        (minutes / 60 * 60 - 1) * 60_000
+    };
+    Some(left - threshold)
+}
+
+pub(super) fn next_ago_ms(at: i64, now: i64) -> Option<u64> {
+    if at <= 0 {
+        return None;
+    }
+    let elapsed = u64::try_from(now.saturating_sub(at).max(0)).unwrap_or(0);
+    let step = match elapsed / 60_000 {
+        ..60 => 60_000,
+        ..1440 => 3_600_000,
+        _ => 86_400_000,
+    };
+    Some(step - (elapsed % step))
+}
+
+pub(super) fn next_elapsed_ms(since: i64, now: i64) -> u64 {
+    let elapsed = u64::try_from(now.saturating_sub(since).max(0)).unwrap_or(0);
+    let minutes = (elapsed + 59_999) / 60_000;
+    let target = if minutes < 1440 {
+        minutes * 60_000 + 1
+    } else {
+        (minutes / 60 + 1) * 3_600_000 - 59_999
+    };
+    target.saturating_sub(elapsed).max(1)
+}
+
+pub(super) fn usage_next_change(sources: &[Source], state: &State, now: i64) -> Option<Duration> {
+    state
+        .providers
+        .iter()
+        .filter(|provider| !provider.is_empty() && sources.contains(&provider.source))
+        .flat_map(|provider| {
+            let ago = next_ago_ms(provider.fetched_at, now);
+            let credits = provider
+                .credits
+                .as_ref()
+                .and_then(|credits| credits.expires_at)
+                .and_then(|at| next_countdown_ms(at, now));
+            let limits = provider.limits.iter().flat_map(move |limit| {
+                [limit.resets_at, limit.exhausts_at]
+                    .into_iter()
+                    .flatten()
+                    .filter_map(move |at| next_countdown_ms(at, now))
+            });
+            ago.into_iter().chain(credits).chain(limits)
+        })
+        .min()
+        .map(Duration::from_millis)
 }

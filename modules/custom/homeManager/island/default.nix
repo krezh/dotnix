@@ -26,6 +26,7 @@
         "visualizer"
         "network"
         "bluetooth"
+        "gotify"
       ];
       sessionActions = [
         "lock"
@@ -120,6 +121,14 @@
           network = {
             latency_target = cfg.features.network.latencyTarget;
             dns_probe = cfg.features.network.dnsProbe;
+          };
+        }
+        // lib.optionalAttrs cfg.features.gotify.enable {
+          gotify = {
+            inherit (cfg.features.gotify) url;
+            token_file = toString cfg.features.gotify.tokenFile;
+            min_priority = cfg.features.gotify.minPriority;
+            auto_delete = cfg.features.gotify.autoDelete;
           };
         };
         log = {
@@ -380,10 +389,10 @@
             type = lib.types.str;
             default =
               if config.programs.claude-code.enable then
-                lib.getExe config.programs.claude-code.package
+                lib.getExe config.programs.claude-code.finalPackage
               else
                 "claude";
-            defaultText = lib.literalExpression ''lib.getExe config.programs.claude-code.package, or "claude" without programs.claude-code'';
+            defaultText = lib.literalExpression ''lib.getExe config.programs.claude-code.finalPackage, or "claude" without programs.claude-code'';
             description = "Claude Code command the chat runs, by name on the PATH or as a full path.";
           };
           claudeCode.enable = lib.mkOption {
@@ -506,6 +515,30 @@
             type = lib.types.ints.positive;
             default = 7;
             description = "How many days the notification history, the panel's Earlier view, keeps notifications.";
+          };
+        };
+
+        features.gotify = {
+          enable = lib.mkEnableOption "receiving Gotify messages in island";
+          url = lib.mkOption {
+            type = lib.types.str;
+            example = "wss://gotify.example.com";
+            description = "Gotify server URL.";
+          };
+          tokenFile = lib.mkOption {
+            type = lib.types.path;
+            example = "/run/secrets/gotify-token";
+            description = "Path to a file containing the Gotify auth token.";
+          };
+          minPriority = lib.mkOption {
+            type = lib.types.int;
+            default = 0;
+            description = "Minimum message priority to display.";
+          };
+          autoDelete = lib.mkOption {
+            type = lib.types.bool;
+            default = false;
+            description = "Delete messages from the server after displaying them.";
           };
         };
       };

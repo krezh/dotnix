@@ -25,17 +25,18 @@ impl Tray {
         let tray = self.clone();
         cx.spawn(async move |island, cx| {
             let root = match response.await {
-                Ok(Some(root)) => root,
-                Ok(None) => return,
+                Ok(Some(root)) if !root.children.is_empty() => root,
+                Ok(_) => {
+                    debug!(item = key, "the tray menu is empty");
+                    let _ = island.update(cx, |island, cx| island.close_menu(cx));
+                    return;
+                }
                 Err(_) => {
                     warn!(item = key, "the tray worker dropped the menu request");
+                    let _ = island.update(cx, |island, cx| island.close_menu(cx));
                     return;
                 }
             };
-            if root.children.is_empty() {
-                debug!(item = key, "the tray menu is empty");
-                return;
-            }
             debug!(
                 item = key,
                 entries = root.children.len(),

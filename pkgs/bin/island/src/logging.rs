@@ -8,6 +8,7 @@ use std::{
     fmt,
     fs::{self, File},
     io::{self, BufRead, BufReader, IsTerminal, Read, Write as _},
+    net::Shutdown,
     os::{
         fd::AsFd,
         unix::{
@@ -19,10 +20,9 @@ use std::{
     sync::{
         Arc, LazyLock, Mutex, MutexGuard, OnceLock, PoisonError,
         atomic::{AtomicU64, Ordering},
-        mpsc::{self, RecvTimeoutError, SyncSender},
+        mpsc::{self, SyncSender},
     },
     thread,
-    time::Duration,
 };
 
 use chrono::{DateTime, Local, Utc};
@@ -54,8 +54,6 @@ pub const DEFAULT: &str = "info";
 const BACKLOG: usize = 1000;
 /// Entries a client may fall behind by before it is dropped.
 const CLIENT_QUEUE: usize = 1024;
-/// How often a waiting client is checked for having gone away.
-const CLIENT_CHECK: Duration = Duration::from_secs(1);
 
 static FILTER: OnceLock<reload::Handle<EnvFilter, Registry>> = OnceLock::new();
 
@@ -271,7 +269,7 @@ impl Request {
 #[derive(Default)]
 struct Hub {
     backlog: Mutex<VecDeque<Arc<Entry>>>,
-    clients: Mutex<Vec<SyncSender<Arc<Entry>>>>,
+    clients: Mutex<HashMap<u64, SyncSender<Arc<Entry>>>>,
     configured: Mutex<String>,
     raised: Mutex<HashMap<u64, LevelFilter>>,
 }
@@ -288,18 +286,19 @@ impl Hub {
             backlog.pop_front();
         }
         backlog.push_back(entry.clone());
-        lock(&self.clients).retain(|client| client.try_send(entry.clone()).is_ok());
+        lock(&self.clients).retain(|_, client| client.try_send(entry.clone()).is_ok());
     }
 
     fn subscribe(
         &self,
+        client: u64,
         request: &Request,
         level: Option<Level>,
     ) -> (Vec<Arc<Entry>>, Option<mpsc::Receiver<Arc<Entry>>>) {
         let backlog = lock(&self.backlog);
         let receiver = request.follow.then(|| {
             let (sender, receiver) = mpsc::sync_channel(CLIENT_QUEUE);
-            lock(&self.clients).push(sender);
+            lock(&self.clients).insert(client, sender);
             receiver
         });
         let mut recent: Vec<Arc<Entry>> = backlog
@@ -332,6 +331,7 @@ impl Hub {
     }
 
     fn release(&self, client: u64) {
+        lock(&self.clients).remove(&client);
         if lock(&self.raised).remove(&client).is_some()
             && let Err(error) = self.apply()
         {
@@ -414,20 +414,6 @@ fn socket_path() -> Option<PathBuf> {
         .map(|runtime| PathBuf::from(runtime).join("island").join("logs.sock"))
 }
 
-/// Whether a client that sends nothing after its request has hung up.
-fn hung_up(stream: &UnixStream) -> bool {
-    if stream.set_nonblocking(true).is_err() {
-        return true;
-    }
-    let mut byte = [0u8; 1];
-    let gone = match (&*stream).read(&mut byte) {
-        Ok(_) => true,
-        Err(error) => error.kind() != io::ErrorKind::WouldBlock,
-    };
-    let _ = stream.set_nonblocking(false);
-    gone
-}
-
 fn send(stream: &mut UnixStream, entry: &Entry) -> bool {
     serde_json::to_string(entry).is_ok_and(|line| writeln!(stream, "{line}").is_ok())
 }
@@ -437,7 +423,8 @@ fn serve_client(stream: UnixStream, client: u64) {
     let Ok(reader) = stream.try_clone() else {
         return;
     };
-    if BufReader::new(reader).read_line(&mut line).is_err() {
+    let mut reader = BufReader::new(reader);
+    if reader.read_line(&mut line).is_err() {
         return;
     }
     let request: Request = serde_json::from_str(&line).unwrap_or_default();
@@ -452,9 +439,10 @@ fn serve_client(stream: UnixStream, client: u64) {
         follow = request.follow,
         "log client connected"
     );
-    let (recent, receiver) = HUB.subscribe(&request, level);
+    let (recent, receiver) = HUB.subscribe(client, &request, level);
     let mut stream = stream;
     if !recent.iter().all(|entry| send(&mut stream, entry)) {
+        HUB.release(client);
         return;
     }
     let Some(receiver) = receiver else {
@@ -463,15 +451,18 @@ fn serve_client(stream: UnixStream, client: u64) {
     if let Some(level) = level {
         HUB.raise(client, LevelFilter::from_level(level));
     }
-    loop {
-        match receiver.recv_timeout(CLIENT_CHECK) {
-            Ok(entry) if request.wants(&entry, level) && !send(&mut stream, &entry) => break,
-            Ok(_) => {}
-            Err(RecvTimeoutError::Timeout) if hung_up(&stream) => break,
-            Err(RecvTimeoutError::Timeout) => {}
-            Err(RecvTimeoutError::Disconnected) => break,
+    let _ = thread::Builder::new()
+        .name("island-log-reader".into())
+        .spawn(move || {
+            let _ = reader.read(&mut [0u8; 1]);
+            HUB.release(client);
+        });
+    for entry in receiver {
+        if request.wants(&entry, level) && !send(&mut stream, &entry) {
+            break;
         }
     }
+    let _ = stream.shutdown(Shutdown::Both);
     HUB.release(client);
     debug!(client, "log client left");
 }
@@ -583,3 +574,7 @@ pub fn logs(args: Vec<String>) -> ! {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "logging_test.rs"]
+mod tests;

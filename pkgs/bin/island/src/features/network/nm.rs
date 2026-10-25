@@ -11,9 +11,9 @@ use crate::dbus::uncached;
 
 const NM: &str = "org.freedesktop.NetworkManager";
 const NM_PATH: &str = "/org/freedesktop/NetworkManager";
-const SETTINGS: &str = "org.freedesktop.NetworkManager.Settings";
+pub(super) const SETTINGS: &str = "org.freedesktop.NetworkManager.Settings";
 const SETTINGS_PATH: &str = "/org/freedesktop/NetworkManager/Settings";
-const CONNECTION: &str = "org.freedesktop.NetworkManager.Settings.Connection";
+pub(super) const CONNECTION: &str = "org.freedesktop.NetworkManager.Settings.Connection";
 const DEVICE: &str = "org.freedesktop.NetworkManager.Device";
 const WIRELESS: &str = "org.freedesktop.NetworkManager.Device.Wireless";
 const WIRED: &str = "org.freedesktop.NetworkManager.Device.Wired";

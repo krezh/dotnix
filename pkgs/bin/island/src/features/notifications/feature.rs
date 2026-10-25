@@ -1,13 +1,11 @@
 //! How island sees notifications: the cards each island keeps, the widget, the panel, the
 //! pop-ups, and `island ctl dnd|private|clear`.
 
-use std::time::Duration;
-
 use gpui::AnyElement;
 
 use super::{
     cards::{self, Cards},
-    commands, panel,
+    commands,
     runtime::Notifications,
     settings,
     state::{Event, State},
@@ -22,7 +20,6 @@ impl Feature for Notifications {
     const NAME: &'static str = "notifications";
     const PANEL: Option<&'static str> = Some("notifications");
     const TAB: Option<(&'static str, u8)> = Some(("Notifications", 0));
-    const PANEL_REFRESH: Option<Duration> = Some(panel::REFRESH);
     const CONTROLS: &'static [Command] = commands::CONTROLS;
     const GLYPHS: &'static [GlyphSpec] = &[
         (

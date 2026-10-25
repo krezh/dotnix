@@ -18,7 +18,7 @@ use crate::{
         button,
         measure::{self, Measured},
     },
-    island::{CONTENT_IN, CONTENT_OUT, Island, REVEAL_DELAY, SHAPE_SPRING},
+    island::{CONTENT_DRIFT, CONTENT_IN, CONTENT_OUT, Island, REVEAL_DELAY, SHAPE_SPRING},
     panel::{self, Handler},
     shape::Hang,
     spring::Spring,
@@ -49,16 +49,16 @@ fn entry_element(entry: Entry, checks: bool, hover: bool, cx: &mut Context<Islan
             )
             .into_any_element();
     }
-    let enabled = entry.enabled && entry.on_click.is_some();
+    let clickable = entry.enabled && entry.on_click.is_some();
     let mark = entry.check.map(|on| if on { "✓" } else { "" });
-    button::ghost(entry.id, hover && enabled)
+    button::ghost(entry.id, hover && clickable)
         .h(px(ENTRY_H))
         .px(px(8.0))
         .justify_start()
         .gap(px(8.0))
         .text_size(px(SMALL_SIZE))
-        .text_color(rgb(if enabled { TEXT } else { OVERLAY2 }))
-        .when(!enabled, |row| row.cursor_default())
+        .text_color(rgb(if entry.enabled { TEXT } else { OVERLAY2 }))
+        .when(!clickable, |row| row.cursor_default())
         .when(checks, |row| {
             row.child(
                 div()
@@ -98,17 +98,26 @@ pub struct MenuNode {
 
 pub type Pick = Rc<dyn Fn(i32, &mut Island, &mut Context<Island>)>;
 
+struct Leaving {
+    node: MenuNode,
+    sub: bool,
+    size: Size<Pixels>,
+    opacity: Spring,
+}
+
 pub struct Menu {
     source: String,
     root: MenuNode,
     path: Vec<usize>,
     pick: Pick,
-    anchor: f32,
+    anchor: Spring,
+    drawn_anchor: Cell<Option<f32>>,
     open: bool,
     limit: f32,
     w: Spring,
     h: Spring,
     content: Spring,
+    leaving: Option<Leaving>,
     size: Measured,
     pending: Cell<Option<u64>>,
     frozen: Option<(u64, Size<Pixels>)>,
@@ -121,12 +130,14 @@ impl Menu {
             root,
             path: Vec::new(),
             pick,
-            anchor,
+            anchor: Spring::new(anchor, SHAPE_SPRING, 0.1),
+            drawn_anchor: Cell::new(None),
             open: true,
             limit: MAX_W,
             w: Spring::new(0.0, SHAPE_SPRING, 0.1),
             h: Spring::new(0.0, SHAPE_SPRING, 0.1),
             content: Spring::new(0.0, CONTENT_OUT, 0.002),
+            leaving: None,
             size: measure::measured(),
             pending: Cell::new(None),
             frozen: None,
@@ -134,11 +145,34 @@ impl Menu {
     }
 
     pub fn replace(&mut self, source: String, root: MenuNode, pick: Pick, anchor: f32) {
+        let was_open = self.open;
+        if self.h.value() >= 0.5 {
+            self.swap();
+            if !was_open {
+                self.w.retarget(self.w.value(), SHAPE_SPRING);
+                self.h.retarget(self.h.value(), SHAPE_SPRING);
+            }
+            if self.anchor.is_settled()
+                && let Some(drawn) = self.drawn_anchor.get()
+            {
+                self.anchor.reset(drawn);
+            }
+            self.anchor.retarget(anchor, SHAPE_SPRING);
+        } else {
+            self.leaving = None;
+            self.frozen = None;
+            self.pending.set(None);
+            self.size.set(None);
+            self.w.reset(0.0);
+            self.h.reset(0.0);
+            self.anchor.reset(anchor);
+            self.drawn_anchor.set(None);
+            self.content.reset(0.0);
+        }
         self.source = source;
         self.root = root;
         self.path.clear();
         self.pick = pick;
-        self.anchor = anchor;
         self.open = true;
         self.grow();
     }
@@ -161,6 +195,35 @@ impl Menu {
         })
     }
 
+    fn swap(&mut self) {
+        let current = self.content.value();
+        let keep_leaving = self
+            .leaving
+            .as_ref()
+            .is_some_and(|leaving| leaving.opacity.value() >= current);
+        if !keep_leaving
+            && current > 0.001
+            && let Some((_, size)) = self.frozen.take()
+        {
+            let mut opacity = Spring::new(current, CONTENT_OUT, 0.002);
+            opacity.retarget(0.0, CONTENT_OUT);
+            self.leaving = Some(Leaving {
+                node: self.current().clone(),
+                sub: !self.path.is_empty(),
+                size,
+                opacity,
+            });
+        } else {
+            self.frozen = None;
+            if let Some(leaving) = &mut self.leaving {
+                leaving.opacity.retarget(0.0, CONTENT_OUT);
+            }
+        }
+        self.pending.set(None);
+        self.size.set(None);
+        self.content.reset(0.0);
+    }
+
     pub fn enter(&mut self, index: usize) {
         if self
             .current()
@@ -168,21 +231,33 @@ impl Menu {
             .get(index)
             .is_some_and(|node| !node.children.is_empty())
         {
+            self.swap();
             self.path.push(index);
             self.grow();
         }
     }
 
     pub fn back(&mut self) {
-        self.path.pop();
-        self.grow();
+        if !self.path.is_empty() {
+            self.swap();
+            self.path.pop();
+            self.grow();
+        }
     }
 
     pub fn close(&mut self) {
         self.open = false;
+        self.pending.set(None);
         self.h.retarget(0.0, SHAPE_SPRING);
         self.w.retarget(self.w.target() * BULGE, SHAPE_SPRING);
         self.content.retarget(0.0, CONTENT_OUT);
+        if let Some(leaving) = &mut self.leaving {
+            leaving.opacity.retarget(0.0, CONTENT_OUT);
+        }
+    }
+
+    pub fn is_pending(&self) -> bool {
+        self.pending.get().is_some()
     }
 
     pub fn is_gone(&self) -> bool {
@@ -190,13 +265,26 @@ impl Menu {
     }
 
     pub fn is_settled(&self) -> bool {
-        self.w.is_settled() && self.h.is_settled() && self.content.is_settled()
+        (!self.open || self.frozen.is_some())
+            && self.w.is_settled()
+            && self.h.is_settled()
+            && self.anchor.is_settled()
+            && self.content.is_settled()
+            && self.leaving.is_none()
+            && !self.is_pending()
     }
 
     pub fn advance(&mut self, dt: f32, now: Instant) {
         self.w.advance(dt, now);
         self.h.advance(dt, now);
+        self.anchor.advance(dt, now);
         self.content.advance(dt, now);
+        if let Some(leaving) = &mut self.leaving {
+            leaving.opacity.advance(dt, now);
+            if leaving.opacity.is_settled() {
+                self.leaving = None;
+            }
+        }
     }
 
     pub fn set_limit(&mut self, limit: f32) {
@@ -263,7 +351,8 @@ impl Menu {
         let left = f32::from(body.origin.x) + radius + fillet;
         let right = f32::from(body.right()) - radius - fillet;
         let w = self.w.value().clamp(0.0, (right - left).max(0.0));
-        let x = (self.anchor - w / 2.0).clamp(left, (right - w).max(left));
+        let x = (self.anchor.value() - w / 2.0).clamp(left, (right - w).max(left));
+        self.drawn_anchor.set(Some(x + w / 2.0));
         let x = (x * scale).round() / scale;
         let (corner, power) = Radius::Panel.geometry();
         Hang {
@@ -277,7 +366,7 @@ impl Menu {
     pub fn element(&self, hang: &Hang, hover: bool, cx: &mut Context<Island>) -> AnyElement {
         let key = self.key();
         let frozen = self.frozen.filter(|(frozen, _)| *frozen == key);
-        let content = self.contents(hover, cx);
+        let content = self.contents(self.current(), !self.path.is_empty(), hover, true, cx);
         let content = match frozen {
             Some((_, size)) => div()
                 .flex_none()
@@ -295,6 +384,23 @@ impl Menu {
                     .into_any_element()
             }
         };
+        let leaving = self
+            .leaving
+            .as_ref()
+            .filter(|leaving| leaving.opacity.value() > 0.001)
+            .map(|leaving| {
+                let opacity = leaving.opacity.value().clamp(0.0, 1.0);
+                let content = self.contents(&leaving.node, leaving.sub, false, false, cx);
+                layer(
+                    div()
+                        .flex_none()
+                        .w(leaving.size.width)
+                        .h(leaving.size.height)
+                        .child(content)
+                        .into_any_element(),
+                    opacity,
+                )
+            });
         div()
             .absolute()
             .left(hang.bounds.origin.x)
@@ -302,30 +408,29 @@ impl Menu {
             .w(hang.bounds.size.width)
             .h(hang.bounds.size.height)
             .overflow_hidden()
-            .child(
-                div()
-                    .absolute()
-                    .top_0()
-                    .left_0()
-                    .w(px(MAX_W))
-                    .flex()
-                    .items_start()
-                    .opacity(self.content.value().clamp(0.0, 1.0))
-                    .child(content),
-            )
+            .children(leaving)
+            .child(layer(content, self.content.value().clamp(0.0, 1.0)))
             .into_any_element()
     }
 
-    fn contents(&self, hover: bool, cx: &mut Context<Island>) -> AnyElement {
-        let node = self.current();
+    fn contents(
+        &self,
+        node: &MenuNode,
+        sub: bool,
+        hover: bool,
+        interactive: bool,
+        cx: &mut Context<Island>,
+    ) -> AnyElement {
+        let prefix = if interactive { "menu" } else { "leaving-menu" };
         let checks = node.children.iter().any(|child| child.toggle.is_some());
-        let back = (!self.path.is_empty()).then(|| {
-            button::ghost("menu-back", hover)
+        let back = sub.then(|| {
+            button::ghost(format!("{prefix}-back"), hover && interactive)
                 .h(px(ENTRY_H))
                 .px(px(8.0))
                 .justify_start()
                 .gap(px(8.0))
                 .text_size(px(SMALL_SIZE))
+                .when(!interactive, |row| row.cursor_default())
                 .child(div().flex_none().text_color(rgb(SUBTEXT1)).child("‹"))
                 .child(
                     div()
@@ -335,12 +440,14 @@ impl Menu {
                         .font_weight(FontWeight::SEMIBOLD)
                         .child(node.label.clone()),
                 )
-                .on_click(cx.listener(|island, _, _, cx| island.menu_back(cx)))
+                .when(interactive, |row| {
+                    row.on_click(cx.listener(|island, _, _, cx| island.menu_back(cx)))
+                })
                 .into_any_element()
         });
         let separator = back.is_some().then(|| {
             let line = Entry {
-                id: "menu-back-line".into(),
+                id: format!("{prefix}-back-line").into(),
                 label: "".into(),
                 enabled: false,
                 separator: true,
@@ -358,16 +465,18 @@ impl Menu {
                 let id = child.id;
                 let submenu = !child.children.is_empty();
                 let entry = Entry {
-                    id: format!("menu-{id}-{index}").into(),
+                    id: format!("{prefix}-{id}-{index}").into(),
                     label: child.label.clone().into(),
                     enabled: child.enabled,
                     separator: child.separator,
                     check: child.toggle,
                     submenu,
-                    on_click: Some(if submenu {
-                        panel::on(move |island, cx| island.menu_enter(index, cx))
-                    } else {
-                        panel::on(move |island, cx| island.menu_pick(id, cx))
+                    on_click: interactive.then(|| {
+                        if submenu {
+                            panel::on(move |island, cx| island.menu_enter(index, cx))
+                        } else {
+                            panel::on(move |island, cx| island.menu_pick(id, cx))
+                        }
                     }),
                 };
                 entry_element(entry, checks, hover, cx)
@@ -385,3 +494,19 @@ impl Menu {
             .into_any_element()
     }
 }
+
+fn layer(content: AnyElement, opacity: f32) -> gpui::Div {
+    div()
+        .absolute()
+        .top(px(-(1.0 - opacity) * CONTENT_DRIFT))
+        .left_0()
+        .w(px(MAX_W))
+        .flex()
+        .items_start()
+        .opacity(opacity)
+        .child(content)
+}
+
+#[cfg(test)]
+#[path = "menu_test.rs"]
+mod tests;

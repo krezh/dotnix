@@ -94,6 +94,12 @@
       ignoreTests: false,
     },
     {
+      description: "gpui-pre crates pin each other exactly, so bump them together",
+      matchManagers: ["cargo"],
+      matchPackageNames: ["gpui-pre", "gpui-pre-*"],
+      groupName: "gpui-pre",
+    },
+    {
       description: "Auto-merge flake.lock digest updates",
       matchManagers: ["nix"],
       matchUpdateTypes: ["digest", "pin", "pinDigest"],

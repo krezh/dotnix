@@ -21,6 +21,7 @@ appimageTools.wrapType2 {
     install -Dm444 ${appimageContents}/${pname}.desktop -t $out/share/applications
     substituteInPlace $out/share/applications/${pname}.desktop \
       --replace-fail 'Exec=AppRun' 'Exec=${pname}'
+    echo 'MimeType=x-scheme-handler/curseforge;x-scheme-handler/wowup;' >> $out/share/applications/${pname}.desktop
     cp -r ${appimageContents}/usr/share/icons $out/share
   '';
 

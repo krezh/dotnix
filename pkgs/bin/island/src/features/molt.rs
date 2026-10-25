@@ -2,7 +2,7 @@
 //! fetched, without the network, so the counts follow local changes such as a pull.
 
 use std::{
-    env, fs,
+    any::Any, env, fs,
     path::PathBuf,
     sync::mpsc::{self, RecvTimeoutError, Sender},
     time::{Duration, SystemTime, UNIX_EPOCH},
@@ -360,8 +360,9 @@ impl Feature for Molt {
     }
 
     /// So the panel opens on the latest without waiting for the network.
-    fn panel_opened(&self) {
+    fn panel_opened(&self) -> Option<Box<dyn Any>> {
         let _ = self.requests.send(Request::Look);
+        None
     }
 
     /// With no incoming changes, the ready watched pull requests show in green, since an update now

@@ -1,6 +1,6 @@
 use std::{
     path::PathBuf,
-    time::{SystemTime, UNIX_EPOCH},
+    time::{Duration, SystemTime, UNIX_EPOCH},
 };
 
 use crate::panel::Preview;
@@ -100,6 +100,10 @@ impl Entry {
             || self.text.to_lowercase().contains(query)
             || self.title().to_lowercase().contains(query)
     }
+
+    pub(super) fn next_change(&self) -> Duration {
+        next_ago(self.used)
+    }
 }
 
 fn plural(count: i64, one: &str, many: &str) -> String {
@@ -127,6 +131,21 @@ fn ago(at: i64) -> String {
         seconds if seconds < 86_400 => format!("{} h ago", seconds / 3600),
         seconds => format!("{} d ago", seconds / 86_400),
     }
+}
+
+fn next_ago(at: i64) -> Duration {
+    let now = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default();
+    let now_secs = i64::try_from(now.as_secs()).unwrap_or(i64::MAX);
+    let elapsed = u64::try_from(now_secs.saturating_sub(at)).unwrap_or(0);
+    let step = match elapsed {
+        ..3600 => 60,
+        ..86_400 => 3600,
+        _ => 86_400,
+    };
+    Duration::from_secs(step - (elapsed % step))
+        .saturating_sub(Duration::from_nanos(u64::from(now.subsec_nanos())))
 }
 
 pub(super) fn files(uris: &[u8]) -> Vec<PathBuf> {

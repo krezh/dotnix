@@ -23,6 +23,7 @@
           "hetzner/accessID" = { };
           "hetzner/accessSecret" = { };
           "opentodo/token" = { };
+          "gotify/token" = { };
           "krezh/email" = { };
         };
       };

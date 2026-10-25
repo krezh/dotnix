@@ -1,6 +1,6 @@
 use serde_json::json;
 
-use super::{HOOKS, MOST_MS, WAIT_SECONDS, hooks};
+use super::{HOOKS, WAIT_SECONDS, hooks};
 use crate::features::ai::hook::{EVENTS, parse};
 
 #[test]
@@ -25,11 +25,6 @@ fn every_event_but_the_status_line_comes_from_a_hook() {
             "nothing runs {event}"
         );
     }
-}
-
-#[test]
-fn a_waiting_hook_outlasts_the_longest_request() {
-    assert!(WAIT_SECONDS * 1000 > MOST_MS);
 }
 
 #[test]

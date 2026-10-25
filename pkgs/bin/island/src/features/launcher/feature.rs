@@ -1,5 +1,7 @@
 //! How island sees the launcher: its apps, its panel, and the keys typed into it.
 
+use std::any::Any;
+
 use gpui::Keystroke;
 
 use super::{
@@ -30,8 +32,9 @@ impl Feature for Launcher {
         local.sync(apps);
     }
 
-    fn panel_opened(&self) {
+    fn panel_opened(&self) -> Option<Box<dyn Any>> {
         self.refresh();
+        None
     }
 
     fn check_settings(settings: &toml::Value) -> Result<(), String> {

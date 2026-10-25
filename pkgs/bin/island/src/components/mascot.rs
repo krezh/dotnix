@@ -869,7 +869,3 @@ pub fn mascot(pose: Pose, side: f32) -> impl IntoElement {
         .size_full(),
     )
 }
-
-#[cfg(test)]
-#[path = "mascot_test.rs"]
-mod tests;

@@ -1,6 +1,8 @@
 //! The Bluetooth tab: icon buttons, every connected device side by side, then what is paired and
 //! what is nearby, with a card over the panel while a device asks about a pairing code.
 
+use std::time::Duration;
+
 use gpui::SharedString;
 
 use super::{
@@ -46,7 +48,13 @@ fn what(device: &Device) -> String {
 
 /// One connected device: its battery ring, what it is, how long it has been connected, and its
 /// own way to disconnect, with trust and forget behind its menu.
-fn connected(device: &Device, open: bool, now: i64, p: &PanelCx<'_>) -> Block {
+fn connected(
+    device: &Device,
+    open: bool,
+    now: i64,
+    subsec: Duration,
+    p: &PanelCx<'_>,
+) -> Block {
     let path = device.path.clone();
     let mark = match device.battery {
         Some(level) => Mark::Ring {
@@ -62,10 +70,12 @@ fn connected(device: &Device, open: bool, now: i64, p: &PanelCx<'_>) -> Block {
     };
     let status = match (device.busy, device.since) {
         (Some(busy), _) => (busy.label().to_owned(), BLUE),
-        (None, Some(since)) => (
-            format!("Connected · {}", short_duration((now - since).max(0) as u64)),
-            GREEN,
-        ),
+        (None, Some(since)) => {
+            let elapsed = (now - since).max(0) as u64;
+            let step = if elapsed < 86_400 { 60 } else { 3600 };
+            p.redraw_in(Duration::from_secs(step - (elapsed % step) - 1) + subsec);
+            (format!("Connected · {}", short_duration(elapsed)), GREEN)
+        }
         (None, None) => ("Connected".to_owned(), GREEN),
     };
     let item = Item {
@@ -244,7 +254,7 @@ fn nearby(state: &State, p: &PanelCx<'_>) -> Block {
     Block::Card(Some(Title::with_detail("Nearby", detail)), card::Size::Medium, blocks)
 }
 
-fn buttons(state: &State, now: i64, p: &PanelCx<'_>) -> Vec<IconButton> {
+fn buttons(state: &State, now: i64, subsec: Duration, p: &PanelCx<'_>) -> Vec<IconButton> {
     let mut buttons = vec![IconButton {
         id: "bt-power".into(),
         glyph: p.glyph(if state.powered { "bt-on" } else { "bt-off" }),
@@ -278,6 +288,9 @@ fn buttons(state: &State, now: i64, p: &PanelCx<'_>) -> Vec<IconButton> {
         on_click: p.call(|bluetooth: &Bluetooth| bluetooth.send(Request::Scan)),
     });
     let left = state.visible_until.map(|until| (until - now).max(0));
+    if state.discoverable && left.is_some_and(|left| left > 0) {
+        p.redraw_in(subsec);
+    }
     buttons.push(IconButton {
         id: "bt-visible".into(),
         glyph: p.glyph("bt-visible"),
@@ -325,7 +338,10 @@ fn prompt(state: &State, p: &PanelCx<'_>) -> Option<Block> {
 }
 
 pub fn panel(state: &State, p: &PanelCx<'_>) -> PanelView {
-    let now = chrono::Utc::now().timestamp();
+    let utc = chrono::Utc::now();
+    let now = utc.timestamp();
+    let subsec =
+        Duration::from_millis(1000 - u64::from(utc.timestamp_subsec_millis()).min(999));
     let mut blocks = Vec::new();
     if !state.available {
         blocks.push(Block::Card(
@@ -339,7 +355,7 @@ pub fn panel(state: &State, p: &PanelCx<'_>) -> PanelView {
         };
     }
     blocks.push(Block::Buttons(ButtonRow {
-        buttons: buttons(state, now, p),
+        buttons: buttons(state, now, subsec, p),
         compact: false,
         indent: 0.0,
         menu: None,
@@ -358,7 +374,15 @@ pub fn panel(state: &State, p: &PanelCx<'_>) -> PanelView {
         let menu = p.local::<View>().and_then(|view| view.menu.clone());
         let cards: Vec<Block> = state
             .connected()
-            .map(|device| connected(device, menu.as_deref() == Some(device.path.as_str()), now, p))
+            .map(|device| {
+                connected(
+                    device,
+                    menu.as_deref() == Some(device.path.as_str()),
+                    now,
+                    subsec,
+                    p,
+                )
+            })
             .collect();
         // Up to three a row, never scrolling sideways; four make two rows of two.
         let columns = if cards.len() == 4 { 2 } else { cards.len().min(3) };

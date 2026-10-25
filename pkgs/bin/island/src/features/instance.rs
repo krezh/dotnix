@@ -57,7 +57,7 @@ pub trait AnyFeature {
     ) -> Option<AnyElement>;
     fn glow(&self, cx: &App) -> Option<Vec<f32>>;
     fn panel<'a>(&self, p: &mut PanelCx<'a>, cx: &App) -> Option<PanelView>;
-    fn panel_opened(&self, cx: &App);
+    fn panel_opened(&self, cx: &App) -> Option<Box<dyn Any>>;
     fn popup<'a>(&self, p: &mut PanelCx<'a>, cx: &App) -> Option<PanelView>;
     fn elapse(&self, local: &mut dyn AnyLocal, hovered: bool, cx: &App);
     fn pointer(&self, local: &mut dyn AnyLocal, over: bool, cx: &App);
@@ -129,8 +129,8 @@ impl<F: Feature> AnyFeature for Entity<Instance<F>> {
         instance.feature.panel(&instance.state, p)
     }
 
-    fn panel_opened(&self, cx: &App) {
-        self.read(cx).feature.panel_opened();
+    fn panel_opened(&self, cx: &App) -> Option<Box<dyn Any>> {
+        self.read(cx).feature.panel_opened()
     }
 
     fn popup<'a>(&self, p: &mut PanelCx<'a>, cx: &App) -> Option<PanelView> {

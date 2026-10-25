@@ -9,7 +9,7 @@ use crate::{cli::Client, control::Command};
 use super::{
     Feature, Features, GlyphSpec, ai, audio, bluetooth, brightness, caffeine, clipboard, clock,
     feature::widgets_of,
-    headset,
+    gotify, headset,
     instance::start_one,
     launcher, media, molt, network, notifications, session, tray, workspaces, zowie,
 };
@@ -173,4 +173,5 @@ features![
     session::Session,
     clipboard::Clipboard,
     launcher::Launcher,
+    gotify::Gotify,
 ];

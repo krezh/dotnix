@@ -286,7 +286,6 @@ fn app_item(
 
 pub fn panel<'a>(audio: &Audio, state: &AudioState, p: &PanelCx<'a>) -> PanelView {
     let peaks = audio.mixer.peaks();
-    headset::watch();
     let sides: Vec<Block> = [(Target::Output, "Output"), (Target::Input, "Input")]
         .into_iter()
         .filter_map(|(target, title)| {

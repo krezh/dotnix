@@ -1,7 +1,7 @@
 //! How island sees audio: the mixer's state, the volume OSD, the widget, the panel, and
 //! `island ctl` volume commands.
 
-use std::{cell::Cell, time::Duration};
+use std::{any::Any, cell::Cell, time::Duration};
 
 use gpui::AnyElement;
 
@@ -67,10 +67,9 @@ impl Feature for Audio {
         widget::widget(state, w)
     }
 
-    fn panel_opened(&self) {
+    fn panel_opened(&self) -> Option<Box<dyn Any>> {
         self.choosing.set(None);
-        self.mixer.watch();
-        headset::watch();
+        Some(Box::new((self.mixer.watch(), headset::watch())))
     }
 
     fn panel<'a>(&self, state: &AudioState, p: &PanelCx<'a>) -> Option<PanelView> {

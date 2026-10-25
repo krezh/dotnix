@@ -91,7 +91,9 @@ pub trait Feature: Sized + 'static {
     /// For content that moves without new state, such as a play position.
     const PANEL_REFRESH: Option<Duration> = None;
 
-    fn panel_opened(&self) {}
+    fn panel_opened(&self) -> Option<Box<dyn Any>> {
+        None
+    }
 
     fn panel<'a>(&self, _: &Self::State, _: &PanelCx<'a>) -> Option<PanelView> {
         None

@@ -7,9 +7,7 @@
       ...
     }:
     {
-      imports = [
-        (modulesPath + "/installer/scan/not-detected.nix")
-      ];
+      imports = [ (modulesPath + "/installer/scan/not-detected.nix") ];
 
       console.earlySetup = false;
 
@@ -18,9 +16,9 @@
           availableKernelModules = [
             "nvme" # root disk
             "ahci"
-            "xhci_pci" # USB 3 controller
+            "xhci_pci"
             "thunderbolt"
-            "usbhid" # USB keyboard, for the disk unlock prompt
+            "usbhid"
             "i2c-dev"
           ];
         };

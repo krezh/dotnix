@@ -26,7 +26,7 @@
             alias = {
               lol = "log --graph --decorate --pretty=oneline --abbrev-commit";
               lola = "log --graph --decorate --pretty=oneline --abbrev-commit --all";
-              ai-commit = ''!diff=$(git diff --cached); if [ -z "$diff" ]; then echo "ai-commit: nothing staged" >&2; exit 1; fi; msg=$(printf '%s' "$diff" | ${lib.getExe config.programs.claude-code.package} --model haiku -p 'Write a single-line Conventional Commits message in imperative mood summarizing this diff. Output ONLY the message text, with no surrounding quotes, backticks, or explanation.'); git commit -m "$msg"'';
+              ai-commit = ''!diff=$(git diff --cached); if [ -z "$diff" ]; then echo "ai-commit: nothing staged" >&2; exit 1; fi; msg=$(printf '%s' "$diff" | ${lib.getExe config.programs.claude-code.finalPackage} --model haiku -p 'Write a single-line Conventional Commits message in imperative mood summarizing this diff. Output ONLY the message text, with no surrounding quotes, backticks, or explanation.'); git commit -m "$msg"'';
             };
             commit.gpgsign = true;
             pull.rebase = true;
@@ -112,7 +112,7 @@
                     echo "ai-desc: no changes in @ to describe" >&2
                     exit 1
                   fi
-                  msg=$(printf '%s\n' "$diff" | ${lib.getExe config.programs.claude-code.package} --model haiku -p 'Write a single-line Conventional Commits message in imperative mood summarizing this diff. Output ONLY the message text, with no surrounding quotes, backticks, or explanation.')
+                  msg=$(printf '%s\n' "$diff" | ${lib.getExe config.programs.claude-code.finalPackage} --model haiku -p 'Write a single-line Conventional Commits message in imperative mood summarizing this diff. Output ONLY the message text, with no surrounding quotes, backticks, or explanation.')
                   if [ -z "$msg" ]; then
                     echo "ai-desc: model returned an empty description" >&2
                     exit 1

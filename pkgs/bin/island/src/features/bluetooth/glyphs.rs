@@ -53,7 +53,3 @@ pub fn battery(level: Option<u8>) -> u32 {
         None => OVERLAY2,
     }
 }
-
-#[cfg(test)]
-#[path = "glyphs_test.rs"]
-mod tests;

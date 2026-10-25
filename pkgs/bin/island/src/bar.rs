@@ -1,4 +1,11 @@
-use std::{any::Any, collections::HashMap, path::Path, rc::Rc, sync::LazyLock, time::Instant};
+use std::{
+    any::Any,
+    collections::HashMap,
+    path::Path,
+    rc::Rc,
+    sync::LazyLock,
+    time::{Duration, Instant},
+};
 
 use gpui::{
     AnyElement, App, Context, Div, FontWeight, Render, SharedString, Stateful, Task, WeakEntity,
@@ -279,11 +286,11 @@ pub fn content(
     bar: &Bar<'_>,
     island: &WeakEntity<Island>,
     cx: &App,
-) -> Vec<AnyElement> {
+) -> (Vec<AnyElement>, Option<Duration>) {
     let look = Look::new(bar.hover, bar.layout.spacing, bar.tips);
     let Widget(name) = widget;
     let Some(feature) = bar.features.owning(name) else {
-        return Vec::new();
+        return (Vec::new(), None);
     };
     let state = bar
         .held
@@ -296,10 +303,11 @@ pub fn content(
         .find(|(owner, _)| *owner == feature.name())
         .map(|(_, local)| &**local);
     let mut w = WidgetCx::new(look, bar.slots, bar.glyphs, bar.layouts, island, local);
-    feature
+    let elements = feature
         .widget(name, &*state, &mut w, cx)
         .into_iter()
-        .collect()
+        .collect();
+    (elements, w.next_redraw())
 }
 
 /// Gone widgets are left out entirely, unless they rest at a visible core.
@@ -326,6 +334,7 @@ pub struct WidgetView {
     island: WeakEntity<Island>,
     layouts: TextLayouts,
     ticker: Option<Task<()>>,
+    due: Option<(Instant, Task<()>)>,
     rendered: Instant,
 }
 
@@ -336,6 +345,7 @@ impl WidgetView {
             island,
             layouts: TextLayouts::default(),
             ticker: None,
+            due: None,
             rendered: Instant::now(),
         }
     }
@@ -365,22 +375,47 @@ impl WidgetView {
             _ => {}
         }
     }
+    fn arm_due(&mut self, after: Option<Duration>, cx: &mut Context<Self>) {
+        let next = after.map(|after| self.rendered + after);
+        if let (Some((armed, _)), Some(at)) = (&self.due, next)
+            && at.saturating_duration_since(*armed).max(armed.saturating_duration_since(at))
+                < Duration::from_millis(50)
+        {
+            return;
+        }
+        self.due = next.map(|at| {
+            let task = cx.spawn(async move |this, cx| {
+                cx.background_executor()
+                    .timer(at.saturating_duration_since(Instant::now()))
+                    .await;
+                let _ = this.update(cx, |this, cx| {
+                    this.due = None;
+                    if let Some(island) = this.island.upgrade() {
+                        let _ = island.update(cx, |island, cx| island.kick(cx));
+                    }
+                    cx.notify();
+                });
+            });
+            (at, task)
+        });
+    }
 }
 
 impl Render for WidgetView {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         self.rendered = Instant::now();
         self.layouts.begin_frame();
-        let content = match self.island.upgrade() {
+        let (content, redraw) = match self.island.upgrade() {
             Some(island) => island
                 .read(cx)
                 .bar_widget(self.kind, &self.layouts, &self.island, cx),
-            None => Vec::new(),
+            None => (Vec::new(), None),
         };
         if self.layouts.resolve(window) {
             window.request_animation_frame();
         }
         self.keep_ticking(cx);
+        self.arm_due(redraw, cx);
         div().flex_none().flex().items_center().children(content)
     }
 }

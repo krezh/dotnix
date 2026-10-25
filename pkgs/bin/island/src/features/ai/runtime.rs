@@ -27,7 +27,6 @@ use super::{
 };
 use crate::{features::Feed, supervisor::Ended};
 
-const TICK: Duration = Duration::from_secs(5);
 /// Claude's usage comes from Claude Code's status line while it runs; the usage API is asked at
 /// the start, and then only once nothing has been heard of Claude's usage for this long.
 const CLAUDE_QUIET: Duration = Duration::from_secs(30 * 60);
@@ -245,7 +244,6 @@ fn work(
         Vec::new()
     });
     let mut state = State {
-        now: started,
         mascot: settings.mascot,
         windows: Arc::new(windows),
         chat: Arc::new(Chat {
@@ -261,7 +259,6 @@ fn work(
     let mut chatted = Instant::now();
     let mut in_flight = begin(&mut state, &settings.sources, sender);
     let mut next_poll = Instant::now() + interval;
-    let mut next_tick = Instant::now() + TICK;
     let mut queued = false;
     // Refresh asked for by hand, which asks the usage API whenever it allows.
     let mut by_hand = false;
@@ -277,14 +274,28 @@ fn work(
         return Ended::Unwanted;
     }
     loop {
-        let due = waiting.next_due(&state).into_iter().chain(alerts.next_due()).min().map(|at| {
-            Instant::now() + Duration::from_millis(u64::try_from(at - now()).unwrap_or(0))
-        });
+        let stale = state
+            .sessions
+            .iter()
+            .map(|session| session.active_at + STALE_MS)
+            .min();
+        let due = waiting
+            .next_due(&state)
+            .into_iter()
+            .chain(alerts.next_due())
+            .chain(stale)
+            .min()
+            .map(|at| {
+                Instant::now() + Duration::from_millis(u64::try_from(at - now()).unwrap_or(0))
+            });
+        let idle_chat = (!state.chat.busy && !state.chat.lines.is_empty())
+            .then_some(chatted + CHAT_IDLE);
         let timeout = due
             .into_iter()
-            .chain([next_tick, next_poll])
+            .chain(idle_chat)
+            .chain([next_poll])
             .min()
-            .unwrap_or(next_tick)
+            .unwrap_or(next_poll)
             .saturating_duration_since(Instant::now());
         let mut changed = false;
         let mut asked = false;
@@ -432,23 +443,21 @@ fn work(
         } else if in_flight > 0 && instant >= next_poll {
             next_poll = instant + interval;
         }
-        if instant >= next_tick {
-            state.now = at;
-            next_tick = instant + TICK;
+        if state
+            .sessions
+            .iter()
+            .any(|session| at - session.active_at >= STALE_MS)
+        {
+            Arc::make_mut(&mut state.sessions)
+                .retain(|session| at - session.active_at < STALE_MS);
             changed = true;
-            if state
-                .sessions
-                .iter()
-                .any(|session| at - session.active_at > STALE_MS)
-            {
-                Arc::make_mut(&mut state.sessions).retain(|session| at - session.active_at <= STALE_MS);
-            }
-            if !state.chat.busy
-                && !state.chat.lines.is_empty()
-                && chatted.elapsed() >= CHAT_IDLE
-            {
-                conversation.clear(Arc::make_mut(&mut state.chat));
-            }
+        }
+        if !state.chat.busy
+            && !state.chat.lines.is_empty()
+            && instant >= chatted + CHAT_IDLE
+        {
+            conversation.clear(Arc::make_mut(&mut state.chat));
+            changed = true;
         }
         if changed && !feed.publish(state.clone()) {
             return Ended::Unwanted;

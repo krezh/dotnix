@@ -1,4 +1,5 @@
 use std::{
+    any::Any,
     cell::Cell,
     collections::HashMap,
     hash::{DefaultHasher, Hash, Hasher},
@@ -228,7 +229,10 @@ pub struct Island {
     revision: u64,
     /// Held while the System panel is open, so the sampler reads what only it shows.
     sys_watch: Option<sys::Watch>,
+    panel_watch: Option<Box<dyn Any>>,
     sys_task: Option<Task<()>>,
+    panel_due: Cell<Option<Duration>>,
+    panel_task: Option<(Instant, Task<()>)>,
     leave_task: Option<Task<()>>,
     due: Option<(Instant, Task<()>)>,
     workspaces: Option<Snapshot>,
@@ -343,7 +347,10 @@ impl Island {
             stats: SysStats::default(),
             revision: 0,
             sys_watch: None,
+            panel_watch: None,
             sys_task: None,
+            panel_due: Cell::new(None),
+            panel_task: None,
             leave_task: None,
             due: None,
             monitor_stale: startup.workspaces.is_some(),
@@ -513,7 +520,7 @@ impl Island {
         layouts: &TextLayouts,
         island: &WeakEntity<Island>,
         cx: &Gpui,
-    ) -> Vec<AnyElement> {
+    ) -> (Vec<AnyElement>, Option<Duration>) {
         bar::content(kind, &self.bar_parts(layouts, cx), island, cx)
     }
 
@@ -647,6 +654,31 @@ impl Island {
         self.arm_due(cx);
     }
 
+    fn arm_panel_due(&mut self, cx: &mut Context<Self>) {
+        let next = (self.mode != Mode::Collapsed)
+            .then(|| self.panel_due.get())
+            .flatten()
+            .map(|after| self.rendered + after);
+        if let (Some((armed, _)), Some(at)) = (&self.panel_task, next)
+            && at.saturating_duration_since(*armed).max(armed.saturating_duration_since(at))
+                < Duration::from_millis(50)
+        {
+            return;
+        }
+        self.panel_task = next.map(|at| {
+            let task = cx.spawn(async move |this, cx| {
+                cx.background_executor()
+                    .timer(at.saturating_duration_since(Instant::now()))
+                    .await;
+                let _ = this.update(cx, |this, cx| {
+                    this.panel_task = None;
+                    cx.notify();
+                });
+            });
+            (at, task)
+        });
+    }
+
     pub fn display(&self) -> Option<Uuid> {
         self.display
     }
@@ -771,6 +803,7 @@ impl Island {
         if self.mode == mode {
             return;
         }
+        self.panel_watch = None;
         if let Mode::Open(Panel::Feature(name)) = self.mode {
             self.update_local(name, |local| local.panel_closed());
         }
@@ -785,7 +818,7 @@ impl Island {
         if let Mode::Open(Panel::Feature(name)) = mode
             && let Some(feature) = self.features.get(name)
         {
-            feature.panel_opened(cx);
+            self.panel_watch = feature.panel_opened(cx);
         }
         self.scroll.set_offset(point(px(0.0), px(0.0)));
         for column in &self.columns {
@@ -818,6 +851,7 @@ impl Island {
                 }
             })
         });
+        self.panel_task = None;
         let shown = mode == Mode::Open(Panel::Popups);
         for (_, local) in &mut self.locals {
             local.popup_shown(shown);
@@ -973,7 +1007,12 @@ impl Island {
             let (_, local) = self.locals.iter().find(|(owner, _)| *owner == lender)?;
             self.features.get(lender)?.lead(&**local, cx)
         };
-        PanelCx::new(cx.global::<Glyphs>().clone(), self.local(name), Box::new(lend))
+        PanelCx::new(
+            cx.global::<Glyphs>().clone(),
+            self.local(name),
+            &self.panel_due,
+            Box::new(lend),
+        )
     }
 
     pub fn feature_panel(&self, name: &str, cx: &Gpui) -> Option<panel::PanelView> {
@@ -1203,7 +1242,7 @@ impl Island {
         }
     }
 
-    fn kick(&mut self, cx: &mut Context<Self>) {
+    pub(crate) fn kick(&mut self, cx: &mut Context<Self>) {
         self.start_frames();
         cx.notify();
     }
@@ -1329,7 +1368,11 @@ impl Island {
                     .into_any_element()
             }
             Some(kind) => {
+                let before = self.panel_due.get();
                 let panel = panels::panel(self, kind, cx);
+                if index != self.active_layer() {
+                    self.panel_due.set(before);
+                }
                 let key = self.panel_key(&panel);
                 let frozen = self.frozen[index].filter(|(frozen_key, _)| *frozen_key == key);
                 let frame = Frame {
@@ -1561,6 +1604,7 @@ impl Render for Island {
             x,
         };
         let hidden = self.hidden();
+        self.panel_due.set(None);
         let mut layers: Vec<AnyElement> = (0..LAYERS)
             .filter(|index| {
                 if *index == COLLAPSED_LAYER && hidden {
@@ -1613,6 +1657,9 @@ impl Render for Island {
         let menu = hung
             .zip(self.menu.as_ref())
             .map(|(hang, menu)| menu.element(&hang, self.hovered, cx));
+        if self.menu.as_ref().is_some_and(Menu::is_pending) {
+            window.request_animation_frame();
+        }
         let shadow = ui::drop_shadow(body, corner.0, hang, self.shadow);
 
         self.drawn = self
@@ -1627,6 +1674,7 @@ impl Render for Island {
         let tooltip = self.tips.overlay(window);
         self.layouts.resolve(window);
         self.keep_ticking(cx);
+        self.arm_panel_due(cx);
         div()
             .size_full()
             .child(shadow)

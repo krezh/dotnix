@@ -154,7 +154,6 @@ pub struct State {
     pub(super) issues: Arc<Vec<Issue>>,
     pub(super) refreshing: bool,
     pub(super) attempted_at: Option<i64>,
-    pub(super) now: i64,
     pub(super) sessions: Arc<Vec<Session>>,
     /// Oldest first.
     pub(super) requests: Arc<Vec<Request>>,
@@ -167,8 +166,7 @@ pub struct State {
 
 impl PartialEq for State {
     fn eq(&self, other: &Self) -> bool {
-        self.now == other.now
-            && self.refreshing == other.refreshing
+        self.refreshing == other.refreshing
             && self.attempted_at == other.attempted_at
             && self.hold == other.hold
             && self.mascot == other.mascot

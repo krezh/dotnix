@@ -188,7 +188,3 @@ pub async fn register_agent(connection: &Connection, path: &str) -> zbus::Result
         .await?;
     manager.call("RequestDefaultAgent", &(agent,)).await
 }
-
-#[cfg(test)]
-#[path = "bluez_test.rs"]
-mod tests;

@@ -2,8 +2,10 @@
 //! features lend, and handlers that reach the feature or the island.
 
 use std::{
+    cell::Cell,
     path::{Path, PathBuf},
     rc::Rc,
+    time::Duration,
 };
 
 use gpui::{AnyEntity, Context, WeakEntity};
@@ -16,9 +18,12 @@ use crate::{
     panel::{self, Handler, Mark},
 };
 
+const LATE: Duration = Duration::from_millis(5);
+
 pub struct PanelCx<'a> {
     glyphs: Glyphs,
     local: Option<&'a dyn AnyLocal>,
+    redraw: &'a Cell<Option<Duration>>,
     pub(super) entity: Option<AnyEntity>,
     /// The mark a feature lends, by its name, as [`Feature::lead`] gives it; asked only when needed.
     lend: Box<dyn Fn(&str) -> Option<Mark> + 'a>,
@@ -28,14 +33,23 @@ impl<'a> PanelCx<'a> {
     pub(crate) fn new(
         glyphs: Glyphs,
         local: Option<&'a dyn AnyLocal>,
+        redraw: &'a Cell<Option<Duration>>,
         lend: Box<dyn Fn(&str) -> Option<Mark> + 'a>,
     ) -> Self {
         Self {
             glyphs,
             local,
+            redraw,
             entity: None,
             lend,
         }
+    }
+
+    /// Asks to redraw the panel after `after`, when time-based text it shows next changes.
+    pub fn redraw_in(&self, after: Duration) {
+        let after = after + LATE;
+        self.redraw
+            .set(Some(self.redraw.get().map_or(after, |prior| prior.min(after))));
     }
 
     /// The mark the feature named `name` lends, if it lends one now.

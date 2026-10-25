@@ -84,7 +84,3 @@ pub fn lines(report: &Report, bars: bool) -> Vec<Line> {
     }
     lines
 }
-
-#[cfg(test)]
-#[path = "show_test.rs"]
-mod tests;

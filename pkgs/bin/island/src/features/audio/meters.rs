@@ -1,11 +1,7 @@
 //! Level meters, as pavucontrol draws them: peak-detecting record streams, for which the server
 //! sends only the highest sample of each slice. They run only while the panel shows them.
 
-use std::{
-    collections::HashMap,
-    sync::Mutex,
-    time::{Duration, Instant},
-};
+use std::{collections::HashMap, sync::Mutex};
 
 use libpulse_binding::{
     context::Context,
@@ -37,23 +33,27 @@ pub struct Peak {
 #[derive(Default)]
 pub struct Levels {
     peaks: HashMap<Probe, Peak>,
-    /// When the panel last read them; meters run only while it keeps doing so.
-    seen: Option<Instant>,
+    /// How many islands have the panel open; meters run only while at least one does.
+    watchers: usize,
 }
 
 impl Levels {
-    /// Keeps the meters running for a while longer.
-    pub fn touch(&mut self) {
-        self.seen = Some(Instant::now());
+    pub fn watch(&mut self) -> bool {
+        self.watchers += 1;
+        self.watchers == 1
     }
 
-    pub fn read(&mut self) -> HashMap<Probe, Peak> {
-        self.touch();
+    pub fn unwatch(&mut self) -> bool {
+        self.watchers = self.watchers.saturating_sub(1);
+        self.watchers == 0
+    }
+
+    pub fn read(&self) -> HashMap<Probe, Peak> {
         self.peaks.clone()
     }
 
     fn watched(&self) -> bool {
-        self.seen.is_some_and(|seen| seen.elapsed() < WATCH_FOR)
+        self.watchers > 0
     }
 }
 
@@ -64,8 +64,6 @@ const FLOOR_DB: f32 = 60.0;
 /// How far a level falls per peak once the sound drops.
 const FALL: f32 = 0.05;
 const HOLD_FALL: f32 = 0.01;
-/// The panel reads far more often than this while it is open.
-const WATCH_FOR: Duration = Duration::from_secs(1);
 
 pub fn loudness(peak: f32) -> f32 {
     if peak <= 0.0 || !peak.is_finite() {

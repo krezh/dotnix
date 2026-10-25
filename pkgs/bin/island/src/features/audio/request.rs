@@ -47,19 +47,34 @@ impl Mixer {
         }
     }
 
-    /// Starts the meters, which stop once [`Mixer::peaks`] is no longer asked for.
-    pub fn watch(&self) {
-        if let Ok(mut levels) = self.levels.lock() {
-            levels.touch();
+    /// Starts the meters, which stop once every returned [`Watch`] is dropped.
+    pub fn watch(&self) -> Watch {
+        if self.levels.lock().is_ok_and(|mut levels| levels.watch()) {
+            self.send(Request::Watch);
         }
-        self.send(Request::Watch);
+        Watch(self.clone())
     }
 
     pub fn peaks(&self) -> HashMap<Probe, Peak> {
         self.levels
             .lock()
-            .map(|mut levels| levels.read())
+            .map(|levels| levels.read())
             .unwrap_or_default()
+    }
+}
+
+pub struct Watch(Mixer);
+
+impl Drop for Watch {
+    fn drop(&mut self) {
+        if self
+            .0
+            .levels
+            .lock()
+            .is_ok_and(|mut levels| levels.unwatch())
+        {
+            self.0.send(Request::Watch);
+        }
     }
 }
 

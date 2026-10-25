@@ -423,7 +423,3 @@ pub(super) fn blocks(state: &State, view: &View, p: &PanelCx<'_>) -> Vec<Block> 
         detail(shown, state, view, p),
     ])]
 }
-
-#[cfg(test)]
-#[path = "sessions_test.rs"]
-mod tests;

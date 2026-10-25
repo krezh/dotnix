@@ -90,6 +90,9 @@ impl Tray {
                             .bg(rgb(PEACH)),
                     )
                 })
+                .when(opens_menu, |slot| {
+                    slot.on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
+                })
                 .on_click(
                     w.on_island(move |tray: &Tray, event: &ClickEvent, island, cx| {
                         if opens_menu {
@@ -104,6 +107,7 @@ impl Tray {
                         slot.on_mouse_down(
                             MouseButton::Right,
                             w.on_island(move |tray: &Tray, event: &MouseDownEvent, island, cx| {
+                                cx.stop_propagation();
                                 tray.open_menu(menu_key.clone(), event.position.x, island, cx)
                             }),
                         )

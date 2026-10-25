@@ -28,6 +28,7 @@
             "bluetooth"
             "audio"
             "clock"
+            "gotify"
             "notifications"
             "session"
           ];
@@ -38,6 +39,11 @@
           ai = {
             disabledLimits.omp.google-antigravity = [ "3p-weekly:weekly" ];
             mascot = "lively";
+          };
+          gotify = {
+            enable = true;
+            tokenFile = config.sops.secrets."gotify/token".path;
+            url = "wss://gotify.plexuz.xyz";
           };
           session = {
             confirm = false;

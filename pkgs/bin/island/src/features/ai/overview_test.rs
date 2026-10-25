@@ -1,6 +1,9 @@
 use super::{resets, short_label};
 use crate::{
-    features::ai::state::{Credits, Limit, Severity},
+    features::ai::{
+        format,
+        state::{Credits, Limit, Severity},
+    },
     theme::{TEAL, YELLOW},
 };
 
@@ -56,4 +59,37 @@ fn labels_that_differ_or_stand_alone_stay_whole() {
     assert_eq!(short_label("5 hours", &mixed), "5 hours");
     let alone = [limit("Claude 5 Hour")];
     assert_eq!(short_label("Claude 5 Hour", &alone), "Claude 5 Hour");
+}
+
+#[test]
+fn time_text_next_change_lands_on_the_boundary() {
+    let now = 1_000_000_000;
+    for left in [1, 60_000, 60_001, 3_600_000, 2 * DAY + 123_456] {
+        let at = now + left;
+        let wait = format::next_countdown_ms(at, now).unwrap() as i64;
+        assert_eq!(
+            format::countdown(at, now + wait - 1),
+            format::countdown(at, now)
+        );
+        assert_ne!(
+            format::countdown(at, now + wait),
+            format::countdown(at, now)
+        );
+    }
+    for elapsed in [0, 59_999, 60_000, 3_600_000 + 500, 2 * DAY] {
+        let at = now - elapsed;
+        let wait = format::next_ago_ms(at, now).unwrap() as i64;
+        assert_eq!(format::ago(at, now + wait - 1), format::ago(at, now));
+        assert_ne!(format::ago(at, now + wait), format::ago(at, now));
+
+        let wait = format::next_elapsed_ms(at, now) as i64;
+        assert_eq!(
+            format::countdown(now + wait - 1, at),
+            format::countdown(now, at)
+        );
+        assert_ne!(
+            format::countdown(now + wait, at),
+            format::countdown(now, at)
+        );
+    }
 }

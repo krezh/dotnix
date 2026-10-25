@@ -32,7 +32,6 @@ use super::{
 };
 use crate::{components::card::SLOTS, features::Feed, supervisor::Ended};
 
-const SAVED_EVERY: Duration = Duration::from_secs(15);
 const SOCKETS_EVERY: u64 = 3;
 /// The day's data used is written at most this often.
 const USAGE_EVERY: Duration = Duration::from_secs(60);
@@ -93,7 +92,6 @@ struct World {
     state: State,
     snapshot: Snapshot,
     saved: Vec<Saved>,
-    saved_at: Option<Instant>,
     counters: HashMap<String, (Counters, Instant)>,
     rates: HashMap<String, (f64, f64)>,
     vpn_since: HashMap<String, i64>,
@@ -113,8 +111,9 @@ struct World {
 }
 
 enum Event {
-    /// NetworkManager said something changed, or came or went.
-    Bus,
+    /// NetworkManager said something changed, or came or went; `true` when the saved connections
+    /// did.
+    Bus(bool),
     Request(Request),
 }
 
@@ -159,6 +158,9 @@ impl World {
     fn read(&mut self, connection: &Connection) {
         match block_on(nm::snapshot(connection)) {
             Ok(snapshot) => {
+                if !self.state.reachable {
+                    self.dirty = true;
+                }
                 self.snapshot = snapshot;
                 self.state.reachable = true;
                 self.state.internet = Internet::from_nm(self.snapshot.connectivity);
@@ -171,14 +173,15 @@ impl World {
                 return;
             }
         }
-        if self.dirty || self.saved_at.is_none_or(|at| at.elapsed() >= SAVED_EVERY) {
+        if self.dirty {
             match block_on(nm::saved(connection)) {
-                Ok(saved) => self.saved = saved,
+                Ok(saved) => {
+                    self.saved = saved;
+                    self.dirty = false;
+                }
                 Err(error) => warn!("cannot read the saved connections: {error}"),
             }
-            self.saved_at = Some(Instant::now());
         }
-        self.dirty = false;
     }
 
     /// Bytes a second each way on every interface, from how its counters moved.
@@ -721,6 +724,14 @@ fn boot_ms_to_unix(boot_ms: i64) -> i64 {
     chrono::Utc::now().timestamp_millis() - uptime_ms + boot_ms
 }
 
+fn saved_changed(interface: Option<&str>, member: Option<&str>) -> bool {
+    matches!(
+        (interface, member),
+        (Some(nm::SETTINGS), Some("NewConnection" | "ConnectionRemoved"))
+            | (Some(nm::CONNECTION), Some("Updated"))
+    )
+}
+
 fn listen(connection: &Connection, rule: &str) -> zbus::Result<MessageStream> {
     block_on(async { MessageStream::for_match_rule(MatchRule::try_from(rule)?, connection, None).await })
 }
@@ -750,7 +761,17 @@ pub(super) fn run(
             return Ended::Failed(format!("cannot follow NetworkManager: {error}"));
         }
     };
-    let bus = stream::select(signals, owner).map(|_| Event::Bus);
+    let signals = signals.map(|message| {
+        let saved = message.as_ref().is_ok_and(|message| {
+            let header = message.header();
+            saved_changed(
+                header.interface().map(|name| name.as_str()),
+                header.member().map(|name| name.as_str()),
+            )
+        });
+        Event::Bus(saved)
+    });
+    let bus = stream::select(signals, owner.map(|_| Event::Bus(true)));
     let mut events = stream::select(bus, (&mut *requests).map(Event::Request));
     let mut world = World::default();
     world.refresh(&connection);
@@ -763,7 +784,7 @@ pub(super) fn run(
         let Some(first) = block_on(events.next()) else {
             return Ended::Unwanted;
         };
-        if matches!(first, Event::Bus) {
+        if matches!(first, Event::Bus(_)) {
             thread::sleep(SETTLE);
         }
         // Whatever else has arrived meanwhile is handled with it, so a burst means one read.
@@ -774,7 +795,11 @@ pub(super) fn run(
         let (mut changed, mut sample) = (false, false);
         for event in batch {
             match event {
-                Event::Bus | Event::Request(Request::Refresh) => changed = true,
+                Event::Bus(saved) => {
+                    world.dirty |= saved;
+                    changed = true;
+                }
+                Event::Request(Request::Refresh) => changed = true,
                 Event::Request(Request::Sample) => sample = true,
                 Event::Request(Request::Watch) => {
                     world.opened(&connection, sender);

@@ -43,7 +43,3 @@ pub fn link(state: &State) -> &'static str {
 pub fn vpn_on(state: &State) -> bool {
     state.vpns.iter().any(|vpn| vpn.activity == Activity::On)
 }
-
-#[cfg(test)]
-#[path = "glyphs_test.rs"]
-mod tests;

@@ -1,7 +1,7 @@
 //! What a feature draws its bar widget with: the bar's look, its glyphs, and handlers that reach
 //! the feature or the island.
 
-use std::path::Path;
+use std::{cell::Cell, path::Path, time::Duration};
 
 use gpui::{
     AnyEntity, App, Context, Div, FontWeight, SharedString, Stateful, WeakEntity, Window,
@@ -18,6 +18,8 @@ use crate::{
     island::{Island, Panel},
 };
 
+const LATE: Duration = Duration::from_millis(5);
+
 pub struct WidgetCx<'a> {
     look: Look<'a>,
     slots: Slots,
@@ -25,6 +27,7 @@ pub struct WidgetCx<'a> {
     layouts: &'a TextLayouts,
     island: &'a WeakEntity<Island>,
     local: Option<&'a dyn AnyLocal>,
+    redraw: Cell<Option<Duration>>,
     pub(super) entity: Option<AnyEntity>,
     pub(super) live: Vec<f32>,
 }
@@ -45,9 +48,21 @@ impl<'a> WidgetCx<'a> {
             layouts,
             island,
             local,
+            redraw: Cell::new(None),
             entity: None,
             live: Vec::new(),
         }
+    }
+
+    /// Asks to redraw the widget after `after`, when time-based text it shows next changes.
+    pub fn redraw_in(&self, after: Duration) {
+        let after = after + LATE;
+        self.redraw
+            .set(Some(self.redraw.get().map_or(after, |prior| prior.min(after))));
+    }
+
+    pub(crate) fn next_redraw(&self) -> Option<Duration> {
+        self.redraw.get()
     }
 
     pub fn local<T: Local>(&self) -> Option<&'a T> {

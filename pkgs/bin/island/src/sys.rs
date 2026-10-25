@@ -1,5 +1,5 @@
 use std::{
-    collections::{HashMap, VecDeque},
+    collections::HashMap,
     env,
     ffi::CString,
     fs,
@@ -60,9 +60,10 @@ const FIRST_LOOK: Duration = Duration::from_millis(500);
 
 pub fn watch() -> Samples {
     let mut sampler = Sampler::default();
+    sampler.sample(true);
     let watchers = Arc::new(AtomicUsize::new(0));
     let latest = Arc::new(Mutex::new(Latest {
-        stats: sampler.sample(true),
+        stats: sampler.stats.clone(),
         at: Instant::now(),
         revision: 1,
     }));
@@ -74,13 +75,21 @@ pub fn watch() -> Samples {
         loop {
             match woken.recv_timeout(next.saturating_duration_since(Instant::now())) {
                 Ok(()) => {
+                    sampler.read_instant();
+                    match writer.lock() {
+                        Ok(mut latest) => {
+                            latest.stats = sampler.stats.clone();
+                            latest.revision += 1;
+                        }
+                        Err(_) => return Ended::Unwanted,
+                    }
                     // Fresh costly readings now, rather than up to an interval of stale ones.
                     sampler.scan_processes();
                     std::thread::sleep(FIRST_LOOK);
-                    let looked = sampler.look();
+                    sampler.look();
                     match writer.lock() {
                         Ok(mut latest) => {
-                            looked.apply(&mut latest.stats);
+                            latest.stats = sampler.stats.clone();
                             latest.revision += 1;
                         }
                         Err(_) => return Ended::Unwanted,
@@ -90,13 +99,17 @@ pub fn watch() -> Samples {
                 Err(RecvTimeoutError::Timeout) => {}
                 Err(RecvTimeoutError::Disconnected) => return Ended::Unwanted,
             }
-            next = Instant::now() + INTERVAL;
-            let stats = sampler.sample(watched.load(Ordering::SeqCst) > 0);
+            let now = Instant::now();
+            next = now + INTERVAL;
+            let watching = watched.load(Ordering::SeqCst) > 0;
+            sampler.sample(watching);
             match writer.lock() {
                 Ok(mut latest) => {
-                    latest.stats = stats;
-                    latest.at = Instant::now();
-                    latest.revision += 1;
+                    latest.at = now;
+                    if watching {
+                        latest.stats = sampler.stats.clone();
+                        latest.revision += 1;
+                    }
                 }
                 Err(_) => return Ended::Unwanted,
             }
@@ -231,29 +244,8 @@ struct Mount {
     device: String,
 }
 
-/// What only the System panel shows and no history needs, so it is read only while watched.
-#[derive(Clone, Default)]
-struct Looked {
-    cpu_ghz: Option<f32>,
-    partitions: Vec<Partition>,
-    drives: Vec<Drive>,
-    sensors: Vec<Sensor>,
-    processes: Vec<Process>,
-    process_count: usize,
-}
-
-impl Looked {
-    fn apply(self, stats: &mut SysStats) {
-        stats.cpu_ghz = self.cpu_ghz;
-        stats.partitions = self.partitions;
-        stats.drives = self.drives;
-        stats.sensors = self.sensors;
-        stats.processes = self.processes;
-        stats.process_count = self.process_count;
-    }
-}
-
 pub struct Sampler {
+    stats: SysStats,
     prev_cpu: Option<(u64, u64)>,
     prev_cores: Vec<(u64, u64)>,
     prev_net: Option<(u64, u64, Instant)>,
@@ -262,28 +254,15 @@ pub struct Sampler {
     prev_process_at: Option<Instant>,
     /// Program names by pid and start time, so each process's `exe` is read once.
     programs: HashMap<(u32, u64), String>,
-    /// The last look, shown as is while nobody watches.
-    kept: Looked,
     cpu_temp: Option<PathBuf>,
     gpu: Option<PathBuf>,
     gpu_hwmon: Option<PathBuf>,
     gpu_temp: Option<PathBuf>,
     storage_temp: Option<PathBuf>,
     sensors: Vec<Probe>,
-    power: Vec<(Probe, VecDeque<f32>)>,
-    cpu_history: VecDeque<f32>,
-    gpu_history: VecDeque<f32>,
-    rx_history: VecDeque<f32>,
-    tx_history: VecDeque<f32>,
-    read_history: VecDeque<f32>,
-    write_history: VecDeque<f32>,
-    cpu_temp_history: VecDeque<f32>,
-    gpu_temp_history: VecDeque<f32>,
-    storage_temp_history: VecDeque<f32>,
-    mem_history: VecDeque<f32>,
+    power: Vec<Probe>,
     mounts: Vec<Mount>,
     disks: Vec<String>,
-    info: Info,
 }
 
 impl Default for Sampler {
@@ -298,8 +277,46 @@ impl Default for Sampler {
             .iter()
             .find(|probe| probe.label.starts_with("NVMe"))
             .map(|probe| probe.path.clone());
+        let power = power_sources(gpu_hwmon.as_deref());
+        let power_stats = power
+            .iter()
+            .map(|probe| PowerSource {
+                label: probe.label.clone(),
+                watts: 0.0,
+                history: Vec::with_capacity(HISTORY),
+            })
+            .collect();
         let mounts = mounts();
         Self {
+            stats: SysStats {
+                info: Info {
+                    hostname: read_text("/proc/sys/kernel/hostname"),
+                    cpu: cpu_model(),
+                    gpu: gpu_label,
+                    os: os_name(),
+                    kernel: read_text("/proc/sys/kernel/osrelease"),
+                    session: env::var("XDG_CURRENT_DESKTOP")
+                        .ok()
+                        .and_then(|desktops| desktops.split(':').next().map(str::to_owned))
+                        .filter(|desktop| !desktop.is_empty())
+                        .unwrap_or_else(|| "Wayland".to_owned()),
+                    generation: generation(),
+                },
+                threads: std::thread::available_parallelism().map_or(0, usize::from),
+                gpu: gpu.as_ref().map(|_| Gpu::default()),
+                cpu_history: Vec::with_capacity(HISTORY),
+                gpu_history: Vec::with_capacity(HISTORY),
+                rx_history: Vec::with_capacity(HISTORY),
+                tx_history: Vec::with_capacity(HISTORY),
+                read_history: Vec::with_capacity(HISTORY),
+                write_history: Vec::with_capacity(HISTORY),
+                cpu_temp_history: Vec::with_capacity(HISTORY),
+                gpu_temp_history: Vec::with_capacity(HISTORY),
+                storage_temp_history: Vec::with_capacity(HISTORY),
+                mem_history: Vec::with_capacity(HISTORY),
+                power: power_stats,
+                ..SysStats::default()
+            },
             prev_cpu: None,
             prev_cores: Vec::new(),
             prev_net: None,
@@ -307,43 +324,16 @@ impl Default for Sampler {
             prev_processes: HashMap::new(),
             prev_process_at: None,
             programs: HashMap::new(),
-            kept: Looked::default(),
             cpu_temp: hwmon_temp("k10temp", "Tctl")
                 .or_else(|| hwmon_temp("coretemp", "Package id 0")),
             gpu_temp: gpu_hwmon.as_deref().and_then(|dir| temp_input(dir, "edge")),
-            power: power_sources(gpu_hwmon.as_deref())
-                .into_iter()
-                .map(|probe| (probe, VecDeque::with_capacity(HISTORY)))
-                .collect(),
+            power,
             gpu_hwmon,
             gpu,
             storage_temp,
             sensors,
-            cpu_history: VecDeque::with_capacity(HISTORY),
-            gpu_history: VecDeque::with_capacity(HISTORY),
-            rx_history: VecDeque::with_capacity(HISTORY),
-            tx_history: VecDeque::with_capacity(HISTORY),
-            read_history: VecDeque::with_capacity(HISTORY),
-            write_history: VecDeque::with_capacity(HISTORY),
-            cpu_temp_history: VecDeque::with_capacity(HISTORY),
-            gpu_temp_history: VecDeque::with_capacity(HISTORY),
-            storage_temp_history: VecDeque::with_capacity(HISTORY),
-            mem_history: VecDeque::with_capacity(HISTORY),
             disks: drives(&[]).into_iter().map(|drive| drive.name).collect(),
             mounts,
-            info: Info {
-                hostname: read_text("/proc/sys/kernel/hostname"),
-                cpu: cpu_model(),
-                gpu: gpu_label,
-                os: os_name(),
-                kernel: read_text("/proc/sys/kernel/osrelease"),
-                session: env::var("XDG_CURRENT_DESKTOP")
-                    .ok()
-                    .and_then(|desktops| desktops.split(':').next().map(str::to_owned))
-                    .filter(|desktop| !desktop.is_empty())
-                    .unwrap_or_else(|| "Wayland".to_owned()),
-                generation: generation(),
-            },
         }
     }
 }
@@ -514,25 +504,20 @@ fn discrete_gpu() -> Option<PathBuf> {
         .max_by_key(|device| read_u64(&device.join("mem_info_vram_total")).unwrap_or(0))
 }
 
-/// Idle and total jiffies for the whole CPU and for each core.
-fn read_cpu_times() -> Option<((u64, u64), Vec<(u64, u64)>)> {
-    let stat = fs::read_to_string("/proc/stat").ok()?;
-    let times = |line: &str| -> Option<(u64, u64)> {
-        let fields: Vec<u64> = line
-            .split_whitespace()
-            .skip(1)
-            .take(8)
-            .filter_map(|field| field.parse().ok())
-            .collect();
-        (fields.len() >= 5).then(|| (fields[3] + fields[4], fields.iter().sum()))
-    };
-    let mut lines = stat.lines();
-    let total = times(lines.next()?)?;
-    let cores = lines
-        .take_while(|line| line.starts_with("cpu"))
-        .filter_map(times)
-        .collect();
-    Some((total, cores))
+/// Idle and total jiffies from one `cpu` line of `/proc/stat`.
+fn parse_cpu_line(line: &str) -> Option<(u64, u64)> {
+    let mut fields = line
+        .split_whitespace()
+        .skip(1)
+        .take(8)
+        .filter_map(|field| field.parse::<u64>().ok());
+    let user = fields.next()?;
+    let nice = fields.next()?;
+    let system = fields.next()?;
+    let idle = fields.next()?;
+    let iowait = fields.next()?;
+    let rest: u64 = fields.sum();
+    Some((idle + iowait, user + nice + system + idle + iowait + rest))
 }
 
 fn busy((idle, total): (u64, u64), (prev_idle, prev_total): (u64, u64)) -> Option<f32> {
@@ -573,13 +558,13 @@ fn read_net() -> Option<(u64, u64)> {
         {
             continue;
         }
-        let fields: Vec<u64> = counters
-            .split_whitespace()
-            .filter_map(|field| field.parse().ok())
-            .collect();
-        if fields.len() >= 9 {
-            totals.0 += fields[0];
-            totals.1 += fields[8];
+        let mut fields = counters.split_whitespace();
+        if let (Some(rx), Some(tx)) = (
+            fields.next().and_then(|field| field.parse::<u64>().ok()),
+            fields.nth(7).and_then(|field| field.parse::<u64>().ok()),
+        ) {
+            totals.0 += rx;
+            totals.1 += tx;
         }
     }
     Some(totals)
@@ -590,12 +575,21 @@ fn read_disks(disks: &[String]) -> Option<(u64, u64)> {
     let stats = fs::read_to_string("/proc/diskstats").ok()?;
     let mut totals = (0u64, 0u64);
     for line in stats.lines() {
-        let fields: Vec<&str> = line.split_whitespace().collect();
-        if fields.len() < 10 || !disks.iter().any(|disk| disk == fields[2]) {
+        let mut fields = line.split_whitespace();
+        let Some(name) = fields.nth(2) else {
+            continue;
+        };
+        if !disks.iter().any(|disk| disk == name) {
             continue;
         }
-        totals.0 += fields[5].parse::<u64>().unwrap_or(0) * SECTOR;
-        totals.1 += fields[9].parse::<u64>().unwrap_or(0) * SECTOR;
+        let Some(read) = fields.nth(2).and_then(|field| field.parse::<u64>().ok()) else {
+            continue;
+        };
+        let Some(written) = fields.nth(3).and_then(|field| field.parse::<u64>().ok()) else {
+            continue;
+        };
+        totals.0 += read * SECTOR;
+        totals.1 += written * SECTOR;
     }
     Some(totals)
 }
@@ -904,11 +898,11 @@ fn process_ticks(programs: &mut HashMap<(u32, u64), String>) -> (HashMap<u32, (S
     (ticks, count)
 }
 
-fn push(history: &mut VecDeque<f32>, value: f32) {
+fn push(history: &mut Vec<f32>, value: f32) {
     if history.len() == HISTORY {
-        history.pop_front();
+        history.remove(0);
     }
-    history.push_back(value);
+    history.push(value);
 }
 
 fn rate(now: (u64, u64, Instant), prev: Option<(u64, u64, Instant)>) -> Option<(f64, f64)> {
@@ -927,7 +921,7 @@ impl Sampler {
     /// `None` on the first scan, which has nothing to measure from.
     fn scan_processes(&mut self) -> (Option<Vec<Process>>, usize) {
         let now = Instant::now();
-        let threads = std::thread::available_parallelism().map_or(1, usize::from);
+        let threads = self.stats.threads.max(1);
         let (ticks, count) = process_ticks(&mut self.programs);
         let top = self.prev_process_at.map(|at| {
             let seconds = now.duration_since(at).as_secs_f64().max(f64::EPSILON);
@@ -956,7 +950,7 @@ impl Sampler {
         (top, count)
     }
 
-    fn look(&mut self) -> Looked {
+    fn look(&mut self) {
         let partitions: Vec<Partition> = self
             .mounts
             .iter()
@@ -971,41 +965,56 @@ impl Sampler {
             })
             .collect();
         let (processes, process_count) = self.scan_processes();
-        self.kept = Looked {
-            cpu_ghz: cpu_ghz(),
-            drives: drives(&partitions),
-            partitions,
-            sensors: self
-                .sensors
-                .iter()
-                .filter_map(|probe| {
-                    Some(Sensor {
-                        label: probe.label.clone(),
-                        celsius: read_temp(&probe.path)?,
-                    })
+        self.stats.cpu_ghz = cpu_ghz();
+        self.stats.drives = drives(&partitions);
+        self.stats.partitions = partitions;
+        self.stats.sensors = self
+            .sensors
+            .iter()
+            .filter_map(|probe| {
+                Some(Sensor {
+                    label: probe.label.clone(),
+                    celsius: read_temp(&probe.path)?,
                 })
-                .collect(),
-            processes: processes.unwrap_or_default(),
-            process_count,
-        };
-        self.kept.clone()
+            })
+            .collect();
+        if let Some(processes) = processes {
+            self.stats.processes = processes;
+        }
+        self.stats.process_count = process_count;
     }
 
-    /// What no history needs is read afresh only when `watched`, and otherwise kept from the last
-    /// look.
-    pub fn sample(&mut self, watched: bool) -> SysStats {
-        let now = Instant::now();
-        let mut stats = SysStats {
-            threads: std::thread::available_parallelism().map_or(0, usize::from),
-            ..SysStats::default()
-        };
-
-        if let Some((total, cores)) = read_cpu_times() {
-            if let Some(cpu) = self.prev_cpu.and_then(|prev| busy(total, prev)) {
-                stats.cpu = cpu;
-                push(&mut self.cpu_history, cpu);
+    /// Point-in-time readings that have no history chart, taken only when the panel is open.
+    fn read_instant(&mut self) {
+        if let Ok(stat) = fs::read_to_string("/proc/stat") {
+            self.update_cores(stat.lines().skip(1));
+        }
+        if let Ok(meminfo) = fs::read_to_string("/proc/meminfo") {
+            self.update_mem(&meminfo, true);
+        }
+        self.update_gpu_instant();
+        if let Ok(loadavg) = fs::read_to_string("/proc/loadavg") {
+            for (slot, value) in self.stats.load.iter_mut().zip(loadavg.split_whitespace()) {
+                *slot = value.parse().unwrap_or(0.0);
             }
-            stats.cores = cores
+        }
+        if let Ok(uptime) = fs::read_to_string("/proc/uptime") {
+            self.stats.uptime_secs = uptime
+                .split_whitespace()
+                .next()
+                .and_then(|secs| secs.parse::<f64>().ok())
+                .map_or(0, |secs| secs as u64);
+        }
+    }
+
+    fn update_cores<'a>(&mut self, lines: impl Iterator<Item = &'a str>) {
+        let cores: Vec<(u64, u64)> = lines
+            .take_while(|line| line.starts_with("cpu"))
+            .filter_map(parse_cpu_line)
+            .collect();
+        self.stats.cores.clear();
+        self.stats.cores.extend(
+            cores
                 .iter()
                 .zip(
                     self.prev_cores
@@ -1019,134 +1028,155 @@ impl Sampler {
                     } else {
                         busy(*core, prev).unwrap_or(0.0)
                     }
-                })
-                .collect();
-            self.prev_cpu = Some(total);
-            self.prev_cores = cores;
+                }),
+        );
+        self.prev_cores = cores;
+    }
+
+    fn update_mem(&mut self, meminfo: &str, watched: bool) {
+        let (mut mem_total, mut mem_avail, mut swap_total, mut swap_free) = (None, None, None, None);
+        for line in meminfo.lines() {
+            let parse = |rest: &str| rest.split_whitespace().next()?.parse::<u64>().ok();
+            if let Some(rest) = line.strip_prefix("MemTotal:") {
+                mem_total = parse(rest);
+            } else if let Some(rest) = line.strip_prefix("MemAvailable:") {
+                mem_avail = parse(rest);
+                if !watched && mem_total.is_some() {
+                    break;
+                }
+            } else if watched && let Some(rest) = line.strip_prefix("SwapTotal:") {
+                swap_total = parse(rest);
+            } else if watched && let Some(rest) = line.strip_prefix("SwapFree:") {
+                swap_free = parse(rest);
+            }
+            if mem_total.is_some()
+                && mem_avail.is_some()
+                && (!watched || (swap_total.is_some() && swap_free.is_some()))
+            {
+                break;
+            }
         }
-        stats.cpu_temp = self.cpu_temp.as_deref().and_then(read_temp);
-        if let Some(temp) = stats.cpu_temp {
-            push(&mut self.cpu_temp_history, temp);
+        if let (Some(total), Some(available)) = (mem_total, mem_avail) {
+            self.stats.mem_total_kib = total;
+            self.stats.mem_used_kib = total.saturating_sub(available);
+        }
+        if let (Some(total), Some(free)) = (swap_total, swap_free) {
+            self.stats.swap_total_kib = total;
+            self.stats.swap_used_kib = total.saturating_sub(free);
+        }
+    }
+
+    fn update_gpu_instant(&mut self) {
+        let (Some(device), Some(gpu)) = (&self.gpu, &mut self.stats.gpu) else {
+            return;
+        };
+        gpu.vram_used = read_u64(&device.join("mem_info_vram_used")).unwrap_or(0);
+        gpu.vram_total = read_u64(&device.join("mem_info_vram_total")).unwrap_or(0);
+        gpu.fan_rpm = self
+            .gpu_hwmon
+            .as_deref()
+            .and_then(|dir| read_u64(&dir.join("fan1_input")))
+            .and_then(|rpm| u32::try_from(rpm).ok());
+    }
+
+    /// Updates the history charts, and when `watched` also reads what only the open panel shows.
+    pub fn sample(&mut self, watched: bool) {
+        let now = Instant::now();
+
+        if let Ok(stat) = fs::read_to_string("/proc/stat") {
+            let mut lines = stat.lines();
+            if let Some(total) = lines.next().and_then(parse_cpu_line) {
+                if let Some(cpu) = self.prev_cpu.and_then(|prev| busy(total, prev)) {
+                    self.stats.cpu = cpu;
+                    push(&mut self.stats.cpu_history, cpu);
+                }
+                self.prev_cpu = Some(total);
+            }
+            if watched {
+                self.update_cores(lines);
+            }
+        }
+        self.stats.cpu_temp = self.cpu_temp.as_deref().and_then(read_temp);
+        if let Some(temp) = self.stats.cpu_temp {
+            push(&mut self.stats.cpu_temp_history, temp);
         }
 
-        if let Some(device) = &self.gpu {
-            let hwmon = self.gpu_hwmon.as_deref();
-            let gpu = Gpu {
-                busy: read_u64(&device.join("gpu_busy_percent")).unwrap_or(0) as f32 / 100.0,
-                temp: self.gpu_temp.as_deref().and_then(read_temp),
-                vram_used: read_u64(&device.join("mem_info_vram_used")).unwrap_or(0),
-                vram_total: read_u64(&device.join("mem_info_vram_total")).unwrap_or(0),
-                power: self
-                    .power
-                    .iter()
-                    .find(|(probe, _)| probe.label == "GPU")
-                    .and_then(|(probe, _)| read_u64(&probe.path))
-                    .map(|microwatts| microwatts as f32 / 1_000_000.0),
-                fan_rpm: hwmon
-                    .and_then(|dir| read_u64(&dir.join("fan1_input")))
-                    .and_then(|rpm| u32::try_from(rpm).ok()),
-            };
-            push(&mut self.gpu_history, gpu.busy);
-            if let Some(temp) = gpu.temp {
-                push(&mut self.gpu_temp_history, temp);
+        for (probe, source) in self.power.iter().zip(&mut self.stats.power) {
+            if let Some(microwatts) = read_u64(&probe.path) {
+                let watts = microwatts as f32 / 1_000_000.0;
+                source.watts = watts;
+                push(&mut source.history, watts);
             }
-            stats.gpu = Some(gpu);
+        }
+
+        if let (Some(device), Some(gpu)) = (&self.gpu, &mut self.stats.gpu) {
+            gpu.busy = read_u64(&device.join("gpu_busy_percent")).unwrap_or(0) as f32 / 100.0;
+            gpu.temp = self.gpu_temp.as_deref().and_then(read_temp);
+            gpu.power = self
+                .stats
+                .power
+                .iter()
+                .find(|source| source.label == "GPU")
+                .map(|source| source.watts);
+            push(&mut self.stats.gpu_history, gpu.busy);
+            if let Some(temp) = gpu.temp {
+                push(&mut self.stats.gpu_temp_history, temp);
+            }
+            if watched {
+                self.update_gpu_instant();
+            }
         }
 
         if let Ok(meminfo) = fs::read_to_string("/proc/meminfo") {
-            let field = |name: &str| {
-                meminfo
-                    .lines()
-                    .find_map(|line| line.strip_prefix(name))
-                    .and_then(|rest| rest.split_whitespace().next())
-                    .and_then(|kib| kib.parse::<u64>().ok())
-            };
-            if let (Some(total), Some(available)) = (field("MemTotal:"), field("MemAvailable:")) {
-                stats.mem_total_kib = total;
-                stats.mem_used_kib = total.saturating_sub(available);
-            }
-            if let (Some(total), Some(free)) = (field("SwapTotal:"), field("SwapFree:")) {
-                stats.swap_total_kib = total;
-                stats.swap_used_kib = total.saturating_sub(free);
-            }
+            self.update_mem(&meminfo, watched);
         }
-        if stats.mem_total_kib > 0 {
+        if self.stats.mem_total_kib > 0 {
             push(
-                &mut self.mem_history,
-                stats.mem_used_kib as f32 / stats.mem_total_kib as f32,
+                &mut self.stats.mem_history,
+                self.stats.mem_used_kib as f32 / self.stats.mem_total_kib as f32,
             );
         }
 
         if let Some((rx, tx)) = read_net() {
             let sample = (rx, tx, now);
             if let Some((rx_rate, tx_rate)) = rate(sample, self.prev_net) {
-                stats.rx_rate = rx_rate;
-                stats.tx_rate = tx_rate;
-                push(&mut self.rx_history, rx_rate as f32);
-                push(&mut self.tx_history, tx_rate as f32);
+                self.stats.rx_rate = rx_rate;
+                self.stats.tx_rate = tx_rate;
+                push(&mut self.stats.rx_history, rx_rate as f32);
+                push(&mut self.stats.tx_history, tx_rate as f32);
             }
             self.prev_net = Some(sample);
         }
         if let Some((read, written)) = read_disks(&self.disks) {
             let sample = (read, written, now);
             if let Some((read_rate, write_rate)) = rate(sample, self.prev_disk) {
-                stats.read_rate = read_rate;
-                stats.write_rate = write_rate;
-                push(&mut self.read_history, read_rate as f32);
-                push(&mut self.write_history, write_rate as f32);
+                self.stats.read_rate = read_rate;
+                self.stats.write_rate = write_rate;
+                push(&mut self.stats.read_history, read_rate as f32);
+                push(&mut self.stats.write_history, write_rate as f32);
             }
             self.prev_disk = Some(sample);
         }
 
         if let Some(temp) = self.storage_temp.as_deref().and_then(read_temp) {
-            push(&mut self.storage_temp_history, temp);
+            push(&mut self.stats.storage_temp_history, temp);
         }
-        stats.power = self
-            .power
-            .iter_mut()
-            .filter_map(|(probe, history)| {
-                let watts = read_u64(&probe.path)? as f32 / 1_000_000.0;
-                push(history, watts);
-                Some(PowerSource {
-                    label: probe.label.clone(),
-                    watts,
-                    history: history.iter().copied().collect(),
-                })
-            })
-            .collect();
 
-        let looked = if watched {
-            self.look()
-        } else {
-            self.kept.clone()
-        };
-        looked.apply(&mut stats);
-
-        if let Ok(loadavg) = fs::read_to_string("/proc/loadavg") {
-            for (slot, value) in stats.load.iter_mut().zip(loadavg.split_whitespace()) {
-                *slot = value.parse().unwrap_or(0.0);
+        if watched {
+            self.look();
+            if let Ok(loadavg) = fs::read_to_string("/proc/loadavg") {
+                for (slot, value) in self.stats.load.iter_mut().zip(loadavg.split_whitespace()) {
+                    *slot = value.parse().unwrap_or(0.0);
+                }
+            }
+            if let Ok(uptime) = fs::read_to_string("/proc/uptime") {
+                self.stats.uptime_secs = uptime
+                    .split_whitespace()
+                    .next()
+                    .and_then(|secs| secs.parse::<f64>().ok())
+                    .map_or(0, |secs| secs as u64);
             }
         }
-        if let Ok(uptime) = fs::read_to_string("/proc/uptime") {
-            stats.uptime_secs = uptime
-                .split_whitespace()
-                .next()
-                .and_then(|secs| secs.parse::<f64>().ok())
-                .map_or(0, |secs| secs as u64);
-        }
-
-        stats.info = self.info.clone();
-        stats.cpu_history = self.cpu_history.iter().copied().collect();
-        stats.gpu_history = self.gpu_history.iter().copied().collect();
-        stats.cpu_temp_history = self.cpu_temp_history.iter().copied().collect();
-        stats.gpu_temp_history = self.gpu_temp_history.iter().copied().collect();
-        stats.storage_temp_history = self.storage_temp_history.iter().copied().collect();
-        stats.mem_history = self.mem_history.iter().copied().collect();
-        stats.rx_history = self.rx_history.iter().copied().collect();
-        stats.tx_history = self.tx_history.iter().copied().collect();
-        stats.read_history = self.read_history.iter().copied().collect();
-        stats.write_history = self.write_history.iter().copied().collect();
-        stats
     }
 }
 

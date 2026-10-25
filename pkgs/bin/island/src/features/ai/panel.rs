@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use super::{
     Ai, asking, chat, format, jelly, overview, sessions,
     state::{Severity, State},
@@ -26,13 +28,33 @@ fn usage(ai: &Ai, state: &State, view: &View, p: &PanelCx<'_>) -> (Vec<Button>, 
         enabled: !ai.settings.sources.is_empty() && !state.refreshing,
         on_click: p.call(Ai::refresh),
     }];
-    (buttons, overview::blocks(ai, state, view, format::now()))
+    let now = format::now();
+    if let Some(after) = format::usage_next_change(&ai.settings.sources, state, now) {
+        p.redraw_in(after);
+    }
+    (buttons, overview::blocks(ai, state, view, now))
 }
 
 pub(super) fn panel(ai: &Ai, state: &State, p: &PanelCx<'_>) -> Option<PanelView> {
     let view = p.local::<View>()?;
     let (buttons, blocks) = match view.tab {
-        Tab::Sessions => (Vec::new(), sessions::blocks(state, view, p)),
+        Tab::Sessions => {
+            let now = format::now();
+            if let Some(ms) = state
+                .sessions
+                .iter()
+                .flat_map(|session| {
+                    [
+                        format::next_elapsed_ms(session.active_at, now),
+                        format::next_elapsed_ms(session.started_at, now),
+                    ]
+                })
+                .min()
+            {
+                p.redraw_in(Duration::from_millis(ms));
+            }
+            (Vec::new(), sessions::blocks(state, view, p))
+        }
         Tab::Chat => chat::panel(ai, state, view, p),
         Tab::Usage => usage(ai, state, view, p),
     };
@@ -62,6 +84,16 @@ pub(super) fn popup(state: &State, p: &PanelCx<'_>) -> Option<PanelView> {
     if state.requests.is_empty() && view.leaving.is_empty() {
         return None;
     }
+    let now = format::now();
+    if let Some(ms) = state
+        .requests
+        .iter()
+        .chain(view.leaving.iter().map(|(request, _)| request))
+        .filter_map(|request| format::next_ago_ms(request.received_at, now))
+        .min()
+    {
+        p.redraw_in(Duration::from_millis(ms));
+    }
     let waiting = state
         .requests
         .iter()
@@ -77,12 +109,14 @@ pub(super) fn popup(state: &State, p: &PanelCx<'_>) -> Option<PanelView> {
 }
 
 pub(super) fn system_button(ai: &Ai, state: &State, p: &PanelCx<'_>) -> IconButton {
+    let now = format::now();
+    if let Some(after) = format::usage_next_change(&ai.settings.sources, state, now) {
+        p.redraw_in(after);
+    }
     let worst = state.worst();
     let badge = if ai.settings.widget.show_badge {
         worst
-            .map(|(provider, limit)| {
-                format::badge(limit, provider.freshness, format::now(), true).into()
-            })
+            .map(|(provider, limit)| format::badge(limit, provider.freshness, now, true).into())
             .or_else(|| (!state.issues.is_empty()).then(|| "!".into()))
     } else {
         None

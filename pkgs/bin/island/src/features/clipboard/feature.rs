@@ -1,8 +1,6 @@
 //! How island sees the clipboard: its history, the widget, the picker panel and its keys, and
 //! `island ctl clipboard clear`.
 
-use std::time::Duration;
-
 use gpui::{AnyElement, Keystroke};
 
 use super::{commands, panel, runtime, runtime::Clipboard, settings, state::State, widget};
@@ -22,7 +20,6 @@ impl Feature for Clipboard {
         ("clipboard-files", &["folder", "inode-directory"]),
     ];
     const PANEL: Option<&'static str> = Some("clipboard");
-    const PANEL_REFRESH: Option<Duration> = Some(Duration::from_secs(30));
     const CONTROLS: &'static [Command] = commands::CONTROLS;
     const KEYBOARD: bool = true;
 

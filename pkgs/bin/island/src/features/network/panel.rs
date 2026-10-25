@@ -865,8 +865,7 @@ fn prompt(state: &State, prompt: &Prompt, p: &PanelCx<'_>) -> PromptView {
     }
 }
 
-pub fn panel(network: &Network, state: &State, p: &PanelCx<'_>) -> PanelView {
-    network.watch();
+pub fn panel(state: &State, p: &PanelCx<'_>) -> PanelView {
     let columns = if state.wifi.is_some() {
         vec![
             vec![wifi_tile(state), signal_tile(state), latency_tile(state)],

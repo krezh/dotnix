@@ -27,12 +27,12 @@
               {
                 key = "h";
                 desc = "Helium";
-                cmd = lib.getExe config.home-manager.users.${user}.programs.helium.package;
+                cmd = lib.getExe config.home-manager.users.${user}.programs.helium.finalPackage;
               }
               {
                 key = "z";
                 desc = "Zen";
-                cmd = lib.getExe config.home-manager.users.${user}.programs.zen-browser.package;
+                cmd = lib.getExe config.home-manager.users.${user}.programs.zen-browser.finalPackage;
               }
               {
                 key = "b";

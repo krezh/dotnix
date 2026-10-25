@@ -1,7 +1,7 @@
 { inputs, ... }:
 {
   flake.modules.homeManager.browsers =
-    { config, ... }:
+    { config, pkgs, ... }:
     let
       lock = Value: {
         inherit Value;
@@ -15,6 +15,7 @@
         enable = true;
         profiles.${config.home.username} = {
           isDefault = true;
+          extensions.packages = [ pkgs.opentodo-browser-extension ];
           mods = [ ];
           settings = {
             "general.smoothScroll.msdPhysics.enabled" = false;
@@ -62,9 +63,17 @@
             "zen.view.use-native-titlebar" = true;
             "zen.tabs.dnd-open-blank-window" = false;
             "zen.widget.linux.transparency" = true;
+            "xpinstall.signatures.required" = false;
+            "extensions.autoDisableScopes" = 0;
           };
         };
         policies = {
+          ExtensionSettings = {
+            "share-capture@opentodo" = {
+              installation_mode = "force_installed";
+              install_url = "file://${pkgs.opentodo-browser-extension}/share-capture@opentodo.xpi";
+            };
+          };
           AutofillAddressEnabled = false;
           AutofillCreditCardEnabled = false;
           DisableAppUpdate = true;
@@ -136,6 +145,7 @@
 
             # System
             "toolkit.legacyUserProfileCustomizations.stylesheets" = lock true;
+            "xpinstall.signatures.required" = lock false;
           };
         };
       };

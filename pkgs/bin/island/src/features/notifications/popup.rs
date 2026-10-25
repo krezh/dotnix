@@ -16,6 +16,9 @@ impl Notifications {
             .cards()
             .iter()
             .map(|shown| {
+                if let Some(after) = card::next_label_change(shown.notification.received) {
+                    p.redraw_in(after);
+                }
                 let id = shown.id;
                 Look {
                     lead: card::lead(&shown.notification, p),

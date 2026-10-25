@@ -1,7 +1,7 @@
 //! How island sees the network: the bar widget, the Network tab and its password card, and
 //! `island ctl wifi` and `island ctl vpn`.
 
-use std::time::Duration;
+use std::any::Any;
 
 use gpui::{AnyElement, Keystroke};
 
@@ -27,8 +27,6 @@ impl Feature for Network {
     const NAME: &'static str = "network";
     const PANEL: Option<&'static str> = Some("network");
     const TAB: Option<(&'static str, u8)> = Some(("Network", 5));
-    /// Keeps the worker measuring while the panel shows, even when nothing changes.
-    const PANEL_REFRESH: Option<Duration> = Some(Duration::from_secs(1));
     const GLYPHS: &'static [GlyphSpec] = &[
         ("tab-network", &["network-workgroup-symbolic", "network-wired-symbolic"]),
         ("network-wifi-excellent", &["network-wireless-signal-excellent-symbolic"]),
@@ -111,12 +109,12 @@ impl Feature for Network {
         Some(widget::widget(state, w))
     }
 
-    fn panel_opened(&self) {
-        self.watch();
+    fn panel_opened(&self) -> Option<Box<dyn Any>> {
+        Some(Box::new(self.watch()))
     }
 
     fn panel<'a>(&self, state: &State, p: &PanelCx<'a>) -> Option<PanelView> {
-        Some(panel::panel(self, state, p))
+        Some(panel::panel(state, p))
     }
 
     fn command(&self, state: &State, args: &[&str]) -> Report {

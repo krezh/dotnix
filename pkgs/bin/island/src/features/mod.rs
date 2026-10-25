@@ -7,6 +7,7 @@ pub mod brightness;
 pub mod caffeine;
 pub mod clipboard;
 pub mod clock;
+pub mod gotify;
 pub mod headset;
 pub mod launcher;
 pub mod media;

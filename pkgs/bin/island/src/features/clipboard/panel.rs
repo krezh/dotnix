@@ -24,6 +24,7 @@ pub(super) fn panel(state: &State, p: &PanelCx<'_>) -> Option<PanelView> {
         .skip(top)
         .take(ROWS)
         .map(|(position, entry)| {
+            p.redraw_in(entry.next_change());
             let id = entry.id;
             let glyph = match entry.kind {
                 Kind::Text => "clipboard-text",
@@ -46,7 +47,10 @@ pub(super) fn panel(state: &State, p: &PanelCx<'_>) -> Option<PanelView> {
         })
         .collect();
     let preview = match matching.get(selected) {
-        Some(entry) => (entry.preview(), entry.about().into()),
+        Some(entry) => {
+            p.redraw_in(entry.next_change());
+            (entry.preview(), entry.about().into())
+        }
         None => (Preview::Empty, SharedString::default()),
     };
     Some(PanelView {

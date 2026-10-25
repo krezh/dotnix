@@ -1,7 +1,7 @@
 //! Notifications as the panel shows them: each a raised frame holding an item, its text and its
 //! actions, laid out as a stack of toasts, the missed list, or earlier ones by day.
 
-use std::time::SystemTime;
+use std::time::{Duration, SystemTime};
 
 use chrono::Local;
 use gpui::{SharedString, SpringConfig, Window};
@@ -168,6 +168,20 @@ fn received_label(received: SystemTime) -> String {
             .format("%b %-d")
             .to_string(),
     }
+}
+
+pub(super) fn next_label_change(received: SystemTime) -> Option<Duration> {
+    let elapsed = received.elapsed().unwrap_or_default();
+    let seconds = elapsed.as_secs();
+    let step = match seconds {
+        ..3600 => 60,
+        ..86_400 => 3600,
+        _ => return None,
+    };
+    Some(
+        Duration::from_secs(step - (seconds % step))
+            .saturating_sub(Duration::from_nanos(u64::from(elapsed.subsec_nanos()))),
+    )
 }
 
 /// The markup as styled text.

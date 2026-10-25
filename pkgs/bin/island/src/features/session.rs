@@ -23,8 +23,6 @@ use crate::{
 };
 
 const CONFIRM: Duration = Duration::from_secs(4);
-/// So the uptime keeps up.
-const REFRESH: Duration = Duration::from_secs(30);
 
 const LOGIN: &str = "org.freedesktop.login1";
 const SESSION_PATH: &str = "/org/freedesktop/login1/session/auto";
@@ -171,13 +169,17 @@ fn logind(action: Action) -> zbus::Result<()> {
 }
 
 /// "Up 2 d 3 h", "Up 3 h 12 min", "Up 12 min".
-fn uptime() -> Option<String> {
-    let seconds = fs::read_to_string("/proc/uptime")
+fn uptime(p: &PanelCx<'_>) -> Option<String> {
+    let raw: f64 = fs::read_to_string("/proc/uptime")
         .ok()?
         .split_whitespace()
         .next()?
-        .parse::<f64>()
-        .ok()? as u64;
+        .parse()
+        .ok()?;
+    let seconds = raw as u64;
+    let step = if seconds < 86_400 { 60 } else { 3600 };
+    let next = (step - (seconds % step)) as f64 - raw.fract();
+    p.redraw_in(Duration::from_secs_f64(next.max(0.0)));
     let (days, hours, minutes) = (
         seconds / 86_400,
         seconds % 86_400 / 3600,
@@ -303,7 +305,6 @@ impl Feature for Session {
         ("session-shutdown", &["system-shutdown-symbolic"]),
     ];
     const PANEL: Option<&'static str> = Some("session");
-    const PANEL_REFRESH: Option<Duration> = Some(REFRESH);
     const CONTROLS: &'static [Command] = &[Command {
         name: "session",
         about: "Lock, log out, sleep or power off, without asking first",
@@ -370,7 +371,7 @@ impl Feature for Session {
             .collect();
         let note = match armed {
             Some(action) => format!("Click {} again to confirm", action.label()),
-            None => uptime().unwrap_or_default(),
+            None => uptime(p).unwrap_or_default(),
         };
         Some(PanelView {
             header: Header::None,

@@ -1,4 +1,4 @@
-use super::{Glance, push};
+use super::{Glance, nm, push, saved_changed};
 use crate::{
     components::card::SLOTS,
     features::network::state::{AccessPoint, State, Wifi},
@@ -35,4 +35,16 @@ fn traffic_alone_does_not_change_what_the_bar_shows() {
     assert!(Glance::of(&state) == before);
     state.wifi.as_mut().unwrap().networks[0].strength = 40;
     assert!(Glance::of(&state) != before);
+}
+
+#[test]
+fn only_settings_signals_mark_the_saved_connections_dirty() {
+    assert!(saved_changed(Some(nm::SETTINGS), Some("NewConnection")));
+    assert!(saved_changed(Some(nm::SETTINGS), Some("ConnectionRemoved")));
+    assert!(saved_changed(Some(nm::CONNECTION), Some("Updated")));
+    assert!(!saved_changed(
+        Some("org.freedesktop.DBus.Properties"),
+        Some("PropertiesChanged")
+    ));
+    assert!(!saved_changed(Some(nm::SETTINGS), Some("PropertiesChanged")));
 }

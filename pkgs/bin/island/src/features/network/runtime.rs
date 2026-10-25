@@ -3,7 +3,7 @@ use std::{
     net::Ipv4Addr,
     sync::{
         Arc, Condvar, Mutex,
-        atomic::{AtomicI64, Ordering},
+        atomic::{AtomicUsize, Ordering},
     },
     thread,
     time::Duration,
@@ -17,8 +17,6 @@ use tracing::warn;
 use super::{probe, state::State, worker};
 use crate::features::Feed;
 
-/// How long after the panel was last drawn it still counts as open.
-const WATCH_MS: i64 = 3000;
 /// How often what the charts show is measured, while the panel is open.
 const SAMPLE_EVERY: Duration = Duration::from_secs(1);
 const PROBE_EVERY: Duration = Duration::from_secs(2);
@@ -81,17 +79,17 @@ pub(super) struct Probes {
     pub dns_address: Option<Ipv4Addr>,
 }
 
-/// When the panel was last drawn, and a way to wake whatever sleeps until it is.
+/// How many islands have the panel open, and a way to wake whatever sleeps until one does.
 #[derive(Default)]
 pub(super) struct Watched {
-    last: AtomicI64,
+    watchers: AtomicUsize,
     lock: Mutex<()>,
     opened: Condvar,
 }
 
 impl Watched {
     pub fn watching(&self) -> bool {
-        now_ms() - self.last.load(Ordering::Relaxed) < WATCH_MS
+        self.watchers.load(Ordering::SeqCst) > 0
     }
 
     /// Sleeps until the panel is open, without waking until it is.
@@ -111,8 +109,12 @@ pub struct Network {
     watched: Arc<Watched>,
 }
 
-fn now_ms() -> i64 {
-    chrono::Utc::now().timestamp_millis()
+pub(super) struct Watch(Arc<Watched>);
+
+impl Drop for Watch {
+    fn drop(&mut self) {
+        self.0.watchers.fetch_sub(1, Ordering::SeqCst);
+    }
 }
 
 fn spawn(name: &str, run: impl FnOnce() + Send + 'static) {
@@ -231,10 +233,8 @@ impl Network {
     }
 
     /// The panel is in view: the worker measures what it shows until it is not.
-    pub(super) fn watch(&self) {
-        let was = self.watched.watching();
-        self.watched.last.store(now_ms(), Ordering::Relaxed);
-        if !was {
+    pub(super) fn watch(&self) -> Watch {
+        if self.watched.watchers.fetch_add(1, Ordering::SeqCst) == 0 {
             let _guard = self
                 .watched
                 .lock
@@ -243,5 +243,6 @@ impl Network {
             self.watched.opened.notify_all();
             self.send(Request::Watch);
         }
+        Watch(self.watched.clone())
     }
 }

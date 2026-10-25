@@ -5,7 +5,7 @@ use std::{
     path::{Path, PathBuf},
     sync::{
         Mutex, PoisonError,
-        mpsc::{self, Receiver, RecvTimeoutError, Sender},
+        mpsc::{self, Receiver, Sender},
     },
     thread,
     time::{Duration, Instant},
@@ -290,8 +290,15 @@ fn listen(connection: &Connection, events: Sender<Event>) {
             .build(),
         MatchRule::builder()
             .msg_type(Type::Signal)
+            .interface(PLAYER)
+            .member("Seeked")
+            .path(PATH)
+            .build(),
+        MatchRule::builder()
+            .msg_type(Type::Signal)
             .interface("org.freedesktop.DBus")
             .member("NameOwnerChanged")
+            .arg0ns("org.mpris.MediaPlayer2")
             .build(),
     ];
     for rule in rules.into_iter().flatten() {
@@ -356,12 +363,7 @@ fn worker(
         true
     };
     loop {
-        let wait = if last.as_ref().is_some_and(|track| track.playing) {
-            Duration::from_secs(1)
-        } else {
-            Duration::from_secs(5)
-        };
-        match events.recv_timeout(wait) {
+        match events.recv() {
             Ok(Event::Control(command)) => {
                 if let Some(track) = &last {
                     control(connection, track, command);
@@ -378,8 +380,7 @@ fn worker(
                     Err(_) => break,
                 }
             },
-            Err(RecvTimeoutError::Timeout) => {}
-            Err(RecvTimeoutError::Disconnected) => return Ended::Unwanted,
+            Err(_) => return Ended::Unwanted,
         }
         if !publish_current(&mut last, &mut preferred) {
             return Ended::Unwanted;

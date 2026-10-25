@@ -157,6 +157,9 @@ fn provider_badge(
 /// requests waiting on you show as a count on the mark.
 pub(super) fn widget(ai: &Ai, state: &State, w: &WidgetCx<'_>) -> AnyElement {
     let now = format::now();
+    if let Some(after) = format::usage_next_change(&ai.settings.sources, state, now) {
+        w.redraw_in(after);
+    }
     let working = state
         .sessions
         .iter()

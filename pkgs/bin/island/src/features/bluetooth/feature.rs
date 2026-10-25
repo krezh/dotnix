@@ -1,8 +1,6 @@
 //! How island sees Bluetooth: the bar widget, the Bluetooth tab and its pairing card, and
 //! `island ctl bluetooth`.
 
-use std::time::Duration;
-
 use gpui::AnyElement;
 
 use super::{Bluetooth, glyphs, panel, runtime::Request, state::State, view::View, widget};
@@ -16,8 +14,6 @@ impl Feature for Bluetooth {
     const NAME: &'static str = "bluetooth";
     const PANEL: Option<&'static str> = Some("bluetooth");
     const TAB: Option<(&'static str, u8)> = Some(("Bluetooth", 6));
-    /// Keeps the visibility countdown and how long each device has been connected moving.
-    const PANEL_REFRESH: Option<Duration> = Some(Duration::from_secs(1));
     const GLYPHS: &'static [GlyphSpec] = glyphs::GLYPHS;
     const CONTROLS: &'static [Command] = &[Command {
         name: "bluetooth",

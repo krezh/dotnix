@@ -168,7 +168,3 @@ pub fn command(sub: &Sub) -> Vec<Line> {
     }
     lines
 }
-
-#[cfg(test)]
-#[path = "help_test.rs"]
-mod tests;

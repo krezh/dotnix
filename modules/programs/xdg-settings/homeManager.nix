@@ -34,6 +34,8 @@
         "x-scheme-handler/about" = defaultBrowser;
         "x-scheme-handler/ftp" = defaultBrowser;
         "x-scheme-handler/unknown" = defaultBrowser;
+        "x-scheme-handler/curseforge" = "wowup-cf.desktop";
+        "x-scheme-handler/wowup" = "wowup-cf.desktop";
         "application/x-extension-htm" = defaultBrowser;
         "application/x-extension-html" = defaultBrowser;
         "application/x-extension-shtml" = defaultBrowser;

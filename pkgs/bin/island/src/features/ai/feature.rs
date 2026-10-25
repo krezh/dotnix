@@ -1,7 +1,7 @@
 //! How island sees the AI feature: usage and Claude Code sessions, each island's view with Jelly,
 //! the widget, the panel and pop-ups, `island ctl ai`, and the `island ai-hook` client.
 
-use std::time::Duration;
+use std::any::Any;
 
 use gpui::{AnyElement, Keystroke};
 
@@ -24,7 +24,6 @@ use crate::{
 impl Feature for Ai {
     const NAME: &'static str = "ai";
     const PANEL: Option<&'static str> = Some("ai");
-    const PANEL_REFRESH: Option<Duration> = Some(Duration::from_secs(5));
     const GLYPHS: &'static [GlyphSpec] = &[
         (
             "ai",
@@ -114,8 +113,9 @@ impl Feature for Ai {
         panel::popup(state, p)
     }
 
-    fn panel_opened(&self) {
+    fn panel_opened(&self) -> Option<Box<dyn Any>> {
         self.opened();
+        None
     }
 
     fn elapse(&self, view: &mut View, _hovered: bool) {

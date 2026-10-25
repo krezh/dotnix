@@ -1,5 +1,3 @@
-use std::time::Duration;
-
 use super::{
     Cards, Notifications, State,
     card::{self, Look},
@@ -9,9 +7,6 @@ use crate::{
     features::PanelCx,
     panel::{Block, Button, Header, PanelView, TabLabel, Views},
 };
-
-/// So "5m" keeps up.
-pub(super) const REFRESH: Duration = Duration::from_secs(30);
 
 impl Notifications {
     pub(super) fn panel_view(&self, state: &State, p: &PanelCx<'_>) -> Option<PanelView> {
@@ -102,6 +97,9 @@ impl Notifications {
             .rows()
             .iter()
             .map(|row| {
+                if let Some(after) = card::next_label_change(row.notification.received) {
+                    p.redraw_in(after);
+                }
                 let id = row.notification.id;
                 Look {
                     lead: card::lead(&row.notification, p),
