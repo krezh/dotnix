@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-gpui = { package = "gpui-pre", version = "=0.3.9", default-features = false, features = ["wayland"] }
+gpui = { package = "gpui-pre", version = "=0.3.10", default-features = false, features = ["wayland"] }
 gpui_platform = { package = "gpui-pre-platform", version = "=0.3.9", default-features = false, features = ["wayland"] }
 chrono = { version = "0.4", default-features = false, features = ["clock"] }
 futures = { version = "0.3", default-features = false, features = ["std"] }
