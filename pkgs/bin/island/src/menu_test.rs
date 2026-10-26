@@ -54,7 +54,12 @@ fn settle(menu: &mut Menu) {
 #[test]
 fn replacing_an_open_menu_slides_its_anchor_and_crossfades_into_the_new_size() {
     let body = Bounds::new(point(px(200.0), px(10.0)), size(px(600.0), px(38.0)));
-    let mut menu = Menu::new("first".to_owned(), root(vec![item(1, "One")]), noop(), 350.0);
+    let mut menu = Menu::new(
+        "first".to_owned(),
+        root(vec![item(1, "One")]),
+        noop(),
+        350.0,
+    );
     assert!(!menu.is_settled());
     measure(&mut menu, 180.0, 90.0);
     settle(&mut menu);
@@ -105,7 +110,12 @@ fn replacing_a_clamped_menu_slides_immediately_from_its_drawn_edge() {
     let right_limit = 800.0 - 19.0 - 10.0 - 200.0;
     assert_eq!(f32::from(clamped.bounds.origin.x), right_limit);
 
-    menu.replace("inward".to_owned(), root(vec![item(2, "Two")]), noop(), 500.0);
+    menu.replace(
+        "inward".to_owned(),
+        root(vec![item(2, "Two")]),
+        noop(),
+        500.0,
+    );
     let now = Instant::now() + Duration::from_millis(16);
     menu.advance(0.016, now);
     let moved = menu.hang(body, 19.0, 1.0);

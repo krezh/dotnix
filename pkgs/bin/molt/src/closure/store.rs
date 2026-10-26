@@ -45,9 +45,8 @@ fn open_database(database: &Path) -> rusqlite::Result<Connection> {
             | OpenFlags::SQLITE_OPEN_NO_MUTEX
             | OpenFlags::SQLITE_OPEN_URI,
     )?;
-    connection.execute_batch(
-        "PRAGMA mmap_size=268435456; PRAGMA temp_store=2; PRAGMA query_only=ON;",
-    )?;
+    connection
+        .execute_batch("PRAGMA mmap_size=268435456; PRAGMA temp_store=2; PRAGMA query_only=ON;")?;
     Ok(connection)
 }
 
@@ -74,7 +73,9 @@ fn query_closure(transaction: &Transaction<'_>, root: &Path) -> Result<Vec<Store
     };
     let paths = query().map_err(|error| format!("cannot read closure for {root}: {error}"))?;
     if paths.is_empty() {
-        return Err(format!("closure root is not registered in the Nix store: {root}"));
+        return Err(format!(
+            "closure root is not registered in the Nix store: {root}"
+        ));
     }
     Ok(paths)
 }
@@ -242,6 +243,10 @@ mod tests {
         drop(transaction);
         let (_, current) = query_database(&database.path, &old, &new).unwrap();
         assert_eq!(current.len(), 2);
-        assert!(current.iter().any(|path| path.path == dependency.to_str().unwrap()));
+        assert!(
+            current
+                .iter()
+                .any(|path| path.path == dependency.to_str().unwrap())
+        );
     }
 }

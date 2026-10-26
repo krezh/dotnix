@@ -4,8 +4,7 @@
 use std::{
     backtrace::{Backtrace, BacktraceStatus},
     collections::{HashMap, VecDeque},
-    env,
-    fmt,
+    env, fmt,
     fs::{self, File},
     io::{self, BufRead, BufReader, IsTerminal, Read, Write as _},
     net::Shutdown,

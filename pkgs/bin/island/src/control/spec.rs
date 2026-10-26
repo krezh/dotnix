@@ -81,7 +81,11 @@ pub const fn form(word: &'static str, value: Value, about: &'static str) -> Form
 pub const SWITCH: &[Form] = &[
     form("on", Value::Nothing, "Turn it on"),
     form("off", Value::Nothing, "Turn it off"),
-    form("toggle", Value::Nothing, "Turn it on if it is off, and off if it is on"),
+    form(
+        "toggle",
+        Value::Nothing,
+        "Turn it on if it is off, and off if it is on",
+    ),
 ];
 
 pub const LEVEL: &[Form] = &[
@@ -125,7 +129,10 @@ pub const CORE: &[Command] = &[
         about: "Change what is logged until island restarts",
         group: Group::System,
         takes: Takes::Word("spec"),
-        examples: &["island ctl log debug", "island ctl log audio=debug,tray=trace"],
+        examples: &[
+            "island ctl log debug",
+            "island ctl log audio=debug,tray=trace",
+        ],
     },
 ];
 

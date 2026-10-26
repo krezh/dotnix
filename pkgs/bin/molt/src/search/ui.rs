@@ -473,7 +473,10 @@ impl SearchView {
         else {
             return;
         };
-        while let Some(child) = slot.first_child().and_then(|caption| caption.next_sibling()) {
+        while let Some(child) = slot
+            .first_child()
+            .and_then(|caption| caption.next_sibling())
+        {
             slot.remove(&child);
         }
         let check = |caption| {
@@ -502,7 +505,11 @@ impl SearchView {
                 let spinner = gtk::Spinner::new();
                 spinner.start();
                 row.append(&spinner);
-                row.append(&wrapped("Evaluating with nix eval…", &["search-muted"], false));
+                row.append(&wrapped(
+                    "Evaluating with nix eval…",
+                    &["search-muted"],
+                    false,
+                ));
                 slot.append(&row);
             }
             Some(LocalState::Done(Ok(value))) => {
@@ -532,7 +539,9 @@ impl SearchView {
         if matches!(self.local.borrow().get(&key), Some(LocalState::Running)) {
             return;
         }
-        self.local.borrow_mut().insert(key.clone(), LocalState::Running);
+        self.local
+            .borrow_mut()
+            .insert(key.clone(), LocalState::Running);
         self.render_local(&key, &item);
         let (sender, receiver) = mpsc::channel();
         let cancellation = Arc::clone(&self.lifetime);
@@ -577,7 +586,9 @@ pub(crate) fn show_search(
     if let Some(owner) = root.last_child() {
         owner.connect_destroy(move |_| controller.stop());
     }
-    if let Some((scope, query)) = cache::read(LAST_SEARCH).as_deref().and_then(parse_last_search)
+    if let Some((scope, query)) = cache::read(LAST_SEARCH)
+        .as_deref()
+        .and_then(parse_last_search)
     {
         view.scopes.options[scope.index()].set_active(true);
         view.entry.set_text(query);
@@ -587,7 +598,10 @@ pub(crate) fn show_search(
 
 /// Remembers the search to restore when Search is next opened.
 pub(super) fn save_last_search(scope: SearchScope, query: &str) {
-    cache::write(LAST_SEARCH, &format!("{}\n{}\n", scope.index(), query.trim()));
+    cache::write(
+        LAST_SEARCH,
+        &format!("{}\n{}\n", scope.index(), query.trim()),
+    );
 }
 
 fn parse_last_search(text: &str) -> Option<(SearchScope, &str)> {
@@ -699,10 +713,16 @@ fn highlighted(name: &str, query: &str) -> String {
     let mut open = false;
     for (index, character) in name.char_indices() {
         if marked[index] != open {
-            markup.push_str(if open { "</span>" } else { "<span underline=\"single\">" });
+            markup.push_str(if open {
+                "</span>"
+            } else {
+                "<span underline=\"single\">"
+            });
             open = marked[index];
         }
-        markup.push_str(&glib::markup_escape_text(character.encode_utf8(&mut [0; 4])));
+        markup.push_str(&glib::markup_escape_text(
+            character.encode_utf8(&mut [0; 4]),
+        ));
     }
     if open {
         markup.push_str("</span>");
@@ -797,9 +817,15 @@ mod tests {
             highlighted("services.nginx.virtualHosts", "nginx VIRT"),
             "services.<span underline=\"single\">nginx</span>.<span underline=\"single\">virt</span>ualHosts"
         );
-        assert_eq!(highlighted("a<b>", "b"), "a&lt;<span underline=\"single\">b</span>&gt;");
+        assert_eq!(
+            highlighted("a<b>", "b"),
+            "a&lt;<span underline=\"single\">b</span>&gt;"
+        );
         assert_eq!(highlighted("ripgrep", ""), "ripgrep");
-        assert_eq!(highlighted("aaa", "aa"), "<span underline=\"single\">aa</span>a");
+        assert_eq!(
+            highlighted("aaa", "aa"),
+            "<span underline=\"single\">aa</span>a"
+        );
     }
 
     #[test]
@@ -808,7 +834,10 @@ mod tests {
             parse_last_search("1\nripgrep\n"),
             Some((SearchScope::Packages, "ripgrep"))
         );
-        assert_eq!(parse_last_search("3\n  programs.git \n").unwrap().1, "programs.git");
+        assert_eq!(
+            parse_last_search("3\n  programs.git \n").unwrap().1,
+            "programs.git"
+        );
         for damaged in ["", "9\nx\n", "x\nquery\n", "0\n\n", "0"] {
             assert_eq!(parse_last_search(damaged), None, "{damaged:?}");
         }

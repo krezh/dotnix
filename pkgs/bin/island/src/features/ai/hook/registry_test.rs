@@ -26,10 +26,18 @@ fn steps(session: &Session) -> &[Step] {
 #[test]
 fn a_session_works_through_its_steps_and_finishes() {
     let mut sessions = Vec::new();
-    apply(&mut sessions, &hook("SessionStart", json!({"model": "claude-opus-5-5"})), 1);
+    apply(
+        &mut sessions,
+        &hook("SessionStart", json!({"model": "claude-opus-5-5"})),
+        1,
+    );
     assert_eq!(sessions[0].activity, Activity::Idle);
 
-    apply(&mut sessions, &hook("UserPromptSubmit", json!({"prompt": "Add a pace tick"})), 2);
+    apply(
+        &mut sessions,
+        &hook("UserPromptSubmit", json!({"prompt": "Add a pace tick"})),
+        2,
+    );
     assert_eq!(sessions[0].activity, Activity::Working);
     assert_eq!(sessions[0].current().unwrap().prompt, "Add a pace tick");
 
@@ -53,24 +61,42 @@ fn a_session_works_through_its_steps_and_finishes() {
     apply(&mut sessions, &hook("PostToolUse", edit), 4);
     assert_eq!(steps(&sessions[0])[0].state, StepState::Done);
 
-    apply(&mut sessions, &hook("Stop", json!({"last_assistant_message": "Done."})), 5);
+    apply(
+        &mut sessions,
+        &hook("Stop", json!({"last_assistant_message": "Done."})),
+        5,
+    );
     assert_eq!(sessions[0].activity, Activity::Idle);
     assert_eq!(sessions[0].reply(), "Done.");
 
-    apply(&mut sessions, &hook("SessionEnd", json!({"reason": "other"})), 6);
+    apply(
+        &mut sessions,
+        &hook("SessionEnd", json!({"reason": "other"})),
+        6,
+    );
     assert!(sessions.is_empty());
 }
 
 #[test]
 fn each_prompt_adds_to_the_history_instead_of_replacing_it() {
     let mut sessions = Vec::new();
-    let read = |file: &str| {
-        json!({"tool_name": "Read", "tool_input": {"file_path": file}})
-    };
-    apply(&mut sessions, &hook("UserPromptSubmit", json!({"prompt": "first"})), 1);
+    let read = |file: &str| json!({"tool_name": "Read", "tool_input": {"file_path": file}});
+    apply(
+        &mut sessions,
+        &hook("UserPromptSubmit", json!({"prompt": "first"})),
+        1,
+    );
     apply(&mut sessions, &hook("ToolUse", read("/x/a.rs")), 2);
-    apply(&mut sessions, &hook("Stop", json!({"last_assistant_message": "One."})), 3);
-    apply(&mut sessions, &hook("UserPromptSubmit", json!({"prompt": "second"})), 4);
+    apply(
+        &mut sessions,
+        &hook("Stop", json!({"last_assistant_message": "One."})),
+        3,
+    );
+    apply(
+        &mut sessions,
+        &hook("UserPromptSubmit", json!({"prompt": "second"})),
+        4,
+    );
     apply(&mut sessions, &hook("ToolUse", read("/x/b.rs")), 5);
 
     let history = &sessions[0].history;

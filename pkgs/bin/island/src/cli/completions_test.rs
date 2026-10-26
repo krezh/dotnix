@@ -10,7 +10,10 @@ fn every_shell_s_script_asks_this_island() {
     for shell in SHELLS {
         let script = script(&args(shell)).unwrap();
         assert!(script.contains("__complete --"), "{shell}: {script}");
-        assert!(!script.contains("ISLAND"), "{shell} still has the placeholder");
+        assert!(
+            !script.contains("ISLAND"),
+            "{shell} still has the placeholder"
+        );
     }
 }
 

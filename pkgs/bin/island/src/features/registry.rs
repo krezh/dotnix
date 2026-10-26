@@ -8,10 +8,8 @@ use crate::{cli::Client, control::Command};
 
 use super::{
     Feature, Features, GlyphSpec, ai, audio, bluetooth, brightness, caffeine, clipboard, clock,
-    feature::widgets_of,
-    gotify, headset,
-    instance::start_one,
-    launcher, media, molt, network, notifications, session, tray, workspaces, zowie,
+    feature::widgets_of, gotify, headset, instance::start_one, launcher, media, molt, network,
+    notifications, session, tray, workspaces, zowie,
 };
 
 macro_rules! features {

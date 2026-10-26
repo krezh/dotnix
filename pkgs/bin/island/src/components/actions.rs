@@ -129,12 +129,19 @@ fn row(action: &Action, hover: bool) -> gpui::Stateful<gpui::Div> {
                 .items_center()
                 .gap(px(8.0))
                 .when_some(action.glyph.clone(), |label, path| {
-                    label.child(icon::glyph(&path, GLYPH, if action.danger { RED } else { SUBTEXT1 }))
+                    label.child(icon::glyph(
+                        &path,
+                        GLYPH,
+                        if action.danger { RED } else { SUBTEXT1 },
+                    ))
                 })
                 .child(action.label.clone()),
         )
         .when_some(action.switch, |row, on| {
-            row.child(button::switch(SharedString::from(format!("{}-switch", action.id)), on))
+            row.child(button::switch(
+                SharedString::from(format!("{}-switch", action.id)),
+                on,
+            ))
         })
 }
 
@@ -219,13 +226,7 @@ fn surface(
             Some(ui::surface_border()),
         ))
         .child(popovers.reach(radius, power))
-        .child(
-            div()
-                .absolute()
-                .size_full()
-                .overflow_hidden()
-                .child(list),
-        )
+        .child(div().absolute().size_full().overflow_hidden().child(list))
         .on_mouse_down_out(cx.listener(move |this, event: &MouseDownEvent, _, cx| {
             if !anchor.contains(&event.position) {
                 dismiss(this, cx);
@@ -256,14 +257,20 @@ pub fn actions(
         )
     });
     let toggle = view.on_toggle.clone();
-    let button = button::icon(view.id.clone(), view.glyph.as_deref(), None, view.open, hover)
-        .size(px(ui::CONTROL_H))
-        .child(popovers.anchor(view.id.clone()))
-        .tip(tips, view.id.clone(), view.label.clone())
-        .on_click(cx.listener(move |this, _, _, cx| {
-            cx.stop_propagation();
-            toggle(this, cx);
-        }));
+    let button = button::icon(
+        view.id.clone(),
+        view.glyph.as_deref(),
+        None,
+        view.open,
+        hover,
+    )
+    .size(px(ui::CONTROL_H))
+    .child(popovers.anchor(view.id.clone()))
+    .tip(tips, view.id.clone(), view.label.clone())
+    .on_click(cx.listener(move |this, _, _, cx| {
+        cx.stop_propagation();
+        toggle(this, cx);
+    }));
     if shown && let Some(bounds) = popovers.anchor_bounds(&view.id) {
         popovers.show(measuring(&view.actions, &natural));
         popovers.show(surface(

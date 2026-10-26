@@ -43,7 +43,11 @@ fn parses_urls_across_schemes_paths_and_stream_suffixes() {
         "http://127.0.0.1:8080/push/application"
     );
 
-    for invalid in ["gotify.example.com", "ftp://gotify.example.com", "wss:///stream"] {
+    for invalid in [
+        "gotify.example.com",
+        "ftp://gotify.example.com",
+        "wss:///stream",
+    ] {
         assert!(Endpoint::parse(invalid).is_err(), "{invalid}");
     }
 }

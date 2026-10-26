@@ -20,7 +20,9 @@ fn permission() -> Request {
         tool: "Bash".to_owned(),
         subject: "nix build".to_owned(),
         reason: String::new(),
-        suggestion: Some(json!({"type": "addRules", "rules": [{"toolName": "Bash", "ruleContent": "nix build:*"}], "behavior": "allow", "destination": "localSettings"})),
+        suggestion: Some(
+            json!({"type": "addRules", "rules": [{"toolName": "Bash", "ruleContent": "nix build:*"}], "behavior": "allow", "destination": "localSettings"}),
+        ),
         input: json!({"command": "nix build"}),
     })
 }
@@ -69,13 +71,19 @@ fn questions_echo_the_input_with_answers_joined() {
         ],
         input: input.clone(),
     };
-    let picked = Answer::Picked(vec![vec!["Cards".to_owned()], vec!["Owner".to_owned(), "Size".to_owned()]]);
+    let picked = Answer::Picked(vec![
+        vec!["Cards".to_owned()],
+        vec!["Owner".to_owned(), "Size".to_owned()],
+    ]);
     let output = parsed(&answer(&request(ask), &picked));
     let hook = &output["hookSpecificOutput"];
     assert_eq!(hook["hookEventName"], "PreToolUse");
     assert_eq!(hook["permissionDecision"], "allow");
     assert_eq!(hook["updatedInput"]["questions"], input["questions"]);
-    assert_eq!(hook["updatedInput"]["answers"], json!({"Which?": "Cards", "Columns?": "Owner, Size"}));
+    assert_eq!(
+        hook["updatedInput"]["answers"],
+        json!({"Which?": "Cards", "Columns?": "Owner, Size"})
+    );
 }
 
 #[test]

@@ -196,7 +196,8 @@ impl Body {
             badge: Spring::new(0.0, POP, EPSILON),
             shown: Extra::None,
             badge_clock: 0.3,
-            wobble: WOBBLES.map(|(bulges, config)| (bulges, Spring::new(0.0, config, EPSILON), 0.0)),
+            wobble: WOBBLES
+                .map(|(bulges, config)| (bulges, Spring::new(0.0, config, EPSILON), 0.0)),
             lift: 0.0,
             rise: 0.0,
             jump_at: None,
@@ -264,7 +265,11 @@ impl Body {
         let tired = self.mood.tired.clamp(0.0, 1.0);
         let asleep = self.asleep();
         let asking = self.mood.activity == Activity::Asking && !asleep;
-        let happy = if self.cheering(now) && !asleep { 1.0 } else { 0.0 };
+        let happy = if self.cheering(now) && !asleep {
+            1.0
+        } else {
+            0.0
+        };
         self.lid.retarget(
             if asleep {
                 1.0
@@ -427,7 +432,11 @@ impl Body {
             self.squash
                 .retarget(1.0 + (self.rise.abs() * 0.05).min(0.16), SQUASH);
         } else if self.lively {
-            let (depth, pace) = if self.asleep() { (0.05, 1.3) } else { (0.03, 2.2) };
+            let (depth, pace) = if self.asleep() {
+                (0.05, 1.3)
+            } else {
+                (0.03, 2.2)
+            };
             self.squash
                 .retarget(1.0 + depth * (self.clock * pace).sin(), SQUASH);
         } else {
@@ -534,10 +543,15 @@ impl Body {
     /// When it next has something to do while calm and still.
     pub fn due(&self) -> Option<Instant> {
         let glance = (self.mood.activity == Activity::Rest).then_some(self.next_glance);
-        [Some(self.next_blink), glance, self.cheer_until, self.jump_at.map(|(at, _)| at)]
-            .into_iter()
-            .flatten()
-            .min()
+        [
+            Some(self.next_blink),
+            glance,
+            self.cheer_until,
+            self.jump_at.map(|(at, _)| at),
+        ]
+        .into_iter()
+        .flatten()
+        .min()
     }
 
     pub fn pose(&self, now: Instant) -> Pose {
@@ -666,7 +680,14 @@ impl Eye {
     /// Round `(x, y)`, open `open` high under a lid at `lid`.
     fn outline(&self, x: f32, y: f32, open: f32, lid: f32) -> Vec<(f32, f32)> {
         const STEPS: usize = 12;
-        let Self { ew, eh, shut, sag, joy, half } = *self;
+        let Self {
+            ew,
+            eh,
+            shut,
+            sag,
+            joy,
+            half,
+        } = *self;
         let lerp = |a: f32, b: f32, t: f32| a + (b - a) * t;
         let width = lerp(lerp(ew, ew * 0.9, shut), ew, joy);
         let at = |u: f32, top: bool| {
@@ -680,7 +701,10 @@ impl Eye {
             };
             let shut_y = y + eh * (0.2 + (sag - 0.2) * bend) + thick;
             let happy_y = y + eh * (0.2 - bend) + thick;
-            (x + u * width, lerp(lerp(open_y, shut_y, shut), happy_y, joy))
+            (
+                x + u * width,
+                lerp(lerp(open_y, shut_y, shut), happy_y, joy),
+            )
         };
         let along = |i: usize| -(i as f32 / STEPS as f32 * PI).cos();
         (0..=STEPS)
@@ -724,7 +748,12 @@ fn paint(pose: &Pose, x0: f32, y0: f32, side: f32, window: &mut Window) {
     let hop = if small { 0.22 } else { 0.45 };
     let room = (ground - y0 - h * sy * g * MOST_WOBBLE - 1.0).max(0.0);
     let lift = (pose.lift * side * hop).min(room);
-    let at = |(x, y): (f32, f32)| point(px(x0 + side / 2.0 + x * sx * g), px(ground - lift + y * sy * g));
+    let at = |(x, y): (f32, f32)| {
+        point(
+            px(x0 + side / 2.0 + x * sx * g),
+            px(ground - lift + y * sy * g),
+        )
+    };
     let place = |points: Vec<(f32, f32)>| points.into_iter().map(at).collect::<Vec<_>>();
     let ink = color(channels(CRUST), 1.0);
 
@@ -738,19 +767,43 @@ fn paint(pose: &Pose, x0: f32, y0: f32, side: f32, window: &mut Window) {
     .into_iter()
     .map(|(x, y)| point(px(x), px(y)))
     .collect();
-    fill(window, &shadow, Hsla::black().opacity(0.32 * (1.0 - off * 0.6)));
+    fill(
+        window,
+        &shadow,
+        Hsla::black().opacity(0.32 * (1.0 - off * 0.6)),
+    );
 
-    fill(window, &place(squircle(pose, 0.0, -h / 2.0, w / 2.0, h / 2.0)), color(pose.color, 0.92));
+    fill(
+        window,
+        &place(squircle(pose, 0.0, -h / 2.0, w / 2.0, h / 2.0)),
+        color(pose.color, 0.92),
+    );
     // A darker core shows through the jelly.
     let core = mix(pose.color, channels(CRUST), 0.12);
-    fill(window, &place(squircle(pose, 0.0, -h * 0.42, w * 0.3, h * 0.28)), color(core, 0.6));
-    fill(window, &place(ellipse(-w * 0.2, -h * 0.8, w * 0.13, h * 0.07)), Hsla::white().opacity(0.2));
-    fill(window, &place(ellipse(-w * 0.3, -h * 0.68, w * 0.025, w * 0.025)), Hsla::white().opacity(0.35));
+    fill(
+        window,
+        &place(squircle(pose, 0.0, -h * 0.42, w * 0.3, h * 0.28)),
+        color(core, 0.6),
+    );
+    fill(
+        window,
+        &place(ellipse(-w * 0.2, -h * 0.8, w * 0.13, h * 0.07)),
+        Hsla::white().opacity(0.2),
+    );
+    fill(
+        window,
+        &place(ellipse(-w * 0.3, -h * 0.68, w * 0.025, w * 0.025)),
+        Hsla::white().opacity(0.35),
+    );
 
     if pose.cheeks > 0.02 {
         let blush = color(channels(PINK), pose.cheeks * 0.55);
         for side in [-1.0, 1.0] {
-            fill(window, &place(ellipse(side * w * 0.3, -h * 0.36, w * 0.07, w * 0.042)), blush);
+            fill(
+                window,
+                &place(ellipse(side * w * 0.3, -h * 0.36, w * 0.07, w * 0.042)),
+                blush,
+            );
         }
     }
 
@@ -787,17 +840,40 @@ fn paint(pose: &Pose, x0: f32, y0: f32, side: f32, window: &mut Window) {
     let (mx, my, mw) = (pose.look.0 * w * 0.04, -h * 0.3, w * 0.06);
     if joy > 0.05 {
         let (sw, dip) = (mw * joy, mw * 1.3 * joy);
-        stroke(window, &place(curve((mx - sw, my), (mx, my + dip), (mx + sw, my))), (mw * 0.28 * g * joy).max(1.0), ink);
+        stroke(
+            window,
+            &place(curve((mx - sw, my), (mx, my + dip), (mx + sw, my))),
+            (mw * 0.28 * g * joy).max(1.0),
+            ink,
+        );
     }
     // Worried, its mouth bends into a small frown.
     let frown = pose.worry.clamp(0.0, 1.0) * (1.0 - joy);
     if frown > 0.05 {
         let (sw, base) = (mw * 0.9, my + mw * 0.35);
-        stroke(window, &place(curve((mx - sw, base), (mx, base - mw * 1.1 * frown), (mx + sw, base))), (mw * 0.28 * g).max(1.0), ink);
+        stroke(
+            window,
+            &place(curve(
+                (mx - sw, base),
+                (mx, base - mw * 1.1 * frown),
+                (mx + sw, base),
+            )),
+            (mw * 0.28 * g).max(1.0),
+            ink,
+        );
     }
     let gasp = pose.alert * (1.0 - joy);
     if gasp > 0.02 {
-        fill(window, &place(ellipse(mx, my + mw * 0.2, mw * 0.38 * gasp, mw * 0.48 * gasp)), ink);
+        fill(
+            window,
+            &place(ellipse(
+                mx,
+                my + mw * 0.2,
+                mw * 0.38 * gasp,
+                mw * 0.48 * gasp,
+            )),
+            ink,
+        );
     }
 
     // Its state, on a dot at the body's top-left corner, kept inside the square.
@@ -823,13 +899,31 @@ fn paint(pose: &Pose, x0: f32, y0: f32, side: f32, window: &mut Window) {
     let top = ground - lift - h * sy * g;
     let x = (x0 + side / 2.0 - w * sx * g / 2.0 + r * 0.55).clamp(x0 + edge, x0 + side - edge);
     let y = (top + r * 0.45).clamp(y0 + edge, y0 + side - edge);
-    let world = |points: Vec<(f32, f32)>| points.into_iter().map(|(x, y)| point(px(x), px(y))).collect::<Vec<_>>();
+    let world = |points: Vec<(f32, f32)>| {
+        points
+            .into_iter()
+            .map(|(x, y)| point(px(x), px(y)))
+            .collect::<Vec<_>>()
+    };
     fill(window, &world(ellipse(x, y, r + ring, r + ring)), ink);
-    fill(window, &world(ellipse(x, y, r, r)), color(channels(tint), 1.0));
+    fill(
+        window,
+        &world(ellipse(x, y, r, r)),
+        color(channels(tint), 1.0),
+    );
     match pose.extra {
         Extra::Asking(_) | Extra::Warning => {
-            stroke(window, &world(vec![(x, y - r * 0.5), (x, y + r * 0.08)]), r * 0.26, ink);
-            fill(window, &world(ellipse(x, y + r * 0.45, r * 0.14, r * 0.14)), ink);
+            stroke(
+                window,
+                &world(vec![(x, y - r * 0.5), (x, y + r * 0.08)]),
+                r * 0.26,
+                ink,
+            );
+            fill(
+                window,
+                &world(ellipse(x, y + r * 0.45, r * 0.14, r * 0.14)),
+                ink,
+            );
         }
         Extra::Busy(_) => {
             for i in 0..3 {
@@ -851,7 +945,12 @@ fn paint(pose: &Pose, x0: f32, y0: f32, side: f32, window: &mut Window) {
         }
         _ => {
             let z = r * 0.36;
-            let path = vec![(x - z, y - z), (x + z, y - z), (x - z, y + z), (x + z, y + z)];
+            let path = vec![
+                (x - z, y - z),
+                (x + z, y - z),
+                (x - z, y + z),
+                (x + z, y + z),
+            ];
             stroke(window, &world(path), r * 0.2, ink);
         }
     }
@@ -863,7 +962,13 @@ pub fn mascot(pose: Pose, side: f32) -> impl IntoElement {
         canvas(
             |_, _, _| {},
             move |bounds, (), window, _| {
-                paint(&pose, f32::from(bounds.origin.x), f32::from(bounds.origin.y), side, window);
+                paint(
+                    &pose,
+                    f32::from(bounds.origin.x),
+                    f32::from(bounds.origin.y),
+                    side,
+                    window,
+                );
             },
         )
         .size_full(),

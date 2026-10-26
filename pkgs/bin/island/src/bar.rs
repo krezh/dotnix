@@ -378,7 +378,9 @@ impl WidgetView {
     fn arm_due(&mut self, after: Option<Duration>, cx: &mut Context<Self>) {
         let next = after.map(|after| self.rendered + after);
         if let (Some((armed, _)), Some(at)) = (&self.due, next)
-            && at.saturating_duration_since(*armed).max(armed.saturating_duration_since(at))
+            && at
+                .saturating_duration_since(*armed)
+                .max(armed.saturating_duration_since(at))
                 < Duration::from_millis(50)
         {
             return;

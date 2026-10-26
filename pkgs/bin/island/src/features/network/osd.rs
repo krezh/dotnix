@@ -49,7 +49,12 @@ pub fn osd(before: &State, after: &State) -> Option<Osd> {
             } else {
                 link.name.clone()
             };
-            shown(glyphs::link(after), GREEN, format!("Connected · {name}"), DURATION)
+            shown(
+                glyphs::link(after),
+                GREEN,
+                format!("Connected · {name}"),
+                DURATION,
+            )
         }
         (Some(_), Some(_)) if before.internet != after.internet => match after.internet {
             Internet::None | Internet::Limited => {

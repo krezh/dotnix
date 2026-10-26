@@ -4,8 +4,7 @@
 use gpui::SharedString;
 
 use super::{
-    Network,
-    glyphs,
+    Network, glyphs,
     runtime::Request,
     state::{AccessPoint, Activity, Security, State, Vpn, channel},
     view::{Prompt, View},
@@ -63,7 +62,10 @@ fn hero(name: impl Into<SharedString>, lines: Vec<String>) -> Part {
 }
 
 fn joining<'a>(state: &'a State, ssid: &str) -> Option<&'a super::state::Joining> {
-    state.joining.as_ref().filter(|joining| joining.ssid == ssid)
+    state
+        .joining
+        .as_ref()
+        .filter(|joining| joining.ssid == ssid)
 }
 
 fn wifi_tile(state: &State) -> Tile {
@@ -76,7 +78,10 @@ fn wifi_tile(state: &State) -> Tile {
     let (stat_text, parts) = match (wifi, active, connecting) {
         (Some(wifi), _, _) if !wifi.enabled => (
             stat("Off", OVERLAY2),
-            vec![hero("Wi-Fi is off", vec!["Turn it on with the button above".into()])],
+            vec![hero(
+                "Wi-Fi is off",
+                vec!["Turn it on with the button above".into()],
+            )],
         ),
         (_, _, Some(joining)) => (
             stat("…", BLUE),
@@ -88,8 +93,17 @@ fn wifi_tile(state: &State) -> Tile {
                 hero(
                     active.ssid.clone(),
                     vec![
-                        format!("{} · {} · channel {}", active.security.label(), active.band(), active.channel()),
-                        format!("{} · {}", wifi.interface, if active.saved { "saved" } else { "not saved" }),
+                        format!(
+                            "{} · {} · channel {}",
+                            active.security.label(),
+                            active.band(),
+                            active.channel()
+                        ),
+                        format!(
+                            "{} · {}",
+                            wifi.interface,
+                            if active.saved { "saved" } else { "not saved" }
+                        ),
                     ],
                 ),
                 Part::Spacer,
@@ -121,7 +135,9 @@ fn signal_tile(state: &State) -> Tile {
         1,
         "Signal",
         Some(stat(
-            signal.dbm.map_or_else(|| "—".to_owned(), |dbm| format!("{dbm} dBm")),
+            signal
+                .dbm
+                .map_or_else(|| "—".to_owned(), |dbm| format!("{dbm} dBm")),
             TEAL,
         )),
         vec![
@@ -136,9 +152,10 @@ fn signal_tile(state: &State) -> Tile {
                     tile_meter(
                         "Quality",
                         signal.quality.unwrap_or(0.0),
-                        signal
-                            .quality
-                            .map_or_else(|| "—".to_owned(), |quality| format!("{:.0}%", quality * 100.0)),
+                        signal.quality.map_or_else(
+                            || "—".to_owned(),
+                            |quality| format!("{:.0}%", quality * 100.0),
+                        ),
                         TEAL,
                     ),
                     tile_meter(
@@ -159,20 +176,30 @@ fn signal_tile(state: &State) -> Tile {
 fn latency_tile(state: &State) -> Tile {
     let latency = &state.latency;
     let peak = nice_peak(
-        latency.gateway_history.iter().chain(&latency.internet_history),
+        latency
+            .gateway_history
+            .iter()
+            .chain(&latency.internet_history),
         20.0,
     );
     titled(
         "network-latency",
         1,
         "Latency",
-        Some(stat(millis(latency.internet), latency_color(latency.internet))),
+        Some(stat(
+            millis(latency.internet),
+            latency_color(latency.internet),
+        )),
         vec![
             Part::Chart {
                 series: vec![
-                    series(&latency.internet_history, peak, PEACH, latency.target.clone(), |value| {
-                        format!("{value:.0} ms")
-                    }),
+                    series(
+                        &latency.internet_history,
+                        peak,
+                        PEACH,
+                        latency.target.clone(),
+                        |value| format!("{value:.0} ms"),
+                    ),
                     series(&latency.gateway_history, peak, TEAL, "Gateway", |value| {
                         format!("{value:.0} ms")
                     }),
@@ -180,7 +207,10 @@ fn latency_tile(state: &State) -> Tile {
                 grow: true,
             },
             Part::Legend(vec![
-                (Some(TEAL), format!("Gateway {}", millis(latency.gateway)).into()),
+                (
+                    Some(TEAL),
+                    format!("Gateway {}", millis(latency.gateway)).into(),
+                ),
                 (Some(PEACH), millis(latency.internet).into()),
                 (None, format!("Loss {:.0}%", latency.loss * 100.0).into()),
             ]),
@@ -220,7 +250,10 @@ fn network_entry(network: &AccessPoint, state: &State, p: &PanelCx<'_>) -> Entry
     };
     Entry {
         id: network.ssid.clone().into(),
-        lead: Some(EntryLead::Glyph(p.glyph(glyphs::signal(network.strength)), color)),
+        lead: Some(EntryLead::Glyph(
+            p.glyph(glyphs::signal(network.strength)),
+            color,
+        )),
         title: network.ssid.clone().into(),
         title_color: network.active.then_some(TEAL),
         detail: detail.into(),
@@ -279,8 +312,12 @@ fn traffic_tile(state: &State) -> Tile {
         vec![
             Part::Chart {
                 series: vec![
-                    series(&traffic.rx_history, peak, TEAL, "Download", |value| rate(value as f64)),
-                    series(&traffic.tx_history, peak, PEACH, "Upload", |value| rate(value as f64)),
+                    series(&traffic.rx_history, peak, TEAL, "Download", |value| {
+                        rate(value as f64)
+                    }),
+                    series(&traffic.tx_history, peak, PEACH, "Upload", |value| {
+                        rate(value as f64)
+                    }),
                 ],
                 grow: true,
             },
@@ -304,7 +341,11 @@ fn vpn_entry(vpn: &Vpn, p: &PanelCx<'_>) -> Entry {
         lead: Some(EntryLead::Glyph(p.glyph("network-vpn"), color)),
         title: vpn.name.clone().into(),
         title_color: (vpn.activity == Activity::On).then_some(MAUVE),
-        detail: vpn.endpoint.clone().unwrap_or_else(|| vpn.kind.clone()).into(),
+        detail: vpn
+            .endpoint
+            .clone()
+            .unwrap_or_else(|| vpn.kind.clone())
+            .into(),
         value: match vpn.activity {
             Activity::On => "On".into(),
             Activity::Connecting => "Connecting…".into(),
@@ -321,7 +362,10 @@ fn vpn_entry(vpn: &Vpn, p: &PanelCx<'_>) -> Entry {
 fn vpn_tile(state: &State, span: usize, p: &PanelCx<'_>) -> Tile {
     let active = state.vpns.iter().find(|vpn| vpn.activity == Activity::On);
     let stat_text = match active {
-        Some(vpn) => stat(vpn.address.clone().unwrap_or_else(|| "On".to_owned()), MAUVE),
+        Some(vpn) => stat(
+            vpn.address.clone().unwrap_or_else(|| "On".to_owned()),
+            MAUVE,
+        ),
         None => stat("Off", OVERLAY2),
     };
     if state.vpns.is_empty() {
@@ -332,7 +376,10 @@ fn vpn_tile(state: &State, span: usize, p: &PanelCx<'_>) -> Tile {
             Some(stat_text),
             vec![hero(
                 "No VPNs",
-                vec!["Add one to NetworkManager".into(), "to switch it here".into()],
+                vec![
+                    "Add one to NetworkManager".into(),
+                    "to switch it here".into(),
+                ],
             )],
         );
     }
@@ -345,14 +392,21 @@ fn vpn_tile(state: &State, span: usize, p: &PanelCx<'_>) -> Tile {
         let traffic = &state.traffic;
         let peak = nice_peak(&traffic.vpn_history, 64.0 * 1024.0);
         parts.push(Part::Chart {
-            series: vec![series(&traffic.vpn_history, peak, MAUVE, "Through the VPN", |value| {
-                rate(value as f64)
-            })],
+            series: vec![series(
+                &traffic.vpn_history,
+                peak,
+                MAUVE,
+                "Through the VPN",
+                |value| rate(value as f64),
+            )],
             grow: true,
         });
         parts.push(Part::Facts(match active {
             Some(vpn) => vec![
-                fact("Interface", vpn.interface.clone().unwrap_or_else(|| "—".to_owned())),
+                fact(
+                    "Interface",
+                    vpn.interface.clone().unwrap_or_else(|| "—".to_owned()),
+                ),
                 fact(
                     "Up for",
                     vpn.since.map_or_else(
@@ -363,7 +417,10 @@ fn vpn_tile(state: &State, span: usize, p: &PanelCx<'_>) -> Tile {
                 fact("Kind", vpn.kind.clone()),
                 fact("Received", bytes(traffic.vpn_rx)),
                 fact("Sent", bytes(traffic.vpn_tx)),
-                fact("Address", vpn.address.clone().unwrap_or_else(|| "—".to_owned())),
+                fact(
+                    "Address",
+                    vpn.address.clone().unwrap_or_else(|| "—".to_owned()),
+                ),
             ],
             None => vec![
                 fact("Profiles", state.vpns.len().to_string()),
@@ -386,10 +443,10 @@ fn connection_tile(state: &State) -> Tile {
         );
     };
     let now = chrono::Utc::now().timestamp();
-    let via = link
-        .gateway
-        .as_ref()
-        .map_or_else(|| "no gateway".to_owned(), |gateway| format!("via {gateway}"));
+    let via = link.gateway.as_ref().map_or_else(
+        || "no gateway".to_owned(),
+        |gateway| format!("via {gateway}"),
+    );
     let dns = if link.dns.is_empty() {
         "No DNS server".to_owned()
     } else {
@@ -407,12 +464,7 @@ fn connection_tile(state: &State) -> Tile {
             ),
             Part::Spacer,
             Part::Facts(vec![
-                fact(
-                    "IPv6",
-                    link.ipv6
-                        .as_ref()
-                        .map_or("none", |_| "yes"),
-                ),
+                fact("IPv6", link.ipv6.as_ref().map_or("none", |_| "yes")),
                 fact("MTU", link.mtu.to_string()),
                 fact(
                     "Lease",
@@ -428,7 +480,13 @@ fn connection_tile(state: &State) -> Tile {
 
 fn usage_tile(state: &State) -> Tile {
     let usage = &state.usage;
-    let most = usage.days.iter().map(|(_, bytes)| *bytes).max().unwrap_or(0).max(1);
+    let most = usage
+        .days
+        .iter()
+        .map(|(_, bytes)| *bytes)
+        .max()
+        .unwrap_or(0)
+        .max(1);
     titled(
         "network-usage",
         1,
@@ -487,7 +545,10 @@ fn access_point_tile(state: &State) -> Tile {
         vec![
             hero(
                 active.band(),
-                vec![format!("{} MHz · {width}", active.frequency), active.bssid.clone()],
+                vec![
+                    format!("{} MHz · {width}", active.frequency),
+                    active.bssid.clone(),
+                ],
             ),
             Part::Spacer,
             Part::Facts(vec![
@@ -545,7 +606,11 @@ fn channels_tile(state: &State) -> Tile {
 }
 
 fn interfaces_tile(state: &State) -> Tile {
-    let up = state.interfaces.iter().filter(|interface| interface.up).count();
+    let up = state
+        .interfaces
+        .iter()
+        .filter(|interface| interface.up)
+        .count();
     titled(
         "network-interfaces",
         1,
@@ -593,7 +658,11 @@ fn ethernet_tile(state: &State) -> Tile {
             format!("{} · {} Mbit/s", wired.interface, wired.speed),
         )
     } else if wired.carrier {
-        (stat("Idle", OVERLAY2), "Not connected".to_owned(), wired.interface.clone())
+        (
+            stat("Idle", OVERLAY2),
+            "Not connected".to_owned(),
+            wired.interface.clone(),
+        )
     } else {
         (
             stat("No cable", OVERLAY2),
@@ -662,9 +731,24 @@ fn connections_tile(state: &State) -> Tile {
         vec![
             Part::Meters {
                 rows: vec![
-                    tile_meter("Open", sockets.established as f32 / total, sockets.established.to_string(), BLUE),
-                    tile_meter("Listening", sockets.listening as f32 / total, sockets.listening.to_string(), MAUVE),
-                    tile_meter("Closing", sockets.waiting as f32 / total, sockets.waiting.to_string(), OVERLAY2),
+                    tile_meter(
+                        "Open",
+                        sockets.established as f32 / total,
+                        sockets.established.to_string(),
+                        BLUE,
+                    ),
+                    tile_meter(
+                        "Listening",
+                        sockets.listening as f32 / total,
+                        sockets.listening.to_string(),
+                        MAUVE,
+                    ),
+                    tile_meter(
+                        "Closing",
+                        sockets.waiting as f32 / total,
+                        sockets.waiting.to_string(),
+                        OVERLAY2,
+                    ),
                 ],
                 scroll: false,
             },
@@ -673,7 +757,14 @@ fn connections_tile(state: &State) -> Tile {
                     .apps
                     .iter()
                     .take(3)
-                    .map(|(app, count)| tile_meter(app.clone(), *count as f32 / busiest, count.to_string(), PINK))
+                    .map(|(app, count)| {
+                        tile_meter(
+                            app.clone(),
+                            *count as f32 / busiest,
+                            count.to_string(),
+                            PINK,
+                        )
+                    })
                     .collect(),
                 scroll: false,
             },
@@ -696,7 +787,9 @@ fn dns_tile(state: &State) -> Tile {
         Some(stat(millis(dns.lookup), latency_color(dns.lookup))),
         vec![
             Part::Chart {
-                series: vec![series(&dns.history, peak, BLUE, "Lookup", |value| format!("{value:.0} ms"))],
+                series: vec![series(&dns.history, peak, BLUE, "Lookup", |value| {
+                    format!("{value:.0} ms")
+                })],
                 grow: true,
             },
             Part::Facts(vec![
@@ -816,7 +909,8 @@ fn buttons(state: &State, p: &PanelCx<'_>) -> Vec<IconButton> {
             .into(),
             active: on,
             badge: None,
-            on_click: p.call(move |network: &Network| network.send(Request::Vpn(name.clone(), None))),
+            on_click: p
+                .call(move |network: &Network| network.send(Request::Vpn(name.clone(), None))),
         });
     }
     buttons
@@ -826,7 +920,11 @@ fn prompt(state: &State, prompt: &Prompt, p: &PanelCx<'_>) -> PromptView {
     let security = state
         .wifi
         .as_ref()
-        .and_then(|wifi| wifi.networks.iter().find(|network| network.ssid == prompt.ssid))
+        .and_then(|wifi| {
+            wifi.networks
+                .iter()
+                .find(|network| network.ssid == prompt.ssid)
+        })
         .map_or(Security::Wpa2, |network| network.security);
     let attempt = joining(state, &prompt.ssid);
     let busy = attempt.is_some_and(|joining| joining.failed.is_none());
@@ -843,7 +941,8 @@ fn prompt(state: &State, prompt: &Prompt, p: &PanelCx<'_>) -> PromptView {
             placeholder: "Password".into(),
             max_lines: 1,
             send_glyph: p.glyph("network-join"),
-            on_send: ready.then(|| p.on_local::<Network>(|network, view: &mut View| view.submit(network))),
+            on_send: ready
+                .then(|| p.on_local::<Network>(|network, view: &mut View| view.submit(network))),
             busy,
             secret: !prompt.shown,
         }),
@@ -860,7 +959,9 @@ fn prompt(state: &State, prompt: &Prompt, p: &PanelCx<'_>) -> PromptView {
                 }
             }),
         }),
-        error: attempt.and_then(|joining| joining.failed.clone()).map(SharedString::from),
+        error: attempt
+            .and_then(|joining| joining.failed.clone())
+            .map(SharedString::from),
         on_cancel: p.on_local::<Network>(|_, view: &mut View| view.prompt = None),
     }
 }
@@ -870,13 +971,29 @@ pub fn panel(state: &State, p: &PanelCx<'_>) -> PanelView {
         vec![
             vec![wifi_tile(state), signal_tile(state), latency_tile(state)],
             vec![networks_tile(state, p), traffic_tile(state)],
-            vec![vpn_tile(state, 1, p), connection_tile(state), usage_tile(state)],
-            vec![access_point_tile(state), channels_tile(state), interfaces_tile(state)],
+            vec![
+                vpn_tile(state, 1, p),
+                connection_tile(state),
+                usage_tile(state),
+            ],
+            vec![
+                access_point_tile(state),
+                channels_tile(state),
+                interfaces_tile(state),
+            ],
         ]
     } else {
         vec![
-            vec![ethernet_tile(state), traffic_tile(state), latency_tile(state)],
-            vec![connection_tile(state), usage_tile(state), interfaces_tile(state)],
+            vec![
+                ethernet_tile(state),
+                traffic_tile(state),
+                latency_tile(state),
+            ],
+            vec![
+                connection_tile(state),
+                usage_tile(state),
+                interfaces_tile(state),
+            ],
             vec![vpn_tile(state, 2, p), routes_tile(state)],
             vec![connections_tile(state), dns_tile(state), ports_tile(state)],
         ]

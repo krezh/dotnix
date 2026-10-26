@@ -3,18 +3,30 @@ use crate::control::Change;
 
 #[test]
 fn queued_steps_add_up() {
-    assert_eq!(merge(Change::Step(0.05), Change::Step(0.05)), Change::Step(0.1));
+    assert_eq!(
+        merge(Change::Step(0.05), Change::Step(0.05)),
+        Change::Step(0.1)
+    );
 }
 
 #[test]
 fn a_step_after_a_set_moves_the_set() {
-    assert_eq!(merge(Change::Set(0.5), Change::Step(-0.1)), Change::Set(0.4));
-    assert_eq!(merge(Change::Set(0.98), Change::Step(0.05)), Change::Set(1.0));
+    assert_eq!(
+        merge(Change::Set(0.5), Change::Step(-0.1)),
+        Change::Set(0.4)
+    );
+    assert_eq!(
+        merge(Change::Set(0.98), Change::Step(0.05)),
+        Change::Set(1.0)
+    );
 }
 
 #[test]
 fn a_set_overrides_what_came_before() {
-    assert_eq!(merge(Change::Step(0.05), Change::Set(0.2)), Change::Set(0.2));
+    assert_eq!(
+        merge(Change::Step(0.05), Change::Set(0.2)),
+        Change::Set(0.2)
+    );
 }
 
 fn request(target: Target, change: Option<Change>) -> Request {

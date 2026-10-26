@@ -122,7 +122,13 @@ pub(crate) fn tile_meter(
     }
 }
 
-pub(crate) fn titled(id: &str, span: usize, title: &str, value: Option<card::Stat>, parts: Vec<Part>) -> Tile {
+pub(crate) fn titled(
+    id: &str,
+    span: usize,
+    title: &str,
+    value: Option<card::Stat>,
+    parts: Vec<Part>,
+) -> Tile {
     Tile {
         id: id.to_owned().into(),
         span,

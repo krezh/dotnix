@@ -74,7 +74,12 @@ pub fn fetch_messages(
         .collect())
 }
 
-pub fn delete_message(agent: &Agent, endpoint: &Endpoint, token: &str, id: u64) -> Result<(), String> {
+pub fn delete_message(
+    agent: &Agent,
+    endpoint: &Endpoint,
+    token: &str,
+    id: u64,
+) -> Result<(), String> {
     agent
         .delete(&endpoint.delete_url(id))
         .header("X-Gotify-Key", token)
@@ -118,13 +123,19 @@ impl Connector<Box<dyn Transport>> for Capture {
         if let Some(transport) = chained
             && let Ok(mut slot) = self.0.lock()
         {
-            *slot = Some(TransportAdapter::new(transport, details.current_time.clone()));
+            *slot = Some(TransportAdapter::new(
+                transport,
+                details.current_time.clone(),
+            ));
         }
         Ok(None)
     }
 }
 
-pub fn connect_stream(endpoint: &Endpoint, token: &str) -> Result<(Agent, TransportAdapter), String> {
+pub fn connect_stream(
+    endpoint: &Endpoint,
+    token: &str,
+) -> Result<(Agent, TransportAdapter), String> {
     let capture = Capture::default();
     let connector = DefaultConnector::default().chain(capture.clone());
     let config = Config::builder()

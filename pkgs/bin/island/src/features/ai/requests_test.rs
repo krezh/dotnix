@@ -29,7 +29,13 @@ fn ask_at(
     at: i64,
 ) -> oneshot::Receiver<String> {
     let (reply, told) = oneshot::channel();
-    waiting.ask(state, &hook("PermissionRequest", session, bash(command)), reply, at, 60_000);
+    waiting.ask(
+        state,
+        &hook("PermissionRequest", session, bash(command)),
+        reply,
+        at,
+        60_000,
+    );
     told
 }
 
@@ -49,11 +55,26 @@ fn the_call_running_drops_its_request_alone() {
     let mut touch = ask(&mut state, &mut waiting, "s1", "touch a");
     let _rm = ask(&mut state, &mut waiting, "s1", "rm b");
 
-    assert!(!settle(&mut state, &mut waiting, &hook("PreToolUse", "s1", bash("touch a")), 1));
-    assert!(!settle(&mut state, &mut waiting, &hook("PostToolUse", "s2", bash("touch a")), 1));
+    assert!(!settle(
+        &mut state,
+        &mut waiting,
+        &hook("PreToolUse", "s1", bash("touch a")),
+        1
+    ));
+    assert!(!settle(
+        &mut state,
+        &mut waiting,
+        &hook("PostToolUse", "s2", bash("touch a")),
+        1
+    ));
     assert_eq!(state.requests.len(), 2);
 
-    assert!(settle(&mut state, &mut waiting, &hook("PostToolUse", "s1", bash("touch a")), 1));
+    assert!(settle(
+        &mut state,
+        &mut waiting,
+        &hook("PostToolUse", "s1", bash("touch a")),
+        1
+    ));
     assert_eq!(state.requests.len(), 1);
     assert_eq!(touch.try_recv().unwrap().as_deref(), Some(""));
 }
@@ -65,7 +86,12 @@ fn one_finished_call_drops_one_of_two_alike() {
     let _first = ask(&mut state, &mut waiting, "s1", "touch a");
     let _second = ask(&mut state, &mut waiting, "s1", "touch a");
 
-    assert!(settle(&mut state, &mut waiting, &hook("PostToolUse", "s1", bash("touch a")), 1));
+    assert!(settle(
+        &mut state,
+        &mut waiting,
+        &hook("PostToolUse", "s1", bash("touch a")),
+        1
+    ));
     assert_eq!(state.requests.len(), 1);
     assert_eq!(state.requests[0].id, 2);
 }
@@ -77,7 +103,12 @@ fn a_finished_turn_drops_what_its_session_asked() {
     let _denied = ask(&mut state, &mut waiting, "s1", "touch a");
     let _other = ask(&mut state, &mut waiting, "s2", "touch a");
 
-    assert!(settle(&mut state, &mut waiting, &hook("Stop", "s1", json!({})), 1));
+    assert!(settle(
+        &mut state,
+        &mut waiting,
+        &hook("Stop", "s1", json!({})),
+        1
+    ));
     assert_eq!(state.requests.len(), 1);
     assert_eq!(state.requests[0].session, "s2");
 
@@ -92,8 +123,18 @@ fn a_late_tell_leaves_what_was_asked_after_it() {
     let mut waiting = Waiting::default();
     let _asked = ask_at(&mut state, &mut waiting, "s1", "touch a", 5_000);
 
-    assert!(!settle(&mut state, &mut waiting, &hook("Stop", "s1", json!({})), 4_000));
-    assert!(!settle(&mut state, &mut waiting, &hook("PostToolUse", "s1", bash("touch a")), 4_000));
+    assert!(!settle(
+        &mut state,
+        &mut waiting,
+        &hook("Stop", "s1", json!({})),
+        4_000
+    ));
+    assert!(!settle(
+        &mut state,
+        &mut waiting,
+        &hook("PostToolUse", "s1", bash("touch a")),
+        4_000
+    ));
     assert_eq!(state.requests.len(), 1);
 }
 
@@ -156,6 +197,11 @@ fn an_ended_session_drops_what_it_asked() {
     let mut state = State::default();
     let mut waiting = Waiting::default();
     let _asked = ask(&mut state, &mut waiting, "s1", "touch a");
-    assert!(settle(&mut state, &mut waiting, &hook("SessionEnd", "s1", json!({})), 1));
+    assert!(settle(
+        &mut state,
+        &mut waiting,
+        &hook("SessionEnd", "s1", json!({})),
+        1
+    ));
     assert!(state.requests.is_empty());
 }

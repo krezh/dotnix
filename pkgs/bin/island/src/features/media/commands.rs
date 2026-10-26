@@ -10,7 +10,11 @@ pub(super) const CONTROLS: &[Command] = &[Command {
     group: Group::SoundAndScreen,
     takes: Takes::Forms {
         forms: &[
-            form("play-pause", Value::Nothing, "Play, or pause what is playing"),
+            form(
+                "play-pause",
+                Value::Nothing,
+                "Play, or pause what is playing",
+            ),
             form("next", Value::Nothing, "Skip to the next track"),
             form("previous", Value::Nothing, "Go back to the previous track"),
         ],

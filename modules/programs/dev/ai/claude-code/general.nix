@@ -24,7 +24,8 @@
         };
     in
     {
-      homeModules.island.features.ai.claudeCode.statusLine = "${pkgs.claude-usage-bar}/bin/claude-usage-bar";
+      homeModules.island.features.ai.claudeCode.statusLine =
+        "${pkgs.claude-usage-bar}/bin/claude-usage-bar";
 
       programs.claude-code = {
         enable = true;

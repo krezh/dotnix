@@ -162,7 +162,12 @@ pub fn input(view: InputView, hover: bool, cx: &mut Context<Island>) -> AnyEleme
                 )
                 .child(div().flex_none().pb(px(inset)).child(send)),
         )
-        .child(energy::border("input-busy", Radius::Control, 0.0, view.busy))
+        .child(energy::border(
+            "input-busy",
+            Radius::Control,
+            0.0,
+            view.busy,
+        ))
         .into_any_element()
 }
 

@@ -27,7 +27,8 @@ impl Session {
     }
 
     pub(super) fn reply(&self) -> &str {
-        self.current().map_or("", |exchange| exchange.reply.as_str())
+        self.current()
+            .map_or("", |exchange| exchange.reply.as_str())
     }
 }
 

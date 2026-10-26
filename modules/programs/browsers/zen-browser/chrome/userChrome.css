@@ -241,7 +241,9 @@
     background-color: #181825cc !important;
   }
 
-  #tabbrowser-tabbox #tabbrowser-tabpanels .browserSidebarContainer:not(.zen-glance-overlay) {
+  #tabbrowser-tabbox
+    #tabbrowser-tabpanels
+    .browserSidebarContainer:not(.zen-glance-overlay) {
     border-radius: 15px !important;
   }
 
@@ -293,7 +295,8 @@
   }
 
   /* Theme Firefox/Zen's common prompt dialogs, including the quit warning. */
-  @-moz-document url("chrome://global/content/commonDialog.xhtml") {
+  @-moz-document url("chrome://global/content/commonDialog.xhtml")
+  {
     :root {
       color-scheme: dark !important;
       --focus-outline: 2px solid var(--catppuccin-quit-dialog-accent) !important;

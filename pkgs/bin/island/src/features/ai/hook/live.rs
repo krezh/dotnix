@@ -107,10 +107,21 @@ fn read(response: &Value) -> Option<Live> {
 /// The first part of an edit's patch, numbered as the file reads after it.
 fn patch(input: &Value, response: &Value) -> Option<Live> {
     let hunk = response.get("structuredPatch")?.as_array()?.first()?;
-    let mut old = hunk.get("oldStart")?.as_u64().and_then(|n| u32::try_from(n).ok())?;
-    let mut new = hunk.get("newStart")?.as_u64().and_then(|n| u32::try_from(n).ok())?;
+    let mut old = hunk
+        .get("oldStart")?
+        .as_u64()
+        .and_then(|n| u32::try_from(n).ok())?;
+    let mut new = hunk
+        .get("newStart")?
+        .as_u64()
+        .and_then(|n| u32::try_from(n).ok())?;
     let mut lines = Vec::new();
-    for line in hunk.get("lines")?.as_array()?.iter().filter_map(Value::as_str) {
+    for line in hunk
+        .get("lines")?
+        .as_array()?
+        .iter()
+        .filter_map(Value::as_str)
+    {
         let (kind, rest) = match line.chars().next() {
             Some('+') => (LineKind::Added, &line[1..]),
             Some('-') => (LineKind::Removed, &line[1..]),
@@ -140,7 +151,11 @@ fn patch(input: &Value, response: &Value) -> Option<Live> {
     }
     lines.truncate(MAX_LINES);
     let path = text(response, "filePath");
-    let path = if path.is_empty() { text(input, "file_path") } else { path };
+    let path = if path.is_empty() {
+        text(input, "file_path")
+    } else {
+        path
+    };
     Some(Live::Editing {
         file: short_path(path),
         lines,

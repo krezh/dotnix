@@ -58,16 +58,19 @@ impl SearchClient {
         requests: &[SearchRequest],
         cancellation: &AtomicBool,
     ) -> Result<Vec<SearchResults>, String> {
-        if requests
-            .iter()
-            .any(|request| request.offset >= RESULT_WINDOW || !request.offset.is_multiple_of(PAGE_SIZE))
-        {
+        if requests.iter().any(|request| {
+            request.offset >= RESULT_WINDOW || !request.offset.is_multiple_of(PAGE_SIZE)
+        }) {
             return Err(
                 "Search failed: page is outside the 10,000-result window; refine your query".into(),
             );
         }
         let mut result = self.search_inner(requests, cancellation);
-        if self.unconfirmed && result.as_ref().is_err_and(|error| error != molt::command::CANCELLED) {
+        if self.unconfirmed
+            && result
+                .as_ref()
+                .is_err_and(|error| error != molt::command::CANCELLED)
+        {
             // A cached alias outlives the catalog index it named once the index is rebuilt.
             self.forget_alias();
             result = self.search_inner(requests, cancellation);

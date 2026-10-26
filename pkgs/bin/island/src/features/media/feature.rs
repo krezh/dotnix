@@ -18,7 +18,10 @@ use crate::{
 impl Feature for Media {
     const NAME: &'static str = "media";
     const GLYPHS: &'static [GlyphSpec] = &[
-        ("tab-media", &["audio-x-generic-symbolic", "emblem-music-symbolic"]),
+        (
+            "tab-media",
+            &["audio-x-generic-symbolic", "emblem-music-symbolic"],
+        ),
         ("play", &["media-playback-start-symbolic"]),
         ("pause", &["media-playback-pause-symbolic"]),
         ("next", &["media-skip-forward-symbolic"]),

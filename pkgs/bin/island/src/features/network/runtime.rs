@@ -94,7 +94,10 @@ impl Watched {
 
     /// Sleeps until the panel is open, without waking until it is.
     fn wait(&self) {
-        let guard = self.lock.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+        let guard = self
+            .lock
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
         drop(
             self.opened
                 .wait_while(guard, |_| !self.watching())
@@ -168,7 +171,9 @@ fn probe_loop(watched: &Watched, probes: &Mutex<Probes>, settings: &Settings) {
         watched.wait();
         while watched.watching() {
             let (gateway_address, dns_address, round) = {
-                let probes = probes.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+                let probes = probes
+                    .lock()
+                    .unwrap_or_else(|poisoned| poisoned.into_inner());
                 (probes.gateway_address, probes.dns_address, probes.round)
             };
             sequence = sequence.wrapping_add(1);
@@ -181,7 +186,9 @@ fn probe_loop(watched: &Watched, probes: &Mutex<Probes>, settings: &Settings) {
                     .and_then(|server| probe::lookup(server, &settings.dns_probe, PROBE_TIMEOUT))
             });
             {
-                let mut probes = probes.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+                let mut probes = probes
+                    .lock()
+                    .unwrap_or_else(|poisoned| poisoned.into_inner());
                 probes.round += 1;
                 probes.gateway = gateway;
                 probes.internet = internet;
@@ -210,11 +217,15 @@ impl Network {
         let probes = Arc::new(Mutex::new(Probes::default()));
         {
             let (watched, probes, settings) = (watched.clone(), probes.clone(), settings.clone());
-            spawn("island-network-probe", move || probe_loop(&watched, &probes, &settings));
+            spawn("island-network-probe", move || {
+                probe_loop(&watched, &probes, &settings)
+            });
         }
         {
             let (watched, requests) = (watched.clone(), requests.clone());
-            spawn("island-network-sample", move || sampler(&watched, &requests));
+            spawn("island-network-sample", move || {
+                sampler(&watched, &requests)
+            });
         }
         {
             let requests = requests.clone();

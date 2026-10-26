@@ -174,17 +174,11 @@ fn bar(id: &str, fraction: f32, color: u32, thickness: f32, mark: Option<f32>) -
         .rounded_full()
         .bg(track())
         .overflow_hidden()
-        .child(
-            div()
-                .h_full()
-                .rounded_full()
-                .bg(rgb(color))
-                .with_spring(
-                    SharedString::from(format!("{id}-fill")),
-                    SpringAnimation::new(CONTENT_IN).to(fraction.clamp(0.0, 1.0)),
-                    |fill, at| fill.w(relative(at.clamp(0.0, 1.0))),
-                ),
-        );
+        .child(div().h_full().rounded_full().bg(rgb(color)).with_spring(
+            SharedString::from(format!("{id}-fill")),
+            SpringAnimation::new(CONTENT_IN).to(fraction.clamp(0.0, 1.0)),
+            |fill, at| fill.w(relative(at.clamp(0.0, 1.0))),
+        ));
     let mark_id = SharedString::from(format!("{id}-mark"));
     div()
         .relative()

@@ -80,7 +80,11 @@ fn send(event: &str, input: &str, at: i64) -> Option<String> {
             .build()
             .await?;
         let name = BusName::try_from(NAME)?;
-        if !DBusProxy::new(&connection).await?.name_has_owner(name).await? {
+        if !DBusProxy::new(&connection)
+            .await?
+            .name_has_owner(name)
+            .await?
+        {
             return Ok(String::new());
         }
         let proxy = dbus::uncached(&connection, NAME, PATH, INTERFACE).await?;
@@ -124,8 +128,7 @@ fn write_plugin(dir: Option<&String>) -> i32 {
                 .plain(" needs a directory"),
         );
     };
-    let written =
-        std::env::current_exe().and_then(|island| plugin::write(Path::new(dir), &island));
+    let written = std::env::current_exe().and_then(|island| plugin::write(Path::new(dir), &island));
     match written {
         Ok(()) => 0,
         Err(error) => {

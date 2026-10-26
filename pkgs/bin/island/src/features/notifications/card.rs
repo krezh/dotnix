@@ -477,7 +477,12 @@ pub fn toasts(stack: &Toasts, looks: Vec<Look>) -> Block {
             let at = place(0.0, drawn[index], shown.height(), alpha);
             blocks.push((
                 at,
-                message(Kind::Toast(shown.id), &shown.notification, look, shown_height),
+                message(
+                    Kind::Toast(shown.id),
+                    &shown.notification,
+                    look,
+                    shown_height,
+                ),
             ));
         }
     }

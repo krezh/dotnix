@@ -660,7 +660,9 @@ impl Island {
             .flatten()
             .map(|after| self.rendered + after);
         if let (Some((armed, _)), Some(at)) = (&self.panel_task, next)
-            && at.saturating_duration_since(*armed).max(armed.saturating_duration_since(at))
+            && at
+                .saturating_duration_since(*armed)
+                .max(armed.saturating_duration_since(at))
                 < Duration::from_millis(50)
         {
             return;
@@ -1093,7 +1095,10 @@ impl Island {
         let monitor = self.island_monitor()?;
         let (left, top) = compositor::backend()
             .and_then(|backend| backend.surface_origin(&monitor.name))
-            .unwrap_or((monitor.x + (monitor.width - SURFACE_W as i32) / 2, monitor.y));
+            .unwrap_or((
+                monitor.x + (monitor.width - SURFACE_W as i32) / 2,
+                monitor.y,
+            ));
         Some((
             left + f32::from(point.x).round() as i32,
             top + f32::from(point.y).round() as i32,

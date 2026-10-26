@@ -99,7 +99,11 @@ fn paint_arc(
     let start = round(center, radius, from);
     path.move_to(at(start.0, start.1));
     for step in 1..=steps {
-        let (x, y) = round(center, radius, from + (to - from) * step as f32 / steps as f32);
+        let (x, y) = round(
+            center,
+            radius,
+            from + (to - from) * step as f32 / steps as f32,
+        );
         path.line_to(at(x, y));
     }
     if ends == Ends::Closed {
@@ -252,7 +256,10 @@ pub fn rings(rings: Rings) -> AnyElement {
                         .font_weight(FontWeight::SEMIBOLD)
                         .text_color(rgb(value_color))
                         .line_height(relative(1.15))
-                        .child(motion::text(SharedString::from(format!("{id}-value")), value)),
+                        .child(motion::text(
+                            SharedString::from(format!("{id}-value")),
+                            value,
+                        )),
                 )
                 .child(
                     div()

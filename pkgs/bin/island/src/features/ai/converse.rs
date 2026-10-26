@@ -89,15 +89,27 @@ pub fn start(
     dir: &Path,
     each: impl Fn(Streamed) + Send + 'static,
 ) -> Result<Running, String> {
-    std::fs::create_dir_all(dir).map_err(|error| format!("cannot make the chat folder: {error}"))?;
+    std::fs::create_dir_all(dir)
+        .map_err(|error| format!("cannot make the chat folder: {error}"))?;
     let mut command = Command::new(program);
     command
         .current_dir(dir)
         .env(CHAT_ENV, "1")
         .args(["-p", prompt])
-        .args(["--output-format", "stream-json", "--include-partial-messages", "--verbose"])
+        .args([
+            "--output-format",
+            "stream-json",
+            "--include-partial-messages",
+            "--verbose",
+        ])
         .args(["--model", model])
-        .args(["--tools", "", "--strict-mcp-config", "--setting-sources", ""])
+        .args([
+            "--tools",
+            "",
+            "--strict-mcp-config",
+            "--setting-sources",
+            "",
+        ])
         .args(["--system-prompt", SYSTEM_PROMPT])
         .stdin(Stdio::null())
         .stdout(Stdio::piped())

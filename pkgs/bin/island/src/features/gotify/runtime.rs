@@ -58,12 +58,7 @@ pub(super) fn start(feed: Feed<State>) -> Gotify {
     Gotify { sender }
 }
 
-fn spawn_stream(
-    generation: u64,
-    endpoint: Endpoint,
-    token: String,
-    sender: Sender<WorkerEvent>,
-) {
+fn spawn_stream(generation: u64, endpoint: Endpoint, token: String, sender: Sender<WorkerEvent>) {
     let _ = thread::Builder::new()
         .name("island-gotify-ws".to_owned())
         .spawn(move || {
@@ -74,7 +69,10 @@ fn spawn_stream(
                     return;
                 }
             };
-            if sender.send(WorkerEvent::Connected(generation, agent)).is_err() {
+            if sender
+                .send(WorkerEvent::Connected(generation, agent))
+                .is_err()
+            {
                 return;
             }
             loop {
@@ -149,12 +147,7 @@ fn run(
     let mut started = Instant::now();
     let pace: Arc<Mutex<Reconnect>> = Arc::default();
     let mut stream_agent: Option<Agent> = None;
-    spawn_stream(
-        generation,
-        endpoint.clone(),
-        token.clone(),
-        sender.clone(),
-    );
+    spawn_stream(generation, endpoint.clone(), token.clone(), sender.clone());
     if !feed.publish(state.clone()) {
         if let Some(agent) = stream_agent.take() {
             agent.shutdown();
@@ -184,12 +177,7 @@ fn run(
                     }
                     generation += 1;
                     started = Instant::now();
-                    spawn_stream(
-                        generation,
-                        endpoint.clone(),
-                        token,
-                        sender.clone(),
-                    );
+                    spawn_stream(generation, endpoint.clone(), token, sender.clone());
                 }
             }
             WorkerEvent::Request(Request::Delete(id)) => {
@@ -270,12 +258,7 @@ fn run(
                 }
                 generation += 1;
                 started = Instant::now();
-                spawn_stream(
-                    generation,
-                    endpoint.clone(),
-                    token,
-                    sender.clone(),
-                );
+                spawn_stream(generation, endpoint.clone(), token, sender.clone());
             }
             _ => continue,
         }

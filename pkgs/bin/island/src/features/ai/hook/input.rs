@@ -14,9 +14,17 @@ pub struct Origin {
 /// One Claude Code hook call, by its event.
 #[derive(Clone, Debug, PartialEq)]
 pub enum Hook {
-    Start { from: Origin, model: String },
-    End { from: Origin },
-    Prompt { from: Origin, prompt: String },
+    Start {
+        from: Origin,
+        model: String,
+    },
+    End {
+        from: Origin,
+    },
+    Prompt {
+        from: Origin,
+        prompt: String,
+    },
     /// Before a tool runs, or after when `done`, with what it returned.
     Tool {
         from: Origin,
@@ -31,7 +39,10 @@ pub enum Hook {
         kind: String,
         message: String,
     },
-    Stop { from: Origin, reply: String },
+    Stop {
+        from: Origin,
+        reply: String,
+    },
     /// Blocks until answered.
     Permission {
         from: Origin,
@@ -40,9 +51,15 @@ pub enum Hook {
         suggestion: Option<Value>,
     },
     /// Blocks until answered.
-    Questions { from: Origin, input: Value },
+    Questions {
+        from: Origin,
+        input: Value,
+    },
     /// The plan's limits, as Claude Code passes them to its status line.
-    Usage { from: Origin, readings: Vec<Reading> },
+    Usage {
+        from: Origin,
+        readings: Vec<Reading>,
+    },
 }
 
 /// One limit as the status line reads it.

@@ -203,6 +203,8 @@ pub fn text(text: Text, id: SharedString) -> AnyElement {
     };
     element
         .when_some(min_width, |element, width| element.min_w(px(width)))
-        .when_some(max_width, |element, width| element.max_w(px(width)).truncate())
+        .when_some(max_width, |element, width| {
+            element.max_w(px(width)).truncate()
+        })
         .into_any_element()
 }

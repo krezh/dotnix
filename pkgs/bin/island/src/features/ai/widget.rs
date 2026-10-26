@@ -228,8 +228,10 @@ pub(super) fn widget(ai: &Ai, state: &State, w: &WidgetCx<'_>) -> AnyElement {
         }
     }
     // Jelly shows work and a refresh itself, so the energy border is only for the widget without it.
-    base.when(counted, |base| base.child(w.energy(state.refreshing || working)))
-        .on_click(w.toggle(Panel::Feature("ai")))
-        .on_mouse_down(MouseButton::Right, w.call(Ai::refresh))
-        .into_any_element()
+    base.when(counted, |base| {
+        base.child(w.energy(state.refreshing || working))
+    })
+    .on_click(w.toggle(Panel::Feature("ai")))
+    .on_mouse_down(MouseButton::Right, w.call(Ai::refresh))
+    .into_any_element()
 }

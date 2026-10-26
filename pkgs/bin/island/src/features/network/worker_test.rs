@@ -46,5 +46,8 @@ fn only_settings_signals_mark_the_saved_connections_dirty() {
         Some("org.freedesktop.DBus.Properties"),
         Some("PropertiesChanged")
     ));
-    assert!(!saved_changed(Some(nm::SETTINGS), Some("PropertiesChanged")));
+    assert!(!saved_changed(
+        Some(nm::SETTINGS),
+        Some("PropertiesChanged")
+    ));
 }

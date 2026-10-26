@@ -2,7 +2,9 @@ pub(super) fn split_store_name(path: &str) -> (&str, &str) {
     let file_name = path.rsplit('/').next().unwrap_or(path);
     let name = file_name
         .split_once('-')
-        .filter(|(hash, _)| hash.len() == 32 && hash.bytes().all(|byte| byte.is_ascii_alphanumeric()))
+        .filter(|(hash, _)| {
+            hash.len() == 32 && hash.bytes().all(|byte| byte.is_ascii_alphanumeric())
+        })
         .map_or(file_name, |(_, name)| name);
     let name = name.strip_suffix(".drv").unwrap_or(name);
     for (index, _) in name.match_indices('-') {
@@ -10,7 +12,10 @@ pub(super) fn split_store_name(path: &str) -> (&str, &str) {
             continue;
         }
         let suffix = &name[index + 1..];
-        let starts_with_digit = suffix.bytes().next().is_some_and(|byte| byte.is_ascii_digit());
+        let starts_with_digit = suffix
+            .bytes()
+            .next()
+            .is_some_and(|byte| byte.is_ascii_digit());
         let git_hash = (7..=40).contains(&suffix.len())
             && suffix.bytes().all(|byte| byte.is_ascii_hexdigit())
             && suffix.bytes().any(|byte| byte.is_ascii_alphabetic());
@@ -153,7 +158,12 @@ mod tests {
         for (old, new, expected_old, expected_new) in [
             ("1.6.5-bwrap", "1.8.3-bwrap", "1.6.5", "1.8.3"),
             ("1.2.0-rc1", "1.3.0", "1.2.0-rc1", "1.3.0"),
-            ("1.0-custom_foo.bar-dev", "2.0-custom_foo.bar-dev", "1.0", "2.0"),
+            (
+                "1.0-custom_foo.bar-dev",
+                "2.0-custom_foo.bar-dev",
+                "1.0",
+                "2.0",
+            ),
             ("1.0-rc1", "2.0-rc1", "1.0", "2.0"),
             ("1.0-123", "2.0-123", "1.0-123", "2.0-123"),
             ("1.0-foo+bar", "2.0-foo+bar", "1.0-foo+bar", "2.0-foo+bar"),

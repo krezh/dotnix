@@ -3,8 +3,7 @@
 //! `net.ipv4.ping_group_range`.
 
 use std::{
-    io,
-    mem,
+    io, mem,
     net::{Ipv4Addr, SocketAddr, UdpSocket},
     time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
@@ -134,9 +133,7 @@ pub fn query(id: u16, name: &str) -> Vec<u8> {
 pub fn lookup(server: Ipv4Addr, name: &str, timeout: Duration) -> Option<f32> {
     let socket = UdpSocket::bind(SocketAddr::from((Ipv4Addr::UNSPECIFIED, 0))).ok()?;
     socket.set_read_timeout(Some(timeout)).ok()?;
-    socket
-        .connect(SocketAddr::from((server, DNS_PORT)))
-        .ok()?;
+    socket.connect(SocketAddr::from((server, DNS_PORT))).ok()?;
     let id = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map_or(0, |since| since.subsec_nanos() as u16);

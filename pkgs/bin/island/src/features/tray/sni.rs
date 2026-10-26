@@ -12,8 +12,8 @@ use std::{
 use futures::{StreamExt, channel::oneshot};
 use serde::de::DeserializeOwned;
 use zbus::{
-    Connection, MatchRule, MessageStream, OwnedObjectPath, OwnedVariant, Proxy, Variant, as_variant,
-    block_on,
+    Connection, MatchRule, MessageStream, OwnedObjectPath, OwnedVariant, Proxy, Variant,
+    as_variant, block_on,
     fdo::{DBusProxy, RequestNameFlags, RequestNameReply},
     interface,
     message::{Header, Type},
@@ -196,14 +196,21 @@ async fn pixmaps(proxy: &Proxy<'_>, names: &[&str]) -> Option<Vec<(i32, i32, Vec
             continue;
         };
         let body = reply.body();
-        if let Ok(pixmaps) = body.deserialize::<as_variant::Deserialize<'_, Vec<(i32, i32, Vec<u8>)>>>() {
+        if let Ok(pixmaps) =
+            body.deserialize::<as_variant::Deserialize<'_, Vec<(i32, i32, Vec<u8>)>>>()
+        {
             return Some(pixmaps.0);
         }
     }
     None
 }
 
-async fn load(connection: &Connection, bus: &str, path: &str, key: String) -> Result<Entry, String> {
+async fn load(
+    connection: &Connection,
+    bus: &str,
+    path: &str,
+    key: String,
+) -> Result<Entry, String> {
     let proxy = uncached(connection, bus.to_owned(), path.to_owned(), ITEM)
         .await
         .map_err(|error| error.to_string())?;

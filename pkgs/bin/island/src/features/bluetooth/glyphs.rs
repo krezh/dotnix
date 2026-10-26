@@ -3,16 +3,40 @@
 use crate::features::GlyphSpec;
 
 pub const GLYPHS: &[GlyphSpec] = &[
-    ("tab-bluetooth", &["bluetooth-active-symbolic", "bluetooth-symbolic"]),
-    ("bt-on", &["bluetooth-active-symbolic", "bluetooth-symbolic"]),
-    ("bt-off", &["bluetooth-disabled-symbolic", "bluetooth-symbolic"]),
+    (
+        "tab-bluetooth",
+        &["bluetooth-active-symbolic", "bluetooth-symbolic"],
+    ),
+    (
+        "bt-on",
+        &["bluetooth-active-symbolic", "bluetooth-symbolic"],
+    ),
+    (
+        "bt-off",
+        &["bluetooth-disabled-symbolic", "bluetooth-symbolic"],
+    ),
     ("bt-scan", &["view-refresh-symbolic"]),
-    ("bt-visible", &["view-reveal-symbolic", "view-visible-symbolic"]),
-    ("bt-more", &["view-more-horizontal-symbolic", "view-more-symbolic"]),
+    (
+        "bt-visible",
+        &["view-reveal-symbolic", "view-visible-symbolic"],
+    ),
+    (
+        "bt-more",
+        &["view-more-horizontal-symbolic", "view-more-symbolic"],
+    ),
     ("bt-trust", &["security-high-symbolic"]),
-    ("bt-forget", &["edit-delete-symbolic", "user-trash-symbolic"]),
-    ("bt-headphones", &["audio-headphones-symbolic", "audio-headset-symbolic"]),
-    ("bt-speaker", &["audio-speakers-symbolic", "audio-card-symbolic"]),
+    (
+        "bt-forget",
+        &["edit-delete-symbolic", "user-trash-symbolic"],
+    ),
+    (
+        "bt-headphones",
+        &["audio-headphones-symbolic", "audio-headset-symbolic"],
+    ),
+    (
+        "bt-speaker",
+        &["audio-speakers-symbolic", "audio-card-symbolic"],
+    ),
     ("bt-gamepad", &["input-gaming-symbolic"]),
     ("bt-keyboard", &["input-keyboard-symbolic"]),
     ("bt-mouse", &["input-mouse-symbolic"]),
@@ -22,7 +46,10 @@ pub const GLYPHS: &[GlyphSpec] = &[
     ("bt-display", &["video-display-symbolic"]),
     ("bt-printer", &["printer-symbolic"]),
     ("bt-player", &["multimedia-player-symbolic"]),
-    ("bt-device", &["bluetooth-active-symbolic", "bluetooth-symbolic"]),
+    (
+        "bt-device",
+        &["bluetooth-active-symbolic", "bluetooth-symbolic"],
+    ),
 ];
 
 /// The glyph for a device, from BlueZ's icon name.

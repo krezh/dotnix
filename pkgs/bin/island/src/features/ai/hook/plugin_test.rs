@@ -13,7 +13,13 @@ fn each_hook_waits_exactly_when_island_answers_it() {
         };
         let input = json!({ "session_id": "s1", "tool_name": tool }).to_string();
         let hook = parse(entry.run, &input).unwrap();
-        assert_eq!(hook.blocks(), entry.waits, "{} on {}", entry.run, entry.matcher);
+        assert_eq!(
+            hook.blocks(),
+            entry.waits,
+            "{} on {}",
+            entry.run,
+            entry.matcher
+        );
     }
 }
 

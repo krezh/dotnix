@@ -2,7 +2,8 @@
 //! fetched, without the network, so the counts follow local changes such as a pull.
 
 use std::{
-    any::Any, env, fs,
+    any::Any,
+    env, fs,
     path::PathBuf,
     sync::mpsc::{self, RecvTimeoutError, Sender},
     time::{Duration, SystemTime, UNIX_EPOCH},

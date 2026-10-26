@@ -28,7 +28,8 @@ pub fn last_model(text: &str) -> Option<String> {
 pub fn model(path: &str) -> Option<String> {
     let mut file = File::open(path).ok()?;
     let length = file.metadata().ok()?.len();
-    file.seek(SeekFrom::Start(length.saturating_sub(TAIL))).ok()?;
+    file.seek(SeekFrom::Start(length.saturating_sub(TAIL)))
+        .ok()?;
     let mut tail = Vec::new();
     file.read_to_end(&mut tail).ok()?;
     last_model(&String::from_utf8_lossy(&tail))

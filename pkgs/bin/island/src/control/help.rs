@@ -42,7 +42,11 @@ fn forms_signature(command: &Command, forms: &[Form], bare: Option<&str>) -> Lin
             .push(Tone::Command, only.word)
             .append(value(only.value)),
         _ => {
-            let (open, close) = if bare.is_some() { ("[", "]") } else { ("<", ">") };
+            let (open, close) = if bare.is_some() {
+                ("[", "]")
+            } else {
+                ("<", ">")
+            };
             if choices_inline(command) {
                 let words: Vec<&str> = forms.iter().map(|form| form.word).collect();
                 line.plain(" ")
@@ -78,13 +82,15 @@ fn signature(command: &Command) -> Line {
 /// What the overview lists under a command's description, such as the panels.
 fn listed(command: &Command) -> Option<String> {
     match &command.takes {
-        Takes::Forms { forms, .. } | Takes::Aimed { forms, .. } if !choices_inline(command) => Some(
-            forms
-                .iter()
-                .map(|form| form.word)
-                .collect::<Vec<_>>()
-                .join(" "),
-        ),
+        Takes::Forms { forms, .. } | Takes::Aimed { forms, .. } if !choices_inline(command) => {
+            Some(
+                forms
+                    .iter()
+                    .map(|form| form.word)
+                    .collect::<Vec<_>>()
+                    .join(" "),
+            )
+        }
         Takes::Panel => Some(
             spec::panels()
                 .iter()
@@ -127,7 +133,10 @@ pub fn overview() -> Vec<Line> {
         let commands: Vec<&Command> = all
             .iter()
             .filter(|(feature, _)| feature.is_some() || group == Group::Panels)
-            .chain(all.iter().filter(|(feature, _)| feature.is_none() && group != Group::Panels))
+            .chain(
+                all.iter()
+                    .filter(|(feature, _)| feature.is_none() && group != Group::Panels),
+            )
             .map(|(_, command)| *command)
             .filter(|command| command.group == group)
             .collect();
@@ -141,7 +150,10 @@ pub fn overview() -> Vec<Line> {
             lines.push(row(signature(command), command.about));
             let listed = listed(command);
             // A list the command above already showed, such as the panels, is not repeated.
-            if let Some(listed) = listed.as_ref().filter(|listed| last.as_ref() != Some(*listed)) {
+            if let Some(listed) = listed
+                .as_ref()
+                .filter(|listed| last.as_ref() != Some(*listed))
+            {
                 lines.push(under(listed.clone()));
             }
             last = listed;
@@ -168,7 +180,11 @@ fn forms_usage(forms: &[Form], bare: Option<&str>) -> Line {
     let spaced = forms.iter().any(|form| form.value != Value::Nothing);
     let mut line = Line::new().plain(" ");
     let wrap = bare.is_some() || forms.len() > 1;
-    let (open, close) = if bare.is_some() { ("[", "]") } else { ("<", ">") };
+    let (open, close) = if bare.is_some() {
+        ("[", "]")
+    } else {
+        ("<", ">")
+    };
     if wrap {
         line = line.push(Tone::Faint, open);
     }
@@ -176,7 +192,9 @@ fn forms_usage(forms: &[Form], bare: Option<&str>) -> Line {
         if index > 0 {
             line = line.push(Tone::Faint, if spaced { " | " } else { "|" });
         }
-        line = line.push(Tone::Command, form.word).append(value(form.value));
+        line = line
+            .push(Tone::Command, form.word)
+            .append(value(form.value));
     }
     if wrap {
         line = line.push(Tone::Faint, close);
@@ -204,7 +222,9 @@ fn form_rows<'a>(
         .into_iter()
         .chain(forms.iter().map(|form| {
             (
-                Line::new().push(Tone::Command, form.word).append(value(form.value)),
+                Line::new()
+                    .push(Tone::Command, form.word)
+                    .append(value(form.value)),
                 form.about.to_owned(),
             )
         }))
@@ -251,7 +271,13 @@ pub fn command(command: &Command) -> Vec<Line> {
             } else {
                 Line::new().plain(about)
             };
-            lines.push(Line::new().plain("  ").append(left).pad_to(width + 2).append(about));
+            lines.push(
+                Line::new()
+                    .plain("  ")
+                    .append(left)
+                    .pad_to(width + 2)
+                    .append(about),
+            );
         }
     }
     if !command.examples.is_empty() {

@@ -29,7 +29,11 @@ const CHOICE: f32 = 20.0;
 
 /// The lead's side, which the text and buttons under the title line up past.
 fn lead(view: &View) -> f32 {
-    if view.pose().is_some() { JELLY_LEAD } else { LEAD }
+    if view.pose().is_some() {
+        JELLY_LEAD
+    } else {
+        LEAD
+    }
 }
 
 fn title(request: &Request, picks_step: usize) -> String {
@@ -81,7 +85,12 @@ fn permission_blocks(request: &Request, at: &str, view: &View, p: &PanelCx<'_>) 
     };
     let id = request.id;
     let answer = |answer: Answer| p.call::<Ai>(move |ai| ai.answer(id, answer.clone()));
-    let mut row = vec![button(format!("{at}-deny"), "Deny", false, answer(Answer::Deny))];
+    let mut row = vec![button(
+        format!("{at}-deny"),
+        "Deny",
+        false,
+        answer(Answer::Deny),
+    )];
     if suggestion.is_some() {
         row.push(button(
             format!("{at}-always"),
@@ -184,7 +193,13 @@ fn question_blocks(request: &Request, at: &str, view: &View, p: &PanelCx<'_>) ->
     }
     let labels: Vec<Vec<String>> = questions
         .iter()
-        .map(|question| question.options.iter().map(|(label, _)| label.clone()).collect())
+        .map(|question| {
+            question
+                .options
+                .iter()
+                .map(|(label, _)| label.clone())
+                .collect()
+        })
         .collect();
     // Without a pick, Next skips the question; Send waits until some question has one.
     let ready = !chosen.is_empty();
@@ -222,7 +237,11 @@ fn question_blocks(request: &Request, at: &str, view: &View, p: &PanelCx<'_>) ->
     } else {
         button(
             format!("{at}-next"),
-            &if ready { label("Next") } else { "Skip".to_owned() },
+            &if ready {
+                label("Next")
+            } else {
+                "Skip".to_owned()
+            },
             ready,
             p.on_local::<Ai>(move |_, view| view.next_question(id)),
         )
@@ -275,7 +294,10 @@ fn countdown(request: &Request, hold: Hold) -> Option<Countdown> {
     if request.lifetime <= 0 {
         return None;
     }
-    let from = hold.since.unwrap_or(hold.released_at).max(request.received_at);
+    let from = hold
+        .since
+        .unwrap_or(hold.released_at)
+        .max(request.received_at);
     let left_ms = (request.expires_at - from).max(0);
     Some(Countdown {
         left: (left_ms as f32 / request.lifetime as f32).min(1.0),

@@ -68,7 +68,10 @@ pub(super) fn panel(ai: &Ai, state: &State, p: &PanelCx<'_>) -> Option<PanelView
                     glyph: p.glyph(tab.glyph()),
                 })
                 .collect(),
-            selected: Tab::ALL.iter().position(|tab| *tab == view.tab).unwrap_or(0),
+            selected: Tab::ALL
+                .iter()
+                .position(|tab| *tab == view.tab)
+                .unwrap_or(0),
             on_select: p.on_local_with::<Ai, usize>(|_, view, index| {
                 view.tab = Tab::ALL[index.min(Tab::ALL.len() - 1)];
             }),

@@ -18,8 +18,9 @@ use std::time::{Duration, Instant};
 
 use anyhow::{Context, Result};
 use wayland_client::{
-    Connection, Dispatch, QueueHandle, WEnum, delegate_noop,
+    Connection, Dispatch, QueueHandle, WEnum,
     backend::WaylandError,
+    delegate_noop,
     globals::GlobalListContents,
     protocol::{wl_buffer, wl_registry, wl_shm},
 };

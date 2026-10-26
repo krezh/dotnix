@@ -58,7 +58,10 @@ impl Feature for Bluetooth {
         if !state.available {
             return vec![Row::new("Bluetooth", Shown::Text("no adapter".to_owned()))];
         }
-        let connected: Vec<String> = state.connected().map(|device| device.name.clone()).collect();
+        let connected: Vec<String> = state
+            .connected()
+            .map(|device| device.name.clone())
+            .collect();
         let row = Row::new("Bluetooth", Shown::Switch(state.powered));
         vec![if connected.is_empty() {
             row

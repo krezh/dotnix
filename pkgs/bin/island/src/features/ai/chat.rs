@@ -225,9 +225,8 @@ pub(super) fn panel(
         placeholder: "Ask Claude…".into(),
         max_lines: INPUT_LINES,
         send_glyph: p.glyph("ai-send"),
-        on_send: ready.then(|| {
-            p.on_local::<Ai>(|ai, view| ai.chat_send(std::mem::take(&mut view.draft)))
-        }),
+        on_send: ready
+            .then(|| p.on_local::<Ai>(|ai, view| ai.chat_send(std::mem::take(&mut view.draft)))),
         busy: chat.busy,
         secret: false,
     }));

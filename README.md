@@ -17,4 +17,3 @@ _... managed with Renovate, and GitHub Actions_ 🤖
 ![License](https://img.shields.io/static/v1.svg?label=License&message=GPLv3&logoColor=ca9ee6&colorA=313244&colorB=cba6f7&style=for-the-badge)
 
 </div>
-

@@ -17,7 +17,11 @@ pub fn signal(strength: u8) -> &'static str {
 /// nothing.
 pub fn link(state: &State) -> &'static str {
     if let Some(wifi) = &state.wifi {
-        if state.joining.as_ref().is_some_and(|joining| joining.failed.is_none()) {
+        if state
+            .joining
+            .as_ref()
+            .is_some_and(|joining| joining.failed.is_none())
+        {
             return "network-wifi-acquiring";
         }
         if !wifi.enabled {

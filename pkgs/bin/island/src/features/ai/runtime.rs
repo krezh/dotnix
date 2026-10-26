@@ -223,7 +223,8 @@ fn call(
         }
         Call::Ask(hook, asked_at, reply) => {
             alerts.asked(&hook.from().session);
-            let wait_ms = i64::try_from(settings.sessions.answer_seconds * 1000).unwrap_or(i64::MAX);
+            let wait_ms =
+                i64::try_from(settings.sessions.answer_seconds * 1000).unwrap_or(i64::MAX);
             waiting.ask(state, &hook, reply, asked_at.min(at), wait_ms);
             true
         }
@@ -288,8 +289,8 @@ fn work(
             .map(|at| {
                 Instant::now() + Duration::from_millis(u64::try_from(at - now()).unwrap_or(0))
             });
-        let idle_chat = (!state.chat.busy && !state.chat.lines.is_empty())
-            .then_some(chatted + CHAT_IDLE);
+        let idle_chat =
+            (!state.chat.busy && !state.chat.lines.is_empty()).then_some(chatted + CHAT_IDLE);
         let timeout = due
             .into_iter()
             .chain(idle_chat)
@@ -448,14 +449,10 @@ fn work(
             .iter()
             .any(|session| at - session.active_at >= STALE_MS)
         {
-            Arc::make_mut(&mut state.sessions)
-                .retain(|session| at - session.active_at < STALE_MS);
+            Arc::make_mut(&mut state.sessions).retain(|session| at - session.active_at < STALE_MS);
             changed = true;
         }
-        if !state.chat.busy
-            && !state.chat.lines.is_empty()
-            && instant >= chatted + CHAT_IDLE
-        {
+        if !state.chat.busy && !state.chat.lines.is_empty() && instant >= chatted + CHAT_IDLE {
             conversation.clear(Arc::make_mut(&mut state.chat));
             changed = true;
         }

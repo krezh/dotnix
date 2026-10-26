@@ -94,7 +94,14 @@ fn keep_to(db: &Connection, window: &Window) -> Result<(), String> {
     db.execute(
         "INSERT OR REPLACE INTO ai_samples (provider, limit_id, start, duration, at, used)
          VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-        params![window.provider, window.limit, window.start, window.duration, at, used],
+        params![
+            window.provider,
+            window.limit,
+            window.start,
+            window.duration,
+            at,
+            used
+        ],
     )
     .map_err(fail)?;
     Ok(())

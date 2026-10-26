@@ -27,9 +27,9 @@ fn decode(reply: String) -> Result<Report, Mistake> {
 /// Hands checked `args` to the running island, and gives back its answer.
 pub fn send(args: &[String]) -> Result<Report, Mistake> {
     let reply: String = block_on(async {
-        let connection = Connection::session().await.map_err(|error| {
-            Mistake::new(Line::new().plain(format!("No session bus: {error}")))
-        })?;
+        let connection = Connection::session()
+            .await
+            .map_err(|error| Mistake::new(Line::new().plain(format!("No session bus: {error}"))))?;
         let proxy = Proxy::new(&connection, SERVICE, PATH, INTERFACE)
             .await
             .map_err(|_| not_running())?;

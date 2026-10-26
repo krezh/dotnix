@@ -2,9 +2,7 @@
 
 use std::collections::HashMap;
 
-use zbus::{
-    Connection, ObjectPath, OwnedObjectPath, OwnedVariant as OwnedValue, Variant as Value,
-};
+use zbus::{Connection, ObjectPath, OwnedObjectPath, OwnedVariant as OwnedValue, Variant as Value};
 
 use super::state::{AccessPoint, Activity, Security};
 use crate::dbus::uncached;
@@ -257,10 +255,11 @@ async fn address(connection: &Connection, ip4: &OwnedObjectPath, ip6: &OwnedObje
             .await
             .ok()
             .filter(|gateway| !gateway.is_empty());
-        address.dns = get::<Vec<HashMap<String, OwnedValue>>>(connection, path, IP4, "NameserverData")
-            .await
-            .map(|entries| entries.iter().filter_map(address_of).collect())
-            .unwrap_or_default();
+        address.dns =
+            get::<Vec<HashMap<String, OwnedValue>>>(connection, path, IP4, "NameserverData")
+                .await
+                .map(|entries| entries.iter().filter_map(address_of).collect())
+                .unwrap_or_default();
         address.domain = get::<Vec<String>>(connection, path, IP4, "Domains")
             .await
             .ok()
@@ -393,9 +392,10 @@ pub async fn active_address(connection: &Connection, ip4: &OwnedObjectPath) -> O
     if is_root(ip4) {
         return None;
     }
-    let entries = get::<Vec<HashMap<String, OwnedValue>>>(connection, ip4.as_str(), IP4, "AddressData")
-        .await
-        .ok()?;
+    let entries =
+        get::<Vec<HashMap<String, OwnedValue>>>(connection, ip4.as_str(), IP4, "AddressData")
+            .await
+            .ok()?;
     entries.first().and_then(address_of)
 }
 
@@ -460,10 +460,7 @@ pub async fn join(
     }
     uncached(connection, NM, NM_PATH, NM)
         .await?
-        .call(
-            "AddAndActivateConnection",
-            &(settings, device, ap),
-        )
+        .call("AddAndActivateConnection", &(settings, device, ap))
         .await
 }
 
@@ -483,7 +480,9 @@ pub async fn forget(connection: &Connection, saved: &OwnedObjectPath) -> zbus::R
 
 /// Where an active connection is: `None` once NetworkManager has let it go.
 pub async fn activity(connection: &Connection, active: &OwnedObjectPath) -> Option<Activity> {
-    let state: u32 = get(connection, active.as_str(), ACTIVE, "State").await.ok()?;
+    let state: u32 = get(connection, active.as_str(), ACTIVE, "State")
+        .await
+        .ok()?;
     Some(match state {
         ACTIVE_ACTIVATING => Activity::Connecting,
         ACTIVE_ACTIVATED => Activity::On,

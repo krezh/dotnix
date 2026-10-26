@@ -105,7 +105,10 @@ fn discovers_highest_numeric_unstable_alias_only() {
 fn query_ranks_exact_prefix_and_substring_matches() {
     let body = query_body(&request("  nginx virt ", SearchScope::NixOsOptions, 50));
     assert_eq!(body["from"], 50);
-    assert_eq!(body["query"]["bool"]["filter"][0]["terms"]["type"], json!(["option"]));
+    assert_eq!(
+        body["query"]["bool"]["filter"][0]["terms"]["type"],
+        json!(["option"])
+    );
     assert_eq!(body["query"]["bool"]["minimum_should_match"], 1);
     let should = body["query"]["bool"]["should"].as_array().unwrap();
     assert_eq!(query_text(&body), "nginx virt");
@@ -193,7 +196,10 @@ fn rejects_invalid_or_partial_responses() {
         json!({"timed_out":true,"hits":{"total":{"value":0,"relation":"eq"},"hits":[]}}),
         json!({"timed_out":false,"hits":{"total":{"value":10000,"relation":"gte"},"hits":[]}}),
     ] {
-        assert!(parse_results(body.clone(), Duration::ZERO).is_err(), "{body}");
+        assert!(
+            parse_results(body.clone(), Duration::ZERO).is_err(),
+            "{body}"
+        );
     }
     let page = response(Vec::new(), 0);
     for body in [
@@ -204,9 +210,13 @@ fn rejects_invalid_or_partial_responses() {
         assert!(parse_responses(&body, 2, Duration::ZERO).is_err(), "{body}");
     }
     assert_eq!(
-        parse_responses(&json!({"responses": [page, page]}).to_string(), 2, Duration::ZERO)
-            .unwrap()
-            .len(),
+        parse_responses(
+            &json!({"responses": [page, page]}).to_string(),
+            2,
+            Duration::ZERO
+        )
+        .unwrap()
+        .len(),
         2
     );
 }
@@ -261,13 +271,22 @@ fn loopback_filters_literal_queries_pages_and_manual_retry() {
     let mut client = SearchClient::with_backend(backend);
     let cancellation = AtomicBool::new(false);
     assert_eq!(
-        one(&mut client, request("   ", SearchScope::All, 0), &cancellation)
-            .unwrap()
-            .total,
+        one(
+            &mut client,
+            request("   ", SearchScope::All, 0),
+            &cancellation
+        )
+        .unwrap()
+        .total,
         0
     );
     assert_eq!(
-        one(&mut client, request("x", SearchScope::All, 0), &AtomicBool::new(true)).unwrap_err(),
+        one(
+            &mut client,
+            request("x", SearchScope::All, 0),
+            &AtomicBool::new(true)
+        )
+        .unwrap_err(),
         molt::command::CANCELLED
     );
     assert!(
@@ -311,8 +330,14 @@ fn loopback_filters_literal_queries_pages_and_manual_retry() {
             SearchResultItem::HomeManagerOption(_)
         ]
     ));
-    assert!(matches!(&batch[1].items[..], [SearchResultItem::Package(_)]));
-    assert!(matches!(&batch[3].items[..], [SearchResultItem::HomeManagerOption(_)]));
+    assert!(matches!(
+        &batch[1].items[..],
+        [SearchResultItem::Package(_)]
+    ));
+    assert!(matches!(
+        &batch[3].items[..],
+        [SearchResultItem::HomeManagerOption(_)]
+    ));
     let options = one(
         &mut client,
         request("option", SearchScope::NixOsOptions, 0),
@@ -324,9 +349,13 @@ fn loopback_filters_literal_queries_pages_and_manual_retry() {
         [SearchResultItem::NixOsOption(_)]
     ));
     assert!(
-        one(&mut client, request("transient", SearchScope::All, 0), &cancellation)
-            .unwrap_err()
-            .contains("HTTP 503")
+        one(
+            &mut client,
+            request("transient", SearchScope::All, 0),
+            &cancellation
+        )
+        .unwrap_err()
+        .contains("HTTP 503")
     );
     assert!(client.alias.is_none());
     let retry = one(
@@ -355,10 +384,17 @@ fn stale_cached_alias_is_rediscovered_once() {
             match path.as_str() {
                 "/latest-9-nixos-unstable/_msearch" => reply(&mut stream, 404, "gone"),
                 "/_cat/aliases?format=json" => {
-                    reply(&mut stream, 200, r#"[{"alias":"latest-52-nixos-unstable"}]"#);
+                    reply(
+                        &mut stream,
+                        200,
+                        r#"[{"alias":"latest-52-nixos-unstable"}]"#,
+                    );
                 }
                 _ => {
-                    let page = response(vec![json!({"type":"package", "package_attr_name":"hit"})], 1);
+                    let page = response(
+                        vec![json!({"type":"package", "package_attr_name":"hit"})],
+                        1,
+                    );
                     reply(&mut stream, 200, &json!({"responses": [page]}).to_string());
                 }
             }

@@ -3,9 +3,7 @@
 
 use std::{cell::Cell, path::Path, time::Duration};
 
-use gpui::{
-    AnyEntity, App, Context, Div, FontWeight, SharedString, Stateful, WeakEntity, Window,
-};
+use gpui::{AnyEntity, App, Context, Div, FontWeight, SharedString, Stateful, WeakEntity, Window};
 
 use super::{AnyLocal, Feature, Local, instance::instance};
 use crate::{
@@ -57,8 +55,9 @@ impl<'a> WidgetCx<'a> {
     /// Asks to redraw the widget after `after`, when time-based text it shows next changes.
     pub fn redraw_in(&self, after: Duration) {
         let after = after + LATE;
-        self.redraw
-            .set(Some(self.redraw.get().map_or(after, |prior| prior.min(after))));
+        self.redraw.set(Some(
+            self.redraw.get().map_or(after, |prior| prior.min(after)),
+        ));
     }
 
     pub(crate) fn next_redraw(&self) -> Option<Duration> {

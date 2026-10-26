@@ -15,14 +15,24 @@ fn mistake(opts: &[Opt], words: &str, commands: &[&str]) -> String {
 
 #[test]
 fn options_are_read_with_their_values_in_either_spelling() {
-    let found = parse(LOGS, args("-n 20 --level=debug --no-follow"), "island logs", &[]).unwrap();
+    let found = parse(
+        LOGS,
+        args("-n 20 --level=debug --no-follow"),
+        "island logs",
+        &[],
+    )
+    .unwrap();
     let found: Vec<(&str, Option<&str>)> = found
         .iter()
         .map(|(opt, value)| (opt.long, value.as_deref()))
         .collect();
     assert_eq!(
         found,
-        [("lines", Some("20")), ("level", Some("debug")), ("no-follow", None)]
+        [
+            ("lines", Some("20")),
+            ("level", Some("debug")),
+            ("no-follow", None)
+        ]
     );
 }
 
@@ -34,7 +44,10 @@ fn mistakes_name_the_option_and_what_it_takes() {
 
     let text = mistake(LOGS, "--level loud", &[]);
     assert!(text.contains("loud is not a level"), "{text}");
-    assert!(text.contains("--level takes: error warn info debug trace"), "{text}");
+    assert!(
+        text.contains("--level takes: error warn info debug trace"),
+        "{text}"
+    );
 
     let text = mistake(LOGS, "-n", &[]);
     assert!(text.contains("--lines needs a count"), "{text}");
@@ -43,7 +56,10 @@ fn mistakes_name_the_option_and_what_it_takes() {
     assert!(text.contains("--lines needs a number, got many"), "{text}");
 
     let text = mistake(LOGS, "audio", &[]);
-    assert!(text.contains("Nothing goes after island logs, got audio"), "{text}");
+    assert!(
+        text.contains("Nothing goes after island logs, got audio"),
+        "{text}"
+    );
 
     let text = mistake(ISLAND, "clt", &["ctl", "logs"]);
     assert!(text.contains("No command clt"), "{text}");

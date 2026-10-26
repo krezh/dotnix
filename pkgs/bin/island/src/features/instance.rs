@@ -5,8 +5,8 @@ use std::{any::Any, rc::Rc};
 
 use futures::{StreamExt, channel::mpsc::unbounded};
 use gpui::{
-    AnyElement, AnyEntity, App, AppContext, Context, Entity, EventEmitter, Keystroke,
-    Subscription, WeakEntity,
+    AnyElement, AnyEntity, App, AppContext, Context, Entity, EventEmitter, Keystroke, Subscription,
+    WeakEntity,
 };
 use tracing::debug;
 
@@ -31,9 +31,7 @@ pub struct Live;
 
 impl<F: Feature> EventEmitter<Live> for Instance<F> {}
 
-pub(super) fn instance<F: Feature>(
-    entity: &Option<AnyEntity>,
-) -> Option<WeakEntity<Instance<F>>> {
+pub(super) fn instance<F: Feature>(entity: &Option<AnyEntity>) -> Option<WeakEntity<Instance<F>>> {
     entity
         .clone()
         .and_then(|entity| entity.downcast::<Instance<F>>().ok())
@@ -225,7 +223,10 @@ impl Features {
 
     /// Every running feature's rows for `island ctl`'s overview, in the registry's order.
     pub fn status(&self, cx: &App) -> Vec<Row> {
-        self.0.iter().flat_map(|feature| feature.status(cx)).collect()
+        self.0
+            .iter()
+            .flat_map(|feature| feature.status(cx))
+            .collect()
     }
 
     pub fn owning(&self, widget: &str) -> Option<&dyn AnyFeature> {

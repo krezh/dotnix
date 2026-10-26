@@ -117,7 +117,11 @@ fn choice(key: SharedString, picked: bool, many: bool, side: f32) -> AnyElement 
                     .top_0()
                     .left_0()
                     .size_full()
-                    .child(ui::outlined(radius, blend(empty, accent, t), blend(edge, accent, t)));
+                    .child(ui::outlined(
+                        radius,
+                        blend(empty, accent, t),
+                        blend(edge, accent, t),
+                    ));
                 let inside = if many {
                     tick(side, t).into_any_element()
                 } else {

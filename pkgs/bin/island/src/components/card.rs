@@ -13,8 +13,7 @@ use crate::{
     island::{CONTENT_IN as SELECT_SPRING, Island},
     panel::Handler,
     theme::{
-        ACCENT, CARD_ALPHA, CARD_BORDER_ALPHA, CRITICAL, NOTIFICATION_ALPHA,
-        SURFACE1, with_alpha,
+        ACCENT, CARD_ALPHA, CARD_BORDER_ALPHA, CRITICAL, NOTIFICATION_ALPHA, SURFACE1, with_alpha,
     },
     ui::{self, Radius},
 };

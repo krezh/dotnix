@@ -133,8 +133,14 @@ mod tests {
                 "{right} > {left}"
             );
         }
-        assert_eq!(compare_versions("02147483647", "2147483647"), Ordering::Equal);
-        assert_eq!(compare_versions("02147483648", "2147483648"), Ordering::Less);
+        assert_eq!(
+            compare_versions("02147483647", "2147483647"),
+            Ordering::Equal
+        );
+        assert_eq!(
+            compare_versions("02147483648", "2147483648"),
+            Ordering::Less
+        );
     }
 
     #[test]

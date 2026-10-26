@@ -387,10 +387,9 @@ impl Toasts {
 
     pub fn is_settled(&self) -> bool {
         self.footer.is_settled()
-            && self
-                .cards
-                .iter()
-                .all(|card| card.y.is_settled() && card.fold.is_settled() && card.alpha.is_settled())
+            && self.cards.iter().all(|card| {
+                card.y.is_settled() && card.fold.is_settled() && card.alpha.is_settled()
+            })
     }
 }
 

@@ -48,8 +48,9 @@ impl<'a> PanelCx<'a> {
     /// Asks to redraw the panel after `after`, when time-based text it shows next changes.
     pub fn redraw_in(&self, after: Duration) {
         let after = after + LATE;
-        self.redraw
-            .set(Some(self.redraw.get().map_or(after, |prior| prior.min(after))));
+        self.redraw.set(Some(
+            self.redraw.get().map_or(after, |prior| prior.min(after)),
+        ));
     }
 
     /// The mark the feature named `name` lends, if it lends one now.

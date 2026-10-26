@@ -73,11 +73,11 @@ pub fn tabs(
             let color = if picked { ACCENT } else { TEXT };
             let tab_id = SharedString::from(format!("{id}-{index}"));
             let tab_button = button::fill(tab_id.clone(), Radius::Row, None, !picked && hover)
-            .w(px(tab_w))
-            .h(px(HEADER_H))
-            .text_size(px(TEXT_SIZE))
-            .font_weight(FontWeight::SEMIBOLD)
-            .text_color(rgb(color));
+                .w(px(tab_w))
+                .h(px(HEADER_H))
+                .text_size(px(TEXT_SIZE))
+                .font_weight(FontWeight::SEMIBOLD)
+                .text_color(rgb(color));
             match tab.glyph {
                 Some(path) => tab_button
                     .child(icon::glyph(&path, GLYPH, color))

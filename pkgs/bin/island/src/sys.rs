@@ -855,7 +855,9 @@ fn program(pid_dir: &Path, comm: &str) -> String {
 
 /// CPU ticks per process, labelled by program, so a browser's many processes count as one.
 /// `programs` keeps the names of the processes still running.
-fn process_ticks(programs: &mut HashMap<(u32, u64), String>) -> (HashMap<u32, (String, u64)>, usize) {
+fn process_ticks(
+    programs: &mut HashMap<(u32, u64), String>,
+) -> (HashMap<u32, (String, u64)>, usize) {
     let mut ticks = HashMap::new();
     let mut known = HashMap::with_capacity(programs.len());
     let mut count = 0;
@@ -1034,7 +1036,8 @@ impl Sampler {
     }
 
     fn update_mem(&mut self, meminfo: &str, watched: bool) {
-        let (mut mem_total, mut mem_avail, mut swap_total, mut swap_free) = (None, None, None, None);
+        let (mut mem_total, mut mem_avail, mut swap_total, mut swap_free) =
+            (None, None, None, None);
         for line in meminfo.lines() {
             let parse = |rest: &str| rest.split_whitespace().next()?.parse::<u64>().ok();
             if let Some(rest) = line.strip_prefix("MemTotal:") {

@@ -2,8 +2,9 @@ use std::{rc::Rc, time::Duration};
 
 use futures::{StreamExt, channel::mpsc::UnboundedReceiver};
 use gpui::{
-    AnyWindowHandle, App, AppContext, Bounds, Context, DisplayEvent, DisplayId, Entity, Global, Keystroke, Size,
-    Subscription, WeakEntity, WindowBackgroundAppearance, WindowBounds, WindowKind, WindowOptions,
+    AnyWindowHandle, App, AppContext, Bounds, Context, DisplayEvent, DisplayId, Entity, Global,
+    Keystroke, Size, Subscription, WeakEntity, WindowBackgroundAppearance, WindowBounds,
+    WindowKind, WindowOptions,
     layer_shell::{Anchor, KeyboardInteractivity, Layer, LayerShellOptions},
     point, px,
 };

@@ -17,7 +17,8 @@ use super::{
 use crate::{components::icon::Picture, db, features::Feed, supervisor::Ended};
 
 /// Only ever append.
-const MIGRATIONS: &[&str] = &["
+const MIGRATIONS: &[&str] = &[
+    "
 CREATE TABLE history (
     session INTEGER NOT NULL,
     id INTEGER NOT NULL,
@@ -30,9 +31,11 @@ CREATE TABLE history (
     PRIMARY KEY (session, id)
 );
 CREATE INDEX history_received ON history (received DESC);
-", "
+",
+    "
 ALTER TABLE history ADD COLUMN lead TEXT;
-"];
+",
+];
 
 /// The session and the notification's id together name it.
 #[derive(Clone, Debug)]

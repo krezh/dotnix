@@ -67,7 +67,11 @@ pub(super) const CONTROLS: &[Command] = &[Command {
     about: "Forget the clipboard history",
     group: Group::System,
     takes: Takes::Forms {
-        forms: &[form("clear", Value::Nothing, "Forget the clipboard history")],
+        forms: &[form(
+            "clear",
+            Value::Nothing,
+            "Forget the clipboard history",
+        )],
         bare: None,
     },
     examples: &[],

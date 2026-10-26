@@ -139,7 +139,8 @@ fn spoilers_and_custom_emoji() {
 
 #[test]
 fn blocks_keep_paragraphs_lists_and_fenced_code() {
-    let reply = "jj has no stash.\nStart a change:\n\n```sh\njj new @-\n```\n- keep **it**\n- or squash";
+    let reply =
+        "jj has no stash.\nStart a change:\n\n```sh\njj new @-\n```\n- keep **it**\n- or squash";
     let parsed = super::blocks(reply);
     assert_eq!(parsed.len(), 3);
     match &parsed[0] {

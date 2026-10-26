@@ -89,7 +89,10 @@ fn signature(sub: &Sub) -> Line {
 
 pub fn overview() -> Vec<Line> {
     let mut lines = vec![
-        title("island", "A dynamic island status bar and notification daemon"),
+        title(
+            "island",
+            "A dynamic island status bar and notification daemon",
+        ),
         Line::new(),
         usage(
             Line::new()

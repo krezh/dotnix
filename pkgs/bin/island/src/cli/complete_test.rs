@@ -30,7 +30,10 @@ fn each_level_offers_what_can_go_there() {
 
 #[test]
 fn options_and_their_values_complete() {
-    assert_eq!(next("logs --level "), ["error", "warn", "info", "debug", "trace"]);
+    assert_eq!(
+        next("logs --level "),
+        ["error", "warn", "info", "debug", "trace"]
+    );
     assert!(next("logs -n 20 --").contains(&"--no-follow".to_owned()));
     assert!(next("logs --module ").contains(&"audio".to_owned()));
     assert_eq!(next("--config "), ["<files>"]);

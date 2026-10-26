@@ -149,7 +149,11 @@ pub async fn set_adapter<'a>(
         .map_err(Into::into)
 }
 
-pub async fn adapter_call(connection: &Connection, adapter: &str, method: &str) -> zbus::Result<()> {
+pub async fn adapter_call(
+    connection: &Connection,
+    adapter: &str,
+    method: &str,
+) -> zbus::Result<()> {
     uncached(connection, BLUEZ, adapter.to_owned(), ADAPTER)
         .await?
         .call(method, &())

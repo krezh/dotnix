@@ -106,7 +106,10 @@ fn hidden_cards_wait_below_the_stack_and_rise_into_a_freed_place() {
         "nothing jumps as the fold starts: {:?} then {before:?}",
         toasts.drawn_y()
     );
-    assert!((toasts.height() - height).abs() < 0.01, "nor does the island");
+    assert!(
+        (toasts.height() - height).abs() < 0.01,
+        "nor does the island"
+    );
     assert!(toasts.cards()[3].visible);
     assert!(below(&toasts));
 
@@ -132,8 +135,16 @@ fn hidden_cards_wait_below_the_stack_and_rise_into_a_freed_place() {
         );
         last = drawn;
     }
-    let risen = toasts.cards().iter().rev().find(|card| !card.leaving).unwrap();
-    assert!(risen.y.value() < oldest, "the hidden one rose into the freed place");
+    let risen = toasts
+        .cards()
+        .iter()
+        .rev()
+        .find(|card| !card.leaving)
+        .unwrap();
+    assert!(
+        risen.y.value() < oldest,
+        "the hidden one rose into the freed place"
+    );
 }
 
 #[test]

@@ -20,7 +20,10 @@ fn hook(event: &str, extra: Value) -> Hook {
 
 #[test]
 fn a_finished_turn_says_where_with_the_start_of_the_reply() {
-    let stop = hook("Stop", json!({"last_assistant_message": "**Done.** The build passes.\n\nMore."}));
+    let stop = hook(
+        "Stop",
+        json!({"last_assistant_message": "**Done.** The build passes.\n\nMore."}),
+    );
     let notice = notice(&State::default(), &stop).unwrap();
     assert_eq!(notice.app, "Claude Code");
     assert_eq!(notice.title, "Finished in dotnix");

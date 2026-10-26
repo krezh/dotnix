@@ -39,9 +39,8 @@ pub use crate::components::{
     calendar::CalendarView,
     card::{Countdown, FrameView},
     code::{Change, Code, CodeLine, Motion as CodeMotion},
-    input::{Edit, InputView},
-    transcript::{Piece, Transcript, Turn},
     dropdown::{Choice, Dropdown},
+    input::{Edit, InputView},
     item::{Item, Lead, Trail},
     lines::Line,
     meter::Meter,
@@ -52,6 +51,7 @@ pub use crate::components::{
     slider::Slider,
     tabs::TabLabel,
     text::{Style as TextStyle, Text, Tone},
+    transcript::{Piece, Transcript, Turn},
 };
 
 pub type Handler = Rc<dyn Fn(&mut Island, &mut Context<Island>)>;
@@ -506,7 +506,14 @@ fn views_header(
         cx,
     );
     let lead = views.lead.map(|lead| header_lead(lead, cx));
-    header_row(tabs.into_any_element(), true, lead, views.buttons, hover, cx)
+    header_row(
+        tabs.into_any_element(),
+        true,
+        lead,
+        views.buttons,
+        hover,
+        cx,
+    )
 }
 
 /// The views at the start and their buttons at the end, in a page rather than its header, so
@@ -724,27 +731,31 @@ impl Block {
                     .flex()
                     .items_start()
                     .gap(px(card::GAP))
-                    .children(blocks.into_iter().take(COLUMNS).enumerate().map(
-                        |(index, block)| {
-                            let at = format!("{at}-column-{index}");
-                            let scroll = &frame.columns[index];
-                            // A column holding a conversation starts at its newest part, and
-                            // keeps to it while read there; scrolled back, it stays put.
-                            if block.follows_end() {
-                                let (offset, end) = (scroll.offset().y, scroll.max_offset().y);
-                                if opened || f32::from(end + offset).abs() < FOLLOW_SLACK {
-                                    scroll.scroll_to_bottom();
+                    .children(
+                        blocks
+                            .into_iter()
+                            .take(COLUMNS)
+                            .enumerate()
+                            .map(|(index, block)| {
+                                let at = format!("{at}-column-{index}");
+                                let scroll = &frame.columns[index];
+                                // A column holding a conversation starts at its newest part, and
+                                // keeps to it while read there; scrolled back, it stays put.
+                                if block.follows_end() {
+                                    let (offset, end) = (scroll.offset().y, scroll.max_offset().y);
+                                    if opened || f32::from(end + offset).abs() < FOLLOW_SLACK {
+                                        scroll.scroll_to_bottom();
+                                    }
                                 }
-                            }
-                            div()
-                                .id(SharedString::from(at.clone()))
-                                .flex_none()
-                                .max_h(px(COLUMN_H))
-                                .overflow_y_scroll()
-                                .track_scroll(scroll)
-                                .child(block.render(&at, island_below, frame, cx))
-                        },
-                    ))
+                                div()
+                                    .id(SharedString::from(at.clone()))
+                                    .flex_none()
+                                    .max_h(px(COLUMN_H))
+                                    .overflow_y_scroll()
+                                    .track_scroll(scroll)
+                                    .child(block.render(&at, island_below, frame, cx))
+                            }),
+                    )
                     .into_any_element()
             }
             Block::Grid(columns, blocks) => {
@@ -908,16 +919,18 @@ fn placed_element(
             {
                 return None;
             }
-            Some(div()
-                .absolute()
-                .left(px(place.x))
-                .top(px(top))
-                .w_full()
-                .h(px(place.height))
-                .opacity(place.opacity.clamp(0.0, 1.0))
-                .flex()
-                .items_center()
-                .child(block.render(&format!("{at}-{index}"), island_below, frame, cx)))
+            Some(
+                div()
+                    .absolute()
+                    .left(px(place.x))
+                    .top(px(top))
+                    .w_full()
+                    .h(px(place.height))
+                    .opacity(place.opacity.clamp(0.0, 1.0))
+                    .flex()
+                    .items_center()
+                    .child(block.render(&format!("{at}-{index}"), island_below, frame, cx)),
+            )
         });
     let content = div()
         .relative()

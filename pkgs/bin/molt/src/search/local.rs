@@ -28,7 +28,11 @@ pub(super) struct LocalValue {
 
 /// How a result is evaluated: the flake attribute, the `--apply` function and whether the result
 /// is the `{ set, value }` record.
-fn plan(config: &Config, item: &SearchResultItem, user: &str) -> Result<(String, &'static str, bool), String> {
+fn plan(
+    config: &Config,
+    item: &SearchResultItem,
+    user: &str,
+) -> Result<(String, &'static str, bool), String> {
     let path = attribute_path(item.name())
         .ok_or("This name has placeholders or quoting that cannot be evaluated directly")?;
     let host = &config.nixos_flake;
@@ -152,7 +156,11 @@ mod tests {
     }
 
     fn item(kind: &str, name: &str) -> SearchResultItem {
-        let field = if kind == "package" { "package_attr_name" } else { "option_name" };
+        let field = if kind == "package" {
+            "package_attr_name"
+        } else {
+            "option_name"
+        };
         let source = json!({ field: name });
         match kind {
             "package" => SearchResultItem::Package(serde_json::from_value(source).unwrap()),
@@ -165,7 +173,9 @@ mod tests {
     fn plans_attributes_for_each_kind_of_result() {
         let nixos = config(None);
         assert_eq!(
-            plan(&nixos, &item("package", "python313Packages.requests"), "me").unwrap().0,
+            plan(&nixos, &item("package", "python313Packages.requests"), "me")
+                .unwrap()
+                .0,
             "nixosConfigurations.host.pkgs.python313Packages.requests"
         );
         assert_eq!(
@@ -185,12 +195,21 @@ mod tests {
             )
         );
         assert_eq!(
-            plan(&config(Some("me@host")), &item("home", "programs.git.enable"), "me")
-                .unwrap()
-                .0,
+            plan(
+                &config(Some("me@host")),
+                &item("home", "programs.git.enable"),
+                "me"
+            )
+            .unwrap()
+            .0,
             "homeConfigurations.me@host.options.programs.git.enable"
         );
-        for name in ["services.nginx.virtualHosts.<name>.root", "a.\"b\".c", "a..b", "1a"] {
+        for name in [
+            "services.nginx.virtualHosts.<name>.root",
+            "a.\"b\".c",
+            "a..b",
+            "1a",
+        ] {
             assert!(plan(&nixos, &item("option", name), "me").is_err(), "{name}");
         }
         assert!(plan(&nixos, &item("home", "programs.git.enable"), "").is_err());
@@ -206,6 +225,9 @@ mod tests {
         assert_eq!(last_error(""), "nix eval failed");
         assert_eq!(shown(&json!("15.2.0")), "15.2.0");
         assert_eq!(shown(&json!(["a"])), "[\n  \"a\"\n]");
-        assert_eq!(shown(&json!("x".repeat(MAX_SHOWN + 5))).chars().count(), MAX_SHOWN + 1);
+        assert_eq!(
+            shown(&json!("x".repeat(MAX_SHOWN + 5))).chars().count(),
+            MAX_SHOWN + 1
+        );
     }
 }

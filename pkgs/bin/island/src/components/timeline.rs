@@ -105,9 +105,10 @@ fn track(at: &str, lane: &Lane) -> Div {
             track.child(bar(
                 format!("{at}-{}-striped", lane.key),
                 div().child(
-                    canvas(|_, _, _| {}, move |bounds, (), window, _| {
-                        stripes(bounds, window, striped)
-                    })
+                    canvas(
+                        |_, _, _| {},
+                        move |bounds, (), window, _| stripes(bounds, window, striped),
+                    )
                     .size_full(),
                 ),
                 to,

@@ -100,7 +100,10 @@ pub fn prompt(view: PromptView, hover: bool, cx: &mut Context<Island>) -> AnyEle
                     .py(px(14.0))
                     .flex()
                     .justify_center()
-                    .child(ui::shape(Radius::Control, Some(rgba(with_alpha(TINT, 0x0d)).into())))
+                    .child(ui::shape(
+                        Radius::Control,
+                        Some(rgba(with_alpha(TINT, 0x0d)).into()),
+                    ))
                     .child(
                         div()
                             .relative()
@@ -114,7 +117,12 @@ pub fn prompt(view: PromptView, hover: bool, cx: &mut Context<Island>) -> AnyEle
                     .flex()
                     .items_end()
                     .gap(px(8.0))
-                    .child(div().flex_1().min_w(px(0.0)).child(input::input(field, hover, cx)))
+                    .child(
+                        div()
+                            .flex_1()
+                            .min_w(px(0.0))
+                            .child(input::input(field, hover, cx)),
+                    )
                     .children(eye)
             }))
             .children(view.error.map(|error| {

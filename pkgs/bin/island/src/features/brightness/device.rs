@@ -27,7 +27,10 @@ pub(super) struct Screen {
 enum Output {
     Backlight(PathBuf),
     /// With the maximum it reported when found, so setting it needs no read.
-    Ddc { display: Display, maximum: u16 },
+    Ddc {
+        display: Display,
+        maximum: u16,
+    },
 }
 
 impl Screen {

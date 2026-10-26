@@ -57,6 +57,6 @@ pub fn widget(state: &State, w: &mut WidgetCx<'_>) -> AnyElement {
             }),
     };
     base.tip(w.tips(), "bar-bluetooth", tip(state))
-    .on_click(w.toggle(Panel::Feature(<Bluetooth as Feature>::NAME)))
-    .into_any_element()
+        .on_click(w.toggle(Panel::Feature(<Bluetooth as Feature>::NAME)))
+        .into_any_element()
 }

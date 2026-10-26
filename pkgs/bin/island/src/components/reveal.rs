@@ -3,9 +3,7 @@
 
 use std::time::Duration;
 
-use gpui::{
-    Animation, AnimationExt, AnyElement, ElementId, SpringAnimation, div, prelude::*, px,
-};
+use gpui::{Animation, AnimationExt, AnyElement, ElementId, SpringAnimation, div, prelude::*, px};
 
 use crate::island::{CONTENT_DRIFT, CONTENT_IN};
 
@@ -25,9 +23,7 @@ pub fn appear(id: impl Into<ElementId>, element: impl IntoElement) -> AnyElement
             SpringAnimation::new(CONTENT_IN).to(1.0_f32).from(0.0),
             |shown, value| {
                 let value = value.clamp(0.0, 1.0);
-                shown
-                    .opacity(value)
-                    .top(px((1.0 - value) * CONTENT_DRIFT))
+                shown.opacity(value).top(px((1.0 - value) * CONTENT_DRIFT))
             },
         )
         .into_any_element()

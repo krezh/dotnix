@@ -94,7 +94,9 @@ fn line(code_line: CodeLine, numbered: bool, wrap: bool) -> impl IntoElement {
                     .children(code_line.number.map(|number| number.to_string())),
             )
         })
-        .when(diff, |row| row.child(div().flex_none().w(px(SIZE)).child(sign)))
+        .when(diff, |row| {
+            row.child(div().flex_none().w(px(SIZE)).child(sign))
+        })
         .child(
             div()
                 .min_w(px(0.0))
@@ -107,16 +109,25 @@ fn line(code_line: CodeLine, numbered: bool, wrap: bool) -> impl IntoElement {
 
 /// `id` names its Copy chip and its rising in, which plays once for each id.
 pub fn code(id: &str, code: Code, hover: bool, cx: &mut Context<Island>) -> AnyElement {
-    let id = if code.key.is_empty() { id } else { code.key.as_ref() };
+    let id = if code.key.is_empty() {
+        id
+    } else {
+        code.key.as_ref()
+    };
     let numbered = code.lines.iter().any(|line| line.number.is_some());
     let wrap = code.wrap;
     let count = code.lines.len();
     let copy = code.copy.map(|handler| {
-        button::chip(SharedString::from(format!("{id}-copy")), "Copy", false, hover)
-            .on_click(cx.listener(move |this, _, _, cx| {
-                cx.stop_propagation();
-                handler(this, cx);
-            }))
+        button::chip(
+            SharedString::from(format!("{id}-copy")),
+            "Copy",
+            false,
+            hover,
+        )
+        .on_click(cx.listener(move |this, _, _, cx| {
+            cx.stop_propagation();
+            handler(this, cx);
+        }))
     });
     let heading = match (code.heading, copy.is_some()) {
         (Some(heading), _) => Some(heading),

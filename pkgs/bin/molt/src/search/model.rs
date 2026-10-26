@@ -152,7 +152,8 @@ impl OptionHit {
             .unwrap_or_else(|| {
                 if kind.starts_with("list of") {
                     "[ ]"
-                } else if kind.starts_with("attribute set") || kind.starts_with("lazy attribute set")
+                } else if kind.starts_with("attribute set")
+                    || kind.starts_with("lazy attribute set")
                 {
                     "{ }"
                 } else if kind.starts_with("string") || kind.starts_with("strings") {
@@ -290,7 +291,12 @@ mod tests {
     fn snippets_pick_a_value_that_fits_the_option() {
         let item = |hit| SearchResultItem::NixOsOption(hit).snippet();
         assert_eq!(
-            item(option("a.enable", Some("boolean"), json!("false"), json!("true"))),
+            item(option(
+                "a.enable",
+                Some("boolean"),
+                json!("false"),
+                json!("true")
+            )),
             "a.enable = true;"
         );
         assert_eq!(
@@ -303,11 +309,21 @@ mod tests {
             "a.hosts = {\n  x = { };\n};"
         );
         assert_eq!(
-            item(option("a.list", Some("list of string"), Value::Null, Value::Null)),
+            item(option(
+                "a.list",
+                Some("list of string"),
+                Value::Null,
+                Value::Null
+            )),
             "a.list = [ ];"
         );
         assert_eq!(
-            item(option("a.user", Some("string"), json!("\"nginx\""), Value::Null)),
+            item(option(
+                "a.user",
+                Some("string"),
+                json!("\"nginx\""),
+                Value::Null
+            )),
             "a.user = \"nginx\";"
         );
         assert_eq!(
@@ -320,7 +336,12 @@ mod tests {
             "a.port = 8080;"
         );
         assert_eq!(
-            item(option("a.package", Some("package"), Value::Null, Value::Null)),
+            item(option(
+                "a.package",
+                Some("package"),
+                Value::Null,
+                Value::Null
+            )),
             "a.package = null;"
         );
         let package = serde_json::from_value(json!({"package_attr_name": "ripgrep"})).unwrap();
@@ -342,29 +363,41 @@ mod tests {
             package("pkgs/by-name/ri/ripgrep/package.nix:66")
                 .source_url(Some("02c087f3"))
                 .as_deref(),
-            Some("https://github.com/NixOS/nixpkgs/blob/02c087f3/pkgs/by-name/ri/ripgrep/package.nix#L66")
+            Some(
+                "https://github.com/NixOS/nixpkgs/blob/02c087f3/pkgs/by-name/ri/ripgrep/package.nix#L66"
+            )
         );
         assert_eq!(
             package("pkgs/top-level/all-packages.nix")
                 .source_url(None)
                 .as_deref(),
-            Some("https://github.com/NixOS/nixpkgs/blob/nixos-unstable/pkgs/top-level/all-packages.nix")
+            Some(
+                "https://github.com/NixOS/nixpkgs/blob/nixos-unstable/pkgs/top-level/all-packages.nix"
+            )
         );
         for invalid in ["/nix/store/x/default.nix:1", "../etc/passwd", "a b.nix", ""] {
             assert_eq!(package(invalid).source_url(None), None, "{invalid}");
         }
         let nixos = option("a", None, Value::Null, Value::Null);
         assert_eq!(
-            SearchResultItem::NixOsOption(nixos.clone()).source_url(Some("abc")).as_deref(),
-            Some("https://github.com/NixOS/nixpkgs/blob/abc/nixos/modules/services/web-servers/nginx/default.nix")
+            SearchResultItem::NixOsOption(nixos.clone())
+                .source_url(Some("abc"))
+                .as_deref(),
+            Some(
+                "https://github.com/NixOS/nixpkgs/blob/abc/nixos/modules/services/web-servers/nginx/default.nix"
+            )
         );
         let home = OptionHit {
             source: Some("modules/programs/git.nix".into()),
             ..nixos
         };
         assert_eq!(
-            SearchResultItem::HomeManagerOption(home).source_url(Some("abc")).as_deref(),
-            Some("https://github.com/nix-community/home-manager/blob/master/modules/programs/git.nix")
+            SearchResultItem::HomeManagerOption(home)
+                .source_url(Some("abc"))
+                .as_deref(),
+            Some(
+                "https://github.com/nix-community/home-manager/blob/master/modules/programs/git.nix"
+            )
         );
     }
 }

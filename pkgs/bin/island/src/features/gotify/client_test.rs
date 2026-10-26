@@ -136,8 +136,7 @@ fn rejects_invalid_fragmented_frame_sequences() {
 
     // New message arriving before prior fragmented sequence completed
     let mut interleaved = Cursor::new(vec![
-        0x01, 0x04, b'p', b'a', b'r', b't',
-        0x81, 0x04, b'n', b'e', b'x', b't',
+        0x01, 0x04, b'p', b'a', b'r', b't', 0x81, 0x04, b'n', b'e', b'x', b't',
     ]);
     let err = read_message(&mut interleaved).unwrap_err();
     assert!(

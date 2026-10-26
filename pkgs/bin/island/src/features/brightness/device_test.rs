@@ -12,7 +12,10 @@ fn a_connector_is_named_without_its_card() {
 fn a_monitor_is_found_by_its_edid_base_block() {
     let first = vec![1; 128];
     let mut second = vec![2; 384];
-    let connectors = vec![("DP-1".to_owned(), first), ("DP-2".to_owned(), second.clone())];
+    let connectors = vec![
+        ("DP-1".to_owned(), first),
+        ("DP-2".to_owned(), second.clone()),
+    ];
     second.truncate(128);
     assert_eq!(connector_for(&connectors, &second).as_deref(), Some("DP-2"));
     assert_eq!(connector_for(&connectors, &[3; 128]), None);

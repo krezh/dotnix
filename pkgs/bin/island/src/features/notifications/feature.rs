@@ -24,11 +24,17 @@ impl Feature for Notifications {
     const GLYPHS: &'static [GlyphSpec] = &[
         (
             "tab-notifications",
-            &["notifications-symbolic", "preferences-system-notifications-symbolic"],
+            &[
+                "notifications-symbolic",
+                "preferences-system-notifications-symbolic",
+            ],
         ),
         (
             "notifications-now",
-            &["preferences-system-notifications-symbolic", "notifications-symbolic"],
+            &[
+                "preferences-system-notifications-symbolic",
+                "notifications-symbolic",
+            ],
         ),
         ("notifications-earlier", &["document-open-recent-symbolic"]),
     ];

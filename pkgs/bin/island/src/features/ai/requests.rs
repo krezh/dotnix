@@ -115,7 +115,11 @@ impl Waiting {
     }
 
     pub(super) fn next_due(&self, state: &State) -> Option<i64> {
-        state.requests.iter().map(|request| self.due_at(request)).min()
+        state
+            .requests
+            .iter()
+            .map(|request| self.due_at(request))
+            .min()
     }
 
     fn due_at(&self, request: &Request) -> i64 {

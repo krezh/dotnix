@@ -56,9 +56,8 @@ impl Controller {
     async fn run(&self, args: Vec<String>) -> String {
         debug!(?args, "control command");
         let answer = match control::parse(&args) {
-            Ok(Control::Log(spec)) => logging::set(&spec).map(|()| {
-                Report::did(Row::said(format!("Logging {spec} until island restarts")))
-            }),
+            Ok(Control::Log(spec)) => logging::set(&spec)
+                .map(|()| Report::did(Row::said(format!("Logging {spec} until island restarts")))),
             Ok(control) => {
                 let (answer, answered) = oneshot::channel();
                 match self.controls.unbounded_send(Asked { control, answer }) {

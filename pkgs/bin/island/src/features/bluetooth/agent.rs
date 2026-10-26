@@ -66,7 +66,9 @@ pub struct Agent {
 
 impl Agent {
     fn lock(&self) -> std::sync::MutexGuard<'_, Asked> {
-        self.asked.lock().unwrap_or_else(|poisoned| poisoned.into_inner())
+        self.asked
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
     }
 
     fn poke(&self) {
@@ -110,7 +112,11 @@ impl Agent {
         self.poke();
     }
 
-    async fn request_confirmation(&self, device: OwnedObjectPath, passkey_value: u32) -> fdo::Result<()> {
+    async fn request_confirmation(
+        &self,
+        device: OwnedObjectPath,
+        passkey_value: u32,
+    ) -> fdo::Result<()> {
         let (reply, answer) = oneshot::channel();
         {
             let mut asked = self.lock();
@@ -128,7 +134,10 @@ impl Agent {
     }
 
     async fn request_authorization(&self, device: OwnedObjectPath) -> fdo::Result<()> {
-        let visible = *self.visible.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+        let visible = *self
+            .visible
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
         if visible {
             info!(device = device.as_str(), "let a device pair while visible");
             Ok(())

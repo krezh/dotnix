@@ -43,7 +43,11 @@ pub const ISLAND: &[Opt] = &[
         ("path", Kind::Path),
         "Config file, by default $XDG_CONFIG_HOME/island/config.toml",
     ),
-    opt("radius", ("px", Kind::Number), "Corner radius, over the config's"),
+    opt(
+        "radius",
+        ("px", Kind::Number),
+        "Corner radius, over the config's",
+    ),
     opt(
         "power",
         ("p", Kind::Number),
@@ -54,7 +58,11 @@ pub const ISLAND: &[Opt] = &[
         ("a", Kind::Number),
         "Body opacity from 0 to 1, over the config's",
     ),
-    opt("icon-theme", ("name", Kind::Text), "Icon theme, over the config's"),
+    opt(
+        "icon-theme",
+        ("name", Kind::Text),
+        "Icon theme, over the config's",
+    ),
 ];
 
 pub const LEVELS: &[&str] = &["error", "warn", "info", "debug", "trace"];

@@ -11,9 +11,7 @@ use crate::{
     components::card::{self, FrameView, Look as FrameLook},
     features::PanelCx,
     markdown,
-    panel::{
-        Block, Button, Header, Item, Lead, Mark, PanelView, Text, TextStyle, Tone, Trail,
-    },
+    panel::{Block, Button, Header, Item, Lead, Mark, PanelView, Text, TextStyle, Tone, Trail},
     theme::{ACCENT, CRITICAL, PEACH, RED},
 };
 

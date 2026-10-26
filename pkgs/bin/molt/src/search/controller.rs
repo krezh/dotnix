@@ -388,7 +388,9 @@ impl Controller {
                 if let Some((request, _)) = self.active.take()
                     && self.queue.borrow_mut().complete(&request)
                 {
-                    self.view.failure("Search failed: search worker disconnected; Retry to start a new request");
+                    self.view.failure(
+                        "Search failed: search worker disconnected; Retry to start a new request",
+                    );
                 }
                 self.dispatch();
             }

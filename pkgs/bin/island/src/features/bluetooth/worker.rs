@@ -15,7 +15,9 @@ use futures::{
     stream,
 };
 use tracing::{debug, info, warn};
-use zbus::{Connection, MatchRule, Message, MessageStream, OwnedObjectPath, OwnedVariant, block_on};
+use zbus::{
+    Connection, MatchRule, Message, MessageStream, OwnedObjectPath, OwnedVariant, block_on,
+};
 
 use super::{
     agent::{self, Agent, Asked},
@@ -73,9 +75,10 @@ impl World {
         let body = message.body();
         match member.as_str() {
             "InterfacesAdded" => {
-                let Ok((path, interfaces)) = body
-                    .deserialize::<(OwnedObjectPath, HashMap<String, HashMap<String, OwnedVariant>>)>()
-                else {
+                let Ok((path, interfaces)) = body.deserialize::<(
+                    OwnedObjectPath,
+                    HashMap<String, HashMap<String, OwnedVariant>>,
+                )>() else {
                     return false;
                 };
                 self.objects.entry(path).or_default().extend(interfaces);
@@ -96,7 +99,9 @@ impl World {
                 true
             }
             "PropertiesChanged" => {
-                let Some(path) = header.path().map(|path| OwnedObjectPath::from(path.to_owned()))
+                let Some(path) = header
+                    .path()
+                    .map(|path| OwnedObjectPath::from(path.to_owned()))
                 else {
                     return false;
                 };
@@ -145,7 +150,9 @@ impl World {
         if !adapter.discoverable {
             self.visible_until = None;
         }
-        *visible.lock().unwrap_or_else(|poisoned| poisoned.into_inner()) = adapter.discoverable;
+        *visible
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner()) = adapter.discoverable;
         let asking = asked
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner())
@@ -248,7 +255,9 @@ impl World {
                 }
                 Some(adapter) => {
                     self.visible_until = Some(now() + i64::from(VISIBLE_FOR));
-                    let timeout = bluez::set_adapter(connection, adapter, "DiscoverableTimeout", VISIBLE_FOR).await;
+                    let timeout =
+                        bluez::set_adapter(connection, adapter, "DiscoverableTimeout", VISIBLE_FOR)
+                            .await;
                     let pairable = bluez::set_adapter(connection, adapter, "Pairable", true).await;
                     timeout
                         .and(pairable)
@@ -257,25 +266,39 @@ impl World {
                 None => Ok(()),
             },
             Request::Connect(path) => {
-                self.slow(connection, sender, path, Busy::Connecting, |connection, path| {
-                    block_on(bluez::device_call(connection, path, "Connect"))
-                });
+                self.slow(
+                    connection,
+                    sender,
+                    path,
+                    Busy::Connecting,
+                    |connection, path| block_on(bluez::device_call(connection, path, "Connect")),
+                );
                 Ok(())
             }
             Request::Disconnect(path) => {
-                self.slow(connection, sender, path, Busy::Disconnecting, |connection, path| {
-                    block_on(bluez::device_call(connection, path, "Disconnect"))
-                });
+                self.slow(
+                    connection,
+                    sender,
+                    path,
+                    Busy::Disconnecting,
+                    |connection, path| block_on(bluez::device_call(connection, path, "Disconnect")),
+                );
                 Ok(())
             }
             Request::Pair(path) => {
-                self.slow(connection, sender, path, Busy::Pairing, |connection, path| {
-                    block_on(async {
-                        bluez::device_call(connection, path, "Pair").await?;
-                        bluez::set_trusted(connection, path, true).await?;
-                        bluez::device_call(connection, path, "Connect").await
-                    })
-                });
+                self.slow(
+                    connection,
+                    sender,
+                    path,
+                    Busy::Pairing,
+                    |connection, path| {
+                        block_on(async {
+                            bluez::device_call(connection, path, "Pair").await?;
+                            bluez::set_trusted(connection, path, true).await?;
+                            bluez::device_call(connection, path, "Connect").await
+                        })
+                    },
+                );
                 Ok(())
             }
             Request::Trust(path, trusted) => bluez::set_trusted(connection, &path, trusted).await,
@@ -293,7 +316,9 @@ impl World {
             Request::Done(path) => {
                 self.busy.remove(&path);
                 // A pairing that ended takes its code card with it.
-                let mut asked = asked.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+                let mut asked = asked
+                    .lock()
+                    .unwrap_or_else(|poisoned| poisoned.into_inner());
                 if asked.current.as_ref().is_some_and(|ask| ask.device == path) {
                     asked.clear();
                 }
@@ -316,11 +341,15 @@ pub(super) fn run(
     requests: &Mutex<UnboundedReceiver<Request>>,
     sender: &UnboundedSender<Request>,
 ) -> Ended {
-    let mut requests = requests.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+    let mut requests = requests
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
     block_on(async {
         let connection = match Connection::system().await {
             Ok(connection) => connection,
-            Err(error) => return Ended::Failed(format!("cannot connect to the system bus: {error}")),
+            Err(error) => {
+                return Ended::Failed(format!("cannot connect to the system bus: {error}"));
+            }
         };
         let asked = Arc::new(Mutex::new(Asked::default()));
         let visible = Arc::new(Mutex::new(false));

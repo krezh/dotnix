@@ -80,7 +80,10 @@ pub fn parse(args: &[String]) -> Result<Control, Mistake> {
         return Ok(Control::Status);
     };
     let Some((feature, command)) = spec::find(name) else {
-        let names: Vec<&str> = spec::all().iter().map(|(_, command)| command.name).collect();
+        let names: Vec<&str> = spec::all()
+            .iter()
+            .map(|(_, command)| command.name)
+            .collect();
         return Err(
             Mistake::new(Line::new().plain("No command ").push(Tone::Strong, name))
                 .did_you_mean(name, names)
@@ -165,7 +168,9 @@ fn check(command: &Command, rest: &[&str]) -> Result<(), Mistake> {
                 )
                 .did_you_mean(view, views.iter().copied())
                 .hint(listed("Views", views))),
-                [view, extra @ ..] => Err(too_much(command, format!("{name} {panel} {view}"), extra)),
+                [view, extra @ ..] => {
+                    Err(too_much(command, format!("{name} {panel} {view}"), extra))
+                }
             }
         }
         Takes::Word(what) => match rest {
@@ -233,11 +238,7 @@ fn check_forms(
             .see_help(&help)
         }),
         (Value::Nothing, extra) => Err(too_much(command, format!("{name} {word}"), extra)),
-        (_, [value, extra @ ..]) => Err(too_much(
-            command,
-            format!("{name} {word} {value}"),
-            extra,
-        )),
+        (_, [value, extra @ ..]) => Err(too_much(command, format!("{name} {word} {value}"), extra)),
     }
 }
 

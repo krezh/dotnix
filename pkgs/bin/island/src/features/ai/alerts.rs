@@ -13,7 +13,13 @@ fn project(state: &State, session: &str, cwd: &str) -> String {
         .iter()
         .find(|known| known.id == session)
         .map_or_else(
-            || cwd.trim_end_matches('/').rsplit('/').next().unwrap_or_default().to_owned(),
+            || {
+                cwd.trim_end_matches('/')
+                    .rsplit('/')
+                    .next()
+                    .unwrap_or_default()
+                    .to_owned()
+            },
             |known| known.project.clone(),
         )
 }
@@ -21,7 +27,11 @@ fn project(state: &State, session: &str, cwd: &str) -> String {
 /// The first line of a reply, as shown, cut short when long.
 fn gist(reply: &str) -> String {
     let plain = markdown::plain(reply);
-    let line = plain.lines().find(|line| !line.trim().is_empty()).unwrap_or_default().trim();
+    let line = plain
+        .lines()
+        .find(|line| !line.trim().is_empty())
+        .unwrap_or_default()
+        .trim();
     if line.chars().count() > REPLY_CHARS {
         let cut: String = line.chars().take(REPLY_CHARS).collect();
         format!("{}…", cut.trim_end())
@@ -39,7 +49,11 @@ pub(super) fn notice(state: &State, hook: &Hook) -> Option<Notice> {
             kind,
             message,
         } if !kind.is_empty() && kind != "idle_prompt" => {
-            if state.requests.iter().any(|request| request.session == from.session) {
+            if state
+                .requests
+                .iter()
+                .any(|request| request.session == from.session)
+            {
                 return None;
             }
             Some(Notice {
@@ -79,7 +93,8 @@ impl Alerts {
     pub(super) fn tell(&mut self, state: &State, hook: &Hook, now: i64) -> Option<Notice> {
         let notice = notice(state, hook)?;
         if let Hook::Notice { from, .. } = hook {
-            self.later.push((now + SETTLE_MS, from.session.clone(), notice));
+            self.later
+                .push((now + SETTLE_MS, from.session.clone(), notice));
             return None;
         }
         Some(notice)
@@ -98,7 +113,10 @@ impl Alerts {
         self.later = later;
         due.into_iter()
             .filter(|(_, session, _)| {
-                !state.requests.iter().any(|request| request.session == *session)
+                !state
+                    .requests
+                    .iter()
+                    .any(|request| request.session == *session)
             })
             .map(|(_, _, notice)| notice)
             .collect()

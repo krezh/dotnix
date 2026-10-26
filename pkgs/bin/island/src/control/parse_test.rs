@@ -24,7 +24,10 @@ fn a_panel_opens_on_one_of_its_views() {
         parse(&args("open ai")),
         Ok(Control::Open("ai".to_owned(), None))
     );
-    assert_eq!(parse(&args("toggle system")), Ok(Control::Toggle("system".to_owned(), None)));
+    assert_eq!(
+        parse(&args("toggle system")),
+        Ok(Control::Toggle("system".to_owned(), None))
+    );
 }
 
 #[test]
@@ -68,7 +71,10 @@ fn mistakes_say_what_is_wrong_and_suggest_a_fix() {
     assert!(error.contains("session needs one of lock"), "{error}");
 
     let error = mistake("clear everything");
-    assert!(error.contains("Nothing goes after clear, got everything"), "{error}");
+    assert!(
+        error.contains("Nothing goes after clear, got everything"),
+        "{error}"
+    );
 
     let error = mistake("open laucher");
     assert!(error.contains("No panel laucher"), "{error}");

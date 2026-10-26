@@ -8,11 +8,7 @@ use crate::features::{
     osd::{Osd, Shown},
 };
 
-use super::{
-    Network,
-    runtime::Request,
-    state::State,
-};
+use super::{Network, runtime::Request, state::State};
 
 pub struct Prompt {
     pub ssid: String,

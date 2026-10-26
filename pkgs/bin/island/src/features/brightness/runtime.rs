@@ -84,8 +84,11 @@ impl Brightness {
             replies: vec![reply],
         };
         if self.requests.send(request).is_err() {
-            return Report::shows(vec![Row::new("Brightness", Shown::Text("stopped".to_owned()))])
-                .into();
+            return Report::shows(vec![Row::new(
+                "Brightness",
+                Shown::Text("stopped".to_owned()),
+            )])
+            .into();
         }
         Reply::Later(answer)
     }
@@ -111,7 +114,10 @@ fn read(device: &mut Device) -> Screen {
 pub(super) fn batch(requests: impl IntoIterator<Item = Request>) -> Vec<Request> {
     let mut batched: Vec<Request> = Vec::new();
     for request in requests {
-        if let Some(last) = batched.last_mut().filter(|last| last.target == request.target) {
+        if let Some(last) = batched
+            .last_mut()
+            .filter(|last| last.target == request.target)
+        {
             let joined = match (last.change, request.change) {
                 (Some(first), Some(then)) => Some(Some(merge(first, then))),
                 (change, None) => Some(change),
@@ -152,7 +158,11 @@ fn serve(
     })
 }
 
-fn attempt(devices: &mut [Device], levels: &mut Levels, request: &Request) -> Result<Report, String> {
+fn attempt(
+    devices: &mut [Device],
+    levels: &mut Levels,
+    request: &Request,
+) -> Result<Report, String> {
     let chosen = choose(devices, &request.target)?;
     let mut changed = Vec::new();
     for index in chosen.iter().copied() {
@@ -167,7 +177,11 @@ fn attempt(devices: &mut [Device], levels: &mut Levels, request: &Request) -> Re
         if level.is_some() && request.change.is_some() {
             changed.push(device.name.clone());
         }
-        if let Some(screen) = levels.screens.iter_mut().find(|screen| screen.name == device.name) {
+        if let Some(screen) = levels
+            .screens
+            .iter_mut()
+            .find(|screen| screen.name == device.name)
+        {
             screen.level = level;
         }
     }

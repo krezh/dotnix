@@ -82,31 +82,33 @@ pub fn routes(routes: Vec<Route>) -> AnyElement {
                     row.border_t_1()
                         .border_color(rgba(with_alpha(SURFACE1, CONTROL_ALPHA)))
                 })
-                .when(titled, |route_row| route_row.child(
-                    div()
-                        .flex()
-                        .items_center()
-                        .justify_between()
-                        .gap(px(12.0))
-                        .child(
-                            div()
-                                .min_w(px(0.0))
-                                .truncate()
-                                .text_size(px(SMALL_SIZE))
-                                .font_weight(FontWeight::SEMIBOLD)
-                                .child(route.title),
-                        )
-                        .when_some(route.done, |line, done| {
-                            line.child(
+                .when(titled, |route_row| {
+                    route_row.child(
+                        div()
+                            .flex()
+                            .items_center()
+                            .justify_between()
+                            .gap(px(12.0))
+                            .child(
                                 div()
-                                    .flex_none()
-                                    .text_size(px(DETAIL_SIZE))
+                                    .min_w(px(0.0))
+                                    .truncate()
+                                    .text_size(px(SMALL_SIZE))
                                     .font_weight(FontWeight::SEMIBOLD)
-                                    .text_color(rgb(GREEN))
-                                    .child(done),
+                                    .child(route.title),
                             )
-                        }),
-                ))
+                            .when_some(route.done, |line, done| {
+                                line.child(
+                                    div()
+                                        .flex_none()
+                                        .text_size(px(DETAIL_SIZE))
+                                        .font_weight(FontWeight::SEMIBOLD)
+                                        .text_color(rgb(GREEN))
+                                        .child(done),
+                                )
+                            }),
+                    )
+                })
                 .when(titled, |route_row| {
                     route_row.child(
                         div()

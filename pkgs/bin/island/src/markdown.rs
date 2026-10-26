@@ -71,7 +71,10 @@ pub enum Block {
     /// Its lines kept apart, with list items as bullets and headings in bold.
     Paragraph(Text),
     /// Kept line for line, with the language named after the opening fence, if any.
-    Code { language: String, lines: Vec<String> },
+    Code {
+        language: String,
+        lines: Vec<String>,
+    },
 }
 
 fn paragraph(lines: &mut Vec<String>, blocks: &mut Vec<Block>) {

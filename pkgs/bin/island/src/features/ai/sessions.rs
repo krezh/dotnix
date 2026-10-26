@@ -35,7 +35,10 @@ fn status(activity: Activity) -> (&'static str, u32) {
 fn summary(session: &Session) -> String {
     if session.activity == Activity::Idle && !session.reply().is_empty() {
         let plain = crate::markdown::parse(session.reply()).text;
-        if let Some(first) = plain.split(['.', '\n']).find(|part| !part.trim().is_empty()) {
+        if let Some(first) = plain
+            .split(['.', '\n'])
+            .find(|part| !part.trim().is_empty())
+        {
             return first.trim().to_owned();
         }
     }
@@ -45,7 +48,9 @@ fn summary(session: &Session) -> String {
 /// The working directory with the home folder as ~.
 fn folder(cwd: &str) -> String {
     match std::env::var("HOME") {
-        Ok(home) if !home.is_empty() && cwd.starts_with(&home) => format!("~{}", &cwd[home.len()..]),
+        Ok(home) if !home.is_empty() && cwd.starts_with(&home) => {
+            format!("~{}", &cwd[home.len()..])
+        }
         _ => cwd.to_owned(),
     }
 }
@@ -63,7 +68,13 @@ pub(super) fn model_name(model: &str) -> String {
     let mut name: String = family
         .chars()
         .enumerate()
-        .map(|(at, char)| if at == 0 { char.to_ascii_uppercase() } else { char })
+        .map(|(at, char)| {
+            if at == 0 {
+                char.to_ascii_uppercase()
+            } else {
+                char
+            }
+        })
         .collect();
     let version: Vec<&str> = parts.take_while(|part| part.len() <= 2).collect();
     if !version.is_empty() {
@@ -171,7 +182,10 @@ fn live_line(line: &LiveLine) -> CodeLine {
 fn live_code(session: &str, step: &Step, live: &Live, fresh: bool) -> Code {
     let (heading, lines) = match live {
         Live::Reading { file, lines } => {
-            let range = match (lines.first().and_then(|l| l.number), lines.last().and_then(|l| l.number)) {
+            let range = match (
+                lines.first().and_then(|l| l.number),
+                lines.last().and_then(|l| l.number),
+            ) {
                 (Some(first), Some(last)) => format!("lines {first}–{last}"),
                 _ => "reading…".to_owned(),
             };
@@ -226,7 +240,13 @@ fn live_code(session: &str, step: &Step, live: &Live, fresh: bool) -> Code {
 
 /// One step as a line with its state's dot; picked, it opens on what it read, changed or ran.
 /// The step being worked on is open on its own.
-fn step_block(session: &Session, step: &Step, following: bool, view: &View, p: &PanelCx<'_>) -> Block {
+fn step_block(
+    session: &Session,
+    step: &Step,
+    following: bool,
+    view: &View,
+    p: &PanelCx<'_>,
+) -> Block {
     let open = view.step_open(step.seq, following);
     let seq = step.seq;
     let fresh = view.fresh(&session.id, seq);
@@ -301,7 +321,10 @@ fn timeline(session: &Session, state: &State, view: &View, p: &PanelCx<'_>) -> V
             blocks.extend(conversation(
                 session,
                 format!("{index}-prompt"),
-                vec![Turn::Mine(Text::new(Tone::Reading, exchange.prompt.clone()))],
+                vec![Turn::Mine(Text::new(
+                    Tone::Reading,
+                    exchange.prompt.clone(),
+                ))],
                 view.fresh(&session.id, exchange.seq),
             ));
         }

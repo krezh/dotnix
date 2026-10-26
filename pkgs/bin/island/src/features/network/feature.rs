@@ -28,31 +28,82 @@ impl Feature for Network {
     const PANEL: Option<&'static str> = Some("network");
     const TAB: Option<(&'static str, u8)> = Some(("Network", 5));
     const GLYPHS: &'static [GlyphSpec] = &[
-        ("tab-network", &["network-workgroup-symbolic", "network-wired-symbolic"]),
-        ("network-wifi-excellent", &["network-wireless-signal-excellent-symbolic"]),
-        ("network-wifi-good", &["network-wireless-signal-good-symbolic"]),
+        (
+            "tab-network",
+            &["network-workgroup-symbolic", "network-wired-symbolic"],
+        ),
+        (
+            "network-wifi-excellent",
+            &["network-wireless-signal-excellent-symbolic"],
+        ),
+        (
+            "network-wifi-good",
+            &["network-wireless-signal-good-symbolic"],
+        ),
         ("network-wifi-ok", &["network-wireless-signal-ok-symbolic"]),
-        ("network-wifi-weak", &["network-wireless-signal-weak-symbolic"]),
-        ("network-wifi-none", &["network-wireless-signal-none-symbolic"]),
-        ("network-wifi-acquiring", &["network-wireless-acquiring-symbolic"]),
+        (
+            "network-wifi-weak",
+            &["network-wireless-signal-weak-symbolic"],
+        ),
+        (
+            "network-wifi-none",
+            &["network-wireless-signal-none-symbolic"],
+        ),
+        (
+            "network-wifi-acquiring",
+            &["network-wireless-acquiring-symbolic"],
+        ),
         (
             "network-wifi-off",
-            &["network-wireless-disabled-symbolic", "network-wireless-offline-symbolic"],
+            &[
+                "network-wireless-disabled-symbolic",
+                "network-wireless-offline-symbolic",
+            ],
         ),
-        ("network-offline", &["network-wireless-offline-symbolic", "network-offline-symbolic"]),
+        (
+            "network-offline",
+            &[
+                "network-wireless-offline-symbolic",
+                "network-offline-symbolic",
+            ],
+        ),
         ("network-wired", &["network-wired-symbolic"]),
-        ("network-wired-no-route", &["network-wired-no-route-symbolic", "network-error-symbolic"]),
+        (
+            "network-wired-no-route",
+            &["network-wired-no-route-symbolic", "network-error-symbolic"],
+        ),
         (
             "network-wifi-no-route",
-            &["network-wireless-no-route-symbolic", "network-error-symbolic"],
+            &[
+                "network-wireless-no-route-symbolic",
+                "network-error-symbolic",
+            ],
         ),
-        ("network-wired-off", &["network-wired-disconnected-symbolic", "network-wired-symbolic"]),
+        (
+            "network-wired-off",
+            &[
+                "network-wired-disconnected-symbolic",
+                "network-wired-symbolic",
+            ],
+        ),
         ("network-vpn", &["network-vpn-symbolic"]),
         ("network-scan", &["view-refresh-symbolic"]),
-        ("network-disconnect", &["network-offline-symbolic", "process-stop-symbolic"]),
-        ("network-forget", &["edit-delete-symbolic", "user-trash-symbolic"]),
-        ("network-reveal", &["view-reveal-symbolic", "view-visible-symbolic"]),
-        ("network-conceal", &["view-conceal-symbolic", "view-hidden-symbolic"]),
+        (
+            "network-disconnect",
+            &["network-offline-symbolic", "process-stop-symbolic"],
+        ),
+        (
+            "network-forget",
+            &["edit-delete-symbolic", "user-trash-symbolic"],
+        ),
+        (
+            "network-reveal",
+            &["view-reveal-symbolic", "view-visible-symbolic"],
+        ),
+        (
+            "network-conceal",
+            &["view-conceal-symbolic", "view-hidden-symbolic"],
+        ),
         ("network-join", &["go-next-symbolic", "go-up-symbolic"]),
     ];
     const CONTROLS: &'static [Command] = &[

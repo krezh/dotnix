@@ -55,7 +55,9 @@ pub enum Turn {
         actions: Vec<(SharedString, Handler)>,
     },
     /// A reply on its way with nothing of it yet.
-    Waiting { overline: SharedString },
+    Waiting {
+        overline: SharedString,
+    },
 }
 
 pub struct Transcript {
@@ -132,7 +134,8 @@ fn caret() -> impl IntoElement {
             "transcript-caret",
             Animation::new(Duration::from_millis(1100)).repeat(),
             |caret, t| {
-                caret.opacity(((t * std::f32::consts::TAU).cos() * 1.6).clamp(-1.0, 1.0) * 0.5 + 0.5)
+                caret
+                    .opacity(((t * std::f32::consts::TAU).cos() * 1.6).clamp(-1.0, 1.0) * 0.5 + 0.5)
             },
         )
 }
@@ -231,23 +234,20 @@ pub fn transcript(transcript: Transcript, hover: bool, cx: &mut Context<Island>)
                     .gap(px(10.0))
                     .child(mark(at.clone(), glyph.as_deref(), color, streaming))
                     .child(
-                        surface()
-                            .flex_1()
-                            .min_w(px(0.0))
-                            .child(
-                                div()
-                                    .relative()
-                                    .p(px(REPLY_PAD))
-                                    .flex()
-                                    .flex_col()
-                                    .gap(px(PIECE_GAP))
-                                    .text_size(px(SMALL_SIZE))
-                                    .child(overline(line, color))
-                                    .children(body)
-                                    .when(!chips.is_empty(), |reply| {
-                                        reply.child(div().flex().gap(px(6.0)).children(chips))
-                                    }),
-                            ),
+                        surface().flex_1().min_w(px(0.0)).child(
+                            div()
+                                .relative()
+                                .p(px(REPLY_PAD))
+                                .flex()
+                                .flex_col()
+                                .gap(px(PIECE_GAP))
+                                .text_size(px(SMALL_SIZE))
+                                .child(overline(line, color))
+                                .children(body)
+                                .when(!chips.is_empty(), |reply| {
+                                    reply.child(div().flex().gap(px(6.0)).children(chips))
+                                }),
+                        ),
                     )
                     .into_any_element()
             }

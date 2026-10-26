@@ -24,7 +24,10 @@ fn losing_the_link_pops_up_and_so_does_getting_it_back() {
     let up = wired(true, Internet::Full);
     let down = wired(false, Internet::None);
     assert_eq!(osd(&up, &down).unwrap().label, "Connection lost");
-    assert_eq!(osd(&down, &up).unwrap().label, "Connected · Wired connection 1");
+    assert_eq!(
+        osd(&down, &up).unwrap().label,
+        "Connected · Wired connection 1"
+    );
 }
 
 #[test]

@@ -18,12 +18,16 @@ pub fn parse<'a>(
     let mut args = args.into_iter();
     while let Some(arg) = args.next() {
         let (spelled, inline) = match arg.split_once('=') {
-            Some((name, value)) if arg.starts_with("--") => (name.to_owned(), Some(value.to_owned())),
+            Some((name, value)) if arg.starts_with("--") => {
+                (name.to_owned(), Some(value.to_owned()))
+            }
             _ => (arg.clone(), None),
         };
         let opt = opts.iter().find(|opt| {
             spelled == opt.spelled()
-                || opt.short.is_some_and(|short| spelled == format!("-{short}"))
+                || opt
+                    .short
+                    .is_some_and(|short| spelled == format!("-{short}"))
         });
         let Some(opt) = opt else {
             return Err(unknown(opts, &arg, path, commands));

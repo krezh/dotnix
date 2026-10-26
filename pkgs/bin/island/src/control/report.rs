@@ -11,7 +11,10 @@ use super::parse::Control;
 pub enum Shown {
     Switch(bool),
     /// 0–1, on the device named after it if any.
-    Level { value: f32, muted: bool },
+    Level {
+        value: f32,
+        muted: bool,
+    },
     Count(u64),
     Text(String),
     /// Not known yet, such as a brightness island has not changed.
@@ -106,7 +109,12 @@ impl Report {
     }
 
     pub fn json(&self) -> Json {
-        Json::Object(self.rows.iter().map(|row| (row.key(), row.json())).collect())
+        Json::Object(
+            self.rows
+                .iter()
+                .map(|row| (row.key(), row.json()))
+                .collect(),
+        )
     }
 }
 

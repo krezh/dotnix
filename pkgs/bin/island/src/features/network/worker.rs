@@ -135,7 +135,10 @@ fn ipv4(text: Option<&String>) -> Option<Ipv4Addr> {
 
 impl World {
     fn wifi_device(&self) -> Option<&nm::Device> {
-        self.snapshot.devices.iter().find(|device| device.kind == WIFI)
+        self.snapshot
+            .devices
+            .iter()
+            .find(|device| device.kind == WIFI)
     }
 
     fn saved_wifi(&self, ssid: &str) -> Option<&Saved> {
@@ -195,12 +198,9 @@ impl World {
                 let rx = counters.rx_bytes.saturating_sub(before.rx_bytes) as f64 / seconds;
                 let tx = counters.tx_bytes.saturating_sub(before.tx_bytes) as f64 / seconds;
                 self.rates.insert(name.clone(), (rx, tx));
-                if self
-                    .snapshot
-                    .devices
-                    .iter()
-                    .any(|device| device.interface == name && matches!(device.kind, WIFI | ETHERNET))
-                {
+                if self.snapshot.devices.iter().any(|device| {
+                    device.interface == name && matches!(device.kind, WIFI | ETHERNET)
+                }) {
                     self.pending.0 += counters.rx_bytes.saturating_sub(before.rx_bytes);
                     self.pending.1 += counters.tx_bytes.saturating_sub(before.tx_bytes);
                 }
@@ -217,16 +217,15 @@ impl World {
 
     fn build(&mut self, connection: &Connection, counters: &HashMap<String, Counters>) {
         let snapshot = &self.snapshot;
-        let active_of = |saved: &OwnedObjectPath| {
-            snapshot
-                .active
-                .iter()
-                .find(|active| &active.saved == saved)
-        };
+        let active_of =
+            |saved: &OwnedObjectPath| snapshot.active.iter().find(|active| &active.saved == saved);
         self.state.wifi = self.wifi_device().map(|device| {
             let wireless = device.wireless.as_ref();
             let mut networks: Vec<AccessPoint> = Vec::new();
-            for (path, ap) in wireless.map(|wireless| wireless.access_points.as_slice()).unwrap_or_default() {
+            for (path, ap) in wireless
+                .map(|wireless| wireless.access_points.as_slice())
+                .unwrap_or_default()
+            {
                 if ap.ssid.is_empty() {
                     continue;
                 }
@@ -247,7 +246,8 @@ impl World {
                 (b.active, b.saved, b.strength).cmp(&(a.active, a.saved, a.strength))
             });
             let scanning = self.scan.is_some_and(|(at, before)| {
-                at.elapsed() < SCAN_TIMEOUT && wireless.is_some_and(|wireless| wireless.last_scan <= before)
+                at.elapsed() < SCAN_TIMEOUT
+                    && wireless.is_some_and(|wireless| wireless.last_scan <= before)
             });
             Wifi {
                 enabled: snapshot.wireless_enabled,
@@ -327,7 +327,12 @@ impl World {
         self.state.link = snapshot
             .primary
             .as_ref()
-            .and_then(|primary| snapshot.active.iter().find(|active| &active.path == primary))
+            .and_then(|primary| {
+                snapshot
+                    .active
+                    .iter()
+                    .find(|active| &active.path == primary)
+            })
             .and_then(|active| active.devices.first())
             .and_then(|path| snapshot.devices.iter().find(|device| &device.path == path))
             .map(|device| Link {
@@ -434,7 +439,9 @@ impl World {
 
     fn probes(&mut self, probes: &Mutex<Probes>, settings: &Settings) {
         let link = self.state.link.as_ref();
-        let mut probes = probes.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+        let mut probes = probes
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
         probes.gateway_address = ipv4(link.and_then(|link| link.gateway.as_ref()));
         probes.dns_address = ipv4(link.and_then(|link| link.dns.first()));
         let latency = &mut self.state.latency;
@@ -444,8 +451,15 @@ impl World {
             latency.gateway = probes.gateway;
             latency.internet = probes.internet;
             push(&mut latency.gateway_history, probes.gateway.unwrap_or(0.0));
-            push(&mut latency.internet_history, probes.internet.unwrap_or(0.0));
-            let lost = probes.answered.iter().filter(|answered| !**answered).count();
+            push(
+                &mut latency.internet_history,
+                probes.internet.unwrap_or(0.0),
+            );
+            let lost = probes
+                .answered
+                .iter()
+                .filter(|answered| !**answered)
+                .count();
             latency.loss = lost as f32 / probes.answered.len().max(1) as f32;
         }
         if probes.lookups != self.probes_seen.1 {
@@ -463,7 +477,11 @@ impl World {
         let due = self.flushed.is_none_or(|at| at.elapsed() >= USAGE_EVERY);
         if force || rolled || due {
             self.flushed = Some(Instant::now());
-            let at = if self.day.is_empty() { day.clone() } else { self.day.clone() };
+            let at = if self.day.is_empty() {
+                day.clone()
+            } else {
+                self.day.clone()
+            };
             let (rx, tx) = std::mem::take(&mut self.pending);
             if (rx > 0 || tx > 0)
                 && let Err(error) = usage::add(&at, rx, tx)
@@ -510,7 +528,10 @@ impl World {
             }
             days.push((label, rx + tx));
         }
-        self.state.usage = Usage { days, ..self.state.usage.clone() };
+        self.state.usage = Usage {
+            days,
+            ..self.state.usage.clone()
+        };
     }
 
     fn follow_join(&mut self, connection: &Connection) {
@@ -555,7 +576,12 @@ impl World {
         }
     }
 
-    fn handle(&mut self, connection: &Connection, sender: &UnboundedSender<Request>, request: Request) {
+    fn handle(
+        &mut self,
+        connection: &Connection,
+        sender: &UnboundedSender<Request>,
+        request: Request,
+    ) {
         debug!(?request, "network request");
         let device = self.wifi_device().map(|device| device.path.clone());
         if matches!(request, Request::Connect(_) | Request::Join(..)) {
@@ -636,15 +662,19 @@ impl World {
                     }
                     _ => Ok(()),
                 },
-                Request::Forget(ssid) => match self.saved_wifi(&ssid).map(|saved| saved.path.clone()) {
-                    Some(saved) => nm::forget(connection, &saved).await,
-                    None => Ok(()),
-                },
+                Request::Forget(ssid) => {
+                    match self.saved_wifi(&ssid).map(|saved| saved.path.clone()) {
+                        Some(saved) => nm::forget(connection, &saved).await,
+                        None => Ok(()),
+                    }
+                }
                 Request::Vpn(name, on) => {
                     let Some(saved) = self
                         .saved
                         .iter()
-                        .find(|saved| saved.name == name && matches!(saved.kind.as_str(), "vpn" | "wireguard"))
+                        .find(|saved| {
+                            saved.name == name && matches!(saved.kind.as_str(), "vpn" | "wireguard")
+                        })
                         .map(|saved| saved.path.clone())
                     else {
                         return Ok(());
@@ -657,7 +687,9 @@ impl World {
                         .map(|active| active.path.clone());
                     match (active, on.unwrap_or(true)) {
                         (Some(active), false) => nm::deactivate(connection, &active).await,
-                        (Some(active), true) if on.is_none() => nm::deactivate(connection, &active).await,
+                        (Some(active), true) if on.is_none() => {
+                            nm::deactivate(connection, &active).await
+                        }
                         (None, true) => nm::activate(connection, &saved, None).await.map(drop),
                         _ => Ok(()),
                     }
@@ -683,7 +715,12 @@ impl World {
     }
 
     /// What the charts show, measured while the panel is open.
-    fn measure_all(&mut self, connection: &Connection, probes: &Mutex<Probes>, settings: &Settings) {
+    fn measure_all(
+        &mut self,
+        connection: &Connection,
+        probes: &Mutex<Probes>,
+        settings: &Settings,
+    ) {
         self.samples += 1;
         self.last_counters = self.sample();
         let counters = self.last_counters.clone();
@@ -727,13 +764,17 @@ fn boot_ms_to_unix(boot_ms: i64) -> i64 {
 fn saved_changed(interface: Option<&str>, member: Option<&str>) -> bool {
     matches!(
         (interface, member),
-        (Some(nm::SETTINGS), Some("NewConnection" | "ConnectionRemoved"))
-            | (Some(nm::CONNECTION), Some("Updated"))
+        (
+            Some(nm::SETTINGS),
+            Some("NewConnection" | "ConnectionRemoved")
+        ) | (Some(nm::CONNECTION), Some("Updated"))
     )
 }
 
 fn listen(connection: &Connection, rule: &str) -> zbus::Result<MessageStream> {
-    block_on(async { MessageStream::for_match_rule(MatchRule::try_from(rule)?, connection, None).await })
+    block_on(async {
+        MessageStream::for_match_rule(MatchRule::try_from(rule)?, connection, None).await
+    })
 }
 
 pub(super) fn run(
@@ -744,13 +785,18 @@ pub(super) fn run(
     probes: &Mutex<Probes>,
     settings: &Settings,
 ) -> Ended {
-    let mut requests = requests.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+    let mut requests = requests
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
     let connection = match block_on(Connection::system()) {
         Ok(connection) => connection,
         Err(error) => return Ended::Failed(format!("cannot connect to the system bus: {error}")),
     };
     let (signals, owner) = match (
-        listen(&connection, "type='signal',sender='org.freedesktop.NetworkManager'"),
+        listen(
+            &connection,
+            "type='signal',sender='org.freedesktop.NetworkManager'",
+        ),
         listen(
             &connection,
             "type='signal',sender='org.freedesktop.DBus',interface='org.freedesktop.DBus',member='NameOwnerChanged',arg0='org.freedesktop.NetworkManager'",

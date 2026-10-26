@@ -101,7 +101,11 @@ fn package_change(
     let size = new.map_or(0, |package| package.size) - old.map_or(0, |package| package.size);
     let (status, old, new) = match (old, new) {
         (None, Some(new)) => (ChangeStatus::Added, String::new(), shortest(&new.versions)),
-        (Some(old), None) => (ChangeStatus::Removed, shortest(&old.versions), String::new()),
+        (Some(old), None) => (
+            ChangeStatus::Removed,
+            shortest(&old.versions),
+            String::new(),
+        ),
         (Some(old), Some(new)) if old.versions != new.versions => version_change(old, new),
         (Some(old), Some(new)) => {
             let paths_changed = old.outputs != new.outputs;
@@ -219,7 +223,14 @@ mod tests {
     fn compacts_output_suffixes_on_upgrades() {
         let changes = compare(&[("demo-1.0-bin", 20)], &[("demo-2.0-bin", 30)]);
         assert_eq!(changes.len(), 1);
-        assert_change(&changes[0], "demo", ChangeStatus::Upgraded, "1.0", "2.0", 10);
+        assert_change(
+            &changes[0],
+            "demo",
+            ChangeStatus::Upgraded,
+            "1.0",
+            "2.0",
+            10,
+        );
         let changes = compare(&[("demo-1.2-qt_wrapper", 0)], &[("demo-1.3-qt_wrapper", 0)]);
         assert_change(&changes[0], "demo", ChangeStatus::Upgraded, "1.2", "1.3", 0);
     }
@@ -244,7 +255,10 @@ mod tests {
             "",
             -1,
         );
-        let changes = compare(&[("slumber-config.toml", 1)], &[("slumber-config.toml", 8194)]);
+        let changes = compare(
+            &[("slumber-config.toml", 1)],
+            &[("slumber-config.toml", 8194)],
+        );
         assert_change(
             &changes[0],
             "slumber-config.toml",
@@ -291,7 +305,14 @@ mod tests {
             ],
         );
         assert_eq!(changes.len(), 1);
-        assert_change(&changes[0], "dhcpcd", ChangeStatus::Changed, "", "", -511_536);
+        assert_change(
+            &changes[0],
+            "dhcpcd",
+            ChangeStatus::Changed,
+            "",
+            "",
+            -511_536,
+        );
     }
 
     #[test]
@@ -345,20 +366,20 @@ mod tests {
             )
             .is_empty()
         );
-        assert!(
-            compare(
-                &[("demo-1", 1), ("demo-1", 20_000)],
-                &[("demo-1", 1)],
-            )
-            .is_empty()
-        );
+        assert!(compare(&[("demo-1", 1), ("demo-1", 20_000)], &[("demo-1", 1)],).is_empty());
     }
 
     #[test]
     fn compares_removed_versions_with_known_remaining_versions() {
         let changes = compare(
-            &[("graphics-drivers-570.1", 10), ("graphics-drivers-565.2", 20)],
-            &[("graphics-drivers-565.2", 20), ("graphics-drivers-565.2", 20)],
+            &[
+                ("graphics-drivers-570.1", 10),
+                ("graphics-drivers-565.2", 20),
+            ],
+            &[
+                ("graphics-drivers-565.2", 20),
+                ("graphics-drivers-565.2", 20),
+            ],
         );
         assert_change(
             &changes[0],
@@ -468,7 +489,14 @@ mod tests {
             let new = [store_path(1, "demo-1.0", 20_000 + delta)];
             let diff = diff_closures(&old, &new).unwrap();
             assert_eq!(diff.changes.len(), 1);
-            assert_change(&diff.changes[0], "demo", ChangeStatus::Changed, "", "", delta);
+            assert_change(
+                &diff.changes[0],
+                "demo",
+                ChangeStatus::Changed,
+                "",
+                "",
+                delta,
+            );
             assert_eq!(diff.paths, (1, 1, 1, 1));
         }
     }
@@ -507,7 +535,14 @@ mod tests {
         for (old, new, delta) in [(&old[..], &new[..], 100), (&new[..], &old[..], -100)] {
             let diff = diff_closures(old, new).unwrap();
             assert_eq!(diff.changes.len(), 1);
-            assert_change(&diff.changes[0], "demo", ChangeStatus::Changed, "", "", delta);
+            assert_change(
+                &diff.changes[0],
+                "demo",
+                ChangeStatus::Changed,
+                "",
+                "",
+                delta,
+            );
         }
     }
 

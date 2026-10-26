@@ -36,7 +36,13 @@ fn compact(text: &str, max: usize) -> Cow<'_, str> {
 /// A limit's label without the word every limit of the account starts with, such as "Claude" in
 /// "Claude 5 Hour" beside "Claude 7 Day", since the tile already names the account.
 fn short_label(label: &str, limits: &[Limit]) -> String {
-    let first = |label: &str| label.split_whitespace().next().unwrap_or_default().to_owned();
+    let first = |label: &str| {
+        label
+            .split_whitespace()
+            .next()
+            .unwrap_or_default()
+            .to_owned()
+    };
     let shared = first(label);
     let all_share = limits.len() > 1
         && !shared.is_empty()
@@ -44,7 +50,8 @@ fn short_label(label: &str, limits: &[Limit]) -> String {
     if !all_share {
         return label.to_owned();
     }
-    let rest = label[shared.len()..].trim_start_matches(|c: char| c.is_whitespace() || c == '•' || c == '·');
+    let rest = label[shared.len()..]
+        .trim_start_matches(|c: char| c.is_whitespace() || c == '•' || c == '·');
     if rest.is_empty() {
         label.to_owned()
     } else {
@@ -327,7 +334,10 @@ fn lanes(seen: &[Seen<'_>], now: i64) -> (Vec<Lane>, usize) {
                 continue;
             }
             let tint = color(limit, true);
-            if limit.duration_ms.is_some_and(|duration| duration <= SHORT_MS) {
+            if limit
+                .duration_ms
+                .is_some_and(|duration| duration <= SHORT_MS)
+            {
                 short.push((reset, out, tint));
                 continue;
             }
@@ -364,15 +374,17 @@ fn lanes(seen: &[Seen<'_>], now: i64) -> (Vec<Lane>, usize) {
             label: format!("5-hour windows · {}", short.len()).into(),
             to: in_week(next, now),
             color: tint,
-            cut: first_out
-                .filter(|at| *at < next)
-                .map(|at| in_week(at, now)),
+            cut: first_out.filter(|at| *at < next).map(|at| in_week(at, now)),
             note: match first_out {
                 Some(at) => format!("out in {}", format::countdown(at, now)),
                 None => format!("next in {}", format::countdown(next, now)),
             }
             .into(),
-            note_color: if first_out.is_some() { YELLOW } else { SUBTEXT1 },
+            note_color: if first_out.is_some() {
+                YELLOW
+            } else {
+                SUBTEXT1
+            },
         });
     }
     let room = MAX_LANES - lanes.len();
@@ -432,7 +444,10 @@ pub(super) fn blocks(ai: &Ai, state: &State, view: &View, now: i64) -> Vec<Block
     }
     let seen = accounts(&providers);
     let wide = columns(seen.len());
-    let mut tiles = seen.iter().map(|account| tile(account, &seen, now)).peekable();
+    let mut tiles = seen
+        .iter()
+        .map(|account| tile(account, &seen, now))
+        .peekable();
     while tiles.peek().is_some() {
         blocks.push(Block::Board(
             tiles.by_ref().take(wide).map(|tile| vec![tile]).collect(),
@@ -442,7 +457,10 @@ pub(super) fn blocks(ai: &Ai, state: &State, view: &View, now: i64) -> Vec<Block
     if !lanes.is_empty() {
         let mut inside = vec![Block::Timeline(Timeline {
             lanes,
-            axis: AXIS.iter().map(|label| SharedString::from(*label)).collect(),
+            axis: AXIS
+                .iter()
+                .map(|label| SharedString::from(*label))
+                .collect(),
         })];
         if hidden > 0 {
             inside.push(Block::caption(

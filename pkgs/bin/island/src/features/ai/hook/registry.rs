@@ -56,7 +56,10 @@ pub fn describe(tool: &str, input: &Value) -> (String, String) {
         "WebFetch" => ("Fetch", clip(field(input, "url"))),
         "WebSearch" => ("Search the web", clip(field(input, "query"))),
         "Task" | "Agent" => ("Agent", clip(field(input, "description"))),
-        _ => match tool.strip_prefix("mcp__").and_then(|rest| rest.split_once("__")) {
+        _ => match tool
+            .strip_prefix("mcp__")
+            .and_then(|rest| rest.split_once("__"))
+        {
             Some((server, name)) => return (name.replace('_', " "), server.to_owned()),
             None => return (tool.to_owned(), String::new()),
         },
@@ -215,7 +218,13 @@ pub fn apply(sessions: &mut Vec<Session>, hook: &Hook, now: i64) {
         } => {
             found.activity = Activity::Working;
             let (verb, target) = describe(name, input);
-            push(found, verb, target, StepState::Now, super::live::before(name, input));
+            push(
+                found,
+                verb,
+                target,
+                StepState::Now,
+                super::live::before(name, input),
+            );
         }
         Hook::Tool {
             name,
@@ -288,7 +297,13 @@ pub fn apply(sessions: &mut Vec<Session>, hook: &Hook, now: i64) {
             } else {
                 format!("{count} questions")
             };
-            push(found, "Ask".to_owned(), what.clone(), StepState::Waiting, None);
+            push(
+                found,
+                "Ask".to_owned(),
+                what.clone(),
+                StepState::Waiting,
+                None,
+            );
             found.doing = format!("Asked {what}");
         }
     }

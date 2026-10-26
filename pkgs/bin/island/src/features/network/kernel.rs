@@ -68,11 +68,7 @@ pub fn parse_wireless(text: &str, interface: &str) -> Option<Wireless> {
         .find(|line| line.trim_start().starts_with(&format!("{interface}:")))?;
     let fields: Vec<&str> = line.split_once(':')?.1.split_whitespace().collect();
     let value = |index: usize| -> Option<f32> {
-        fields
-            .get(index)?
-            .trim_end_matches('.')
-            .parse::<f32>()
-            .ok()
+        fields.get(index)?.trim_end_matches('.').parse::<f32>().ok()
     };
     let noise = value(3)? as i32;
     Some(Wireless {
@@ -101,8 +97,12 @@ pub fn parse_routes(text: &str) -> Vec<Route> {
         .skip(1)
         .filter_map(|line| {
             let fields: Vec<&str> = line.split_whitespace().collect();
-            let (interface, destination, gateway, mask) =
-                (fields.first()?, fields.get(1)?, fields.get(2)?, fields.get(7)?);
+            let (interface, destination, gateway, mask) = (
+                fields.first()?,
+                fields.get(1)?,
+                fields.get(2)?,
+                fields.get(7)?,
+            );
             let metric: u32 = fields.get(6)?.parse().ok()?;
             let destination = route_address(destination)?;
             let gateway = route_address(gateway)?;
@@ -185,10 +185,16 @@ fn read_sockets(names: &[&str]) -> Vec<Socket> {
 /// suffix goes too.
 pub fn app_name(comm: &str) -> String {
     let name = comm.trim_start_matches('.');
-    let name = ["-wrapped", "-wrappe", "-wrapp", "-wrap", "-wra", "-wr", "-w"]
-        .iter()
-        .find_map(|suffix| comm.starts_with('.').then(|| name.strip_suffix(suffix)).flatten())
-        .unwrap_or(name);
+    let name = [
+        "-wrapped", "-wrappe", "-wrapp", "-wrap", "-wra", "-wr", "-w",
+    ]
+    .iter()
+    .find_map(|suffix| {
+        comm.starts_with('.')
+            .then(|| name.strip_suffix(suffix))
+            .flatten()
+    })
+    .unwrap_or(name);
     name.to_owned()
 }
 
@@ -211,7 +217,9 @@ fn services() -> HashMap<(u16, &'static str), String> {
             _ => continue,
         };
         if let Ok(number) = number.parse() {
-            names.entry((number, protocol)).or_insert_with(|| name.to_owned());
+            names
+                .entry((number, protocol))
+                .or_insert_with(|| name.to_owned());
         }
     }
     names
@@ -222,7 +230,11 @@ fn owners() -> HashMap<u64, String> {
     let mut owners = HashMap::new();
     for process in fs::read_dir("/proc").into_iter().flatten().flatten() {
         let pid = process.file_name();
-        if !pid.to_string_lossy().bytes().all(|byte| byte.is_ascii_digit()) {
+        if !pid
+            .to_string_lossy()
+            .bytes()
+            .all(|byte| byte.is_ascii_digit())
+        {
             continue;
         }
         let Ok(fds) = fs::read_dir(process.path().join("fd")) else {

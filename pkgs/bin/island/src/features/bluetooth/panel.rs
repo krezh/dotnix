@@ -38,7 +38,10 @@ fn frame(id: String, look: Look, on_click: Option<crate::panel::Handler>) -> Fra
 }
 
 fn what(device: &Device) -> String {
-    let use_for = device.codec.clone().unwrap_or_else(|| device.service.clone());
+    let use_for = device
+        .codec
+        .clone()
+        .unwrap_or_else(|| device.service.clone());
     if use_for.is_empty() {
         device.kind().to_owned()
     } else {
@@ -48,13 +51,7 @@ fn what(device: &Device) -> String {
 
 /// One connected device: its battery ring, what it is, how long it has been connected, and its
 /// own way to disconnect, with trust and forget behind its menu.
-fn connected(
-    device: &Device,
-    open: bool,
-    now: i64,
-    subsec: Duration,
-    p: &PanelCx<'_>,
-) -> Block {
+fn connected(device: &Device, open: bool, now: i64, subsec: Duration, p: &PanelCx<'_>) -> Block {
     let path = device.path.clone();
     let mark = match device.battery {
         Some(level) => Mark::Ring {
@@ -136,7 +133,11 @@ fn connected(
         }),
     };
     Block::Frame(
-        frame(format!("bt-conn-{path}"), Look::Raised { urgent: false }, None),
+        frame(
+            format!("bt-conn-{path}"),
+            Look::Raised { urgent: false },
+            None,
+        ),
         vec![
             Block::Item(
                 item,
@@ -207,7 +208,13 @@ fn paired(state: &State, p: &PanelCx<'_>) -> Block {
             } else {
                 device.kind().to_owned()
             };
-            row(device, detail, "Connect", Request::Connect(device.path.clone()), p)
+            row(
+                device,
+                detail,
+                "Connect",
+                Request::Connect(device.path.clone()),
+                p,
+            )
         })
         .collect();
     let any_paired = state.devices.iter().any(|device| device.paired);
@@ -221,7 +228,11 @@ fn paired(state: &State, p: &PanelCx<'_>) -> Block {
     } else {
         rows
     };
-    Block::Card(Some(Title::with_detail("Paired", detail)), card::Size::Medium, blocks)
+    Block::Card(
+        Some(Title::with_detail("Paired", detail)),
+        card::Size::Medium,
+        blocks,
+    )
 }
 
 fn nearby(state: &State, p: &PanelCx<'_>) -> Block {
@@ -232,7 +243,13 @@ fn nearby(state: &State, p: &PanelCx<'_>) -> Block {
                 Some(rssi) => format!("{} · {rssi} dBm", device.kind()),
                 None => device.kind().to_owned(),
             };
-            row(device, detail, "Pair", Request::Pair(device.path.clone()), p)
+            row(
+                device,
+                detail,
+                "Pair",
+                Request::Pair(device.path.clone()),
+                p,
+            )
         })
         .collect();
     let detail = if state.discovering {
@@ -251,7 +268,11 @@ fn nearby(state: &State, p: &PanelCx<'_>) -> Block {
     } else {
         rows
     };
-    Block::Card(Some(Title::with_detail("Nearby", detail)), card::Size::Medium, blocks)
+    Block::Card(
+        Some(Title::with_detail("Nearby", detail)),
+        card::Size::Medium,
+        blocks,
+    )
 }
 
 fn buttons(state: &State, now: i64, subsec: Duration, p: &PanelCx<'_>) -> Vec<IconButton> {
@@ -318,7 +339,10 @@ fn prompt(state: &State, p: &PanelCx<'_>) -> Option<Block> {
         id: "bt-pair".into(),
         title: format!("Pair {}", asking.device).into(),
         detail: if asking.confirm {
-            format!("Check that {} shows the same code, then confirm.", asking.device)
+            format!(
+                "Check that {} shows the same code, then confirm.",
+                asking.device
+            )
         } else {
             format!("Type this code on {} and press Enter on it.", asking.device)
         }
@@ -340,8 +364,7 @@ fn prompt(state: &State, p: &PanelCx<'_>) -> Option<Block> {
 pub fn panel(state: &State, p: &PanelCx<'_>) -> PanelView {
     let utc = chrono::Utc::now();
     let now = utc.timestamp();
-    let subsec =
-        Duration::from_millis(1000 - u64::from(utc.timestamp_subsec_millis()).min(999));
+    let subsec = Duration::from_millis(1000 - u64::from(utc.timestamp_subsec_millis()).min(999));
     let mut blocks = Vec::new();
     if !state.available {
         blocks.push(Block::Card(
@@ -385,14 +408,22 @@ pub fn panel(state: &State, p: &PanelCx<'_>) -> PanelView {
             })
             .collect();
         // Up to three a row, never scrolling sideways; four make two rows of two.
-        let columns = if cards.len() == 4 { 2 } else { cards.len().min(3) };
+        let columns = if cards.len() == 4 {
+            2
+        } else {
+            cards.len().min(3)
+        };
         blocks.push(if cards.is_empty() {
             let next = if state.devices.iter().any(|device| device.paired) {
                 "Nothing connected. Click a paired device below to connect it."
             } else {
                 "Nothing connected. Scan, then pick a device nearby to pair it."
             };
-            Block::Card(Some("Connected".into()), card::Size::Wide, vec![Block::note(next)])
+            Block::Card(
+                Some("Connected".into()),
+                card::Size::Wide,
+                vec![Block::note(next)],
+            )
         } else {
             Block::Grid(columns, cards)
         });
