@@ -389,10 +389,10 @@
             type = lib.types.str;
             default =
               if config.programs.claude-code.enable then
-                lib.getExe config.programs.claude-code.finalPackage
+                lib.getExe config.programs.claude-code.package
               else
                 "claude";
-            defaultText = lib.literalExpression ''lib.getExe config.programs.claude-code.finalPackage, or "claude" without programs.claude-code'';
+            defaultText = lib.literalExpression ''lib.getExe config.programs.claude-code.package, or "claude" without programs.claude-code'';
             description = "Claude Code command the chat runs, by name on the PATH or as a full path.";
           };
           claudeCode.enable = lib.mkOption {
@@ -408,7 +408,7 @@
           claudeCode.statusLine = lib.mkOption {
             type = lib.types.nullOr lib.types.str;
             default = null;
-            example = lib.literalExpression ''lib.getExe pkgs.claude-usage-bar'';
+            example = lib.literalExpression "lib.getExe pkgs.claude-usage-bar";
             description = "Status line command that still draws Claude Code's status line once island has read it; null leaves it empty.";
           };
           chat.model = lib.mkOption {
