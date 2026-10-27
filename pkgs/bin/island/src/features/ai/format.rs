@@ -9,11 +9,13 @@ pub(super) fn now() -> i64 {
     Utc::now().timestamp_millis()
 }
 
+/// Usage as a percentage, truncated rather than rounded so a limit reads 100% only once it is
+/// spent.
 pub(super) fn percent(value: f64) -> String {
     if (0.0..1.0).contains(&value) && value > 0.0 {
-        format!("{value:.1}%")
+        format!("{:.1}%", (value * 10.0).floor() / 10.0)
     } else {
-        format!("{value:.0}%")
+        format!("{:.0}%", value.floor())
     }
 }
 
@@ -208,3 +210,7 @@ pub(super) fn usage_next_change(sources: &[Source], state: &State, now: i64) -> 
         .min()
         .map(Duration::from_millis)
 }
+
+#[cfg(test)]
+#[path = "format_test.rs"]
+mod tests;

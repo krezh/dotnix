@@ -3,7 +3,7 @@ use std::{collections::HashMap, sync::Arc};
 use chrono::{Local, TimeZone, Timelike};
 
 use super::{
-    forecast,
+    forecast, format,
     hook::Reading,
     settings::Settings,
     state::{Freshness, Issue, Limit, Provider, Severity, Source, SourceReport, State},
@@ -127,7 +127,7 @@ fn notice(provider: &Provider, limit: &Limit, before: Severity) -> Option<Notice
         ),
         _ if before == Severity::Exhausted => (
             format!("{subject} available again"),
-            format!("{:.0}% used", limit.used),
+            format!("{} used", format::percent(limit.used)),
             false,
         ),
         Severity::High => (
@@ -135,7 +135,7 @@ fn notice(provider: &Provider, limit: &Limit, before: Severity) -> Option<Notice
             if limit.exhausts_at.is_some() {
                 "On pace to run out before the quota resets.".to_owned()
             } else {
-                format!("{:.0}% used", limit.used)
+                format!("{} used", format::percent(limit.used))
             },
             false,
         ),
