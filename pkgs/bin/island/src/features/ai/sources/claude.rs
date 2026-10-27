@@ -3,9 +3,12 @@ use std::{env, fs, path::PathBuf, time::Duration};
 use serde_json::Value;
 
 use super::{Failure, TIMEOUT, number, percentage, severity, text, timestamp};
-use crate::features::ai::{
-    cache,
-    state::{Credits, Freshness, Issue, Limit, Provider, Source, SourceReport},
+use crate::{
+    features::ai::{
+        cache,
+        state::{Credits, Freshness, Issue, Limit, Provider, Source, SourceReport},
+    },
+    run,
 };
 
 const USAGE_URL: &str = "https://api.anthropic.com/api/oauth/usage";
@@ -44,7 +47,9 @@ pub(super) fn fetch(
             }
         });
     publish_cached(identity, snapshot);
-    login.check_expiry(now)?;
+    if login.check_expiry(now).is_err() {
+        login = renew(now)?;
+    }
     let agent: ureq::Agent = ureq::Agent::config_builder()
         .timeout_global(Some(TIMEOUT))
         .timeout_connect(Some(Duration::from_secs(8)))
@@ -92,6 +97,22 @@ impl Login {
             Ok(())
         }
     }
+}
+
+/// Has Claude Code renew an expired login: checking its auth status refreshes the OAuth token and
+/// rewrites the credentials file, which is then read again.
+fn renew(now: i64) -> Result<Login, String> {
+    match run::output("claude", &["auth", "status", "--json"], TIMEOUT) {
+        Ok(output) if output.success => {}
+        Ok(output) => tracing::warn!(
+            "cannot renew Claude login: claude auth status failed: {}",
+            output.stderr
+        ),
+        Err(error) => tracing::warn!("cannot renew Claude login: {error}"),
+    }
+    let login = discover()?;
+    login.check_expiry(now)?;
+    Ok(login)
 }
 
 fn discover() -> Result<Login, String> {
