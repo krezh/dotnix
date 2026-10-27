@@ -32,5 +32,14 @@
           confirm-close-surface = false;
         };
       };
+
+      xdg.configFile = {
+        "systemd/user/app-com.mitchellh.ghostty.service.d/10-type.conf".text = ''
+          [Service]
+          Type=dbus
+        '';
+        "systemd/user/graphical-session.target.wants/app-com.mitchellh.ghostty.service".source =
+          "${config.programs.ghostty.package}/share/systemd/user/app-com.mitchellh.ghostty.service";
+      };
     };
 }
