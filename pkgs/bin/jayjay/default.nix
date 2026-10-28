@@ -6,7 +6,7 @@
 let
   pname = "jayjay";
   # renovate: datasource=github-releases depName=hewigovens/jayjay
-  version = "0.3.20";
+  version = "0.3.22";
   src = fetchurl {
     url = "https://github.com/hewigovens/jayjay/releases/download/v${version}/jayjay-gpui-x86_64-linux.AppImage";
     hash = "sha256-g0eWbFdbxwtmIGOwsEIauM4XmUHeZaliCyXUuqMP6Ac=";
