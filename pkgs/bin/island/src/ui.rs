@@ -28,6 +28,8 @@ pub const HEADING_SIZE: f32 = 18.0;
 #[derive(Clone, Copy)]
 pub enum Radius {
     Panel,
+    /// A panel's cards, rounder than what they hold.
+    Card,
     Tooltip,
     Control,
     Row,
@@ -36,6 +38,7 @@ pub enum Radius {
 }
 
 pub const PANEL_RADIUS: f32 = 16.0;
+pub const CARD_RADIUS: f32 = 20.0;
 pub const CONTROL_RADIUS: f32 = 10.0;
 const CIRCULAR: f32 = 2.0;
 
@@ -43,6 +46,7 @@ impl Radius {
     pub fn geometry(self) -> (f32, f32) {
         let radius = match self {
             Radius::Panel => PANEL_RADIUS,
+            Radius::Card => CARD_RADIUS,
             Radius::Tooltip => 10.0,
             Radius::Control => CONTROL_RADIUS,
             Radius::Row => 8.0,

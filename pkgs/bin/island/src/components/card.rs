@@ -9,7 +9,10 @@ use gpui::{
 };
 
 use crate::{
-    components::reveal,
+    components::{
+        reveal,
+        tabs::{Select, TabLabel},
+    },
     island::{CONTENT_IN as SELECT_SPRING, Island},
     panel::Handler,
     theme::{
@@ -23,6 +26,7 @@ pub const RAISED_PAD: f32 = 14.0;
 pub const RAISED_GAP: f32 = 8.0;
 const INSET_PAD: f32 = 8.0;
 const INSET_GAP: f32 = 6.0;
+const FLAT_PAD_Y: f32 = 6.0;
 const COUNTDOWN_H: f32 = 2.0;
 /// How strongly the countdown shows; it is a quiet part of the frame's edge, not content.
 const COUNTDOWN_ALPHA: u8 = 0xb3;
@@ -45,6 +49,8 @@ pub enum Look {
     /// Its own outlined surface, filling the space it is given, such as a message; urgent ones
     /// have a red outline.
     Raised { urgent: bool },
+    /// No surface until the pointer is over it, such as one row of a ruled list.
+    Flat,
 }
 
 pub struct FrameView {
@@ -119,17 +125,29 @@ pub fn frame(
         shown_height,
     } = frame;
     let urgent = matches!(look, Look::Raised { urgent: true });
-    let resting: Hsla = rgba(with_alpha(SURFACE1, CARD_ALPHA)).into();
+    let resting: Hsla = if matches!(look, Look::Flat) {
+        rgba(with_alpha(SURFACE1, 0)).into()
+    } else {
+        rgba(with_alpha(SURFACE1, CARD_ALPHA)).into()
+    };
     // The same quiet fill a picked tab has, so choosing reads the same everywhere.
     let chosen: Hsla = ui::selected_fill().into();
+    // A flat row is as tall as a two-line row, its parts flush so what it opens to sets its own
+    // spacing.
+    let (pad_y, gap) = if matches!(look, Look::Flat) {
+        (FLAT_PAD_Y, 0.0)
+    } else {
+        (INSET_PAD, INSET_GAP)
+    };
     let element = match look {
-        Look::Inset => div()
+        Look::Inset | Look::Flat => div()
             .id(id.clone())
             .relative()
-            .p(px(INSET_PAD))
+            .px(px(INSET_PAD))
+            .py(px(pad_y))
             .flex()
             .flex_col()
-            .gap(px(INSET_GAP))
+            .gap(px(gap))
             .child(
                 // Pinned to the corner: unpinned, it would start inside the padding.
                 div().absolute().top_0().left_0().size_full().with_spring(
@@ -267,9 +285,41 @@ impl Size {
 }
 
 /// A card's heading, with a fainter detail at the other end, such as "Output … 48 kHz · stereo".
+/// With controls at its end, the detail sits beside the heading instead.
 pub struct Title {
     pub text: SharedString,
     pub detail: SharedString,
+    pub end: Vec<TitleEnd>,
+    /// The detail sits beside the heading, as it does with controls at the end, so titles with
+    /// and without controls line up.
+    pub beside: bool,
+}
+
+/// What a card's title can end in: the card's own controls and state, so they sit on what they
+/// change.
+pub enum TitleEnd {
+    Switch {
+        id: SharedString,
+        on: bool,
+        color: u32,
+        enabled: bool,
+        on_click: Handler,
+    },
+    /// A short state, such as "Online"; `busy` runs the energy beam round it while work it stands
+    /// for is on its way.
+    Pill {
+        id: SharedString,
+        text: SharedString,
+        color: Option<u32>,
+        busy: bool,
+    },
+    /// Views of the card's content, the chosen one under the sliding pill.
+    Tabs {
+        id: SharedString,
+        labels: Vec<TabLabel>,
+        selected: usize,
+        on_select: Select,
+    },
 }
 
 impl Title {
@@ -277,7 +327,16 @@ impl Title {
         Self {
             text: text.into(),
             detail: detail.into(),
+            end: Vec::new(),
+            beside: false,
         }
+    }
+
+    /// Ends in `end`, which may be nothing, with the detail beside the heading.
+    pub fn ending(mut self, end: Vec<TitleEnd>) -> Self {
+        self.end = end;
+        self.beside = true;
+        self
     }
 }
 
@@ -306,7 +365,7 @@ pub struct Stat {
 
 pub fn surface() -> Div {
     div().relative().child(ui::outlined(
-        Radius::Panel,
+        Radius::Card,
         rgba(with_alpha(SURFACE1, CARD_ALPHA)).into(),
         rgba(with_alpha(SURFACE1, CARD_BORDER_ALPHA)).into(),
     ))

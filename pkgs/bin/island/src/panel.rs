@@ -13,10 +13,11 @@ use gpui::{AnyElement, Context, FontWeight, ScrollHandle, SharedString, div, pre
 
 use crate::{
     components::{
-        actions, badge, button, calendar, card, code, input, item, lines,
+        actions, badge, bars, button, calendar, card, chart, code, disclose, figure, input, item,
+        lines,
         list::ROWS,
         marquee::TextLayouts,
-        meter, motion, player,
+        meter, motion, pill, player,
         popover::Popovers,
         prompt, reveal, route, search, segments, slider, tabs, text,
         tile::{self, Tile},
@@ -28,13 +29,18 @@ use crate::{
     theme::OVERLAY2,
     ui::{
         self, BLOCK_GAP, CARD_PAD, CONTROL_H, HEADER_GAP, HEADER_H, HEADING_SIZE, INSET,
-        SMALL_SIZE, TIGHT_INSET, TITLE_SIZE,
+        SMALL_SIZE, TIGHT_INSET,
     },
 };
 
 pub use crate::components::{
     actions::{Action, Actions},
     badge::Mark,
+    bars::Bars,
+    chart::Series,
+    disclose::Disclosure,
+    figure::Figure,
+    route::{Hop, Path},
     button::Rising,
     calendar::CalendarView,
     card::{Countdown, FrameView},
@@ -45,7 +51,7 @@ pub use crate::components::{
     lines::Line,
     meter::Meter,
     player::PlayerView,
-    prompt::{PromptView, Reveal},
+    prompt::PromptView,
     route::{Route, Stop, StopState},
     search::{Preview, SearchRow, SearchView},
     slider::Slider,
@@ -197,7 +203,48 @@ pub enum Block {
     /// A page's own views and their buttons, in a row at its top, for a tab of the panel that has
     /// views of its own.
     Views(Views),
+    /// Cards side by side, all this tall, so rows opening inside them never resize the panel.
+    Band(f32, Vec<Block>),
+    /// Rows divided by rules that start this far in, such as past the rows' leads.
+    List(f32, Vec<Block>),
+    /// What a row keeps folded away until it opens.
+    Disclose(Disclosure, Vec<Block>),
+    Chart(ChartView),
+    /// Each optionally led by a coloured dot, such as under a chart.
+    Legend(Vec<(Option<u32>, SharedString)>),
+    /// Label and value chips, this many to a row.
+    FactsIn(usize, Vec<(SharedString, SharedString, Option<u32>)>),
+    /// Values at a glance; the block beside them sits before the small ones.
+    Figures(Vec<Figure>, Option<Box<Block>>),
+    Bars(Bars),
+    Path(Path),
+    /// A thin bar filled part way in a color, such as one app's share under its name.
+    Level(SharedString, f32, u32),
+    /// A card's views on a row of their own, across its width, such as where its title has no
+    /// room for them.
+    Segmented(SegmentedView),
 }
+
+pub struct SegmentedView {
+    pub id: SharedString,
+    pub labels: Vec<TabLabel>,
+    pub selected: usize,
+    pub on_select: tabs::Select,
+}
+
+/// A history chart outside a tile; without a height, it takes what its card has spare.
+pub struct ChartView {
+    pub id: SharedString,
+    pub series: Vec<Series>,
+    pub height: Option<f32>,
+    /// How far it is between its last value and the next, when its values come at their own
+    /// pace; it then redraws steadily so it scrolls smoothly between them.
+    pub phase: Option<f32>,
+}
+
+/// How often a chart scrolling at its own pace redraws: often enough that a slow scroll moves a
+/// little every frame rather than stepping.
+const CHART_FRAME: std::time::Duration = std::time::Duration::from_micros(16_667);
 
 pub struct PanelView {
     pub header: Header,
@@ -235,6 +282,13 @@ pub const COLUMNS: usize = 4;
 /// How near its end a followed panel counts as being read there.
 const FOLLOW_SLACK: f32 = 24.0;
 const CAPTION_SIZE: f32 = 12.0;
+/// A card's title with controls at its end, so each card's content starts at the same height.
+const TITLE_H: f32 = 28.0;
+/// A card's heading: quieter than a panel's, so what the card holds leads.
+const CARD_TITLE_SIZE: f32 = 15.0;
+/// The least a chart taking its card's spare height keeps.
+const CHART_MIN_H: f32 = 40.0;
+const LEVEL_H: f32 = 3.0;
 const BUTTON_GAP: f32 = 8.0;
 const COMPACT_GAP: f32 = 6.0;
 
@@ -260,6 +314,9 @@ impl Block {
             | Block::Columns(blocks)
             | Block::Grid(_, blocks)
             | Block::Frame(_, blocks)
+            | Block::Band(_, blocks)
+            | Block::List(_, blocks)
+            | Block::Disclose(_, blocks)
             | Block::Item(_, blocks) => blocks.iter().any(Block::follows_end),
             _ => false,
         }
@@ -359,6 +416,26 @@ impl Block {
                 (title.is_some(), size).hash(hasher);
                 for block in blocks {
                     block.hash_shape(hasher);
+                }
+            }
+            // Its height is fixed, so nothing inside it decides the panel's size.
+            Block::Band(height, blocks) => {
+                height.to_bits().hash(hasher);
+                blocks.len().hash(hasher);
+            }
+            Block::List(_, blocks) | Block::Disclose(_, blocks) => {
+                for block in blocks {
+                    block.hash_shape(hasher);
+                }
+            }
+            Block::Chart(view) => view.height.map(f32::to_bits).hash(hasher),
+            Block::Legend(_) | Block::Bars(_) | Block::Path(_) | Block::Level(..) => {}
+            Block::Segmented(view) => view.labels.len().hash(hasher),
+            Block::FactsIn(per_row, items) => (per_row, items.len()).hash(hasher),
+            Block::Figures(figures, beside) => {
+                figures.len().hash(hasher);
+                if let Some(beside) = beside {
+                    beside.hash_shape(hasher);
                 }
             }
         }
@@ -662,34 +739,83 @@ fn button_element(button: Button, hover: bool, cx: &mut Context<Island>) -> AnyE
     }
 }
 
-fn card_title(title: card::Title, at: &str) -> impl IntoElement {
+fn card_title(title: card::Title, at: &str, frame: &Frame<'_>, cx: &mut Context<Island>) -> AnyElement {
+    let heading = div()
+        .flex_none()
+        .text_size(px(CARD_TITLE_SIZE))
+        .font_weight(FontWeight::MEDIUM)
+        .child(motion::text(
+            SharedString::from(format!("{at}-title")),
+            title.text,
+        ));
+    let detail = (!title.detail.is_empty()).then(|| {
+        div()
+            .min_w(px(0.0))
+            .truncate()
+            .text_size(px(CAPTION_SIZE))
+            .text_color(rgb(OVERLAY2))
+            .child(motion::text(
+                SharedString::from(format!("{at}-detail")),
+                title.detail,
+            ))
+    });
+    if !title.beside {
+        return div()
+            .flex()
+            .items_baseline()
+            .justify_between()
+            .gap(px(12.0))
+            .child(heading)
+            .children(detail)
+            .into_any_element();
+    }
+    // With controls at its end, the detail keeps beside the heading.
     div()
+        .h(px(TITLE_H))
         .flex()
-        .items_baseline()
-        .justify_between()
-        .gap(px(12.0))
+        .items_center()
+        .gap(px(8.0))
+        .child(heading)
+        .children(detail)
         .child(
             div()
-                .text_size(px(TITLE_SIZE))
-                .font_weight(FontWeight::SEMIBOLD)
-                .child(motion::text(
-                    SharedString::from(format!("{at}-title")),
-                    title.text,
-                )),
+                .flex_1()
+                .flex()
+                .justify_end()
+                .items_center()
+                .gap(px(8.0))
+                .children(
+                    title
+                        .end
+                        .into_iter()
+                        .map(|end| title_end(end, frame, cx)),
+                ),
         )
-        .when(!title.detail.is_empty(), |line| {
-            line.child(
-                div()
-                    .min_w(px(0.0))
-                    .truncate()
-                    .text_size(px(CAPTION_SIZE))
-                    .text_color(rgb(OVERLAY2))
-                    .child(motion::text(
-                        SharedString::from(format!("{at}-detail")),
-                        title.detail,
-                    )),
-            )
-        })
+        .into_any_element()
+}
+
+fn title_end(end: card::TitleEnd, frame: &Frame<'_>, cx: &mut Context<Island>) -> AnyElement {
+    match end {
+        card::TitleEnd::Switch {
+            id,
+            on,
+            color,
+            enabled,
+            on_click,
+        } => button::switch_control(id, on, color, enabled, on_click, cx),
+        card::TitleEnd::Pill {
+            id,
+            text,
+            color,
+            busy,
+        } => pill::pill(id, text, color, busy),
+        card::TitleEnd::Tabs {
+            id,
+            labels,
+            selected,
+            on_select,
+        } => tabs::segmented(&id, labels, selected, on_select, false, frame.hover, cx),
+    }
 }
 
 impl Block {
@@ -704,6 +830,7 @@ impl Block {
     ) -> AnyElement {
         match self {
             Block::Card(title, size, blocks) => {
+                let title = title.map(|title| card_title(title, at, frame, cx));
                 let children = render_all(blocks, at, island_below, frame, cx);
                 card::surface()
                     .w(px(size.width()))
@@ -713,7 +840,7 @@ impl Block {
                     .flex()
                     .flex_col()
                     .gap(px(12.0))
-                    .when_some(title, |group, title| group.child(card_title(title, at)))
+                    .children(title)
                     .children(children)
                     .into_any_element()
             }
@@ -778,7 +905,7 @@ impl Block {
             }
             Block::Item(item, blocks) => {
                 let children = render_all(blocks, at, island_below, frame, cx);
-                item::item(item, children, frame.popovers, frame.hover, cx)
+                item::item(item, children, frame.popovers, frame.tips, frame.hover, cx)
             }
             Block::Frame(view, blocks) => {
                 let children = render_all(blocks, at, island_below, frame, cx);
@@ -804,6 +931,76 @@ impl Block {
             Block::Timeline(view) => timeline::timeline(view, at),
             Block::Prompt(view) => prompt::prompt(view, frame.hover, cx),
             Block::Views(views) => views_row(views, frame.hover, frame.tips, cx),
+            Block::Band(height, blocks) => {
+                let children = render_all(blocks, at, island_below, frame, cx);
+                div()
+                    .flex()
+                    .h(px(height))
+                    .gap(px(card::GAP))
+                    .children(children)
+                    .into_any_element()
+            }
+            Block::List(indent, blocks) => {
+                lines::divided(render_all(blocks, at, island_below, frame, cx), indent)
+            }
+            Block::Disclose(view, blocks) => {
+                let children = render_all(blocks, at, island_below, frame, cx);
+                disclose::disclose(view, children).into_any_element()
+            }
+            Block::Chart(view) => {
+                let own = view.phase.is_some();
+                let plot = chart::chart(
+                    view.id.clone(),
+                    view.series,
+                    card::SLOTS,
+                    view.phase.unwrap_or(frame.phase),
+                    frame.tips,
+                )
+                .into_any_element();
+                // One keeping its own pace asks for the next frame, so the panel is drawn again
+                // with its phase moved on.
+                let plot = if own {
+                    motion::keyed(
+                        SharedString::from(format!("{}-pace", view.id)),
+                        move |_: &mut (), _, _| (plot, motion::Next::After(CHART_FRAME)),
+                    )
+                    .into_any_element()
+                } else {
+                    plot
+                };
+                div()
+                    .relative()
+                    .map(|area| match view.height {
+                        Some(height) => area.flex_none().h(px(height)),
+                        None => area.flex_1().min_h(px(CHART_MIN_H)),
+                    })
+                    .child(div().absolute().size_full().flex().child(plot))
+                    .into_any_element()
+            }
+            Block::Legend(items) => tile::legend(items).flex_none().into_any_element(),
+            Block::FactsIn(per_row, items) => tile::facts_in(items, at, per_row, true)
+                .flex_none()
+                .into_any_element(),
+            Block::Segmented(view) => tabs::segmented(
+                &view.id,
+                view.labels,
+                view.selected,
+                view.on_select,
+                true,
+                frame.hover,
+                cx,
+            ),
+            Block::Level(id, fraction, color) => div()
+                .flex()
+                .w_full()
+                .child(tile::bar(&id, fraction, color, LEVEL_H, None))
+                .into_any_element(),
+            Block::Figures(figures, beside) => {
+                let beside = beside.map(|block| block.render(&format!("{at}-beside"), island_below, frame, cx));
+                figure::figures(figures, beside)
+            }
+            Block::Bars(view) => bars::bars(view),
+            Block::Path(view) => route::path(view),
             Block::Actions(tiles) => div()
                 .flex()
                 .gap(px(card::GAP))

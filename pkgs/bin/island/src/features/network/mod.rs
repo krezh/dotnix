@@ -1,6 +1,7 @@
 mod feature;
 mod glyphs;
 mod kernel;
+mod layout;
 mod nm;
 mod osd;
 mod panel;

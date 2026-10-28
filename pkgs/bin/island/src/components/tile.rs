@@ -17,7 +17,7 @@ use crate::{
     },
     island::{CONTENT_IN, Island},
     panel::Handler,
-    theme::{OVERLAY2, SUBTEXT1, SURFACE1, TEXT, TINT, TRACK_ALPHA, with_alpha},
+    theme::{CRUST, OVERLAY2, SUBTEXT1, SURFACE1, TEXT, TINT, TRACK_ALPHA, with_alpha},
     ui::{self, Radius, SMALL_SIZE},
 };
 
@@ -43,6 +43,8 @@ const CORE_GAP: f32 = 3.0;
 /// partition rows stay short.
 const HERO_LEADING: f32 = 1.4;
 const FACT_LEADING: f32 = 1.3;
+/// A fact's well out of a tile: dark enough to read as set into the card.
+const FACT_WELL_ALPHA: u8 = 0x47;
 /// How far an entry's row reaches into the tile's padding on each side, so its text lines up with
 /// the rest of the tile and its highlight still has room round it.
 const ENTRY_BLEED: f32 = 8.0;
@@ -168,7 +170,8 @@ fn track() -> gpui::Rgba {
 }
 
 /// `id` keeps its fill and mark gliding to new values rather than jumping.
-fn bar(id: &str, fraction: f32, color: u32, thickness: f32, mark: Option<f32>) -> Div {
+/// Also a panel block of its own, such as one app's share under its name.
+pub fn bar(id: &str, fraction: f32, color: u32, thickness: f32, mark: Option<f32>) -> Div {
     let fill = div()
         .size_full()
         .rounded_full()
@@ -332,7 +335,8 @@ fn cores(loads: Vec<f32>, color: u32) -> Div {
         }))
 }
 
-fn legend(items: Vec<(Option<u32>, SharedString)>) -> Div {
+/// Also a panel block of its own, such as under a chart outside a tile.
+pub fn legend(items: Vec<(Option<u32>, SharedString)>) -> Div {
     div()
         .flex()
         .gap(px(12.0))
@@ -372,32 +376,58 @@ fn facts(items: Vec<(SharedString, SharedString)>, key: &str) -> Div {
 /// Also a panel block of its own, outside a tile; a value with a color shows in it, such as a
 /// state.
 pub fn colored_facts(items: Vec<(SharedString, SharedString, Option<u32>)>, key: &str) -> Div {
+    facts_in(items, key, 3, false)
+}
+
+/// `per_row` to a row, such as two where a narrow card would cut three short; `roomy` ones have
+/// room for their label to read, as outside a tile.
+pub fn facts_in(
+    items: Vec<(SharedString, SharedString, Option<u32>)>,
+    key: &str,
+    per_row: usize,
+    roomy: bool,
+) -> Div {
+    let (pad_x, pad_y, label_size, radius) = if roomy {
+        (10.0, 7.0, 11.5, 10.0)
+    } else {
+        (8.0, 4.0, 10.5, 9.0)
+    };
     let mut rows = Vec::new();
     let mut items = items.into_iter().enumerate().peekable();
     while items.peek().is_some() {
-        let row: Vec<_> = items.by_ref().take(3).collect();
+        let row: Vec<_> = items.by_ref().take(per_row.max(1)).collect();
         rows.push(div().flex().gap(px(6.0)).children(row.into_iter().map(
             |(index, (label, value, color))| {
                 div()
                     .flex_1()
                     .min_w(px(0.0))
-                    .px(px(8.0))
-                    .py(px(4.0))
-                    .rounded(px(9.0))
-                    .bg(rgba(with_alpha(TINT, 0x0d)))
+                    .px(px(pad_x))
+                    .py(px(pad_y))
+                    .rounded(px(radius))
+                    // Out of a tile, a fact sits in a dark well, as a value set into its card.
+                    .bg(if roomy {
+                        rgba(with_alpha(CRUST, FACT_WELL_ALPHA))
+                    } else {
+                        rgba(with_alpha(TINT, 0x0d))
+                    })
                     .flex()
                     .flex_col()
                     .line_height(relative(FACT_LEADING))
                     .child(
                         div()
-                            .text_size(px(10.5))
+                            .truncate()
+                            .text_size(px(label_size))
                             .text_color(rgb(OVERLAY2))
                             .child(label),
                     )
                     .child(
                         div()
                             .text_size(px(SMALL_SIZE))
-                            .font_weight(FontWeight::SEMIBOLD)
+                            .font_weight(if roomy {
+                                FontWeight::MEDIUM
+                            } else {
+                                FontWeight::SEMIBOLD
+                            })
                             .when_some(color, |value, color| value.text_color(rgb(color)))
                             .truncate()
                             .child(motion::text(

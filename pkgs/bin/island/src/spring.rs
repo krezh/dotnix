@@ -2,6 +2,20 @@ use std::time::Instant;
 
 use gpui::{SpringConfig, SpringState};
 
+/// Soft, with a slight swing: there in about 260 ms, 1.7% past at about 330 ms, still by about
+/// 520 ms (damping ratio 0.79, 15.6 rad/s). For things that slide or open, such as a tab's pill
+/// or a row opening.
+pub const SOFT: SpringConfig = SpringConfig::new(243.0, 24.7, 1.0);
+/// The soft spring at a slower pace, still by about 620 ms, for something folding in or out of a
+/// row, such as a stop on a path.
+pub const SOFT_FOLD: SpringConfig = SpringConfig::new(172.0, 20.8, 1.0);
+/// The soft spring slower still, still by about 800 ms, for values growing into place, such as
+/// a week's bars.
+pub const SOFT_GROW: SpringConfig = SpringConfig::new(103.0, 16.1, 1.0);
+/// Lively, for small things that snap, such as a switch's knob: 14% past at about 90 ms, a
+/// little back, still by about 460 ms (damping ratio 0.53, 40.6 rad/s).
+pub const BOUNCE: SpringConfig = SpringConfig::new(1648.0, 42.7, 1.0);
+
 #[derive(Clone, Copy, Debug)]
 pub struct Spring {
     state: SpringState,

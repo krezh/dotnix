@@ -26,6 +26,8 @@ const WIFI: u32 = 2;
 const ACTIVATED: u32 = 100;
 const ACTIVE_ACTIVATING: u32 = 1;
 const ACTIVE_ACTIVATED: u32 = 2;
+/// An active connection's flag for one NetworkManager only follows.
+const ACTIVE_EXTERNAL: u32 = 0x80;
 
 const SEC_KEY_MGMT_802_1X: u32 = 0x200;
 const SEC_KEY_MGMT_SAE: u32 = 0x400;
@@ -51,6 +53,21 @@ pub struct Active {
     pub activity: Activity,
     pub devices: Vec<OwnedObjectPath>,
     pub ip4: OwnedObjectPath,
+    /// It carries the default route, so everything goes through it, such as a full VPN.
+    pub default: bool,
+    /// Something other than NetworkManager set it up, such as Docker's bridge.
+    pub external: bool,
+}
+
+/// Where an active connection sends traffic, and who answers its lookups.
+#[derive(Clone, Debug, Default)]
+pub struct Reach {
+    /// Networks routed through it, such as "10.10.0.0/16", without the default route.
+    pub networks: Vec<String>,
+    pub dns: Vec<String>,
+    /// It routes a default route, in any table, such as Proton's, which keeps its own table and
+    /// steers everything to it, so NetworkManager does not call it the default.
+    pub everything: bool,
 }
 
 #[derive(Clone, Debug, Default)]
@@ -71,6 +88,8 @@ pub struct Device {
     pub interface: String,
     pub kind: u32,
     pub activated: bool,
+    /// NetworkManager runs it, so it can bring it up and down.
+    pub managed: bool,
     pub mtu: u32,
     pub mac: String,
     pub active: OwnedObjectPath,
@@ -174,16 +193,26 @@ pub async fn saved(connection: &Connection) -> zbus::Result<Vec<Saved>> {
                 .and_then(|group| group.get("ssid")),
         )
         .map(|bytes| ssid(&bytes));
-        let endpoint = text(&found, "vpn", "remote").or_else(|| {
-            found
-                .get("vpn")
-                .and_then(|group| owned::<HashMap<String, String>>(group.get("data")))
-                .and_then(|data| {
-                    ["remote", "gateway", "server"]
-                        .into_iter()
-                        .find_map(|key| data.get(key).cloned())
-                })
-        });
+        let endpoint = text(&found, "vpn", "remote")
+            .or_else(|| {
+                found
+                    .get("vpn")
+                    .and_then(|group| owned::<HashMap<String, String>>(group.get("data")))
+                    .and_then(|data| {
+                        ["remote", "gateway", "server"]
+                            .into_iter()
+                            .find_map(|key| data.get(key).cloned())
+                    })
+            })
+            .or_else(|| {
+                // WireGuard keeps its server as the first peer's endpoint.
+                found
+                    .get("wireguard")
+                    .and_then(|group| {
+                        owned::<Vec<HashMap<String, OwnedValue>>>(group.get("peers"))
+                    })
+                    .and_then(|peers| peers.first().and_then(|peer| owned(peer.get("endpoint"))))
+            });
         all.push(Saved {
             path,
             name: text(&found, "connection", "id").unwrap_or_default(),
@@ -315,6 +344,7 @@ async fn device(connection: &Connection, path: OwnedObjectPath) -> zbus::Result<
         interface: proxy.get_property("Interface").await?,
         kind,
         activated: state == ACTIVATED,
+        managed: proxy.get_property("Managed").await.unwrap_or(true),
         mtu: proxy.get_property("Mtu").await.unwrap_or(0),
         mac: proxy.get_property("HwAddress").await.unwrap_or_default(),
         active: proxy.get_property("ActiveConnection").await?,
@@ -349,8 +379,71 @@ async fn active(connection: &Connection, path: OwnedObjectPath) -> zbus::Result<
         },
         devices: proxy.get_property("Devices").await.unwrap_or_default(),
         ip4: proxy.get_property("Ip4Config").await?,
+        default: proxy.get_property("Default").await.unwrap_or(false),
+        external: proxy
+            .get_property::<u32>("StateFlags")
+            .await
+            .is_ok_and(|flags| flags & ACTIVE_EXTERNAL != 0),
         path,
     })
+}
+
+/// The networks an active connection routes, and its DNS servers.
+pub async fn reach(connection: &Connection, ip4: &OwnedObjectPath) -> Reach {
+    if is_root(ip4) {
+        return Reach::default();
+    }
+    let path = ip4.as_str();
+    let routes: Vec<(String, u32)> =
+        get::<Vec<HashMap<String, OwnedValue>>>(connection, path, IP4, "RouteData")
+            .await
+            .map(|routes| {
+                routes
+                    .iter()
+                    .filter_map(|route| {
+                        let destination: String = owned(route.get("dest"))?;
+                        let prefix: u32 = owned(route.get("prefix"))?;
+                        Some((destination, prefix))
+                    })
+                    .collect()
+            })
+            .unwrap_or_default();
+    let dns = get::<Vec<HashMap<String, OwnedValue>>>(connection, path, IP4, "NameserverData")
+        .await
+        .map(|entries| entries.iter().filter_map(address_of).collect())
+        .unwrap_or_default();
+    Reach {
+        everything: routes.iter().any(|(_, prefix)| *prefix == 0),
+        networks: routes
+            .into_iter()
+            .filter(|(_, prefix)| *prefix > 0)
+            .map(|(destination, prefix)| format!("{destination}/{prefix}"))
+            .collect(),
+        dns,
+    }
+}
+
+/// Takes a device down, and keeps it down until asked for it again.
+pub async fn device_disconnect(
+    connection: &Connection,
+    device: &OwnedObjectPath,
+) -> zbus::Result<()> {
+    uncached(connection, NM, device.as_str().to_owned(), DEVICE)
+        .await?
+        .call("Disconnect", &())
+        .await
+}
+
+/// Brings a device up with the connection NetworkManager picks for it.
+pub async fn device_activate(
+    connection: &Connection,
+    device: &OwnedObjectPath,
+) -> zbus::Result<()> {
+    uncached(connection, NM, NM_PATH, NM)
+        .await?
+        .call::<_, _, OwnedObjectPath>("ActivateConnection", &(root(), device, root()))
+        .await
+        .map(drop)
 }
 
 pub async fn snapshot(connection: &Connection) -> zbus::Result<Snapshot> {
