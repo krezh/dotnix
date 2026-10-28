@@ -1,4 +1,5 @@
-//! A list of two-line entries divided by rules, such as commits: a summary over a fainter detail.
+//! A list of two-line entries divided by rules, such as commits: a summary over a fainter detail;
+//! and any rows divided by the same rules, such as a card's list of networks.
 
 use gpui::{AnyElement, FontWeight, SharedString, div, prelude::*, px, rgb, rgba};
 
@@ -12,6 +13,30 @@ const DETAIL_SIZE: f32 = 12.0;
 pub struct Line {
     pub summary: SharedString,
     pub detail: SharedString,
+}
+
+/// Each rule starts `indent` in, such as where the rows' text starts past their leads.
+pub fn divided(rows: Vec<AnyElement>, indent: f32) -> AnyElement {
+    div()
+        .flex()
+        .flex_col()
+        .children(rows.into_iter().enumerate().map(|(index, row)| {
+            div()
+                .relative()
+                .when(index > 0, |row| {
+                    row.child(
+                        div()
+                            .absolute()
+                            .top_0()
+                            .left(px(indent))
+                            .right_0()
+                            .h(px(1.0))
+                            .bg(rgba(with_alpha(SURFACE1, CONTROL_ALPHA))),
+                    )
+                })
+                .child(row)
+        }))
+        .into_any_element()
 }
 
 pub fn lines(lines: Vec<Line>) -> AnyElement {
