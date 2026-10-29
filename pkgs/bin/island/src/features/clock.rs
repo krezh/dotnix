@@ -46,14 +46,7 @@ impl Feature for Clock {
     const NAME: &'static str = "clock";
     const PANEL: Option<&'static str> = Some("calendar");
     const TAB: Option<(&'static str, u8)> = Some(("Calendar", 1));
-    const GLYPHS: &'static [GlyphSpec] = &[(
-        "tab-calendar",
-        &[
-            "office-calendar-symbolic",
-            "lucide-calendar-symbolic",
-            "x-office-calendar-symbolic",
-        ],
-    )];
+    const GLYPHS: &'static [GlyphSpec] = &[("tab-calendar", &["calendar"])];
 
     /// Minutes since the epoch.
     type State = i64;
@@ -98,7 +91,7 @@ impl Feature for Clock {
                         .child(motion::text("date", now.format("%a %-d").to_string())),
                 )
                 .on_click(w.toggle(Panel::Feature(Self::NAME)))
-                .on_mouse_down(MouseButton::Right, w.toggle(Panel::System))
+                .on_mouse_down(MouseButton::Right, w.toggle(Panel::Dashboard))
                 .into_any_element(),
         )
     }
@@ -106,6 +99,7 @@ impl Feature for Clock {
     fn panel<'a>(&self, _: &i64, p: &PanelCx<'a>) -> Option<PanelView> {
         let offset = p.local::<Month>().map_or(0, |month| month.offset);
         Some(PanelView {
+            scroll: false,
             header: Header::Tabs,
             blocks: vec![Block::Calendar(CalendarView {
                 offset,

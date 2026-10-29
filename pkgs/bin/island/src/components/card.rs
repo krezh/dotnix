@@ -1,19 +1,23 @@
-//! A panel's cards: a surface of a fixed width with an optional title, holding blocks; and frames,
-//! the smaller surfaces inside them, such as one app's row or one message.
+//! A panel's cards: a surface of a fixed width with an optional title, holding blocks; frames,
+//! the smaller surfaces inside them, such as one app's row or one message; and cards shared
+//! between two columns of about the same height.
 
-use std::time::Duration;
+use std::{cell::RefCell, collections::HashMap, path::PathBuf, time::Duration};
 
 use gpui::{
-    Animation, AnimationExt, AnyElement, Context, Div, Hsla, MouseButton, Rgba, SharedString,
-    SpringAnimation, div, prelude::*, px, relative, rgba,
+    Animation, AnimationExt, AnyElement, BoxShadow, Context, Div, Hsla, MouseButton, Rgba,
+    SharedString, SpringAnimation, div, point, prelude::*, px, relative, rgba,
 };
 
 use crate::{
-    components::reveal,
+    components::{
+        measure::{self, Measured},
+        reveal,
+    },
     island::{CONTENT_IN as SELECT_SPRING, Island},
     panel::Handler,
     theme::{
-        ACCENT, CARD_ALPHA, CARD_BORDER_ALPHA, CRITICAL, NOTIFICATION_ALPHA, SURFACE1, with_alpha,
+        CARD_ALPHA, CARD_BORDER_ALPHA, CRITICAL, NOTIFICATION_ALPHA, SURFACE1, with_alpha,
     },
     ui::{self, Radius},
 };
@@ -23,20 +27,31 @@ pub const RAISED_PAD: f32 = 14.0;
 pub const RAISED_GAP: f32 = 8.0;
 const INSET_PAD: f32 = 8.0;
 const INSET_GAP: f32 = 6.0;
-const COUNTDOWN_H: f32 = 2.0;
-/// How strongly the countdown shows; it is a quiet part of the frame's edge, not content.
-const COUNTDOWN_ALPHA: u8 = 0xb3;
+/// The countdown's tint: soft shapes of light blurred on the GPU, stronger toward its end, each
+/// with how far along the frame it starts and how strongly it shows. Together they rise from
+/// barely there to faint.
+const COUNTDOWN_LAYERS: [(f32, u8); 2] = [(0.0, 0x1c), (0.5, 0x18)];
+const COUNTDOWN_BLUR: f32 = 28.0;
+/// Each shape is a line through the frame's middle, of no height, its shadow spread round it to
+/// this far: a shadow is drawn only outside what casts it, so the line leaves no hole.
+const COUNTDOWN_SPREAD: f32 = 18.0;
+/// How far inside the frame's ends the shapes' light reaches, so the blur melts away before its
+/// outline.
+const COUNTDOWN_INSET_START: f32 = 10.0;
+const COUNTDOWN_INSET_END: f32 = 28.0;
 const URGENT_ALPHA: u8 = 0xb3;
 
-/// Time running out, drawn along a frame's bottom edge.
+/// Time running out, drawn as a soft blurred tint inside a frame that drains toward its start.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Countdown {
     /// 0–1.
     pub left: f32,
     /// `None` while paused.
     pub running: Option<Duration>,
-    /// Counts each pause and resume, so the bar starts a new animation from where it is.
+    /// Counts each pause and resume, so the tint starts a new animation from where it is.
     pub round: u32,
+    /// The tint's color, such as the app's own.
+    pub color: u32,
 }
 
 pub enum Look {
@@ -73,32 +88,42 @@ pub enum Motion {
     Leave,
 }
 
-/// Lies on the border's straight stretch between the rounded corners, so it reads as the outline
-/// itself.
-fn countdown_bar(id: &SharedString, countdown: Countdown) -> AnyElement {
-    let bar = div()
+/// Behind what the frame holds: light inside the glass, blurred so it has no edges at all, which
+/// drains toward the frame's start as time runs out.
+fn countdown_tint(id: &SharedString, countdown: Countdown) -> AnyElement {
+    let tint = div()
+        .absolute()
+        .top_0()
+        .left_0()
         .h_full()
-        .rounded_full()
-        .bg(rgba(with_alpha(ACCENT, COUNTDOWN_ALPHA)));
-    let bar = match countdown.running {
-        Some(left) => bar
+        .flex()
+        .items_center()
+        .children(COUNTDOWN_LAYERS.map(|(from, alpha)| {
+            div()
+                .absolute()
+                .h(px(0.0))
+                .left(relative(from))
+                .ml(px(COUNTDOWN_INSET_START + COUNTDOWN_SPREAD))
+                .right(px(COUNTDOWN_INSET_END + COUNTDOWN_SPREAD))
+                .shadow(vec![BoxShadow {
+                    color: rgba(with_alpha(countdown.color, alpha)).into(),
+                    offset: point(px(0.0), px(0.0)),
+                    blur_radius: px(COUNTDOWN_BLUR),
+                    spread_radius: px(COUNTDOWN_SPREAD),
+                    inset: false,
+                }])
+        }));
+    match countdown.running {
+        Some(left) => tint
             .w(relative(countdown.left))
             .with_animation(
                 SharedString::from(format!("{id}-countdown-{}", countdown.round)),
                 Animation::new(left),
-                move |bar, t| bar.w(relative(countdown.left * (1.0 - t))),
+                move |tint, t| tint.w(relative(countdown.left * (1.0 - t))),
             )
             .into_any_element(),
-        None => bar.w(relative(countdown.left)).into_any_element(),
-    };
-    div()
-        .absolute()
-        .left(px(ui::PANEL_RADIUS))
-        .right(px(ui::PANEL_RADIUS))
-        .bottom_0()
-        .h(px(COUNTDOWN_H))
-        .child(bar)
-        .into_any_element()
+        None => tint.w(relative(countdown.left)).into_any_element(),
+    }
 }
 
 /// Its `id` also names the group hovering it reveals parts of, such as a ✕.
@@ -185,6 +210,9 @@ pub fn frame(
                 .when(on_click.is_some(), |frame| {
                     frame.child(shape().child(ui::control(Radius::Panel, None, hover && !selected)))
                 })
+                .when_some(countdown, |frame, countdown| {
+                    frame.child(shape().overflow_hidden().child(countdown_tint(&id, countdown)))
+                })
                 .child(content)
         }
     };
@@ -204,9 +232,6 @@ pub fn frame(
                     handler(this, cx);
                 }),
             )
-        })
-        .when_some(countdown, |frame, countdown| {
-            frame.child(countdown_bar(&id, countdown))
         });
     match motion {
         Motion::Still => element.into_any_element(),
@@ -270,6 +295,10 @@ impl Size {
 pub struct Title {
     pub text: SharedString,
     pub detail: SharedString,
+    /// Before the text, in its color, such as what the card is about.
+    pub glyph: Option<(PathBuf, u32)>,
+    /// A › at the end that opens more of what the card shows.
+    pub open: Option<Handler>,
 }
 
 impl Title {
@@ -277,7 +306,19 @@ impl Title {
         Self {
             text: text.into(),
             detail: detail.into(),
+            glyph: None,
+            open: None,
         }
+    }
+
+    pub fn glyph(mut self, glyph: Option<PathBuf>, color: u32) -> Self {
+        self.glyph = glyph.map(|path| (path, color));
+        self
+    }
+
+    pub fn opens(mut self, handler: Handler) -> Self {
+        self.open = Some(handler);
+        self
     }
 }
 
@@ -317,4 +358,91 @@ pub fn stat(text: impl Into<SharedString>, color: u32) -> Stat {
         text: text.into(),
         color,
     }
+}
+
+const BALANCED: usize = 2;
+/// Taken for a card not yet drawn.
+const UNDRAWN_H: f32 = 160.0;
+/// Past this many cards, every split is too many to try, and each goes under the shorter column.
+const TRIED: usize = 16;
+
+thread_local! {
+    /// Each balanced card's drawn height, by its key.
+    static HEIGHTS: RefCell<HashMap<SharedString, Measured>> = RefCell::default();
+}
+
+fn drawn(key: &SharedString) -> Measured {
+    HEIGHTS.with_borrow_mut(|heights| {
+        heights
+            .entry(key.clone())
+            .or_insert_with(measure::measured)
+            .clone()
+    })
+}
+
+/// Which of two columns each card goes in, in order, so the taller column is as short as it can
+/// be and each keeps the cards' order. It follows the heights drawn last time, so a card that grows
+/// can move to the other column once it has been drawn.
+pub fn balance(keys: &[SharedString]) -> Vec<usize> {
+    let heights: Vec<f32> = keys
+        .iter()
+        .map(|key| {
+            drawn(key)
+                .get()
+                .map_or(UNDRAWN_H, |size| f32::from(size.height))
+                + GAP
+        })
+        .collect();
+    if heights.len() > TRIED {
+        let mut filled = [0.0f32; BALANCED];
+        return heights
+            .iter()
+            .map(|height| {
+                let column = usize::from(filled[1] < filled[0]);
+                filled[column] += height;
+                column
+            })
+            .collect();
+    }
+    // Every split, the first card always on the left; the lowest bits are the first cards, so
+    // among equal splits the one keeping the earliest cards on the left wins.
+    let taller = |split: u32| {
+        let mut filled = [0.0f32; BALANCED];
+        for (index, height) in heights.iter().enumerate() {
+            filled[(split >> index & 1) as usize] += height;
+        }
+        filled[0].max(filled[1])
+    };
+    let best = (0..1u32 << heights.len().saturating_sub(1))
+        .map(|split| split << 1)
+        .min_by(|a, b| taller(*a).total_cmp(&taller(*b)))
+        .unwrap_or(0);
+    (0..heights.len())
+        .map(|index| (best >> index & 1) as usize)
+        .collect()
+}
+
+/// Cards shared between two columns as [`balance`] splits them, each named by its key.
+pub fn balanced(cards: Vec<(SharedString, AnyElement)>) -> AnyElement {
+    let keys: Vec<SharedString> = cards.iter().map(|(key, _)| key.clone()).collect();
+    let mut sides: [Vec<AnyElement>; BALANCED] = Default::default();
+    for ((key, element), column) in cards.into_iter().zip(balance(&keys)) {
+        sides[column].push(
+            div()
+                .relative()
+                .child(element)
+                .child(measure::probe(&drawn(&key)))
+                .into_any_element(),
+        );
+    }
+    div()
+        .flex()
+        .items_start()
+        .gap(px(GAP))
+        .children(
+            sides
+                .into_iter()
+                .map(|side| div().flex().flex_col().gap(px(GAP)).children(side)),
+        )
+        .into_any_element()
 }

@@ -43,6 +43,8 @@ pub struct Bar {
     pub right: Vec<Widget>,
     #[serde(deserialize_with = "number")]
     pub spacing: f32,
+    /// Widgets that, wherever they sit side by side, share one surface and open the dashboard.
+    pub group: Vec<Widget>,
 }
 
 impl Default for Bar {
@@ -64,6 +66,7 @@ impl Default for Bar {
                 Widget(Notifications::NAME),
             ],
             spacing: 4.0,
+            group: Vec::new(),
         }
     }
 }

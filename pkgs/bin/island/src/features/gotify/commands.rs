@@ -24,7 +24,7 @@ pub fn status(state: &State) -> Vec<Row> {
     };
     let text = match &state.error {
         Some(error) => format!("{server} ({error})"),
-        None => format!("{server} ({} messages)", state.messages.len()),
+        None => format!("{server} ({} messages)", state.messages),
     };
     vec![Row::new("Gotify", Shown::Text(text))]
 }

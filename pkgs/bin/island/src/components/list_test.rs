@@ -56,3 +56,31 @@ fn query_changes_and_panel_close_reset_navigation() {
     assert!(selection.query.is_empty());
     assert_eq!((selection.selected, selection.top), (0, 0));
 }
+
+#[test]
+fn scrolling_moves_the_view_but_not_the_selection() {
+    let mut selection = Selection::default();
+    selection.select(1, 30);
+    selection.scroll(5, 30);
+    assert_eq!((selection.selected, selection.top), (1, 5));
+    selection.scroll(100, 30);
+    assert_eq!(selection.top, 30 - ROWS);
+    selection.scroll(-100, 30);
+    assert_eq!(selection.top, 0);
+    selection.scroll(3, ROWS - 1);
+    assert_eq!(selection.top, 0);
+}
+
+#[test]
+fn keeping_an_unmoved_selection_leaves_the_scroll_alone() {
+    let mut selection = Selection::default();
+    selection.select(1, 30);
+    selection.scroll(10, 30);
+    selection.keep(1, 30);
+    assert_eq!((selection.selected, selection.top), (1, 10));
+    selection.keep(2, 30);
+    assert_eq!((selection.selected, selection.top), (2, 2));
+    selection.scroll(10, 30);
+    selection.keep(2, 15);
+    assert_eq!((selection.selected, selection.top), (2, 15 - ROWS));
+}

@@ -305,12 +305,19 @@ impl Local for View {
         self.tab == Tab::Chat
     }
 
+    /// A view, or the Sessions view and a session in it, such as `sessions <id>`.
     fn show(&mut self, view: &str) {
+        let (view, session) = view
+            .split_once(' ')
+            .map_or((view, None), |(view, session)| (view, Some(session)));
         if let Some(tab) = Tab::ALL
             .into_iter()
             .find(|tab| tab.label().eq_ignore_ascii_case(view))
         {
             self.tab = tab;
+            if let Some(session) = session {
+                self.session = Some(session.to_owned());
+            }
         }
     }
 

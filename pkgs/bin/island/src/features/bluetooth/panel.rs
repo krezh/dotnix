@@ -91,6 +91,7 @@ fn connected(device: &Device, open: bool, now: i64, subsec: Duration, p: &PanelC
         title_color: None,
         wrap: false,
         detail: SharedString::default(),
+        tinted: Vec::new(),
         trail: Vec::new(),
     };
     let (trust_path, forget_path, menu_path, off_path) =
@@ -150,7 +151,7 @@ fn connected(device: &Device, open: bool, now: i64, subsec: Duration, p: &PanelC
                 buttons: vec![IconButton {
                     id: format!("bt-disconnect-{path}").into(),
                     glyph: None,
-                    rising: None,
+                    color: None,
                     label: "Disconnect".into(),
                     active: false,
                     badge: None,
@@ -161,6 +162,7 @@ fn connected(device: &Device, open: bool, now: i64, subsec: Duration, p: &PanelC
                 compact: true,
                 indent: 0.0,
                 menu: Some(menu),
+                end: false,
             }),
         ],
     )
@@ -191,6 +193,7 @@ fn row(device: &Device, detail: String, does: &str, request: Request, p: &PanelC
         title_color: None,
         wrap: false,
         detail: SharedString::default(),
+        tinted: Vec::new(),
         trail: vec![Trail::Text(busy.unwrap_or(does).into(), BLUE)],
     };
     Block::Frame(
@@ -279,7 +282,7 @@ fn buttons(state: &State, now: i64, subsec: Duration, p: &PanelCx<'_>) -> Vec<Ic
     let mut buttons = vec![IconButton {
         id: "bt-power".into(),
         glyph: p.glyph(if state.powered { "bt-on" } else { "bt-off" }),
-        rising: None,
+        color: None,
         label: if state.powered {
             "Turn Bluetooth off"
         } else {
@@ -297,7 +300,7 @@ fn buttons(state: &State, now: i64, subsec: Duration, p: &PanelCx<'_>) -> Vec<Ic
     buttons.push(IconButton {
         id: "bt-scan".into(),
         glyph: p.glyph("bt-scan"),
-        rising: None,
+        color: None,
         label: if state.discovering {
             "Stop scanning"
         } else {
@@ -315,7 +318,7 @@ fn buttons(state: &State, now: i64, subsec: Duration, p: &PanelCx<'_>) -> Vec<Ic
     buttons.push(IconButton {
         id: "bt-visible".into(),
         glyph: p.glyph("bt-visible"),
-        rising: None,
+        color: None,
         label: if state.discoverable {
             format!("Visible as {}", state.name)
         } else {
@@ -373,6 +376,7 @@ pub fn panel(state: &State, p: &PanelCx<'_>) -> PanelView {
             vec![Block::note("No Bluetooth adapter, or BlueZ is not running")],
         ));
         return PanelView {
+            scroll: false,
             header: Header::Tabs,
             blocks,
         };
@@ -382,6 +386,7 @@ pub fn panel(state: &State, p: &PanelCx<'_>) -> PanelView {
         compact: false,
         indent: 0.0,
         menu: None,
+        end: false,
     }));
     if !state.powered {
         let paired = state.devices.iter().filter(|device| device.paired).count();
@@ -431,6 +436,7 @@ pub fn panel(state: &State, p: &PanelCx<'_>) -> PanelView {
     }
     blocks.extend(prompt(state, p));
     PanelView {
+        scroll: false,
         header: Header::Tabs,
         blocks,
     }

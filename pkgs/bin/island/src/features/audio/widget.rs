@@ -1,6 +1,6 @@
 //! The bar's volume gauge: click for the panel, right-click to mute, scroll to change.
 
-use gpui::{AnyElement, MouseButton, ScrollWheelEvent, prelude::*};
+use gpui::{AnyElement, MouseButton, ScrollEvent, prelude::*};
 
 use super::{
     Audio, glyphs,
@@ -33,7 +33,7 @@ fn tip(state: &AudioState) -> Option<String> {
 }
 
 impl Audio {
-    fn scroll(&self, event: &ScrollWheelEvent) {
+    fn scroll(&self, event: &ScrollEvent) {
         let mut scrolled = self.scrolled.get();
         let steps = island::notches(&mut scrolled, event);
         self.scrolled.set(scrolled);
@@ -78,7 +78,7 @@ pub fn widget(state: &AudioState, w: &mut WidgetCx<'_>) -> Option<AnyElement> {
                 MouseButton::Right,
                 w.call(|audio: &Audio| audio.send(Request::ToggleMute(Target::Output))),
             )
-            .on_scroll_wheel(w.on_event(Audio::scroll))
+            .on_scroll(w.on_event(Audio::scroll))
             .into_any_element(),
     )
 }

@@ -12,6 +12,7 @@
       claudeWrapped =
         pkgs.writeShellScriptBin "claude" ''
           set -euo pipefail
+          export CLAUDE_CODE_THRIFTY_SONIC=0
           export PATH="${pkgs.nodejs-slim}/bin:${pkgs.infisical}/bin:$PATH"
           ${builtins.readFile ../lib/memini-env.sh}
           if [ -r "${config.sops.secrets."opentodo/token".path}" ]; then

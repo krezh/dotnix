@@ -9,7 +9,7 @@ use std::{
 
 use gpui::{
     AnyElement, App as Gpui, Bounds, Context, Entity, EventEmitter, Global, Keystroke,
-    MouseDownEvent, Pixels, Point, Render, ScrollDelta, ScrollHandle, ScrollWheelEvent,
+    MouseDownEvent, Pixels, Point, Render, ScrollDelta, ScrollEvent, ScrollHandle,
     SpringConfig, StyleRefinement, Subscription, Task, WeakEntity, Window, div, layer_shell::Layer,
     point, prelude::*, px, size,
 };
@@ -28,7 +28,7 @@ use crate::{
     compositor,
     config::{self, Widget},
     effects::Effects,
-    features::{self, AnyLocal, Features, IslandInfo, Outcome, PanelCx},
+    features::{self, AnyLocal, Battery, Features, IslandInfo, Outcome, PanelCx},
     glyphs::Glyphs,
     menu::{self, Menu, MenuNode, Pick},
     panel::{self, Frame},
@@ -68,7 +68,7 @@ const LINES_PER_NOTCH: f32 = 3.0;
 const PIXELS_PER_NOTCH: f32 = 50.0;
 
 /// Keeps the remainder in `accumulated` for the next event.
-pub fn notches(accumulated: &mut f32, event: &ScrollWheelEvent) -> i32 {
+pub fn notches(accumulated: &mut f32, event: &ScrollEvent) -> i32 {
     *accumulated += match event.delta {
         ScrollDelta::Lines(lines) => lines.y / LINES_PER_NOTCH,
         ScrollDelta::Pixels(pixels) => f32::from(pixels.y) / PIXELS_PER_NOTCH,
@@ -82,6 +82,8 @@ const LEAVE_GRACE: Duration = Duration::from_millis(500);
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Panel {
+    /// The dashboard's overview: every feature's switches and cards together.
+    Dashboard,
     System,
     Feature(&'static str),
     /// Every feature pop-up with something to show, together, such as an OSD below notification
@@ -113,10 +115,11 @@ impl EventEmitter<IslandEvent> for Island {}
 
 impl Panel {
     /// Feature panels' layers follow these.
-    const ALL: [Panel; 2] = [Panel::System, Panel::Popups];
+    const ALL: [Panel; 3] = [Panel::System, Panel::Popups, Panel::Dashboard];
 
     pub fn name(self) -> &'static str {
         match self {
+            Panel::Dashboard => "dashboard",
             Panel::System => "system",
             Panel::Popups => "popups",
             Panel::Feature(name) => features::panel_of(name).unwrap_or(name),
@@ -128,9 +131,15 @@ impl Panel {
     }
 
     pub fn parse(name: &str) -> Option<Self> {
-        (name == Panel::System.name())
-            .then_some(Panel::System)
+        [Panel::Dashboard, Panel::System]
+            .into_iter()
+            .find(|panel| panel.name() == name)
             .or_else(|| features::panel_named(name).map(Panel::Feature))
+    }
+
+    /// Island's own panels showing what the system sampler reads: System and the dashboard.
+    fn shows_stats(self) -> bool {
+        matches!(self, Panel::Dashboard | Panel::System)
     }
 
     fn layer(self) -> usize {
@@ -213,8 +222,7 @@ pub struct Island {
     h: Spring,
     layers: [Spring; LAYERS],
     chrome: Spring,
-    tab_pill: Spring,
-    tab: Panel,
+    strip: bar::TabStrip,
     last_frame: Option<Instant>,
     anim: Option<AnimStats>,
     corner: (f32, f32),
@@ -227,7 +235,7 @@ pub struct Island {
     samples: Samples,
     pub(crate) stats: SysStats,
     revision: u64,
-    /// Held while the System panel is open, so the sampler reads what only it shows.
+    /// Held while System or the dashboard is open, so the sampler reads what only they show.
     sys_watch: Option<sys::Watch>,
     panel_watch: Option<Box<dyn Any>>,
     sys_task: Option<Task<()>>,
@@ -303,7 +311,7 @@ impl Island {
 
         let glyphs_subscription = cx.observe_global::<Glyphs>(|this, cx| {
             this.sync_held(cx);
-            if matches!(this.mode, Mode::Collapsed | Mode::Open(Panel::System)) {
+            if matches!(this.mode, Mode::Collapsed | Mode::Open(Panel::System | Panel::Dashboard)) {
                 this.retarget();
             }
             this.kick(cx);
@@ -332,8 +340,7 @@ impl Island {
             h: shape_spring(COLLAPSED_H),
             layers,
             chrome: Spring::new(0.0, CONTENT_OUT, 0.002),
-            tab_pill: Spring::new(0.0, SHAPE_SPRING, 0.1),
-            tab: bar::first_tab(),
+            strip: bar::TabStrip::default(),
             last_frame: None,
             anim: None,
             corner: startup.corner,
@@ -822,6 +829,14 @@ impl Island {
         {
             self.panel_watch = feature.panel_opened(cx);
         }
+        // The overview shows what the dashboard's views show, so it keeps what they watch going.
+        if mode == Mode::Open(Panel::Dashboard) {
+            let watches: Vec<Box<dyn Any>> = features::dashboard_tabs()
+                .into_iter()
+                .filter_map(|(name, _, _)| self.features.get(name)?.panel_opened(cx))
+                .collect();
+            self.panel_watch = Some(Box::new(watches));
+        }
         self.scroll.set_offset(point(px(0.0), px(0.0)));
         for column in &self.columns {
             column.set_offset(point(px(0.0), px(0.0)));
@@ -829,10 +844,10 @@ impl Island {
         self.opened.set(true);
         self.retarget();
 
-        // The System panel's graphs slide with the clock; a few px a second needs no more than the
-        // ambient tick, not every vblank.
+        // System's and the dashboard's graphs slide with the clock; a few px a second needs no more
+        // than the ambient tick, not every vblank.
         let refresh = match mode {
-            Mode::Open(Panel::System) => Some(marquee::TICK),
+            Mode::Open(Panel::System | Panel::Dashboard) => Some(marquee::TICK),
             Mode::Open(Panel::Feature(name)) => features::panel_refresh(name),
             Mode::Open(Panel::Popups) => self
                 .locals
@@ -842,7 +857,8 @@ impl Island {
                 .min(),
             _ => None,
         };
-        self.sys_watch = (mode == Mode::Open(Panel::System)).then(|| self.samples.watch());
+        self.sys_watch =
+            matches!(mode, Mode::Open(kind) if kind.shows_stats()).then(|| self.samples.watch());
         self.sys_task = refresh.map(|every| {
             cx.spawn(async move |this, cx| {
                 loop {
@@ -982,8 +998,10 @@ impl Island {
             feature.sync_local(&mut **local, &here, animate, cx);
         }
         self.sync_held(cx);
-        if matches!(self.mode, Mode::Collapsed | Mode::Open(Panel::System))
-            || self.mode == Mode::Open(Panel::Popups)
+        if matches!(
+            self.mode,
+            Mode::Collapsed | Mode::Open(Panel::System | Panel::Dashboard)
+        ) || self.mode == Mode::Open(Panel::Popups)
             || matches!(self.mode, Mode::Open(Panel::Feature(open)) if open == name)
         {
             self.retarget();
@@ -1038,14 +1056,24 @@ impl Island {
         (!blocks.is_empty()).then_some(panel::PanelView {
             header: panel::Header::None,
             blocks,
+            scroll: false,
         })
     }
 
-    pub fn feature_buttons(&self, cx: &Gpui) -> Vec<panel::IconButton> {
-        self.features
-            .iter()
-            .filter_map(|feature| feature.system_button(&mut self.panel_cx(feature.name(), cx), cx))
-            .collect()
+    /// What every running feature puts on the dashboard's overview, in their places.
+    pub fn dashboard(&self, cx: &Gpui) -> (features::Dashboard, Vec<Battery>) {
+        let mut features: Vec<_> = self.features.iter().collect();
+        features.sort_by_key(|feature| feature.dashboard_order());
+        let mut all = features::Dashboard::default();
+        let mut batteries = Vec::new();
+        for feature in features {
+            let part = feature.dashboard(&mut self.panel_cx(feature.name(), cx), cx);
+            all.switches.extend(part.switches);
+            all.cards.extend(part.cards);
+            all.warnings.extend(part.warnings);
+            batteries.extend(feature.batteries(cx));
+        }
+        (all, batteries)
     }
 
     fn bar_width(&self) -> Option<f32> {
@@ -1235,12 +1263,7 @@ impl Island {
 
         match self.mode {
             Mode::Open(kind) if bar::tab_index(kind).is_some() => {
-                let pill = bar::tab_index(kind).unwrap_or(0) as f32 * bar::TAB_STEP;
-                if self.chrome.value() < 0.05 {
-                    self.tab_pill.reset(pill);
-                }
-                self.tab_pill.retarget(pill, SHAPE_SPRING);
-                self.tab = kind;
+                self.strip.pick(kind, self.chrome.value() < 0.05);
                 fade_in(&mut self.chrome);
             }
             _ => self.chrome.retarget(0.0, CONTENT_OUT),
@@ -1278,7 +1301,7 @@ impl Island {
             && self.h.is_settled()
             && self.layers.iter().all(Spring::is_settled)
             && self.chrome.is_settled()
-            && self.tab_pill.is_settled()
+            && self.strip.is_settled()
             && self.locals.iter().all(|(_, local)| local_still(&**local))
             && self.held.is_settled()
             && self.menu.as_ref().is_none_or(Menu::is_settled)
@@ -1295,7 +1318,7 @@ impl Island {
         self.w.advance(dt, now);
         self.h.advance(dt, now);
         self.chrome.advance(dt, now);
-        self.tab_pill.advance(dt, now);
+        self.strip.advance(dt, now);
         for (_, local) in &mut self.locals {
             local.advance(dt, now);
         }
@@ -1395,6 +1418,7 @@ impl Island {
                     layouts: &self.layouts,
                     tips: &self.tips,
                     popovers: &self.popovers,
+                    glass: ui::surface_fill(self.opacity),
                 };
                 let content = panel.render(&frame, cx);
                 match frozen {
@@ -1458,7 +1482,7 @@ impl Island {
     fn chrome_element(&self, w: f32, place: Place, cx: &mut Context<Self>) -> AnyElement {
         let opacity = self.chrome.value().clamp(0.0, 1.0);
         let strip_screen =
-            ((place.viewport - bar::strip_width()) / 2.0 * place.scale).round() / place.scale;
+            ((place.viewport - self.strip.width()) / 2.0 * place.scale).round() / place.scale;
         let strip_left = strip_screen - place.x - INSET;
         div()
             .absolute()
@@ -1468,8 +1492,7 @@ impl Island {
             .h(px(HEADER_H))
             .opacity(opacity)
             .child(bar::tabs(
-                self.tab,
-                self.tab_pill.value(),
+                &self.strip,
                 strip_left,
                 self.hovered,
                 &self.tips,
@@ -1507,7 +1530,11 @@ impl Render for Island {
         for name in measured {
             self.local_changed(name, cx);
         }
-        if self.mode == Mode::Open(Panel::System) || self.frozen[Panel::System.layer()].is_none() {
+        bar::measure_labels(window);
+        if matches!(self.mode, Mode::Open(kind) if kind.shows_stats())
+            || self.frozen[Panel::System.layer()].is_none()
+            || self.frozen[Panel::Dashboard.layer()].is_none()
+        {
             self.refresh_stats();
         }
         self.sync_workspaces(window, cx);

@@ -5,6 +5,7 @@ mod feature;
 mod glyphs;
 mod headset_card;
 mod meters;
+mod overview;
 mod panel;
 mod popup;
 mod pulse;

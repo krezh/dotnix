@@ -1,6 +1,6 @@
 //! A history drawn as smooth lines, such as CPU use over the last minute.
 
-use std::fmt::Write;
+use std::{fmt::Write, time::Duration};
 
 use gpui::{
     Bounds, ContentMask, Hsla, IntoElement, PathBuilder, PathStyle, Pixels, Point, SharedString,
@@ -11,6 +11,10 @@ use crate::{
     components::tooltip::Tooltips,
     theme::{TINT, with_alpha},
 };
+
+/// How often a history charted here gets a new sample. Whatever keeps a history samples at this
+/// pace unless it has reason for its own, and then charts it with its own phase.
+pub const SAMPLE_EVERY: Duration = Duration::from_secs(2);
 
 const LINE: f32 = 3.0;
 const FILL_ALPHA: u8 = 0x26;

@@ -1,10 +1,11 @@
 //! A small picture standing for something in a row: a glyph, an app's icon, a picture, a letter,
-//! the mark a choice shows (a check box or a radio dot), a mascot, or a ring with a value.
+//! the mark a choice shows (a check box or a radio dot), a mascot, or a ring with a value; any of
+//! them with a small glyph at its corner, or pulsing.
 
-use std::path::PathBuf;
+use std::{path::PathBuf, time::Duration};
 
 use gpui::{
-    AnimationExt, AnyElement, FontWeight, Hsla, ObjectFit, PathBuilder, PathStyle, Rgba,
+    Animation, AnimationExt, AnyElement, FontWeight, Hsla, ObjectFit, PathBuilder, PathStyle, Rgba,
     SharedString, SpringAnimation, StrokeOptions, canvas, div, point, prelude::*, px, rgb, rgba,
 };
 
@@ -52,7 +53,22 @@ pub enum Mark {
         color: u32,
         value: SharedString,
     },
+    /// A mark with a small glyph in the color at its corner, such as where a message came from.
+    Marked(Box<Mark>, PathBuf, u32),
+    /// A mark fading and coming back, over and over, such as something still being tried.
+    Pulsing(Box<Mark>),
 }
+
+const PULSE: Duration = Duration::from_millis(1600);
+/// How faint a pulsing mark goes.
+const PULSE_LOW: f32 = 0.45;
+
+/// A corner mark's disc, against the mark's side.
+const CORNER: f32 = 0.5;
+const CORNER_GLYPH: f32 = 0.66;
+/// How far it hangs past the mark's corner, against its own side.
+const CORNER_HANG: f32 = 0.28;
+const CORNER_RING: f32 = 2.0;
 
 fn blend(from: Rgba, to: Rgba, t: f32) -> Hsla {
     let at = |a: f32, b: f32| a + (b - a) * t;
@@ -198,6 +214,44 @@ pub fn mark(mark: &Mark, size: f32, fill: f32) -> AnyElement {
             value: value.clone(),
             value_color: TEXT,
             label: SharedString::default(),
+            glyph: None,
         }),
+        Mark::Marked(inner, path, color) => {
+            let disc = (size * CORNER).round();
+            let hang = -(disc * CORNER_HANG).round();
+            div()
+                .relative()
+                .size(px(size))
+                .flex_none()
+                .flex()
+                .items_center()
+                .justify_center()
+                .child(self::mark(inner, size, fill))
+                .child(
+                    div()
+                        .absolute()
+                        .right(px(hang))
+                        .bottom(px(hang))
+                        .size(px(disc + 2.0 * CORNER_RING))
+                        .flex()
+                        .items_center()
+                        .justify_center()
+                        .child(ui::shape(Radius::Pill, Some(ui::surface_fill(1.0))))
+                        .child(icon::glyph(path, (disc * CORNER_GLYPH).round(), *color)),
+                )
+                .into_any_element()
+        }
+        Mark::Pulsing(inner) => div()
+            .flex_none()
+            .child(self::mark(inner, size, fill))
+            .with_animation(
+                "badge-pulse",
+                Animation::new(PULSE).repeat(),
+                |mark, t| {
+                    let wave = 0.5 - 0.5 * (t * std::f32::consts::TAU).cos();
+                    mark.opacity(1.0 - (1.0 - PULSE_LOW) * wave)
+                },
+            )
+            .into_any_element(),
     }
 }

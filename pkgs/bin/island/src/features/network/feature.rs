@@ -6,7 +6,7 @@ use std::any::Any;
 use gpui::{AnyElement, Keystroke};
 
 use super::{
-    Network, osd, panel,
+    Network, osd, overview, panel,
     runtime::{Request, Settings},
     state::{Activity, State},
     view::View,
@@ -16,7 +16,7 @@ use crate::{
     components::input::{self, Edit},
     control::{self, Command, Group, Report, Row, SWITCH, Shown, Takes},
     features::{
-        Feature, Feed, GlyphSpec, IslandInfo, Outcome, PanelCx, WidgetCx,
+        Dashboard, Feature, Feed, GlyphSpec, IslandInfo, Outcome, PanelCx, WidgetCx,
         osd::{Osd, shown_popup as osd_popup},
         parse_settings,
     },
@@ -26,85 +26,29 @@ use crate::{
 impl Feature for Network {
     const NAME: &'static str = "network";
     const PANEL: Option<&'static str> = Some("network");
-    const TAB: Option<(&'static str, u8)> = Some(("Network", 5));
+    const DASHBOARD_TAB: Option<(&'static str, u8)> = Some(("Network", 3));
+    const DASHBOARD_ORDER: u8 = 10;
     const GLYPHS: &'static [GlyphSpec] = &[
-        (
-            "tab-network",
-            &["network-workgroup-symbolic", "network-wired-symbolic"],
-        ),
-        (
-            "network-wifi-excellent",
-            &["network-wireless-signal-excellent-symbolic"],
-        ),
-        (
-            "network-wifi-good",
-            &["network-wireless-signal-good-symbolic"],
-        ),
-        ("network-wifi-ok", &["network-wireless-signal-ok-symbolic"]),
-        (
-            "network-wifi-weak",
-            &["network-wireless-signal-weak-symbolic"],
-        ),
-        (
-            "network-wifi-none",
-            &["network-wireless-signal-none-symbolic"],
-        ),
-        (
-            "network-wifi-acquiring",
-            &["network-wireless-acquiring-symbolic"],
-        ),
-        (
-            "network-wifi-off",
-            &[
-                "network-wireless-disabled-symbolic",
-                "network-wireless-offline-symbolic",
-            ],
-        ),
-        (
-            "network-offline",
-            &[
-                "network-wireless-offline-symbolic",
-                "network-offline-symbolic",
-            ],
-        ),
-        ("network-wired", &["network-wired-symbolic"]),
-        (
-            "network-wired-no-route",
-            &["network-wired-no-route-symbolic", "network-error-symbolic"],
-        ),
-        (
-            "network-wifi-no-route",
-            &[
-                "network-wireless-no-route-symbolic",
-                "network-error-symbolic",
-            ],
-        ),
-        (
-            "network-wired-off",
-            &[
-                "network-wired-disconnected-symbolic",
-                "network-wired-symbolic",
-            ],
-        ),
-        ("network-vpn", &["network-vpn-symbolic"]),
-        ("network-scan", &["view-refresh-symbolic"]),
-        (
-            "network-disconnect",
-            &["network-offline-symbolic", "process-stop-symbolic"],
-        ),
-        (
-            "network-forget",
-            &["edit-delete-symbolic", "user-trash-symbolic"],
-        ),
-        (
-            "network-reveal",
-            &["view-reveal-symbolic", "view-visible-symbolic"],
-        ),
-        (
-            "network-conceal",
-            &["view-conceal-symbolic", "view-hidden-symbolic"],
-        ),
-        ("network-join", &["go-next-symbolic", "go-up-symbolic"]),
+        ("tab-network", &["wifi"]),
+        ("network-wifi-excellent", &["wifi"]),
+        ("network-wifi-good", &["wifi"]),
+        ("network-wifi-ok", &["wifi-high"]),
+        ("network-wifi-weak", &["wifi-low"]),
+        ("network-wifi-none", &["wifi-zero"]),
+        ("network-wifi-acquiring", &["wifi-sync"]),
+        ("network-wifi-off", &["wifi-off"]),
+        ("network-offline", &["globe-x"]),
+        ("network-wired", &["ethernet-port"]),
+        ("network-wired-no-route", &["cable"]),
+        ("network-wifi-no-route", &["wifi-cog"]),
+        ("network-wired-off", &["unplug"]),
+        ("network-vpn", &["shield"]),
+        ("network-scan", &["refresh-cw"]),
+        ("network-disconnect", &["unplug"]),
+        ("network-forget", &["trash-2"]),
+        ("network-reveal", &["eye"]),
+        ("network-conceal", &["eye-off"]),
+        ("network-join", &["log-in"]),
     ];
     const CONTROLS: &'static [Command] = &[
         Command {
@@ -166,6 +110,15 @@ impl Feature for Network {
 
     fn panel<'a>(&self, state: &State, p: &PanelCx<'a>) -> Option<PanelView> {
         Some(panel::panel(state, p))
+    }
+
+    fn dashboard(&self, state: &State, p: &PanelCx<'_>) -> Dashboard {
+        Dashboard {
+            switches: overview::switches(state, p),
+            cards: overview::cards(state, p),
+            warnings: overview::warnings(state, p),
+            ..Dashboard::default()
+        }
     }
 
     fn command(&self, state: &State, args: &[&str]) -> Report {

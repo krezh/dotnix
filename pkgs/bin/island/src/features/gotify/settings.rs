@@ -1,20 +1,41 @@
-use std::{fs, path::PathBuf};
+use std::{fs, path::PathBuf, time::Duration};
 
 use serde::Deserialize;
 
 use super::state::Endpoint;
 use crate::features::parse_settings;
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct Settings {
     pub url: String,
     pub token_file: PathBuf,
     pub min_priority: i64,
     pub auto_delete: bool,
+    /// How often, in seconds, the server is asked what it still has, so messages deleted
+    /// elsewhere leave island; 0 never.
+    pub sync_seconds: u64,
 }
 
+impl Default for Settings {
+    fn default() -> Self {
+        Self {
+            url: String::new(),
+            token_file: PathBuf::new(),
+            min_priority: 0,
+            auto_delete: false,
+            sync_seconds: DEFAULT_SYNC_SECONDS,
+        }
+    }
+}
+
+const DEFAULT_SYNC_SECONDS: u64 = 30;
+
 impl Settings {
+    pub fn sync_interval(&self) -> Option<Duration> {
+        (self.sync_seconds > 0).then(|| Duration::from_secs(self.sync_seconds))
+    }
+
     pub fn is_enabled(&self) -> bool {
         !self.url.trim().is_empty() || !self.token_file.as_os_str().is_empty()
     }

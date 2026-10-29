@@ -10,6 +10,11 @@ let
     libxkbcommon
   ];
   src = craneLib.cleanCargoSource ./.;
+  lucide = pkgs.fetchzip {
+    name = "lucide-static-1.64.0";
+    url = "https://registry.npmjs.org/lucide-static/-/lucide-static-1.64.0.tgz";
+    hash = "sha256-ObvLERXG5YwBzFHwdvJ+fKtch18n0pn8EZBQiX7YOV8=";
+  };
   cratePatches = {
     gpui-pre = [ ./patches/gpui-pre-set-layer.patch ];
     gpui-pre-linux = [ ./patches/gpui-pre-linux-set-layer.patch ];
@@ -33,6 +38,7 @@ craneLib.buildPackage rec {
   };
 
   ISLAND_PCI_IDS = "${pkgs.hwdata}/share/hwdata/pci.ids";
+  ISLAND_GLYPHS = "${lucide}/icons";
 
   # SQLCipher, bundled by rusqlite, encrypts with OpenSSL's libcrypto.
   OPENSSL_LIB_DIR = "${lib.getLib pkgs.openssl}/lib";

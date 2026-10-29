@@ -7,20 +7,17 @@ use gpui::{AnyElement, MouseButton, prelude::*};
 use serde_json::Value;
 use tracing::{debug, warn};
 
-use super::{Feature, Feed, Refreshed, WidgetCx};
+use super::{Battery as Power, Feature, Feed, Refreshed, WidgetCx};
 use crate::{
-    bar::Gauge,
     components::tooltip::Tip,
     control::{self, Command, Group, Report, Row, Takes},
     island::Panel,
     run,
     supervisor::Ended,
-    theme::{CRITICAL, GREEN, PEACH, RED, TEXT, YELLOW},
 };
 
 const INTERVAL: Duration = Duration::from_secs(60);
 const TIMEOUT: Duration = Duration::from_secs(10);
-const LOW: u8 = 20;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Battery {
@@ -95,15 +92,6 @@ fn read() -> Reading {
     })
 }
 
-fn battery_color(percent: u8) -> u32 {
-    match percent {
-        p if p <= LOW => RED,
-        ..=40 => PEACH,
-        ..=60 => YELLOW,
-        _ => GREEN,
-    }
-}
-
 fn tip(battery: &Battery) -> String {
     let level = format!("~{}%", battery.percent);
     let voltage = format!("{:.2} V", battery.voltage_mv as f32 / 1000.0);
@@ -128,15 +116,7 @@ impl Zowie {
 
 impl Feature for Zowie {
     const NAME: &'static str = "zowie";
-    const GLYPHS: &'static [super::GlyphSpec] = &[(
-        "mouse",
-        &[
-            "input-mouse-symbolic",
-            "input-mouse",
-            "mouse-symbolic",
-            "mouse",
-        ],
-    )];
+    const GLYPHS: &'static [super::GlyphSpec] = &[("mouse", &["mouse"])];
     const CONTROLS: &'static [Command] = &[Command {
         name: "zowie",
         about: "Read the mouse battery now",
@@ -208,6 +188,19 @@ impl Feature for Zowie {
         matches!(state.value, Reading::Present(_))
     }
 
+    fn batteries(&self, state: &Refreshed<Reading>) -> Vec<Power> {
+        let Reading::Present(battery) = &state.value else {
+            return Vec::new();
+        };
+        vec![Power {
+            id: "zowie".into(),
+            glyph: "mouse",
+            name: "ZOWIE mouse".into(),
+            level: battery.percent,
+            charging: battery.charging(),
+        }]
+    }
+
     fn widget(
         &self,
         _: &str,
@@ -217,30 +210,13 @@ impl Feature for Zowie {
         let Reading::Present(battery) = &state.value else {
             return None;
         };
-        let color = match battery.percent {
-            _ if battery.charging() => GREEN,
-            level if level <= LOW => CRITICAL,
-            _ => TEXT,
-        };
+        let power = self.batteries(state).pop()?;
         Some(
-            w.gauge(
-                "bar-zowie",
-                Gauge {
-                    glyph: w.glyph("mouse"),
-                    glyph_color: color,
-                    busy: state.refreshing,
-                    level: Some(battery.percent as f32 / 100.0),
-                    level_color: if battery.charging() {
-                        GREEN
-                    } else {
-                        battery_color(battery.percent)
-                    },
-                },
-            )
-            .tip(w.tips(), "bar-zowie", tip(battery))
-            .on_click(w.toggle(Panel::System))
-            .on_mouse_down(MouseButton::Right, w.call(Zowie::refresh))
-            .into_any_element(),
+            w.battery("bar-zowie", &power, state.refreshing)
+                .tip(w.tips(), "bar-zowie", tip(battery))
+                .on_click(w.toggle(Panel::Dashboard))
+                .on_mouse_down(MouseButton::Right, w.call(Zowie::refresh))
+                .into_any_element(),
         )
     }
 

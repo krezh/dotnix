@@ -8,11 +8,11 @@ use std::{
 
 use gpui::{AnyElement, Keystroke, Window};
 
-use super::{Feed, Islands, Osd, PanelCx, WidgetCx};
+use super::{Battery, Feed, Islands, Osd, PanelCx, WidgetCx};
 use crate::{
     cli::Client,
     control::{Command, Reply, Report, Row},
-    panel::{IconButton, Mark, PanelView},
+    panel::{ActionTile, Block, Mark, PanelView, Warning},
     wm::Monitor,
 };
 
@@ -85,8 +85,26 @@ pub trait Feature: Sized + 'static {
     /// A feature with a panel runs even when the layout leaves its widget out.
     const PANEL: Option<&'static str> = None;
 
-    /// Title and place among the tabs; island's own System tab is 4.
+    /// Title and place among the tabs; island's own Dashboard tab is 4.
     const TAB: Option<(&'static str, u8)> = None;
+
+    /// Title and place among the Dashboard tab's views, for a panel that opens from it rather than
+    /// from a tab of its own; the overview is 0 and island's own System view is 2.
+    const DASHBOARD_TAB: Option<(&'static str, u8)> = None;
+
+    /// Where what it puts on the dashboard's overview sits among every feature's, lowest first.
+    const DASHBOARD_ORDER: u8 = u8::MAX;
+
+    /// What it puts on the dashboard's overview.
+    fn dashboard(&self, _: &Self::State, _: &PanelCx<'_>) -> Dashboard {
+        Dashboard::default()
+    }
+
+    /// Batteries it knows of, which its bar gauge can draw and the overview gathers with every
+    /// other feature's, warning of any running low.
+    fn batteries(&self, _: &Self::State) -> Vec<Battery> {
+        Vec::new()
+    }
 
     /// For content that moves without new state, such as a play position.
     const PANEL_REFRESH: Option<Duration> = None;
@@ -118,10 +136,6 @@ pub trait Feature: Sized + 'static {
     }
 
     fn osd(_before: &Self::State, _after: &Self::State) -> Option<Osd> {
-        None
-    }
-
-    fn system_button(&self, _: &Self::State, _: &PanelCx<'_>) -> Option<IconButton> {
         None
     }
 
@@ -167,6 +181,17 @@ pub trait Feature: Sized + 'static {
     fn key(&self, _: &Self::State, _local: &mut Self::Local, _keystroke: &Keystroke) -> Outcome {
         Outcome::Close
     }
+}
+
+/// A feature's part of the dashboard's overview.
+#[derive(Default)]
+pub struct Dashboard {
+    /// Action tiles with their states, among every feature's under what needs a look.
+    pub switches: Vec<ActionTile>,
+    /// Each a [`Block::Card`], in the overview's balanced columns.
+    pub cards: Vec<Block>,
+    /// What needs a look now, at the overview's top.
+    pub warnings: Vec<Warning>,
 }
 
 pub struct IslandInfo<'a> {

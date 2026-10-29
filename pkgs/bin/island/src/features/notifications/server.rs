@@ -175,9 +175,11 @@ impl Server {
                     key: key.clone(),
                     label: label.clone(),
                     icon: action_icons.then(|| icons::lookup(label)).flatten(),
+                    opens: None,
                 })
                 .collect(),
             received: SystemTime::now(),
+            posted: None,
         };
         debug!(
             id,

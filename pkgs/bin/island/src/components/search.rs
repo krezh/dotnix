@@ -4,7 +4,7 @@
 use std::{cell::Cell, path::PathBuf, rc::Rc, time::Duration};
 
 use gpui::{
-    Animation, AnimationExt, AnyElement, Context, FontWeight, ScrollWheelEvent, SharedString,
+    Animation, AnimationExt, AnyElement, Context, FontWeight, ScrollEvent, SharedString,
     SpringAnimation, SpringConfig, div, prelude::*, px, rgb,
 };
 
@@ -12,7 +12,7 @@ use crate::{
     components::{button, card, icon, list::ROWS},
     island::Island,
     panel::Handler,
-    theme::{ACCENT, OVERLAY2, SUBTEXT1},
+    theme::{ACCENT, HOVER_ALPHA, OVERLAY2, SUBTEXT1, TINT},
     ui::{self, CARD_PAD, HEADING_SIZE, Radius, SMALL_SIZE, TITLE_SIZE},
 };
 
@@ -26,6 +26,7 @@ const CARET_H: f32 = 22.0;
 const ROW_H: f32 = 48.0;
 const ROW_GAP: f32 = 2.0;
 const ICON: f32 = 30.0;
+const GLYPH: f32 = 22.0;
 const PREVIEW_W: f32 = 56.0;
 const PREVIEW_H: f32 = 40.0;
 const SELECTION_SPRING: SpringConfig = SpringConfig::new(560.0, 44.0, 1.0);
@@ -34,16 +35,25 @@ pub struct SearchRow {
     pub id: SharedString,
     pub name: SharedString,
     pub detail: SharedString,
-    pub icon: Option<PathBuf>,
-    /// The icon is a picture to preview, drawn wider than an app icon.
-    pub preview: bool,
+    pub icon: RowIcon,
     pub selected: bool,
     pub on_click: Handler,
     /// Hovering a row selects it.
     pub on_hover: Handler,
 }
 
-pub type Step = Rc<dyn Fn(i32, &mut Island, &mut Context<Island>)>;
+pub enum RowIcon {
+    /// Full color, such as an app's icon.
+    Image(PathBuf),
+    /// Symbolic, tinted like the text beside it.
+    Glyph(PathBuf),
+    /// A picture to preview, drawn wider than an icon.
+    Picture(PathBuf),
+    None,
+}
+
+/// Moves the rows in view by a number of rows, leaving the selection where it is.
+pub type Scroll = Rc<dyn Fn(i32, &mut Island, &mut Context<Island>)>;
 
 pub enum Preview {
     Text(SharedString),
@@ -57,7 +67,10 @@ pub struct SearchView {
     /// Shown when there are no rows and nothing is typed.
     pub empty: SharedString,
     pub rows: Vec<SearchRow>,
-    pub on_step: Step,
+    /// Rows may show pictures, so every row's icon slot is made wide enough for one and names
+    /// line up however many are in view.
+    pub pictures: bool,
+    pub on_scroll: Scroll,
     pub preview: Option<(Preview, SharedString)>,
 }
 
@@ -85,7 +98,7 @@ thread_local! {
 }
 
 /// Down is positive; touchpads add up across events.
-fn rows_scrolled(event: &ScrollWheelEvent) -> i32 {
+fn rows_scrolled(event: &ScrollEvent) -> i32 {
     let total = SCROLLED.get() - f32::from(event.delta.pixel_delta(px(ROW_H)).y);
     let rows = (total / ROW_H).trunc();
     SCROLLED.set(total - rows * ROW_H);
@@ -158,29 +171,32 @@ pub fn search(view: SearchView, hover: bool, cx: &mut Context<Island>) -> AnyEle
 
     let selected = view.rows.iter().position(|row| row.selected);
     let empty = view.rows.is_empty();
+    let slot_w = if view.pictures { PREVIEW_W } else { ICON };
     let rows = view.rows.into_iter().map(|row| {
         let handler = row.on_click;
         let entered = row.on_hover;
-        let slot = if row.preview {
-            div()
-                .w(px(PREVIEW_W))
-                .h(px(PREVIEW_H))
-                .flex()
-                .items_center()
-                .justify_center()
-                .when_some(row.icon.as_deref(), |slot, path| {
-                    slot.child(
-                        gpui::img(path.to_path_buf())
+        let slot = div()
+            .w(px(slot_w))
+            .h(px(PREVIEW_H))
+            .flex()
+            .items_center()
+            .justify_center();
+        let slot = match row.icon {
+            RowIcon::Image(path) => slot.child(icon::image(&path, ICON)),
+            RowIcon::Glyph(path) => slot.child(icon::glyph(&path, GLYPH, SUBTEXT1)),
+            RowIcon::Picture(path) => slot.child(
+                div()
+                    .size_full()
+                    .p(px(3.0))
+                    .rounded(px(6.0))
+                    .bg(gpui::rgba((TINT << 8) | u32::from(HOVER_ALPHA)))
+                    .child(
+                        gpui::img(path)
                             .size_full()
                             .object_fit(gpui::ObjectFit::Contain),
-                    )
-                })
-        } else {
-            div()
-                .size(px(ICON))
-                .when_some(row.icon.as_deref(), |slot, path| {
-                    slot.child(icon::image(path, ICON))
-                })
+                    ),
+            ),
+            RowIcon::None => slot,
         };
         button::fill(row.id, Radius::Row, None, hover && !row.selected)
             .flex_none()
@@ -220,7 +236,7 @@ pub fn search(view: SearchView, hover: bool, cx: &mut Context<Island>) -> AnyEle
             }))
     });
 
-    let on_step = view.on_step;
+    let on_scroll = view.on_scroll;
     let width = if view.preview.is_some() {
         LIST_W
     } else {
@@ -233,10 +249,10 @@ pub fn search(view: SearchView, hover: bool, cx: &mut Context<Island>) -> AnyEle
         .flex_none()
         .w(px(width))
         .h(px(list_h))
-        .on_scroll_wheel(cx.listener(move |this, event: &ScrollWheelEvent, _, cx| {
-            let step = rows_scrolled(event);
-            if step != 0 {
-                on_step(step, this, cx);
+        .on_scroll(cx.listener(move |this, event: &ScrollEvent, _, cx| {
+            let rows = rows_scrolled(event);
+            if rows != 0 {
+                on_scroll(rows, this, cx);
             }
         }))
         .when_some(selected, |list, index| {
@@ -247,7 +263,7 @@ pub fn search(view: SearchView, hover: bool, cx: &mut Context<Island>) -> AnyEle
                     .left_0()
                     .right_0()
                     .h(px(ROW_H))
-                    .child(ui::shape(Radius::Row, Some(ui::selected_fill().into())))
+                    .child(ui::shape(Radius::Row, Some(ui::hover_fill().into())))
                     .with_spring(
                         "search-selection",
                         SpringAnimation::new(SELECTION_SPRING).to(top),

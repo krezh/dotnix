@@ -16,7 +16,7 @@ use crate::{
         Block, ButtonRow, Code, CodeLine, CodeMotion, Countdown, FrameView, IconButton, Item, Lead,
         Mark, Text, Tone, Trail,
     },
-    theme::{OVERLAY2, PEACH, SUBTEXT1},
+    theme::{ACCENT, OVERLAY2, PEACH, SUBTEXT1},
 };
 
 /// As wide as a notification, so the two read as one kind of thing.
@@ -56,7 +56,7 @@ fn button(id: String, label: &str, active: bool, on_click: crate::panel::Handler
     IconButton {
         id: id.into(),
         glyph: None,
-        rising: None,
+        color: None,
         label: label.to_owned().into(),
         active,
         badge: None,
@@ -70,6 +70,7 @@ fn buttons(buttons: Vec<IconButton>, lead: f32) -> Block {
         compact: true,
         indent: lead + item::LEAD_GAP,
         menu: None,
+        end: false,
     })
 }
 
@@ -182,6 +183,7 @@ fn question_blocks(request: &Request, at: &str, view: &View, p: &PanelCx<'_>) ->
                     title_color: None,
                     wrap: true,
                     detail: "".into(),
+                    tinted: Vec::new(),
                     trail: Vec::new(),
                 },
                 (!description.is_empty())
@@ -285,6 +287,7 @@ fn item_for(request: &Request, at: &str, step: usize, view: &View) -> Item {
         title_color: None,
         wrap: true,
         detail: "".into(),
+        tinted: Vec::new(),
         trail: vec![Trail::Faint(format::ago(request.received_at, now).into())],
     }
 }
@@ -306,6 +309,7 @@ fn countdown(request: &Request, hold: Hold) -> Option<Countdown> {
             .is_none()
             .then(|| Duration::from_millis(u64::try_from(left_ms).unwrap_or(0))),
         round: hold.round,
+        color: ACCENT,
     })
 }
 

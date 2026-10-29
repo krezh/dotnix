@@ -109,6 +109,7 @@ pub fn player(
             )
     });
     div()
+        .w(px(ART + ART_GAP + text_w))
         .flex()
         .gap(px(ART_GAP))
         .child(art)

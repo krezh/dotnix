@@ -26,7 +26,6 @@
         "visualizer"
         "network"
         "bluetooth"
-        "gotify"
       ];
       sessionActions = [
         "lock"
@@ -50,6 +49,7 @@
             middle
             right
             spacing
+            group
             ;
         };
         appearance = {
@@ -129,6 +129,7 @@
             token_file = toString cfg.features.gotify.tokenFile;
             min_priority = cfg.features.gotify.minPriority;
             auto_delete = cfg.features.gotify.autoDelete;
+            sync_seconds = cfg.features.gotify.syncSeconds;
           };
         };
         log = {
@@ -167,6 +168,11 @@
             type = lib.types.numbers.nonnegative;
             default = 4;
             description = "Gap between bar widget highlights in pixels.";
+          };
+          group = lib.mkOption {
+            type = lib.types.listOf widget;
+            default = [ ];
+            description = "Widgets that share one surface wherever they sit side by side, and open the dashboard.";
           };
         };
 
@@ -539,6 +545,11 @@
             type = lib.types.bool;
             default = false;
             description = "Delete messages from the server after displaying them.";
+          };
+          syncSeconds = lib.mkOption {
+            type = lib.types.ints.unsigned;
+            default = 30;
+            description = "How often, in seconds, island asks the server which messages it still has, so ones deleted elsewhere disappear; 0 never.";
           };
         };
       };

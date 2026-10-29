@@ -1,19 +1,24 @@
 //! A value from 0 to 1 that can be dragged, optionally with a live level over its fill. Hovering
 //! one that can be dragged grows a handle out of its fill's end; holding it grows a little more.
+//! A large one carries its glyph, name and amount inside it instead, light over the empty track and
+//! dark over the fill.
 
-use std::{cell::Cell, rc::Rc};
+use std::{cell::Cell, path::PathBuf, rc::Rc};
 
 use gpui::{
-    AnimationExt, AnyElement, Bounds, Context, DispatchPhase, MouseButton, MouseDownEvent,
-    MouseMoveEvent, MouseUpEvent, Pixels, SharedString, SpringAnimation, SpringConfig, canvas, div,
-    prelude::*, px, relative, rgb, rgba,
+    AnimationExt, AnyElement, Bounds, Context, DispatchPhase, Div, FontWeight, MouseButton,
+    MouseDownEvent, MouseMoveEvent, MouseUpEvent, Pixels, SharedString, SpringAnimation,
+    SpringConfig, canvas, div, prelude::*, px, relative, rgb, rgba,
 };
 
 use crate::{
-    components::pointer::{self, Pointer},
+    components::{
+        icon, motion,
+        pointer::{self, Pointer},
+    },
     island::{Island, SHAPE_SPRING},
-    theme::{TEXT, TINT, TRACK_ALPHA, with_alpha},
-    ui::{self, Radius},
+    theme::{ON_ACCENT, TEXT, TINT, TRACK_ALPHA, with_alpha},
+    ui::{self, Radius, SMALL_SIZE},
 };
 
 pub type OnChange = Rc<dyn Fn(f32, &mut Island, &mut Context<Island>)>;
@@ -27,6 +32,49 @@ const DIM_ALPHA: u8 = 0x8c;
 const HANDLE_W: f32 = 4.0;
 const HOVER_H: f32 = TRACK_H + 8.0;
 const HELD_H: f32 = TRACK_H + 10.0;
+const LARGE_H: f32 = 42.0;
+const LARGE_GLYPH: f32 = 20.0;
+const LARGE_PAD: f32 = 12.0;
+
+/// What a large slider shows inside itself.
+#[derive(Clone)]
+pub struct SliderLabel {
+    pub glyph: Option<PathBuf>,
+    pub label: SharedString,
+    pub amount: SharedString,
+}
+
+/// The glyph and name at the start and the amount at the end, across the whole track; `id` names
+/// this copy of it, light or dark, so its text morphs as it changes.
+fn label_row(id: &str, inside: &SliderLabel, color: u32) -> Div {
+    div()
+        .absolute()
+        .top_0()
+        .left_0()
+        .h_full()
+        .flex()
+        .items_center()
+        .gap(px(10.0))
+        .px(px(LARGE_PAD))
+        .text_size(px(SMALL_SIZE))
+        .font_weight(FontWeight::SEMIBOLD)
+        .text_color(rgb(color))
+        .whitespace_nowrap()
+        .children(
+            inside
+                .glyph
+                .as_deref()
+                .map(|path| icon::glyph(path, LARGE_GLYPH, color)),
+        )
+        .child(div().flex_1().min_w(px(0.0)).truncate().child(motion::text(
+            SharedString::from(format!("{id}-label")),
+            inside.label.clone(),
+        )))
+        .child(div().flex_none().child(motion::text(
+            SharedString::from(format!("{id}-amount")),
+            inside.amount.clone(),
+        )))
+}
 
 /// A slim pill on the fill's end, growing out of it.
 fn handle(id: &SharedString, grip: Pointer) -> impl IntoElement {
@@ -66,7 +114,7 @@ pub fn slider(
     on_change: Option<OnChange>,
     cx: &mut Context<Island>,
 ) -> AnyElement {
-    build(id.into(), value, color, None, on_change, true, cx)
+    build(id.into(), value, color, None, on_change, None, true, cx)
 }
 
 pub struct Slider {
@@ -77,6 +125,8 @@ pub struct Slider {
     /// of the fill.
     pub signal: Option<f32>,
     pub on_change: Option<OnChange>,
+    /// Makes it large, carrying these inside it.
+    pub label: Option<SliderLabel>,
 }
 
 /// `live` is whether the pointer is over the island at all: GPUI's hover goes stale once it leaves.
@@ -88,17 +138,20 @@ pub fn view(slider: Slider, live: bool, cx: &mut Context<Island>) -> AnyElement 
         slider.color,
         signal,
         slider.on_change,
+        slider.label,
         live,
         cx,
     )
 }
 
+#[allow(clippy::too_many_arguments)]
 fn build(
     id: SharedString,
     value: f32,
     color: u32,
     signal: Option<f32>,
     on_change: Option<OnChange>,
+    inside: Option<SliderLabel>,
     live: bool,
     cx: &mut Context<Island>,
 ) -> AnyElement {
@@ -109,18 +162,31 @@ fn build(
     } else {
         rgb(color)
     };
+    let (track_h, radius) = match inside {
+        Some(_) => (LARGE_H, Radius::Control),
+        None => (TRACK_H, Radius::Pill),
+    };
     let pointer = pointer::get(&id);
     // A hold outlasts the pointer leaving the island; hovering does not.
     let grip = Pointer {
         hovered: live && pointer.hovered,
         held: pointer.held,
     };
+    let dark = inside.clone();
+    let dark_id = format!("{id}-dark");
     let fill = div().absolute().top_0().left_0().h_full().with_spring(
         SharedString::from(format!("{id}-fill")),
         SpringAnimation::new(FILL_SPRING).to(value),
         move |fill, level| {
-            fill.w(relative(level.clamp(0.0, 1.0)))
-                .child(ui::shape(Radius::Pill, Some(fill_color.into())))
+            let level = level.clamp(0.0, 1.0);
+            // The dark copy spans the whole track, cut off where the fill ends.
+            let row = dark.as_ref().filter(|_| level > 0.0).map(|inside| {
+                label_row(&dark_id, inside, ON_ACCENT).w(relative(1.0 / level))
+            });
+            fill.w(relative(level))
+                .overflow_hidden()
+                .child(ui::shape(radius, Some(fill_color.into())))
+                .children(row)
         },
     );
     let signal = signal.filter(|signal| *signal > 0.0).map(|signal| {
@@ -130,10 +196,13 @@ fn build(
             .left_0()
             .h_full()
             .w(relative(signal * value))
-            .child(ui::shape(Radius::Pill, Some(rgb(color).into())))
+            .child(ui::shape(radius, Some(rgb(color).into())))
     });
+    let light = inside
+        .as_ref()
+        .map(|inside| label_row(&format!("{id}-light"), inside, TEXT).w_full());
     // The handle rides the fill's spring, on an element of its own so it is drawn over the signal.
-    let rider = on_change.is_some().then(|| {
+    let rider = (on_change.is_some() && inside.is_none()).then(|| {
         let handle_id = id.clone();
         div().absolute().top_0().left_0().h_full().with_spring(
             SharedString::from(format!("{id}-rider")),
@@ -148,11 +217,12 @@ fn build(
     let track = div()
         .relative()
         .w_full()
-        .h(px(TRACK_H))
+        .h(px(track_h))
         .child(ui::shape(
-            Radius::Pill,
+            radius,
             Some(rgba(with_alpha(TINT, TRACK_ALPHA)).into()),
         ))
+        .children(light)
         .child(fill)
         .children(signal)
         .children(rider)
@@ -191,7 +261,7 @@ fn build(
         .id(id.clone())
         .relative()
         .w_full()
-        .py(px((HIT_H - TRACK_H) / 2.0))
+        .when(inside.is_none(), |hit| hit.py(px((HIT_H - TRACK_H) / 2.0)))
         .child(track);
     if let Some(down) = on_change {
         let down_bounds = bounds.clone();

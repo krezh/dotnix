@@ -3,17 +3,20 @@
 
 use gpui::AnyElement;
 
-use super::{Bluetooth, glyphs, panel, runtime::Request, state::State, view::View, widget};
+use super::{
+    Bluetooth, glyphs, overview, panel, runtime::Request, state::State, view::View, widget,
+};
 use crate::{
     control::{self, Command, Group, Report, Row, SWITCH, Shown, Takes},
-    features::{Feature, Feed, GlyphSpec, PanelCx, WidgetCx},
+    features::{Battery, Dashboard, Feature, Feed, GlyphSpec, PanelCx, WidgetCx},
     panel::PanelView,
 };
 
 impl Feature for Bluetooth {
     const NAME: &'static str = "bluetooth";
     const PANEL: Option<&'static str> = Some("bluetooth");
-    const TAB: Option<(&'static str, u8)> = Some(("Bluetooth", 6));
+    const DASHBOARD_TAB: Option<(&'static str, u8)> = Some(("Bluetooth", 4));
+    const DASHBOARD_ORDER: u8 = 20;
     const GLYPHS: &'static [GlyphSpec] = glyphs::GLYPHS;
     const CONTROLS: &'static [Command] = &[Command {
         name: "bluetooth",
@@ -40,6 +43,17 @@ impl Feature for Bluetooth {
 
     fn panel<'a>(&self, state: &State, p: &PanelCx<'a>) -> Option<PanelView> {
         Some(panel::panel(state, p))
+    }
+
+    fn dashboard(&self, state: &State, p: &PanelCx<'_>) -> Dashboard {
+        Dashboard {
+            switches: overview::switches(state, p),
+            ..Dashboard::default()
+        }
+    }
+
+    fn batteries(&self, state: &State) -> Vec<Battery> {
+        overview::batteries(state)
     }
 
     fn command(&self, state: &State, args: &[&str]) -> Report {

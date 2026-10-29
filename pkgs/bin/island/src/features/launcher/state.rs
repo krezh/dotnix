@@ -40,7 +40,7 @@ impl Local {
                     .position(|&index| apps.0[index].id == selected.id)
             })
             .unwrap_or(self.selection.selected);
-        self.selection.select(selected, matching.len());
+        self.selection.keep(selected, matching.len());
         if &self.apps != apps {
             self.apps = apps.clone();
         }
@@ -63,6 +63,10 @@ impl Local {
 
     pub(super) fn step(&mut self, step: i32) {
         self.selection.step(step, self.matching.len());
+    }
+
+    pub(super) fn scroll(&mut self, rows: i32) {
+        self.selection.scroll(rows, self.matching.len());
     }
 
     pub(super) fn search(&mut self, change: impl FnOnce(&mut String)) {

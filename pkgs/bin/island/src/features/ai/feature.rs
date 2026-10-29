@@ -18,21 +18,16 @@ use crate::{
     cli::Client,
     control::{Command, Group, Report, Row, Takes, Value, form},
     features::{Feature, Feed, GlyphSpec, IslandInfo, Islands, Outcome, PanelCx, WidgetCx},
-    panel::{IconButton, Mark, PanelView},
+    panel::{Mark, PanelView},
 };
 
 impl Feature for Ai {
     const NAME: &'static str = "ai";
     const PANEL: Option<&'static str> = Some("ai");
     const GLYPHS: &'static [GlyphSpec] = &[
-        (
-            "ai",
-            &[
-                "applications-science-symbolic",
-                "utilities-system-monitor-symbolic",
-            ],
-        ),
+        ("ai", &["sparkles"]),
         ("ai-claude", &["claude-symbolic", "claude"]),
+        ("notice-ai", &["sparkles"]),
         ("ai-openai", &["openai-symbolic", "openai", "chatgpt"]),
         ("ai-antigravity", &["antigravity-symbolic", "antigravity"]),
         ("ai-google", &["google-gemini-symbolic", "google-gemini"]),
@@ -40,22 +35,10 @@ impl Feature for Ai {
             "ai-github",
             &["github-copilot-symbolic", "github-copilot", "copilot"],
         ),
-        ("ai-send", &["go-up-symbolic", "mail-send-symbolic"]),
-        (
-            "ai-sessions",
-            &["utilities-terminal-symbolic", "view-list-symbolic"],
-        ),
-        (
-            "ai-chat",
-            &[
-                "view-conversation-balloon-symbolic",
-                "chat-message-new-symbolic",
-            ],
-        ),
-        (
-            "ai-usage",
-            &["speedometer-symbolic", "utilities-system-monitor-symbolic"],
-        ),
+        ("ai-send", &["arrow-up"]),
+        ("ai-sessions", &["square-terminal"]),
+        ("ai-chat", &["message-circle"]),
+        ("ai-usage", &["gauge"]),
     ];
     const CONTROLS: &'static [Command] = &[Command {
         name: "ai",
@@ -130,10 +113,6 @@ impl Feature for Ai {
 
     fn lead(&self, view: &View) -> Option<Mark> {
         view.pose().map(Mark::Mascot)
-    }
-
-    fn system_button(&self, state: &State, p: &PanelCx<'_>) -> Option<IconButton> {
-        Some(panel::system_button(self, state, p))
     }
 
     fn command(&self, _: &State, _: &[&str]) -> Report {

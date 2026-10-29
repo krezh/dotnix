@@ -4,31 +4,16 @@ use super::state::{Device, Form};
 use crate::features::GlyphSpec;
 
 pub const GLYPHS: &[GlyphSpec] = &[
-    ("tab-audio", &["audio-volume-high-symbolic"]),
-    ("volume-high", &["audio-volume-high-symbolic"]),
-    ("volume-medium", &["audio-volume-medium-symbolic"]),
-    ("volume-low", &["audio-volume-low-symbolic"]),
-    ("volume-muted", &["audio-volume-muted-symbolic"]),
-    (
-        "mic",
-        &[
-            "microphone-sensitivity-high-symbolic",
-            "audio-input-microphone-symbolic",
-        ],
-    ),
-    ("mic-muted", &["microphone-sensitivity-muted-symbolic"]),
-    (
-        "device-headset",
-        &["audio-headset-symbolic", "audio-headphones-symbolic"],
-    ),
-    (
-        "device-speakers",
-        &["audio-speakers-symbolic", "audio-card-symbolic"],
-    ),
-    (
-        "device-card",
-        &["audio-card-symbolic", "audio-speakers-symbolic"],
-    ),
+    ("tab-audio", &["volume-2"]),
+    ("volume-high", &["volume-2"]),
+    ("volume-medium", &["volume-1"]),
+    ("volume-low", &["volume"]),
+    ("volume-muted", &["volume-x"]),
+    ("mic", &["mic"]),
+    ("mic-muted", &["mic-off"]),
+    ("device-headset", &["headset"]),
+    ("device-speakers", &["speaker"]),
+    ("device-card", &["audio-lines"]),
 ];
 
 pub fn speaker(volume: f32, muted: bool) -> &'static str {

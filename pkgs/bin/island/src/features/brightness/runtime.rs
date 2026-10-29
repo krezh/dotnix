@@ -62,6 +62,15 @@ impl Brightness {
         Self { requests }
     }
 
+    /// One screen's level, 0 to 1, without waiting to hear it was set.
+    pub(super) fn set(&self, screen: &str, level: f32) {
+        let _ = self.requests.send(Request {
+            target: Target::Named(screen.to_owned()),
+            change: Some(Change::Set(level.clamp(0.0, 1.0))),
+            replies: Vec::new(),
+        });
+    }
+
     pub(super) fn reply(&self, args: &[&str]) -> Reply {
         let rest = &args[1..];
         let (target, rest) = match rest.split_first() {

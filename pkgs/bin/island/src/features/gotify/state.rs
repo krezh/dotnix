@@ -1,8 +1,24 @@
-use std::collections::HashMap;
+use std::{
+    collections::HashMap,
+    time::{Duration, SystemTime, UNIX_EPOCH},
+};
 
 use serde::Deserialize;
 
+use super::runtime::Gotify;
+use crate::features::{
+    Feature,
+    notice::{Notice, NoticeAction, Origin},
+};
+
 const CRITICAL_PRIORITY: i64 = 8;
+const RAISED_PRIORITY: i64 = 4;
+/// What the notification center calls messages from here.
+pub const SOURCE: &str = "Gotify";
+/// Clicking it, as the notification center names it.
+pub const DEFAULT_ACTION: &str = "default";
+pub const OPEN_ACTION: &str = "open";
+const OPEN: &str = "Open";
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Endpoint {
@@ -98,6 +114,26 @@ pub struct RawMessage {
     pub priority: i64,
     #[serde(default)]
     pub date: String,
+    #[serde(default)]
+    pub extras: Extras,
+}
+
+/// What of a message's extras island uses: <https://gotify.net/docs/msgextras>.
+#[derive(Clone, Debug, Default, Deserialize, PartialEq, Eq)]
+pub struct Extras {
+    #[serde(rename = "client::notification", default)]
+    pub notification: Option<ClientNotification>,
+}
+
+#[derive(Clone, Debug, Default, Deserialize, PartialEq, Eq)]
+pub struct ClientNotification {
+    #[serde(default)]
+    pub click: Option<Click>,
+}
+
+#[derive(Clone, Debug, Default, Deserialize, PartialEq, Eq)]
+pub struct Click {
+    pub url: String,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -121,6 +157,8 @@ pub struct Entry {
     pub body: String,
     pub priority: i64,
     pub timestamp: Option<i64>,
+    /// Where clicking it goes.
+    pub url: Option<String>,
 }
 
 impl Entry {
@@ -137,6 +175,12 @@ impl Entry {
         let timestamp = chrono::DateTime::parse_from_rfc3339(&raw.date)
             .ok()
             .map(|dt| dt.timestamp());
+        let url = raw
+            .extras
+            .notification
+            .and_then(|notification| notification.click)
+            .map(|click| click.url)
+            .filter(|url| !url.trim().is_empty());
         Self {
             id: raw.id,
             app_id: raw.appid,
@@ -145,19 +189,60 @@ impl Entry {
             body: raw.message,
             priority: raw.priority,
             timestamp,
+            url,
         }
     }
 
     pub fn critical(&self) -> bool {
         self.priority >= CRITICAL_PRIORITY
     }
-}
 
-pub fn urgency(priority: i64) -> u8 {
-    match priority {
-        ..=3 => 0,
-        4..=7 => 1,
-        _ => 2,
+    /// Named in the overline when raised but not critical.
+    fn detail(&self) -> Option<String> {
+        (RAISED_PRIORITY..CRITICAL_PRIORITY)
+            .contains(&self.priority)
+            .then(|| format!("priority {}", self.priority))
+    }
+
+    pub fn key(&self) -> String {
+        self.id.to_string()
+    }
+
+    /// `quiet` for one already on the server when island heard of it.
+    pub fn notice(&self, quiet: bool) -> Notice {
+        let received = self
+            .timestamp
+            .and_then(|at| u64::try_from(at).ok())
+            .map_or_else(SystemTime::now, |at| {
+                UNIX_EPOCH + Duration::from_secs(at)
+            });
+        Notice {
+            origin: Origin {
+                feature: Gotify::NAME.to_owned(),
+                source: SOURCE.to_owned(),
+                key: self.key(),
+            },
+            app: self.app.clone(),
+            title: self.title.clone(),
+            body: self.body.clone(),
+            critical: self.critical(),
+            detail: self.detail(),
+            via: true,
+            lead: false,
+            actions: self
+                .url
+                .iter()
+                .flat_map(|_| {
+                    [DEFAULT_ACTION, OPEN_ACTION].map(|key| NoticeAction {
+                        key: key.to_owned(),
+                        label: OPEN.to_owned(),
+                        opens: None,
+                    })
+                })
+                .collect(),
+            received,
+            quiet,
+        }
     }
 }
 
@@ -165,33 +250,9 @@ pub fn urgency(priority: i64) -> u8 {
 pub struct State {
     pub server: Option<String>,
     pub connected: bool,
-    pub busy: bool,
     pub error: Option<String>,
-    pub messages: Vec<Entry>,
-}
-
-impl State {
-    pub fn configured(&self) -> bool {
-        self.server.is_some()
-    }
-
-    pub fn has_critical(&self) -> bool {
-        self.messages.iter().any(Entry::critical)
-    }
-
-    pub fn summary(&self) -> String {
-        if !self.configured() {
-            return "Gotify · not configured".to_owned();
-        }
-        if let Some(error) = &self.error {
-            return format!("Gotify · {error}");
-        }
-        match self.messages.len() {
-            0 => "Gotify · no messages".to_owned(),
-            1 => "Gotify · 1 message".to_owned(),
-            count => format!("Gotify · {count} messages"),
-        }
-    }
+    /// How many are on the server.
+    pub messages: usize,
 }
 
 #[cfg(test)]

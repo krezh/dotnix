@@ -18,7 +18,7 @@ use crate::{
     bar::{GLYPH, ICON_GAP},
     components::{card, icon, tooltip::Tip},
     island::{Mode, Panel},
-    panel::{Block, Button, Header, IconButton, Line, PanelView, Route, Stop, StopState, on},
+    panel::{Block, Button, Header, Line, PanelView, Route, Stop, StopState, on},
     run,
     supervisor::Ended,
     theme::{ACCENT, CRITICAL, GREEN, SUBTEXT1},
@@ -344,10 +344,7 @@ impl Molt {
 
 impl Feature for Molt {
     const NAME: &'static str = "molt";
-    const GLYPHS: &'static [GlyphSpec] = &[(
-        "molt",
-        &["io.github.krezh.Molt-symbolic", "io.github.krezh.Molt"],
-    )];
+    const GLYPHS: &'static [GlyphSpec] = &[("molt", &["package"])];
     const PANEL: Option<&'static str> = Some("molt");
 
     type State = Updates;
@@ -477,32 +474,9 @@ impl Feature for Molt {
             ));
         }
         Some(PanelView {
+            scroll: false,
             header: Header::Title(title.into(), buttons),
             blocks,
-        })
-    }
-
-    fn system_button(&self, state: &Updates, p: &PanelCx<'_>) -> Option<IconButton> {
-        let incoming = state.incoming();
-        let ready = state.ready();
-        let label = match (&state.error, state.checking) {
-            (_, true) => "Checking for updates…".to_owned(),
-            (Some(_), false) => "The update check failed".to_owned(),
-            (None, false) => state.summary(),
-        };
-        let badge = match (incoming, ready) {
-            (0, 0) => None,
-            (0, ready) => Some(ready.to_string().into()),
-            (incoming, _) => Some(incoming.to_string().into()),
-        };
-        Some(IconButton {
-            id: "open-molt".into(),
-            glyph: p.glyph("molt"),
-            rising: None,
-            label: label.into(),
-            active: incoming > 0 || ready > 0,
-            badge,
-            on_click: on(|island, cx| island.set_mode(Mode::Open(Self::panel_handle()), cx)),
         })
     }
 }

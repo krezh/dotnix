@@ -2,11 +2,12 @@ use std::time::{Duration, Instant};
 
 use gpui::{SpringConfig, Window};
 
-use super::{card, notification::Notification};
+use super::{card, missed_list::sliding, notification::Notification};
 use crate::{
     island::{CONTENT_IN, CONTENT_OUT, REVEAL_DELAY, SHAPE_SPRING},
     panel::Countdown,
     spring::Spring,
+    theme::app_color,
 };
 
 pub const MAX_VISIBLE: usize = 3;
@@ -49,10 +50,20 @@ impl Card {
         )
     }
 
-    /// The room a leaving card still takes from those below it.
+    /// The room a leaving card still takes from those below it: all of it while it slides out,
+    /// then closing.
     fn folding(&self) -> f32 {
         if self.leaving {
-            (self.height() + card::GAP) * self.fold.value()
+            (self.height() + card::GAP) * (self.fold.value() * 2.0).clamp(0.0, 1.0)
+        } else {
+            0.0
+        }
+    }
+
+    /// How far it has slid out, 0 to 1.
+    pub fn out(&self) -> f32 {
+        if self.leaving {
+            sliding(self.fold.value())
         } else {
             0.0
         }
@@ -70,6 +81,7 @@ impl Card {
             left,
             running,
             round: self.round,
+            color: app_color(&self.notification.app),
         })
     }
 
@@ -309,6 +321,7 @@ impl Toasts {
             card.lines = Some(card::body_lines(
                 &card.notification.body,
                 card::MIN_W,
+                card::BODY_LINES,
                 window,
             ));
             measured = true;

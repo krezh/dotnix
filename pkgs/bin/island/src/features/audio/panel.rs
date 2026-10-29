@@ -81,6 +81,7 @@ fn volume(
             on_change: Some(
                 p.slider(move |audio: &Audio, value| audio.send(Request::SetVolume(target, value))),
             ),
+            label: None,
         }),
         Block::Segments(peak.level, peak.hold),
     ];
@@ -104,6 +105,7 @@ fn volume(
         title_color: None,
         wrap: false,
         detail: SharedString::default(),
+        tinted: Vec::new(),
         trail: vec![Trail::Text(
             amount(channel.volume, channel.muted).into(),
             tint,
@@ -134,6 +136,7 @@ fn devices(state: &AudioState, target: Target, p: &PanelCx<'_>) -> Vec<Block> {
                 id: format!("device-{target:?}-{index}").into(),
                 glyph: p.glyph(glyphs::device(device, headset.as_deref())),
                 label: device.description.clone().into(),
+                state: None,
                 color,
                 armed: current.as_deref() == Some(device.name.as_str()),
                 on_click: p.call(move |audio: &Audio| {
@@ -177,6 +180,7 @@ fn recording(state: &AudioState) -> Vec<Block> {
             title_color: None,
             wrap: false,
             detail: SharedString::default(),
+            tinted: Vec::new(),
             trail: vec![Trail::Status("Recording".into(), CRITICAL)],
         };
         blocks.push(Block::Item(item, Vec::new()));
@@ -208,10 +212,12 @@ fn app_item(
             .map(|sink| Choice {
                 label: sink.description.clone().into(),
                 glyph: p.glyph(glyphs::device(sink, headset.as_deref())),
+                detail: None,
             })
             .collect(),
         selected: state.sinks.iter().position(|sink| sink.index == app.device),
         open: choosing,
+        height: None,
         on_toggle: p.call(move |audio: &Audio| {
             audio.choosing.set(if audio.choosing.get() == Some(index) {
                 None
@@ -246,6 +252,7 @@ fn app_item(
         on_change: Some(
             p.slider(move |audio: &Audio, value| audio.send(Request::SetAppVolume(index, value))),
         ),
+        label: None,
     });
     let frame = FrameView {
         id: format!("{id}-frame").into(),
@@ -273,6 +280,7 @@ fn app_item(
         title_color: None,
         wrap: false,
         detail: detail.into(),
+        tinted: Vec::new(),
         trail: vec![
             Trail::Dropdown(device),
             Trail::Text(
@@ -312,6 +320,7 @@ pub fn panel<'a>(audio: &Audio, state: &AudioState, p: &PanelCx<'a>) -> PanelVie
             "No sound server"
         };
         return PanelView {
+            scroll: false,
             header: Header::Tabs,
             blocks: vec![Block::Card(
                 None,
@@ -338,6 +347,7 @@ pub fn panel<'a>(audio: &Audio, state: &AudioState, p: &PanelCx<'a>) -> PanelVie
         ));
     }
     PanelView {
+        scroll: false,
         header: Header::Tabs,
         blocks,
     }

@@ -8,7 +8,7 @@ use gpui::{
 use crate::{
     shape::{self, Hang},
     theme::{
-        FONT, HOVER_ALPHA, SELECTED_ALPHA, SHADOW_ALPHA, SURFACE, SURFACE_BORDER_ALPHA, SURFACE1,
+        ACCENT, FONT, HOVER_ALPHA, SELECTED_ALPHA, SHADOW_ALPHA, SURFACE, SURFACE_BORDER_ALPHA, SURFACE1,
         TEXT, TINT, with_alpha,
     },
 };
@@ -84,6 +84,43 @@ pub fn outlined(radius: Radius, fill: Hsla, border: Hsla) -> Canvas<()> {
     shape::background(radius, power, fill, Some(border))
 }
 
+/// Between a contained strip's edge and what it holds.
+pub const STRIP_PAD: f32 = 4.0;
+const STRIP_ALPHA: u8 = 0x0d;
+const STRIP_BORDER_ALPHA: u8 = 0x10;
+const STRIP_DIVIDER_ALPHA: u8 = 0x1a;
+
+/// A contained strip's corner radius and power, round what it holds at [`STRIP_PAD`].
+pub fn strip_geometry() -> (f32, f32) {
+    let (radius, power) = Radius::Row.geometry();
+    (radius + STRIP_PAD, power)
+}
+
+pub fn strip_fill() -> Hsla {
+    rgba(with_alpha(TINT, STRIP_ALPHA)).into()
+}
+
+pub fn strip_border() -> Hsla {
+    rgba(with_alpha(TINT, STRIP_BORDER_ALPHA)).into()
+}
+
+/// The surface of a contained strip, such as the panel's tabs, round what it holds at
+/// [`STRIP_PAD`] from its edge.
+pub fn strip() -> Canvas<()> {
+    let (radius, power) = strip_geometry();
+    shape::background(radius, power, strip_fill(), Some(strip_border()))
+}
+
+/// A line parting what a strip holds, this tall.
+pub fn strip_divider(height: f32) -> Div {
+    div()
+        .flex_none()
+        .w(px(1.0))
+        .h(px(height))
+        .mx(px(3.0))
+        .bg(rgba(with_alpha(TINT, STRIP_DIVIDER_ALPHA)))
+}
+
 pub fn surface_fill(opacity: f32) -> Hsla {
     Hsla::from(rgb(SURFACE)).opacity(opacity)
 }
@@ -121,9 +158,8 @@ pub fn drop_shadow(
     shape::joined_drop_shadow(body, radius, hang, layers)
 }
 
-/// Private, so a one-off hover cannot be written.
-fn hover_fill() -> Rgba {
-    rgba(with_alpha(TINT, HOVER_ALPHA))
+pub fn hover_fill() -> Rgba {
+    rgba(with_alpha(ACCENT, HOVER_ALPHA))
 }
 
 pub fn selected_fill() -> Rgba {

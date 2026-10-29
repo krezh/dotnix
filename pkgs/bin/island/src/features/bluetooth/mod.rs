@@ -2,6 +2,7 @@ mod agent;
 mod bluez;
 mod feature;
 mod glyphs;
+mod overview;
 mod panel;
 mod runtime;
 mod state;

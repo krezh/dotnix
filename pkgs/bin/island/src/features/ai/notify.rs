@@ -1,50 +1,47 @@
-use std::collections::HashMap;
-
-use tracing::warn;
-use zbus::{Connection, Variant, block_on};
+use std::time::SystemTime;
 
 use super::{Ai, model::Notice};
-use crate::features::Feature;
+use crate::features::{
+    Feature,
+    notice::{self, NoticeAction, Origin, Post},
+};
 
+/// What the notification center calls notices from here.
+const SOURCE: &str = "AI";
+/// The AI panel's view a notice about a session opens it on.
+pub(super) const SESSION_VIEW: &str = "sessions";
+
+/// Led by Jelly, which this feature lends under its name.
 pub(super) fn send(notices: Vec<Notice>) {
-    let sent = block_on(async {
-        let connection = Connection::session().await?;
-        let proxy = crate::dbus::uncached(
-            &connection,
-            "org.freedesktop.Notifications",
-            "/org/freedesktop/Notifications",
-            "org.freedesktop.Notifications",
-        )
-        .await?;
-        for notice in notices {
-            let hints: HashMap<&str, Variant<'_>> = HashMap::from([
-                (
-                    "urgency",
-                    Variant::from(if notice.critical { 2_u8 } else { 1_u8 }),
-                ),
-                ("desktop-entry", Variant::from("island")),
-                // Led by Jelly, which this feature lends under its name.
-                ("x-island-lead", Variant::from(Ai::NAME)),
-            ]);
-            let _: u32 = proxy
-                .call(
-                    "Notify",
-                    &(
-                        notice.app,
-                        0_u32,
-                        "",
-                        notice.title,
-                        notice.body,
-                        Vec::<String>::new(),
-                        hints,
-                        -1_i32,
-                    ),
-                )
-                .await?;
-        }
-        Ok::<(), zbus::Error>(())
-    });
-    if sent.is_err() {
-        warn!("cannot deliver AI notifications");
+    for notice in notices {
+        let actions = notice
+            .session
+            .iter()
+            .map(|session| NoticeAction {
+                key: "show".to_owned(),
+                label: "Show session".to_owned(),
+                opens: Some((
+                    Ai::PANEL.unwrap_or(Ai::NAME).to_owned(),
+                    format!("{SESSION_VIEW} {session}"),
+                )),
+            })
+            .collect();
+        notice::post(Post::Show(notice::Notice {
+            origin: Origin {
+                feature: Ai::NAME.to_owned(),
+                source: SOURCE.to_owned(),
+                key: notice.key,
+            },
+            app: notice.app.to_owned(),
+            title: notice.title,
+            body: notice.body,
+            critical: notice.critical,
+            detail: None,
+            via: false,
+            lead: true,
+            actions,
+            received: SystemTime::now(),
+            quiet: false,
+        }));
     }
 }

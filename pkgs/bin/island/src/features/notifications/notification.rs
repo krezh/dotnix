@@ -4,7 +4,7 @@ use std::{
     time::{Duration, SystemTime},
 };
 
-use crate::components::icon::Picture;
+use crate::{components::icon::Picture, features::notice::Origin};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Expire {
@@ -19,6 +19,8 @@ pub struct Action {
     pub label: String,
     /// The icon its label names, when the app asked for icons instead of text (`action-icons`).
     pub icon: Option<PathBuf>,
+    /// A panel, by name, and its view, that it opens, for one a feature posted.
+    pub opens: Option<(String, String)>,
 }
 
 #[derive(Clone, Debug)]
@@ -37,6 +39,16 @@ pub struct Notification {
     pub expire: Expire,
     pub actions: Vec<Action>,
     pub received: SystemTime,
+    /// For one a feature posted itself; one from D-Bus has none.
+    pub posted: Option<Posted>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Posted {
+    pub origin: Origin,
+    /// Names its source in the overline.
+    pub via: bool,
+    pub detail: Option<String>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -76,6 +88,13 @@ impl Notification {
         self.actions
             .iter()
             .filter(|action| action.key != DEFAULT_ACTION)
+    }
+
+    /// Where it is from, as the panel's sources name it; `None` for a desktop app's.
+    pub fn source(&self) -> Option<&str> {
+        self.posted
+            .as_ref()
+            .map(|posted| posted.origin.source.as_str())
     }
 
     pub fn timeout(&self, default: Duration) -> Option<Duration> {

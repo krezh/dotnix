@@ -3,13 +3,13 @@ use std::{
     collections::HashMap,
     path::Path,
     rc::Rc,
-    sync::LazyLock,
+    sync::{LazyLock, OnceLock},
     time::{Duration, Instant},
 };
 
 use gpui::{
     AnyElement, App, Context, Div, FontWeight, Render, SharedString, Stateful, Task, WeakEntity,
-    Window, div, prelude::*, px, rgb, rgba,
+    Rgba, Window, div, prelude::*, px, rgb, rgba,
 };
 
 use crate::{
@@ -23,10 +23,11 @@ use crate::{
     config::{self, Widget},
     features::{self, AnyLocal, Features, WidgetCx},
     glyphs::Glyphs,
-    island::{Island, Mode, Panel},
+    island::{Island, Mode, Panel, SHAPE_SPRING},
     presence::Presence,
-    theme::{ACCENT, TEXT, TINT, TRACK_ALPHA, with_alpha},
-    ui::{self, HEADER_H, Radius, SMALL_SIZE},
+    spring::Spring,
+    theme::{ACCENT, ON_ACCENT, OVERLAY2, TINT, TRACK_ALPHA, with_alpha},
+    ui::{self, HEADER_H, Radius, SMALL_SIZE, STRIP_PAD},
 };
 
 const EDGE: f32 = 14.0;
@@ -40,44 +41,206 @@ const METER_H: f32 = 16.0;
 const TAB_W: f32 = 48.0;
 const TAB_GLYPH: f32 = 18.0;
 const TAB_GAP: f32 = 4.0;
-pub const TAB_STEP: f32 = TAB_W + TAB_GAP;
 const CLOSE_GAP: f32 = 16.0;
+/// The Dashboard tab's place among the tabs.
+const DASHBOARD_ORDER: u8 = 4;
+/// Between a dashboard view's glyph and the name it shows while picked.
+const LABEL_GAP: f32 = 8.0;
+const LABEL_SIZE: f32 = 13.0;
+/// The glyph's place from a tab's start, where it stays as the tab widens to show its name.
+const GLYPH_X: f32 = (TAB_W - TAB_GLYPH) / 2.0;
+/// Room for the line between the Dashboard tab and its views, while they show.
+const DIVIDER_GAP: f32 = 7.0;
+const DIVIDER_H: f32 = 16.0;
+/// The picked tab's tint, outside the dashboard's views.
+const PICKED_ALPHA: u8 = 0x2e;
+const VIEWS_ALPHA: u8 = 0x1a;
+const VIEWS_BORDER_ALPHA: u8 = 0x38;
+const DIVIDER_ALPHA: u8 = 0x4d;
 
-/// Island's own tab; each feature's tab glyph comes with the feature's glyphs.
-pub const GLYPHS: &[features::GlyphSpec] = &[(
-    "tab-system",
-    &["utilities-system-monitor-symbolic", "computer-symbolic"],
-)];
+/// Island's own tabs; each feature's tab glyph comes with the feature's glyphs.
+pub const GLYPHS: &[features::GlyphSpec] = &[
+    ("tab-system", &["cpu"]),
+    ("tab-dashboard", &["layout-grid"]),
+    ("dashboard-warning", &["triangle-alert"]),
+    ("dashboard-battery", &["battery-full"]),
+];
 
-fn tab_list() -> &'static [(Panel, &'static str)] {
-    static TABS: LazyLock<Vec<(Panel, &'static str)>> = LazyLock::new(|| {
-        let mut tabs = vec![(Panel::System, "System", 4)];
-        tabs.extend(
-            features::tabs()
+struct Tab {
+    panel: Panel,
+    title: &'static str,
+    /// One of the dashboard's views, which show only while one of them is open.
+    view: bool,
+}
+
+/// The dashboard's views follow one another where its tab goes, the overview first.
+fn tab_list() -> &'static [Tab] {
+    static TABS: LazyLock<Vec<Tab>> = LazyLock::new(|| {
+        let mut views = vec![(Panel::Dashboard, "Dashboard", 0), (Panel::System, "System", 2)];
+        views.extend(
+            features::dashboard_tabs()
                 .into_iter()
                 .map(|(name, title, order)| (Panel::Feature(name), title, order)),
         );
-        tabs.sort_by_key(|(_, _, order)| *order);
-        tabs.into_iter()
-            .map(|(panel, title, _)| (panel, title))
-            .collect()
+        views.sort_by_key(|(_, _, order)| *order);
+        let mut tabs: Vec<(u8, u8, Tab)> = features::tabs()
+            .into_iter()
+            .map(|(name, title, order)| {
+                let panel = Panel::Feature(name);
+                (order, 0, Tab { panel, title, view: false })
+            })
+            .collect();
+        tabs.extend(views.into_iter().map(|(panel, title, order)| {
+            (DASHBOARD_ORDER, order, Tab { panel, title, view: true })
+        }));
+        tabs.sort_by_key(|(order, within, _)| (*order, *within));
+        tabs.into_iter().map(|(_, _, tab)| tab).collect()
     });
     &TABS
 }
 
-pub fn first_tab() -> Panel {
-    tab_list()
-        .first()
-        .map_or(Panel::System, |(panel, _)| *panel)
+static LABELS: OnceLock<Vec<f32>> = OnceLock::new();
+
+/// Measures the names the dashboard's views show while picked, once, as text is first drawn.
+pub fn measure_labels(window: &Window) {
+    LABELS.get_or_init(|| {
+        tab_list()
+            .iter()
+            .map(|tab| {
+                if tab.view {
+                    marquee::shape(window, tab.title, LABEL_SIZE, FontWeight::SEMIBOLD).width
+                } else {
+                    0.0
+                }
+            })
+            .collect()
+    });
 }
 
-pub fn strip_width() -> f32 {
-    tab_list().len() as f32 * TAB_STEP - TAB_GAP
+fn label_w(index: usize) -> f32 {
+    LABELS
+        .get()
+        .and_then(|labels| labels.get(index))
+        .map_or(0.0, |width| LABEL_GAP + width)
 }
 
-/// The strip with room for the close button on both sides.
+pub fn tab_index(kind: Panel) -> Option<usize> {
+    tab_list().iter().position(|tab| tab.panel == kind)
+}
+
+/// The strip with room for the close button on both sides, at its widest, with every view showing
+/// and the longest name.
 pub fn tabs_width() -> f32 {
-    strip_width() + 2.0 * (CLOSE_GAP + HEADER_H)
+    let tabs = tab_list();
+    let widest = (0..tabs.len()).map(label_w).fold(0.0, f32::max);
+    tabs.len() as f32 * (TAB_W + TAB_GAP) - TAB_GAP
+        + widest
+        + DIVIDER_GAP
+        + 2.0 * STRIP_PAD
+        + 2.0 * (CLOSE_GAP + HEADER_H)
+}
+
+/// The tabs' motion: the pill sliding to the picked one, the dashboard's views fanning out of its
+/// tab while one of them is open, and the picked view widening to show its name.
+pub struct TabStrip {
+    pill_x: Spring,
+    pill_w: Spring,
+    fan: Spring,
+    labels: Vec<Spring>,
+    picked: Panel,
+    /// The dashboard's view last open, where its tab goes back to.
+    last_view: Panel,
+}
+
+impl Default for TabStrip {
+    fn default() -> Self {
+        let spring = |value| Spring::new(value, SHAPE_SPRING, 0.1);
+        let shown = |value| Spring::new(value, SHAPE_SPRING, 0.002);
+        Self {
+            pill_x: spring(0.0),
+            pill_w: spring(TAB_W),
+            fan: shown(0.0),
+            labels: tab_list().iter().map(|_| shown(0.0)).collect(),
+            picked: Panel::Dashboard,
+            last_view: Panel::Dashboard,
+        }
+    }
+}
+
+impl TabStrip {
+    /// Where each tab starts and how wide it is, and the strip's width, with the springs where
+    /// they are now or, with `settled`, where they are going.
+    fn layout(&self, settled: bool) -> (Vec<(f32, f32)>, f32) {
+        let at = |spring: &Spring| if settled { spring.target() } else { spring.value() };
+        let fan = at(&self.fan).clamp(0.0, 1.0);
+        let mut x = 0.0;
+        let mut places = Vec::new();
+        for (index, tab) in tab_list().iter().enumerate() {
+            let label = at(&self.labels[index]).clamp(0.0, 1.0) * label_w(index);
+            let shown = if tab.view && tab.panel != Panel::Dashboard {
+                fan
+            } else {
+                1.0
+            };
+            let width = shown * (TAB_W + label);
+            places.push((x, width));
+            x += width + shown * TAB_GAP;
+            if tab.panel == Panel::Dashboard {
+                x += fan * DIVIDER_GAP;
+            }
+        }
+        (places, (x - TAB_GAP).max(0.0))
+    }
+
+    pub fn width(&self) -> f32 {
+        self.layout(false).1
+    }
+
+    /// `at_once` puts everything in place without moving, such as while the tabs are hidden.
+    pub fn pick(&mut self, panel: Panel, at_once: bool) {
+        let Some(index) = tab_index(panel) else {
+            return;
+        };
+        let view = tab_list()[index].view;
+        self.picked = panel;
+        if view {
+            self.last_view = panel;
+        }
+        let fan = if view { 1.0 } else { 0.0 };
+        self.fan.retarget(fan, SHAPE_SPRING);
+        for (at, label) in self.labels.iter_mut().enumerate() {
+            let shown = if view && at == index { 1.0 } else { 0.0 };
+            label.retarget(shown, SHAPE_SPRING);
+        }
+        let (places, _) = self.layout(true);
+        let (x, w) = places[index];
+        self.pill_x.retarget(x, SHAPE_SPRING);
+        self.pill_w.retarget(w, SHAPE_SPRING);
+        if at_once {
+            for spring in [&mut self.pill_x, &mut self.pill_w, &mut self.fan]
+                .into_iter()
+                .chain(self.labels.iter_mut())
+            {
+                spring.reset(spring.target());
+            }
+        }
+    }
+
+    pub fn advance(&mut self, dt: f32, now: Instant) {
+        for spring in [&mut self.pill_x, &mut self.pill_w, &mut self.fan]
+            .into_iter()
+            .chain(self.labels.iter_mut())
+        {
+            spring.advance(dt, now);
+        }
+    }
+
+    pub fn is_settled(&self) -> bool {
+        [&self.pill_x, &self.pill_w, &self.fan]
+            .into_iter()
+            .chain(self.labels.iter())
+            .all(Spring::is_settled)
+    }
 }
 
 pub struct Bar<'a> {
@@ -103,6 +266,8 @@ pub(crate) struct Look<'a> {
     hover: bool,
     half: f32,
     inset: f32,
+    /// Part of a group of widgets, which shows the hover for all of them.
+    grouped: bool,
     pub(crate) tips: &'a Tooltips,
 }
 
@@ -112,6 +277,7 @@ impl<'a> Look<'a> {
             hover,
             half: half(spacing),
             inset: spacing / 2.0,
+            grouped: false,
             tips,
         }
     }
@@ -122,6 +288,10 @@ impl<'a> Look<'a> {
 
     pub(crate) fn hover(self) -> bool {
         self.hover
+    }
+
+    pub(crate) fn grouped(self) -> bool {
+        self.grouped
     }
 }
 
@@ -142,8 +312,25 @@ pub fn half(spacing: f32) -> f32 {
 pub(crate) fn widget_base(id: impl Into<SharedString>, look: Look) -> Stateful<Div> {
     widget_group(id, look)
         .cursor_pointer()
-        .when(look.hover, |widget| widget.hover(|style| style))
+        .when(!look.grouped, |widget| {
+            widget
+                .when(look.hover, |widget| widget.hover(|style| style))
+                .child(ui::inset_control(Radius::Control, look.inset, look.hover))
+        })
+}
+
+/// Widgets side by side on one surface, which shows the hover for all of them.
+fn widget_set(id: usize, widgets: Vec<AnyElement>, look: Look) -> AnyElement {
+    div()
+        .id(SharedString::from(format!("bar-group-{id}")))
+        .relative()
+        .flex_none()
+        .flex()
+        .items_center()
+        .when(look.hover, |set| set.hover(|style| style))
         .child(ui::inset_control(Radius::Control, look.inset, look.hover))
+        .children(widgets)
+        .into_any_element()
 }
 
 /// For a widget made of several clickable parts that each show the hover tint themselves.
@@ -287,7 +474,8 @@ pub fn content(
     island: &WeakEntity<Island>,
     cx: &App,
 ) -> (Vec<AnyElement>, Option<Duration>) {
-    let look = Look::new(bar.hover, bar.layout.spacing, bar.tips);
+    let mut look = Look::new(bar.hover, bar.layout.spacing, bar.tips);
+    look.grouped = bar.layout.group.contains(&widget);
     let Widget(name) = widget;
     let Some(feature) = bar.features.owning(name) else {
         return (Vec::new(), None);
@@ -427,13 +615,30 @@ pub fn edge(layout: &config::Bar) -> f32 {
 }
 
 pub fn bar(bar: Bar<'_>, element: &dyn Fn(Widget) -> AnyElement) -> AnyElement {
+    let look = Look::new(bar.hover, bar.layout.spacing, bar.tips);
+    let mut sets = 0;
     let sections: Vec<Vec<AnyElement>> = [&bar.layout.left, &bar.layout.middle, &bar.layout.right]
         .into_iter()
         .map(|widgets| {
-            widgets
-                .iter()
-                .filter_map(|kind| place(*kind, &bar, element))
-                .collect()
+            let mut placed = Vec::new();
+            let mut set = Vec::new();
+            for kind in widgets {
+                let shown = place(*kind, &bar, element);
+                if bar.layout.group.contains(kind) {
+                    set.extend(shown);
+                    continue;
+                }
+                if !set.is_empty() {
+                    placed.push(widget_set(sets, std::mem::take(&mut set), look));
+                    sets += 1;
+                }
+                placed.extend(shown);
+            }
+            if !set.is_empty() {
+                placed.push(widget_set(sets, set, look));
+                sets += 1;
+            }
+            placed
         })
         .collect();
     ui::base()
@@ -460,53 +665,147 @@ pub fn bar(bar: Bar<'_>, element: &dyn Fn(Widget) -> AnyElement) -> AnyElement {
         .into_any_element()
 }
 
+/// Partway from one color to another.
+fn mix(from: Rgba, to: Rgba, t: f32) -> Rgba {
+    let at = |a: f32, b: f32| a + (b - a) * t;
+    Rgba {
+        r: at(from.r, to.r),
+        g: at(from.g, to.g),
+        b: at(from.b, to.b),
+        a: at(from.a, to.a),
+    }
+}
+
 pub fn tabs(
-    selected: Panel,
-    pill_x: f32,
+    strip: &TabStrip,
     strip_left: f32,
     hover: bool,
     tips: &Tooltips,
     cx: &mut Context<Island>,
 ) -> AnyElement {
     let glyphs = cx.global::<Glyphs>().clone();
+    let (places, width) = strip.layout(false);
+    let fan = strip.fan.value().clamp(0.0, 1.0);
+    let in_views = tab_index(strip.picked).is_some_and(|index| tab_list()[index].view);
+    // The dashboard's views sit on a tinted surface of their own while they show, the Dashboard
+    // tab parted from the rest by a line.
+    let views = tab_list()
+        .iter()
+        .zip(&places)
+        .filter(|(tab, _)| tab.view)
+        .map(|(_, place)| *place)
+        .collect::<Vec<_>>();
+    let group = match (views.first(), views.last()) {
+        (Some(first), Some(last)) if fan > 0.01 => Some(
+            div()
+                .absolute()
+                .top_0()
+                .left(px(first.0))
+                .w(px(last.0 + last.1 - first.0))
+                .h(px(HEADER_H))
+                .opacity(fan)
+                .child(ui::outlined(
+                    Radius::Row,
+                    rgba(with_alpha(ACCENT, VIEWS_ALPHA)).into(),
+                    rgba(with_alpha(ACCENT, VIEWS_BORDER_ALPHA)).into(),
+                )),
+        ),
+        _ => None,
+    };
+    let divider = views.first().filter(|_| fan > 0.01).map(|root| {
+        div()
+            .absolute()
+            .top(px((HEADER_H - DIVIDER_H) / 2.0))
+            .left(px(root.0 + root.1 + (TAB_GAP + fan * DIVIDER_GAP) / 2.0))
+            .w(px(1.0))
+            .h(px(DIVIDER_H))
+            .opacity(fan)
+            .bg(rgba(with_alpha(ACCENT, DIVIDER_ALPHA)))
+    });
+    // A tint on a tab of its own, filling in as it becomes one of the dashboard's views.
+    let picked = mix(rgba(with_alpha(ACCENT, PICKED_ALPHA)), rgb(ACCENT), fan);
+    let pill = div()
+        .absolute()
+        .top_0()
+        .left(px(strip.pill_x.value()))
+        .w(px(strip.pill_w.value().max(0.0)))
+        .h(px(HEADER_H))
+        .child(ui::shape(Radius::Row, Some(picked.into())));
+    let tabs = tab_list().iter().zip(places).enumerate().map(|(index, (tab, (x, w)))| {
+        let selected = strip.picked == tab.panel;
+        let kind = tab.panel;
+        // The Dashboard tab goes back to the view last open, and from a view to the overview.
+        let target = if kind == Panel::Dashboard && !in_views {
+            strip.last_view
+        } else {
+            kind
+        };
+        let id = SharedString::from(format!("tab-{}", kind.name()));
+        let color = match (selected, tab.view) {
+            (true, true) => ON_ACCENT,
+            (true, false) => ACCENT,
+            (false, _) => OVERLAY2,
+        };
+        let label = strip.labels[index].value().clamp(0.0, 1.0);
+        let shown = if tab.view && kind != Panel::Dashboard { fan } else { 1.0 };
+        let content = match glyphs.get(&id) {
+            Some(path) => div()
+                .flex_none()
+                .child(icon::glyph(path, TAB_GLYPH, color))
+                .into_any_element(),
+            None => div().flex_none().child(tab.title).into_any_element(),
+        };
+        button::fill(id.clone(), Radius::Row, None, !selected && hover)
+            .absolute()
+            .top_0()
+            .left(px(x))
+            .w(px(w.max(0.0)))
+            .h(px(HEADER_H))
+            .overflow_hidden()
+            .justify_start()
+            .pl(px(GLYPH_X))
+            .opacity(shown)
+            .text_size(px(LABEL_SIZE))
+            .font_weight(FontWeight::SEMIBOLD)
+            .text_color(rgb(color))
+            .whitespace_nowrap()
+            .child(content)
+            .when(label > 0.01, |button| {
+                button.child(
+                    div()
+                        .flex_none()
+                        .pl(px(LABEL_GAP))
+                        .opacity(label)
+                        .child(tab.title),
+                )
+            })
+            .tip(tips, id, tab.title)
+            .on_click(cx.listener(move |this, _, _, cx| this.set_mode(Mode::Open(target), cx)))
+    });
+    let surface = ui::strip();
     ui::base()
         .relative()
         .size_full()
         .child(
             div()
                 .absolute()
-                .top_0()
-                .left(px(strip_left))
-                .flex()
-                .gap(px(TAB_GAP))
+                .top(px(-STRIP_PAD))
+                .left(px(strip_left - STRIP_PAD))
+                .w(px(width + 2.0 * STRIP_PAD))
+                .h(px(HEADER_H + 2.0 * STRIP_PAD))
+                .child(surface)
                 .child(
                     div()
                         .absolute()
-                        .top_0()
-                        .left(px(pill_x))
-                        .w(px(TAB_W))
+                        .top(px(STRIP_PAD))
+                        .left(px(STRIP_PAD))
+                        .w(px(width))
                         .h(px(HEADER_H))
-                        .child(ui::shape(Radius::Row, Some(ui::selected_fill().into()))),
-                )
-                .children(tab_list().iter().map(|&(kind, label)| {
-                    let selected = selected == kind;
-                    let id = SharedString::from(format!("tab-{}", kind.name()));
-                    let color = if selected { ACCENT } else { TEXT };
-                    let tab = button::fill(id.clone(), Radius::Row, None, !selected && hover)
-                        .w(px(TAB_W))
-                        .h(px(HEADER_H))
-                        .text_size(px(ui::TEXT_SIZE))
-                        .font_weight(FontWeight::SEMIBOLD)
-                        .text_color(rgb(color));
-                    match glyphs.get(&id) {
-                        Some(path) => tab.child(icon::glyph(path, TAB_GLYPH, color)),
-                        None => tab.child(label),
-                    }
-                    .tip(tips, id, label)
-                    .on_click(
-                        cx.listener(move |this, _, _, cx| this.set_mode(Mode::Open(kind), cx)),
-                    )
-                })),
+                        .children(group)
+                        .children(divider)
+                        .child(pill)
+                        .children(tabs),
+                ),
         )
         .child(
             div().absolute().top_0().right_0().child(
@@ -515,8 +814,4 @@ pub fn tabs(
             ),
         )
         .into_any_element()
-}
-
-pub fn tab_index(kind: Panel) -> Option<usize> {
-    tab_list().iter().position(|(tab, _)| *tab == kind)
 }

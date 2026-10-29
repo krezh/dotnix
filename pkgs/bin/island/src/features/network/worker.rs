@@ -381,6 +381,7 @@ impl World {
         traffic.tx_rate = tx;
         push(&mut traffic.rx_history, rx as f32);
         push(&mut traffic.tx_history, tx as f32);
+        traffic.sampled = Some(std::time::Instant::now());
         let vpn = self
             .state
             .vpns
@@ -455,6 +456,7 @@ impl World {
                 &mut latency.internet_history,
                 probes.internet.unwrap_or(0.0),
             );
+            latency.sampled = Some(std::time::Instant::now());
             let lost = probes
                 .answered
                 .iter()
@@ -467,6 +469,7 @@ impl World {
             let dns = &mut self.state.dns;
             dns.lookup = probes.lookup;
             push(&mut dns.history, probes.lookup.unwrap_or(0.0));
+            dns.sampled = Some(std::time::Instant::now());
         }
     }
 

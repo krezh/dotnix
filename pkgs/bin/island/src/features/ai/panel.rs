@@ -2,14 +2,12 @@ use std::time::Duration;
 
 use super::{
     Ai, asking, chat, format, jelly, overview, sessions,
-    state::{Severity, State},
+    state::State,
     view::{Tab, View},
-    widget,
 };
 use crate::{
     features::PanelCx,
-    island::{Mode, Panel},
-    panel::{Block, Button, Header, IconButton, PanelView, TabLabel, Views, on},
+    panel::{Block, Button, Header, PanelView, TabLabel, Views},
 };
 
 fn usage(ai: &Ai, state: &State, view: &View, p: &PanelCx<'_>) -> (Vec<Button>, Vec<Block>) {
@@ -59,6 +57,7 @@ pub(super) fn panel(ai: &Ai, state: &State, p: &PanelCx<'_>) -> Option<PanelView
         Tab::Usage => usage(ai, state, view, p),
     };
     Some(PanelView {
+        scroll: view.tab == Tab::Chat,
         header: Header::Views(Views {
             lead: jelly::lead(state, view, p),
             tabs: Tab::ALL
@@ -66,6 +65,7 @@ pub(super) fn panel(ai: &Ai, state: &State, p: &PanelCx<'_>) -> Option<PanelView
                 .map(|tab| TabLabel {
                     label: tab.label().into(),
                     glyph: p.glyph(tab.glyph()),
+                    count: None,
                 })
                 .collect(),
             selected: Tab::ALL
@@ -75,7 +75,9 @@ pub(super) fn panel(ai: &Ai, state: &State, p: &PanelCx<'_>) -> Option<PanelView
             on_select: p.on_local_with::<Ai, usize>(|_, view, index| {
                 view.tab = Tab::ALL[index.min(Tab::ALL.len() - 1)];
             }),
+            pick: None,
             buttons,
+            icons: Vec::new(),
         }),
         blocks,
     })
@@ -106,32 +108,8 @@ pub(super) fn popup(state: &State, p: &PanelCx<'_>) -> Option<PanelView> {
         .iter()
         .map(|(request, _)| asking::frame(request, view, p, None, true));
     Some(PanelView {
+        scroll: false,
         header: Header::None,
         blocks: waiting.chain(leaving).collect(),
     })
-}
-
-pub(super) fn system_button(ai: &Ai, state: &State, p: &PanelCx<'_>) -> IconButton {
-    let now = format::now();
-    if let Some(after) = format::usage_next_change(&ai.settings.sources, state, now) {
-        p.redraw_in(after);
-    }
-    let worst = state.worst();
-    let badge = if ai.settings.widget.show_badge {
-        worst
-            .map(|(provider, limit)| format::badge(limit, provider.freshness, now, true).into())
-            .or_else(|| (!state.issues.is_empty()).then(|| "!".into()))
-    } else {
-        None
-    };
-    IconButton {
-        id: "open-ai".into(),
-        glyph: p.glyph("ai"),
-        rising: None,
-        label: widget::tooltip(ai, state).into(),
-        active: worst.is_some_and(|(_, limit)| limit.severity != Severity::Ok)
-            || !state.issues.is_empty(),
-        badge,
-        on_click: on(|island, cx| island.set_mode(Mode::Open(Panel::Feature("ai")), cx)),
-    }
 }

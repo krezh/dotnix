@@ -57,6 +57,8 @@ pub(super) fn notice(state: &State, hook: &Hook) -> Option<Notice> {
                 return None;
             }
             Some(Notice {
+                key: format!("needs {}", from.session),
+                session: Some(from.session.clone()),
                 app: "Claude Code",
                 title: if message.is_empty() {
                     "Claude Code needs you".to_owned()
@@ -68,6 +70,8 @@ pub(super) fn notice(state: &State, hook: &Hook) -> Option<Notice> {
             })
         }
         Hook::Stop { from, reply } => Some(Notice {
+            key: format!("finished {}", from.session),
+            session: Some(from.session.clone()),
             app: "Claude Code",
             title: format!("Finished in {}", project(state, &from.session, &from.cwd)),
             body: gist(reply),

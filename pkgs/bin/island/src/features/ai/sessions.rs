@@ -12,8 +12,8 @@ use crate::{
     },
     features::PanelCx,
     panel::{
-        Block, Change, Code, CodeLine, CodeMotion, FrameView, Item, Lead, Mark, Piece, Text, Tone,
-        Trail, Transcript, Turn,
+        Block, Change, Code, CodeLine, CodeMotion, FrameView, Item, Lead, Mark, Piece, Split, Text,
+        Tone, Trail, Transcript, Turn,
     },
     theme::{ACCENT, GREEN, PEACH, YELLOW},
 };
@@ -142,6 +142,7 @@ fn list(sessions: &[&Session], shown: &str, p: &PanelCx<'_>) -> Block {
                         title_color: None,
                         wrap: false,
                         detail: "".into(),
+                        tinted: Vec::new(),
                         trail: vec![Trail::Status(label.into(), color)],
                     },
                     vec![Block::Text(Text {
@@ -277,6 +278,7 @@ fn step_block(
                 title_color: None,
                 wrap: false,
                 detail: "".into(),
+                tinted: Vec::new(),
                 trail: vec![
                     Trail::Status("".into(), step_color(step.state)),
                     Trail::Faint(match (step.live.is_some(), open) {
@@ -441,7 +443,7 @@ pub(super) fn blocks(state: &State, view: &View, p: &PanelCx<'_>) -> Vec<Block> 
         .as_deref()
         .and_then(|id| sessions.iter().find(|session| session.id == id))
         .unwrap_or(first);
-    vec![Block::Columns(vec![
+    vec![Block::Columns(Split::Scrolling, vec![
         list(&sessions, &shown.id, p),
         detail(shown, state, view, p),
     ])]

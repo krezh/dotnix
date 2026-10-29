@@ -1,8 +1,11 @@
 //! Concentric rings, each filled part way round from the top with an optional tick across it and
-//! a faint continuation past its fill, around a value in the middle, such as how much of each
-//! window of a quota is used and where it is expected to end.
+//! a faint continuation past its fill, around a value or a glyph in the middle, such as how much
+//! of each window of a quota is used and where it is expected to end.
 
-use std::f32::consts::{FRAC_PI_2, TAU};
+use std::{
+    f32::consts::{FRAC_PI_2, TAU},
+    path::PathBuf,
+};
 
 use gpui::{
     AnimationExt, AnyElement, Bounds, FontWeight, Hsla, PathBuilder, Pixels, Point, SharedString,
@@ -10,7 +13,7 @@ use gpui::{
 };
 
 use crate::{
-    components::motion,
+    components::{icon, motion},
     island::CONTENT_IN,
     theme::{SUBTEXT1, TEXT, TINT, TRACK_ALPHA, with_alpha},
 };
@@ -44,6 +47,8 @@ pub struct Rings {
     pub value: SharedString,
     pub value_color: u32,
     pub label: SharedString,
+    /// Drawn in the middle, in its color and at its size, in place of the value and label.
+    pub glyph: Option<(PathBuf, u32, f32)>,
 }
 
 fn at(x: f32, y: f32) -> Point<Pixels> {
@@ -157,6 +162,7 @@ pub fn rings(rings: Rings) -> AnyElement {
         value,
         value_color,
         label,
+        glyph,
     } = rings;
     let count = rings.len();
     let tracks = canvas(
@@ -238,37 +244,36 @@ pub fn rings(rings: Rings) -> AnyElement {
         .flatten()
     });
     let hole = side - 2.0 * count as f32 * (STROKE + RING_GAP);
+    let middle = layer().flex().flex_col().items_center().justify_center();
+    let middle = match glyph {
+        Some((path, color, side)) => middle.child(icon::glyph(&path, side, color)),
+        None => middle
+            .child(
+                div()
+                    .text_size(px(VALUE))
+                    .font_weight(FontWeight::SEMIBOLD)
+                    .text_color(rgb(value_color))
+                    .line_height(relative(1.15))
+                    .child(motion::text(
+                        SharedString::from(format!("{id}-value")),
+                        value,
+                    )),
+            )
+            .child(
+                div()
+                    .max_w(px(hole.max(0.0)))
+                    .truncate()
+                    .text_size(px(LABEL))
+                    .text_color(rgb(SUBTEXT1))
+                    .child(label),
+            ),
+    };
     div()
         .relative()
         .flex_none()
         .size(px(side))
         .child(layer().child(tracks))
         .children(moving)
-        .child(
-            layer()
-                .flex()
-                .flex_col()
-                .items_center()
-                .justify_center()
-                .child(
-                    div()
-                        .text_size(px(VALUE))
-                        .font_weight(FontWeight::SEMIBOLD)
-                        .text_color(rgb(value_color))
-                        .line_height(relative(1.15))
-                        .child(motion::text(
-                            SharedString::from(format!("{id}-value")),
-                            value,
-                        )),
-                )
-                .child(
-                    div()
-                        .max_w(px(hole.max(0.0)))
-                        .truncate()
-                        .text_size(px(LABEL))
-                        .text_color(rgb(SUBTEXT1))
-                        .child(label),
-                ),
-        )
+        .child(middle)
         .into_any_element()
 }

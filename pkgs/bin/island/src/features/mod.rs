@@ -2,6 +2,7 @@
 
 pub mod ai;
 pub mod audio;
+pub mod battery;
 pub mod bluetooth;
 pub mod brightness;
 pub mod caffeine;
@@ -13,6 +14,7 @@ pub mod launcher;
 pub mod media;
 pub mod molt;
 pub mod network;
+pub mod notice;
 pub mod notifications;
 pub mod osd;
 pub mod session;
@@ -28,7 +30,8 @@ mod panel_cx;
 mod registry;
 mod widget_cx;
 
-pub use feature::{AnyLocal, Feature, GlyphSpec, IslandInfo, Local, Outcome};
+pub use battery::Battery;
+pub use feature::{AnyLocal, Dashboard, Feature, GlyphSpec, IslandInfo, Local, Outcome};
 pub use feed::{Feed, Refreshed, parse_settings};
 pub use instance::Features;
 pub use islands::Islands;

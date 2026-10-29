@@ -5,7 +5,7 @@ use std::{cell::Cell, path::Path, time::Duration};
 
 use gpui::{AnyEntity, App, Context, Div, FontWeight, SharedString, Stateful, WeakEntity, Window};
 
-use super::{AnyLocal, Feature, Local, instance::instance};
+use super::{AnyLocal, Battery, Feature, Local, instance::instance};
 use crate::{
     bar::{self, Gauge, Look, Slots},
     components::{
@@ -114,6 +114,21 @@ impl<'a> WidgetCx<'a> {
         bar::gauge(id, self.look, gauge)
     }
 
+    /// A battery's gauge, drawn as the dashboard draws it: its glyph, and how full it is in the
+    /// shared colors.
+    pub fn battery(&self, id: &'static str, battery: &Battery, busy: bool) -> Stateful<Div> {
+        self.gauge(
+            id,
+            Gauge {
+                glyph: self.glyph(battery.glyph),
+                glyph_color: battery.glyph_color(),
+                busy,
+                level: Some(battery.fraction()),
+                level_color: battery.color(),
+            },
+        )
+    }
+
     pub fn glyph(&self, key: &str) -> Option<&'a Path> {
         self.glyphs.get(key)
     }
@@ -122,7 +137,13 @@ impl<'a> WidgetCx<'a> {
         self.look.tips
     }
 
+    /// In a group of widgets, every part opens the dashboard instead, the group being one widget.
     pub fn toggle<E: ?Sized>(&self, panel: Panel) -> impl Fn(&E, &mut Window, &mut App) + 'static {
+        let panel = if self.look.grouped() {
+            Panel::Dashboard
+        } else {
+            panel
+        };
         bar::on(self.island, move |island, _, cx| island.toggle(panel, cx))
     }
 

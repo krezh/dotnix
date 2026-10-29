@@ -103,6 +103,17 @@ macro_rules! features {
             tabs
         }
 
+        /// Feature, title and place among the dashboard's views.
+        pub fn dashboard_tabs() -> Vec<(&'static str, &'static str, u8)> {
+            let mut views = Vec::new();
+            $(
+                if let Some((title, order)) = <$feature as Feature>::DASHBOARD_TAB {
+                    views.push((<$feature as Feature>::NAME, title, order));
+                }
+            )*
+            views
+        }
+
         /// Every feature's `island ctl` commands, each with the feature that answers it.
         pub fn controls() -> Vec<(&'static str, &'static Command)> {
             let mut all = Vec::new();

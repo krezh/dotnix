@@ -6,7 +6,7 @@ use super::panel::amount;
 use crate::{
     components::card,
     features::{
-        PanelCx,
+        PanelCx, battery,
         headset::{self, Battery},
     },
     panel::{Block, Item, Lead, Mark, Slider, Trail},
@@ -19,7 +19,7 @@ fn battery_line(battery: &Battery) -> (String, u32) {
         .map_or("Battery unknown".to_owned(), |level| format!("{level}%"));
     let color = match battery.level {
         _ if battery.charging => GREEN,
-        Some(level) => headset::battery_color(level),
+        Some(level) => battery::level_color(level),
         None => SUBTEXT1,
     };
     let state = if battery.charging { " · Charging" } else { "" };
@@ -36,6 +36,7 @@ fn reading(id: &'static str, title: &'static str, value: f32, color: u32) -> Blo
         title_color: None,
         wrap: false,
         detail: SharedString::default(),
+        tinted: Vec::new(),
         trail: vec![Trail::Text(amount(value, false).into(), color)],
     };
     let slider = Slider {
@@ -44,6 +45,7 @@ fn reading(id: &'static str, title: &'static str, value: f32, color: u32) -> Blo
         color,
         signal: None,
         on_change: None,
+        label: None,
     };
     Block::Item(item, vec![Block::Slider(slider)])
 }
@@ -66,6 +68,7 @@ pub fn headset_card(battery: Battery, p: &PanelCx<'_>) -> Block {
         title_color: None,
         wrap: false,
         detail: SharedString::default(),
+        tinted: Vec::new(),
         trail: Vec::new(),
     };
     let mut cells = vec![Block::Item(name, vec![Block::caption(line, color)])];

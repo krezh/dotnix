@@ -1,6 +1,6 @@
 use std::{cell::Cell, rc::Rc, time::Instant};
 
-use gpui::{AnyElement, ScrollWheelEvent, SharedString, SpringConfig, div, prelude::*, px, rgb};
+use gpui::{AnyElement, ScrollEvent, SharedString, SpringConfig, div, prelude::*, px, rgb};
 
 use super::{Feature, Feed, IslandInfo, Local, WidgetCx};
 use crate::{
@@ -135,7 +135,7 @@ fn focus(id: i64) {
     }
 }
 
-fn scroll(scrolled: &Cell<f32>, event: &ScrollWheelEvent) {
+fn scroll(scrolled: &Cell<f32>, event: &ScrollEvent) {
     let mut left = scrolled.get();
     let steps = island::notches(&mut left, event);
     scrolled.set(left);
@@ -175,7 +175,7 @@ impl Feature for Workspaces {
                 .pl(px((w.padding() - GAP / 2.0).max(0.0)))
                 .pr(px((w.padding() - GAP / 2.0).max(0.0)))
                 .justify_start()
-                .on_scroll_wheel(move |event, _, _| scroll(&scrolled, event))
+                .on_scroll(move |event, _, _| scroll(&scrolled, event))
                 .children(dots.dots.iter().map(|dot| {
                     let presence = dot.presence.value().clamp(0.0, 1.0);
                     let width = dot.width.value();

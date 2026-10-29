@@ -1,4 +1,18 @@
-use super::check;
+use std::time::Duration;
+
+use super::{Settings, check};
+use crate::features::parse_settings;
+
+#[test]
+fn asks_the_server_again_every_half_minute_unless_told_otherwise() {
+    let parse = |toml: &str| parse_settings::<Settings>(&toml::from_str(toml).unwrap()).unwrap();
+    assert_eq!(parse("").sync_interval(), Some(Duration::from_secs(30)));
+    assert_eq!(
+        parse("sync_seconds = 120").sync_interval(),
+        Some(Duration::from_secs(120))
+    );
+    assert_eq!(parse("sync_seconds = 0").sync_interval(), None);
+}
 
 #[test]
 fn validates_gotify_toml_settings() {

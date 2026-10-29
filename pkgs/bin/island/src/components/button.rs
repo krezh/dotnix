@@ -1,14 +1,10 @@
 //! Everything clickable: plain and toggle buttons, icon buttons, action and pick tiles, chips.
 
-use std::{
-    cell::RefCell,
-    collections::HashMap,
-    path::{Path, PathBuf},
-};
+use std::{cell::RefCell, collections::HashMap, path::Path, time::Duration};
 
 use gpui::{
-    AnimationExt, Div, FontWeight, Hsla, SharedString, SpringAnimation, SpringConfig, Stateful,
-    div, prelude::*, px, rgb, rgba,
+    Animation, AnimationExt, Div, FontWeight, Hsla, SharedString, SpringAnimation, SpringConfig,
+    Stateful, Transformation, div, prelude::*, px, rgb, rgba, size, svg,
 };
 
 use crate::{
@@ -18,11 +14,10 @@ use crate::{
         measure::{self, Measured},
         motion, pointer,
     },
-    island::{CONTENT_IN, SHAPE_SPRING},
     shape,
     theme::{
-        ACCENT, ACCENT_TINT_ALPHA, BASE, CONTROL_ALPHA, ON_ACCENT, SUBTEXT1, SURFACE1, TEXT, TINT,
-        TRACK_ALPHA, with_alpha,
+        ACCENT, ACCENT_TINT_ALPHA, BASE, CARD_ALPHA, CONTROL_ALPHA, ON_ACCENT, OVERLAY2,
+        SUBTEXT1, SURFACE1, TEXT, TINT, TRACK_ALPHA, with_alpha,
     },
     ui::{self, CONTROL_H, HEADER_H, Radius, SMALL_SIZE},
 };
@@ -177,6 +172,50 @@ pub fn pick(
 
 const CHIP_H: f32 = 24.0;
 
+const TINTED_CHIP_H: f32 = 30.0;
+const TINTED_CHIP_MARK: f32 = 20.0;
+const TINTED_CHIP_GLYPH: f32 = 14.0;
+
+/// A chip tinted with `color`: its glyph on a square of that color, its name, and a value in the
+/// color, such as a battery running low.
+pub fn tinted_chip(
+    id: impl Into<SharedString>,
+    glyph: Option<&Path>,
+    label: SharedString,
+    value: SharedString,
+    color: u32,
+    hover: bool,
+) -> Stateful<Div> {
+    let id = id.into();
+    let tint = rgba(with_alpha(color, ACCENT_TINT_ALPHA / 2)).into();
+    let label_id = SharedString::from(format!("{id}-label"));
+    let value_id = SharedString::from(format!("{id}-value"));
+    fill(id, Radius::Control, Some(tint), hover)
+        .flex_none()
+        .h(px(TINTED_CHIP_H))
+        .pl(px(6.0))
+        .pr(px(12.0))
+        .gap(px(7.0))
+        .text_size(px(12.0))
+        .font_weight(FontWeight::SEMIBOLD)
+        .child(
+            div()
+                .relative()
+                .size(px(TINTED_CHIP_MARK))
+                .flex()
+                .items_center()
+                .justify_center()
+                .child(ui::shape(Radius::Badge, Some(rgb(color).into())))
+                .children(glyph.map(|path| icon::glyph(path, TINTED_CHIP_GLYPH, ON_ACCENT))),
+        )
+        .child(motion::text(label_id, label))
+        .child(
+            div()
+                .text_color(rgb(color))
+                .child(motion::text(value_id, value)),
+        )
+}
+
 /// A small button showing a current choice, which opens the others.
 pub fn chip(
     id: impl Into<SharedString>,
@@ -200,15 +239,20 @@ pub const ACTION_H: f32 = 96.0;
 const ACTION_GLYPH: f32 = 26.0;
 
 /// `color` marks only the glyph, and fills the tile while `armed`, for an action waiting to be
-/// confirmed.
+/// confirmed. With a `state`, it is a switch instead: a wide tile with its glyph on a square that
+/// fills with `color` while armed, its name, and the state under it, such as how many are connected.
 pub fn action(
     id: impl Into<SharedString>,
     glyph: Option<&Path>,
     label: impl Into<SharedString>,
+    state: Option<SharedString>,
     color: u32,
     armed: bool,
     hover: bool,
 ) -> Stateful<Div> {
+    if let Some(state) = state {
+        return switch_tile(id.into(), glyph, label.into(), state, color, armed, hover);
+    }
     let (rest, text, mark) = if armed {
         (rgb(color).into(), ON_ACCENT, ON_ACCENT)
     } else {
@@ -227,6 +271,80 @@ pub fn action(
             tile.child(icon::glyph(path, ACTION_GLYPH, mark))
         })
         .child(motion::text("label", label))
+}
+
+const SWITCH_H: f32 = 58.0;
+const SWITCH_MARK: f32 = 36.0;
+const SWITCH_GLYPH: f32 = 20.0;
+const SWITCH_PAD: f32 = 10.0;
+
+fn switch_tile(
+    id: SharedString,
+    glyph: Option<&Path>,
+    label: SharedString,
+    state: SharedString,
+    color: u32,
+    armed: bool,
+    hover: bool,
+) -> Stateful<Div> {
+    let state_color = if armed { color } else { OVERLAY2 };
+    let glyph_color = if armed { ON_ACCENT } else { TEXT };
+    let mark_fill: Hsla = rgb(color).into();
+    let fill_in = div().absolute().top_0().left_0().size_full().with_spring(
+        SharedString::from(format!("{id}-mark")),
+        SpringAnimation::new(KNOB_SPRING).to(armed),
+        move |layer, phase| {
+            layer
+                .opacity(phase.0.clamp(0.0, 1.0))
+                .child(ui::shape(Radius::Control, Some(mark_fill)))
+        },
+    );
+    let mark = div()
+        .relative()
+        .flex_none()
+        .size(px(SWITCH_MARK))
+        .flex()
+        .items_center()
+        .justify_center()
+        .child(ui::shape(Radius::Control, Some(surface_fill(false))))
+        .child(fill_in)
+        .when_some(glyph, |mark, path| {
+            mark.child(icon::glyph(path, SWITCH_GLYPH, glyph_color))
+        });
+    let state_id = SharedString::from(format!("{id}-state"));
+    fill(
+        id,
+        Radius::Control,
+        Some(rgba(with_alpha(SURFACE1, CARD_ALPHA)).into()),
+        hover,
+    )
+    .h(px(SWITCH_H))
+    .min_w(px(0.0))
+    .justify_start()
+    .px(px(SWITCH_PAD))
+    .gap(px(11.0))
+    .child(mark)
+    .child(
+        div()
+            .min_w(px(0.0))
+            .flex()
+            .flex_col()
+            .gap(px(2.0))
+            .child(
+                div()
+                    .truncate()
+                    .text_size(px(SMALL_SIZE))
+                    .font_weight(FontWeight::SEMIBOLD)
+                    .child(label),
+            )
+            .child(
+                div()
+                    .truncate()
+                    .text_size(px(11.5))
+                    .text_color(rgb(state_color))
+                    .child(motion::text(state_id, state)),
+            ),
+    )
 }
 
 pub const ICON_BUTTON: f32 = 36.0;
@@ -297,78 +415,118 @@ pub fn badged(
         })
 }
 
-/// How far below its place a rising part starts, as a share of the glyph.
-const RISE: f32 = 3.0 / 16.0;
-
-/// Parts drawn over an icon button's glyph only while it is active, each the glyph's full size.
-/// Turning on, they rise into place one after another out of the line at `from` (a share of the
-/// glyph down from its top), as steam out of a cup; turning off, they fade where they are.
-#[derive(Clone)]
-pub struct Rising {
-    pub parts: Vec<PathBuf>,
-    pub from: f32,
-}
-
-fn rising(id: SharedString, rising: &Rising, active: bool, tint: u32) -> impl IntoElement {
-    let parts = rising.parts.clone();
-    let count = parts.len();
-    // Off settles more gently than on, with nothing to overshoot.
-    let spring = if active { SHAPE_SPRING } else { CONTENT_IN };
-    div()
-        .absolute()
-        .top_0()
-        .left_0()
-        .w(px(ICON_GLYPH))
-        .h(px(ICON_GLYPH * rising.from))
-        .overflow_hidden()
-        .with_spring(
-            id,
-            SpringAnimation::new(spring).to(active),
-            move |clip, strength| {
-                clip.children(parts.iter().enumerate().map(|(index, part)| {
-                    // The last to come is the first to go.
-                    let order = if active { index } else { count - 1 - index };
-                    let share = (strength.0 * 1.3 - order as f32 * 0.15).clamp(0.0, 1.0);
-                    let lift = if active {
-                        (1.0 - share) * RISE * ICON_GLYPH
-                    } else {
-                        0.0
-                    };
-                    div()
-                        .absolute()
-                        .left_0()
-                        .top(px(lift))
-                        .opacity(share)
-                        .child(icon::glyph(part, ICON_GLYPH, tint))
-                }))
-            },
-        )
-}
-
+/// With a `color`, the glyph is drawn in it, and while active the button fills with it, as an
+/// action tile does while armed.
 pub fn icon(
     id: impl Into<SharedString>,
     glyph: Option<&Path>,
-    parts: Option<&Rising>,
+    color: Option<u32>,
+    active: bool,
+    hover: bool,
+) -> Stateful<Div> {
+    let (rest, tint) = match (color, active) {
+        (Some(color), true) => (rgb(color).into(), ON_ACCENT),
+        (Some(color), false) => (surface_fill(false), color),
+        (None, true) => (surface_fill(true), ACCENT),
+        (None, false) => (surface_fill(false), SUBTEXT1),
+    };
+    fill(id, Radius::Control, Some(rest), hover)
+        .flex_none()
+        .size(px(ICON_BUTTON))
+        .when_some(glyph, |button, path| {
+            button.child(icon::glyph(path, ICON_GLYPH, tint))
+        })
+}
+
+const FILL_SPRING: SpringConfig = SpringConfig::new(300.0, 30.0, 1.0);
+const STRIP_ICON_W: f32 = 32.0;
+const STRIP_ICON_H: f32 = 28.0;
+const STRIP_GLYPH: f32 = 18.0;
+
+/// How long a strip icon's glyph takes to pop to its size as it is switched on, from how much of it.
+const POP: Duration = Duration::from_millis(400);
+const POP_FROM: f32 = 0.7;
+
+/// An icon button inside a strip: bare until hovered, its fill fading in with `color` while active
+/// and its glyph popping as it is switched on.
+pub fn strip_icon(
+    id: impl Into<SharedString>,
+    glyph: Option<&Path>,
+    color: Option<u32>,
     active: bool,
     hover: bool,
 ) -> Stateful<Div> {
     let id = id.into();
-    let tint = if active { ACCENT } else { SUBTEXT1 };
-    let rise_id = SharedString::from(format!("{id}-rising"));
-    fill(id, Radius::Control, Some(surface_fill(active)), hover)
+    let (on, tint) = match color {
+        Some(color) => (rgb(color).into(), ON_ACCENT),
+        None => (surface_fill(true), ACCENT),
+    };
+    let fill_id = SharedString::from(format!("{id}-fill"));
+    let pop_id = SharedString::from(format!("{id}-pop-{active}"));
+    let glyph = glyph.map(|path| {
+        let path = SharedString::from(path.to_string_lossy().into_owned());
+        let glyph_id = SharedString::from(format!("{id}-glyph"));
+        let layer = move |color: u32, scale: f32| {
+            svg()
+                .absolute()
+                .top_0()
+                .left_0()
+                .path(path.clone())
+                .size(px(STRIP_GLYPH))
+                .text_color(rgb(color))
+                .with_transformation(Transformation::scale(size(scale, scale)))
+        };
+        let lit = move |scale: f32| {
+            let layer = layer.clone();
+            div()
+                .relative()
+                .size(px(STRIP_GLYPH))
+                .with_spring(
+                    glyph_id.clone(),
+                    SpringAnimation::new(FILL_SPRING).to(active),
+                    move |glyph, phase| {
+                        let lit_by = phase.0.clamp(0.0, 1.0);
+                        glyph
+                            .child(layer(SUBTEXT1, scale).opacity(1.0 - lit_by))
+                            .child(layer(tint, scale).opacity(lit_by))
+                    },
+                )
+        };
+        if active {
+            div()
+                .with_animation(
+                    pop_id,
+                    Animation::new(POP).with_easing(ease_out_back),
+                    move |glyph, t| glyph.child(lit(POP_FROM + (1.0 - POP_FROM) * t)),
+                )
+                .into_any_element()
+        } else {
+            lit(1.0).into_any_element()
+        }
+    });
+    fill(id, Radius::Row, None, hover)
         .flex_none()
-        .size(px(ICON_BUTTON))
-        .when_some(glyph, |button, path| {
-            button.child(
-                div()
-                    .relative()
-                    .size(px(ICON_GLYPH))
-                    .child(icon::glyph(path, ICON_GLYPH, tint))
-                    .when_some(parts, |glyph, parts| {
-                        glyph.child(rising(rise_id, parts, active, tint))
-                    }),
-            )
-        })
+        .w(px(STRIP_ICON_W))
+        .h(px(STRIP_ICON_H))
+        .child(
+            div()
+                .absolute()
+                .top_0()
+                .left_0()
+                .size_full()
+                .with_spring(fill_id, SpringAnimation::new(FILL_SPRING).to(active), move |fill, phase| {
+                    fill.opacity(phase.0.clamp(0.0, 1.0))
+                        .child(ui::shape(Radius::Row, Some(on)))
+                }),
+        )
+        .children(glyph)
+}
+
+/// Past 1 and back, so a glyph popping in overshoots its size a little.
+fn ease_out_back(t: f32) -> f32 {
+    const C1: f32 = 1.70158;
+    const C3: f32 = C1 + 1.0;
+    1.0 + C3 * (t - 1.0).powi(3) + C1 * (t - 1.0).powi(2)
 }
 
 pub fn switch(id: impl Into<SharedString>, on: bool) -> impl IntoElement {

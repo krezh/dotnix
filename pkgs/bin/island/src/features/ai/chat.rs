@@ -127,7 +127,7 @@ fn welcome(p: &PanelCx<'_>) -> Vec<Block> {
         .map(|(index, (label, start))| IconButton {
             id: format!("ai-chat-starter-{index}").into(),
             glyph: None,
-            rising: None,
+            color: None,
             label: (*label).into(),
             active: false,
             badge: None,
@@ -155,6 +155,7 @@ fn welcome(p: &PanelCx<'_>) -> Vec<Block> {
                 title_color: None,
                 wrap: false,
                 detail: "".into(),
+                tinted: Vec::new(),
                 trail: Vec::new(),
             },
             vec![Block::Text(Text::new(
@@ -167,6 +168,7 @@ fn welcome(p: &PanelCx<'_>) -> Vec<Block> {
             compact: true,
             indent: LEAD + item::LEAD_GAP,
             menu: None,
+            end: false,
         }),
     ]
 }

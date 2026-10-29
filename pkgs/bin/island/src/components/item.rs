@@ -2,7 +2,12 @@
 //! whatever it holds under the title, such as a slider. With a line over the title it reads as a
 //! message: a faint line naming where it is from, then the title, larger, then what it says.
 
-use gpui::{AnyElement, Context, FontWeight, SharedString, div, prelude::*, px, rgb, rgba};
+use std::{f32::consts::PI, path::PathBuf};
+
+use gpui::{
+    AnimationExt, AnyElement, Context, FontWeight, SharedString, SpringAnimation, SpringConfig,
+    Transformation, div, prelude::*, px, radians, rgb, rgba, svg,
+};
 
 use crate::{
     components::{
@@ -23,6 +28,10 @@ const GLOW_ALPHA: f32 = 96.0;
 /// Keeps a changing amount, such as "50%" to "Muted", from moving what is beside it.
 const AMOUNT_W: f32 = 40.0;
 const LEAD: f32 = 40.0;
+const BUTTON_H: f32 = 24.0;
+const BUTTON_GLYPH: f32 = 15.0;
+const TURN_SPRING: SpringConfig = SpringConfig::new(300.0, 26.0, 1.0);
+
 /// Between the lead and the text.
 pub const LEAD_GAP: f32 = 12.0;
 /// The line over the title, and the title under it.
@@ -61,6 +70,19 @@ pub enum Trail {
         group: SharedString,
         on_click: Handler,
     },
+    /// A quiet button, such as one showing more.
+    Button(TrailButton),
+}
+
+pub struct TrailButton {
+    pub label: Option<SharedString>,
+    /// Before the label.
+    pub glyph: Option<PathBuf>,
+    /// The glyph turned upside down, turning as it changes, such as a chevron for more or less.
+    pub turned: bool,
+    /// Tinted with its own color, such as one putting something right.
+    pub tint: Option<u32>,
+    pub on_click: Handler,
 }
 
 /// A row: an optional lead, a title line, and whatever the item holds under the title.
@@ -75,7 +97,40 @@ pub struct Item {
     pub wrap: bool,
     /// Fainter, after the title.
     pub detail: SharedString,
+    /// Words in a color of their own, after the line they belong to.
+    pub tinted: Vec<Tint>,
     pub trail: Vec<Trail>,
+}
+
+/// Words that stand out in their color, such as how urgent a message is or where it is from.
+pub enum Tint {
+    /// After the line over the title.
+    Overline(SharedString, u32),
+    /// After the title, before its detail.
+    Title(SharedString, u32),
+}
+
+/// `id` names each, so one that changes morphs into what it says now.
+fn tints(id: &SharedString, tinted: &[Tint], overline: bool) -> Vec<AnyElement> {
+    tinted
+        .iter()
+        .enumerate()
+        .filter_map(|(index, tint)| match (tint, overline) {
+            (Tint::Overline(text, color), true) | (Tint::Title(text, color), false) => Some(
+                div()
+                    .flex_none()
+                    .whitespace_nowrap()
+                    .when(!overline, |tint| tint.font_weight(FontWeight::SEMIBOLD))
+                    .text_color(rgb(*color))
+                    .child(motion::text(
+                        SharedString::from(format!("{id}-tint-{overline}-{index}")),
+                        text.clone(),
+                    ))
+                    .into_any_element(),
+            ),
+            _ => None,
+        })
+        .collect()
 }
 
 fn lead_element(id: SharedString, lead: Lead, hover: bool, cx: &mut Context<Island>) -> AnyElement {
@@ -179,6 +234,47 @@ fn trail_element(
                 on_click(this, cx);
             }))
             .into_any_element(),
+        Trail::Button(trail) => {
+            let color = trail.tint.unwrap_or(SUBTEXT1);
+            let glyph = trail.glyph.map(|path| {
+                svg()
+                    .path(SharedString::from(path.to_string_lossy().into_owned()))
+                    .size(px(BUTTON_GLYPH))
+                    .text_color(rgb(color))
+                    .with_spring(
+                        SharedString::from(format!("{id}-turn")),
+                        SpringAnimation::new(TURN_SPRING)
+                            .to(if trail.turned { PI } else { 0.0 }),
+                        |glyph, angle| glyph.with_transformation(Transformation::rotate(radians(angle))),
+                    )
+            });
+            let on_click = trail.on_click;
+            let rest = trail
+                .tint
+                .map(|tint| rgba(with_alpha(tint, ACCENT_TINT_ALPHA)).into());
+            button::fill(id.clone(), Radius::Row, rest, hover)
+                .flex_none()
+                .h(px(BUTTON_H))
+                .px(px(8.0))
+                .gap(px(4.0))
+                .text_size(px(SMALL_SIZE))
+                .font_weight(FontWeight::SEMIBOLD)
+                .text_color(rgb(color))
+                .when(hover && trail.tint.is_none(), |button| {
+                    button.hover(|style| style.text_color(rgb(TEXT)))
+                })
+                .children(glyph)
+                .children(
+                    trail
+                        .label
+                        .map(|label| motion::text(SharedString::from(format!("{id}-label")), label)),
+                )
+                .on_click(cx.listener(move |this, _, _, cx| {
+                    cx.stop_propagation();
+                    on_click(this, cx);
+                }))
+                .into_any_element()
+        }
     }
 }
 
@@ -219,7 +315,13 @@ pub fn item(
                     .gap(px(8.0))
                     .text_size(px(SMALL_SIZE))
                     .text_color(rgb(SUBTEXT1))
-                    .child(div().min_w(px(0.0)).truncate().child(overline))
+                    .child(
+                        div()
+                            .min_w(px(0.0))
+                            .flex()
+                            .child(div().min_w(px(0.0)).truncate().child(overline))
+                            .children(tints(&item.id, &item.tinted, true)),
+                    )
                     .children(trail),
             )
             .child(
@@ -246,6 +348,7 @@ pub fn item(
                         .when_some(title_color, |title, color| title.text_color(rgb(color)))
                         .child(motion::text(id("title"), item.title)),
                 )
+                .children(tints(&item.id, &item.tinted, false))
                 .when(!item.detail.is_empty(), |line| {
                     line.child(
                         div()

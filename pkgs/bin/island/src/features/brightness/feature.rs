@@ -1,13 +1,14 @@
 //! How island sees brightness: each screen's level, the OSD it shows, and `island ctl brightness`.
 
 use super::{
+    overview,
     runtime::{self, Brightness},
     state::{self, Levels},
 };
 use crate::{
     control::{Command, Group, LEVEL, Reply, Row, Takes},
     features::{
-        Feature, Feed, GlyphSpec, IslandInfo, PanelCx,
+        Dashboard, Feature, Feed, GlyphSpec, IslandInfo, PanelCx,
         osd::{self, Osd, Shown},
     },
     panel::PanelView,
@@ -15,7 +16,8 @@ use crate::{
 
 impl Feature for Brightness {
     const NAME: &'static str = "brightness";
-    const GLYPHS: &'static [GlyphSpec] = &[("brightness", &["display-brightness-symbolic"])];
+    const DASHBOARD_ORDER: u8 = 35;
+    const GLYPHS: &'static [GlyphSpec] = &[("brightness", &["sun"])];
     const CONTROLS: &'static [Command] = &[Command {
         name: "brightness",
         about: "The screens' brightness",
@@ -54,6 +56,13 @@ impl Feature for Brightness {
 
     fn osd(before: &Levels, after: &Levels) -> Option<Osd> {
         state::osd(before, after)
+    }
+
+    fn dashboard(&self, levels: &Levels, p: &PanelCx<'_>) -> Dashboard {
+        Dashboard {
+            cards: overview::cards(levels, p),
+            ..Dashboard::default()
+        }
     }
 
     fn reply(&self, _: &Levels, args: &[&str]) -> Reply {

@@ -12,9 +12,15 @@ use tracing::{debug, warn};
 
 use super::{
     Event, Notifications, State,
-    notification::{Expire, Notification},
+    cards::Filter,
+    notification::{Expire, Notification, Posted},
 };
-use crate::{components::icon::Picture, db, features::Feed, supervisor::Ended};
+use crate::{
+    components::icon::Picture,
+    db,
+    features::{Feed, notice::Origin},
+    supervisor::Ended,
+};
 
 /// Only ever append.
 const MIGRATIONS: &[&str] = &[
@@ -35,6 +41,14 @@ CREATE INDEX history_received ON history (received DESC);
     "
 ALTER TABLE history ADD COLUMN lead TEXT;
 ",
+    "
+ALTER TABLE history ADD COLUMN feature TEXT;
+ALTER TABLE history ADD COLUMN origin TEXT;
+ALTER TABLE history ADD COLUMN source TEXT;
+ALTER TABLE history ADD COLUMN via INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE history ADD COLUMN detail TEXT;
+CREATE INDEX history_origin ON history (feature, origin);
+",
 ];
 
 /// The session and the notification's id together name it.
@@ -47,6 +61,13 @@ pub struct Earlier {
 impl Earlier {
     pub fn key(&self) -> (i64, u32) {
         (self.session, self.notification.id)
+    }
+
+    fn origin(&self) -> Option<&Origin> {
+        self.notification
+            .posted
+            .as_ref()
+            .map(|posted| &posted.origin)
     }
 }
 
@@ -77,10 +98,23 @@ fn read(db: &Connection, days: u32) -> rusqlite::Result<Vec<Earlier>> {
     let cutoff = seconds(SystemTime::now()) - i64::from(days) * 86_400;
     db.execute("DELETE FROM history WHERE received < ?1", params![cutoff])?;
     let mut statement = db.prepare(
-        "SELECT session, id, app, summary, body, critical, icon, received, lead FROM history ORDER BY received DESC",
+        "SELECT session, id, app, summary, body, critical, icon, received, lead, feature, origin, source, via, detail
+         FROM history ORDER BY received DESC",
     )?;
     let rows = statement.query_map([], |row| {
         let received: i64 = row.get(7)?;
+        let posted = match (row.get(9)?, row.get(10)?, row.get(11)?) {
+            (Some(feature), Some(key), Some(source)) => Some(Posted {
+                origin: Origin {
+                    feature,
+                    source,
+                    key,
+                },
+                via: row.get(12)?,
+                detail: row.get(13)?,
+            }),
+            _ => None,
+        };
         Ok(Earlier {
             session: row.get(0)?,
             notification: Notification {
@@ -99,6 +133,7 @@ fn read(db: &Connection, days: u32) -> rusqlite::Result<Vec<Earlier>> {
                 expire: Expire::Default,
                 actions: Vec::new(),
                 received: UNIX_EPOCH + Duration::from_secs(u64::try_from(received).unwrap_or(0)),
+                posted,
             },
         })
     })?;
@@ -113,12 +148,24 @@ fn write(db: &mut Connection, write: Write) -> rusqlite::Result<()> {
                 Some(Picture::File(path)) => Some(path.to_string_lossy().into_owned()),
                 _ => None,
             };
+            let posted = notification.posted.as_ref();
+            let origin = posted.map(|posted| &posted.origin);
+            if let Some(origin) = origin {
+                // Posted again in a later session, such as a message still on its server.
+                db.execute(
+                    "DELETE FROM history WHERE feature = ?1 AND origin = ?2 AND NOT (session = ?3 AND id = ?4)",
+                    params![origin.feature, origin.key, earlier.session, notification.id],
+                )?;
+            }
             db.execute(
-                "INSERT INTO history (session, id, app, summary, body, critical, icon, received, lead)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)
+                "INSERT INTO history (session, id, app, summary, body, critical, icon, received, lead,
+                    feature, origin, source, via, detail)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)
                  ON CONFLICT (session, id) DO UPDATE SET app = excluded.app, summary = excluded.summary,
                     body = excluded.body, critical = excluded.critical, icon = excluded.icon,
-                    received = excluded.received, lead = excluded.lead",
+                    received = excluded.received, lead = excluded.lead, feature = excluded.feature,
+                    origin = excluded.origin, source = excluded.source, via = excluded.via,
+                    detail = excluded.detail",
                 params![
                     earlier.session,
                     notification.id,
@@ -128,7 +175,12 @@ fn write(db: &mut Connection, write: Write) -> rusqlite::Result<()> {
                     notification.critical,
                     icon,
                     seconds(notification.received),
-                    notification.lead
+                    notification.lead,
+                    origin.map(|origin| &origin.feature),
+                    origin.map(|origin| &origin.key),
+                    origin.map(|origin| &origin.source),
+                    posted.is_some_and(|posted| posted.via),
+                    posted.and_then(|posted| posted.detail.as_ref()),
                 ],
             )?;
         }
@@ -180,10 +232,13 @@ impl Notifications {
         };
         let days = self.history_days;
         let _ = self.history.send(Write::Record(earlier.clone()));
+        let origin = earlier.origin().cloned();
         self.change(|store| {
             let history = Arc::make_mut(&mut store.history);
             history.retain(|kept| {
-                kept.key() != earlier.key() && !aged(kept.notification.received, days)
+                kept.key() != earlier.key()
+                    && (origin.is_none() || kept.origin() != origin.as_ref())
+                    && !aged(kept.notification.received, days)
             });
             history.insert(0, earlier);
         });
@@ -236,9 +291,11 @@ impl Notifications {
         let _ = self.history.send(Write::Forget(keys));
     }
 
-    pub(super) fn clear_earlier(&self) {
+    /// Those `filter` shows.
+    pub(super) fn clear_earlier(&self, filter: &Filter) {
         let keys = Self::earlier(&self.store.borrow())
             .iter()
+            .filter(|kept| filter.shows(&kept.notification))
             .map(Earlier::key)
             .collect();
         self.forget(keys);

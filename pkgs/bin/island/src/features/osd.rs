@@ -4,7 +4,7 @@
 use std::time::{Duration, Instant};
 
 use super::{IslandInfo, Local, PanelCx};
-use crate::panel::{Block, Header, Meter, PanelView};
+use crate::panel::{Block, Header, Meter, MeterShape, PanelView};
 
 pub const DURATION: Duration = Duration::from_millis(1500);
 
@@ -74,13 +74,16 @@ pub fn popup<'a>(p: &PanelCx<'a>) -> Option<PanelView> {
 pub fn shown_popup(shown: &Shown, p: &PanelCx<'_>) -> Option<PanelView> {
     let osd = shown.osd.clone()?;
     Some(PanelView {
+        scroll: false,
         header: Header::None,
         blocks: vec![Block::Meter(Meter {
+            id: "osd".into(),
             glyph: p.glyph(osd.glyph),
             caption: osd.caption.into(),
             label: osd.label.into(),
             level: osd.level,
             color: osd.color,
+            shape: MeterShape::Bar,
         })],
     })
 }

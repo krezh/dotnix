@@ -3,10 +3,12 @@
 
 use std::{
     fs,
+    os::unix::fs::MetadataExt,
     path::{Path, PathBuf},
 };
 
-use ddc_hi::{Ddc, Display};
+use ddc::{Ddc, Edid};
+use ddc_i2c::{I2cDeviceDdc, I2cDeviceEnumerator};
 use tracing::warn;
 use zbus::{Connection, block_on};
 
@@ -16,6 +18,10 @@ const BRIGHTNESS: u8 = 0x10;
 
 /// An EDID's base block, which tells monitors apart.
 const EDID_BLOCK: usize = 128;
+/// Where the base block's four 18-byte descriptors start.
+const DESCRIPTORS: usize = 54;
+const DESCRIPTOR: usize = 18;
+const PRODUCT_NAME: u8 = 0xFC;
 
 pub(super) struct Screen {
     pub(super) name: String,
@@ -28,7 +34,7 @@ enum Output {
     Backlight(PathBuf),
     /// With the maximum it reported when found, so setting it needs no read.
     Ddc {
-        display: Display,
+        display: I2cDeviceDdc,
         maximum: u16,
     },
 }
@@ -37,7 +43,7 @@ impl Screen {
     pub(super) fn read(&mut self) -> Option<f32> {
         match &mut self.output {
             Output::Backlight(device) => backlight_level(device),
-            Output::Ddc { display, maximum } => match display.handle.get_vcp_feature(BRIGHTNESS) {
+            Output::Ddc { display, maximum } => match display.get_vcp_feature(BRIGHTNESS) {
                 Ok(value) => Some(f32::from(value.value()) / f32::from(*maximum)),
                 Err(err) => {
                     warn!(screen = %self.name, ?err, "cannot read the brightness over DDC/CI");
@@ -53,7 +59,6 @@ impl Screen {
             Output::Ddc { display, maximum } => {
                 let target = (level.clamp(0.0, 1.0) * f32::from(*maximum)).round() as u16;
                 display
-                    .handle
                     .set_vcp_feature(BRIGHTNESS, target)
                     .map_err(|err| {
                         warn!(screen = %self.name, ?err, "cannot set the brightness over DDC/CI");
@@ -131,33 +136,53 @@ fn backlight(connectors: &[(String, Vec<u8>)]) -> Option<Screen> {
 }
 
 fn monitors(connectors: &[(String, Vec<u8>)]) -> Vec<Screen> {
-    Display::enumerate()
-        .into_iter()
-        .filter_map(|mut found| {
-            let maximum = match found.handle.get_vcp_feature(BRIGHTNESS) {
+    let Ok(found) = I2cDeviceEnumerator::new() else {
+        return Vec::new();
+    };
+    found
+        .filter_map(|mut display| {
+            let id = display
+                .inner_ref()
+                .inner_ref()
+                .metadata()
+                .map_or(0, |meta| meta.rdev())
+                .to_string();
+            let mut edid = vec![0; 2 * EDID_BLOCK];
+            if let Err(err) = display.read_edid(0, &mut edid) {
+                warn!(monitor = %id, ?err, "cannot read the monitor's EDID");
+                return None;
+            }
+            let maximum = match display.get_vcp_feature(BRIGHTNESS) {
                 Ok(value) if value.maximum() > 0 => value.maximum(),
                 Ok(_) => return None,
                 Err(err) => {
-                    warn!(monitor = %found.info.id, ?err, "monitor does not report its brightness over DDC/CI");
+                    warn!(monitor = %id, ?err, "monitor does not report its brightness over DDC/CI");
                     return None;
                 }
             };
-            let name = found
-                .info
-                .edid_data
-                .as_deref()
-                .and_then(|edid| connector_for(connectors, edid))
-                .unwrap_or_else(|| found.info.id.clone());
             Some(Screen {
-                name,
-                model: found.info.model_name.clone().unwrap_or_default(),
-                output: Output::Ddc {
-                    display: found,
-                    maximum,
-                },
+                name: connector_for(connectors, &edid).unwrap_or(id),
+                model: model_name(&edid).unwrap_or_default(),
+                output: Output::Ddc { display, maximum },
             })
         })
         .collect()
+}
+
+/// The model name an EDID's base block gives, such as `DELL U2723QE`.
+pub(super) fn model_name(edid: &[u8]) -> Option<String> {
+    edid.get(DESCRIPTORS..EDID_BLOCK - 2)?
+        .chunks_exact(DESCRIPTOR)
+        .find(|descriptor| descriptor[..2] == [0, 0] && descriptor[3] == PRODUCT_NAME)
+        .map(|descriptor| {
+            descriptor[5..]
+                .iter()
+                .filter(|&&byte| byte != b'\n')
+                .map(|&byte| char::from(byte))
+                .collect::<String>()
+                .trim()
+                .to_owned()
+        })
 }
 
 fn read_number(path: &Path) -> Option<u32> {

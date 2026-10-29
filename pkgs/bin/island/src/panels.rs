@@ -1,3 +1,5 @@
+use std::path::Path;
+
 use gpui::SharedString;
 
 use crate::{
@@ -7,15 +9,22 @@ use crate::{
         tile::{Drive, Meter as TileMeter, Part, Segment, Tile, Volume},
     },
     config,
-    island::{Island, Panel},
-    panel::{Block, ButtonRow, Header, IconButton, PanelView},
-    sys::SysStats,
-    theme::{BLUE, GREEN, LAVENDER, MAUVE, PEACH, PINK, RED, SUBTEXT1, TEAL, YELLOW},
+    features::Battery,
+    glyphs::Glyphs,
+    island::{Island, Mode, Panel},
+    panel::{
+        Block, Handler, Header, Meter, MeterShape, PanelView, Split, Warning, on,
+    },
+    sys::{Sensor, SysStats},
+    theme::{
+        BLUE, GREEN, LAVENDER, MAUVE, PEACH, PINK, RED, SAPPHIRE, SUBTEXT1, TEAL, YELLOW,
+    },
 };
 
 /// Nothing, for a panel whose content went away while it closes.
 fn empty<'a>() -> PanelView {
     PanelView {
+        scroll: false,
         header: Header::None,
         blocks: Vec::new(),
     }
@@ -164,6 +173,7 @@ fn cpu_tile(stats: &SysStats) -> Tile {
                     ),
                 ],
                 grow: true,
+                phase: None,
             },
             Part::Cores {
                 loads: stats.cores.clone(),
@@ -216,6 +226,7 @@ fn gpu_tile(stats: &SysStats) -> Tile {
                     ),
                 ],
                 grow: true,
+                phase: None,
             },
             Part::Meters {
                 rows: vec![tile_meter(
@@ -277,6 +288,7 @@ fn memory_tile(stats: &SysStats) -> Tile {
             Part::Chart {
                 series: vec![series(&stats.mem_history, 1.0, PEACH, "RAM", percent)],
                 grow: true,
+                phase: None,
             },
             Part::Meters {
                 rows,
@@ -351,6 +363,7 @@ fn power_tile(stats: &SysStats) -> Tile {
                     })
                     .collect(),
                 grow: true,
+                phase: None,
             },
             Part::Legend(
                 stats
@@ -390,6 +403,7 @@ fn network_tile(stats: &SysStats) -> Tile {
                     }),
                 ],
                 grow: true,
+                phase: None,
             },
             Part::Legend(vec![
                 (Some(TEAL), format!("↓ {}", rate(stats.rx_rate)).into()),
@@ -420,6 +434,7 @@ fn disk_tile(stats: &SysStats) -> Tile {
                     }),
                 ],
                 grow: true,
+                phase: None,
             },
             Part::Legend(vec![
                 (Some(TEAL), format!("R {}", rate(stats.read_rate)).into()),
@@ -584,6 +599,7 @@ fn temperatures_tile(stats: &SysStats) -> Tile {
                     })
                     .collect(),
                 grow: false,
+                phase: None,
             },
             Part::Legend(
                 shown
@@ -610,21 +626,11 @@ fn temperatures_tile(stats: &SysStats) -> Tile {
     )
 }
 
-pub fn system(
-    stats: &SysStats,
-    settings: &config::System,
-    displays: usize,
-    buttons: Vec<IconButton>,
-) -> PanelView {
+pub fn system(stats: &SysStats, settings: &config::System, displays: usize) -> PanelView {
     PanelView {
+        scroll: false,
         header: Header::Tabs,
         blocks: vec![
-            Block::Buttons(ButtonRow {
-                buttons,
-                compact: false,
-                indent: 0.0,
-                menu: None,
-            }),
             Block::Board(vec![
                 vec![
                     cpu_tile(stats),
@@ -647,14 +653,194 @@ pub fn system(
     }
 }
 
+/// Hot enough to say so on the overview.
+const HOT: f32 = 85.0;
+/// Memory this full is worth a look.
+const MEMORY_FULL: f32 = 0.9;
+
+fn open(panel: Panel) -> Handler {
+    on(move |island, cx| island.set_mode(Mode::Open(panel), cx))
+}
+
+fn hottest(stats: &SysStats) -> Option<&Sensor> {
+    stats
+        .sensors
+        .iter()
+        .max_by(|a, b| a.celsius.total_cmp(&b.celsius))
+}
+
+fn system_warnings(stats: &SysStats, glyphs: &Glyphs) -> Vec<Warning> {
+    let glyph = glyphs.get("dashboard-warning").map(Path::to_path_buf);
+    let mut warnings = Vec::new();
+    if let Some(sensor) = hottest(stats).filter(|sensor| sensor.celsius >= HOT) {
+        warnings.push(Warning {
+            id: "warning-hot".into(),
+            glyph: glyph.clone(),
+            label: sensor.label.clone().into(),
+            value: format!("{:.0}°C", sensor.celsius).into(),
+            color: RED,
+            on_click: Some(open(Panel::System)),
+        });
+    }
+    let memory = stats.mem_used_kib as f32 / stats.mem_total_kib.max(1) as f32;
+    if memory >= MEMORY_FULL {
+        warnings.push(Warning {
+            id: "warning-memory".into(),
+            glyph,
+            label: "Memory".into(),
+            value: format!("{:.0}%", memory * 100.0).into(),
+            color: PEACH,
+            on_click: Some(open(Panel::System)),
+        });
+    }
+    warnings
+}
+
+/// A number with its recent history, such as CPU use.
+fn history_meter(
+    id: &str,
+    label: impl Into<SharedString>,
+    amount: String,
+    unit: &str,
+    color: u32,
+    history: Option<Series>,
+) -> Meter {
+    Meter {
+        id: id.to_owned().into(),
+        glyph: None,
+        caption: SharedString::default(),
+        label: label.into(),
+        level: None,
+        color,
+        shape: MeterShape::History {
+            amount: amount.into(),
+            unit: unit.to_owned().into(),
+            history,
+        },
+    }
+}
+
+fn system_card(stats: &SysStats, glyphs: &Glyphs) -> Block {
+    let kib = |value: u64| value * 1024;
+    let mut meters = vec![history_meter(
+        "meter-cpu",
+        "CPU",
+        format!("{:.0}", stats.cpu * 100.0),
+        "%",
+        SAPPHIRE,
+        Some(series(&stats.cpu_history, 1.0, SAPPHIRE, "CPU", percent)),
+    )];
+    if let Some(gpu) = stats.gpu {
+        meters.push(history_meter(
+            "meter-gpu",
+            "GPU",
+            format!("{:.0}", gpu.busy * 100.0),
+            "%",
+            GREEN,
+            Some(series(&stats.gpu_history, 1.0, GREEN, "GPU", percent)),
+        ));
+    }
+    meters.push(history_meter(
+        "meter-memory",
+        "Memory",
+        size(kib(stats.mem_used_kib)),
+        &format!("/ {}", size(kib(stats.mem_total_kib))),
+        LAVENDER,
+        Some(series(&stats.mem_history, 1.0, LAVENDER, "Memory", percent)),
+    ));
+    if let Some(sensor) = hottest(stats) {
+        let color = if sensor.celsius >= HOT { RED } else { PEACH };
+        meters.push(history_meter(
+            "meter-hottest",
+            sensor.label.clone(),
+            format!("{:.0}", sensor.celsius),
+            "°C",
+            color,
+            None,
+        ));
+    }
+    let title = card::Title::with_detail(
+        "System",
+        format!("up {}", short_duration(stats.uptime_secs)),
+    )
+    .glyph(glyphs.get("tab-system").map(Path::to_path_buf), SAPPHIRE)
+    .opens(open(Panel::System));
+    Block::Card(
+        Some(title),
+        card::Size::Medium,
+        vec![Block::Meters(2, meters)],
+    )
+}
+
+/// Every battery as a ring, as many to a row as fit.
+fn batteries_card(batteries: &[Battery], glyphs: &Glyphs) -> Block {
+    let rings = batteries
+        .iter()
+        .map(|battery| Meter {
+            id: format!("battery-{}", battery.id).into(),
+            glyph: glyphs.get(battery.glyph).map(Path::to_path_buf),
+            caption: SharedString::default(),
+            label: battery.name.clone(),
+            level: Some((battery.fraction(), false)),
+            color: battery.color(),
+            shape: MeterShape::Ring,
+        })
+        .collect();
+    let title = card::Title::from("Batteries")
+        .glyph(glyphs.get("dashboard-battery").map(Path::to_path_buf), GREEN);
+    Block::Card(
+        Some(title),
+        card::Size::Medium,
+        vec![Block::Meters(1, rings)],
+    )
+}
+
+fn battery_warnings(batteries: &[Battery], glyphs: &Glyphs) -> Vec<Warning> {
+    batteries
+        .iter()
+        .filter(|battery| battery.low())
+        .map(|battery| Warning {
+            id: format!("warning-battery-{}", battery.id).into(),
+            glyph: glyphs.get(battery.glyph).map(Path::to_path_buf),
+            label: battery.name.clone(),
+            value: battery.percent().into(),
+            color: RED,
+            on_click: None,
+        })
+        .collect()
+}
+
+/// The overview: what needs a look, every feature's switches, then their cards in two columns.
+pub fn dashboard(island: &Island, cx: &gpui::App) -> PanelView {
+    let glyphs = cx.global::<Glyphs>();
+    let (dashboard, batteries) = island.dashboard(cx);
+    let mut warnings = battery_warnings(&batteries, glyphs);
+    warnings.extend(dashboard.warnings);
+    warnings.extend(system_warnings(&island.stats, glyphs));
+    let mut cards = dashboard.cards;
+    if !batteries.is_empty() {
+        cards.push(batteries_card(&batteries, glyphs));
+    }
+    cards.push(system_card(&island.stats, glyphs));
+    let mut blocks = Vec::new();
+    if !warnings.is_empty() {
+        blocks.push(Block::Warnings(warnings));
+    }
+    if !dashboard.switches.is_empty() {
+        blocks.push(Block::Switches(dashboard.switches));
+    }
+    blocks.push(Block::Columns(Split::Balanced, cards));
+    PanelView {
+        scroll: false,
+        header: Header::Tabs,
+        blocks,
+    }
+}
+
 pub fn panel<'a>(island: &'a Island, panel: Panel, cx: &gpui::App) -> PanelView {
     match panel {
-        Panel::System => system(
-            &island.stats,
-            cx.global(),
-            island.displays(),
-            island.feature_buttons(cx),
-        ),
+        Panel::Dashboard => dashboard(island, cx),
+        Panel::System => system(&island.stats, cx.global(), island.displays()),
         Panel::Feature(name) => island.feature_panel(name, cx).unwrap_or_else(empty),
         Panel::Popups => island.popups(cx).unwrap_or_else(empty),
     }

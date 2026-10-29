@@ -24,6 +24,21 @@ impl Selection {
         );
     }
 
+    /// Moves the rows in view, leaving the selection where it is, even out of view.
+    pub(crate) fn scroll(&mut self, rows: i32, count: usize) {
+        self.top = stepped(self.top, rows, count.saturating_sub(ROWS) + 1);
+    }
+
+    /// Selects `position` after the list changed, scrolling only if the selection moved.
+    pub(crate) fn keep(&mut self, position: usize, count: usize) {
+        if position == self.selected {
+            self.selected = position.min(count.saturating_sub(1));
+            self.top = self.top.min(count.saturating_sub(ROWS));
+        } else {
+            self.select(position, count);
+        }
+    }
+
     pub(crate) fn search(&mut self, change: impl FnOnce(&mut String)) {
         change(&mut self.query);
         self.selected = 0;

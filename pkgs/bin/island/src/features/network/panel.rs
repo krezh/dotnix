@@ -5,7 +5,7 @@ use gpui::SharedString;
 
 use super::{
     Network, glyphs,
-    runtime::Request,
+    runtime::{PROBE_EVERY, Request, SAMPLE_EVERY, phase},
     state::{AccessPoint, Activity, Security, State, Vpn, channel},
     view::{Prompt, View},
 };
@@ -21,7 +21,7 @@ use crate::{
 };
 
 /// Decimal sizes, as data used is usually counted: "1.4 GB", "312 MB".
-fn bytes(count: u64) -> String {
+pub(super) fn bytes(count: u64) -> String {
     let count = count as f64;
     match count {
         count if count >= 1e12 => format!("{:.1} TB", count / 1e12),
@@ -33,7 +33,7 @@ fn bytes(count: u64) -> String {
 }
 
 /// A tenth of a millisecond under 10 ms, so a gateway on the LAN does not read as 0.
-fn millis(value: Option<f32>) -> String {
+pub(super) fn millis(value: Option<f32>) -> String {
     match value {
         None => "—".to_owned(),
         Some(ms) if ms < 10.0 => format!("{ms:.1} ms"),
@@ -41,7 +41,7 @@ fn millis(value: Option<f32>) -> String {
     }
 }
 
-fn latency_color(ms: Option<f32>) -> u32 {
+pub(super) fn latency_color(ms: Option<f32>) -> u32 {
     match ms {
         Some(ms) if ms < 50.0 => GREEN,
         Some(ms) if ms < 150.0 => YELLOW,
@@ -146,6 +146,7 @@ fn signal_tile(state: &State) -> Tile {
                     format!("{:.0} dBm", value - 100.0)
                 })],
                 grow: true,
+                phase: Some(phase(state.traffic.sampled, SAMPLE_EVERY)),
             },
             Part::Meters {
                 rows: vec![
@@ -205,6 +206,7 @@ fn latency_tile(state: &State) -> Tile {
                     }),
                 ],
                 grow: true,
+                phase: Some(phase(state.latency.sampled, PROBE_EVERY)),
             },
             Part::Legend(vec![
                 (
@@ -320,6 +322,7 @@ fn traffic_tile(state: &State) -> Tile {
                     }),
                 ],
                 grow: true,
+                phase: Some(phase(state.traffic.sampled, SAMPLE_EVERY)),
             },
             Part::Legend(vec![
                 (Some(TEAL), format!("↓ {}", rate(traffic.rx_rate)).into()),
@@ -400,6 +403,7 @@ fn vpn_tile(state: &State, span: usize, p: &PanelCx<'_>) -> Tile {
                 |value| rate(value as f64),
             )],
             grow: true,
+            phase: Some(phase(state.traffic.sampled, SAMPLE_EVERY)),
         });
         parts.push(Part::Facts(match active {
             Some(vpn) => vec![
@@ -791,6 +795,7 @@ fn dns_tile(state: &State) -> Tile {
                     format!("{value:.0} ms")
                 })],
                 grow: true,
+                phase: Some(phase(state.dns.sampled, PROBE_EVERY)),
             },
             Part::Facts(vec![
                 fact("Server", server(0)),
@@ -841,7 +846,7 @@ fn buttons(state: &State, p: &PanelCx<'_>) -> Vec<IconButton> {
             } else {
                 "network-wifi-off"
             }),
-            rising: None,
+            color: None,
             label: if wifi.enabled {
                 "Wi-Fi is on"
             } else {
@@ -856,7 +861,7 @@ fn buttons(state: &State, p: &PanelCx<'_>) -> Vec<IconButton> {
             buttons.push(IconButton {
                 id: "network-scan".into(),
                 glyph: p.glyph("network-scan"),
-                rising: None,
+                color: None,
                 label: "Scan for networks".into(),
                 active: wifi.scanning,
                 badge: Some(wifi.networks.len().to_string().into()),
@@ -867,7 +872,7 @@ fn buttons(state: &State, p: &PanelCx<'_>) -> Vec<IconButton> {
             buttons.push(IconButton {
                 id: "network-disconnect".into(),
                 glyph: p.glyph("network-disconnect"),
-                rising: None,
+                color: None,
                 label: format!("Disconnect from {}", active.ssid).into(),
                 active: false,
                 badge: None,
@@ -878,7 +883,7 @@ fn buttons(state: &State, p: &PanelCx<'_>) -> Vec<IconButton> {
                 buttons.push(IconButton {
                     id: "network-forget".into(),
                     glyph: p.glyph("network-forget"),
-                    rising: None,
+                    color: None,
                     label: format!("Forget {}", active.ssid).into(),
                     active: false,
                     badge: None,
@@ -900,7 +905,7 @@ fn buttons(state: &State, p: &PanelCx<'_>) -> Vec<IconButton> {
         buttons.push(IconButton {
             id: "network-vpn-switch".into(),
             glyph: p.glyph("network-vpn"),
-            rising: None,
+            color: None,
             label: if on {
                 format!("Turn off {}", vpn.name)
             } else {
@@ -1010,12 +1015,14 @@ pub fn panel(state: &State, p: &PanelCx<'_>) -> PanelView {
         compact: false,
         indent: 0.0,
         menu: None,
+        end: false,
     }));
     blocks.push(Block::Board(columns));
     if let Some(asked) = p.local::<View>().and_then(|view| view.prompt.as_ref()) {
         blocks.push(Block::Prompt(prompt(state, asked, p)));
     }
     PanelView {
+        scroll: false,
         header: Header::Tabs,
         blocks,
     }

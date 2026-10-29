@@ -11,13 +11,13 @@ use gpui::{
 use tracing::debug;
 
 use super::{
-    AnyLocal, Feature, Feed, IslandInfo, Islands, Local, Outcome, PanelCx, WidgetCx,
-    feature::widgets_of, owner,
+    AnyLocal, Battery, Dashboard, Feature, Feed, IslandInfo, Islands, Local, Outcome, PanelCx,
+    WidgetCx, feature::widgets_of, owner,
 };
 use crate::{
     control::{Reply, Row},
     island::Island,
-    panel::{IconButton, Mark, PanelView},
+    panel::{Mark, PanelView},
 };
 
 /// An entity, so its updates redraw only what reads it.
@@ -60,7 +60,9 @@ pub trait AnyFeature {
     fn elapse(&self, local: &mut dyn AnyLocal, hovered: bool, cx: &App);
     fn pointer(&self, local: &mut dyn AnyLocal, over: bool, cx: &App);
     fn lead(&self, local: &dyn AnyLocal, cx: &App) -> Option<Mark>;
-    fn system_button(&self, p: &mut PanelCx<'_>, cx: &App) -> Option<IconButton>;
+    fn dashboard_order(&self) -> u8;
+    fn dashboard(&self, p: &mut PanelCx<'_>, cx: &App) -> Dashboard;
+    fn batteries(&self, cx: &App) -> Vec<Battery>;
     fn inhibits_idle(&self, cx: &App) -> bool;
     fn command(&self, args: &[&str], cx: &App) -> Reply;
     fn status(&self, cx: &App) -> Vec<Row>;
@@ -154,10 +156,19 @@ impl<F: Feature> AnyFeature for Entity<Instance<F>> {
         self.read(cx).feature.lead(local)
     }
 
-    fn system_button(&self, p: &mut PanelCx<'_>, cx: &App) -> Option<IconButton> {
+    fn dashboard_order(&self) -> u8 {
+        F::DASHBOARD_ORDER
+    }
+
+    fn dashboard(&self, p: &mut PanelCx<'_>, cx: &App) -> Dashboard {
         p.entity = Some(self.clone().into_any());
         let instance = self.read(cx);
-        instance.feature.system_button(&instance.state, p)
+        instance.feature.dashboard(&instance.state, p)
+    }
+
+    fn batteries(&self, cx: &App) -> Vec<Battery> {
+        let instance = self.read(cx);
+        instance.feature.batteries(&instance.state)
     }
 
     fn inhibits_idle(&self, cx: &App) -> bool {

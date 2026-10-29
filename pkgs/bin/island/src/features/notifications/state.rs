@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use super::{history::Earlier, notification::Notification};
+use crate::features::notice::{Post, Trouble};
 
 pub enum Event {
     /// New, or in place of one the app sent before.
@@ -14,6 +15,8 @@ pub enum Event {
     /// Dismissed or acted on, on one island; it goes from the others.
     Withdrawn(u32),
     History(Vec<Earlier>),
+    /// From a feature, rather than over D-Bus.
+    Posted(Post),
 }
 
 #[derive(Clone, Default)]
@@ -24,6 +27,8 @@ pub struct State {
     pub(super) dnd: bool,
     pub(super) private: bool,
     pub(super) locked: bool,
+    /// Each feature that cannot deliver now, and why.
+    pub(super) troubles: Arc<Vec<(String, Trouble)>>,
     /// Counts every change, so comparing two states does not compare every notification.
     pub(super) version: u64,
 }

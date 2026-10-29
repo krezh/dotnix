@@ -18,7 +18,7 @@ use crate::{
     dbus::uncached,
     island::{Mode, Panel},
     launch::{self, Launch},
-    panel::{ActionTile, Block, Header, IconButton, PanelView, on},
+    panel::{ActionTile, Block, Header, PanelView},
     theme::{BLUE, MAUVE, PEACH, RED, TEAL, TEXT, YELLOW},
 };
 
@@ -278,31 +278,12 @@ impl Session {
 impl Feature for Session {
     const NAME: &'static str = "session";
     const GLYPHS: &'static [GlyphSpec] = &[
-        (
-            "session-lock",
-            &["system-lock-screen-symbolic", "changes-prevent-symbolic"],
-        ),
-        (
-            "session-logout",
-            &["system-log-out-symbolic", "application-exit-symbolic"],
-        ),
-        (
-            "session-suspend",
-            &["system-suspend-symbolic", "media-playback-pause-symbolic"],
-        ),
-        (
-            "session-hibernate",
-            &[
-                "system-hibernate-symbolic",
-                "system-suspend-hibernate-symbolic",
-                "drive-harddisk-symbolic",
-            ],
-        ),
-        (
-            "session-reboot",
-            &["system-reboot-symbolic", "view-refresh-symbolic"],
-        ),
-        ("session-shutdown", &["system-shutdown-symbolic"]),
+        ("session-lock", &["lock"]),
+        ("session-logout", &["log-out"]),
+        ("session-suspend", &["moon"]),
+        ("session-hibernate", &["snowflake"]),
+        ("session-reboot", &["rotate-ccw"]),
+        ("session-shutdown", &["power"]),
     ];
     const PANEL: Option<&'static str> = Some("session");
     const CONTROLS: &'static [Command] = &[Command {
@@ -360,6 +341,7 @@ impl Feature for Session {
                 id: format!("session-{}", action.word()).into(),
                 glyph: p.glyph(&format!("session-{}", action.word())),
                 label: action.label().into(),
+                state: None,
                 color: action.color(),
                 armed: *armed == Some(action),
                 on_click: p.on_island::<Self>(move |session, island, cx| {
@@ -374,20 +356,9 @@ impl Feature for Session {
             None => uptime(p).unwrap_or_default(),
         };
         Some(PanelView {
+            scroll: false,
             header: Header::None,
             blocks: vec![Block::Actions(tiles), Block::note(note)],
-        })
-    }
-
-    fn system_button(&self, _: &Option<Action>, p: &PanelCx<'_>) -> Option<IconButton> {
-        Some(IconButton {
-            id: "open-session".into(),
-            glyph: p.glyph("session-shutdown"),
-            rising: None,
-            label: "Session".into(),
-            active: false,
-            badge: None,
-            on_click: on(|island, cx| island.set_mode(Mode::Open(Self::panel_handle()), cx)),
         })
     }
 

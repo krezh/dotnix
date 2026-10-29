@@ -7,6 +7,7 @@ pub mod card;
 pub mod chart;
 pub mod code;
 pub mod dropdown;
+pub mod edges;
 pub mod energy;
 pub mod icon;
 pub mod input;

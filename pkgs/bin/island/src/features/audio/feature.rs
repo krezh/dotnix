@@ -5,11 +5,13 @@ use std::{any::Any, cell::Cell, time::Duration};
 
 use gpui::AnyElement;
 
-use super::{commands, glyphs, panel, popup, pulse, runtime::Audio, state::AudioState, widget};
+use super::{
+    commands, glyphs, overview, panel, popup, pulse, runtime::Audio, state::AudioState, widget,
+};
 use crate::{
     control::{Command, Report, Row},
     features::{
-        Feature, Feed, GlyphSpec, IslandInfo, PanelCx, WidgetCx, headset,
+        Dashboard, Feature, Feed, GlyphSpec, IslandInfo, PanelCx, WidgetCx, headset,
         osd::{self, Osd, Shown},
     },
     panel::PanelView,
@@ -22,7 +24,8 @@ impl Feature for Audio {
     const NAME: &'static str = "audio";
     const GLYPHS: &'static [GlyphSpec] = glyphs::GLYPHS;
     const PANEL: Option<&'static str> = Some("audio");
-    const TAB: Option<(&'static str, u8)> = Some(("Audio", 3));
+    const DASHBOARD_TAB: Option<(&'static str, u8)> = Some(("Sound", 1));
+    const DASHBOARD_ORDER: u8 = 30;
     const PANEL_REFRESH: Option<Duration> = Some(REFRESH);
     const CONTROLS: &'static [Command] = commands::CONTROLS;
 
@@ -35,6 +38,7 @@ impl Feature for Audio {
             mixer: pulse::start(feed),
             scrolled: Cell::new(0.0),
             choosing: Cell::new(None),
+            picking: Cell::new(None),
         }
     }
 
@@ -69,11 +73,20 @@ impl Feature for Audio {
 
     fn panel_opened(&self) -> Option<Box<dyn Any>> {
         self.choosing.set(None);
+        self.picking.set(None);
         Some(Box::new((self.mixer.watch(), headset::watch())))
     }
 
     fn panel<'a>(&self, state: &AudioState, p: &PanelCx<'a>) -> Option<PanelView> {
         Some(panel::panel(self, state, p))
+    }
+
+    fn dashboard(&self, state: &AudioState, p: &PanelCx<'_>) -> Dashboard {
+        Dashboard {
+            switches: overview::switches(state, p),
+            cards: overview::cards(self, state, p),
+            ..Dashboard::default()
+        }
     }
 
     fn osd(before: &AudioState, after: &AudioState) -> Option<Osd> {

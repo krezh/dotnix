@@ -70,6 +70,10 @@ pub(super) fn passed_reset(state: &State, now: i64) -> Option<i64> {
 
 #[derive(Debug, PartialEq)]
 pub(super) struct Notice {
+    /// What it is about, so a later notice about the same takes its place.
+    pub(super) key: String,
+    /// The Claude Code session it is about, which it can show.
+    pub(super) session: Option<String>,
     /// Who it is from, as the notification names it.
     pub(super) app: &'static str,
     pub(super) title: String,
@@ -142,6 +146,8 @@ fn notice(provider: &Provider, limit: &Limit, before: Severity) -> Option<Notice
         Severity::Ok => return None,
     };
     Some(Notice {
+        key: format!("quota {subject}"),
+        session: None,
         app: "Island AI",
         title,
         body,

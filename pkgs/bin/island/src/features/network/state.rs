@@ -210,6 +210,8 @@ pub struct Traffic {
     pub vpn_history: Vec<f32>,
     pub vpn_rx: u64,
     pub vpn_tx: u64,
+    /// When the histories last grew, so a chart of them can scroll on their own clock.
+    pub sampled: Option<std::time::Instant>,
 }
 
 #[derive(Clone, Debug, Default, PartialEq)]
@@ -234,6 +236,8 @@ pub struct Latency {
     pub gateway_history: Vec<f32>,
     pub internet_history: Vec<f32>,
     pub target: String,
+    /// When the histories last grew.
+    pub sampled: Option<std::time::Instant>,
 }
 
 #[derive(Clone, Debug, Default, PartialEq)]
@@ -241,6 +245,8 @@ pub struct Dns {
     /// Milliseconds a lookup took.
     pub lookup: Option<f32>,
     pub history: Vec<f32>,
+    /// When the history last grew.
+    pub sampled: Option<std::time::Instant>,
 }
 
 #[derive(Clone, Debug, Default, PartialEq)]

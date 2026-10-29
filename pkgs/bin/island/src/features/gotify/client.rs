@@ -2,7 +2,7 @@ use std::{
     collections::HashMap,
     fmt,
     io::{self, Read, Write},
-    sync::{Arc, Mutex, OnceLock},
+    sync::{Arc, Mutex},
     time::Duration,
 };
 
@@ -18,9 +18,7 @@ use ureq::{
         },
     },
 };
-use zbus::{Connection, Variant, block_on};
-
-use super::state::{Endpoint, Entry, PagedMessages, RawApp, RawMessage, urgency};
+use super::state::{Endpoint, Entry, PagedMessages, RawApp, RawMessage};
 
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(15);
 const READ_TIMEOUT: Duration = Duration::from_secs(90);
@@ -320,47 +318,6 @@ pub fn read_message(stream: &mut (impl Read + Write)) -> Result<RawMessage, Stri
         }
     };
     serde_json::from_slice(&payload).map_err(|error| format!("invalid Gotify message: {error}"))
-}
-
-pub fn notify(entry: &Entry) -> Result<(), String> {
-    static SESSION: OnceLock<Connection> = OnceLock::new();
-    let connection = match SESSION.get() {
-        Some(conn) => conn.clone(),
-        None => {
-            let conn = block_on(Connection::session())
-                .map_err(|error| format!("cannot connect to session bus: {error}"))?;
-            let _ = SESSION.set(conn.clone());
-            conn
-        }
-    };
-    block_on(async {
-        let proxy = crate::dbus::uncached(
-            &connection,
-            "org.freedesktop.Notifications",
-            "/org/freedesktop/Notifications",
-            "org.freedesktop.Notifications",
-        )
-        .await?;
-        let hints: HashMap<&str, Variant<'_>> =
-            HashMap::from([("urgency", Variant::from(urgency(entry.priority)))]);
-        let _: u32 = proxy
-            .call(
-                "Notify",
-                &(
-                    entry.app.as_str(),
-                    0_u32,
-                    "gotify",
-                    entry.title.as_str(),
-                    entry.body.as_str(),
-                    Vec::<String>::new(),
-                    hints,
-                    -1_i32,
-                ),
-            )
-            .await?;
-        Ok::<(), zbus::Error>(())
-    })
-    .map_err(|error| format!("cannot deliver Gotify notification: {error}"))
 }
 
 #[cfg(test)]

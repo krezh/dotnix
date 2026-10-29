@@ -5,7 +5,6 @@ use super::{
     mpris::{Control, Track},
 };
 use crate::{
-    components::card,
     features::PanelCx,
     panel::{Block, Header, PanelView, PlayerView},
 };
@@ -43,8 +42,9 @@ impl Media {
             None => Block::note("Nothing is playing"),
         };
         Some(PanelView {
+            scroll: false,
             header: Header::Tabs,
-            blocks: vec![Block::Card(None, card::Size::Large, vec![block])],
+            blocks: vec![block],
         })
     }
 }

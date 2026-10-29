@@ -198,11 +198,7 @@ fn settle(state: &mut State, notices: Vec<Notice>) {
 }
 
 fn announce(notices: Vec<Notice>) {
-    if !notices.is_empty() {
-        let _ = thread::Builder::new()
-            .name("ai-notifications".to_owned())
-            .spawn(move || notify::send(notices));
-    }
+    notify::send(notices);
 }
 
 /// True when it changed what is waiting on you.

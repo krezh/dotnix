@@ -14,13 +14,27 @@ pub struct Glyphs(Arc<HashMap<&'static str, PathBuf>>);
 
 impl Global for Glyphs {}
 
+/// Lucide's icons, which island ships for its own interface, set at build time.
+const BUNDLED: Option<&str> = option_env!("ISLAND_GLYPHS");
+
+/// One of the icons island ships, by its name.
+fn bundled(name: &str) -> Option<PathBuf> {
+    let path = Path::new(BUNDLED?).join(format!("{name}.svg"));
+    path.exists().then_some(path)
+}
+
 impl Glyphs {
+    /// Each name is one of the icons island ships, or else one from the icon theme, such as a
+    /// provider's logo.
     pub fn resolve(specs: &[GlyphSpec]) -> Self {
         Self(Arc::new(
             specs
                 .iter()
                 .filter_map(|(key, names)| {
-                    Some((*key, names.iter().find_map(|name| icons::lookup(name))?))
+                    let path = names
+                        .iter()
+                        .find_map(|name| bundled(name).or_else(|| icons::lookup(name)))?;
+                    Some((*key, path))
                 })
                 .collect(),
         ))

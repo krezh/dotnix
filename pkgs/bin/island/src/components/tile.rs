@@ -118,10 +118,13 @@ pub struct Entry {
 
 /// One building block of a tile. Parts stack top to bottom; `Spacer` pushes the rest down.
 pub enum Part {
-    /// A history chart; `grow` lets it take the tile's spare height.
+    /// A history chart; `grow` lets it take the tile's spare height. `phase` is how far its newest
+    /// sample has scrolled in, 0 to 1, for histories sampled on a clock of their own; otherwise
+    /// the system sampler sets it.
     Chart {
         series: Vec<Series>,
         grow: bool,
+        phase: Option<f32>,
     },
     Cores {
         loads: Vec<f32>,
@@ -683,7 +686,11 @@ fn part(
     cx: &mut Context<Island>,
 ) -> AnyElement {
     match part {
-        Part::Chart { series, grow } => div()
+        Part::Chart {
+            series,
+            grow,
+            phase: own,
+        } => div()
             .relative()
             .when(grow, |area| area.flex_1().min_h(px(CHART_H)))
             .when(!grow, |area| {
@@ -694,7 +701,7 @@ fn part(
                 format!("{id}-chart-{index}").into(),
                 series,
                 card::SLOTS,
-                phase,
+                own.unwrap_or(phase),
                 tips,
             )))
             .into_any_element(),
@@ -730,6 +737,7 @@ fn part(
                 value,
                 value_color,
                 label,
+                glyph: None,
             }))
             .child(rows(lines, &format!("{id}-rows-{index}")))
             .into_any_element(),

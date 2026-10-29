@@ -3,7 +3,7 @@ use crate::{
     components::list::ROWS,
     features::PanelCx,
     island::Mode,
-    panel::{Block, Header, PanelView, SearchRow, SearchView},
+    panel::{Block, Header, PanelView, RowIcon, SearchRow, SearchView},
 };
 
 pub(super) fn panel(p: &PanelCx<'_>) -> Option<PanelView> {
@@ -26,8 +26,7 @@ pub(super) fn panel(p: &PanelCx<'_>) -> Option<PanelView> {
                 }
                 .clone()
                 .into(),
-                icon: app.icon.clone(),
-                preview: false,
+                icon: app.icon.clone().map_or(RowIcon::None, RowIcon::Image),
                 selected: position == search.selected,
                 on_click: p.on_island::<Launcher>(move |launcher, island, cx| {
                     launcher.launch(&picked);
@@ -38,13 +37,15 @@ pub(super) fn panel(p: &PanelCx<'_>) -> Option<PanelView> {
         })
         .collect();
     Some(PanelView {
+        scroll: false,
         header: Header::None,
         blocks: vec![Block::Search(SearchView {
             query: search.query.clone().into(),
             placeholder: "Search apps".into(),
             empty: "No apps found".into(),
             rows,
-            on_step: p.on_local_with::<Launcher, i32>(move |_, local, step| local.step(step)),
+            pictures: false,
+            on_scroll: p.on_local_with::<Launcher, i32>(move |_, local, rows| local.scroll(rows)),
             preview: None,
         })],
     })

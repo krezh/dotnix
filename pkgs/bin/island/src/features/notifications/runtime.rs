@@ -1,17 +1,24 @@
 use std::{
     cell::RefCell,
-    sync::mpsc::{self, Sender},
+    collections::HashMap,
+    sync::mpsc::{self, Receiver, Sender},
 };
 
 use super::{
     Event, State,
     history::{self, Write},
     lock,
-    notification::{Notification, Signal},
+    notification::{Notification, Reason, Signal},
     server,
     settings::Settings,
 };
-use crate::features::Feed;
+use crate::{
+    features::{
+        Feed,
+        notice::{self, Origin, Post, Reply},
+    },
+    supervisor::Ended,
+};
 
 pub struct Notifications {
     pub(super) feed: Feed<State, Event>,
@@ -22,6 +29,8 @@ pub struct Notifications {
     pub(super) history_days: u32,
     pub(super) private_apps: Vec<String>,
     pub(super) hide_on_lock: bool,
+    /// Those features posted that island still has, by id.
+    pub(super) posted: RefCell<HashMap<u32, Origin>>,
 }
 
 impl Notifications {
@@ -31,6 +40,9 @@ impl Notifications {
         feed.clone()
             .supervise(move |feed| server::serve(feed, &outgoing));
         feed.clone().supervise(lock::follow);
+        if let Some(posts) = notice::take() {
+            feed.clone().supervise(move |feed| deliver(feed, &posts));
+        }
         let (history, writes) = mpsc::channel();
         let days = settings.history_days;
         feed.clone()
@@ -48,6 +60,7 @@ impl Notifications {
                 .map(|app| app.to_lowercase())
                 .collect(),
             hide_on_lock: settings.privacy.hide_on_lock,
+            posted: RefCell::default(),
         };
         notifications.change(|store| store.private = settings.privacy.private);
         notifications
@@ -60,8 +73,35 @@ impl Notifications {
         self.feed.publish(store.clone());
     }
 
+    /// To its app over D-Bus, or to the feature that posted it.
     pub(super) fn signal(&self, signal: Signal) {
-        let _ = self.signals.send(signal);
+        let id = match &signal {
+            Signal::Closed(id, _) | Signal::Action(id, _) => *id,
+        };
+        let Some(origin) = self.posted.borrow().get(&id).cloned() else {
+            let _ = self.signals.send(signal);
+            return;
+        };
+        match signal {
+            Signal::Action(_, action) => {
+                notice::reply(&origin.feature, Reply::Action(origin.key, action));
+            }
+            Signal::Closed(_, reason) => {
+                self.posted.borrow_mut().remove(&id);
+                if reason == Reason::Dismissed {
+                    notice::reply(&origin.feature, Reply::Dismissed(origin.key));
+                }
+            }
+        }
+    }
+
+    /// The id the one `feature` posted under `key` has.
+    pub(super) fn posted_id(&self, feature: &str, key: &str) -> Option<u32> {
+        self.posted
+            .borrow()
+            .iter()
+            .find(|(_, origin)| origin.feature == feature && origin.key == key)
+            .map(|(id, _)| *id)
     }
 
     pub(super) fn hidden(&self, state: &State, notification: &Notification) -> bool {
@@ -69,4 +109,13 @@ impl Notifications {
             || (self.hide_on_lock && state.locked)
             || self.private_apps.contains(&notification.app.to_lowercase())
     }
+}
+
+fn deliver(feed: &Feed<State, Event>, posts: &Receiver<Post>) -> Ended {
+    for post in posts {
+        if !feed.send(Event::Posted(post)) {
+            break;
+        }
+    }
+    Ended::Unwanted
 }

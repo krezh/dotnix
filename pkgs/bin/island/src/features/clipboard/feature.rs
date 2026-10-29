@@ -8,16 +8,16 @@ use crate::{
     components::list::Selection,
     control::{Command, Report},
     features::{Feature, Feed, GlyphSpec, Outcome, PanelCx, WidgetCx},
-    panel::{IconButton, PanelView},
+    panel::PanelView,
 };
 
 impl Feature for Clipboard {
     const NAME: &'static str = "clipboard";
     const GLYPHS: &'static [GlyphSpec] = &[
-        ("clipboard", &["edit-paste-symbolic", "edit-paste"]),
-        ("clipboard-text", &["text-x-generic"]),
-        ("clipboard-image", &["image-x-generic"]),
-        ("clipboard-files", &["folder", "inode-directory"]),
+        ("clipboard", &["clipboard"]),
+        ("clipboard-text", &["file-text"]),
+        ("clipboard-image", &["image"]),
+        ("clipboard-files", &["folder"]),
     ];
     const PANEL: Option<&'static str> = Some("clipboard");
     const CONTROLS: &'static [Command] = commands::CONTROLS;
@@ -45,10 +45,6 @@ impl Feature for Clipboard {
 
     fn key(&self, state: &State, picker: &mut Selection, keystroke: &Keystroke) -> Outcome {
         self.handle_key(state, picker, keystroke)
-    }
-
-    fn system_button(&self, _: &State, p: &PanelCx<'_>) -> Option<IconButton> {
-        widget::system_button(p)
     }
 
     fn command(&self, _: &State, args: &[&str]) -> Report {

@@ -18,6 +18,7 @@ fn notification(expire: Expire, critical: bool) -> Notification {
         expire,
         actions: Vec::new(),
         received: SystemTime::now(),
+        posted: None,
     }
 }
 

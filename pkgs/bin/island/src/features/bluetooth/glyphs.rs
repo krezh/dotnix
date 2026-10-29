@@ -3,53 +3,26 @@
 use crate::features::GlyphSpec;
 
 pub const GLYPHS: &[GlyphSpec] = &[
-    (
-        "tab-bluetooth",
-        &["bluetooth-active-symbolic", "bluetooth-symbolic"],
-    ),
-    (
-        "bt-on",
-        &["bluetooth-active-symbolic", "bluetooth-symbolic"],
-    ),
-    (
-        "bt-off",
-        &["bluetooth-disabled-symbolic", "bluetooth-symbolic"],
-    ),
-    ("bt-scan", &["view-refresh-symbolic"]),
-    (
-        "bt-visible",
-        &["view-reveal-symbolic", "view-visible-symbolic"],
-    ),
-    (
-        "bt-more",
-        &["view-more-horizontal-symbolic", "view-more-symbolic"],
-    ),
-    ("bt-trust", &["security-high-symbolic"]),
-    (
-        "bt-forget",
-        &["edit-delete-symbolic", "user-trash-symbolic"],
-    ),
-    (
-        "bt-headphones",
-        &["audio-headphones-symbolic", "audio-headset-symbolic"],
-    ),
-    (
-        "bt-speaker",
-        &["audio-speakers-symbolic", "audio-card-symbolic"],
-    ),
-    ("bt-gamepad", &["input-gaming-symbolic"]),
-    ("bt-keyboard", &["input-keyboard-symbolic"]),
-    ("bt-mouse", &["input-mouse-symbolic"]),
-    ("bt-tablet", &["input-tablet-symbolic"]),
-    ("bt-phone", &["phone-symbolic", "smartphone-symbolic"]),
-    ("bt-computer", &["computer-symbolic"]),
-    ("bt-display", &["video-display-symbolic"]),
-    ("bt-printer", &["printer-symbolic"]),
-    ("bt-player", &["multimedia-player-symbolic"]),
-    (
-        "bt-device",
-        &["bluetooth-active-symbolic", "bluetooth-symbolic"],
-    ),
+    ("tab-bluetooth", &["bluetooth"]),
+    ("bt-on", &["bluetooth"]),
+    ("bt-off", &["bluetooth-off"]),
+    ("bt-scan", &["refresh-cw"]),
+    ("bt-visible", &["eye"]),
+    ("bt-more", &["ellipsis"]),
+    ("bt-trust", &["shield-check"]),
+    ("bt-forget", &["trash-2"]),
+    ("bt-headphones", &["headphones"]),
+    ("bt-speaker", &["speaker"]),
+    ("bt-gamepad", &["gamepad-2"]),
+    ("bt-keyboard", &["keyboard"]),
+    ("bt-mouse", &["mouse"]),
+    ("bt-tablet", &["tablet"]),
+    ("bt-phone", &["smartphone"]),
+    ("bt-computer", &["laptop"]),
+    ("bt-display", &["monitor"]),
+    ("bt-printer", &["printer"]),
+    ("bt-player", &["disc-3"]),
+    ("bt-device", &["bluetooth"]),
 ];
 
 /// The glyph for a device, from BlueZ's icon name.
@@ -70,13 +43,7 @@ pub fn device(icon: &str) -> &'static str {
     }
 }
 
-/// A battery's color: green while there is plenty, then yellow, then peach.
+/// A battery's color, on the scale every battery uses.
 pub fn battery(level: Option<u8>) -> u32 {
-    use crate::theme::{GREEN, OVERLAY2, PEACH, YELLOW};
-    match level {
-        Some(level) if level < 25 => PEACH,
-        Some(level) if level < 50 => YELLOW,
-        Some(_) => GREEN,
-        None => OVERLAY2,
-    }
+    level.map_or(crate::theme::OVERLAY2, crate::features::battery::level_color)
 }

@@ -11,21 +11,20 @@ use gpui::{AnyElement, MouseButton, prelude::*};
 use serde_json::Value;
 use tracing::{debug, warn};
 
-use super::{Feature, Feed, Refreshed, WidgetCx};
+use super::{Battery as Power, Feature, Feed, Refreshed, WidgetCx};
 use crate::{
     bar::Gauge,
     components::tooltip::Tip,
     island::Panel,
     run,
     supervisor::Ended,
-    theme::{CRITICAL, GREEN, OVERLAY2, PEACH, RED, TEXT, YELLOW},
+    theme::{GREEN, OVERLAY2, TEXT},
 };
 
 const INTERVAL: Duration = Duration::from_secs(60);
 /// While the audio panel shows ChatMix, so turning the dial shows up soon.
 const WATCHED_INTERVAL: Duration = Duration::from_secs(2);
 const TIMEOUT: Duration = Duration::from_secs(15);
-const LOW: u8 = 15;
 
 /// The latest reading, for the audio panel.
 static LATEST: Mutex<Option<Battery>> = Mutex::new(None);
@@ -126,15 +125,6 @@ fn read() -> Reading {
         .map_or(Reading::Absent, Reading::Present)
 }
 
-pub fn battery_color(level: u8) -> u32 {
-    match level {
-        level if level <= LOW => RED,
-        ..=40 => PEACH,
-        ..=60 => YELLOW,
-        _ => GREEN,
-    }
-}
-
 fn tip(battery: &Battery) -> String {
     let level = battery
         .level
@@ -155,10 +145,8 @@ impl Headset {
 
 impl Feature for Headset {
     const NAME: &'static str = "headset";
-    const GLYPHS: &'static [super::GlyphSpec] = &[(
-        "headset",
-        &["audio-headset-symbolic", "audio-headphones-symbolic"],
-    )];
+    const DASHBOARD_ORDER: u8 = 40;
+    const GLYPHS: &'static [super::GlyphSpec] = &[("headset", &["headset"])];
 
     type State = Refreshed<Reading>;
     type Local = ();
@@ -230,6 +218,23 @@ impl Feature for Headset {
         matches!(state.value, Reading::Present(_))
     }
 
+    fn batteries(&self, state: &Refreshed<Reading>) -> Vec<Power> {
+        let Reading::Present(battery) = &state.value else {
+            return Vec::new();
+        };
+        battery
+            .level
+            .map(|level| Power {
+                id: "headset".into(),
+                glyph: "headset",
+                name: battery.name.clone().into(),
+                level,
+                charging: battery.charging,
+            })
+            .into_iter()
+            .collect()
+    }
+
     fn widget(
         &self,
         _: &str,
@@ -239,26 +244,26 @@ impl Feature for Headset {
         let Reading::Present(battery) = &state.value else {
             return None;
         };
-        let color = match battery.level {
-            _ if battery.charging => GREEN,
-            Some(level) if level <= LOW => CRITICAL,
-            _ => TEXT,
-        };
-        Some(
-            w.gauge(
+        // A headset that does not say how full it is still shows, without a level.
+        let gauge = match self.batteries(state).pop() {
+            Some(power) => w.battery("bar-headset", &power, state.refreshing),
+            None => w.gauge(
                 "bar-headset",
                 Gauge {
                     glyph: w.glyph("headset"),
-                    glyph_color: color,
+                    glyph_color: if battery.charging { GREEN } else { TEXT },
                     busy: state.refreshing,
-                    level: battery.level.map(|level| level as f32 / 100.0),
-                    level_color: battery.level.map_or(OVERLAY2, battery_color),
+                    level: None,
+                    level_color: OVERLAY2,
                 },
-            )
-            .tip(w.tips(), "bar-headset", tip(battery))
-            .on_click(w.toggle(Panel::System))
-            .on_mouse_down(MouseButton::Right, w.call(Headset::refresh))
-            .into_any_element(),
+            ),
+        };
+        Some(
+            gauge
+                .tip(w.tips(), "bar-headset", tip(battery))
+                .on_click(w.toggle(Panel::Dashboard))
+                .on_mouse_down(MouseButton::Right, w.call(Headset::refresh))
+                .into_any_element(),
         )
     }
 }

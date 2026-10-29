@@ -155,7 +155,8 @@ pub fn find(name: &str) -> Option<(Option<&'static str>, &'static Command)> {
 
 /// Every panel `open` takes, with the views it can be opened on.
 pub fn panels() -> Vec<(&'static str, &'static [&'static str])> {
-    std::iter::once(("system", &[][..]))
+    [("dashboard", &[][..]), ("system", &[][..])]
+        .into_iter()
         .chain(
             crate::features::panels()
                 .into_iter()

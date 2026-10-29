@@ -28,11 +28,15 @@
             "bluetooth"
             "audio"
             "clock"
-            "gotify"
             "notifications"
             "session"
           ];
           spacing = 0;
+          group = [
+            "network"
+            "bluetooth"
+            "audio"
+          ];
         };
 
         features = {

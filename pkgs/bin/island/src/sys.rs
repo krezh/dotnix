@@ -12,7 +12,10 @@ use std::{
     time::{Duration, Instant},
 };
 
-use crate::supervisor::{self, Ended};
+use crate::{
+    components::chart,
+    supervisor::{self, Ended},
+};
 
 struct Latest {
     stats: SysStats,
@@ -53,8 +56,8 @@ impl Drop for Watch {
     }
 }
 
-/// Also how often the System panel updates.
-pub const INTERVAL: Duration = Duration::from_secs(2);
+/// Also how often the System panel and the dashboard update.
+pub const INTERVAL: Duration = chart::SAMPLE_EVERY;
 /// Between the two process scans a CPU share needs, when someone starts watching.
 const FIRST_LOOK: Duration = Duration::from_millis(500);
 

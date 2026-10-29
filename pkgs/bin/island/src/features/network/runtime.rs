@@ -15,11 +15,20 @@ use serde::Deserialize;
 use tracing::warn;
 
 use super::{probe, state::State, worker};
-use crate::features::Feed;
+use crate::{components::chart, features::Feed};
 
 /// How often what the charts show is measured, while the panel is open.
-const SAMPLE_EVERY: Duration = Duration::from_secs(1);
-const PROBE_EVERY: Duration = Duration::from_secs(2);
+pub(super) const SAMPLE_EVERY: Duration = chart::SAMPLE_EVERY;
+pub(super) const PROBE_EVERY: Duration = chart::SAMPLE_EVERY;
+
+/// How far a history sampled `every` so often has scrolled since it last grew, 0 to 1, so its
+/// chart slides on the history's own clock.
+pub(super) fn phase(sampled: Option<std::time::Instant>, every: Duration) -> f32 {
+    sampled.map_or(1.0, |sampled| {
+        (sampled.elapsed().as_secs_f32() / every.as_secs_f32()).min(1.0)
+    })
+}
+
 const PROBE_TIMEOUT: Duration = Duration::from_millis(1500);
 /// Pings to the internet that the loss is counted over.
 const LOSS_WINDOW: usize = 20;
