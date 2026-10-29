@@ -17,45 +17,10 @@ pub struct Prompt {
     pub shown: bool,
 }
 
-/// Which row of a list is open: one at a time, and until one is picked, the one that matters most.
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub enum Open {
-    #[default]
-    Natural,
-    Row(String),
-    None,
-}
-
-impl Open {
-    /// Whether `row` is open, `natural` being the one open until another is picked.
-    pub fn is(&self, row: &str, natural: Option<&str>) -> bool {
-        match self {
-            Open::Natural => natural == Some(row),
-            Open::Row(open) => open == row,
-            Open::None => false,
-        }
-    }
-
-    /// Opens `row`, or closes it when it already is.
-    pub fn toggle(&mut self, row: &str, natural: Option<&str>) {
-        *self = if self.is(row, natural) {
-            Open::None
-        } else {
-            Open::Row(row.to_owned())
-        };
-    }
-}
-
 #[derive(Default)]
 pub struct View {
     pub prompt: Option<Prompt>,
     pub shown: Shown,
-    pub interface: Open,
-    pub network: Open,
-    /// The Activity card's view: apps, ports or routes.
-    pub activity: usize,
-    /// The ⋯ menu of the network in use is open.
-    pub menu: bool,
 }
 
 impl View {
@@ -95,9 +60,6 @@ impl View {
 impl Local for View {
     fn panel_closed(&mut self) {
         self.prompt = None;
-        self.menu = false;
-        self.interface = Open::Natural;
-        self.network = Open::Natural;
     }
 
     fn keyboard(&self) -> bool {

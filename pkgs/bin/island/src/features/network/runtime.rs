@@ -19,12 +19,12 @@ use crate::features::Feed;
 
 /// How often what the charts show is measured, while the panel is open.
 const SAMPLE_EVERY: Duration = Duration::from_secs(1);
-const PROBE_EVERY: Duration = Duration::from_secs(1);
+const PROBE_EVERY: Duration = Duration::from_secs(2);
 const PROBE_TIMEOUT: Duration = Duration::from_millis(1500);
 /// Pings to the internet that the loss is counted over.
 const LOSS_WINDOW: usize = 20;
 /// Every so many probes, a DNS lookup too.
-const LOOKUP_EVERY: u64 = 1;
+const LOOKUP_EVERY: u64 = 5;
 
 #[derive(Clone, Debug, Deserialize)]
 #[serde(default, deny_unknown_fields)]
@@ -55,8 +55,6 @@ pub(super) enum Request {
     Disconnect,
     Forget(String),
     Vpn(String, Option<bool>),
-    /// A device by NetworkManager's path, up or down.
-    Device(String, bool),
     /// The panel opened.
     Watch,
     /// Time to measure what the charts show, while the panel is open.
@@ -76,13 +74,9 @@ pub(super) struct Probes {
     pub answered: VecDeque<bool>,
     pub lookup: Option<f32>,
     pub lookups: u64,
-    /// To the server of the VPN everything goes through.
-    pub vpn: Option<f32>,
-    /// Where to send them: the gateway, the DNS server and the VPN's server, as the worker last
-    /// saw them.
+    /// Where to send them: the gateway and the DNS server, as the worker last saw them.
     pub gateway_address: Option<Ipv4Addr>,
     pub dns_address: Option<Ipv4Addr>,
-    pub vpn_address: Option<Ipv4Addr>,
 }
 
 /// How many islands have the panel open, and a way to wake whatever sleeps until one does.
@@ -176,22 +170,15 @@ fn probe_loop(watched: &Watched, probes: &Mutex<Probes>, settings: &Settings) {
     loop {
         watched.wait();
         while watched.watching() {
-            let (gateway_address, dns_address, vpn_address, round) = {
+            let (gateway_address, dns_address, round) = {
                 let probes = probes
                     .lock()
                     .unwrap_or_else(|poisoned| poisoned.into_inner());
-                (
-                    probes.gateway_address,
-                    probes.dns_address,
-                    probes.vpn_address,
-                    probes.round,
-                )
+                (probes.gateway_address, probes.dns_address, probes.round)
             };
             sequence = sequence.wrapping_add(1);
             let gateway =
                 gateway_address.and_then(|address| probe::ping(address, sequence, PROBE_TIMEOUT));
-            sequence = sequence.wrapping_add(1);
-            let vpn = vpn_address.and_then(|address| probe::ping(address, sequence, PROBE_TIMEOUT));
             sequence = sequence.wrapping_add(1);
             let internet = target.and_then(|address| probe::ping(address, sequence, PROBE_TIMEOUT));
             let lookup = (round % LOOKUP_EVERY == 0).then(|| {
@@ -204,7 +191,6 @@ fn probe_loop(watched: &Watched, probes: &Mutex<Probes>, settings: &Settings) {
                     .unwrap_or_else(|poisoned| poisoned.into_inner());
                 probes.round += 1;
                 probes.gateway = gateway;
-                probes.vpn = vpn;
                 probes.internet = internet;
                 if target.is_some() {
                     probes.answered.push_back(internet.is_some());

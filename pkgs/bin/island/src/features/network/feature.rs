@@ -87,6 +87,7 @@ impl Feature for Network {
             ],
         ),
         ("network-vpn", &["network-vpn-symbolic"]),
+        ("network-scan", &["view-refresh-symbolic"]),
         (
             "network-disconnect",
             &["network-offline-symbolic", "process-stop-symbolic"],
@@ -95,37 +96,15 @@ impl Feature for Network {
             "network-forget",
             &["edit-delete-symbolic", "user-trash-symbolic"],
         ),
+        (
+            "network-reveal",
+            &["view-reveal-symbolic", "view-visible-symbolic"],
+        ),
+        (
+            "network-conceal",
+            &["view-conceal-symbolic", "view-hidden-symbolic"],
+        ),
         ("network-join", &["go-next-symbolic", "go-up-symbolic"]),
-        (
-            "network-lock",
-            &["changes-prevent-symbolic", "system-lock-screen-symbolic"],
-        ),
-        (
-            "network-more",
-            &[
-                "view-more-horizontal-symbolic",
-                "view-more-symbolic",
-                "open-menu-symbolic",
-            ],
-        ),
-        ("network-computer", &["computer-symbolic"]),
-        (
-            "network-router",
-            &["network-wireless-hotspot-symbolic", "network-server-symbolic"],
-        ),
-        ("network-dns", &["network-server-symbolic", "server-symbolic"]),
-        (
-            "network-internet",
-            &[
-                "web-browser-symbolic",
-                "applications-internet-symbolic",
-                "network-workgroup-symbolic",
-            ],
-        ),
-        (
-            "network-bridge",
-            &["network-workgroup-symbolic", "network-wired-symbolic"],
-        ),
     ];
     const CONTROLS: &'static [Command] = &[
         Command {

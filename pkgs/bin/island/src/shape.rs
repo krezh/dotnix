@@ -5,7 +5,6 @@ use std::{
         Arc,
         atomic::{AtomicU32, Ordering},
     },
-    time::{Duration, Instant},
 };
 
 use gpui::{
@@ -386,61 +385,7 @@ pub fn fill(radius: f32, power: f32, rest: Option<Hsla>, hover: Option<Hsla>) ->
     inset_fill(radius, power, 0.0, rest, hover)
 }
 
-/// How quickly a hover tint comes in as the pointer arrives, and goes as it leaves: in at
-/// once to answer the pointer, out more slowly so it fades rather than blinks.
-const HOVER_IN: f32 = 0.08;
-const HOVER_OUT: f32 = 0.18;
-/// A tint this close to where it is going has arrived.
-const HOVER_SETTLED: f32 = 0.01;
-/// A tint not drawn for this long belongs to something gone or moved, and is forgotten.
-const HOVER_FORGOTTEN: Duration = Duration::from_secs(1);
-
-thread_local! {
-    /// Each hovered or fading control's tint, 0 to 1, by where it is drawn, and when it was last
-    /// moved; at rest and unhovered, a control has none.
-    static HOVERS: RefCell<HashMap<[i32; 4], (f32, Instant)>> = RefCell::default();
-}
-
-/// How strongly the hover tint shows on the control drawn at `bounds`, easing towards whether
-/// the pointer is over it; asks for another frame while it is on its way.
-fn hover_tint(bounds: Bounds<Pixels>, hovered: bool, window: &mut Window) -> f32 {
-    let key = [
-        f32::from(bounds.origin.x).round() as i32,
-        f32::from(bounds.origin.y).round() as i32,
-        f32::from(bounds.size.width).round() as i32,
-        f32::from(bounds.size.height).round() as i32,
-    ];
-    let target = if hovered { 1.0 } else { 0.0 };
-    HOVERS.with_borrow_mut(|hovers| {
-        let now = Instant::now();
-        hovers.retain(|_, (_, at)| now.duration_since(*at) < HOVER_FORGOTTEN);
-        let Some((tint, at)) = hovers.get_mut(&key) else {
-            if hovered {
-                hovers.insert(key, (0.0, now));
-                window.request_animation_frame();
-            }
-            return 0.0;
-        };
-        let dt = now.duration_since(*at).as_secs_f32().min(0.1);
-        let pace = if hovered { HOVER_IN } else { HOVER_OUT };
-        *tint += (target - *tint) * (1.0 - (-dt / pace).exp());
-        *at = now;
-        let shown = *tint;
-        if (target - shown).abs() < HOVER_SETTLED {
-            if hovered {
-                *tint = 1.0;
-            } else {
-                hovers.remove(&key);
-            }
-        } else {
-            window.request_animation_frame();
-        }
-        shown
-    })
-}
-
-/// `rest`, with `hover` laid over it while the pointer is inside, so a hover tint shows on any
-/// fill; the tint fades in and out rather than switching.
+/// `rest`, with `hover` laid over it while the pointer is inside, so a hover tint shows on any fill.
 pub fn inset_fill(
     radius: f32,
     power: f32,
@@ -451,6 +396,7 @@ pub fn inset_fill(
     canvas(
         |_, _, _| {},
         move |bounds, (), window, _| {
+            let hovered = hover.is_some() && bounds.contains(&window.mouse_position());
             let shape = Bounds::new(
                 point(bounds.origin.x + px(inset), bounds.origin.y),
                 size(
@@ -459,12 +405,8 @@ pub fn inset_fill(
                 ),
             );
             paint(shape, radius, power, rest, None, window);
-            if let Some(hover) = hover {
-                let hovered = bounds.contains(&window.mouse_position());
-                let tint = hover_tint(bounds, hovered, window);
-                if tint > 0.0 {
-                    paint(shape, radius, power, Some(hover.opacity(tint)), None, window);
-                }
+            if hovered {
+                paint(shape, radius, power, hover, None, window);
             }
         },
     )

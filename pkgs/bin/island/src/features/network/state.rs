@@ -1,16 +1,9 @@
 //! What the network feature knows, as the worker last read it.
 
-use std::time::{Duration, Instant};
-
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct State {
     /// NetworkManager answered the last time it was asked.
     pub reachable: bool,
-    /// This machine's name, where a path out starts.
-    pub host: String,
-    /// When the charts last took a value, and how long after the one before, so they scroll
-    /// at the pace values arrive.
-    pub sampled: Option<(Instant, Duration)>,
     pub internet: Internet,
     pub wifi: Option<Wifi>,
     pub wired: Option<Wired>,
@@ -174,50 +167,6 @@ pub struct Vpn {
     pub endpoint: Option<String>,
     /// Unix seconds it came up, as island saw it.
     pub since: Option<i64>,
-    /// Everything goes through it, rather than only `networks`.
-    pub full: bool,
-    /// What it carries when it carries only some networks, such as "10.10.0.0/16".
-    pub networks: Vec<String>,
-    /// Who answers lookups through it.
-    pub dns: Option<String>,
-}
-
-impl Vpn {
-    /// Where it connects to, without the port.
-    pub fn server(&self) -> Option<&str> {
-        let endpoint = self.endpoint.as_deref()?;
-        Some(match endpoint.rsplit_once(':') {
-            // A bracketed IPv6 address keeps its colons.
-            Some((host, port)) if port.chars().all(|c| c.is_ascii_digit()) => {
-                host.trim_start_matches('[').trim_end_matches(']')
-            }
-            _ => endpoint,
-        })
-    }
-}
-
-impl State {
-    /// How far the charts are between their last value and the next, 0 to 1, so they scroll
-    /// smoothly rather than step.
-    pub fn chart_phase(&self) -> f32 {
-        self.sampled.map_or(1.0, |(at, interval)| {
-            (at.elapsed().as_secs_f32() / interval.as_secs_f32().max(0.25)).clamp(0.0, 1.0)
-        })
-    }
-
-    /// The VPN everything goes through, while one does.
-    pub fn tunnel(&self) -> Option<&Vpn> {
-        self.vpns
-            .iter()
-            .find(|vpn| vpn.full && vpn.activity == Activity::On)
-    }
-
-    /// Running ones first, each group in name order.
-    pub fn vpns_in_order(&self) -> Vec<&Vpn> {
-        let mut vpns: Vec<&Vpn> = self.vpns.iter().collect();
-        vpns.sort_by_key(|vpn| (vpn.activity == Activity::Off, vpn.name.to_lowercase()));
-        vpns
-    }
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -280,10 +229,6 @@ pub struct Signal {
 pub struct Latency {
     pub gateway: Option<f32>,
     pub internet: Option<f32>,
-    /// To the VPN's server, while everything goes through one.
-    pub tunnel: Option<f32>,
-    /// How much the internet's answer times wander from one to the next.
-    pub jitter: Option<f32>,
     /// Share of recent pings to the internet that went unanswered, 0 to 1.
     pub loss: f32,
     pub gateway_history: Vec<f32>,
@@ -313,63 +258,7 @@ pub struct Interface {
     pub up: bool,
     /// Bytes a second, both ways.
     pub rate: f64,
-    /// NetworkManager's device, for switching it.
-    pub path: String,
-    /// NetworkManager can bring it up and down; one something else set up, such as Docker's
-    /// bridge, it only follows.
-    pub switchable: bool,
-    pub role: Role,
-    /// What NetworkManager calls the connection on it, such as "Wired connection 1".
-    pub connection: String,
-    /// With its prefix, such as "192.168.1.203/24".
-    pub address: Option<String>,
-    pub mtu: u32,
-    pub mac: String,
-    /// Unix seconds the DHCP lease runs out.
-    pub lease: Option<i64>,
-    /// Mbit/s, for a wired link.
-    pub speed: u32,
-    pub drops: u64,
-    pub errors: u64,
 }
-
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub enum Role {
-    #[default]
-    Link,
-    /// A VPN's own, there while that VPN is up.
-    Tunnel(String),
-    /// Blocks traffic outside a VPN, such as Proton's.
-    KillSwitch,
-}
-
-/// Proton VPN names the dummy connection that holds its kill switch this way.
-const KILL_SWITCH: &str = "pvpn-killswitch";
-
-pub fn kill_switch(connection: &str) -> bool {
-    connection.starts_with(KILL_SWITCH)
-}
-
-/// How much answer times wander: the mean step between neighbours among the recent ones that
-/// came back.
-pub fn jitter(history: &[f32]) -> Option<f32> {
-    let answered: Vec<f32> = history
-        .iter()
-        .rev()
-        .take(JITTER_SAMPLES)
-        .copied()
-        .filter(|ms| *ms > 0.0)
-        .collect();
-    (answered.len() >= 3).then(|| {
-        let steps: f32 = answered
-            .windows(2)
-            .map(|pair| (pair[0] - pair[1]).abs())
-            .sum();
-        steps / (answered.len() - 1) as f32
-    })
-}
-
-const JITTER_SAMPLES: usize = 20;
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Route {

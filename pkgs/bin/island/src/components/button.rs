@@ -7,8 +7,8 @@ use std::{
 };
 
 use gpui::{
-    AnimationExt, AnyElement, BoxShadow, Context, Div, FontWeight, Hsla, SharedString,
-    SpringAnimation, SpringConfig, Stateful, div, hsla, point, prelude::*, px, rgb, rgba,
+    AnimationExt, Div, FontWeight, Hsla, SharedString, SpringAnimation, SpringConfig, Stateful,
+    div, prelude::*, px, rgb, rgba,
 };
 
 use crate::{
@@ -18,28 +18,20 @@ use crate::{
         measure::{self, Measured},
         motion, pointer,
     },
-    island::{CONTENT_IN, Island, SHAPE_SPRING},
-    panel::Handler,
+    island::{CONTENT_IN, SHAPE_SPRING},
     shape,
     theme::{
         ACCENT, ACCENT_TINT_ALPHA, BASE, CONTROL_ALPHA, ON_ACCENT, SUBTEXT1, SURFACE1, TEXT, TINT,
-        with_alpha,
+        TRACK_ALPHA, with_alpha,
     },
     ui::{self, CONTROL_H, HEADER_H, Radius, SMALL_SIZE},
 };
 
-const KNOB_SPRING: SpringConfig = crate::spring::BOUNCE;
-const TRACK_W: f32 = 38.0;
-const TRACK_H: f32 = 22.0;
+const KNOB_SPRING: SpringConfig = SpringConfig::new(420.0, 34.0, 1.0);
+const TRACK_W: f32 = 32.0;
+const TRACK_H: f32 = 18.0;
 const KNOB_INSET: f32 = 2.0;
 const KNOB: f32 = TRACK_H - 2.0 * KNOB_INSET;
-/// How much wider the knob grows while pressed.
-const KNOB_STRETCH: f32 = 5.0;
-/// Near white, so it reads as a knob on any track color.
-const KNOB_FILL: u32 = 0xe6e9f5;
-const KNOB_SHADOW: f32 = 0.3;
-/// The track while off: faint, so an off switch is quiet.
-const SWITCH_OFF_ALPHA: u8 = 0x21;
 
 /// Buttons say only whether they react, never how, so they all react the same way; pass false for
 /// one that is already selected.
@@ -380,33 +372,17 @@ pub fn icon(
 }
 
 pub fn switch(id: impl Into<SharedString>, on: bool) -> impl IntoElement {
-    tinted_switch(id, on, ACCENT)
-}
-
-/// The group a switch's knob watches, so it stretches while whatever holds it is pressed.
-fn press_group(id: &SharedString) -> SharedString {
-    SharedString::from(format!("{id}-press"))
-}
-
-/// A switch whose track takes `color` while on, such as the color of what it switches. Its knob
-/// springs across with a little bounce, and stretches towards the middle while pressed.
-pub fn tinted_switch(id: impl Into<SharedString>, on: bool, color: u32) -> impl IntoElement {
-    let id = id.into();
-    let off: Hsla = rgba(with_alpha(TINT, SWITCH_OFF_ALPHA)).into();
-    let accent: Hsla = rgb(color).into();
-    let knob_id = SharedString::from(format!("{id}-knob"));
-    let group = press_group(&id);
+    let off: Hsla = rgba(with_alpha(TINT, TRACK_ALPHA)).into();
+    let accent: Hsla = rgb(ACCENT).into();
     div()
         .relative()
         .flex_none()
         .w(px(TRACK_W))
         .h(px(TRACK_H))
         .with_spring(
-            id,
+            id.into(),
             SpringAnimation::new(KNOB_SPRING).to(on),
             move |track, phase| {
-                // Pressed while on, the stretch grows back towards the off side.
-                let lean = phase.0.clamp(0.0, 1.0) * KNOB_STRETCH;
                 track
                     .child(ui::shape(Radius::Pill, Some(off)))
                     .child(
@@ -418,60 +394,16 @@ pub fn tinted_switch(id: impl Into<SharedString>, on: bool, color: u32) -> impl 
                     )
                     .child(
                         div()
-                            .id(knob_id.clone())
                             .absolute()
                             .top(px(KNOB_INSET))
                             .left(px(
                                 phase.interpolate(KNOB_INSET, TRACK_W - KNOB_INSET - KNOB)
                             ))
-                            .w(px(KNOB))
-                            .h(px(KNOB))
-                            .rounded_full()
-                            .bg(rgb(KNOB_FILL))
-                            .shadow(vec![BoxShadow {
-                                color: hsla(0.0, 0.0, 0.0, KNOB_SHADOW),
-                                offset: point(px(0.0), px(2.0)),
-                                blur_radius: px(4.0),
-                                spread_radius: px(0.0),
-                                inset: false,
-                            }])
-                            .group_active(group.clone(), move |knob| {
-                                knob.w(px(KNOB + KNOB_STRETCH)).ml(px(-lean))
-                            }),
+                            .size(px(KNOB))
+                            .child(ui::shape(Radius::Pill, Some(rgb(TEXT).into()))),
                     )
             },
         )
-}
-
-/// Something shown but not to be changed here, such as a switch another one drives.
-const DISABLED_OPACITY: f32 = 0.4;
-
-/// A switch that takes the click itself, so one in something clickable, such as a row, does only
-/// its own thing.
-pub fn switch_control(
-    id: SharedString,
-    on: bool,
-    color: u32,
-    enabled: bool,
-    on_click: Handler,
-    cx: &mut Context<Island>,
-) -> AnyElement {
-    let knob = SharedString::from(format!("{id}-knob"));
-    div()
-        .id(id)
-        .group(press_group(&knob))
-        .flex_none()
-        .child(tinted_switch(knob, on, color))
-        .when(!enabled, |switch| switch.opacity(DISABLED_OPACITY))
-        .when(enabled, |switch| {
-            switch
-                .cursor_pointer()
-                .on_click(cx.listener(move |this, _, _, cx| {
-                    cx.stop_propagation();
-                    on_click(this, cx);
-                }))
-        })
-        .into_any_element()
 }
 
 pub fn toggle(

@@ -185,29 +185,10 @@ fn smoothstep(t: f32) -> f32 {
     t * t * (3.0 - 2.0 * t)
 }
 
-/// How far, in lines, a rolling digit travels as it leaves or arrives.
-const ROLL: f32 = 0.6;
-
-/// The first number in `text`, such as 2.5 in "2.5 kB/s".
-fn number(text: &str) -> Option<f32> {
-    let start = text.find(|c: char| c.is_ascii_digit())?;
-    let digits: String = text[start..]
-        .chars()
-        .take_while(|c| c.is_ascii_digit() || *c == '.')
-        .collect();
-    digits.parse().ok()
-}
-
-/// Whether changing `old` to `new` is a number rolling, and if so whether it rolls up.
-fn roll(old: &str, new: &str) -> Option<bool> {
-    let (old, new) = (number(old)?, number(new)?);
-    Some(new >= old)
-}
-
 /// What the old and new text share stays; each other character turns into its new one in place,
 /// one after another along the text. `id` must be unique among its siblings.
 pub fn text(id: impl Into<ElementId>, text: impl Into<SharedString>) -> impl IntoElement {
-    morph(id, text.into(), Vec::new(), Hold::Centre)
+    morph(id, text.into(), Vec::new())
 }
 
 /// Keeps the width of the widest of `fits`, so what it sits in never resizes as it changes.
@@ -216,33 +197,13 @@ pub fn steady(
     text: impl Into<SharedString>,
     fits: Vec<SharedString>,
 ) -> impl IntoElement {
-    morph(id, text.into(), fits, Hold::Centre)
-}
-
-/// Where steady text sits in the width it keeps: at its start, such as a value its unit
-/// follows, or its end, such as an amount ending a row.
-#[derive(Clone, Copy, PartialEq, Eq)]
-pub enum Hold {
-    Start,
-    Centre,
-    End,
-}
-
-/// Keeps the width of the widest of `fits`, the text held at `hold` within it.
-pub fn steady_at(
-    id: impl Into<ElementId>,
-    text: impl Into<SharedString>,
-    fits: Vec<SharedString>,
-    hold: Hold,
-) -> impl IntoElement {
-    morph(id, text.into(), fits, hold)
+    morph(id, text.into(), fits)
 }
 
 fn morph(
     id: impl Into<ElementId>,
     text: SharedString,
     fits: Vec<SharedString>,
-    hold_at: Hold,
 ) -> impl IntoElement {
     keyed(id, move |state: &mut Morph, window, cx| {
         let style = window.text_style();
@@ -266,11 +227,7 @@ fn morph(
             Some(held) => div()
                 .flex()
                 .flex_none()
-                .map(|line| match hold_at {
-                    Hold::Start => line.justify_start(),
-                    Hold::Centre => line.justify_center(),
-                    Hold::End => line.justify_end(),
-                })
+                .justify_center()
                 .whitespace_nowrap()
                 .w(px(held.ceil()))
                 .child(element)
@@ -304,21 +261,10 @@ fn morph(
         let gone = characters(&old[start..old.len() - end]);
         let come = characters(&text[start..text.len() - end]);
         let count = gone.len().max(come.len());
-        // A number rolls, each changed digit sliding out as the next slides in, up as it grows
-        // and down as it falls; other text crossfades in place.
-        let roll = roll(old, &text);
-        let rise = f32::from(line) * ROLL;
         let changing = div().flex().flex_none().children((0..count).map(|index| {
             let turned = smoothstep(stagger(progress, index, count));
             let (from, to) = (gone.get(index), come.get(index));
             let (from_w, to_w) = (from.map_or(0.0, &width), to.map_or(0.0, &width));
-            let (out_y, in_y) = match roll {
-                Some(up) => {
-                    let way = if up { -1.0 } else { 1.0 };
-                    (way * rise * turned, -way * rise * (1.0 - turned))
-                }
-                None => (0.0, 0.0),
-            };
             div()
                 .relative()
                 .flex_none()
@@ -330,7 +276,7 @@ fn morph(
                         div()
                             .absolute()
                             .left_0()
-                            .top(px(out_y))
+                            .top_0()
                             .opacity(1.0 - turned)
                             .child(char),
                     )
@@ -340,7 +286,7 @@ fn morph(
                         div()
                             .absolute()
                             .left_0()
-                            .top(px(in_y))
+                            .top_0()
                             .opacity(turned)
                             .child(char),
                     )

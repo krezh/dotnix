@@ -41,9 +41,8 @@ use crate::{
     wm::{Monitor, Snapshot},
 };
 
-/// Room for panels wider than the bar, such as a list beside text to read: four columns of
-/// tiles with the gaps between them, the panel's inset either side, and its shadow.
-pub const SURFACE_W: f32 = 4.0 * 270.0 + 3.0 * 12.0 + 2.0 * INSET + 2.0 * SHADOW_SIDE;
+/// Room for panels wider than the bar, such as a list beside text to read.
+pub const SURFACE_W: f32 = 1240.0;
 pub const SURFACE_H: f32 = 1000.0;
 
 pub(crate) const SHAPE_SPRING: SpringConfig = SpringConfig::new(420.0, 34.0, 1.0);

@@ -25,8 +25,8 @@ use super::{
     nm::{self, Saved, Snapshot},
     runtime::{Probes, Request, Settings, Watched},
     state::{
-        AccessPoint, Activity, Interface, Internet, Joining, Link, LinkKind, Role, Signal, State,
-        Usage, Vpn, Wifi, Wired, jitter, kill_switch,
+        AccessPoint, Activity, Interface, Internet, Joining, Link, LinkKind, Signal, State, Usage,
+        Vpn, Wifi, Wired,
     },
     usage,
 };
@@ -41,13 +41,10 @@ const JOIN_TIMEOUT: Duration = Duration::from_secs(45);
 const SCAN_TIMEOUT: Duration = Duration::from_secs(15);
 /// A scan this old is redone when the panel opens.
 const SCAN_STALE_MS: i64 = 30_000;
-/// After Wi-Fi is turned on, when the radio is ready to scan.
-const SCAN_AFTER_ON: Duration = Duration::from_secs(2);
 /// NetworkManager's reasons a Wi-Fi connection ends without coming up that point at the password.
 const SECRET_REASONS: [u32; 5] = [7, 8, 9, 10, 11];
 const WIFI: u32 = 2;
 const ETHERNET: u32 = 1;
-const LOOPBACK: u32 = 32;
 
 struct Join {
     ssid: String,
@@ -106,8 +103,6 @@ struct World {
     stored: Vec<(String, u64, u64)>,
     retries: Option<(u64, u64)>,
     probes_seen: (u64, u64),
-    /// Each probe round's time to the internet, once each, for its jitter.
-    rounds: Vec<f32>,
     samples: u64,
     flushed: Option<Instant>,
     last_counters: HashMap<String, Counters>,
@@ -136,16 +131,6 @@ fn today() -> String {
 
 fn ipv4(text: Option<&String>) -> Option<Ipv4Addr> {
     text?.parse().ok()
-}
-
-/// Of the links with a way out, given as their kind and whether NetworkManager calls them
-/// primary: the primary one, else a cable before Wi-Fi.
-fn pick_link(candidates: &[(u32, bool)]) -> Option<usize> {
-    candidates
-        .iter()
-        .position(|(_, primary)| *primary)
-        .or_else(|| candidates.iter().position(|(kind, _)| *kind == ETHERNET))
-        .or_else(|| (!candidates.is_empty()).then_some(0))
 }
 
 impl World {
@@ -177,13 +162,6 @@ impl World {
         match block_on(nm::snapshot(connection)) {
             Ok(snapshot) => {
                 if !self.state.reachable {
-                    self.dirty = true;
-                }
-                // Apps such as Proton VPN save a new connection each time they connect; one that
-                // is up but unknown means a missed signal left the saved list stale.
-                if snapshot.active.iter().any(|active| {
-                    !self.saved.iter().any(|saved| saved.path == active.saved)
-                }) {
                     self.dirty = true;
                 }
                 self.snapshot = snapshot;
@@ -238,11 +216,6 @@ impl World {
     }
 
     fn build(&mut self, connection: &Connection, counters: &HashMap<String, Counters>) {
-        if self.state.host.is_empty() {
-            self.state.host = std::fs::read_to_string("/proc/sys/kernel/hostname")
-                .map(|name| name.trim().to_owned())
-                .unwrap_or_default();
-        }
         let snapshot = &self.snapshot;
         let active_of =
             |saved: &OwnedObjectPath| snapshot.active.iter().find(|active| &active.saved == saved);
@@ -320,14 +293,12 @@ impl World {
                 .and_then(|active| active.devices.first())
                 .and_then(|path| snapshot.devices.iter().find(|device| &device.path == path))
                 .map(|device| device.interface.clone());
-            let (address, reach) = match active {
-                Some(active) if activity == Activity::On => (
-                    block_on(nm::active_address(connection, &active.ip4)),
-                    block_on(nm::reach(connection, &active.ip4)),
-                ),
-                _ => (None, nm::Reach::default()),
+            let address = match active {
+                Some(active) if activity == Activity::On => {
+                    block_on(nm::active_address(connection, &active.ip4))
+                }
+                _ => None,
             };
-            let full = active.is_some_and(|active| active.default) || reach.everything;
             if activity == Activity::On {
                 // Only a VPN island saw come up has a start; one up already when island started has none.
                 if self.seen_vpns {
@@ -348,40 +319,22 @@ impl World {
                 interface,
                 endpoint: saved.endpoint.clone(),
                 since: self.vpn_since.get(&saved.name).copied(),
-                full,
-                // A full one carries everything, so the networks it lists say nothing more.
-                networks: if full { Vec::new() } else { reach.networks },
-                dns: reach.dns.into_iter().next(),
             });
         }
         self.seen_vpns = true;
         vpns.sort_by(|a, b| a.name.cmp(&b.name));
         self.state.vpns = vpns;
-        // The link traffic leaves by is a cable or Wi-Fi even while a VPN carries it, and while
-        // the VPN is what NetworkManager calls primary.
-        let primary_devices: Vec<&OwnedObjectPath> = snapshot
+        self.state.link = snapshot
             .primary
             .as_ref()
-            .and_then(|primary| snapshot.active.iter().find(|active| &active.path == primary))
-            .map(|active| active.devices.iter().collect())
-            .unwrap_or_default();
-        let candidates: Vec<&nm::Device> = snapshot
-            .devices
-            .iter()
-            .filter(|device| {
-                device.activated
-                    && matches!(device.kind, WIFI | ETHERNET)
-                    && device.address.gateway.is_some()
+            .and_then(|primary| {
+                snapshot
+                    .active
+                    .iter()
+                    .find(|active| &active.path == primary)
             })
-            .collect();
-        let picked = pick_link(
-            &candidates
-                .iter()
-                .map(|device| (device.kind, primary_devices.contains(&&device.path)))
-                .collect::<Vec<_>>(),
-        );
-        self.state.link = picked
-            .map(|index| candidates[index])
+            .and_then(|active| active.devices.first())
+            .and_then(|path| snapshot.devices.iter().find(|device| &device.path == path))
             .map(|device| Link {
                 interface: device.interface.clone(),
                 name: snapshot
@@ -404,51 +357,17 @@ impl World {
                 mtu: device.mtu,
                 lease: device.address.lease,
             });
-        // Wi-Fi has its own card, so it is left out here, as is loopback.
-        let vpns = &self.state.vpns;
         self.state.interfaces = snapshot
             .devices
             .iter()
-            .filter(|device| !matches!(device.kind, LOOPBACK | WIFI))
+            .filter(|device| device.kind != 32)
             .map(|device| {
                 let (rx, tx) = self.rate(&device.interface);
-                let active = snapshot
-                    .active
-                    .iter()
-                    .find(|active| active.path == device.active);
-                let connection = active.map(|active| active.name.clone()).unwrap_or_default();
-                let tunnel = vpns
-                    .iter()
-                    .find(|vpn| vpn.interface.as_deref() == Some(device.interface.as_str()));
-                let role = match tunnel {
-                    Some(vpn) => Role::Tunnel(vpn.name.clone()),
-                    None if kill_switch(&connection) => Role::KillSwitch,
-                    None => Role::Link,
-                };
-                let counters = counters.get(&device.interface).copied().unwrap_or_default();
                 Interface {
                     name: device.interface.clone(),
                     kind: nm::kind_label(device.kind).to_owned(),
                     up: device.activated || kernel::is_up(&device.interface),
                     rate: rx + tx,
-                    path: device.path.as_str().to_owned(),
-                    // A VPN's interface follows the VPN, which has its own switch.
-                    switchable: device.managed
-                        && !active.is_some_and(|active| active.external)
-                        && tunnel.is_none(),
-                    role,
-                    connection,
-                    address: device
-                        .address
-                        .ipv4
-                        .as_ref()
-                        .map(|ip| format!("{ip}/{}", device.address.prefix)),
-                    mtu: device.mtu,
-                    mac: device.mac.clone(),
-                    lease: device.address.lease,
-                    speed: device.wired.map_or(0, |wired| wired.speed),
-                    drops: counters.drops,
-                    errors: counters.errors,
                 }
             })
             .collect();
@@ -524,42 +443,30 @@ impl World {
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner());
         probes.gateway_address = ipv4(link.and_then(|link| link.gateway.as_ref()));
-        // Through a full VPN, lookups go to the VPN's own server.
-        let tunnel = self.state.tunnel();
-        let dns = tunnel
-            .and_then(|vpn| vpn.dns.as_ref())
-            .or_else(|| link.and_then(|link| link.dns.first()));
-        probes.dns_address = ipv4(dns);
-        probes.vpn_address = tunnel
-            .and_then(|vpn| vpn.server())
-            .and_then(|server| server.parse().ok());
+        probes.dns_address = ipv4(link.and_then(|link| link.dns.first()));
         let latency = &mut self.state.latency;
         latency.target = settings.latency_target.clone();
-        // Every chart takes a value with each sample, the probes' latest, so they all scroll
-        // together at the sampler's pace rather than each at its own.
-        push(&mut latency.gateway_history, probes.gateway.unwrap_or(0.0));
-        push(
-            &mut latency.internet_history,
-            probes.internet.unwrap_or(0.0),
-        );
-        push(&mut self.state.dns.history, probes.lookup.unwrap_or(0.0));
         if probes.round != self.probes_seen.0 {
             self.probes_seen.0 = probes.round;
             latency.gateway = probes.gateway;
             latency.internet = probes.internet;
-            latency.tunnel = probes.vpn_address.and(probes.vpn);
+            push(&mut latency.gateway_history, probes.gateway.unwrap_or(0.0));
+            push(
+                &mut latency.internet_history,
+                probes.internet.unwrap_or(0.0),
+            );
             let lost = probes
                 .answered
                 .iter()
                 .filter(|answered| !**answered)
                 .count();
             latency.loss = lost as f32 / probes.answered.len().max(1) as f32;
-            push(&mut self.rounds, probes.internet.unwrap_or(0.0));
-            latency.jitter = jitter(&self.rounds);
         }
         if probes.lookups != self.probes_seen.1 {
             self.probes_seen.1 = probes.lookups;
-            self.state.dns.lookup = probes.lookup;
+            let dns = &mut self.state.dns;
+            dns.lookup = probes.lookup;
+            push(&mut dns.history, probes.lookup.unwrap_or(0.0));
         }
     }
 
@@ -691,27 +598,7 @@ impl World {
             match request {
                 Request::Wifi(on) => {
                     let on = on.unwrap_or(!self.snapshot.wireless_enabled);
-                    if on {
-                        // The radio needs a moment before it can scan.
-                        let sender = sender.clone();
-                        let _ = thread::Builder::new()
-                            .name("island-network-scan".into())
-                            .spawn(move || {
-                                thread::sleep(SCAN_AFTER_ON);
-                                let _ = sender.unbounded_send(Request::Scan);
-                            });
-                    }
                     nm::set_wireless(connection, on).await
-                }
-                Request::Device(path, on) => {
-                    let Ok(device) = OwnedObjectPath::try_from(path) else {
-                        return Ok(());
-                    };
-                    if on {
-                        nm::device_activate(connection, &device).await
-                    } else {
-                        nm::device_disconnect(connection, &device).await
-                    }
                 }
                 Request::Scan => match &device {
                     Some(device) => {
@@ -835,12 +722,6 @@ impl World {
         settings: &Settings,
     ) {
         self.samples += 1;
-        let now = Instant::now();
-        let interval = self
-            .state
-            .sampled
-            .map_or(Duration::from_secs(1), |(at, _)| now.duration_since(at));
-        self.state.sampled = Some((now, interval));
         self.last_counters = self.sample();
         let counters = self.last_counters.clone();
         self.build(connection, &counters);
@@ -890,17 +771,9 @@ fn saved_changed(interface: Option<&str>, member: Option<&str>) -> bool {
     )
 }
 
-/// Room for a burst of signals, such as a VPN coming up, while a refresh is reading.
-const SIGNALS_QUEUED: std::num::NonZeroUsize = std::num::NonZeroUsize::new(1024).unwrap();
-
 fn listen(connection: &Connection, rule: &str) -> zbus::Result<MessageStream> {
     block_on(async {
-        MessageStream::for_match_rule(
-            MatchRule::try_from(rule)?,
-            connection,
-            Some(SIGNALS_QUEUED),
-        )
-        .await
+        MessageStream::for_match_rule(MatchRule::try_from(rule)?, connection, None).await
     })
 }
 
@@ -915,25 +788,17 @@ pub(super) fn run(
     let mut requests = requests
         .lock()
         .unwrap_or_else(|poisoned| poisoned.into_inner());
-    // Signals come on a connection of their own: on the one the worker asks with, a burst of
-    // them filling their queue stops zbus reading, and the answer the worker waits for never
-    // arrives.
-    let (connection, followed) = match (
-        block_on(Connection::system()),
-        block_on(Connection::system()),
-    ) {
-        (Ok(connection), Ok(followed)) => (connection, followed),
-        (Err(error), _) | (_, Err(error)) => {
-            return Ended::Failed(format!("cannot connect to the system bus: {error}"));
-        }
+    let connection = match block_on(Connection::system()) {
+        Ok(connection) => connection,
+        Err(error) => return Ended::Failed(format!("cannot connect to the system bus: {error}")),
     };
     let (signals, owner) = match (
         listen(
-            &followed,
+            &connection,
             "type='signal',sender='org.freedesktop.NetworkManager'",
         ),
         listen(
-            &followed,
+            &connection,
             "type='signal',sender='org.freedesktop.DBus',interface='org.freedesktop.DBus',member='NameOwnerChanged',arg0='org.freedesktop.NetworkManager'",
         ),
     ) {

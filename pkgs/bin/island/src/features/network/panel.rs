@@ -1,53 +1,24 @@
-//! The Network tab: cards in two rows of fixed height, laid out from what the machine has. Each
-//! control sits on what it changes and each number beside what it answers: whether the internet
-//! works and which way it goes, Wi-Fi, VPNs, interfaces, traffic, and what is using the network.
+//! The Network tab: icon buttons over a board of tiles, four columns of three units each, and the
+//! card asking for a password while one is wanted.
 
 use gpui::SharedString;
 
 use super::{
     Network, glyphs,
-    layout::{Card, layout},
     runtime::Request,
-    state::{AccessPoint, Activity, Interface, Internet, Role, Security, State, Vpn},
-    view::{Open, View},
+    state::{AccessPoint, Activity, Security, State, Vpn, channel},
+    view::{Prompt, View},
 };
 use crate::{
     components::{
-        card::{Look, Motion, Size, Title, TitleEnd},
-        tabs::TabLabel,
+        card::stat,
+        tile::{Entry, EntryLead, Part, Tile},
     },
     features::PanelCx,
-    panel::{
-        Action, Actions, Bars, Block, ChartView, Disclosure, Figure, FrameView, Header, Hop, InputView,
-        Item, Lead, Mark, PanelView, Path, SegmentedView, Text, Tone, Trail,
-    },
-    panels::{nice_peak, rate, series, short_duration},
+    panel::{Block, ButtonRow, Header, IconButton, InputView, PanelView, PromptView, Reveal},
+    panels::{nice_peak, rate, series, short_duration, tile_meter, titled},
     theme::{BLUE, GREEN, MAUVE, OVERLAY2, PEACH, PINK, RED, SUBTEXT1, TEAL, YELLOW},
 };
-
-/// The rows' heights: the first holds a card of lists that open, the second a shorter one.
-const TOP_H: f32 = 408.0;
-const BOTTOM_H: f32 = 276.0;
-const LEAD: f32 = 30.0;
-/// Where a list's rules and what a row opens to start: past the frame's padding, the lead and the
-/// gap after it.
-const INDENT: f32 = 8.0 + LEAD + crate::components::item::LEAD_GAP;
-/// What fits in the Wi-Fi card under the network in use.
-const NETWORKS: usize = 6;
-/// What fits in the Activity card.
-const ENTRIES: usize = 4;
-/// The height a top-row card has for what is under its title: the row, less the card's padding,
-/// its title and the gap after it.
-const CARD_BODY_H: f32 = TOP_H - 2.0 * 16.0 - 28.0 - 12.0;
-/// A two-line row in a list.
-const ROW_H: f32 = 48.0;
-/// What an opened tunnel row holds besides its chart: the room round it and the totals under it.
-const DISCLOSED_AROUND_CHART: f32 = 2.0 + 8.0 + 46.0 + 10.0;
-const CHART_LEAST_H: f32 = 60.0;
-const CHART_MOST_H: f32 = 220.0;
-/// The least the latency chart's scale reaches, so a LAN's fraction of a millisecond still shows
-/// as small rather than filling it.
-const LATENCY_FLOOR: f32 = 5.0;
 
 /// Decimal sizes, as data used is usually counted: "1.4 GB", "312 MB".
 fn bytes(count: u64) -> String {
@@ -65,8 +36,8 @@ fn bytes(count: u64) -> String {
 fn millis(value: Option<f32>) -> String {
     match value {
         None => "—".to_owned(),
-        Some(ms) if ms < 10.0 => format!("{ms:.1}"),
-        Some(ms) => format!("{ms:.0}"),
+        Some(ms) if ms < 10.0 => format!("{ms:.1} ms"),
+        Some(ms) => format!("{ms:.0} ms"),
     }
 }
 
@@ -79,995 +50,973 @@ fn latency_color(ms: Option<f32>) -> u32 {
     }
 }
 
-/// A rate as its number and its unit, for a figure.
-fn rate_parts(bytes_per_second: f64) -> (String, String) {
-    let text = rate(bytes_per_second);
-    match text.split_once(' ') {
-        Some((value, unit)) => (value.to_owned(), unit.to_owned()),
-        None => (text, String::new()),
+fn fact(label: &str, value: impl Into<SharedString>) -> (SharedString, SharedString) {
+    (label.to_owned().into(), value.into())
+}
+
+fn hero(name: impl Into<SharedString>, lines: Vec<String>) -> Part {
+    Part::Hero {
+        name: name.into(),
+        lines: lines.into_iter().map(SharedString::from).collect(),
     }
 }
 
-fn fact(label: impl Into<SharedString>, value: impl Into<SharedString>) -> (SharedString, SharedString, Option<u32>) {
-    (label.into(), value.into(), None)
+fn joining<'a>(state: &'a State, ssid: &str) -> Option<&'a super::state::Joining> {
+    state
+        .joining
+        .as_ref()
+        .filter(|joining| joining.ssid == ssid)
 }
 
-/// Solid in its color while on; a quiet grey square while off.
-fn lead(p: &PanelCx<'_>, glyph: &str, color: u32, on: bool) -> Lead {
-    Lead {
-        mark: p.glyph(glyph).map(|path| Mark::Glyph(path, color)),
-        tint: Some(color),
-        glow: None,
-        faded: !on,
-        size: Some(LEAD),
-        on_click: None,
-        top: false,
-    }
-}
-
-/// A two-line row: what it is over a fainter line saying how it is.
-fn item(id: String, lead: Lead, title: impl Into<SharedString>, line: Block, trail: Vec<Trail>) -> Block {
-    Block::Item(
-        Item {
-            id: id.into(),
-            lead: Some(lead),
-            overline: None,
-            title: title.into(),
-            title_color: None,
-            wrap: false,
-            detail: SharedString::default(),
-            trail,
-        },
-        vec![line],
-    )
-}
-
-/// A row's second line.
-fn line(text: impl Into<SharedString>) -> Block {
-    Block::Text(Text::new(Tone::Detail(OVERLAY2), text))
-}
-
-/// A row of a list, clickable when it does something, with what it opens to under it.
-fn row(id: String, item: Block, opens: Option<(bool, Vec<Block>)>, on_click: Option<crate::panel::Handler>) -> Block {
-    let mut blocks = vec![item];
-    if let Some((open, inside)) = opens {
-        blocks.push(Block::Disclose(
-            Disclosure {
-                id: format!("{id}-more").into(),
-                open,
-                indent: INDENT - 8.0,
-            },
-            inside,
-        ));
-    }
-    Block::Frame(
-        FrameView {
-            id: id.into(),
-            look: Look::Flat,
-            on_click,
-            on_dismiss: None,
-            countdown: None,
-            selected: false,
-            motion: Motion::Still,
-            shown_height: None,
-        },
-        blocks,
-    )
-}
-
-fn card(title: Title, span: usize, blocks: Vec<Block>) -> Block {
-    Block::Card(Some(title), Size::Tiles(span), blocks)
-}
-
-// Internet
-
-fn status(state: &State) -> (String, u32) {
-    if !state.reachable {
-        return ("NetworkManager is not answering".to_owned(), PEACH);
-    }
-    let Some(link) = &state.link else {
-        return ("Offline".to_owned(), RED);
+fn wifi_tile(state: &State) -> Tile {
+    let wifi = state.wifi.as_ref();
+    let active = wifi.and_then(|wifi| wifi.active());
+    let connecting = state
+        .joining
+        .as_ref()
+        .filter(|joining| joining.failed.is_none());
+    let (stat_text, parts) = match (wifi, active, connecting) {
+        (Some(wifi), _, _) if !wifi.enabled => (
+            stat("Off", OVERLAY2),
+            vec![hero(
+                "Wi-Fi is off",
+                vec!["Turn it on with the button above".into()],
+            )],
+        ),
+        (_, _, Some(joining)) => (
+            stat("…", BLUE),
+            vec![hero(joining.ssid.clone(), vec!["Connecting…".into()])],
+        ),
+        (Some(wifi), Some(active), None) => (
+            stat(format!("{}%", active.strength), TEAL),
+            vec![
+                hero(
+                    active.ssid.clone(),
+                    vec![
+                        format!(
+                            "{} · {} · channel {}",
+                            active.security.label(),
+                            active.band(),
+                            active.channel()
+                        ),
+                        format!(
+                            "{} · {}",
+                            wifi.interface,
+                            if active.saved { "saved" } else { "not saved" }
+                        ),
+                    ],
+                ),
+                Part::Spacer,
+                Part::Facts(vec![
+                    fact("Rate", format!("{} Mb/s", wifi.bitrate)),
+                    fact("Max", format!("{} Mb/s", active.max_bitrate)),
+                    fact("Strength", format!("{}%", active.strength)),
+                ]),
+            ],
+        ),
+        _ => (
+            stat("—", OVERLAY2),
+            vec![hero("Not connected", vec!["Pick a network to join".into()])],
+        ),
     };
-    match state.internet {
-        Internet::None => return ("No internet".to_owned(), YELLOW),
-        Internet::Portal => return ("Sign-in needed".to_owned(), YELLOW),
-        Internet::Limited => return ("Limited".to_owned(), YELLOW),
-        Internet::Full | Internet::Unknown => {}
-    }
-    let on_wifi = matches!(link.kind, super::state::LinkKind::Wifi);
-    let text = match (state.tunnel(), on_wifi) {
-        (Some(vpn), true) => format!("Online through {}, on Wi-Fi", vpn.name),
-        (Some(vpn), false) => format!("Online through {}", vpn.name),
-        (None, true) => "Online on Wi-Fi, direct".to_owned(),
-        (None, false) => "Online, direct".to_owned(),
-    };
-    (text, GREEN)
+    titled("network-wifi", 1, "Wi-Fi", Some(stat_text), parts)
 }
 
-fn internet_card(state: &State, span: usize, p: &PanelCx<'_>) -> Block {
-    let latency = &state.latency;
-    let tunnel = state.tunnel();
-    let link = state.link.as_ref();
-    let (status, color) = status(state);
-    let title = Title::with_detail("Internet", "").ending(vec![TitleEnd::Pill {
-        id: "network-status".into(),
-        text: status.into(),
-        color: Some(color),
-        busy: false,
-    }]);
-    let figures = Block::Figures(
+fn signal_tile(state: &State) -> Tile {
+    let signal = &state.signal;
+    let history: Vec<f32> = signal
+        .history
+        .iter()
+        .map(|dbm| (dbm + 100.0).clamp(0.0, 70.0))
+        .collect();
+    let retries = signal.retries.unwrap_or(0.0);
+    titled(
+        "network-signal",
+        1,
+        "Signal",
+        Some(stat(
+            signal
+                .dbm
+                .map_or_else(|| "—".to_owned(), |dbm| format!("{dbm} dBm")),
+            TEAL,
+        )),
         vec![
-            Figure {
-                id: "network-latency".into(),
-                value: millis(latency.internet).into(),
-                unit: "ms".into(),
-                caption: match tunnel {
-                    Some(_) => format!("to {}, through the tunnel", latency.target),
-                    None => format!("to {}", latency.target),
-                }
-                .into(),
-                dot: None,
-                color: None,
-                large: true,
-                inline: false,
+            Part::Chart {
+                series: vec![series(&history, 70.0, TEAL, "Signal", |value| {
+                    format!("{:.0} dBm", value - 100.0)
+                })],
+                grow: true,
             },
-            Figure {
-                id: "network-loss".into(),
-                value: format!("{:.0}", latency.loss * 100.0).into(),
-                unit: "%".into(),
-                caption: "Loss".into(),
-                dot: None,
-                color: (latency.loss > 0.0).then_some(YELLOW),
-                large: false,
-                inline: false,
-            },
-            Figure {
-                id: "network-jitter".into(),
-                value: millis(latency.jitter).into(),
-                unit: "ms".into(),
-                caption: "Jitter".into(),
-                dot: None,
-                color: None,
-                large: false,
-                inline: false,
-            },
-            Figure {
-                id: "network-lookup".into(),
-                value: millis(state.dns.lookup).into(),
-                unit: "ms".into(),
-                caption: "DNS lookup".into(),
-                dot: None,
-                color: None,
-                large: false,
-                inline: false,
+            Part::Meters {
+                rows: vec![
+                    tile_meter(
+                        "Quality",
+                        signal.quality.unwrap_or(0.0),
+                        signal.quality.map_or_else(
+                            || "—".to_owned(),
+                            |quality| format!("{:.0}%", quality * 100.0),
+                        ),
+                        TEAL,
+                    ),
+                    tile_meter(
+                        "Retries",
+                        retries / 20.0,
+                        signal
+                            .retries
+                            .map_or_else(|| "—".to_owned(), |retries| format!("{retries:.1}%")),
+                        if retries > 5.0 { YELLOW } else { GREEN },
+                    ),
+                ],
+                scroll: false,
             },
         ],
-        None,
-    );
-    // Traffic leaves by the link, through the VPN's server while one carries it, to the internet.
-    let tint = if tunnel.is_some() { MAUVE } else { TEAL };
-    let ms = |value: Option<f32>| match value {
-        Some(_) => format!("{} ms", millis(value)),
-        None => "—".to_owned(),
-    };
-    let dns = tunnel
-        .and_then(|vpn| vpn.dns.clone())
-        .or_else(|| link.and_then(|link| link.dns.first().cloned()))
-        .unwrap_or_else(|| "—".to_owned());
-    let hops = vec![
-        Hop {
-            id: "me".into(),
-            glyph: p.glyph("network-computer"),
-            name: state.host.clone().into(),
-            address: link
-                .and_then(|link| link.ipv4.clone())
-                .unwrap_or_else(|| "No address".to_owned())
-                .into(),
-            value: link.map_or_else(String::new, |link| link.interface.clone()).into(),
-            value_color: SUBTEXT1,
-            color: TEAL,
-            shown: true,
-        },
-        Hop {
-            id: "router".into(),
-            glyph: p.glyph("network-router"),
-            name: "Router".into(),
-            address: link
-                .and_then(|link| link.gateway.clone())
-                .unwrap_or_else(|| "—".to_owned())
-                .into(),
-            value: ms(latency.gateway).into(),
-            value_color: latency_color(latency.gateway),
-            color: TEAL,
-            shown: true,
-        },
-        Hop {
-            id: "vpn".into(),
-            glyph: p.glyph("network-vpn"),
-            name: tunnel.map_or_else(String::new, |vpn| vpn.name.clone()).into(),
-            address: tunnel
-                .and_then(Vpn::server)
-                .unwrap_or_default()
-                .to_owned()
-                .into(),
-            value: ms(latency.tunnel).into(),
-            value_color: latency_color(latency.tunnel),
-            color: MAUVE,
-            shown: tunnel.is_some(),
-        },
-        Hop {
-            id: "dns".into(),
-            glyph: p.glyph("network-dns"),
-            name: "DNS".into(),
-            address: dns.into(),
-            value: ms(state.dns.lookup).into(),
-            value_color: latency_color(state.dns.lookup),
-            color: tint,
-            shown: true,
-        },
-        Hop {
-            id: "internet".into(),
-            glyph: p.glyph("network-internet"),
-            name: "Internet".into(),
-            address: latency.target.clone().into(),
-            value: ms(latency.internet).into(),
-            value_color: latency_color(latency.internet),
-            color: tint,
-            shown: true,
-        },
-    ];
+    )
+}
+
+fn latency_tile(state: &State) -> Tile {
+    let latency = &state.latency;
     let peak = nice_peak(
         latency
-            .internet_history
+            .gateway_history
             .iter()
-            .chain(&latency.gateway_history)
-            .chain(&state.dns.history),
-        LATENCY_FLOOR,
+            .chain(&latency.internet_history),
+        20.0,
     );
-    let format = |value: f32| format!("{value:.0} ms");
-    card(
-        title,
-        span,
+    titled(
+        "network-latency",
+        1,
+        "Latency",
+        Some(stat(
+            millis(latency.internet),
+            latency_color(latency.internet),
+        )),
         vec![
-            figures,
-            Block::Path(Path {
-                id: "network-path".into(),
-                hops,
-                down: link.is_none(),
-            }),
-            Block::Chart(ChartView {
-                id: "network-latency-chart".into(),
+            Part::Chart {
                 series: vec![
-                    series(&latency.internet_history, peak, PEACH, latency.target.clone(), format),
-                    series(&state.dns.history, peak, BLUE, "DNS", format),
-                    series(&latency.gateway_history, peak, TEAL, "Router", format),
+                    series(
+                        &latency.internet_history,
+                        peak,
+                        PEACH,
+                        latency.target.clone(),
+                        |value| format!("{value:.0} ms"),
+                    ),
+                    series(&latency.gateway_history, peak, TEAL, "Gateway", |value| {
+                        format!("{value:.0} ms")
+                    }),
                 ],
-                height: None,
-                phase: Some(state.chart_phase()),
-            }),
-            Block::Legend(vec![
-                (Some(PEACH), "Internet".into()),
-                (Some(BLUE), "DNS".into()),
-                (Some(TEAL), "Router".into()),
+                grow: true,
+            },
+            Part::Legend(vec![
+                (
+                    Some(TEAL),
+                    format!("Gateway {}", millis(latency.gateway)).into(),
+                ),
+                (Some(PEACH), millis(latency.internet).into()),
+                (None, format!("Loss {:.0}%", latency.loss * 100.0).into()),
             ]),
         ],
     )
 }
 
-// VPN
-
-/// "just connected", "4m", "2h 14m".
-fn uptime(seconds: u64) -> String {
-    match seconds {
-        0..60 => "just connected".to_owned(),
-        60..3600 => format!("up {}m", seconds / 60),
-        _ => format!("up {}", short_duration(seconds)),
-    }
-}
-
-fn vpn_line(vpn: &Vpn, now: i64) -> String {
-    match vpn.activity {
-        Activity::Connecting => "Connecting…".to_owned(),
-        Activity::On if !vpn.full && !vpn.networks.is_empty() => {
-            format!("Only {}", vpn.networks.join(", "))
+fn network_entry(network: &AccessPoint, state: &State, p: &PanelCx<'_>) -> Entry {
+    let attempt = joining(state, &network.ssid);
+    let connecting = attempt.is_some_and(|joining| joining.failed.is_none());
+    let detail = match (attempt, network.active) {
+        (Some(joining), _) if joining.failed.is_none() => "Connecting…".to_owned(),
+        (Some(joining), _) => joining.failed.clone().unwrap_or_default(),
+        (None, true) => format!("Connected · {}", network.security.label()),
+        (None, false) if network.saved => format!("Saved · {}", network.security.label()),
+        (None, false) if network.security == Security::Enterprise => {
+            "Enterprise · set it up in NetworkManager".to_owned()
         }
-        Activity::On => match vpn.since.map(|since| (now - since).max(0) as u64) {
-            Some(seconds) if seconds < 60 => "Just connected".to_owned(),
-            Some(seconds) => format!("{} · {}", vpn.kind, uptime(seconds)),
-            None => vpn.kind.clone(),
-        },
-        Activity::Off => match vpn.server() {
-            Some(server) => format!("{} · {server}", vpn.kind),
-            None => vpn.kind.clone(),
-        },
-    }
-}
-
-fn vpn_card(state: &State, short: bool, p: &PanelCx<'_>) -> Block {
-    let now = chrono::Utc::now().timestamp();
-    let on = state.vpns.iter().filter(|vpn| vpn.activity != Activity::Off).count();
-    let tunnel = state.tunnel();
-    let kill_switch = state
-        .interfaces
-        .iter()
-        .any(|interface| interface.role == Role::KillSwitch && interface.up);
-    let pill = match (tunnel, state.link.is_some()) {
-        (_, false) => None,
-        (Some(_), true) if kill_switch => Some(("Kill switch", MAUVE)),
-        (Some(_), true) => None,
-        (None, true) => Some(("Not protected", YELLOW)),
+        (None, false) => format!("{} · {}", network.security.label(), network.band()),
     };
-    let title = Title::with_detail("VPN", format!("{on} of {} on", state.vpns.len())).ending(
-        pill.into_iter()
-            .map(|(text, color)| TitleEnd::Pill {
-                id: "network-vpn-state".into(),
-                text: text.into(),
-                color: Some(color),
-                busy: false,
-            })
-            .collect(),
-    );
-    let traffic = &state.traffic;
-    // The tunnel's chart takes the room the card has left under its rows and the totals, so a
-    // card with few profiles is not left half empty.
-    let chart_h = (CARD_BODY_H
-        - state.vpns.len() as f32 * ROW_H
-        - DISCLOSED_AROUND_CHART)
-        .clamp(CHART_LEAST_H, CHART_MOST_H);
-    let rows = state
-        .vpns_in_order()
-        .into_iter()
-        .map(|vpn| {
-            let name = vpn.name.clone();
-            let switched = vpn.activity != Activity::Off;
-            let carrying = tunnel.is_some_and(|tunnel| tunnel.name == vpn.name);
-            let inside = vec![
-                Block::Chart(ChartView {
-                    id: "network-vpn-chart".into(),
-                    series: vec![series(
-                        &traffic.vpn_history,
-                        nice_peak(&traffic.vpn_history, 64.0 * 1024.0),
-                        MAUVE,
-                        "Through the VPN",
-                        |value| rate(value as f64),
-                    )],
-                    height: Some(chart_h),
-                    phase: Some(state.chart_phase()),
-                }),
-                Block::FactsIn(
-                    2,
-                    vec![
-                        fact("Received", bytes(traffic.vpn_rx)),
-                        fact("Sent", bytes(traffic.vpn_tx)),
-                    ],
-                ),
-            ];
-            row(
-                format!("network-vpn-{}", vpn.name),
-                item(
-                    format!("network-vpn-{}-item", vpn.name),
-                    lead(p, "network-vpn", MAUVE, vpn.activity == Activity::On),
-                    vpn.name.clone(),
-                    line(vpn_line(vpn, now)),
-                    vec![Trail::Switch {
-                        on: switched,
-                        color: MAUVE,
-                        enabled: true,
-                        on_click: p.call(move |network: &Network| {
-                            network.send(Request::Vpn(name.clone(), Some(!switched)));
-                        }),
-                    }],
-                ),
-                (!short).then_some((carrying, inside)),
-                None,
-            )
-        })
-        .collect();
-    let mut blocks = vec![Block::List(INDENT, rows)];
-    // The pill already says it is not protected; under the list, one quiet line says which way
-    // traffic goes instead.
-    if !short && tunnel.is_none() && state.link.is_some() {
-        let networks: Vec<String> = state
-            .vpns
-            .iter()
-            .filter(|vpn| vpn.activity == Activity::On && !vpn.full)
-            .flat_map(|vpn| vpn.networks.clone())
-            .collect();
-        blocks.push(Block::note(if networks.is_empty() {
-            format!(
-                "Traffic leaves straight from {}",
-                state
-                    .link
-                    .as_ref()
-                    .and_then(|link| link.ipv4.clone())
-                    .unwrap_or_else(|| "this machine".to_owned())
-            )
-        } else {
-            format!("Only {} goes through a VPN", networks.join(", "))
-        }));
-    }
-    card(title, 1, blocks)
-}
-
-// Interfaces
-
-fn interface_glyph(interface: &Interface) -> (&'static str, u32) {
-    match (&interface.role, interface.kind.as_str()) {
-        (Role::Tunnel(_), _) => ("network-vpn", MAUVE),
-        (Role::KillSwitch, _) => ("network-lock", PINK),
-        (Role::Link, "Ethernet") => ("network-wired", TEAL),
-        _ => ("network-bridge", BLUE),
-    }
-}
-
-/// "2.5 Gb/s", "1 Gb/s", "100 Mb/s".
-fn link_speed(mbits: u32) -> String {
-    if mbits >= 1000 {
-        let gbits = f64::from(mbits) / 1000.0;
-        if gbits.fract() == 0.0 {
-            format!("{gbits:.0} Gb/s")
-        } else {
-            format!("{gbits:.1} Gb/s")
-        }
+    let color = if network.active {
+        TEAL
+    } else if connecting {
+        BLUE
     } else {
-        format!("{mbits} Mb/s")
+        SUBTEXT1
+    };
+    let ssid = network.ssid.clone();
+    let on_click = if network.active || connecting {
+        None
+    } else if network.saved || network.security == Security::Open {
+        Some(p.call(move |network: &Network| network.send(Request::Connect(ssid.clone()))))
+    } else if network.security == Security::Enterprise {
+        None
+    } else {
+        Some(p.on_local::<Network>(move |_, view: &mut View| view.ask(&ssid)))
+    };
+    Entry {
+        id: network.ssid.clone().into(),
+        lead: Some(EntryLead::Glyph(
+            p.glyph(glyphs::signal(network.strength)),
+            color,
+        )),
+        title: network.ssid.clone().into(),
+        title_color: network.active.then_some(TEAL),
+        detail: detail.into(),
+        value: format!("{}%", network.strength).into(),
+        value_color: if network.active { TEAL } else { OVERLAY2 },
+        chosen: network.active.then_some(TEAL),
+        on_click,
     }
 }
 
-fn interface_line(interface: &Interface) -> String {
-    match &interface.role {
-        Role::Tunnel(vpn) => vpn.clone(),
-        Role::KillSwitch => "Kill switch".to_owned(),
-        // Its glyph already says it is wired.
-        Role::Link if interface.kind == "Ethernet" && interface.speed > 0 => {
-            link_speed(interface.speed)
-        }
-        Role::Link if interface.kind == "Ethernet" => "Wired".to_owned(),
-        Role::Link => interface.kind.clone(),
+fn networks_tile(state: &State, p: &PanelCx<'_>) -> Tile {
+    let Some(wifi) = &state.wifi else {
+        return titled("network-networks", 2, "Networks", None, Vec::new());
+    };
+    if !wifi.enabled {
+        return titled(
+            "network-networks",
+            2,
+            "Networks",
+            None,
+            vec![hero("Wi-Fi is off", Vec::new())],
+        );
     }
-}
-
-fn interfaces_card(state: &State, p: &PanelCx<'_>, view: Option<&View>) -> Block {
-    let now = chrono::Utc::now().timestamp();
-    let up = state.interfaces.iter().filter(|interface| interface.up).count();
-    let open = view.map_or(&Open::Natural, |view| &view.interface);
-    let natural = state.link.as_ref().map(|link| link.interface.as_str());
-    let rows = state
-        .interfaces
-        .iter()
-        .map(|interface| {
-            let (glyph, color) = interface_glyph(interface);
-            let mut trail = Vec::new();
-            // As wide as it reads, so the name beside it keeps its room; it ends against the
-            // switch, so it only grows leftwards.
-            if interface.up && interface.rate > 0.0 {
-                trail.push(Trail::Faint(rate(interface.rate).into()));
-            }
-            let tunnel = matches!(interface.role, Role::Tunnel(_));
-            if interface.switchable || tunnel {
-                let path = interface.path.clone();
-                let on = interface.up;
-                trail.push(Trail::Switch {
-                    on,
-                    color,
-                    // A VPN's own interface follows the VPN's switch.
-                    enabled: interface.switchable,
-                    on_click: p.call(move |network: &Network| {
-                        network.send(Request::Device(path.clone(), !on));
-                    }),
-                });
-            }
-            let errors = match interface.errors {
-                0 => "no errors".to_owned(),
-                1 => "1 error".to_owned(),
-                count => format!("{count} errors"),
-            };
-            // Compact, so a card of several links still has room for the one opened.
-            let about = format!(
-                "MTU {} · {} dropped · {errors}",
-                interface.mtu, interface.drops
-            );
-            let trouble = interface.drops > 0 || interface.errors > 0;
-            let inside = vec![
-                Block::FactsIn(
-                    1,
-                    vec![fact(
-                        match interface.lease {
-                            Some(lease) => format!(
-                                "Address · lease {}",
-                                short_duration((lease - now).max(0) as u64)
-                            ),
-                            None => "Address".to_owned(),
-                        },
-                        interface.address.clone().unwrap_or_else(|| "—".to_owned()),
-                    )],
-                ),
-                Block::Text(Text::new(
-                    Tone::Detail(if trouble { YELLOW } else { OVERLAY2 }),
-                    about,
-                )),
-            ];
-            let name = interface.name.clone();
-            let natural = natural.map(str::to_owned);
-            row(
-                format!("network-if-{}", interface.name),
-                item(
-                    format!("network-if-{}-item", interface.name),
-                    lead(p, glyph, color, interface.up),
-                    interface.name.clone(),
-                    line(interface_line(interface)),
-                    trail,
-                ),
-                Some((open.is(&interface.name, natural.as_deref()), inside)),
-                Some(p.on_local::<Network>(move |_, view: &mut View| {
-                    view.interface.toggle(&name, natural.as_deref());
-                })),
-            )
-        })
-        .collect();
-    card(
-        Title::with_detail("Interfaces", format!("{up} of {} up", state.interfaces.len()))
-            .ending(Vec::new()),
-        1,
-        vec![Block::List(INDENT, rows)],
+    let count = wifi.networks.len();
+    titled(
+        "network-networks",
+        2,
+        "Networks",
+        Some(if wifi.scanning {
+            stat("Scanning…", BLUE)
+        } else {
+            stat(format!("{count} nearby"), BLUE)
+        }),
+        vec![Part::Entries {
+            entries: wifi
+                .networks
+                .iter()
+                .map(|network| network_entry(network, state, p))
+                .collect(),
+            scroll: true,
+        }],
     )
 }
 
-// Wi-Fi
-
-fn network_line(network: &AccessPoint, state: &State, in_use: bool) -> String {
-    if let Some(joining) = state.joining.as_ref().filter(|joining| joining.ssid == network.ssid) {
-        return joining.failed.clone().unwrap_or_else(|| "Connecting…".to_owned());
-    }
-    match (network.active, network.saved, network.security) {
-        (true, _, _) if in_use => "In use".to_owned(),
-        (true, _, _) => "Standby".to_owned(),
-        (false, _, Security::Enterprise) => "Set it up in NetworkManager".to_owned(),
-        (false, true, _) => format!("Saved · {}", network.band()),
-        (false, false, _) => network.band().to_owned(),
-    }
-}
-
-fn wifi_card(state: &State, p: &PanelCx<'_>, view: Option<&View>) -> Block {
-    let Some(wifi) = &state.wifi else {
-        return card(Title::with_detail("Wi-Fi", ""), 1, Vec::new());
-    };
-    let enabled = wifi.enabled;
-    let mut end = Vec::new();
-    if enabled {
-        end.push(TitleEnd::Pill {
-            id: "network-nearby".into(),
-            text: format!("{} nearby", wifi.networks.len()).into(),
-            color: None,
-            busy: wifi.scanning,
-        });
-    }
-    end.push(TitleEnd::Switch {
-        id: "network-wifi-switch".into(),
-        on: enabled,
-        color: BLUE,
-        enabled: true,
-        on_click: p.call(move |network: &Network| network.send(Request::Wifi(Some(!enabled)))),
-    });
-    let title = Title::with_detail("Wi-Fi", "").ending(end);
-    if !enabled {
-        return card(
-            title,
-            1,
-            vec![Block::Hero(
-                "Wi-Fi is off".into(),
-                vec!["Saved networks rejoin when it is on".into()],
-            )],
-        );
-    }
-    let in_use = matches!(
-        state.link.as_ref().map(|link| link.kind),
-        Some(super::state::LinkKind::Wifi)
-    );
-    let open = view.map_or(&Open::Natural, |view| &view.network);
-    let asked = view.and_then(|view| view.prompt.as_ref());
-    let menu_open = view.is_some_and(|view| view.menu);
-    let connected = wifi.active().map(|network| network.ssid.clone());
-    let rows = wifi
-        .networks
-        .iter()
-        .take(NETWORKS)
-        .map(|network| {
-            let ssid = network.ssid.clone();
-            let id = format!("network-wifi-{ssid}");
-            let line = line(network_line(network, state, in_use));
-            let lead = lead(p, glyphs::signal(network.strength), BLUE, network.active);
-            if network.active {
-                let signal = &state.signal;
-                let mut trail = Vec::new();
-                if let Some(dbm) = signal.dbm {
-                    trail.push(Trail::Steady(format!("{dbm} dBm").into(), vec!["-100 dBm".into()]));
-                }
-                let mut actions = vec![Action {
-                    id: "network-disconnect".into(),
-                    label: "Disconnect".into(),
-                    glyph: p.glyph("network-disconnect"),
-                    switch: None,
-                    danger: false,
-                    on_click: p.on_local::<Network>(|network, view: &mut View| {
-                        view.menu = false;
-                        network.send(Request::Disconnect);
-                    }),
-                }];
-                if network.saved {
-                    let forget = ssid.clone();
-                    actions.push(Action {
-                        id: "network-forget".into(),
-                        label: "Forget this network".into(),
-                        glyph: p.glyph("network-forget"),
-                        switch: None,
-                        danger: true,
-                        on_click: p.on_local::<Network>(move |network, view: &mut View| {
-                            view.menu = false;
-                            network.send(Request::Forget(forget.clone()));
-                        }),
-                    });
-                }
-                trail.push(Trail::Menu(Actions {
-                    id: "network-wifi-menu".into(),
-                    glyph: p.glyph("network-more"),
-                    label: format!("More for {ssid}").into(),
-                    actions,
-                    open: menu_open,
-                    on_toggle: p.on_local::<Network>(|_, view: &mut View| view.menu = !view.menu),
-                }));
-                let history: Vec<f32> = signal
-                    .history
-                    .iter()
-                    .map(|dbm| (dbm + 100.0).clamp(0.0, 70.0))
-                    .collect();
-                let mine = network.channel();
-                let shared = wifi
-                    .networks
-                    .iter()
-                    .filter(|other| other.ssid != network.ssid && other.channel() == mine)
-                    .count();
-                let inside = vec![
-                    Block::Chart(ChartView {
-                        id: "network-signal-chart".into(),
-                        series: vec![series(&history, 70.0, BLUE, "Signal", |value| {
-                            format!("{:.0} dBm", value - 100.0)
-                        })],
-                        height: Some(40.0),
-                        phase: Some(state.chart_phase()),
-                    }),
-                    Block::FactsIn(
-                        2,
-                        vec![
-                            fact(
-                                format!("{} · {}", network.security.label(), network.band()),
-                                format!("{} Mb/s", wifi.bitrate),
-                            ),
-                            (
-                                format!("Channel {mine}").into(),
-                                if shared == 0 {
-                                    "Clear".to_owned()
-                                } else {
-                                    format!("Shared by {shared}")
-                                }
-                                .into(),
-                                Some(if shared == 0 { GREEN } else { YELLOW }),
-                            ),
-                        ],
-                    ),
-                ];
-                let toggle = ssid.clone();
-                let natural = connected.clone();
-                return row(
-                    id.clone(),
-                    item(format!("{id}-item"), lead, network.ssid.clone(), line, trail),
-                    Some((open.is(&ssid, connected.as_deref()), inside)),
-                    Some(p.on_local::<Network>(move |_, view: &mut View| {
-                        view.network.toggle(&toggle, natural.as_deref());
-                    })),
-                );
-            }
-            let mut trail = Vec::new();
-            let secured = network.security != Security::Open;
-            if secured && let Some(glyph) = p.glyph("network-lock") {
-                trail.push(Trail::Glyph(glyph, OVERLAY2));
-            }
-            let busy = state.joining.as_ref().is_some_and(|joining| joining.ssid == ssid && joining.failed.is_none());
-            let on_click = if busy || network.security == Security::Enterprise {
-                None
-            } else if network.saved || !secured {
-                Some(p.call(move |network: &Network| network.send(Request::Connect(ssid.clone()))))
-            } else {
-                Some(p.on_local::<Network>(move |_, view: &mut View| view.ask(&ssid)))
-            };
-            // A network that needs a password opens to its field.
-            let asking = asked.filter(|prompt| prompt.ssid == network.ssid);
-            let opens = (secured && !network.saved).then(|| {
-                let field = asking.map_or_else(
-                    || InputView {
-                        id: format!("{id}-password").into(),
-                        text: SharedString::default(),
-                        placeholder: "Password".into(),
-                        max_lines: 1,
-                        send_glyph: p.glyph("network-join"),
-                        on_send: None,
-                        busy: false,
-                        secret: true,
-                    },
-                    |prompt| InputView {
-                        id: format!("{id}-password").into(),
-                        text: prompt.text.clone().into(),
-                        placeholder: "Password".into(),
-                        max_lines: 1,
-                        send_glyph: p.glyph("network-join"),
-                        on_send: (!prompt.text.is_empty() && !busy).then(|| {
-                            p.on_local::<Network>(|network, view: &mut View| view.submit(network))
-                        }),
-                        busy,
-                        secret: !prompt.shown,
-                    },
-                );
-                (asking.is_some(), vec![Block::Input(field)])
-            });
-            row(
-                id.clone(),
-                item(format!("{id}-item"), lead, network.ssid.clone(), line, trail),
-                opens,
-                on_click,
-            )
-        })
-        .collect();
-    card(title, 1, vec![Block::List(INDENT, rows)])
-}
-
-// Traffic
-
-fn traffic_card(state: &State, span: usize) -> Block {
+fn traffic_tile(state: &State) -> Tile {
     let traffic = &state.traffic;
-    let usage = &state.usage;
-    let link = state.link.as_ref().map_or_else(String::new, |link| link.interface.clone());
-    // Which way it goes, which holds still; a share of two noisy rates only jitters, and with a
-    // full tunnel everything goes through it anyway.
-    let detail = match state.tunnel() {
-        _ if link.is_empty() => link.clone(),
-        Some(vpn) => format!("{link} · through {}", vpn.name),
-        None => format!("{link} · direct"),
-    };
-    let (down, down_unit) = rate_parts(traffic.rx_rate);
-    let (up, up_unit) = rate_parts(traffic.tx_rate);
-    let week: u64 = usage.days.iter().map(|(_, used)| *used).sum();
-    let days = usage.days.len();
-    let bars = Block::Bars(Bars {
-        id: "network-week".into(),
-        values: usage
-            .days
-            .iter()
-            .map(|(day, used)| {
-                let label = if day == "Today" {
-                    chrono::Local::now().format("%a").to_string()
-                } else {
-                    day.clone()
-                };
-                (label.chars().take(1).collect::<String>().into(), *used as f32)
-            })
-            .collect(),
-        picked: days.checked_sub(1),
-        color: BLUE,
-        picked_color: TEAL,
-    });
-    let peak = nice_peak(traffic.rx_history.iter().chain(&traffic.tx_history), 64.0 * 1024.0);
-    card(
-        Title::with_detail("Traffic", detail).ending(Vec::new()),
-        span,
+    let peak = nice_peak(
+        traffic.rx_history.iter().chain(&traffic.tx_history),
+        64.0 * 1024.0,
+    );
+    titled(
+        "network-traffic",
+        1,
+        "Traffic",
+        Some(stat(format!("↓ {}", rate(traffic.rx_rate)), TEAL)),
         vec![
-            Block::Figures(
-                vec![
-                    Figure {
-                        id: "network-down".into(),
-                        value: down.into(),
-                        unit: down_unit.into(),
-                        caption: "Download".into(),
-                        dot: Some(TEAL),
-                        color: None,
-                        large: true,
-                        inline: false,
-                    },
-                    Figure {
-                        id: "network-up".into(),
-                        value: up.into(),
-                        unit: up_unit.into(),
-                        caption: "Upload".into(),
-                        dot: Some(PEACH),
-                        color: None,
-                        large: true,
-                        inline: false,
-                    },
-                    Figure {
-                        id: "network-today".into(),
-                        value: bytes(usage.today_rx + usage.today_tx).into(),
-                        unit: SharedString::default(),
-                        caption: "today".into(),
-                        dot: None,
-                        color: None,
-                        large: false,
-                        inline: true,
-                    },
-                    Figure {
-                        id: "network-week-total".into(),
-                        value: bytes(week).into(),
-                        unit: SharedString::default(),
-                        caption: "this week".into(),
-                        dot: None,
-                        color: None,
-                        large: false,
-                        inline: true,
-                    },
-                ],
-                Some(Box::new(bars)),
-            ),
-            Block::Chart(ChartView {
-                id: "network-traffic-chart".into(),
+            Part::Chart {
                 series: vec![
-                    series(&traffic.rx_history, peak, TEAL, "Download", |value| rate(value as f64)),
-                    series(&traffic.tx_history, peak, PEACH, "Upload", |value| rate(value as f64)),
+                    series(&traffic.rx_history, peak, TEAL, "Download", |value| {
+                        rate(value as f64)
+                    }),
+                    series(&traffic.tx_history, peak, PEACH, "Upload", |value| {
+                        rate(value as f64)
+                    }),
                 ],
-                height: None,
-                phase: Some(state.chart_phase()),
-            }),
+                grow: true,
+            },
+            Part::Legend(vec![
+                (Some(TEAL), format!("↓ {}", rate(traffic.rx_rate)).into()),
+                (Some(PEACH), format!("↑ {}", rate(traffic.tx_rate)).into()),
+            ]),
         ],
     )
 }
 
-// Activity
-
-/// A two-line entry: what it is, over `under`, and its value faint at the end.
-fn entry(id: String, title: impl Into<SharedString>, under: Block, value: impl Into<SharedString>) -> Block {
-    Block::Frame(
-        FrameView {
-            id: id.clone().into(),
-            look: Look::Flat,
-            on_click: None,
-            on_dismiss: None,
-            countdown: None,
-            selected: false,
-            motion: Motion::Still,
-            shown_height: None,
+fn vpn_entry(vpn: &Vpn, p: &PanelCx<'_>) -> Entry {
+    let color = match vpn.activity {
+        Activity::On => MAUVE,
+        Activity::Connecting => YELLOW,
+        Activity::Off => OVERLAY2,
+    };
+    let name = vpn.name.clone();
+    Entry {
+        id: vpn.name.clone().into(),
+        lead: Some(EntryLead::Glyph(p.glyph("network-vpn"), color)),
+        title: vpn.name.clone().into(),
+        title_color: (vpn.activity == Activity::On).then_some(MAUVE),
+        detail: vpn
+            .endpoint
+            .clone()
+            .unwrap_or_else(|| vpn.kind.clone())
+            .into(),
+        value: match vpn.activity {
+            Activity::On => "On".into(),
+            Activity::Connecting => "Connecting…".into(),
+            Activity::Off => vpn.kind.clone().into(),
         },
-        vec![Block::Item(
-            Item {
-                id: format!("{id}-item").into(),
-                lead: None,
-                overline: None,
-                title: title.into(),
-                title_color: None,
-                wrap: false,
-                detail: SharedString::default(),
-                trail: vec![Trail::Faint(value.into())],
-            },
-            vec![under],
-        )],
+        value_color: color,
+        chosen: (vpn.activity == Activity::On).then_some(MAUVE),
+        on_click: Some(p.call(move |network: &Network| {
+            network.send(Request::Vpn(name.clone(), None));
+        })),
+    }
+}
+
+fn vpn_tile(state: &State, span: usize, p: &PanelCx<'_>) -> Tile {
+    let active = state.vpns.iter().find(|vpn| vpn.activity == Activity::On);
+    let stat_text = match active {
+        Some(vpn) => stat(
+            vpn.address.clone().unwrap_or_else(|| "On".to_owned()),
+            MAUVE,
+        ),
+        None => stat("Off", OVERLAY2),
+    };
+    if state.vpns.is_empty() {
+        return titled(
+            "network-vpn",
+            span,
+            "VPN",
+            Some(stat_text),
+            vec![hero(
+                "No VPNs",
+                vec![
+                    "Add one to NetworkManager".into(),
+                    "to switch it here".into(),
+                ],
+            )],
+        );
+    }
+    let mut parts = vec![Part::Entries {
+        entries: state.vpns.iter().map(|vpn| vpn_entry(vpn, p)).collect(),
+        scroll: span == 1,
+    }];
+    if span > 1 {
+        let now = chrono::Utc::now().timestamp();
+        let traffic = &state.traffic;
+        let peak = nice_peak(&traffic.vpn_history, 64.0 * 1024.0);
+        parts.push(Part::Chart {
+            series: vec![series(
+                &traffic.vpn_history,
+                peak,
+                MAUVE,
+                "Through the VPN",
+                |value| rate(value as f64),
+            )],
+            grow: true,
+        });
+        parts.push(Part::Facts(match active {
+            Some(vpn) => vec![
+                fact(
+                    "Interface",
+                    vpn.interface.clone().unwrap_or_else(|| "—".to_owned()),
+                ),
+                fact(
+                    "Up for",
+                    vpn.since.map_or_else(
+                        || "—".to_owned(),
+                        |since| short_duration((now - since).max(0) as u64),
+                    ),
+                ),
+                fact("Kind", vpn.kind.clone()),
+                fact("Received", bytes(traffic.vpn_rx)),
+                fact("Sent", bytes(traffic.vpn_tx)),
+                fact(
+                    "Address",
+                    vpn.address.clone().unwrap_or_else(|| "—".to_owned()),
+                ),
+            ],
+            None => vec![
+                fact("Profiles", state.vpns.len().to_string()),
+                fact("Received", "—"),
+                fact("Sent", "—"),
+            ],
+        }));
+    }
+    titled("network-vpn", span, "VPN", Some(stat_text), parts)
+}
+
+fn connection_tile(state: &State) -> Tile {
+    let Some(link) = &state.link else {
+        return titled(
+            "network-connection",
+            1,
+            "Connection",
+            Some(stat("Offline", OVERLAY2)),
+            vec![hero("Offline", vec!["No connection is up".into()])],
+        );
+    };
+    let now = chrono::Utc::now().timestamp();
+    let via = link.gateway.as_ref().map_or_else(
+        || "no gateway".to_owned(),
+        |gateway| format!("via {gateway}"),
+    );
+    let dns = if link.dns.is_empty() {
+        "No DNS server".to_owned()
+    } else {
+        format!("DNS {}", link.dns.join(", "))
+    };
+    titled(
+        "network-connection",
+        1,
+        "Connection",
+        Some(stat(link.interface.clone(), SUBTEXT1)),
+        vec![
+            hero(
+                link.ipv4.clone().unwrap_or_else(|| "No address".to_owned()),
+                vec![format!("/{} {via}", link.prefix), dns],
+            ),
+            Part::Spacer,
+            Part::Facts(vec![
+                fact("IPv6", link.ipv6.as_ref().map_or("none", |_| "yes")),
+                fact("MTU", link.mtu.to_string()),
+                fact(
+                    "Lease",
+                    link.lease.map_or_else(
+                        || "static".to_owned(),
+                        |lease| short_duration((lease - now).max(0) as u64),
+                    ),
+                ),
+            ]),
+        ],
     )
 }
 
-fn activity_card(state: &State, span: usize, p: &PanelCx<'_>, view: Option<&View>) -> Block {
-    let selected = view.map_or(0, |view| view.activity).min(2);
-    // A narrow card gives a row to its views, so it shows one entry fewer.
-    let entries = if span == 1 { ENTRIES - 1 } else { ENTRIES };
-    // Each app's bar against the busiest one's.
-    let busiest = state.sockets.apps.first().map_or(1, |(_, count)| *count).max(1) as f32;
-    let rows: Vec<Block> = match selected {
-        0 => state
-            .sockets
-            .apps
-            .iter()
-            .take(entries)
-            .map(|(app, count)| {
-                let id = format!("network-app-{app}");
-                entry(
-                    id.clone(),
-                    app.clone(),
-                    Block::Level(format!("{id}-share").into(), *count as f32 / busiest, PINK),
-                    format!("{count} open"),
-                )
-            })
-            .collect(),
-        1 => state
-            .ports
-            .iter()
-            .take(entries)
-            .map(|port| {
-                entry(
-                    format!("network-port-{}-{}", port.protocol, port.port),
-                    port.app.clone(),
-                    line(port.protocol.to_uppercase()),
-                    port.port.to_string(),
-                )
-            })
-            .collect(),
-        _ => state
-            .routes
-            .iter()
-            .take(entries)
-            .enumerate()
-            .map(|(index, route)| {
-                let to = if route.destination == "default" {
-                    "Everything".to_owned()
-                } else {
-                    route.destination.clone()
-                };
-                let how = match &route.via {
-                    Some(via) => format!("Via {via}"),
-                    None => "On this link".to_owned(),
-                };
-                entry(format!("network-route-{index}"), to, line(how), route.interface.clone())
-            })
-            .collect(),
-    };
-    let rows = if rows.is_empty() {
-        vec![Block::note(match selected {
-            0 => "Nothing is connected",
-            1 => "Nothing is listening",
-            _ => "No routes",
-        })]
-    } else {
-        vec![Block::List(8.0, rows)]
-    };
-    let labels: Vec<TabLabel> = ["Apps", "Ports", "Routes"]
-        .into_iter()
-        .map(|label| TabLabel {
-            label: label.into(),
-            glyph: None,
-        })
-        .collect();
-    let on_select = p.on_local_with::<Network, usize>(|_, view: &mut View, index| {
-        view.activity = index;
-    });
-    // A one-column card has no room for its views beside its heading, so they take a row of
-    // their own across it.
-    if span == 1 {
-        let mut blocks = vec![Block::Segmented(SegmentedView {
-            id: "network-activity".into(),
-            labels,
-            selected,
-            on_select,
-        })];
-        blocks.extend(rows);
-        return card(Title::with_detail("Activity", "").ending(Vec::new()), span, blocks);
-    }
-    card(
-        Title::with_detail("Activity", "").ending(vec![TitleEnd::Tabs {
-            id: "network-activity".into(),
-            labels,
-            selected,
-            on_select,
-        }]),
-        span,
-        rows,
+fn usage_tile(state: &State) -> Tile {
+    let usage = &state.usage;
+    let most = usage
+        .days
+        .iter()
+        .map(|(_, bytes)| *bytes)
+        .max()
+        .unwrap_or(0)
+        .max(1);
+    titled(
+        "network-usage",
+        1,
+        "Data used",
+        Some(stat(bytes(usage.today_rx + usage.today_tx), TEAL)),
+        vec![
+            Part::Meters {
+                rows: usage
+                    .days
+                    .iter()
+                    .rev()
+                    .map(|(day, used)| {
+                        tile_meter(
+                            day.clone(),
+                            *used as f32 / most as f32,
+                            bytes(*used),
+                            if day == "Today" { TEAL } else { BLUE },
+                        )
+                    })
+                    .collect(),
+                scroll: true,
+            },
+            Part::Legend(vec![
+                (Some(TEAL), format!("↓ {}", bytes(usage.today_rx)).into()),
+                (Some(PEACH), format!("↑ {}", bytes(usage.today_tx)).into()),
+                (None, "today".into()),
+            ]),
+        ],
     )
+}
+
+fn access_point_tile(state: &State) -> Tile {
+    let Some((wifi, active)) = state
+        .wifi
+        .as_ref()
+        .and_then(|wifi| wifi.active().map(|active| (wifi, active)))
+    else {
+        return titled(
+            "network-ap",
+            1,
+            "Access point",
+            Some(stat("—", OVERLAY2)),
+            vec![hero("Not connected", Vec::new())],
+        );
+    };
+    let width = if active.width > 0 {
+        format!("{} MHz wide", active.width)
+    } else {
+        wifi.interface.clone()
+    };
+    titled(
+        "network-ap",
+        1,
+        "Access point",
+        Some(stat(format!("Channel {}", active.channel()), TEAL)),
+        vec![
+            hero(
+                active.band(),
+                vec![
+                    format!("{} MHz · {width}", active.frequency),
+                    active.bssid.clone(),
+                ],
+            ),
+            Part::Spacer,
+            Part::Facts(vec![
+                fact("Security", active.security.label()),
+                fact("Channel", active.channel().to_string()),
+                fact("Max", format!("{} Mb/s", active.max_bitrate)),
+            ]),
+        ],
+    )
+}
+
+fn channels_tile(state: &State) -> Tile {
+    let Some(wifi) = &state.wifi else {
+        return titled("network-channels", 1, "Channels", None, Vec::new());
+    };
+    let mine = wifi.active().map(AccessPoint::channel);
+    let mut counts: Vec<(u32, u32, usize)> = Vec::new();
+    for network in &wifi.networks {
+        let key = (network.frequency / 1000, channel(network.frequency));
+        match counts.iter_mut().find(|(band, ch, _)| (*band, *ch) == key) {
+            Some(entry) => entry.2 += 1,
+            None => counts.push((key.0, key.1, 1)),
+        }
+    }
+    counts.sort();
+    let most = counts.iter().map(|entry| entry.2).max().unwrap_or(1);
+    let shared = mine
+        .and_then(|mine| counts.iter().find(|entry| entry.1 == mine))
+        .map_or(0, |entry| entry.2.saturating_sub(1));
+    titled(
+        "network-channels",
+        1,
+        "Channels",
+        Some(match (mine, shared) {
+            (None, _) => stat("—", OVERLAY2),
+            (Some(_), 0) => stat("Yours is clear", GREEN),
+            (Some(_), shared) => stat(format!("{shared} share yours"), YELLOW),
+        }),
+        vec![Part::Meters {
+            rows: counts
+                .iter()
+                .map(|(band, ch, count)| {
+                    let band = if *band >= 5 { "5 GHz" } else { "2.4 GHz" };
+                    tile_meter(
+                        format!("{ch} · {band}"),
+                        *count as f32 / most as f32,
+                        format!("{count} network{}", if *count == 1 { "" } else { "s" }),
+                        if Some(*ch) == mine { TEAL } else { BLUE },
+                    )
+                })
+                .collect(),
+            scroll: true,
+        }],
+    )
+}
+
+fn interfaces_tile(state: &State) -> Tile {
+    let up = state
+        .interfaces
+        .iter()
+        .filter(|interface| interface.up)
+        .count();
+    titled(
+        "network-interfaces",
+        1,
+        "Interfaces",
+        Some(stat(format!("{up} up"), SUBTEXT1)),
+        vec![Part::Entries {
+            entries: state
+                .interfaces
+                .iter()
+                .map(|interface| Entry {
+                    id: interface.name.clone().into(),
+                    lead: Some(EntryLead::Dot(if interface.up { GREEN } else { OVERLAY2 })),
+                    title: interface.name.clone().into(),
+                    title_color: None,
+                    detail: interface.kind.clone().into(),
+                    value: if interface.up {
+                        rate(interface.rate).into()
+                    } else {
+                        "down".into()
+                    },
+                    value_color: OVERLAY2,
+                    chosen: None,
+                    on_click: None,
+                })
+                .collect(),
+            scroll: true,
+        }],
+    )
+}
+
+fn ethernet_tile(state: &State) -> Tile {
+    let Some(wired) = &state.wired else {
+        return titled(
+            "network-ethernet",
+            1,
+            "Ethernet",
+            Some(stat("—", OVERLAY2)),
+            vec![hero("No wired port", Vec::new())],
+        );
+    };
+    let (stat_text, name, line) = if wired.active {
+        (
+            stat(format!("{} Mb/s", wired.speed), TEAL),
+            wired.name.clone(),
+            format!("{} · {} Mbit/s", wired.interface, wired.speed),
+        )
+    } else if wired.carrier {
+        (
+            stat("Idle", OVERLAY2),
+            "Not connected".to_owned(),
+            wired.interface.clone(),
+        )
+    } else {
+        (
+            stat("No cable", OVERLAY2),
+            "No cable".to_owned(),
+            format!("Plug a cable into {}", wired.interface),
+        )
+    };
+    titled(
+        "network-ethernet",
+        1,
+        "Ethernet",
+        Some(stat_text),
+        vec![
+            hero(name, vec![line, format!("MAC {}", wired.mac)]),
+            Part::Spacer,
+            Part::Facts(vec![
+                fact("Errors", wired.errors.to_string()),
+                fact("Drops", wired.drops.to_string()),
+                fact("Carrier", wired.carrier_changes.to_string()),
+            ]),
+        ],
+    )
+}
+
+fn routes_tile(state: &State) -> Tile {
+    titled(
+        "network-routes",
+        1,
+        "Routes",
+        Some(stat(state.routes.len().to_string(), SUBTEXT1)),
+        vec![Part::Entries {
+            entries: state
+                .routes
+                .iter()
+                .enumerate()
+                .map(|(index, route)| Entry {
+                    id: format!("{index}").into(),
+                    lead: None,
+                    title: route.destination.clone().into(),
+                    title_color: None,
+                    detail: route
+                        .via
+                        .as_ref()
+                        .map_or_else(|| "on link".to_owned(), |via| format!("via {via}"))
+                        .into(),
+                    value: route.interface.clone().into(),
+                    value_color: OVERLAY2,
+                    chosen: None,
+                    on_click: None,
+                })
+                .collect(),
+            scroll: true,
+        }],
+    )
+}
+
+fn connections_tile(state: &State) -> Tile {
+    let sockets = &state.sockets;
+    let total = (sockets.established + sockets.listening + sockets.waiting).max(1) as f32;
+    let busiest = sockets.apps.first().map_or(1, |(_, count)| *count).max(1) as f32;
+    titled(
+        "network-connections",
+        1,
+        "Connections",
+        Some(stat(sockets.established.to_string(), BLUE)),
+        vec![
+            Part::Meters {
+                rows: vec![
+                    tile_meter(
+                        "Open",
+                        sockets.established as f32 / total,
+                        sockets.established.to_string(),
+                        BLUE,
+                    ),
+                    tile_meter(
+                        "Listening",
+                        sockets.listening as f32 / total,
+                        sockets.listening.to_string(),
+                        MAUVE,
+                    ),
+                    tile_meter(
+                        "Closing",
+                        sockets.waiting as f32 / total,
+                        sockets.waiting.to_string(),
+                        OVERLAY2,
+                    ),
+                ],
+                scroll: false,
+            },
+            Part::Meters {
+                rows: sockets
+                    .apps
+                    .iter()
+                    .take(3)
+                    .map(|(app, count)| {
+                        tile_meter(
+                            app.clone(),
+                            *count as f32 / busiest,
+                            count.to_string(),
+                            PINK,
+                        )
+                    })
+                    .collect(),
+                scroll: false,
+            },
+        ],
+    )
+}
+
+fn dns_tile(state: &State) -> Tile {
+    let dns = &state.dns;
+    let link = state.link.as_ref();
+    let server = |index: usize| {
+        link.and_then(|link| link.dns.get(index).cloned())
+            .unwrap_or_else(|| "—".to_owned())
+    };
+    let peak = nice_peak(&dns.history, 20.0);
+    titled(
+        "network-dns",
+        1,
+        "DNS",
+        Some(stat(millis(dns.lookup), latency_color(dns.lookup))),
+        vec![
+            Part::Chart {
+                series: vec![series(&dns.history, peak, BLUE, "Lookup", |value| {
+                    format!("{value:.0} ms")
+                })],
+                grow: true,
+            },
+            Part::Facts(vec![
+                fact("Server", server(0)),
+                fact(
+                    "Domain",
+                    link.and_then(|link| link.domain.clone())
+                        .unwrap_or_else(|| "—".to_owned()),
+                ),
+            ]),
+        ],
+    )
+}
+
+fn ports_tile(state: &State) -> Tile {
+    titled(
+        "network-ports",
+        1,
+        "Listening ports",
+        Some(stat(state.ports.len().to_string(), MAUVE)),
+        vec![Part::Entries {
+            entries: state
+                .ports
+                .iter()
+                .map(|port| Entry {
+                    id: format!("{}-{}", port.protocol, port.port).into(),
+                    lead: None,
+                    title: port.app.clone().into(),
+                    title_color: None,
+                    detail: port.protocol.into(),
+                    value: port.port.to_string().into(),
+                    value_color: MAUVE,
+                    chosen: None,
+                    on_click: None,
+                })
+                .collect(),
+            scroll: true,
+        }],
+    )
+}
+
+fn buttons(state: &State, p: &PanelCx<'_>) -> Vec<IconButton> {
+    let mut buttons = Vec::new();
+    if let Some(wifi) = &state.wifi {
+        buttons.push(IconButton {
+            id: "network-wifi-switch".into(),
+            glyph: p.glyph(if wifi.enabled {
+                "network-wifi-excellent"
+            } else {
+                "network-wifi-off"
+            }),
+            rising: None,
+            label: if wifi.enabled {
+                "Wi-Fi is on"
+            } else {
+                "Wi-Fi is off"
+            }
+            .into(),
+            active: wifi.enabled,
+            badge: None,
+            on_click: p.call(|network: &Network| network.send(Request::Wifi(None))),
+        });
+        if wifi.enabled {
+            buttons.push(IconButton {
+                id: "network-scan".into(),
+                glyph: p.glyph("network-scan"),
+                rising: None,
+                label: "Scan for networks".into(),
+                active: wifi.scanning,
+                badge: Some(wifi.networks.len().to_string().into()),
+                on_click: p.call(|network: &Network| network.send(Request::Scan)),
+            });
+        }
+        if let Some(active) = wifi.active() {
+            buttons.push(IconButton {
+                id: "network-disconnect".into(),
+                glyph: p.glyph("network-disconnect"),
+                rising: None,
+                label: format!("Disconnect from {}", active.ssid).into(),
+                active: false,
+                badge: None,
+                on_click: p.call(|network: &Network| network.send(Request::Disconnect)),
+            });
+            if active.saved {
+                let ssid = active.ssid.clone();
+                buttons.push(IconButton {
+                    id: "network-forget".into(),
+                    glyph: p.glyph("network-forget"),
+                    rising: None,
+                    label: format!("Forget {}", active.ssid).into(),
+                    active: false,
+                    badge: None,
+                    on_click: p.call(move |network: &Network| {
+                        network.send(Request::Forget(ssid.clone()));
+                    }),
+                });
+            }
+        }
+    }
+    if let Some(vpn) = state
+        .vpns
+        .iter()
+        .find(|vpn| vpn.activity != Activity::Off)
+        .or_else(|| state.vpns.first())
+    {
+        let on = vpn.activity == Activity::On;
+        let name = vpn.name.clone();
+        buttons.push(IconButton {
+            id: "network-vpn-switch".into(),
+            glyph: p.glyph("network-vpn"),
+            rising: None,
+            label: if on {
+                format!("Turn off {}", vpn.name)
+            } else {
+                format!("Turn on {}", vpn.name)
+            }
+            .into(),
+            active: on,
+            badge: None,
+            on_click: p
+                .call(move |network: &Network| network.send(Request::Vpn(name.clone(), None))),
+        });
+    }
+    buttons
+}
+
+fn prompt(state: &State, prompt: &Prompt, p: &PanelCx<'_>) -> PromptView {
+    let security = state
+        .wifi
+        .as_ref()
+        .and_then(|wifi| {
+            wifi.networks
+                .iter()
+                .find(|network| network.ssid == prompt.ssid)
+        })
+        .map_or(Security::Wpa2, |network| network.security);
+    let attempt = joining(state, &prompt.ssid);
+    let busy = attempt.is_some_and(|joining| joining.failed.is_none());
+    let ready = !prompt.text.is_empty() && !busy;
+    PromptView {
+        id: "network-prompt".into(),
+        title: format!("Join {}", prompt.ssid).into(),
+        detail: format!("{} · enter its password", security.label()).into(),
+        code: None,
+        confirm: None,
+        field: Some(InputView {
+            id: "network-password".into(),
+            text: prompt.text.clone().into(),
+            placeholder: "Password".into(),
+            max_lines: 1,
+            send_glyph: p.glyph("network-join"),
+            on_send: ready
+                .then(|| p.on_local::<Network>(|network, view: &mut View| view.submit(network))),
+            busy,
+            secret: !prompt.shown,
+        }),
+        reveal: Some(Reveal {
+            glyph: p.glyph(if prompt.shown {
+                "network-conceal"
+            } else {
+                "network-reveal"
+            }),
+            shown: prompt.shown,
+            on_click: p.on_local::<Network>(|_, view: &mut View| {
+                if let Some(prompt) = &mut view.prompt {
+                    prompt.shown = !prompt.shown;
+                }
+            }),
+        }),
+        error: attempt
+            .and_then(|joining| joining.failed.clone())
+            .map(SharedString::from),
+        on_cancel: p.on_local::<Network>(|_, view: &mut View| view.prompt = None),
+    }
 }
 
 pub fn panel(state: &State, p: &PanelCx<'_>) -> PanelView {
-    let view = p.local::<View>();
-    let rows = layout(state.wifi.is_some(), !state.vpns.is_empty());
-    let band = |row: &Vec<(Card, usize)>, height: f32| {
-        Block::Band(
-            height,
-            row.iter()
-                .map(|(card, span)| match card {
-                    Card::Internet => internet_card(state, *span, p),
-                    Card::Wifi => wifi_card(state, p, view),
-                    Card::Vpn => vpn_card(state, false, p),
-                    Card::VpnShort => vpn_card(state, true, p),
-                    Card::Interfaces => interfaces_card(state, p, view),
-                    Card::Traffic => traffic_card(state, *span),
-                    Card::Activity => activity_card(state, *span, p, view),
-                })
-                .collect(),
-        )
+    let columns = if state.wifi.is_some() {
+        vec![
+            vec![wifi_tile(state), signal_tile(state), latency_tile(state)],
+            vec![networks_tile(state, p), traffic_tile(state)],
+            vec![
+                vpn_tile(state, 1, p),
+                connection_tile(state),
+                usage_tile(state),
+            ],
+            vec![
+                access_point_tile(state),
+                channels_tile(state),
+                interfaces_tile(state),
+            ],
+        ]
+    } else {
+        vec![
+            vec![
+                ethernet_tile(state),
+                traffic_tile(state),
+                latency_tile(state),
+            ],
+            vec![
+                connection_tile(state),
+                usage_tile(state),
+                interfaces_tile(state),
+            ],
+            vec![vpn_tile(state, 2, p), routes_tile(state)],
+            vec![connections_tile(state), dns_tile(state), ports_tile(state)],
+        ]
     };
-    let [top, bottom] = &rows;
+    let mut blocks = Vec::new();
+    if !state.reachable {
+        blocks.push(Block::caption(
+            "NetworkManager is not answering, so this shows only what the kernel knows.",
+            PEACH,
+        ));
+    }
+    blocks.push(Block::Buttons(ButtonRow {
+        buttons: buttons(state, p),
+        compact: false,
+        indent: 0.0,
+        menu: None,
+    }));
+    blocks.push(Block::Board(columns));
+    if let Some(asked) = p.local::<View>().and_then(|view| view.prompt.as_ref()) {
+        blocks.push(Block::Prompt(prompt(state, asked, p)));
+    }
     PanelView {
         header: Header::Tabs,
-        blocks: vec![band(top, TOP_H), band(bottom, BOTTOM_H)],
+        blocks,
     }
 }

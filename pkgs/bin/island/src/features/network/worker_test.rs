@@ -1,4 +1,4 @@
-use super::{ETHERNET, Glance, WIFI, nm, pick_link, push, saved_changed};
+use super::{Glance, nm, push, saved_changed};
 use crate::{
     components::card::SLOTS,
     features::network::state::{AccessPoint, State, Wifi},
@@ -35,14 +35,6 @@ fn traffic_alone_does_not_change_what_the_bar_shows() {
     assert!(Glance::of(&state) == before);
     state.wifi.as_mut().unwrap().networks[0].strength = 40;
     assert!(Glance::of(&state) != before);
-}
-
-#[test]
-fn the_link_out_is_the_primary_one_else_a_cable_before_wifi() {
-    assert_eq!(pick_link(&[]), None);
-    assert_eq!(pick_link(&[(WIFI, false), (ETHERNET, false)]), Some(1));
-    assert_eq!(pick_link(&[(ETHERNET, false), (WIFI, true)]), Some(1));
-    assert_eq!(pick_link(&[(WIFI, false)]), Some(0));
 }
 
 #[test]

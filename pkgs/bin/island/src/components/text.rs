@@ -26,8 +26,6 @@ pub enum Tone {
     Heading,
     /// A short line in a color.
     Caption(u32),
-    /// A row's quieter second line, under its title, held to one line.
-    Detail(u32),
     /// Says something about the whole block, such as that it is empty.
     Note,
     /// Running text, such as a message.
@@ -172,14 +170,6 @@ pub fn text(text: Text, id: SharedString) -> AnyElement {
         Tone::Caption(color) => div()
             .text_size(px(CAPTION_SIZE))
             .font_weight(FontWeight::SEMIBOLD)
-            .text_color(rgb(color))
-            // Held to one line, it ends in an ellipsis rather than wrapping.
-            .when(text.lines == Some(1), |line| line.min_w(px(0.0)).truncate())
-            .child(motion::text(id, text.text)),
-        Tone::Detail(color) => div()
-            .min_w(px(0.0))
-            .truncate()
-            .text_size(px(CAPTION_SIZE))
             .text_color(rgb(color))
             .child(motion::text(id, text.text)),
         Tone::Note => div()

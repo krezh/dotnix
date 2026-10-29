@@ -1,13 +1,4 @@
-use super::{roll, shared, stagger};
-
-#[test]
-fn numbers_roll_the_way_they_move_and_words_do_not() {
-    assert_eq!(roll("2.5 kB/s", "12 kB/s"), Some(true));
-    assert_eq!(roll("18 ms", "9 ms"), Some(false));
-    assert_eq!(roll("3 of 4 up", "3 of 4 up"), Some(true));
-    assert_eq!(roll("Online", "Offline"), None);
-    assert_eq!(roll("—", "4 ms"), None);
-}
+use super::{shared, stagger};
 
 #[test]
 fn keeps_what_two_texts_share() {
