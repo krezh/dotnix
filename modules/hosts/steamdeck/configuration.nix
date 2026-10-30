@@ -24,6 +24,7 @@ in
         battery
         inputs.self.modules.nixos.${user}
         inputs.jovian.nixosModules.default
+        desktop-utils
       ];
 
       services = {
