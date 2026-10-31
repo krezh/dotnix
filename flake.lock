@@ -489,11 +489,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1793276003,
-        "narHash": "sha256-u0hi+/EMB5pLJgrVj+E6u+5SRcRV8izhr7cW7oH3riY=",
+        "lastModified": 1793446721,
+        "narHash": "sha256-sIOPLWV8+VK6k4lMJVk/HgfAPhAj+aYdmnNuHXervoo=",
         "owner": "cjavad",
         "repo": "nixpille-helium",
-        "rev": "76f1f6c633c8bdd5f9b675f251b9b05596a211bd",
+        "rev": "378c293c9b1153a3abdbabbd0d1c8bc35f49165e",
         "type": "github"
       },
       "original": {
@@ -1483,11 +1483,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1793445549,
-        "narHash": "sha256-dIVxQps1pzyoYhALnvu2IlC1k7WVoU/SB1sfEBtycRU=",
+        "lastModified": 1793446551,
+        "narHash": "sha256-sSKmYqKhYe4CR5r7QwNfYGwQLwjZVJ4p3f00axaPLrM=",
         "owner": "stubbedev",
         "repo": "xilo",
-        "rev": "13f1da8a8fa71e1f044ab67e6dd7f52790538f0f",
+        "rev": "d99c760085bbb83dca1c07cb5298d88e3835b83f",
         "type": "github"
       },
       "original": {
