@@ -709,11 +709,11 @@
         "treefmt-nix": "treefmt-nix_3"
       },
       "locked": {
-        "lastModified": 1793424007,
-        "narHash": "sha256-TLPeExBHbrOWWKb9bMZj2J26xTbmSb6N2wHdD8TXFqw=",
+        "lastModified": 1793425587,
+        "narHash": "sha256-tIBzmDPf+2pLZ5rchF0qWhfMiDmmKsc/l/36D1bfIHA=",
         "owner": "numtide",
         "repo": "llm-agents.nix",
-        "rev": "19fcd79d82aaf136a14c77d40607dd9510bbda27",
+        "rev": "28d5a74ef304d1a3c7a5f6cacfb52bacbf922698",
         "type": "github"
       },
       "original": {
