@@ -113,35 +113,48 @@ pub fn strip(
         .flex()
         .gap(px(STRIP_TAB_GAP))
         .child(pill)
-        .children(labels.into_iter().zip(widths).enumerate().map(|(index, (tab, tab_w))| {
-            let picked = index == selected;
-            let select = on_select.clone();
-            let tab_id = SharedString::from(format!("{id}-{index}"));
-            let count_id = SharedString::from(format!("{id}-{index}-count"));
-            button::fill(tab_id, Radius::Row, None, !picked && hover)
-                .flex_none()
-                .w(px(tab_w))
-                .h(px(STRIP_TAB_H))
-                .gap(px(COUNT_GAP))
-                .text_size(px(SMALL_SIZE))
-                .font_weight(FontWeight::SEMIBOLD)
-                .text_color(rgb(if picked { TEXT } else { SUBTEXT1 }))
-                .child(tab.label)
-                .when_some(tab.count, |tab, count| {
-                    tab.child(
-                        div()
-                            .text_size(px(COUNT_SIZE))
-                            .text_color(rgb(if picked { ACCENT } else { OVERLAY1 }))
-                            .child(motion::text(count_id, count)),
-                    )
-                })
-                .on_click(cx.listener(move |this, _, _, cx| select(index, this, cx)))
-        }));
+        .children(
+            labels
+                .into_iter()
+                .zip(widths)
+                .enumerate()
+                .map(|(index, (tab, tab_w))| {
+                    let picked = index == selected;
+                    let select = on_select.clone();
+                    let tab_id = SharedString::from(format!("{id}-{index}"));
+                    let count_id = SharedString::from(format!("{id}-{index}-count"));
+                    button::fill(tab_id, Radius::Row, None, !picked && hover)
+                        .flex_none()
+                        .w(px(tab_w))
+                        .h(px(STRIP_TAB_H))
+                        .gap(px(COUNT_GAP))
+                        .text_size(px(SMALL_SIZE))
+                        .font_weight(FontWeight::SEMIBOLD)
+                        .text_color(rgb(if picked { TEXT } else { SUBTEXT1 }))
+                        .child(tab.label)
+                        .when_some(tab.count, |tab, count| {
+                            tab.child(
+                                div()
+                                    .text_size(px(COUNT_SIZE))
+                                    .text_color(rgb(if picked { ACCENT } else { OVERLAY1 }))
+                                    .child(motion::text(count_id, count)),
+                            )
+                        })
+                        .on_click(cx.listener(move |this, _, _, cx| select(index, this, cx)))
+                }),
+        );
     div()
         .relative()
         .flex_none()
         .p(px(STRIP_PAD))
-        .child(div().absolute().size_full().top_0().left_0().child(ui::strip()))
+        .child(
+            div()
+                .absolute()
+                .size_full()
+                .top_0()
+                .left_0()
+                .child(ui::strip()),
+        )
         .child(tabs)
 }
 

@@ -16,9 +16,7 @@ use crate::{
     },
     island::{CONTENT_IN as SELECT_SPRING, Island},
     panel::Handler,
-    theme::{
-        CARD_ALPHA, CARD_BORDER_ALPHA, CRITICAL, NOTIFICATION_ALPHA, SURFACE1, with_alpha,
-    },
+    theme::{CARD_ALPHA, CARD_BORDER_ALPHA, CRITICAL, NOTIFICATION_ALPHA, SURFACE1, with_alpha},
     ui::{self, Radius},
 };
 
@@ -211,7 +209,11 @@ pub fn frame(
                     frame.child(shape().child(ui::control(Radius::Panel, None, hover && !selected)))
                 })
                 .when_some(countdown, |frame, countdown| {
-                    frame.child(shape().overflow_hidden().child(countdown_tint(&id, countdown)))
+                    frame.child(
+                        shape()
+                            .overflow_hidden()
+                            .child(countdown_tint(&id, countdown)),
+                    )
                 })
                 .child(content)
         }

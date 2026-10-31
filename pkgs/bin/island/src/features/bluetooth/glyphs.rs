@@ -45,5 +45,8 @@ pub fn device(icon: &str) -> &'static str {
 
 /// A battery's color, on the scale every battery uses.
 pub fn battery(level: Option<u8>) -> u32 {
-    level.map_or(crate::theme::OVERLAY2, crate::features::battery::level_color)
+    level.map_or(
+        crate::theme::OVERLAY2,
+        crate::features::battery::level_color,
+    )
 }

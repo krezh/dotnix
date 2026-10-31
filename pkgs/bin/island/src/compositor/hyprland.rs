@@ -46,12 +46,14 @@ impl RawMonitor {
 
 #[derive(Deserialize)]
 struct RawWorkspaceRef {
-    id: i64,
+    #[serde(default)]
+    id: Option<i64>,
 }
 
 #[derive(Deserialize)]
 struct RawWorkspace {
-    id: i64,
+    #[serde(default)]
+    id: Option<i64>,
     monitor: String,
     windows: u32,
     #[serde(default)]
@@ -131,7 +133,7 @@ fn snapshot(urgent: &BTreeSet<i64>) -> io::Result<Snapshot> {
         query::<Vec<RawClient>>("j/clients")?
             .into_iter()
             .filter(|client| client.fullscreen & 2 != 0)
-            .map(|client| client.workspace.id)
+            .filter_map(|client| client.workspace.id)
             .collect()
     } else {
         BTreeSet::new()
@@ -141,23 +143,29 @@ fn snapshot(urgent: &BTreeSet<i64>) -> io::Result<Snapshot> {
         .map(|monitor| {
             let mut workspaces: Vec<Workspace> = raw_workspaces
                 .iter()
-                .filter(|workspace| workspace.monitor == monitor.name && workspace.id > 0)
-                .map(|workspace| Workspace {
-                    id: workspace.id,
-                    occupied: workspace.windows > 0,
-                    urgent: urgent.contains(&workspace.id),
+                .filter(|workspace| workspace.monitor == monitor.name)
+                .filter_map(|workspace| {
+                    let id = workspace.id?;
+                    if id <= 0 {
+                        return None;
+                    }
+                    Some(Workspace {
+                        id,
+                        occupied: workspace.windows > 0,
+                        urgent: urgent.contains(&id),
+                    })
                 })
                 .collect();
             workspaces.sort_by_key(|workspace| workspace.id);
             let active = monitor.active_workspace.id;
             Monitor {
-                fullscreen: fullscreen.contains(&active),
+                fullscreen: active.is_some_and(|active| fullscreen.contains(&active)),
                 x: monitor.x,
                 y: monitor.y,
                 width: monitor.logical_width(),
                 name: monitor.name,
                 focused: monitor.focused,
-                active: Some(active),
+                active,
                 workspaces,
             }
         })
@@ -171,11 +179,11 @@ fn workspace_of(address: &str) -> Option<i64> {
     clients
         .into_iter()
         .find(|client| client.address.trim_start_matches("0x") == address)
-        .map(|client| client.workspace.id)
+        .and_then(|client| client.workspace.id)
 }
 
 fn affects_workspaces(event: &str) -> bool {
-    const EVENTS: [&str; 14] = [
+    const EVENTS: [&str; 15] = [
         "fullscreen",
         "workspace",
         "workspacev2",
@@ -185,6 +193,7 @@ fn affects_workspaces(event: &str) -> bool {
         "destroyworkspacev2",
         "moveworkspacev2",
         "renameworkspace",
+        "changeworkspaceid",
         "monitoraddedv2",
         "monitorremovedv2",
         "openwindow",

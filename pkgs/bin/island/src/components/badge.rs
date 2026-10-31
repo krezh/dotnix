@@ -244,14 +244,10 @@ pub fn mark(mark: &Mark, size: f32, fill: f32) -> AnyElement {
         Mark::Pulsing(inner) => div()
             .flex_none()
             .child(self::mark(inner, size, fill))
-            .with_animation(
-                "badge-pulse",
-                Animation::new(PULSE).repeat(),
-                |mark, t| {
-                    let wave = 0.5 - 0.5 * (t * std::f32::consts::TAU).cos();
-                    mark.opacity(1.0 - (1.0 - PULSE_LOW) * wave)
-                },
-            )
+            .with_animation("badge-pulse", Animation::new(PULSE).repeat(), |mark, t| {
+                let wave = 0.5 - 0.5 * (t * std::f32::consts::TAU).cos();
+                mark.opacity(1.0 - (1.0 - PULSE_LOW) * wave)
+            })
             .into_any_element(),
     }
 }

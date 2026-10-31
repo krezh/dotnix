@@ -98,7 +98,7 @@ let
 
   # curve = mkCurves { … } — one `hl.curve(name, spec)` per entry.
   #   bezier.<name> = "x1, y1, x2, y2"
-  #   spring.<name> = "mass, stiffness, dampening"
+  #   spring.<name> = "mass, stiffness, damping"
   mkCurves =
     {
       bezier ? { },
@@ -133,7 +133,7 @@ let
         type = "spring";
         mass = elemAt n 0;
         stiffness = elemAt n 1;
-        dampening = elemAt n 2;
+        damping = elemAt n 2;
       })) spring;
     in
     lib.mapAttrsToList (

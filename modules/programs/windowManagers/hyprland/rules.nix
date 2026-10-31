@@ -86,6 +86,7 @@
                   idle_inhibit = "always";
                   opacity = "1.0 override";
                   no_blur = true;
+                  no_wobble = true;
                   render_unfocused = true;
                 };
               };

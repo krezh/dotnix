@@ -6,6 +6,7 @@ use std::{
     time::Duration,
 };
 
+use super::state::{Endpoint, Entry, PagedMessages, RawApp, RawMessage};
 use serde::de::DeserializeOwned;
 use ureq::{
     Agent, Timeout,
@@ -18,7 +19,6 @@ use ureq::{
         },
     },
 };
-use super::state::{Endpoint, Entry, PagedMessages, RawApp, RawMessage};
 
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(15);
 const READ_TIMEOUT: Duration = Duration::from_secs(90);

@@ -48,21 +48,17 @@
           profiles.default = {
             enableExtensionUpdateCheck = false;
             enableUpdateCheck = false;
-            extensions =
-              pkgs.nix4vscode.forVscodeExtVersion
-                {
-                  # Prebuilt @parcel/watcher .node has no RPATH; libstdc++ only resolves when
-                  # LD_LIBRARY_PATH happens to carry gcc-lib. Musl variants can't be satisfied.
-                  "jj-view.jj-view" = {
-                    nativeBuildInputs = [ pkgs.autoPatchelfHook ];
-                    buildInputs = [ pkgs.stdenv.cc.cc.lib ];
-                    postPatch = ''
-                      rm -rf dist/node_modules/@parcel/watcher-*-musl
-                    '';
-                  };
-                }
-                config.programs.vscodium.package.version
-                config.vscodium.extensionIds;
+            extensions = pkgs.nix4vscode.forVscodeExtVersion {
+              # Prebuilt @parcel/watcher .node has no RPATH; libstdc++ only resolves when
+              # LD_LIBRARY_PATH happens to carry gcc-lib. Musl variants can't be satisfied.
+              "jj-view.jj-view" = {
+                nativeBuildInputs = [ pkgs.autoPatchelfHook ];
+                buildInputs = [ pkgs.stdenv.cc.cc.lib ];
+                postPatch = ''
+                  rm -rf dist/node_modules/@parcel/watcher-*-musl
+                '';
+              };
+            } config.programs.vscodium.package.version config.vscodium.extensionIds;
             userSettings = {
               telemetry.telemetryLevel = "off";
               update.mode = "none";

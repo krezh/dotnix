@@ -16,8 +16,8 @@ use crate::{
     },
     shape,
     theme::{
-        ACCENT, ACCENT_TINT_ALPHA, BASE, CARD_ALPHA, CONTROL_ALPHA, ON_ACCENT, OVERLAY2,
-        SUBTEXT1, SURFACE1, TEXT, TINT, TRACK_ALPHA, with_alpha,
+        ACCENT, ACCENT_TINT_ALPHA, BASE, CARD_ALPHA, CONTROL_ALPHA, ON_ACCENT, OVERLAY2, SUBTEXT1,
+        SURFACE1, TEXT, TINT, TRACK_ALPHA, with_alpha,
     },
     ui::{self, CONTROL_H, HEADER_H, Radius, SMALL_SIZE},
 };
@@ -478,19 +478,16 @@ pub fn strip_icon(
         };
         let lit = move |scale: f32| {
             let layer = layer.clone();
-            div()
-                .relative()
-                .size(px(STRIP_GLYPH))
-                .with_spring(
-                    glyph_id.clone(),
-                    SpringAnimation::new(FILL_SPRING).to(active),
-                    move |glyph, phase| {
-                        let lit_by = phase.0.clamp(0.0, 1.0);
-                        glyph
-                            .child(layer(SUBTEXT1, scale).opacity(1.0 - lit_by))
-                            .child(layer(tint, scale).opacity(lit_by))
-                    },
-                )
+            div().relative().size(px(STRIP_GLYPH)).with_spring(
+                glyph_id.clone(),
+                SpringAnimation::new(FILL_SPRING).to(active),
+                move |glyph, phase| {
+                    let lit_by = phase.0.clamp(0.0, 1.0);
+                    glyph
+                        .child(layer(SUBTEXT1, scale).opacity(1.0 - lit_by))
+                        .child(layer(tint, scale).opacity(lit_by))
+                },
+            )
         };
         if active {
             div()
@@ -508,17 +505,14 @@ pub fn strip_icon(
         .flex_none()
         .w(px(STRIP_ICON_W))
         .h(px(STRIP_ICON_H))
-        .child(
-            div()
-                .absolute()
-                .top_0()
-                .left_0()
-                .size_full()
-                .with_spring(fill_id, SpringAnimation::new(FILL_SPRING).to(active), move |fill, phase| {
-                    fill.opacity(phase.0.clamp(0.0, 1.0))
-                        .child(ui::shape(Radius::Row, Some(on)))
-                }),
-        )
+        .child(div().absolute().top_0().left_0().size_full().with_spring(
+            fill_id,
+            SpringAnimation::new(FILL_SPRING).to(active),
+            move |fill, phase| {
+                fill.opacity(phase.0.clamp(0.0, 1.0))
+                    .child(ui::shape(Radius::Row, Some(on)))
+            },
+        ))
         .children(glyph)
 }
 

@@ -213,9 +213,7 @@ impl Entry {
         let received = self
             .timestamp
             .and_then(|at| u64::try_from(at).ok())
-            .map_or_else(SystemTime::now, |at| {
-                UNIX_EPOCH + Duration::from_secs(at)
-            });
+            .map_or_else(SystemTime::now, |at| UNIX_EPOCH + Duration::from_secs(at));
         Notice {
             origin: Origin {
                 feature: Gotify::NAME.to_owned(),

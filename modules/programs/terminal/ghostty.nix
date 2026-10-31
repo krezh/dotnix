@@ -11,10 +11,12 @@
           font-family = config.var.fonts.mono;
           font-size = config.var.fonts.codeSize;
           background-opacity = config.var.opacity;
+          background-blur = true;
           # font-style = "Bold";
           # font-thicken = true;
-          copy-on-select = "clipboard";
+          copy-on-select = "both";
           right-click-action = "paste";
+          middle-click-action = "primary-paste";
           auto-update = "off";
           gtk-single-instance = true;
           quit-after-last-window-closed = false;
@@ -27,19 +29,14 @@
           app-notifications = "no-clipboard-copy";
           resize-overlay = "never";
           scrollbar = "never";
+          drag-handle = "never";
+          gtk-horizontal-tab-scroll = false;
           window-padding-x = 5;
           window-padding-y = 5;
           confirm-close-surface = false;
         };
       };
 
-      xdg.configFile = {
-        "systemd/user/app-com.mitchellh.ghostty.service.d/10-type.conf".text = ''
-          [Service]
-          Type=dbus
-        '';
-        "systemd/user/graphical-session.target.wants/app-com.mitchellh.ghostty.service".source =
-          "${config.programs.ghostty.package}/share/systemd/user/app-com.mitchellh.ghostty.service";
-      };
+      programs.fish.shellAliases.ssh = "ghostty +ssh --";
     };
 }

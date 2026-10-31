@@ -140,7 +140,7 @@
               desc = "Mail Client";
             };
             "${mainModShift} + R" = {
-              rule = exec "hyprctl reload && hyprctl notify 5 2000 'rgb(89b4fa)' 'Config Reloaded'";
+              rule = mkInline "hl.dsp.reload_config()";
               desc = "Reload Hyprland config";
             };
             "${mainMod} + A" = {

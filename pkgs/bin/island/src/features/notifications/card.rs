@@ -654,7 +654,10 @@ pub fn earlier(list: &EarlierList, looks: Vec<Option<Look>>) -> Block {
             .iter()
             .map(|row| 1.0 - row.out())
             .fold(0.0, f32::max);
-        (place(0.0, EMPTY_H, 1.0 - outgoing), Block::note("Nothing earlier"))
+        (
+            place(0.0, EMPTY_H, 1.0 - outgoing),
+            Block::note("Nothing earlier"),
+        )
     });
     let mut looks: Vec<Option<Look>> = looks;
     let drawn = list.drawn_y();

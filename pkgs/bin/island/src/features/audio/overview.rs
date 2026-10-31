@@ -14,7 +14,7 @@ use crate::{
     features::{PanelCx, headset},
     island::Mode,
     panel::{
-        self, Block, Choice, Dropdown, Item, Lead, Mark, Slider, SliderLabel, ActionTile, Trail,
+        self, ActionTile, Block, Choice, Dropdown, Item, Lead, Mark, Slider, SliderLabel, Trail,
     },
     theme::{CRITICAL, MAUVE, OVERLAY2, PINK, SUBTEXT1, app_color},
 };
@@ -80,7 +80,9 @@ fn picker(audio: &Audio, state: &AudioState, target: Target, p: &PanelCx<'_>) ->
     }
     let headset = headset::latest().map(|battery| battery.name);
     let names: Vec<String> = devices.iter().map(|device| device.name.clone()).collect();
-    let current = state.default_device(target).map(|device| device.name.clone());
+    let current = state
+        .default_device(target)
+        .map(|device| device.name.clone());
     let side = match target {
         Target::Output => "output",
         Target::Input => "input",

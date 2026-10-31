@@ -26,12 +26,12 @@ fn a_monitor_is_found_by_its_edid_base_block() {
 fn the_model_name_comes_from_its_edid_descriptor() {
     let mut edid = vec![0xAA; 256];
     edid[72..90].copy_from_slice(&[
-        0, 0, 0, 0xFF, 0, b'H', b'S', b'3', b'P', b'7', b'0', b'1', b'1', b'0', b'5', b'\n',
-        b' ', b' ',
+        0, 0, 0, 0xFF, 0, b'H', b'S', b'3', b'P', b'7', b'0', b'1', b'1', b'0', b'5', b'\n', b' ',
+        b' ',
     ]);
     edid[90..108].copy_from_slice(&[
-        0, 0, 0, 0xFC, 0, b'S', b'y', b'n', b'c', b'M', b'a', b's', b't', b'e', b'r', b'\n',
-        b' ', b' ',
+        0, 0, 0, 0xFC, 0, b'S', b'y', b'n', b'c', b'M', b'a', b's', b't', b'e', b'r', b'\n', b' ',
+        b' ',
     ]);
     assert_eq!(model_name(&edid).as_deref(), Some("SyncMaster"));
     edid[93] = 0xFE;

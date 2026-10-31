@@ -118,7 +118,10 @@ fn a_posted_one_is_kept_once_however_often_it_is_posted() {
         .iter()
         .find(|kept| kept.notification.summary == "again")
         .unwrap();
-    assert_eq!(again.notification.posted, posted(2, 9, "41", "again").notification.posted);
+    assert_eq!(
+        again.notification.posted,
+        posted(2, 9, "41", "again").notification.posted
+    );
 }
 
 #[test]

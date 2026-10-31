@@ -15,9 +15,8 @@
           export CLAUDE_CODE_THRIFTY_SONIC=0
           export PATH="${pkgs.nodejs-slim}/bin:${pkgs.infisical}/bin:$PATH"
           ${builtins.readFile ../lib/memini-env.sh}
-          if [ -r "${config.sops.secrets."opentodo/token".path}" ]; then
-            export OPENTODO_API_TOKEN="$(cat "${config.sops.secrets."opentodo/token".path}")"
-          fi
+
+          export OPENTODO_API_TOKEN="$(cat "${config.sops.secrets."opentodo/token".path}")"
           exec ${lib.getExe llm-agents-nix.claude-code} "$@"
         ''
         // {
@@ -31,15 +30,11 @@
       programs.claude-code = {
         enable = true;
         package = claudeWrapped;
+        configDir = "${config.xdg.configHome}/claude";
 
         context = ''
           ${builtins.readFile ../lib/common-context.md}
-          # Memory
-          - Never read from or write to the built-in file-based auto-memory system (`~/.claude/projects/*/memory/`, `MEMORY.md`).
-            Use the `memini` MCP plugin for all memory operations instead.
-            If memini is unavailable, proceed without persistent memory rather than falling back to the file-based system.
         '';
-        configDir = "${config.xdg.configHome}/claude";
 
         settings = {
           theme = "dark";

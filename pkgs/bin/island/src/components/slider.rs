@@ -180,9 +180,10 @@ fn build(
         move |fill, level| {
             let level = level.clamp(0.0, 1.0);
             // The dark copy spans the whole track, cut off where the fill ends.
-            let row = dark.as_ref().filter(|_| level > 0.0).map(|inside| {
-                label_row(&dark_id, inside, ON_ACCENT).w(relative(1.0 / level))
-            });
+            let row = dark
+                .as_ref()
+                .filter(|_| level > 0.0)
+                .map(|inside| label_row(&dark_id, inside, ON_ACCENT).w(relative(1.0 / level)));
             fill.w(relative(level))
                 .overflow_hidden()
                 .child(ui::shape(radius, Some(fill_color.into())))

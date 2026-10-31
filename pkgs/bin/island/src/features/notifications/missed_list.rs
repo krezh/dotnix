@@ -332,7 +332,11 @@ impl MissedList {
         let mut left = 0;
         for index in 0..self.rows.len() {
             let row = &mut self.rows[index];
-            if row.leaving || placed.iter().any(|place| place.body.key() == row.body.key()) {
+            if row.leaving
+                || placed
+                    .iter()
+                    .any(|place| place.body.key() == row.body.key())
+            {
                 continue;
             }
             row.leaving = true;
@@ -413,7 +417,11 @@ impl MissedList {
                         clip: place.clip,
                         peeks: place.peeks,
                         peek: Spring::new(
-                            if place.peeks > 0 && !animate { 1.0 } else { 0.0 },
+                            if place.peeks > 0 && !animate {
+                                1.0
+                            } else {
+                                0.0
+                            },
                             motion,
                             0.002,
                         ),
@@ -464,13 +472,11 @@ impl MissedList {
     }
 
     pub fn is_settled(&self) -> bool {
-        self.rows
-            .iter()
-            .all(|row| {
-                row.y.is_settled()
-                    && row.fold.is_settled()
-                    && row.alpha.is_settled()
-                    && row.peek.is_settled()
-            })
+        self.rows.iter().all(|row| {
+            row.y.is_settled()
+                && row.fold.is_settled()
+                && row.alpha.is_settled()
+                && row.peek.is_settled()
+        })
     }
 }

@@ -58,7 +58,10 @@ pub struct Trouble {
 pub enum Post {
     Show(Notice),
     /// Every one the feature still has; the others go.
-    Keep { feature: String, keys: Vec<String> },
+    Keep {
+        feature: String,
+        keys: Vec<String>,
+    },
     /// Shown above the list, with a way to retry; `None` once it can deliver again.
     Trouble {
         feature: String,

@@ -90,9 +90,8 @@ impl Feature for Notifications {
                 state: Some(if state.dnd { "On" } else { "Off" }.into()),
                 color: FLAMINGO,
                 armed: state.dnd,
-                on_click: p.call(|notifications: &Notifications| {
-                    notifications.set_dnd(Switch::Toggle)
-                }),
+                on_click: p
+                    .call(|notifications: &Notifications| notifications.set_dnd(Switch::Toggle)),
             }],
             ..Dashboard::default()
         }

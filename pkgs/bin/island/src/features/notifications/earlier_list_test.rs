@@ -53,7 +53,11 @@ fn a_dismissed_one_slides_out_before_the_room_it_took_closes() {
     list.sync(vec![kept(2, 0)], true, Instant::now());
     let leaving = list.rows().iter().find(|row| row.leaving).unwrap();
     assert_eq!(leaving.out(), 0.0, "it starts where it was");
-    assert_eq!(list.visible_height(), full, "keeping its room while it slides out");
+    assert_eq!(
+        list.visible_height(),
+        full,
+        "keeping its room while it slides out"
+    );
     settle(&mut list);
     assert!(list.rows().iter().all(|row| !row.leaving));
     assert!(list.visible_height() < full);

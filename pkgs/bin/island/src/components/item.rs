@@ -243,9 +243,10 @@ fn trail_element(
                     .text_color(rgb(color))
                     .with_spring(
                         SharedString::from(format!("{id}-turn")),
-                        SpringAnimation::new(TURN_SPRING)
-                            .to(if trail.turned { PI } else { 0.0 }),
-                        |glyph, angle| glyph.with_transformation(Transformation::rotate(radians(angle))),
+                        SpringAnimation::new(TURN_SPRING).to(if trail.turned { PI } else { 0.0 }),
+                        |glyph, angle| {
+                            glyph.with_transformation(Transformation::rotate(radians(angle)))
+                        },
                     )
             });
             let on_click = trail.on_click;
@@ -265,9 +266,9 @@ fn trail_element(
                 })
                 .children(glyph)
                 .children(
-                    trail
-                        .label
-                        .map(|label| motion::text(SharedString::from(format!("{id}-label")), label)),
+                    trail.label.map(|label| {
+                        motion::text(SharedString::from(format!("{id}-label")), label)
+                    }),
                 )
                 .on_click(cx.listener(move |this, _, _, cx| {
                     cx.stop_propagation();

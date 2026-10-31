@@ -71,7 +71,12 @@ fn settle(rows: &mut MissedList) {
 fn an_apps_cards_fold_under_its_heading_until_opened() {
     let now = Instant::now();
     let mut rows = MissedList::default();
-    let items = [from("Sonarr", 1), from("Firefox", 2), from("Sonarr", 3), from("Sonarr", 4)];
+    let items = [
+        from("Sonarr", 1),
+        from("Firefox", 2),
+        from("Sonarr", 3),
+        from("Sonarr", 4),
+    ];
     rows.sync(&items, false, now);
     let order: Vec<_> = rows
         .rows()
@@ -81,7 +86,11 @@ fn an_apps_cards_fold_under_its_heading_until_opened() {
             Body::Card(card) => card.id.to_string(),
         })
         .collect();
-    assert_eq!(order, ["Sonarr (3)", "1", "3", "4", "2"], "grouped, newest app first");
+    assert_eq!(
+        order,
+        ["Sonarr (3)", "1", "3", "4", "2"],
+        "grouped, newest app first"
+    );
     let depths: Vec<_> = rows.rows().iter().map(|row| row.depth).collect();
     assert_eq!(depths, [0, 0, 1, 2, 0]);
     let front = rows.rows()[1].y.target();
@@ -91,7 +100,11 @@ fn an_apps_cards_fold_under_its_heading_until_opened() {
             .all(|row| row.y.target() == front && row.alpha.target() == 0.0),
         "tucked out of sight behind the front card"
     );
-    assert_eq!(rows.rows()[1].peeks, 2, "two edges show below the front card");
+    assert_eq!(
+        rows.rows()[1].peeks,
+        2,
+        "two edges show below the front card"
+    );
     assert_eq!(rows.rows()[1].peek.target(), 1.0);
     let folded = rows.visible_height();
     let shown = |rows: &MissedList| {
@@ -106,7 +119,11 @@ fn an_apps_cards_fold_under_its_heading_until_opened() {
 
     rows.toggle("Sonarr");
     settle(&mut rows);
-    assert!(rows.rows().iter().all(|row| row.depth == 0 && row.clip.is_none()));
+    assert!(
+        rows.rows()
+            .iter()
+            .all(|row| row.depth == 0 && row.clip.is_none())
+    );
     assert!(rows.rows().iter().all(|row| row.alpha.target() == 1.0));
     assert_eq!(shown(&rows), 0, "no edges once spread out");
     assert!(rows.visible_height() > folded + 2.0 * missed_height(&from("Sonarr", 3), 1) - 1.0);
@@ -139,13 +156,21 @@ fn a_group_keeps_its_place_until_something_new_arrives_for_another() {
     );
     assert_eq!(apps(&rows), ["Radarr", "Firefox"]);
     rows.sync(&[from("Firefox", 4), from("Radarr", 3)], true, now);
-    assert_eq!(apps(&rows), ["Radarr", "Firefox"], "dismissing its newest moves nothing");
+    assert_eq!(
+        apps(&rows),
+        ["Radarr", "Firefox"],
+        "dismissing its newest moves nothing"
+    );
     rows.sync(
         &[from("Firefox", 6), from("Firefox", 4), from("Radarr", 3)],
         true,
         now,
     );
-    assert_eq!(apps(&rows), ["Firefox", "Radarr"], "a new arrival brings its group up");
+    assert_eq!(
+        apps(&rows),
+        ["Firefox", "Radarr"],
+        "a new arrival brings its group up"
+    );
 }
 
 #[test]
@@ -176,9 +201,21 @@ fn a_line_opening_over_the_list_moves_the_list_down_as_it_opens() {
             .unwrap();
         (card, placed.visible.unwrap(), placed.blocks.len())
     };
-    let shut = top(opening(layout_block(&rows), vec![Block::note("Trouble")], 0.0));
-    let half = top(opening(layout_block(&rows), vec![Block::note("Trouble")], 0.5));
-    let open = top(opening(layout_block(&rows), vec![Block::note("Trouble")], 1.0));
+    let shut = top(opening(
+        layout_block(&rows),
+        vec![Block::note("Trouble")],
+        0.0,
+    ));
+    let half = top(opening(
+        layout_block(&rows),
+        vec![Block::note("Trouble")],
+        0.5,
+    ));
+    let open = top(opening(
+        layout_block(&rows),
+        vec![Block::note("Trouble")],
+        1.0,
+    ));
     assert_eq!(shut.2 + 1, open.2, "the line joins the list once opening");
     assert!(shut.0 < half.0 && half.0 < open.0);
     assert!(shut.1 < half.1 && half.1 < open.1);

@@ -462,7 +462,14 @@ pub fn dropdown(
             .text_size(px(SMALL_SIZE))
             .font_weight(FontWeight::SEMIBOLD)
             .text_color(rgb(SUBTEXT1))
-            .child(div().absolute().top_0().left_0().size_full().child(ui::strip()))
+            .child(
+                div()
+                    .absolute()
+                    .top_0()
+                    .left_0()
+                    .size_full()
+                    .child(ui::strip()),
+            )
             .child(div().relative().child(current.label.clone())),
         None => button::chip(
             dropdown.id.clone(),

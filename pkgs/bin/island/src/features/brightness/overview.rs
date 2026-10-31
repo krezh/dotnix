@@ -27,9 +27,9 @@ pub fn cards(levels: &Levels, p: &PanelCx<'_>) -> Vec<Block> {
                 value: level,
                 color: YELLOW,
                 signal: None,
-                on_change: Some(p.slider(move |brightness: &Brightness, value| {
-                    brightness.set(&name, value)
-                })),
+                on_change: Some(
+                    p.slider(move |brightness: &Brightness, value| brightness.set(&name, value)),
+                ),
                 label: Some(SliderLabel {
                     glyph: p.glyph("brightness"),
                     label: label.into(),

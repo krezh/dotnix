@@ -67,7 +67,10 @@ pub fn meters(
     tips: &Tooltips,
     cx: &mut Context<Island>,
 ) -> AnyElement {
-    if meters.iter().all(|meter| matches!(meter.shape, Shape::Ring)) {
+    if meters
+        .iter()
+        .all(|meter| matches!(meter.shape, Shape::Ring))
+    {
         return div()
             .flex()
             .flex_wrap()
@@ -281,7 +284,7 @@ fn history_meter(meter: Meter, phase: f32, tips: &Tooltips) -> AnyElement {
         return div().into_any_element();
     };
     let history = history.map(|series| {
-                div().h(px(HISTORY_H)).mt(px(4.0)).child(chart::chart(
+        div().h(px(HISTORY_H)).mt(px(4.0)).child(chart::chart(
             SharedString::from(format!("{}-history", meter.id)),
             vec![series],
             card::SLOTS,

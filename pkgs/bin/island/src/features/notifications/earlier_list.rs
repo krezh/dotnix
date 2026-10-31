@@ -192,7 +192,11 @@ impl EarlierList {
         let mut left = 0;
         for index in 0..self.rows.len() {
             let row = &mut self.rows[index];
-            if row.leaving || placed.iter().any(|(entry, ..)| entry.key() == row.entry.key()) {
+            if row.leaving
+                || placed
+                    .iter()
+                    .any(|(entry, ..)| entry.key() == row.entry.key())
+            {
                 continue;
             }
             row.leaving = true;

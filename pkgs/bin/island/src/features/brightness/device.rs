@@ -58,12 +58,10 @@ impl Screen {
             Output::Backlight(device) => set_backlight(device, level),
             Output::Ddc { display, maximum } => {
                 let target = (level.clamp(0.0, 1.0) * f32::from(*maximum)).round() as u16;
-                display
-                    .set_brightness(target)
-                    .or_else(|| {
-                        warn!(screen = %self.name, "cannot set the brightness over DDC/CI");
-                        None
-                    })
+                display.set_brightness(target).or_else(|| {
+                    warn!(screen = %self.name, "cannot set the brightness over DDC/CI");
+                    None
+                })
             }
         }
     }
@@ -311,7 +309,8 @@ impl DdcDevice {
             msgs: write_msg.as_mut_ptr(),
             nmsgs: 1,
         };
-        let res = (unsafe { libc::ioctl(self.file.as_raw_fd(), I2C_RDWR, &mut write_data) } >= 0).then_some(());
+        let res = (unsafe { libc::ioctl(self.file.as_raw_fd(), I2C_RDWR, &mut write_data) } >= 0)
+            .then_some(());
         self.last_command = Some(Instant::now());
         res
     }

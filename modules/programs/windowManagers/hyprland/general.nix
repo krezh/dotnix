@@ -70,6 +70,7 @@
             decoration = {
               rounding = config.var.rounding;
               rounding_power = 4;
+              wobble.enabled = true;
               blur = {
                 enabled = true;
                 passes = 4;
@@ -132,7 +133,6 @@
               force_split = 0;
               preserve_split = true;
               default_split_ratio = 1.0;
-              special_scale_factor = 0.8;
               split_width_multiplier = 1.0;
               use_active_for_splits = true;
             };
@@ -147,7 +147,7 @@
           };
 
           # bezier.<name> = "x1, y1, x2, y2"
-          # spring.<name> = "mass, stiffness, dampening"
+          # spring.<name> = "mass, stiffness, damping"
           curve = mkCurves {
             bezier = {
               md3_decel = "0.05, 0.7, 0.1, 1";

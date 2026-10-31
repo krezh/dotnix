@@ -443,8 +443,8 @@ pub(super) fn blocks(state: &State, view: &View, p: &PanelCx<'_>) -> Vec<Block> 
         .as_deref()
         .and_then(|id| sessions.iter().find(|session| session.id == id))
         .unwrap_or(first);
-    vec![Block::Columns(Split::Scrolling, vec![
-        list(&sessions, &shown.id, p),
-        detail(shown, state, view, p),
-    ])]
+    vec![Block::Columns(
+        Split::Scrolling,
+        vec![list(&sessions, &shown.id, p), detail(shown, state, view, p)],
+    )]
 }

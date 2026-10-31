@@ -95,9 +95,7 @@ impl Notifications {
                 let id = self
                     .posted_id(&notice.origin.feature, &notice.origin.key)
                     .unwrap_or_else(next_id);
-                self.posted
-                    .borrow_mut()
-                    .insert(id, notice.origin.clone());
+                self.posted.borrow_mut().insert(id, notice.origin.clone());
                 let notification = from_notice(id, notice);
                 if quiet {
                     self.show_quietly(notification, islands);

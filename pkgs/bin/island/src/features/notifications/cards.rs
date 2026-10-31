@@ -176,7 +176,10 @@ impl Local for Cards {
 pub(super) fn sync(state: &State, cards: &mut Cards, island: &IslandInfo<'_>, animate: bool) {
     cards.all = state.missed.clone();
     if let Filter::Source(source) = &cards.filter
-        && !state.missed.iter().any(|item| item.source() == Some(source))
+        && !state
+            .missed
+            .iter()
+            .any(|item| item.source() == Some(source))
         && !state
             .history
             .iter()

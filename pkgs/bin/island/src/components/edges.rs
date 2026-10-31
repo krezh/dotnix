@@ -21,7 +21,11 @@ pub fn edges(scrolling: Stateful<Div>, scroll: &ScrollHandle, glass: Hsla) -> An
     let clear = Hsla { a: 0.0, ..glass };
     // Always drawn, only its strength changing, so it never blinks in and out at an end.
     let edge = |shown: f32, from_top: bool| {
-        let (start, end) = if from_top { (glass, clear) } else { (clear, glass) };
+        let (start, end) = if from_top {
+            (glass, clear)
+        } else {
+            (clear, glass)
+        };
         div()
             .absolute()
             .left_0()

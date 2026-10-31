@@ -177,7 +177,10 @@ impl Server {
         );
         state.messages = self.messages.len();
         let gone = known.keys().any(|id| !self.messages.contains_key(id));
-        for entry in entries.iter().filter(|entry| !known.contains_key(&entry.id)) {
+        for entry in entries
+            .iter()
+            .filter(|entry| !known.contains_key(&entry.id))
+        {
             notice::post(Post::Show(entry.notice(true)));
         }
         if gone {

@@ -8,8 +8,8 @@ use std::{
 };
 
 use gpui::{
-    AnyElement, App, Context, Div, FontWeight, Render, SharedString, Stateful, Task, WeakEntity,
-    Rgba, Window, div, prelude::*, px, rgb, rgba,
+    AnyElement, App, Context, Div, FontWeight, Render, Rgba, SharedString, Stateful, Task,
+    WeakEntity, Window, div, prelude::*, px, rgb, rgba,
 };
 
 use crate::{
@@ -76,7 +76,10 @@ struct Tab {
 /// The dashboard's views follow one another where its tab goes, the overview first.
 fn tab_list() -> &'static [Tab] {
     static TABS: LazyLock<Vec<Tab>> = LazyLock::new(|| {
-        let mut views = vec![(Panel::Dashboard, "Dashboard", 0), (Panel::System, "System", 2)];
+        let mut views = vec![
+            (Panel::Dashboard, "Dashboard", 0),
+            (Panel::System, "System", 2),
+        ];
         views.extend(
             features::dashboard_tabs()
                 .into_iter()
@@ -87,11 +90,27 @@ fn tab_list() -> &'static [Tab] {
             .into_iter()
             .map(|(name, title, order)| {
                 let panel = Panel::Feature(name);
-                (order, 0, Tab { panel, title, view: false })
+                (
+                    order,
+                    0,
+                    Tab {
+                        panel,
+                        title,
+                        view: false,
+                    },
+                )
             })
             .collect();
         tabs.extend(views.into_iter().map(|(panel, title, order)| {
-            (DASHBOARD_ORDER, order, Tab { panel, title, view: true })
+            (
+                DASHBOARD_ORDER,
+                order,
+                Tab {
+                    panel,
+                    title,
+                    view: true,
+                },
+            )
         }));
         tabs.sort_by_key(|(order, within, _)| (*order, *within));
         tabs.into_iter().map(|(_, _, tab)| tab).collect()
@@ -171,7 +190,13 @@ impl TabStrip {
     /// Where each tab starts and how wide it is, and the strip's width, with the springs where
     /// they are now or, with `settled`, where they are going.
     fn layout(&self, settled: bool) -> (Vec<(f32, f32)>, f32) {
-        let at = |spring: &Spring| if settled { spring.target() } else { spring.value() };
+        let at = |spring: &Spring| {
+            if settled {
+                spring.target()
+            } else {
+                spring.value()
+            }
+        };
         let fan = at(&self.fan).clamp(0.0, 1.0);
         let mut x = 0.0;
         let mut places = Vec::new();
@@ -731,57 +756,65 @@ pub fn tabs(
         .w(px(strip.pill_w.value().max(0.0)))
         .h(px(HEADER_H))
         .child(ui::shape(Radius::Row, Some(picked.into())));
-    let tabs = tab_list().iter().zip(places).enumerate().map(|(index, (tab, (x, w)))| {
-        let selected = strip.picked == tab.panel;
-        let kind = tab.panel;
-        // The Dashboard tab goes back to the view last open, and from a view to the overview.
-        let target = if kind == Panel::Dashboard && !in_views {
-            strip.last_view
-        } else {
-            kind
-        };
-        let id = SharedString::from(format!("tab-{}", kind.name()));
-        let color = match (selected, tab.view) {
-            (true, true) => ON_ACCENT,
-            (true, false) => ACCENT,
-            (false, _) => OVERLAY2,
-        };
-        let label = strip.labels[index].value().clamp(0.0, 1.0);
-        let shown = if tab.view && kind != Panel::Dashboard { fan } else { 1.0 };
-        let content = match glyphs.get(&id) {
-            Some(path) => div()
-                .flex_none()
-                .child(icon::glyph(path, TAB_GLYPH, color))
-                .into_any_element(),
-            None => div().flex_none().child(tab.title).into_any_element(),
-        };
-        button::fill(id.clone(), Radius::Row, None, !selected && hover)
-            .absolute()
-            .top_0()
-            .left(px(x))
-            .w(px(w.max(0.0)))
-            .h(px(HEADER_H))
-            .overflow_hidden()
-            .justify_start()
-            .pl(px(GLYPH_X))
-            .opacity(shown)
-            .text_size(px(LABEL_SIZE))
-            .font_weight(FontWeight::SEMIBOLD)
-            .text_color(rgb(color))
-            .whitespace_nowrap()
-            .child(content)
-            .when(label > 0.01, |button| {
-                button.child(
-                    div()
-                        .flex_none()
-                        .pl(px(LABEL_GAP))
-                        .opacity(label)
-                        .child(tab.title),
-                )
-            })
-            .tip(tips, id, tab.title)
-            .on_click(cx.listener(move |this, _, _, cx| this.set_mode(Mode::Open(target), cx)))
-    });
+    let tabs = tab_list()
+        .iter()
+        .zip(places)
+        .enumerate()
+        .map(|(index, (tab, (x, w)))| {
+            let selected = strip.picked == tab.panel;
+            let kind = tab.panel;
+            // The Dashboard tab goes back to the view last open, and from a view to the overview.
+            let target = if kind == Panel::Dashboard && !in_views {
+                strip.last_view
+            } else {
+                kind
+            };
+            let id = SharedString::from(format!("tab-{}", kind.name()));
+            let color = match (selected, tab.view) {
+                (true, true) => ON_ACCENT,
+                (true, false) => ACCENT,
+                (false, _) => OVERLAY2,
+            };
+            let label = strip.labels[index].value().clamp(0.0, 1.0);
+            let shown = if tab.view && kind != Panel::Dashboard {
+                fan
+            } else {
+                1.0
+            };
+            let content = match glyphs.get(&id) {
+                Some(path) => div()
+                    .flex_none()
+                    .child(icon::glyph(path, TAB_GLYPH, color))
+                    .into_any_element(),
+                None => div().flex_none().child(tab.title).into_any_element(),
+            };
+            button::fill(id.clone(), Radius::Row, None, !selected && hover)
+                .absolute()
+                .top_0()
+                .left(px(x))
+                .w(px(w.max(0.0)))
+                .h(px(HEADER_H))
+                .overflow_hidden()
+                .justify_start()
+                .pl(px(GLYPH_X))
+                .opacity(shown)
+                .text_size(px(LABEL_SIZE))
+                .font_weight(FontWeight::SEMIBOLD)
+                .text_color(rgb(color))
+                .whitespace_nowrap()
+                .child(content)
+                .when(label > 0.01, |button| {
+                    button.child(
+                        div()
+                            .flex_none()
+                            .pl(px(LABEL_GAP))
+                            .opacity(label)
+                            .child(tab.title),
+                    )
+                })
+                .tip(tips, id, tab.title)
+                .on_click(cx.listener(move |this, _, _, cx| this.set_mode(Mode::Open(target), cx)))
+        });
     let surface = ui::strip();
     ui::base()
         .relative()

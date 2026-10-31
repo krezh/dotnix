@@ -141,31 +141,31 @@ impl Notifications {
             },
         ];
         let clear = vec![IconButton {
-                id: "notifications-clear".into(),
-                glyph: p.glyph("notifications-clear"),
-                color: None,
-                label: "Clear".into(),
-                active: false,
-                badge: None,
-                on_click: p.on_local::<Self>(move |notifications, cards| {
-                    if earlier {
-                        notifications.clear_earlier(&cards.filter);
-                    } else if cards.filter == Filter::All {
-                        notifications.clear();
-                    } else {
-                        let shown: Vec<u32> = cards
-                            .missed
-                            .rows()
-                            .iter()
-                            .filter(|row| !row.leaving)
-                            .filter_map(|row| row.notification().map(|shown| shown.id))
-                            .collect();
-                        for id in shown {
-                            notifications.dismiss_missed(id);
-                        }
+            id: "notifications-clear".into(),
+            glyph: p.glyph("notifications-clear"),
+            color: None,
+            label: "Clear".into(),
+            active: false,
+            badge: None,
+            on_click: p.on_local::<Self>(move |notifications, cards| {
+                if earlier {
+                    notifications.clear_earlier(&cards.filter);
+                } else if cards.filter == Filter::All {
+                    notifications.clear();
+                } else {
+                    let shown: Vec<u32> = cards
+                        .missed
+                        .rows()
+                        .iter()
+                        .filter(|row| !row.leaving)
+                        .filter_map(|row| row.notification().map(|shown| shown.id))
+                        .collect();
+                    for id in shown {
+                        notifications.dismiss_missed(id);
                     }
-                }),
-            }];
+                }
+            }),
+        }];
         vec![switches, clear]
     }
 
@@ -285,7 +285,8 @@ impl Notifications {
                 TabLabel {
                     label: "Now".into(),
                     glyph: None,
-                    count: (!state.missed.is_empty()).then(|| state.missed.len().to_string().into()),
+                    count: (!state.missed.is_empty())
+                        .then(|| state.missed.len().to_string().into()),
                 },
                 TabLabel {
                     label: "Earlier".into(),

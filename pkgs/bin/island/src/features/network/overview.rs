@@ -83,9 +83,8 @@ pub fn switches(state: &State, p: &PanelCx<'_>) -> Vec<ActionTile> {
             }),
             color: LAVENDER,
             armed: on,
-            on_click: p.call(move |network: &Network| {
-                network.send(Request::Vpn(name.clone(), Some(!on)))
-            }),
+            on_click: p
+                .call(move |network: &Network| network.send(Request::Vpn(name.clone(), Some(!on)))),
         });
     }
     tiles
