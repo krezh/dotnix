@@ -10,11 +10,11 @@ in
 stdenvNoCC.mkDerivation (finalAttrs: {
   pname = "opentodo-browser-extension";
   # renovate: datasource=github-releases depName=pixari/OpenTodo
-  version = "0.18.0";
+  version = "0.18.1";
 
   src = fetchurl {
     url = "https://github.com/pixari/OpenTodo/releases/download/v${finalAttrs.version}/opentodo-browser-extension-firefox.zip";
-    hash = "sha256-dLTQCZfDOeeLcLjIN3n9fP3JbelfB6NbvZrxzdFsrwQ=";
+    hash = "sha256-naeCmHm0N3XAomZ4k4qsZtal43qOL0vDsskzeQGj4OA=";
   };
 
   dontUnpack = true;
