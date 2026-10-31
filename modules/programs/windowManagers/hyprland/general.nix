@@ -39,6 +39,8 @@
 
             gestures.workspace_swipe_cancel_ratio = 0.15;
 
+            binds.client_requested_fs_uses_layout_handler = false;
+
             input = {
               kb_layout = "se";
               kb_variant = "nodeadkeys";

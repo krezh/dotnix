@@ -21,7 +21,7 @@
           gtk-single-instance = true;
           quit-after-last-window-closed = false;
           selection-clear-on-copy = true;
-          shell-integration-features = "no-cursor, sudo, title, ssh-env, ssh-terminfo, path";
+          # shell-integration-features = "no-cursor, sudo, title, ssh-env, ssh-terminfo, path";
           cursor-style = "block";
           # cursor_glide.glsl draws the cursor itself; hide ghostty's own.
           cursor-opacity = 0;

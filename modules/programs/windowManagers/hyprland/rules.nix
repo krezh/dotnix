@@ -88,6 +88,7 @@
                   no_blur = true;
                   no_wobble = true;
                   render_unfocused = true;
+                  suppress_event = "maximize";
                 };
               };
 
