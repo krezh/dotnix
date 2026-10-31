@@ -10,7 +10,7 @@ use std::{
 use gpui::{
     AnyElement, App as Gpui, Bounds, Context, Entity, EventEmitter, Global, Keystroke,
     MouseDownEvent, Pixels, Point, Render, ScrollDelta, ScrollEvent, ScrollHandle,
-    SpringConfig, StyleRefinement, Subscription, Task, WeakEntity, Window, div, layer_shell::Layer,
+    SpringConfig, StyleRefinement, Subscription, Task, WeakEntity, Window, div,
     point, prelude::*, px, size,
 };
 use tracing::debug;
@@ -45,7 +45,7 @@ use crate::{
 pub const SURFACE_W: f32 = 1240.0;
 pub const SURFACE_H: f32 = 1000.0;
 
-pub(crate) const SHAPE_SPRING: SpringConfig = SpringConfig::new(420.0, 34.0, 1.0);
+pub(crate) const SHAPE_SPRING: SpringConfig = SpringConfig::new(420.0, 41.0, 1.0);
 pub(crate) const CONTENT_IN: SpringConfig = SpringConfig::new(170.0, 26.0, 1.0);
 pub(crate) const CONTENT_OUT: SpringConfig = SpringConfig::new(1100.0, 66.0, 1.0);
 /// Critically damped and unhurried, so folding widgets glide without overshoot.
@@ -56,8 +56,6 @@ enum Fold {
     Now,
     Target,
 }
-/// How long new content waits for the island to make room before it fades in.
-pub(crate) const REVEAL_DELAY: Duration = Duration::from_millis(90);
 const MAX_STEP: Duration = Duration::from_millis(50);
 pub(crate) const CONTENT_DRIFT: f32 = 8.0;
 /// How far the drop shadow reaches past the island's sides and bottom: three sigmas of its blur,
@@ -214,7 +212,7 @@ struct AnimStats {
 
 pub struct Island {
     mode: Mode,
-    closing_panel: bool,
+    closing: Option<&'static str>,
     hovered: bool,
     fullscreen: bool,
     slots: Option<bar::Slots>,
@@ -284,8 +282,6 @@ pub struct Island {
     /// Whether this frame changes anything beyond what widgets redraw themselves, so every widget is
     /// drawn afresh instead of reused.
     live: bool,
-    /// Overlay while a panel, popup or menu is open or closing; Top for the collapsed bar.
-    layer: Layer,
     _subscriptions: Vec<Subscription>,
 }
 
@@ -335,6 +331,7 @@ impl Island {
 
         let mut island = Self {
             mode: Mode::Collapsed,
+            closing: None,
             hovered: false,
             w: shape_spring(0.0),
             h: shape_spring(COLLAPSED_H),
@@ -397,8 +394,6 @@ impl Island {
             rendered: Instant::now(),
             widgets,
             live: true,
-            closing_panel: false,
-            layer: Layer::Top,
             _subscriptions: subscriptions,
         };
         island.sync_held(cx);
@@ -476,7 +471,7 @@ impl Island {
     }
 
     fn hidden(&self) -> bool {
-        self.mode == Mode::Collapsed && self.fullscreen && self.w.value() < 1.0
+        self.mode == Mode::Collapsed && self.fullscreen
     }
 
     /// Redraws without re-fitting the bar, and not at all while the bar is not showing.
@@ -813,15 +808,21 @@ impl Island {
             return;
         }
         self.panel_watch = None;
+        if let Some(previous) = self.closing.take() {
+            self.update_local(previous, |local| local.panel_closed());
+        }
         if let Mode::Open(Panel::Feature(name)) = self.mode {
-            self.update_local(name, |local| local.panel_closed());
+            if mode == Mode::Collapsed {
+                self.closing = Some(name);
+            } else {
+                self.update_local(name, |local| local.panel_closed());
+            }
         }
         // A menu hangs from the bar, so it goes at once when the island morphs into a panel.
         if mode != Mode::Collapsed {
             self.menu = None;
         }
         debug!(from = ?self.mode, to = ?mode, "mode changed");
-        self.closing_panel = mode == Mode::Collapsed;
         self.mode = mode;
         self.sync_grab(cx);
         if let Mode::Open(Panel::Feature(name)) = mode
@@ -1146,9 +1147,13 @@ impl Island {
         self.display = display;
         self.monitor_stale = false;
         let monitor = self.island_monitor().cloned();
+        let was_fullscreen = self.fullscreen;
         self.fullscreen = monitor.as_ref().is_some_and(|monitor| monitor.fullscreen);
         if self.fullscreen {
             self.close_menu(cx);
+            if !was_fullscreen && self.mode == Mode::Collapsed {
+                self.layers[COLLAPSED_LAYER].retarget(0.0, CONTENT_OUT);
+            }
         }
         self.sync_locals(monitor.as_ref(), cx);
         if self.mode == Mode::Collapsed {
@@ -1202,10 +1207,11 @@ impl Island {
         }
     }
 
-    fn active_layer(&self) -> usize {
+    fn active_layer(&self) -> Option<usize> {
         match self.mode {
-            Mode::Collapsed => COLLAPSED_LAYER,
-            Mode::Open(kind) => kind.layer(),
+            Mode::Collapsed if self.fullscreen => None,
+            Mode::Collapsed => Some(COLLAPSED_LAYER),
+            Mode::Open(kind) => Some(kind.layer()),
         }
     }
 
@@ -1238,23 +1244,15 @@ impl Island {
     fn retarget(&mut self) {
         self.apply_shape();
 
-        let active = match self.mode {
-            Mode::Collapsed => COLLAPSED_LAYER,
-            Mode::Open(kind) => kind.layer(),
-        };
-        let reveal_at = Instant::now() + REVEAL_DELAY;
+        let active = self.active_layer();
         let fade_in = |spring: &mut Spring| {
             if spring.target() == 1.0 {
                 return;
             }
-            if spring.value() < 0.05 {
-                spring.retarget_at(1.0, CONTENT_IN, reveal_at);
-            } else {
-                spring.retarget(1.0, CONTENT_IN);
-            }
+            spring.retarget(1.0, CONTENT_IN);
         };
         for (index, layer) in self.layers.iter_mut().enumerate() {
-            if index == active {
+            if Some(index) == active {
                 fade_in(layer);
             } else {
                 layer.retarget(0.0, CONTENT_OUT);
@@ -1332,6 +1330,12 @@ impl Island {
         if self.menu.as_ref().is_some_and(Menu::is_gone) {
             self.menu = None;
         }
+        if let Some(name) = self.closing {
+            if self.layers[Panel::Feature(name).layer()].value() <= 0.001 {
+                self.closing = None;
+                self.update_local(name, |local| local.panel_closed());
+            }
+        }
 
         if let Some(anim) = &mut self.anim {
             if anim.frames > 0 {
@@ -1342,6 +1346,9 @@ impl Island {
 
         self.drifting = false;
         if self.is_settled() {
+            if let Some(name) = self.closing.take() {
+                self.update_local(name, |local| local.panel_closed());
+            }
             self.last_frame = None;
             if let Some(anim) = self.anim.take() {
                 debug!(
@@ -1398,7 +1405,7 @@ impl Island {
             Some(kind) => {
                 let before = self.panel_due.get();
                 let panel = panels::panel(self, kind, cx);
-                if index != self.active_layer() {
+                if Some(index) != self.active_layer() {
                     self.panel_due.set(before);
                 }
                 let key = self.panel_key(&panel);
@@ -1556,24 +1563,6 @@ impl Render for Island {
         // the bar can be reused.
         self.live = self.last_frame.is_some() && !self.is_drifting();
         self.step(window);
-        if self.closing_panel
-            && self.w.is_settled()
-            && self.h.is_settled()
-            && self.layers.iter().all(Spring::is_settled)
-            && self.chrome.is_settled()
-        {
-            self.closing_panel = false;
-        }
-        let layer = if self.mode != Mode::Collapsed || self.menu.is_some() || self.closing_panel {
-            Layer::Overlay
-        } else {
-            Layer::Top
-        };
-        if layer != self.layer {
-            debug!(?layer, "layer changed");
-            window.set_layer(layer);
-            self.layer = layer;
-        }
         if self.mode == Mode::Collapsed
             && !self.fullscreen
             && self.folding()
@@ -1643,7 +1632,7 @@ impl Render for Island {
                     return false;
                 }
                 self.layers[*index].value() > 0.001
-                    || *index == self.active_layer()
+                    || Some(*index) == self.active_layer()
                     || (*index != COLLAPSED_LAYER && self.frozen[*index].is_none())
             })
             .map(|index| self.layer_element(index, (w, h), place, cx))

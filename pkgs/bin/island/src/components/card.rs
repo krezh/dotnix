@@ -28,7 +28,7 @@ const INSET_GAP: f32 = 6.0;
 /// The countdown's tint: soft shapes of light blurred on the GPU, stronger toward its end, each
 /// with how far along the frame it starts and how strongly it shows. Together they rise from
 /// barely there to faint.
-const COUNTDOWN_LAYERS: [(f32, u8); 2] = [(0.0, 0x1c), (0.5, 0x18)];
+const COUNTDOWN_LAYERS: [(f32, u8); 2] = [(0.0, 0x38), (0.5, 0x30)];
 const COUNTDOWN_BLUR: f32 = 28.0;
 /// Each shape is a line through the frame's middle, of no height, its shadow spread round it to
 /// this far: a shadow is drawn only outside what casts it, so the line leaves no hole.
@@ -82,7 +82,7 @@ pub enum Motion {
     Still,
     /// Rises in the first time it is drawn.
     Appear,
-    /// Slides out, such as one just answered; its owner keeps it drawn for [`reveal::LEAVE`].
+    /// Fades out, such as one just answered; its owner keeps it drawn for [`reveal::LEAVE`].
     Leave,
 }
 
@@ -223,11 +223,15 @@ pub fn frame(
         .when_some(on_click, |frame, handler| {
             frame
                 .cursor_pointer()
-                .when(hover, |frame| frame.hover(|style| style))
+                .when(hover, |frame| {
+                    frame
+                        .hover(|style| style)
+                        .active(|style| style.opacity(0.85))
+                })
                 .on_click(cx.listener(move |this, _, _, cx| handler(this, cx)))
         })
         .when_some(on_dismiss, |frame, handler| {
-            frame.on_mouse_down(
+            frame.on_mouse_up(
                 MouseButton::Right,
                 cx.listener(move |this, _, _, cx| {
                     cx.stop_propagation();
@@ -272,8 +276,6 @@ pub enum Size {
     Full,
     /// For text to read, such as a conversation: about 85 characters a line at reading size.
     Reading,
-    /// As wide as a board of this many small tiles.
-    Tiles(usize),
 }
 
 impl Size {
@@ -285,10 +287,6 @@ impl Size {
             Size::Wide => 2.0 * Size::Medium.width() + GAP,
             Size::Full => 3.0 * WIDTH + 2.0 * GAP,
             Size::Reading => 760.0,
-            Size::Tiles(count) => {
-                let count = count.max(1) as f32;
-                count * WIDTH + (count - 1.0) * GAP
-            }
         }
     }
 }

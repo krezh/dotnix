@@ -74,7 +74,7 @@
               rounding_power = 4;
               wobble.enabled = true;
               blur = {
-                enabled = true;
+                enabled = config.var.blur;
                 passes = 4;
                 size = 7;
                 noise = 0.01;

@@ -1,5 +1,21 @@
 {
   "nodes": {
+    "agent-skills": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1791986110,
+        "narHash": "sha256-dWgpYoNkE4UsXeEDizLaWcSn3vDw4LKg8q8ojv7vH+g=",
+        "owner": "vladmdgolam",
+        "repo": "agent-skills",
+        "rev": "b66d157341c7c08023f6ef61324bd3ba3c1b6f85",
+        "type": "github"
+      },
+      "original": {
+        "owner": "vladmdgolam",
+        "repo": "agent-skills",
+        "type": "github"
+      }
+    },
     "bun2nix": {
       "inputs": {
         "flake-parts": [
@@ -1037,6 +1053,7 @@
     },
     "root": {
       "inputs": {
+        "agent-skills": "agent-skills",
         "catppuccin": "catppuccin",
         "chaotic": "chaotic",
         "code-comments": "code-comments",

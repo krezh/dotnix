@@ -4,6 +4,7 @@
     {
       options.var = {
         opacity = lib.mkOption { type = lib.types.float; };
+        blur = lib.mkOption { type = lib.types.bool; };
         borderSize = lib.mkOption { type = lib.types.int; };
         rounding = lib.mkOption { type = lib.types.int; };
         fonts = {
@@ -18,11 +19,12 @@
       config.var = {
         opacity = 0.75;
         borderSize = 2;
+        blur = true;
         rounding = 15;
         fonts = {
-          sans = "Rubik";
+          sans = "Geist";
           mono = "Monaspace Neon NF";
-          serif = "Rubik";
+          serif = "Geist";
           interfaceSize = 15;
           codeSize = 12;
         };

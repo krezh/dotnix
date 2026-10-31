@@ -298,7 +298,7 @@ impl Shell {
             inactive_frame_interval: None,
             kind: WindowKind::LayerShell(LayerShellOptions {
                 namespace: NAMESPACE.to_string(),
-                layer: Layer::Top,
+                layer: Layer::Overlay,
                 anchor: Anchor::TOP,
                 exclusive_zone: Some(px(self.config.top + COLLAPSED_H)),
                 keyboard_interactivity: KeyboardInteractivity::None,
@@ -417,7 +417,7 @@ impl Shell {
         let own = shell.clone();
         let opened = if grab == Grab::Keyboard {
             cx.open_window(
-                cover(display, "island-keyboard", KeyboardInteractivity::OnDemand),
+                cover(display, "island-keyboard", KeyboardInteractivity::Exclusive),
                 move |_, cx| cx.new(|cx| KeyGrab::new(own, &island, cx)),
             )
             .map(AnyWindowHandle::from)

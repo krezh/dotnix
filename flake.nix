@@ -106,6 +106,11 @@
       flake = false;
     };
 
+    agent-skills = {
+      url = "github:vladmdgolam/agent-skills";
+      flake = false;
+    };
+
     helium = {
       url = "github:cjavad/nixpille-helium";
       inputs.nixpkgs.follows = "nixpkgs";

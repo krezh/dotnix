@@ -28,7 +28,7 @@ impl AssetSource for Files {
     }
 }
 
-const TARGET_SIZE: u32 = 32;
+const TARGET_SIZE: u32 = 64;
 
 static THEME: OnceLock<String> = OnceLock::new();
 static INDEX: LazyLock<Mutex<Index>> = LazyLock::new(|| {
@@ -110,14 +110,65 @@ fn chain(roots: &[PathBuf], theme: &str) -> Vec<String> {
     themes
 }
 
+fn dir_size(path: &Path) -> u32 {
+    let mut size = 0;
+    let mut scale = 1;
+    for component in path.components() {
+        let Some(s) = component.as_os_str().to_str() else { continue };
+        if let Some((dims, rest)) = s.split_once('@') {
+            if let Some(dim) = dims.split('x').next() {
+                if let Ok(d) = dim.parse::<u32>() {
+                    size = d;
+                }
+            }
+            if let Some(sc) = rest.strip_suffix('x').and_then(|x| x.parse::<u32>().ok()) {
+                scale = sc;
+            }
+        } else if let Some(dim) = s.split('x').next() {
+            if let Ok(d) = dim.parse::<u32>() {
+                size = d;
+            }
+        }
+    }
+    size * scale
+}
+
+fn dir_rank(path: &Path) -> (u8, u32) {
+    let s = path.to_string_lossy();
+    if s.contains("scalable") {
+        return (0, 0);
+    }
+    let size = dir_size(path);
+    let penalty = if size >= TARGET_SIZE {
+        u32::MAX - size
+    } else {
+        u32::MAX / 2 + (TARGET_SIZE - size)
+    };
+    (1, penalty)
+}
+
 fn score(path: &Path) -> u32 {
-    if path.extension().is_some_and(|extension| extension == "svg") {
+    let is_svg = path.extension().is_some_and(|ext| ext == "svg");
+    let is_scalable = path.to_string_lossy().contains("scalable");
+    if is_svg && is_scalable {
         return 0;
     }
-    path.components()
-        .filter_map(|component| component.as_os_str().to_str())
-        .find_map(|component| component.split(['x', '@']).next()?.parse::<u32>().ok())
-        .map_or(1000, |size| size.abs_diff(TARGET_SIZE) + 1)
+    let size = dir_size(path);
+    if is_svg {
+        if size >= TARGET_SIZE {
+            1 + (size - TARGET_SIZE)
+        } else if size > 0 {
+            200 + (TARGET_SIZE - size) * 4
+        } else {
+            100
+        }
+    } else if size >= TARGET_SIZE {
+        1000 + (size - TARGET_SIZE)
+    } else if size > 0 {
+        2000 + (TARGET_SIZE - size) * 4
+    } else {
+        1500
+    }
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -183,7 +234,7 @@ impl Catalog {
             }
             if self.declared {
                 self.directories.push(root.to_path_buf());
-                self.directories.sort();
+                self.directories.sort_by(|a, b| dir_rank(a).cmp(&dir_rank(b)).then_with(|| a.cmp(b)));
                 self.directories.dedup();
                 self.tree.clear();
             }
@@ -196,7 +247,7 @@ impl Catalog {
                 &mut HashSet::new(),
                 &mut self.directories,
             );
-            self.directories.sort();
+            self.directories.sort_by(|a, b| dir_rank(a).cmp(&dir_rank(b)).then_with(|| a.cmp(b)));
             self.tree
                 .retain(|path, _| self.directories.binary_search(path).is_ok());
         }
@@ -307,7 +358,13 @@ impl Index {
             candidate.clone_from(directory);
             candidate.push(&svg_name);
             if candidate.is_file() {
-                return Some((0, candidate));
+                let rank = score(&candidate);
+                if rank == 0 {
+                    return Some((0, candidate));
+                }
+                if best.as_ref().is_none_or(|(current, _)| rank < *current) {
+                    best = Some((rank, candidate.clone()));
+                }
             }
             candidate.set_file_name(&png_name);
             let rank = score(&candidate);

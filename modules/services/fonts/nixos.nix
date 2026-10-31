@@ -29,11 +29,11 @@
           allowBitmaps = true;
           defaultFonts = {
             serif = [
-              "Rubik"
+              config.var.fonts.serif
               "Noto Color Emoji"
             ];
             sansSerif = [
-              "Rubik"
+              config.var.fonts.sans
               "Noto Color Emoji"
             ];
             monospace = [
@@ -61,6 +61,7 @@
           dina-font
           proggyfonts
           rubik
+          geist-font
           nerd-fonts.jetbrains-mono
           nerd-fonts.caskaydia-cove
           nerd-fonts.monaspace

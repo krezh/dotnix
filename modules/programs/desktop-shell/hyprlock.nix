@@ -102,7 +102,7 @@
             monitor =
             path = screenshot
             color = $base
-            blur_passes = 4
+            blur_passes = ${if config.var.blur then "4" else "0"}
             blur_size = 7
             blur_noise = 0.01
             blur_ignore_opacity = true

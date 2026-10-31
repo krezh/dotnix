@@ -14,6 +14,7 @@ use gpui::{AnyElement, Context, FontWeight, ScrollHandle, SharedString, div, pre
 use crate::{
     components::{
         actions, badge, button, calendar, card, chart, code, dropdown, edges, icon, input, item,
+        ledger::{self, Ledger},
         lines,
         list::ROWS,
         marquee::TextLayouts,
@@ -28,8 +29,8 @@ use crate::{
     island::{Island, Mode},
     theme::{OVERLAY2, SUBTEXT1, TEXT},
     ui::{
-        self, BLOCK_GAP, CARD_PAD, CONTROL_H, HEADER_GAP, HEADER_H, HEADING_SIZE, INSET,
-        SMALL_SIZE, TIGHT_INSET, TITLE_SIZE,
+        self, BLOCK_GAP, CARD_PAD, HEADER_GAP, HEADER_H, HEADING_SIZE, INSET, SMALL_SIZE,
+        TIGHT_INSET, TITLE_SIZE,
     },
 };
 
@@ -64,6 +65,8 @@ pub fn on(handler: impl Fn(&mut Island, &mut Context<Island>) + 'static) -> Hand
 pub struct Button {
     pub id: SharedString,
     pub label: SharedString,
+    pub glyph: Option<PathBuf>,
+    pub bare: bool,
     pub active: bool,
     pub toggle: bool,
     /// Every label the button can show, when it changes label, so it keeps one width.
@@ -237,6 +240,7 @@ pub enum Block {
     Hero(SharedString, Vec<SharedString>),
     /// Lanes along one stretch of time from now.
     Timeline(Timeline),
+    Ledger(Ledger),
     /// A small card over the whole panel asking for something, wherever it is in the blocks.
     Prompt(PromptView),
     /// A page's own views and their buttons, in a row at its top, for a tab of the panel that has
@@ -406,7 +410,19 @@ impl Block {
             }
             Block::Facts(items) => items.len().hash(hasher),
             Block::Hero(_, lines) => lines.len().hash(hasher),
-            Block::Timeline(view) => view.lanes.len().hash(hasher),
+            Block::Timeline(view) => {
+                (view.side.is_some(), view.lanes.len(), !view.pins.is_empty()).hash(hasher)
+            }
+            Block::Ledger(ledger) => {
+                let overflows = ledger.overflows();
+                (ledger.columns.is_some(), overflows).hash(hasher);
+                if !overflows {
+                    ledger.entries.len().hash(hasher);
+                    for entry in &ledger.entries {
+                        (entry.bars.len(), entry.folded.is_some()).hash(hasher);
+                    }
+                }
+            }
             // It floats over the panel, so it never decides its size.
             Block::Prompt(_) => {}
             Block::Views(views) => (
@@ -526,7 +542,9 @@ impl PanelView {
                     .min_w(px(crate::bar::tabs_width()))
                     .into_any_element(),
             ),
-            Header::Title(title, buttons) => Some(title_header(title, buttons, frame.hover, cx)),
+            Header::Title(title, buttons) => {
+                Some(title_header(title, buttons, frame.hover, frame.tips, cx))
+            }
             Header::Views(views) => Some(views_header(views, frame.hover, frame.tips, cx)),
             Header::None => None,
         };
@@ -611,6 +629,7 @@ fn title_header(
     title: SharedString,
     buttons: Vec<Button>,
     hover: bool,
+    tips: &Tooltips,
     cx: &mut Context<Island>,
 ) -> AnyElement {
     let title = div()
@@ -619,7 +638,7 @@ fn title_header(
         .text_size(px(HEADING_SIZE))
         .font_weight(FontWeight::SEMIBOLD)
         .child(motion::text("panel-title", title));
-    header_row(title.into_any_element(), false, None, buttons, hover, cx)
+    header_row(title.into_any_element(), false, None, buttons, hover, tips, cx)
 }
 
 fn views_header(
@@ -644,6 +663,7 @@ fn views_header(
         lead,
         views.buttons,
         hover,
+        tips,
         cx,
     )
 }
@@ -719,7 +739,7 @@ fn views_row(views: Views, frame: &Frame<'_>, cx: &mut Context<Island>) -> AnyEl
                     views
                         .buttons
                         .into_iter()
-                        .map(|button| button_element(button, hover, cx)),
+                        .map(|button| button_element(button, hover, frame.tips, cx)),
                 )
                 .children(icons),
         )
@@ -773,6 +793,7 @@ fn header_row(
     lead: Option<AnyElement>,
     buttons: Vec<Button>,
     hover: bool,
+    tips: &Tooltips,
     cx: &mut Context<Island>,
 ) -> AnyElement {
     div()
@@ -805,7 +826,7 @@ fn header_row(
                 .children(
                     buttons
                         .into_iter()
-                        .map(|button| button_element(button, hover, cx)),
+                        .map(|button| button_element(button, hover, tips, cx)),
                 )
                 .child(
                     button::close("panel-close", hover)
@@ -815,27 +836,37 @@ fn header_row(
         .into_any_element()
 }
 
-fn button_element(button: Button, hover: bool, cx: &mut Context<Island>) -> AnyElement {
+fn button_element(
+    button: Button,
+    hover: bool,
+    tips: &Tooltips,
+    cx: &mut Context<Island>,
+) -> AnyElement {
     let handler = button.on_click;
     let hover = hover && button.enabled;
-    let element = if button.toggle {
-        button::toggle(button.id, button.label, button.active, hover)
-    } else {
-        button::busy(
-            button.id,
-            button.label,
-            button.fits,
-            button.active,
-            button.busy,
-            hover,
-        )
-    };
+    let has_glyph = button.glyph.is_some();
+    let tip_id = button.id.clone();
+    let tip_label = button.label.clone();
+    let mut spec = button::Button::new(button.id)
+        .glyph(button.glyph.as_deref())
+        .bare(button.bare)
+        .active(button.active)
+        .toggle(button.toggle)
+        .fits(button.fits)
+        .busy(button.busy);
+    if !has_glyph {
+        spec = spec.label(button.label);
+    }
+    let element = button::button(spec, hover).when(has_glyph && !tip_label.is_empty(), |el| {
+        el.tip(tips, tip_id, tip_label)
+    });
     if button.enabled {
         element
             .on_click(cx.listener(move |this, _, _, cx| handler(this, cx)))
             .into_any_element()
     } else {
         element
+            .opacity(0.5)
             .text_color(rgb(OVERLAY2))
             .cursor_default()
             .into_any_element()
@@ -1020,7 +1051,15 @@ impl Block {
             Block::Transcript(turns) => transcript::transcript(turns, frame.hover, cx),
             Block::Facts(items) => tile::colored_facts(items, at).into_any_element(),
             Block::Hero(name, lines) => tile::hero(name, lines).into_any_element(),
-            Block::Timeline(view) => timeline::timeline(view, at),
+            Block::Timeline(view) => timeline::timeline(view, at, frame.tips),
+            Block::Ledger(view) => ledger::ledger(
+                view,
+                at,
+                frame.placed,
+                frame.glass,
+                frame.hover,
+                cx,
+            ),
             Block::Prompt(view) => prompt::prompt(view, frame.hover, cx),
             Block::Views(views) => views_row(views, frame, cx),
             Block::Actions(tiles) => div()
@@ -1177,19 +1216,22 @@ fn icon_button(
         cx.stop_propagation();
         handler(this, cx);
     });
-    match button.glyph {
-        Some(glyph) => button::icon(
-            button.id.clone(),
-            Some(&glyph),
-            button.color,
-            button.active,
-            frame.hover,
-        )
-        .when(compact, |icon| icon.size(px(CONTROL_H)))
-        .tip(frame.tips, button.id.clone(), button.label),
-        None => button::button(button.id.clone(), button.label, button.active, frame.hover),
+    let has_glyph = button.glyph.is_some();
+    let tip_id = button.id.clone();
+    let tip_label = button.label.clone();
+    let mut spec = button::Button::new(button.id)
+        .glyph(button.glyph.as_deref())
+        .color(button.color)
+        .compact(compact)
+        .active(button.active);
+    if !has_glyph {
+        spec = spec.label(button.label);
     }
-    .on_click(click)
+    button::button(spec, frame.hover)
+        .when(has_glyph && !tip_label.is_empty(), |el| {
+            el.tip(frame.tips, tip_id, tip_label)
+        })
+        .on_click(click)
 }
 
 fn placed_element(

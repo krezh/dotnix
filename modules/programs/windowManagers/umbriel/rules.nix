@@ -105,10 +105,6 @@
 
         layer_rule = [
           {
-            match.namespace = "^(rofi|launcher|walker)$";
-            blur = true;
-          }
-          {
             match.namespace = "^(hyprpicker|logout_dialog|chomp-selection|wayfreeze)$";
             blur = false;
           }

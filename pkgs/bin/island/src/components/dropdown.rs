@@ -15,7 +15,7 @@ use crate::{
         measure::{self, Measured},
         popover::Popovers,
     },
-    island::{CONTENT_DRIFT, CONTENT_IN, CONTENT_OUT, Island, REVEAL_DELAY, SHAPE_SPRING},
+    island::{CONTENT_DRIFT, CONTENT_IN, CONTENT_OUT, Island, SHAPE_SPRING},
     panel::Handler,
     shape,
     spring::Spring,
@@ -101,12 +101,7 @@ impl Morph {
             self.open = open;
             if open {
                 self.grown.retarget(1.0, SHAPE_SPRING);
-                if self.revealed.value() < 0.05 {
-                    self.revealed
-                        .retarget_at(1.0, CONTENT_IN, now + REVEAL_DELAY);
-                } else {
-                    self.revealed.retarget(1.0, CONTENT_IN);
-                }
+                self.revealed.retarget(1.0, CONTENT_IN);
             } else {
                 self.grown.retarget(0.0, SHAPE_SPRING);
                 self.revealed.retarget(0.0, CONTENT_OUT);

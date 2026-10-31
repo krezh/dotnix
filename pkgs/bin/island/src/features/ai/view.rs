@@ -22,7 +22,7 @@ use crate::{
     features::Local,
 };
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub(super) struct Account {
     source: Source,
     id: String,
@@ -55,8 +55,6 @@ pub enum Tab {
 
 impl Tab {
     pub(super) const ALL: [Tab; 3] = [Tab::Sessions, Tab::Chat, Tab::Usage];
-
-    /// The glyph shown for it, by its key in the feature's glyphs.
     pub(super) fn glyph(self) -> &'static str {
         match self {
             Tab::Sessions => "ai-sessions",
@@ -64,6 +62,7 @@ impl Tab {
             Tab::Usage => "ai-usage",
         }
     }
+
 
     pub(super) fn label(self) -> &'static str {
         match self {
@@ -102,6 +101,8 @@ pub struct View {
     /// The session the Sessions view shows; the first one when none is picked.
     pub(super) session: Option<String>,
     /// Steps, by their number, opened or closed by hand; the rest follow what is happening.
+    expanded: HashSet<Account>,
+    toggled_accounts: HashSet<Account>,
     toggled: HashSet<u64>,
     /// Each session's last step number as the panel opened: what came before is history, shown
     /// still; only what arrives while it shows moves in.
@@ -283,6 +284,20 @@ impl View {
         }
     }
 
+    pub(super) fn is_expanded(&self, account: &Account) -> bool {
+        self.expanded.contains(account)
+    }
+
+    pub(super) fn was_toggled(&self, account: &Account) -> bool {
+        self.toggled_accounts.contains(account)
+    }
+
+    pub(super) fn toggle_account(&mut self, account: Account) {
+        if !self.expanded.remove(&account) {
+            self.expanded.insert(account.clone());
+        }
+        self.toggled_accounts.insert(account);
+    }
     /// With nothing picked, this skips the question.
     pub(super) fn next_question(&mut self, id: u64) {
         self.picks.entry(id).or_default().step += 1;
@@ -292,6 +307,8 @@ impl View {
 impl Local for View {
     fn panel_closed(&mut self) {
         self.order.clear();
+        self.expanded.clear();
+        self.toggled_accounts.clear();
         self.seen = None;
         self.open = false;
     }

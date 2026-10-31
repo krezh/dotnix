@@ -18,7 +18,7 @@ use crate::{
         button,
         measure::{self, Measured},
     },
-    island::{CONTENT_DRIFT, CONTENT_IN, CONTENT_OUT, Island, REVEAL_DELAY, SHAPE_SPRING},
+    island::{CONTENT_DRIFT, CONTENT_IN, CONTENT_OUT, Island, SHAPE_SPRING},
     panel::{self, Handler},
     shape::Hang,
     spring::Spring,
@@ -334,12 +334,7 @@ impl Menu {
         self.w.retarget(w, SHAPE_SPRING);
         self.h.retarget(h, SHAPE_SPRING);
         if self.content.target() != 1.0 {
-            if self.content.value() < 0.05 {
-                self.content
-                    .retarget_at(1.0, CONTENT_IN, Instant::now() + REVEAL_DELAY);
-            } else {
-                self.content.retarget(1.0, CONTENT_IN);
-            }
+            self.content.retarget(1.0, CONTENT_IN);
         }
         true
     }

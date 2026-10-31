@@ -132,7 +132,7 @@
           };
           theme_overrides."Catppuccin Mocha (blue)" = {
             "background" = "#1e1e2e00";
-            "background.appearance" = "blurred";
+            "background.appearance" = if config.var.blur then "blurred" else "transparent";
             "editor.background" = "#1e1e2e${alpha}";
             "editor.gutter.background" = "#1e1e2e${alpha}";
             "editor.subheader.background" = "#181825${alpha}";

@@ -186,6 +186,8 @@ pub(super) fn panel(
         Button {
             id: "ai-chat-model".into(),
             label: MODELS[model].0.into(),
+            glyph: None,
+            bare: false,
             active: false,
             toggle: false,
             fits: MODELS.iter().map(|(name, _)| (*name).into()).collect(),
@@ -196,6 +198,8 @@ pub(super) fn panel(
         Button {
             id: "ai-chat-new".into(),
             label: "New chat".into(),
+            glyph: None,
+            bare: false,
             active: false,
             toggle: false,
             fits: Vec::new(),

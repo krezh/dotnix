@@ -16,7 +16,7 @@ use super::{
 };
 use crate::{
     features::{IslandInfo, Local, notice::Trouble},
-    island::{REVEAL_DELAY, SHAPE_SPRING},
+    island::SHAPE_SPRING,
     spring::Spring,
 };
 
@@ -112,7 +112,7 @@ impl Cards {
             .cloned()
             .collect();
         self.missed
-            .sync(&shown, animate, Instant::now() + REVEAL_DELAY);
+            .sync(&shown, animate, Instant::now());
     }
 
     fn show_earlier(&mut self, animate: bool) {
@@ -123,7 +123,7 @@ impl Cards {
             .cloned()
             .collect();
         self.earlier_list
-            .sync(shown, animate, Instant::now() + REVEAL_DELAY);
+            .sync(shown, animate, Instant::now());
     }
 }
 

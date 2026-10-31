@@ -16,8 +16,6 @@ let
     hash = "sha256-ObvLERXG5YwBzFHwdvJ+fKtch18n0pn8EZBQiX7YOV8=";
   };
   cratePatches = {
-    gpui-pre = [ ./patches/gpui-pre-set-layer.patch ];
-    gpui-pre-linux = [ ./patches/gpui-pre-linux-set-layer.patch ];
     gpui-pre-wgpu = [ ./patches/gpui-pre-wgpu-drop-shadow-clip.patch ];
   };
 in

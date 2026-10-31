@@ -118,11 +118,10 @@ pub fn input(view: InputView, hover: bool, cx: &mut Context<Island>) -> AnyEleme
         ));
     }
     let ready = view.on_send.is_some();
-    let send = button::icon(
-        SharedString::from(format!("{}-send", view.id)),
-        view.send_glyph.as_deref(),
-        None,
-        ready,
+    let send = button::button(
+        button::Button::new(SharedString::from(format!("{}-send", view.id)))
+            .glyph(view.send_glyph.as_deref())
+            .active(ready),
         hover && ready,
     )
     .when(view.send_glyph.is_none(), |send| send.child("↑"))

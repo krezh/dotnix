@@ -34,18 +34,7 @@
 
         settings = lib.mkOption {
           inherit (iniFormat) type;
-          default = {
-            general = {
-              mode = "context";
-              follow_monitor = true;
-              show_workspace_badge = true;
-              sticky_mode = false;
-              ignore_special = true;
-            };
-            icons.theme = "Papirus-Dark";
-            theme.name = "catppuccin-mocha.ini";
-            font.family = "Rubik";
-          };
+          default = { };
           description = "snappy-switcher config.ini settings.";
         };
       };
@@ -53,6 +42,18 @@
       config = lib.mkIf cfg.enable {
         home.packages = [ cfg.package ];
 
+        homeModules.snappy-switcher.settings = {
+          general = {
+            mode = lib.mkDefault "context";
+            follow_monitor = lib.mkDefault true;
+            show_workspace_badge = lib.mkDefault true;
+            sticky_mode = lib.mkDefault false;
+            ignore_special = lib.mkDefault true;
+          };
+          icons.theme = lib.mkDefault "Papirus-Dark";
+          theme.name = lib.mkDefault "catppuccin-mocha.ini";
+          font.family = lib.mkDefault "Rubik";
+        };
         xdg.configFile = {
           "snappy-switcher/config.ini".source = iniFormat.generate "snappy-switcher-config.ini" cfg.settings;
           "snappy-switcher/themes".source = "${cfg.package}/share/snappy-switcher/themes";

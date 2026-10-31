@@ -4,6 +4,7 @@
     let
       sharedSkills = {
         code-comments = inputs.code-comments.outPath;
+        fluid-interfaces = "${inputs.agent-skills}/skills/fluid-interfaces";
       };
     in
     {

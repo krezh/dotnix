@@ -81,23 +81,23 @@
         };
 
         "org/gnome/shell/extensions/blur-my-shell/panel" = {
-          blur = true;
+          blur = config.var.blur;
           override-background = true;
           style-panel = 0; # Transparent
         };
 
         "org/gnome/shell/extensions/blur-my-shell/overview" = {
-          blur = true;
+          blur = config.var.blur;
           style-components = 0; # Transparent
         };
 
         "org/gnome/shell/extensions/blur-my-shell/appfolder" = {
-          blur = true;
+          blur = config.var.blur;
           style-dialogs = 0; # Transparent
         };
 
         "org/gnome/shell/extensions/blur-my-shell/window-list" = {
-          blur = true;
+          blur = config.var.blur;
         };
 
         # Dash to Panel Configuration

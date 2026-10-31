@@ -4,7 +4,7 @@ use gpui::{SpringConfig, Window};
 
 use super::{card, missed_list::sliding, notification::Notification};
 use crate::{
-    island::{CONTENT_IN, CONTENT_OUT, REVEAL_DELAY, SHAPE_SPRING},
+    island::{CONTENT_IN, CONTENT_OUT, SHAPE_SPRING},
     panel::Countdown,
     spring::Spring,
     theme::app_color,
@@ -28,7 +28,6 @@ pub struct Card {
     pub alpha: Spring,
     pub leaving: bool,
     pub visible: bool,
-    shown_before: bool,
     /// When the card times out; set once it is visible while the pop-up shows, and cleared while
     /// the countdown is paused.
     pub due: Option<Instant>,
@@ -209,7 +208,6 @@ impl Toasts {
                         alpha: Spring::new(0.0, self.fade_in, 0.002),
                         leaving: false,
                         visible: false,
-                        shown_before: false,
                         due: None,
                         lifetime: None,
                         paused: None,
@@ -333,7 +331,6 @@ impl Toasts {
     }
 
     fn layout(&mut self) {
-        let reveal_at = Instant::now() + REVEAL_DELAY;
         let (motion, fade_in, fade_out) = (self.motion, self.fade_in, self.fade_out);
         let mut y = 0.0;
         let mut heights = Vec::with_capacity(MAX_VISIBLE);
@@ -353,14 +350,8 @@ impl Toasts {
                 continue;
             }
 
-            // Only a new one waits for the island to grow before it shows.
-            if card.alpha.value() < 0.05 && !card.shown_before {
-                card.alpha.retarget_at(1.0, fade_in, reveal_at);
-            } else {
-                card.alpha.retarget(1.0, fade_in);
-            }
+            card.alpha.retarget(1.0, fade_in);
             card.visible = true;
-            card.shown_before = true;
             heights.push(height);
         }
 

@@ -19,10 +19,12 @@ fn usage(ai: &Ai, state: &State, view: &View, p: &PanelCx<'_>) -> (Vec<Button>, 
             "Refresh"
         }
         .into(),
+        glyph: p.glyph("ai-refresh"),
+        bare: true,
         active: state.refreshing,
         toggle: false,
-        fits: vec!["Refresh".into(), "Refreshing…".into()],
-        busy: state.refreshing,
+        fits: Vec::new(),
+        busy: false,
         enabled: !ai.settings.sources.is_empty() && !state.refreshing,
         on_click: p.call(Ai::refresh),
     }];
@@ -30,7 +32,7 @@ fn usage(ai: &Ai, state: &State, view: &View, p: &PanelCx<'_>) -> (Vec<Button>, 
     if let Some(after) = format::usage_next_change(&ai.settings.sources, state, now) {
         p.redraw_in(after);
     }
-    (buttons, overview::blocks(ai, state, view, now))
+    (buttons, overview::blocks(ai, state, view, p, now))
 }
 
 pub(super) fn panel(ai: &Ai, state: &State, p: &PanelCx<'_>) -> Option<PanelView> {
@@ -59,7 +61,7 @@ pub(super) fn panel(ai: &Ai, state: &State, p: &PanelCx<'_>) -> Option<PanelView
     Some(PanelView {
         scroll: view.tab == Tab::Chat,
         header: Header::Views(Views {
-            lead: jelly::lead(state, view, p),
+            lead: jelly::lead(ai, state, view, p),
             tabs: Tab::ALL
                 .iter()
                 .map(|tab| TabLabel {

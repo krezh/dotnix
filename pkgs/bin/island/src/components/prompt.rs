@@ -51,11 +51,10 @@ pub fn prompt(view: PromptView, hover: bool, cx: &mut Context<Island>) -> AnyEle
     let cancel = view.on_cancel.clone();
     let eye = view.reveal.map(|reveal| {
         let handler = reveal.on_click;
-        button::icon(
-            SharedString::from(format!("{}-reveal", view.id)),
-            reveal.glyph.as_deref(),
-            None,
-            reveal.shown,
+        button::button(
+            button::Button::new(SharedString::from(format!("{}-reveal", view.id)))
+                .glyph(reveal.glyph.as_deref())
+                .active(reveal.shown),
             hover,
         )
         .on_click(cx.listener(move |island, _, _, cx| {
@@ -138,9 +137,8 @@ pub fn prompt(view: PromptView, hover: bool, cx: &mut Context<Island>) -> AnyEle
                     .gap(px(8.0))
                     .child(
                         button::button(
-                            SharedString::from(format!("{}-cancel", view.id)),
-                            "Cancel",
-                            false,
+                            button::Button::new(SharedString::from(format!("{}-cancel", view.id)))
+                                .label("Cancel"),
                             hover,
                         )
                         .on_click(cx.listener(move |island, _, _, cx| {
@@ -150,9 +148,9 @@ pub fn prompt(view: PromptView, hover: bool, cx: &mut Context<Island>) -> AnyEle
                     )
                     .children(view.confirm.map(|(label, handler)| {
                         button::button(
-                            SharedString::from(format!("{}-confirm", view.id)),
-                            label,
-                            true,
+                            button::Button::new(SharedString::from(format!("{}-confirm", view.id)))
+                                .label(label)
+                                .active(true),
                             hover,
                         )
                         .on_click(cx.listener(move |island, _, _, cx| {

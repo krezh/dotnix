@@ -1,7 +1,7 @@
 {
   flake.modules.nixos.containers = _: {
     virtualisation.docker = {
-      enable = true;
+      enable = false;
       daemon.settings = {
         log-driver = "journald";
         registry-mirrors = [ "https://mirror.gcr.io" ];
@@ -13,10 +13,8 @@
       };
     };
     virtualisation.podman = {
-      enable = false;
+      enable = true;
       dockerCompat = true;
-      dockerSocket.enable = true;
-      autoPrune.enable = true;
     };
   };
 }

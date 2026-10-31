@@ -25,7 +25,7 @@ const TAB_W: f32 = 96.0;
 const GLYPH_TAB_W: f32 = 48.0;
 const GLYPH: f32 = 18.0;
 const TAB_GAP: f32 = 4.0;
-const PILL_SPRING: SpringConfig = SpringConfig::new(420.0, 34.0, 1.0);
+const PILL_SPRING: SpringConfig = SpringConfig::new(420.0, 41.0, 1.0);
 
 pub type Select = Rc<dyn Fn(usize, &mut Island, &mut Context<Island>)>;
 
@@ -42,13 +42,11 @@ const STRIP_TAB_H: f32 = 28.0;
 pub const STRIP_H: f32 = STRIP_TAB_H + 2.0 * STRIP_PAD;
 const STRIP_TAB_GAP: f32 = 2.0;
 const STRIP_TAB_PAD: f32 = 14.0;
-/// What a tab takes before its text is measured.
 const UNMEASURED_W: f32 = 88.0;
 const COUNT_GAP: f32 = 7.0;
 const COUNT_SIZE: f32 = 12.0;
 const PILL_ALPHA: u8 = 0xe6;
 
-/// As wide as its label and count, once they are measured.
 fn tab_width(tab: &TabLabel, layouts: &TextLayouts) -> f32 {
     let label = layouts.get(&tab.label, SMALL_SIZE, FontWeight::SEMIBOLD);
     let count = tab
@@ -64,9 +62,6 @@ fn tab_width(tab: &TabLabel, layouts: &TextLayouts) -> f32 {
     }
 }
 
-/// Labelled tabs in a strip of their own, as the panel's own tabs sit, each as wide as its label,
-/// the pill sliding and stretching to the selected one, and each label's count tinted while its
-/// tab is.
 pub fn strip(
     id: &str,
     labels: Vec<TabLabel>,

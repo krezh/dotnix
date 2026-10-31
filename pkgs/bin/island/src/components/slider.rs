@@ -171,25 +171,49 @@ fn build(
     let grip = Pointer {
         hovered: live && pointer.hovered,
         held: pointer.held,
+        grab_offset: pointer.grab_offset,
     };
     let dark = inside.clone();
     let dark_id = format!("{id}-dark");
-    let fill = div().absolute().top_0().left_0().h_full().with_spring(
-        SharedString::from(format!("{id}-fill")),
-        SpringAnimation::new(FILL_SPRING).to(value),
-        move |fill, level| {
-            let level = level.clamp(0.0, 1.0);
-            // The dark copy spans the whole track, cut off where the fill ends.
-            let row = dark
-                .as_ref()
-                .filter(|_| level > 0.0)
-                .map(|inside| label_row(&dark_id, inside, ON_ACCENT).w(relative(1.0 / level)));
-            fill.w(relative(level))
-                .overflow_hidden()
-                .child(ui::shape(radius, Some(fill_color.into())))
-                .children(row)
-        },
-    );
+    let fill = if grip.held {
+        let level = value.clamp(0.0, 1.0);
+        let row = dark
+            .as_ref()
+            .filter(|_| level > 0.0)
+            .map(|inside| label_row(&dark_id, inside, ON_ACCENT).w(relative(1.0 / level)));
+        div()
+            .absolute()
+            .top_0()
+            .left_0()
+            .h_full()
+            .w(relative(level))
+            .overflow_hidden()
+            .child(ui::shape(radius, Some(fill_color.into())))
+            .children(row)
+            .into_any_element()
+    } else {
+        div()
+            .absolute()
+            .top_0()
+            .left_0()
+            .h_full()
+            .with_spring(
+                SharedString::from(format!("{id}-fill")),
+                SpringAnimation::new(FILL_SPRING).to(value),
+                move |fill, level| {
+                    let level = level.clamp(0.0, 1.0);
+                    // The dark copy spans the whole track, cut off where the fill ends.
+                    let row = dark.as_ref().filter(|_| level > 0.0).map(|inside| {
+                        label_row(&dark_id, inside, ON_ACCENT).w(relative(1.0 / level))
+                    });
+                    fill.w(relative(level))
+                        .overflow_hidden()
+                        .child(ui::shape(radius, Some(fill_color.into())))
+                        .children(row)
+                },
+            )
+            .into_any_element()
+    };
     let signal = signal.filter(|signal| *signal > 0.0).map(|signal| {
         div()
             .absolute()
@@ -205,15 +229,32 @@ fn build(
     // The handle rides the fill's spring, on an element of its own so it is drawn over the signal.
     let rider = (on_change.is_some() && inside.is_none()).then(|| {
         let handle_id = id.clone();
-        div().absolute().top_0().left_0().h_full().with_spring(
-            SharedString::from(format!("{id}-rider")),
-            SpringAnimation::new(FILL_SPRING).to(value),
-            move |rider, level| {
-                rider
-                    .w(relative(level.clamp(0.0, 1.0)))
-                    .child(handle(&handle_id, grip))
-            },
-        )
+        if grip.held {
+            div()
+                .absolute()
+                .top_0()
+                .left_0()
+                .h_full()
+                .w(relative(value.clamp(0.0, 1.0)))
+                .child(handle(&handle_id, grip))
+                .into_any_element()
+        } else {
+            div()
+                .absolute()
+                .top_0()
+                .left_0()
+                .h_full()
+                .with_spring(
+                    SharedString::from(format!("{id}-rider")),
+                    SpringAnimation::new(FILL_SPRING).to(value),
+                    move |rider, level| {
+                        rider
+                            .w(relative(level.clamp(0.0, 1.0)))
+                            .child(handle(&handle_id, grip))
+                    },
+                )
+                .into_any_element()
+        }
     });
     let track = div()
         .relative()
@@ -243,13 +284,35 @@ fn build(
                         }
                         // Released where no release reached the slider, such as outside the island.
                         if event.pressed_button != Some(MouseButton::Left) {
-                            pointer::set(&held_id, |grip| grip.held = false, window);
+                            pointer::set(
+                                &held_id,
+                                |grip| {
+                                    grip.held = false;
+                                    grip.grab_offset = 0.0;
+                                },
+                                window,
+                            );
+                            if value < 0.0 || value > 1.0 {
+                                let _ = island.update(cx, |this, cx| {
+                                    on_change(value.clamp(0.0, 1.0), this, cx)
+                                });
+                            }
                             return;
                         }
                         let width = f32::from(area.size.width);
                         if width > 0.0 {
-                            let value = (f32::from(event.position.x - area.origin.x) / width)
-                                .clamp(0.0, 1.0);
+                            let grip = pointer::get(&held_id);
+                            let effective_x =
+                                event.position.x - area.origin.x - px(grip.grab_offset);
+                            let raw = f32::from(effective_x) / width;
+                            let value = if raw < 0.0 {
+                                raw / (1.0 + raw.abs() * 3.0)
+                            } else if raw > 1.0 {
+                                let over = raw - 1.0;
+                                1.0 + over / (1.0 + over.abs() * 3.0)
+                            } else {
+                                raw
+                            };
                             let _ = island.update(cx, |this, cx| on_change(value, this, cx));
                         }
                     });
@@ -267,6 +330,8 @@ fn build(
     if let Some(down) = on_change {
         let down_bounds = bounds.clone();
         let (hover_id, down_id, up_id, out_id) = (id.clone(), id.clone(), id.clone(), id);
+        let up_change = down.clone();
+        let out_change = down.clone();
         element = element
             .map(|element| {
                 if grip.held {
@@ -282,18 +347,63 @@ fn build(
                 MouseButton::Left,
                 cx.listener(move |this, event: &MouseDownEvent, window, cx| {
                     cx.stop_propagation();
-                    pointer::set(&down_id, |grip| grip.held = true, window);
-                    if let Some(value) = fraction(&down_bounds, event.position.x) {
-                        down(value, this, cx);
+                    let (offset, seek_value) = if let Some(bounds) = down_bounds.get() {
+                        let width = f32::from(bounds.size.width);
+                        let x_h = bounds.origin.x + px(width * value.clamp(0.0, 1.0));
+                        let dist = f32::from(event.position.x - x_h).abs();
+                        if dist <= HANDLE_W {
+                            (f32::from(event.position.x - x_h), None)
+                        } else {
+                            (0.0, fraction(&down_bounds, event.position.x))
+                        }
+                    } else {
+                        (0.0, fraction(&down_bounds, event.position.x))
+                    };
+                    pointer::set(
+                        &down_id,
+                        |grip| {
+                            grip.held = true;
+                            grip.grab_offset = offset;
+                        },
+                        window,
+                    );
+                    if let Some(val) = seek_value {
+                        down(val, this, cx);
                     }
                 }),
             )
-            .on_mouse_up(MouseButton::Left, move |_: &MouseUpEvent, window, _| {
-                pointer::set(&up_id, |grip| grip.held = false, window);
-            })
-            .on_mouse_up_out(MouseButton::Left, move |_: &MouseUpEvent, window, _| {
-                pointer::set(&out_id, |grip| grip.held = false, window);
-            });
+            .on_mouse_up(
+                MouseButton::Left,
+                cx.listener(move |this, _: &MouseUpEvent, window, cx| {
+                    pointer::set(
+                        &up_id,
+                        |grip| {
+                            grip.held = false;
+                            grip.grab_offset = 0.0;
+                        },
+                        window,
+                    );
+                    if value < 0.0 || value > 1.0 {
+                        up_change(value.clamp(0.0, 1.0), this, cx);
+                    }
+                }),
+            )
+            .on_mouse_up_out(
+                MouseButton::Left,
+                cx.listener(move |this, _: &MouseUpEvent, window, cx| {
+                    pointer::set(
+                        &out_id,
+                        |grip| {
+                            grip.held = false;
+                            grip.grab_offset = 0.0;
+                        },
+                        window,
+                    );
+                    if value < 0.0 || value > 1.0 {
+                        out_change(value.clamp(0.0, 1.0), this, cx);
+                    }
+                }),
+            );
     }
     element.into_any_element()
 }

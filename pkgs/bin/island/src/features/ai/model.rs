@@ -56,6 +56,30 @@ pub(super) fn status_line(state: &State, readings: &[Reading], now: i64) -> Opti
     })
 }
 
+/// Keeps the status line's reading of a window over the usage API's when both are of the same
+/// window and the API is at most a point higher, as it rounds up where the status line does not.
+pub(super) fn keep_live(report: &mut SourceReport, live: &[Reading]) {
+    for limit in report
+        .providers
+        .iter_mut()
+        .flat_map(|provider| &mut provider.limits)
+    {
+        let Some(reading) = live.iter().find(|reading| reading.id == limit.id) else {
+            continue;
+        };
+        let same_window = match (reading.resets_at, limit.resets_at) {
+            (Some(heard), Some(fetched)) => (heard - fetched).abs() < 60_000,
+            _ => true,
+        };
+        let used = reading.used.clamp(0.0, 100.0);
+        if same_window && limit.used > used && limit.used - used <= 1.0 {
+            limit.used = used;
+            limit.remaining = 100.0 - used;
+            limit.severity = Severity::Ok;
+        }
+    }
+}
+
 /// The latest reset of a Claude limit that has passed, after which its reading is out of date.
 pub(super) fn passed_reset(state: &State, now: i64) -> Option<i64> {
     state

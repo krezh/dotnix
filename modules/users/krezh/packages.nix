@@ -25,6 +25,7 @@
         hyperfine
         infisical
         hcloud
+        hister
 
         # Networking
         speedtest-cli

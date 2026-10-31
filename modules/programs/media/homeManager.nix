@@ -1,7 +1,7 @@
 { inputs, ... }:
 {
   flake.modules.homeManager.media =
-    { pkgs, ... }:
+    { config, pkgs, ... }:
     let
       spicePkgs = inputs.spicetify-nix.legacyPackages.${pkgs.system};
     in
@@ -85,7 +85,7 @@
             ytdl-format = "bestvideo+bestaudio";
             save-position-on-quit = false;
             osc = "no";
-            sub-font = "Rubik";
+            sub-font = config.var.fonts.sans;
             sub-font-size = 20;
             sub-border-size = 1.5;
             sub-pos = 95;

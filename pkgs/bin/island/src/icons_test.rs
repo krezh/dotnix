@@ -177,10 +177,10 @@ fn svg_and_nearest_size_beat_root_order_but_equal_ranks_keep_root_order() {
     let fixture = Fixture::new();
     fixture.file("first/custom/32x32/apps/vector.png", "first");
     let svg = fixture.file("second/custom/scalable/apps/vector.svg", "second");
-    fixture.file("first/custom/128x128/apps/raster.png", "large");
-    let nearest = fixture.file("second/custom/32x32/apps/raster.png", "target");
-    let tie = fixture.file("first/custom/24x24/apps/tied.png", "first");
-    fixture.file("second/custom/40x40/apps/tied.png", "second");
+    fixture.file("first/custom/16x16/apps/raster.png", "small");
+    let nearest = fixture.file("second/custom/64x64/apps/raster.png", "target");
+    let tie = fixture.file("first/custom/64x64/apps/tied.png", "first");
+    fixture.file("second/custom/64x64/apps/tied.png", "second");
     let mut index = fixture.index(&["first", "second"], "custom");
 
     assert_eq!(index.lookup("vector"), canonical(&svg));

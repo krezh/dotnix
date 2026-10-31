@@ -41,7 +41,6 @@
 
         features = {
           ai = {
-            disabledLimits.omp.google-antigravity = [ "3p-weekly:weekly" ];
             mascot = "lively";
           };
           gotify = {

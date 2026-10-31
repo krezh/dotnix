@@ -11,7 +11,8 @@
           font-family = config.var.fonts.mono;
           font-size = config.var.fonts.codeSize;
           background-opacity = config.var.opacity;
-          background-blur = true;
+          background-opacity-cells = true;
+          background-blur = config.var.blur;
           # font-style = "Bold";
           # font-thicken = true;
           copy-on-select = "both";

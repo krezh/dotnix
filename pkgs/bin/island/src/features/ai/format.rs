@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use chrono::{Local, TimeZone, Timelike, Utc};
+use chrono::Utc;
 
 use super::state::{Freshness, Limit, Provider, Severity, Source, State};
 use crate::theme::{BLUE, CRITICAL, GREEN, MAUVE, YELLOW};
@@ -37,26 +37,6 @@ pub(super) fn countdown(at: i64, now: i64) -> String {
         60..1440 => format!("{}h {:02}m", minutes / 60, minutes % 60),
         _ => format!("{}d {}h", minutes / 1440, minutes % 1440 / 60),
     }
-}
-
-/// When something is due, as you would say it: soon as a countdown, such as "in 1h 27m"; later as
-/// a day and a rounded local hour, such as "tomorrow 09:00" or "Fri 15:00".
-pub(super) fn when(at: i64, now: i64) -> String {
-    const SOON_MS: i64 = 6 * 60 * 60 * 1000;
-    const HALF_HOUR_MS: i64 = 30 * 60 * 1000;
-    if at - now < SOON_MS {
-        return format!("in {}", countdown(at, now));
-    }
-    let local = |time: i64| Local.timestamp_millis_opt(time).single();
-    let (Some(due), Some(today)) = (local(at + HALF_HOUR_MS), local(now)) else {
-        return format!("in {}", countdown(at, now));
-    };
-    let day = match (due.date_naive() - today.date_naive()).num_days() {
-        0 => "today".to_owned(),
-        1 => "tomorrow".to_owned(),
-        _ => due.format("%a").to_string(),
-    };
-    format!("{day} {:02}:00", due.hour())
 }
 
 pub(super) fn ago(at: i64, now: i64) -> String {

@@ -48,8 +48,6 @@ const PEEK_INSETS: [f32; 2] = [12.0, 26.0];
 const PEEK_OPACITY: [f32; 2] = [1.0, 0.6];
 /// The frame each edge is the bottom of, tall enough for its rounded corners.
 const PEEK_DRAWN: f32 = 40.0;
-/// How far right a dismissed card slides as it fades out.
-const SLIDE: f32 = 72.0;
 const EMPTY_H: f32 = 52.0;
 /// How a dismissed card leaves: sliding out and fading by halfway, then the room it took closes.
 pub const FOLD: SpringConfig = SpringConfig::new(260.0, 30.0, 1.0);
@@ -550,8 +548,7 @@ pub fn missed(rows: &MissedList, looks: Vec<RowLook>, empty: &'static str) -> Bl
         if opacity <= 0.001 {
             continue;
         }
-        let mut at = place(drawn[index], shown_height.unwrap_or(height), opacity);
-        at.offset = out * SLIDE;
+        let at = place(drawn[index], shown_height.unwrap_or(height), opacity);
         if row.peeks > 0
             && row.peek.value() > 0.001
             && let Some(notification) = row.notification()
@@ -668,8 +665,7 @@ pub fn earlier(list: &EarlierList, looks: Vec<Option<Look>>) -> Block {
         if opacity <= 0.001 {
             continue;
         }
-        let mut at = place(drawn[index], row.height(), opacity);
-        at.offset = out * SLIDE;
+        let at = place(drawn[index], row.height(), opacity);
         let block = match (&row.entry, looks.get_mut(index).and_then(Option::take)) {
             (EarlierEntry::Day(day), _) => Block::heading(day_label(*day)),
             (EarlierEntry::Card(kept), Some(look)) => {
@@ -711,8 +707,7 @@ pub fn toasts(stack: &Toasts, looks: Vec<Look>) -> Block {
         let out = shown.out();
         let opacity = alpha * (1.0 - out);
         if opacity > 0.001 {
-            let mut at = place(drawn[index], shown.height(), opacity);
-            at.offset = out * SLIDE;
+            let at = place(drawn[index], shown.height(), opacity);
             blocks.push((
                 at,
                 message(Kind::Toast(shown.id), &shown.notification, look, None),

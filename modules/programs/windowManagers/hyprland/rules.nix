@@ -43,12 +43,8 @@
 
           layer_rule = expandRules [
             {
-              match.namespace = "^(slumber-screensaver)$";
-              animation = "fade";
-              blur = true;
-            }
-            {
               match.namespace = [
+                "^(slumber-screensaver)$"
                 "^(hyprpicker)$"
                 "^(logout_dialog)$"
                 "^(chomp-selection)$"

@@ -8,7 +8,7 @@ use gpui::{SpringConfig, Window};
 
 use super::{card, history::Earlier, missed_list::sliding};
 use crate::{
-    island::{CONTENT_IN, REVEAL_DELAY, SHAPE_SPRING},
+    island::{CONTENT_IN, SHAPE_SPRING},
     spring::Spring,
 };
 
@@ -159,7 +159,7 @@ impl EarlierList {
             }
         }
         if measured {
-            self.layout(true, Instant::now() + REVEAL_DELAY);
+            self.layout(true, Instant::now());
         }
         measured
     }

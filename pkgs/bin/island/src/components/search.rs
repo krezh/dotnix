@@ -29,7 +29,7 @@ const ICON: f32 = 30.0;
 const GLYPH: f32 = 22.0;
 const PREVIEW_W: f32 = 56.0;
 const PREVIEW_H: f32 = 40.0;
-const SELECTION_SPRING: SpringConfig = SpringConfig::new(560.0, 44.0, 1.0);
+const SELECTION_SPRING: SpringConfig = SpringConfig::new(560.0, 47.3, 1.0);
 
 pub struct SearchRow {
     pub id: SharedString,

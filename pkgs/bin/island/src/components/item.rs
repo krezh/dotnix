@@ -30,7 +30,7 @@ const AMOUNT_W: f32 = 40.0;
 const LEAD: f32 = 40.0;
 const BUTTON_H: f32 = 24.0;
 const BUTTON_GLYPH: f32 = 15.0;
-const TURN_SPRING: SpringConfig = SpringConfig::new(300.0, 26.0, 1.0);
+const TURN_SPRING: SpringConfig = SpringConfig::new(300.0, 34.6, 1.0);
 
 /// Between the lead and the text.
 pub const LEAD_GAP: f32 = 12.0;

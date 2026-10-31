@@ -596,6 +596,28 @@ fn the_status_line_leaves_out_readings_from_before_their_reset() {
 }
 
 #[test]
+fn the_status_line_reading_outlasts_a_usage_api_reading_rounded_up() {
+    let resets = Some(NOW + 3_600_000);
+    let mut rounded = report(Source::Claude, 100.0);
+    keep_live(&mut rounded, &[reading("five_hour", 99.0, resets)]);
+    let limit = &rounded.providers[0].limits[0];
+    assert_eq!(limit.used, 99.0);
+    assert_eq!(limit.remaining, 1.0);
+    assert_eq!(limit.severity, Severity::Ok);
+
+    let mut further = report(Source::Claude, 100.0);
+    keep_live(&mut further, &[reading("five_hour", 90.0, resets)]);
+    assert_eq!(further.providers[0].limits[0].used, 100.0);
+
+    let mut other_window = report(Source::Claude, 100.0);
+    keep_live(
+        &mut other_window,
+        &[reading("five_hour", 99.0, Some(NOW + 90_000_000))],
+    );
+    assert_eq!(other_window.providers[0].limits[0].used, 100.0);
+}
+
+#[test]
 fn a_passed_claude_reset_is_found_and_upcoming_ones_are_not() {
     let mut state = State::default();
     let mut providers = report(Source::Claude, 100.0).providers;

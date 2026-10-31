@@ -400,6 +400,8 @@ impl Feature for Molt {
             Button {
                 id: "molt-check".into(),
                 label: if state.checking { CHECKING } else { CHECK }.into(),
+                glyph: None,
+                bare: false,
                 active: state.checking,
                 toggle: false,
                 fits: vec![CHECK.into(), CHECKING.into()],
@@ -410,6 +412,8 @@ impl Feature for Molt {
             Button {
                 id: "molt-open".into(),
                 label: "Open Molt".into(),
+                glyph: None,
+                bare: false,
                 active: false,
                 toggle: false,
                 fits: Vec::new(),

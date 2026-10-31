@@ -7,7 +7,7 @@ use gpui::{SpringConfig, Window};
 
 use super::{card, notification::Notification};
 use crate::{
-    island::{CONTENT_IN, REVEAL_DELAY, SHAPE_SPRING},
+    island::{CONTENT_IN, SHAPE_SPRING},
     spring::Spring,
 };
 
@@ -229,7 +229,7 @@ impl MissedList {
             }
         }
         if measured {
-            self.layout(true, Instant::now() + REVEAL_DELAY);
+            self.layout(true, Instant::now());
         }
         measured
     }

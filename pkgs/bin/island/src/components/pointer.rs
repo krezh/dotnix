@@ -9,6 +9,7 @@ use gpui::{SharedString, Window};
 pub struct Pointer {
     pub hovered: bool,
     pub held: bool,
+    pub grab_offset: f32,
 }
 
 thread_local! {

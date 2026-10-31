@@ -16,7 +16,7 @@ use crate::{
         popover::Popovers,
         tooltip::{Tip, Tooltips},
     },
-    island::{CONTENT_DRIFT, CONTENT_IN, CONTENT_OUT, Island, REVEAL_DELAY, SHAPE_SPRING},
+    island::{CONTENT_DRIFT, CONTENT_IN, CONTENT_OUT, Island, SHAPE_SPRING},
     panel::Handler,
     shape,
     spring::Spring,
@@ -84,8 +84,7 @@ impl Morph {
             self.open = open;
             if open {
                 self.grown.retarget(1.0, SHAPE_SPRING);
-                self.revealed
-                    .retarget_at(1.0, CONTENT_IN, now + REVEAL_DELAY);
+                self.revealed.retarget(1.0, CONTENT_IN);
             } else {
                 self.grown.retarget(0.0, SHAPE_SPRING);
                 self.revealed.retarget(0.0, CONTENT_OUT);
@@ -257,14 +256,13 @@ pub fn actions(
         )
     });
     let toggle = view.on_toggle.clone();
-    let button = button::icon(
-        view.id.clone(),
-        view.glyph.as_deref(),
-        None,
-        view.open,
+    let button = button::button(
+        button::Button::new(view.id.clone())
+            .glyph(view.glyph.as_deref())
+            .compact(true)
+            .active(view.open),
         hover,
     )
-    .size(px(ui::CONTROL_H))
     .child(popovers.anchor(view.id.clone()))
     .tip(tips, view.id.clone(), view.label.clone())
     .on_click(cx.listener(move |this, _, _, cx| {

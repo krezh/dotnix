@@ -22,7 +22,7 @@ use crate::{
     ui::{self, CONTROL_H, HEADER_H, Radius, SMALL_SIZE},
 };
 
-const KNOB_SPRING: SpringConfig = SpringConfig::new(420.0, 34.0, 1.0);
+const KNOB_SPRING: SpringConfig = SpringConfig::new(420.0, 41.0, 1.0);
 const TRACK_W: f32 = 32.0;
 const TRACK_H: f32 = 18.0;
 const KNOB_INSET: f32 = 2.0;
@@ -43,7 +43,11 @@ pub fn fill(
         .items_center()
         .justify_center()
         .cursor_pointer()
-        .when(hover, |control| control.hover(|style| style))
+        .when(hover, |control| {
+            control
+                .hover(|style| style)
+                .active(|style| style.opacity(0.85))
+        })
         .child(ui::control(radius, rest, hover))
 }
 
@@ -60,37 +64,127 @@ fn surface_fill(active: bool) -> Hsla {
     .into()
 }
 
-pub fn surface(id: impl Into<SharedString>, active: bool, hover: bool) -> Stateful<Div> {
-    fill(id, Radius::Control, Some(surface_fill(active)), hover)
-        .h(px(CONTROL_H))
-        .px(px(12.0))
-        .gap(px(8.0))
-        .text_size(px(SMALL_SIZE))
-        .font_weight(FontWeight::SEMIBOLD)
-        .when(active, |button| button.text_color(rgb(ACCENT)))
-}
-
-pub fn button(
-    id: impl Into<SharedString>,
-    label: impl Into<SharedString>,
+pub struct Button<'a> {
+    id: SharedString,
+    label: Option<SharedString>,
+    glyph: Option<&'a Path>,
+    color: Option<u32>,
+    bare: bool,
+    compact: bool,
     active: bool,
-    hover: bool,
-) -> Stateful<Div> {
-    surface(id, active, hover).child(motion::text("label", label))
-}
-
-/// Keeps the width of the widest of `fits`, so changing label never resizes it.
-pub fn busy(
-    id: impl Into<SharedString>,
-    label: impl Into<SharedString>,
+    toggle: bool,
     fits: Vec<SharedString>,
-    active: bool,
     busy: bool,
-    hover: bool,
-) -> Stateful<Div> {
-    surface(id, active, hover)
-        .child(motion::steady("label", label, fits))
-        .child(energy::border("energy", Radius::Control, 0.0, busy))
+}
+
+impl<'a> Button<'a> {
+    pub fn new(id: impl Into<SharedString>) -> Self {
+        Self {
+            id: id.into(),
+            label: None,
+            glyph: None,
+            color: None,
+            bare: false,
+            compact: false,
+            active: false,
+            toggle: false,
+            fits: Vec::new(),
+            busy: false,
+        }
+    }
+
+    pub fn label(mut self, label: impl Into<SharedString>) -> Self {
+        self.label = Some(label.into());
+        self
+    }
+
+    pub fn glyph(mut self, glyph: Option<&'a Path>) -> Self {
+        self.glyph = glyph;
+        self
+    }
+
+    pub fn color(mut self, color: Option<u32>) -> Self {
+        self.color = color;
+        self
+    }
+
+    pub fn bare(mut self, bare: bool) -> Self {
+        self.bare = bare;
+        self
+    }
+
+    pub fn compact(mut self, compact: bool) -> Self {
+        self.compact = compact;
+        self
+    }
+
+    pub fn active(mut self, active: bool) -> Self {
+        self.active = active;
+        self
+    }
+
+    pub fn toggle(mut self, toggle: bool) -> Self {
+        self.toggle = toggle;
+        self
+    }
+
+    pub fn fits(mut self, fits: Vec<SharedString>) -> Self {
+        self.fits = fits;
+        self
+    }
+
+    pub fn busy(mut self, busy: bool) -> Self {
+        self.busy = busy;
+        self
+    }
+}
+
+pub fn button(spec: Button<'_>, hover: bool) -> Stateful<Div> {
+    let lit = spec.active && !spec.toggle;
+    let has_label = spec.label.is_some();
+    let default_fg = if has_label { TEXT } else { SUBTEXT1 };
+    let (rest, tint) = match (spec.bare, spec.color, lit) {
+        (_, Some(color), true) => (Some(rgb(color).into()), ON_ACCENT),
+        (true, Some(color), false) => (None, color),
+        (true, None, true) => (None, ACCENT),
+        (true, None, false) => (None, default_fg),
+        (false, Some(color), false) => (Some(surface_fill(false)), color),
+        (false, None, true) => (Some(surface_fill(true)), ACCENT),
+        (false, None, false) => (Some(surface_fill(false)), default_fg),
+    };
+    let knob_id = SharedString::from(format!("{}-switch", spec.id));
+    let side = if spec.bare {
+        HEADER_H
+    } else if spec.compact {
+        CONTROL_H
+    } else {
+        ICON_BUTTON
+    };
+
+    fill(spec.id, Radius::Control, rest, hover)
+        .flex_none()
+        .when(!has_label, |el| el.size(px(side)))
+        .when(has_label, |el| {
+            el.h(px(CONTROL_H))
+                .px(px(12.0))
+                .gap(px(8.0))
+                .text_size(px(SMALL_SIZE))
+                .font_weight(FontWeight::SEMIBOLD)
+        })
+        .text_color(rgb(tint))
+        .when(spec.bare && hover && !lit && spec.color.is_none(), |el| {
+            el.hover(|style| style.text_color(rgb(TEXT)))
+        })
+        .when(spec.toggle, |el| el.child(switch(knob_id, spec.active)))
+        .when_some(spec.glyph, |el, path| {
+            el.child(icon::glyph(path, ICON_GLYPH, tint))
+        })
+        .when_some(spec.label, |el, label| {
+            el.child(motion::steady("label", label, spec.fits))
+        })
+        .when(spec.busy, |el| {
+            el.child(energy::border("energy", Radius::Control, 0.0, true))
+        })
 }
 
 const PICK_H: f32 = 72.0;
@@ -415,28 +509,6 @@ pub fn badged(
         })
 }
 
-/// With a `color`, the glyph is drawn in it, and while active the button fills with it, as an
-/// action tile does while armed.
-pub fn icon(
-    id: impl Into<SharedString>,
-    glyph: Option<&Path>,
-    color: Option<u32>,
-    active: bool,
-    hover: bool,
-) -> Stateful<Div> {
-    let (rest, tint) = match (color, active) {
-        (Some(color), true) => (rgb(color).into(), ON_ACCENT),
-        (Some(color), false) => (surface_fill(false), color),
-        (None, true) => (surface_fill(true), ACCENT),
-        (None, false) => (surface_fill(false), SUBTEXT1),
-    };
-    fill(id, Radius::Control, Some(rest), hover)
-        .flex_none()
-        .size(px(ICON_BUTTON))
-        .when_some(glyph, |button, path| {
-            button.child(icon::glyph(path, ICON_GLYPH, tint))
-        })
-}
 
 const FILL_SPRING: SpringConfig = SpringConfig::new(300.0, 30.0, 1.0);
 const STRIP_ICON_W: f32 = 32.0;
@@ -558,18 +630,6 @@ pub fn switch(id: impl Into<SharedString>, on: bool) -> impl IntoElement {
         )
 }
 
-pub fn toggle(
-    id: impl Into<SharedString>,
-    label: impl Into<SharedString>,
-    on: bool,
-    hover: bool,
-) -> Stateful<Div> {
-    let id = id.into();
-    let knob = SharedString::from(format!("{id}-switch"));
-    surface(id, false, hover)
-        .child(switch(knob, on))
-        .child(motion::text("label", label))
-}
 
 pub fn close(id: impl Into<SharedString>, hover: bool) -> Stateful<Div> {
     ghost(id, hover)

@@ -12,7 +12,6 @@ use crate::{
         card::{self, Stat},
         chart::{Series, chart},
         icon, motion,
-        ring::{self, Ring, Rings},
         tooltip::Tooltips,
     },
     island::{CONTENT_IN, Island},
@@ -32,8 +31,6 @@ const MARK_W: f32 = 2.0;
 /// How far a meter's mark reaches past its bar, above and below.
 const MARK_OVERHANG: f32 = 3.0;
 const LABEL_W: f32 = 70.0;
-const RINGS: f32 = 92.0;
-const RINGS_GAP: f32 = 14.0;
 const DOT: f32 = 6.0;
 const DETAIL: f32 = 10.5;
 const VALUE_W: f32 = 64.0;
@@ -65,15 +62,6 @@ pub struct Meter {
     pub color: u32,
     /// A tick across the bar at this fraction, such as how much of a quota's window has passed.
     pub mark: Option<f32>,
-}
-
-/// A line beside rings: a dot in its ring's color, what it is and its value, and a fainter detail
-/// under them.
-pub struct Row {
-    pub color: Option<u32>,
-    pub label: SharedString,
-    pub value: SharedString,
-    pub detail: SharedString,
 }
 
 pub struct Volume {
@@ -134,14 +122,6 @@ pub enum Part {
     Meters {
         rows: Vec<Meter>,
         scroll: bool,
-    },
-    /// Concentric rings around a value, outermost first, beside rows naming what they show.
-    Rings {
-        rings: Vec<Ring>,
-        value: SharedString,
-        value_color: u32,
-        label: SharedString,
-        rows: Vec<Row>,
     },
     /// Each optionally led by a coloured dot.
     Legend(Vec<(Option<u32>, SharedString)>),
@@ -252,69 +232,6 @@ fn meters(rows: Vec<Meter>, key: &str) -> Div {
                             row.value,
                         )),
                 )
-        }))
-}
-
-/// `key` names the rows for their morphing values.
-fn rows(rows: Vec<Row>, key: &str) -> Div {
-    div()
-        .flex_1()
-        .min_w(px(0.0))
-        .flex()
-        .flex_col()
-        .gap(px(5.0))
-        .children(rows.into_iter().enumerate().map(|(index, row)| {
-            div()
-                .flex()
-                .flex_col()
-                .line_height(relative(FACT_LEADING))
-                .child(
-                    div()
-                        .flex()
-                        .items_center()
-                        .gap(px(6.0))
-                        .text_size(px(CAPTION))
-                        .when_some(row.color, |line, color| {
-                            line.child(
-                                div()
-                                    .size(px(DOT))
-                                    .flex_none()
-                                    .rounded_full()
-                                    .bg(rgb(color)),
-                            )
-                        })
-                        .child(
-                            div()
-                                .flex_1()
-                                .min_w(px(0.0))
-                                .truncate()
-                                .text_color(rgb(SUBTEXT1))
-                                .child(row.label),
-                        )
-                        .child(
-                            div()
-                                .flex_none()
-                                .whitespace_nowrap()
-                                .font_weight(FontWeight::SEMIBOLD)
-                                .child(motion::text(
-                                    SharedString::from(format!("{key}-{index}")),
-                                    row.value,
-                                )),
-                        ),
-                )
-                .when(!row.detail.is_empty(), |entry| {
-                    entry.child(
-                        div()
-                            .when(row.color.is_some(), |detail| detail.pl(px(DOT + 6.0)))
-                            .truncate()
-                            .text_size(px(DETAIL))
-                            .text_color(rgb(OVERLAY2))
-                            .child(motion::text(
-                                SharedString::from(format!("{key}-{index}-detail")),
-                                row.detail,
-                            )),
-                    )
-                })
         }))
 }
 
@@ -645,7 +562,9 @@ fn entries(
             })
             .when(clickable, |row| {
                 row.cursor_pointer()
-                    .when(hover, |row| row.hover(|style| style))
+                    .when(hover, |row| {
+                        row.hover(|style| style).active(|style| style.opacity(0.85))
+                    })
                     .child(ui::control(Radius::Control, None, hover))
             })
             .child(content)
@@ -719,28 +638,6 @@ fn part(
             .overflow_y_scroll()
             .child(meters(rows, &format!("{id}-meters-{index}")))
             .into_any_element(),
-        Part::Rings {
-            rings,
-            value,
-            value_color,
-            label,
-            rows: lines,
-        } => div()
-            .flex_none()
-            .flex()
-            .items_center()
-            .gap(px(RINGS_GAP))
-            .child(ring::rings(Rings {
-                id: format!("{id}-rings-{index}").into(),
-                size: RINGS,
-                rings,
-                value,
-                value_color,
-                label,
-                glyph: None,
-            }))
-            .child(rows(lines, &format!("{id}-rows-{index}")))
-            .into_any_element(),
         Part::Legend(items) => legend(items).flex_none().into_any_element(),
         Part::Facts(items) => facts(items, &format!("{id}-facts-{index}"))
             .flex_none()
@@ -775,7 +672,9 @@ pub fn tile(
         .id(id.clone())
         .when(clickable, |tile| {
             tile.cursor_pointer()
-                .when(hover, |tile| tile.hover(|style| style))
+                .when(hover, |tile| {
+                    tile.hover(|style| style).active(|style| style.opacity(0.85))
+                })
                 .child(ui::control(Radius::Panel, None, hover))
         })
         .w(px(card::Size::Small.width()))

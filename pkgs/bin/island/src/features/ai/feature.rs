@@ -39,6 +39,8 @@ impl Feature for Ai {
         ("ai-sessions", &["square-terminal"]),
         ("ai-chat", &["message-circle"]),
         ("ai-usage", &["gauge"]),
+        ("ai-refresh", &["rotate-cw", "refresh-cw"]),
+        ("ai-chevron", &["chevron-right"]),
     ];
     const CONTROLS: &'static [Command] = &[Command {
         name: "ai",

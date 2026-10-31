@@ -262,6 +262,8 @@ fn work(
     let mut fetched = Instant::now();
     // When Claude's usage was last heard of, from the usage API or the status line.
     let mut claude_heard = fetched;
+    // The status line's latest reading of each window, and when it came.
+    let mut claude_live: Vec<(Instant, hook::Reading)> = Vec::new();
     // While the usage API asked to be left alone.
     let mut claude_wait: Option<Instant> = None;
     // The latest passed reset the usage API was asked about, so each reset asks it only once.
@@ -311,7 +313,15 @@ fn work(
                 tracker.restore_claude(&mut state, identity.as_deref(), snapshot, settings);
                 changed = true;
             }
-            Ok(Message::Read(source, result)) => {
+            Ok(Message::Read(source, mut result)) => {
+                if let (Source::Claude, Ok(report)) = (source, &mut result) {
+                    let live: Vec<hook::Reading> = claude_live
+                        .iter()
+                        .filter(|(heard, _)| heard.elapsed() < CLAUDE_QUIET)
+                        .map(|(_, reading)| reading.clone())
+                        .collect();
+                    model::keep_live(report, &live);
+                }
                 match &result {
                     Ok(report) => debug!(
                         source = source.name(),
@@ -376,6 +386,12 @@ fn work(
             Ok(Message::Call(Call::Tell(Hook::Usage { readings, .. }, _))) => {
                 if let Some(report) = model::status_line(&state, &readings, now()) {
                     claude_heard = Instant::now();
+                    for reading in readings.iter().filter(|reading| {
+                        reading.resets_at.is_none_or(|at| at > now())
+                    }) {
+                        claude_live.retain(|(_, kept)| kept.id != reading.id);
+                        claude_live.push((claude_heard, reading.clone()));
+                    }
                     let notices = tracker.apply(&mut state, Source::Claude, Ok(report), settings);
                     settle(&mut state, notices);
                     changed = true;
