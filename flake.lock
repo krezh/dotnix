@@ -465,11 +465,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1793526852,
-        "narHash": "sha256-CWFhKqf+5Bi59fKPtpIuQYJIcXIegaJXM0zKsc3qdIU=",
+        "lastModified": 1793598349,
+        "narHash": "sha256-1m6Ju2jQyU31LAvcd7B7+n8ELsCsiGzS5qvuJUPdmV8=",
         "owner": "purpleclay",
         "repo": "go-overlay",
-        "rev": "334aebd800718596dc214e4714398d6d36003a33",
+        "rev": "7f3832d1649a47bb07365c88f826e85d037effde",
         "type": "github"
       },
       "original": {
@@ -725,11 +725,11 @@
         "treefmt-nix": "treefmt-nix_3"
       },
       "locked": {
-        "lastModified": 1793597149,
-        "narHash": "sha256-GjGW8crbOfAV1wLYOOOsHOqxRiWJw90WdGrDDrB3Qes=",
+        "lastModified": 1793598648,
+        "narHash": "sha256-dyr385pHw1FmM0yEVsR4vIpTzddJU67r5nTMA7q8hE8=",
         "owner": "numtide",
         "repo": "llm-agents.nix",
-        "rev": "08a4526e5fe38015d22a919bdb977911958e17ec",
+        "rev": "49ba6e0dafaaf270d341ec693deafb8632d24385",
         "type": "github"
       },
       "original": {
@@ -864,11 +864,11 @@
         "systems": "systems_3"
       },
       "locked": {
-        "lastModified": 1793594586,
-        "narHash": "sha256-B8lWHcAzNnkb+JISi579kQy3YEXkBVBgj7W8lBfcLkc=",
+        "lastModified": 1793597822,
+        "narHash": "sha256-JvbPSgNuMOb9Z7+yshvuaBPZaLpeyOmoXkmXuIYqxEc=",
         "owner": "nix-community",
         "repo": "nix4vscode",
-        "rev": "df545eba1789f8c799d98697a4149ad0f5d15489",
+        "rev": "c665371a1b0bc9680661fe976006f8e1a2bee27d",
         "type": "github"
       },
       "original": {
