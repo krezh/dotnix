@@ -6,6 +6,7 @@ fn options(bitrate: &str, encode_resolution: &str, max_fps: u32) -> RecordingOpt
         encode_resolution: encode_resolution.to_string(),
         max_fps,
         codec: "auto".to_string(),
+        cursor: true,
     }
 }
 

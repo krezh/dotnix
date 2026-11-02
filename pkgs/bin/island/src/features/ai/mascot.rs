@@ -3,16 +3,15 @@
 
 use std::{
     f32::consts::{PI, TAU},
+    rc::Rc,
     time::{Duration, Instant},
 };
 
-use gpui::{
-    Hsla, IntoElement, PathBuilder, PathStyle, Pixels, Point, Rgba, SpringConfig, StrokeOptions,
-    Window, canvas, div, point, prelude::*, px, rgb,
-};
-
 use crate::{
+    drawing::{Color, Drawing, Shape},
+    panel::Mark,
     spring::Spring,
+    spring::SpringConfig,
     theme::{CRITICAL, CRUST, OVERLAY1, PEACH, PINK, SAPPHIRE, YELLOW},
 };
 
@@ -132,8 +131,10 @@ pub struct Pose {
 }
 
 fn channels(color: u32) -> [f32; 3] {
-    let rgba = rgb(color);
-    [rgba.r, rgba.g, rgba.b]
+    let [_, r, g, b] = color
+        .to_be_bytes()
+        .map(|channel| f32::from(channel) / 255.0);
+    [r, g, b]
 }
 
 /// Moves one character: give it a [`Mood`] as things change, step it each frame, and draw its
@@ -246,6 +247,10 @@ impl Body {
             || matches!(self.mood.activity, Activity::Busy | Activity::Asking)
     }
 
+    fn glancing(&self) -> bool {
+        self.mood.activity == Activity::Rest && !self.mood.near && !self.mood.loading
+    }
+
     /// What the mood says should float by its head.
     fn wanted(&self) -> Extra {
         let phase = self.badge_clock;
@@ -313,6 +318,10 @@ impl Body {
         self.mood
     }
 
+    pub fn set_lively(&mut self, lively: bool) {
+        self.lively = lively;
+    }
+
     pub fn set(&mut self, mood: Mood, now: Instant) {
         if mood == self.mood {
             return;
@@ -371,11 +380,7 @@ impl Body {
             self.blink_at = Some(now);
             self.next_blink = self.after(now, 2.0, 5.5);
         }
-        if self.mood.activity == Activity::Rest
-            && !self.mood.near
-            && !self.mood.loading
-            && now >= self.next_glance
-        {
+        if self.glancing() && now >= self.next_glance {
             let (x, y) = (self.random(-0.7, 0.7), self.random(-0.4, 0.3));
             self.look_x.retarget(x, LOOK);
             self.look_y.retarget(y, LOOK);
@@ -512,8 +517,7 @@ impl Body {
             && self.wobble.iter().all(|(_, size, _)| size.is_settled())
     }
 
-    /// Moving, but only drifting, with no hop or blink under way: smooth enough at a modest frame
-    /// rate, where a hop needs every frame the display has.
+    /// Moving, but only drifting, with no hop or blink under way.
     pub fn is_drifting(&self) -> bool {
         self.lift == 0.0
             && self.jump_at.is_none()
@@ -542,7 +546,7 @@ impl Body {
 
     /// When it next has something to do while calm and still.
     pub fn due(&self) -> Option<Instant> {
-        let glance = (self.mood.activity == Activity::Rest).then_some(self.next_glance);
+        let glance = self.glancing().then_some(self.next_glance);
         [
             Some(self.next_blink),
             glance,
@@ -592,45 +596,35 @@ impl Body {
     }
 }
 
-fn color([r, g, b]: [f32; 3], a: f32) -> Hsla {
-    Rgba { r, g, b, a }.into()
+fn color([r, g, b]: [f32; 3], a: f32) -> Color {
+    [r, g, b, a]
+}
+
+fn black(a: f32) -> Color {
+    [0.0, 0.0, 0.0, a]
+}
+
+fn white(a: f32) -> Color {
+    [1.0, 1.0, 1.0, a]
 }
 
 fn mix(from: [f32; 3], to: [f32; 3], t: f32) -> [f32; 3] {
     [0, 1, 2].map(|i| from[i] + (to[i] - from[i]) * t)
 }
 
-fn fill(window: &mut Window, points: &[Point<Pixels>], color: Hsla) {
-    let Some((first, rest)) = points.split_first() else {
-        return;
-    };
-    let mut path = PathBuilder::fill();
-    path.move_to(*first);
-    for at in rest {
-        path.line_to(*at);
-    }
-    path.close();
-    if let Ok(path) = path.build() {
-        window.paint_path(path, color);
-    }
+fn fill(shapes: &mut Vec<Shape>, points: &[(f32, f32)], color: Color) {
+    shapes.push(Shape::Fill {
+        points: points.to_vec(),
+        color,
+    });
 }
 
-fn stroke(window: &mut Window, points: &[Point<Pixels>], width: f32, color: Hsla) {
-    let Some((first, rest)) = points.split_first() else {
-        return;
-    };
-    let width = width.max(1.0);
-    let style = StrokeOptions::default()
-        .with_line_width(width)
-        .with_miter_limit(1.0);
-    let mut path = PathBuilder::stroke(px(width)).with_style(PathStyle::Stroke(style));
-    path.move_to(*first);
-    for at in rest {
-        path.line_to(*at);
-    }
-    if let Ok(path) = path.build() {
-        window.paint_path(path, color);
-    }
+fn stroke(shapes: &mut Vec<Shape>, points: &[(f32, f32)], width: f32, color: Color) {
+    shapes.push(Shape::Stroke {
+        points: points.to_vec(),
+        width,
+        color,
+    });
 }
 
 fn ellipse(cx: f32, cy: f32, rx: f32, ry: f32) -> Vec<(f32, f32)> {
@@ -736,7 +730,7 @@ fn squircle(pose: &Pose, cx: f32, cy: f32, a: f32, b: f32) -> Vec<(f32, f32)> {
         .collect()
 }
 
-fn paint(pose: &Pose, x0: f32, y0: f32, side: f32, window: &mut Window) {
+fn paint(pose: &Pose, x0: f32, y0: f32, side: f32, shapes: &mut Vec<Shape>) {
     let small = side < GLINT_FROM;
     let (w, h) = (side * FILL, side * FILL / WIDE);
     // At rest it sits in the middle of its square.
@@ -748,59 +742,47 @@ fn paint(pose: &Pose, x0: f32, y0: f32, side: f32, window: &mut Window) {
     let hop = if small { 0.22 } else { 0.45 };
     let room = (ground - y0 - h * sy * g * MOST_WOBBLE - 1.0).max(0.0);
     let lift = (pose.lift * side * hop).min(room);
-    let at = |(x, y): (f32, f32)| {
-        point(
-            px(x0 + side / 2.0 + x * sx * g),
-            px(ground - lift + y * sy * g),
-        )
-    };
+    let at = |(x, y): (f32, f32)| (x0 + side / 2.0 + x * sx * g, ground - lift + y * sy * g);
     let place = |points: Vec<(f32, f32)>| points.into_iter().map(at).collect::<Vec<_>>();
     let ink = color(channels(CRUST), 1.0);
 
     let off = (lift / (side * 0.2)).clamp(0.0, 1.0);
-    let shadow: Vec<_> = ellipse(
+    let shadow = ellipse(
         x0 + side / 2.0,
         (ground + 1.0).min(y0 + side - 1.5),
         w * 0.42 * sx * (1.0 - off * 0.3),
         (side * 0.03).max(1.0),
-    )
-    .into_iter()
-    .map(|(x, y)| point(px(x), px(y)))
-    .collect();
-    fill(
-        window,
-        &shadow,
-        Hsla::black().opacity(0.32 * (1.0 - off * 0.6)),
     );
+    fill(shapes, &shadow, black(0.32 * (1.0 - off * 0.6)));
 
     fill(
-        window,
+        shapes,
         &place(squircle(pose, 0.0, -h / 2.0, w / 2.0, h / 2.0)),
         color(pose.color, 0.92),
     );
     // A darker core shows through the jelly.
     let core = mix(pose.color, channels(CRUST), 0.12);
     fill(
-        window,
+        shapes,
         &place(squircle(pose, 0.0, -h * 0.42, w * 0.3, h * 0.28)),
         color(core, 0.6),
     );
     fill(
-        window,
+        shapes,
         &place(ellipse(-w * 0.2, -h * 0.8, w * 0.13, h * 0.07)),
-        Hsla::white().opacity(0.2),
+        white(0.2),
     );
     fill(
-        window,
+        shapes,
         &place(ellipse(-w * 0.3, -h * 0.68, w * 0.025, w * 0.025)),
-        Hsla::white().opacity(0.35),
+        white(0.35),
     );
 
     if pose.cheeks > 0.02 {
         let blush = color(channels(PINK), pose.cheeks * 0.55);
         for side in [-1.0, 1.0] {
             fill(
-                window,
+                shapes,
                 &place(ellipse(side * w * 0.3, -h * 0.36, w * 0.07, w * 0.042)),
                 blush,
             );
@@ -824,7 +806,7 @@ fn paint(pose: &Pose, x0: f32, y0: f32, side: f32, window: &mut Window) {
         let y = cy + pose.look.1 * h * 0.08;
         let open = eh * pose.open;
         let lid = y - open + open * 2.0 * pose.lid;
-        fill(window, &place(eye.outline(x, y, open, lid)), ink);
+        fill(shapes, &place(eye.outline(x, y, open, lid)), ink);
         let glint = 0.85 * (1.0 - shut) * (1.0 - joy);
         if !small && glint > 0.02 {
             // Cut off by its lid, as its eye is.
@@ -832,7 +814,7 @@ fn paint(pose: &Pose, x0: f32, y0: f32, side: f32, window: &mut Window) {
                 .into_iter()
                 .map(|(gx, gy)| (gx, gy.max(lid)))
                 .collect();
-            fill(window, &place(spot), Hsla::white().opacity(glint));
+            fill(shapes, &place(spot), white(glint));
         }
     }
 
@@ -841,7 +823,7 @@ fn paint(pose: &Pose, x0: f32, y0: f32, side: f32, window: &mut Window) {
     if joy > 0.05 {
         let (sw, dip) = (mw * joy, mw * 1.3 * joy);
         stroke(
-            window,
+            shapes,
             &place(curve((mx - sw, my), (mx, my + dip), (mx + sw, my))),
             (mw * 0.28 * g * joy).max(1.0),
             ink,
@@ -852,7 +834,7 @@ fn paint(pose: &Pose, x0: f32, y0: f32, side: f32, window: &mut Window) {
     if frown > 0.05 {
         let (sw, base) = (mw * 0.9, my + mw * 0.35);
         stroke(
-            window,
+            shapes,
             &place(curve(
                 (mx - sw, base),
                 (mx, base - mw * 1.1 * frown),
@@ -865,7 +847,7 @@ fn paint(pose: &Pose, x0: f32, y0: f32, side: f32, window: &mut Window) {
     let gasp = pose.alert * (1.0 - joy);
     if gasp > 0.02 {
         fill(
-            window,
+            shapes,
             &place(ellipse(
                 mx,
                 my + mw * 0.2,
@@ -899,37 +881,23 @@ fn paint(pose: &Pose, x0: f32, y0: f32, side: f32, window: &mut Window) {
     let top = ground - lift - h * sy * g;
     let x = (x0 + side / 2.0 - w * sx * g / 2.0 + r * 0.55).clamp(x0 + edge, x0 + side - edge);
     let y = (top + r * 0.45).clamp(y0 + edge, y0 + side - edge);
-    let world = |points: Vec<(f32, f32)>| {
-        points
-            .into_iter()
-            .map(|(x, y)| point(px(x), px(y)))
-            .collect::<Vec<_>>()
-    };
-    fill(window, &world(ellipse(x, y, r + ring, r + ring)), ink);
-    fill(
-        window,
-        &world(ellipse(x, y, r, r)),
-        color(channels(tint), 1.0),
-    );
+    fill(shapes, &(ellipse(x, y, r + ring, r + ring)), ink);
+    fill(shapes, &(ellipse(x, y, r, r)), color(channels(tint), 1.0));
     match pose.extra {
         Extra::Asking(_) | Extra::Warning => {
             stroke(
-                window,
-                &world(vec![(x, y - r * 0.5), (x, y + r * 0.08)]),
+                shapes,
+                &(vec![(x, y - r * 0.5), (x, y + r * 0.08)]),
                 r * 0.26,
                 ink,
             );
-            fill(
-                window,
-                &world(ellipse(x, y + r * 0.45, r * 0.14, r * 0.14)),
-                ink,
-            );
+            fill(shapes, &(ellipse(x, y + r * 0.45, r * 0.14, r * 0.14)), ink);
         }
         Extra::Busy(_) => {
             for i in 0..3 {
                 let up = (phase * 7.0 - i as f32 * 0.7).sin().max(0.0) * r * 0.22;
                 let dot = ellipse(x + (i as f32 - 1.0) * r * 0.42, y - up, r * 0.13, r * 0.13);
-                fill(window, &world(dot), ink);
+                fill(shapes, &(dot), ink);
             }
         }
         Extra::Loading(_) => {
@@ -941,7 +909,7 @@ fn paint(pose: &Pose, x0: f32, y0: f32, side: f32, window: &mut Window) {
                     (x + r * 0.5 * th.cos(), y + r * 0.5 * th.sin())
                 })
                 .collect();
-            stroke(window, &world(arc), r * 0.24, ink);
+            stroke(shapes, &(arc), r * 0.24, ink);
         }
         _ => {
             let z = r * 0.36;
@@ -951,26 +919,22 @@ fn paint(pose: &Pose, x0: f32, y0: f32, side: f32, window: &mut Window) {
                 (x - z, y + z),
                 (x + z, y + z),
             ];
-            stroke(window, &world(path), r * 0.2, ink);
+            stroke(shapes, &(path), r * 0.2, ink);
         }
     }
 }
 
-/// `pose` drawn in a square of `side`.
-pub fn mascot(pose: Pose, side: f32) -> impl IntoElement {
-    div().relative().flex_none().size(px(side)).child(
-        canvas(
-            |_, _, _| {},
-            move |bounds, (), window, _| {
-                paint(
-                    &pose,
-                    f32::from(bounds.origin.x),
-                    f32::from(bounds.origin.y),
-                    side,
-                    window,
-                );
-            },
-        )
-        .size_full(),
-    )
+pub fn mark(pose: Pose) -> Mark {
+    Mark::Drawn(Rc::new(move |side| drawing(&pose, side)))
 }
+
+/// `pose` in a square of `side`.
+pub fn drawing(pose: &Pose, side: f32) -> Drawing {
+    let mut shapes = Vec::new();
+    paint(pose, 0.0, 0.0, side, &mut shapes);
+    Drawing { side, shapes }
+}
+
+#[cfg(test)]
+#[path = "mascot_test.rs"]
+mod tests;

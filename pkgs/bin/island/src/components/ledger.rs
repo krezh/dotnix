@@ -6,17 +6,21 @@ use std::{f32::consts::FRAC_PI_2, path::PathBuf};
 
 use gpui::{
     AnimationExt, AnyElement, Context, Div, FontWeight, Hsla, Rgba, ScrollHandle, SharedString,
-    SpringAnimation, SpringConfig, Stateful, Transformation, div, prelude::*, px, radians,
-    relative, rgb, rgba, svg,
+    SpringAnimation, Stateful, Transformation, div, prelude::*, px, radians, relative, rgb, rgba,
+    svg,
 };
 
 use crate::{
     components::{
         badge::{self, Mark},
-        button, edges, motion, reveal,
+        button, edges, motion,
+        overscroll::overscroll,
+        reveal,
     },
     island::{CONTENT_IN, Island},
     panel::Handler,
+    panel::IslandUi,
+    spring::SpringConfig,
     theme::{
         ACCENT_TINT_ALPHA, BASE, CARD_ALPHA, CONTROL_ALPHA, OVERLAY1, OVERLAY2, RED, SUBTEXT1,
         SURFACE1, TEXT, TINT, TRACK_ALPHA, with_alpha,
@@ -47,7 +51,7 @@ const CHEVRON: f32 = 13.0;
 const AHEAD_ALPHA: u8 = 0x47;
 const ROW_TINT_ALPHA: u8 = 0x10;
 
-const TURN_SPRING: SpringConfig = SpringConfig::new(420.0, 41.0, 1.0);
+pub const TURN_SPRING: SpringConfig = SpringConfig::new(420.0, 41.0, 1.0);
 
 pub struct Bar {
     pub key: SharedString,
@@ -164,7 +168,7 @@ fn chevron_glyph(
             .text_color(rgb(color))
             .with_spring(
                 SharedString::from(format!("{id}-chevron")),
-                SpringAnimation::new(TURN_SPRING).to(if expanded { FRAC_PI_2 } else { 0.0 }),
+                SpringAnimation::new(TURN_SPRING.into()).to(if expanded { FRAC_PI_2 } else { 0.0 }),
                 |glyph, angle| glyph.with_transformation(Transformation::rotate(radians(angle))),
             )
             .into_any_element(),
@@ -196,7 +200,7 @@ fn bar_meter(id: &str, bar: &Bar) -> Div {
                     .bg(rgba(with_alpha(bar.color, AHEAD_ALPHA)))
                     .with_spring(
                         ahead_id,
-                        SpringAnimation::new(CONTENT_IN).to(target),
+                        SpringAnimation::new(CONTENT_IN.into()).to(target),
                         |fill, at| fill.w(relative(at.clamp(0.0, 1.0))),
                     ),
             )
@@ -211,7 +215,7 @@ fn bar_meter(id: &str, bar: &Bar) -> Div {
                 .bg(rgb(bar.color))
                 .with_spring(
                     fill_id,
-                    SpringAnimation::new(CONTENT_IN).to(fraction),
+                    SpringAnimation::new(CONTENT_IN.into()).to(fraction),
                     |fill, at| fill.w(relative(at.clamp(0.0, 1.0))),
                 ),
         );
@@ -245,7 +249,7 @@ fn bar_meter(id: &str, bar: &Bar) -> Div {
                     )
                     .with_spring(
                         tick_id,
-                        SpringAnimation::new(CONTENT_IN).to(target),
+                        SpringAnimation::new(CONTENT_IN.into()).to(target),
                         |tick, at| tick.left(relative(at.clamp(0.0, 1.0))),
                     ),
             )
@@ -485,7 +489,9 @@ fn entry_row(
                     .px(px(4.0))
                     .mx(px(-4.0))
                     .justify_start()
-                    .on_click(cx.listener(move |this, _, _, cx| handler(this, cx)))
+                    .on_click(
+                        cx.listener(move |this, _, _, cx| handler(&mut IslandUi::new(this, cx))),
+                    )
                     .child(line.w_full())
                     .into_any_element(),
             );
@@ -533,7 +539,7 @@ fn entry_row(
         button::fill(toggle_id, Radius::Row, rest, hover)
             .w_full()
             .justify_start()
-            .on_click(cx.listener(move |this, _, _, cx| handler(this, cx)))
+            .on_click(cx.listener(move |this, _, _, cx| handler(&mut IslandUi::new(this, cx))))
             .child(inner)
             .into_any_element()
     } else {
@@ -672,12 +678,13 @@ pub fn ledger(
 
     let list = div().flex().flex_col().children(items);
     let body = if overflows {
-        let scrolling: Stateful<Div> = div()
-            .id(SharedString::from(format!("{at}-ledger-scroll")))
-            .max_h(px(MAX_ROWS_H))
-            .overflow_y_scroll()
-            .track_scroll(scroll)
-            .child(list);
+        let key = SharedString::from(format!("{at}-ledger-scroll"));
+        let scrolling: Stateful<Div> = overscroll(
+            key.clone(),
+            div().id(key).max_h(px(MAX_ROWS_H)).overflow_y_scroll(),
+            Some(scroll),
+            list,
+        );
         edges::edges(scrolling, scroll, card_glass(glass))
     } else {
         list.into_any_element()
@@ -686,7 +693,9 @@ pub fn ledger(
     div()
         .flex()
         .flex_col()
-        .when_some(ledger.columns, |col, columns| col.child(header_row(columns)))
+        .when_some(ledger.columns, |col, columns| {
+            col.child(header_row(columns))
+        })
         .child(body)
         .into_any_element()
 }

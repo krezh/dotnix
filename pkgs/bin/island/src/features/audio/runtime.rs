@@ -6,7 +6,6 @@ use super::{
     request::{Mixer, Request},
     state::Target,
 };
-use crate::{features::Feature, island::Panel};
 
 pub struct Audio {
     pub(super) mixer: Mixer,
@@ -21,9 +20,5 @@ pub struct Audio {
 impl Audio {
     pub(super) fn send(&self, request: Request) {
         self.mixer.send(request);
-    }
-
-    pub(super) fn panel_handle() -> Panel {
-        Panel::Feature(<Self as Feature>::NAME)
     }
 }

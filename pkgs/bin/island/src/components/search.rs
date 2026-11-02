@@ -4,14 +4,16 @@
 use std::{cell::Cell, path::PathBuf, rc::Rc, time::Duration};
 
 use gpui::{
-    Animation, AnimationExt, AnyElement, Context, FontWeight, ScrollEvent, SharedString,
-    SpringAnimation, SpringConfig, div, prelude::*, px, rgb,
+    AnimationExt, AnyElement, Context, FontWeight, ScrollEvent, SharedString, SpringAnimation, div,
+    prelude::*, px, rgb,
 };
 
 use crate::{
-    components::{button, card, icon, list::ROWS},
+    components::{button, card, icon, list::ROWS, marquee::TextLayouts},
     island::Island,
     panel::Handler,
+    panel::{IslandUi, Ui},
+    spring::SpringConfig,
     theme::{ACCENT, HOVER_ALPHA, OVERLAY2, SUBTEXT1, TINT},
     ui::{self, CARD_PAD, HEADING_SIZE, Radius, SMALL_SIZE, TITLE_SIZE},
 };
@@ -29,7 +31,7 @@ const ICON: f32 = 30.0;
 const GLYPH: f32 = 22.0;
 const PREVIEW_W: f32 = 56.0;
 const PREVIEW_H: f32 = 40.0;
-const SELECTION_SPRING: SpringConfig = SpringConfig::new(560.0, 47.3, 1.0);
+pub const SELECTION_SPRING: SpringConfig = SpringConfig::new(560.0, 47.3, 1.0);
 
 pub struct SearchRow {
     pub id: SharedString,
@@ -53,7 +55,7 @@ pub enum RowIcon {
 }
 
 /// Moves the rows in view by a number of rows, leaving the selection where it is.
-pub type Scroll = Rc<dyn Fn(i32, &mut Island, &mut Context<Island>)>;
+pub type Scroll = Rc<dyn Fn(i32, &mut dyn Ui)>;
 
 pub enum Preview {
     Text(SharedString),
@@ -75,21 +77,15 @@ pub struct SearchView {
 }
 
 /// Breathes rather than blinks: fully lit most of the cycle, easing out and back.
-fn caret() -> impl IntoElement {
+fn caret(layouts: &TextLayouts) -> impl IntoElement + use<> {
+    let t = layouts.phase(Duration::from_millis(1100));
     div()
         .flex_none()
         .w(px(2.0))
         .h(px(CARET_H))
         .rounded_full()
         .bg(rgb(ACCENT))
-        .with_animation(
-            "search-caret",
-            Animation::new(Duration::from_millis(1100)).repeat(),
-            |caret, t| {
-                caret
-                    .opacity(((t * std::f32::consts::TAU).cos() * 1.6).clamp(-1.0, 1.0) * 0.5 + 0.5)
-            },
-        )
+        .opacity(((t * std::f32::consts::TAU).cos() * 1.6).clamp(-1.0, 1.0) * 0.5 + 0.5)
 }
 
 thread_local! {
@@ -111,7 +107,7 @@ fn preview_pane(preview: Preview, detail: SharedString, height: f32) -> AnyEleme
             .text_size(px(SMALL_SIZE))
             .child(text)
             .into_any_element(),
-        Preview::Picture(path) => gpui::img(path)
+        Preview::Picture(path) => icon::art(path)
             .size_full()
             .object_fit(gpui::ObjectFit::Contain)
             .into_any_element(),
@@ -145,7 +141,12 @@ fn preview_pane(preview: Preview, detail: SharedString, height: f32) -> AnyEleme
 
 /// Always the same size: typing only changes what fills the [`ROWS`] slots, so the island
 /// never reshapes mid-search.
-pub fn search(view: SearchView, hover: bool, cx: &mut Context<Island>) -> AnyElement {
+pub fn search(
+    view: SearchView,
+    layouts: &TextLayouts,
+    hover: bool,
+    cx: &mut Context<Island>,
+) -> AnyElement {
     let field = card::surface()
         .flex_none()
         .h(px(FIELD_H))
@@ -156,7 +157,7 @@ pub fn search(view: SearchView, hover: bool, cx: &mut Context<Island>) -> AnyEle
         .text_size(px(HEADING_SIZE))
         .map(|field| {
             if view.query.is_empty() {
-                field.child(caret()).child(
+                field.child(caret(layouts)).child(
                     div()
                         .pl(px(4.0))
                         .text_color(rgb(OVERLAY2))
@@ -165,7 +166,7 @@ pub fn search(view: SearchView, hover: bool, cx: &mut Context<Island>) -> AnyEle
             } else {
                 field
                     .child(div().min_w(px(0.0)).truncate().child(view.query.clone()))
-                    .child(caret())
+                    .child(caret(layouts))
             }
         });
 
@@ -191,7 +192,7 @@ pub fn search(view: SearchView, hover: bool, cx: &mut Context<Island>) -> AnyEle
                     .rounded(px(6.0))
                     .bg(gpui::rgba((TINT << 8) | u32::from(HOVER_ALPHA)))
                     .child(
-                        gpui::img(path)
+                        icon::art(path)
                             .size_full()
                             .object_fit(gpui::ObjectFit::Contain),
                     ),
@@ -228,10 +229,10 @@ pub fn search(view: SearchView, hover: bool, cx: &mut Context<Island>) -> AnyEle
                         )
                     }),
             )
-            .on_click(cx.listener(move |this, _, _, cx| handler(this, cx)))
+            .on_click(cx.listener(move |this, _, _, cx| handler(&mut IslandUi::new(this, cx))))
             .on_hover(cx.listener(move |this, hovered: &bool, _, cx| {
                 if *hovered {
-                    entered(this, cx);
+                    entered(&mut IslandUi::new(this, cx));
                 }
             }))
     });
@@ -252,7 +253,7 @@ pub fn search(view: SearchView, hover: bool, cx: &mut Context<Island>) -> AnyEle
         .on_scroll(cx.listener(move |this, event: &ScrollEvent, _, cx| {
             let rows = rows_scrolled(event);
             if rows != 0 {
-                on_scroll(rows, this, cx);
+                on_scroll(rows, &mut IslandUi::new(this, cx));
             }
         }))
         .when_some(selected, |list, index| {
@@ -266,7 +267,7 @@ pub fn search(view: SearchView, hover: bool, cx: &mut Context<Island>) -> AnyEle
                     .child(ui::shape(Radius::Row, Some(ui::hover_fill().into())))
                     .with_spring(
                         "search-selection",
-                        SpringAnimation::new(SELECTION_SPRING).to(top),
+                        SpringAnimation::new(SELECTION_SPRING.into()).to(top),
                         |pill, top| pill.top(top),
                     ),
             )

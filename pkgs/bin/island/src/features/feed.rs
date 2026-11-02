@@ -1,5 +1,10 @@
 //! How a feature's worker reaches the islands: its state, live levels, events and settings.
 
+use std::{
+    sync::mpsc::{Receiver, RecvTimeoutError},
+    time::Duration,
+};
+
 use futures::channel::mpsc::UnboundedSender;
 use serde::de::DeserializeOwned;
 use tracing::error;
@@ -31,6 +36,14 @@ pub struct Refreshed<T> {
     pub value: T,
     /// A fresh reading asked for is on its way, so the widget can show it is busy.
     pub refreshing: bool,
+}
+
+/// Either way a polling worker reads again at once.
+pub enum Wake {
+    /// The widget shows it is busy until the reading arrives.
+    Asked,
+    /// The interval changed.
+    Retimed,
 }
 
 pub fn parse_settings<T: DeserializeOwned>(settings: &toml::Value) -> Result<T, String> {
@@ -85,3 +98,52 @@ impl<S: Send + 'static, E: Send + 'static> Feed<S, E> {
         }
     }
 }
+
+impl<T: Clone + PartialEq + Send + 'static, E: Send + 'static> Feed<Refreshed<T>, E> {
+    /// Reads every `interval` and when woken, publishing what changed or was asked for. `report`
+    /// sees each change.
+    pub fn poll(
+        &self,
+        wakes: &Receiver<Wake>,
+        interval: impl Fn() -> Duration,
+        read: impl Fn() -> T,
+        report: impl Fn(&T),
+    ) -> Ended {
+        let mut last: Option<T> = None;
+        let mut asked = false;
+        loop {
+            if asked
+                && let Some(value) = last.clone()
+                && !self.publish(Refreshed {
+                    value,
+                    refreshing: true,
+                })
+            {
+                return Ended::Unwanted;
+            }
+            let reading = read();
+            let changed = last.as_ref() != Some(&reading);
+            if changed {
+                report(&reading);
+            }
+            if asked || changed {
+                last = Some(reading.clone());
+                if !self.publish(Refreshed {
+                    value: reading,
+                    refreshing: false,
+                }) {
+                    return Ended::Unwanted;
+                }
+            }
+            asked = match wakes.recv_timeout(interval()) {
+                Ok(Wake::Asked) => true,
+                Ok(Wake::Retimed) | Err(RecvTimeoutError::Timeout) => false,
+                Err(RecvTimeoutError::Disconnected) => return Ended::Unwanted,
+            };
+        }
+    }
+}
+
+#[cfg(test)]
+#[path = "feed_test.rs"]
+mod tests;

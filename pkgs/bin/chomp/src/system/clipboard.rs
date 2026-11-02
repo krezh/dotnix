@@ -21,6 +21,32 @@ pub fn copy_image(wl_copy: &str, file_path: &Path) -> Result<()> {
     run_wl_copy(wl_copy, &["-t", "image/png"], Stdio::from(file), None)
 }
 
+/// Copies a file to the clipboard as a `file://` URI, so it pastes as an attachment.
+pub fn copy_file(wl_copy: &str, file_path: &Path) -> Result<()> {
+    let path = std::path::absolute(file_path).context("Failed to resolve file path")?;
+    let uri_list = format!("{}\r\n", file_uri(&path));
+    run_wl_copy(
+        wl_copy,
+        &["-t", "text/uri-list"],
+        Stdio::piped(),
+        Some(uri_list.as_bytes()),
+    )
+}
+
+fn file_uri(path: &Path) -> String {
+    use std::os::unix::ffi::OsStrExt;
+
+    let mut uri = String::from("file://");
+    for &byte in path.as_os_str().as_bytes() {
+        if byte.is_ascii_alphanumeric() || b"/-._~".contains(&byte) {
+            uri.push(byte as char);
+        } else {
+            uri.push_str(&format!("%{byte:02X}"));
+        }
+    }
+    uri
+}
+
 /// Runs `wl-copy` with `args`, writing `input` to it when its stdin is a pipe,
 /// and waits for it to take ownership of the selection.
 fn run_wl_copy(wl_copy: &str, args: &[&str], stdin: Stdio, input: Option<&[u8]>) -> Result<()> {

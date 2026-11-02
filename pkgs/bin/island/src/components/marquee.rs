@@ -17,11 +17,11 @@ use gpui::{
 use crate::theme::{FONT, TEXT};
 
 /// Between the end of one pass and the start of the next.
-const GAP: f32 = 40.0;
+pub const GAP: f32 = 40.0;
 /// Px per second.
-const SPEED: f32 = 28.0;
+pub const SPEED: f32 = 28.0;
 /// At each edge of the slot.
-const FADE: f32 = 18.0;
+pub const FADE: f32 = 18.0;
 /// Fade levels; glyphs sharing a level share a text run.
 const LEVELS: f32 = 24.0;
 const CACHE_LIMIT: usize = 256;
@@ -54,6 +54,7 @@ impl Default for Layouts {
 /// Ambient motion does not need the display's full refresh rate (often 144–240 Hz), and each frame
 /// rebuilds the whole island.
 pub const TICK: Duration = Duration::from_micros(33_333);
+pub const BRISK: Duration = Duration::from_micros(16_667);
 
 /// Lookups made during render are shaped at the end of the frame by [`TextLayouts::resolve`], so
 /// elements built without a `Window` can still lay themselves out by text.
@@ -74,6 +75,10 @@ impl TextLayouts {
         let mut layouts = self.0.borrow_mut();
         layouts.scrolling = true;
         layouts.epoch.elapsed().as_secs_f32()
+    }
+
+    pub fn phase(&self, period: Duration) -> f32 {
+        (self.mark_scrolling() / period.as_secs_f32()).fract()
     }
 
     pub fn get(
@@ -142,7 +147,7 @@ pub fn shape(window: &Window, text: &str, size: f32, weight: FontWeight) -> Text
     }
 }
 
-fn smoothstep(t: f32) -> f32 {
+pub fn smoothstep(t: f32) -> f32 {
     let t = t.clamp(0.0, 1.0);
     t * t * (3.0 - 2.0 * t)
 }

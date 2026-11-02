@@ -1,27 +1,27 @@
 //! What the network puts on the dashboard's overview: switches for Wi-Fi or the wired link and for
 //! a VPN, a card of how fast it moves now, and a warning while the internet does not answer.
 
-use gpui::SharedString;
-
 use super::{
     Network,
-    panel::{bytes, latency_color, millis},
+    panel::{latency_color, millis},
     runtime::{Request, SAMPLE_EVERY, phase},
     state::{Activity, State},
 };
 use crate::{
     components::card::{Size, Title},
-    features::{Feature, PanelCx},
-    island::{Mode, Panel},
-    panel::{self, ActionTile, Block, ChartView, Handler, Meter, MeterShape, Warning},
-    panels::{nice_peak, rate, series},
+    features::{PanelCx, Surface},
+    panel::{
+        self, ActionTile, Block, ChartView, Handler, Meter, MeterShape, SharedString, Warning,
+    },
+    panels::{nice_peak, series},
     theme::{LAVENDER, OVERLAY2, RED, SKY, TEAL},
+    units::{bytes, link, rate},
 };
 
 const CHART_H: f32 = 56.0;
 
 fn open() -> Handler {
-    panel::on(|island, cx| island.set_mode(Mode::Open(Panel::Feature(Network::NAME)), cx))
+    panel::on(|ui| ui.open(Network::panel_handle()))
 }
 
 pub fn switches(state: &State, p: &PanelCx<'_>) -> Vec<ActionTile> {
@@ -90,12 +90,10 @@ pub fn switches(state: &State, p: &PanelCx<'_>) -> Vec<ActionTile> {
     tiles
 }
 
-/// Such as "2.5 Gb/s" from 2500 Mbit/s.
 fn link_speed(mbits: u32) -> String {
     match mbits {
         0 => "Connected".to_owned(),
-        speed if speed >= 1000 => format!("{} Gb/s", speed as f32 / 1000.0),
-        speed => format!("{speed} Mb/s"),
+        speed => link(speed),
     }
 }
 

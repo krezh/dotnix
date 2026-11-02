@@ -4,14 +4,15 @@
 use std::path::PathBuf;
 
 use gpui::{
-    AnyElement, Context, HighlightStyle, Keystroke, SharedString, StyledText, div, prelude::*, px,
-    rgb, rgba,
+    AnyElement, Context, HighlightStyle, SharedString, StyledText, div, prelude::*, px, rgb, rgba,
 };
 
 use crate::{
     components::{button, energy, list},
     island::Island,
+    key::Key,
     panel::Handler,
+    panel::IslandUi,
     theme::{ACCENT, CONTROL_ALPHA, OVERLAY2, SURFACE1, with_alpha},
     ui::{self, Radius, SMALL_SIZE},
 };
@@ -20,7 +21,7 @@ const LINE: f32 = 18.0;
 const PAD_X: f32 = 12.0;
 /// Leaves room round the send button inside the field.
 const PAD_Y: f32 = 13.0;
-const CARET: &str = "▏";
+pub const CARET: &str = "▏";
 
 pub struct InputView {
     pub id: SharedString,
@@ -50,16 +51,15 @@ pub enum Edit {
 
 /// Enter sends and Shift+Enter starts a new line; Backspace removes a character, or a word with
 /// Ctrl; Ctrl+U clears; Escape cancels.
-pub fn edit(text: &mut String, keystroke: &Keystroke) -> Edit {
-    let modifiers = &keystroke.modifiers;
-    match keystroke.key.as_str() {
+pub fn edit(text: &mut String, key: &Key) -> Edit {
+    match key.name.as_str() {
         "escape" => Edit::Cancel,
-        "enter" if modifiers.shift => {
+        "enter" if key.shift => {
             text.push('\n');
             Edit::Changed
         }
         "enter" => Edit::Send,
-        "backspace" if modifiers.control => {
+        "backspace" if key.control => {
             let kept = text.trim_end().len();
             text.truncate(kept);
             let start = text.rfind(char::is_whitespace).map_or(0, |at| at + 1);
@@ -70,11 +70,11 @@ pub fn edit(text: &mut String, keystroke: &Keystroke) -> Edit {
             text.pop();
             Edit::Changed
         }
-        "u" if modifiers.control => {
+        "u" if key.control => {
             text.clear();
             Edit::Changed
         }
-        _ => match list::typed(keystroke) {
+        _ => match list::typed(key) {
             Some(typed) => {
                 text.push_str(typed);
                 Edit::Changed
@@ -126,7 +126,7 @@ pub fn input(view: InputView, hover: bool, cx: &mut Context<Island>) -> AnyEleme
     )
     .when(view.send_glyph.is_none(), |send| send.child("↑"))
     .when_some(view.on_send, |send, handler| {
-        send.on_click(cx.listener(move |this, _, _, cx| handler(this, cx)))
+        send.on_click(cx.listener(move |this, _, _, cx| handler(&mut IslandUi::new(this, cx))))
     });
     // The send button sits inside the field at its end, level with the last line.
     let inset = (LINE + 2.0 * PAD_Y - button::ICON_BUTTON) / 2.0;

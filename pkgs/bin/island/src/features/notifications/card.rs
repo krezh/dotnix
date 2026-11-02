@@ -7,7 +7,6 @@ use std::{
 };
 
 use chrono::Local;
-use gpui::{SharedString, SpringConfig, Window};
 
 use super::{
     Cards, Event, Notifications,
@@ -17,6 +16,7 @@ use super::{
     toasts::Toasts,
 };
 use crate::{
+    components::measure::Measure,
     components::{
         card::{self, Look as FrameLook},
         item::{self, Item, Lead, Tint, Trail, TrailButton},
@@ -24,10 +24,12 @@ use crate::{
     },
     features::PanelCx,
     markdown,
+    panel::SharedString,
     panel::{
         self, Block, ButtonRow, Countdown, FrameView, Handler, IconButton, Mark, Place, Placed,
         Text, TextStyle, Tone,
     },
+    spring::SpringConfig,
     theme::{CRITICAL, PEACH, SAPPHIRE, SUBTEXT1, app_color},
     ui::{CONTROL_H, INSET, TIGHT_INSET},
 };
@@ -49,8 +51,8 @@ const PEEK_OPACITY: [f32; 2] = [1.0, 0.6];
 /// The frame each edge is the bottom of, tall enough for its rounded corners.
 const PEEK_DRAWN: f32 = 40.0;
 const EMPTY_H: f32 = 52.0;
-/// How a dismissed card leaves: sliding out and fading by halfway, then the room it took closes.
-pub const FOLD: SpringConfig = SpringConfig::new(260.0, 30.0, 1.0);
+/// How a dismissed card leaves: fading by halfway, then the room it took closes.
+pub const FOLD: SpringConfig = SpringConfig::new(260.0, 32.2, 1.0);
 
 #[derive(Clone, Copy)]
 pub enum Kind {
@@ -108,9 +110,9 @@ pub(super) fn invoke(
         .map(|action| {
             let then = handler(action.key.clone());
             let handler = match action.opens.clone() {
-                Some((name, view)) => panel::on(move |island, cx| {
-                    then(island, cx);
-                    island.open_named(&name, Some(&view), false, cx);
+                Some((name, view)) => panel::on(move |ui| {
+                    ui.run(&then);
+                    ui.open_named(&name, Some(&view), false);
                 }),
                 None => then,
             };
@@ -158,9 +160,11 @@ impl Notifications {
 }
 
 /// With the markup read and its lines joined, as the card shows it, up to `most`.
-pub fn body_lines(body: &str, card_width: f32, most: usize, window: &Window) -> usize {
+pub fn body_lines(body: &str, card_width: f32, most: usize, measure: &Measure<'_>) -> usize {
     let width = card_width - 2.0 * card::RAISED_PAD - ICON - item::LEAD_GAP;
-    text::wrapped_lines(&markdown::parse(body).text, text::BODY_SIZE, width, window).min(most)
+    measure
+        .wrapped_lines(&markdown::parse(body).text, text::BODY_SIZE, width)
+        .min(most)
 }
 
 pub fn height(body_lines: usize, buttons: bool) -> f32 {
@@ -378,7 +382,7 @@ fn message(
                 .invoke
                 .iter()
                 .find(|(key, _)| *key == action.key)
-                .map_or_else(|| panel::on(|_, _| {}), |(_, handler)| handler.clone()),
+                .map_or_else(|| panel::on(|_| {}), |(_, handler)| handler.clone()),
         })
         .collect();
     let mut blocks = vec![Block::Item(item, under)];
@@ -595,6 +599,38 @@ pub fn missed(rows: &MissedList, looks: Vec<RowLook>, empty: &'static str) -> Bl
     })
 }
 
+/// Between two lists as they pass: wide enough that the leaving one is past the island's edge
+/// before the spring slows at the end, or its edge lingers in the panel's padding.
+const ACROSS_GAP: f32 = 96.0;
+
+/// `left` moving out as `right` moves in, `at` of the way across, as their tabs sit side by side.
+/// Both stay whole, so nothing blanks or shows through the other on the way.
+pub fn across(left: Block, right: Block, at: f32) -> Block {
+    let (mut left, mut right) = match (left, right) {
+        (Block::Placed(left), Block::Placed(right)) => (left, right),
+        (_, right) => return right,
+    };
+    let width = left.width.max(right.width);
+    let travel = width + ACROSS_GAP;
+    for (place, _) in &mut left.blocks {
+        place.offset -= at * travel;
+    }
+    for (place, _) in &mut right.blocks {
+        place.offset += (1.0 - at) * travel;
+    }
+    let visible = left
+        .visible
+        .zip(right.visible)
+        .map(|(left, right)| left + (right - left) * at);
+    left.blocks.append(&mut right.blocks);
+    Block::Placed(Placed {
+        width,
+        height: left.height.max(right.height),
+        visible,
+        blocks: left.blocks,
+    })
+}
+
 /// How tall each line over a list is, such as a source's trouble.
 const ABOVE_H: f32 = 28.0;
 
@@ -703,11 +739,11 @@ pub fn toasts(stack: &Toasts, looks: Vec<Look>) -> Block {
         let Some(look) = looks.get_mut(index).and_then(Option::take) else {
             continue;
         };
-        // A leaving one slides out to the right and fades before the room it took closes.
+        // A leaving one rises back the way it came and fades before the room it took closes.
         let out = shown.out();
         let opacity = alpha * (1.0 - out);
         if opacity > 0.001 {
-            let at = place(drawn[index], shown.height(), opacity);
+            let at = place(drawn[index] - shown.lift(), shown.height(), opacity);
             blocks.push((
                 at,
                 message(Kind::Toast(shown.id), &shown.notification, look, None),

@@ -19,6 +19,7 @@ use crate::{
         measure::{self, Measured},
     },
     island::{CONTENT_DRIFT, CONTENT_IN, CONTENT_OUT, Island, SHAPE_SPRING},
+    panel::IslandUi,
     panel::{self, Handler},
     shape::Hang,
     spring::Spring,
@@ -73,7 +74,7 @@ fn entry_element(entry: Entry, checks: bool, hover: bool, cx: &mut Context<Islan
             row.child(div().text_color(rgb(SUBTEXT1)).child("›"))
         })
         .when_some(entry.on_click.filter(|_| entry.enabled), |row, handler| {
-            row.on_click(cx.listener(move |this, _, _, cx| handler(this, cx)))
+            row.on_click(cx.listener(move |this, _, _, cx| handler(&mut IslandUi::new(this, cx))))
         })
         .into_any_element()
 }
@@ -466,11 +467,11 @@ impl Menu {
                     separator: child.separator,
                     check: child.toggle,
                     submenu,
-                    on_click: interactive.then(|| {
+                    on_click: interactive.then(|| -> Handler {
                         if submenu {
-                            panel::on(move |island, cx| island.menu_enter(index, cx))
+                            panel::on(move |ui| ui.menu_enter(index))
                         } else {
-                            panel::on(move |island, cx| island.menu_pick(id, cx))
+                            panel::on(move |ui| ui.menu_pick(id))
                         }
                     }),
                 };

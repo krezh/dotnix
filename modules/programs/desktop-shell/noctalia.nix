@@ -284,11 +284,11 @@
         };
       };
 
-      xdg.dataFile."noctalia/plugins/omp-usage".source = "${pkgs.noctalia-plugin-omp-usage}/omp-usage";
-      xdg.dataFile."noctalia/plugins/molt-check".source = "${pkgs.noctalia-plugin-molt-check}/molt-check";
-      xdg.dataFile."noctalia/plugins/zowie-battery".source =
-        "${pkgs.noctalia-plugin-zowie-battery}/zowie-battery";
-      xdg.dataFile."noctalia/plugins/headsetcontrol".source =
-        "${pkgs.noctalia-plugin-headsetcontrol}/headsetcontrol";
+      xdg.dataFile = {
+        "noctalia/plugins/omp-usage".source = "${pkgs.noctalia-plugin-omp-usage}/omp-usage";
+        "noctalia/plugins/molt-check".source = "${pkgs.noctalia-plugin-molt-check}/molt-check";
+        "noctalia/plugins/zowie-battery".source = "${pkgs.noctalia-plugin-zowie-battery}/zowie-battery";
+        "noctalia/plugins/headsetcontrol".source = "${pkgs.noctalia-plugin-headsetcontrol}/headsetcontrol";
+      };
     };
 }

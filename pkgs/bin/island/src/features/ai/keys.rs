@@ -1,16 +1,14 @@
-use gpui::Keystroke;
-
 use super::{
     Ai,
     state::State,
     view::{Tab, View},
 };
-use crate::{features::Outcome, panel::Edit};
+use crate::{features::Outcome, key::Key, panel::Edit};
 
 /// Typing goes to the chat while it shows; elsewhere only Escape does anything, closing the panel.
-pub(super) fn key(ai: &Ai, state: &State, view: &mut View, keystroke: &Keystroke) -> Outcome {
+pub(super) fn key(ai: &Ai, state: &State, view: &mut View, keystroke: &Key) -> Outcome {
     if view.tab != Tab::Chat {
-        return if keystroke.key == "escape" {
+        return if keystroke.name == "escape" {
             Outcome::Close
         } else {
             Outcome::Open

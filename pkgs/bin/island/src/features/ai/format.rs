@@ -3,7 +3,10 @@ use std::time::Duration;
 use chrono::Utc;
 
 use super::state::{Freshness, Limit, Provider, Severity, Source, State};
-use crate::theme::{BLUE, CRITICAL, GREEN, MAUVE, YELLOW};
+use crate::{
+    theme::{BLUE, CRITICAL, GREEN, MAUVE, YELLOW},
+    units,
+};
 
 pub(super) fn now() -> i64 {
     Utc::now().timestamp_millis()
@@ -31,11 +34,9 @@ pub(super) fn elapsed(limit: &Limit, now: i64) -> Option<f32> {
 
 pub(super) fn countdown(at: i64, now: i64) -> String {
     let minutes = at.saturating_sub(now).max(0).saturating_add(59_999) / 60_000;
-    match minutes {
+    match u64::try_from(minutes).unwrap_or(0) {
         0 => "due now".to_owned(),
-        1..60 => format!("{minutes}m"),
-        60..1440 => format!("{}h {:02}m", minutes / 60, minutes % 60),
-        _ => format!("{}d {}h", minutes / 1440, minutes % 1440 / 60),
+        minutes => units::span(minutes * 60),
     }
 }
 
@@ -43,13 +44,7 @@ pub(super) fn ago(at: i64, now: i64) -> String {
     if at <= 0 {
         return "not refreshed yet".to_owned();
     }
-    let minutes = now.saturating_sub(at).max(0) / 60_000;
-    match minutes {
-        0 => "just now".to_owned(),
-        1..60 => format!("{minutes}m ago"),
-        60..1440 => format!("{}h ago", minutes / 60),
-        _ => format!("{}d ago", minutes / 1440),
-    }
+    units::ago(now.saturating_sub(at) / 1000)
 }
 
 pub(super) fn color(severity: Severity) -> u32 {

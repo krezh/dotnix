@@ -4,20 +4,20 @@
 
 use std::{path::PathBuf, time::Duration};
 
-use gpui::{
-    Animation, AnimationExt, AnyElement, Context, FontWeight, SharedString, div, prelude::*, px,
-    rgb, rgba,
-};
+use gpui::{AnyElement, Context, FontWeight, SharedString, div, prelude::*, px, rgb, rgba};
 
 use crate::{
     components::{
         button,
         code::{self, Code},
-        icon, reveal,
+        icon,
+        marquee::TextLayouts,
+        reveal,
         text::{self, Text},
     },
     island::Island,
     panel::Handler,
+    panel::IslandUi,
     theme::{
         ACCENT, ACCENT_TINT_ALPHA, CARD_BORDER_ALPHA, NOTIFICATION_ALPHA, OVERLAY2, SURFACE1,
         with_alpha,
@@ -72,7 +72,12 @@ pub struct Transcript {
 }
 
 /// The other side's mark; while `alive` it glows in and out, as something thinking.
-fn mark(id: SharedString, glyph: Option<&std::path::Path>, color: u32, alive: bool) -> AnyElement {
+fn mark(
+    layouts: &TextLayouts,
+    glyph: Option<&std::path::Path>,
+    color: u32,
+    alive: bool,
+) -> AnyElement {
     let tint = rgba(with_alpha(color, ACCENT_TINT_ALPHA));
     let base = div()
         .relative()
@@ -83,61 +88,45 @@ fn mark(id: SharedString, glyph: Option<&std::path::Path>, color: u32, alive: bo
         .justify_center()
         .child(ui::shape(Radius::Row, Some(tint.into())));
     let glow = alive.then(|| {
+        let t = layouts.phase(Duration::from_millis(1600));
+        let breath = 0.5 - 0.5 * (t * std::f32::consts::TAU).cos();
         div()
             .absolute()
             .size_full()
+            .opacity(breath * GLOW_ALPHA)
             .child(ui::shape(Radius::Row, Some(rgb(color).into())))
-            .with_animation(
-                SharedString::from(format!("{id}-glow")),
-                Animation::new(Duration::from_millis(1600)).repeat(),
-                |glow, t| {
-                    let breath = 0.5 - 0.5 * (t * std::f32::consts::TAU).cos();
-                    glow.opacity(breath * GLOW_ALPHA)
-                },
-            )
     });
     base.children(glow)
         .children(glyph.map(|path| icon::glyph(path, MARK_GLYPH, color)))
         .into_any_element()
 }
 
-fn dots(id: SharedString) -> impl IntoElement {
+fn dots(layouts: &TextLayouts) -> impl IntoElement + use<> {
+    let t = layouts.phase(Duration::from_millis(1100));
     div()
         .flex()
         .gap(px(4.0))
         .py(px(6.0))
         .children((0..3).map(move |index| {
+            let phase = (t - index as f32 * 0.14).rem_euclid(1.0);
+            let lift = (phase * std::f32::consts::TAU).sin().max(0.0);
             div()
                 .size(px(DOT))
                 .rounded_full()
                 .bg(rgb(OVERLAY2))
-                .with_animation(
-                    SharedString::from(format!("{id}-dot-{index}")),
-                    Animation::new(Duration::from_millis(1100)).repeat(),
-                    move |dot, t| {
-                        let phase = (t - index as f32 * 0.14).rem_euclid(1.0);
-                        let lift = (phase * std::f32::consts::TAU).sin().max(0.0);
-                        dot.opacity(0.35 + 0.65 * lift)
-                    },
-                )
+                .opacity(0.35 + 0.65 * lift)
         }))
 }
 
 /// Breathes while the reply arrives, as the search field's caret does.
-fn caret() -> impl IntoElement {
+fn caret(layouts: &TextLayouts) -> impl IntoElement + use<> {
+    let t = layouts.phase(Duration::from_millis(1100));
     div()
         .w(px(2.0))
         .h(px(14.0))
         .rounded_full()
         .bg(rgb(ACCENT))
-        .with_animation(
-            "transcript-caret",
-            Animation::new(Duration::from_millis(1100)).repeat(),
-            |caret, t| {
-                caret
-                    .opacity(((t * std::f32::consts::TAU).cos() * 1.6).clamp(-1.0, 1.0) * 0.5 + 0.5)
-            },
-        )
+        .opacity(((t * std::f32::consts::TAU).cos() * 1.6).clamp(-1.0, 1.0) * 0.5 + 0.5)
 }
 
 /// A reply's own surface, quieter than a card, as a message is.
@@ -158,7 +147,12 @@ fn overline(text: SharedString, color: u32) -> impl IntoElement {
         .child(text)
 }
 
-pub fn transcript(transcript: Transcript, hover: bool, cx: &mut Context<Island>) -> AnyElement {
+pub fn transcript(
+    transcript: Transcript,
+    layouts: &TextLayouts,
+    hover: bool,
+    cx: &mut Context<Island>,
+) -> AnyElement {
     let Transcript {
         id,
         turns,
@@ -208,31 +202,34 @@ pub fn transcript(transcript: Transcript, hover: bool, cx: &mut Context<Island>)
                             .items_end()
                             .gap(px(2.0))
                             .child(div().min_w(px(0.0)).child(element))
-                            .child(caret())
+                            .child(caret(layouts))
                             .into_any_element()
                     } else {
                         element
                     });
                 }
-                let chips: Vec<AnyElement> = actions
-                    .into_iter()
-                    .enumerate()
-                    .map(|(number, (label, handler))| {
-                        button::chip(
-                            SharedString::from(format!("{at}-action-{number}")),
-                            label,
-                            false,
-                            hover,
-                        )
-                        .on_click(cx.listener(move |this, _, _, cx| handler(this, cx)))
-                        .into_any_element()
-                    })
-                    .collect();
+                let chips: Vec<AnyElement> =
+                    actions
+                        .into_iter()
+                        .enumerate()
+                        .map(|(number, (label, handler))| {
+                            button::chip(
+                                SharedString::from(format!("{at}-action-{number}")),
+                                label,
+                                false,
+                                hover,
+                            )
+                            .on_click(cx.listener(move |this, _, _, cx| {
+                                handler(&mut IslandUi::new(this, cx))
+                            }))
+                            .into_any_element()
+                        })
+                        .collect();
                 div()
                     .flex()
                     .items_start()
                     .gap(px(10.0))
-                    .child(mark(at.clone(), glyph.as_deref(), color, streaming))
+                    .child(mark(layouts, glyph.as_deref(), color, streaming))
                     .child(
                         surface().flex_1().min_w(px(0.0)).child(
                             div()
@@ -255,7 +252,7 @@ pub fn transcript(transcript: Transcript, hover: bool, cx: &mut Context<Island>)
                 .flex()
                 .items_start()
                 .gap(px(10.0))
-                .child(mark(at.clone(), glyph.as_deref(), color, true))
+                .child(mark(layouts, glyph.as_deref(), color, true))
                 .child(
                     surface().child(
                         div()
@@ -266,7 +263,7 @@ pub fn transcript(transcript: Transcript, hover: bool, cx: &mut Context<Island>)
                             .flex_col()
                             .gap(px(2.0))
                             .child(overline(line, color))
-                            .child(dots(at)),
+                            .child(dots(layouts)),
                     ),
                 )
                 .into_any_element(),

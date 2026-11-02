@@ -61,7 +61,6 @@
           dina-font
           proggyfonts
           rubik
-          geist-font
           nerd-fonts.jetbrains-mono
           nerd-fonts.caskaydia-cove
           nerd-fonts.monaspace

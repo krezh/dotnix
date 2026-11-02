@@ -1,5 +1,3 @@
-use gpui::SharedString;
-
 use super::{
     entry::Kind,
     runtime::{Clipboard, Request},
@@ -8,8 +6,7 @@ use super::{
 use crate::{
     components::list::{ROWS, Selection},
     features::PanelCx,
-    island::Mode,
-    panel::{Block, Header, PanelView, Preview, RowIcon, SearchRow, SearchView},
+    panel::{Block, Header, PanelView, Preview, RowIcon, SearchRow, SearchView, SharedString},
 };
 
 pub(super) fn panel(state: &State, p: &PanelCx<'_>) -> Option<PanelView> {
@@ -41,9 +38,9 @@ pub(super) fn panel(state: &State, p: &PanelCx<'_>) -> Option<PanelView> {
                     (None, None) => RowIcon::None,
                 },
                 selected: position == selected,
-                on_click: p.on_island::<Clipboard>(move |clipboard, island, cx| {
+                on_click: p.on_island::<Clipboard>(move |clipboard, ui| {
                     clipboard.request(Request::Select { id, paste: true });
-                    island.set_mode(Mode::Collapsed, cx);
+                    ui.collapse();
                 }),
                 on_hover: p.on_local::<Clipboard>(move |_, picker| picker.select(position, count)),
             }

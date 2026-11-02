@@ -31,14 +31,14 @@ fn layout(rows: &MissedList) -> Placed {
                 lead: None,
                 corner: None,
                 hidden: false,
-                activate: panel::on(|_, _| {}),
-                dismiss: panel::on(|_, _| {}),
+                activate: panel::on(|_| {}),
+                dismiss: panel::on(|_| {}),
                 invoke: Vec::new(),
                 countdown: None,
             }),
             None => RowLook::Head(HeadLook {
-                toggle: panel::on(|_, _| {}),
-                clear: panel::on(|_, _| {}),
+                toggle: panel::on(|_| {}),
+                clear: panel::on(|_| {}),
                 more: None,
                 close: None,
             }),
@@ -219,6 +219,31 @@ fn a_line_opening_over_the_list_moves_the_list_down_as_it_opens() {
     assert_eq!(shut.2 + 1, open.2, "the line joins the list once opening");
     assert!(shut.0 < half.0 && half.0 < open.0);
     assert!(shut.1 < half.1 && half.1 < open.1);
+}
+
+#[test]
+fn two_lists_pass_whole_without_overlapping() {
+    let list = |height: f32| {
+        Block::Placed(Placed {
+            width: 700.0,
+            height,
+            visible: Some(height),
+            blocks: vec![(place(0.0, 60.0, 1.0), Block::note("Card"))],
+        })
+    };
+    let Block::Placed(passing) = across(list(100.0), list(300.0), 0.25) else {
+        panic!("one list");
+    };
+    let [(left, _), (right, _)] = passing.blocks.as_slice() else {
+        panic!("both lists");
+    };
+    assert_eq!((left.opacity, right.opacity), (1.0, 1.0), "neither fades");
+    assert!(left.offset < 0.0 && right.offset > 0.0, "they move apart");
+    assert!(
+        right.offset - left.offset >= passing.width,
+        "a full width apart, so no card sits over another"
+    );
+    assert_eq!(passing.visible, Some(150.0), "the panel's size follows");
 }
 
 fn layout_block(rows: &MissedList) -> Block {

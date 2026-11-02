@@ -1,31 +1,24 @@
 use std::{
     borrow::Cow,
     collections::{HashMap, HashSet},
-    env, fs,
+    fs,
     os::unix::fs::MetadataExt,
     path::{Path, PathBuf},
     sync::{LazyLock, Mutex, OnceLock},
 };
 
-use gpui::{AssetSource, SharedString};
+use crate::paths;
 
-pub struct Files;
-
-impl AssetSource for Files {
-    fn load(&self, path: &str) -> anyhow::Result<Option<Cow<'static, [u8]>>> {
-        if let Some(bytes) = BUNDLED
-            .lock()
-            .ok()
-            .and_then(|bundled| bundled.get(path).copied())
-        {
-            return Ok(Some(Cow::Borrowed(bytes)));
-        }
-        Ok(fs::read(path).ok().map(Cow::Owned))
+/// A glyph's bytes, from island's own or a file.
+pub fn load(path: &str) -> Option<Cow<'static, [u8]>> {
+    if let Some(bytes) = BUNDLED
+        .lock()
+        .ok()
+        .and_then(|bundled| bundled.get(path).copied())
+    {
+        return Some(Cow::Borrowed(bytes));
     }
-
-    fn list(&self, _: &str) -> anyhow::Result<Vec<SharedString>> {
-        Ok(Vec::new())
-    }
+    fs::read(path).ok().map(Cow::Owned)
 }
 
 const TARGET_SIZE: u32 = 64;
@@ -56,21 +49,10 @@ pub fn set_theme(theme: String) {
 }
 
 fn roots() -> Vec<PathBuf> {
-    let home = env::var_os("HOME").map(PathBuf::from);
-    let data_home = env::var_os("XDG_DATA_HOME")
-        .map(PathBuf::from)
-        .or_else(|| home.as_ref().map(|home| home.join(".local/share")));
-    let data_dirs =
-        env::var("XDG_DATA_DIRS").unwrap_or_else(|_| "/usr/local/share:/usr/share".to_owned());
-    home.map(|home| home.join(".icons"))
+    paths::home()
+        .map(|home| home.join(".icons"))
         .into_iter()
-        .chain(data_home.map(|dir| dir.join("icons")))
-        .chain(
-            data_dirs
-                .split(':')
-                .filter(|dir| !dir.is_empty())
-                .map(|dir| Path::new(dir).join("icons")),
-        )
+        .chain(paths::data_dirs().into_iter().map(|dir| dir.join("icons")))
         .chain([PathBuf::from("/usr/share/pixmaps")])
         .collect()
 }
@@ -114,7 +96,9 @@ fn dir_size(path: &Path) -> u32 {
     let mut size = 0;
     let mut scale = 1;
     for component in path.components() {
-        let Some(s) = component.as_os_str().to_str() else { continue };
+        let Some(s) = component.as_os_str().to_str() else {
+            continue;
+        };
         if let Some((dims, rest)) = s.split_once('@') {
             if let Some(dim) = dims.split('x').next() {
                 if let Ok(d) = dim.parse::<u32>() {
@@ -234,7 +218,8 @@ impl Catalog {
             }
             if self.declared {
                 self.directories.push(root.to_path_buf());
-                self.directories.sort_by(|a, b| dir_rank(a).cmp(&dir_rank(b)).then_with(|| a.cmp(b)));
+                self.directories
+                    .sort_by(|a, b| dir_rank(a).cmp(&dir_rank(b)).then_with(|| a.cmp(b)));
                 self.directories.dedup();
                 self.tree.clear();
             }
@@ -247,7 +232,8 @@ impl Catalog {
                 &mut HashSet::new(),
                 &mut self.directories,
             );
-            self.directories.sort_by(|a, b| dir_rank(a).cmp(&dir_rank(b)).then_with(|| a.cmp(b)));
+            self.directories
+                .sort_by(|a, b| dir_rank(a).cmp(&dir_rank(b)).then_with(|| a.cmp(b)));
             self.tree
                 .retain(|path, _| self.directories.binary_search(path).is_ok());
         }

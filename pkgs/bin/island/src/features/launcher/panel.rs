@@ -2,7 +2,6 @@ use super::{runtime::Launcher, state::Local};
 use crate::{
     components::list::ROWS,
     features::PanelCx,
-    island::Mode,
     panel::{Block, Header, PanelView, RowIcon, SearchRow, SearchView},
 };
 
@@ -28,9 +27,9 @@ pub(super) fn panel(p: &PanelCx<'_>) -> Option<PanelView> {
                 .into(),
                 icon: app.icon.clone().map_or(RowIcon::None, RowIcon::Image),
                 selected: position == search.selected,
-                on_click: p.on_island::<Launcher>(move |launcher, island, cx| {
+                on_click: p.on_island::<Launcher>(move |launcher, ui| {
                     launcher.launch(&picked);
-                    island.set_mode(Mode::Collapsed, cx);
+                    ui.collapse();
                 }),
                 on_hover: p.on_local::<Launcher>(move |_, local| local.select(position)),
             }

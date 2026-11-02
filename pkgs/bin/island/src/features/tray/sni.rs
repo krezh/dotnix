@@ -2,18 +2,18 @@
 
 use std::{
     collections::HashMap,
+    fs,
+    hash::{DefaultHasher, Hash, Hasher},
     sync::{
-        Arc, Mutex, MutexGuard, PoisonError,
+        Arc, Mutex,
         mpsc::{self, Receiver, Sender},
     },
-    thread,
 };
 
-use futures::{StreamExt, channel::oneshot};
+use futures::channel::oneshot;
 use serde::de::DeserializeOwned;
 use zbus::{
-    Connection, MatchRule, MessageStream, OwnedObjectPath, OwnedVariant, Proxy, Variant,
-    as_variant, block_on,
+    Connection, MatchRule, OwnedObjectPath, OwnedVariant, Proxy, Variant, as_variant, block_on,
     fdo::{DBusProxy, RequestNameFlags, RequestNameReply},
     interface,
     message::{Header, Type},
@@ -23,7 +23,15 @@ use zbus::{
 use tracing::{debug, info, warn};
 
 use super::raster;
-use crate::{dbus::uncached, features::Feed, icons, menu::MenuNode, supervisor::Ended};
+use crate::{
+    dbus::{follow, session_with_timeout, uncached},
+    features::Feed,
+    icons,
+    menu::MenuNode,
+    profile,
+    supervisor::Ended,
+    sync::lock,
+};
 
 const WATCHER: &str = "org.kde.StatusNotifierWatcher";
 const WATCHER_PATH: &str = "/StatusNotifierWatcher";
@@ -152,8 +160,15 @@ struct Entry {
     path: String,
     menu: Option<OwnedObjectPath>,
     item: TrayItem,
+    icon_source: Option<u64>,
     /// Kept while hidden, so the item can show again when its status changes.
     passive: bool,
+}
+
+fn source_key(source: &impl Hash) -> u64 {
+    let mut hasher = DefaultHasher::new();
+    source.hash(&mut hasher);
+    hasher.finish()
 }
 
 /// What the tray shows: every item that is not passive.
@@ -210,6 +225,7 @@ async fn load(
     bus: &str,
     path: &str,
     key: String,
+    previous: Option<&Entry>,
 ) -> Result<Entry, String> {
     let proxy = uncached(connection, bus.to_owned(), path.to_owned(), ITEM)
         .await
@@ -242,6 +258,7 @@ async fn load(
                 item_is_menu: false,
                 attention: false,
             },
+            icon_source: None,
             passive: true,
         });
     }
@@ -272,19 +289,31 @@ async fn load(
     } else {
         "IconPixmap"
     };
-    let icon = match first::<String>(&proxy, &[name_key, "IconName"])
+    let kept = |source: Option<u64>| {
+        previous
+            .filter(|previous| source.is_some() && previous.icon_source == source)
+            .and_then(|previous| previous.item.icon.clone())
+    };
+    let (icon, icon_source) = match first::<String>(&proxy, &[name_key, "IconName"])
         .await
         .and_then(|name| icons::lookup_in(&theme_path, &name))
     {
-        Some(file) if icons::is_svg(&file) => Some(TrayIcon::File(file)),
-        Some(file) => raster::file(&file),
-        None => None,
+        Some(file) if icons::is_svg(&file) => (Some(TrayIcon::File(file)), None),
+        Some(file) => {
+            let source = fs::read(&file).ok().map(|bytes| source_key(&bytes));
+            (kept(source).or_else(|| raster::file(&file)), source)
+        }
+        None => (None, None),
     };
-    let icon = match icon {
-        Some(icon) => Some(icon),
-        None => pixmaps(&proxy, &[pixmap_key, "IconPixmap"])
-            .await
-            .and_then(raster::pixmap),
+    let (icon, icon_source) = match icon {
+        Some(icon) => (Some(icon), icon_source),
+        None => match pixmaps(&proxy, &[pixmap_key, "IconPixmap"]).await {
+            Some(pixmaps) => {
+                let source = Some(source_key(&pixmaps));
+                (kept(source).or_else(|| raster::pixmap(pixmaps)), source)
+            }
+            None => (None, None),
+        },
     };
     let menu: Option<OwnedObjectPath> = property(&proxy, "Menu")
         .await
@@ -303,6 +332,7 @@ async fn load(
             attention: status == "NeedsAttention",
         },
         menu,
+        icon_source,
         passive: false,
     })
 }
@@ -446,23 +476,9 @@ fn listen(
     sender: Sender<Msg>,
     map: fn(&zbus::Message) -> Option<Msg>,
 ) {
-    let Ok(mut stream) = block_on(MessageStream::for_match_rule(rule, connection, None)) else {
-        return;
-    };
-    let _ = thread::Builder::new()
-        .name("island-tray-signals".into())
-        .spawn(move || {
-            block_on(async {
-                while let Some(message) = stream.next().await {
-                    if let Ok(message) = message
-                        && let Some(msg) = map(&message)
-                        && sender.send(msg).is_err()
-                    {
-                        return;
-                    }
-                }
-            });
-        });
+    let _ = follow("island-tray-signals", connection, rule, move |message| {
+        map(message).is_none_or(|msg| sender.send(msg).is_ok())
+    });
 }
 
 fn signal_rule(interface: &'static str) -> Option<MatchRule<'static>> {
@@ -471,11 +487,6 @@ fn signal_rule(interface: &'static str) -> Option<MatchRule<'static>> {
         .interface(interface)
         .build()
         .ok()
-}
-
-/// Recovers a lock a panicking worker held, so the watcher keeps serving its item list.
-fn lock<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
-    mutex.lock().unwrap_or_else(PoisonError::into_inner)
 }
 
 /// The items registered so far, for a worker that restarts with none loaded.
@@ -508,7 +519,7 @@ fn worker(
     if restarted {
         for service in registered(connection, items, own_watcher) {
             let (bus, path) = split(&service, None);
-            match block_on(load(connection, &bus, &path, format!("{bus}{path}"))) {
+            match block_on(load(connection, &bus, &path, format!("{bus}{path}"), None)) {
                 Ok(entry) => entries.push(entry),
                 Err(error) => warn!(item = service, "cannot read a tray item: {error}"),
             }
@@ -536,7 +547,7 @@ fn worker(
                 let (bus, path) = split(&service, sender.as_deref());
                 let key = format!("{bus}{path}");
                 entries.retain(|entry| entry.item.key != key);
-                match block_on(load(connection, &bus, &path, key.clone())) {
+                match block_on(load(connection, &bus, &path, key.clone(), None)) {
                     Ok(entry) => {
                         if entry.passive {
                             debug!(item = key, "tray item added, passive for now");
@@ -557,10 +568,17 @@ fn worker(
                     continue;
                 };
                 let old = entries.remove(index);
-                match block_on(load(connection, &old.bus, &old.path, old.item.key.clone())) {
+                match block_on(load(
+                    connection,
+                    &old.bus,
+                    &old.path,
+                    old.item.key.clone(),
+                    Some(&old),
+                )) {
                     Ok(entry) => entries.insert(index, entry),
                     Err(error) => {
-                        debug!(item = old.item.key, "tray item dropped on change: {error}");
+                        debug!(item = old.item.key, "tray item kept as it was: {error}");
+                        entries.insert(index, old);
                     }
                 }
                 true
@@ -630,7 +648,7 @@ fn worker(
 }
 
 pub fn start(feed: Feed<Vec<TrayItem>>) -> Result<Client, String> {
-    let connection = block_on(Connection::session())
+    let connection = block_on(session_with_timeout())
         .map_err(|error| format!("tray: no session bus: {error}"))?;
     let (sender, receiver) = mpsc::channel();
     let items = Arc::new(Mutex::new(Vec::new()));
@@ -641,8 +659,8 @@ pub fn start(feed: Feed<Vec<TrayItem>>) -> Result<Client, String> {
     };
     block_on(connection.object_server().at(WATCHER_PATH, watcher))
         .map_err(|error| format!("tray: {error}"))?;
-    let own_watcher =
-        block_on(connection.request_name_with_flags(WATCHER, RequestNameFlags::DO_NOT_QUEUE))
+    let own_watcher = !profile::preview()
+        && block_on(connection.request_name_with_flags(WATCHER, RequestNameFlags::DO_NOT_QUEUE))
             .is_ok_and(|reply| reply == RequestNameReply::PrimaryOwner);
     if own_watcher {
         info!("serving the tray watcher");

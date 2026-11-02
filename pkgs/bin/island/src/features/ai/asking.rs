@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use super::{
-    Ai, format, harness,
+    Ai, format, harness, mascot,
     session::{Answer, Ask, Request},
     state::{Hold, Source},
     view::View,
@@ -269,7 +269,7 @@ fn item_for(request: &Request, at: &str, step: usize, view: &View) -> Item {
     let tint = pose.is_none().then_some(PEACH);
     let mark = pose.map_or_else(
         || Mark::Glyph(harness::glyph(Source::Claude).to_path_buf(), PEACH),
-        Mark::Mascot,
+        mascot::mark,
     );
     Item {
         id: format!("{at}-item").into(),

@@ -292,6 +292,7 @@ fn history_meter(meter: Meter, phase: f32, tips: &Tooltips) -> AnyElement {
             tips,
         ))
     });
+    let spaced = !unit.starts_with(['%', '°']);
     div()
         .flex()
         .flex_col()
@@ -318,7 +319,7 @@ fn history_meter(meter: Meter, phase: f32, tips: &Tooltips) -> AnyElement {
             div()
                 .flex()
                 .items_baseline()
-                .gap(px(3.0))
+                .when(spaced, |figure| figure.gap(px(3.0)))
                 .line_height(relative(1.2))
                 .child(
                     div()

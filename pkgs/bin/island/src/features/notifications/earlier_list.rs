@@ -4,12 +4,17 @@ use std::{
 };
 
 use chrono::{Local, NaiveDate};
-use gpui::{SpringConfig, Window};
 
-use super::{card, history::Earlier, missed_list::sliding};
+use super::{
+    card,
+    history::Earlier,
+    missed_list::{STAGGERED, sliding},
+};
 use crate::{
-    island::{CONTENT_IN, SHAPE_SPRING},
+    components::measure::Measure,
     spring::Spring,
+    spring::SpringConfig,
+    stage::{CONTENT_IN, CONTENT_OUT, SHAPE_SPRING},
 };
 
 const ENTER_DRIFT: f32 = 12.0;
@@ -86,6 +91,8 @@ pub struct EarlierList {
     items: Vec<Earlier>,
     /// How many lines each one's text takes, once measured.
     lines: HashMap<(i64, u32), usize>,
+    /// Laying out another set in place of this one, as [`Self::swap`] does.
+    swapping: bool,
     motion: SpringConfig,
     fade_in: SpringConfig,
 }
@@ -97,6 +104,7 @@ impl Default for EarlierList {
             height: 0.0,
             items: Vec::new(),
             lines: HashMap::new(),
+            swapping: false,
             motion: SHAPE_SPRING,
             fade_in: CONTENT_IN,
         }
@@ -143,8 +151,16 @@ impl EarlierList {
         self.layout(animate, reveal_at);
     }
 
+    /// Shows `items` in place of what it shows now, such as another source's: rows in both slide
+    /// to their new places, and the rest fade where they are, together, giving their room at once.
+    pub fn swap(&mut self, items: Vec<Earlier>, now: Instant) {
+        self.swapping = true;
+        self.sync(items, true, now);
+        self.swapping = false;
+    }
+
     /// True when any one's text changed its height.
-    pub fn measure(&mut self, window: &Window) -> bool {
+    pub fn measure(&mut self, measure: &Measure<'_>) -> bool {
         let mut measured = false;
         for kept in &self.items {
             if !self.lines.contains_key(&kept.key()) {
@@ -152,7 +168,7 @@ impl EarlierList {
                     &kept.notification.body,
                     card::LIST_W,
                     card::LIST_LINES,
-                    window,
+                    measure,
                 );
                 self.lines.insert(kept.key(), lines);
                 measured = true;
@@ -189,6 +205,7 @@ impl EarlierList {
         let (motion, fade_in) = (self.motion, self.fade_in);
         let (placed, height) = self.placements();
         let now = Instant::now();
+        let swapping = self.swapping;
         let mut left = 0;
         for index in 0..self.rows.len() {
             let row = &mut self.rows[index];
@@ -200,9 +217,14 @@ impl EarlierList {
                 continue;
             }
             row.leaving = true;
+            if swapping {
+                row.room = 0.0;
+                row.fold.retarget(0.0, CONTENT_OUT);
+                continue;
+            }
             if animate {
                 row.fold
-                    .retarget_at(0.0, card::FOLD, now + LEAVE_STAGGER * left);
+                    .retarget_at(0.0, card::FOLD, now + LEAVE_STAGGER * left.min(STAGGERED));
                 left += 1;
                 let room = row.room;
                 for below in &mut self.rows[index + 1..] {
@@ -238,6 +260,7 @@ impl EarlierList {
                 slot.as_ref()
                     .is_some_and(|row| !row.leaving && row.entry.key() == key)
             });
+            let fresh = existing.is_none();
             let mut row = match existing.and_then(|index| {
                 keep_leaving(&mut old[..index], &mut next);
                 old[index].take()
@@ -262,10 +285,18 @@ impl EarlierList {
                     row
                 }
             };
+            // From far out of sight, it rises in where it goes rather than sweeping across the list.
+            if swapping && !fresh && (row.y.value() - y).abs() > MAX_VISIBLE_H {
+                row.y.reset(y - ENTER_DRIFT);
+                row.alpha.reset(0.0);
+                row.alpha.retarget(1.0, fade_in);
+            }
             row.entry = entry;
             row.height = height;
             row.room = room;
-            if animate {
+            if animate && fresh {
+                row.y.retarget_at(y, motion, reveal_at);
+            } else if animate {
                 row.y.retarget(y, motion);
             } else {
                 row.y.reset(y);

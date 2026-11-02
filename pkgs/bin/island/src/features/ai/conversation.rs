@@ -1,7 +1,10 @@
-use std::path::PathBuf;
+use std::{path::PathBuf, sync::Arc};
 
-use super::converse::{self, Running, Streamed};
-use crate::db;
+use super::{
+    converse::{self, Running, Streamed},
+    format,
+};
+use crate::paths;
 
 /// Name and the alias Claude Code takes.
 pub const MODELS: [(&str, &str); 3] = [("Haiku", "haiku"), ("Sonnet", "sonnet"), ("Opus", "opus")];
@@ -20,7 +23,7 @@ pub struct Line {
 /// The chat as the panel shows it.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Chat {
-    pub(super) lines: Vec<Line>,
+    pub(super) lines: Vec<Arc<Line>>,
     /// While a reply is on its way.
     pub(super) busy: bool,
     pub(super) model: usize,
@@ -37,13 +40,9 @@ pub struct Conversation {
 }
 
 fn folder() -> PathBuf {
-    db::runtime_dir()
+    paths::runtime()
         .unwrap_or_else(std::env::temp_dir)
         .join("chat")
-}
-
-fn now() -> i64 {
-    chrono::Utc::now().timestamp_millis()
 }
 
 pub fn model_index(alias: &str) -> usize {
@@ -69,13 +68,13 @@ impl Conversation {
         let run = self.run;
         let model = chat.model.min(MODELS.len() - 1);
         chat.error = None;
-        chat.lines.push(Line {
+        chat.lines.push(Arc::new(Line {
             mine: true,
             text: text.clone(),
             model,
-            at: now(),
+            at: format::now(),
             took_ms: None,
-        });
+        }));
         match converse::start(
             program,
             &text,
@@ -108,7 +107,7 @@ impl Conversation {
         let Some(asked) = chat.lines.pop().filter(|line| line.mine) else {
             return;
         };
-        self.send(chat, program, asked.text, each);
+        self.send(chat, program, asked.text.clone(), each);
     }
 
     /// False for what a stopped reply still sends.
@@ -117,17 +116,19 @@ impl Conversation {
             return false;
         }
         let replying = chat.lines.last().is_some_and(|line| !line.mine);
-        let reply = |text: String, chat: &Chat| Line {
-            mine: false,
-            text,
-            model: chat.lines.last().map_or(chat.model, |line| line.model),
-            at: now(),
-            took_ms: None,
+        let reply = |text: String, chat: &Chat| {
+            Arc::new(Line {
+                mine: false,
+                text,
+                model: chat.lines.last().map_or(chat.model, |line| line.model),
+                at: format::now(),
+                took_ms: None,
+            })
         };
         match streamed {
             Streamed::Session(id) => self.session = Some(id),
             Streamed::Text(more) => match chat.lines.last_mut() {
-                Some(line) if replying => line.text.push_str(&more),
+                Some(line) if replying => Arc::make_mut(line).text.push_str(&more),
                 _ => {
                     let line = reply(more, chat);
                     chat.lines.push(line);
@@ -152,7 +153,7 @@ impl Conversation {
                 if let (Some(line), Some(asked_at)) = (chat.lines.last_mut(), asked_at)
                     && !line.mine
                 {
-                    line.took_ms = Some(now() - asked_at);
+                    Arc::make_mut(line).took_ms = Some(format::now() - asked_at);
                 }
                 if let Err(error) = result {
                     chat.error = Some(error);

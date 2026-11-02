@@ -30,7 +30,12 @@ use super::{
     },
     usage,
 };
-use crate::{components::card::SLOTS, features::Feed, supervisor::Ended};
+use crate::{
+    components::card::SLOTS,
+    features::Feed,
+    supervisor::{self, Ended},
+    sync::lock,
+};
 
 const SOCKETS_EVERY: u64 = 3;
 /// The day's data used is written at most this often.
@@ -440,9 +445,7 @@ impl World {
 
     fn probes(&mut self, probes: &Mutex<Probes>, settings: &Settings) {
         let link = self.state.link.as_ref();
-        let mut probes = probes
-            .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        let mut probes = lock(&probes);
         probes.gateway_address = ipv4(link.and_then(|link| link.gateway.as_ref()));
         probes.dns_address = ipv4(link.and_then(|link| link.dns.first()));
         let latency = &mut self.state.latency;
@@ -561,9 +564,9 @@ impl World {
                 let failed = if secret && join.saved.is_some() {
                     "Wrong password. Try it again."
                 } else {
-                    "Could not connect."
+                    "Cannot connect."
                 };
-                warn!(ssid = join.ssid, ?reason, "could not join");
+                warn!(ssid = join.ssid, ?reason, "cannot join");
                 if let Some(saved) = &join.saved
                     && let Err(error) = block_on(nm::forget(connection, saved))
                 {
@@ -590,12 +593,13 @@ impl World {
         if matches!(request, Request::Connect(_) | Request::Join(..)) {
             // A join that never ends gets one more look once it has had its time.
             let sender = sender.clone();
-            let _ = thread::Builder::new()
-                .name("island-network-join".into())
-                .spawn(move || {
-                    thread::sleep(JOIN_TIMEOUT + Duration::from_secs(1));
+            supervisor::after(
+                "island-network-join",
+                JOIN_TIMEOUT + Duration::from_secs(1),
+                move || {
                     let _ = sender.unbounded_send(Request::Refresh);
-                });
+                },
+            );
         }
         let result: zbus::Result<()> = block_on(async {
             match request {
@@ -788,9 +792,7 @@ pub(super) fn run(
     probes: &Mutex<Probes>,
     settings: &Settings,
 ) -> Ended {
-    let mut requests = requests
-        .lock()
-        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    let mut requests = lock(&requests);
     let connection = match block_on(Connection::system()) {
         Ok(connection) => connection,
         Err(error) => return Ended::Failed(format!("cannot connect to the system bus: {error}")),

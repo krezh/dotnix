@@ -1,18 +1,13 @@
-use gpui::{
-    AnyElement, ClickEvent, FontWeight, MouseButton, MouseDownEvent, ObjectFit, Pixels, div,
-    prelude::*, px, relative, rgb,
-};
-
 use super::{
     Tray,
     icons::{ICON, Icons},
     sni::Command,
 };
 use crate::{
-    components::{icon, tooltip::Tip},
+    bar_widget::{BarWidget, Frame, Part, Pointer},
     features::WidgetCx,
+    panel::Ui,
     theme::PEACH,
-    ui::SMALL_SIZE,
 };
 
 /// The line under an icon that wants attention.
@@ -20,13 +15,6 @@ const LINE_SHORT: f32 = 6.0;
 const LINE_LONG: f32 = 16.0;
 const LINE_H: f32 = 3.0;
 const LINE_LIFT: f32 = 3.0;
-
-fn anchor(event: &ClickEvent) -> Pixels {
-    match event {
-        ClickEvent::Keyboard(event) => event.bounds.center().x,
-        event => event.position().x,
-    }
-}
 
 impl Tray {
     /// Where an app that wants attention is in its breath, from 0 to 1 and back, easing at both
@@ -37,7 +25,7 @@ impl Tray {
         0.5 - 0.5 * phase.cos()
     }
 
-    pub(super) fn widget_view(&self, w: &WidgetCx<'_>) -> Option<AnyElement> {
+    pub(super) fn widget_view(&self, w: &WidgetCx<'_>) -> Option<BarWidget> {
         let icons = w.local::<Icons>()?;
         if icons.0.iter().next().is_none() {
             return None;
@@ -51,88 +39,66 @@ impl Tray {
             let (click_key, menu_key, middle_key) = (key.clone(), key.clone(), key.clone());
             let opens_menu = item.item_is_menu && item.has_menu;
             let has_menu = item.has_menu;
-            w.base(format!("tray-{key}"))
-                .relative()
-                .w(px((ICON + 2.0 * half) * presence))
-                .px(px(half * presence))
-                .overflow_hidden()
-                .opacity(presence)
-                .when(!item.title.is_empty(), |slot| {
-                    slot.tip(w.tips(), format!("tray-{key}"), item.title.clone())
+            let mut widget = w
+                .base(format!("tray-{key}"))
+                .width((ICON + 2.0 * half) * presence)
+                .padding(half * presence)
+                .clip()
+                .opacity(presence);
+            if !item.title.is_empty() {
+                widget = widget.tip(item.title.clone());
+            }
+            widget = match &item.icon {
+                Some(picture) => widget.part(Part::Picture(picture.clone(), ICON)),
+                None => widget.small().part(Part::plain(
+                    item.title
+                        .chars()
+                        .next()
+                        .map(String::from)
+                        .unwrap_or_default(),
+                )),
+            };
+            // A short line under the icon that slowly stretches and settles.
+            if item.attention {
+                widget = widget.part(Part::Underline {
+                    width: LINE_SHORT + (LINE_LONG - LINE_SHORT) * breath,
+                    height: LINE_H,
+                    lift: LINE_LIFT,
+                    opacity: 0.55 + 0.45 * breath,
+                    color: PEACH,
+                });
+            }
+            if opens_menu {
+                widget = widget.holds_press();
+            }
+            let on_right = if has_menu {
+                w.on_island(move |tray: &Tray, pointer: Pointer, ui: &mut dyn Ui| {
+                    ui.stop_propagation();
+                    tray.open_menu(menu_key.clone(), pointer.x, ui);
                 })
-                .when_some(item.icon.as_ref(), |slot, picture| {
-                    slot.child(icon::picture(picture, ICON, ObjectFit::Contain))
+            } else {
+                w.on_island(move |tray: &Tray, pointer: Pointer, ui: &mut dyn Ui| {
+                    let (x, y) = ui.below_bar(pointer.x).unwrap_or_default();
+                    tray.send(Command::ContextMenu(menu_key.clone(), x, y));
                 })
-                .when(item.icon.is_none(), |slot| {
-                    slot.text_size(px(SMALL_SIZE))
-                        .font_weight(FontWeight::SEMIBOLD)
-                        .child(
-                            item.title
-                                .chars()
-                                .next()
-                                .map(String::from)
-                                .unwrap_or_default(),
-                        )
-                })
-                // A short line under the icon that slowly stretches and settles.
-                .when(item.attention, |slot| {
-                    let width = LINE_SHORT + (LINE_LONG - LINE_SHORT) * breath;
-                    slot.child(
-                        div()
-                            .absolute()
-                            .bottom(px(LINE_LIFT))
-                            .left(relative(0.5))
-                            .ml(px(-width / 2.0))
-                            .w(px(width))
-                            .h(px(LINE_H))
-                            .rounded_full()
-                            .opacity(0.55 + 0.45 * breath)
-                            .bg(rgb(PEACH)),
+            };
+            Part::Widget(
+                widget
+                    .on_click(
+                        w.on_island(move |tray: &Tray, pointer: Pointer, ui: &mut dyn Ui| {
+                            if opens_menu {
+                                tray.open_menu(click_key.clone(), pointer.x, ui);
+                            } else {
+                                tray.send(Command::Activate(click_key.clone()));
+                            }
+                        }),
                     )
-                })
-                .when(opens_menu, |slot| {
-                    slot.on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
-                })
-                .on_click(
-                    w.on_island(move |tray: &Tray, event: &ClickEvent, island, cx| {
-                        if opens_menu {
-                            tray.open_menu(click_key.clone(), anchor(event), island, cx);
-                        } else {
-                            tray.send(Command::Activate(click_key.clone()));
-                        }
-                    }),
-                )
-                .map(|slot| {
-                    if has_menu {
-                        slot.on_mouse_down(
-                            MouseButton::Right,
-                            w.on_island(move |tray: &Tray, event: &MouseDownEvent, island, cx| {
-                                cx.stop_propagation();
-                                tray.open_menu(menu_key.clone(), event.position.x, island, cx)
-                            }),
-                        )
-                    } else {
-                        slot.on_mouse_down(
-                            MouseButton::Right,
-                            w.on_island(move |tray: &Tray, event: &MouseDownEvent, island, _| {
-                                let (x, y) = island.below_bar(event.position.x).unwrap_or_default();
-                                tray.send(Command::ContextMenu(menu_key.clone(), x, y));
-                            }),
-                        )
-                    }
-                })
-                .on_mouse_down(
-                    MouseButton::Middle,
-                    w.call(move |tray: &Tray| tray.send(Command::Secondary(middle_key.clone()))),
-                )
+                    .on_right(on_right)
+                    .on_middle(w.call(move |tray: &Tray| {
+                        tray.send(Command::Secondary(middle_key.clone()));
+                    })),
+            )
         });
-        Some(
-            div()
-                .flex_none()
-                .flex()
-                .items_center()
-                .children(slots)
-                .into_any_element(),
-        )
+        Some(BarWidget::new("bar-tray", Frame::Row).parts(slots))
     }
 }

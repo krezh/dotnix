@@ -1,9 +1,8 @@
 //! How island sees the network: the bar widget, the Network tab and its password card, and
 //! `island ctl wifi` and `island ctl vpn`.
 
+use crate::bar_widget::BarWidget;
 use std::any::Any;
-
-use gpui::{AnyElement, Keystroke};
 
 use super::{
     Network, osd, overview, panel,
@@ -16,40 +15,17 @@ use crate::{
     components::input::{self, Edit},
     control::{self, Command, Group, Report, Row, SWITCH, Shown, Takes},
     features::{
-        Dashboard, Feature, Feed, GlyphSpec, IslandInfo, Outcome, PanelCx, WidgetCx,
+        Dashboard, Feature, Feed, GlyphSpec, IslandInfo, Outcome, PanelCx, Surface, WidgetCx,
         osd::{Osd, shown_popup as osd_popup},
         parse_settings,
     },
+    key::Key,
     panel::PanelView,
 };
 
 impl Feature for Network {
     const NAME: &'static str = "network";
-    const PANEL: Option<&'static str> = Some("network");
-    const DASHBOARD_TAB: Option<(&'static str, u8)> = Some(("Network", 3));
-    const DASHBOARD_ORDER: u8 = 10;
-    const GLYPHS: &'static [GlyphSpec] = &[
-        ("tab-network", &["wifi"]),
-        ("network-wifi-excellent", &["wifi"]),
-        ("network-wifi-good", &["wifi"]),
-        ("network-wifi-ok", &["wifi-high"]),
-        ("network-wifi-weak", &["wifi-low"]),
-        ("network-wifi-none", &["wifi-zero"]),
-        ("network-wifi-acquiring", &["wifi-sync"]),
-        ("network-wifi-off", &["wifi-off"]),
-        ("network-offline", &["globe-x"]),
-        ("network-wired", &["ethernet-port"]),
-        ("network-wired-no-route", &["cable"]),
-        ("network-wifi-no-route", &["wifi-cog"]),
-        ("network-wired-off", &["unplug"]),
-        ("network-vpn", &["shield"]),
-        ("network-scan", &["refresh-cw"]),
-        ("network-disconnect", &["unplug"]),
-        ("network-forget", &["trash-2"]),
-        ("network-reveal", &["eye"]),
-        ("network-conceal", &["eye-off"]),
-        ("network-join", &["log-in"]),
-    ];
+
     const CONTROLS: &'static [Command] = &[
         Command {
             name: "wifi",
@@ -69,10 +45,9 @@ impl Feature for Network {
             examples: &["island ctl vpn \"Home WireGuard\""],
         },
     ];
-    const KEYBOARD: bool = true;
 
     type State = State;
-    type Local = View;
+
     type Event = ();
 
     fn start(feed: Feed<State>) -> Self {
@@ -81,44 +56,6 @@ impl Feature for Network {
 
     fn check_settings(settings: &toml::Value) -> Result<(), String> {
         parse_settings::<Settings>(settings).map(drop)
-    }
-
-    fn sync_local(state: &State, view: &mut View, island: &IslandInfo<'_>, _animate: bool) {
-        view.sync(state);
-        view.shown.sync(island);
-    }
-
-    fn osd(before: &State, after: &State) -> Option<Osd> {
-        osd::osd(before, after)
-    }
-
-    fn popup<'a>(&self, _: &State, p: &PanelCx<'a>) -> Option<PanelView> {
-        osd_popup(&p.local::<View>()?.shown, p)
-    }
-
-    fn elapse(&self, view: &mut View, _hovered: bool) {
-        view.shown.expire();
-    }
-
-    fn widget(&self, _: &str, state: &State, w: &mut WidgetCx<'_>) -> Option<AnyElement> {
-        Some(widget::widget(state, w))
-    }
-
-    fn panel_opened(&self) -> Option<Box<dyn Any>> {
-        Some(Box::new(self.watch()))
-    }
-
-    fn panel<'a>(&self, state: &State, p: &PanelCx<'a>) -> Option<PanelView> {
-        Some(panel::panel(state, p))
-    }
-
-    fn dashboard(&self, state: &State, p: &PanelCx<'_>) -> Dashboard {
-        Dashboard {
-            switches: overview::switches(state, p),
-            cards: overview::cards(state, p),
-            warnings: overview::warnings(state, p),
-            ..Dashboard::default()
-        }
     }
 
     fn command(&self, state: &State, args: &[&str]) -> Report {
@@ -174,10 +111,83 @@ impl Feature for Network {
         }
         rows
     }
+}
 
-    fn key(&self, _: &State, view: &mut View, keystroke: &Keystroke) -> Outcome {
+impl Surface for Network {
+    const PANEL: Option<&'static str> = Some("network");
+
+    const DASHBOARD_TAB: Option<(&'static str, u8)> = Some(("Network", 3));
+
+    const DASHBOARD_ORDER: u8 = 10;
+
+    const GLYPHS: &'static [GlyphSpec] = &[
+        ("tab-network", &["wifi"]),
+        ("network-wifi-excellent", &["wifi"]),
+        ("network-wifi-good", &["wifi"]),
+        ("network-wifi-ok", &["wifi-high"]),
+        ("network-wifi-weak", &["wifi-low"]),
+        ("network-wifi-none", &["wifi-zero"]),
+        ("network-wifi-acquiring", &["wifi-sync"]),
+        ("network-wifi-off", &["wifi-off"]),
+        ("network-offline", &["globe-x"]),
+        ("network-wired", &["ethernet-port"]),
+        ("network-wired-no-route", &["cable"]),
+        ("network-wifi-no-route", &["wifi-cog"]),
+        ("network-wired-off", &["unplug"]),
+        ("network-vpn", &["shield"]),
+        ("network-scan", &["refresh-cw"]),
+        ("network-disconnect", &["unplug"]),
+        ("network-forget", &["trash-2"]),
+        ("network-reveal", &["eye"]),
+        ("network-conceal", &["eye-off"]),
+        ("network-join", &["log-in"]),
+    ];
+
+    const KEYBOARD: bool = true;
+
+    type Local = View;
+
+    fn sync_local(state: &State, view: &mut View, island: &IslandInfo<'_>, _animate: bool) {
+        view.sync(state);
+        view.shown.sync(island);
+    }
+
+    fn osd(before: &State, after: &State) -> Option<Osd> {
+        osd::osd(before, after)
+    }
+
+    fn popup<'a>(&self, _: &State, p: &PanelCx<'a>) -> Option<PanelView> {
+        osd_popup(&p.local::<View>()?.shown, p)
+    }
+
+    fn elapse(&self, view: &mut View, _hovered: bool) {
+        view.shown.expire();
+    }
+
+    fn widget(&self, _: &str, state: &State, w: &mut WidgetCx<'_>) -> Option<BarWidget> {
+        Some(widget::widget(state, w))
+    }
+
+    fn panel_opened(&self) -> Option<Box<dyn Any>> {
+        Some(Box::new(self.watch()))
+    }
+
+    fn panel<'a>(&self, state: &State, p: &PanelCx<'a>) -> Option<PanelView> {
+        Some(panel::panel(state, p))
+    }
+
+    fn dashboard(&self, state: &State, p: &PanelCx<'_>) -> Dashboard {
+        Dashboard {
+            switches: overview::switches(state, p),
+            cards: overview::cards(state, p),
+            warnings: overview::warnings(state, p),
+            ..Dashboard::default()
+        }
+    }
+
+    fn key(&self, _: &State, view: &mut View, keystroke: &Key) -> Outcome {
         let Some(prompt) = &mut view.prompt else {
-            return if keystroke.key == "escape" {
+            return if keystroke.name == "escape" {
                 Outcome::Close
             } else {
                 Outcome::Open

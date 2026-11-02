@@ -16,6 +16,7 @@ use crate::{
     },
     island::{CONTENT_IN as SELECT_SPRING, Island},
     panel::Handler,
+    panel::IslandUi,
     theme::{CARD_ALPHA, CARD_BORDER_ALPHA, CRITICAL, NOTIFICATION_ALPHA, SURFACE1, with_alpha},
     ui::{self, Radius},
 };
@@ -157,7 +158,7 @@ pub fn frame(
                 // Pinned to the corner: unpinned, it would start inside the padding.
                 div().absolute().top_0().left_0().size_full().with_spring(
                     SharedString::from(format!("{id}-tint")),
-                    SpringAnimation::new(SELECT_SPRING).to(selected),
+                    SpringAnimation::new(SELECT_SPRING.into()).to(selected),
                     move |tint, phase| {
                         let t = phase.0.clamp(0.0, 1.0);
                         tint.child(ui::shape(Radius::Control, Some(mix(resting, chosen, t))))
@@ -199,7 +200,7 @@ pub fn frame(
                 .size_full()
                 .child(shape().with_spring(
                     SharedString::from(format!("{id}-tint")),
-                    SpringAnimation::new(SELECT_SPRING).to(selected),
+                    SpringAnimation::new(SELECT_SPRING.into()).to(selected),
                     move |tint, phase| {
                         let t = phase.0.clamp(0.0, 1.0);
                         tint.child(ui::outlined(Radius::Panel, mix(calm, chosen, t), border))
@@ -228,14 +229,14 @@ pub fn frame(
                         .hover(|style| style)
                         .active(|style| style.opacity(0.85))
                 })
-                .on_click(cx.listener(move |this, _, _, cx| handler(this, cx)))
+                .on_click(cx.listener(move |this, _, _, cx| handler(&mut IslandUi::new(this, cx))))
         })
         .when_some(on_dismiss, |frame, handler| {
             frame.on_mouse_up(
                 MouseButton::Right,
                 cx.listener(move |this, _, _, cx| {
                     cx.stop_propagation();
-                    handler(this, cx);
+                    handler(&mut IslandUi::new(this, cx));
                 }),
             )
         });
@@ -360,7 +361,7 @@ pub fn stat(text: impl Into<SharedString>, color: u32) -> Stat {
     }
 }
 
-const BALANCED: usize = 2;
+pub const BALANCED: usize = 2;
 /// Taken for a card not yet drawn.
 const UNDRAWN_H: f32 = 160.0;
 /// Past this many cards, every split is too many to try, and each goes under the shorter column.
@@ -393,6 +394,11 @@ pub fn balance(keys: &[SharedString]) -> Vec<usize> {
                 + GAP
         })
         .collect();
+    balance_heights(&heights)
+}
+
+/// As [`balance`], for cards whose heights are known.
+pub fn balance_heights(heights: &[f32]) -> Vec<usize> {
     if heights.len() > TRIED {
         let mut filled = [0.0f32; BALANCED];
         return heights

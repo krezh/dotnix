@@ -4,8 +4,8 @@
 use std::{path::PathBuf, rc::Rc};
 
 use gpui::{
-    AnimationExt, Context, Div, FontWeight, SharedString, SpringAnimation, SpringConfig, div,
-    prelude::*, px, rgb, rgba,
+    AnimationExt, Context, Div, FontWeight, SharedString, SpringAnimation, div, prelude::*, px,
+    rgb, rgba,
 };
 
 use crate::{
@@ -16,6 +16,8 @@ use crate::{
         tooltip::{Tip, Tooltips},
     },
     island::Island,
+    panel::{IslandUi, Ui},
+    spring::SpringConfig,
     theme::{ACCENT, OVERLAY1, SUBTEXT1, SURFACE1, TEXT, with_alpha},
     ui::{self, HEADER_H, Radius, SMALL_SIZE, STRIP_PAD, TEXT_SIZE},
 };
@@ -25,9 +27,9 @@ const TAB_W: f32 = 96.0;
 const GLYPH_TAB_W: f32 = 48.0;
 const GLYPH: f32 = 18.0;
 const TAB_GAP: f32 = 4.0;
-const PILL_SPRING: SpringConfig = SpringConfig::new(420.0, 41.0, 1.0);
+pub const PILL_SPRING: SpringConfig = SpringConfig::new(420.0, 41.0, 1.0);
 
-pub type Select = Rc<dyn Fn(usize, &mut Island, &mut Context<Island>)>;
+pub type Select = Rc<dyn Fn(usize, &mut dyn Ui)>;
 
 /// One tab: its label, shown unless it has a glyph to show instead.
 pub struct TabLabel {
@@ -84,7 +86,7 @@ pub fn strip(
         .h(px(STRIP_TAB_H))
         .with_spring(
             SharedString::from(format!("{id}-pill")),
-            SpringAnimation::new(PILL_SPRING).to(pill_x),
+            SpringAnimation::new(PILL_SPRING.into()).to(pill_x),
             |pill, x| pill.left(px(x)),
         )
         .child(
@@ -97,7 +99,7 @@ pub fn strip(
                 ))
                 .with_spring(
                     SharedString::from(format!("{id}-pill-w")),
-                    SpringAnimation::new(PILL_SPRING).to(pill_w),
+                    SpringAnimation::new(PILL_SPRING.into()).to(pill_w),
                     |pill, w| pill.w(px(w)),
                 ),
         );
@@ -135,7 +137,9 @@ pub fn strip(
                                     .child(motion::text(count_id, count)),
                             )
                         })
-                        .on_click(cx.listener(move |this, _, _, cx| select(index, this, cx)))
+                        .on_click(cx.listener(move |this, _, _, cx| {
+                            select(index, &mut IslandUi::new(this, cx))
+                        }))
                 }),
         );
     div()
@@ -177,7 +181,7 @@ pub fn tabs(
         .child(ui::shape(Radius::Row, Some(ui::selected_fill().into())))
         .with_spring(
             SharedString::from(format!("{id}-pill")),
-            SpringAnimation::new(PILL_SPRING).to(selected as f32 * (tab_w + TAB_GAP)),
+            SpringAnimation::new(PILL_SPRING.into()).to(selected as f32 * (tab_w + TAB_GAP)),
             |pill, x| pill.left(px(x)),
         );
     div()
@@ -205,6 +209,8 @@ pub fn tabs(
                     .tip(tips, tab_id, tab.label),
                 None => tab_button.child(tab.label),
             }
-            .on_click(cx.listener(move |this, _, _, cx| select(index, this, cx)))
+            .on_click(
+                cx.listener(move |this, _, _, cx| select(index, &mut IslandUi::new(this, cx))),
+            )
         }))
 }

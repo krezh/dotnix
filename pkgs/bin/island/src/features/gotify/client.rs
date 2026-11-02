@@ -26,7 +26,8 @@ const WRITE_TIMEOUT: Duration = Duration::from_secs(15);
 const API_TIMEOUT: Duration = Duration::from_secs(10);
 const MAX_HANDSHAKE: usize = 8 * 1024;
 const MAX_FRAME: usize = 1024 * 1024;
-const MESSAGE_LIMIT: usize = 50;
+const MESSAGE_LIMIT: usize = 200;
+const MOST_PAGES: usize = 50;
 
 pub fn api_agent() -> Agent {
     Agent::config_builder()
@@ -64,12 +65,22 @@ pub fn fetch_messages(
     token: &str,
     apps: &HashMap<u64, String>,
 ) -> Result<Vec<Entry>, String> {
-    let paged: PagedMessages = get_json(agent, &endpoint.messages_url(MESSAGE_LIMIT), token)?;
-    Ok(paged
-        .messages
-        .into_iter()
-        .map(|raw| Entry::from_raw(raw, apps))
-        .collect())
+    let mut entries = Vec::new();
+    let mut since = None;
+    for _ in 0..MOST_PAGES {
+        let url = endpoint.messages_url(MESSAGE_LIMIT, since);
+        let page: PagedMessages = get_json(agent, &url, token)?;
+        since = page.paging.next_since();
+        entries.extend(
+            page.messages
+                .into_iter()
+                .map(|raw| Entry::from_raw(raw, apps)),
+        );
+        if since.is_none() {
+            break;
+        }
+    }
+    Ok(entries)
 }
 
 pub fn delete_message(

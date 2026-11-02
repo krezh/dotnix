@@ -12,7 +12,7 @@ use tracing::{info, trace, warn};
 use super::Compositor;
 use crate::{
     features::Feed,
-    shell::NAMESPACE,
+    paths, profile,
     supervisor::Ended,
     wm::{Monitor, Snapshot, Workspace},
 };
@@ -85,8 +85,7 @@ struct RawLayer {
 
 fn socket_dir() -> Option<PathBuf> {
     let signature = env::var_os("HYPRLAND_INSTANCE_SIGNATURE")?;
-    let runtime = env::var_os("XDG_RUNTIME_DIR")?;
-    Some(PathBuf::from(runtime).join("hypr").join(signature))
+    Some(paths::runtime_root()?.join("hypr").join(signature))
 }
 
 fn request(command: &str) -> io::Result<String> {
@@ -231,12 +230,14 @@ fn follow(events: UnixStream, feed: &Feed<Snapshot>) -> Ended {
         return Ended::Unwanted;
     }
     info!("following Hyprland's events");
-    for line in BufReader::new(events).lines() {
+    for line in BufReader::new(events).split(b'\n') {
         let line = match line {
             Ok(line) => line,
             Err(error) => return Ended::Failed(error.to_string()),
         };
-        let (event, data) = line.split_once(">>").unwrap_or((line.as_str(), ""));
+        // Window titles in the stream can be any bytes.
+        let line = String::from_utf8_lossy(&line);
+        let (event, data) = line.split_once(">>").unwrap_or((&line, ""));
         if event == "urgent" {
             match workspace_of(data) {
                 Some(id) => urgent.insert(id),
@@ -322,7 +323,7 @@ impl Compositor for Hyprland {
             .levels
             .into_values()
             .flatten()
-            .find(|layer| layer.namespace == NAMESPACE && layer.pid == pid)
+            .find(|layer| layer.namespace == profile::namespace() && layer.pid == pid)
             .map(|layer| (layer.x, layer.y))
     }
 }

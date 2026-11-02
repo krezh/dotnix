@@ -8,7 +8,7 @@ use super::{
 use crate::{
     control::{Command, Group, LEVEL, Reply, Row, Takes},
     features::{
-        Dashboard, Feature, Feed, GlyphSpec, IslandInfo, PanelCx,
+        Dashboard, Feature, Feed, GlyphSpec, IslandInfo, PanelCx, Surface,
         osd::{self, Osd, Shown},
     },
     panel::PanelView,
@@ -16,8 +16,7 @@ use crate::{
 
 impl Feature for Brightness {
     const NAME: &'static str = "brightness";
-    const DASHBOARD_ORDER: u8 = 35;
-    const GLYPHS: &'static [GlyphSpec] = &[("brightness", &["sun"])];
+
     const CONTROLS: &'static [Command] = &[Command {
         name: "brightness",
         about: "The screens' brightness",
@@ -35,12 +34,28 @@ impl Feature for Brightness {
     }];
 
     type State = Levels;
-    type Local = Shown;
+
     type Event = ();
 
     fn start(feed: Feed<Levels>) -> Self {
         Self::start(feed)
     }
+
+    fn reply(&self, _: &Levels, args: &[&str]) -> Reply {
+        self.reply(args)
+    }
+
+    fn status(&self, levels: &Levels) -> Vec<Row> {
+        runtime::status(levels)
+    }
+}
+
+impl Surface for Brightness {
+    const DASHBOARD_ORDER: u8 = 35;
+
+    const GLYPHS: &'static [GlyphSpec] = &[("brightness", &["sun"])];
+
+    type Local = Shown;
 
     fn sync_local(_: &Levels, shown: &mut Shown, island: &IslandInfo<'_>, _animate: bool) {
         shown.sync(island);
@@ -63,13 +78,5 @@ impl Feature for Brightness {
             cards: overview::cards(levels, p),
             ..Dashboard::default()
         }
-    }
-
-    fn reply(&self, _: &Levels, args: &[&str]) -> Reply {
-        self.reply(args)
-    }
-
-    fn status(&self, levels: &Levels) -> Vec<Row> {
-        runtime::status(levels)
     }
 }

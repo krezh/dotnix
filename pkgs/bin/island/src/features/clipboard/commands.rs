@@ -1,5 +1,3 @@
-use gpui::Keystroke;
-
 use super::{
     runtime::{Clipboard, Request},
     state::State,
@@ -8,6 +6,7 @@ use crate::{
     components::list::{self, ROWS, Selection},
     control::{Command, Group, Report, Row, Takes, Value, form},
     features::Outcome,
+    key::Key,
 };
 
 impl Clipboard {
@@ -15,18 +14,18 @@ impl Clipboard {
         &self,
         state: &State,
         picker: &mut Selection,
-        keystroke: &Keystroke,
+        keystroke: &Key,
     ) -> Outcome {
         let matching = state.matching(&picker.query);
         let count = matching.len();
         let selected = matching.get(picker.selected.min(count.saturating_sub(1)));
-        match keystroke.key.as_str() {
+        match keystroke.name.as_str() {
             "escape" => return Outcome::Close,
             "enter" => {
                 if let Some(entry) = selected {
                     self.request(Request::Select {
                         id: entry.id,
-                        paste: !keystroke.modifiers.shift,
+                        paste: !keystroke.shift,
                     });
                 }
                 return Outcome::Close;
@@ -43,7 +42,7 @@ impl Clipboard {
             "backspace" => picker.search(|query| {
                 query.pop();
             }),
-            "u" if keystroke.modifiers.control => picker.search(String::clear),
+            "u" if keystroke.control => picker.search(String::clear),
             _ => {
                 if let Some(text) = list::typed(keystroke) {
                     picker.search(|query| query.push_str(text));

@@ -1,19 +1,17 @@
 use std::{
-    sync::mpsc::{self, RecvTimeoutError, Sender},
+    sync::mpsc::{self, Sender},
     time::Duration,
 };
 
-use gpui::{AnyElement, MouseButton, prelude::*};
 use serde_json::Value;
 use tracing::{debug, warn};
 
-use super::{Battery as Power, Feature, Feed, Refreshed, WidgetCx};
+use super::{Battery as Power, Feature, Feed, Refreshed, Surface, Wake, WidgetCx};
 use crate::{
-    components::tooltip::Tip,
+    bar_widget::BarWidget,
     control::{self, Command, Group, Report, Row, Takes},
-    island::Panel,
     run,
-    supervisor::Ended,
+    stage::Panel,
 };
 
 const INTERVAL: Duration = Duration::from_secs(60);
@@ -55,18 +53,12 @@ fn read() -> Reading {
         return Reading::Absent;
     }
     if !output.success {
-        return Reading::Failed(if output.stderr.is_empty() {
-            format!("zowie-batt exited with status {:?}", output.code)
-        } else {
-            output.stderr
-        });
+        return Reading::Failed(
+            output.failure(format!("zowie-batt exited with status {:?}", output.code)),
+        );
     }
     let Ok(report) = serde_json::from_str::<Value>(&output.stdout) else {
-        return Reading::Failed(if output.stderr.is_empty() {
-            "invalid output from zowie-batt".to_owned()
-        } else {
-            output.stderr
-        });
+        return Reading::Failed(output.failure("invalid output from zowie-batt"));
     };
     let Some(percent) = report["percent"]
         .as_u64()
@@ -92,6 +84,20 @@ fn read() -> Reading {
     })
 }
 
+fn report(reading: &Reading) {
+    match reading {
+        Reading::Present(battery) => debug!(
+            percent = battery.percent,
+            voltage_mv = battery.voltage_mv,
+            connection = battery.connection,
+            power = ?battery.power,
+            "zowie battery reading"
+        ),
+        Reading::Absent => debug!("no zowie mouse or receiver"),
+        Reading::Failed(error) => warn!("cannot read zowie battery: {error}"),
+    }
+}
+
 fn tip(battery: &Battery) -> String {
     let level = format!("~{}%", battery.percent);
     let voltage = format!("{:.2} V", battery.voltage_mv as f32 / 1000.0);
@@ -105,18 +111,18 @@ fn tip(battery: &Battery) -> String {
 }
 
 pub struct Zowie {
-    refresh: Sender<()>,
+    refresh: Sender<Wake>,
 }
 
 impl Zowie {
     pub fn refresh(&self) {
-        let _ = self.refresh.send(());
+        let _ = self.refresh.send(Wake::Asked);
     }
 }
 
 impl Feature for Zowie {
     const NAME: &'static str = "zowie";
-    const GLYPHS: &'static [super::GlyphSpec] = &[("mouse", &["mouse"])];
+
     const CONTROLS: &'static [Command] = &[Command {
         name: "zowie",
         about: "Read the mouse battery now",
@@ -133,59 +139,13 @@ impl Feature for Zowie {
     }];
 
     type State = Refreshed<Reading>;
-    type Local = ();
+
     type Event = ();
 
     fn start(feed: Feed<Refreshed<Reading>>) -> Self {
         let (refresh, requests) = mpsc::channel();
-        feed.supervise(move |feed| {
-            let mut last: Option<Reading> = None;
-            let mut asked = false;
-            loop {
-                if asked
-                    && let Some(value) = last.clone()
-                    && !feed.publish(Refreshed {
-                        value,
-                        refreshing: true,
-                    })
-                {
-                    return Ended::Unwanted;
-                }
-                let reading = read();
-                if asked || last.as_ref() != Some(&reading) {
-                    if last.as_ref() != Some(&reading) {
-                        match &reading {
-                            Reading::Present(battery) => debug!(
-                                percent = battery.percent,
-                                voltage_mv = battery.voltage_mv,
-                                connection = battery.connection,
-                                power = ?battery.power,
-                                "zowie battery reading"
-                            ),
-                            Reading::Absent => debug!("no zowie mouse or receiver"),
-                            Reading::Failed(error) => warn!("cannot read zowie battery: {error}"),
-                        }
-                    }
-                    last = Some(reading.clone());
-                    if !feed.publish(Refreshed {
-                        value: reading,
-                        refreshing: false,
-                    }) {
-                        return Ended::Unwanted;
-                    }
-                }
-                asked = match requests.recv_timeout(INTERVAL) {
-                    Ok(()) => true,
-                    Err(RecvTimeoutError::Timeout) => false,
-                    Err(RecvTimeoutError::Disconnected) => return Ended::Unwanted,
-                };
-            }
-        });
+        feed.supervise(move |feed| feed.poll(&requests, || INTERVAL, read, report));
         Self { refresh }
-    }
-
-    fn present(_: &str, state: &Refreshed<Reading>) -> bool {
-        matches!(state.value, Reading::Present(_))
     }
 
     fn batteries(&self, state: &Refreshed<Reading>) -> Vec<Power> {
@@ -201,30 +161,39 @@ impl Feature for Zowie {
         }]
     }
 
-    fn widget(
-        &self,
-        _: &str,
-        state: &Refreshed<Reading>,
-        w: &mut WidgetCx<'_>,
-    ) -> Option<AnyElement> {
-        let Reading::Present(battery) = &state.value else {
-            return None;
-        };
-        let power = self.batteries(state).pop()?;
-        Some(
-            w.battery("bar-zowie", &power, state.refreshing)
-                .tip(w.tips(), "bar-zowie", tip(battery))
-                .on_click(w.toggle(Panel::Dashboard))
-                .on_mouse_down(MouseButton::Right, w.call(Zowie::refresh))
-                .into_any_element(),
-        )
-    }
-
     fn command(&self, _: &Self::State, args: &[&str]) -> Report {
         if !matches!(args, [_, "refresh"]) {
             return Report::default();
         }
         self.refresh();
         Report::did(Row::said("Reading the mouse battery"))
+    }
+}
+
+impl Surface for Zowie {
+    const GLYPHS: &'static [super::GlyphSpec] = &[("mouse", &["mouse"])];
+
+    type Local = ();
+
+    fn present(_: &str, state: &Refreshed<Reading>) -> bool {
+        matches!(state.value, Reading::Present(_))
+    }
+
+    fn widget(
+        &self,
+        _: &str,
+        state: &Refreshed<Reading>,
+        w: &mut WidgetCx<'_>,
+    ) -> Option<BarWidget> {
+        let Reading::Present(battery) = &state.value else {
+            return None;
+        };
+        let power = self.batteries(state).pop()?;
+        Some(
+            w.battery("bar-zowie", &power, state.refreshing)
+                .tip(tip(battery))
+                .on_click(w.toggle(Panel::Dashboard))
+                .on_right(w.call(Zowie::refresh)),
+        )
     }
 }

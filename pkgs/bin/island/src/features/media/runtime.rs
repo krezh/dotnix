@@ -2,10 +2,7 @@ use super::{
     mpris::{self, Control, Player, Track},
     spectrum,
 };
-use crate::{
-    features::{Feature, Feed},
-    island::Panel,
-};
+use crate::features::Feed;
 
 pub struct Media {
     player: Option<Player>,
@@ -16,10 +13,6 @@ impl Media {
         if let Some(player) = &self.player {
             player.send(control);
         }
-    }
-
-    pub(super) fn panel_handle() -> Panel {
-        Panel::Feature(<Self as Feature>::NAME)
     }
 
     pub(super) fn start(feed: Feed<Option<Track>>) -> Self {

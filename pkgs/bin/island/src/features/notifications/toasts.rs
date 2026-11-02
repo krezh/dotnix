@@ -1,12 +1,12 @@
 use std::time::{Duration, Instant};
 
-use gpui::{SpringConfig, Window};
-
 use super::{card, missed_list::sliding, notification::Notification};
 use crate::{
-    island::{CONTENT_IN, CONTENT_OUT, SHAPE_SPRING},
+    components::measure::Measure,
     panel::Countdown,
     spring::Spring,
+    spring::SpringConfig,
+    stage::{CONTENT_IN, CONTENT_OUT, SHAPE_SPRING},
     theme::app_color,
 };
 
@@ -66,6 +66,11 @@ impl Card {
         } else {
             0.0
         }
+    }
+
+    /// How far it has risen as it leaves, back up the way it came in.
+    pub fn lift(&self) -> f32 {
+        self.out() * ENTER_DRIFT
     }
 
     /// `None` while it is not counting down, such as a critical one, which stays until dismissed.
@@ -313,14 +318,14 @@ impl Toasts {
     }
 
     /// True when any new card's body changed height.
-    pub fn measure(&mut self, window: &Window) -> bool {
+    pub fn measure(&mut self, measure: &Measure<'_>) -> bool {
         let mut measured = false;
         for card in self.cards.iter_mut().filter(|card| card.lines.is_none()) {
             card.lines = Some(card::body_lines(
                 &card.notification.body,
                 card::MIN_W,
                 card::BODY_LINES,
-                window,
+                measure,
             ));
             measured = true;
         }

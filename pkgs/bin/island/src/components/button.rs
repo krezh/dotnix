@@ -1,10 +1,10 @@
 //! Everything clickable: plain and toggle buttons, icon buttons, action and pick tiles, chips.
 
-use std::{cell::RefCell, collections::HashMap, path::Path, time::Duration};
+use std::{cell::RefCell, collections::HashMap, path::Path};
 
 use gpui::{
-    Animation, AnimationExt, Div, FontWeight, Hsla, SharedString, SpringAnimation, SpringConfig,
-    Stateful, Transformation, div, prelude::*, px, rgb, rgba, size, svg,
+    AnimationExt, Div, FontWeight, Hsla, SharedString, SpringAnimation, Stateful, Transformation,
+    div, prelude::*, px, rgb, rgba, size, svg,
 };
 
 use crate::{
@@ -15,6 +15,7 @@ use crate::{
         motion, pointer,
     },
     shape,
+    spring::SpringConfig,
     theme::{
         ACCENT, ACCENT_TINT_ALPHA, BASE, CARD_ALPHA, CONTROL_ALPHA, ON_ACCENT, OVERLAY2, SUBTEXT1,
         SURFACE1, TEXT, TINT, TRACK_ALPHA, with_alpha,
@@ -22,7 +23,7 @@ use crate::{
     ui::{self, CONTROL_H, HEADER_H, Radius, SMALL_SIZE},
 };
 
-const KNOB_SPRING: SpringConfig = SpringConfig::new(420.0, 41.0, 1.0);
+pub const KNOB_SPRING: SpringConfig = SpringConfig::new(420.0, 41.0, 1.0);
 const TRACK_W: f32 = 32.0;
 const TRACK_H: f32 = 18.0;
 const KNOB_INSET: f32 = 2.0;
@@ -310,6 +311,11 @@ pub fn tinted_chip(
         )
 }
 
+/// What a closed [`chip`] is filled with, for what grows out of one.
+pub fn chip_fill() -> Hsla {
+    surface_fill(false)
+}
+
 /// A small button showing a current choice, which opens the others.
 pub fn chip(
     id: impl Into<SharedString>,
@@ -386,7 +392,7 @@ fn switch_tile(
     let mark_fill: Hsla = rgb(color).into();
     let fill_in = div().absolute().top_0().left_0().size_full().with_spring(
         SharedString::from(format!("{id}-mark")),
-        SpringAnimation::new(KNOB_SPRING).to(armed),
+        SpringAnimation::new(KNOB_SPRING.into()).to(armed),
         move |layer, phase| {
             layer
                 .opacity(phase.0.clamp(0.0, 1.0))
@@ -509,18 +515,16 @@ pub fn badged(
         })
 }
 
-
-const FILL_SPRING: SpringConfig = SpringConfig::new(300.0, 30.0, 1.0);
+pub const FILL_SPRING: SpringConfig = SpringConfig::new(300.0, 34.6, 1.0);
 const STRIP_ICON_W: f32 = 32.0;
 const STRIP_ICON_H: f32 = 28.0;
-const STRIP_GLYPH: f32 = 18.0;
+pub const STRIP_GLYPH: f32 = 18.0;
 
-/// How long a strip icon's glyph takes to pop to its size as it is switched on, from how much of it.
-const POP: Duration = Duration::from_millis(400);
-const POP_FROM: f32 = 0.7;
+/// The least a strip icon's glyph shrinks to on its way between off and on.
+pub const POP_DIP: f32 = 0.8;
 
 /// An icon button inside a strip: bare until hovered, its fill fading in with `color` while active
-/// and its glyph popping as it is switched on.
+/// and its glyph popping as it is switched.
 pub fn strip_icon(
     id: impl Into<SharedString>,
     glyph: Option<&Path>,
@@ -534,10 +538,8 @@ pub fn strip_icon(
         None => (surface_fill(true), ACCENT),
     };
     let fill_id = SharedString::from(format!("{id}-fill"));
-    let pop_id = SharedString::from(format!("{id}-pop-{active}"));
     let glyph = glyph.map(|path| {
         let path = SharedString::from(path.to_string_lossy().into_owned());
-        let glyph_id = SharedString::from(format!("{id}-glyph"));
         let layer = move |color: u32, scale: f32| {
             svg()
                 .absolute()
@@ -548,30 +550,18 @@ pub fn strip_icon(
                 .text_color(rgb(color))
                 .with_transformation(Transformation::scale(size(scale, scale)))
         };
-        let lit = move |scale: f32| {
-            let layer = layer.clone();
-            div().relative().size(px(STRIP_GLYPH)).with_spring(
-                glyph_id.clone(),
-                SpringAnimation::new(FILL_SPRING).to(active),
-                move |glyph, phase| {
-                    let lit_by = phase.0.clamp(0.0, 1.0);
-                    glyph
-                        .child(layer(SUBTEXT1, scale).opacity(1.0 - lit_by))
-                        .child(layer(tint, scale).opacity(lit_by))
-                },
-            )
-        };
-        if active {
-            div()
-                .with_animation(
-                    pop_id,
-                    Animation::new(POP).with_easing(ease_out_back),
-                    move |glyph, t| glyph.child(lit(POP_FROM + (1.0 - POP_FROM) * t)),
-                )
-                .into_any_element()
-        } else {
-            lit(1.0).into_any_element()
-        }
+        div().relative().size(px(STRIP_GLYPH)).with_spring(
+            SharedString::from(format!("{id}-glyph")),
+            SpringAnimation::new(FILL_SPRING.into()).to(active),
+            move |glyph, phase| {
+                let lit_by = phase.0.clamp(0.0, 1.0);
+                // Full size at rest, smallest halfway between off and on.
+                let scale = 1.0 - (1.0 - POP_DIP) * 4.0 * lit_by * (1.0 - lit_by);
+                glyph
+                    .child(layer(SUBTEXT1, scale).opacity(1.0 - lit_by))
+                    .child(layer(tint, scale).opacity(lit_by))
+            },
+        )
     });
     fill(id, Radius::Row, None, hover)
         .flex_none()
@@ -579,20 +569,13 @@ pub fn strip_icon(
         .h(px(STRIP_ICON_H))
         .child(div().absolute().top_0().left_0().size_full().with_spring(
             fill_id,
-            SpringAnimation::new(FILL_SPRING).to(active),
+            SpringAnimation::new(FILL_SPRING.into()).to(active),
             move |fill, phase| {
                 fill.opacity(phase.0.clamp(0.0, 1.0))
                     .child(ui::shape(Radius::Row, Some(on)))
             },
         ))
         .children(glyph)
-}
-
-/// Past 1 and back, so a glyph popping in overshoots its size a little.
-fn ease_out_back(t: f32) -> f32 {
-    const C1: f32 = 1.70158;
-    const C3: f32 = C1 + 1.0;
-    1.0 + C3 * (t - 1.0).powi(3) + C1 * (t - 1.0).powi(2)
 }
 
 pub fn switch(id: impl Into<SharedString>, on: bool) -> impl IntoElement {
@@ -605,7 +588,7 @@ pub fn switch(id: impl Into<SharedString>, on: bool) -> impl IntoElement {
         .h(px(TRACK_H))
         .with_spring(
             id.into(),
-            SpringAnimation::new(KNOB_SPRING).to(on),
+            SpringAnimation::new(KNOB_SPRING.into()).to(on),
             move |track, phase| {
                 track
                     .child(ui::shape(Radius::Pill, Some(off)))
@@ -629,7 +612,6 @@ pub fn switch(id: impl Into<SharedString>, on: bool) -> impl IntoElement {
             },
         )
 }
-
 
 pub fn close(id: impl Into<SharedString>, hover: bool) -> Stateful<Div> {
     ghost(id, hover)

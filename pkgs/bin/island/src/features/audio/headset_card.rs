@@ -1,7 +1,5 @@
 //! The headset's battery and, when it reports one, its ChatMix dial as game and chat volume.
 
-use gpui::SharedString;
-
 use super::panel::amount;
 use crate::{
     components::card,
@@ -9,7 +7,7 @@ use crate::{
         PanelCx, battery,
         headset::{self, Battery},
     },
-    panel::{Block, Item, Lead, Mark, Slider, Trail},
+    panel::{Block, Item, Lead, Mark, SharedString, Slider, Trail},
     theme::{BLUE, GREEN, MAUVE, SUBTEXT1},
 };
 

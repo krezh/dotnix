@@ -3,8 +3,6 @@
 
 use std::time::Duration;
 
-use gpui::SharedString;
-
 use super::{
     Bluetooth, glyphs,
     runtime::Request,
@@ -16,10 +14,10 @@ use crate::{
     features::PanelCx,
     panel::{
         Action, Actions, Block, ButtonRow, FrameView, Header, IconButton, Item, Lead, Mark,
-        PanelView, PromptView, Trail,
+        PanelView, PromptView, SharedString, Trail,
     },
-    panels::short_duration,
     theme::{BLUE, GREEN, OVERLAY2, SUBTEXT1},
+    units::{plural, span},
 };
 
 const LEAD: f32 = 56.0;
@@ -71,7 +69,7 @@ fn connected(device: &Device, open: bool, now: i64, subsec: Duration, p: &PanelC
             let elapsed = (now - since).max(0) as u64;
             let step = if elapsed < 86_400 { 60 } else { 3600 };
             p.redraw_in(Duration::from_secs(step - (elapsed % step) - 1) + subsec);
-            (format!("Connected · {}", short_duration(elapsed)), GREEN)
+            (format!("Connected · {}", span(elapsed)), GREEN)
         }
         (None, None) => ("Connected".to_owned(), GREEN),
     };
@@ -394,8 +392,8 @@ pub fn panel(state: &State, p: &PanelCx<'_>) -> PanelView {
             None,
             card::Size::Wide,
             vec![Block::note(format!(
-                "Bluetooth is off. {paired} paired device{} will reconnect when it is on.",
-                if paired == 1 { "" } else { "s" }
+                "Bluetooth is off. {} will reconnect when it is on.",
+                plural(paired, "paired device", "paired devices")
             ))],
         ));
     } else {

@@ -6,6 +6,7 @@ use std::{
     thread,
 };
 
+use crate::paths;
 use serde_json::Value;
 
 /// Says only what a quick question needs, so a chat stays a chat.
@@ -58,7 +59,7 @@ pub fn parse(line: &str) -> Option<Streamed> {
                 .and_then(Value::as_bool)
                 .unwrap_or(false);
             Some(Streamed::Done(if failed {
-                Err(text(&value, "result").unwrap_or_else(|| "Claude could not answer".to_owned()))
+                Err(text(&value, "result").unwrap_or_else(|| "Claude cannot answer".to_owned()))
             } else {
                 Ok(())
             }))
@@ -155,9 +156,9 @@ fn config_dirs() -> Vec<PathBuf> {
     if let Some(dir) = std::env::var_os("XDG_CONFIG_HOME") {
         dirs.push(PathBuf::from(dir).join("claude"));
     }
-    if let Some(home) = std::env::var_os("HOME") {
-        dirs.push(PathBuf::from(&home).join(".config/claude"));
-        dirs.push(PathBuf::from(home).join(".claude"));
+    if let Some(home) = paths::home() {
+        dirs.push(home.join(".config/claude"));
+        dirs.push(home.join(".claude"));
     }
     dirs
 }

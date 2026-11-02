@@ -84,8 +84,11 @@ impl Endpoint {
         format!("{}/stream", self.base_path)
     }
 
-    pub fn messages_url(&self, limit: usize) -> String {
-        format!("{}/message?limit={limit}", self.display_url())
+    pub fn messages_url(&self, limit: usize, since: Option<u64>) -> String {
+        match since {
+            Some(since) => format!("{}/message?limit={limit}&since={since}", self.display_url()),
+            None => format!("{}/message?limit={limit}", self.display_url()),
+        }
     }
 
     pub fn delete_all_url(&self) -> String {
@@ -140,6 +143,27 @@ pub struct Click {
 pub struct PagedMessages {
     #[serde(default)]
     pub messages: Vec<RawMessage>,
+    #[serde(default)]
+    pub paging: Paging,
+}
+
+#[derive(Clone, Debug, Default, Deserialize)]
+pub struct Paging {
+    #[serde(default)]
+    pub next: Option<String>,
+    #[serde(default)]
+    pub since: u64,
+}
+
+impl Paging {
+    /// Where the next page starts, if there is one.
+    pub fn next_since(&self) -> Option<u64> {
+        self.next
+            .as_deref()
+            .is_some_and(|next| !next.is_empty())
+            .then_some(self.since)
+            .filter(|since| *since > 0)
+    }
 }
 
 #[derive(Clone, Debug, Deserialize)]

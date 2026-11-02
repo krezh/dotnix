@@ -112,7 +112,7 @@ fn capture<S: Send + 'static>(feed: &Feed<S>) -> Ended {
         .connect_record(
             Some("@DEFAULT_MONITOR@"),
             Some(&attr),
-            StreamFlags::ADJUST_LATENCY,
+            StreamFlags::ADJUST_LATENCY | StreamFlags::DONT_INHIBIT_AUTO_SUSPEND,
         )
         .is_err()
     {

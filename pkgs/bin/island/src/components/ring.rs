@@ -184,7 +184,7 @@ pub fn rings(rings: Rings) -> AnyElement {
         let ahead = ring.ahead.map(|ahead| {
             layer().with_spring(
                 SharedString::from(format!("{id}-ahead-{index}")),
-                SpringAnimation::new(CONTENT_IN).to(ahead.clamp(start, 1.0)),
+                SpringAnimation::new(CONTENT_IN.into()).to(ahead.clamp(start, 1.0)),
                 move |layer, ahead| {
                     layer.child(
                         canvas(
@@ -202,7 +202,7 @@ pub fn rings(rings: Rings) -> AnyElement {
         });
         let fill = layer().with_spring(
             SharedString::from(format!("{id}-ring-{index}")),
-            SpringAnimation::new(CONTENT_IN).to(ring.fraction.clamp(0.0, 1.0)),
+            SpringAnimation::new(CONTENT_IN.into()).to(ring.fraction.clamp(0.0, 1.0)),
             move |layer, fraction| {
                 layer.child(
                     canvas(
@@ -220,7 +220,7 @@ pub fn rings(rings: Rings) -> AnyElement {
         let tick = ring.mark.map(|mark| {
             layer().with_spring(
                 SharedString::from(format!("{id}-tick-{index}")),
-                SpringAnimation::new(CONTENT_IN).to(mark.clamp(0.0, 1.0)),
+                SpringAnimation::new(CONTENT_IN.into()).to(mark.clamp(0.0, 1.0)),
                 move |layer, mark| {
                     layer.child(
                         canvas(

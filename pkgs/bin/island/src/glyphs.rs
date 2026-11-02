@@ -4,15 +4,11 @@ use std::{
     sync::Arc,
 };
 
-use gpui::Global;
-
 use crate::{features::GlyphSpec, icons};
 
 /// Empty until the lookup finishes; islands observe it to redraw once it has.
 #[derive(Clone, Debug, Default)]
 pub struct Glyphs(Arc<HashMap<&'static str, PathBuf>>);
-
-impl Global for Glyphs {}
 
 /// Lucide's icons, which island ships for its own interface, set at build time.
 const BUNDLED: Option<&str> = option_env!("ISLAND_GLYPHS");

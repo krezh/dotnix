@@ -30,7 +30,7 @@ pub fn capture_png_bytes(rect: Rect) -> Result<Vec<u8>> {
 fn connect() -> Result<(Screencopy, Vec<OutputInfo>)> {
     let conn = Connection::connect_to_env().context("Failed to connect to Wayland")?;
     let outputs = get_outputs(&conn)?;
-    let screencopy = Screencopy::new(&conn)?;
+    let screencopy = Screencopy::new(&conn, false)?;
 
     Ok((screencopy, outputs))
 }

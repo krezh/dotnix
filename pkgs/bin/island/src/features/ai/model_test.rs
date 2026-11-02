@@ -641,3 +641,103 @@ fn the_status_line_needs_one_claude_account_to_lay_over() {
     state.providers = Arc::new(two);
     assert!(status_line(&state, &readings, NOW).is_none());
 }
+#[test]
+fn adding_reset_tokens_notifies_and_spending_them_is_silent() {
+    let mut tracker = Tracker::default();
+    let mut state = State::default();
+    let settings = settings();
+
+    let mut baseline = report(Source::Omp, 10.0);
+    baseline.providers[0].credits = Some(Credits {
+        count: 1,
+        expires_at: Some(NOW + 86_400_000),
+    });
+    assert!(
+        tracker
+            .apply(&mut state, Source::Omp, Ok(baseline), &settings)
+            .is_empty()
+    );
+
+    let mut added = report(Source::Omp, 10.0);
+    added.providers[0].credits = Some(Credits {
+        count: 2,
+        expires_at: Some(NOW + 86_400_000),
+    });
+    let notices = tracker.apply(&mut state, Source::Omp, Ok(added), &settings);
+    assert_eq!(notices.len(), 1);
+    assert_eq!(
+        notices[0].title,
+        "omp · Anthropic · one@example.test · Reset token added"
+    );
+    assert_eq!(notices[0].body, "2 reset tokens available");
+    assert!(!notices[0].critical);
+
+    let mut multiple = report(Source::Omp, 10.0);
+    multiple.providers[0].credits = Some(Credits {
+        count: 5,
+        expires_at: Some(NOW + 86_400_000),
+    });
+    let notices = tracker.apply(&mut state, Source::Omp, Ok(multiple), &settings);
+    assert_eq!(notices.len(), 1);
+    assert_eq!(
+        notices[0].title,
+        "omp · Anthropic · one@example.test · 3 reset tokens added"
+    );
+    assert_eq!(notices[0].body, "5 reset tokens available");
+
+    let mut spent = report(Source::Omp, 10.0);
+    spent.providers[0].credits = Some(Credits {
+        count: 4,
+        expires_at: Some(NOW + 86_400_000),
+    });
+    assert!(
+        tracker
+            .apply(&mut state, Source::Omp, Ok(spent), &settings)
+            .is_empty()
+    );
+
+    let mut muted = settings.clone();
+    muted.alerts.notifications = false;
+    let mut more = report(Source::Omp, 10.0);
+    more.providers[0].credits = Some(Credits {
+        count: 6,
+        expires_at: Some(NOW + 86_400_000),
+    });
+    assert!(
+        tracker
+            .apply(&mut state, Source::Omp, Ok(more), &muted)
+            .is_empty()
+    );
+
+    let mut claude_baseline = report(Source::Claude, 10.0);
+    claude_baseline.providers[0].credits = Some(Credits {
+        count: 1,
+        expires_at: Some(NOW + 86_400_000),
+    });
+    assert!(
+        tracker
+            .apply(&mut state, Source::Claude, Ok(claude_baseline), &settings)
+            .is_empty()
+    );
+
+    let readings = [reading("five_hour", 15.0, Some(NOW + 3_600_000))];
+    let status = status_line(&state, &readings, NOW).unwrap();
+    assert!(
+        tracker
+            .apply(&mut state, Source::Claude, Ok(status), &settings)
+            .is_empty()
+    );
+
+    let mut claude_added = report(Source::Claude, 15.0);
+    claude_added.providers[0].credits = Some(Credits {
+        count: 2,
+        expires_at: Some(NOW + 86_400_000),
+    });
+    let notices = tracker.apply(&mut state, Source::Claude, Ok(claude_added), &settings);
+    assert_eq!(notices.len(), 1);
+    assert_eq!(
+        notices[0].title,
+        "Claude Code · Anthropic · one@example.test · Reset token added"
+    );
+    assert_eq!(notices[0].body, "2 reset tokens available");
+}

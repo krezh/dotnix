@@ -1,18 +1,20 @@
-//! What a feature is: the [`Feature`] trait, with its widget, panel and commands, and each
-//! island's own part of it, [`Local`].
+//! What a feature is: [`Feature`], which runs without any drawing, [`Surface`], its widget and
+//! panel, and each island's own part of it, [`Local`].
 
 use std::{
     any::Any,
     time::{Duration, Instant},
 };
 
-use gpui::{AnyElement, Keystroke, Window};
-
 use super::{Battery, Feed, Islands, Osd, PanelCx, WidgetCx};
 use crate::{
+    bar_widget::BarWidget,
     cli::Client,
+    components::measure::Measure,
     control::{Command, Reply, Report, Row},
+    key::Key,
     panel::{ActionTile, Block, Mark, PanelView, Warning},
+    stage::Panel,
     wm::Monitor,
 };
 
@@ -25,25 +27,78 @@ pub enum Outcome {
 /// An icon's key and the theme names to try, in order.
 pub type GlyphSpec = (&'static str, &'static [&'static str]);
 
+/// What runs whatever draws it: its worker, state, settings and commands.
 pub trait Feature: Sized + 'static {
     const NAME: &'static str;
-    const GLYPHS: &'static [GlyphSpec] = &[];
 
     type State: Clone + Default + PartialEq + Send + 'static;
-
-    /// Each island's own part, such as icons animating in and out.
-    type Local: Local + Default;
 
     /// Sent to the islands rather than to the shared state, such as a new notification.
     type Event: Send + 'static;
 
     fn start(feed: Feed<Self::State, Self::Event>) -> Self;
 
-    fn event(&self, _event: Self::Event, _islands: &mut Islands<'_, Self::Local>) {}
-
     fn check_settings(_settings: &toml::Value) -> Result<(), String> {
         Err(format!("[features.{}] takes no settings", Self::NAME))
     }
+
+    fn initial() -> Self::State {
+        Self::State::default()
+    }
+
+    /// Batteries it knows of, which its bar gauge can draw and the overview gathers with every
+    /// other feature's, warning of any running low.
+    fn batteries(&self, _: &Self::State) -> Vec<Battery> {
+        Vec::new()
+    }
+
+    fn inhibits_idle(_: &Self::State) -> bool {
+        false
+    }
+
+    /// The `island ctl` commands it answers. `island ctl` checks them against these before they
+    /// reach [`Feature::command`].
+    const CONTROLS: &'static [Command] = &[];
+
+    /// Runs one of its `CONTROLS`, and answers with what it did or, given nothing after the
+    /// command's name, what the state is.
+    fn command(&self, _: &Self::State, _args: &[&str]) -> Report {
+        Report::default()
+    }
+
+    /// [`Feature::command`], for a feature whose answer comes only once slow work is done.
+    fn reply(&self, state: &Self::State, args: &[&str]) -> Reply {
+        self.command(state, args).into()
+    }
+
+    /// Its rows in `island ctl`'s overview of what island is doing.
+    fn status(&self, _: &Self::State) -> Vec<Row> {
+        Vec::new()
+    }
+
+    /// A top-level command of its own, such as `island ai-hook`, for a caller that waits for the
+    /// running island's answer.
+    const CLIENT: Option<Client> = None;
+
+    /// Runs in the calling process with the words after the client's name; the process exits
+    /// with what it returns.
+    fn client(_args: &[String]) -> i32 {
+        0
+    }
+}
+
+/// What it shows: its widgets and panels, and each island's own part of it.
+pub trait Surface: Feature {
+    const GLYPHS: &'static [GlyphSpec] = &[];
+
+    /// Each island's own part, such as icons animating in and out.
+    type Local: Local + Default;
+
+    fn panel_handle() -> Panel {
+        Panel::Feature(Self::NAME)
+    }
+
+    fn event(&self, _event: Self::Event, _islands: &mut Islands<'_, Self::Local>) {}
 
     /// `animate` is false before the island is first laid out, so things appear in place.
     fn sync_local(
@@ -52,10 +107,6 @@ pub trait Feature: Sized + 'static {
         _island: &IslandInfo<'_>,
         _animate: bool,
     ) {
-    }
-
-    fn initial() -> Self::State {
-        Self::State::default()
     }
 
     /// Empty means one widget, named after the feature.
@@ -70,7 +121,7 @@ pub trait Feature: Sized + 'static {
         0.0
     }
 
-    fn widget(&self, _widget: &str, _: &Self::State, _: &mut WidgetCx<'_>) -> Option<AnyElement> {
+    fn widget(&self, _widget: &str, _: &Self::State, _: &mut WidgetCx<'_>) -> Option<BarWidget> {
         None
     }
 
@@ -98,12 +149,6 @@ pub trait Feature: Sized + 'static {
     /// What it puts on the dashboard's overview.
     fn dashboard(&self, _: &Self::State, _: &PanelCx<'_>) -> Dashboard {
         Dashboard::default()
-    }
-
-    /// Batteries it knows of, which its bar gauge can draw and the overview gathers with every
-    /// other feature's, warning of any running low.
-    fn batteries(&self, _: &Self::State) -> Vec<Battery> {
-        Vec::new()
     }
 
     /// For content that moves without new state, such as a play position.
@@ -139,46 +184,12 @@ pub trait Feature: Sized + 'static {
         None
     }
 
-    fn inhibits_idle(_: &Self::State) -> bool {
-        false
-    }
-
-    /// The `island ctl` commands it answers. `island ctl` checks them against these before they
-    /// reach [`Feature::command`].
-    const CONTROLS: &'static [Command] = &[];
-
-    /// Runs one of its `CONTROLS`, and answers with what it did or, given nothing after the
-    /// command's name, what the state is.
-    fn command(&self, _: &Self::State, _args: &[&str]) -> Report {
-        Report::default()
-    }
-
-    /// [`Feature::command`], for a feature whose answer comes only once slow work is done.
-    fn reply(&self, state: &Self::State, args: &[&str]) -> Reply {
-        self.command(state, args).into()
-    }
-
-    /// Its rows in `island ctl`'s overview of what island is doing.
-    fn status(&self, _: &Self::State) -> Vec<Row> {
-        Vec::new()
-    }
-
     /// Views its panel can be opened on, such as its tabs: `island ctl open PANEL VIEW`.
     const VIEWS: &'static [&'static str] = &[];
 
-    /// A top-level command of its own, such as `island ai-hook`, for a caller that waits for the
-    /// running island's answer.
-    const CLIENT: Option<Client> = None;
-
-    /// Runs in the calling process with the words after the client's name; the process exits
-    /// with what it returns.
-    fn client(_args: &[String]) -> i32 {
-        0
-    }
-
     const KEYBOARD: bool = false;
 
-    fn key(&self, _: &Self::State, _local: &mut Self::Local, _keystroke: &Keystroke) -> Outcome {
+    fn key(&self, _: &Self::State, _local: &mut Self::Local, _key: &Key) -> Outcome {
         Outcome::Close
     }
 }
@@ -210,6 +221,11 @@ pub trait Local: 'static {
     /// Unsettled, but only by slow motion, which the island draws at `marquee::TICK` rather than
     /// every frame the display has.
     fn is_drifting(&self) -> bool {
+        false
+    }
+
+    /// Unsettled only by its own quick motion, which the island draws at `marquee::BRISK`.
+    fn is_brisk(&self) -> bool {
         false
     }
 
@@ -245,7 +261,7 @@ pub trait Local: 'static {
     fn osd(&mut self, _osd: Osd) {}
 
     /// Measures the text it lays out by, before drawing; true when that changed its layout.
-    fn measure(&mut self, _window: &Window) -> bool {
+    fn measure(&mut self, _measure: &Measure<'_>) -> bool {
         false
     }
 }
@@ -267,7 +283,7 @@ impl<T: Local> AnyLocal for T {
     }
 }
 
-pub(super) fn widgets_of<F: Feature>() -> impl Iterator<Item = &'static str> {
+pub(super) fn widgets_of<F: Surface>() -> impl Iterator<Item = &'static str> {
     F::WIDGETS
         .iter()
         .copied()

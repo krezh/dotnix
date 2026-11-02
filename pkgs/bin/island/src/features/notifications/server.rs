@@ -1,21 +1,20 @@
 use std::{
     collections::HashMap,
     path::Path,
-    sync::{Arc, mpsc::Receiver},
+    sync::mpsc::Receiver,
     time::{Duration, SystemTime},
 };
 
-use gpui::RenderImage;
 use tracing::{debug, info, trace, warn};
 use zbus::{Connection, OwnedVariant, block_on, connection, interface};
 
 use super::{
     Event, State,
-    notification::{Action, Expire, Notification, Signal, next_id},
+    notification::{Action, Expire, Notification, Signal, claim_id},
 };
 use crate::{
     activation::Activation, components::icon::Picture, dbus, features::Feed, icons,
-    supervisor::Ended,
+    supervisor::Ended, uri,
 };
 
 const NAME: &str = "org.freedesktop.Notifications";
@@ -47,9 +46,11 @@ fn hint_bool(hints: &HashMap<String, OwnedVariant>, key: &str) -> bool {
 }
 
 fn icon_reference(reference: &str) -> Option<Picture> {
-    let reference = reference.strip_prefix("file://").unwrap_or(reference);
     if reference.is_empty() {
         return None;
+    }
+    if let Some(path) = uri::local_path(reference) {
+        return path.exists().then_some(Picture::File(path));
     }
     let path = Path::new(reference);
     if path.is_absolute() {
@@ -70,7 +71,12 @@ fn pixels((width, height, stride, alpha, bits, channels, data): RawImage) -> Opt
     if bits != 8 || width == 0 || height == 0 || channels < 3 || (alpha && channels < 4) {
         return None;
     }
-    let mut bgra = Vec::with_capacity(width * height * 4);
+    let row_bytes = width.checked_mul(channels)?;
+    let needed = (height - 1).checked_mul(stride)?.checked_add(row_bytes)?;
+    if stride < row_bytes || needed > data.len() {
+        return None;
+    }
+    let mut bgra = Vec::with_capacity(width.checked_mul(height)?.checked_mul(4)?);
     for row in 0..height {
         let line = data.get(row * stride..row * stride + width * channels)?;
         for pixel in line.chunks_exact(channels) {
@@ -79,9 +85,7 @@ fn pixels((width, height, stride, alpha, bits, channels, data): RawImage) -> Opt
         }
     }
     let buffer = image::RgbaImage::from_raw(width as u32, height as u32, bgra)?;
-    Some(Picture::Pixels(Arc::new(RenderImage::new(vec![
-        image::Frame::new(buffer),
-    ]))))
+    Some(Picture::pixels(buffer))
 }
 
 fn image_hint(hints: &HashMap<String, OwnedVariant>) -> Option<Picture> {
@@ -137,16 +141,12 @@ impl Server {
         hints: HashMap<String, OwnedVariant>,
         expire_timeout: i32,
     ) -> u32 {
-        let id = if replaces_id == 0 {
-            next_id()
-        } else {
-            replaces_id
-        };
         let app = if app_name.is_empty() {
             hint_string(&hints, "desktop-entry").unwrap_or_else(|| "Notification".to_owned())
         } else {
             app_name
         };
+        let id = claim_id(replaces_id, &app);
         let action_icons = hint_bool(&hints, "action-icons");
         let expire = match expire_timeout {
             0 => Expire::Never,
@@ -214,7 +214,7 @@ pub fn serve(feed: &Feed<State, Event>, signals: &Receiver<Signal>) -> Ended {
         Ok(connection) => connection,
         Err(error) => return Ended::Failed(format!("cannot connect to the session bus: {error}")),
     };
-    match block_on(dbus::claim(&connection, NAME)) {
+    match block_on(dbus::claim_shared(&connection, NAME)) {
         Ok(true) => info!(name = NAME, "serving notifications"),
         Ok(false) => warn!(
             name = NAME,
@@ -273,3 +273,7 @@ fn emit(connection: &Connection, activation: &mut Option<Activation>, signal: Si
         warn!("cannot emit a notification signal: {error}");
     }
 }
+
+#[cfg(test)]
+#[path = "server_test.rs"]
+mod tests;

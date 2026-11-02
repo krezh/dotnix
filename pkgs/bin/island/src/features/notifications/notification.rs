@@ -1,10 +1,14 @@
 use std::{
+    collections::HashMap,
     path::PathBuf,
-    sync::atomic::{AtomicU32, Ordering},
+    sync::{
+        LazyLock, Mutex, MutexGuard,
+        atomic::{AtomicU32, Ordering},
+    },
     time::{Duration, SystemTime},
 };
 
-use crate::{components::icon::Picture, features::notice::Origin};
+use crate::{components::icon::Picture, features::notice::Origin, sync::lock};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Expire {
@@ -68,13 +72,54 @@ pub const DEFAULT_ACTION: &str = "default";
 
 static NEXT_ID: AtomicU32 = AtomicU32::new(1);
 
-pub fn next_id() -> u32 {
+static OWNERS: LazyLock<Mutex<HashMap<u32, String>>> = LazyLock::new(Mutex::default);
+
+fn owners() -> MutexGuard<'static, HashMap<u32, String>> {
+    lock(&OWNERS)
+}
+
+fn fresh_id() -> u32 {
     loop {
         let id = NEXT_ID.fetch_add(1, Ordering::Relaxed);
         if id != 0 {
             return id;
         }
     }
+}
+
+/// Keeps an id an app chose, known or not: scripts replace by a fixed id of their own. Owned by
+/// another app, or 0, it gives a fresh one that nothing holds.
+fn claim_from(
+    owners: &mut HashMap<u32, String>,
+    replaces: u32,
+    app: &str,
+    mut fresh: impl FnMut() -> u32,
+) -> u32 {
+    let kept = replaces != 0 && owners.get(&replaces).is_none_or(|owner| owner == app);
+    let id = if kept {
+        replaces
+    } else {
+        loop {
+            let id = fresh();
+            if !owners.contains_key(&id) {
+                break id;
+            }
+        }
+    };
+    owners.insert(id, app.to_owned());
+    id
+}
+
+pub fn claim_id(replaces: u32, app: &str) -> u32 {
+    claim_from(&mut owners(), replaces, app, fresh_id)
+}
+
+pub fn next_id() -> u32 {
+    claim_id(0, "island")
+}
+
+pub fn release_id(id: u32) {
+    owners().remove(&id);
 }
 
 impl Notification {
@@ -108,3 +153,7 @@ impl Notification {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "notification_test.rs"]
+mod tests;

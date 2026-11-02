@@ -21,8 +21,16 @@ pub enum RecordingCommand {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum RecordingReply {
-    Status { output: PathBuf },
-    Stopped { output: PathBuf },
+    Status {
+        output: PathBuf,
+        #[serde(default)]
+        clipboard: bool,
+    },
+    Stopped {
+        output: PathBuf,
+        #[serde(default)]
+        clipboard: bool,
+    },
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -108,14 +116,14 @@ impl RecordingListener {
         Ok(Self { listener, path })
     }
 
-    pub fn poll(&self, output: &Path) -> Result<Option<UnixStream>> {
+    pub fn poll(&self, output: &Path, clipboard: bool) -> Result<Option<UnixStream>> {
         let (mut stream, _) = match self.listener.accept() {
             Ok(client) => client,
             Err(error) if error.kind() == ErrorKind::WouldBlock => return Ok(None),
             Err(error) => return Err(error).context("Failed to accept recording client"),
         };
         stream.set_read_timeout(Some(Duration::from_secs(5)))?;
-        let result = self.handle(&mut stream, output);
+        let result = self.handle(&mut stream, output, clipboard);
         match result {
             Ok(Some(stream)) => Ok(Some(stream)),
             Ok(None) => Ok(None),
@@ -126,7 +134,12 @@ impl RecordingListener {
         }
     }
 
-    fn handle(&self, stream: &mut UnixStream, output: &Path) -> Result<Option<UnixStream>> {
+    fn handle(
+        &self,
+        stream: &mut UnixStream,
+        output: &Path,
+        clipboard: bool,
+    ) -> Result<Option<UnixStream>> {
         let credentials =
             getsockopt(&*stream, PeerCredentials).context("Failed to inspect recording client")?;
         let current_uid = unsafe { libc::geteuid() };
@@ -140,6 +153,7 @@ impl RecordingListener {
                     stream,
                     Ok(RecordingReply::Status {
                         output: output.to_path_buf(),
+                        clipboard,
                     }),
                 )?;
                 Ok(None)
@@ -155,10 +169,16 @@ impl Drop for RecordingListener {
     }
 }
 
-pub fn reply_stopped(stream: &mut UnixStream, result: &Result<()>, output: &Path) -> Result<()> {
+pub fn reply_stopped(
+    stream: &mut UnixStream,
+    result: &Result<()>,
+    output: &Path,
+    clipboard: bool,
+) -> Result<()> {
     let reply = match result {
         Ok(()) => Ok(RecordingReply::Stopped {
             output: output.to_path_buf(),
+            clipboard,
         }),
         Err(error) => Err(format!("{error:#}")),
     };

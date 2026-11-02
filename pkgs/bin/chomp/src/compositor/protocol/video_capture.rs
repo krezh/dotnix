@@ -125,10 +125,12 @@ pub struct VideoCapture {
     event_queue: wayland_client::EventQueue<CaptureState>,
     manager: ZwlrScreencopyManagerV1,
     dmabuf: ZwpLinuxDmabufV1,
+    overlay_cursor: i32,
 }
 
 impl VideoCapture {
-    pub fn new(connection: &Connection) -> Result<Self> {
+    /// `overlay_cursor` draws the mouse cursor into captured frames.
+    pub fn new(connection: &Connection, overlay_cursor: bool) -> Result<Self> {
         use wayland_client::globals::registry_queue_init;
 
         let (globals, mut event_queue) =
@@ -147,6 +149,7 @@ impl VideoCapture {
             event_queue,
             manager,
             dmabuf,
+            overlay_cursor: overlay_cursor.into(),
         })
     }
 
@@ -240,7 +243,7 @@ impl VideoCapture {
     ) -> Result<(ZwlrScreencopyFrameV1, CaptureState)> {
         let qh = self.event_queue.handle();
         let frame = self.manager.capture_output_region(
-            0,
+            self.overlay_cursor,
             output,
             rect.x,
             rect.y,

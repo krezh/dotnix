@@ -8,8 +8,8 @@ use std::{
 };
 
 use gpui::{
-    AnyElement, Div, MouseMoveEvent, Pixels, Point, SharedString, Stateful, Window, anchored,
-    point, prelude::*, px,
+    AnyElement, Div, EntityId, MouseMoveEvent, Pixels, Point, SharedString, Stateful, Window,
+    anchored, point, prelude::*, px,
 };
 
 use crate::{
@@ -31,6 +31,8 @@ struct Hover {
 struct State {
     texts: HashMap<SharedString, SharedString>,
     hover: Option<Hover>,
+    /// What draws the tooltip, so moving it leaves the drawing of everything else alone.
+    view: Option<EntityId>,
 }
 
 /// Texts outlive the frame, so widgets whose drawing is reused keep theirs.
@@ -38,6 +40,18 @@ struct State {
 pub struct Tooltips(Rc<RefCell<State>>);
 
 impl Tooltips {
+    pub fn drawn_by(view: EntityId) -> Self {
+        Self(Rc::new(RefCell::new(State {
+            view: Some(view),
+            ..State::default()
+        })))
+    }
+
+    /// Forgets what the pointer is over, for when that may have gone from under it.
+    pub fn clear(&self) {
+        self.0.borrow_mut().hover = None;
+    }
+
     pub fn position(&self, key: &SharedString) -> Option<Point<Pixels>> {
         self.0
             .borrow()
@@ -71,7 +85,6 @@ impl Tooltips {
             return None;
         }
         if hover.since.elapsed() < DELAY {
-            window.request_animation_frame();
             return None;
         }
         Some(
@@ -96,7 +109,7 @@ impl Tooltips {
         let (hover_state, move_state) = (self.0.clone(), self.0.clone());
         let move_key = key.clone();
         element
-            .on_hover(move |hovered, window, _| {
+            .on_hover(move |hovered, window, cx| {
                 let mut state = hover_state.borrow_mut();
                 if *hovered {
                     state.hover = Some(Hover {
@@ -104,20 +117,28 @@ impl Tooltips {
                         at: window.mouse_position(),
                         since: Instant::now(),
                     });
+                    if let Some(view) = state.view {
+                        cx.spawn(async move |cx| {
+                            cx.background_executor().timer(DELAY).await;
+                            cx.update(|cx| cx.notify(view));
+                        })
+                        .detach();
+                    }
                 } else if state.hover.as_ref().is_some_and(|hover| hover.key == key) {
                     state.hover = None;
                 }
                 window.refresh();
             })
-            .on_mouse_move(move |event: &MouseMoveEvent, window, _| {
-                if let Some(hover) = move_state
-                    .borrow_mut()
-                    .hover
-                    .as_mut()
-                    .filter(|hover| hover.key == move_key)
-                {
+            .on_mouse_move(move |event: &MouseMoveEvent, _, cx| {
+                let mut state = move_state.borrow_mut();
+                let view = state.view;
+                if let Some(hover) = state.hover.as_mut().filter(|hover| hover.key == move_key) {
                     hover.at = event.position;
-                    window.refresh();
+                    if hover.since.elapsed() >= DELAY
+                        && let Some(view) = view
+                    {
+                        cx.notify(view);
+                    }
                 }
             })
     }

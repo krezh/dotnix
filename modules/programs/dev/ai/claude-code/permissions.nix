@@ -61,10 +61,10 @@
             "Bash(pw-top)"
 
             # Core Claude Code tools
-            "Glob(*)"
-            "Grep(*)"
+            "Glob"
+            "Grep"
             "LS(*)"
-            "Read(*)"
+            "Read"
             "Search(*)"
             "Web Search(*)"
             "Task(*)"

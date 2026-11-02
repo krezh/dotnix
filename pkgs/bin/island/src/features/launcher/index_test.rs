@@ -2,25 +2,16 @@ use std::{
     fs,
     os::unix::fs::symlink,
     path::{Path, PathBuf},
-    sync::atomic::{AtomicU64, Ordering},
     time::{Duration, Instant},
 };
 
 use super::*;
 
-static NEXT: AtomicU64 = AtomicU64::new(0);
-
 struct Fixture(PathBuf);
 
 impl Fixture {
     fn new() -> Self {
-        let path = std::env::temp_dir().join(format!(
-            "island-index-{}-{}",
-            std::process::id(),
-            NEXT.fetch_add(1, Ordering::Relaxed),
-        ));
-        fs::create_dir(&path).unwrap();
-        Self(path)
+        Self(crate::testing::scratch("index"))
     }
 
     fn dir(&self, path: &str) -> PathBuf {

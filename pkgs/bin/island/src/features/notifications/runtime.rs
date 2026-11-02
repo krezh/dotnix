@@ -8,7 +8,7 @@ use super::{
     Event, State,
     history::{self, Write},
     lock,
-    notification::{Notification, Reason, Signal},
+    notification::{Notification, Reason, Signal, release_id},
     server,
     settings::Settings,
 };
@@ -78,6 +78,9 @@ impl Notifications {
         let id = match &signal {
             Signal::Closed(id, _) | Signal::Action(id, _) => *id,
         };
+        if matches!(signal, Signal::Closed(..)) {
+            release_id(id);
+        }
         let Some(origin) = self.posted.borrow().get(&id).cloned() else {
             let _ = self.signals.send(signal);
             return;

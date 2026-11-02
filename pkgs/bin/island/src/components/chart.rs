@@ -1,6 +1,9 @@
 //! A history drawn as smooth lines, such as CPU use over the last minute.
 
-use std::{fmt::Write, time::Duration};
+use std::{
+    fmt::Write,
+    time::{Duration, Instant},
+};
 
 use gpui::{
     Bounds, ContentMask, Hsla, IntoElement, PathBuilder, PathStyle, Pixels, Point, SharedString,
@@ -16,10 +19,27 @@ use crate::{
 /// pace unless it has reason for its own, and then charts it with its own phase.
 pub const SAMPLE_EVERY: Duration = Duration::from_secs(2);
 
-const LINE: f32 = 3.0;
-const FILL_ALPHA: u8 = 0x26;
-const BASELINE_ALPHA: u8 = 0x1a;
+/// The clock of a history sampled on its own: when it last grew, and how often it does.
+#[derive(Clone, Copy)]
+pub struct Phase {
+    pub sampled: Option<Instant>,
+    pub every: Duration,
+}
 
+impl Phase {
+    /// How far it has scrolled since it last grew, 0 to 1.
+    pub fn now(self) -> f32 {
+        self.sampled.map_or(1.0, |sampled| {
+            (sampled.elapsed().as_secs_f32() / self.every.as_secs_f32()).min(1.0)
+        })
+    }
+}
+
+pub const LINE: f32 = 3.0;
+pub const FILL_ALPHA: u8 = 0x26;
+pub const BASELINE_ALPHA: u8 = 0x1a;
+
+#[derive(Clone)]
 pub struct Series {
     pub values: Vec<f32>,
     pub max: f32,
@@ -83,7 +103,7 @@ fn sample(values: &[f32], slots: usize, phase: f32, fraction: f32) -> Option<f32
     values.get(index).copied()
 }
 
-fn text(series: &[Series], slots: usize, phase: f32, fraction: f32) -> String {
+pub fn text(series: &[Series], slots: usize, phase: f32, fraction: f32) -> String {
     let mut text = String::new();
     for series in series {
         if let Some(value) = sample(&series.values, slots, phase, fraction) {
@@ -164,7 +184,7 @@ pub fn chart(
 
 /// Points scrolling in from the right, and how many of them are real history rather than the
 /// flat lead-in drawn where there is none yet.
-fn history_points(
+pub fn history_points(
     values: &[f32],
     max: f32,
     slots: usize,

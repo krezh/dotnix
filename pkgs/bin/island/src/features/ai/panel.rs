@@ -7,7 +7,7 @@ use super::{
 };
 use crate::{
     features::PanelCx,
-    panel::{Block, Button, Header, PanelView, TabLabel, Views},
+    panel::{Block, Button, Header, PanelView, Passing, TabLabel, Views},
 };
 
 fn usage(ai: &Ai, state: &State, view: &View, p: &PanelCx<'_>) -> (Vec<Button>, Vec<Block>) {
@@ -35,9 +35,14 @@ fn usage(ai: &Ai, state: &State, view: &View, p: &PanelCx<'_>) -> (Vec<Button>, 
     (buttons, overview::blocks(ai, state, view, p, now))
 }
 
-pub(super) fn panel(ai: &Ai, state: &State, p: &PanelCx<'_>) -> Option<PanelView> {
-    let view = p.local::<View>()?;
-    let (buttons, blocks) = match view.tab {
+fn tab_view(
+    ai: &Ai,
+    state: &State,
+    view: &View,
+    tab: Tab,
+    p: &PanelCx<'_>,
+) -> (Vec<Button>, Vec<Block>) {
+    match tab {
         Tab::Sessions => {
             let now = format::now();
             if let Some(ms) = state
@@ -57,7 +62,22 @@ pub(super) fn panel(ai: &Ai, state: &State, p: &PanelCx<'_>) -> Option<PanelView
         }
         Tab::Chat => chat::panel(ai, state, view, p),
         Tab::Usage => usage(ai, state, view, p),
-    };
+    }
+}
+
+fn tab_index(tab: Tab) -> usize {
+    Tab::ALL.iter().position(|known| *known == tab).unwrap_or(0)
+}
+
+pub(super) fn panel(ai: &Ai, state: &State, p: &PanelCx<'_>) -> Option<PanelView> {
+    let view = p.local::<View>()?;
+    let (buttons, blocks) = tab_view(ai, state, view, view.tab, p);
+    let passing = view.passing.from.map(|from| Passing {
+        blocks: tab_view(ai, state, view, from, p).1,
+        at: view.passing.at.value().clamp(0.0, 1.0),
+        rightwards: tab_index(view.tab) > tab_index(from),
+        width: view.passing.width.clone(),
+    });
     Some(PanelView {
         scroll: view.tab == Tab::Chat,
         header: Header::Views(Views {
@@ -70,16 +90,14 @@ pub(super) fn panel(ai: &Ai, state: &State, p: &PanelCx<'_>) -> Option<PanelView
                     count: None,
                 })
                 .collect(),
-            selected: Tab::ALL
-                .iter()
-                .position(|tab| *tab == view.tab)
-                .unwrap_or(0),
+            selected: tab_index(view.tab),
             on_select: p.on_local_with::<Ai, usize>(|_, view, index| {
-                view.tab = Tab::ALL[index.min(Tab::ALL.len() - 1)];
+                view.pick_tab(Tab::ALL[index.min(Tab::ALL.len() - 1)]);
             }),
             pick: None,
             buttons,
             icons: Vec::new(),
+            passing,
         }),
         blocks,
     })

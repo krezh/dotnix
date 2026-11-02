@@ -13,10 +13,10 @@ use crate::{
     ui::Radius,
 };
 
-const LAP: Duration = Duration::from_millis(1400);
-const FADE: Duration = Duration::from_millis(260);
+pub const LAP: Duration = Duration::from_millis(1400);
+pub const FADE: Duration = Duration::from_millis(260);
 /// A fraction of the way round from the top-left.
-const START: f32 = 0.12;
+pub const START: f32 = 0.12;
 /// The fraction of the edge the beam covers.
 const BEAM: f32 = 0.35;
 /// The height the beam's widths are drawn for; it scales with what it runs round.
@@ -27,12 +27,20 @@ const STEP: f32 = 0.75;
 /// as the work runs.
 const FRAME: Duration = Duration::from_micros(16_667);
 
-struct Edge {
-    x: f32,
-    y: f32,
-    width: f32,
-    height: f32,
-    radius: f32,
+pub struct Edge {
+    pub x: f32,
+    pub y: f32,
+    pub width: f32,
+    pub height: f32,
+    pub radius: f32,
+}
+
+/// One of the dots a beam is made of.
+pub struct Dot {
+    pub at: (f32, f32),
+    pub diameter: f32,
+    pub color: u32,
+    pub alpha: f32,
 }
 
 impl Edge {
@@ -91,7 +99,16 @@ impl Edge {
     }
 }
 
-fn dot(window: &mut Window, (x, y): (f32, f32), diameter: f32, color: Hsla) {
+fn dot(
+    window: &mut Window,
+    Dot {
+        at: (x, y),
+        diameter,
+        color: tint,
+        alpha,
+    }: Dot,
+) {
+    let color = color(tint, alpha);
     let bounds = Bounds::new(
         point(px(x - diameter / 2.0), px(y - diameter / 2.0)),
         size(px(diameter), px(diameter)),
@@ -104,8 +121,9 @@ fn color(color: u32, alpha: f32) -> Hsla {
 }
 
 /// The head is `phase` of the way round; the tail thins and fades behind it.
-fn paint(edge: &Edge, phase: f32, opacity: f32, window: &mut Window) {
+pub fn dots(edge: &Edge, phase: f32, opacity: f32) -> Vec<Dot> {
     let scale = edge.height / UNIT_H;
+    let mut shown = Vec::new();
     let dots = ((BEAM * edge.length() / STEP).ceil() as usize).max(24);
     for index in (0..=dots).rev() {
         let behind = index as f32 / dots as f32;
@@ -115,22 +133,39 @@ fn paint(edge: &Edge, phase: f32, opacity: f32, window: &mut Window) {
         // than the beam is meant to look there.
         let target = lit * lit * 0.95 * opacity;
         let alpha = 1.0 - (1.0 - target).powf(STEP / diameter);
-        dot(
-            window,
-            edge.point(phase - BEAM * behind),
+        shown.push(Dot {
+            at: edge.point(phase - BEAM * behind),
             diameter,
-            color(SAPPHIRE, alpha),
-        );
+            color: SAPPHIRE,
+            alpha,
+        });
     }
-    dot(
-        window,
-        edge.point(phase - BEAM),
-        1.4 * scale,
-        color(SAPPHIRE, 0.12 * opacity),
-    );
+    shown.push(Dot {
+        at: edge.point(phase - BEAM),
+        diameter: 1.4 * scale,
+        color: SAPPHIRE,
+        alpha: 0.12 * opacity,
+    });
     let head = edge.point(phase);
-    dot(window, head, 4.0 * scale, color(SKY, 0.70 * opacity));
-    dot(window, head, 1.8 * scale, color(TEXT, 0.80 * opacity));
+    shown.push(Dot {
+        at: head,
+        diameter: 4.0 * scale,
+        color: SKY,
+        alpha: 0.70 * opacity,
+    });
+    shown.push(Dot {
+        at: head,
+        diameter: 1.8 * scale,
+        color: TEXT,
+        alpha: 0.80 * opacity,
+    });
+    shown
+}
+
+fn paint(edge: &Edge, phase: f32, opacity: f32, window: &mut Window) {
+    for shown in dots(edge, phase, opacity) {
+        dot(window, shown);
+    }
 }
 
 #[derive(Default)]

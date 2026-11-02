@@ -25,7 +25,10 @@ use super::{
     sources::{self, Failure},
     state::{Provider, Source, SourceReport, State},
 };
-use crate::{features::Feed, supervisor::Ended};
+use crate::{
+    features::Feed,
+    supervisor::{self, Ended},
+};
 
 /// Claude's usage comes from Claude Code's status line while it runs; the usage API is asked at
 /// the start, and then only once nothing has been heard of Claude's usage for this long.
@@ -160,12 +163,8 @@ fn chat(
     }
 }
 
-fn now() -> i64 {
-    chrono::Utc::now().timestamp_millis()
-}
-
 fn begin(state: &mut State, sources: &[Source], sender: &Sender<Message>) -> usize {
-    state.attempted_at = Some(now());
+    state.attempted_at = Some(format::now());
     state.refreshing = !sources.is_empty();
     for &source in sources {
         let replies = sender.clone();
@@ -209,7 +208,7 @@ fn call(
     settings: &Settings,
     call: Call,
 ) -> bool {
-    let at = now();
+    let at = format::now();
     match call {
         Call::Tell(hook, told_at) => {
             announce(alerts.tell(state, &hook, at).into_iter().collect());
@@ -235,7 +234,7 @@ fn work(
     pending: &AtomicBool,
 ) -> Ended {
     let interval = Duration::from_secs(settings.refresh_minutes * 60);
-    let started = now();
+    let started = format::now();
     let windows = cache::windows(started).unwrap_or_else(|error| {
         warn!("{error}");
         Vec::new()
@@ -285,7 +284,8 @@ fn work(
             .chain(stale)
             .min()
             .map(|at| {
-                Instant::now() + Duration::from_millis(u64::try_from(at - now()).unwrap_or(0))
+                Instant::now()
+                    + Duration::from_millis(u64::try_from(at - format::now()).unwrap_or(0))
             });
         let idle_chat =
             (!state.chat.busy && !state.chat.lines.is_empty()).then_some(chatted + CHAT_IDLE);
@@ -366,7 +366,7 @@ fn work(
                     settings,
                 );
                 if let Some(wait) = slowed {
-                    let at = now();
+                    let at = format::now();
                     let again = at + i64::try_from(wait.as_millis()).unwrap_or(i64::MAX / 2);
                     if let Some(issue) = Arc::make_mut(&mut state.issues)
                         .iter_mut()
@@ -384,11 +384,12 @@ fn work(
                 changed = true;
             }
             Ok(Message::Call(Call::Tell(Hook::Usage { readings, .. }, _))) => {
-                if let Some(report) = model::status_line(&state, &readings, now()) {
+                if let Some(report) = model::status_line(&state, &readings, format::now()) {
                     claude_heard = Instant::now();
-                    for reading in readings.iter().filter(|reading| {
-                        reading.resets_at.is_none_or(|at| at > now())
-                    }) {
+                    for reading in readings
+                        .iter()
+                        .filter(|reading| reading.resets_at.is_none_or(|at| at > format::now()))
+                    {
                         claude_live.retain(|(_, kept)| kept.id != reading.id);
                         claude_live.push((claude_heard, reading.clone()));
                     }
@@ -406,7 +407,7 @@ fn work(
                 changed = asked;
             }
             Ok(Message::Hold(island, over)) => {
-                changed = waiting.hold(&mut state, island, over, now());
+                changed = waiting.hold(&mut state, island, over, format::now());
             }
             Ok(Message::Chat(message)) => {
                 chatted = Instant::now();
@@ -415,7 +416,7 @@ fn work(
             Err(RecvTimeoutError::Timeout) => {}
             Err(RecvTimeoutError::Disconnected) => return Ended::Unwanted,
         }
-        let at = now();
+        let at = format::now();
         if waiting.expire(&mut state, at) {
             asked = true;
             changed = true;
@@ -480,15 +481,7 @@ fn work(
 /// Forwards hook calls from the bus to the worker.
 fn relay(sender: Sender<Message>) -> Sender<Call> {
     let (calls, incoming) = mpsc::channel::<Call>();
-    let _ = thread::Builder::new()
-        .name("ai-hooks-relay".to_owned())
-        .spawn(move || {
-            for call in incoming {
-                if sender.send(Message::Call(call)).is_err() {
-                    break;
-                }
-            }
-        });
+    supervisor::forward("ai-hooks-relay", incoming, sender, Message::Call);
     calls
 }
 

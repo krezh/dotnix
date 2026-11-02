@@ -78,6 +78,12 @@
           description = "Background opacity from 0.0 (transparent) to 1.0 (opaque).";
         };
 
+        blur = lib.mkOption {
+          type = lib.types.bool;
+          default = true;
+          description = "Request compositor background blur behind translucent areas.";
+        };
+
         font = lib.mkOption {
           type = lib.types.nonEmptyStr;
           default = "Rubik";
@@ -139,6 +145,7 @@
           inherit (cfg) cycle;
           show_clock = cfg.showClock;
           inherit (cfg) opacity;
+          inherit (cfg) blur;
           inherit (cfg) font;
           inherit (cfg) speed;
           clock_drift = cfg.clockDrift;

@@ -1,12 +1,10 @@
 use std::time::Instant;
 
-use gpui::SpringConfig;
-
 use super::sni::TrayItem;
-use crate::{bar, features::Local, presence::Presence};
+use crate::{bar, features::Local, presence::Presence, spring::SpringConfig};
 
 pub(super) const ICON: f32 = 18.0;
-const MOTION: SpringConfig = SpringConfig::new(420.0, 34.0, 1.0);
+const MOTION: SpringConfig = SpringConfig::new(420.0, 41.0, 1.0);
 
 fn step(spacing: f32) -> f32 {
     ICON + 2.0 * bar::half(spacing)

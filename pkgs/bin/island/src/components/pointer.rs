@@ -10,6 +10,8 @@ pub struct Pointer {
     pub hovered: bool,
     pub held: bool,
     pub grab_offset: f32,
+    /// How far, in pixels, a hold has pulled it past an end: below 0 past the start.
+    pub stretch: f32,
 }
 
 thread_local! {

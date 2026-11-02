@@ -1,11 +1,8 @@
 use std::cell::Cell;
 
-use gpui::{AnyElement, prelude::*};
-
-use super::{Dashboard, Feature, Feed, GlyphSpec, PanelCx, WidgetCx};
+use super::{Dashboard, Feature, Feed, GlyphSpec, PanelCx, Surface, WidgetCx};
 use crate::{
-    bar::GLYPH,
-    components::{icon, tooltip::Tip},
+    bar_widget::BarWidget,
     control::{self, Command, Group, Report, Row, SWITCH, Shown, Switch, Takes},
     panel::ActionTile,
     theme::{ACCENT, PEACH},
@@ -32,8 +29,7 @@ impl Caffeine {
 
 impl Feature for Caffeine {
     const NAME: &'static str = "caffeine";
-    const DASHBOARD_ORDER: u8 = 60;
-    const GLYPHS: &'static [GlyphSpec] = &[("caffeine", &["coffee"])];
+
     const CONTROLS: &'static [Command] = &[Command {
         name: "caffeine",
         about: "Keep the screen awake",
@@ -46,7 +42,7 @@ impl Feature for Caffeine {
     }];
 
     type State = bool;
-    type Local = ();
+
     type Event = ();
 
     fn start(feed: Feed<bool>) -> Self {
@@ -56,39 +52,8 @@ impl Feature for Caffeine {
         }
     }
 
-    fn present(_: &str, on: &bool) -> bool {
-        *on
-    }
-
     fn inhibits_idle(on: &bool) -> bool {
         *on
-    }
-
-    fn widget(&self, _: &str, _: &bool, w: &mut WidgetCx<'_>) -> Option<AnyElement> {
-        Some(
-            w.base("bar-caffeine")
-                .tip(w.tips(), "bar-caffeine", "Caffeine is on")
-                .when_some(w.glyph("caffeine"), |badge, path| {
-                    badge.child(icon::glyph(path, GLYPH, ACCENT))
-                })
-                .on_click(w.call(Caffeine::toggle))
-                .into_any_element(),
-        )
-    }
-
-    fn dashboard(&self, on: &bool, p: &PanelCx<'_>) -> Dashboard {
-        Dashboard {
-            switches: vec![ActionTile {
-                id: "switch-caffeine".into(),
-                glyph: p.glyph("caffeine"),
-                label: "Keep awake".into(),
-                state: Some(if *on { "On" } else { "Off" }.into()),
-                color: PEACH,
-                armed: *on,
-                on_click: p.call(Caffeine::toggle),
-            }],
-            ..Dashboard::default()
-        }
     }
 
     fn command(&self, _: &bool, args: &[&str]) -> Report {
@@ -105,5 +70,41 @@ impl Feature for Caffeine {
 
     fn status(&self, on: &bool) -> Vec<Row> {
         vec![Row::new("Caffeine", Shown::Switch(*on))]
+    }
+}
+
+impl Surface for Caffeine {
+    const DASHBOARD_ORDER: u8 = 60;
+
+    const GLYPHS: &'static [GlyphSpec] = &[("caffeine", &["coffee"])];
+
+    type Local = ();
+
+    fn present(_: &str, on: &bool) -> bool {
+        *on
+    }
+
+    fn widget(&self, _: &str, _: &bool, w: &mut WidgetCx<'_>) -> Option<BarWidget> {
+        Some(
+            w.base("bar-caffeine")
+                .tip("Caffeine is on")
+                .glyph(w.glyph("caffeine"), ACCENT)
+                .on_click(w.call(Caffeine::toggle)),
+        )
+    }
+
+    fn dashboard(&self, on: &bool, p: &PanelCx<'_>) -> Dashboard {
+        Dashboard {
+            switches: vec![ActionTile {
+                id: "switch-caffeine".into(),
+                glyph: p.glyph("caffeine"),
+                label: "Keep awake".into(),
+                state: Some(if *on { "On" } else { "Off" }.into()),
+                color: PEACH,
+                armed: *on,
+                on_click: p.call(Caffeine::toggle),
+            }],
+            ..Dashboard::default()
+        }
     }
 }

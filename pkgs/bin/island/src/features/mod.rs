@@ -31,10 +31,10 @@ mod registry;
 mod widget_cx;
 
 pub use battery::Battery;
-pub use feature::{AnyLocal, Dashboard, Feature, GlyphSpec, IslandInfo, Local, Outcome};
-pub use feed::{Feed, Refreshed, parse_settings};
-pub use instance::Features;
-pub use islands::Islands;
+pub use feature::{AnyLocal, Dashboard, Feature, GlyphSpec, IslandInfo, Local, Outcome, Surface};
+pub use feed::{Feed, Refreshed, Wake, parse_settings};
+pub use instance::{Arrivals, Features};
+pub use islands::{Frontend, Islands};
 pub use osd::Osd;
 pub use panel_cx::PanelCx;
 pub use registry::*;

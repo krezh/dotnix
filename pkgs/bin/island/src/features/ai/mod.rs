@@ -13,6 +13,7 @@ mod hook;
 mod jelly;
 mod keys;
 mod logos;
+mod mascot;
 mod model;
 mod notify;
 mod overview;

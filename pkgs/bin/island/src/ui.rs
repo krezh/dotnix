@@ -1,15 +1,15 @@
 use std::sync::Arc;
 
 use gpui::{
-    Bounds, Canvas, Div, FontFeatures, FontWeight, Hsla, Pixels, Rgba, div, hsla, prelude::*, px,
-    rgb, rgba,
+    Bounds, Canvas, Div, FontFeatures, FontWeight, Hitbox, Hsla, Pixels, Rgba, div, hsla,
+    prelude::*, px, rgb, rgba,
 };
 
 use crate::{
     shape::{self, Hang},
     theme::{
-        ACCENT, FONT, HOVER_ALPHA, SELECTED_ALPHA, SHADOW_ALPHA, SURFACE, SURFACE_BORDER_ALPHA, SURFACE1,
-        TEXT, TINT, with_alpha,
+        ACCENT, FONT, HOVER_ALPHA, SELECTED_ALPHA, SHADOW_ALPHA, SURFACE, SURFACE_BORDER_ALPHA,
+        SURFACE1, TEXT, TINT, with_alpha,
     },
 };
 
@@ -54,7 +54,7 @@ impl Radius {
 }
 
 /// Does not react to the pointer.
-pub fn shape(radius: Radius, fill: Option<Hsla>) -> Canvas<()> {
+pub fn shape(radius: Radius, fill: Option<Hsla>) -> Canvas<Option<Hitbox>> {
     let (radius, power) = radius.geometry();
     shape::fill(radius, power, fill, None)
 }
@@ -62,13 +62,13 @@ pub fn shape(radius: Radius, fill: Option<Hsla>) -> Canvas<()> {
 /// Everything clickable draws through this, so every one of them shows hover, and the same way.
 /// `live` is whether the pointer is over the island at all: GPUI's own hover state goes stale once
 /// the pointer leaves the surface.
-pub fn control(radius: Radius, rest: Option<Hsla>, live: bool) -> Canvas<()> {
+pub fn control(radius: Radius, rest: Option<Hsla>, live: bool) -> Canvas<Option<Hitbox>> {
     let (radius, power) = radius.geometry();
     shape::fill(radius, power, rest, live.then(|| hover_fill().into()))
 }
 
 /// For bar widgets that share their padding.
-pub fn inset_control(radius: Radius, inset: f32, live: bool) -> Canvas<()> {
+pub fn inset_control(radius: Radius, inset: f32, live: bool) -> Canvas<Option<Hitbox>> {
     let (radius, power) = radius.geometry();
     shape::inset_fill(
         radius,

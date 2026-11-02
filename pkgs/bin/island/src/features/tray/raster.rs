@@ -1,10 +1,9 @@
 //! Tray icons resampled once to the size they are drawn at, as the GPU shrinks images unfiltered.
 
-use std::{path::Path, sync::Arc};
+use std::path::Path;
 
-use gpui::RenderImage;
 use image::{
-    Frame, RgbaImage,
+    RgbaImage,
     imageops::{self, FilterType},
 };
 
@@ -60,9 +59,7 @@ pub(super) fn resampled(mut buffer: RgbaImage) -> Option<Picture> {
             }
         }
     }
-    Some(Picture::Pixels(Arc::new(RenderImage::new(vec![
-        Frame::new(buffer),
-    ]))))
+    Some(Picture::pixels(buffer))
 }
 
 #[cfg(test)]

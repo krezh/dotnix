@@ -22,8 +22,10 @@ use crate::{
         notice::{self, Post, Reply, Trouble},
     },
     launch::{self, Launch},
-    supervisor::{Ended, Reconnect},
+    supervisor::{self, Ended, Reconnect},
 };
+
+const MOST_POSTED: usize = 50;
 
 pub enum Request {
     Refresh,
@@ -55,16 +57,12 @@ pub(super) fn start(feed: Feed<State>) -> Gotify {
     let (sender, receiver) = mpsc::channel();
     if settings.is_enabled() {
         let replies = notice::listen(Gotify::NAME);
-        let forward = sender.clone();
-        let _ = thread::Builder::new()
-            .name("island-gotify-replies".to_owned())
-            .spawn(move || {
-                for reply in replies {
-                    if forward.send(WorkerEvent::Reply(reply)).is_err() {
-                        return;
-                    }
-                }
-            });
+        supervisor::forward(
+            "island-gotify-replies",
+            replies,
+            sender.clone(),
+            WorkerEvent::Reply,
+        );
         let worker_tx = sender.clone();
         feed.supervise(move |feed| run(feed, &settings, &worker_tx, &receiver));
     }
@@ -72,36 +70,34 @@ pub(super) fn start(feed: Feed<State>) -> Gotify {
 }
 
 fn spawn_stream(generation: u64, endpoint: Endpoint, token: String, sender: Sender<WorkerEvent>) {
-    let _ = thread::Builder::new()
-        .name("island-gotify-ws".to_owned())
-        .spawn(move || {
-            let (agent, mut stream) = match client::connect_stream(&endpoint, &token) {
-                Ok(pair) => pair,
+    supervisor::spawn("island-gotify-ws", move || {
+        let (agent, mut stream) = match client::connect_stream(&endpoint, &token) {
+            Ok(pair) => pair,
+            Err(error) => {
+                let _ = sender.send(WorkerEvent::StreamEnded(generation, error));
+                return;
+            }
+        };
+        if sender
+            .send(WorkerEvent::Connected(generation, agent))
+            .is_err()
+        {
+            return;
+        }
+        loop {
+            match client::read_message(&mut stream) {
+                Ok(raw) => {
+                    if sender.send(WorkerEvent::Arrived(generation, raw)).is_err() {
+                        return;
+                    }
+                }
                 Err(error) => {
                     let _ = sender.send(WorkerEvent::StreamEnded(generation, error));
                     return;
                 }
-            };
-            if sender
-                .send(WorkerEvent::Connected(generation, agent))
-                .is_err()
-            {
-                return;
             }
-            loop {
-                match client::read_message(&mut stream) {
-                    Ok(raw) => {
-                        if sender.send(WorkerEvent::Arrived(generation, raw)).is_err() {
-                            return;
-                        }
-                    }
-                    Err(error) => {
-                        let _ = sender.send(WorkerEvent::StreamEnded(generation, error));
-                        return;
-                    }
-                }
-            }
-        });
+        }
+    });
 }
 
 fn trouble(trouble: Option<(&str, String)>) {
@@ -112,6 +108,17 @@ fn trouble(trouble: Option<(&str, String)>) {
             detail,
         }),
     });
+}
+
+/// The server lists its newest first.
+fn newest_unknown<'a>(
+    entries: &'a [Entry],
+    known: &HashMap<u64, Option<String>>,
+) -> impl Iterator<Item = &'a Entry> {
+    entries
+        .iter()
+        .filter(|entry| !known.contains_key(&entry.id))
+        .take(MOST_POSTED)
 }
 
 /// What the worker knows of the server.
@@ -177,10 +184,7 @@ impl Server {
         );
         state.messages = self.messages.len();
         let gone = known.keys().any(|id| !self.messages.contains_key(id));
-        for entry in entries
-            .iter()
-            .filter(|entry| !known.contains_key(&entry.id))
-        {
+        for entry in newest_unknown(&entries, &known) {
             notice::post(Post::Show(entry.notice(true)));
         }
         if gone {
@@ -313,6 +317,8 @@ fn run(
     let mut started = Instant::now();
     let pace: Arc<Mutex<Reconnect>> = Arc::default();
     let mut stream_agent: Option<Agent> = None;
+    // A stream's read cannot be interrupted, so a second is never started beside one connecting.
+    let mut connecting = true;
     spawn_stream(generation, endpoint.clone(), server.token(), sender.clone());
     if !feed.publish(state.clone()) {
         return Ended::Unwanted;
@@ -340,12 +346,13 @@ fn run(
         match event {
             WorkerEvent::Request(Request::Refresh) => {
                 server.sync(&mut state);
-                if !state.connected {
+                if !state.connected && !connecting {
                     if let Some(agent) = stream_agent.take() {
                         agent.shutdown();
                     }
                     generation += 1;
                     started = Instant::now();
+                    connecting = true;
                     spawn_stream(generation, endpoint.clone(), server.token(), sender.clone());
                 }
             }
@@ -357,6 +364,7 @@ fn run(
             WorkerEvent::Reply(reply) => server.replied(reply, &mut state),
             WorkerEvent::Connected(epoch, agent) if epoch == generation => {
                 info!(server = endpoint.authority, "connected to Gotify stream");
+                connecting = false;
                 stream_agent = Some(agent);
                 state.connected = true;
                 state.error = None;
@@ -371,6 +379,7 @@ fn run(
                     "disconnected",
                     format!("{} · reconnecting", endpoint.authority),
                 )));
+                connecting = false;
                 state.connected = false;
                 state.error = Some(reason);
                 stream_agent = None;
@@ -388,6 +397,7 @@ fn run(
                 server.sync(&mut state);
                 generation += 1;
                 started = Instant::now();
+                connecting = true;
                 spawn_stream(generation, endpoint.clone(), server.token(), sender.clone());
             }
             _ => continue,
@@ -401,3 +411,7 @@ fn run(
     }
     Ended::Unwanted
 }
+
+#[cfg(test)]
+#[path = "runtime_test.rs"]
+mod tests;

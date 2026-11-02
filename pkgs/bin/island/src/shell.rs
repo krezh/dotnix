@@ -16,14 +16,14 @@ use crate::{
     control::{Asked, Control, Reply, Report, Row},
     cover::{ClickCatcher, KeyGrab},
     features::{self, Features},
+    frontend,
     glyphs::Glyphs,
     island::{COLLAPSED_H, Grab, Island, IslandEvent, Placement, SURFACE_H, SURFACE_W, Startup},
+    profile,
+    stage::report,
     sys::{self, Samples},
     wm::Snapshot,
 };
-
-/// The island's layer-shell namespace, which compositors list its surfaces under.
-pub const NAMESPACE: &str = "island";
 
 const UNBOUND_AFTER: Duration = Duration::from_secs(1);
 
@@ -180,16 +180,16 @@ impl Shell {
             cx.set_global(Placement::default());
 
             let layout = config.layout.clone();
-            let features = Rc::new(features::start(
+            let (features, arrivals) = features::start(
                 |name| layout.widgets().any(|widget| widget.0 == name),
                 config.glow > 0.0,
                 &config.features,
-                cx,
-            ));
+            );
+            frontend::follow(arrivals, cx);
 
             Self {
                 config,
-                features,
+                features: Rc::new(features),
                 samples: sys::watch(),
                 cover: None,
                 catchers: Vec::new(),
@@ -293,11 +293,11 @@ impl Shell {
                 size: Size::new(px(SURFACE_W), px(SURFACE_H)),
             })),
             display_id: display,
-            app_id: Some(NAMESPACE.to_string()),
+            app_id: Some(profile::namespace().to_string()),
             window_background: WindowBackgroundAppearance::Transparent,
             inactive_frame_interval: None,
             kind: WindowKind::LayerShell(LayerShellOptions {
-                namespace: NAMESPACE.to_string(),
+                namespace: profile::namespace().to_string(),
                 layer: Layer::Overlay,
                 anchor: Anchor::TOP,
                 exclusive_zone: Some(px(self.config.top + COLLAPSED_H)),
@@ -346,7 +346,7 @@ impl Shell {
         focused
             .and_then(|focused| {
                 self.islands()
-                    .find(|island| island.read(cx).display() == Some(focused))
+                    .find(|island| island.read(cx).stage().display == Some(focused))
             })
             .or_else(|| self.islands().next())
     }
@@ -459,35 +459,12 @@ impl Shell {
     ) -> Result<Report, String> {
         let island = self.target(cx).ok_or("No island is showing")?;
         let open = island.update(cx, |island, cx| island.open_named(name, view, toggle, cx));
-        let output = island
-            .read(cx)
-            .output()
-            .map(|output| format!(" on {output}"))
-            .unwrap_or_default();
-        let shown = view.map(|view| format!(" on {view}")).unwrap_or_default();
-        Ok(Report::did(Row::said(if open {
-            format!("Opened {name}{shown}{output}")
-        } else {
-            format!("Closed {name}{output}")
-        })))
-    }
-
-    fn status(&self, cx: &App) -> Report {
-        let outputs: Vec<String> = self
-            .workspaces
-            .iter()
-            .flat_map(|snapshot| snapshot.monitors.iter().map(|monitor| monitor.name.clone()))
-            .collect();
-        let on = if outputs.is_empty() {
-            String::new()
-        } else {
-            format!(" · running on {}", outputs.join(", "))
-        };
-        Report {
-            title: Some(format!("island {}{on}", env!("CARGO_PKG_VERSION"))),
-            changed: false,
-            rows: self.features.status(cx),
-        }
+        Ok(report::opened(
+            name,
+            view,
+            island.read(cx).stage().output(),
+            open,
+        ))
     }
 
     fn control(&mut self, control: Control, cx: &mut Context<Self>) -> Result<Reply, String> {
@@ -510,9 +487,9 @@ impl Shell {
                     .get(name)
                     .ok_or_else(|| format!("The {name} feature is not running"))?;
                 let args: Vec<&str> = args.iter().map(String::as_str).collect();
-                Ok(feature.command(&args, cx))
+                Ok(feature.command(&args))
             }
-            Control::Status => Ok(self.status(cx).into()),
+            Control::Status => Ok(report::status(self.workspaces.as_ref(), &self.features).into()),
             Control::Log(_) => Ok(Report::default().into()),
         }
     }

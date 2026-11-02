@@ -7,6 +7,7 @@ use crate::{
     components::button,
     island::Island,
     panel::Handler,
+    panel::IslandUi,
     theme::{ACCENT, ON_ACCENT, OVERLAY2, PEACH, TEXT},
     ui::{self, HEADER_H, HEADING_SIZE, Radius, SMALL_SIZE},
 };
@@ -42,7 +43,7 @@ pub fn calendar(view: CalendarView, hover: bool, cx: &mut Context<Island>) -> An
                 .size(px(HEADER_H))
                 .text_size(px(HEADING_SIZE))
                 .child(glyph)
-                .on_click(cx.listener(move |this, _, _, cx| handler(this, cx)))
+                .on_click(cx.listener(move |this, _, _, cx| handler(&mut IslandUi::new(this, cx))))
         };
     let on_today = view.on_today;
     let back = (offset != 0).then(|| {
@@ -53,7 +54,7 @@ pub fn calendar(view: CalendarView, hover: bool, cx: &mut Context<Island>) -> An
             .font_weight(FontWeight::SEMIBOLD)
             .text_color(rgb(ACCENT))
             .child("Today")
-            .on_click(cx.listener(move |this, _, _, cx| on_today(this, cx)))
+            .on_click(cx.listener(move |this, _, _, cx| on_today(&mut IslandUi::new(this, cx))))
     });
 
     let weekdays = div().flex().children(

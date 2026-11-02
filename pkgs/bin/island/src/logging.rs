@@ -17,7 +17,7 @@ use std::{
     },
     path::PathBuf,
     sync::{
-        Arc, LazyLock, Mutex, MutexGuard, OnceLock, PoisonError,
+        Arc, LazyLock, Mutex, OnceLock,
         atomic::{AtomicU64, Ordering},
         mpsc::{self, SyncSender},
     },
@@ -45,6 +45,7 @@ use tracing_subscriber::{
 use crate::{
     cli::{self, Line, Mistake, Tone},
     supervisor::{self, Ended},
+    sync::lock,
 };
 
 const CRATE: &str = "island";
@@ -55,10 +56,6 @@ const BACKLOG: usize = 1000;
 const CLIENT_QUEUE: usize = 1024;
 
 static FILTER: OnceLock<reload::Handle<EnvFilter, Registry>> = OnceLock::new();
-
-fn lock<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
-    mutex.lock().unwrap_or_else(PoisonError::into_inner)
-}
 
 fn check_level(text: &str) -> Result<LevelFilter, String> {
     text.parse::<LevelFilter>().map_err(|_| {
@@ -409,8 +406,7 @@ pub fn catch_panics() {
 }
 
 fn socket_path() -> Option<PathBuf> {
-    env::var_os("XDG_RUNTIME_DIR")
-        .map(|runtime| PathBuf::from(runtime).join("island").join("logs.sock"))
+    crate::paths::runtime().map(|runtime| runtime.join("logs.sock"))
 }
 
 fn send(stream: &mut UnixStream, entry: &Entry) -> bool {
@@ -450,12 +446,10 @@ fn serve_client(stream: UnixStream, client: u64) {
     if let Some(level) = level {
         HUB.raise(client, LevelFilter::from_level(level));
     }
-    let _ = thread::Builder::new()
-        .name("island-log-reader".into())
-        .spawn(move || {
-            let _ = reader.read(&mut [0u8; 1]);
-            HUB.release(client);
-        });
+    supervisor::spawn("island-log-reader", move || {
+        let _ = reader.read(&mut [0u8; 1]);
+        HUB.release(client);
+    });
     for entry in receiver {
         if request.wants(&entry, level) && !send(&mut stream, &entry) {
             break;
@@ -491,9 +485,7 @@ pub fn serve() {
             match stream {
                 Ok(stream) => {
                     let client = CLIENTS.fetch_add(1, Ordering::Relaxed);
-                    let _ = thread::Builder::new()
-                        .name("island-log-client".into())
-                        .spawn(move || serve_client(stream, client));
+                    supervisor::spawn("island-log-client", move || serve_client(stream, client));
                 }
                 Err(error) => return Ended::Failed(error.to_string()),
             }

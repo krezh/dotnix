@@ -183,6 +183,12 @@
                       default = "auto";
                       description = "Video codec for screen recordings. At a given bitrate hevc holds up better in motion than avc.";
                     };
+
+                    cursor = lib.mkOption {
+                      type = lib.types.bool;
+                      default = true;
+                      description = "Whether to draw the mouse cursor into screen recordings.";
+                    };
                   };
                 };
                 default = { };
@@ -384,7 +390,7 @@
             video = {
               max_fps = cfg.capture.video.maxFps;
               encode_resolution = cfg.capture.video.encodeResolution;
-              inherit (cfg.capture.video) bitrate codec;
+              inherit (cfg.capture.video) bitrate codec cursor;
             };
             replay = {
               inherit (cfg.capture.replay) enabled;

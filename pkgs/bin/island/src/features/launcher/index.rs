@@ -14,6 +14,7 @@ use std::{
 use notify::{Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 
 use super::desktop::{self, App};
+use crate::sync::lock;
 
 const QUIET: Duration = Duration::from_millis(200);
 const MAX_BATCH: Duration = Duration::from_secs(1);
@@ -41,20 +42,12 @@ impl Refresh {
     }
 
     fn fail(&self, error: String) {
-        *self
-            .error
-            .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner()) = Some(error);
+        *lock(&self.error) = Some(error);
         self.request();
     }
 
     fn check(&self) -> Result<(), String> {
-        match self
-            .error
-            .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner())
-            .take()
-        {
+        match lock(&self.error).take() {
             Some(error) => Err(error),
             None => Ok(()),
         }

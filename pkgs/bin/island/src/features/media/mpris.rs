@@ -1,29 +1,37 @@
 use std::{
     collections::{HashMap, HashSet},
-    env,
+    fs,
     hash::{DefaultHasher, Hash, Hasher},
     path::{Path, PathBuf},
     sync::{
-        Mutex, PoisonError,
+        Mutex,
         mpsc::{self, Receiver, Sender},
     },
-    thread,
-    time::{Duration, Instant},
+    time::{Duration, Instant, SystemTime},
 };
 
-use futures::StreamExt;
 use zbus::{
-    Connection, MatchRule, MessageStream, ObjectPath, OwnedObjectPath, OwnedVariant, Variant,
-    block_on, fdo::DBusProxy, message::Type,
+    Connection, MatchRule, ObjectPath, OwnedObjectPath, OwnedVariant, Variant, block_on,
+    fdo::DBusProxy, message::Type,
 };
 
 use tracing::{debug, info, trace, warn};
 
-use crate::{dbus::uncached, features::Feed, supervisor::Ended};
+use crate::{
+    dbus::{follow, session_with_timeout, uncached},
+    features::Feed,
+    paths,
+    supervisor::{self, Ended},
+    sync::lock,
+    uri,
+};
 
 const PREFIX: &str = "org.mpris.MediaPlayer2.";
 const PATH: &str = "/org/mpris/MediaPlayer2";
 const PLAYER: &str = "org.mpris.MediaPlayer2.Player";
+const QUIET: Duration = Duration::from_millis(50);
+const MAX_BATCH: Duration = Duration::from_secs(1);
+const KEPT_ART: usize = 200;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Track {
@@ -114,44 +122,57 @@ fn micros(metadata: &HashMap<String, OwnedVariant>, key: &str) -> Option<f64> {
     })
 }
 
+fn art_dir() -> Option<PathBuf> {
+    paths::cache().map(|cache| cache.join("art"))
+}
+
+/// All but the newest `kept`.
+fn oldest(mut files: Vec<(SystemTime, PathBuf)>, kept: usize) -> Vec<PathBuf> {
+    files.sort_by(|a, b| b.0.cmp(&a.0));
+    files.into_iter().skip(kept).map(|(_, path)| path).collect()
+}
+
+fn prune_art() {
+    let Some(entries) = art_dir().and_then(|dir| fs::read_dir(dir).ok()) else {
+        return;
+    };
+    let files = entries
+        .flatten()
+        .filter_map(|entry| Some((entry.metadata().ok()?.modified().ok()?, entry.path())))
+        .collect();
+    for path in oldest(files, KEPT_ART) {
+        let _ = fs::remove_file(path);
+    }
+}
+
 /// An `http` one not cached yet is downloaded in the background, at most once per run, and
 /// `changed` hears when it is in.
 fn art(url: &str, changed: &Sender<Event>) -> Option<PathBuf> {
     static STARTED: Mutex<Option<HashSet<PathBuf>>> = Mutex::new(None);
 
-    if let Some(path) = url.strip_prefix("file://") {
-        return Some(PathBuf::from(path));
+    if url.starts_with("file://") {
+        return uri::local_path(url);
     }
     if !url.starts_with("http") {
         return None;
     }
     let mut hasher = DefaultHasher::new();
     url.hash(&mut hasher);
-    let dir = env::var_os("XDG_CACHE_HOME")
-        .map(PathBuf::from)
-        .or_else(|| env::var_os("HOME").map(|home| PathBuf::from(home).join(".cache")))?
-        .join("island")
-        .join("art");
+    let dir = art_dir()?;
     let path = dir.join(format!("{:016x}", hasher.finish()));
     if path.exists() {
         return Some(path);
     }
-    let fresh = STARTED
-        .lock()
-        .unwrap_or_else(PoisonError::into_inner)
-        .get_or_insert_default()
-        .insert(path.clone());
+    let fresh = lock(&STARTED).get_or_insert_default().insert(path.clone());
     if fresh {
         let (url, changed) = (url.to_owned(), changed.clone());
-        let _ = thread::Builder::new()
-            .name("island-media-art".into())
-            .spawn(move || {
-                if download(&url, &dir, &path).is_some() {
-                    let _ = changed.send(Event::Changed);
-                } else {
-                    debug!(url, "cannot download the album art");
-                }
-            });
+        supervisor::spawn("island-media-art", move || {
+            if download(&url, &dir, &path).is_some() {
+                let _ = changed.send(Event::Changed);
+            } else {
+                debug!(url, "cannot download the album art");
+            }
+        });
     }
     None
 }
@@ -302,21 +323,10 @@ fn listen(connection: &Connection, events: Sender<Event>) {
             .build(),
     ];
     for rule in rules.into_iter().flatten() {
-        let Ok(mut stream) = block_on(MessageStream::for_match_rule(rule, connection, None)) else {
-            continue;
-        };
         let events = events.clone();
-        let _ = thread::Builder::new()
-            .name("island-media-signals".into())
-            .spawn(move || {
-                block_on(async {
-                    while let Some(message) = stream.next().await {
-                        if message.is_ok() && events.send(Event::Changed).is_err() {
-                            return;
-                        }
-                    }
-                });
-            });
+        let _ = follow("island-media-signals", connection, rule, move |_| {
+            events.send(Event::Changed).is_ok()
+        });
     }
 }
 
@@ -369,17 +379,24 @@ fn worker(
                     control(connection, track, command);
                 }
             }
-            Ok(Event::Changed) => loop {
-                match events.recv_timeout(Duration::from_millis(50)) {
-                    Ok(Event::Changed) => {}
-                    Ok(Event::Control(command)) => {
-                        if let Some(track) = &last {
-                            control(connection, track, command);
-                        }
+            Ok(Event::Changed) => {
+                let deadline = Instant::now() + MAX_BATCH;
+                loop {
+                    let left = deadline.saturating_duration_since(Instant::now());
+                    if left.is_zero() {
+                        break;
                     }
-                    Err(_) => break,
+                    match events.recv_timeout(QUIET.min(left)) {
+                        Ok(Event::Changed) => {}
+                        Ok(Event::Control(command)) => {
+                            if let Some(track) = &last {
+                                control(connection, track, command);
+                            }
+                        }
+                        Err(_) => break,
+                    }
                 }
-            },
+            }
             Err(_) => return Ended::Unwanted,
         }
         if !publish_current(&mut last, &mut preferred) {
@@ -390,21 +407,21 @@ fn worker(
 
 /// `None` without a session bus.
 pub fn start(feed: Feed<Option<Track>>) -> Option<Player> {
-    let connection = block_on(Connection::session()).ok()?;
+    let connection = block_on(session_with_timeout()).ok()?;
+    supervisor::spawn("island-media-art-prune", prune_art);
     let (events, receiver) = mpsc::channel();
     let (controls, control_receiver) = mpsc::channel::<Control>();
     listen(&connection, events.clone());
-    let forward = events.clone();
-    thread::Builder::new()
-        .name("island-media-controls".into())
-        .spawn(move || {
-            for control in control_receiver {
-                if forward.send(Event::Control(control)).is_err() {
-                    return;
-                }
-            }
-        })
-        .ok()?;
+    supervisor::forward(
+        "island-media-controls",
+        control_receiver,
+        events.clone(),
+        Event::Control,
+    );
     feed.supervise(move |feed| worker(&connection, &receiver, &events, feed));
     Some(Player { sender: controls })
 }
+
+#[cfg(test)]
+#[path = "mpris_test.rs"]
+mod tests;

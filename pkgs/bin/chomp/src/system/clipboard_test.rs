@@ -10,3 +10,11 @@ fn reports_a_nonzero_clipboard_exit() {
 
     assert!(copy_text(script.to_str().unwrap(), "text").is_err());
 }
+
+#[test]
+fn encodes_file_uris() {
+    assert_eq!(
+        file_uri(Path::new("/home/me/Videos/clip 1 (ä).mp4")),
+        "file:///home/me/Videos/clip%201%20%28%C3%A4%29.mp4"
+    );
+}

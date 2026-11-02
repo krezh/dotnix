@@ -12,6 +12,17 @@ pub struct Output {
     pub stderr: String,
 }
 
+impl Output {
+    /// What the program said on stderr, or else `otherwise`.
+    pub fn failure(&self, otherwise: impl Into<String>) -> String {
+        if self.stderr.is_empty() {
+            otherwise.into()
+        } else {
+            self.stderr.clone()
+        }
+    }
+}
+
 pub fn output(program: &str, args: &[&str], timeout: Duration) -> Result<Output, String> {
     let child = Command::new(program)
         .args(args)
@@ -19,7 +30,7 @@ pub fn output(program: &str, args: &[&str], timeout: Duration) -> Result<Output,
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
-        .map_err(|error| format!("could not launch {program}: {error}"))?;
+        .map_err(|error| format!("cannot launch {program}: {error}"))?;
     let pid = child.id();
     let (sender, receiver) = mpsc::channel();
     thread::spawn(move || {

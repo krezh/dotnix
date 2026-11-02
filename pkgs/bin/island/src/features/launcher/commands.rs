@@ -1,4 +1,3 @@
-use gpui::Keystroke;
 use tracing::error;
 
 use super::{
@@ -10,6 +9,7 @@ use super::{
 use crate::{
     components::list::{self, ROWS},
     features::Outcome,
+    key::Key,
     launch,
 };
 
@@ -28,8 +28,8 @@ impl Launcher {
         }
     }
 
-    pub(super) fn handle_key(&self, local: &mut Local, keystroke: &Keystroke) -> Outcome {
-        match keystroke.key.as_str() {
+    pub(super) fn handle_key(&self, local: &mut Local, keystroke: &Key) -> Outcome {
+        match keystroke.name.as_str() {
             "escape" => return Outcome::Close,
             "enter" => {
                 if let Some(app) = local.selected() {
@@ -44,7 +44,7 @@ impl Launcher {
             "backspace" => local.search(|query| {
                 query.pop();
             }),
-            "u" if keystroke.modifiers.control => local.search(String::clear),
+            "u" if keystroke.control => local.search(String::clear),
             _ => {
                 if let Some(text) = list::typed(keystroke) {
                     local.search(|query| query.push_str(text));

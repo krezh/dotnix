@@ -2,7 +2,32 @@
 //! flowing line, so line breaks join the lines up; a longer reply keeps its paragraphs and fenced
 //! code. Anything that does not close is kept as written.
 
-use std::ops::Range;
+use std::{cell::RefCell, collections::HashMap, ops::Range, thread::LocalKey};
+
+const REMEMBERED: usize = 256;
+
+thread_local! {
+    static TEXTS: RefCell<HashMap<String, Text>> = RefCell::default();
+    static BLOCKS: RefCell<HashMap<String, Vec<Block>>> = RefCell::default();
+}
+
+fn remembered<T: Clone>(
+    known: &'static LocalKey<RefCell<HashMap<String, T>>>,
+    markdown: &str,
+    read: impl FnOnce(&str) -> T,
+) -> T {
+    known.with_borrow_mut(|known| {
+        if let Some(found) = known.get(markdown) {
+            return found.clone();
+        }
+        if known.len() >= REMEMBERED {
+            known.clear();
+        }
+        let found = read(markdown);
+        known.insert(markdown.to_owned(), found.clone());
+        found
+    })
+}
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct Style {
@@ -16,7 +41,7 @@ pub struct Style {
     pub link: Option<usize>,
 }
 
-#[derive(Debug, Default, PartialEq)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct Text {
     pub text: String,
     /// In order, never overlapping.
@@ -59,6 +84,10 @@ impl Text {
 }
 
 pub fn parse(markdown: &str) -> Text {
+    remembered(&TEXTS, markdown, read_text)
+}
+
+fn read_text(markdown: &str) -> Text {
     let mut text = Text::default();
     let line = flow(markdown);
     inline(&line, Style::default(), &mut text);
@@ -66,7 +95,7 @@ pub fn parse(markdown: &str) -> Text {
 }
 
 /// One stretch of a longer reply.
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Block {
     /// Its lines kept apart, with list items as bullets and headings in bold.
     Paragraph(Text),
@@ -90,6 +119,10 @@ fn paragraph(lines: &mut Vec<String>, blocks: &mut Vec<Block>) {
 /// Paragraphs split at blank lines and fenced code; a fence still open, such as one arriving, runs
 /// to the end.
 pub fn blocks(markdown: &str) -> Vec<Block> {
+    remembered(&BLOCKS, markdown, read_blocks)
+}
+
+fn read_blocks(markdown: &str) -> Vec<Block> {
     let mut blocks = Vec::new();
     let mut lines: Vec<String> = Vec::new();
     let mut code: Option<(String, Vec<String>)> = None;

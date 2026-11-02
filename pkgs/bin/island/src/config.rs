@@ -1,4 +1,4 @@
-use std::{env, fs, path::PathBuf};
+use std::{fs, path::PathBuf};
 
 use serde::{Deserialize, Deserializer, de::Error as _};
 
@@ -8,7 +8,7 @@ use crate::{
         media::Media, molt::Molt, notifications::Notifications, tray::Tray, workspaces::Workspaces,
         zowie::Zowie,
     },
-    shape, theme,
+    paths, shape, theme,
 };
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -152,8 +152,6 @@ pub struct System {
     pub storage: Storage,
 }
 
-impl gpui::Global for System {}
-
 #[derive(Clone, Debug, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct Storage {
@@ -213,9 +211,19 @@ impl Default for Log {
     }
 }
 
+/// What draws the islands.
+#[derive(Clone, Copy, Debug, Default, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum Frontend {
+    #[default]
+    Gpui,
+    Wgpu,
+}
+
 #[derive(Clone, Debug, Default, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct Config {
+    pub frontend: Frontend,
     pub bar: Bar,
     pub appearance: Appearance,
     pub features: Features,
@@ -241,10 +249,7 @@ impl Config {
 }
 
 pub fn default_path() -> Option<PathBuf> {
-    let base = env::var_os("XDG_CONFIG_HOME")
-        .map(PathBuf::from)
-        .or_else(|| env::var_os("HOME").map(|home| PathBuf::from(home).join(".config")))?;
-    Some(base.join("island").join("config.toml"))
+    paths::config().map(|config| config.join("config.toml"))
 }
 
 pub fn load(path: Option<PathBuf>) -> Result<Config, String> {

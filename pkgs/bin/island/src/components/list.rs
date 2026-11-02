@@ -1,6 +1,6 @@
 //! State and keyboard navigation for searchable lists.
 
-use gpui::Keystroke;
+use crate::key::Key;
 
 pub const ROWS: usize = 8;
 
@@ -57,11 +57,10 @@ impl crate::features::Local for Selection {
 }
 
 /// Text typed into a search field, leaving shortcuts and control keys out.
-pub fn typed(keystroke: &Keystroke) -> Option<&str> {
-    keystroke
-        .key_char
+pub fn typed(key: &Key) -> Option<&str> {
+    key.typed
         .as_deref()
-        .filter(|_| !keystroke.modifiers.control && !keystroke.modifiers.alt)
+        .filter(|_| !key.control && !key.alt)
         .filter(|text| text.chars().all(|char| !char.is_control()))
 }
 

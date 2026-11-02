@@ -1,25 +1,16 @@
 use std::fmt::Write as _;
 
-use gpui::{AnyElement, FontWeight, MouseButton, div, prelude::*, px, rgb};
-
 use super::{
-    Ai, format, logos,
+    Ai, format, logos, mascot,
     session::Activity,
     settings::Display,
     state::{Provider, Severity, State},
     view::View,
 };
 use crate::{
-    bar::{GLYPH, ICON_GAP},
-    components::{
-        button::{self, Badge},
-        icon, mascot,
-        tooltip::Tip,
-    },
-    features::WidgetCx,
-    island::Panel,
+    bar_widget::{BarWidget, Part},
+    features::{Surface, WidgetCx},
     theme::{ACCENT, CRITICAL, OVERLAY2, SUBTEXT1, YELLOW},
-    ui::SMALL_SIZE,
 };
 
 /// Jelly in the bar: a little larger than a glyph, as its face needs the room.
@@ -95,7 +86,7 @@ pub(super) fn tooltip(ai: &Ai, state: &State) -> String {
     text
 }
 
-fn account_icon(provider: &Provider, tint: u32, w: &WidgetCx<'_>) -> AnyElement {
+fn account_icon(provider: &Provider, tint: u32, w: &WidgetCx<'_>) -> Part {
     let key = format::glyph(provider);
     let glyph = if key == "ai" {
         None
@@ -103,59 +94,46 @@ fn account_icon(provider: &Provider, tint: u32, w: &WidgetCx<'_>) -> AnyElement 
         w.glyph(key).or_else(|| logos::glyph(key))
     };
     match glyph {
-        Some(path) => icon::glyph(path, GLYPH, tint).into_any_element(),
-        None => div()
-            .child(provider.name.chars().next().unwrap_or('A').to_string())
-            .into_any_element(),
+        Some(path) => Part::glyph(path, tint),
+        None => Part::plain(provider.name.chars().next().unwrap_or('A').to_string()),
     }
 }
 
 /// How many Claude Code requests wait on you, as a yellow count on a mark's corner.
-fn waiting(icon: AnyElement, state: &State) -> AnyElement {
+fn waiting(icon: Part, state: &State) -> Part {
     let count = state.requests.len();
-    let badge = (count > 0).then(|| Badge {
-        text: count.to_string().into(),
-        color: YELLOW,
-    });
-    button::badged("bar-ai-waiting", icon, badge, false).into_any_element()
+    Part::Badged {
+        id: "bar-ai-waiting",
+        part: Box::new(icon),
+        badge: (count > 0).then(|| (count.to_string().into(), YELLOW)),
+    }
 }
 
-fn provider_badge(
-    provider: &Provider,
-    now: i64,
-    state: Option<&State>,
-    w: &WidgetCx<'_>,
-) -> AnyElement {
+fn provider_badge(provider: &Provider, now: i64, state: Option<&State>, w: &WidgetCx<'_>) -> Part {
     let tint = if !provider.freshness.is_fresh() {
         OVERLAY2
     } else {
         format::color(provider.severity())
     };
     let icon = account_icon(provider, tint, w);
-    div()
-        .flex_none()
-        .flex()
-        .items_center()
-        .gap(px(ICON_GAP))
-        .text_color(rgb(tint))
-        .child(match state {
-            Some(state) => waiting(icon, state),
-            None => icon,
-        })
-        .when_some(provider.headline(), |badge, limit| {
-            badge.child(format::badge(
-                limit,
-                provider.freshness,
-                now,
-                limit.severity == Severity::Exhausted,
-            ))
-        })
-        .into_any_element()
+    let mut parts = vec![match state {
+        Some(state) => waiting(icon, state),
+        None => icon,
+    }];
+    parts.extend(provider.headline().map(|limit| {
+        Part::plain(format::badge(
+            limit,
+            provider.freshness,
+            now,
+            limit.severity == Severity::Exhausted,
+        ))
+    }));
+    Part::Cluster { color: tint, parts }
 }
 
 /// One mark for usage and Claude Code alike: a session at work runs the moving border, and
 /// requests waiting on you show as a count on the mark.
-pub(super) fn widget(ai: &Ai, state: &State, w: &WidgetCx<'_>) -> AnyElement {
+pub(super) fn widget(ai: &Ai, state: &State, w: &WidgetCx<'_>) -> BarWidget {
     let now = format::now();
     if let Some(after) = format::usage_next_change(&ai.settings.sources, state, now) {
         w.redraw_in(after);
@@ -164,12 +142,7 @@ pub(super) fn widget(ai: &Ai, state: &State, w: &WidgetCx<'_>) -> AnyElement {
         .sessions
         .iter()
         .any(|session| session.activity == Activity::Working);
-    let mut base = w
-        .base("bar-ai")
-        .gap(px(ICON_GAP))
-        .text_size(px(SMALL_SIZE))
-        .font_weight(FontWeight::SEMIBOLD)
-        .tip(w.tips(), "bar-ai", tooltip(ai, state));
+    let mut base = w.compact("bar-ai").tip(tooltip(ai, state));
     let mut providers = state
         .providers
         .iter()
@@ -179,11 +152,11 @@ pub(super) fn widget(ai: &Ai, state: &State, w: &WidgetCx<'_>) -> AnyElement {
     let jelly = w
         .local::<View>()
         .and_then(View::pose)
-        .map(|pose| waiting(mascot::mascot(pose, JELLY).into_any_element(), state));
+        .map(|pose| waiting(Part::Drawing(mascot::drawing(&pose, JELLY)), state));
     let counted = jelly.is_none();
-    base = base.children(jelly);
+    base = base.parts(jelly);
     if ai.settings.widget.display == Display::Providers && providers.peek().is_some() {
-        base = base.children(providers.enumerate().map(|(index, provider)| {
+        base = base.parts(providers.enumerate().map(|(index, provider)| {
             provider_badge(provider, now, (counted && index == 0).then_some(state), w)
         }));
     } else {
@@ -211,27 +184,31 @@ pub(super) fn widget(ai: &Ai, state: &State, w: &WidgetCx<'_>) -> AnyElement {
             let selected_icon = match worst {
                 Some((provider, _)) => account_icon(provider, tint, w),
                 None => match w.glyph("ai") {
-                    Some(path) => icon::glyph(path, GLYPH, tint).into_any_element(),
-                    None => div().child("AI").into_any_element(),
+                    Some(path) => Part::glyph(path, tint),
+                    None => Part::plain("AI"),
                 },
             };
-            base = base.child(waiting(selected_icon, state));
+            base = base.part(waiting(selected_icon, state));
         }
-        base = base.text_color(rgb(tint));
+        base = base.color(tint);
         if ai.settings.widget.show_badge {
             if let Some((provider, limit)) = worst {
-                base = base.child(format::badge(limit, provider.freshness, now, true));
+                base = base.part(Part::plain(format::badge(
+                    limit,
+                    provider.freshness,
+                    now,
+                    true,
+                )));
             } else if counted && !state.issues.is_empty() {
                 // Jelly wears the warning itself.
-                base = base.child("!");
+                base = base.part(Part::plain("!"));
             }
         }
     }
     // Jelly shows work and a refresh itself, so the energy border is only for the widget without it.
-    base.when(counted, |base| {
-        base.child(w.energy(state.refreshing || working))
-    })
-    .on_click(w.toggle(Panel::Feature("ai")))
-    .on_mouse_down(MouseButton::Right, w.call(Ai::refresh))
-    .into_any_element()
+    if counted {
+        base = base.part(Part::Busy(state.refreshing || working));
+    }
+    base.on_click(w.toggle(Ai::panel_handle()))
+        .on_right(w.call(Ai::refresh))
 }

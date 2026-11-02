@@ -1,4 +1,21 @@
-use super::{Style, parse, plain};
+use super::{REMEMBERED, Style, blocks, parse, plain};
+
+#[test]
+fn remembered_results_match_a_fresh_read() {
+    let text = "**bold** and `code`";
+    assert_eq!(parse(text), parse(text));
+    let reply = "# Title\n\n```rust\nlet x = 1;\n```";
+    assert_eq!(blocks(reply), blocks(reply));
+}
+
+#[test]
+fn remembering_stays_bounded_and_correct() {
+    for index in 0..REMEMBERED * 2 {
+        let text = format!("*{index}*");
+        assert_eq!(parse(&text).text, index.to_string());
+    }
+    assert!(super::TEXTS.with_borrow(|known| known.len()) <= REMEMBERED);
+}
 
 #[test]
 fn plain_text_drops_the_marks_and_keeps_code() {

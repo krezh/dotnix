@@ -1,5 +1,3 @@
-use gpui::{AnyElement, FontWeight, MouseButton, div, prelude::*, px, rgb};
-
 use super::{
     Media,
     mpris::{Control, Track},
@@ -7,10 +5,9 @@ use super::{
 };
 use crate::{
     bar::{self, GLYPH, ICON_GAP},
-    components::{icon, tooltip::Tip},
-    features::WidgetCx,
+    bar_widget::{BarWidget, Part},
+    features::{Surface, WidgetCx},
     theme::{ACCENT, OVERLAY2},
-    ui::SMALL_SIZE,
 };
 
 const MEDIA_W: f32 = 180.0;
@@ -35,7 +32,7 @@ fn tip(track: &Track) -> String {
 impl Media {
     /// Without a track it rests as a dimmed play icon, which the title unfolds out of when
     /// something starts playing.
-    fn now_playing(track: Option<&Track>, w: &WidgetCx<'_>) -> AnyElement {
+    fn now_playing(track: Option<&Track>, w: &WidgetCx<'_>) -> BarWidget {
         let glyph = w.glyph(if track.is_some_and(|track| track.playing) {
             "pause"
         } else {
@@ -43,51 +40,30 @@ impl Media {
         });
         let tint = if track.is_some() { ACCENT } else { OVERLAY2 };
         let slot = MEDIA_W - 2.0 * w.padding() - GLYPH - ICON_GAP;
-        w.base("bar-media")
-            .gap(px(ICON_GAP))
-            .when(track.is_some(), |widget| {
-                widget.w(px(MEDIA_W)).justify_start()
-            })
-            .text_size(px(SMALL_SIZE))
-            .font_weight(FontWeight::SEMIBOLD)
-            .tip(
-                w.tips(),
-                "bar-media",
-                track.map_or_else(|| "Nothing playing".to_owned(), tip),
-            )
-            .when_some(glyph, |widget, path| {
-                widget.child(div().flex_none().child(icon::glyph(path, GLYPH, tint)))
-            })
-            .when_some(track, |widget, track| {
-                widget.child(div().flex_1().min_w(px(0.0)).child(w.marquee(
-                    track.title.clone(),
-                    SMALL_SIZE,
-                    FontWeight::SEMIBOLD,
-                    slot,
-                )))
-            })
+        let widget = w
+            .compact("bar-media")
+            .tip(track.map_or_else(|| "Nothing playing".to_owned(), tip))
+            .parts(glyph.map(|path| Part::glyph(path, tint).fixed()))
+            .parts(track.map(|track| Part::marquee(track.title.clone(), slot)))
             .on_click(w.toggle(Self::panel_handle()))
-            .on_mouse_down(
-                MouseButton::Middle,
-                w.call(|media: &Media| media.send(Control::PlayPause)),
-            )
-            .into_any_element()
+            .on_middle(w.call(|media: &Media| media.send(Control::PlayPause)));
+        if track.is_some() {
+            widget.width(MEDIA_W).start()
+        } else {
+            widget
+        }
     }
 
-    fn spectrum(w: &WidgetCx<'_>) -> AnyElement {
+    fn spectrum(w: &WidgetCx<'_>) -> BarWidget {
         let level = |index: usize| w.live().get(index).copied().unwrap_or(0.0);
         w.base("bar-visualizer")
-            .gap(px(SPECTRUM_GAP))
-            .children((0..spectrum::BARS).map(|index| {
-                div()
-                    .flex_none()
-                    .w(px(SPECTRUM_W))
-                    .h(px(SPECTRUM_W.max(SPECTRUM_H * level(index))))
-                    .rounded_full()
-                    .bg(rgb(ACCENT))
+            .gap(SPECTRUM_GAP)
+            .parts((0..spectrum::BARS).map(|index| Part::Pill {
+                width: SPECTRUM_W,
+                height: SPECTRUM_W.max(SPECTRUM_H * level(index)),
+                color: ACCENT,
             }))
             .on_click(w.toggle(Self::panel_handle()))
-            .into_any_element()
     }
 }
 
@@ -105,7 +81,7 @@ pub(super) fn rest_width(widget: &str, spacing: f32) -> f32 {
     }
 }
 
-pub(super) fn widget(widget: &str, state: &Option<Track>, w: &WidgetCx<'_>) -> Option<AnyElement> {
+pub(super) fn widget(widget: &str, state: &Option<Track>, w: &WidgetCx<'_>) -> Option<BarWidget> {
     match widget {
         VISUALIZER => playing(state).then(|| Media::spectrum(w)),
         _ => Some(Media::now_playing(state.as_ref(), w)),

@@ -1,21 +1,19 @@
 use std::{cell::Cell, rc::Rc, time::Instant};
 
-use gpui::{AnyElement, ScrollEvent, SharedString, SpringConfig, div, prelude::*, px, rgb};
-
-use super::{Feature, Feed, IslandInfo, Local, WidgetCx};
+use super::{Feature, Feed, IslandInfo, Local, Surface, WidgetCx};
 use crate::{
-    components::tooltip::Tip,
-    compositor, island,
+    bar_widget::{BarWidget, Frame, Part, notches},
+    compositor,
     spring::Spring,
+    spring::SpringConfig,
     theme::{ACCENT, CRITICAL, OVERLAY1, SUBTEXT1},
-    ui::{self, Radius},
     wm::Monitor,
 };
 
 const DOT: f32 = 8.0;
 const ACTIVE_W: f32 = 22.0;
 const GAP: f32 = 6.0;
-const MOTION: SpringConfig = SpringConfig::new(420.0, 34.0, 1.0);
+const MOTION: SpringConfig = SpringConfig::new(420.0, 41.0, 1.0);
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum DotState {
@@ -135,10 +133,8 @@ fn focus(id: i64) {
     }
 }
 
-fn scroll(scrolled: &Cell<f32>, event: &ScrollEvent) {
-    let mut left = scrolled.get();
-    let steps = island::notches(&mut left, event);
-    scrolled.set(left);
+fn scroll(scrolled: &Cell<f32>, delta: f32) {
+    let steps = notches(scrolled, delta);
     if steps != 0
         && let Some(backend) = compositor::backend()
     {
@@ -152,75 +148,55 @@ impl Feature for Workspaces {
     const NAME: &'static str = "workspaces";
 
     type State = ();
-    type Local = Dots;
+
     type Event = ();
 
     fn start(_: Feed<()>) -> Self {
         Self
     }
+}
+
+impl Surface for Workspaces {
+    type Local = Dots;
 
     fn sync_local(_: &(), dots: &mut Dots, island: &IslandInfo<'_>, _animate: bool) {
         dots.update(island.monitor);
     }
 
-    fn widget(&self, _: &str, _: &(), w: &mut WidgetCx<'_>) -> Option<AnyElement> {
+    fn widget(&self, _: &str, _: &(), w: &mut WidgetCx<'_>) -> Option<BarWidget> {
         let dots = w.local::<Dots>()?;
         if dots.dots.is_empty() {
             return None;
         }
         let scrolled = dots.scrolled.clone();
-        let hover = w.hover();
         Some(
             w.group("bar-workspaces")
-                .pl(px((w.padding() - GAP / 2.0).max(0.0)))
-                .pr(px((w.padding() - GAP / 2.0).max(0.0)))
-                .justify_start()
-                .on_scroll(move |event, _, _| scroll(&scrolled, event))
-                .children(dots.dots.iter().map(|dot| {
+                .padding((w.padding() - GAP / 2.0).max(0.0))
+                .start()
+                .on_scroll(Rc::new(move |delta, _| scroll(&scrolled, delta)))
+                .parts(dots.dots.iter().map(|dot| {
                     let presence = dot.presence.value().clamp(0.0, 1.0);
                     let width = dot.width.value();
                     let color = match dot.state {
-                        DotState::Active => rgb(ACCENT),
-                        DotState::Urgent => rgb(CRITICAL),
-                        DotState::Occupied => rgb(SUBTEXT1),
-                        DotState::Empty => rgb(OVERLAY1),
+                        DotState::Active => ACCENT,
+                        DotState::Urgent => CRITICAL,
+                        DotState::Occupied => SUBTEXT1,
+                        DotState::Empty => OVERLAY1,
                     };
                     let id = dot.id;
-                    div()
-                        .id(SharedString::from(format!("workspace-{id}")))
-                        .relative()
-                        .h_full()
-                        .w(px((width + GAP) * presence))
-                        .flex()
-                        .items_center()
-                        .justify_center()
-                        .cursor_pointer()
-                        .when(hover, |cell| cell.hover(|style| style))
-                        .opacity(presence)
-                        .tip(
-                            w.tips(),
-                            format!("workspace-{id}"),
-                            format!("Workspace {id}"),
-                        )
-                        .on_click(move |_, _, _| focus(id))
-                        .child(
-                            div().absolute().size_full().flex().items_center().child(
-                                div()
-                                    .relative()
-                                    .w_full()
-                                    .h(px(DOT + GAP))
-                                    .child(ui::control(Radius::Pill, None, hover)),
-                            ),
-                        )
-                        .child(
-                            div()
-                                .w(px(width * presence))
-                                .h(px(DOT))
-                                .rounded_full()
-                                .bg(color),
-                        )
-                }))
-                .into_any_element(),
+                    Part::Widget(
+                        BarWidget::new(format!("workspace-{id}"), Frame::Spot { tint: DOT + GAP })
+                            .width((width + GAP) * presence)
+                            .opacity(presence)
+                            .tip(format!("Workspace {id}"))
+                            .on_click(Rc::new(move |_, _| focus(id)))
+                            .part(Part::Pill {
+                                width: width * presence,
+                                height: DOT,
+                                color,
+                            }),
+                    )
+                })),
         )
     }
 }

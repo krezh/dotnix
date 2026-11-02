@@ -58,6 +58,10 @@ pub struct Args {
     #[arg(long)]
     pub freeze: Option<bool>,
 
+    /// Draw the mouse cursor into screen recordings (overrides config)
+    #[arg(long)]
+    pub cursor: Option<bool>,
+
     /// Enable OCR mode (extract text from selected region)
     #[arg(long, conflicts_with = "mode")]
     pub ocr: bool,
@@ -127,6 +131,10 @@ pub struct Args {
     #[arg(long)]
     pub original_name: Option<bool>,
 
+    /// Skip uploading even when Zipline is configured (overrides config)
+    #[arg(long)]
+    pub no_upload: bool,
+
     /// Save path directory (overrides config)
     #[arg(long, short = 'p')]
     pub save_path: Option<PathBuf>,
@@ -192,6 +200,7 @@ pub struct RecordingOptions {
     pub encode_resolution: String,
     pub bitrate: String,
     pub codec: String,
+    pub cursor: bool,
 }
 
 /// Effective settings after merging CLI arguments with the config file.
@@ -219,7 +228,9 @@ pub struct Settings {
     pub replay: ReplayConfig,
     pub replay_action: Option<ReplayAction>,
     pub replay_duration: Option<u32>,
+    pub cursor: Option<bool>,
     pub output: Option<PathBuf>,
+    pub upload: bool,
     pub zipline_url: String,
     pub zipline_token: PathBuf,
     pub original_name: bool,
@@ -273,6 +284,7 @@ impl Args {
                 encode_resolution: config.capture.video.encode_resolution,
                 bitrate: config.capture.video.bitrate,
                 codec: config.capture.video.codec,
+                cursor: self.cursor.unwrap_or(config.capture.video.cursor),
             },
             replay: {
                 let mut replay = config.capture.replay;
@@ -283,7 +295,9 @@ impl Args {
             },
             replay_action: self.replay,
             replay_duration: self.replay_duration,
+            cursor: self.cursor,
             output: self.output,
+            upload: !self.no_upload,
             zipline_url: self.zipline_url.unwrap_or(config.upload.zipline.url),
             zipline_token: expand_home(
                 self.zipline_token

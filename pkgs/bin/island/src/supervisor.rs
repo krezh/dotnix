@@ -2,6 +2,7 @@ use std::{
     any::Any,
     io,
     panic::{self, AssertUnwindSafe},
+    sync::mpsc::{Receiver, Sender},
     thread,
     time::{Duration, Instant},
 };
@@ -32,6 +33,35 @@ impl Reconnect {
         };
         thread::sleep(self.delay);
     }
+}
+
+pub fn spawn<T: Send + 'static>(name: &str, run: impl FnOnce() -> T + Send + 'static) {
+    if let Err(error) = thread::Builder::new().name(name.into()).spawn(run) {
+        warn!("cannot start {name}: {error}");
+    }
+}
+
+pub fn after(name: &str, delay: Duration, run: impl FnOnce() + Send + 'static) {
+    spawn(name, move || {
+        thread::sleep(delay);
+        run();
+    });
+}
+
+/// Passes on all that arrives, until either side goes away.
+pub fn forward<T: Send + 'static, U: Send + 'static>(
+    name: &str,
+    from: Receiver<T>,
+    to: Sender<U>,
+    wrap: impl Fn(T) -> U + Send + 'static,
+) {
+    spawn(name, move || {
+        for item in from {
+            if to.send(wrap(item)).is_err() {
+                return;
+            }
+        }
+    });
 }
 
 pub enum Ended {

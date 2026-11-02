@@ -1,55 +1,24 @@
-use std::rc::Rc;
-
 use futures::channel::oneshot;
-use gpui::{Context, Pixels};
-use tracing::{debug, warn};
+use tracing::debug;
 
 use super::{Tray, sni::Command};
-use crate::island::Island;
+use crate::panel::Ui;
 
 impl Tray {
-    pub(super) fn open_menu(
-        &self,
-        key: String,
-        anchor: Pixels,
-        island: &mut Island,
-        cx: &mut Context<Island>,
-    ) {
-        if island.menu_open_for(&key) {
-            island.close_menu(cx);
+    pub(super) fn open_menu(&self, key: String, anchor: f32, ui: &mut dyn Ui) {
+        if ui.menu_open_for(&key) {
+            ui.close_menu();
             return;
         }
         debug!(item = key, "opening the tray menu");
         let (reply, response) = oneshot::channel();
         self.send(Command::Menu(key.clone(), reply));
-        let tray = self.clone();
-        cx.spawn(async move |island, cx| {
-            let root = match response.await {
-                Ok(Some(root)) if !root.children.is_empty() => root,
-                Ok(_) => {
-                    debug!(item = key, "the tray menu is empty");
-                    let _ = island.update(cx, |island, cx| island.close_menu(cx));
-                    return;
-                }
-                Err(_) => {
-                    warn!(item = key, "the tray worker dropped the menu request");
-                    let _ = island.update(cx, |island, cx| island.close_menu(cx));
-                    return;
-                }
-            };
-            debug!(
-                item = key,
-                entries = root.children.len(),
-                "showing the tray menu"
-            );
-            let item = key.clone();
-            let pick = Rc::new(move |id, _: &mut Island, _: &mut Context<Island>| {
-                tray.send(Command::Click(item.clone(), id))
-            });
-            let _ = island.update(cx, |island, cx| {
-                island.show_menu(key, root, pick, anchor, cx)
-            });
-        })
-        .detach();
+        let (tray, item) = (self.clone(), key.clone());
+        ui.menu_when_ready(
+            key,
+            response,
+            anchor,
+            Box::new(move |id| tray.send(Command::Click(item.clone(), id))),
+        );
     }
 }

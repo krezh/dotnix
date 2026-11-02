@@ -41,6 +41,34 @@ fn order(view: &View, state: &State) -> Vec<(Source, String)> {
 }
 
 #[test]
+fn picking_a_tab_slides_there_and_turns_back_from_where_it_is() {
+    let mut view = View::default();
+    view.pick_tab(Tab::Sessions);
+    assert_eq!(view.passing.from, None, "already there");
+
+    view.pick_tab(Tab::Usage);
+    assert_eq!(view.passing.from, Some(Tab::Sessions));
+    let now = Instant::now();
+    for _ in 0..4 {
+        view.passing.at.advance(1.0 / 60.0, now);
+    }
+    let came = view.passing.at.value();
+    assert!(came > 0.0 && came < 1.0, "caught partway");
+
+    view.pick_tab(Tab::Sessions);
+    assert_eq!(view.passing.from, Some(Tab::Usage));
+    assert!(
+        (view.passing.at.value() - (1.0 - came)).abs() < 0.001,
+        "back from where it had got to"
+    );
+
+    for _ in 0..240 {
+        Local::advance(&mut view, 1.0 / 60.0, now);
+    }
+    assert_eq!(view.passing.from, None, "done passing");
+}
+
+#[test]
 fn refresh_changes_values_without_moving_open_tiles() {
     let initial = state(vec![
         provider(Source::Omp, "one", 20.0),

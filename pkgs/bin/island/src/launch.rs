@@ -8,6 +8,7 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
+use crate::paths;
 use tracing::{error, info, warn};
 use zbus::{Connection, Variant, block_on};
 
@@ -142,7 +143,7 @@ fn detached(launch: &Launch, program: &Path) {
             launch
                 .directory
                 .clone()
-                .or_else(|| env::var_os("HOME").map(PathBuf::from))
+                .or_else(paths::home)
                 .unwrap_or_else(|| "/".into()),
         );
     unsafe {

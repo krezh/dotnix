@@ -1,16 +1,14 @@
-use std::{thread, time::Duration};
+use std::{sync::mpsc, time::Duration};
 
-use chrono::{DateTime, Local, Timelike};
-use gpui::{AnyElement, FontWeight, MouseButton, div, prelude::*, px};
-
-use super::{Feature, Feed, GlyphSpec, PanelCx, WidgetCx};
+use super::{Feature, Feed, GlyphSpec, PanelCx, Surface, WidgetCx};
 use crate::{
-    components::{motion, tooltip::Tip},
-    island::Panel,
+    bar_widget::{BarWidget, Emphasis, Part},
     panel::{Block, CalendarView, Header, PanelView},
+    resume,
+    stage::Panel,
     supervisor::Ended,
-    ui::{SMALL_SIZE, TITLE_SIZE},
 };
+use chrono::{DateTime, Local, Timelike};
 
 const GAP: f32 = 6.0;
 /// How long after the minute turns the clock moves, so it never shows the minute before.
@@ -44,19 +42,23 @@ pub struct Clock;
 
 impl Feature for Clock {
     const NAME: &'static str = "clock";
-    const PANEL: Option<&'static str> = Some("calendar");
-    const TAB: Option<(&'static str, u8)> = Some(("Calendar", 1));
-    const GLYPHS: &'static [GlyphSpec] = &[("tab-calendar", &["calendar"])];
 
     /// Minutes since the epoch.
     type State = i64;
-    type Local = Month;
+
     type Event = ();
 
     fn start(feed: Feed<i64>) -> Self {
-        feed.supervise(|feed| {
+        let (wake, woken) = mpsc::channel();
+        let waker = wake.clone();
+        resume::listen(move || {
+            let _ = waker.send(());
+        });
+        feed.supervise(move |feed| {
+            // Held so the wait below times out, rather than fails, if the listener stops.
+            let _wake = &wake;
             loop {
-                thread::sleep(until_next_minute());
+                let _ = woken.recv_timeout(until_next_minute());
                 if !feed.publish(minute()) {
                     return Ended::Unwanted;
                 }
@@ -68,31 +70,35 @@ impl Feature for Clock {
     fn initial() -> i64 {
         minute()
     }
+}
 
-    fn widget(&self, _: &str, minute: &i64, w: &mut WidgetCx<'_>) -> Option<AnyElement> {
+impl Surface for Clock {
+    const PANEL: Option<&'static str> = Some("calendar");
+
+    const TAB: Option<(&'static str, u8)> = Some(("Calendar", 1));
+
+    const GLYPHS: &'static [GlyphSpec] = &[("tab-calendar", &["calendar"])];
+
+    type Local = Month;
+
+    fn widget(&self, _: &str, minute: &i64, w: &mut WidgetCx<'_>) -> Option<BarWidget> {
         let now = DateTime::from_timestamp(minute * 60, 0)?.with_timezone(&Local);
         Some(
             w.base("bar-clock")
-                .gap(px(GAP))
-                .tip(
-                    w.tips(),
-                    "bar-clock",
-                    now.format("%A, %-d %B %Y").to_string(),
-                )
-                .child(
-                    div()
-                        .text_size(px(TITLE_SIZE))
-                        .font_weight(FontWeight::BOLD)
-                        .child(motion::text("time", now.format("%H:%M").to_string())),
-                )
-                .child(
-                    div()
-                        .text_size(px(SMALL_SIZE))
-                        .child(motion::text("date", now.format("%a %-d").to_string())),
-                )
-                .on_click(w.toggle(Panel::Feature(Self::NAME)))
-                .on_mouse_down(MouseButton::Right, w.toggle(Panel::Dashboard))
-                .into_any_element(),
+                .gap(GAP)
+                .tip(now.format("%A, %-d %B %Y").to_string())
+                .part(Part::text(
+                    "time",
+                    now.format("%H:%M").to_string(),
+                    Emphasis::Title,
+                ))
+                .part(Part::text(
+                    "date",
+                    now.format("%a %-d").to_string(),
+                    Emphasis::Small,
+                ))
+                .on_click(w.toggle(Self::panel_handle()))
+                .on_right(w.toggle(Panel::Dashboard)),
         )
     }
 

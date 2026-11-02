@@ -1,9 +1,11 @@
 use zbus::{Connection, Proxy, block_on};
 
 use super::report::Report;
-use crate::cli::{Line, Mistake, not_running};
+use crate::{
+    cli::{Line, Mistake, not_running},
+    profile,
+};
 
-pub const SERVICE: &str = "io.github.krezh.Island";
 pub const PATH: &str = "/io/github/krezh/Island";
 pub const INTERFACE: &str = "io.github.krezh.Island.Control";
 
@@ -30,7 +32,7 @@ pub fn send(args: &[String]) -> Result<Report, Mistake> {
         let connection = Connection::session()
             .await
             .map_err(|error| Mistake::new(Line::new().plain(format!("No session bus: {error}"))))?;
-        let proxy = Proxy::new(&connection, SERVICE, PATH, INTERFACE)
+        let proxy = Proxy::new(&connection, profile::instance(), PATH, INTERFACE)
             .await
             .map_err(|_| not_running())?;
         proxy.call("Run", &(args,)).await.map_err(|_| not_running())

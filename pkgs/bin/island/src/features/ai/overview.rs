@@ -1,8 +1,5 @@
 use std::{cmp::Ordering, path::Path};
 
-use chrono::{Local, TimeZone, Timelike};
-use gpui::SharedString;
-
 use super::{
     Ai, format, logos,
     state::{Credits, Limit, Provider, Severity, Source, State},
@@ -16,12 +13,12 @@ use crate::{
         timeline::{Pin, Side, Span, Timeline},
     },
     features::PanelCx,
-    panel::Block,
+    panel::{Block, SharedString},
     theme::{
-        BLUE, GREEN, MAUVE, OVERLAY1, OVERLAY2, PEACH, RED, SUBTEXT1, TEAL, TEXT, YELLOW,
-        app_color,
+        BLUE, GREEN, MAUVE, OVERLAY1, OVERLAY2, PEACH, RED, SUBTEXT1, TEAL, TEXT, YELLOW, app_color,
     },
 };
+use chrono::{Local, TimeZone, Timelike};
 
 const DAY_MS: i64 = 24 * 60 * 60 * 1000;
 const WEEK_MS: i64 = 7 * DAY_MS;
@@ -161,7 +158,9 @@ fn short_label(label: &str, limits: &[Limit]) -> String {
     let shared = first_word(label);
     let all_share = limits.len() > 1
         && !shared.is_empty()
-        && limits.iter().all(|limit| first_word(&limit.label) == shared);
+        && limits
+            .iter()
+            .all(|limit| first_word(&limit.label) == shared);
     let stripped = if all_share {
         let rest = label[shared.len()..]
             .trim_start_matches(|c: char| c.is_whitespace() || c == '•' || c == '·');
@@ -202,7 +201,11 @@ fn credit_chip(credits: &Credits, now: i64) -> Option<(SharedString, u32)> {
     if credits.count == 0 {
         return None;
     }
-    let noun = if credits.count == 1 { "reset" } else { "resets" };
+    let noun = if credits.count == 1 {
+        "reset"
+    } else {
+        "resets"
+    };
     Some(match credits.expires_at {
         Some(at) if at <= now => (format!("{} {noun} exp", credits.count).into(), YELLOW),
         _ => (format!("{} {noun}", credits.count).into(), GREEN),
@@ -220,7 +223,12 @@ fn pool_order(one: &Limit, other: &Limit) -> Ordering {
             (None, None) => Ordering::Equal,
         })
         .then_with(|| other.used.total_cmp(&one.used))
-        .then_with(|| other.duration_ms.unwrap_or(0).cmp(&one.duration_ms.unwrap_or(0)))
+        .then_with(|| {
+            other
+                .duration_ms
+                .unwrap_or(0)
+                .cmp(&one.duration_ms.unwrap_or(0))
+        })
 }
 
 fn bar_color(limit: &Limit, fresh: bool) -> u32 {
@@ -299,8 +307,7 @@ fn ceiling_blocker(limit: &Limit, limits: &[Limit]) -> Option<String> {
     let blocker = limits
         .iter()
         .filter(|other| {
-            other.severity == Severity::Exhausted
-                && other.duration_ms.unwrap_or(i64::MAX) > my_dur
+            other.severity == Severity::Exhausted && other.duration_ms.unwrap_or(i64::MAX) > my_dur
         })
         .min_by_key(|other| other.duration_ms.unwrap_or(i64::MAX))?;
     let label = short_label(&blocker.label, limits).to_lowercase();
@@ -442,9 +449,10 @@ fn ledger_entry(
         .iter()
         .any(|limit| limit.severity == Severity::Exhausted);
     let any_hot = fresh
-        && provider.limits.iter().any(|limit| {
-            limit.exhausts_at.is_some() || limit.severity == Severity::High
-        });
+        && provider
+            .limits
+            .iter()
+            .any(|limit| limit.exhausts_at.is_some() || limit.severity == Severity::High);
     let accent = if !fresh {
         Some(YELLOW)
     } else if any_exhausted {
@@ -668,7 +676,11 @@ fn cluster_pins(mut items: Vec<ResetCandidate>, now: i64) -> (Vec<Pin>, usize) {
         .map(|group| {
             if group.len() == 1 {
                 let item = &group[0];
-                let label = format!("{} · {}", item.short_provider, weekday_time(item.reset, now));
+                let label = format!(
+                    "{} · {}",
+                    item.short_provider,
+                    weekday_time(item.reset, now)
+                );
                 let tooltip = format!(
                     "{} · {} — resets {} (in {})",
                     item.provider,
@@ -850,7 +862,7 @@ fn horizon(seen: &[Seen<'_>], now: i64) -> Option<Timeline> {
 
     Some(Timeline {
         side: Some(Side {
-            title: "Week Horizon".into(),
+            title: "Week horizon".into(),
             detail: summary.join(" · ").into(),
             striped_key: (outage_count > 0).then(|| "no quota".into()),
             dot_key: Some("reset".into()),
@@ -861,7 +873,13 @@ fn horizon(seen: &[Seen<'_>], now: i64) -> Option<Timeline> {
     })
 }
 
-fn entry_heading(ai: &Ai, state: &State, providers: &[&Provider], count: usize, now: i64) -> String {
+fn entry_heading(
+    ai: &Ai,
+    state: &State,
+    providers: &[&Provider],
+    count: usize,
+    now: i64,
+) -> String {
     let noun = if count == 1 { "account" } else { "accounts" };
     let mut parts = vec![format!("{count} {noun}")];
     if state.refreshing {
@@ -887,13 +905,7 @@ fn entry_heading(ai: &Ai, state: &State, providers: &[&Provider], count: usize, 
     parts.join(" · ")
 }
 
-pub(super) fn blocks(
-    ai: &Ai,
-    state: &State,
-    view: &View,
-    p: &PanelCx<'_>,
-    now: i64,
-) -> Vec<Block> {
+pub(super) fn blocks(ai: &Ai, state: &State, view: &View, p: &PanelCx<'_>, now: i64) -> Vec<Block> {
     let providers = view.ordered(state);
     let mut blocks = Vec::new();
     if ai.settings.sources.is_empty() {
@@ -914,7 +926,11 @@ pub(super) fn blocks(
         } else {
             "No AI usage data available."
         };
-        blocks.push(Block::Card(None, card::Size::Full, vec![Block::note(message)]));
+        blocks.push(Block::Card(
+            None,
+            card::Size::Full,
+            vec![Block::note(message)],
+        ));
     } else {
         let seen = accounts(&providers);
         let heading = entry_heading(ai, state, &providers, seen.len(), now);

@@ -1,6 +1,6 @@
 use std::{
     collections::{HashMap, HashSet},
-    env, fs,
+    fs,
     path::{Path, PathBuf},
 };
 
@@ -9,6 +9,7 @@ use super::settings::Settings;
 use crate::{
     icons,
     launch::{self, Launch},
+    paths,
 };
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -25,20 +26,8 @@ pub struct App {
 }
 
 pub(super) fn dirs() -> Vec<PathBuf> {
-    let home = env::var_os("HOME").map(PathBuf::from);
-    let data_home = env::var_os("XDG_DATA_HOME")
-        .map(PathBuf::from)
-        .or_else(|| home.map(|home| home.join(".local/share")));
-    let data_dirs =
-        env::var("XDG_DATA_DIRS").unwrap_or_else(|_| "/usr/local/share:/usr/share".to_owned());
-    data_home
+    paths::data_dirs()
         .into_iter()
-        .chain(
-            data_dirs
-                .split(':')
-                .filter(|dir| !dir.is_empty())
-                .map(PathBuf::from),
-        )
         .map(|dir| dir.join("applications"))
         .collect()
 }

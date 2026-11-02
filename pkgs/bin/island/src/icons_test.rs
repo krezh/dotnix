@@ -2,24 +2,15 @@ use std::{
     fs,
     os::unix::fs::symlink,
     path::{Path, PathBuf},
-    sync::atomic::{AtomicU64, Ordering},
 };
 
 use super::{Index, MAX_SUCCESSES};
-
-static NEXT_FIXTURE: AtomicU64 = AtomicU64::new(0);
 
 struct Fixture(PathBuf);
 
 impl Fixture {
     fn new() -> Self {
-        let path = std::env::temp_dir().join(format!(
-            "island-icons-{}-{}",
-            std::process::id(),
-            NEXT_FIXTURE.fetch_add(1, Ordering::Relaxed),
-        ));
-        fs::create_dir(&path).unwrap();
-        Self(path)
+        Self(crate::testing::scratch("icons"))
     }
 
     fn path(&self, relative: &str) -> PathBuf {

@@ -344,6 +344,9 @@ pub struct VideoConfig {
     /// Video codec: "auto", "avc", "hevc", "vp8", "vp9" or "av1". At a given
     /// bitrate "hevc" holds up better in motion than "avc".
     pub codec: String,
+
+    /// Draw the mouse cursor into screen recordings
+    pub cursor: bool,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -395,6 +398,7 @@ impl Default for VideoConfig {
             encode_resolution: String::new(),
             bitrate: String::new(),
             codec: "auto".to_string(),
+            cursor: true,
         }
     }
 }

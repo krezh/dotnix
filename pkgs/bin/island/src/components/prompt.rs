@@ -14,6 +14,7 @@ use crate::{
     },
     island::Island,
     panel::Handler,
+    panel::IslandUi,
     theme::{CRUST, OVERLAY2, RED, TINT, with_alpha},
     ui::{self, Radius, TITLE_SIZE},
 };
@@ -59,7 +60,7 @@ pub fn prompt(view: PromptView, hover: bool, cx: &mut Context<Island>) -> AnyEle
         )
         .on_click(cx.listener(move |island, _, _, cx| {
             cx.stop_propagation();
-            handler(island, cx);
+            handler(&mut IslandUi::new(island, cx));
         }))
     });
     let back = view.on_cancel;
@@ -143,7 +144,7 @@ pub fn prompt(view: PromptView, hover: bool, cx: &mut Context<Island>) -> AnyEle
                         )
                         .on_click(cx.listener(move |island, _, _, cx| {
                             cx.stop_propagation();
-                            back(island, cx);
+                            back(&mut IslandUi::new(island, cx));
                         })),
                     )
                     .children(view.confirm.map(|(label, handler)| {
@@ -155,7 +156,7 @@ pub fn prompt(view: PromptView, hover: bool, cx: &mut Context<Island>) -> AnyEle
                         )
                         .on_click(cx.listener(move |island, _, _, cx| {
                             cx.stop_propagation();
-                            handler(island, cx);
+                            handler(&mut IslandUi::new(island, cx));
                         }))
                     })),
             ),
@@ -171,7 +172,7 @@ pub fn prompt(view: PromptView, hover: bool, cx: &mut Context<Island>) -> AnyEle
         .items_center()
         .justify_center()
         .bg(rgba(with_alpha(CRUST, SCRIM_ALPHA)))
-        .on_click(cx.listener(move |island, _, _, cx| cancel(island, cx)))
+        .on_click(cx.listener(move |island, _, _, cx| cancel(&mut IslandUi::new(island, cx))))
         .child(reveal::appear(
             SharedString::from(format!("{}-appear", view.id)),
             card,

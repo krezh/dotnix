@@ -73,10 +73,10 @@ fn upgrades_answers_pings_reads_frames_and_calls_rest_endpoints() {
         .unwrap();
         app_conn.write_all(app_body).unwrap();
 
-        // 3. GET /message?limit=50
+        // 3. GET /message?limit=200
         let (mut msg_conn, _) = listener.accept().unwrap();
         let msg_req = read_http_request(&mut msg_conn);
-        assert!(msg_req.starts_with("GET /message?limit=50 HTTP/1.1\r\n"));
+        assert!(msg_req.starts_with("GET /message?limit=200 HTTP/1.1\r\n"));
         let msg_body =
             br#"{"messages":[{"id":99,"appid":3,"title":"Alert","message":"Hello","priority":8}]}"#;
         write!(
@@ -119,6 +119,41 @@ fn upgrades_answers_pings_reads_frames_and_calls_rest_endpoints() {
     assert_eq!(messages[0].app, "Gatus");
     delete_message(&agent, &endpoint, "secret-token", 99).unwrap();
     delete_all_messages(&agent, &endpoint, "secret-token").unwrap();
+    server.join().unwrap();
+}
+
+#[test]
+fn follows_every_page_of_messages() {
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let addr = listener.local_addr().unwrap();
+    let endpoint = Endpoint::parse(&format!("ws://{addr}")).unwrap();
+
+    let server = thread::spawn(move || {
+        let pages: [(&str, &str); 2] = [
+            (
+                "GET /message?limit=200 HTTP/1.1\r\n",
+                r#"{"messages":[{"id":9}],"paging":{"next":"/message?limit=200&since=9","since":9}}"#,
+            ),
+            (
+                "GET /message?limit=200&since=9 HTTP/1.1\r\n",
+                r#"{"messages":[{"id":4}],"paging":{"since":4}}"#,
+            ),
+        ];
+        for (request, body) in pages {
+            let (mut conn, _) = listener.accept().unwrap();
+            assert!(read_http_request(&mut conn).starts_with(request));
+            write!(
+                conn,
+                "HTTP/1.1 200 OK\r\nConnection: close\r\nContent-Length: {}\r\n\r\n{body}",
+                body.len()
+            )
+            .unwrap();
+        }
+    });
+
+    let messages = fetch_messages(&api_agent(), &endpoint, "token", &HashMap::new()).unwrap();
+    let ids: Vec<u64> = messages.iter().map(|entry| entry.id).collect();
+    assert_eq!(ids, vec![9, 4]);
     server.join().unwrap();
 }
 

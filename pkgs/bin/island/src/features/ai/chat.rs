@@ -52,7 +52,7 @@ fn styled(parsed: markdown::Text) -> Text {
 }
 
 fn copier(text: String) -> crate::panel::Handler {
-    on(move |_, _| copy::text(text.clone()))
+    on(move |_| copy::text(text.clone()))
 }
 
 /// A reply's Markdown as text and code, each code block with a Copy chip.

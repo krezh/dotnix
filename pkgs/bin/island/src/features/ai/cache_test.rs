@@ -1,18 +1,18 @@
 use std::{fs, path::PathBuf};
 
 use super::{MIGRATIONS, keep_to, load_from, save_to, windows_from};
-use crate::features::ai::{
-    history::Window,
-    state::{Credits, Freshness, Limit, Provider, Severity, Source},
+use crate::{
+    db,
+    features::ai::{
+        history::Window,
+        state::{Credits, Freshness, Limit, Provider, Severity, Source},
+    },
+    testing,
 };
 use rusqlite::{Connection, params};
 
 fn database() -> Connection {
-    let db = Connection::open_in_memory().unwrap();
-    for migration in MIGRATIONS {
-        db.execute_batch(migration).unwrap();
-    }
-    db
+    db::memory(MIGRATIONS)
 }
 
 fn window(start: i64, samples: Vec<(i64, f64)>) -> Window {
@@ -82,10 +82,7 @@ fn cached(mut provider: Provider) -> Provider {
 }
 
 fn scratch() -> PathBuf {
-    let dir = std::env::temp_dir().join(format!("island-ai-cache-test-{}", std::process::id()));
-    let _ = fs::remove_dir_all(&dir);
-    fs::create_dir_all(&dir).unwrap();
-    dir.join("usage.db")
+    testing::scratch("ai-cache").join("usage.db")
 }
 
 #[test]

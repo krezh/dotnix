@@ -1,14 +1,11 @@
 //! The bar widget: the Bluetooth glyph, blue while Bluetooth is on, with the lowest battery of what
 //! is connected beside it when anything connected reports one.
 
-use gpui::{AnyElement, prelude::*, px};
-
 use super::{Bluetooth, glyphs, state::State};
 use crate::{
-    bar::{GLYPH, Gauge, ICON_GAP},
-    components::{icon, tooltip::Tip},
-    features::{Feature, WidgetCx},
-    island::Panel,
+    bar::ICON_GAP,
+    bar_widget::{BarWidget, Gauge},
+    features::{Surface, WidgetCx},
     theme::{BLUE, OVERLAY2},
 };
 
@@ -33,7 +30,7 @@ fn tip(state: &State) -> String {
     }
 }
 
-pub fn widget(state: &State, w: &mut WidgetCx<'_>) -> AnyElement {
+pub fn widget(state: &State, w: &mut WidgetCx<'_>) -> BarWidget {
     let on = state.available && state.powered;
     let busy = state.devices.iter().any(|device| device.busy.is_some());
     let color = if on { BLUE } else { OVERLAY2 };
@@ -49,14 +46,8 @@ pub fn widget(state: &State, w: &mut WidgetCx<'_>) -> AnyElement {
                 level_color: glyphs::battery(Some(level)),
             },
         ),
-        None => w
-            .base("bar-bluetooth")
-            .gap(px(ICON_GAP))
-            .when_some(glyph, |widget, path| {
-                widget.child(icon::glyph(path, GLYPH, color))
-            }),
+        None => w.base("bar-bluetooth").gap(ICON_GAP).glyph(glyph, color),
     };
-    base.tip(w.tips(), "bar-bluetooth", tip(state))
-        .on_click(w.toggle(Panel::Feature(<Bluetooth as Feature>::NAME)))
-        .into_any_element()
+    base.tip(tip(state))
+        .on_click(w.toggle(Bluetooth::panel_handle()))
 }

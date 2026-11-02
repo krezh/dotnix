@@ -10,10 +10,7 @@ use std::{
 use tracing::error;
 
 use super::{settings::Settings, state::State, watch};
-use crate::{
-    features::{Feature, Feed},
-    island::Panel,
-};
+use crate::features::Feed;
 
 pub(super) enum Request {
     Select { id: i64, paste: bool },
@@ -35,10 +32,6 @@ impl Clipboard {
         {
             let _ = (&**wake).write(&[1]);
         }
-    }
-
-    pub(super) fn panel_handle() -> Panel {
-        Panel::Feature(<Self as Feature>::NAME)
     }
 }
 

@@ -1,8 +1,8 @@
 //! A small picture standing for something in a row: a glyph, an app's icon, a picture, a letter,
-//! the mark a choice shows (a check box or a radio dot), a mascot, or a ring with a value; any of
+//! the mark a choice shows (a check box or a radio dot), a ring with a value, or something its owner draws; any of
 //! them with a small glyph at its corner, or pulsing.
 
-use std::{path::PathBuf, time::Duration};
+use std::{path::PathBuf, rc::Rc, time::Duration};
 
 use gpui::{
     Animation, AnimationExt, AnyElement, FontWeight, Hsla, ObjectFit, PathBuilder, PathStyle, Rgba,
@@ -11,10 +11,11 @@ use gpui::{
 
 use crate::{
     components::{
+        drawing,
         icon::{self, Picture},
-        mascot::{self, Pose},
         ring::{self, Rings},
     },
+    drawing::Drawing,
     island::CONTENT_IN,
     theme::{ACCENT, ON_ACCENT, OVERLAY1, TEXT, with_alpha},
     ui::{self, CONTROL_RADIUS, Radius},
@@ -43,8 +44,8 @@ pub enum Mark {
         picked: bool,
         many: bool,
     },
-    /// A character as it stands now.
-    Mascot(Pose),
+    /// Drawn by its owner at the side it is given, and answering the pointer itself.
+    Drawn(Rc<dyn Fn(f32) -> Drawing>),
     /// A ring filled part way round, with a short value in it, such as a battery's charge. `key`
     /// names its animation, so it glides to a new value in place.
     Ring {
@@ -59,9 +60,15 @@ pub enum Mark {
     Pulsing(Box<Mark>),
 }
 
-const PULSE: Duration = Duration::from_millis(1600);
+pub const PULSE: Duration = Duration::from_millis(1600);
 /// How faint a pulsing mark goes.
 const PULSE_LOW: f32 = 0.45;
+
+/// How much shows `t` of the way through a pulse.
+pub fn pulsed(t: f32) -> f32 {
+    let wave = 0.5 - 0.5 * (t * std::f32::consts::TAU).cos();
+    1.0 - (1.0 - PULSE_LOW) * wave
+}
 
 /// A corner mark's disc, against the mark's side.
 const CORNER: f32 = 0.5;
@@ -125,7 +132,7 @@ fn choice(key: SharedString, picked: bool, many: bool, side: f32) -> AnyElement 
         .flex_none()
         .with_spring(
             key,
-            SpringAnimation::new(CONTENT_IN).to(picked),
+            SpringAnimation::new(CONTENT_IN.into()).to(picked),
             move |mark, phase| {
                 let t = phase.0.clamp(0.0, 1.0);
                 let outline = div()
@@ -196,7 +203,7 @@ pub fn mark(mark: &Mark, size: f32, fill: f32) -> AnyElement {
         Mark::Choice { key, picked, many } => {
             choice(key.clone(), *picked, *many, (picture * 0.9).round())
         }
-        Mark::Mascot(pose) => mascot::mascot(pose.clone(), size).into_any_element(),
+        Mark::Drawn(draw) => drawing::drawing(draw(size)),
         Mark::Ring {
             key,
             fraction,
@@ -245,8 +252,7 @@ pub fn mark(mark: &Mark, size: f32, fill: f32) -> AnyElement {
             .flex_none()
             .child(self::mark(inner, size, fill))
             .with_animation("badge-pulse", Animation::new(PULSE).repeat(), |mark, t| {
-                let wave = 0.5 - 0.5 * (t * std::f32::consts::TAU).cos();
-                mark.opacity(1.0 - (1.0 - PULSE_LOW) * wave)
+                mark.opacity(pulsed(t))
             })
             .into_any_element(),
     }

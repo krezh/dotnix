@@ -63,6 +63,17 @@ pub const ISLAND: &[Opt] = &[
         ("name", Kind::Text),
         "Icon theme, over the config's",
     ),
+    opt(
+        "frontend",
+        ("name", Kind::Text),
+        "What draws the islands, gpui or wgpu, over the config's",
+    ),
+    Opt {
+        long: "preview",
+        short: None,
+        value: None,
+        about: "Run beside a running island with its own data, or as the island if none runs; first, it makes ctl and logs reach that one",
+    },
 ];
 
 pub const LEVELS: &[&str] = &["error", "warn", "info", "debug", "trace"];

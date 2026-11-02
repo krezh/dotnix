@@ -22,9 +22,9 @@
         blur = true;
         rounding = 15;
         fonts = {
-          sans = "Geist";
+          sans = "Rubik";
           mono = "Monaspace Neon NF";
-          serif = "Geist";
+          serif = "Rubik";
           interfaceSize = 15;
           codeSize = 12;
         };

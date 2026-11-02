@@ -18,7 +18,9 @@ pub fn appear(id: impl Into<ElementId>, element: impl IntoElement) -> AnyElement
         .child(element)
         .with_spring(
             id,
-            SpringAnimation::new(CONTENT_IN).to(1.0_f32).from(0.0),
+            SpringAnimation::new(CONTENT_IN.into())
+                .to(1.0_f32)
+                .from(0.0),
             |shown, value| {
                 let value = value.clamp(0.0, 1.0);
                 shown.opacity(value).top(px((1.0 - value) * CONTENT_DRIFT))
@@ -34,7 +36,9 @@ pub fn leave(id: impl Into<ElementId>, element: impl IntoElement) -> AnyElement 
         .child(element)
         .with_spring(
             id,
-            SpringAnimation::new(CONTENT_OUT).to(0.0_f32).from(1.0),
+            SpringAnimation::new(CONTENT_OUT.into())
+                .to(0.0_f32)
+                .from(1.0),
             |gone, value| {
                 let value = value.clamp(0.0, 1.0);
                 gone.opacity(value).top(px((1.0 - value) * CONTENT_DRIFT))

@@ -3,16 +3,18 @@ use std::{
     time::{Duration, Instant},
 };
 
-use gpui::{SpringConfig, Window};
-
 use super::{card, notification::Notification};
 use crate::{
-    island::{CONTENT_IN, SHAPE_SPRING},
+    components::measure::Measure,
     spring::Spring,
+    spring::SpringConfig,
+    stage::{CONTENT_IN, CONTENT_OUT, SHAPE_SPRING},
 };
 
 const ENTER_DRIFT: f32 = 12.0;
 const LEAVE_STAGGER: Duration = Duration::from_millis(45);
+/// The most that leave one after another; any more leave with the last of them.
+pub const STAGGERED: u32 = 8;
 /// How long a card coming to the front of its group waits as the one it replaces starts sliding out.
 const PROMOTE_AFTER: Duration = Duration::from_millis(60);
 /// About five cards.
@@ -129,6 +131,8 @@ pub struct MissedList {
     /// Apps in the order their groups show: one moves to the top only when something new arrives
     /// for it, so dismissing never moves a group.
     order: Vec<String>,
+    /// Laying out another set in place of this one, as [`Self::swap`] does.
+    swapping: bool,
     motion: SpringConfig,
     fade_in: SpringConfig,
 }
@@ -142,6 +146,7 @@ impl Default for MissedList {
             open: HashSet::new(),
             lines: HashMap::new(),
             order: Vec::new(),
+            swapping: false,
             motion: SHAPE_SPRING,
             fade_in: CONTENT_IN,
         }
@@ -210,6 +215,14 @@ impl MissedList {
         self.layout(animate, reveal_at);
     }
 
+    /// Shows `items` in place of what it shows now, such as another source's: cards in both slide
+    /// to their new places, and the rest fade where they are, together, giving their room at once.
+    pub fn swap(&mut self, items: &[Notification], now: Instant) {
+        self.swapping = true;
+        self.sync(items, true, now);
+        self.swapping = false;
+    }
+
     /// Spreads an app's cards out, or folds them back behind the newest.
     pub fn toggle(&mut self, app: &str) {
         if !self.open.remove(app) {
@@ -219,11 +232,11 @@ impl MissedList {
     }
 
     /// True when any new card's text changed its height.
-    pub fn measure(&mut self, window: &Window) -> bool {
+    pub fn measure(&mut self, measure: &Measure<'_>) -> bool {
         let mut measured = false;
         for item in &self.items {
             if !self.lines.contains_key(&item.id) {
-                let lines = card::body_lines(&item.body, card::LIST_W, card::LIST_LINES, window);
+                let lines = card::body_lines(&item.body, card::LIST_W, card::LIST_LINES, measure);
                 self.lines.insert(item.id, lines);
                 measured = true;
             }
@@ -329,6 +342,7 @@ impl MissedList {
         let (motion, fade_in) = (self.motion, self.fade_in);
         let (placed, height) = self.placements();
         let now = Instant::now();
+        let swapping = self.swapping;
         let mut left = 0;
         for index in 0..self.rows.len() {
             let row = &mut self.rows[index];
@@ -340,6 +354,11 @@ impl MissedList {
                 continue;
             }
             row.leaving = true;
+            if swapping {
+                row.room = 0.0;
+                row.fold.retarget(0.0, CONTENT_OUT);
+                continue;
+            }
             // The front of a folded group gives no room back: the next card of the group takes its
             // place.
             if row.peeks > 0 && row.peek.target() > 0.5 {
@@ -349,7 +368,7 @@ impl MissedList {
             if animate {
                 // Several leaving at once, as when cleared, fold away one after another.
                 row.fold
-                    .retarget_at(0.0, card::FOLD, now + LEAVE_STAGGER * left);
+                    .retarget_at(0.0, card::FOLD, now + LEAVE_STAGGER * left.min(STAGGERED));
                 left += 1;
                 // Those below take their new places at once, and are drawn lower by what it still
                 // takes, so they rise with its edge.
@@ -384,6 +403,7 @@ impl MissedList {
                     .is_some_and(|row| !row.leaving && row.body.key() == key)
             });
             let alpha = faded(place.depth);
+            let fresh = existing.is_none();
             let mut row = match existing.and_then(|index| {
                 keep_leaving(&mut old[..index], &mut next);
                 old[index].take()
@@ -440,6 +460,12 @@ impl MissedList {
                     row
                 }
             };
+            // From far out of sight, it rises in where it goes rather than sweeping across the list.
+            if swapping && !fresh && (row.y.value() - place.y).abs() > MAX_VISIBLE_H {
+                row.y.reset(place.y - ENTER_DRIFT);
+                row.alpha.reset(0.0);
+                row.alpha.retarget(alpha, fade_in);
+            }
             row.body = place.body;
             row.depth = place.depth;
             row.clip = place.clip;
@@ -448,7 +474,9 @@ impl MissedList {
             }
             row.height = place.height;
             row.room = place.room;
-            if animate {
+            if animate && fresh {
+                row.y.retarget_at(place.y, motion, reveal_at);
+            } else if animate {
                 row.y.retarget(place.y, motion);
             } else {
                 row.y.reset(place.y);

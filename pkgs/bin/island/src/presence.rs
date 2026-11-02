@@ -1,8 +1,6 @@
 use std::time::Instant;
 
-use gpui::SpringConfig;
-
-use crate::spring::Spring;
+use crate::{spring::Spring, spring::SpringConfig};
 
 pub struct Slot<T> {
     pub key: String,

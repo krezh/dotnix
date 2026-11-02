@@ -4,7 +4,6 @@
 use std::{
     fs,
     path::{Path, PathBuf},
-    time::{SystemTime, UNIX_EPOCH},
 };
 
 use image::ImageFormat;
@@ -16,7 +15,7 @@ use super::{
     entry::{Entry, Kind, files},
     settings::Settings,
 };
-use crate::db;
+use crate::{db, paths, time::now};
 
 /// Twice the preview pane, for sharp scaling.
 const PREVIEW_W: u32 = 860;
@@ -40,6 +39,8 @@ CREATE TABLE clipboard (
 CREATE INDEX clipboard_used ON clipboard (used DESC);
 "];
 
+static DB: db::Owner = db::Owner::new("clipboard", MIGRATIONS);
+
 /// How much of an entry's text is kept for searching and previews.
 const SEARCHED: usize = 4096;
 const PREVIEWED_FILE: u64 = 64 * 1024 * 1024;
@@ -53,14 +54,6 @@ pub(super) struct Clip {
 pub(super) struct Store {
     db: Connection,
     previews: PathBuf,
-}
-
-fn now() -> i64 {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map_or(0, |elapsed| {
-            i64::try_from(elapsed.as_secs()).unwrap_or(i64::MAX)
-        })
 }
 
 /// The picture's size, when it was one.
@@ -84,17 +77,15 @@ fn write_preview(path: &Path, data: Option<&[u8]>, file: Option<&Path>) -> Optio
 
 impl Store {
     pub(super) fn open() -> Result<Self, String> {
-        if let Some(unencrypted) =
-            db::dir("XDG_CACHE_HOME", ".cache").map(|cache| cache.join("clipboard"))
-        {
+        if let Some(unencrypted) = paths::cache().map(|cache| cache.join("clipboard")) {
             let _ = fs::remove_dir_all(unencrypted);
         }
-        let previews = db::runtime_dir()
+        let previews = paths::runtime()
             .ok_or("XDG_RUNTIME_DIR is not set")?
             .join("clipboard");
         fs::create_dir_all(&previews)
             .map_err(|error| format!("cannot create {}: {error}", previews.display()))?;
-        let db = db::open("clipboard", MIGRATIONS)?;
+        let db = DB.open()?;
         let store = Self { db, previews };
         if let Err(error) = store.fill_previews() {
             debug!("cannot fill in clipboard previews: {error}");

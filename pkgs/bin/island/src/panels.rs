@@ -9,36 +9,21 @@ use crate::{
         tile::{Drive, Meter as TileMeter, Part, Segment, Tile, Volume},
     },
     config,
-    features::Battery,
+    features::{self, Battery},
     glyphs::Glyphs,
-    island::{Island, Mode, Panel},
-    panel::{
-        Block, Handler, Header, Meter, MeterShape, PanelView, Split, Warning, on,
-    },
+    island::{Island, Panel},
+    panel::{Block, Handler, Header, Meter, MeterShape, PanelView, Split, Warning, on},
     sys::{Sensor, SysStats},
-    theme::{
-        BLUE, GREEN, LAVENDER, MAUVE, PEACH, PINK, RED, SAPPHIRE, SUBTEXT1, TEAL, YELLOW,
-    },
+    theme::{BLUE, GREEN, LAVENDER, MAUVE, PEACH, PINK, RED, SAPPHIRE, SUBTEXT1, TEAL, YELLOW},
+    units::{bytes, rate, span},
 };
 
 /// Nothing, for a panel whose content went away while it closes.
-fn empty<'a>() -> PanelView {
+pub fn empty<'a>() -> PanelView {
     PanelView {
         scroll: false,
         header: Header::None,
         blocks: Vec::new(),
-    }
-}
-
-fn gib(bytes: f64) -> f64 {
-    bytes / (1024.0 * 1024.0 * 1024.0)
-}
-
-pub(crate) fn rate(bytes_per_second: f64) -> String {
-    match bytes_per_second {
-        rate if rate >= 1024.0 * 1024.0 => format!("{:.1} MB/s", rate / (1024.0 * 1024.0)),
-        rate if rate >= 1024.0 => format!("{:.1} kB/s", rate / 1024.0),
-        rate => format!("{rate:.0} B/s"),
     }
 }
 
@@ -50,24 +35,6 @@ fn row(
 }
 
 /// Binary size with one unit letter: "79 G", "1.4 T", "512 M".
-fn size(bytes: u64) -> String {
-    let gib = gib(bytes as f64);
-    match gib {
-        gib if gib >= 1024.0 => format!("{:.1} T", gib / 1024.0),
-        gib if gib >= 10.0 => format!("{gib:.0} G"),
-        gib if gib >= 1.0 => format!("{gib:.1} G"),
-        _ => format!("{:.0} M", gib * 1024.0),
-    }
-}
-
-pub(crate) fn short_duration(seconds: u64) -> String {
-    let (days, hours, minutes) = (seconds / 86_400, (seconds / 3600) % 24, (seconds / 60) % 60);
-    match days {
-        0 => format!("{hours}h {minutes}m"),
-        _ => format!("{days}d {hours}h"),
-    }
-}
-
 fn heat(celsius: f32) -> u32 {
     match celsius {
         celsius if celsius >= 85.0 => RED,
@@ -232,7 +199,7 @@ fn gpu_tile(stats: &SysStats) -> Tile {
                 rows: vec![tile_meter(
                     "VRAM",
                     gpu.vram_used as f32 / gpu.vram_total.max(1) as f32,
-                    format!("{} / {}", size(gpu.vram_used), size(gpu.vram_total)),
+                    format!("{} / {}", bytes(gpu.vram_used), bytes(gpu.vram_total)),
                     PEACH,
                 )],
                 scroll: false,
@@ -256,8 +223,8 @@ fn memory_tile(stats: &SysStats) -> Tile {
         share(stats.mem_used_kib, stats.mem_total_kib),
         format!(
             "{} / {}",
-            size(kib(stats.mem_used_kib)),
-            size(kib(stats.mem_total_kib))
+            bytes(kib(stats.mem_used_kib)),
+            bytes(kib(stats.mem_total_kib))
         ),
         PEACH,
     )];
@@ -267,8 +234,8 @@ fn memory_tile(stats: &SysStats) -> Tile {
             share(stats.swap_used_kib, stats.swap_total_kib),
             format!(
                 "{} / {}",
-                size(kib(stats.swap_used_kib)),
-                size(kib(stats.swap_total_kib))
+                bytes(kib(stats.swap_used_kib)),
+                bytes(kib(stats.swap_total_kib))
             ),
             YELLOW,
         ));
@@ -473,7 +440,7 @@ fn storage_tile(stats: &SysStats, settings: &config::System) -> Tile {
             Volume {
                 id: partition.mount.clone().into(),
                 mount: partition.mount.clone().into(),
-                usage: format!("{} / {}", size(partition.used), size(partition.total)).into(),
+                usage: format!("{} / {}", bytes(partition.used), bytes(partition.total)).into(),
                 fraction,
                 color: if fraction >= 0.9 { RED } else { BLUE },
             }
@@ -511,7 +478,7 @@ fn storage_tile(stats: &SysStats, settings: &config::System) -> Tile {
                     } else {
                         model.into()
                     },
-                    size: size(drive.size).into(),
+                    size: bytes(drive.size).into(),
                     segments,
                 }
             })
@@ -538,7 +505,7 @@ fn host_tile(stats: &SysStats, displays: usize) -> Tile {
         .collect::<Vec<_>>()
         .join(" · ");
     let mut facts = vec![
-        row("Uptime", short_duration(stats.uptime_secs)),
+        row("Uptime", span(stats.uptime_secs)),
         row("Load", format!("{:.2}", stats.load[0])),
         row("Session", info.session.clone()),
     ];
@@ -630,26 +597,24 @@ pub fn system(stats: &SysStats, settings: &config::System, displays: usize) -> P
     PanelView {
         scroll: false,
         header: Header::Tabs,
-        blocks: vec![
-            Block::Board(vec![
-                vec![
-                    cpu_tile(stats),
-                    memory_tile(stats),
-                    processes_tile(stats),
-                    power_tile(stats),
-                ],
-                vec![
-                    gpu_tile(stats),
-                    network_tile(stats),
-                    storage_tile(stats, settings),
-                ],
-                vec![
-                    host_tile(stats, displays),
-                    temperatures_tile(stats),
-                    disk_tile(stats),
-                ],
-            ]),
-        ],
+        blocks: vec![Block::Board(vec![
+            vec![
+                cpu_tile(stats),
+                memory_tile(stats),
+                processes_tile(stats),
+                power_tile(stats),
+            ],
+            vec![
+                gpu_tile(stats),
+                network_tile(stats),
+                storage_tile(stats, settings),
+            ],
+            vec![
+                host_tile(stats, displays),
+                temperatures_tile(stats),
+                disk_tile(stats),
+            ],
+        ])],
     }
 }
 
@@ -659,7 +624,7 @@ const HOT: f32 = 85.0;
 const MEMORY_FULL: f32 = 0.9;
 
 fn open(panel: Panel) -> Handler {
-    on(move |island, cx| island.set_mode(Mode::Open(panel), cx))
+    on(move |ui| ui.open(panel))
 }
 
 fn hottest(stats: &SysStats) -> Option<&Sensor> {
@@ -743,8 +708,8 @@ fn system_card(stats: &SysStats, glyphs: &Glyphs) -> Block {
     meters.push(history_meter(
         "meter-memory",
         "Memory",
-        size(kib(stats.mem_used_kib)),
-        &format!("/ {}", size(kib(stats.mem_total_kib))),
+        bytes(kib(stats.mem_used_kib)),
+        &format!("/ {}", bytes(kib(stats.mem_total_kib))),
         LAVENDER,
         Some(series(&stats.mem_history, 1.0, LAVENDER, "Memory", percent)),
     ));
@@ -759,12 +724,9 @@ fn system_card(stats: &SysStats, glyphs: &Glyphs) -> Block {
             None,
         ));
     }
-    let title = card::Title::with_detail(
-        "System",
-        format!("up {}", short_duration(stats.uptime_secs)),
-    )
-    .glyph(glyphs.get("tab-system").map(Path::to_path_buf), SAPPHIRE)
-    .opens(open(Panel::System));
+    let title = card::Title::with_detail("System", format!("up {}", span(stats.uptime_secs)))
+        .glyph(glyphs.get("tab-system").map(Path::to_path_buf), SAPPHIRE)
+        .opens(open(Panel::System));
     Block::Card(
         Some(title),
         card::Size::Medium,
@@ -786,8 +748,10 @@ fn batteries_card(batteries: &[Battery], glyphs: &Glyphs) -> Block {
             shape: MeterShape::Ring,
         })
         .collect();
-    let title = card::Title::from("Batteries")
-        .glyph(glyphs.get("dashboard-battery").map(Path::to_path_buf), GREEN);
+    let title = card::Title::from("Batteries").glyph(
+        glyphs.get("dashboard-battery").map(Path::to_path_buf),
+        GREEN,
+    );
     Block::Card(
         Some(title),
         card::Size::Medium,
@@ -811,17 +775,19 @@ fn battery_warnings(batteries: &[Battery], glyphs: &Glyphs) -> Vec<Warning> {
 }
 
 /// The overview: what needs a look, every feature's switches, then their cards in two columns.
-pub fn dashboard(island: &Island, cx: &gpui::App) -> PanelView {
-    let glyphs = cx.global::<Glyphs>();
-    let (dashboard, batteries) = island.dashboard(cx);
+pub fn dashboard(
+    (dashboard, batteries): (features::Dashboard, Vec<Battery>),
+    stats: &SysStats,
+    glyphs: &Glyphs,
+) -> PanelView {
     let mut warnings = battery_warnings(&batteries, glyphs);
     warnings.extend(dashboard.warnings);
-    warnings.extend(system_warnings(&island.stats, glyphs));
+    warnings.extend(system_warnings(stats, glyphs));
     let mut cards = dashboard.cards;
     if !batteries.is_empty() {
         cards.push(batteries_card(&batteries, glyphs));
     }
-    cards.push(system_card(&island.stats, glyphs));
+    cards.push(system_card(stats, glyphs));
     let mut blocks = Vec::new();
     if !warnings.is_empty() {
         blocks.push(Block::Warnings(warnings));
@@ -839,8 +805,8 @@ pub fn dashboard(island: &Island, cx: &gpui::App) -> PanelView {
 
 pub fn panel<'a>(island: &'a Island, panel: Panel, cx: &gpui::App) -> PanelView {
     match panel {
-        Panel::Dashboard => dashboard(island, cx),
-        Panel::System => system(&island.stats, cx.global(), island.displays()),
+        Panel::Dashboard => dashboard(island.dashboard(cx), &island.stats, cx.global()),
+        Panel::System => system(&island.stats, cx.global(), island.stage().displays()),
         Panel::Feature(name) => island.feature_panel(name, cx).unwrap_or_else(empty),
         Panel::Popups => island.popups(cx).unwrap_or_else(empty),
     }

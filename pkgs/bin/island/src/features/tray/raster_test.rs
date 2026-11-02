@@ -6,12 +6,7 @@ fn pixels(picture: Picture) -> (u32, u32, Vec<u8>) {
     let Picture::Pixels(image) = picture else {
         panic!("expected pixels");
     };
-    let size = image.size(0);
-    (
-        size.width.0 as u32,
-        size.height.0 as u32,
-        image.as_bytes(0).unwrap().to_vec(),
-    )
+    (image.width(), image.height(), image.as_raw().clone())
 }
 
 fn argb(side: i32, pixel: [u8; 4]) -> (i32, i32, Vec<u8>) {

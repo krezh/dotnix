@@ -108,6 +108,7 @@ pub(super) struct Notice {
 #[derive(Default)]
 pub(super) struct Tracker {
     previous: HashMap<(Source, String, String), Severity>,
+    previous_credits: HashMap<(Source, String), u64>,
 }
 
 /// The local hour of a time, which the forecast counts nights by.
@@ -178,6 +179,36 @@ fn notice(provider: &Provider, limit: &Limit, before: Severity) -> Option<Notice
         critical,
     })
 }
+fn credit_notice(provider: &Provider, count: u64, before: u64) -> Option<Notice> {
+    let added = count.checked_sub(before)?;
+    if added == 0 {
+        return None;
+    }
+    let account = if provider.account.is_empty() {
+        String::new()
+    } else {
+        format!(" · {}", provider.account)
+    };
+    let subject = format!("{} · {}{account}", provider.source.name(), provider.name);
+    let title = if added == 1 {
+        format!("{subject} · Reset token added")
+    } else {
+        format!("{subject} · {added} reset tokens added")
+    };
+    let noun = if count == 1 {
+        "reset token"
+    } else {
+        "reset tokens"
+    };
+    Some(Notice {
+        key: format!("credits {subject}"),
+        session: None,
+        app: "Island AI",
+        title,
+        body: format!("{count} {noun} available"),
+        critical: false,
+    })
+}
 
 impl Tracker {
     pub(super) fn restore_claude(
@@ -193,6 +224,8 @@ impl Tracker {
         self.previous.retain(|(source, id, _), _| {
             *source != Source::Claude || Some(id.as_str()) == identity
         });
+        self.previous_credits
+            .retain(|(source, id), _| *source != Source::Claude || Some(id.as_str()) == identity);
         if state
             .providers
             .iter()
@@ -267,6 +300,7 @@ impl Tracker {
         }
         let mut notices = Vec::new();
         let mut next = HashMap::new();
+        let mut next_credits = HashMap::new();
         let disabled = settings.disabled_limits.get(&source);
         for provider in &mut report.providers {
             if let Some(limits) =
@@ -301,10 +335,27 @@ impl Tracker {
                     next.insert(key, limit.severity);
                 }
             }
+            let credit_key = (source, provider.id.clone());
+            let count = provider.credits.as_ref().map_or(0, |credits| credits.count);
+            if settings.alerts.notifications && provider.freshness.is_fresh() {
+                if let Some(&before) = self.previous_credits.get(&credit_key) {
+                    if count > before {
+                        if let Some(notice) = credit_notice(provider, count, before) {
+                            notices.push(notice);
+                        }
+                    }
+                }
+            }
+            if provider.freshness != Freshness::Cached {
+                next_credits.insert(credit_key, count);
+            }
         }
         self.previous
             .retain(|(kept_source, _, _), _| *kept_source != source);
         self.previous.extend(next);
+        self.previous_credits
+            .retain(|(kept_source, _), _| *kept_source != source);
+        self.previous_credits.extend(next_credits);
         let providers = Arc::make_mut(&mut state.providers);
         providers.retain(|provider| provider.source != source);
         providers.extend(report.providers);

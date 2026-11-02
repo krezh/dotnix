@@ -6,6 +6,7 @@ use crate::{
     components::{button, reveal},
     island::Island,
     panel::Handler,
+    panel::IslandUi,
     theme::{
         CARD_BORDER_ALPHA, CRUST, GREEN, MONO, OVERLAY1, RED, SUBTEXT1, SURFACE1, TEXT, with_alpha,
     },
@@ -126,7 +127,7 @@ pub fn code(id: &str, code: Code, hover: bool, cx: &mut Context<Island>) -> AnyE
         )
         .on_click(cx.listener(move |this, _, _, cx| {
             cx.stop_propagation();
-            handler(this, cx);
+            handler(&mut IslandUi::new(this, cx));
         }))
     });
     let heading = match (code.heading, copy.is_some()) {

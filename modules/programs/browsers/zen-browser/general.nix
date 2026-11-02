@@ -1,7 +1,10 @@
-{ inputs, ... }:
-{
+{ inputs, ... }: {
   flake.modules.homeManager.browsers =
-    { config, pkgs, ... }:
+    {
+      config,
+      pkgs,
+      ...
+    }:
     let
       lock = Value: {
         inherit Value;
@@ -17,6 +20,14 @@
           isDefault = true;
           extensions.packages = [ pkgs.opentodo-browser-extension ];
           mods = [ ];
+          sine = {
+            enable = true;
+            mods = [
+              "1b88a6d1-d931-45e8-b6c3-bfdca2c7e9d6" # Remove Tab X
+              "2317fd93-c3ed-4f37-b55a-304c1816819e" # Audio Indicator Enhanced
+              "a6335949-4465-4b71-926c-4a52d34bc9c0" # Better Find Bar
+            ];
+          };
           settings = {
             "general.smoothScroll.msdPhysics.enabled" = false;
             "general.smoothScroll.currentVelocityWeighting" = 0;
@@ -150,10 +161,10 @@
         };
       };
 
-      xdg.configFile."zen/${config.home.username}/chrome" = {
-        source = ./chrome;
-        recursive = true;
-        force = true;
-      };
+      # xdg.configFile."zen/${config.home.username}/chrome" = {
+      #   source = ./chrome;
+      #   recursive = true;
+      #   force = true;
+      # };
     };
 }

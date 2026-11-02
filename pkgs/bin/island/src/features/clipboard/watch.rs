@@ -42,7 +42,7 @@ use super::{
     state::State,
     store::{Clip, Store},
 };
-use crate::{compositor, features::Feed, supervisor::Ended};
+use crate::{compositor, features::Feed, profile, supervisor::Ended};
 
 /// Offered by island's own selections, so it does not copy them back in.
 const MARKER: &str = "application/x-island-clipboard";
@@ -370,7 +370,7 @@ impl Worker<'_> {
         offer: Option<ExtDataControlOfferV1>,
     ) -> io::Result<bool> {
         let Some(offer) = offer else {
-            if self.settings.persist && watch.served.is_none() {
+            if self.settings.persist && !profile::preview() && watch.served.is_none() {
                 if let Ok(Some(newest)) = self.store.newest() {
                     debug!("the clipboard emptied; handing the newest entry back");
                     self.serve(watch, newest);

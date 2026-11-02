@@ -5,8 +5,8 @@
 use std::{f32::consts::PI, path::PathBuf};
 
 use gpui::{
-    AnimationExt, AnyElement, Context, FontWeight, SharedString, SpringAnimation, SpringConfig,
-    Transformation, div, prelude::*, px, radians, rgb, rgba, svg,
+    AnimationExt, AnyElement, Context, FontWeight, SharedString, SpringAnimation, Transformation,
+    div, prelude::*, px, radians, rgb, rgba, svg,
 };
 
 use crate::{
@@ -19,6 +19,8 @@ use crate::{
     },
     island::Island,
     panel::Handler,
+    panel::IslandUi,
+    spring::SpringConfig,
     theme::{ACCENT_TINT_ALPHA, OVERLAY2, SUBTEXT1, TEXT, with_alpha},
     ui::{self, Radius, SMALL_SIZE, TEXT_SIZE},
 };
@@ -30,7 +32,7 @@ const AMOUNT_W: f32 = 40.0;
 const LEAD: f32 = 40.0;
 const BUTTON_H: f32 = 24.0;
 const BUTTON_GLYPH: f32 = 15.0;
-const TURN_SPRING: SpringConfig = SpringConfig::new(300.0, 34.6, 1.0);
+pub const TURN_SPRING: SpringConfig = SpringConfig::new(300.0, 34.6, 1.0);
 
 /// Between the lead and the text.
 pub const LEAD_GAP: f32 = 12.0;
@@ -148,8 +150,7 @@ fn lead_element(id: SharedString, lead: Lead, hover: bool, cx: &mut Context<Isla
             let alpha = (strength.clamp(0.0, 1.0) * GLOW_ALPHA) as u8;
             ui::shape(Radius::Control, Some(rgba(with_alpha(color, alpha)).into()))
         });
-    // A mascot answers the pointer itself, so it goes without the grey hover behind.
-    let own_hover = matches!(lead.mark, Some(Mark::Mascot(_)));
+    let own_hover = matches!(lead.mark, Some(Mark::Drawn(_)));
     let mark = div()
         .when(lead.faded, |mark| mark.opacity(0.4))
         .children(lead.mark.as_ref().map(|mark| badge::mark(mark, size, fill)));
@@ -160,7 +161,7 @@ fn lead_element(id: SharedString, lead: Lead, hover: bool, cx: &mut Context<Isla
             .flex_none()
             .cursor_pointer()
             .child(mark)
-            .on_click(cx.listener(move |this, _, _, cx| handler(this, cx)))
+            .on_click(cx.listener(move |this, _, _, cx| handler(&mut IslandUi::new(this, cx))))
             .into_any_element(),
         Some(handler) => button::ghost(id, hover)
             .size(px(size))
@@ -168,7 +169,7 @@ fn lead_element(id: SharedString, lead: Lead, hover: bool, cx: &mut Context<Isla
             .children(tint)
             .children(glow)
             .child(mark)
-            .on_click(cx.listener(move |this, _, _, cx| handler(this, cx)))
+            .on_click(cx.listener(move |this, _, _, cx| handler(&mut IslandUi::new(this, cx))))
             .into_any_element(),
         None => div()
             .relative()
@@ -231,7 +232,7 @@ fn trail_element(
             .child("✕")
             .on_click(cx.listener(move |this, _, _, cx| {
                 cx.stop_propagation();
-                on_click(this, cx);
+                on_click(&mut IslandUi::new(this, cx));
             }))
             .into_any_element(),
         Trail::Button(trail) => {
@@ -243,7 +244,11 @@ fn trail_element(
                     .text_color(rgb(color))
                     .with_spring(
                         SharedString::from(format!("{id}-turn")),
-                        SpringAnimation::new(TURN_SPRING).to(if trail.turned { PI } else { 0.0 }),
+                        SpringAnimation::new(TURN_SPRING.into()).to(if trail.turned {
+                            PI
+                        } else {
+                            0.0
+                        }),
                         |glyph, angle| {
                             glyph.with_transformation(Transformation::rotate(radians(angle)))
                         },
@@ -272,7 +277,7 @@ fn trail_element(
                 )
                 .on_click(cx.listener(move |this, _, _, cx| {
                     cx.stop_propagation();
-                    on_click(this, cx);
+                    on_click(&mut IslandUi::new(this, cx));
                 }))
                 .into_any_element()
         }

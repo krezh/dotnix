@@ -874,7 +874,8 @@ impl Renderer {
         let primary = match (hud.purpose, hud.to_clipboard) {
             (SelectionPurpose::Screenshot, true) => "Screenshot area · Copy to clipboard",
             (SelectionPurpose::Screenshot, false) => "Screenshot area",
-            (SelectionPurpose::Recording, _) => "Record area",
+            (SelectionPurpose::Recording, true) => "Record area · Copy to clipboard",
+            (SelectionPurpose::Recording, false) => "Record area",
             (SelectionPurpose::Ocr, _) => "OCR · Copy text to clipboard",
         };
         let guidance = if self.width < 560 {

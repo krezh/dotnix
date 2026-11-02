@@ -1,17 +1,12 @@
 //! Read once in the background at startup and kept in memory; each launch counts there at once and
 //! is written to the database in the background.
 
-use std::{
-    collections::HashMap,
-    sync::Mutex,
-    thread,
-    time::{SystemTime, UNIX_EPOCH},
-};
+use std::{collections::HashMap, sync::Mutex};
 
-use rusqlite::params;
+use rusqlite::{Connection, params};
 use tracing::{debug, warn};
 
-use crate::db;
+use crate::{db, supervisor, sync::lock, time::now};
 
 /// Only ever append.
 const MIGRATIONS: &[&str] = &["
@@ -21,6 +16,8 @@ CREATE TABLE launches (
     last INTEGER NOT NULL
 );
 "];
+
+static DB: db::Owner = db::Owner::new("launcher", MIGRATIONS);
 
 /// Seconds.
 const HALF_LIFE: f64 = 14.0 * 86_400.0;
@@ -36,56 +33,41 @@ pub struct Launches {
 
 static HISTORY: Mutex<Option<HashMap<String, Launches>>> = Mutex::new(None);
 
-fn now() -> i64 {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map_or(0, |elapsed| {
-            i64::try_from(elapsed.as_secs()).unwrap_or(i64::MAX)
-        })
-}
-
 /// Every launch counts, each weighing less the longer ago the last one was.
 pub fn frecency(launches: Launches, now: i64) -> f64 {
     let age = (now - launches.last).max(0) as f64;
     f64::from(launches.count) * 0.5_f64.powf(age / HALF_LIFE)
 }
 
-fn read() -> Result<HashMap<String, Launches>, String> {
-    let db = db::open("launcher", MIGRATIONS)?;
-    let fail = |error: rusqlite::Error| format!("cannot read the launch history: {error}");
+fn read(db: &Connection) -> rusqlite::Result<HashMap<String, Launches>> {
     db.execute(
         "DELETE FROM launches WHERE last < ?1",
         params![now() - FORGET],
-    )
-    .map_err(fail)?;
-    let mut statement = db
-        .prepare("SELECT app, count, last FROM launches")
-        .map_err(fail)?;
-    let rows = statement
-        .query_map([], |row| {
-            Ok((
-                row.get::<_, String>(0)?,
-                Launches {
-                    count: row.get(1)?,
-                    last: row.get(2)?,
-                },
-            ))
-        })
-        .map_err(fail)?;
-    rows.collect::<Result<_, _>>().map_err(fail)
+    )?;
+    let mut statement = db.prepare("SELECT app, count, last FROM launches")?;
+    let rows = statement.query_map([], |row| {
+        Ok((
+            row.get::<_, String>(0)?,
+            Launches {
+                count: row.get(1)?,
+                last: row.get(2)?,
+            },
+        ))
+    })?;
+    rows.collect()
 }
 
 /// Call it off the UI thread, as it may wait on the keyring. A launch counted meanwhile is kept:
 /// each app has the larger of the two counts, since the database may or may not have it already.
 pub fn load() {
-    let history = read().unwrap_or_else(|error| {
-        warn!("{error}");
-        HashMap::new()
-    });
+    let history = DB
+        .with("read the launch history", read)
+        .unwrap_or_else(|error| {
+            warn!("{error}");
+            HashMap::new()
+        });
     debug!(apps = history.len(), "read the launch history");
-    let mut shared = HISTORY
-        .lock()
-        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    let mut shared = lock(&HISTORY);
     let counted = shared.take().unwrap_or_default();
     *shared = Some(merge(history, counted));
 }
@@ -105,9 +87,7 @@ fn merge(
 
 pub fn ranks() -> HashMap<String, f64> {
     let now = now();
-    HISTORY
-        .lock()
-        .unwrap_or_else(|poisoned| poisoned.into_inner())
+    lock(&HISTORY)
         .iter()
         .flatten()
         .map(|(app, launches)| (app.clone(), frecency(*launches, now)))
@@ -117,9 +97,7 @@ pub fn ranks() -> HashMap<String, f64> {
 pub fn record(app: &str) {
     let at = now();
     {
-        let mut shared = HISTORY
-            .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        let mut shared = lock(&HISTORY);
         let launches = shared
             .get_or_insert_default()
             .entry(app.to_owned())
@@ -128,21 +106,18 @@ pub fn record(app: &str) {
         launches.last = at;
     }
     let app = app.to_owned();
-    let _ = thread::Builder::new()
-        .name("island-launches".into())
-        .spawn(move || {
-            let written = db::open("launcher", MIGRATIONS).and_then(|db| {
-                db.execute(
-                    "INSERT INTO launches (app, count, last) VALUES (?1, 1, ?2)
+    supervisor::spawn("island-launches", move || {
+        let written = DB.with("save a launch", |db| {
+            db.execute(
+                "INSERT INTO launches (app, count, last) VALUES (?1, 1, ?2)
                  ON CONFLICT (app) DO UPDATE SET count = count + 1, last = excluded.last",
-                    params![app, at],
-                )
-                .map_err(|error| format!("cannot save a launch: {error}"))
-            });
-            if let Err(error) = written {
-                warn!(app, "{error}");
-            }
+                params![app, at],
+            )
         });
+        if let Err(error) = written {
+            warn!(app, "{error}");
+        }
+    });
 }
 
 #[cfg(test)]

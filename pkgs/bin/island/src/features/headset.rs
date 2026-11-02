@@ -2,22 +2,19 @@ use std::{
     sync::{
         Mutex,
         atomic::{AtomicUsize, Ordering},
-        mpsc::{self, RecvTimeoutError, Sender},
+        mpsc::{self, Sender},
     },
     time::Duration,
 };
 
-use gpui::{AnyElement, MouseButton, prelude::*};
 use serde_json::Value;
 use tracing::{debug, warn};
 
-use super::{Battery as Power, Feature, Feed, Refreshed, WidgetCx};
+use super::{Battery as Power, Feature, Feed, Refreshed, Surface, Wake, WidgetCx};
 use crate::{
-    bar::Gauge,
-    components::tooltip::Tip,
-    island::Panel,
+    bar_widget::{BarWidget, Gauge},
     run,
-    supervisor::Ended,
+    stage::Panel,
     theme::{GREEN, OVERLAY2, TEXT},
 };
 
@@ -30,12 +27,6 @@ const TIMEOUT: Duration = Duration::from_secs(15);
 static LATEST: Mutex<Option<Battery>> = Mutex::new(None);
 static WATCHERS: AtomicUsize = AtomicUsize::new(0);
 static WAKE: Mutex<Option<Sender<Wake>>> = Mutex::new(None);
-
-enum Wake {
-    /// Right-clicked: the widget shows it is busy until the reading arrives.
-    Asked,
-    Watched,
-}
 
 pub fn latest() -> Option<Battery> {
     LATEST.lock().ok()?.clone()
@@ -54,13 +45,17 @@ pub fn watch() -> Watch {
     if WATCHERS.fetch_add(1, Ordering::SeqCst) == 0
         && let Some(wake) = WAKE.lock().ok().and_then(|wake| wake.clone())
     {
-        let _ = wake.send(Wake::Watched);
+        let _ = wake.send(Wake::Retimed);
     }
     Watch
 }
 
-fn watched() -> bool {
-    WATCHERS.load(Ordering::SeqCst) > 0
+fn interval() -> Duration {
+    if WATCHERS.load(Ordering::SeqCst) > 0 {
+        WATCHED_INTERVAL
+    } else {
+        INTERVAL
+    }
 }
 
 /// Game and chat volume, 0 to 1, from the dial's 0 (all game) to 128 (all chat).
@@ -94,11 +89,7 @@ fn read() -> Reading {
         Err(error) => return Reading::Failed(error),
     };
     let Ok(report) = serde_json::from_str::<Value>(&output.stdout) else {
-        return Reading::Failed(if output.stderr.is_empty() {
-            "invalid output from headsetcontrol".to_owned()
-        } else {
-            output.stderr
-        });
+        return Reading::Failed(output.failure("invalid output from headsetcontrol"));
     };
     let devices = report["devices"].as_array().cloned().unwrap_or_default();
     devices
@@ -125,6 +116,30 @@ fn read() -> Reading {
         .map_or(Reading::Absent, Reading::Present)
 }
 
+fn reading() -> Reading {
+    let reading = read();
+    if let Ok(mut latest) = LATEST.lock() {
+        *latest = match &reading {
+            Reading::Present(battery) => Some(battery.clone()),
+            _ => None,
+        };
+    }
+    reading
+}
+
+fn report(reading: &Reading) {
+    match reading {
+        Reading::Present(battery) => debug!(
+            name = battery.name,
+            level = ?battery.level,
+            charging = battery.charging,
+            "headset reading"
+        ),
+        Reading::Absent => debug!("no headset"),
+        Reading::Failed(error) => warn!("cannot read the headset: {error}"),
+    }
+}
+
 fn tip(battery: &Battery) -> String {
     let level = battery
         .level
@@ -145,11 +160,9 @@ impl Headset {
 
 impl Feature for Headset {
     const NAME: &'static str = "headset";
-    const DASHBOARD_ORDER: u8 = 40;
-    const GLYPHS: &'static [super::GlyphSpec] = &[("headset", &["headset"])];
 
     type State = Refreshed<Reading>;
-    type Local = ();
+
     type Event = ();
 
     fn start(feed: Feed<Refreshed<Reading>>) -> Self {
@@ -157,65 +170,8 @@ impl Feature for Headset {
         if let Ok(mut wake) = WAKE.lock() {
             *wake = Some(refresh.clone());
         }
-        feed.supervise(move |feed| {
-            let mut last: Option<Reading> = None;
-            let mut asked = false;
-            loop {
-                if asked
-                    && let Some(value) = last.clone()
-                    && !feed.publish(Refreshed {
-                        value,
-                        refreshing: true,
-                    })
-                {
-                    return Ended::Unwanted;
-                }
-                let reading = read();
-                if let Ok(mut latest) = LATEST.lock() {
-                    *latest = match &reading {
-                        Reading::Present(battery) => Some(battery.clone()),
-                        _ => None,
-                    };
-                }
-                if asked || last.as_ref() != Some(&reading) {
-                    if last.as_ref() != Some(&reading) {
-                        match &reading {
-                            Reading::Present(battery) => debug!(
-                                name = battery.name,
-                                level = ?battery.level,
-                                charging = battery.charging,
-                                "headset reading"
-                            ),
-                            Reading::Absent => debug!("no headset"),
-                            Reading::Failed(error) => warn!("cannot read the headset: {error}"),
-                        }
-                    }
-                    last = Some(reading.clone());
-                    if !feed.publish(Refreshed {
-                        value: reading,
-                        refreshing: false,
-                    }) {
-                        return Ended::Unwanted;
-                    }
-                }
-                let interval = if watched() {
-                    WATCHED_INTERVAL
-                } else {
-                    INTERVAL
-                };
-                asked = match requests.recv_timeout(interval) {
-                    Ok(Wake::Asked) => true,
-                    Ok(Wake::Watched) => false,
-                    Err(RecvTimeoutError::Timeout) => false,
-                    Err(RecvTimeoutError::Disconnected) => return Ended::Unwanted,
-                };
-            }
-        });
+        feed.supervise(move |feed| feed.poll(&requests, interval, reading, report));
         Self { refresh }
-    }
-
-    fn present(_: &str, state: &Refreshed<Reading>) -> bool {
-        matches!(state.value, Reading::Present(_))
     }
 
     fn batteries(&self, state: &Refreshed<Reading>) -> Vec<Power> {
@@ -234,13 +190,25 @@ impl Feature for Headset {
             .into_iter()
             .collect()
     }
+}
+
+impl Surface for Headset {
+    const DASHBOARD_ORDER: u8 = 40;
+
+    const GLYPHS: &'static [super::GlyphSpec] = &[("headset", &["headset"])];
+
+    type Local = ();
+
+    fn present(_: &str, state: &Refreshed<Reading>) -> bool {
+        matches!(state.value, Reading::Present(_))
+    }
 
     fn widget(
         &self,
         _: &str,
         state: &Refreshed<Reading>,
         w: &mut WidgetCx<'_>,
-    ) -> Option<AnyElement> {
+    ) -> Option<BarWidget> {
         let Reading::Present(battery) = &state.value else {
             return None;
         };
@@ -260,10 +228,9 @@ impl Feature for Headset {
         };
         Some(
             gauge
-                .tip(w.tips(), "bar-headset", tip(battery))
+                .tip(tip(battery))
                 .on_click(w.toggle(Panel::Dashboard))
-                .on_mouse_down(MouseButton::Right, w.call(Headset::refresh))
-                .into_any_element(),
+                .on_right(w.call(Headset::refresh)),
         )
     }
 }

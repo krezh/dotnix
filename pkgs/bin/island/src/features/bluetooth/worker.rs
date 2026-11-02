@@ -25,7 +25,12 @@ use super::{
     runtime::Request,
     state::{Asking, Busy, State},
 };
-use crate::{features::Feed, supervisor::Ended};
+use crate::{
+    features::Feed,
+    profile,
+    supervisor::{self, Ended},
+    sync::lock,
+};
 
 /// How long a scan runs before it stops by itself.
 const SCAN_FOR: Duration = Duration::from_secs(30);
@@ -150,23 +155,16 @@ impl World {
         if !adapter.discoverable {
             self.visible_until = None;
         }
-        *visible
-            .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner()) = adapter.discoverable;
-        let asking = asked
-            .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner())
-            .current
-            .clone()
-            .map(|ask| Asking {
-                id: ask.id,
-                device: devices
-                    .iter()
-                    .find(|device| device.path == ask.device)
-                    .map_or_else(|| "a device".to_owned(), |device| device.name.clone()),
-                code: ask.code,
-                confirm: ask.confirm,
-            });
+        *lock(&visible) = adapter.discoverable;
+        let asking = lock(&asked).current.clone().map(|ask| Asking {
+            id: ask.id,
+            device: devices
+                .iter()
+                .find(|device| device.path == ask.device)
+                .map_or_else(|| "a device".to_owned(), |device| device.name.clone()),
+            code: ask.code,
+            confirm: ask.confirm,
+        });
         self.state = State {
             available: parsed.is_some(),
             powered: adapter.powered,
@@ -233,12 +231,9 @@ impl World {
                 Some(adapter) => {
                     self.scan += 1;
                     let (generation, sender) = (self.scan, sender.clone());
-                    let _ = thread::Builder::new()
-                        .name("island-bluetooth-scan".into())
-                        .spawn(move || {
-                            thread::sleep(SCAN_FOR);
-                            let _ = sender.unbounded_send(Request::StopScan(generation));
-                        });
+                    supervisor::after("island-bluetooth-scan", SCAN_FOR, move || {
+                        let _ = sender.unbounded_send(Request::StopScan(generation));
+                    });
                     bluez::adapter_call(connection, adapter, "StartDiscovery").await
                 }
                 None => Ok(()),
@@ -307,18 +302,13 @@ impl World {
                 None => Ok(()),
             },
             Request::Answer(id, yes) => {
-                asked
-                    .lock()
-                    .unwrap_or_else(|poisoned| poisoned.into_inner())
-                    .answer(id, yes);
+                lock(&asked).answer(id, yes);
                 Ok(())
             }
             Request::Done(path) => {
                 self.busy.remove(&path);
                 // A pairing that ended takes its code card with it.
-                let mut asked = asked
-                    .lock()
-                    .unwrap_or_else(|poisoned| poisoned.into_inner());
+                let mut asked = lock(&asked);
                 if asked.current.as_ref().is_some_and(|ask| ask.device == path) {
                     asked.clear();
                 }
@@ -341,9 +331,7 @@ pub(super) fn run(
     requests: &Mutex<UnboundedReceiver<Request>>,
     sender: &UnboundedSender<Request>,
 ) -> Ended {
-    let mut requests = requests
-        .lock()
-        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    let mut requests = lock(&requests);
     block_on(async {
         let connection = match Connection::system().await {
             Ok(connection) => connection,
@@ -376,9 +364,11 @@ pub(super) fn run(
         };
         let mut world = World::default();
         world.reload(&connection).await;
-        match bluez::register_agent(&connection, agent::PATH).await {
-            Ok(()) => info!("pairing through island"),
-            Err(error) => warn!("cannot become BlueZ's pairing agent: {error}"),
+        if !profile::preview() {
+            match bluez::register_agent(&connection, agent::PATH).await {
+                Ok(()) => info!("pairing through island"),
+                Err(error) => warn!("cannot become BlueZ's pairing agent: {error}"),
+            }
         }
         world.build(&asked, &visible);
         if !feed.publish(world.state.clone()) {
@@ -396,7 +386,7 @@ pub(super) fn run(
                     if restarted {
                         // BlueZ came back or went away: read it afresh and be its agent again.
                         world.reload(&connection).await;
-                        if !world.objects.is_empty() {
+                        if !world.objects.is_empty() && !profile::preview() {
                             let _ = bluez::register_agent(&connection, agent::PATH).await;
                         }
                         true
@@ -405,7 +395,7 @@ pub(super) fn run(
                     }
                 }
                 Event::Bus(Err(error)) => {
-                    debug!("a BlueZ signal could not be read: {error}");
+                    debug!("cannot read a BlueZ signal: {error}");
                     false
                 }
                 Event::Request(request) => {

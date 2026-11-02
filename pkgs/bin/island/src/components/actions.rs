@@ -2,24 +2,24 @@
 //! forgetting a device. Opening grows the button into the list below it, its right edge kept, as
 //! the island grows into a panel; closing folds it back.
 
-use std::{cell::RefCell, collections::HashMap, path::PathBuf, time::Instant};
+use std::path::PathBuf;
 
 use gpui::{
-    AnyElement, Bounds, Context, FontWeight, MouseDownEvent, Pixels, SharedString, div, prelude::*,
-    px, rgb,
+    AnyElement, Bounds, Context, FontWeight, MouseButton, MouseDownEvent, Pixels, SharedString,
+    div, prelude::*, px, rgb,
 };
 
 use crate::{
     components::{
         button, icon,
         measure::{self, Measured},
-        popover::Popovers,
+        popover::{self, Growth, Popovers},
         tooltip::{Tip, Tooltips},
     },
-    island::{CONTENT_DRIFT, CONTENT_IN, CONTENT_OUT, Island, SHAPE_SPRING},
+    island::Island,
     panel::Handler,
+    panel::IslandUi,
     shape,
-    spring::Spring,
     theme::{POPOVER_OPACITY, RED, SUBTEXT1, TEXT},
     ui::{self, Radius, SMALL_SIZE},
 };
@@ -57,56 +57,6 @@ pub struct Actions {
     pub on_toggle: Handler,
 }
 
-struct Morph {
-    grown: Spring,
-    revealed: Spring,
-    open: bool,
-    at: Instant,
-    natural: Measured,
-}
-
-impl Morph {
-    fn new() -> Self {
-        Self {
-            grown: Spring::new(0.0, SHAPE_SPRING, 0.001),
-            revealed: Spring::new(0.0, CONTENT_IN, 0.002),
-            open: false,
-            at: Instant::now(),
-            natural: measure::measured(),
-        }
-    }
-
-    fn advance(&mut self, open: bool) {
-        let now = Instant::now();
-        let dt = now.duration_since(self.at).as_secs_f32().min(0.05);
-        self.at = now;
-        if open != self.open {
-            self.open = open;
-            if open {
-                self.grown.retarget(1.0, SHAPE_SPRING);
-                self.revealed.retarget(1.0, CONTENT_IN);
-            } else {
-                self.grown.retarget(0.0, SHAPE_SPRING);
-                self.revealed.retarget(0.0, CONTENT_OUT);
-            }
-        }
-        self.grown.advance(dt, now);
-        self.revealed.advance(dt, now);
-    }
-
-    fn moving(&self) -> bool {
-        !(self.grown.is_settled() && self.revealed.is_settled())
-    }
-
-    fn shown(&self) -> bool {
-        self.open || self.grown.value().abs() > 0.001
-    }
-}
-
-thread_local! {
-    static MORPHS: RefCell<HashMap<SharedString, Morph>> = RefCell::default();
-}
-
 fn mix(from: f32, to: f32, at: f32) -> f32 {
     from + (to - from) * at
 }
@@ -114,6 +64,7 @@ fn mix(from: f32, to: f32, at: f32) -> f32 {
 fn row(action: &Action, hover: bool) -> gpui::Stateful<gpui::Div> {
     let color = if action.danger { RED } else { TEXT };
     button::ghost(action.id.clone(), hover)
+        .active(|style| style)
         .h(px(ROW_H))
         .px(px(ROW_PAD))
         .justify_between()
@@ -167,70 +118,71 @@ fn measuring(actions: &[Action], natural: &Measured) -> AnyElement {
 fn surface(
     view: Actions,
     anchor: Bounds<Pixels>,
-    grown: f32,
-    revealed: f32,
-    natural: Option<gpui::Size<Pixels>>,
+    growth: &Growth,
     popovers: &Popovers,
     hover: bool,
     cx: &mut Context<Island>,
 ) -> AnyElement {
     let (button_w, button_h) = (f32::from(anchor.size.width), f32::from(anchor.size.height));
-    let (open_w, open_h) = natural.map_or((button_w, button_h), |size| {
+    let (open_w, open_h) = growth.natural.get().map_or((button_w, button_h), |size| {
         (f32::from(size.width), f32::from(size.height))
     });
-    let w = mix(button_w, open_w, grown).max(0.0);
-    let h = mix(button_h, open_h, grown).max(0.0);
-    let look = grown.clamp(0.0, 1.0);
-    let shown = revealed.clamp(0.0, 1.0);
+    let live = growth.live;
+    // On whole pixels, so text, which is drawn on them, keeps still against the edges.
+    let w = mix(button_w, open_w, growth.grown).max(0.0).round();
+    let h = mix(button_h, open_h, growth.grown).max(0.0).round();
     let (radius, power) = Radius::Control.geometry();
     let right = f32::from(anchor.origin.x + anchor.size.width);
-    let left = popovers.keep_within(right - w, w, EDGE_MARGIN);
-    let top = f32::from(anchor.origin.y) + mix(0.0, button_h + DROP, look);
+    let left = popovers.keep_within(right - w, w, EDGE_MARGIN).round();
+    let top = (f32::from(anchor.origin.y) + mix(0.0, button_h + DROP, growth.look)).round();
     let rows: Vec<AnyElement> = view
         .actions
         .into_iter()
         .map(|action| {
-            let handler = action.on_click.clone();
-            row(&action, hover)
-                .on_click(cx.listener(move |this, _, _, cx| handler(this, cx)))
+            let row = row(&action, hover);
+            if live {
+                let handler = action.on_click.clone();
+                row.on_click(
+                    cx.listener(move |this, _, _, cx| handler(&mut IslandUi::new(this, cx))),
+                )
                 .into_any_element()
+            } else {
+                row.into_any_element()
+            }
         })
         .collect();
     let list = div()
         .absolute()
-        .top(px(INSET - (1.0 - shown) * CONTENT_DRIFT))
+        .top(px(INSET))
         .right(px(INSET))
         .w(px((open_w - 2.0 * INSET).max(0.0)))
-        .opacity(shown)
+        .opacity(growth.rows)
         .flex()
         .flex_col()
         .gap(px(ROW_SPACING))
         .children(rows);
-    let dismiss = view.on_toggle;
     ui::base()
         .absolute()
         .left(px(left))
         .top(px(top))
         .w(px(w))
         .h(px(h))
-        .child(div().absolute().size_full().opacity(look).child(ui::shadow(
-            radius,
-            power,
-            SHADOW_SPREAD,
-        )))
+        .child(
+            div()
+                .absolute()
+                .size_full()
+                .opacity(growth.cover)
+                .child(ui::shadow(radius, power, SHADOW_SPREAD)),
+        )
         .child(shape::background(
             radius,
             power,
-            ui::surface_fill(POPOVER_OPACITY),
-            Some(ui::surface_border()),
+            ui::surface_fill(POPOVER_OPACITY).opacity(growth.cover),
+            Some(ui::surface_border().opacity(growth.cover)),
         ))
-        .child(popovers.reach(radius, power))
+        .child(popovers.reach())
         .child(div().absolute().size_full().overflow_hidden().child(list))
-        .on_mouse_down_out(cx.listener(move |this, event: &MouseDownEvent, _, cx| {
-            if !anchor.contains(&event.position) {
-                dismiss(this, cx);
-            }
-        }))
+        .when(live, |surface| surface.occlude())
         .into_any_element()
 }
 
@@ -242,19 +194,7 @@ pub fn actions(
     hover: bool,
     cx: &mut Context<Island>,
 ) -> AnyElement {
-    let (grown, revealed, shown, natural) = MORPHS.with_borrow_mut(|morphs| {
-        let morph = morphs.entry(view.id.clone()).or_insert_with(Morph::new);
-        morph.advance(view.open);
-        if morph.moving() {
-            popovers.animate();
-        }
-        (
-            morph.grown.value(),
-            morph.revealed.value(),
-            morph.shown(),
-            morph.natural.clone(),
-        )
-    });
+    let growth = popovers.grow(&view.id, view.open);
     let toggle = view.on_toggle.clone();
     let button = button::button(
         button::Button::new(view.id.clone())
@@ -265,22 +205,23 @@ pub fn actions(
     )
     .child(popovers.anchor(view.id.clone()))
     .tip(tips, view.id.clone(), view.label.clone())
-    .on_click(cx.listener(move |this, _, _, cx| {
-        cx.stop_propagation();
-        toggle(this, cx);
-    }));
-    if shown && let Some(bounds) = popovers.anchor_bounds(&view.id) {
-        popovers.show(measuring(&view.actions, &natural));
-        popovers.show(surface(
-            view,
-            bounds,
-            grown,
-            revealed,
-            natural.get(),
-            popovers,
-            hover,
-            cx,
-        ));
+    // Opens on the press, as a menu does: the morph is the feedback, with no dimming before it.
+    .active(|style| style)
+    .on_mouse_down(
+        MouseButton::Left,
+        cx.listener(move |this, _: &MouseDownEvent, _, cx| {
+            cx.stop_propagation();
+            toggle(&mut IslandUi::new(this, cx));
+        }),
+    );
+    if growth.shown
+        && let Some(bounds) = growth.anchor
+    {
+        if growth.open {
+            popovers.show(popover::scrim(bounds, view.on_toggle.clone(), cx));
+        }
+        popovers.show(measuring(&view.actions, &growth.natural));
+        popovers.show(surface(view, bounds, &growth, popovers, hover, cx));
     }
     button.into_any_element()
 }

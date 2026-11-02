@@ -2,9 +2,10 @@ use std::sync::Arc;
 
 use super::{accounts, horizon, pack_outages, pool_note, resets, short_label};
 use crate::{
-    components::{mascot::Activity, timeline::Span},
+    components::timeline::Span,
     features::ai::{
         format, jelly,
+        mascot::Activity,
         state::{Credits, Freshness, Limit, Provider, Severity, Source, State},
         view::{Account, Tab, View},
     },
@@ -89,7 +90,10 @@ fn labels_that_differ_or_stand_alone_stay_whole() {
     let alone = [limit("Claude 5 Hour")];
     assert_eq!(short_label("Claude 5 Hour", &alone), "Claude 5 Hour");
     let parens_alone = [limit("(Argon) · Weekly")];
-    assert_eq!(short_label("(Argon) · Weekly", &parens_alone), "Argon · Weekly");
+    assert_eq!(
+        short_label("(Argon) · Weekly", &parens_alone),
+        "Argon · Weekly"
+    );
 }
 
 #[test]
@@ -242,7 +246,12 @@ fn jelly_stays_awake_while_another_provider_remains_ready() {
 fn account_fold_toggle_is_reversible_and_resets_on_close() {
     use crate::features::Local;
 
-    let p = provider(Source::Omp, "ag", "Google Antigravity", vec![limit("Weekly")]);
+    let p = provider(
+        Source::Omp,
+        "ag",
+        "Google Antigravity",
+        vec![limit("Weekly")],
+    );
     let account = Account::of(&p);
     let mut view = View::default();
     assert!(!view.is_expanded(&account));

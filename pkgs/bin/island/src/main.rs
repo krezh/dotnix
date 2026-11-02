@@ -1,5 +1,9 @@
 mod activation;
+#[cfg(test)]
+#[path = "architecture_test.rs"]
+mod architecture;
 mod bar;
+mod bar_widget;
 mod cli;
 mod components;
 mod compositor;
@@ -9,11 +13,15 @@ mod copy;
 mod cover;
 mod db;
 mod dbus;
+mod drawing;
 mod effects;
 mod features;
+mod frontend;
 mod glyphs;
+mod gpu;
 mod icons;
 mod island;
+mod key;
 mod keyring;
 mod launch;
 mod logging;
@@ -21,15 +29,26 @@ mod markdown;
 mod menu;
 mod panel;
 mod panels;
+mod paths;
+mod picture;
 mod presence;
+mod profile;
+mod resume;
 mod run;
 mod shape;
 mod shell;
 mod spring;
+mod stage;
 mod supervisor;
+mod sync;
 mod sys;
+#[cfg(test)]
+mod testing;
 mod theme;
+mod time;
 mod ui;
+mod units;
+mod uri;
 mod wm;
 
 use std::{path::PathBuf, rc::Rc};
@@ -47,6 +66,7 @@ struct Args {
     power: Option<f32>,
     opacity: Option<f32>,
     icon_theme: Option<String>,
+    frontend: Option<config::Frontend>,
 }
 
 fn parse_args(args: impl Iterator<Item = String>) -> Result<Args, cli::Mistake> {
@@ -59,6 +79,21 @@ fn parse_args(args: impl Iterator<Item = String>) -> Result<Args, cli::Mistake> 
             "radius" => parsed.radius = Some(number(opt, &value, 0.0..=f32::MAX)?),
             "power" => parsed.power = Some(number(opt, &value, 1.0..=f32::MAX)?),
             "opacity" => parsed.opacity = Some(number(opt, &value, 0.0..=1.0)?),
+            "preview" => preview_beside_island(),
+            "frontend" => {
+                parsed.frontend = match value.as_str() {
+                    "gpui" => Some(config::Frontend::Gpui),
+                    "wgpu" => Some(config::Frontend::Wgpu),
+                    _ => {
+                        return Err(cli::Mistake::new(
+                            cli::Line::new()
+                                .push(cli::Tone::Command, opt.spelled())
+                                .plain(" takes gpui or wgpu, got ")
+                                .push(cli::Tone::Strong, &value),
+                        ));
+                    }
+                };
+            }
             _ => parsed.icon_theme = Some(value),
         }
     }
@@ -88,8 +123,28 @@ fn number(
     }
 }
 
+/// With no island to run beside, it simply is the island.
+fn preview_beside_island() {
+    if dbus::held(&profile::INSTANCES) {
+        profile::enter_preview();
+    }
+}
+
+/// With no preview running, `ctl` and `logs` reach the island that is.
+fn reach_preview() {
+    if dbus::held(&[profile::PREVIEW_NAME]) {
+        profile::enter_preview();
+    }
+}
+
 fn main() {
     let mut args = std::env::args().skip(1).peekable();
+    if args.next_if(|arg| arg == "--preview").is_some() {
+        match args.peek().map(String::as_str) {
+            Some("ctl" | "logs") => reach_preview(),
+            _ => preview_beside_island(),
+        }
+    }
     match args.peek().map(String::as_str) {
         Some("-h" | "--help") => {
             cli::print_help(None);
@@ -138,7 +193,11 @@ fn main() {
         .filter(|spec| !spec.trim().is_empty());
     logging::init(from_env.as_deref().unwrap_or(logging::DEFAULT));
     logging::catch_panics();
-    info!(version = env!("CARGO_PKG_VERSION"), "starting");
+    info!(
+        version = env!("CARGO_PKG_VERSION"),
+        preview = profile::preview(),
+        "starting"
+    );
 
     let config_path = parsed.config.clone().or_else(config::default_path);
     let settings = match config::load(parsed.config) {
@@ -192,8 +251,17 @@ fn main() {
     };
     let system = settings.features.system;
 
+    if parsed.frontend.unwrap_or(settings.frontend) == config::Frontend::Wgpu {
+        if let Err(error) = gpu::run(config, system, incoming, workspaces) {
+            error!("{error}");
+            std::process::exit(1);
+        }
+        drop(bus);
+        return;
+    }
+
     gpui_platform::application()
-        .with_assets(icons::Files)
+        .with_assets(frontend::Files)
         // Unplugging every monitor closes every island; outliving that lets them reopen when
         // outputs come back instead of exiting cleanly, which systemd would not restart.
         .with_quit_mode(QuitMode::Explicit)

@@ -15,7 +15,7 @@ use serde::Deserialize;
 use tracing::warn;
 
 use super::{probe, state::State, worker};
-use crate::{components::chart, features::Feed};
+use crate::{components::chart, features::Feed, resume, supervisor, sync::lock};
 
 /// How often what the charts show is measured, while the panel is open.
 pub(super) const SAMPLE_EVERY: Duration = chart::SAMPLE_EVERY;
@@ -23,10 +23,8 @@ pub(super) const PROBE_EVERY: Duration = chart::SAMPLE_EVERY;
 
 /// How far a history sampled `every` so often has scrolled since it last grew, 0 to 1, so its
 /// chart slides on the history's own clock.
-pub(super) fn phase(sampled: Option<std::time::Instant>, every: Duration) -> f32 {
-    sampled.map_or(1.0, |sampled| {
-        (sampled.elapsed().as_secs_f32() / every.as_secs_f32()).min(1.0)
-    })
+pub(super) fn phase(sampled: Option<std::time::Instant>, every: Duration) -> chart::Phase {
+    chart::Phase { sampled, every }
 }
 
 const PROBE_TIMEOUT: Duration = Duration::from_millis(1500);
@@ -103,10 +101,7 @@ impl Watched {
 
     /// Sleeps until the panel is open, without waking until it is.
     fn wait(&self) {
-        let guard = self
-            .lock
-            .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        let guard = lock(&self.lock);
         drop(
             self.opened
                 .wait_while(guard, |_| !self.watching())
@@ -129,12 +124,6 @@ impl Drop for Watch {
     }
 }
 
-fn spawn(name: &str, run: impl FnOnce() + Send + 'static) {
-    if let Err(error) = thread::Builder::new().name(name.into()).spawn(run) {
-        warn!("cannot start {name}: {error}");
-    }
-}
-
 /// Asks for a sample each second while the panel is open, and sleeps while it is not.
 fn sampler(watched: &Watched, requests: &UnboundedSender<Request>) {
     loop {
@@ -150,6 +139,12 @@ fn sampler(watched: &Watched, requests: &UnboundedSender<Request>) {
 
 /// Wakes the worker as each day begins.
 fn midnight(requests: &UnboundedSender<Request>) {
+    let (wake, woken) = std::sync::mpsc::channel();
+    let waker = wake.clone();
+    resume::listen(move || {
+        let _ = waker.send(());
+    });
+    let mut day = Local::now().date_naive();
     loop {
         let now = Local::now();
         let next = now
@@ -160,9 +155,13 @@ fn midnight(requests: &UnboundedSender<Request>) {
         let wait = next.map_or(Duration::from_secs(3600), |next| {
             (next - now).to_std().unwrap_or(Duration::from_secs(60))
         });
-        thread::sleep(wait);
-        if requests.unbounded_send(Request::Midnight).is_err() {
-            return;
+        let _ = woken.recv_timeout(wait);
+        let today = Local::now().date_naive();
+        if today != day {
+            day = today;
+            if requests.unbounded_send(Request::Midnight).is_err() {
+                return;
+            }
         }
     }
 }
@@ -180,9 +179,7 @@ fn probe_loop(watched: &Watched, probes: &Mutex<Probes>, settings: &Settings) {
         watched.wait();
         while watched.watching() {
             let (gateway_address, dns_address, round) = {
-                let probes = probes
-                    .lock()
-                    .unwrap_or_else(|poisoned| poisoned.into_inner());
+                let probes = lock(&probes);
                 (probes.gateway_address, probes.dns_address, probes.round)
             };
             sequence = sequence.wrapping_add(1);
@@ -195,9 +192,7 @@ fn probe_loop(watched: &Watched, probes: &Mutex<Probes>, settings: &Settings) {
                     .and_then(|server| probe::lookup(server, &settings.dns_probe, PROBE_TIMEOUT))
             });
             {
-                let mut probes = probes
-                    .lock()
-                    .unwrap_or_else(|poisoned| poisoned.into_inner());
+                let mut probes = lock(&probes);
                 probes.round += 1;
                 probes.gateway = gateway;
                 probes.internet = internet;
@@ -226,19 +221,19 @@ impl Network {
         let probes = Arc::new(Mutex::new(Probes::default()));
         {
             let (watched, probes, settings) = (watched.clone(), probes.clone(), settings.clone());
-            spawn("island-network-probe", move || {
+            supervisor::spawn("island-network-probe", move || {
                 probe_loop(&watched, &probes, &settings)
             });
         }
         {
             let (watched, requests) = (watched.clone(), requests.clone());
-            spawn("island-network-sample", move || {
+            supervisor::spawn("island-network-sample", move || {
                 sampler(&watched, &requests)
             });
         }
         {
             let requests = requests.clone();
-            spawn("island-network-midnight", move || midnight(&requests));
+            supervisor::spawn("island-network-midnight", move || midnight(&requests));
         }
         let shared = watched.clone();
         let sender = requests.clone();
@@ -255,11 +250,7 @@ impl Network {
     /// The panel is in view: the worker measures what it shows until it is not.
     pub(super) fn watch(&self) -> Watch {
         if self.watched.watchers.fetch_add(1, Ordering::SeqCst) == 0 {
-            let _guard = self
-                .watched
-                .lock
-                .lock()
-                .unwrap_or_else(|poisoned| poisoned.into_inner());
+            let _guard = lock(&self.watched.lock);
             self.watched.opened.notify_all();
             self.send(Request::Watch);
         }

@@ -20,6 +20,7 @@ use crate::{
     db,
     features::{Feed, notice::Origin},
     supervisor::Ended,
+    time::seconds,
 };
 
 /// Only ever append.
@@ -51,6 +52,8 @@ CREATE INDEX history_origin ON history (feature, origin);
 ",
 ];
 
+static DB: db::Owner = db::Owner::new("notifications", MIGRATIONS);
+
 /// The session and the notification's id together name it.
 #[derive(Clone, Debug)]
 pub struct Earlier {
@@ -74,12 +77,6 @@ impl Earlier {
 pub enum Write {
     Record(Earlier),
     Forget(Vec<(i64, u32)>),
-}
-
-fn seconds(time: SystemTime) -> i64 {
-    time.duration_since(UNIX_EPOCH).map_or(0, |elapsed| {
-        i64::try_from(elapsed.as_secs()).unwrap_or(i64::MAX)
-    })
 }
 
 /// Named by when it started; notification ids count afresh in each.
@@ -199,7 +196,7 @@ fn write(db: &mut Connection, write: Write) -> rusqlite::Result<()> {
 }
 
 pub fn work(feed: &Feed<State, Event>, writes: &Receiver<Write>, days: u32) -> Ended {
-    let mut db = match db::open("notifications", MIGRATIONS) {
+    let mut db = match DB.open() {
         Ok(db) => db,
         Err(error) => {
             return Ended::Failed(format!("cannot open the notification history: {error}"));

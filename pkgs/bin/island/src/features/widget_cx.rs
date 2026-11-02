@@ -1,53 +1,43 @@
-//! What a feature draws its bar widget with: the bar's look, its glyphs, and handlers that reach
-//! the feature or the island.
+//! What a feature describes its bar widget with: the bar's measures, its glyphs, and handlers that
+//! reach the feature or the island.
 
-use std::{cell::Cell, path::Path, time::Duration};
+use std::{any::Any, cell::Cell, path::Path, rc::Rc, time::Duration};
 
-use gpui::{AnyEntity, App, Context, Div, FontWeight, SharedString, Stateful, WeakEntity, Window};
-
-use super::{AnyLocal, Battery, Feature, Local, instance::instance};
+use super::{AnyLocal, Battery, Local, Surface, instance::instance};
 use crate::{
-    bar::{self, Gauge, Look, Slots},
-    components::{
-        marquee::{self, TextLayouts},
-        tooltip::Tooltips,
-    },
+    bar::ICON_GAP,
+    bar_widget::{BarWidget, Frame, Gauge, Part, Pointer, Press, Scroll},
     glyphs::Glyphs,
-    island::{Island, Panel},
+    panel::{SharedString, Ui},
+    stage::Panel,
 };
 
 const LATE: Duration = Duration::from_millis(5);
 
 pub struct WidgetCx<'a> {
-    look: Look<'a>,
-    slots: Slots,
+    padding: f32,
+    grouped: bool,
     glyphs: &'a Glyphs,
-    layouts: &'a TextLayouts,
-    island: &'a WeakEntity<Island>,
     local: Option<&'a dyn AnyLocal>,
     redraw: Cell<Option<Duration>>,
-    pub(super) entity: Option<AnyEntity>,
+    pub(super) instance: Option<Rc<dyn Any>>,
     pub(super) live: Vec<f32>,
 }
 
 impl<'a> WidgetCx<'a> {
     pub(crate) fn new(
-        look: Look<'a>,
-        slots: Slots,
+        padding: f32,
+        grouped: bool,
         glyphs: &'a Glyphs,
-        layouts: &'a TextLayouts,
-        island: &'a WeakEntity<Island>,
         local: Option<&'a dyn AnyLocal>,
     ) -> Self {
         Self {
-            look,
-            slots,
+            padding,
+            grouped,
             glyphs,
-            layouts,
-            island,
             local,
             redraw: Cell::new(None),
-            entity: None,
+            instance: None,
             live: Vec::new(),
         }
     }
@@ -73,50 +63,37 @@ impl<'a> WidgetCx<'a> {
     }
 
     pub fn padding(&self) -> f32 {
-        self.look.half()
+        self.padding
     }
 
-    /// Scrolls when the text does not fit `slot`; the widget then redraws on its own clock.
-    pub fn marquee(
-        &self,
-        text: impl Into<SharedString>,
-        size: f32,
-        weight: FontWeight,
-        slot: f32,
-    ) -> Div {
-        marquee::marquee(self.layouts, text.into(), size, weight, slot)
+    pub fn base(&self, id: impl Into<SharedString>) -> BarWidget {
+        BarWidget::new(id, Frame::Control)
     }
 
-    pub fn base(&self, id: impl Into<SharedString>) -> Stateful<Div> {
-        bar::widget_base(id, self.look)
+    /// A widget of marks beside short, strong text.
+    pub fn compact(&self, id: impl Into<SharedString>) -> BarWidget {
+        self.base(id).gap(ICON_GAP).small()
     }
 
-    /// For a widget made of several clickable parts, each showing its own hover through
-    /// `ui::control` with [`WidgetCx::hover`].
-    pub fn group(&self, id: impl Into<SharedString>) -> Stateful<Div> {
-        bar::widget_group(id, self.look)
+    /// For a widget made of several clickable parts, each a [`Frame::Spot`].
+    pub fn group(&self, id: impl Into<SharedString>) -> BarWidget {
+        BarWidget::new(id, Frame::Bare)
     }
 
-    pub fn hover(&self) -> bool {
-        self.look.hover()
-    }
-
-    /// As wide as the widest count ("88"), so the widget keeps its width as it changes.
-    pub fn count(&self, text: impl Into<SharedString>) -> Div {
-        bar::slot(text, self.slots.count())
-    }
-
-    pub fn energy(&self, busy: bool) -> impl gpui::IntoElement {
-        bar::energy(self.look, busy)
-    }
-
-    pub fn gauge(&self, id: &'static str, gauge: Gauge<'_>) -> Stateful<Div> {
-        bar::gauge(id, self.look, gauge)
+    pub fn gauge(&self, id: impl Into<SharedString>, gauge: Gauge<'_>) -> BarWidget {
+        self.base(id)
+            .gap(ICON_GAP)
+            .glyph(gauge.glyph, gauge.glyph_color)
+            .part(Part::Meter {
+                level: gauge.level,
+                color: gauge.level_color,
+            })
+            .part(Part::Busy(gauge.busy))
     }
 
     /// A battery's gauge, drawn as the dashboard draws it: its glyph, and how full it is in the
     /// shared colors.
-    pub fn battery(&self, id: &'static str, battery: &Battery, busy: bool) -> Stateful<Div> {
+    pub fn battery(&self, id: &'static str, battery: &Battery, busy: bool) -> BarWidget {
         self.gauge(
             id,
             Gauge {
@@ -133,54 +110,43 @@ impl<'a> WidgetCx<'a> {
         self.glyphs.get(key)
     }
 
-    pub fn tips(&self) -> &'a Tooltips {
-        self.look.tips
-    }
-
     /// In a group of widgets, every part opens the dashboard instead, the group being one widget.
-    pub fn toggle<E: ?Sized>(&self, panel: Panel) -> impl Fn(&E, &mut Window, &mut App) + 'static {
-        let panel = if self.look.grouped() {
+    pub fn toggle(&self, panel: Panel) -> Press {
+        let panel = if self.grouped {
             Panel::Dashboard
         } else {
             panel
         };
-        bar::on(self.island, move |island, _, cx| island.toggle(panel, cx))
+        Rc::new(move |_, ui: &mut dyn Ui| ui.toggle(panel))
     }
 
-    pub fn call<F: Feature, E: ?Sized>(
-        &self,
-        action: impl Fn(&F) + 'static,
-    ) -> impl Fn(&E, &mut Window, &mut App) + 'static {
-        self.on_event(move |feature: &F, _: &E| action(feature))
-    }
-
-    pub fn on_island<F: Feature + Clone, E: ?Sized>(
-        &self,
-        action: impl Fn(&F, &E, &mut Island, &mut Context<Island>) + 'static,
-    ) -> impl Fn(&E, &mut Window, &mut App) + 'static {
-        let instance = instance::<F>(&self.entity);
-        let island = self.island.clone();
-        move |event, _, cx| {
-            let Some(feature) = instance
-                .as_ref()
-                .and_then(WeakEntity::upgrade)
-                .map(|instance| instance.read(cx).feature.clone())
-            else {
-                return;
-            };
-            let _ = island.update(cx, |island, cx| action(&feature, event, island, cx));
-        }
-    }
-
-    pub fn on_event<F: Feature, E: ?Sized>(
-        &self,
-        action: impl Fn(&F, &E) + 'static,
-    ) -> impl Fn(&E, &mut Window, &mut App) + 'static {
-        let instance = instance::<F>(&self.entity);
-        move |event, _, cx| {
-            if let Some(instance) = instance.as_ref().and_then(WeakEntity::upgrade) {
-                action(&instance.read(cx).feature, event);
+    pub fn call<F: Surface>(&self, action: impl Fn(&F) + 'static) -> Press {
+        let instance = instance::<F>(&self.instance);
+        Rc::new(move |_, _: &mut dyn Ui| {
+            if let Some(instance) = &instance {
+                action(&instance.feature);
             }
-        }
+        })
+    }
+
+    pub fn on_island<F: Surface>(
+        &self,
+        action: impl Fn(&F, Pointer, &mut dyn Ui) + 'static,
+    ) -> Press {
+        let instance = instance::<F>(&self.instance);
+        Rc::new(move |pointer, ui: &mut dyn Ui| {
+            if let Some(instance) = &instance {
+                action(&instance.feature, pointer, ui);
+            }
+        })
+    }
+
+    pub fn on_scroll<F: Surface>(&self, action: impl Fn(&F, f32) + 'static) -> Scroll {
+        let instance = instance::<F>(&self.instance);
+        Rc::new(move |delta, _: &mut dyn Ui| {
+            if let Some(instance) = &instance {
+                action(&instance.feature, delta);
+            }
+        })
     }
 }

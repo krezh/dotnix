@@ -9,17 +9,16 @@ use super::{
 };
 use crate::{
     control::{Command, Report, Row},
-    features::{Feature, Feed, GlyphSpec},
+    features::{Feature, Feed, GlyphSpec, Surface},
 };
 
 impl Feature for Gotify {
     const NAME: &'static str = "gotify";
+
     const CONTROLS: &'static [Command] = commands::CONTROLS;
-    /// Marks its messages in the notification center.
-    const GLYPHS: &'static [GlyphSpec] = &[("notice-gotify", &["radio-tower"])];
 
     type State = State;
-    type Local = ();
+
     type Event = ();
 
     fn start(feed: Feed<State>) -> Self {
@@ -37,4 +36,11 @@ impl Feature for Gotify {
     fn status(&self, state: &State) -> Vec<Row> {
         commands::status(state)
     }
+}
+
+impl Surface for Gotify {
+    /// Marks its messages in the notification center.
+    const GLYPHS: &'static [GlyphSpec] = &[("notice-gotify", &["radio-tower"])];
+
+    type Local = ();
 }

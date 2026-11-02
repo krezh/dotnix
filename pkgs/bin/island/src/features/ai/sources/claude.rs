@@ -8,7 +8,7 @@ use crate::{
         cache,
         state::{Credits, Freshness, Issue, Limit, Provider, Source, SourceReport},
     },
-    run,
+    paths, run,
 };
 
 const USAGE_URL: &str = "https://api.anthropic.com/api/oauth/usage";
@@ -130,7 +130,7 @@ fn discover() -> Result<Login, String> {
             expires_at: None,
         });
     }
-    let home = env::var_os("HOME").map(PathBuf::from).ok_or_else(|| {
+    let home = paths::home().ok_or_else(|| {
         "Claude login discovery requires HOME or CLAUDE_CODE_OAUTH_TOKEN".to_owned()
     })?;
     let configured = env::var_os("CLAUDE_CONFIG_DIR").filter(|path| !path.is_empty());
@@ -269,7 +269,7 @@ fn get(agent: &ureq::Agent, url: &'static str, token: &str) -> Result<Value, Fai
         .header("User-Agent", concat!("island/", env!("CARGO_PKG_VERSION")))
         .call()
         .map_err(|_| {
-            "Could not reach Claude usage API (connection, TLS, timeout, or redirect failure)"
+            "Cannot reach Claude usage API (connection, TLS, timeout, or redirect failure)"
                 .to_owned()
         })?;
     let status = response.status().as_u16();
@@ -293,7 +293,7 @@ fn get(agent: &ureq::Agent, url: &'static str, token: &str) -> Result<Value, Fai
         .with_config()
         .limit(1024 * 1024)
         .read_to_vec()
-        .map_err(|_| "Could not read Claude usage API response".to_owned())?;
+        .map_err(|_| "Cannot read Claude usage API response".to_owned())?;
     serde_json::from_slice(&bytes)
         .map_err(|_| "Claude usage API returned invalid JSON".to_owned().into())
 }

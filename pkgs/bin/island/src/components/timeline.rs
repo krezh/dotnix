@@ -2,8 +2,7 @@
 
 use gpui::{
     AnimationExt, AnyElement, Bounds, ContentMask, Div, FontWeight, Hsla, PathBuilder, Pixels,
-    SharedString, SpringAnimation, Window, canvas, div, point, prelude::*, px, relative, rgb,
-    rgba,
+    SharedString, SpringAnimation, Window, canvas, div, point, prelude::*, px, relative, rgb, rgba,
 };
 
 use crate::{
@@ -195,7 +194,7 @@ fn span_element(at: &str, span: Span, tips: &Tooltips) -> AnyElement {
         .tip(tips, id, span.tooltip)
         .with_spring(
             w_id,
-            SpringAnimation::new(CONTENT_IN).to(width),
+            SpringAnimation::new(CONTENT_IN.into()).to(width),
             |el, w| el.w(relative(w.clamp(0.02, 1.0))),
         );
 
@@ -207,7 +206,7 @@ fn span_element(at: &str, span: Span, tips: &Tooltips) -> AnyElement {
         .child(inner)
         .with_spring(
             pos_id,
-            SpringAnimation::new(CONTENT_IN).to(from),
+            SpringAnimation::new(CONTENT_IN.into()).to(from),
             |el, left| el.left(relative(left.clamp(0.0, 1.0))),
         )
         .into_any_element()
@@ -246,7 +245,7 @@ fn pin_element(at: &str, pin: Pin, track_w: f32, tips: &Tooltips) -> AnyElement 
         .tip(tips, id, pin.tooltip)
         .with_spring(
             pos_id,
-            SpringAnimation::new(CONTENT_IN).to(frac),
+            SpringAnimation::new(CONTENT_IN.into()).to(frac),
             move |el, x| {
                 let x = x.clamp(0.0, 1.0);
                 let min_ml = -x * track_w;
@@ -378,11 +377,10 @@ pub fn timeline(timeline: Timeline, at: &str, tips: &Tooltips) -> AnyElement {
         }))
         .when(!pins.is_empty(), |col| {
             col.child(
-                div()
-                    .relative()
-                    .w_full()
-                    .h(px(PIN_H))
-                    .children(pins.into_iter().map(|pin| pin_element(at, pin, track_w, tips))),
+                div().relative().w_full().h(px(PIN_H)).children(
+                    pins.into_iter()
+                        .map(|pin| pin_element(at, pin, track_w, tips)),
+                ),
             )
         });
 

@@ -26,29 +26,36 @@ pub fn recording(_settings: &Settings) -> Result<Option<PathBuf>> {
         return Ok(None);
     }
     match video_ipc::request(RecordingCommand::Status)? {
-        RecordingReply::Status { output } => Ok(Some(output)),
+        RecordingReply::Status { output, .. } => Ok(Some(output)),
         RecordingReply::Stopped { .. } => {
             anyhow::bail!("Recorder returned an invalid status reply")
         }
     }
 }
 
-pub fn stop_recording(_settings: &Settings) -> Result<PathBuf> {
+pub struct StoppedRecording {
+    pub output: PathBuf,
+    pub clipboard: bool,
+}
+
+pub fn stop_recording(_settings: &Settings) -> Result<StoppedRecording> {
     anyhow::ensure!(video_ipc::socket_exists()?, "No recording active");
     match video_ipc::request(RecordingCommand::Stop)? {
-        RecordingReply::Stopped { output } => Ok(output),
+        RecordingReply::Stopped { output, clipboard } => Ok(StoppedRecording { output, clipboard }),
         RecordingReply::Status { .. } => anyhow::bail!("Recorder returned an invalid stop reply"),
     }
 }
 
 pub fn start_recording(
-    _settings: &Settings,
+    settings: &Settings,
     geometry: Option<&str>,
     monitor: Option<&str>,
     output_file: &Path,
+    to_clipboard: bool,
 ) -> Result<()> {
     if video_ipc::socket_exists()? {
-        if let Ok(RecordingReply::Status { output }) = video_ipc::request(RecordingCommand::Status)
+        if let Ok(RecordingReply::Status { output, .. }) =
+            video_ipc::request(RecordingCommand::Status)
         {
             anyhow::bail!("A recording is already active at {}", output.display());
         }
@@ -63,11 +70,17 @@ pub fn start_recording(
         .arg(&output_file)
         .stdin(Stdio::null())
         .stdout(Stdio::null());
+    if let Some(cursor) = settings.cursor {
+        command.arg("--cursor").arg(cursor.to_string());
+    }
     if let Some(geometry) = geometry {
         command.arg("--recording-geometry").arg(geometry);
     }
     if let Some(monitor) = monitor {
         command.arg("--recording-monitor").arg(monitor);
+    }
+    if to_clipboard {
+        command.arg("--clipboard");
     }
     let mut child = command
         .spawn()
@@ -80,7 +93,8 @@ pub fn start_recording(
         {
             anyhow::bail!("Native recorder exited during startup with {status}");
         }
-        if let Ok(RecordingReply::Status { output }) = video_ipc::request(RecordingCommand::Status)
+        if let Ok(RecordingReply::Status { output, .. }) =
+            video_ipc::request(RecordingCommand::Status)
         {
             if output == output_file {
                 return Ok(());
@@ -145,7 +159,7 @@ fn record_dmabuf(
     settings: &Settings,
     output: &Path,
 ) -> Result<()> {
-    let mut capture = VideoCapture::new(connection)?;
+    let mut capture = VideoCapture::new(connection, settings.recording.cursor)?;
     let (width, height, fourcc) = capture.probe_region(&output_info.output, local)?;
     let capture_format = drm_pixel_format(fourcc)?;
     let (output_width, output_height) = output_dimensions(&settings.recording, width, height)?;
@@ -165,7 +179,7 @@ fn record_dmabuf(
     let control = RecordingListener::bind()?;
     let frame_interval = Duration::from_secs_f64(1.0 / settings.recording.max_fps as f64);
     let mut stop_client = loop {
-        if let Some(client) = control.poll(output)? {
+        if let Some(client) = control.poll(output, settings.request.to_clipboard())? {
             break client;
         }
         let started = Instant::now();
@@ -176,7 +190,13 @@ fn record_dmabuf(
             std::thread::sleep(remaining);
         }
     };
-    finish_recording(&mut encoder, writer, &mut stop_client, output)
+    finish_recording(
+        &mut encoder,
+        writer,
+        &mut stop_client,
+        output,
+        settings.request.to_clipboard(),
+    )
 }
 
 fn record_composited(
@@ -186,7 +206,7 @@ fn record_composited(
     settings: &Settings,
     output: &Path,
 ) -> Result<()> {
-    let mut capture = Screencopy::new(connection)?;
+    let mut capture = Screencopy::new(connection, settings.recording.cursor)?;
     let first = super::capture_region(&mut capture, outputs, target)?;
     let (output_width, output_height) =
         output_dimensions(&settings.recording, first.width, first.height)?;
@@ -208,7 +228,7 @@ fn record_composited(
     let epoch = Instant::now();
     writer.write(encoder.encode_image(&first, 0)?)?;
     let mut stop_client = loop {
-        if let Some(client) = control.poll(output)? {
+        if let Some(client) = control.poll(output, settings.request.to_clipboard())? {
             break client;
         }
         let started = Instant::now();
@@ -218,7 +238,13 @@ fn record_composited(
             std::thread::sleep(remaining);
         }
     };
-    finish_recording(&mut encoder, writer, &mut stop_client, output)
+    finish_recording(
+        &mut encoder,
+        writer,
+        &mut stop_client,
+        output,
+        settings.request.to_clipboard(),
+    )
 }
 
 fn finish_recording(
@@ -226,12 +252,13 @@ fn finish_recording(
     mut writer: VideoWriter,
     stop_client: &mut std::os::unix::net::UnixStream,
     output: &Path,
+    clipboard: bool,
 ) -> Result<()> {
     let result = (|| {
         writer.write(encoder.finish()?)?;
         writer.finish()
     })();
-    let reply = video_ipc::reply_stopped(stop_client, &result, output);
+    let reply = video_ipc::reply_stopped(stop_client, &result, output, clipboard);
     result?;
     reply
 }

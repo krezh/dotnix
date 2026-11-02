@@ -16,8 +16,12 @@ fn parses_urls_across_schemes_paths_and_stream_suffixes() {
     assert_eq!(root.display_url(), "https://gotify.example.com");
     assert_eq!(root.stream_url(), "https://gotify.example.com/stream");
     assert_eq!(
-        root.messages_url(50),
+        root.messages_url(50, None),
         "https://gotify.example.com/message?limit=50"
+    );
+    assert_eq!(
+        root.messages_url(50, Some(7)),
+        "https://gotify.example.com/message?limit=50&since=7"
     );
 
     assert_eq!(

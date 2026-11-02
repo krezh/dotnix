@@ -6,7 +6,9 @@ edition = "2024"
 [dependencies]
 gpui = { package = "gpui-pre", version = "=0.3.11", default-features = false, features = ["wayland"] }
 gpui_platform = { package = "gpui-pre-platform", version = "=0.3.11", default-features = false, features = ["wayland"] }
+gpui_shared_string = { package = "gpui-pre-shared-string", version = "=0.3.11" }
 chrono = { version = "0.4", default-features = false, features = ["clock"] }
+icu_segmenter = { version = "2.3", default-features = false, features = ["compiled_data"] }
 futures = { version = "0.3", default-features = false, features = ["std"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
@@ -29,9 +31,18 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 notify = { version = "8.2", default-features = false }
 tracing-journald = "0.3"
 rusqlite = { version = "0.41", features = ["bundled-sqlcipher"] }
+wgpu = { version = "30", default-features = false, features = ["vulkan", "wgsl"] }
+cosmic-text = "0.19"
+resvg = "0.46"
+pollster = "0.4"
+smithay-client-toolkit = { version = "0.21.1", default-features = false, features = ["xkbcommon"] }
+taffy = "0.15"
 
 [profile.release]
 opt-level = 3
 lto = "thin"
 codegen-units = 16
 strip = true
+
+[dev-dependencies]
+naga = { version = "30.0.1", features = ["wgsl-in"] }

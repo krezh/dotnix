@@ -1,38 +1,85 @@
 //! The `schema` table remembers how many of each owner's migrations have run, so owners change
 //! their own tables without knowing of each other.
 
-use std::{
-    env, fs,
-    io::Read,
-    path::{Path, PathBuf},
-    sync::Mutex,
-    time::{Duration, SystemTime, UNIX_EPOCH},
-};
+use std::{fmt::Display, fs, io::Read, path::Path, sync::Mutex, time::Duration};
 
 use rusqlite::{Connection, ErrorCode, OptionalExtension, params};
 use tracing::{info, warn};
 
-use crate::keyring;
+use crate::{keyring, paths, sync::lock, time};
 
 const BUSY: Duration = Duration::from_secs(5);
 const PLAIN_HEADER: &[u8; 16] = b"SQLite format 3\0";
 
 static KEY: Mutex<Option<Vec<u8>>> = Mutex::new(None);
+static OPENING: Mutex<()> = Mutex::new(());
 
-pub fn dir(variable: &str, fallback: &str) -> Option<PathBuf> {
-    env::var_os(variable)
-        .map(PathBuf::from)
-        .or_else(|| env::var_os("HOME").map(|home| PathBuf::from(home).join(fallback)))
-        .map(|base| base.join("island"))
+pub struct Owner {
+    name: &'static str,
+    migrations: &'static [&'static str],
+    shared: Mutex<Option<Connection>>,
 }
 
-/// In memory, only the user's, and gone at logout, for things decrypted from the database.
-pub fn runtime_dir() -> Option<PathBuf> {
-    env::var_os("XDG_RUNTIME_DIR").map(|base| PathBuf::from(base).join("island"))
+impl Owner {
+    /// Only ever append to `migrations`.
+    pub const fn new(name: &'static str, migrations: &'static [&'static str]) -> Self {
+        Self {
+            name,
+            migrations,
+            shared: Mutex::new(None),
+        }
+    }
+
+    /// Each migration that has not run before runs once, in its own transaction.
+    pub fn open(&self) -> Result<Connection, String> {
+        let state = paths::state().ok_or("no home directory")?;
+        fs::create_dir_all(&state)
+            .map_err(|error| format!("cannot create {}: {error}", state.display()))?;
+        open_at(
+            &state.join("island.db"),
+            &key()?,
+            self.name,
+            self.migrations,
+        )
+    }
+
+    /// On the owner's shared connection, opened on first use and again after `work` fails.
+    pub fn with<T, E: Display>(
+        &self,
+        doing: &str,
+        work: impl FnOnce(&Connection) -> Result<T, E>,
+    ) -> Result<T, String> {
+        self.shared(|| self.open(), doing, work)
+    }
+
+    fn shared<T, E: Display>(
+        &self,
+        open: impl FnOnce() -> Result<Connection, String>,
+        doing: &str,
+        work: impl FnOnce(&Connection) -> Result<T, E>,
+    ) -> Result<T, String> {
+        let mut shared = lock(&self.shared);
+        let db = match shared.take() {
+            Some(db) => db,
+            None => open()?,
+        };
+        let done = work(&db).map_err(|error| format!("cannot {doing}: {error}"))?;
+        *shared = Some(db);
+        Ok(done)
+    }
+}
+
+#[cfg(test)]
+pub fn memory(migrations: &[&str]) -> Connection {
+    let db = Connection::open_in_memory().unwrap();
+    for migration in migrations {
+        db.execute_batch(migration).unwrap();
+    }
+    db
 }
 
 fn key() -> Result<Vec<u8>, String> {
-    let mut cached = KEY.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+    let mut cached = lock(&KEY);
     if let Some(key) = cached.as_ref() {
         return Ok(key.clone());
     }
@@ -43,6 +90,7 @@ fn key() -> Result<Vec<u8>, String> {
 
 fn unlock(path: &Path, key: &[u8]) -> rusqlite::Result<Connection> {
     let db = Connection::open(path)?;
+    db.busy_timeout(BUSY)?;
     let hex: String = key.iter().map(|byte| format!("{byte:02x}")).collect();
     db.execute_batch(&format!("PRAGMA key = \"x'{hex}'\";"))?;
     db.query_row("SELECT count(*) FROM sqlite_master", [], |row| {
@@ -68,9 +116,7 @@ fn set_aside(path: &Path) -> Result<(), String> {
         })?;
         info!(path = %path.display(), "removed the unencrypted database from before encryption");
     } else {
-        let seconds = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .map_or(0, |elapsed| elapsed.as_secs());
+        let seconds = time::now();
         let aside = path.with_extension(format!("db.unreadable-{seconds}"));
         fs::rename(path, &aside)
             .map_err(|error| format!("cannot move {} aside: {error}", path.display()))?;
@@ -79,24 +125,23 @@ fn set_aside(path: &Path) -> Result<(), String> {
     Ok(())
 }
 
-/// Each migration that has not run before runs once, in its own transaction. Only ever append to
-/// `migrations`.
-pub fn open(owner: &str, migrations: &[&str]) -> Result<Connection, String> {
-    let state = dir("XDG_STATE_HOME", ".local/state").ok_or("no home directory")?;
-    fs::create_dir_all(&state)
-        .map_err(|error| format!("cannot create {}: {error}", state.display()))?;
-    let path = state.join("island.db");
+fn open_at(
+    path: &Path,
+    key: &[u8],
+    owner: &str,
+    migrations: &[&str],
+) -> Result<Connection, String> {
     let fail = |error: rusqlite::Error| format!("{}: {error}", path.display());
-    let key = key()?;
-    let mut db = match unlock(&path, &key) {
+    // Switching to WAL and migrating both fail if workers race on a new database.
+    let _opening = lock(&OPENING);
+    let mut db = match unlock(path, key) {
         Ok(db) => db,
         Err(rusqlite::Error::SqliteFailure(error, _)) if error.code == ErrorCode::NotADatabase => {
-            set_aside(&path)?;
-            unlock(&path, &key).map_err(fail)?
+            set_aside(path)?;
+            unlock(path, key).map_err(fail)?
         }
         Err(error) => return Err(fail(error)),
     };
-    db.busy_timeout(BUSY).map_err(fail)?;
     db.pragma_update(None, "temp_store", "MEMORY")
         .map_err(fail)?;
     db.pragma_update_and_check(None, "journal_mode", "WAL", |row| row.get::<_, String>(0))

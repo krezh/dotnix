@@ -12,7 +12,7 @@ use gpui::{
     Pixels, SharedString, Window, div, prelude::*, px,
 };
 
-const MORPH: Duration = Duration::from_millis(320);
+pub const MORPH: Duration = Duration::from_millis(320);
 /// How much of a morph each changing character takes to turn into its new one, when several do;
 /// they start one after another so the change runs along the text.
 const SPAN: f32 = 0.55;
@@ -150,10 +150,12 @@ where
 struct Morph {
     text: Option<SharedString>,
     from: Option<(SharedString, Instant)>,
+    /// When the text last changed, morphed or not.
+    changed: Option<Instant>,
 }
 
 /// Lengths of the shared start and shared end, in bytes.
-fn shared(old: &str, new: &str) -> (usize, usize) {
+pub fn shared(old: &str, new: &str) -> (usize, usize) {
     let start: usize = old
         .chars()
         .zip(new.chars())
@@ -173,7 +175,7 @@ fn shared(old: &str, new: &str) -> (usize, usize) {
 /// How far character `index` of `count` changing ones is through its own change, `progress` of the
 /// way through the morph: each takes [`SPAN`] of it, the first starting at once and the last
 /// finishing with the morph.
-fn stagger(progress: f32, index: usize, count: usize) -> f32 {
+pub fn stagger(progress: f32, index: usize, count: usize) -> f32 {
     if count <= 1 {
         return progress.clamp(0.0, 1.0);
     }
@@ -181,7 +183,7 @@ fn stagger(progress: f32, index: usize, count: usize) -> f32 {
     ((progress - start) / SPAN).clamp(0.0, 1.0)
 }
 
-fn smoothstep(t: f32) -> f32 {
+pub fn smoothstep(t: f32) -> f32 {
     t * t * (3.0 - 2.0 * t)
 }
 
@@ -237,8 +239,15 @@ fn morph(
         let now = Instant::now();
         match &state.text {
             Some(shown) if *shown != text => {
-                state.from = Some((shown.clone(), now));
+                // A change while the last is still morphing shows at once: text changing all the
+                // time, such as an amount being dragged, keeps up instead of blurring behind.
+                let busy = state.from.is_some()
+                    || state
+                        .changed
+                        .is_some_and(|changed| now.duration_since(changed) < MORPH);
+                state.from = (!busy).then(|| (shown.clone(), now));
                 state.text = Some(text.clone());
+                state.changed = Some(now);
             }
             Some(_) => {}
             None => state.text = Some(text.clone()),
@@ -306,6 +315,12 @@ fn morph(
             .into_any_element();
         (hold(element), Next::Frame)
     })
+}
+
+impl From<crate::spring::SpringConfig> for gpui::SpringConfig {
+    fn from(config: crate::spring::SpringConfig) -> Self {
+        Self::new(config.stiffness, config.damping, config.mass)
+    }
 }
 
 #[cfg(test)]

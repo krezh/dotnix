@@ -32,7 +32,7 @@ Talks to the mouse directly while its cable is plugged into this machine,
 otherwise to its receiver.
 
 Usage: zowie-batt [--json]
-       zowie-batt <CMD>...
+      zowie-batt <CMD>...
 
 Arguments:
   <CMD>...    Send raw command bytes (hex like 0x15, or decimal) and print the replies

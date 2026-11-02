@@ -2,14 +2,12 @@
 
 use std::time::Duration;
 
-use gpui::App;
-
 use crate::{cli::Client, control::Command};
 
 use super::{
-    Feature, Features, GlyphSpec, ai, audio, bluetooth, brightness, caffeine, clipboard, clock,
-    feature::widgets_of, gotify, headset, instance::start_one, launcher, media, molt, network,
-    notifications, session, tray, workspaces, zowie,
+    Arrivals, Feature, Features, GlyphSpec, Surface, ai, audio, bluetooth, brightness, caffeine,
+    clipboard, clock, feature::widgets_of, gotify, headset, instance::start_one, launcher, media,
+    molt, network, notifications, session, tray, workspaces, zowie,
 };
 
 macro_rules! features {
@@ -34,7 +32,7 @@ macro_rules! features {
         pub fn panel_refresh(feature: &str) -> Option<Duration> {
             $(
                 if <$feature as Feature>::NAME == feature {
-                    return <$feature as Feature>::PANEL_REFRESH;
+                    return <$feature as Surface>::PANEL_REFRESH;
                 }
             )*
             None
@@ -51,13 +49,13 @@ macro_rules! features {
 
         pub fn glyphs() -> Vec<GlyphSpec> {
             let mut all = Vec::new();
-            $(all.extend_from_slice(<$feature as Feature>::GLYPHS);)*
+            $(all.extend_from_slice(<$feature as Surface>::GLYPHS);)*
             all
         }
 
         pub fn panel_named(panel: &str) -> Option<&'static str> {
             $(
-                if <$feature as Feature>::PANEL == Some(panel) {
+                if <$feature as Surface>::PANEL == Some(panel) {
                     return Some(<$feature as Feature>::NAME);
                 }
             )*
@@ -67,7 +65,7 @@ macro_rules! features {
         pub fn keyboard(feature: &str) -> bool {
             $(
                 if <$feature as Feature>::NAME == feature {
-                    return <$feature as Feature>::KEYBOARD;
+                    return <$feature as Surface>::KEYBOARD;
                 }
             )*
             false
@@ -76,8 +74,8 @@ macro_rules! features {
         /// The views the panel named `panel` can be opened on.
         pub fn views(panel: &str) -> &'static [&'static str] {
             $(
-                if <$feature as Feature>::PANEL == Some(panel) {
-                    return <$feature as Feature>::VIEWS;
+                if <$feature as Surface>::PANEL == Some(panel) {
+                    return <$feature as Surface>::VIEWS;
                 }
             )*
             &[]
@@ -86,7 +84,7 @@ macro_rules! features {
         pub fn panel_of(feature: &str) -> Option<&'static str> {
             $(
                 if <$feature as Feature>::NAME == feature {
-                    return <$feature as Feature>::PANEL;
+                    return <$feature as Surface>::PANEL;
                 }
             )*
             None
@@ -96,7 +94,7 @@ macro_rules! features {
         pub fn tabs() -> Vec<(&'static str, &'static str, u8)> {
             let mut tabs = Vec::new();
             $(
-                if let Some((title, order)) = <$feature as Feature>::TAB {
+                if let Some((title, order)) = <$feature as Surface>::TAB {
                     tabs.push((<$feature as Feature>::NAME, title, order));
                 }
             )*
@@ -107,7 +105,7 @@ macro_rules! features {
         pub fn dashboard_tabs() -> Vec<(&'static str, &'static str, u8)> {
             let mut views = Vec::new();
             $(
-                if let Some((title, order)) = <$feature as Feature>::DASHBOARD_TAB {
+                if let Some((title, order)) = <$feature as Surface>::DASHBOARD_TAB {
                     views.push((<$feature as Feature>::NAME, title, order));
                 }
             )*
@@ -124,7 +122,7 @@ macro_rules! features {
         /// The panels features have, in the order they are listed.
         pub fn panels() -> Vec<&'static str> {
             let mut all = Vec::new();
-            $(all.extend(<$feature as Feature>::PANEL);)*
+            $(all.extend(<$feature as Surface>::PANEL);)*
             all
         }
 
@@ -146,20 +144,21 @@ macro_rules! features {
 
         /// Features with a panel or commands start even without a wanted widget, since they can be
         /// reached without one; the others never run.
-        pub fn start(wanted: impl Fn(&'static str) -> bool, glow: bool, settings: &toml::Table, cx: &mut App) -> Features {
+        pub fn start(wanted: impl Fn(&'static str) -> bool, glow: bool, settings: &toml::Table) -> (Features, Arrivals) {
             let mut started = Vec::new();
+            let mut arrivals = Arrivals::new();
             $(
-                if <$feature as Feature>::PANEL.is_some()
+                if <$feature as Surface>::PANEL.is_some()
                     || !<$feature as Feature>::CONTROLS.is_empty()
                     || widgets_of::<$feature>().any(&wanted)
                 {
-                    let live = <$feature as Feature>::LIVE.iter().any(|widget| wanted(widget))
-                        || (glow && !<$feature as Feature>::LIVE.is_empty());
+                    let live = <$feature as Surface>::LIVE.iter().any(|widget| wanted(widget))
+                        || (glow && !<$feature as Surface>::LIVE.is_empty());
                     let section = settings.get(<$feature as Feature>::NAME).cloned();
-                    started.push(start_one::<$feature>(live, section, cx));
+                    started.push(start_one::<$feature>(live, section, &mut arrivals));
                 }
             )*
-            Features(started)
+            (Features(started), arrivals)
         }
     };
 }

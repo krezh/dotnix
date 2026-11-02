@@ -1,5 +1,7 @@
 use std::{
+    cell::Cell,
     collections::{HashMap, HashSet},
+    rc::Rc,
     sync::{
         Arc,
         atomic::{AtomicU64, Ordering},
@@ -9,18 +11,13 @@ use std::{
 
 use super::{
     jelly,
+    mascot::{Body, Mood, Pose},
     runtime::Held,
     session::{Activity, Request},
     settings::Mascot,
     state::{Provider, Source, State},
 };
-use crate::{
-    components::{
-        mascot::{Body, Mood, Pose},
-        reveal,
-    },
-    features::Local,
-};
+use crate::{components::reveal, features::Local, spring::Spring, stage::SHAPE_SPRING};
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub(super) struct Account {
@@ -63,7 +60,6 @@ impl Tab {
         }
     }
 
-
     pub(super) fn label(self) -> &'static str {
         match self {
             Tab::Sessions => "Sessions",
@@ -91,6 +87,23 @@ impl Default for Number {
     }
 }
 
+/// The tab being left and how far across the picked one has come, 0 to 1.
+pub(super) struct Passing {
+    pub(super) from: Option<Tab>,
+    pub(super) at: Spring,
+    pub(super) width: Rc<Cell<Option<f32>>>,
+}
+
+impl Default for Passing {
+    fn default() -> Self {
+        Self {
+            from: None,
+            at: Spring::new(1.0, SHAPE_SPRING, 0.001),
+            width: Rc::default(),
+        }
+    }
+}
+
 #[derive(Default)]
 pub struct View {
     pub(super) number: Number,
@@ -98,6 +111,7 @@ pub struct View {
     seen: Option<Arc<Vec<Provider>>>,
     open: bool,
     pub(super) tab: Tab,
+    pub(super) passing: Passing,
     /// The session the Sessions view shows; the first one when none is picked.
     pub(super) session: Option<String>,
     /// Steps, by their number, opened or closed by hand; the rest follow what is happening.
@@ -128,6 +142,24 @@ pub struct View {
 }
 
 impl View {
+    /// Slides to `tab`, turning back from wherever it is if that is the one being left.
+    pub(super) fn pick_tab(&mut self, tab: Tab) {
+        if tab == self.tab {
+            return;
+        }
+        let back = self.passing.from == Some(tab);
+        let at = if back {
+            1.0 - self.passing.at.value()
+        } else {
+            0.0
+        };
+        self.passing.from = Some(self.tab);
+        self.passing.width.set(None);
+        self.tab = tab;
+        self.passing.at.reset(at);
+        self.passing.at.retarget(1.0, SHAPE_SPRING);
+    }
+
     pub(super) fn sync(&mut self, state: &State, open: bool) {
         // One answered or timed out slides out of the pop-up before it goes.
         let now = Instant::now();
@@ -207,9 +239,11 @@ impl View {
         }
         let mood = jelly::mood(state, self.near);
         let seed = self.number.0;
+        let lively = state.mascot == Mascot::Lively;
         let body = self
             .jelly
-            .get_or_insert_with(|| Body::new(state.mascot == Mascot::Lively, mood, now, seed));
+            .get_or_insert_with(|| Body::new(lively, mood, now, seed));
+        body.set_lively(lively);
         body.set(mood, now);
         let working: HashSet<String> = state
             .sessions
@@ -311,6 +345,7 @@ impl Local for View {
         self.toggled_accounts.clear();
         self.seen = None;
         self.open = false;
+        self.passing = Passing::default();
     }
 
     fn popup(&self) -> bool {
@@ -347,17 +382,25 @@ impl Local for View {
     }
 
     fn advance(&mut self, dt: f32, now: Instant) {
+        self.passing.at.advance(dt, now);
+        if self.passing.at.is_settled() {
+            self.passing.from = None;
+        }
         if let Some(body) = &mut self.jelly {
             body.step(dt, now);
         }
     }
 
     fn is_settled(&self) -> bool {
-        self.jelly.as_ref().is_none_or(Body::is_settled)
+        self.passing.at.is_settled() && self.jelly.as_ref().is_none_or(Body::is_settled)
     }
 
     fn is_drifting(&self) -> bool {
         self.jelly.as_ref().is_some_and(Body::is_drifting)
+    }
+
+    fn is_brisk(&self) -> bool {
+        self.passing.at.is_settled()
     }
 
     fn pointer(&mut self, over: bool) {

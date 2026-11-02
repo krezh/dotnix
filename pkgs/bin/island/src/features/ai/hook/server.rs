@@ -59,7 +59,7 @@ pub fn serve(calls: Sender<Call>, stop: &Receiver<()>) -> Ended {
         Ok(connection) => connection,
         Err(error) => return Ended::Failed(format!("cannot connect to the session bus: {error}")),
     };
-    match block_on(dbus::claim(&connection, NAME)) {
+    match block_on(dbus::claim_shared(&connection, NAME)) {
         Ok(true) => info!(name = NAME, "answering Claude Code hooks"),
         Ok(false) => warn!(
             name = NAME,

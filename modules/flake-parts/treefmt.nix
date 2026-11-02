@@ -6,6 +6,14 @@
         projectRootFile = "flake.nix";
         settings = {
           global.excludes = [ "*.sops.yaml" ];
+          formatter.statix.command = pkgs.lib.mkForce (
+            pkgs.writeShellScriptBin "statix" ''
+              for file in "$@"; do
+                ${pkgs.lib.getExe pkgs.statix} fix "$file"
+                ${pkgs.lib.getExe pkgs.statix} check "$file"
+              done
+            ''
+          );
         };
         programs = {
           nixfmt = {

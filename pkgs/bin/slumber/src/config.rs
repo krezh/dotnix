@@ -108,6 +108,10 @@ pub struct Cli {
     #[arg(short = 'o', long = "opacity", aliases = ["background-opacity"])]
     pub opacity: Option<f32>,
 
+    /// Request compositor background blur behind translucent areas [default: true]
+    #[arg(short = 'b', long, action = ArgAction::Set, num_args = 0..=1, default_missing_value = "true")]
+    pub blur: Option<bool>,
+
     /// Font family or path to TTF/OTF font file [default: Rubik]
     #[arg(short = 'f', long = "font", aliases = ["font-family"])]
     pub font: Option<String>,
@@ -152,6 +156,7 @@ pub struct FileConfig {
     pub cycle: u64,
     pub show_clock: bool,
     pub opacity: f32,
+    pub blur: bool,
     pub font: String,
     pub speed: f32,
     pub clock_drift: bool,
@@ -173,6 +178,7 @@ impl Default for FileConfig {
             cycle: 0,
             show_clock: false,
             opacity: 1.0,
+            blur: true,
             font: "Rubik".into(),
             speed: 1.0,
             clock_drift: true,
@@ -247,6 +253,7 @@ pub struct AppConfig {
     pub grace_ms: u64,
     pub cycle: u64,
     pub show_clock: bool,
+    pub blur: bool,
     pub font: String,
     pub speed: f32,
     pub clock_drift: bool,
@@ -298,6 +305,7 @@ impl AppConfig {
         cfg.cycle = cli.cycle.unwrap_or(cfg.cycle);
         cfg.show_clock = cli.show_clock.unwrap_or(cfg.show_clock);
         cfg.opacity = cli.opacity.unwrap_or(cfg.opacity);
+        cfg.blur = cli.blur.unwrap_or(cfg.blur);
         cfg.font = cli.font.clone().unwrap_or(cfg.font);
         cfg.speed = cli.speed.unwrap_or(cfg.speed);
         cfg.clock_drift = cli.clock_drift.unwrap_or(cfg.clock_drift);
@@ -326,6 +334,7 @@ impl AppConfig {
             grace_ms: cfg.grace_ms,
             cycle: cfg.cycle,
             show_clock: cfg.show_clock,
+            blur: cfg.blur,
             font: cfg.font,
             speed: cfg.speed,
             clock_drift: cfg.clock_drift,
@@ -464,7 +473,7 @@ mod tests {
         let directory = ConfigDirectory::new();
         let path = directory.write(
             "config.toml",
-            "show_clock = true\nclock_drift = true\nsync_outputs = true\n",
+            "show_clock = true\nclock_drift = true\nsync_outputs = true\nblur = true\n",
         );
         let mut cli = Cli::try_parse_from([
             "slumber",
@@ -472,6 +481,7 @@ mod tests {
             "--clock-drift=false",
             "--sync-outputs",
             "false",
+            "--blur=false",
         ])
         .unwrap();
         cli.config = Some(path);
@@ -479,6 +489,11 @@ mod tests {
         assert!(!cfg.show_clock);
         assert!(!cfg.clock_drift);
         assert!(!cfg.sync_outputs);
+        assert!(!cfg.blur);
+        for flag in ["--blur", "-b"] {
+            let cli = Cli::try_parse_from(["slumber", flag]).unwrap();
+            assert!(AppConfig::load_with_default(&cli, None).unwrap().blur);
+        }
         for flag in ["--clock", "--show-clock", "-k"] {
             let cli = Cli::try_parse_from(["slumber", flag]).unwrap();
             assert!(AppConfig::load_with_default(&cli, None).unwrap().show_clock);

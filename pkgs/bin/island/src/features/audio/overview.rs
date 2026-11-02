@@ -1,8 +1,6 @@
 //! What audio puts on the dashboard's overview: the microphone's switch, a Sound card with the
 //! output and input as large sliders and their devices under them, and a card of what is playing.
 
-use gpui::SharedString;
-
 use super::{
     Audio, glyphs,
     panel::amount,
@@ -11,12 +9,13 @@ use super::{
 };
 use crate::{
     components::card::{Size, Title},
-    features::{PanelCx, headset},
-    island::Mode,
+    features::{PanelCx, Surface, headset},
     panel::{
-        self, ActionTile, Block, Choice, Dropdown, Item, Lead, Mark, Slider, SliderLabel, Trail,
+        self, ActionTile, Block, Choice, Dropdown, Item, Lead, Mark, SharedString, Slider,
+        SliderLabel, Trail,
     },
     theme::{CRITICAL, MAUVE, OVERLAY2, PINK, SUBTEXT1, app_color},
+    units::plural,
 };
 
 /// Apps the Playing card lists before saying how many more there are.
@@ -156,9 +155,7 @@ fn sound_card(audio: &Audio, state: &AudioState, p: &PanelCx<'_>) -> Option<Bloc
     }
     let title = Title::from("Sound")
         .glyph(p.glyph("tab-audio"), MAUVE)
-        .opens(panel::on(|island, cx| {
-            island.set_mode(Mode::Open(Audio::panel_handle()), cx)
-        }));
+        .opens(panel::on(|ui| ui.open(Audio::panel_handle())));
     Some(Block::Card(Some(title), Size::Medium, blocks))
 }
 
@@ -218,18 +215,9 @@ fn playing_card(state: &AudioState, p: &PanelCx<'_>) -> Option<Block> {
         blocks.push(Block::caption(format!("{more} more"), OVERLAY2));
     }
     let count = state.playing.len();
-    let title = Title::with_detail(
-        "Playing",
-        if count == 1 {
-            "1 app".to_owned()
-        } else {
-            format!("{count} apps")
-        },
-    )
-    .glyph(p.glyph("tab-audio"), MAUVE)
-    .opens(panel::on(|island, cx| {
-        island.set_mode(Mode::Open(Audio::panel_handle()), cx)
-    }));
+    let title = Title::with_detail("Playing", plural(count, "app", "apps"))
+        .glyph(p.glyph("tab-audio"), MAUVE)
+        .opens(panel::on(|ui| ui.open(Audio::panel_handle())));
     Some(Block::Card(Some(title), Size::Medium, blocks))
 }
 

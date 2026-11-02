@@ -2,8 +2,6 @@
 
 use std::collections::HashMap;
 
-use gpui::SharedString;
-
 use super::{
     Audio, glyphs,
     headset_card::headset_card,
@@ -16,7 +14,7 @@ use crate::{
     features::{PanelCx, headset},
     panel::{
         ActionTile, Block, Choice, Dropdown, FrameView, Header, Item, Lead, Mark, PanelView,
-        Slider, Trail,
+        SharedString, Slider, Trail,
     },
     theme::{ACCENT, BLUE, CRITICAL, GREEN, MAUVE, OVERLAY2, RED, app_color},
 };

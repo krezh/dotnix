@@ -1,20 +1,20 @@
 use std::{
-    any::Any,
     collections::HashMap,
-    path::Path,
-    rc::Rc,
     sync::{LazyLock, OnceLock},
     time::{Duration, Instant},
 };
 
 use gpui::{
-    AnyElement, App, Context, Div, FontWeight, Render, Rgba, SharedString, Stateful, Task,
-    WeakEntity, Window, div, prelude::*, px, rgb, rgba,
+    AnyElement, App, ClickEvent, Context, Div, FontWeight, MouseButton, MouseDownEvent, ObjectFit,
+    Render, Rgba, ScrollEvent, SharedString, Stateful, Task, WeakEntity, Window, div, prelude::*,
+    px, relative, rgb, rgba,
 };
 
 use crate::{
+    bar_widget::{BarWidget, Emphasis, Frame, Part, Pointer, Press},
     components::{
-        button, energy, icon,
+        button::{self, Badge},
+        drawing, energy, icon,
         marquee::{self, TextLayouts},
         measure::{self, Measured},
         motion,
@@ -23,40 +23,41 @@ use crate::{
     config::{self, Widget},
     features::{self, AnyLocal, Features, WidgetCx},
     glyphs::Glyphs,
-    island::{Island, Mode, Panel, SHAPE_SPRING},
+    island::{self, Island, Mode, Panel, SHAPE_SPRING},
+    panel::IslandUi,
     presence::Presence,
     spring::Spring,
     theme::{ACCENT, ON_ACCENT, OVERLAY2, TINT, TRACK_ALPHA, with_alpha},
-    ui::{self, HEADER_H, Radius, SMALL_SIZE, STRIP_PAD},
+    ui::{self, HEADER_H, Radius, SMALL_SIZE, STRIP_PAD, TITLE_SIZE},
 };
 
 const EDGE: f32 = 14.0;
-const WIDGET_H: f32 = 28.0;
+pub const WIDGET_H: f32 = 28.0;
 const WIDGET_PAD: f32 = 8.0;
 pub const GLYPH: f32 = 15.0;
 pub const ICON_GAP: f32 = 6.0;
-const METER_W: f32 = 4.0;
-const METER_H: f32 = 16.0;
+pub const METER_W: f32 = 4.0;
+pub const METER_H: f32 = 16.0;
 /// Each tab shows its glyph, `tab-<panel>`, and names itself in a tooltip.
 const TAB_W: f32 = 48.0;
-const TAB_GLYPH: f32 = 18.0;
-const TAB_GAP: f32 = 4.0;
+pub const TAB_GLYPH: f32 = 18.0;
+pub const TAB_GAP: f32 = 4.0;
 const CLOSE_GAP: f32 = 16.0;
 /// The Dashboard tab's place among the tabs.
 const DASHBOARD_ORDER: u8 = 4;
 /// Between a dashboard view's glyph and the name it shows while picked.
-const LABEL_GAP: f32 = 8.0;
-const LABEL_SIZE: f32 = 13.0;
+pub const LABEL_GAP: f32 = 8.0;
+pub const LABEL_SIZE: f32 = 13.0;
 /// The glyph's place from a tab's start, where it stays as the tab widens to show its name.
-const GLYPH_X: f32 = (TAB_W - TAB_GLYPH) / 2.0;
+pub const GLYPH_X: f32 = (TAB_W - TAB_GLYPH) / 2.0;
 /// Room for the line between the Dashboard tab and its views, while they show.
-const DIVIDER_GAP: f32 = 7.0;
-const DIVIDER_H: f32 = 16.0;
+pub const DIVIDER_GAP: f32 = 7.0;
+pub const DIVIDER_H: f32 = 16.0;
 /// The picked tab's tint, outside the dashboard's views.
-const PICKED_ALPHA: u8 = 0x2e;
-const VIEWS_ALPHA: u8 = 0x1a;
-const VIEWS_BORDER_ALPHA: u8 = 0x38;
-const DIVIDER_ALPHA: u8 = 0x4d;
+pub const PICKED_ALPHA: u8 = 0x2e;
+pub const VIEWS_ALPHA: u8 = 0x1a;
+pub const VIEWS_BORDER_ALPHA: u8 = 0x38;
+pub const DIVIDER_ALPHA: u8 = 0x4d;
 
 /// Island's own tabs; each feature's tab glyph comes with the feature's glyphs.
 pub const GLYPHS: &[features::GlyphSpec] = &[
@@ -66,15 +67,15 @@ pub const GLYPHS: &[features::GlyphSpec] = &[
     ("dashboard-battery", &["battery-full"]),
 ];
 
-struct Tab {
-    panel: Panel,
-    title: &'static str,
+pub struct Tab {
+    pub panel: Panel,
+    pub title: &'static str,
     /// One of the dashboard's views, which show only while one of them is open.
-    view: bool,
+    pub view: bool,
 }
 
 /// The dashboard's views follow one another where its tab goes, the overview first.
-fn tab_list() -> &'static [Tab] {
+pub fn tab_list() -> &'static [Tab] {
     static TABS: LazyLock<Vec<Tab>> = LazyLock::new(|| {
         let mut views = vec![
             (Panel::Dashboard, "Dashboard", 0),
@@ -121,13 +122,13 @@ fn tab_list() -> &'static [Tab] {
 static LABELS: OnceLock<Vec<f32>> = OnceLock::new();
 
 /// Measures the names the dashboard's views show while picked, once, as text is first drawn.
-pub fn measure_labels(window: &Window) {
+pub fn measure_labels(width: &mut dyn FnMut(&str, f32) -> f32) {
     LABELS.get_or_init(|| {
         tab_list()
             .iter()
             .map(|tab| {
                 if tab.view {
-                    marquee::shape(window, tab.title, LABEL_SIZE, FontWeight::SEMIBOLD).width
+                    width(tab.title, LABEL_SIZE)
                 } else {
                     0.0
                 }
@@ -221,6 +222,31 @@ impl TabStrip {
         self.layout(false).1
     }
 
+    /// Where each tab is now, and the strip's width.
+    pub fn places(&self) -> (Vec<(f32, f32)>, f32) {
+        self.layout(false)
+    }
+
+    pub fn fan(&self) -> f32 {
+        self.fan.value().clamp(0.0, 1.0)
+    }
+
+    pub fn pill(&self) -> (f32, f32) {
+        (self.pill_x.value(), self.pill_w.value())
+    }
+
+    pub fn label(&self, index: usize) -> f32 {
+        self.labels[index].value().clamp(0.0, 1.0)
+    }
+
+    pub fn picked(&self) -> Panel {
+        self.picked
+    }
+
+    pub fn last_view(&self) -> Panel {
+        self.last_view
+    }
+
     /// `at_once` puts everything in place without moving, such as while the tabs are hidden.
     pub fn pick(&mut self, panel: Panel, at_once: bool) {
         let Some(index) = tab_index(panel) else {
@@ -283,17 +309,16 @@ pub struct Bar<'a> {
     pub side: f32,
 }
 
-/// Kept so a feature widget can still draw while it folds away.
-pub type Held = Rc<dyn Any>;
+pub use crate::stage::Held;
 
 #[derive(Clone, Copy)]
-pub(crate) struct Look<'a> {
+struct Look<'a> {
     hover: bool,
     half: f32,
     inset: f32,
     /// Part of a group of widgets, which shows the hover for all of them.
     grouped: bool,
-    pub(crate) tips: &'a Tooltips,
+    tips: &'a Tooltips,
 }
 
 impl<'a> Look<'a> {
@@ -305,18 +330,6 @@ impl<'a> Look<'a> {
             grouped: false,
             tips,
         }
-    }
-
-    pub(crate) fn half(self) -> f32 {
-        self.half
-    }
-
-    pub(crate) fn hover(self) -> bool {
-        self.hover
-    }
-
-    pub(crate) fn grouped(self) -> bool {
-        self.grouped
     }
 }
 
@@ -334,7 +347,7 @@ pub fn half(spacing: f32) -> f32 {
     WIDGET_PAD + spacing / 2.0
 }
 
-pub(crate) fn widget_base(id: impl Into<SharedString>, look: Look) -> Stateful<Div> {
+fn widget_base(id: impl Into<SharedString>, look: Look) -> Stateful<Div> {
     widget_group(id, look)
         .cursor_pointer()
         .when(!look.grouped, |widget| {
@@ -359,7 +372,7 @@ fn widget_set(id: usize, widgets: Vec<AnyElement>, look: Look) -> AnyElement {
 }
 
 /// For a widget made of several clickable parts that each show the hover tint themselves.
-pub(crate) fn widget_group(id: impl Into<SharedString>, look: Look) -> Stateful<Div> {
+fn widget_group(id: impl Into<SharedString>, look: Look) -> Stateful<Div> {
     div()
         .id(id.into())
         .relative()
@@ -398,7 +411,7 @@ pub fn measure_slots(window: &Window) -> Slots {
     }
 }
 
-pub(crate) fn slot(text: impl Into<SharedString>, width: f32) -> Div {
+fn slot(text: impl Into<SharedString>, width: f32) -> Div {
     div()
         .min_w(px(width))
         .flex_none()
@@ -406,25 +419,7 @@ pub(crate) fn slot(text: impl Into<SharedString>, width: f32) -> Div {
         .child(motion::text("count", text))
 }
 
-pub struct Gauge<'a> {
-    pub glyph: Option<&'a Path>,
-    pub glyph_color: u32,
-    pub busy: bool,
-    pub level: Option<f32>,
-    pub level_color: u32,
-}
-
-pub(crate) fn gauge(id: impl Into<SharedString>, look: Look, gauge: Gauge<'_>) -> Stateful<Div> {
-    widget_base(id, look)
-        .gap(px(ICON_GAP))
-        .when_some(gauge.glyph, |widget, path| {
-            widget.child(icon::glyph(path, GLYPH, gauge.glyph_color))
-        })
-        .child(meter(gauge.level, gauge.level_color))
-        .child(energy(look, gauge.busy))
-}
-
-pub(crate) fn energy(look: Look, busy: bool) -> impl IntoElement {
+fn energy(look: Look, busy: bool) -> impl IntoElement {
     energy::border("energy", Radius::Control, look.inset, busy)
 }
 
@@ -497,7 +492,6 @@ pub fn content(
     widget: Widget,
     bar: &Bar<'_>,
     island: &WeakEntity<Island>,
-    cx: &App,
 ) -> (Vec<AnyElement>, Option<Duration>) {
     let mut look = Look::new(bar.hover, bar.layout.spacing, bar.tips);
     look.grouped = bar.layout.group.contains(&widget);
@@ -509,18 +503,215 @@ pub fn content(
         .held
         .iter()
         .find(|slot| slot.key == name)
-        .map_or_else(|| feature.snapshot(cx), |slot| slot.item.clone());
+        .map_or_else(|| feature.snapshot(), |slot| slot.item.clone());
     let local = bar
         .locals
         .iter()
         .find(|(owner, _)| *owner == feature.name())
         .map(|(_, local)| &**local);
-    let mut w = WidgetCx::new(look, bar.slots, bar.glyphs, bar.layouts, island, local);
-    let elements = feature
-        .widget(name, &*state, &mut w, cx)
+    let mut w = WidgetCx::new(look.half, look.grouped, bar.glyphs, local);
+    let widget = feature.widget(name, &*state, &mut w);
+    let drawer = Drawer {
+        look,
+        slots: bar.slots,
+        layouts: bar.layouts,
+        island,
+    };
+    let elements = widget
         .into_iter()
+        .map(|widget| drawer.widget(widget))
         .collect();
     (elements, w.next_redraw())
+}
+
+fn click_x(event: &ClickEvent) -> f32 {
+    f32::from(match event {
+        ClickEvent::Keyboard(event) => event.bounds.center().x,
+        event => event.position().x,
+    })
+}
+
+fn press_x(event: &MouseDownEvent) -> f32 {
+    f32::from(event.position.x)
+}
+
+/// A part of a group, showing the hover on a pill `tint` high behind it.
+fn spot(id: SharedString, tint: f32, look: Look) -> Stateful<Div> {
+    div()
+        .id(id)
+        .relative()
+        .h_full()
+        .flex()
+        .items_center()
+        .justify_center()
+        .cursor_pointer()
+        .when(look.hover, |cell| cell.hover(|style| style))
+        .child(div().absolute().size_full().flex().items_center().child(
+            div().relative().w_full().h(px(tint)).child(ui::control(
+                Radius::Pill,
+                None,
+                look.hover,
+            )),
+        ))
+}
+
+/// Draws what features describe.
+struct Drawer<'a> {
+    look: Look<'a>,
+    slots: Slots,
+    layouts: &'a TextLayouts,
+    island: &'a WeakEntity<Island>,
+}
+
+impl Drawer<'_> {
+    fn press<E: ?Sized + 'static>(
+        &self,
+        press: Press,
+        x: fn(&E) -> f32,
+    ) -> impl Fn(&E, &mut Window, &mut App) + 'static {
+        on(self.island, move |island, event, cx| {
+            press(Pointer { x: x(event) }, &mut IslandUi::new(island, cx));
+        })
+    }
+
+    fn widget(&self, widget: BarWidget) -> AnyElement {
+        let BarWidget {
+            id,
+            frame,
+            parts,
+            tip,
+            gap,
+            small,
+            color,
+            width,
+            start,
+            padding,
+            clip,
+            opacity,
+            on_click,
+            on_right,
+            on_middle,
+            on_scroll,
+            holds_press,
+        } = widget;
+        let mut element = match frame {
+            Frame::Control => widget_base(id.clone(), self.look),
+            Frame::Bare => widget_group(id.clone(), self.look),
+            Frame::Row => div().id(id.clone()).flex_none().flex().items_center(),
+            Frame::Spot { tint } => spot(id.clone(), tint, self.look),
+        };
+        if let Some(text) = tip {
+            element = element.tip(self.look.tips, id, text);
+        }
+        if let Some(press) = on_click {
+            element = element.on_click(self.press(press, click_x));
+        }
+        if let Some(press) = on_right {
+            element = element.on_mouse_down(MouseButton::Right, self.press(press, press_x));
+        }
+        if let Some(press) = on_middle {
+            element = element.on_mouse_down(MouseButton::Middle, self.press(press, press_x));
+        }
+        if let Some(scroll) = on_scroll {
+            element = element.on_scroll(on(self.island, move |island, event: &ScrollEvent, cx| {
+                scroll(island::scrolled(event), &mut IslandUi::new(island, cx));
+            }));
+        }
+        element
+            .when(holds_press, |element| {
+                element.on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
+            })
+            .when_some(gap, |element, gap| element.gap(px(gap)))
+            .when(small, |element| {
+                element
+                    .text_size(px(SMALL_SIZE))
+                    .font_weight(FontWeight::SEMIBOLD)
+            })
+            .when_some(color, |element, color| element.text_color(rgb(color)))
+            .when_some(width, |element, width| element.w(px(width)))
+            .when(start, |element| element.justify_start())
+            .when_some(padding, |element, padding| element.px(px(padding)))
+            .when(clip, |element| element.overflow_hidden())
+            .when_some(opacity, |element, opacity| element.opacity(opacity))
+            .children(parts.into_iter().map(|part| self.part(part)))
+            .into_any_element()
+    }
+
+    fn part(&self, part: Part) -> AnyElement {
+        match part {
+            Part::Glyph(path, color) => icon::glyph(&path, GLYPH, color),
+            Part::Picture(picture, size) => icon::picture(&picture, size, ObjectFit::Contain),
+            Part::Meter { level, color } => meter(level, color).into_any_element(),
+            Part::Busy(busy) => energy(self.look, busy).into_any_element(),
+            Part::Text { id, text, emphasis } => {
+                let line = div().child(motion::text(id, text));
+                match emphasis {
+                    Emphasis::Title => line.text_size(px(TITLE_SIZE)).font_weight(FontWeight::BOLD),
+                    Emphasis::Small => line.text_size(px(SMALL_SIZE)),
+                }
+                .into_any_element()
+            }
+            Part::Count(text) => slot(text, self.slots.count()).into_any_element(),
+            Part::Marquee { text, slot } => div()
+                .flex_1()
+                .min_w(px(0.0))
+                .child(marquee::marquee(
+                    self.layouts,
+                    text,
+                    SMALL_SIZE,
+                    FontWeight::SEMIBOLD,
+                    slot,
+                ))
+                .into_any_element(),
+            Part::Plain(text) => text.into_any_element(),
+            Part::Fixed(part) => div().flex_none().child(self.part(*part)).into_any_element(),
+            Part::Cluster { color, parts } => div()
+                .flex_none()
+                .flex()
+                .items_center()
+                .gap(px(ICON_GAP))
+                .text_color(rgb(color))
+                .children(parts.into_iter().map(|part| self.part(part)))
+                .into_any_element(),
+            Part::Badged { id, part, badge } => button::badged(
+                id,
+                self.part(*part),
+                badge.map(|(text, color)| Badge { text, color }),
+                false,
+            )
+            .into_any_element(),
+            Part::Pill {
+                width,
+                height,
+                color,
+            } => div()
+                .flex_none()
+                .w(px(width))
+                .h(px(height))
+                .rounded_full()
+                .bg(rgb(color))
+                .into_any_element(),
+            Part::Underline {
+                width,
+                height,
+                lift,
+                opacity,
+                color,
+            } => div()
+                .absolute()
+                .bottom(px(lift))
+                .left(relative(0.5))
+                .ml(px(-width / 2.0))
+                .w(px(width))
+                .h(px(height))
+                .rounded_full()
+                .opacity(opacity)
+                .bg(rgb(color))
+                .into_any_element(),
+            Part::Widget(widget) => self.widget(widget),
+            Part::Drawing(picture) => drawing::drawing(picture),
+        }
+    }
 }
 
 /// Gone widgets are left out entirely, unless they rest at a visible core.

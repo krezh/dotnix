@@ -8,6 +8,7 @@ use tracing::info;
 use zbus::{OwnedObjectPath, fdo, interface};
 
 use super::runtime::Request;
+use crate::sync::lock;
 
 pub const PATH: &str = "/io/github/krezh/Island/Bluetooth/Agent";
 
@@ -66,9 +67,7 @@ pub struct Agent {
 
 impl Agent {
     fn lock(&self) -> std::sync::MutexGuard<'_, Asked> {
-        self.asked
-            .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner())
+        lock(&self.asked)
     }
 
     fn poke(&self) {
@@ -134,10 +133,7 @@ impl Agent {
     }
 
     async fn request_authorization(&self, device: OwnedObjectPath) -> fdo::Result<()> {
-        let visible = *self
-            .visible
-            .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        let visible = *lock(&self.visible);
         if visible {
             info!(device = device.as_str(), "let a device pair while visible");
             Ok(())

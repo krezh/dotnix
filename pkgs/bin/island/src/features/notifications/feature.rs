@@ -1,9 +1,8 @@
 //! How island sees notifications: the cards each island keeps, the widget, the panel, the
 //! pop-ups, and `island ctl dnd|private|clear`.
 
+use crate::bar_widget::BarWidget;
 use std::any::Any;
-
-use gpui::AnyElement;
 
 use super::{
     cards::{self, Cards},
@@ -15,7 +14,8 @@ use super::{
 use crate::{
     control::{Command, Report, Row, Switch},
     features::{
-        Dashboard, Feature, Feed, GlyphSpec, IslandInfo, Islands, PanelCx, WidgetCx, notice,
+        Dashboard, Feature, Feed, GlyphSpec, IslandInfo, Islands, PanelCx, Surface, WidgetCx,
+        notice,
     },
     panel::{ActionTile, PanelView},
     theme::FLAMINGO,
@@ -23,10 +23,37 @@ use crate::{
 
 impl Feature for Notifications {
     const NAME: &'static str = "notifications";
-    const PANEL: Option<&'static str> = Some("notifications");
-    const TAB: Option<(&'static str, u8)> = Some(("Notifications", 0));
-    const DASHBOARD_ORDER: u8 = 50;
+
     const CONTROLS: &'static [Command] = commands::CONTROLS;
+
+    type State = State;
+
+    type Event = Event;
+
+    fn start(feed: Feed<State, Event>) -> Self {
+        Self::start(feed)
+    }
+
+    fn check_settings(settings: &toml::Value) -> Result<(), String> {
+        settings::check(settings)
+    }
+
+    fn command(&self, state: &State, args: &[&str]) -> Report {
+        self.command(state, args)
+    }
+
+    fn status(&self, state: &State) -> Vec<Row> {
+        self.status(state)
+    }
+}
+
+impl Surface for Notifications {
+    const PANEL: Option<&'static str> = Some("notifications");
+
+    const TAB: Option<(&'static str, u8)> = Some(("Notifications", 0));
+
+    const DASHBOARD_ORDER: u8 = 50;
+
     const GLYPHS: &'static [GlyphSpec] = &[
         ("tab-notifications", &["bell"]),
         ("notifications-private", &["eye-off"]),
@@ -39,17 +66,7 @@ impl Feature for Notifications {
         ("notifications-dnd", &["bell-off"]),
     ];
 
-    type State = State;
     type Local = Cards;
-    type Event = Event;
-
-    fn start(feed: Feed<State, Event>) -> Self {
-        Self::start(feed)
-    }
-
-    fn check_settings(settings: &toml::Value) -> Result<(), String> {
-        settings::check(settings)
-    }
 
     fn sync_local(state: &State, cards: &mut Cards, island: &IslandInfo<'_>, animate: bool) {
         cards::sync(state, cards, island, animate);
@@ -63,7 +80,7 @@ impl Feature for Notifications {
         self.elapse_cards(cards, hovered);
     }
 
-    fn widget(&self, _: &str, state: &State, w: &mut WidgetCx<'_>) -> Option<AnyElement> {
+    fn widget(&self, _: &str, state: &State, w: &mut WidgetCx<'_>) -> Option<BarWidget> {
         self.widget_view(state, w)
     }
 
@@ -95,13 +112,5 @@ impl Feature for Notifications {
             }],
             ..Dashboard::default()
         }
-    }
-
-    fn command(&self, state: &State, args: &[&str]) -> Report {
-        self.command(state, args)
-    }
-
-    fn status(&self, state: &State) -> Vec<Row> {
-        self.status(state)
     }
 }

@@ -8,6 +8,7 @@
         showClock = true;
         spanOutputs = true;
         opacity = 0.0;
+        blur = config.var.blur;
         font = config.var.fonts.sans;
       };
     };

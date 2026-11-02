@@ -6,4 +6,4 @@ pub mod annotate;
 pub mod clipboard;
 
 pub use annotate::annotate;
-pub use clipboard::{copy_image, copy_text};
+pub use clipboard::{copy_file, copy_image, copy_text};

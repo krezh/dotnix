@@ -1,18 +1,17 @@
 //! Jelly, the panel's mascot: its mood from active sessions and the configured quota fleet, and
 //! the header lead naming what the AI panel is doing across harnesses.
 
-use gpui::rgb;
-
 use super::{
-    Ai, overview,
+    Ai,
+    mascot::{self, Activity, Mood},
+    overview,
     session::Activity as Work,
     state::{Source, State},
     view::{Tab, View},
 };
 use crate::{
-    components::mascot::{Activity, Mood},
     features::PanelCx,
-    panel::{HeaderLead, Mark},
+    panel::HeaderLead,
     theme::{GREEN, LAVENDER, OVERLAY1, OVERLAY2, PEACH, YELLOW},
 };
 
@@ -20,9 +19,14 @@ const LARGE: f32 = 52.0;
 const TIRES_FROM: f64 = 60.0;
 
 fn mix(from: u32, to: u32, t: f32) -> u32 {
-    let (from, to) = (rgb(from), rgb(to));
-    let at = |a: f32, b: f32| ((a + (b - a) * t).clamp(0.0, 1.0) * 255.0).round() as u32;
-    (at(from.r, to.r) << 16) | (at(from.g, to.g) << 8) | at(from.b, to.b)
+    let at = |shift: u32| {
+        let (a, b) = (
+            ((from >> shift) & 0xff) as f32,
+            ((to >> shift) & 0xff) as f32,
+        );
+        ((a + (b - a) * t).clamp(0.0, 255.0).round() as u32) << shift
+    };
+    at(16) | at(8) | at(0)
 }
 
 pub(super) fn activity(state: &State) -> Activity {
@@ -166,7 +170,7 @@ pub(super) fn title(sources: &[Source], state: &State, tab: Tab) -> String {
 pub(super) fn lead(ai: &Ai, state: &State, view: &View, p: &PanelCx<'_>) -> Option<HeaderLead> {
     let pose = view.pose()?;
     Some(HeaderLead {
-        mark: Mark::Mascot(pose),
+        mark: mascot::mark(pose),
         size: LARGE,
         overline: overline(&ai.settings.sources).into(),
         title: title(&ai.settings.sources, state, view.tab).into(),

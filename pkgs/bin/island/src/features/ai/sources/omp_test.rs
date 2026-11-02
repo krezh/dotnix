@@ -1,7 +1,11 @@
 use serde_json::json;
 
 use super::*;
-use crate::features::ai::{model::Tracker, settings::Settings, state::{Severity, State}};
+use crate::features::ai::{
+    model::Tracker,
+    settings::Settings,
+    state::{Severity, State},
+};
 
 fn limit(id: &str, amount: Value) -> Value {
     json!({"id": id, "label": "Model", "amount": amount, "status": "ok",

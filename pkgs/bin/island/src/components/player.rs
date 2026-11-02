@@ -13,6 +13,7 @@ use crate::{
     },
     island::Island,
     panel::Handler,
+    panel::IslandUi,
     theme::{ACCENT, CONTROL_ALPHA, ON_ACCENT, SUBTEXT1, SURFACE1, TEXT, with_alpha},
     ui::{self, CARD_PAD, Radius, SMALL_SIZE, TEXT_SIZE, TITLE_SIZE},
 };
@@ -61,7 +62,7 @@ pub fn player(
         .bg(rgba(with_alpha(SURFACE1, CONTROL_ALPHA)))
         .when_some(view.art.clone(), |art, path| {
             art.child(
-                gpui::img(path)
+                icon::art(path)
                     .size_full()
                     .object_fit(gpui::ObjectFit::Cover),
             )
@@ -83,7 +84,7 @@ pub fn player(
             .when_some(glyph, |control, path| {
                 control.child(icon::glyph(&path, size * 0.45, tint))
             })
-            .on_click(cx.listener(move |this, _, _, cx| action(this, cx)))
+            .on_click(cx.listener(move |this, _, _, cx| action(&mut IslandUi::new(this, cx))))
     };
     let progress = view.length.map(|length| {
         let fraction = (view.position / length.max(1.0)) as f32;

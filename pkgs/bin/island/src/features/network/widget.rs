@@ -1,17 +1,14 @@
 //! The bar widget: the Wi-Fi signal with its strength beside it, or the cable, and the VPN shield
 //! while one is on.
 
-use gpui::{AnyElement, prelude::*};
-
 use super::{
     Network, glyphs,
     state::{Internet, State},
 };
 use crate::{
-    bar::{GLYPH, Gauge, ICON_GAP},
-    components::{icon, tooltip::Tip},
-    features::{Feature, WidgetCx},
-    island::Panel,
+    bar::ICON_GAP,
+    bar_widget::{BarWidget, Gauge},
+    features::{Surface, WidgetCx},
     theme::{GREEN, MAUVE, OVERLAY2, PEACH, TEXT, YELLOW},
 };
 
@@ -61,7 +58,7 @@ fn tip(state: &State) -> String {
     lines.join(" · ")
 }
 
-pub fn widget(state: &State, w: &mut WidgetCx<'_>) -> AnyElement {
+pub fn widget(state: &State, w: &mut WidgetCx<'_>) -> BarWidget {
     let glyph = w.glyph(glyphs::link(state));
     let active = state
         .wifi
@@ -91,19 +88,12 @@ pub fn widget(state: &State, w: &mut WidgetCx<'_>) -> AnyElement {
                 level_color: strength_color(active.strength),
             },
         ),
-        None => w
-            .base("bar-network")
-            .gap(gpui::px(ICON_GAP))
-            .when_some(glyph, |widget, path| {
-                widget.child(icon::glyph(path, GLYPH, color))
-            }),
+        None => w.base("bar-network").gap(ICON_GAP).glyph(glyph, color),
     };
     let shield = glyphs::vpn_on(state)
         .then(|| w.glyph("network-vpn"))
-        .flatten()
-        .map(|path| icon::glyph(path, GLYPH, MAUVE));
-    base.children(shield)
-        .tip(w.tips(), "bar-network", tip(state))
-        .on_click(w.toggle(Panel::Feature(<Network as Feature>::NAME)))
-        .into_any_element()
+        .flatten();
+    base.glyph(shield, MAUVE)
+        .tip(tip(state))
+        .on_click(w.toggle(Network::panel_handle()))
 }

@@ -5,21 +5,20 @@ use std::{
     time::Duration,
 };
 
-use gpui::{AnyElement, prelude::*};
 use serde::Deserialize;
 use tracing::{info, warn};
 use zbus::{Connection, block_on};
 
-use super::{Feature, Feed, GlyphSpec, PanelCx, WidgetCx, parse_settings};
+use super::{Feature, Feed, GlyphSpec, PanelCx, Surface, WidgetCx, parse_settings};
 use crate::{
-    bar::GLYPH,
-    components::{icon, tooltip::Tip},
+    bar_widget::BarWidget,
     control::{Command, Group, Report, Row, Takes, Value, form},
     dbus::uncached,
-    island::{Mode, Panel},
     launch::{self, Launch},
     panel::{ActionTile, Block, Header, PanelView},
+    sync::lock,
     theme::{BLUE, MAUVE, PEACH, RED, TEAL, TEXT, YELLOW},
+    units::span,
 };
 
 const CONFIRM: Duration = Duration::from_secs(4);
@@ -180,16 +179,7 @@ fn uptime(p: &PanelCx<'_>) -> Option<String> {
     let step = if seconds < 86_400 { 60 } else { 3600 };
     let next = (step - (seconds % step)) as f64 - raw.fract();
     p.redraw_in(Duration::from_secs_f64(next.max(0.0)));
-    let (days, hours, minutes) = (
-        seconds / 86_400,
-        seconds % 86_400 / 3600,
-        seconds % 3600 / 60,
-    );
-    Some(match (days, hours) {
-        (0, 0) => format!("Up {minutes} min"),
-        (0, _) => format!("Up {hours} h {minutes} min"),
-        _ => format!("Up {days} d {hours} h"),
-    })
+    Some(format!("Up {}", span(seconds)))
 }
 
 /// The action waiting for its confirming click, and which arming it was, so an old timeout leaves
@@ -228,10 +218,7 @@ impl Session {
     }
 
     fn disarm(&self) {
-        let mut armed = self
-            .armed
-            .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        let mut armed = lock(&self.armed);
         if armed.action.take().is_some() {
             self.feed.publish(None);
         }
@@ -243,10 +230,7 @@ impl Session {
             self.run(action);
             return true;
         }
-        let mut armed = self
-            .armed
-            .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        let mut armed = lock(&self.armed);
         if armed.action == Some(action) {
             drop(armed);
             self.run(action);
@@ -260,32 +244,18 @@ impl Session {
         let (shared, feed) = (self.armed.clone(), self.feed.clone());
         thread::spawn(move || {
             thread::sleep(CONFIRM);
-            let mut armed = shared
-                .lock()
-                .unwrap_or_else(|poisoned| poisoned.into_inner());
+            let mut armed = lock(&shared);
             if armed.generation == generation && armed.action.take().is_some() {
                 feed.publish(None);
             }
         });
         false
     }
-
-    fn panel_handle() -> Panel {
-        Panel::Feature(<Self as Feature>::NAME)
-    }
 }
 
 impl Feature for Session {
     const NAME: &'static str = "session";
-    const GLYPHS: &'static [GlyphSpec] = &[
-        ("session-lock", &["lock"]),
-        ("session-logout", &["log-out"]),
-        ("session-suspend", &["moon"]),
-        ("session-hibernate", &["snowflake"]),
-        ("session-reboot", &["rotate-ccw"]),
-        ("session-shutdown", &["power"]),
-    ];
-    const PANEL: Option<&'static str> = Some("session");
+
     const CONTROLS: &'static [Command] = &[Command {
         name: "session",
         about: "Lock, log out, sleep or power off, without asking first",
@@ -305,7 +275,7 @@ impl Feature for Session {
     }];
 
     type State = Option<Action>;
-    type Local = ();
+
     type Event = ();
 
     fn start(feed: Feed<Option<Action>>) -> Self {
@@ -318,48 +288,6 @@ impl Feature for Session {
 
     fn check_settings(settings: &toml::Value) -> Result<(), String> {
         parse_settings::<Settings>(settings).map(drop)
-    }
-
-    fn widget(&self, _: &str, _: &Option<Action>, w: &mut WidgetCx<'_>) -> Option<AnyElement> {
-        Some(
-            w.base("bar-session")
-                .tip(w.tips(), "bar-session", "Session")
-                .when_some(w.glyph("session-shutdown"), |button, path| {
-                    button.child(icon::glyph(path, GLYPH, TEXT))
-                })
-                .on_click(w.toggle(Self::panel_handle()))
-                .into_any_element(),
-        )
-    }
-
-    fn panel<'a>(&self, armed: &Option<Action>, p: &PanelCx<'a>) -> Option<PanelView> {
-        let tiles = self
-            .settings
-            .actions
-            .iter()
-            .map(|&action| ActionTile {
-                id: format!("session-{}", action.word()).into(),
-                glyph: p.glyph(&format!("session-{}", action.word())),
-                label: action.label().into(),
-                state: None,
-                color: action.color(),
-                armed: *armed == Some(action),
-                on_click: p.on_island::<Self>(move |session, island, cx| {
-                    if session.press(action) {
-                        island.set_mode(Mode::Collapsed, cx);
-                    }
-                }),
-            })
-            .collect();
-        let note = match armed {
-            Some(action) => format!("Click {} again to confirm", action.label()),
-            None => uptime(p).unwrap_or_default(),
-        };
-        Some(PanelView {
-            scroll: false,
-            header: Header::None,
-            blocks: vec![Block::Actions(tiles), Block::note(note)],
-        })
     }
 
     fn command(&self, _: &Option<Action>, args: &[&str]) -> Report {
@@ -375,5 +303,59 @@ impl Feature for Session {
             Action::Reboot => "Restarting",
             Action::Shutdown => "Shutting down",
         }))
+    }
+}
+
+impl Surface for Session {
+    const GLYPHS: &'static [GlyphSpec] = &[
+        ("session-lock", &["lock"]),
+        ("session-logout", &["log-out"]),
+        ("session-suspend", &["moon"]),
+        ("session-hibernate", &["snowflake"]),
+        ("session-reboot", &["rotate-ccw"]),
+        ("session-shutdown", &["power"]),
+    ];
+
+    const PANEL: Option<&'static str> = Some("session");
+
+    type Local = ();
+
+    fn widget(&self, _: &str, _: &Option<Action>, w: &mut WidgetCx<'_>) -> Option<BarWidget> {
+        Some(
+            w.base("bar-session")
+                .tip("Session")
+                .glyph(w.glyph("session-shutdown"), TEXT)
+                .on_click(w.toggle(Self::panel_handle())),
+        )
+    }
+
+    fn panel<'a>(&self, armed: &Option<Action>, p: &PanelCx<'a>) -> Option<PanelView> {
+        let tiles = self
+            .settings
+            .actions
+            .iter()
+            .map(|&action| ActionTile {
+                id: format!("session-{}", action.word()).into(),
+                glyph: p.glyph(&format!("session-{}", action.word())),
+                label: action.label().into(),
+                state: None,
+                color: action.color(),
+                armed: *armed == Some(action),
+                on_click: p.on_island::<Self>(move |session, ui| {
+                    if session.press(action) {
+                        ui.collapse();
+                    }
+                }),
+            })
+            .collect();
+        let note = match armed {
+            Some(action) => format!("Click {} again to confirm", action.label()),
+            None => uptime(p).unwrap_or_default(),
+        };
+        Some(PanelView {
+            scroll: false,
+            header: Header::None,
+            blocks: vec![Block::Actions(tiles), Block::note(note)],
+        })
     }
 }

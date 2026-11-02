@@ -2,7 +2,7 @@ use std::time::SystemTime;
 
 use super::{Ai, model::Notice};
 use crate::features::{
-    Feature,
+    Feature, Surface,
     notice::{self, NoticeAction, Origin, Post},
 };
 

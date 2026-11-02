@@ -296,12 +296,12 @@ impl Notifications {
             ],
             selected: usize::from(cards.earlier),
             on_select: p.on_local_with::<Self, usize>(|_, cards, tab| {
-                cards.earlier = tab == 1;
-                cards.picking = false;
+                cards.show_earlier_view(tab == 1);
             }),
             pick: Some(pick),
             buttons: Vec::new(),
             icons: self.icons(state, cards, p),
+            passing: None,
         });
         let mut blocks = vec![views];
         let troubles: Vec<Block> = cards
@@ -311,54 +311,56 @@ impl Notifications {
             .map(|(feature, trouble)| self.trouble(feature, trouble, p))
             .collect();
         let open = cards.troubles.open.value();
-        if cards.earlier {
-            let looks = cards
-                .earlier_list
-                .rows()
-                .iter()
-                .map(|row| {
-                    let EarlierEntry::Card(kept) = &row.entry else {
-                        return None;
-                    };
-                    let key = kept.key();
-                    Some(Look {
-                        lead: card::lead(&kept.notification, p),
-                        corner: card::corner(&kept.notification, p),
-                        countdown: None,
-                        hidden: self.hidden(state, &kept.notification),
-                        activate: p.call::<Self>(|_| {}),
-                        dismiss: p
-                            .call::<Self>(move |notifications| notifications.forget(vec![key])),
-                        invoke: Vec::new(),
-                    })
-                })
-                .collect();
-            blocks.extend(card::opening(
-                card::earlier(&cards.earlier_list, looks),
-                troubles,
-                open,
-            ));
-            return Some(PanelView {
-                header: Header::Tabs,
-                blocks,
-                scroll: false,
-            });
-        }
-        let empty = if state.dnd {
-            "Nothing missed · do not disturb is on"
+        let across = cards.across.0.value().clamp(0.0, 1.0);
+        let list = if across <= 0.0 {
+            self.now_list(state, cards, p)
+        } else if across >= 1.0 {
+            self.earlier_list(state, cards, p)
         } else {
-            "Nothing missed"
+            card::across(
+                self.now_list(state, cards, p),
+                self.earlier_list(state, cards, p),
+                across,
+            )
         };
-        let looks = self.missed_looks(state, cards, p);
-        blocks.extend(card::opening(
-            card::missed(&cards.missed, looks, empty),
-            troubles,
-            open,
-        ));
+        blocks.extend(card::opening(list, troubles, open));
         Some(PanelView {
             scroll: false,
             header: Header::Tabs,
             blocks,
         })
+    }
+
+    fn now_list(&self, state: &State, cards: &Cards, p: &PanelCx<'_>) -> Block {
+        let empty = if state.dnd {
+            "Nothing missed · do not disturb is on"
+        } else {
+            "Nothing missed"
+        };
+        card::missed(&cards.missed, self.missed_looks(state, cards, p), empty)
+    }
+
+    fn earlier_list(&self, state: &State, cards: &Cards, p: &PanelCx<'_>) -> Block {
+        let looks = cards
+            .earlier_list
+            .rows()
+            .iter()
+            .map(|row| {
+                let EarlierEntry::Card(kept) = &row.entry else {
+                    return None;
+                };
+                let key = kept.key();
+                Some(Look {
+                    lead: card::lead(&kept.notification, p),
+                    corner: card::corner(&kept.notification, p),
+                    countdown: None,
+                    hidden: self.hidden(state, &kept.notification),
+                    activate: p.call::<Self>(|_| {}),
+                    dismiss: p.call::<Self>(move |notifications| notifications.forget(vec![key])),
+                    invoke: Vec::new(),
+                })
+            })
+            .collect();
+        card::earlier(&cards.earlier_list, looks)
     }
 }

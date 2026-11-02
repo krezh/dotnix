@@ -137,11 +137,13 @@ pub struct Screencopy {
     event_queue: wayland_client::EventQueue<CaptureState>,
     manager: ZwlrScreencopyManagerV1,
     shm: wl_shm::WlShm,
+    overlay_cursor: i32,
 }
 
 impl Screencopy {
-    /// Binds the screencopy and shm globals on `conn`.
-    pub fn new(conn: &Connection) -> Result<Self> {
+    /// Binds the screencopy and shm globals on `conn`. `overlay_cursor` draws
+    /// the mouse cursor into captured frames.
+    pub fn new(conn: &Connection, overlay_cursor: bool) -> Result<Self> {
         use wayland_client::globals::registry_queue_init;
 
         let (globals, event_queue) =
@@ -160,6 +162,7 @@ impl Screencopy {
             event_queue,
             manager,
             shm,
+            overlay_cursor: overlay_cursor.into(),
         })
     }
 
@@ -169,7 +172,9 @@ impl Screencopy {
         transform: wl_output::Transform,
     ) -> Result<CapturedImage> {
         let qh = self.event_queue.handle();
-        let frame = self.manager.capture_output(0, output, &qh, ());
+        let frame = self
+            .manager
+            .capture_output(self.overlay_cursor, output, &qh, ());
         capture_frame(self, frame, transform)
     }
 
@@ -181,7 +186,7 @@ impl Screencopy {
     ) -> Result<CapturedImage> {
         let qh = self.event_queue.handle();
         let frame = self.manager.capture_output_region(
-            0,
+            self.overlay_cursor,
             output,
             rect.x,
             rect.y,

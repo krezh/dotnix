@@ -3,7 +3,7 @@ pub mod handlers;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use smithay_client_toolkit::compositor::CompositorState;
+use smithay_client_toolkit::compositor::{CompositorState, Region};
 use smithay_client_toolkit::output::{OutputInfo, OutputState};
 use smithay_client_toolkit::reexports::calloop::signals::{Signal, Signals};
 use smithay_client_toolkit::reexports::calloop::{EventLoop, LoopSignal};
@@ -18,6 +18,8 @@ use smithay_client_toolkit::shm::slot::SlotPool;
 use wayland_client::globals::registry_queue_init;
 use wayland_client::protocol::{wl_callback, wl_output, wl_pointer, wl_shm, wl_surface};
 use wayland_client::{Connection, QueueHandle};
+use wayland_protocols::ext::background_effect::v1::client::ext_background_effect_manager_v1::ExtBackgroundEffectManagerV1;
+use wayland_protocols::ext::background_effect::v1::client::ext_background_effect_surface_v1::ExtBackgroundEffectSurfaceV1;
 use wayland_protocols::wp::fractional_scale::v1::client::{
     wp_fractional_scale_manager_v1, wp_fractional_scale_v1,
 };
@@ -163,6 +165,7 @@ pub struct OutputSurface {
     preferred_scale: Option<u32>,
     fractional_scale: Option<wp_fractional_scale_v1::WpFractionalScaleV1>,
     viewport: Option<wp_viewport::WpViewport>,
+    blur: Option<ExtBackgroundEffectSurfaceV1>,
     pub configured: bool,
     pool: Option<SlotPool>,
     pub frame_callback: Option<wl_callback::WlCallback>,
@@ -210,6 +213,9 @@ impl Drop for OutputSurface {
         }
         if let Some(viewport) = &self.viewport {
             viewport.destroy();
+        }
+        if let Some(blur) = &self.blur {
+            blur.destroy();
         }
     }
 }
@@ -350,6 +356,8 @@ pub struct App {
     pub qh: QueueHandle<Self>,
     fractional_manager: Option<wp_fractional_scale_manager_v1::WpFractionalScaleManagerV1>,
     viewporter: Option<wp_viewporter::WpViewporter>,
+    background_effect_manager: Option<ExtBackgroundEffectManagerV1>,
+    pub can_blur: bool,
     pub config: AppConfig,
     pub surfaces: Vec<OutputSurface>,
     pub pointer: Option<wl_pointer::WlPointer>,
@@ -363,6 +371,43 @@ pub struct App {
 }
 
 impl App {
+    fn setup_blur(&self, surface: &wl_surface::WlSurface) -> Option<ExtBackgroundEffectSurfaceV1> {
+        if !self.can_blur || !self.config.blur {
+            return None;
+        }
+        let manager = self.background_effect_manager.as_ref()?;
+        let effect = manager.get_background_effect(surface, &self.qh, ());
+        if let Ok(region) = Region::new(&self.compositor_state) {
+            region.add(0, 0, i32::MAX, i32::MAX);
+            effect.set_blur_region(Some(region.wl_region()));
+        }
+        Some(effect)
+    }
+
+    pub fn update_blur(&mut self) {
+        if self.can_blur && self.config.blur {
+            let Some(manager) = self.background_effect_manager.as_ref() else {
+                return;
+            };
+            for surface in &mut self.surfaces {
+                if surface.blur.is_none() {
+                    let effect = manager.get_background_effect(&surface.surface, &self.qh, ());
+                    if let Ok(region) = Region::new(&self.compositor_state) {
+                        region.add(0, 0, i32::MAX, i32::MAX);
+                        effect.set_blur_region(Some(region.wl_region()));
+                    }
+                    surface.blur = Some(effect);
+                }
+            }
+        } else {
+            for surface in &mut self.surfaces {
+                if let Some(blur) = surface.blur.take() {
+                    blur.destroy();
+                }
+            }
+        }
+    }
+
     fn fail_surface(&mut self, idx: usize, error: impl std::fmt::Display) {
         let surface = &self.surfaces[idx];
         self.error = Some(format!(
@@ -567,6 +612,7 @@ impl App {
             ),
             _ => (None, None),
         };
+        let blur = self.setup_blur(&surface);
         layer_surface.set_anchor(Anchor::TOP | Anchor::BOTTOM | Anchor::LEFT | Anchor::RIGHT);
         layer_surface.set_keyboard_interactivity(KeyboardInteractivity::Exclusive);
         layer_surface.set_exclusive_zone(-1);
@@ -596,6 +642,7 @@ impl App {
             preferred_scale: None,
             fractional_scale,
             viewport,
+            blur,
             configured: false,
             pool: None,
             frame_callback: None,
@@ -617,7 +664,7 @@ impl App {
 
 pub fn run(config: AppConfig) -> RenderResult {
     let conn = Connection::connect_to_env()?;
-    let (globals, event_queue) = registry_queue_init(&conn)?;
+    let (globals, mut event_queue) = registry_queue_init(&conn)?;
     let qh = event_queue.handle();
     let compositor_state = CompositorState::bind(&globals, &qh)?;
     let output_state = OutputState::new(&globals, &qh);
@@ -627,6 +674,7 @@ pub fn run(config: AppConfig) -> RenderResult {
     let layer_shell = LayerShell::bind(&globals, &qh)?;
     let fractional_manager = globals.bind(&qh, 1..=1, ()).ok();
     let viewporter = globals.bind(&qh, 1..=1, ()).ok();
+    let background_effect_manager = globals.bind(&qh, 1..=1, ()).ok();
     let mut event_loop: EventLoop<App> = EventLoop::try_new()?;
     let loop_signal = event_loop.get_signal();
     let mut rng = Rng::from_time();
@@ -646,6 +694,8 @@ pub fn run(config: AppConfig) -> RenderResult {
         qh: qh.clone(),
         fractional_manager,
         viewporter,
+        background_effect_manager,
+        can_blur: false,
         config,
         surfaces: Vec::new(),
         pointer: None,
@@ -657,6 +707,7 @@ pub fn run(config: AppConfig) -> RenderResult {
         error: None,
         exit: false,
     };
+    let _ = event_queue.roundtrip(&mut app);
     let outputs: Vec<_> = app.output_state.outputs().collect();
     for output in outputs {
         if let Some(info) = app.output_state.info(&output) {

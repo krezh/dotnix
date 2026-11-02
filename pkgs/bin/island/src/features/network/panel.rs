@@ -1,8 +1,6 @@
 //! The Network tab: icon buttons over a board of tiles, four columns of three units each, and the
 //! card asking for a password while one is wanted.
 
-use gpui::SharedString;
-
 use super::{
     Network, glyphs,
     runtime::{PROBE_EVERY, Request, SAMPLE_EVERY, phase},
@@ -15,24 +13,16 @@ use crate::{
         tile::{Entry, EntryLead, Part, Tile},
     },
     features::PanelCx,
-    panel::{Block, ButtonRow, Header, IconButton, InputView, PanelView, PromptView, Reveal},
-    panels::{nice_peak, rate, series, short_duration, tile_meter, titled},
+    panel::{
+        Block, ButtonRow, Header, IconButton, InputView, PanelView, PromptView, Reveal,
+        SharedString,
+    },
+    panels::{nice_peak, series, tile_meter, titled},
     theme::{BLUE, GREEN, MAUVE, OVERLAY2, PEACH, PINK, RED, SUBTEXT1, TEAL, YELLOW},
+    units::{bytes, link, plural, rate, span},
 };
 
 /// Decimal sizes, as data used is usually counted: "1.4 GB", "312 MB".
-pub(super) fn bytes(count: u64) -> String {
-    let count = count as f64;
-    match count {
-        count if count >= 1e12 => format!("{:.1} TB", count / 1e12),
-        count if count >= 1e9 => format!("{:.1} GB", count / 1e9),
-        count if count >= 1e6 => format!("{:.0} MB", count / 1e6),
-        count if count >= 1e3 => format!("{:.0} kB", count / 1e3),
-        count => format!("{count:.0} B"),
-    }
-}
-
-/// A tenth of a millisecond under 10 ms, so a gateway on the LAN does not read as 0.
 pub(super) fn millis(value: Option<f32>) -> String {
     match value {
         None => "—".to_owned(),
@@ -108,8 +98,8 @@ fn wifi_tile(state: &State) -> Tile {
                 ),
                 Part::Spacer,
                 Part::Facts(vec![
-                    fact("Rate", format!("{} Mb/s", wifi.bitrate)),
-                    fact("Max", format!("{} Mb/s", active.max_bitrate)),
+                    fact("Rate", link(wifi.bitrate)),
+                    fact("Max", link(active.max_bitrate)),
                     fact("Strength", format!("{}%", active.strength)),
                 ]),
             ],
@@ -415,7 +405,7 @@ fn vpn_tile(state: &State, span: usize, p: &PanelCx<'_>) -> Tile {
                     "Up for",
                     vpn.since.map_or_else(
                         || "—".to_owned(),
-                        |since| short_duration((now - since).max(0) as u64),
+                        |since| crate::units::span((now - since).max(0) as u64),
                     ),
                 ),
                 fact("Kind", vpn.kind.clone()),
@@ -474,7 +464,7 @@ fn connection_tile(state: &State) -> Tile {
                     "Lease",
                     link.lease.map_or_else(
                         || "static".to_owned(),
-                        |lease| short_duration((lease - now).max(0) as u64),
+                        |lease| span((lease - now).max(0) as u64),
                     ),
                 ),
             ]),
@@ -558,7 +548,7 @@ fn access_point_tile(state: &State) -> Tile {
             Part::Facts(vec![
                 fact("Security", active.security.label()),
                 fact("Channel", active.channel().to_string()),
-                fact("Max", format!("{} Mb/s", active.max_bitrate)),
+                fact("Max", link(active.max_bitrate)),
             ]),
         ],
     )
@@ -599,7 +589,7 @@ fn channels_tile(state: &State) -> Tile {
                     tile_meter(
                         format!("{ch} · {band}"),
                         *count as f32 / most as f32,
-                        format!("{count} network{}", if *count == 1 { "" } else { "s" }),
+                        plural(*count, "network", "networks"),
                         if Some(*ch) == mine { TEAL } else { BLUE },
                     )
                 })
@@ -657,9 +647,9 @@ fn ethernet_tile(state: &State) -> Tile {
     };
     let (stat_text, name, line) = if wired.active {
         (
-            stat(format!("{} Mb/s", wired.speed), TEAL),
+            stat(link(wired.speed), TEAL),
             wired.name.clone(),
-            format!("{} · {} Mbit/s", wired.interface, wired.speed),
+            format!("{} · {}", wired.interface, link(wired.speed)),
         )
     } else if wired.carrier {
         (

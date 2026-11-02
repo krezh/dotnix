@@ -1,9 +1,8 @@
 //! How island sees audio: the mixer's state, the volume OSD, the widget, the panel, and
 //! `island ctl` volume commands.
 
+use crate::bar_widget::BarWidget;
 use std::{any::Any, cell::Cell, time::Duration};
-
-use gpui::AnyElement;
 
 use super::{
     commands, glyphs, overview, panel, popup, pulse, runtime::Audio, state::AudioState, widget,
@@ -11,7 +10,7 @@ use super::{
 use crate::{
     control::{Command, Report, Row},
     features::{
-        Dashboard, Feature, Feed, GlyphSpec, IslandInfo, PanelCx, WidgetCx, headset,
+        Dashboard, Feature, Feed, GlyphSpec, IslandInfo, PanelCx, Surface, WidgetCx, headset,
         osd::{self, Osd, Shown},
     },
     panel::PanelView,
@@ -22,15 +21,11 @@ const REFRESH: Duration = Duration::from_millis(33);
 
 impl Feature for Audio {
     const NAME: &'static str = "audio";
-    const GLYPHS: &'static [GlyphSpec] = glyphs::GLYPHS;
-    const PANEL: Option<&'static str> = Some("audio");
-    const DASHBOARD_TAB: Option<(&'static str, u8)> = Some(("Sound", 1));
-    const DASHBOARD_ORDER: u8 = 30;
-    const PANEL_REFRESH: Option<Duration> = Some(REFRESH);
+
     const CONTROLS: &'static [Command] = commands::CONTROLS;
 
     type State = AudioState;
-    type Local = Shown;
+
     type Event = ();
 
     fn start(feed: Feed<AudioState>) -> Self {
@@ -41,6 +36,37 @@ impl Feature for Audio {
             picking: Cell::new(None),
         }
     }
+
+    /// Connected with no devices yet, so the widget waits for the first query instead of
+    /// flashing the error state.
+    fn initial() -> AudioState {
+        AudioState {
+            connected: true,
+            ..AudioState::default()
+        }
+    }
+
+    fn command(&self, state: &AudioState, args: &[&str]) -> Report {
+        commands::run(self, state, args)
+    }
+
+    fn status(&self, state: &AudioState) -> Vec<Row> {
+        commands::status(state)
+    }
+}
+
+impl Surface for Audio {
+    const GLYPHS: &'static [GlyphSpec] = glyphs::GLYPHS;
+
+    const PANEL: Option<&'static str> = Some("audio");
+
+    const DASHBOARD_TAB: Option<(&'static str, u8)> = Some(("Sound", 1));
+
+    const DASHBOARD_ORDER: u8 = 30;
+
+    const PANEL_REFRESH: Option<Duration> = Some(REFRESH);
+
+    type Local = Shown;
 
     fn sync_local(_: &AudioState, shown: &mut Shown, island: &IslandInfo<'_>, _animate: bool) {
         shown.sync(island);
@@ -54,20 +80,11 @@ impl Feature for Audio {
         shown.expire();
     }
 
-    /// Connected with no devices yet, so the widget waits for the first query instead of
-    /// flashing the error state.
-    fn initial() -> AudioState {
-        AudioState {
-            connected: true,
-            ..AudioState::default()
-        }
-    }
-
     fn present(_: &str, state: &AudioState) -> bool {
         widget::present(state)
     }
 
-    fn widget(&self, _: &str, state: &AudioState, w: &mut WidgetCx<'_>) -> Option<AnyElement> {
+    fn widget(&self, _: &str, state: &AudioState, w: &mut WidgetCx<'_>) -> Option<BarWidget> {
         widget::widget(state, w)
     }
 
@@ -91,13 +108,5 @@ impl Feature for Audio {
 
     fn osd(before: &AudioState, after: &AudioState) -> Option<Osd> {
         popup::osd(before, after)
-    }
-
-    fn command(&self, state: &AudioState, args: &[&str]) -> Report {
-        commands::run(self, state, args)
-    }
-
-    fn status(&self, state: &AudioState) -> Vec<Row> {
-        commands::status(state)
     }
 }

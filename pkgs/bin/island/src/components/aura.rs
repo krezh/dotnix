@@ -115,6 +115,24 @@ impl Aura {
         !playing && state.levels.iter().any(|level| *level > 0.0)
     }
 
+    /// The light over a `width` × `height` area, with one extra sample on every side, as its width
+    /// and height and premultiplied red, green, blue and alpha.
+    pub fn pixels(&self, width: f32, height: f32, strength: f32) -> (u32, u32, Vec<u8>) {
+        let columns = ((width / SAMPLE).ceil() as usize + 1).clamp(4, MAX_SAMPLES);
+        let rows = ((height / SAMPLE).ceil() as usize + 1).clamp(2, MAX_SAMPLES);
+        let image = sampled(&self.0.borrow(), width, height, columns, rows, strength);
+        let (w, h) = image.dimensions();
+        let bytes = image
+            .pixels()
+            .flat_map(|pixel| {
+                let [blue, green, red, alpha] = pixel.0;
+                let by = |channel: u8| (u16::from(channel) * u16::from(alpha) / 255) as u8;
+                [by(red), by(green), by(blue), alpha]
+            })
+            .collect();
+        (w, h, bytes)
+    }
+
     pub fn is_lit(&self) -> bool {
         self.0.borrow().levels.iter().any(|level| *level > 0.0)
     }
@@ -198,16 +216,15 @@ impl Aura {
     }
 }
 
-/// The light sampled on a `columns` × `rows` grid spanning the `width` × `height` area, plus one
-/// extra sample on every side (so the image is `columns + 2` × `rows + 2`).
-fn render(
+/// As [`render`], in blue, green, red and alpha.
+fn sampled(
     state: &State,
     width: f32,
     height: f32,
     columns: usize,
     rows: usize,
     strength: f32,
-) -> Arc<RenderImage> {
+) -> RgbaImage {
     let time = state.epoch.elapsed().as_secs_f32();
     let step = time / DRIFT;
     let (shift, blend) = (step.floor() as usize, smoothstep(step.fract()));
@@ -273,5 +290,19 @@ fn render(
             pixels[at..at + 4].copy_from_slice(&[blue, green, red, byte(alpha.min(1.0))]);
         }
     }
+    image
+}
+
+/// The light sampled on a `columns` × `rows` grid spanning the `width` × `height` area, plus one
+/// extra sample on every side (so the image is `columns + 2` × `rows + 2`).
+fn render(
+    state: &State,
+    width: f32,
+    height: f32,
+    columns: usize,
+    rows: usize,
+    strength: f32,
+) -> Arc<RenderImage> {
+    let image = sampled(state, width, height, columns, rows, strength);
     Arc::new(RenderImage::new([Frame::new(image)]))
 }

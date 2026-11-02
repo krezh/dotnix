@@ -118,13 +118,20 @@ fn main() -> Result<()> {
         let notifier = ui::Notifier::new();
 
         if mode.is_video() && capture::recording(&settings)?.is_some() {
-            return handle_stop_recording(&settings, &notifier);
+            return handle_stop_recording(&settings, &notifier, settings.request.to_clipboard());
         }
 
         apply_delay(&settings);
 
         if mode.is_video() {
-            return handle_video_mode(&settings, &mode, &notifier, None, None);
+            return handle_video_mode(
+                &settings,
+                &mode,
+                &notifier,
+                None,
+                None,
+                settings.request.to_clipboard(),
+            );
         }
 
         // Area mode runs the selector anyway: take the image it cropped along with
@@ -170,8 +177,9 @@ fn main() -> Result<()> {
 
     if let Some(mode) = selected.mode {
         let notifier = ui::Notifier::new();
+        let to_clipboard = selected.to_clipboard || settings.request.to_clipboard();
         if mode == capture::CaptureMode::StopRecording {
-            return handle_stop_recording(&settings, &notifier);
+            return handle_stop_recording(&settings, &notifier, to_clipboard);
         } else if mode.is_video() {
             return handle_video_mode(
                 &settings,
@@ -179,6 +187,7 @@ fn main() -> Result<()> {
                 &notifier,
                 selected.geometry,
                 selected.target_monitor.as_deref(),
+                to_clipboard,
             );
         } else {
             return handle_image_mode(
@@ -187,7 +196,7 @@ fn main() -> Result<()> {
                 &notifier,
                 selected.image,
                 selected.geometry,
-                selected.to_clipboard || settings.request.to_clipboard(),
+                to_clipboard,
             );
         }
     }
@@ -228,11 +237,25 @@ fn handle_status(settings: &Settings) -> Result<()> {
 }
 
 /// Stops an in-progress recording and handles upload/notification.
-fn handle_stop_recording(settings: &Settings, notifier: &ui::Notifier) -> Result<()> {
-    let output_file = capture::stop_recording(settings)?;
+fn handle_stop_recording(
+    settings: &Settings,
+    notifier: &ui::Notifier,
+    to_clipboard: bool,
+) -> Result<()> {
+    let stopped = capture::stop_recording(settings)?;
+    let output_file = stopped.output;
+    println!("Recording saved to: {}", output_file.display());
+
+    if stopped.clipboard || to_clipboard {
+        if let Err(error) = system::copy_file(&settings.wl_copy, &output_file) {
+            notifier.send_error("Clipboard copy failed", Some(&error.to_string()));
+            return Err(error);
+        }
+        notifier.send_info("Screen recording copied to clipboard");
+        return Ok(());
+    }
 
     notifier.send_info("Screen recording saved");
-    println!("Recording saved to: {}", output_file.display());
     handle_upload(settings, &output_file, notifier)
 }
 
@@ -243,6 +266,7 @@ fn handle_video_mode(
     notifier: &ui::Notifier,
     mut pre_geometry: Option<String>,
     target_monitor: Option<&str>,
+    to_clipboard: bool,
 ) -> Result<()> {
     let (geometry, monitor): (Option<String>, Option<String>) = match mode {
         capture::CaptureMode::VideoArea => match pre_geometry.take() {
@@ -280,6 +304,7 @@ fn handle_video_mode(
         geometry.as_deref(),
         monitor.as_deref(),
         &output_file,
+        to_clipboard,
     )?;
 
     let mode_name = match mode {
@@ -520,9 +545,11 @@ pub(crate) fn unique_output_path(directory: &Path, extension: &str) -> Result<Pa
     anyhow::bail!("Could not allocate a unique output filename")
 }
 
-/// Checks if upload is configured.
+/// Checks if upload is enabled and configured.
 fn should_upload(settings: &Settings) -> bool {
-    !settings.zipline_url.is_empty() && !settings.zipline_token.as_os_str().is_empty()
+    settings.upload
+        && !settings.zipline_url.is_empty()
+        && !settings.zipline_token.as_os_str().is_empty()
 }
 
 /// Uploads file to Zipline.

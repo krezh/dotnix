@@ -76,6 +76,7 @@
         "Mod+Shift+R" = "config-reload";
 
         "Print" = spawn screenshot;
+        "Alt+Print" = spawn "${screenshot} --mode image-window";
 
         "Mod+Q" = noRepeat "window-close";
         "Mod+Shift+Q" = noRepeat "window-close";

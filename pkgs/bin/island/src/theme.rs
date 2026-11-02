@@ -45,12 +45,12 @@ pub const TRACK_ALPHA: u8 = 0x40;
 pub const ACCENT_TINT_ALPHA: u8 = 0x40;
 pub const SURFACE: u32 = BASE;
 pub const SURFACE_BORDER_ALPHA: u8 = 0x66;
-pub const POPOVER_OPACITY: f32 = 0.95;
+pub const POPOVER_OPACITY: f32 = 1.0;
 pub const SHADOW_ALPHA: f32 = 0.2;
 
-pub const FONT: &str = "Geist";
+pub const FONT: &str = "Rubik";
 /// For code and commands.
-pub const MONO: &str = "Geist Mono";
+pub const MONO: &str = "Monaspace Neon NF";
 
 pub const fn with_alpha(rgb: u32, alpha: u8) -> u32 {
     (rgb << 8) | alpha as u32

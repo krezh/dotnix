@@ -10,12 +10,14 @@ use gpui::{
 use crate::{
     components::{
         card::{self, Stat},
-        chart::{Series, chart},
+        chart::{Phase, Series, chart},
         icon, motion,
+        overscroll::overscroll,
         tooltip::Tooltips,
     },
     island::{CONTENT_IN, Island},
     panel::Handler,
+    panel::IslandUi,
     theme::{OVERLAY2, SUBTEXT1, SURFACE1, TEXT, TINT, TRACK_ALPHA, with_alpha},
     ui::{self, Radius, SMALL_SIZE},
 };
@@ -106,13 +108,12 @@ pub struct Entry {
 
 /// One building block of a tile. Parts stack top to bottom; `Spacer` pushes the rest down.
 pub enum Part {
-    /// A history chart; `grow` lets it take the tile's spare height. `phase` is how far its newest
-    /// sample has scrolled in, 0 to 1, for histories sampled on a clock of their own; otherwise
-    /// the system sampler sets it.
+    /// A history chart; `grow` lets it take the tile's spare height. `phase` is the clock of a
+    /// history sampled on its own; otherwise the system sampler sets the pace.
     Chart {
         series: Vec<Series>,
         grow: bool,
-        phase: Option<f32>,
+        phase: Option<Phase>,
     },
     Cores {
         loads: Vec<f32>,
@@ -159,7 +160,7 @@ fn bar(id: &str, fraction: f32, color: u32, thickness: f32, mark: Option<f32>) -
         .overflow_hidden()
         .child(div().h_full().rounded_full().bg(rgb(color)).with_spring(
             SharedString::from(format!("{id}-fill")),
-            SpringAnimation::new(CONTENT_IN).to(fraction.clamp(0.0, 1.0)),
+            SpringAnimation::new(CONTENT_IN.into()).to(fraction.clamp(0.0, 1.0)),
             |fill, at| fill.w(relative(at.clamp(0.0, 1.0))),
         ));
     let mark_id = SharedString::from(format!("{id}-mark"));
@@ -181,7 +182,7 @@ fn bar(id: &str, fraction: f32, color: u32, thickness: f32, mark: Option<f32>) -
                     .bg(rgb(TEXT))
                     .with_spring(
                         mark_id,
-                        SpringAnimation::new(CONTENT_IN).to(mark.clamp(0.0, 1.0)),
+                        SpringAnimation::new(CONTENT_IN.into()).to(mark.clamp(0.0, 1.0)),
                         |tick, at| tick.left(relative(at.clamp(0.0, 1.0))),
                     ),
             )
@@ -355,11 +356,13 @@ pub fn hero(name: SharedString, lines: Vec<SharedString>) -> Div {
 }
 
 fn volumes(id: SharedString, items: Vec<Volume>) -> AnyElement {
-    div()
+    let scrolling = div()
         .id(id.clone())
         .flex_1()
         .min_h(px(0.0))
-        .overflow_y_scroll()
+        .overflow_y_scroll();
+    let key = id.clone();
+    let rows = div()
         .flex()
         .flex_col()
         .children(items.into_iter().enumerate().map(move |(index, volume)| {
@@ -405,8 +408,8 @@ fn volumes(id: SharedString, items: Vec<Volume>) -> AnyElement {
                     5.0,
                     None,
                 )))
-        }))
-        .into_any_element()
+        }));
+    overscroll(key, scrolling, None, rows).into_any_element()
 }
 
 fn drives(items: Vec<Drive>) -> Div {
@@ -571,7 +574,7 @@ fn entries(
             .when_some(entry.on_click, |row, action| {
                 row.on_click(cx.listener(move |island, _, _, cx| {
                     cx.stop_propagation();
-                    action(island, cx);
+                    action(&mut IslandUi::new(island, cx));
                 }))
             })
     });
@@ -582,13 +585,14 @@ fn entries(
         .gap(px(2.0))
         .children(rows);
     if scroll {
-        div()
-            .id(SharedString::from(format!("{key}-scroll")))
-            .flex_1()
-            .min_h(px(0.0))
-            .overflow_y_scroll()
-            .child(list)
-            .into_any_element()
+        let key = SharedString::from(format!("{key}-scroll"));
+        overscroll(
+            key.clone(),
+            div().id(key).flex_1().min_h(px(0.0)).overflow_y_scroll(),
+            None,
+            list,
+        )
+        .into_any_element()
     } else {
         list.flex_none().into_any_element()
     }
@@ -620,7 +624,7 @@ fn part(
                 format!("{id}-chart-{index}").into(),
                 series,
                 card::SLOTS,
-                own.unwrap_or(phase),
+                own.map_or(phase, Phase::now),
                 tips,
             )))
             .into_any_element(),
@@ -631,13 +635,17 @@ fn part(
         } => meters(rows, &format!("{id}-meters-{index}"))
             .flex_none()
             .into_any_element(),
-        Part::Meters { rows, scroll: true } => div()
-            .id(SharedString::from(format!("{id}-meters-{index}")))
-            .flex_1()
-            .min_h(px(0.0))
-            .overflow_y_scroll()
-            .child(meters(rows, &format!("{id}-meters-{index}")))
-            .into_any_element(),
+        Part::Meters { rows, scroll: true } => {
+            let key = SharedString::from(format!("{id}-meters-{index}"));
+            let content = meters(rows, &key);
+            overscroll(
+                key.clone(),
+                div().id(key).flex_1().min_h(px(0.0)).overflow_y_scroll(),
+                None,
+                content,
+            )
+            .into_any_element()
+        }
         Part::Legend(items) => legend(items).flex_none().into_any_element(),
         Part::Facts(items) => facts(items, &format!("{id}-facts-{index}"))
             .flex_none()
@@ -673,7 +681,8 @@ pub fn tile(
         .when(clickable, |tile| {
             tile.cursor_pointer()
                 .when(hover, |tile| {
-                    tile.hover(|style| style).active(|style| style.opacity(0.85))
+                    tile.hover(|style| style)
+                        .active(|style| style.opacity(0.85))
                 })
                 .child(ui::control(Radius::Panel, None, hover))
         })
@@ -738,7 +747,9 @@ pub fn tile(
             })
         })
         .when_some(on_click, |tile, action| {
-            tile.on_click(cx.listener(move |island, _, _, cx| action(island, cx)))
+            tile.on_click(
+                cx.listener(move |island, _, _, cx| action(&mut IslandUi::new(island, cx))),
+            )
         })
         .into_any_element()
 }

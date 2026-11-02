@@ -57,12 +57,14 @@
               backend = "watchman";
               watchman.register-snapshot-trigger = true;
             };
-            visualjj.auto-describe = false;
-            visualjj.snapshot-workspaces = true;
-            visualjj.sync = "fetch";
-            visualjj.sync-pause = false;
-            visualjj.sync-rebase = true;
-            visualjj.show-immutable = false;
+            visualjj = {
+              auto-describe = false;
+              snapshot-workspaces = true;
+              sync = "fetch";
+              sync-pause = false;
+              sync-rebase = true;
+              show-immutable = false;
+            };
             ui = {
               default-command = "log";
               diff-formatter = [

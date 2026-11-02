@@ -1,9 +1,10 @@
 //! A battery a feature knows of, such as a mouse's: the one reading its bar gauge and the
 //! dashboard's Batteries card are both drawn from, with one color scale and one idea of low.
 
-use gpui::SharedString;
-
-use crate::theme::{CRITICAL, GREEN, PEACH, RED, TEXT, YELLOW};
+use crate::{
+    panel::SharedString,
+    theme::{CRITICAL, GREEN, PEACH, RED, TEXT, YELLOW},
+};
 
 /// At or below this, a battery not charging is worth a warning.
 pub const LOW: u8 = 20;

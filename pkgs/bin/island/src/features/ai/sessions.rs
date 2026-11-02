@@ -15,6 +15,7 @@ use crate::{
         Block, Change, Code, CodeLine, CodeMotion, FrameView, Item, Lead, Mark, Piece, Split, Text,
         Tone, Trail, Transcript, Turn,
     },
+    paths,
     theme::{ACCENT, GREEN, PEACH, YELLOW},
 };
 
@@ -47,8 +48,8 @@ fn summary(session: &Session) -> String {
 
 /// The working directory with the home folder as ~.
 fn folder(cwd: &str) -> String {
-    match std::env::var("HOME") {
-        Ok(home) if !home.is_empty() && cwd.starts_with(&home) => {
+    match paths::home().as_deref().and_then(std::path::Path::to_str) {
+        Some(home) if !home.is_empty() && cwd.starts_with(home) => {
             format!("~{}", &cwd[home.len()..])
         }
         _ => cwd.to_owned(),

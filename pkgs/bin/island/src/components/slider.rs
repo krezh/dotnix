@@ -8,7 +8,7 @@ use std::{cell::Cell, path::PathBuf, rc::Rc};
 use gpui::{
     AnimationExt, AnyElement, Bounds, Context, DispatchPhase, Div, FontWeight, MouseButton,
     MouseDownEvent, MouseMoveEvent, MouseUpEvent, Pixels, SharedString, SpringAnimation,
-    SpringConfig, canvas, div, prelude::*, px, relative, rgb, rgba,
+    SpringPlayback, Window, canvas, div, prelude::*, px, relative, rgb, rgba,
 };
 
 use crate::{
@@ -17,24 +17,29 @@ use crate::{
         pointer::{self, Pointer},
     },
     island::{Island, SHAPE_SPRING},
+    panel::{IslandUi, Ui},
+    spring::SpringConfig,
+    spring::rubber,
     theme::{ON_ACCENT, TEXT, TINT, TRACK_ALPHA, with_alpha},
     ui::{self, Radius, SMALL_SIZE},
 };
 
-pub type OnChange = Rc<dyn Fn(f32, &mut Island, &mut Context<Island>)>;
+pub type OnChange = Rc<dyn Fn(f32, &mut dyn Ui)>;
 
-const FILL_SPRING: SpringConfig = SpringConfig::new(420.0, 34.0, 1.0);
-const TRACK_H: f32 = 10.0;
-const HIT_H: f32 = 16.0;
+pub const FILL_SPRING: SpringConfig = SpringConfig::new(420.0, 41.0, 1.0);
+pub const TRACK_H: f32 = 10.0;
+pub const HIT_H: f32 = 16.0;
 /// The fill of a metered slider, under the live signal.
 const DIM_ALPHA: u8 = 0x8c;
 /// The handle sticks out 4 px past each side of the track while hovered, 5 px while held.
-const HANDLE_W: f32 = 4.0;
-const HOVER_H: f32 = TRACK_H + 8.0;
-const HELD_H: f32 = TRACK_H + 10.0;
+pub const HANDLE_W: f32 = 4.0;
+pub const HOVER_H: f32 = TRACK_H + 8.0;
+pub const HELD_H: f32 = TRACK_H + 10.0;
 const LARGE_H: f32 = 42.0;
 const LARGE_GLYPH: f32 = 20.0;
 const LARGE_PAD: f32 = 12.0;
+/// The furthest a pull past either end stretches the track.
+pub const STRETCH_REACH: f32 = 24.0;
 
 /// What a large slider shows inside itself.
 #[derive(Clone)]
@@ -85,7 +90,7 @@ fn handle(id: &SharedString, grip: Pointer) -> impl IntoElement {
     };
     div().absolute().with_spring(
         SharedString::from(format!("{id}-handle")),
-        SpringAnimation::new(SHAPE_SPRING).to(target),
+        SpringAnimation::new(SHAPE_SPRING.into()).to(target),
         |handle, height| {
             let height = height.max(0.0);
             let width = HANDLE_W + ((height - HOVER_H) / (HELD_H - HOVER_H)).clamp(0.0, 1.0);
@@ -105,6 +110,18 @@ fn fraction(bounds: &Cell<Option<Bounds<Pixels>>>, x: Pixels) -> Option<f32> {
     let bounds = bounds.get()?;
     let width = f32::from(bounds.size.width);
     (width > 0.0).then(|| (f32::from(x - bounds.origin.x) / width).clamp(0.0, 1.0))
+}
+
+fn release(id: &SharedString, window: &mut Window) {
+    pointer::set(
+        id,
+        |grip| {
+            grip.held = false;
+            grip.grab_offset = 0.0;
+            grip.stretch = 0.0;
+        },
+        window,
+    );
 }
 
 pub fn slider(
@@ -170,50 +187,34 @@ fn build(
     // A hold outlasts the pointer leaving the island; hovering does not.
     let grip = Pointer {
         hovered: live && pointer.hovered,
-        held: pointer.held,
-        grab_offset: pointer.grab_offset,
+        ..pointer
+    };
+    // Held, it is wherever the pointer puts it; let go, it springs on from there.
+    let playback = if grip.held {
+        SpringPlayback::Completed
+    } else {
+        SpringPlayback::Running
     };
     let dark = inside.clone();
     let dark_id = format!("{id}-dark");
-    let fill = if grip.held {
-        let level = value.clamp(0.0, 1.0);
-        let row = dark
-            .as_ref()
-            .filter(|_| level > 0.0)
-            .map(|inside| label_row(&dark_id, inside, ON_ACCENT).w(relative(1.0 / level)));
-        div()
-            .absolute()
-            .top_0()
-            .left_0()
-            .h_full()
-            .w(relative(level))
-            .overflow_hidden()
-            .child(ui::shape(radius, Some(fill_color.into())))
-            .children(row)
-            .into_any_element()
-    } else {
-        div()
-            .absolute()
-            .top_0()
-            .left_0()
-            .h_full()
-            .with_spring(
-                SharedString::from(format!("{id}-fill")),
-                SpringAnimation::new(FILL_SPRING).to(value),
-                move |fill, level| {
-                    let level = level.clamp(0.0, 1.0);
-                    // The dark copy spans the whole track, cut off where the fill ends.
-                    let row = dark.as_ref().filter(|_| level > 0.0).map(|inside| {
-                        label_row(&dark_id, inside, ON_ACCENT).w(relative(1.0 / level))
-                    });
-                    fill.w(relative(level))
-                        .overflow_hidden()
-                        .child(ui::shape(radius, Some(fill_color.into())))
-                        .children(row)
-                },
-            )
-            .into_any_element()
-    };
+    let fill = div().absolute().top_0().left_0().h_full().with_spring(
+        SharedString::from(format!("{id}-fill")),
+        SpringAnimation::new(FILL_SPRING.into())
+            .to(value)
+            .playback(playback),
+        move |fill, level| {
+            let level = level.clamp(0.0, 1.0);
+            // The dark copy spans the whole track, cut off where the fill ends.
+            let row = dark
+                .as_ref()
+                .filter(|_| level > 0.0)
+                .map(|inside| label_row(&dark_id, inside, ON_ACCENT).w(relative(1.0 / level)));
+            fill.w(relative(level))
+                .overflow_hidden()
+                .child(ui::shape(radius, Some(fill_color.into())))
+                .children(row)
+        },
+    );
     let signal = signal.filter(|signal| *signal > 0.0).map(|signal| {
         div()
             .absolute()
@@ -229,37 +230,22 @@ fn build(
     // The handle rides the fill's spring, on an element of its own so it is drawn over the signal.
     let rider = (on_change.is_some() && inside.is_none()).then(|| {
         let handle_id = id.clone();
-        if grip.held {
-            div()
-                .absolute()
-                .top_0()
-                .left_0()
-                .h_full()
-                .w(relative(value.clamp(0.0, 1.0)))
-                .child(handle(&handle_id, grip))
-                .into_any_element()
-        } else {
-            div()
-                .absolute()
-                .top_0()
-                .left_0()
-                .h_full()
-                .with_spring(
-                    SharedString::from(format!("{id}-rider")),
-                    SpringAnimation::new(FILL_SPRING).to(value),
-                    move |rider, level| {
-                        rider
-                            .w(relative(level.clamp(0.0, 1.0)))
-                            .child(handle(&handle_id, grip))
-                    },
-                )
-                .into_any_element()
-        }
+        div().absolute().top_0().left_0().h_full().with_spring(
+            SharedString::from(format!("{id}-rider")),
+            SpringAnimation::new(FILL_SPRING.into())
+                .to(value)
+                .playback(playback),
+            move |rider, level| {
+                rider
+                    .w(relative(level.clamp(0.0, 1.0)))
+                    .child(handle(&handle_id, grip))
+            },
+        )
     });
-    let track = div()
-        .relative()
-        .w_full()
-        .h(px(track_h))
+    let body = div()
+        .absolute()
+        .top_0()
+        .bottom_0()
         .child(ui::shape(
             radius,
             Some(rgba(with_alpha(TINT, TRACK_ALPHA)).into()),
@@ -267,71 +253,69 @@ fn build(
         .children(light)
         .child(fill)
         .children(signal)
-        .children(rider)
-        .child({
-            let bounds = bounds.clone();
-            // While held, the pointer is followed anywhere, not only over the bar: past either end
-            // is 0 or 1, and it need not stay level with the bar.
-            let follow = on_change.clone().filter(|_| grip.held);
-            let (island, held_id) = (cx.weak_entity(), id.clone());
-            canvas(
-                move |area, _, _| bounds.set(Some(area)),
-                move |area, _, window, _| {
-                    let Some(on_change) = follow else { return };
-                    window.on_mouse_event(move |event: &MouseMoveEvent, phase, window, cx| {
-                        if phase != DispatchPhase::Bubble {
-                            return;
+        .children(rider);
+    // Stretches past an end while pulled there.
+    let track = div().relative().w_full().h(px(track_h)).with_spring(
+        SharedString::from(format!("{id}-stretch")),
+        SpringAnimation::new(SHAPE_SPRING.into())
+            .to(grip.stretch)
+            .playback(playback),
+        move |track, stretch| {
+            track.child(body.left(px(stretch.min(0.0))).right(px(-stretch.max(0.0))))
+        },
+    );
+    // Measured outside the stretch, so a pull past an end does not move where values fall.
+    let reach = {
+        let bounds = bounds.clone();
+        // While held, the pointer is followed anywhere, not only over the bar: past either end
+        // is 0 or 1, and it need not stay level with the bar.
+        let follow = on_change.clone().filter(|_| grip.held);
+        let (island, held_id) = (cx.weak_entity(), id.clone());
+        canvas(
+            move |area, _, _| bounds.set(Some(area)),
+            move |area, _, window, _| {
+                let Some(on_change) = follow else { return };
+                window.on_mouse_event(move |event: &MouseMoveEvent, phase, window, cx| {
+                    if phase != DispatchPhase::Bubble {
+                        return;
+                    }
+                    // Released where no release reached the slider, such as outside the island.
+                    if event.pressed_button != Some(MouseButton::Left) {
+                        release(&held_id, window);
+                        return;
+                    }
+                    let width = f32::from(area.size.width);
+                    if width > 0.0 {
+                        let grip = pointer::get(&held_id);
+                        let x = f32::from(event.position.x - area.origin.x) - grip.grab_offset;
+                        let over = if x < 0.0 { x } else { (x - width).max(0.0) };
+                        let stretch = rubber(over, STRETCH_REACH);
+                        if stretch != grip.stretch {
+                            pointer::set(&held_id, |grip| grip.stretch = stretch, window);
                         }
-                        // Released where no release reached the slider, such as outside the island.
-                        if event.pressed_button != Some(MouseButton::Left) {
-                            pointer::set(
-                                &held_id,
-                                |grip| {
-                                    grip.held = false;
-                                    grip.grab_offset = 0.0;
-                                },
-                                window,
-                            );
-                            if value < 0.0 || value > 1.0 {
-                                let _ = island.update(cx, |this, cx| {
-                                    on_change(value.clamp(0.0, 1.0), this, cx)
-                                });
-                            }
-                            return;
-                        }
-                        let width = f32::from(area.size.width);
-                        if width > 0.0 {
-                            let grip = pointer::get(&held_id);
-                            let effective_x =
-                                event.position.x - area.origin.x - px(grip.grab_offset);
-                            let raw = f32::from(effective_x) / width;
-                            let value = if raw < 0.0 {
-                                raw / (1.0 + raw.abs() * 3.0)
-                            } else if raw > 1.0 {
-                                let over = raw - 1.0;
-                                1.0 + over / (1.0 + over.abs() * 3.0)
-                            } else {
-                                raw
-                            };
-                            let _ = island.update(cx, |this, cx| on_change(value, this, cx));
-                        }
-                    });
-                },
-            )
-            .absolute()
-            .size_full()
-        });
+                        let value = (x / width).clamp(0.0, 1.0);
+                        let _ = island.update(cx, |this, cx| {
+                            on_change(value, &mut IslandUi::new(this, cx))
+                        });
+                    }
+                });
+            },
+        )
+        .absolute()
+        .top_0()
+        .left_0()
+        .size_full()
+    };
     let mut element = div()
         .id(id.clone())
         .relative()
         .w_full()
         .when(inside.is_none(), |hit| hit.py(px((HIT_H - TRACK_H) / 2.0)))
-        .child(track);
+        .child(track)
+        .child(reach);
     if let Some(down) = on_change {
         let down_bounds = bounds.clone();
         let (hover_id, down_id, up_id, out_id) = (id.clone(), id.clone(), id.clone(), id);
-        let up_change = down.clone();
-        let out_change = down.clone();
         element = element
             .map(|element| {
                 if grip.held {
@@ -349,7 +333,7 @@ fn build(
                     cx.stop_propagation();
                     let (offset, seek_value) = if let Some(bounds) = down_bounds.get() {
                         let width = f32::from(bounds.size.width);
-                        let x_h = bounds.origin.x + px(width * value.clamp(0.0, 1.0));
+                        let x_h = bounds.origin.x + px(width * value);
                         let dist = f32::from(event.position.x - x_h).abs();
                         if dist <= HANDLE_W {
                             (f32::from(event.position.x - x_h), None)
@@ -364,46 +348,21 @@ fn build(
                         |grip| {
                             grip.held = true;
                             grip.grab_offset = offset;
+                            grip.stretch = 0.0;
                         },
                         window,
                     );
                     if let Some(val) = seek_value {
-                        down(val, this, cx);
+                        down(val, &mut IslandUi::new(this, cx));
                     }
                 }),
             )
-            .on_mouse_up(
-                MouseButton::Left,
-                cx.listener(move |this, _: &MouseUpEvent, window, cx| {
-                    pointer::set(
-                        &up_id,
-                        |grip| {
-                            grip.held = false;
-                            grip.grab_offset = 0.0;
-                        },
-                        window,
-                    );
-                    if value < 0.0 || value > 1.0 {
-                        up_change(value.clamp(0.0, 1.0), this, cx);
-                    }
-                }),
-            )
-            .on_mouse_up_out(
-                MouseButton::Left,
-                cx.listener(move |this, _: &MouseUpEvent, window, cx| {
-                    pointer::set(
-                        &out_id,
-                        |grip| {
-                            grip.held = false;
-                            grip.grab_offset = 0.0;
-                        },
-                        window,
-                    );
-                    if value < 0.0 || value > 1.0 {
-                        out_change(value.clamp(0.0, 1.0), this, cx);
-                    }
-                }),
-            );
+            .on_mouse_up(MouseButton::Left, move |_: &MouseUpEvent, window, _| {
+                release(&up_id, window)
+            })
+            .on_mouse_up_out(MouseButton::Left, move |_: &MouseUpEvent, window, _| {
+                release(&out_id, window)
+            });
     }
     element.into_any_element()
 }

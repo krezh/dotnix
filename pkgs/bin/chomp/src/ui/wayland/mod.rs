@@ -230,7 +230,7 @@ impl App {
         let replay_configured = is_mode_select && settings.replay.enabled;
 
         let mut app = Self {
-            screencopy: crate::compositor::Screencopy::new(&conn)?,
+            screencopy: crate::compositor::Screencopy::new(&conn, false)?,
             conn: conn.clone(),
             registry_state,
             seat_state,
@@ -960,6 +960,7 @@ impl App {
 
         if action == PaletteAction::StopRecording {
             self.chosen_mode = Some(CaptureMode::StopRecording);
+            self.to_clipboard = ctrl_held;
             self.exit = true;
             self.loop_signal.stop();
             return;
@@ -1001,7 +1002,7 @@ impl App {
         };
 
         self.chosen_mode = Some(mode);
-        self.to_clipboard = ctrl_held && !mode.is_video();
+        self.to_clipboard = ctrl_held;
 
         if is_area {
             self.settings.request.mode = Some(mode);

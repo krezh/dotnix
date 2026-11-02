@@ -31,6 +31,7 @@
       browser.run = "${lib.getExe config.homeModules.wlr-which-key.package} browser";
       screenshot.run = "${lib.getExe pkgs.chomp}";
       replay.run = "${lib.getExe pkgs.chomp} --replay save";
+      windowScreenshot.run = "${lib.getExe pkgs.chomp} --mode image-window";
       fileManager = mkProg pkgs.nautilus;
       passwords = mkProg pkgs.proton-pass;
       sysMonitor = mkProg pkgs.resources;
@@ -158,6 +159,10 @@
             "${mainModShift} + S" = {
               rule = exec replay.run;
               desc = "Save instant replay";
+            };
+            "ALT + Print" = {
+              rule = exec windowScreenshot.run;
+              desc = "Screenshot active window";
             };
 
             # "${mainMod} + TAB" = {

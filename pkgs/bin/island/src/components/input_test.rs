@@ -1,16 +1,17 @@
 use gpui::{Keystroke, Modifiers};
 
 use super::{Edit, edit};
+use crate::key::Key;
 
-fn key(key: &str, modifiers: Modifiers, typed: Option<&str>) -> Keystroke {
-    Keystroke {
+fn key(key: &str, modifiers: Modifiers, typed: Option<&str>) -> Key {
+    Key::from(&Keystroke {
         modifiers,
         key: key.to_owned(),
         key_char: typed.map(str::to_owned),
-    }
+    })
 }
 
-fn plain(key_name: &str, typed: &str) -> Keystroke {
+fn plain(key_name: &str, typed: &str) -> Key {
     key(key_name, Modifiers::default(), Some(typed))
 }
 

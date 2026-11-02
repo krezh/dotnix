@@ -15,7 +15,13 @@ use std::time::Instant;
 use wayland_client::protocol::{
     wl_callback, wl_keyboard, wl_output, wl_pointer, wl_seat, wl_surface,
 };
-use wayland_client::{Connection, Dispatch, QueueHandle};
+use wayland_client::{Connection, Dispatch, QueueHandle, WEnum};
+use wayland_protocols::ext::background_effect::v1::client::{
+    ext_background_effect_manager_v1::{
+        self, Capability as BlurCapability, ExtBackgroundEffectManagerV1,
+    },
+    ext_background_effect_surface_v1::ExtBackgroundEffectSurfaceV1,
+};
 use wayland_protocols::wp::fractional_scale::v1::client::{
     wp_fractional_scale_manager_v1, wp_fractional_scale_v1,
 };
@@ -356,6 +362,26 @@ impl Dispatch<wp_fractional_scale_v1::WpFractionalScaleV1, wl_surface::WlSurface
         }
     }
 }
+
+impl Dispatch<ExtBackgroundEffectManagerV1, ()> for App {
+    fn event(
+        state: &mut Self,
+        _: &ExtBackgroundEffectManagerV1,
+        event: ext_background_effect_manager_v1::Event,
+        _: &(),
+        _: &Connection,
+        _: &QueueHandle<Self>,
+    ) {
+        let ext_background_effect_manager_v1::Event::Capabilities { flags } = event else {
+            return;
+        };
+        state.can_blur =
+            matches!(flags, WEnum::Value(flags) if flags.contains(BlurCapability::Blur));
+        state.update_blur();
+    }
+}
+
+wayland_client::delegate_noop!(App: ignore ExtBackgroundEffectSurfaceV1);
 
 wayland_client::delegate_noop!(App: ignore wp_fractional_scale_manager_v1::WpFractionalScaleManagerV1);
 wayland_client::delegate_noop!(App: ignore wp_viewporter::WpViewporter);

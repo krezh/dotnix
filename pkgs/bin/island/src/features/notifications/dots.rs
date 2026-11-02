@@ -4,9 +4,11 @@
 
 use std::time::Instant;
 
-use gpui::{Div, div, prelude::*, px, rgb};
-
-use crate::{island::SHAPE_SPRING, spring::Spring};
+use crate::{
+    drawing::{Drawing, Shape},
+    spring::Spring,
+    stage::SHAPE_SPRING,
+};
 
 /// The square the dots share.
 pub const BOX: f32 = 16.0;
@@ -150,23 +152,23 @@ impl Dots {
             .all(|slot| slot.x.is_settled() && slot.y.is_settled() && slot.size.is_settled())
     }
 
-    pub fn element(&self, color: u32) -> Div {
-        div()
-            .relative()
-            .size(px(BOX))
-            .flex_none()
-            .children(self.slots.iter().filter_map(|slot| {
-                let size = slot.size.value().max(0.0).round();
-                (size >= 1.0).then(|| {
-                    div()
-                        .absolute()
-                        .left(px((slot.x.value() - size / 2.0).round()))
-                        .top(px((slot.y.value() - size / 2.0).round()))
-                        .size(px(size))
-                        .rounded_full()
-                        .bg(rgb(color))
+    pub fn drawing(&self, color: u32) -> Drawing {
+        Drawing {
+            side: BOX,
+            shapes: self
+                .slots
+                .iter()
+                .filter_map(|slot| {
+                    let size = slot.size.value().max(0.0).round();
+                    (size >= 1.0).then(|| Shape::Circle {
+                        left: (slot.x.value() - size / 2.0).round(),
+                        top: (slot.y.value() - size / 2.0).round(),
+                        size,
+                        color,
+                    })
                 })
-            }))
+                .collect(),
+        }
     }
 }
 

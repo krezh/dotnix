@@ -8,8 +8,8 @@ use std::{
 };
 
 use gpui::{
-    Bounds, BoxShadow, Canvas, ContentMask, Corners, Hsla, Pixels, RenderImage, Rgba, Window,
-    canvas, hsla, point, prelude::*, px, size,
+    Bounds, BoxShadow, Canvas, ContentMask, Corners, Hitbox, HitboxBehavior, Hsla, Pixels,
+    RenderImage, Rgba, Window, canvas, hsla, point, prelude::*, px, size,
 };
 use image::{Frame, RgbaImage};
 
@@ -381,7 +381,12 @@ pub fn background(radius: f32, power: f32, fill: Hsla, border: Option<Hsla>) -> 
     .size_full()
 }
 
-pub fn fill(radius: f32, power: f32, rest: Option<Hsla>, hover: Option<Hsla>) -> Canvas<()> {
+pub fn fill(
+    radius: f32,
+    power: f32,
+    rest: Option<Hsla>,
+    hover: Option<Hsla>,
+) -> Canvas<Option<Hitbox>> {
     inset_fill(radius, power, 0.0, rest, hover)
 }
 
@@ -392,11 +397,15 @@ pub fn inset_fill(
     inset: f32,
     rest: Option<Hsla>,
     hover: Option<Hsla>,
-) -> Canvas<()> {
+) -> Canvas<Option<Hitbox>> {
     canvas(
-        |_, _, _| {},
-        move |bounds, (), window, _| {
-            let hovered = hover.is_some() && bounds.contains(&window.mouse_position());
+        // A hitbox, not the pointer's position, so nothing drawn over it, such as an open
+        // dropdown, lets its hover through.
+        move |bounds, window, _| {
+            hover.map(|_| window.insert_hitbox(bounds, HitboxBehavior::Normal))
+        },
+        move |bounds, hitbox, window, _| {
+            let hovered = hitbox.is_some_and(|hitbox| hitbox.is_hovered(window));
             let shape = Bounds::new(
                 point(bounds.origin.x + px(inset), bounds.origin.y),
                 size(
@@ -685,16 +694,28 @@ fn whole(bounds: Bounds<Pixels>) -> [i32; 4] {
 }
 
 pub fn region(body: Bounds<Pixels>, radius: f32, power: f32, hang: Option<Hang>) -> Vec<[i32; 4]> {
-    let mut rects = region_rects(whole(body), radius, power, true);
-    let Some(hang) = hang else {
+    region_of(
+        whole(body),
+        (radius, power),
+        hang.map(|hang| (whole(hang.bounds), (hang.radius, hang.power), hang.fillet)),
+    )
+}
+
+/// The body's shape, and what hangs from it with how far the fillets beside it reach.
+pub fn region_of(
+    body: [i32; 4],
+    (radius, power): (f32, f32),
+    hang: Option<([i32; 4], (f32, f32), f32)>,
+) -> Vec<[i32; 4]> {
+    let mut rects = region_rects(body, radius, power, true);
+    let Some(([x, y, w, h], (hang_radius, hang_power), fillet)) = hang else {
         return rects;
     };
-    let [x, y, w, h] = whole(hang.bounds);
     if w <= 0 || h <= 0 {
         return rects;
     }
-    rects.extend(region_rects([x, y, w, h], hang.radius, hang.power, false));
-    let fillet = hang.fillet.round();
+    rects.extend(region_rects([x, y, w, h], hang_radius, hang_power, false));
+    let fillet = fillet.round();
     for row in 0..fillet as i32 {
         let rise = fillet - (row as f32 + 0.5);
         let cut = (fillet * fillet - rise * rise).max(0.0).sqrt().round() as i32;
