@@ -1,5 +1,7 @@
 {
-  flake.modules.homeManager.office = {
-    programs.onlyoffice.enable = true;
-  };
+  flake.modules.homeManager.office =
+    { pkgs, ... }:
+    {
+      home.packages = [ pkgs.libreoffice-qt6 ];
+    };
 }
