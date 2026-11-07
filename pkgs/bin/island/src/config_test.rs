@@ -66,5 +66,6 @@ fn gpui_draws_unless_the_config_says_otherwise() {
     assert_eq!(config.frontend, Frontend::Gpui);
     let config: Config = toml::from_str("frontend = \"wgpu\"").unwrap();
     assert_eq!(config.frontend, Frontend::Wgpu);
+    assert_eq!(config.frontend.name(), "wgpu");
     assert!(toml::from_str::<Config>("frontend = \"qt\"").is_err());
 }

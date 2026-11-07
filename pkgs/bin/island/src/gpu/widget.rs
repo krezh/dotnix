@@ -64,6 +64,23 @@ pub struct Hit {
     pub pressable: bool,
 }
 
+/// Where each run of widgets that share a surface sits, left and width, from widgets laid out in
+/// a row from `start`, each whether it is grouped and how wide.
+pub fn sets(widgets: impl Iterator<Item = (bool, f32)>, start: f32) -> Vec<(f32, f32)> {
+    let mut found: Vec<(f32, f32)> = Vec::new();
+    let (mut at, mut joined) = (start, false);
+    for (grouped, width) in widgets {
+        match found.last_mut() {
+            Some(set) if grouped && joined => set.1 += width,
+            _ if grouped => found.push((at, width)),
+            _ => {}
+        }
+        joined = grouped;
+        at += width;
+    }
+    found
+}
+
 #[derive(Default)]
 pub struct Drawn {
     pub width: f32,
@@ -538,3 +555,7 @@ impl Layout<'_> {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "widget_test.rs"]
+mod tests;

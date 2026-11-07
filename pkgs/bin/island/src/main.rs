@@ -27,6 +27,7 @@ mod launch;
 mod logging;
 mod markdown;
 mod menu;
+mod merge;
 mod panel;
 mod panels;
 mod paths;

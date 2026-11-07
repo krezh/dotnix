@@ -2,6 +2,8 @@
 
 use std::{cell::RefCell, ffi::c_void, ptr::NonNull};
 
+use crate::merge::Merge;
+
 use raw_window_handle::{
     DisplayHandle, HandleError, HasDisplayHandle, RawDisplayHandle, RawWindowHandle,
     WaylandDisplayHandle, WaylandWindowHandle,
@@ -41,7 +43,22 @@ struct Out {
 
 @vertex fn vs(v: In) -> Out {
     let at = vec2<f32>(f32(v.index & 1u), f32(v.index >> 1u));
-    var pos = v.rect.xy + at * v.rect.zw;
+    var rect = v.rect;
+    if (v.params.y > 0.5 && v.params.y < 1.5 && v.params.w == 0.0) {
+        let pixel = screen.pad.x;
+        rect = vec4<f32>(ceil(v.rect.xy * pixel - 0.5) / pixel, v.rect.zw);
+    }
+    var quad = rect;
+    if (v.params.y > 9.5) {
+        var reach = v.clip.y + 2.0;
+        if (v.params.y > 12.5) {
+            reach = reach + 3.0 * v.clip.z + v.clip.w;
+        }
+        let low = min(rect.xy, v.uv.xy) - reach;
+        let high = max(rect.xy + rect.zw, v.uv.xy + v.uv.zw) + reach;
+        quad = vec4<f32>(low, high - low);
+    }
+    var pos = quad.xy + at * quad.zw;
     if (v.params.w != 0.0) {
         let middle = v.rect.xy + v.rect.zw * 0.5;
         let arm = pos - middle;
@@ -53,7 +70,7 @@ struct Out {
     out.position = vec4<f32>(pos.x / screen.size.x * 2.0 - 1.0, 1.0 - pos.y / screen.size.y * 2.0, 0.0, 1.0);
     out.local = pos;
     out.texel = v.uv.xy + at * v.uv.zw;
-    out.rect = v.rect;
+    out.rect = rect;
     out.uv = v.uv;
     out.color = v.color;
     out.params = v.params;
@@ -69,6 +86,29 @@ fn corner_distance(local: vec2<f32>, center: vec2<f32>, half_size: vec2<f32>, ra
     return bend + min(max(q.x, q.y), 0.0) - r;
 }
 
+fn smooth_min(a: f32, b: f32, blend: f32) -> f32 {
+    if (blend <= 0.0) {
+        return min(a, b);
+    }
+    let h = max(blend - abs(a - b), 0.0) / blend;
+    return min(a, b) - h * h * blend * 0.25;
+}
+
+// As `merge::distance`: the bar `body` and the menu `hang` from it as one blended surface.
+fn merged(at: vec2<f32>, body: vec4<f32>, radius: f32, power: f32, hang: vec4<f32>, rounding: f32, blend: f32) -> f32 {
+    let bar = corner_distance(at, body.xy + body.zw * 0.5, body.zw * 0.5, radius, power);
+    if (hang.w < 0.5 || hang.z < 1.0) {
+        return bar;
+    }
+    let top = body.y + body.w * 0.5;
+    let extent = vec2<f32>(hang.z * 0.5, (hang.y + hang.w - top) * 0.5);
+    let menu = corner_distance(at, vec2<f32>(hang.x + extent.x, top + extent.y), extent, rounding, 2.0);
+    if (at.y < top) {
+        return min(bar, menu);
+    }
+    return smooth_min(bar, menu, min(blend, 2.0 * hang.w));
+}
+
 fn ink(coverage: f32, color: vec4<f32>) -> f32 {
     let shade = color.rgb / max(color.a, 0.0001);
     let brightness = dot(shade, vec3<f32>(0.30, 0.59, 0.11));
@@ -79,7 +119,7 @@ fn ink(coverage: f32, color: vec4<f32>) -> f32 {
 }
 
 @fragment fn fs(v: Out) -> @location(0) vec4<f32> {
-    if (v.local.x < v.clip.x || v.local.y < v.clip.y || v.local.x > v.clip.z || v.local.y > v.clip.w) {
+    if (v.params.y < 9.5 && (v.local.x < v.clip.x || v.local.y < v.clip.y || v.local.x > v.clip.z || v.local.y > v.clip.w)) {
         discard;
     }
     let center = v.rect.xy + v.rect.zw * 0.5;
@@ -124,24 +164,22 @@ fn ink(coverage: f32, color: vec4<f32>) -> f32 {
         let t = clamp(dot(v.local - a, ab) / max(dot(ab, ab), 0.0001), 0.0, 1.0);
         return v.color * clamp(0.5 + (radius - length(v.local - a - ab * t)) * pixel, 0.0, 1.0);
     }
-    if (kind > 8.5) {
-        let across = v.local.x - v.rect.x;
-        var col = across;
-        if (v.uv.x > 0.5) {
-            col = v.rect.z - across;
+    if (kind > 9.5) {
+        let d = merged(v.local, v.rect, radius, power, v.uv, v.clip.x, v.clip.y);
+        if (kind < 10.5) {
+            return v.color * clamp(0.5 - d * pixel, 0.0, 1.0);
         }
-        let r = v.uv.z;
-        let line = v.uv.w;
-        let row = v.local.y - v.rect.y - line;
-        let outside = length(vec2<f32>(col, r - row)) - r;
-        let outer = clamp(0.5 + outside * pixel, 0.0, 1.0);
-        if (v.uv.y > 0.5) {
-            return v.color * (outer - clamp(0.5 + (outside - line) * pixel, 0.0, 1.0));
+        if (kind < 11.5) {
+            return v.color * clamp(0.5 + (0.5 - abs(d + 0.5)) * pixel, 0.0, 1.0);
         }
-        if (col < r && row > 0.0) {
-            return v.color * outer;
+        if (kind < 12.5) {
+            return v.color * clamp(0.5 + (0.5 - abs(d - 0.5)) * pixel, 0.0, 1.0);
         }
-        return vec4<f32>(0.0);
+        let sigma = v.clip.z;
+        let thrown = merged(v.local - vec2<f32>(0.0, v.clip.w), v.rect, radius, power, v.uv, v.clip.x, v.clip.y);
+        let t = clamp(thrown / (sigma * 1.41421356), -4.0, 4.0);
+        let spread = tanh(1.1283792 * t + 0.1009 * t * t * t);
+        return v.color * (0.5 - 0.5 * spread) * clamp(0.5 + d * pixel, 0.0, 1.0);
     }
     if (kind > 7.5) {
         let light = textureSampleLevel(atlas, blended, v.texel, 0.0);
@@ -223,7 +261,12 @@ const AREA: f32 = 5.0;
 const GLOW: f32 = 6.0;
 const ARC: f32 = 7.0;
 const SOFT: f32 = 8.0;
-const FILLET: f32 = 9.0;
+/// The bar and the menu hanging from it as one surface: its fill, the line just inside its edge,
+/// the line just outside it, and its shadow.
+pub const MERGED_FILL: f32 = 10.0;
+pub const MERGED_RIM: f32 = 11.0;
+pub const MERGED_OUTLINE: f32 = 12.0;
+const MERGED_SHADOW: f32 = 13.0;
 
 impl Sprite {
     pub fn shape(rect: [f32; 4], color: [f32; 4], radius: f32, power: f32) -> Self {
@@ -346,33 +389,47 @@ impl Sprite {
     }
 
     /// A coarse picture smoothed up to fill `rect`.
+    /// `part` of the bar `body`, its corners `corner`, and `merge` hanging from it as one surface.
+    /// Nothing cuts it off.
+    pub fn merged(
+        body: [f32; 4],
+        color: [f32; 4],
+        (radius, power): (f32, f32),
+        merge: &Merge,
+        part: f32,
+    ) -> Self {
+        Self {
+            rect: body,
+            uv: merge.hang,
+            color,
+            params: [radius, part, power, 0.0],
+            clip: [merge.radius, merge.blend, 0.0, 0.0],
+        }
+    }
+
+    /// The shadow of that surface, as [`Self::drop_shadow`] casts one.
+    pub fn merged_shadow(
+        body: [f32; 4],
+        color: [f32; 4],
+        (radius, power): (f32, f32),
+        merge: &Merge,
+        (sigma, drop): (f32, f32),
+    ) -> Self {
+        Self {
+            rect: body,
+            uv: merge.hang,
+            color,
+            params: [radius, MERGED_SHADOW, power, 0.0],
+            clip: [merge.radius, merge.blend, sigma, drop],
+        }
+    }
+
     pub fn soft(rect: [f32; 4], uv: [f32; 4], color: [f32; 4], radius: f32, power: f32) -> Self {
         Self {
             rect,
             uv,
             color,
             params: [radius, SOFT, power, 0.0],
-            clip: NO_CLIP,
-        }
-    }
-
-    /// The hollow corner joining what hangs from an edge to that edge, `radius` across below
-    /// `line`, opening away from the hanging shape; `right` is the corner on its right. With
-    /// `edge`, only its line.
-    pub fn fillet(
-        rect: [f32; 4],
-        color: [f32; 4],
-        radius: f32,
-        line: f32,
-        right: bool,
-        edge: bool,
-    ) -> Self {
-        let flag = |on: bool| if on { 1.0 } else { 0.0 };
-        Self {
-            rect,
-            uv: [flag(right), flag(edge), radius, line],
-            color,
-            params: [0.0, FILLET, 2.0, 0.0],
             clip: NO_CLIP,
         }
     }

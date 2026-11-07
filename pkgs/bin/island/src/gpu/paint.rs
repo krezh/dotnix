@@ -305,18 +305,32 @@ fn rgb_of(tint: u32) -> [u8; 3] {
     [(tint >> 16) as u8, (tint >> 8) as u8, tint as u8]
 }
 
-fn rasterized_svg(bytes: &[u8], side: u32) -> Option<Vec<u8>> {
+/// Each 2x2 block of `rgba`, `side` blocks across, as one pixel of its mean coverage.
+fn halved(rgba: &[u8], side: usize) -> Vec<u8> {
+    let alpha = |x: usize, y: usize| u16::from(rgba[(y * side * 2 + x) * 4 + 3]);
+    (0..side * side)
+        .flat_map(|index| {
+            let (x, y) = (index % side * 2, index / side * 2);
+            let sum = alpha(x, y) + alpha(x + 1, y) + alpha(x, y + 1) + alpha(x + 1, y + 1);
+            [((sum + 2) / 4) as u8; 4]
+        })
+        .collect()
+}
+
+/// A symbol's coverage, drawn twice the size and halved so its curves come out smooth.
+fn symbol_coverage(bytes: &[u8], side: u32) -> Option<Vec<u8>> {
     let text = String::from_utf8_lossy(bytes).replace("currentColor", "#ffffff");
     let tree = usvg::Tree::from_data(text.as_bytes(), &usvg::Options::default()).ok()?;
     let size = tree.size();
-    let mut pixmap = tiny_skia::Pixmap::new(side, side)?;
-    let scale = side as f32 / size.width().max(size.height());
+    let detailed = side * 2;
+    let mut pixmap = tiny_skia::Pixmap::new(detailed, detailed)?;
+    let scale = detailed as f32 / size.width().max(size.height());
     resvg::render(
         &tree,
         tiny_skia::Transform::from_scale(scale, scale),
         &mut pixmap.as_mut(),
     );
-    Some(pixmap.take())
+    Some(halved(pixmap.data(), side as usize))
 }
 
 /// A picture file's own pixels. An SVG comes out at twice its size, with its colors unmultiplied.
@@ -1019,11 +1033,7 @@ impl Painter {
         let entry = self.cached_picture(gpu, key.clone(), (side, side), || {
             let bytes = icons::load(&key)?;
             if icons::is_svg(path) {
-                rasterized_svg(&bytes, side).map(|rgba| {
-                    rgba.chunks_exact(4)
-                        .flat_map(|pixel| [pixel[3]; 4])
-                        .collect()
-                })
+                symbol_coverage(&bytes, side)
             } else {
                 image::load_from_memory(&bytes)
                     .ok()

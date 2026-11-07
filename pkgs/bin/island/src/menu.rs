@@ -359,7 +359,14 @@ impl Menu {
         }
     }
 
-    pub fn element(&self, hang: &Hang, hover: bool, cx: &mut Context<Island>) -> AnyElement {
+    /// `glow` is light to lay over the glass, under what it holds.
+    pub fn element(
+        &self,
+        hang: &Hang,
+        hover: bool,
+        glow: Option<AnyElement>,
+        cx: &mut Context<Island>,
+    ) -> AnyElement {
         let key = self.key();
         let frozen = self.frozen.filter(|(frozen, _)| *frozen == key);
         let content = self.contents(self.current(), !self.path.is_empty(), hover, true, cx);
@@ -404,6 +411,7 @@ impl Menu {
             .w(hang.bounds.size.width)
             .h(hang.bounds.size.height)
             .overflow_hidden()
+            .children(glow)
             .children(leaving)
             .child(layer(content, self.content.value().clamp(0.0, 1.0)))
             .into_any_element()

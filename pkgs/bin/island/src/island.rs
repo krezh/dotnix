@@ -18,7 +18,7 @@ use crate::{
     bar, components,
     components::measure::Measure,
     components::{
-        aura::Aura,
+        aura::{self, Aura},
         icon,
         marquee::{self, TextLayouts},
         measure::{self, Measured},
@@ -1344,9 +1344,25 @@ impl Render for Island {
             .on_any_mouse_down(cx.listener(|this, _: &MouseDownEvent, _, cx| this.close_menu(cx)))
             .children(glow)
             .children(layers);
-        let menu = hung
-            .zip(self.menu.as_ref())
-            .map(|(hang, menu)| menu.element(&hang, self.stage.hovered, cx));
+        let menu = hung.zip(self.menu.as_ref()).map(|(hang, menu)| {
+            let lit = self.glow > 0.0 && !hidden && bar_shown > 0.001 && self.aura.is_lit();
+            let part = aura::Part {
+                field: (w, h),
+                offset: (
+                    f32::from(hang.bounds.origin.x) - x,
+                    f32::from(hang.bounds.origin.y) - y,
+                ),
+            };
+            let glow = lit.then(|| {
+                div()
+                    .absolute()
+                    .size_full()
+                    .opacity(bar_shown)
+                    .child(self.aura.element_of(self.glow, hang.radius, part))
+                    .into_any_element()
+            });
+            menu.element(&hang, self.stage.hovered, glow, cx)
+        });
         if self.menu.as_ref().is_some_and(Menu::is_pending) {
             window.request_animation_frame();
         }

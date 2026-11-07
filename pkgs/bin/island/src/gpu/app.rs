@@ -456,7 +456,12 @@ impl App {
                     let args: Vec<&str> = args.iter().map(String::as_str).collect();
                     feature.command(&args)
                 }),
-            Control::Status => Ok(report::status(self.workspaces.as_ref(), &self.features).into()),
+            Control::Status => Ok(report::status(
+                config::Frontend::Wgpu,
+                self.workspaces.as_ref(),
+                &self.features,
+            )
+            .into()),
             Control::Log(_) => Ok(Report::default().into()),
         };
         match reply {

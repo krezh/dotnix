@@ -1,12 +1,13 @@
 //! What `island ctl` hears back, whatever draws the islands.
 
 use crate::{
-    control::{Report, Row},
+    config::Frontend,
+    control::{Report, Row, Shown},
     features::Features,
     wm::Snapshot,
 };
 
-pub fn status(workspaces: Option<&Snapshot>, features: &Features) -> Report {
+pub fn status(frontend: Frontend, workspaces: Option<&Snapshot>, features: &Features) -> Report {
     let outputs: Vec<String> = workspaces
         .iter()
         .flat_map(|snapshot| snapshot.monitors.iter().map(|monitor| monitor.name.clone()))
@@ -16,10 +17,11 @@ pub fn status(workspaces: Option<&Snapshot>, features: &Features) -> Report {
     } else {
         format!(" · running on {}", outputs.join(", "))
     };
+    let drawn = Row::new("Frontend", Shown::Text(frontend.name().to_owned()));
     Report {
         title: Some(format!("island {}{on}", env!("CARGO_PKG_VERSION"))),
         changed: false,
-        rows: features.status(),
+        rows: std::iter::once(drawn).chain(features.status()).collect(),
     }
 }
 

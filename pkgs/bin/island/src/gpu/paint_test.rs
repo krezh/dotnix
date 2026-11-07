@@ -65,3 +65,16 @@ fn a_clear_pixel_of_a_colored_glyph_adds_nothing() {
     assert_eq!(premultiplied(&[200, 100, 50, 255]), [200, 100, 50, 255]);
     assert_eq!(premultiplied(&[200, 100, 50, 128]), [100, 50, 25, 128]);
 }
+
+#[test]
+fn a_symbol_is_the_mean_of_what_was_drawn_at_twice_its_size() {
+    let pixel = |alpha: u8| [0, 0, 0, alpha];
+    let rgba: Vec<u8> = [255, 255, 0, 0, 255, 255, 0, 0, 0, 0, 255, 0, 0, 0, 255, 255]
+        .into_iter()
+        .flat_map(pixel)
+        .collect();
+    assert_eq!(
+        halved(&rgba, 2),
+        [[255; 4], [0; 4], [0; 4], [191; 4]].concat()
+    );
+}

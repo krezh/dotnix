@@ -44,7 +44,28 @@ struct Cached {
     painted: Instant,
 }
 
-type Shape = (usize, usize, u32, u32);
+type Shape = (usize, usize, u32, [u32; 4]);
+
+/// Where light is drawn in what glows: the whole of it, or a part below it, such as a menu hanging
+/// from the bar, `offset` from its top left, so the light runs on into that part unchanged.
+#[derive(Clone, Copy)]
+pub struct Part {
+    pub field: (f32, f32),
+    pub offset: (f32, f32),
+}
+
+impl Part {
+    pub fn whole(width: f32, height: f32) -> Self {
+        Self {
+            field: (width, height),
+            offset: (0.0, 0.0),
+        }
+    }
+
+    fn key(self) -> [u32; 4] {
+        [self.field.0, self.field.1, self.offset.0, self.offset.1].map(f32::to_bits)
+    }
+}
 
 struct State {
     levels: [f32; BANDS],
@@ -118,9 +139,27 @@ impl Aura {
     /// The light over a `width` × `height` area, with one extra sample on every side, as its width
     /// and height and premultiplied red, green, blue and alpha.
     pub fn pixels(&self, width: f32, height: f32, strength: f32) -> (u32, u32, Vec<u8>) {
+        self.pixels_of(width, height, strength, Part::whole(width, height))
+    }
+
+    /// As [`Self::pixels`], for `part` of the light.
+    pub fn pixels_of(
+        &self,
+        width: f32,
+        height: f32,
+        strength: f32,
+        part: Part,
+    ) -> (u32, u32, Vec<u8>) {
         let columns = ((width / SAMPLE).ceil() as usize + 1).clamp(4, MAX_SAMPLES);
         let rows = ((height / SAMPLE).ceil() as usize + 1).clamp(2, MAX_SAMPLES);
-        let image = sampled(&self.0.borrow(), width, height, columns, rows, strength);
+        let image = sampled(
+            &self.0.borrow(),
+            (width, height),
+            part,
+            columns,
+            rows,
+            strength,
+        );
         let (w, h) = image.dimensions();
         let bytes = image
             .pixels()
@@ -143,7 +182,11 @@ impl Aura {
         let aura = self.clone();
         canvas(
             |_, _, _| {},
-            move |bounds, (), window, _| aura.paint(bounds, strength, radius, window),
+            move |bounds, (), window, _| {
+                let (width, height) = (f32::from(bounds.size.width), f32::from(bounds.size.height));
+                let corners = Corners::all(px(radius.clamp(0.0, width.min(height) / 2.0)));
+                aura.paint(bounds, strength, corners, None, window);
+            },
         )
         .absolute()
         .top_0()
@@ -151,7 +194,37 @@ impl Aura {
         .size_full()
     }
 
-    fn paint(&self, bounds: Bounds<Pixels>, strength: f32, radius: f32, window: &mut Window) {
+    /// As [`Self::element`], for `part` of the light, rounded only at the bottom.
+    pub fn element_of(&self, strength: f32, radius: f32, part: Part) -> Canvas<()> {
+        let aura = self.clone();
+        canvas(
+            |_, _, _| {},
+            move |bounds, (), window, _| {
+                let (width, height) = (f32::from(bounds.size.width), f32::from(bounds.size.height));
+                let radius = px(radius.clamp(0.0, width.min(height) / 2.0));
+                let corners = Corners {
+                    top_left: px(0.0),
+                    top_right: px(0.0),
+                    bottom_right: radius,
+                    bottom_left: radius,
+                };
+                aura.paint(bounds, strength, corners, Some(part), window);
+            },
+        )
+        .absolute()
+        .top_0()
+        .left_0()
+        .size_full()
+    }
+
+    fn paint(
+        &self,
+        bounds: Bounds<Pixels>,
+        strength: f32,
+        corners: Corners<Pixels>,
+        part: Option<Part>,
+        window: &mut Window,
+    ) {
         let now = Instant::now();
         let (width, height) = (f32::from(bounds.size.width), f32::from(bounds.size.height));
         let lit = strength > 0.0 && self.is_lit();
@@ -180,13 +253,14 @@ impl Aura {
 
         let columns = ((width / SAMPLE).ceil() as usize + 1).clamp(4, MAX_SAMPLES);
         let rows = ((height / SAMPLE).ceil() as usize + 1).clamp(2, MAX_SAMPLES);
-        let shape = (columns, rows, strength.to_bits(), 0);
+        let part = part.unwrap_or(Part::whole(width, height));
+        let shape = (columns, rows, strength.to_bits(), part.key());
         let due = state
             .images
             .get(&shape)
             .is_none_or(|cached| now - cached.made >= REFRESH);
         if due {
-            let image = render(&state, width, height, columns, rows, strength);
+            let image = render(&state, (width, height), part, columns, rows, strength);
             let made = Cached {
                 image,
                 made: now,
@@ -211,7 +285,6 @@ impl Aura {
                 bounds.size.height + px(2.0 * step_y),
             ),
         );
-        let corners = Corners::all(px(radius.clamp(0.0, width.min(height) / 2.0)));
         let _ = window.paint_image(bounds, placed, corners, cached.image.clone(), 0, false);
     }
 }
@@ -219,17 +292,19 @@ impl Aura {
 /// As [`render`], in blue, green, red and alpha.
 fn sampled(
     state: &State,
-    width: f32,
-    height: f32,
+    (width, height): (f32, f32),
+    part: Part,
     columns: usize,
     rows: usize,
     strength: f32,
 ) -> RgbaImage {
+    let (across, down) = part.offset;
+    let x_at = |column: usize| across + (column as f32 - 1.0) * width / (columns - 1) as f32;
+    let y_at = |row: usize| down + (row as f32 - 1.0) * height / (rows - 1) as f32;
+    let (width, height) = part.field;
     let time = state.epoch.elapsed().as_secs_f32();
     let step = time / DRIFT;
     let (shift, blend) = (step.floor() as usize, smoothstep(step.fract()));
-    let x_at = |column: usize| (column as f32 - 1.0) * width / (columns - 1) as f32;
-    let y_at = |row: usize| (row as f32 - 1.0) * height / (rows - 1) as f32;
     let (columns, rows) = (columns + 2, rows + 2);
     let lights: Vec<Light> = state
         .levels
@@ -297,12 +372,16 @@ fn sampled(
 /// extra sample on every side (so the image is `columns + 2` × `rows + 2`).
 fn render(
     state: &State,
-    width: f32,
-    height: f32,
+    size: (f32, f32),
+    part: Part,
     columns: usize,
     rows: usize,
     strength: f32,
 ) -> Arc<RenderImage> {
-    let image = sampled(state, width, height, columns, rows, strength);
+    let image = sampled(state, size, part, columns, rows, strength);
     Arc::new(RenderImage::new([Frame::new(image)]))
 }
+
+#[cfg(test)]
+#[path = "aura_test.rs"]
+mod tests;

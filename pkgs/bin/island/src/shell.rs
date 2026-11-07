@@ -489,7 +489,12 @@ impl Shell {
                 let args: Vec<&str> = args.iter().map(String::as_str).collect();
                 Ok(feature.command(&args))
             }
-            Control::Status => Ok(report::status(self.workspaces.as_ref(), &self.features).into()),
+            Control::Status => Ok(report::status(
+                config::Frontend::Gpui,
+                self.workspaces.as_ref(),
+                &self.features,
+            )
+            .into()),
             Control::Log(_) => Ok(Report::default().into()),
         }
     }

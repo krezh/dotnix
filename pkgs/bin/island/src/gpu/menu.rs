@@ -12,19 +12,27 @@ use crate::{
     menu::{MAX_W, MenuNode},
     spring::Spring,
     stage::{CONTENT_DRIFT, CONTENT_IN, CONTENT_OUT, SHAPE_SPRING},
-    theme::{
-        ACCENT, CONTROL_ALPHA, HOVER_ALPHA, OVERLAY2, SUBTEXT1, SURFACE, SURFACE_BORDER_ALPHA,
-        SURFACE1, TEXT,
-    },
+    theme::{ACCENT, CONTROL_ALPHA, HOVER_ALPHA, OVERLAY2, SUBTEXT1, SURFACE1, TEXT},
     ui::{CONTROL_RADIUS, PANEL_RADIUS, SMALL_SIZE},
 };
 
-const LINE: f32 = 1.0;
 /// How wide a menu starts and ends, as a share of its width.
 const BULGE: f32 = 0.6;
 const ENTRY_H: f32 = 28.0;
 const SEPARATOR_H: f32 = 9.0;
 const PAD: f32 = PANEL_RADIUS - CONTROL_RADIUS;
+
+/// The menu's corner radius at `w` by `h`: the panel's, until it is too short for that.
+pub fn corner(w: f32, h: f32) -> f32 {
+    PANEL_RADIUS.min((w.min(h) / 2.0).floor()).max(0.0)
+}
+
+/// How softly an open menu blends into the bar; the shape is the bar's own there.
+pub const SOFT_OPEN: f32 = 12.0;
+/// How softly it blends as it has all but melted into the bar.
+const SOFT_MELTED: f32 = 36.0;
+/// How much rounder its corners grow as it melts.
+const MELT_ROUNDING: f32 = 14.0;
 const MIN_W: f32 = 160.0;
 const SIDE: f32 = 8.0;
 const CHECK_W: f32 = 22.0;
@@ -63,6 +71,8 @@ pub struct Menu {
     leaving: Option<Leaving>,
     /// How wide what is showing was last drawn.
     width: f32,
+    /// How tall it was last told to be while open, to tell how far it has melted.
+    tall: f32,
     rows: Vec<Row>,
     pub rect: [f32; 4],
 }
@@ -82,6 +92,7 @@ impl Menu {
             content: Spring::new(0.0, CONTENT_OUT, 0.002),
             leaving: None,
             width: 0.0,
+            tall: 0.0,
             rows: Vec::new(),
             rect: [0.0; 4],
         }
@@ -233,20 +244,19 @@ impl Menu {
     }
 
     /// Hung from `bottom`, within the bar from `left` to `right`.
-    pub fn draw(
+    /// Where it hangs this frame, between `left` and `right` from `bottom`, before anything is
+    /// drawn round it.
+    pub fn place(
         &mut self,
         (left, right, bottom): (f32, f32, f32),
-        opacity: f32,
-        pointer: Option<(f32, f32)>,
         painter: &mut Painter,
-        gpu: &Gpu,
         scale: f32,
-        out: &mut Vec<Sprite>,
     ) {
         let sub = !self.path.is_empty();
         let (width, total) = Self::size_of(self.current(), sub, right - left, painter, scale);
         self.width = width;
         if self.open {
+            self.tall = total;
             if self.h.value() < 0.5 {
                 self.w.reset(width * BULGE);
             }
@@ -268,21 +278,26 @@ impl Menu {
         self.drawn_anchor = Some(x + w / 2.0);
         let x = (x * scale).round() / scale;
         self.rect = [x, bottom, w, h];
+    }
+
+    /// As [`Self::place`] put it.
+    /// `glow` is light to lay over the glass, under what it holds.
+    #[allow(clippy::too_many_arguments)]
+    pub fn draw(
+        &mut self,
+        pointer: Option<(f32, f32)>,
+        glow: Option<Sprite>,
+        painter: &mut Painter,
+        gpu: &Gpu,
+        scale: f32,
+        out: &mut Vec<Sprite>,
+    ) {
+        let sub = !self.path.is_empty();
+        let width = self.width;
+        let [x, bottom, w, h] = self.rect;
         let clip = [x, bottom, x + w, bottom + h];
         let first = out.len();
-        let body = [x, bottom - PANEL_RADIUS, w, h + PANEL_RADIUS];
-        out.push(Sprite::shape(
-            body,
-            color(SURFACE).map(|channel| channel * opacity),
-            PANEL_RADIUS,
-            2.0,
-        ));
-        out.push(Sprite::ring(
-            body,
-            tinted(SURFACE1, SURFACE_BORDER_ALPHA),
-            PANEL_RADIUS,
-            2.0,
-        ));
+        out.extend(glow);
         let spot = (x, bottom);
         if let Some(leaving) = &self.leaving {
             let shown = leaving.opacity.value().clamp(0.0, 1.0);
@@ -328,18 +343,21 @@ impl Menu {
         for sprite in &mut out[first..] {
             *sprite = sprite.within(clip);
         }
-        let fillet = crate::menu::FILLET.min(h / 2.0);
-        if fillet >= 1.0 {
-            let side = fillet + LINE;
-            let top = bottom - LINE;
-            let glass = color(SURFACE).map(|channel| channel * opacity);
-            let edge = tinted(SURFACE1, SURFACE_BORDER_ALPHA);
-            for (at, right) in [(x - fillet, false), (x + w + fillet - side, true)] {
-                let rect = [at, top, side, side];
-                out.push(Sprite::fillet(rect, glass, fillet, LINE, right, false));
-                out.push(Sprite::fillet(rect, edge, fillet, LINE, right, true));
-            }
-        }
+    }
+
+    /// How rounded its corners are and how softly it blends into the bar. As it opens or closes it
+    /// melts into the bar like a drop joining water, and the blend widens.
+    pub fn blend(&self) -> (f32, f32) {
+        let h = self.rect[3];
+        let melt = if self.tall > 0.0 {
+            1.0 - (h / self.tall).clamp(0.0, 1.0)
+        } else {
+            1.0
+        };
+        (
+            PANEL_RADIUS + MELT_ROUNDING * melt,
+            SOFT_OPEN + (SOFT_MELTED - SOFT_OPEN) * melt,
+        )
     }
 
     /// With no `pointer`, nothing is hovered.

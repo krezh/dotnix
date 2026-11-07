@@ -39,16 +39,16 @@ use super::{
     paint::Painter,
     panel::{self, Built, DROP, MorphText, Shown},
     records,
-    renderer::{Gpu, Presented, Sprite, inside},
+    renderer::{Gpu, MERGED_FILL, MERGED_OUTLINE, MERGED_RIM, Presented, Sprite, inside},
     turn::Turn,
-    widget::{Drawn, Hit, Layout, Tint, color, tinted},
+    widget::{Drawn, Hit, Layout, Tint, color, sets, tinted},
 };
 use crate::{
     bar::{self, TabStrip, WIDGET_H},
     bar_widget::{Pointer, Press},
     components::measure::Measure,
     components::{
-        aura::Aura,
+        aura::{Aura, Part as AuraPart},
         badge::{PULSE, pulsed},
         card,
         chart::{self, Phase},
@@ -65,6 +65,7 @@ use crate::{
     glyphs::Glyphs,
     key::Key,
     menu::MenuNode,
+    merge::Merge,
     panel::{Block, Handler, SharedString, Ui},
     panels,
     spring::{Spring, rubber, unrubber},
@@ -74,7 +75,7 @@ use crate::{
     },
     sys::{self, Samples, SysStats, Watch},
     theme::{ACCENT, HOVER_ALPHA, SURFACE, SURFACE_BORDER_ALPHA, SURFACE1, TEXT},
-    ui::{CONTROL_RADIUS, INSET, PANEL_RADIUS, SMALL_SIZE},
+    ui::{CONTROL_RADIUS, INSET, SMALL_SIZE},
     wm::Snapshot,
 };
 
@@ -256,6 +257,12 @@ pub struct Island {
     aura_room: Option<usize>,
     /// What to draw of the glow as last made, and when.
     aura_shown: Option<([f32; 4], Instant)>,
+    menu_aura_room: Option<usize>,
+    /// The light on the menu: where it is in the atlas, when it was made and for which rect.
+    menu_aura: Option<([f32; 4], Instant, [f32; 4])>,
+    menu_glow: Option<Sprite>,
+    /// The menu hanging from the bar as last drawn, blended into it.
+    merge: Option<Merge>,
     /// How far each dropdown or menu has grown from what opens it.
     growing: HashMap<SharedString, Growing>,
     /// What was chosen on each dropdown when it last stood open.
@@ -353,6 +360,10 @@ impl Island {
             aura: Aura::default(),
             aura_room: None,
             aura_shown: None,
+            menu_aura_room: None,
+            menu_aura: None,
+            menu_glow: None,
+            merge: None,
             growing: HashMap::new(),
             chosen: HashMap::new(),
             rows_scrolled: 0.0,
@@ -431,6 +442,8 @@ impl Island {
         self.built.retain(|layer, _| Some(*layer) == active);
         self.aura_room = None;
         self.aura_shown = None;
+        self.menu_aura_room = None;
+        self.menu_aura = None;
         self.forget_widgets();
         self.stale = true;
         self.dirty = true;
@@ -1420,57 +1433,48 @@ impl Island {
             return sprites;
         }
 
+        self.place_menu(painter);
         let body = self.body;
         let strength = self.look.shadow;
+        let merge = self.merge(radius);
+        self.merge = merge;
+        let corner = (radius, power);
         if strength > 0.0 {
-            let (sigma, drop) = (15.0, 10.0);
             let shade = [0.0, 0.0, 0.0, 0.35 * strength];
-            let cast = Sprite::drop_shadow(body, shade, radius, sigma, drop);
-            match self.menu.as_ref().map(|menu| menu.rect) {
-                Some(hang) => {
-                    let seam = body[1] + body[3];
-                    let fillet = crate::menu::FILLET.min(hang[3] / 2.0);
-                    let (far, wide) = (-1.0e5, 1.0e5);
-                    sprites.push(cast.within([far, far, wide, seam]));
-                    sprites.push(cast.within([far, seam, hang[0] - fillet, wide]));
-                    sprites.push(cast.within([hang[0] + hang[2] + fillet, seam, wide, wide]));
-                    let shape = [
-                        hang[0],
-                        hang[1] - PANEL_RADIUS,
-                        hang[2],
-                        hang[3] + PANEL_RADIUS,
-                    ];
-                    sprites.push(
-                        Sprite::drop_shadow(shape, shade, PANEL_RADIUS, sigma, drop)
-                            .within([far, seam, wide, wide]),
-                    );
+            let line = [0.0, 0.0, 0.0, 0.3 * strength];
+            match &merge {
+                Some(merge) => {
+                    sprites.push(Sprite::merged_shadow(
+                        body,
+                        shade,
+                        corner,
+                        merge,
+                        (15.0, 10.0),
+                    ));
+                    sprites.push(Sprite::merged(body, line, corner, merge, MERGED_OUTLINE));
                 }
-                None => sprites.push(cast),
+                None => {
+                    sprites.push(Sprite::drop_shadow(body, shade, radius, 15.0, 10.0));
+                    sprites.push(Sprite::ring(
+                        [body[0] - 1.0, body[1] - 1.0, body[2] + 2.0, body[3] + 2.0],
+                        line,
+                        radius + 1.0,
+                        power,
+                    ));
+                }
             }
-            sprites.push(Sprite::ring(
-                [body[0] - 1.0, body[1] - 1.0, body[2] + 2.0, body[3] + 2.0],
-                [0.0, 0.0, 0.0, 0.3 * strength],
-                radius + 1.0,
-                power,
-            ));
         }
-        sprites.push(Sprite::shape(
-            body,
-            color(SURFACE).map(|channel| channel * self.look.opacity),
-            radius,
-            power,
-        ));
-        let rim = Sprite::ring(body, tinted(SURFACE1, SURFACE_BORDER_ALPHA), radius, power);
-        match self.menu.as_ref().map(|menu| menu.rect) {
-            Some(hang) => {
-                let seam = body[1] + body[3] - 1.0;
-                let fillet = crate::menu::FILLET.min(hang[3] / 2.0);
-                let (far, wide) = (-1.0e5, 1.0e5);
-                sprites.push(rim.within([far, far, wide, seam]));
-                sprites.push(rim.within([far, seam, hang[0] - fillet, wide]));
-                sprites.push(rim.within([hang[0] + hang[2] + fillet, seam, wide, wide]));
+        let glass = color(SURFACE).map(|channel| channel * self.look.opacity);
+        let edge = tinted(SURFACE1, SURFACE_BORDER_ALPHA);
+        match &merge {
+            Some(merge) => {
+                sprites.push(Sprite::merged(body, glass, corner, merge, MERGED_FILL));
+                sprites.push(Sprite::merged(body, edge, corner, merge, MERGED_RIM));
             }
-            None => sprites.push(rim),
+            None => {
+                sprites.push(Sprite::shape(body, glass, radius, power));
+                sprites.push(Sprite::ring(body, edge, radius, power));
+            }
         }
 
         let fade = self.stage.morph.layers[COLLAPSED_LAYER]
@@ -1494,6 +1498,7 @@ impl Island {
                 sprites.push(Sprite::soft(body, uv, [fade; 4], radius, power));
             }
         }
+        self.menu_glow = self.menu_light(painter, gpu, fade);
         self.placed.clear();
         let clip = [body[0], body[1], body[0] + body[2], body[1] + body[3]];
         if fade > 0.001 {
@@ -1513,6 +1518,7 @@ impl Island {
             let row = top + ((h - COLLAPSED_H) / 2.0).max(0.0) + (COLLAPSED_H - WIDGET_H) / 2.0;
             let collapsed = self.stage.mode == Mode::Collapsed;
             for (section, start) in sections.iter().zip(starts) {
+                sprites.extend(self.set_tint(section, start, row));
                 let mut at = start;
                 for (kind, width, presence, rest) in section {
                     let Some(cached) = self.cache.get(kind) else {
@@ -1575,11 +1581,62 @@ impl Island {
         sprites
     }
 
-    fn menu_sprites(&mut self, painter: &mut Painter, gpu: &Gpu, out: &mut Vec<Sprite>) {
+    /// The bar's light running on down into the menu hanging from it.
+    fn menu_light(&mut self, painter: &mut Painter, gpu: &Gpu, fade: f32) -> Option<Sprite> {
+        let lit = self.look.glow > 0.0 && fade > 0.001 && self.aura.is_lit();
+        let [x, bottom, w, h] = self.menu.as_ref().map(|menu| menu.rect)?;
+        if !lit || self.stage.hidden() || h < 0.5 || w < 1.0 {
+            self.menu_aura = None;
+            return None;
+        }
+        let body = self.body;
+        let corner = menu::corner(w, h);
+        let rect = [x, bottom - corner, w, h + corner];
+        let due = self
+            .menu_aura
+            .is_none_or(|(_, made, at)| made.elapsed() >= AURA_EVERY || at != rect);
+        if due {
+            if self.menu_aura_room.is_none() {
+                self.menu_aura_room = painter.glow_room();
+            }
+            let part = AuraPart {
+                field: (body[2], body[3]),
+                offset: (rect[0] - body[0], rect[1] - body[1]),
+            };
+            let light = self.aura.pixels_of(rect[2], rect[3], self.look.glow, part);
+            self.menu_aura = self
+                .menu_aura_room
+                .and_then(|room| painter.glow(gpu, room, light))
+                .map(|uv| (uv, Instant::now(), rect));
+        }
+        let (uv, _, _) = self.menu_aura?;
+        let (far, wide) = (-1.0e5, 1.0e5);
+        Some(Sprite::soft(rect, uv, [fade; 4], corner, 2.0).within([far, bottom, wide, wide]))
+    }
+
+    /// The menu hanging from the bar this frame, and how it blends into it: never so softly that the
+    /// blend reaches the bar's rounded ends.
+    fn merge(&self, radius: f32) -> Option<Merge> {
+        let menu = self.menu.as_ref()?;
+        let hang = menu.rect;
+        if hang[3] < 0.5 || hang[2] < 1.0 {
+            return None;
+        }
+        let (rounding, blend) = menu.blend();
+        let body = self.body;
+        let room = (hang[0] - body[0] - radius).min(body[0] + body[2] - radius - hang[0] - hang[2]);
+        Some(Merge {
+            hang,
+            radius: rounding,
+            blend: blend.min((2.0 * room).max(menu::SOFT_OPEN)),
+        })
+    }
+
+    /// Where the menu hangs this frame, so what is cut round it fits it.
+    fn place_menu(&mut self, painter: &mut Painter) {
         let body = self.body;
         let radius = self.look.corner.0.min(body[3] / 2.0);
-        let opacity = self.look.opacity;
-        let (pointer, scale) = (self.pointer, self.scale);
+        let scale = self.scale;
         let rest_w = self.bar_width(true).min(body[2]);
         let rest_x = ((SURFACE_W - rest_w) / 2.0 * scale).round() / scale;
         if let Some(menu) = &mut self.menu {
@@ -1588,8 +1645,39 @@ impl Island {
                 rest_x + rest_w - radius - crate::menu::FILLET,
                 body[1] + body[3],
             );
-            menu.draw(edges, opacity, pointer, painter, gpu, scale, out);
+            menu.place(edges, painter, scale);
         }
+    }
+
+    fn menu_sprites(&mut self, painter: &mut Painter, gpu: &Gpu, out: &mut Vec<Sprite>) {
+        let (pointer, scale) = (self.pointer, self.scale);
+        if let Some(menu) = &mut self.menu {
+            menu.draw(pointer, self.menu_glow, painter, gpu, scale, out);
+        }
+    }
+
+    /// The hover on a set of widgets side by side, which show it together.
+    fn set_tint(
+        &self,
+        section: &[(Widget, f32, f32, f32)],
+        start: f32,
+        row: f32,
+    ) -> Option<Sprite> {
+        let pointer = self.pointer?;
+        let group = &self.stage.layout.group;
+        let widths = section
+            .iter()
+            .map(|(kind, width, ..)| (group.contains(kind), *width));
+        let (x, w) = sets(widths, start)
+            .into_iter()
+            .find(|(x, w)| inside([*x, row, *w, WIDGET_H], pointer))?;
+        let inset = self.stage.layout.spacing / 2.0;
+        Some(Sprite::shape(
+            [x + inset, row, w - 2.0 * inset, WIDGET_H],
+            tinted(ACCENT, HOVER_ALPHA),
+            CONTROL_RADIUS,
+            2.0,
+        ))
     }
 
     fn hover_tint(&self, kind: Widget, at: f32, row: f32) -> Option<Sprite> {
@@ -1883,21 +1971,14 @@ impl Island {
         if let Some(effect) = &self.blur
             && let Ok(blur) = Region::new(compositor)
         {
-            let (corner, power) = crate::ui::Radius::Panel.geometry();
-            let hang = self
-                .menu
-                .as_ref()
-                .map(|menu| menu.rect)
-                .filter(|rect| rect[3] >= 0.5);
             let whole = |rect: [f32; 4]| rect.map(|value| value.round() as i32);
-            let hang = hang.map(|rect| {
-                (
-                    whole(rect),
-                    (corner, power),
-                    crate::menu::FILLET.min(rect[3] / 2.0),
-                )
-            });
-            for [x, y, w, h] in crate::shape::region_of(whole(self.body), self.look.corner, hang) {
+            let (radius, power) = self.look.corner;
+            let corner = (radius.min(self.body[3] / 2.0), power);
+            let rows = match self.merge {
+                Some(merge) => crate::merge::rows(self.body, corner, merge),
+                None => crate::shape::region_of(whole(self.body), self.look.corner, None),
+            };
+            for [x, y, w, h] in rows {
                 blur.add(x, y, w, h);
             }
             effect.set_blur_region(Some(blur.wl_region()));

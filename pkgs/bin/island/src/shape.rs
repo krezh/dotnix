@@ -554,10 +554,11 @@ pub fn joined_drop_shadow<const N: usize>(
                 return;
             };
             // Each shape's shadow is kept off the other: the body's above the seam and beside the
-            // hanging shape, the hanging shape's below the seam.
+            // hanging shape, the hanging shape's below the seam. The body's runs on under the
+            // fillets, which have no shadow of their own, and below a hanging shape still short.
             let seam = body.bottom();
-            let left = hang.bounds.left() - px(hang.fillet);
-            let right = hang.bounds.right() + px(hang.fillet);
+            let left = hang.bounds.left();
+            let right = hang.bounds.right();
             let clip = |x0: Pixels, y0: Pixels, x1: Pixels, y1: Pixels| ContentMask {
                 bounds: Bounds::from_corners(point(x0, y0), point(x1, y1)),
             };
@@ -565,6 +566,7 @@ pub fn joined_drop_shadow<const N: usize>(
                 clip(bounds.left(), bounds.top(), bounds.right(), seam),
                 clip(bounds.left(), seam, left, bounds.bottom()),
                 clip(right, seam, bounds.right(), bounds.bottom()),
+                clip(left, hang.bounds.bottom(), right, bounds.bottom()),
             ];
             for mask in body_masks {
                 window.with_content_mask(Some(mask), |window| {

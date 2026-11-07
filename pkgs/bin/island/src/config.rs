@@ -220,6 +220,15 @@ pub enum Frontend {
     Wgpu,
 }
 
+impl Frontend {
+    pub fn name(self) -> &'static str {
+        match self {
+            Self::Gpui => "gpui",
+            Self::Wgpu => "wgpu",
+        }
+    }
+}
+
 #[derive(Clone, Debug, Default, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct Config {
