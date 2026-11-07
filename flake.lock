@@ -725,11 +725,11 @@
         "treefmt-nix": "treefmt-nix_3"
       },
       "locked": {
-        "lastModified": 1794008282,
-        "narHash": "sha256-Mir7+HLE3astKRXefNBjAKR0j8pIKumgbqufSVyYh88=",
+        "lastModified": 1794009285,
+        "narHash": "sha256-eheXUFjbw6txzeNpeBA1Cuurqoj+gtGYaeWumq+edOY=",
         "owner": "numtide",
         "repo": "llm-agents.nix",
-        "rev": "6e4c6bf6b8703a977ca900a6a0379ec6c446a3d9",
+        "rev": "2add2fd83bf01a23357d401ba24155e35d9d93d2",
         "type": "github"
       },
       "original": {
@@ -864,11 +864,11 @@
         "systems": "systems_3"
       },
       "locked": {
-        "lastModified": 1793946761,
-        "narHash": "sha256-3r/pP2JNtwN8eCybhyOOCjoM7gjQPmUzhhqg4X0F4ms=",
+        "lastModified": 1794027105,
+        "narHash": "sha256-4RFGQqILq2zW1iJQw0F545Z2aV2IBQhX+LXxIzkA2d8=",
         "owner": "nix-community",
         "repo": "nix4vscode",
-        "rev": "3c29fb958ba77c6b1ce7e8a7e93c01310e43fdd7",
+        "rev": "facc2cbdc8c0dde630cf2802dad85e724e25639d",
         "type": "github"
       },
       "original": {
@@ -889,11 +889,11 @@
         "treefmt-nix": "treefmt-nix_4"
       },
       "locked": {
-        "lastModified": 1794000011,
-        "narHash": "sha256-+LQeFOGHvRISlD058/pk+SpZffpudeTy2Vev7gTsu1I=",
+        "lastModified": 1794015954,
+        "narHash": "sha256-LhZW1QYJ93kQLQaeto44ZQEeFlAtKZ2EWYzqLQz0Nk0=",
         "owner": "4evy",
         "repo": "nixcord",
-        "rev": "5171bb987426e0e7cddf6b302e99305b4612bf20",
+        "rev": "2b85b0d7cf809bf681f9b443afb98fbb31038405",
         "type": "github"
       },
       "original": {
@@ -1438,11 +1438,11 @@
         "xdg-desktop-portal-umbriel": "xdg-desktop-portal-umbriel"
       },
       "locked": {
-        "lastModified": 1793978250,
-        "narHash": "sha256-M0Nfo5J0N9NvQnUHUD54LMLiA7TvdQ3NyREboPozI0o=",
+        "lastModified": 1794018029,
+        "narHash": "sha256-VkNYAiyIkNEvsMs1/FflVixUVDOUZuhYsb9kayUBghg=",
         "owner": "noctalia-dev",
         "repo": "umbriel",
-        "rev": "c6ad18d5ed7e3f928e546e24a4a17719e0522ff6",
+        "rev": "7ffde7901bbed0ad67f0b1167c10792924ab9066",
         "type": "github"
       },
       "original": {
