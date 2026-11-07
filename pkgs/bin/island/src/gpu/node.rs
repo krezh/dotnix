@@ -47,10 +47,8 @@ use crate::{
 
 pub const MEDIUM: u16 = 500;
 pub const SEMIBOLD: u16 = 600;
-const EDGE_H: f32 = 44.0;
 /// Past any child's index, so a node's eases are named apart from its children.
 const EASES: usize = 1 << 20;
-const EDGE_BAND: f32 = 2.0;
 const EDGE_RAMP: f32 = 24.0;
 const STRIPE_W: f32 = 1.9;
 const STRIPE_EVERY: f32 = 5.5;
@@ -205,8 +203,12 @@ pub struct Node {
     answers: Answers,
     scroll: Option<SharedString>,
     rounding: f32,
-    /// What scrolls fades into the glass with this over it.
-    soft: Option<[f32; 4]>,
+    /// What scrolls fades out under its top and bottom.
+    soft: bool,
+    /// The most out of view its soft edges show for, however far it can scroll now.
+    soft_reach: f32,
+    /// The furthest it scrolls, however much it holds.
+    scroll_reach: f32,
     eases: Vec<(Easing, f32, SpringConfig)>,
     /// Takes up room but shows nothing.
     hidden: bool,
@@ -238,7 +240,9 @@ pub fn div() -> Node {
         answers: Answers::default(),
         scroll: None,
         rounding: 0.0,
-        soft: None,
+        soft: false,
+        soft_reach: f32::INFINITY,
+        scroll_reach: f32::INFINITY,
         eases: Vec::new(),
         hidden: false,
         shadow: None,
@@ -770,14 +774,21 @@ impl Node {
         self
     }
 
-    /// What scrolls under its top and bottom fades away.
-    pub fn soft_edges(self) -> Self {
-        self.soft_edges_on([0.0; 4])
+    /// What scrolls under its top and bottom fades away, more the more lies past each.
+    pub fn soft_edges(mut self) -> Self {
+        self.soft = true;
+        self
     }
 
-    /// As [`Self::soft_edges`], for what lies on a surface of `tint`.
-    pub fn soft_edges_on(mut self, tint: [f32; 4]) -> Self {
-        self.soft = Some(tint);
+    /// As [`Self::soft_edges`], showing for no more than `reach` out of view.
+    pub fn soft_within(mut self, reach: f32) -> Self {
+        self.soft_reach = reach;
+        self
+    }
+
+    /// Scrolls no further than `reach`.
+    pub fn scrolls_within(mut self, reach: f32) -> Self {
+        self.scroll_reach = reach;
         self
     }
 
@@ -1120,8 +1131,6 @@ pub struct Painting<'a> {
     pub scale: f32,
     pub built: Built,
     pub offsets: &'a HashMap<SharedString, f32>,
-    /// The surface panels sit on, for what fades into it, premultiplied.
-    pub glass: [f32; 4],
     /// How wide what holds the node being painted is.
     /// Where what holds the node being painted is.
     pub holder_rect: [f32; 4],
@@ -1456,31 +1465,6 @@ impl Painting<'_> {
         }
     }
 
-    /// What passes under an edge fades into the glass, more the more lies past it.
-    fn edge(&mut self, [x, y, w, h]: [f32; 4], past: f32, on: [f32; 4], top: bool) {
-        let shown = (past / EDGE_RAMP).clamp(0.0, 1.0);
-        if shown <= 0.0 {
-            return;
-        }
-        let bands = (EDGE_H / EDGE_BAND) as usize;
-        for band in 0..bands {
-            let depth = band as f32 * EDGE_BAND;
-            let at = if top {
-                y + depth
-            } else {
-                y + h - depth - EDGE_BAND
-            };
-            let strength = shown * (1.0 - (depth + EDGE_BAND / 2.0) / EDGE_H);
-            self.built.sprites.push(Sprite::shape(
-                [x, at, w, EDGE_BAND],
-                [0, 1, 2, 3]
-                    .map(|channel| (on[channel] + self.glass[channel] * (1.0 - on[3])) * strength),
-                0.0,
-                2.0,
-            ));
-        }
-    }
-
     fn node(
         &mut self,
         node: &Node,
@@ -1698,9 +1682,10 @@ impl Painting<'_> {
                 .filter_map(|child| taffy.layout(child.id).ok())
                 .map(|child| child.location.y + child.size.height)
                 .fold(0.0, f32::max);
-            let reach = (bottom - h).max(0.0);
+            let room = (bottom - h).max(0.0);
+            let reach = room.min(node.scroll_reach).max(0.0);
             offset = self.offsets.get(key).copied().unwrap_or(0.0).min(reach);
-            reached = Some(reach);
+            reached = Some(room);
             scrolled = Some(self.built.scrolling.len());
             self.built.scrolling.push(Scrolling {
                 key: key.clone(),
@@ -1731,6 +1716,7 @@ impl Painting<'_> {
                 0.0
             };
         }
+        let inside = self.built.sprites.len();
         for (index, (child, laid)) in node.children.iter().zip(&laid.children).enumerate() {
             self.path = branch(path, index);
             self.node(child, laid, taffy, (raw_x, raw_y - offset), fade, inner);
@@ -1742,9 +1728,16 @@ impl Painting<'_> {
         if let Some(at) = scrolled {
             self.built.scrolling[at].to = self.built.sprites.len();
         }
-        if let Some((reach, on)) = reached.zip(node.soft) {
-            self.edge(rect, offset, on, true);
-            self.edge(rect, reach - offset, on, false);
+        if let Some(reach) = reached.filter(|_| node.soft) {
+            let reach = reach.min(node.soft_reach).max(0.0);
+            let above = offset.min(reach);
+            let shown = |past: f32| (past / EDGE_RAMP).clamp(0.0, 1.0);
+            let edges = [y, shown(above), y + h, shown(reach - above)];
+            if edges[1] > 0.0 || edges[3] > 0.0 {
+                for sprite in &mut self.built.sprites[inside..] {
+                    *sprite = sprite.fading(edges);
+                }
+            }
         }
         let count = self.built.sprites.len();
         if let Some(group) = &node.answers.shown_in {

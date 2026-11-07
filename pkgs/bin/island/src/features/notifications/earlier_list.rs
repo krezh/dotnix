@@ -121,7 +121,12 @@ impl EarlierList {
     }
 
     pub fn visible_height(&self) -> f32 {
-        (self.height + self.rows.iter().map(Row::folding).sum::<f32>()).min(MAX_VISIBLE_H)
+        self.full_height().min(MAX_VISIBLE_H)
+    }
+
+    /// How tall it all is where the rows are going, with the room those leaving still take.
+    pub fn full_height(&self) -> f32 {
+        self.height + self.rows.iter().map(Row::folding).sum::<f32>()
     }
 
     pub fn drawn_y(&self) -> Vec<f32> {

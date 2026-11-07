@@ -255,12 +255,9 @@ pub struct Island {
     beaming: bool,
     aura: Aura,
     aura_room: Option<usize>,
-    /// What to draw of the glow as last made, and when.
-    aura_shown: Option<([f32; 4], Instant)>,
-    menu_aura_room: Option<usize>,
-    /// The light on the menu: where it is in the atlas, when it was made and for which rect.
-    menu_aura: Option<([f32; 4], Instant, [f32; 4])>,
-    menu_glow: Option<Sprite>,
+    /// What to draw of the glow as last made, when, and over how wide and how tall an area: the
+    /// bar, down to the bottom of the menu hanging from it.
+    aura_shown: Option<([f32; 4], Instant, [f32; 2])>,
     /// The menu hanging from the bar as last drawn, blended into it.
     merge: Option<Merge>,
     /// How far each dropdown or menu has grown from what opens it.
@@ -360,9 +357,6 @@ impl Island {
             aura: Aura::default(),
             aura_room: None,
             aura_shown: None,
-            menu_aura_room: None,
-            menu_aura: None,
-            menu_glow: None,
             merge: None,
             growing: HashMap::new(),
             chosen: HashMap::new(),
@@ -442,8 +436,6 @@ impl Island {
         self.built.retain(|layer, _| Some(*layer) == active);
         self.aura_room = None;
         self.aura_shown = None;
-        self.menu_aura_room = None;
-        self.menu_aura = None;
         self.forget_widgets();
         self.stale = true;
         self.dirty = true;
@@ -756,7 +748,6 @@ impl Island {
         if at_end && view.blocks.iter().any(Block::follows_end) {
             self.offsets.insert(BODY.into(), f32::MAX);
         }
-        let glass = color(SURFACE).map(|channel| channel * self.look.opacity);
         let nothing = HashMap::new();
         let before = self
             .texts
@@ -769,7 +760,6 @@ impl Island {
             scale: self.scale,
             built: Built::default(),
             offsets: &self.offsets,
-            glass,
             holder_rect: [0.0; 4],
             lighting: None,
             before,
@@ -1481,24 +1471,34 @@ impl Island {
             .value()
             .clamp(0.0, 1.0);
         if self.look.glow > 0.0 && fade > 0.001 && self.aura.is_lit() && !self.stage.hidden() {
+            let reach = merge.as_ref().map_or(body[3], |merge| {
+                (merge.hang[1] + merge.hang[3] - body[1]).max(body[3])
+            });
+            let area = [body[2], reach];
             let due = self
                 .aura_shown
-                .is_none_or(|(_, made)| made.elapsed() >= AURA_EVERY);
+                .is_none_or(|(_, made, at)| made.elapsed() >= AURA_EVERY || at != area);
             if due {
                 if self.aura_room.is_none() {
                     self.aura_room = painter.glow_room();
                 }
-                let light = self.aura.pixels(body[2], body[3], self.look.glow);
+                let part = AuraPart {
+                    field: (body[2], body[3]),
+                    offset: (0.0, 0.0),
+                };
+                let light = self.aura.pixels_of(body[2], reach, self.look.glow, part);
                 self.aura_shown = self
                     .aura_room
                     .and_then(|room| painter.glow(gpu, room, light))
-                    .map(|uv| (uv, Instant::now()));
+                    .map(|uv| (uv, Instant::now(), area));
             }
-            if let Some((uv, _)) = self.aura_shown {
-                sprites.push(Sprite::soft(body, uv, [fade; 4], radius, power));
+            if let Some((uv, _, _)) = self.aura_shown {
+                sprites.push(match &merge {
+                    Some(merge) => Sprite::merged_glow(body, uv, fade, corner, merge),
+                    None => Sprite::soft(body, uv, [fade; 4], radius, power),
+                });
             }
         }
-        self.menu_glow = self.menu_light(painter, gpu, fade);
         self.placed.clear();
         let clip = [body[0], body[1], body[0] + body[2], body[1] + body[3]];
         if fade > 0.001 {
@@ -1581,39 +1581,6 @@ impl Island {
         sprites
     }
 
-    /// The bar's light running on down into the menu hanging from it.
-    fn menu_light(&mut self, painter: &mut Painter, gpu: &Gpu, fade: f32) -> Option<Sprite> {
-        let lit = self.look.glow > 0.0 && fade > 0.001 && self.aura.is_lit();
-        let [x, bottom, w, h] = self.menu.as_ref().map(|menu| menu.rect)?;
-        if !lit || self.stage.hidden() || h < 0.5 || w < 1.0 {
-            self.menu_aura = None;
-            return None;
-        }
-        let body = self.body;
-        let corner = menu::corner(w, h);
-        let rect = [x, bottom - corner, w, h + corner];
-        let due = self
-            .menu_aura
-            .is_none_or(|(_, made, at)| made.elapsed() >= AURA_EVERY || at != rect);
-        if due {
-            if self.menu_aura_room.is_none() {
-                self.menu_aura_room = painter.glow_room();
-            }
-            let part = AuraPart {
-                field: (body[2], body[3]),
-                offset: (rect[0] - body[0], rect[1] - body[1]),
-            };
-            let light = self.aura.pixels_of(rect[2], rect[3], self.look.glow, part);
-            self.menu_aura = self
-                .menu_aura_room
-                .and_then(|room| painter.glow(gpu, room, light))
-                .map(|uv| (uv, Instant::now(), rect));
-        }
-        let (uv, _, _) = self.menu_aura?;
-        let (far, wide) = (-1.0e5, 1.0e5);
-        Some(Sprite::soft(rect, uv, [fade; 4], corner, 2.0).within([far, bottom, wide, wide]))
-    }
-
     /// The menu hanging from the bar this frame, and how it blends into it: never so softly that the
     /// blend reaches the bar's rounded ends.
     fn merge(&self, radius: f32) -> Option<Merge> {
@@ -1652,7 +1619,7 @@ impl Island {
     fn menu_sprites(&mut self, painter: &mut Painter, gpu: &Gpu, out: &mut Vec<Sprite>) {
         let (pointer, scale) = (self.pointer, self.scale);
         if let Some(menu) = &mut self.menu {
-            menu.draw(pointer, self.menu_glow, painter, gpu, scale, out);
+            menu.draw(pointer, painter, gpu, scale, out);
         }
     }
 
@@ -1737,6 +1704,19 @@ impl Island {
         let x = (tip.at.0 + TIP_GAP.0).min(SURFACE_W - w - 4.0).max(4.0);
         let y = tip.at.1 + TIP_GAP.1;
         let rect = [x.round(), y.round(), w, h];
+        let spread = crate::components::popover::SHADOW_SPREAD;
+        out.push(Sprite::shadow(
+            [
+                rect[0] - spread,
+                rect[1] - spread,
+                w + 2.0 * spread,
+                h + 2.0 * spread,
+            ],
+            [0.0, 0.0, 0.0, crate::theme::SHADOW_ALPHA],
+            TIP_RADIUS,
+            spread,
+            0.0,
+        ));
         out.push(Sprite::shape(
             rect,
             color(SURFACE).map(|channel| channel * 0.97),

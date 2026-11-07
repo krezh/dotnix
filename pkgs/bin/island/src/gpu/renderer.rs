@@ -29,6 +29,7 @@ struct In {
     @location(2) color: vec4<f32>,
     @location(3) params: vec4<f32>,
     @location(4) clip: vec4<f32>,
+    @location(5) edges: vec4<f32>,
 }
 struct Out {
     @builtin(position) position: vec4<f32>,
@@ -39,6 +40,7 @@ struct Out {
     @location(4) @interpolate(flat) color: vec4<f32>,
     @location(5) @interpolate(flat) params: vec4<f32>,
     @location(6) @interpolate(flat) clip: vec4<f32>,
+    @location(7) @interpolate(flat) edges: vec4<f32>,
 }
 
 @vertex fn vs(v: In) -> Out {
@@ -51,7 +53,7 @@ struct Out {
     var quad = rect;
     if (v.params.y > 9.5) {
         var reach = v.clip.y + 2.0;
-        if (v.params.y > 12.5) {
+        if (v.params.y > 12.5 && v.params.y < 13.5) {
             reach = reach + 3.0 * v.clip.z + v.clip.w;
         }
         let low = min(rect.xy, v.uv.xy) - reach;
@@ -59,7 +61,7 @@ struct Out {
         quad = vec4<f32>(low, high - low);
     }
     var pos = quad.xy + at * quad.zw;
-    if (v.params.w != 0.0) {
+    if (v.params.w != 0.0 && v.params.y < 9.5) {
         let middle = v.rect.xy + v.rect.zw * 0.5;
         let arm = pos - middle;
         let s = sin(v.params.w);
@@ -75,6 +77,7 @@ struct Out {
     out.color = v.color;
     out.params = v.params;
     out.clip = v.clip;
+    out.edges = v.edges;
     return out;
 }
 
@@ -118,7 +121,16 @@ fn ink(coverage: f32, color: vec4<f32>) -> f32 {
     return a + a * (1.0 - a) * correction;
 }
 
+// How far in from a scrolling area's edge what passes under it fades out.
+const EDGE_DEPTH: f32 = 44.0;
+
 @fragment fn fs(v: Out) -> @location(0) vec4<f32> {
+    let top = v.edges.y * clamp(1.0 - (v.local.y - v.edges.x) / EDGE_DEPTH, 0.0, 1.0);
+    let bottom = v.edges.w * clamp(1.0 - (v.edges.z - v.local.y) / EDGE_DEPTH, 0.0, 1.0);
+    return shade(v) * (1.0 - top) * (1.0 - bottom);
+}
+
+fn shade(v: Out) -> vec4<f32> {
     if (v.params.y < 9.5 && (v.local.x < v.clip.x || v.local.y < v.clip.y || v.local.x > v.clip.z || v.local.y > v.clip.w)) {
         discard;
     }
@@ -174,6 +186,12 @@ fn ink(coverage: f32, color: vec4<f32>) -> f32 {
         }
         if (kind < 12.5) {
             return v.color * clamp(0.5 + (0.5 - abs(d - 0.5)) * pixel, 0.0, 1.0);
+        }
+        if (kind > 13.5) {
+            let reach = max(v.rect.w, v.uv.y + v.uv.w - v.rect.y);
+            let along = clamp((v.local - v.rect.xy) / vec2<f32>(v.rect.z, reach), vec2<f32>(0.0), vec2<f32>(1.0));
+            let light = textureSampleLevel(atlas, blended, v.color.xy + along * v.color.zw, 0.0);
+            return light * v.params.w * clamp(0.5 - d * pixel, 0.0, 1.0);
         }
         let sigma = v.clip.z;
         let thrown = merged(v.local - vec2<f32>(0.0, v.clip.w), v.rect, radius, power, v.uv, v.clip.x, v.clip.y);
@@ -250,7 +268,13 @@ pub struct Sprite {
     pub params: [f32; 4],
     /// Left, top, right and bottom.
     pub clip: [f32; 4],
+    /// Where it fades out under the edges of what it scrolls in: the top edge and how much, then
+    /// the bottom edge and how much, each over the shader's `EDGE_DEPTH`.
+    pub edges: [f32; 4],
 }
+
+/// For a sprite that fades under no edge.
+pub const NO_EDGES: [f32; 4] = [0.0; 4];
 
 pub const SHAPE: f32 = 0.0;
 pub const IMAGE: f32 = 1.0;
@@ -262,11 +286,12 @@ const GLOW: f32 = 6.0;
 const ARC: f32 = 7.0;
 const SOFT: f32 = 8.0;
 /// The bar and the menu hanging from it as one surface: its fill, the line just inside its edge,
-/// the line just outside it, and its shadow.
+/// the line just outside it, its shadow and the light over it.
 pub const MERGED_FILL: f32 = 10.0;
 pub const MERGED_RIM: f32 = 11.0;
 pub const MERGED_OUTLINE: f32 = 12.0;
 const MERGED_SHADOW: f32 = 13.0;
+const MERGED_GLOW: f32 = 14.0;
 
 impl Sprite {
     pub fn shape(rect: [f32; 4], color: [f32; 4], radius: f32, power: f32) -> Self {
@@ -276,6 +301,7 @@ impl Sprite {
             color,
             params: [radius, SHAPE, power, 0.0],
             clip: NO_CLIP,
+            edges: NO_EDGES,
         }
     }
 
@@ -293,6 +319,7 @@ impl Sprite {
             color,
             params: [0.0, IMAGE, 2.0, 0.0],
             clip: NO_CLIP,
+            edges: NO_EDGES,
         }
     }
 
@@ -313,6 +340,7 @@ impl Sprite {
             color,
             params: [radius, SHADOW, 2.0, 0.0],
             clip: NO_CLIP,
+            edges: NO_EDGES,
         }
     }
 
@@ -336,6 +364,7 @@ impl Sprite {
             color,
             params: [radius, SHADOW, 2.0, 0.0],
             clip: NO_CLIP,
+            edges: NO_EDGES,
         }
     }
 
@@ -350,6 +379,7 @@ impl Sprite {
             color,
             params: [width / 2.0, LINE, 2.0, 0.0],
             clip: NO_CLIP,
+            edges: NO_EDGES,
         }
     }
 
@@ -362,6 +392,7 @@ impl Sprite {
             color,
             params: [0.0, AREA, 2.0, 0.0],
             clip: NO_CLIP,
+            edges: NO_EDGES,
         }
     }
 
@@ -373,6 +404,7 @@ impl Sprite {
             color,
             params: [radius, GLOW, 2.0, 0.0],
             clip: NO_CLIP,
+            edges: NO_EDGES,
         }
     }
 
@@ -385,6 +417,7 @@ impl Sprite {
             color,
             params: [stroke / 2.0, ARC, 2.0, 0.0],
             clip: NO_CLIP,
+            edges: NO_EDGES,
         }
     }
 
@@ -404,6 +437,7 @@ impl Sprite {
             color,
             params: [radius, part, power, 0.0],
             clip: [merge.radius, merge.blend, 0.0, 0.0],
+            edges: NO_EDGES,
         }
     }
 
@@ -421,6 +455,26 @@ impl Sprite {
             color,
             params: [radius, MERGED_SHADOW, power, 0.0],
             clip: [merge.radius, merge.blend, sigma, drop],
+            edges: NO_EDGES,
+        }
+    }
+
+    /// Light over that surface, `fade` strong: `uv` is a coarse picture of it across the bar, from
+    /// the bar's top down to the bar's or the menu's bottom, whichever is lower.
+    pub fn merged_glow(
+        body: [f32; 4],
+        uv: [f32; 4],
+        fade: f32,
+        (radius, power): (f32, f32),
+        merge: &Merge,
+    ) -> Self {
+        Self {
+            rect: body,
+            uv: merge.hang,
+            color: uv,
+            params: [radius, MERGED_GLOW, power, fade],
+            clip: [merge.radius, merge.blend, 0.0, 0.0],
+            edges: NO_EDGES,
         }
     }
 
@@ -431,6 +485,7 @@ impl Sprite {
             color,
             params: [radius, SOFT, power, 0.0],
             clip: NO_CLIP,
+            edges: NO_EDGES,
         }
     }
 
@@ -447,6 +502,18 @@ impl Sprite {
             self.clip[1] += y;
             self.clip[2] += x;
             self.clip[3] += y;
+        }
+        if self.edges != NO_EDGES {
+            self.edges[0] += y;
+            self.edges[2] += y;
+        }
+        self
+    }
+
+    /// Fading out under `edges`, unless it already fades under those of something closer in.
+    pub fn fading(mut self, edges: [f32; 4]) -> Self {
+        if self.edges == NO_EDGES {
+            self.edges = edges;
         }
         self
     }
@@ -614,7 +681,8 @@ impl Gpu {
             1 => Float32x4,
             2 => Float32x4,
             3 => Float32x4,
-            4 => Float32x4
+            4 => Float32x4,
+            5 => Float32x4
         ];
         let blend = wgpu::BlendComponent {
             src_factor: wgpu::BlendFactor::One,

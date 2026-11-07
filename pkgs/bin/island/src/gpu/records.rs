@@ -22,9 +22,8 @@ use crate::{
     panel::{Handler, SharedString},
     stage::CONTENT_IN,
     theme::{
-        ACCENT, ACCENT_TINT_ALPHA, BASE, CARD_ALPHA, CARD_BORDER_ALPHA, CONTROL_ALPHA, CRUST,
-        GREEN, NOTIFICATION_ALPHA, OVERLAY1, OVERLAY2, RED, SUBTEXT1, SURFACE1, TEXT, TINT,
-        TRACK_ALPHA,
+        ACCENT, ACCENT_TINT_ALPHA, BASE, CARD_BORDER_ALPHA, CONTROL_ALPHA, CRUST, GREEN,
+        NOTIFICATION_ALPHA, OVERLAY1, OVERLAY2, RED, SUBTEXT1, SURFACE1, TEXT, TINT, TRACK_ALPHA,
     },
     ui::{CONTROL_H, CONTROL_RADIUS, PANEL_RADIUS, SMALL_SIZE, TITLE_SIZE},
 };
@@ -1002,7 +1001,7 @@ pub fn ledger(view: Ledger, at: &str) -> Node {
         div()
             .max_h(MAX_ROWS_H)
             .scrolls(format!("{at}-ledger-scroll"))
-            .soft_edges_on(tinted(SURFACE1, CARD_ALPHA))
+            .soft_edges()
             .child(list)
     } else {
         list

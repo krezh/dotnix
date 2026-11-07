@@ -726,6 +726,8 @@ impl Blocks<'_, '_> {
                 .min_w(placed.width)
                 .scrolls(scroll)
                 .soft_edges()
+                .soft_within(placed.still - visible)
+                .scrolls_within(placed.rewind.unwrap_or(f32::INFINITY))
                 .child(content),
             None => content,
         }

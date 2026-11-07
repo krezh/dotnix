@@ -585,16 +585,18 @@ pub fn missed(rows: &MissedList, looks: Vec<RowLook>, empty: &'static str) -> Bl
         };
         blocks.push((at, block));
     }
-    let visible = if empty.is_some() {
-        EMPTY_H
+    let (visible, still) = if empty.is_some() {
+        (EMPTY_H, EMPTY_H)
     } else {
-        rows.visible_height()
+        (rows.visible_height(), rows.full_height())
     };
     blocks.extend(empty);
     Block::Placed(Placed {
         width: LIST_W,
         height: rows.extent().max(visible),
         visible: Some(visible),
+        still: still.max(visible),
+        rewind: None,
         blocks,
     })
 }
@@ -603,15 +605,25 @@ pub fn missed(rows: &MissedList, looks: Vec<RowLook>, empty: &'static str) -> Bl
 /// before the spring slows at the end, or its edge lingers in the panel's padding.
 const ACROSS_GAP: f32 = 96.0;
 
-/// `left` moving out as `right` moves in, `at` of the way across, as their tabs sit side by side.
-/// Both stay whole, so nothing blanks or shows through the other on the way.
-pub fn across(left: Block, right: Block, at: f32) -> Block {
+/// `left` moving out as `right` moves in, `at` of the way across, as their tabs sit side by side;
+/// the other way round unless `rightwards`. Both stay whole, so nothing blanks or shows through
+/// the other on the way, and the one leaving scrolls back to the top as it goes, so the one coming
+/// in arrives at its top.
+pub fn across(left: Block, right: Block, at: f32, rightwards: bool) -> Block {
     let (mut left, mut right) = match (left, right) {
         (Block::Placed(left), Block::Placed(right)) => (left, right),
         (_, right) => return right,
     };
     let width = left.width.max(right.width);
     let travel = width + ACROSS_GAP;
+    let (leaving, coming, left_to_go) = if rightwards {
+        (&left, &right, 1.0 - at)
+    } else {
+        (&right, &left, at)
+    };
+    let out_of_view = |list: &Placed| (list.still - list.visible.unwrap_or(list.still)).max(0.0);
+    let rewind = Some(out_of_view(leaving) * left_to_go);
+    let coming_out_of_view = out_of_view(coming);
     for (place, _) in &mut left.blocks {
         place.offset -= at * travel;
     }
@@ -627,6 +639,9 @@ pub fn across(left: Block, right: Block, at: f32) -> Block {
         width,
         height: left.height.max(right.height),
         visible,
+        // Its edges are the coming one's from the start, so they are there as it comes in.
+        still: visible.unwrap_or(0.0) + coming_out_of_view,
+        rewind,
         blocks: left.blocks,
     })
 }
@@ -665,6 +680,7 @@ pub fn opening(list: Block, above: Vec<Block>, open: f32) -> Vec<Block> {
     });
     placed.blocks.splice(0..0, lines);
     placed.height += room;
+    placed.still += room;
     placed.visible = placed.visible.map(|visible| visible + room);
     vec![Block::Placed(placed)]
 }
@@ -712,16 +728,18 @@ pub fn earlier(list: &EarlierList, looks: Vec<Option<Look>>) -> Block {
         };
         blocks.push((at, block));
     }
-    let visible = if empty.is_some() {
-        EMPTY_H
+    let (visible, still) = if empty.is_some() {
+        (EMPTY_H, EMPTY_H)
     } else {
-        list.visible_height()
+        (list.visible_height(), list.full_height())
     };
     blocks.extend(empty);
     Block::Placed(Placed {
         width: LIST_W,
         height: list.extent().max(visible),
         visible: Some(visible),
+        still: still.max(visible),
+        rewind: None,
         blocks,
     })
 }
@@ -763,10 +781,13 @@ pub fn toasts(stack: &Toasts, looks: Vec<Look>) -> Block {
         };
         blocks.push((at, Block::note(format!("+{} more", stack.footer_count()))));
     }
+    let height = stack.height() - 2.0 * TIGHT_INSET;
     Block::Placed(Placed {
         width: MIN_W,
-        height: stack.height() - 2.0 * TIGHT_INSET,
+        height,
         visible: None,
+        still: height,
+        rewind: None,
         blocks,
     })
 }

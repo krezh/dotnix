@@ -136,13 +136,8 @@ impl Aura {
         !playing && state.levels.iter().any(|level| *level > 0.0)
     }
 
-    /// The light over a `width` × `height` area, with one extra sample on every side, as its width
-    /// and height and premultiplied red, green, blue and alpha.
-    pub fn pixels(&self, width: f32, height: f32, strength: f32) -> (u32, u32, Vec<u8>) {
-        self.pixels_of(width, height, strength, Part::whole(width, height))
-    }
-
-    /// As [`Self::pixels`], for `part` of the light.
+    /// `part` of the light over a `width` × `height` area, with one extra sample on every side, as
+    /// its width and height and premultiplied red, green, blue and alpha.
     pub fn pixels_of(
         &self,
         width: f32,

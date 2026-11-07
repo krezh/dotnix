@@ -22,11 +22,6 @@ const ENTRY_H: f32 = 28.0;
 const SEPARATOR_H: f32 = 9.0;
 const PAD: f32 = PANEL_RADIUS - CONTROL_RADIUS;
 
-/// The menu's corner radius at `w` by `h`: the panel's, until it is too short for that.
-pub fn corner(w: f32, h: f32) -> f32 {
-    PANEL_RADIUS.min((w.min(h) / 2.0).floor()).max(0.0)
-}
-
 /// How softly an open menu blends into the bar; the shape is the bar's own there.
 pub const SOFT_OPEN: f32 = 12.0;
 /// How softly it blends as it has all but melted into the bar.
@@ -281,12 +276,9 @@ impl Menu {
     }
 
     /// As [`Self::place`] put it.
-    /// `glow` is light to lay over the glass, under what it holds.
-    #[allow(clippy::too_many_arguments)]
     pub fn draw(
         &mut self,
         pointer: Option<(f32, f32)>,
-        glow: Option<Sprite>,
         painter: &mut Painter,
         gpu: &Gpu,
         scale: f32,
@@ -297,7 +289,6 @@ impl Menu {
         let [x, bottom, w, h] = self.rect;
         let clip = [x, bottom, x + w, bottom + h];
         let first = out.len();
-        out.extend(glow);
         let spot = (x, bottom);
         if let Some(leaving) = &self.leaving {
             let shown = leaving.opacity.value().clamp(0.0, 1.0);

@@ -1,4 +1,4 @@
-use gpui::{AnyElement, Context, SharedString, div, prelude::*, px};
+use gpui::{AnyElement, Context, SharedString, div, point, prelude::*, px};
 
 use super::{
     frame::Frame,
@@ -361,6 +361,14 @@ fn placed_element(
 ) -> AnyElement {
     // Only what is in view, and a margin round it, is drawn: a long list of placed blocks would
     // otherwise be laid out on every frame, however little of it shows.
+    if let Some(rewind) = placed.rewind {
+        let offset = frame.placed.offset();
+        if -f32::from(offset.y) > rewind {
+            frame
+                .placed
+                .set_offset(point(offset.x, px(-rewind.max(0.0))));
+        }
+    }
     let shown = placed.visible.map(|visible| {
         let from = -f32::from(frame.placed.offset().y) - PLACED_MARGIN;
         (from, from + visible + 2.0 * PLACED_MARGIN)
@@ -414,7 +422,7 @@ fn placed_element(
     match placed.visible {
         Some(visible) => {
             let key = SharedString::from(format!("{at}-scroll"));
-            edges::edges(
+            edges::edges_within(
                 overscroll(
                     key.clone(),
                     div()
@@ -427,6 +435,7 @@ fn placed_element(
                 ),
                 frame.placed,
                 frame.glass,
+                placed.still - visible,
             )
         }
         None => content.into_any_element(),

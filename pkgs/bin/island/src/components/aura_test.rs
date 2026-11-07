@@ -11,14 +11,6 @@ fn alpha(pixels: &[u8], width: u32, x: u32, y: u32) -> u8 {
 }
 
 #[test]
-fn the_whole_light_is_the_light_of_the_whole() {
-    let aura = playing();
-    let whole = aura.pixels(600.0, 40.0, 1.0);
-    let part = aura.pixels_of(600.0, 40.0, 1.0, Part::whole(600.0, 40.0));
-    assert_eq!(whole, part);
-}
-
-#[test]
 fn light_below_the_bar_fades_on_down() {
     let aura = playing();
     let part = Part {

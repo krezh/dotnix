@@ -144,6 +144,12 @@ pub struct Placed {
     pub height: f32,
     /// Shows this much and scrolls the rest.
     pub visible: Option<f32>,
+    /// How tall it is once what it holds stops moving. Its scroll edges show only for what this
+    /// leaves out of view, not for blocks passing on their way somewhere.
+    pub still: f32,
+    /// While set, it scrolls no further than this, so as this comes down to nothing it eases back
+    /// to the top.
+    pub rewind: Option<f32>,
     /// Back to front.
     pub blocks: Vec<(Place, Block)>,
 }

@@ -321,6 +321,7 @@ impl Notifications {
                 self.now_list(state, cards, p),
                 self.earlier_list(state, cards, p),
                 across,
+                cards.earlier,
             )
         };
         blocks.extend(card::opening(list, troubles, open));

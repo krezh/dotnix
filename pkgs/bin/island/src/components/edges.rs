@@ -13,9 +13,19 @@ const RAMP: f32 = 24.0;
 
 /// `scrolling` with its edges over it, fading into `glass`, the color of the surface it is on.
 pub fn edges(scrolling: Stateful<Div>, scroll: &ScrollHandle, glass: Hsla) -> AnyElement {
+    edges_within(scrolling, scroll, glass, f32::INFINITY)
+}
+
+/// As [`edges`], showing for no more than `reach` out of view, however far it can scroll now.
+pub fn edges_within(
+    scrolling: Stateful<Div>,
+    scroll: &ScrollHandle,
+    glass: Hsla,
+    reach: f32,
+) -> AnyElement {
     // Kept to how far it can scroll: past its ends, as when scrolled further than there is, each
     // edge stays as it is at that end rather than jumping.
-    let most = f32::from(scroll.max_offset().y).max(0.0);
+    let most = f32::from(scroll.max_offset().y).min(reach).max(0.0);
     let above = (-f32::from(scroll.offset().y)).clamp(0.0, most);
     let below = most - above;
     let clear = Hsla { a: 0.0, ..glass };

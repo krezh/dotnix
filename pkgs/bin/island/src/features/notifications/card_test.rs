@@ -228,10 +228,12 @@ fn two_lists_pass_whole_without_overlapping() {
             width: 700.0,
             height,
             visible: Some(height),
+            still: height,
+            rewind: None,
             blocks: vec![(place(0.0, 60.0, 1.0), Block::note("Card"))],
         })
     };
-    let Block::Placed(passing) = across(list(100.0), list(300.0), 0.25) else {
+    let Block::Placed(passing) = across(list(100.0), list(300.0), 0.25, true) else {
         panic!("one list");
     };
     let [(left, _), (right, _)] = passing.blocks.as_slice() else {
@@ -279,4 +281,90 @@ fn dismissing_last_or_clearing_keeps_the_final_empty_height_through_the_fade() {
                 .any(|(place, block)| { matches!(block, Block::Text(_)) && place.opacity == 1.0 })
         );
     }
+}
+
+#[test]
+fn passing_lists_show_the_edges_of_the_one_coming_in_from_the_start() {
+    let list = |still: f32| {
+        Block::Placed(Placed {
+            width: 700.0,
+            height: still.max(200.0),
+            visible: Some(200.0),
+            still: still.max(200.0),
+            rewind: None,
+            blocks: vec![(place(0.0, 60.0, 1.0), Block::note("Card"))],
+        })
+    };
+    let out_of_view = |left: f32, right: f32, at: f32| {
+        let Block::Placed(passing) = across(list(left), list(right), at, true) else {
+            panic!("one list");
+        };
+        passing.still - passing.visible.unwrap_or(0.0)
+    };
+    assert_eq!(
+        out_of_view(120.0, 900.0, 0.0),
+        700.0,
+        "a long one coming in shows at once"
+    );
+    assert_eq!(out_of_view(120.0, 900.0, 0.5), 700.0);
+    assert_eq!(
+        out_of_view(900.0, 120.0, 0.0),
+        0.0,
+        "a short one coming in shows none"
+    );
+}
+
+#[test]
+fn cards_on_their_way_somewhere_leave_nothing_to_scroll() {
+    let now = Instant::now();
+    let mut rows = MissedList::default();
+    let items = [
+        from("Sonarr", 1),
+        from("Firefox", 2),
+        from("Sonarr", 3),
+        from("Sonarr", 4),
+    ];
+    rows.sync(&items, false, now);
+    rows.toggle("Sonarr");
+    settle(&mut rows);
+    rows.toggle("Sonarr");
+    rows.advance(1.0 / 60.0, now + Duration::from_millis(16));
+    let placed = layout(&rows);
+    assert_eq!(
+        Some(placed.still),
+        placed.visible,
+        "it all fits where it is going"
+    );
+}
+
+#[test]
+fn the_list_left_behind_scrolls_back_to_the_top_on_the_way_across() {
+    let list = |still: f32| {
+        Block::Placed(Placed {
+            width: 700.0,
+            height: still,
+            visible: Some(200.0),
+            still,
+            rewind: None,
+            blocks: vec![(place(0.0, 60.0, 1.0), Block::note("Card"))],
+        })
+    };
+    let rewind = |at: f32, rightwards: bool| {
+        let Block::Placed(passing) = across(list(900.0), list(500.0), at, rightwards) else {
+            panic!("one list");
+        };
+        passing.rewind
+    };
+    assert_eq!(
+        rewind(0.0, true),
+        Some(700.0),
+        "as far as the leaving one went"
+    );
+    assert_eq!(rewind(1.0, true), Some(0.0), "back at the top once across");
+    assert_eq!(
+        rewind(1.0, false),
+        Some(300.0),
+        "the other way, the right one is leaving"
+    );
+    assert_eq!(rewind(0.0, false), Some(0.0));
 }
