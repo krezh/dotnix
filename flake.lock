@@ -725,11 +725,11 @@
         "treefmt-nix": "treefmt-nix_3"
       },
       "locked": {
-        "lastModified": 1794092552,
-        "narHash": "sha256-s5dOaCnDgsZEw2a5XfGRXw4LfEgqNTeRtcqDbv6bOtk=",
+        "lastModified": 1794113836,
+        "narHash": "sha256-0xFSivHg/yZEYbtkylljpjcN10P4YzgCkz3zKSQDKys=",
         "owner": "numtide",
         "repo": "llm-agents.nix",
-        "rev": "9749aedff46456aa55451a7a01f103224af40451",
+        "rev": "176a8fac84843c1dc19871df2a3bd7e2827923fe",
         "type": "github"
       },
       "original": {
@@ -864,11 +864,11 @@
         "systems": "systems_3"
       },
       "locked": {
-        "lastModified": 1794030228,
-        "narHash": "sha256-4sr0hRE+BFeYFr54yIaLcmW1tjslhjgkocE34oYcCHg=",
+        "lastModified": 1794112715,
+        "narHash": "sha256-UaVVkBKEEeMQQpx8r8dxif1Q/DFetrsN/kCEW7RSamU=",
         "owner": "nix-community",
         "repo": "nix4vscode",
-        "rev": "22503f46be318931d899828f3cb545350f65c056",
+        "rev": "d417943f1c1c90e7c20f4de5f570b92216e1c7c1",
         "type": "github"
       },
       "original": {
@@ -889,11 +889,11 @@
         "treefmt-nix": "treefmt-nix_4"
       },
       "locked": {
-        "lastModified": 1794083704,
-        "narHash": "sha256-6zy+LcIktHluBNcox05L3WTz69WjysodvLukDEudVmg=",
+        "lastModified": 1794112296,
+        "narHash": "sha256-+mtZLfNDP+qrzKUaqjcXpYxGKZHFH5LRHqxKy39hA4M=",
         "owner": "4evy",
         "repo": "nixcord",
-        "rev": "f753a8d227d283406849d09e84f04236beb67e50",
+        "rev": "b30c1a84431bf66ea5884869c846769df16ebe71",
         "type": "github"
       },
       "original": {
@@ -996,11 +996,11 @@
     },
     "nixpkgs_4": {
       "locked": {
-        "lastModified": 1793341285,
-        "narHash": "sha256-LOv16TsMYV2/8BUYnhSxHkOASe7es2ORbqMeLlZJ8Hc=",
-        "rev": "1c89083e451e891152365b799595cf7790a43325",
+        "lastModified": 1793876309,
+        "narHash": "sha256-Q62pssAT9r01POiSyXW0IPXBWhntiKqMhzlsp3bsl5I=",
+        "rev": "f9a75f41be3a74eab55d3a7679d34ad6cc0da977",
         "type": "tarball",
-        "url": "https://releases.nixos.org/nixos/unstable/nixos-26.11pre1105037.1c89083e451e/nixexprs.tar.xz"
+        "url": "https://releases.nixos.org/nixos/unstable/nixos-26.11pre1108983.f9a75f41be3a/nixexprs.tar.xz"
       },
       "original": {
         "type": "tarball",
@@ -1438,11 +1438,11 @@
         "xdg-desktop-portal-umbriel": "xdg-desktop-portal-umbriel"
       },
       "locked": {
-        "lastModified": 1794066163,
-        "narHash": "sha256-qeoOmVGV8bpEuq/dxHhMX0jrLSy4T6LrU7OKXt54/lA=",
+        "lastModified": 1794106131,
+        "narHash": "sha256-WogY4RG+SxQB/rZTAEtR0v+s+2Jttq0Loq+z6yyIMdE=",
         "owner": "noctalia-dev",
         "repo": "umbriel",
-        "rev": "ad46c7d14ca1f59f2874f3df74773f781fb39c80",
+        "rev": "94ab5961dce31cd53e5cdca76d2723d73fc2e189",
         "type": "github"
       },
       "original": {
