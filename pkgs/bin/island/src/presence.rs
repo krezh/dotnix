@@ -70,13 +70,6 @@ impl<T: Clone> Presence<T> {
         self.slots = next;
     }
 
-    pub fn pending_width(&self, unit: f32) -> f32 {
-        self.slots
-            .iter()
-            .map(|slot| unit * (slot.presence.target() - slot.presence.value()))
-            .sum()
-    }
-
     pub fn advance(&mut self, dt: f32, now: Instant) {
         for slot in &mut self.slots {
             slot.presence.advance(dt, now);

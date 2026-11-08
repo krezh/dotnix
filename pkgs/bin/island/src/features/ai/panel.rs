@@ -12,7 +12,6 @@ use crate::{
 
 fn usage(ai: &Ai, state: &State, view: &View, p: &PanelCx<'_>) -> (Vec<Button>, Vec<Block>) {
     let buttons = vec![Button {
-        id: "ai-refresh".into(),
         label: if state.refreshing {
             "Refreshing…"
         } else {

@@ -1,4 +1,4 @@
-//! Draws the islands with wgpu instead of GPUI, chosen with `frontend` in the config or the flag.
+//! Draws the islands with wgpu.
 
 mod app;
 mod blocks;

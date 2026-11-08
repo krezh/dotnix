@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use gpui::SharedString;
+use crate::panel::SharedString;
 
 use crate::{
     components::{
@@ -11,8 +11,8 @@ use crate::{
     config,
     features::{self, Battery},
     glyphs::Glyphs,
-    island::{Island, Panel},
     panel::{Block, Handler, Header, Meter, MeterShape, PanelView, Split, Warning, on},
+    stage::Panel,
     sys::{Sensor, SysStats},
     theme::{BLUE, GREEN, LAVENDER, MAUVE, PEACH, PINK, RED, SAPPHIRE, SUBTEXT1, TEAL, YELLOW},
     units::{bytes, rate, span},
@@ -438,7 +438,6 @@ fn storage_tile(stats: &SysStats, settings: &config::System) -> Tile {
         .map(|partition| {
             let fraction = partition.used as f32 / partition.total.max(1) as f32;
             Volume {
-                id: partition.mount.clone().into(),
                 mount: partition.mount.clone().into(),
                 usage: format!("{} / {}", bytes(partition.used), bytes(partition.total)).into(),
                 fraction,
@@ -639,7 +638,6 @@ fn system_warnings(stats: &SysStats, glyphs: &Glyphs) -> Vec<Warning> {
     let mut warnings = Vec::new();
     if let Some(sensor) = hottest(stats).filter(|sensor| sensor.celsius >= HOT) {
         warnings.push(Warning {
-            id: "warning-hot".into(),
             glyph: glyph.clone(),
             label: sensor.label.clone().into(),
             value: format!("{:.0}°C", sensor.celsius).into(),
@@ -650,7 +648,6 @@ fn system_warnings(stats: &SysStats, glyphs: &Glyphs) -> Vec<Warning> {
     let memory = stats.mem_used_kib as f32 / stats.mem_total_kib.max(1) as f32;
     if memory >= MEMORY_FULL {
         warnings.push(Warning {
-            id: "warning-memory".into(),
             glyph,
             label: "Memory".into(),
             value: format!("{:.0}%", memory * 100.0).into(),
@@ -663,7 +660,6 @@ fn system_warnings(stats: &SysStats, glyphs: &Glyphs) -> Vec<Warning> {
 
 /// A number with its recent history, such as CPU use.
 fn history_meter(
-    id: &str,
     label: impl Into<SharedString>,
     amount: String,
     unit: &str,
@@ -671,7 +667,6 @@ fn history_meter(
     history: Option<Series>,
 ) -> Meter {
     Meter {
-        id: id.to_owned().into(),
         glyph: None,
         caption: SharedString::default(),
         label: label.into(),
@@ -688,7 +683,6 @@ fn history_meter(
 fn system_card(stats: &SysStats, glyphs: &Glyphs) -> Block {
     let kib = |value: u64| value * 1024;
     let mut meters = vec![history_meter(
-        "meter-cpu",
         "CPU",
         format!("{:.0}", stats.cpu * 100.0),
         "%",
@@ -697,7 +691,6 @@ fn system_card(stats: &SysStats, glyphs: &Glyphs) -> Block {
     )];
     if let Some(gpu) = stats.gpu {
         meters.push(history_meter(
-            "meter-gpu",
             "GPU",
             format!("{:.0}", gpu.busy * 100.0),
             "%",
@@ -706,7 +699,6 @@ fn system_card(stats: &SysStats, glyphs: &Glyphs) -> Block {
         ));
     }
     meters.push(history_meter(
-        "meter-memory",
         "Memory",
         bytes(kib(stats.mem_used_kib)),
         &format!("/ {}", bytes(kib(stats.mem_total_kib))),
@@ -716,7 +708,6 @@ fn system_card(stats: &SysStats, glyphs: &Glyphs) -> Block {
     if let Some(sensor) = hottest(stats) {
         let color = if sensor.celsius >= HOT { RED } else { PEACH };
         meters.push(history_meter(
-            "meter-hottest",
             sensor.label.clone(),
             format!("{:.0}", sensor.celsius),
             "°C",
@@ -739,7 +730,6 @@ fn batteries_card(batteries: &[Battery], glyphs: &Glyphs) -> Block {
     let rings = batteries
         .iter()
         .map(|battery| Meter {
-            id: format!("battery-{}", battery.id).into(),
             glyph: glyphs.get(battery.glyph).map(Path::to_path_buf),
             caption: SharedString::default(),
             label: battery.name.clone(),
@@ -764,7 +754,6 @@ fn battery_warnings(batteries: &[Battery], glyphs: &Glyphs) -> Vec<Warning> {
         .iter()
         .filter(|battery| battery.low())
         .map(|battery| Warning {
-            id: format!("warning-battery-{}", battery.id).into(),
             glyph: glyphs.get(battery.glyph).map(Path::to_path_buf),
             label: battery.name.clone(),
             value: battery.percent().into(),
@@ -800,14 +789,5 @@ pub fn dashboard(
         scroll: false,
         header: Header::Tabs,
         blocks,
-    }
-}
-
-pub fn panel<'a>(island: &'a Island, panel: Panel, cx: &gpui::App) -> PanelView {
-    match panel {
-        Panel::Dashboard => dashboard(island.dashboard(cx), &island.stats, cx.global()),
-        Panel::System => system(&island.stats, cx.global(), island.stage().displays()),
-        Panel::Feature(name) => island.feature_panel(name, cx).unwrap_or_else(empty),
-        Panel::Popups => island.popups(cx).unwrap_or_else(empty),
     }
 }

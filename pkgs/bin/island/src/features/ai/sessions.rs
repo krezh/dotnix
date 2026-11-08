@@ -181,7 +181,7 @@ fn live_line(line: &LiveLine) -> CodeLine {
 
 /// What a step read, changed or ran, as Claude Code reported it. `fresh`, when it arrived just
 /// now, it rises in; what was already there is shown still.
-fn live_code(session: &str, step: &Step, live: &Live, fresh: bool) -> Code {
+fn live_code(live: &Live, fresh: bool) -> Code {
     let (heading, lines) = match live {
         Live::Reading { file, lines } => {
             let range = match (
@@ -227,7 +227,6 @@ fn live_code(session: &str, step: &Step, live: &Live, fresh: bool) -> Code {
     };
     let wrap = matches!(live, Live::Running { .. });
     Code {
-        key: format!("ai-step-{session}-{}", step.seq).into(),
         heading: Some((heading.0.into(), heading.1.into())),
         lines,
         wrap,
@@ -254,7 +253,7 @@ fn step_block(
     let fresh = view.fresh(&session.id, seq);
     let mut under = Vec::new();
     if open && let Some(live) = &step.live {
-        under.push(Block::Code(live_code(&session.id, step, live, fresh)));
+        under.push(Block::Code(live_code(live, fresh)));
     }
     Block::Frame(
         FrameView {
@@ -295,10 +294,9 @@ fn step_block(
 }
 
 /// `appear` for turns that arrived while the panel showed; history is shown still.
-fn conversation(session: &Session, part: String, turns: Vec<Turn>, appear: bool) -> Option<Block> {
+fn conversation(turns: Vec<Turn>, appear: bool) -> Option<Block> {
     (!turns.is_empty()).then(|| {
         Block::Transcript(Transcript {
-            id: format!("ai-session-{}-{part}", session.id).into(),
             turns,
             glyph: Some(harness::glyph(Source::Claude).to_path_buf()),
             color: PEACH,
@@ -322,8 +320,6 @@ fn timeline(session: &Session, state: &State, view: &View, p: &PanelCx<'_>) -> V
         let latest = index == last;
         if !exchange.prompt.is_empty() {
             blocks.extend(conversation(
-                session,
-                format!("{index}-prompt"),
                 vec![Turn::Mine(Text::new(
                     Tone::Reading,
                     exchange.prompt.clone(),
@@ -367,17 +363,10 @@ fn timeline(session: &Session, state: &State, view: &View, p: &PanelCx<'_>) -> V
             None
         };
         let new_reply = view.fresh(&session.id, exchange.reply_seq.max(exchange.seq));
-        blocks.extend(conversation(
-            session,
-            format!("{index}-reply"),
-            turn.into_iter().collect(),
-            new_reply,
-        ));
+        blocks.extend(conversation(turn.into_iter().collect(), new_reply));
     }
     if session.history.is_empty() {
         blocks.extend(conversation(
-            session,
-            "start".to_owned(),
             vec![Turn::Theirs {
                 overline: model.into(),
                 pieces: vec![Piece::Text(Text::new(Tone::Reading, session.doing.clone()))],

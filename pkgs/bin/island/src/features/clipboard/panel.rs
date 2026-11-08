@@ -29,7 +29,6 @@ pub(super) fn panel(state: &State, p: &PanelCx<'_>) -> Option<PanelView> {
                 Kind::Files => "clipboard-files",
             };
             SearchRow {
-                id: format!("clip-{id}").into(),
                 name: entry.title().into(),
                 detail: entry.detail().into(),
                 icon: match (&entry.preview, p.glyph(glyph)) {

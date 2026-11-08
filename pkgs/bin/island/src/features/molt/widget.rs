@@ -20,7 +20,7 @@ pub(super) fn widget(state: &Updates, w: &WidgetCx<'_>) -> Option<BarWidget> {
         (None, None) => "Molt".to_owned(),
     };
     Some(
-        w.compact("bar-molt")
+        w.compact()
             .color(color)
             .tip(tip)
             .glyph(w.glyph("molt"), color)

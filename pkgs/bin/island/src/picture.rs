@@ -5,7 +5,7 @@ use image::RgbaImage;
 #[derive(Clone)]
 pub enum Picture {
     File(PathBuf),
-    /// Blue first, as GPUI takes them.
+    /// Blue first.
     Pixels(Arc<RgbaImage>),
 }
 

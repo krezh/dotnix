@@ -229,12 +229,6 @@ pub trait Local: 'static {
         false
     }
 
-    /// How much wider the widget becomes once it settles, so the island can fit its final size
-    /// ahead of the animation.
-    fn pending_width(&self, _spacing: f32) -> f32 {
-        0.0
-    }
-
     fn panel_closed(&mut self) {}
 
     fn popup(&self) -> bool {
@@ -266,8 +260,6 @@ pub trait Local: 'static {
     }
 }
 
-impl Local for () {}
-
 pub trait AnyLocal: Local {
     fn as_any(&self) -> &dyn Any;
     fn as_any_mut(&mut self) -> &mut dyn Any;
@@ -289,3 +281,5 @@ pub(super) fn widgets_of<F: Surface>() -> impl Iterator<Item = &'static str> {
         .copied()
         .chain(F::WIDGETS.is_empty().then_some(F::NAME))
 }
+
+impl Local for () {}

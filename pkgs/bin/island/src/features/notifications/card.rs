@@ -372,7 +372,6 @@ fn message(
     let buttons: Vec<IconButton> = notification
         .buttons()
         .map(|action| IconButton {
-            id: kind.element_id(&format!("action-{}", action.key)),
             glyph: action.icon.clone(),
             color: None,
             label: action.label.clone().into(),

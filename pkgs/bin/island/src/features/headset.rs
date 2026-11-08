@@ -214,17 +214,14 @@ impl Surface for Headset {
         };
         // A headset that does not say how full it is still shows, without a level.
         let gauge = match self.batteries(state).pop() {
-            Some(power) => w.battery("bar-headset", &power, state.refreshing),
-            None => w.gauge(
-                "bar-headset",
-                Gauge {
-                    glyph: w.glyph("headset"),
-                    glyph_color: if battery.charging { GREEN } else { TEXT },
-                    busy: state.refreshing,
-                    level: None,
-                    level_color: OVERLAY2,
-                },
-            ),
+            Some(power) => w.battery(&power, state.refreshing),
+            None => w.gauge(Gauge {
+                glyph: w.glyph("headset"),
+                glyph_color: if battery.charging { GREEN } else { TEXT },
+                busy: state.refreshing,
+                level: None,
+                level_color: OVERLAY2,
+            }),
         };
         Some(
             gauge

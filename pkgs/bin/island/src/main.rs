@@ -10,17 +10,13 @@ mod compositor;
 mod config;
 mod control;
 mod copy;
-mod cover;
 mod db;
 mod dbus;
 mod drawing;
-mod effects;
 mod features;
-mod frontend;
 mod glyphs;
 mod gpu;
 mod icons;
-mod island;
 mod key;
 mod keyring;
 mod launch;
@@ -36,8 +32,6 @@ mod presence;
 mod profile;
 mod resume;
 mod run;
-mod shape;
-mod shell;
 mod spring;
 mod stage;
 mod supervisor;
@@ -55,10 +49,9 @@ mod wm;
 use std::{path::PathBuf, rc::Rc};
 
 use futures::channel::mpsc::unbounded;
-use gpui::{App, QuitMode};
 use tracing::{error, info, warn};
 
-use shell::{Config, Shell};
+use config::Startup;
 
 #[derive(Default)]
 struct Args {
@@ -67,7 +60,6 @@ struct Args {
     power: Option<f32>,
     opacity: Option<f32>,
     icon_theme: Option<String>,
-    frontend: Option<config::Frontend>,
 }
 
 fn parse_args(args: impl Iterator<Item = String>) -> Result<Args, cli::Mistake> {
@@ -81,20 +73,6 @@ fn parse_args(args: impl Iterator<Item = String>) -> Result<Args, cli::Mistake> 
             "power" => parsed.power = Some(number(opt, &value, 1.0..=f32::MAX)?),
             "opacity" => parsed.opacity = Some(number(opt, &value, 0.0..=1.0)?),
             "preview" => preview_beside_island(),
-            "frontend" => {
-                parsed.frontend = match value.as_str() {
-                    "gpui" => Some(config::Frontend::Gpui),
-                    "wgpu" => Some(config::Frontend::Wgpu),
-                    _ => {
-                        return Err(cli::Mistake::new(
-                            cli::Line::new()
-                                .push(cli::Tone::Command, opt.spelled())
-                                .plain(" takes gpui or wgpu, got ")
-                                .push(cli::Tone::Strong, &value),
-                        ));
-                    }
-                };
-            }
             _ => parsed.icon_theme = Some(value),
         }
     }
@@ -218,7 +196,6 @@ fn main() {
         warn!(spec = settings.log.level, "ignoring [log] level: {error}");
     }
     let appearance = &settings.appearance;
-    shape::set_border(appearance.border);
 
     icons::set_theme(
         parsed
@@ -236,7 +213,7 @@ fn main() {
     logging::serve();
 
     let workspaces = compositor::start();
-    let config = Config {
+    let config = Startup {
         layout: Rc::new(settings.bar.clone()),
         features: Rc::new(settings.features.settings),
         top: compositor::backend()
@@ -249,26 +226,13 @@ fn main() {
         opacity: parsed.opacity.unwrap_or(appearance.opacity),
         shadow: appearance.shadow.max(0.0),
         glow: settings.features.visualizer.glow.max(0.0),
+        border: appearance.border.max(0.0),
     };
     let system = settings.features.system;
 
-    if parsed.frontend.unwrap_or(settings.frontend) == config::Frontend::Wgpu {
-        if let Err(error) = gpu::run(config, system, incoming, workspaces) {
-            error!("{error}");
-            std::process::exit(1);
-        }
-        drop(bus);
-        return;
+    if let Err(error) = gpu::run(config, system, incoming, workspaces) {
+        error!("{error}");
+        std::process::exit(1);
     }
-
-    gpui_platform::application()
-        .with_assets(frontend::Files)
-        // Unplugging every monitor closes every island; outliving that lets them reopen when
-        // outputs come back instead of exiting cleanly, which systemd would not restart.
-        .with_quit_mode(QuitMode::Explicit)
-        .run(move |cx: &mut App| {
-            cx.set_global(system);
-            Shell::start(config, incoming, workspaces, cx);
-        });
     drop(bus);
 }

@@ -322,7 +322,7 @@ impl Surface for Session {
 
     fn widget(&self, _: &str, _: &Option<Action>, w: &mut WidgetCx<'_>) -> Option<BarWidget> {
         Some(
-            w.base("bar-session")
+            w.base()
                 .tip("Session")
                 .glyph(w.glyph("session-shutdown"), TEXT)
                 .on_click(w.toggle(Self::panel_handle())),
@@ -335,7 +335,6 @@ impl Surface for Session {
             .actions
             .iter()
             .map(|&action| ActionTile {
-                id: format!("session-{}", action.word()).into(),
                 glyph: p.glyph(&format!("session-{}", action.word())),
                 label: action.label().into(),
                 state: None,

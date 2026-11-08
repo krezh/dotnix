@@ -1,11 +1,10 @@
 {
-  flake.modules.homeManager.desktop-utils =
-    {
-      services.kdeconnect = {
-        enable = true;
-        indicator = true;
-      };
+  flake.modules.homeManager.desktop-utils = {
+    services.kdeconnect = {
+      enable = true;
+      indicator = true;
     };
+  };
   flake.modules.nixos.desktop-utils = {
     networking.firewall =
       let

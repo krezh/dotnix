@@ -115,16 +115,6 @@ impl Local for Dots {
             .iter()
             .all(|dot| dot.width.is_settled() && dot.presence.is_settled())
     }
-
-    fn pending_width(&self, _spacing: f32) -> f32 {
-        self.dots
-            .iter()
-            .map(|dot| {
-                (dot.width.target() + GAP) * dot.presence.target()
-                    - (dot.width.value() + GAP) * dot.presence.value().clamp(0.0, 1.0)
-            })
-            .sum()
-    }
 }
 
 fn focus(id: i64) {
@@ -170,7 +160,7 @@ impl Surface for Workspaces {
         }
         let scrolled = dots.scrolled.clone();
         Some(
-            w.group("bar-workspaces")
+            w.group()
                 .padding((w.padding() - GAP / 2.0).max(0.0))
                 .start()
                 .on_scroll(Rc::new(move |delta, _| scroll(&scrolled, delta)))
@@ -185,7 +175,7 @@ impl Surface for Workspaces {
                     };
                     let id = dot.id;
                     Part::Widget(
-                        BarWidget::new(format!("workspace-{id}"), Frame::Spot { tint: DOT + GAP })
+                        BarWidget::new(Frame::Spot { tint: DOT + GAP })
                             .width((width + GAP) * presence)
                             .opacity(presence)
                             .tip(format!("Workspace {id}"))

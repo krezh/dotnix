@@ -1,8 +1,5 @@
-mod block;
-mod frame;
 mod model;
 mod ui;
-mod view;
 
 pub use crate::components::{
     actions::{Action, Actions},
@@ -26,12 +23,11 @@ pub use crate::components::{
     transcript::{Piece, Transcript, Turn},
 };
 
-pub use frame::Frame;
 pub use gpui_shared_string::SharedString;
 pub use model::{
-    ActionTile, Block, Button, ButtonRow, COLUMNS, ChartView, Handler, Header, HeaderLead,
-    IconButton, PanelView, Passing, Place, Placed, Split, Views, Warning, on,
+    ActionTile, Block, Button, ButtonRow, ChartView, Handler, Header, HeaderLead, IconButton,
+    PanelView, Passing, Place, Placed, Split, Views, Warning, on,
 };
-pub use ui::{IslandUi, Ui};
+pub use ui::Ui;
 
-pub use block::PLACED_MARGIN;
+pub use model::PLACED_MARGIN;

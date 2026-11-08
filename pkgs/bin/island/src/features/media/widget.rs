@@ -41,7 +41,7 @@ impl Media {
         let tint = if track.is_some() { ACCENT } else { OVERLAY2 };
         let slot = MEDIA_W - 2.0 * w.padding() - GLYPH - ICON_GAP;
         let widget = w
-            .compact("bar-media")
+            .compact()
             .tip(track.map_or_else(|| "Nothing playing".to_owned(), tip))
             .parts(glyph.map(|path| Part::glyph(path, tint).fixed()))
             .parts(track.map(|track| Part::marquee(track.title.clone(), slot)))
@@ -56,7 +56,7 @@ impl Media {
 
     fn spectrum(w: &WidgetCx<'_>) -> BarWidget {
         let level = |index: usize| w.live().get(index).copied().unwrap_or(0.0);
-        w.base("bar-visualizer")
+        w.base()
             .gap(SPECTRUM_GAP)
             .parts((0..spectrum::BARS).map(|index| Part::Pill {
                 width: SPECTRUM_W,

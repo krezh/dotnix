@@ -23,7 +23,6 @@ pub fn cards(levels: &Levels, p: &PanelCx<'_>) -> Vec<Block> {
                 (true, false) => screen.model.clone(),
             };
             Some(Block::Slider(Slider {
-                id: format!("dashboard-brightness-{}", screen.name).into(),
                 value: level,
                 color: YELLOW,
                 signal: None,

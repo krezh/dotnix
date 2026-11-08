@@ -77,7 +77,6 @@ pub fn shown_popup(shown: &Shown, p: &PanelCx<'_>) -> Option<PanelView> {
         scroll: false,
         header: Header::None,
         blocks: vec![Block::Meter(Meter {
-            id: "osd".into(),
             glyph: p.glyph(osd.glyph),
             caption: osd.caption.into(),
             label: osd.label.into(),

@@ -29,7 +29,6 @@ pub fn switches(state: &State, p: &PanelCx<'_>) -> Vec<ActionTile> {
     if let Some(wifi) = &state.wifi {
         let on = wifi.enabled;
         tiles.push(ActionTile {
-            id: "switch-wifi".into(),
             glyph: p.glyph(if on {
                 "network-wifi-excellent"
             } else {
@@ -47,7 +46,6 @@ pub fn switches(state: &State, p: &PanelCx<'_>) -> Vec<ActionTile> {
         });
     } else if let Some(wired) = &state.wired {
         tiles.push(ActionTile {
-            id: "switch-wired".into(),
             glyph: p.glyph(if wired.active {
                 "network-wired"
             } else {
@@ -73,7 +71,6 @@ pub fn switches(state: &State, p: &PanelCx<'_>) -> Vec<ActionTile> {
     if let Some(vpn) = vpn {
         let (name, on) = (vpn.name.clone(), vpn.activity != Activity::Off);
         tiles.push(ActionTile {
-            id: "switch-vpn".into(),
             glyph: p.glyph("network-vpn"),
             label: "VPN".into(),
             state: Some(match vpn.activity {
@@ -117,8 +114,7 @@ pub fn cards(state: &State, p: &PanelCx<'_>) -> Vec<Block> {
     let (down, down_unit) = split_rate(traffic.rx_rate);
     let (up, up_unit) = split_rate(traffic.tx_rate);
     let latency = state.latency.internet;
-    let number = |id: &str, label: &str, amount: String, unit: &str, color: u32| Meter {
-        id: id.to_owned().into(),
+    let number = |label: &str, amount: String, unit: &str, color: u32| Meter {
         glyph: None,
         caption: SharedString::default(),
         label: label.to_owned().into(),
@@ -131,10 +127,9 @@ pub fn cards(state: &State, p: &PanelCx<'_>) -> Vec<Block> {
         },
     };
     let numbers = vec![
-        number("network-down", "Download", down, &down_unit, TEAL),
-        number("network-up", "Upload", up, &up_unit, SKY),
+        number("Download", down, &down_unit, TEAL),
+        number("Upload", up, &up_unit, SKY),
         number(
-            "network-latency",
             "Latency",
             millis(latency).trim_end_matches(" ms").to_owned(),
             if latency.is_some() { "ms" } else { "" },
@@ -146,7 +141,6 @@ pub fn cards(state: &State, p: &PanelCx<'_>) -> Vec<Block> {
         64.0 * 1024.0,
     );
     let chart = ChartView {
-        id: "network-traffic-overview".into(),
         series: vec![
             series(&traffic.rx_history, peak, TEAL, "Download", |value| {
                 rate(value as f64)
@@ -179,7 +173,6 @@ pub fn warnings(state: &State, p: &PanelCx<'_>) -> Vec<Warning> {
         return Vec::new();
     }
     vec![Warning {
-        id: "warning-internet".into(),
         glyph: p.glyph("network-offline"),
         label: "Internet".into(),
         value: "Not answering".into(),

@@ -22,7 +22,6 @@ pub mod meter;
 pub mod motion;
 pub mod overscroll;
 pub mod player;
-pub mod pointer;
 pub mod popover;
 pub mod prompt;
 pub mod reveal;

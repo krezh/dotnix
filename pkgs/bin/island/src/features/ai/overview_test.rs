@@ -192,7 +192,6 @@ fn horizon_packs_non_overlapping_outages_onto_one_lane_and_omits_idle_fleets() {
 #[test]
 fn overlapping_outages_cap_swimlane_height_at_two_while_counting_all() {
     let span = |key: &'static str, from: f32, to: f32| Span {
-        key: key.into(),
         label: key.into(),
         tooltip: key.into(),
         from,

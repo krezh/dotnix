@@ -122,7 +122,6 @@ impl Notifications {
         let earlier = cards.earlier;
         let switches = vec![
             IconButton {
-                id: "notifications-private".into(),
                 glyph: p.glyph("notifications-private"),
                 color: Some(MAUVE),
                 label: private.into(),
@@ -131,7 +130,6 @@ impl Notifications {
                 on_click: p.call::<Self>(|notifications| notifications.set_private(Switch::Toggle)),
             },
             IconButton {
-                id: "notifications-dnd".into(),
                 glyph: p.glyph("notifications-dnd"),
                 color: Some(FLAMINGO),
                 label: dnd.into(),
@@ -141,7 +139,6 @@ impl Notifications {
             },
         ];
         let clear = vec![IconButton {
-            id: "notifications-clear".into(),
             glyph: p.glyph("notifications-clear"),
             color: None,
             label: "Clear".into(),

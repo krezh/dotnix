@@ -27,7 +27,7 @@ impl Notifications {
             ),
         };
         Some(
-            w.base("bar-notifications")
+            w.base()
                 .tip(tip)
                 .parts(icon)
                 .on_click(w.toggle(Self::panel_handle())),

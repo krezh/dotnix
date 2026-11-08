@@ -64,7 +64,7 @@ pub fn widget(state: &AudioState, w: &mut WidgetCx<'_>) -> Option<BarWidget> {
         }
     };
     let widget = w
-        .gauge("bar-volume", gauge)
+        .gauge(gauge)
         .on_click(w.toggle(Audio::panel_handle()))
         .on_right(w.call(|audio: &Audio| audio.send(Request::ToggleMute(Target::Output))))
         .on_scroll(w.on_scroll(Audio::scroll));

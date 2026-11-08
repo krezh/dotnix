@@ -8,7 +8,7 @@ use crate::{
     bar::ICON_GAP,
     bar_widget::{BarWidget, Frame, Gauge, Part, Pointer, Press, Scroll},
     glyphs::Glyphs,
-    panel::{SharedString, Ui},
+    panel::Ui,
     stage::Panel,
 };
 
@@ -66,22 +66,22 @@ impl<'a> WidgetCx<'a> {
         self.padding
     }
 
-    pub fn base(&self, id: impl Into<SharedString>) -> BarWidget {
-        BarWidget::new(id, Frame::Control)
+    pub fn base(&self) -> BarWidget {
+        BarWidget::new(Frame::Control)
     }
 
     /// A widget of marks beside short, strong text.
-    pub fn compact(&self, id: impl Into<SharedString>) -> BarWidget {
-        self.base(id).gap(ICON_GAP).small()
+    pub fn compact(&self) -> BarWidget {
+        self.base().gap(ICON_GAP).small()
     }
 
     /// For a widget made of several clickable parts, each a [`Frame::Spot`].
-    pub fn group(&self, id: impl Into<SharedString>) -> BarWidget {
-        BarWidget::new(id, Frame::Bare)
+    pub fn group(&self) -> BarWidget {
+        BarWidget::new(Frame::Bare)
     }
 
-    pub fn gauge(&self, id: impl Into<SharedString>, gauge: Gauge<'_>) -> BarWidget {
-        self.base(id)
+    pub fn gauge(&self, gauge: Gauge<'_>) -> BarWidget {
+        self.base()
             .gap(ICON_GAP)
             .glyph(gauge.glyph, gauge.glyph_color)
             .part(Part::Meter {
@@ -93,17 +93,14 @@ impl<'a> WidgetCx<'a> {
 
     /// A battery's gauge, drawn as the dashboard draws it: its glyph, and how full it is in the
     /// shared colors.
-    pub fn battery(&self, id: &'static str, battery: &Battery, busy: bool) -> BarWidget {
-        self.gauge(
-            id,
-            Gauge {
-                glyph: self.glyph(battery.glyph),
-                glyph_color: battery.glyph_color(),
-                busy,
-                level: Some(battery.fraction()),
-                level_color: battery.color(),
-            },
-        )
+    pub fn battery(&self, battery: &Battery, busy: bool) -> BarWidget {
+        self.gauge(Gauge {
+            glyph: self.glyph(battery.glyph),
+            glyph_color: battery.glyph_color(),
+            busy,
+            level: Some(battery.fraction()),
+            level_color: battery.color(),
+        })
     }
 
     pub fn glyph(&self, key: &str) -> Option<&'a Path> {

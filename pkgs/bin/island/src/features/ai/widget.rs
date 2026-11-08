@@ -103,7 +103,6 @@ fn account_icon(provider: &Provider, tint: u32, w: &WidgetCx<'_>) -> Part {
 fn waiting(icon: Part, state: &State) -> Part {
     let count = state.requests.len();
     Part::Badged {
-        id: "bar-ai-waiting",
         part: Box::new(icon),
         badge: (count > 0).then(|| (count.to_string().into(), YELLOW)),
     }
@@ -142,7 +141,7 @@ pub(super) fn widget(ai: &Ai, state: &State, w: &WidgetCx<'_>) -> BarWidget {
         .sessions
         .iter()
         .any(|session| session.activity == Activity::Working);
-    let mut base = w.compact("bar-ai").tip(tooltip(ai, state));
+    let mut base = w.compact().tip(tooltip(ai, state));
     let mut providers = state
         .providers
         .iter()

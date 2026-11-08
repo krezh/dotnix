@@ -53,7 +53,6 @@ fn connected(device: &Device, open: bool, now: i64, subsec: Duration, p: &PanelC
     let path = device.path.clone();
     let mark = match device.battery {
         Some(level) => Mark::Ring {
-            key: format!("bt-ring-{path}").into(),
             fraction: f32::from(level) / 100.0,
             color: glyphs::battery(Some(level)),
             value: format!("{level}%").into(),
@@ -101,7 +100,6 @@ fn connected(device: &Device, open: bool, now: i64, subsec: Duration, p: &PanelC
         label: format!("More for {}", device.name).into(),
         actions: vec![
             Action {
-                id: format!("bt-trust-{path}").into(),
                 label: "Trusted".into(),
                 glyph: p.glyph("bt-trust"),
                 switch: Some(trusted),
@@ -111,7 +109,6 @@ fn connected(device: &Device, open: bool, now: i64, subsec: Duration, p: &PanelC
                 }),
             },
             Action {
-                id: format!("bt-forget-{path}").into(),
                 label: "Forget".into(),
                 glyph: p.glyph("bt-forget"),
                 switch: None,
@@ -147,7 +144,6 @@ fn connected(device: &Device, open: bool, now: i64, subsec: Duration, p: &PanelC
             ),
             Block::Buttons(ButtonRow {
                 buttons: vec![IconButton {
-                    id: format!("bt-disconnect-{path}").into(),
                     glyph: None,
                     color: None,
                     label: "Disconnect".into(),
@@ -278,7 +274,6 @@ fn nearby(state: &State, p: &PanelCx<'_>) -> Block {
 
 fn buttons(state: &State, now: i64, subsec: Duration, p: &PanelCx<'_>) -> Vec<IconButton> {
     let mut buttons = vec![IconButton {
-        id: "bt-power".into(),
         glyph: p.glyph(if state.powered { "bt-on" } else { "bt-off" }),
         color: None,
         label: if state.powered {
@@ -296,7 +291,6 @@ fn buttons(state: &State, now: i64, subsec: Duration, p: &PanelCx<'_>) -> Vec<Ic
     }
     let nearby = state.nearby().count();
     buttons.push(IconButton {
-        id: "bt-scan".into(),
         glyph: p.glyph("bt-scan"),
         color: None,
         label: if state.discovering {
@@ -314,7 +308,6 @@ fn buttons(state: &State, now: i64, subsec: Duration, p: &PanelCx<'_>) -> Vec<Ic
         p.redraw_in(subsec);
     }
     buttons.push(IconButton {
-        id: "bt-visible".into(),
         glyph: p.glyph("bt-visible"),
         color: None,
         label: if state.discoverable {
@@ -337,7 +330,6 @@ fn prompt(state: &State, p: &PanelCx<'_>) -> Option<Block> {
     let asking = state.asking.as_ref()?;
     let id = asking.id;
     Some(Block::Prompt(PromptView {
-        id: "bt-pair".into(),
         title: format!("Pair {}", asking.device).into(),
         detail: if asking.confirm {
             format!(

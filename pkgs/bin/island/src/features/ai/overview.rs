@@ -376,7 +376,6 @@ fn build_bar(limit: &Limit, limits: &[Limit], fresh: bool, appear: bool, now: i6
         TEXT
     };
     Bar {
-        key: limit.id.clone().into(),
         label: short_label(&limit.label, limits).into(),
         label_color: if blocked || !fresh { OVERLAY2 } else { TEXT },
         fraction: (limit.used / 100.0).clamp(0.0, 1.0) as f32,
@@ -644,7 +643,6 @@ fn pack_outages(mut spans: Vec<Span>) -> (Vec<Vec<Span>>, usize) {
 }
 
 struct ResetCandidate {
-    key: String,
     provider: String,
     short_provider: String,
     pool: String,
@@ -690,7 +688,6 @@ fn cluster_pins(mut items: Vec<ResetCandidate>, now: i64) -> (Vec<Pin>, usize) {
                 );
                 let width = approx_pin_width(&label);
                 Pin {
-                    key: item.key.clone().into(),
                     at: item.at,
                     label: label.into(),
                     tooltip: tooltip.into(),
@@ -717,7 +714,6 @@ fn cluster_pins(mut items: Vec<ResetCandidate>, now: i64) -> (Vec<Pin>, usize) {
                     .join("\n");
                 let width = approx_pin_width(&label);
                 Pin {
-                    key: format!("cluster-{}", first.key).into(),
                     at: avg_at,
                     label: label.into(),
                     tooltip: tooltip.into(),
@@ -765,7 +761,6 @@ fn horizon(seen: &[Seen<'_>], now: i64) -> Option<Timeline> {
                     format::countdown(reset, now)
                 );
                 outages.push(Span {
-                    key: format!("{}-{}-out", provider.id, limit.id).into(),
                     label: label.into(),
                     tooltip: tooltip.into(),
                     from: 0.0,
@@ -803,7 +798,6 @@ fn horizon(seen: &[Seen<'_>], now: i64) -> Option<Timeline> {
                     weekday_time(reset, now)
                 );
                 outages.push(Span {
-                    key: format!("{}-{}-proj", provider.id, limit.id).into(),
                     label: label.into(),
                     tooltip: tooltip.into(),
                     from: in_week(out, now),
@@ -823,7 +817,6 @@ fn horizon(seen: &[Seen<'_>], now: i64) -> Option<Timeline> {
                     .filter(|at| *at > now && *at - now <= WEEK_MS)
             {
                 resets.push(ResetCandidate {
-                    key: format!("{}-{}-pin", provider.id, limit.id),
                     provider: provider.name.clone(),
                     short_provider: short_prov.to_owned(),
                     pool,

@@ -73,13 +73,13 @@ use super::{
 use uuid::Uuid;
 
 use crate::{
-    bar, config,
+    bar,
+    config::{self, Startup},
     control::{Asked, Control, Reply, Report, Row},
     features::{self, AnyLocal, Arrivals, Features, Frontend},
     glyphs::Glyphs,
     key::Key,
     profile,
-    shell::Config,
     stage::{COLLAPSED_H, Grab, Panel, SURFACE_H, SURFACE_W, Stage, report},
     sys::{self, Samples},
     wm::Snapshot,
@@ -179,7 +179,7 @@ struct App {
     grabbed: Option<(wl_output::WlOutput, Grab)>,
     glyphs: Glyphs,
     features: Rc<Features>,
-    config: Config,
+    config: Startup,
     system: Rc<config::System>,
     samples: Samples,
     workspaces: Option<Snapshot>,
@@ -220,6 +220,7 @@ impl App {
             opacity: self.config.opacity,
             shadow: self.config.shadow,
             glow: self.config.glow,
+            border: self.config.border,
             samples: self.samples.clone(),
             system: self.system.clone(),
         };
@@ -456,12 +457,7 @@ impl App {
                     let args: Vec<&str> = args.iter().map(String::as_str).collect();
                     feature.command(&args)
                 }),
-            Control::Status => Ok(report::status(
-                config::Frontend::Wgpu,
-                self.workspaces.as_ref(),
-                &self.features,
-            )
-            .into()),
+            Control::Status => Ok(report::status(self.workspaces.as_ref(), &self.features).into()),
             Control::Log(_) => Ok(Report::default().into()),
         };
         match reply {
@@ -1001,7 +997,7 @@ fn bind(
 
 /// Runs until the process ends.
 pub fn run(
-    config: Config,
+    config: Startup,
     system: config::System,
     mut controls: UnboundedReceiver<Asked>,
     mut workspaces: Option<UnboundedReceiver<Snapshot>>,

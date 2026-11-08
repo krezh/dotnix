@@ -17,18 +17,18 @@
 
 - `Feature` is what runs without drawing: worker, state, settings, commands. `Surface` is what
   shows: `Local`, widgets, panels, keys.
-- Feature logic never names GPUI. It takes `Key`, `Measure` and `Ui`, and gets `SharedString`,
-  `SpringConfig` and `Element` from island's own modules. A click reaches the island through `Ui`,
+- Feature logic never names the drawing. It takes `Key`, `Measure` and `Ui`, and gets
+  `SharedString` and `SpringConfig` from island's own modules. A click reaches the island through `Ui`,
   so a new need there is a new method on `Ui`.
 - A running feature lives in `features/instance.rs`, outside any toolkit. Whatever draws the islands
-  applies what features send through `Frontend`; `frontend.rs` is GPUI's.
-- A bar widget is data too: a feature returns a `BarWidget` built from `Part`s, and `bar.rs` draws
-  it. Something with its own drawing gives a `Drawing`, a list of shapes any frontend can paint.
+  applies what features send through `Frontend`.
+- A bar widget is data too: a feature returns a `BarWidget` built from `Part`s, and `gpu/widget.rs`
+  draws it. Something with its own drawing gives a `Drawing`, a list of shapes any frontend can paint.
 - `stage/` is an island without its drawing: what is open, the shape and fades, the features' parts
-  and what each panel shows. `island.rs` is GPUI's drawing, timers and input on top of it.
-- `gpu/` draws the same `Stage`, `BarWidget`s and panel blocks with wgpu, chosen with
-  `frontend = "wgpu"` in the config or `--frontend wgpu`. A panel is laid out once into sprites; only what moves is made each frame.
-- Nothing in `features/` may use GPUI or `island.rs`; `architecture_test.rs` fails otherwise.
+  and what each panel shows.
+- `gpu/` draws the `Stage`, `BarWidget`s and panel blocks with wgpu. A panel is laid out once into
+  sprites; only what moves is made each frame.
+- Nothing in `features/` may reach the drawing; `architecture_test.rs` fails otherwise.
 
 ## Preview
 
@@ -41,7 +41,7 @@
 
 - A feature describes its panel from general blocks and components (`Card`, `Grid`, `Item`,
   `Slider`, `Segments`, `Dropdown`, …) and supplies data and handlers. It never draws UI itself:
-  no GPUI layout code in features. There is deliberately no escape hatch for hand-drawn blocks.
+  no layout code in features. There is deliberately no escape hatch for hand-drawn blocks.
 - Prefer making an existing component more configurable over adding a new one.
 - Extract a component only for something genuinely shared or reusable. Drawing that only one
   feature does and is likely to stay unique (the visualizer's bars, workspace dots, tray slots)

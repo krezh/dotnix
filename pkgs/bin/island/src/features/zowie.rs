@@ -190,7 +190,7 @@ impl Surface for Zowie {
         };
         let power = self.batteries(state).pop()?;
         Some(
-            w.battery("bar-zowie", &power, state.refreshing)
+            w.battery(&power, state.refreshing)
                 .tip(tip(battery))
                 .on_click(w.toggle(Panel::Dashboard))
                 .on_right(w.call(Zowie::refresh)),

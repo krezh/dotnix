@@ -72,7 +72,6 @@ fn volume(
     let tint = if channel.muted { OVERLAY2 } else { color };
     let mut under = vec![
         Block::Slider(Slider {
-            id: id.into(),
             value: if channel.muted { 0.0 } else { channel.volume },
             color,
             signal: None,
@@ -127,11 +126,9 @@ fn devices(state: &AudioState, target: Target, p: &PanelCx<'_>) -> Vec<Block> {
     };
     let tiles = devices
         .iter()
-        .enumerate()
-        .map(|(index, device)| {
+        .map(|device| {
             let name = device.name.clone();
             ActionTile {
-                id: format!("device-{target:?}-{index}").into(),
                 glyph: p.glyph(glyphs::device(device, headset.as_deref())),
                 label: device.description.clone().into(),
                 state: None,
@@ -243,7 +240,6 @@ fn app_item(
         String::new()
     };
     let slider = Block::Slider(Slider {
-        id: id.clone().into(),
         value: if app.muted { 0.0 } else { app.volume },
         color: ACCENT,
         signal: Some(peaks.get(&Probe::App(index)).map_or(0.0, |peak| peak.level)),

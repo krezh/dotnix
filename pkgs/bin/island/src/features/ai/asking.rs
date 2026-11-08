@@ -52,9 +52,8 @@ fn title(request: &Request, picks_step: usize) -> String {
     }
 }
 
-fn button(id: String, label: &str, active: bool, on_click: crate::panel::Handler) -> IconButton {
+fn button(label: &str, active: bool, on_click: crate::panel::Handler) -> IconButton {
     IconButton {
-        id: id.into(),
         glyph: None,
         color: None,
         label: label.to_owned().into(),
@@ -86,28 +85,12 @@ fn permission_blocks(request: &Request, at: &str, view: &View, p: &PanelCx<'_>) 
     };
     let id = request.id;
     let answer = |answer: Answer| p.call::<Ai>(move |ai| ai.answer(id, answer.clone()));
-    let mut row = vec![button(
-        format!("{at}-deny"),
-        "Deny",
-        false,
-        answer(Answer::Deny),
-    )];
+    let mut row = vec![button("Deny", false, answer(Answer::Deny))];
     if suggestion.is_some() {
-        row.push(button(
-            format!("{at}-always"),
-            "Always allow",
-            false,
-            answer(Answer::Always),
-        ));
+        row.push(button("Always allow", false, answer(Answer::Always)));
     }
-    row.push(button(
-        format!("{at}-allow"),
-        "Allow",
-        true,
-        answer(Answer::Allow),
-    ));
+    row.push(button("Allow", true, answer(Answer::Allow)));
     let mut under = vec![Block::Code(Code {
-        key: "".into(),
         heading: None,
         lines: vec![CodeLine::plain(subject.clone())],
         wrap: true,
@@ -167,7 +150,6 @@ fn question_blocks(request: &Request, at: &str, view: &View, p: &PanelCx<'_>) ->
                     id: format!("{at}-q{step}-option-{index}-item").into(),
                     lead: Some(Lead {
                         mark: Some(Mark::Choice {
-                            key: format!("{at}-q{step}-option-{index}-choice").into(),
                             picked,
                             many: multi,
                         }),
@@ -235,10 +217,9 @@ fn question_blocks(request: &Request, at: &str, view: &View, p: &PanelCx<'_>) ->
                 .collect();
             ai.answer(id, Answer::Picked(picked));
         });
-        button(format!("{at}-send"), &label("Send answers"), answered, send)
+        button(&label("Send answers"), answered, send)
     } else {
         button(
-            format!("{at}-next"),
             &if ready {
                 label("Next")
             } else {
@@ -249,7 +230,6 @@ fn question_blocks(request: &Request, at: &str, view: &View, p: &PanelCx<'_>) ->
         )
     };
     let terminal = button(
-        format!("{at}-terminal"),
         "Reply in terminal",
         false,
         p.call::<Ai>(move |ai| ai.answer(id, Answer::Terminal)),

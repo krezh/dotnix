@@ -63,11 +63,6 @@ pub const ISLAND: &[Opt] = &[
         ("name", Kind::Text),
         "Icon theme, over the config's",
     ),
-    opt(
-        "frontend",
-        ("name", Kind::Text),
-        "What draws the islands, gpui or wgpu, over the config's",
-    ),
     Opt {
         long: "preview",
         short: None,

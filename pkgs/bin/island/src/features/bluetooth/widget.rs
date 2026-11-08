@@ -36,17 +36,14 @@ pub fn widget(state: &State, w: &mut WidgetCx<'_>) -> BarWidget {
     let color = if on { BLUE } else { OVERLAY2 };
     let glyph = w.glyph(if on { "bt-on" } else { "bt-off" });
     let base = match state.lowest_battery() {
-        Some(level) => w.gauge(
-            "bar-bluetooth",
-            Gauge {
-                glyph,
-                glyph_color: color,
-                busy,
-                level: Some(f32::from(level) / 100.0),
-                level_color: glyphs::battery(Some(level)),
-            },
-        ),
-        None => w.base("bar-bluetooth").gap(ICON_GAP).glyph(glyph, color),
+        Some(level) => w.gauge(Gauge {
+            glyph,
+            glyph_color: color,
+            busy,
+            level: Some(f32::from(level) / 100.0),
+            level_color: glyphs::battery(Some(level)),
+        }),
+        None => w.base().gap(ICON_GAP).glyph(glyph, color),
     };
     base.tip(tip(state))
         .on_click(w.toggle(Bluetooth::panel_handle()))

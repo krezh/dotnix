@@ -15,7 +15,6 @@ pub fn switches(state: &State, p: &PanelCx<'_>) -> Vec<ActionTile> {
     let on = state.powered;
     let connected = state.connected().count();
     vec![ActionTile {
-        id: "switch-bluetooth".into(),
         glyph: p.glyph(if on { "bt-on" } else { "bt-off" }),
         label: "Bluetooth".into(),
         state: Some(match connected {

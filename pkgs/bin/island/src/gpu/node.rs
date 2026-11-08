@@ -1,5 +1,4 @@
-//! A small flexbox tree, shaped like GPUI's `div()`, laid out with taffy and painted into sprites.
-//! Panels are built from it, so a component reads much as it does for GPUI.
+//! A small flexbox tree, laid out with taffy and painted into sprites. Panels are built from it.
 
 use std::{
     borrow::Cow,
@@ -55,7 +54,7 @@ const STRIPE_EVERY: f32 = 5.5;
 const DASH: f32 = 2.5;
 const DASH_EVERY: f32 = 5.5;
 pub const BOLD: u16 = 700;
-/// GPUI's line height when nothing sets one.
+/// The line height when nothing sets one.
 const LEADING: f32 = 1.618;
 
 #[derive(Clone, Copy, Default)]

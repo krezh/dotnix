@@ -28,7 +28,6 @@ pub fn switches(state: &AudioState, p: &PanelCx<'_>) -> Vec<ActionTile> {
     }
     let muted = state.channel(Target::Input).muted;
     vec![ActionTile {
-        id: "switch-microphone".into(),
         glyph: p.glyph(glyphs::microphone(muted)),
         label: "Microphone".into(),
         state: Some(if muted { "Muted" } else { "Live" }.into()),
@@ -41,22 +40,15 @@ pub fn switches(state: &AudioState, p: &PanelCx<'_>) -> Vec<ActionTile> {
 fn level(state: &AudioState, target: Target, p: &PanelCx<'_>) -> Option<Block> {
     state.default_device(target)?;
     let channel = state.channel(target);
-    let (id, label, glyph, color) = match target {
+    let (label, glyph, color) = match target {
         Target::Output => (
-            "dashboard-output",
             "Output",
             glyphs::speaker(channel.volume, channel.muted),
             MAUVE,
         ),
-        Target::Input => (
-            "dashboard-input",
-            "Input",
-            glyphs::microphone(channel.muted),
-            PINK,
-        ),
+        Target::Input => ("Input", glyphs::microphone(channel.muted), PINK),
     };
     Some(Block::Slider(Slider {
-        id: id.into(),
         value: if channel.muted { 0.0 } else { channel.volume },
         color: if channel.muted { OVERLAY2 } else { color },
         signal: None,
@@ -198,7 +190,6 @@ fn playing_card(state: &AudioState, p: &PanelCx<'_>) -> Option<Block> {
                 )],
             };
             let slider = Block::Slider(Slider {
-                id: format!("dashboard-app-{index}-level").into(),
                 value: if app.muted { 0.0 } else { app.volume },
                 color: MAUVE,
                 signal: None,

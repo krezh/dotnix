@@ -3,28 +3,13 @@
 
 use std::path::PathBuf;
 
-use gpui::{
-    AnyElement, Context, HighlightStyle, SharedString, StyledText, div, prelude::*, px, rgb, rgba,
-};
+use crate::panel::SharedString;
 
-use crate::{
-    components::{button, energy, list},
-    island::Island,
-    key::Key,
-    panel::Handler,
-    panel::IslandUi,
-    theme::{ACCENT, CONTROL_ALPHA, OVERLAY2, SURFACE1, with_alpha},
-    ui::{self, Radius, SMALL_SIZE},
-};
+use crate::{components::list, key::Key, panel::Handler};
 
-const LINE: f32 = 18.0;
-const PAD_X: f32 = 12.0;
-/// Leaves room round the send button inside the field.
-const PAD_Y: f32 = 13.0;
 pub const CARET: &str = "▏";
 
 pub struct InputView {
-    pub id: SharedString,
     pub text: SharedString,
     pub placeholder: SharedString,
     /// The most lines it grows to; past that the oldest scroll out of view.
@@ -37,8 +22,6 @@ pub struct InputView {
     /// Shows a dot for each character, such as for a password.
     pub secret: bool,
 }
-
-const SECRET_DOT: char = '•';
 
 /// What a key did to the text.
 #[derive(Debug, PartialEq, Eq)]
@@ -82,92 +65,6 @@ pub fn edit(text: &mut String, key: &Key) -> Edit {
             None => Edit::Ignored,
         },
     }
-}
-
-pub fn input(view: InputView, hover: bool, cx: &mut Context<Island>) -> AnyElement {
-    let empty = view.text.is_empty();
-    let text = if view.secret {
-        SECRET_DOT.to_string().repeat(view.text.chars().count())
-    } else {
-        view.text.to_string()
-    };
-    let shown = if empty {
-        SharedString::from(format!("{CARET}{}", view.placeholder))
-    } else {
-        SharedString::from(format!("{text}{CARET}"))
-    };
-    let caret = if empty {
-        0..CARET.len()
-    } else {
-        text.len()..shown.len()
-    };
-    let mut highlights = vec![(
-        caret,
-        HighlightStyle {
-            color: Some(rgb(ACCENT).into()),
-            ..HighlightStyle::default()
-        },
-    )];
-    if empty {
-        highlights.push((
-            CARET.len()..shown.len(),
-            HighlightStyle {
-                color: Some(rgb(OVERLAY2).into()),
-                ..HighlightStyle::default()
-            },
-        ));
-    }
-    let ready = view.on_send.is_some();
-    let send = button::button(
-        button::Button::new(SharedString::from(format!("{}-send", view.id)))
-            .glyph(view.send_glyph.as_deref())
-            .active(ready),
-        hover && ready,
-    )
-    .when(view.send_glyph.is_none(), |send| send.child("↑"))
-    .when_some(view.on_send, |send, handler| {
-        send.on_click(cx.listener(move |this, _, _, cx| handler(&mut IslandUi::new(this, cx))))
-    });
-    // The send button sits inside the field at its end, level with the last line.
-    let inset = (LINE + 2.0 * PAD_Y - button::ICON_BUTTON) / 2.0;
-    div()
-        .relative()
-        .min_w(px(0.0))
-        .child(ui::shape(
-            Radius::Control,
-            Some(rgba(with_alpha(SURFACE1, CONTROL_ALPHA)).into()),
-        ))
-        .child(
-            div()
-                .relative()
-                .flex()
-                .items_end()
-                .gap(px(8.0))
-                .pr(px(inset))
-                .child(
-                    div()
-                        .flex_1()
-                        .min_w(px(0.0))
-                        .px(px(PAD_X))
-                        .py(px(PAD_Y))
-                        .max_h(px(LINE * view.max_lines.max(1) as f32 + 2.0 * PAD_Y))
-                        .overflow_hidden()
-                        .flex()
-                        .flex_col()
-                        .justify_end()
-                        .text_size(px(SMALL_SIZE))
-                        .line_height(px(LINE))
-                        .child(StyledText::new(shown).with_highlights(highlights)),
-                )
-                .child(div().flex_none().pb(px(inset)).child(send)),
-        )
-        .child(energy::border(
-            "input-busy",
-            Radius::Control,
-            0.0,
-            view.busy,
-        ))
-        .into_any_element()
 }
 
 #[cfg(test)]

@@ -1,14 +1,10 @@
 use std::time::Instant;
 
 use super::sni::TrayItem;
-use crate::{bar, features::Local, presence::Presence, spring::SpringConfig};
+use crate::{features::Local, presence::Presence, spring::SpringConfig};
 
 pub(super) const ICON: f32 = 18.0;
 const MOTION: SpringConfig = SpringConfig::new(420.0, 41.0, 1.0);
-
-fn step(spacing: f32) -> f32 {
-    ICON + 2.0 * bar::half(spacing)
-}
 
 pub struct Icons(pub(super) Presence<TrayItem>);
 
@@ -26,10 +22,6 @@ impl Local for Icons {
     /// Icons that need attention breathe, so they keep frames coming.
     fn is_settled(&self) -> bool {
         self.0.is_settled() && !self.0.iter().any(|slot| slot.item.attention)
-    }
-
-    fn pending_width(&self, spacing: f32) -> f32 {
-        self.0.pending_width(step(spacing))
     }
 }
 

@@ -101,7 +101,6 @@ impl Surface for Notifications {
     fn dashboard(&self, state: &State, p: &PanelCx<'_>) -> Dashboard {
         Dashboard {
             switches: vec![ActionTile {
-                id: "switch-dnd".into(),
                 glyph: p.glyph("notifications-dnd"),
                 label: "Do not disturb".into(),
                 state: Some(if state.dnd { "On" } else { "Off" }.into()),

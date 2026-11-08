@@ -112,6 +112,12 @@ fn merged(at: vec2<f32>, body: vec4<f32>, radius: f32, power: f32, hang: vec4<f3
     return smooth_min(bar, menu, min(blend, 2.0 * hang.w));
 }
 
+// How much of a line `width` wide (1 when 0) just inside an edge `d` away covers.
+fn inside_line(d: f32, width: f32, pixel: f32) -> f32 {
+    let half = select(0.5, width * 0.5, width > 0.0);
+    return clamp(0.5 + (half - abs(d + half)) * pixel, 0.0, 1.0);
+}
+
 fn ink(coverage: f32, color: vec4<f32>) -> f32 {
     let shade = color.rgb / max(color.a, 0.0001);
     let brightness = dot(shade, vec3<f32>(0.30, 0.59, 0.11));
@@ -168,7 +174,7 @@ fn shade(v: Out) -> vec4<f32> {
     }
     if (kind < 3.5) {
         let d = corner_distance(v.local, center, v.rect.zw * 0.5, radius, power);
-        return v.color * clamp(0.5 + (0.5 - abs(d + 0.5)) * pixel, 0.0, 1.0);
+        return v.color * inside_line(d, v.uv.x, pixel);
     }
     if (kind < 4.5) {
         let a = v.rect.xy + v.uv.xy;
@@ -182,7 +188,7 @@ fn shade(v: Out) -> vec4<f32> {
             return v.color * clamp(0.5 - d * pixel, 0.0, 1.0);
         }
         if (kind < 11.5) {
-            return v.color * clamp(0.5 + (0.5 - abs(d + 0.5)) * pixel, 0.0, 1.0);
+            return v.color * inside_line(d, v.clip.z, pixel);
         }
         if (kind < 12.5) {
             return v.color * clamp(0.5 + (0.5 - abs(d - 0.5)) * pixel, 0.0, 1.0);
@@ -487,6 +493,16 @@ impl Sprite {
             clip: NO_CLIP,
             edges: NO_EDGES,
         }
+    }
+
+    /// A ring or the merged surface's rim, `width` wide.
+    pub fn lined(mut self, width: f32) -> Self {
+        if self.params[1] == MERGED_RIM {
+            self.clip[2] = width;
+        } else {
+            self.uv[0] = width;
+        }
+        self
     }
 
     pub fn rounded(mut self, radius: f32) -> Self {

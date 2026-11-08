@@ -43,7 +43,6 @@
           description = "Widgets in this bar section, in order.";
         };
       configFile = toml.generate "island.toml" {
-        inherit (cfg) frontend;
         bar = {
           inherit (cfg.bar)
             left
@@ -141,15 +140,6 @@
     {
       options.homeModules.island = {
         enable = lib.mkEnableOption "island, a dynamic island status bar and notification daemon for Hyprland";
-
-        frontend = lib.mkOption {
-          type = lib.types.enum [
-            "gpui"
-            "wgpu"
-          ];
-          default = "gpui";
-          description = "What draws the islands.";
-        };
 
         package = lib.mkOption {
           type = lib.types.package;

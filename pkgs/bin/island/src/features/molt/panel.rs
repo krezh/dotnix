@@ -33,7 +33,6 @@ fn open() {
 pub(super) fn panel(state: &Updates, p: &PanelCx<'_>) -> PanelView {
     let buttons = vec![
         Button {
-            id: "molt-check".into(),
             label: if state.checking { CHECKING } else { CHECK }.into(),
             glyph: None,
             bare: false,
@@ -45,7 +44,6 @@ pub(super) fn panel(state: &Updates, p: &PanelCx<'_>) -> PanelView {
             on_click: p.call(Molt::refresh),
         },
         Button {
-            id: "molt-open".into(),
             label: "Open Molt".into(),
             glyph: None,
             bare: false,

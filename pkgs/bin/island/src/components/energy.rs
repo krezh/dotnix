@@ -2,16 +2,10 @@
 
 use std::{
     f32::consts::{FRAC_PI_2, TAU},
-    time::{Duration, Instant},
+    time::Duration,
 };
 
-use gpui::{AnyElement, Bounds, Hsla, Window, canvas, div, point, prelude::*, px, rgb, size};
-
-use crate::{
-    components::motion::{Next, keyed},
-    theme::{SAPPHIRE, SKY, TEXT},
-    ui::Radius,
-};
+use crate::theme::{SAPPHIRE, SKY, TEXT};
 
 pub const LAP: Duration = Duration::from_millis(1400);
 pub const FADE: Duration = Duration::from_millis(260);
@@ -23,9 +17,6 @@ const BEAM: f32 = 0.35;
 const UNIT_H: f32 = 30.0;
 /// Between the dots that make up the beam.
 const STEP: f32 = 0.75;
-/// Smooth at the beam's speed, without rebuilding the view at the display's full rate for as long
-/// as the work runs.
-const FRAME: Duration = Duration::from_micros(16_667);
 
 pub struct Edge {
     pub x: f32,
@@ -99,27 +90,6 @@ impl Edge {
     }
 }
 
-fn dot(
-    window: &mut Window,
-    Dot {
-        at: (x, y),
-        diameter,
-        color: tint,
-        alpha,
-    }: Dot,
-) {
-    let color = color(tint, alpha);
-    let bounds = Bounds::new(
-        point(px(x - diameter / 2.0), px(y - diameter / 2.0)),
-        size(px(diameter), px(diameter)),
-    );
-    window.paint_quad(gpui::fill(bounds, color).corner_radii(px(diameter / 2.0)));
-}
-
-fn color(color: u32, alpha: f32) -> Hsla {
-    Hsla::from(rgb(color)).opacity(alpha.clamp(0.0, 1.0))
-}
-
 /// The head is `phase` of the way round; the tail thins and fades behind it.
 pub fn dots(edge: &Edge, phase: f32, opacity: f32) -> Vec<Dot> {
     let scale = edge.height / UNIT_H;
@@ -160,93 +130,6 @@ pub fn dots(edge: &Edge, phase: f32, opacity: f32) -> Vec<Dot> {
         alpha: 0.80 * opacity,
     });
     shown
-}
-
-fn paint(edge: &Edge, phase: f32, opacity: f32, window: &mut Window) {
-    for shown in dots(edge, phase, opacity) {
-        dot(window, shown);
-    }
-}
-
-#[derive(Default)]
-struct Energy {
-    since: Option<Instant>,
-    fading: Option<Instant>,
-}
-
-/// Out of the layout, like the beam, so what it sits in keeps its size and spacing either way.
-fn nothing() -> AnyElement {
-    div().absolute().into_any_element()
-}
-
-fn smoothstep(t: f32) -> f32 {
-    t * t * (3.0 - 2.0 * t)
-}
-
-/// `inset` from the parent's sides, as bar widgets are drawn. The parent must be `relative`; `id`
-/// must be unique among its siblings.
-pub fn border(id: &'static str, radius: Radius, inset: f32, busy: bool) -> impl IntoElement {
-    keyed(id, move |state: &mut Energy, _, cx| {
-        let now = Instant::now();
-        if busy {
-            state.fading = None;
-            state.since.get_or_insert(now);
-        } else if state.since.is_some() {
-            state.fading.get_or_insert(now);
-        }
-        let Some(since) = state.since else {
-            return (nothing(), Next::Rest);
-        };
-        let still = cx.reduce_motion();
-        let fade = state.fading.map(|fading| {
-            if still {
-                1.0
-            } else {
-                now.duration_since(fading).as_secs_f32() / FADE.as_secs_f32()
-            }
-        });
-        if fade.is_some_and(|fade| fade >= 1.0) {
-            *state = Energy::default();
-            return (nothing(), Next::Rest);
-        }
-        let opacity = 1.0 - smoothstep(fade.unwrap_or(0.0));
-        let phase = if still {
-            START
-        } else {
-            START + now.duration_since(since).as_secs_f32() / LAP.as_secs_f32()
-        };
-        let (corner, _) = radius.geometry();
-        let beam = canvas(
-            |_, _, _| {},
-            move |bounds, (), window, _| {
-                let width = f32::from(bounds.size.width) - 2.0 * inset - 2.0;
-                let height = f32::from(bounds.size.height) - 2.0;
-                if width <= 0.0 || height <= 0.0 {
-                    return;
-                }
-                let edge = Edge {
-                    x: f32::from(bounds.origin.x) + inset + 1.0,
-                    y: f32::from(bounds.origin.y) + 1.0,
-                    width,
-                    height,
-                    radius: (corner - 1.0).max(0.0).min(width.min(height) / 2.0),
-                };
-                paint(&edge, phase, opacity, window);
-            },
-        )
-        .absolute()
-        .top_0()
-        .left_0()
-        .size_full();
-        (
-            beam.into_any_element(),
-            if still {
-                Next::Rest
-            } else {
-                Next::After(FRAME)
-            },
-        )
-    })
 }
 
 #[cfg(test)]

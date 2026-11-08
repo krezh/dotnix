@@ -5,15 +5,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use gpui::{
-    Bounds, ContentMask, Hsla, IntoElement, PathBuilder, PathStyle, Pixels, Point, SharedString,
-    StrokeOptions, Window, canvas, div, fill, point, prelude::*, px, rgb, rgba, size,
-};
-
-use crate::{
-    components::tooltip::Tooltips,
-    theme::{TINT, with_alpha},
-};
+use crate::panel::SharedString;
 
 /// How often a history charted here gets a new sample. Whatever keeps a history samples at this
 /// pace unless it has reason for its own, and then charts it with its own phase.
@@ -48,44 +40,6 @@ pub struct Series {
     pub format: fn(f32) -> String,
 }
 
-fn at(x: f32, y: f32) -> Point<Pixels> {
-    point(px(x), px(y))
-}
-
-fn paint_area(window: &mut Window, line: &[(f32, f32)], bottom: f32, color: Hsla) {
-    let (Some(first), Some(last)) = (line.first(), line.last()) else {
-        return;
-    };
-    let mut path = PathBuilder::fill();
-    path.move_to(at(first.0, bottom));
-    for (x, y) in line {
-        path.line_to(at(*x, *y));
-    }
-    path.line_to(at(last.0, bottom));
-    path.close();
-    if let Ok(path) = path.build() {
-        window.paint_path(path, color);
-    }
-}
-
-fn paint_line(window: &mut Window, line: &[(f32, f32)], color: Hsla) {
-    let Some(first) = line.first() else {
-        return;
-    };
-    // A miter limit of 1 bevels every corner, so a sharp spike doesn't grow a long point.
-    let style = StrokeOptions::default()
-        .with_line_width(LINE)
-        .with_miter_limit(1.0);
-    let mut path = PathBuilder::stroke(px(LINE)).with_style(PathStyle::Stroke(style));
-    path.move_to(at(first.0, first.1));
-    for (x, y) in &line[1..] {
-        path.line_to(at(*x, *y));
-    }
-    if let Ok(path) = path.build() {
-        window.paint_path(path, color);
-    }
-}
-
 fn sample(values: &[f32], slots: usize, phase: f32, fraction: f32) -> Option<f32> {
     if values.len() < 2 || !(0.0..=1.0).contains(&fraction) {
         return None;
@@ -114,72 +68,6 @@ pub fn text(series: &[Series], slots: usize, phase: f32, fraction: f32) -> Strin
         }
     }
     text
-}
-
-/// The newest value at the right edge, scrolling left as `phase` goes from 0 to 1.
-pub fn chart(
-    id: SharedString,
-    series: Vec<Series>,
-    slots: usize,
-    phase: f32,
-    tips: &Tooltips,
-) -> impl IntoElement {
-    let phase = phase.clamp(0.0, 1.0);
-    let (chart_id, chart_tips) = (id.clone(), tips.clone());
-    let plot = canvas(
-        |_, _, _| {},
-        move |bounds, (), window, _| {
-            let pixel = 1.0 / window.scale_factor();
-            let x0 = f32::from(bounds.origin.x);
-            let y0 = f32::from(bounds.origin.y);
-            let w = f32::from(bounds.size.width);
-            let h = f32::from(bounds.size.height);
-            let bottom = y0 + h;
-            if let Some(at) = chart_tips.position(&chart_id) {
-                let text = if bounds.contains(&at) && w > 0.0 {
-                    text(&series, slots, phase, (f32::from(at.x) - x0) / w)
-                } else {
-                    String::new()
-                };
-                chart_tips.update(&chart_id, text, window);
-            }
-            let floor = bottom - LINE / 2.0;
-            let y = |value: f32, max: f32| {
-                floor - (value / max.max(f32::EPSILON)).clamp(0.0, 1.0) * (h - LINE)
-            };
-            window.paint_quad(fill(
-                Bounds {
-                    origin: at(x0, bottom - pixel),
-                    size: size(px(w), px(pixel)),
-                },
-                rgba(with_alpha(TINT, BASELINE_ALPHA)),
-            ));
-            window.with_content_mask(Some(ContentMask { bounds }), |window| {
-                for (index, series) in series.iter().enumerate() {
-                    let values = &series.values;
-                    if values.len() < 2 {
-                        continue;
-                    }
-                    let (points, history) =
-                        history_points(values, series.max, slots, phase, x0, w, &y);
-                    if points.len() < 2 {
-                        continue;
-                    }
-                    if index == 0 {
-                        paint_area(
-                            window,
-                            &points[points.len() - history..],
-                            bottom,
-                            rgba(with_alpha(series.color, FILL_ALPHA)).into(),
-                        );
-                    }
-                    paint_line(window, &points, rgb(series.color).into());
-                }
-            });
-        },
-    )
-    .size_full();
-    tips.track(div().id(id.clone()).size_full().child(plot), id)
 }
 
 /// Points scrolling in from the right, and how many of them are real history rather than the

@@ -1,14 +1,20 @@
-use gpui::{Keystroke, Modifiers};
-
 use super::{Edit, edit};
 use crate::key::Key;
 
+#[derive(Clone, Copy, Default)]
+struct Modifiers {
+    control: bool,
+    shift: bool,
+}
+
 fn key(key: &str, modifiers: Modifiers, typed: Option<&str>) -> Key {
-    Key::from(&Keystroke {
-        modifiers,
-        key: key.to_owned(),
-        key_char: typed.map(str::to_owned),
-    })
+    Key {
+        name: key.to_owned(),
+        typed: typed.map(str::to_owned),
+        control: modifiers.control,
+        shift: modifiers.shift,
+        alt: false,
+    }
 }
 
 fn plain(key_name: &str, typed: &str) -> Key {

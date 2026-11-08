@@ -86,7 +86,7 @@ impl Surface for Caffeine {
 
     fn widget(&self, _: &str, _: &bool, w: &mut WidgetCx<'_>) -> Option<BarWidget> {
         Some(
-            w.base("bar-caffeine")
+            w.base()
                 .tip("Caffeine is on")
                 .glyph(w.glyph("caffeine"), ACCENT)
                 .on_click(w.call(Caffeine::toggle)),
@@ -96,7 +96,6 @@ impl Surface for Caffeine {
     fn dashboard(&self, on: &bool, p: &PanelCx<'_>) -> Dashboard {
         Dashboard {
             switches: vec![ActionTile {
-                id: "switch-caffeine".into(),
                 glyph: p.glyph("caffeine"),
                 label: "Keep awake".into(),
                 state: Some(if *on { "On" } else { "Off" }.into()),

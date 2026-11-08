@@ -1,4 +1,4 @@
-//! Every panel block as a tree of [`Node`]s, following what `panel/` and `components/` draw for GPUI.
+//! Every panel block as a tree of [`Node`]s.
 
 use std::{collections::HashMap, rc::Rc};
 
@@ -1875,7 +1875,6 @@ fn bar_meter(view: Meter) -> Node {
                     .child(amount),
             )
             .child(slider(Slider {
-                id: view.id.clone(),
                 value: if muted { 0.0 } else { value },
                 color: tint,
                 signal: None,
@@ -2014,7 +2013,6 @@ fn player(view: PlayerView) -> Node {
             .col()
             .gap(4.0)
             .child(slider(Slider {
-                id: "player-progress".into(),
                 value: fraction,
                 color: ACCENT,
                 signal: None,

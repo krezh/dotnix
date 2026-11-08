@@ -65,7 +65,7 @@ fn check_level(text: &str) -> Result<LevelFilter, String> {
 
 /// `spec` is like `debug` or `audio=debug,tray=trace`: a bare level applies to island, `NAME=LEVEL`
 /// to one of its modules or features, or a dependency. Dependencies otherwise log warnings and
-/// errors only, since GPUI, wgpu and zbus are noisy. `at_least` raises island's level for connected
+/// errors only, since wgpu and zbus are noisy. `at_least` raises island's level for connected
 /// `island logs --level` clients, never lowering it.
 fn filter(spec: &str, at_least: Option<LevelFilter>) -> Result<EnvFilter, String> {
     let mut island = check_level(DEFAULT)?;

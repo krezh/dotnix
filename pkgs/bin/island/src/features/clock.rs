@@ -84,16 +84,11 @@ impl Surface for Clock {
     fn widget(&self, _: &str, minute: &i64, w: &mut WidgetCx<'_>) -> Option<BarWidget> {
         let now = DateTime::from_timestamp(minute * 60, 0)?.with_timezone(&Local);
         Some(
-            w.base("bar-clock")
+            w.base()
                 .gap(GAP)
                 .tip(now.format("%A, %-d %B %Y").to_string())
+                .part(Part::text(now.format("%H:%M").to_string(), Emphasis::Title))
                 .part(Part::text(
-                    "time",
-                    now.format("%H:%M").to_string(),
-                    Emphasis::Title,
-                ))
-                .part(Part::text(
-                    "date",
                     now.format("%a %-d").to_string(),
                     Emphasis::Small,
                 ))

@@ -64,16 +64,6 @@ impl Panel {
         };
         index + 1
     }
-
-    pub fn from_layer(layer: usize) -> Option<Self> {
-        let index = layer.checked_sub(1)?;
-        match index.checked_sub(Self::ALL.len()) {
-            None => Self::ALL.get(index).copied(),
-            Some(feature) => features::NAMES
-                .get(feature)
-                .map(|name| Panel::Feature(name)),
-        }
-    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

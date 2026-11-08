@@ -11,7 +11,7 @@ mod stage;
 pub use morph::{Morph, Shape};
 pub use motion::{CONTENT_DRIFT, CONTENT_IN, CONTENT_OUT, FOLD_SPRING, SHAPE_SPRING};
 pub use panel::{COLLAPSED_LAYER, Grab, LAYERS, Mode, Panel};
-pub use stage::{Held, Stage, collapsed_width};
+pub use stage::{Stage, collapsed_width};
 
 pub const COLLAPSED_H: f32 = 38.0;
 

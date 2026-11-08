@@ -66,7 +66,6 @@ pub enum Part {
     Busy(bool),
     /// Changes in place when the text does.
     Text {
-        id: &'static str,
         text: SharedString,
         emphasis: Emphasis,
     },
@@ -87,7 +86,6 @@ pub enum Part {
     },
     /// A count on the part's corner, in the color.
     Badged {
-        id: &'static str,
         part: Box<Part>,
         badge: Option<(SharedString, u32)>,
     },
@@ -113,9 +111,8 @@ impl Part {
         Self::Glyph(path.to_path_buf(), color)
     }
 
-    pub fn text(id: &'static str, text: impl Into<SharedString>, emphasis: Emphasis) -> Self {
+    pub fn text(text: impl Into<SharedString>, emphasis: Emphasis) -> Self {
         Self::Text {
-            id,
             text: text.into(),
             emphasis,
         }
@@ -142,7 +139,6 @@ impl Part {
 }
 
 pub struct BarWidget {
-    pub id: SharedString,
     pub frame: Frame,
     pub parts: Vec<Part>,
     pub tip: Option<SharedString>,
@@ -165,9 +161,8 @@ pub struct BarWidget {
 }
 
 impl BarWidget {
-    pub fn new(id: impl Into<SharedString>, frame: Frame) -> Self {
+    pub fn new(frame: Frame) -> Self {
         Self {
-            id: id.into(),
             frame,
             parts: Vec::new(),
             tip: None,

@@ -42,15 +42,6 @@ fn only_what_an_open_panel_reads_moves_it() {
 }
 
 #[test]
-fn every_panel_has_a_layer_of_its_own() {
-    for panel in [Panel::Dashboard, Panel::System, Panel::Popups] {
-        assert_ne!(panel.layer(), COLLAPSED_LAYER);
-        assert_eq!(Panel::from_layer(panel.layer()), Some(panel));
-    }
-    assert_eq!(Panel::from_layer(COLLAPSED_LAYER), None);
-}
-
-#[test]
 fn collapsing_shows_waiting_popups_instead() {
     let mut stage = stage();
     assert_eq!(stage.resolved(Mode::Collapsed), Mode::Collapsed);

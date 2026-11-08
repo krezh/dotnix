@@ -241,7 +241,6 @@ fn network_entry(network: &AccessPoint, state: &State, p: &PanelCx<'_>) -> Entry
         Some(p.on_local::<Network>(move |_, view: &mut View| view.ask(&ssid)))
     };
     Entry {
-        id: network.ssid.clone().into(),
         lead: Some(EntryLead::Glyph(
             p.glyph(glyphs::signal(network.strength)),
             color,
@@ -330,7 +329,6 @@ fn vpn_entry(vpn: &Vpn, p: &PanelCx<'_>) -> Entry {
     };
     let name = vpn.name.clone();
     Entry {
-        id: vpn.name.clone().into(),
         lead: Some(EntryLead::Glyph(p.glyph("network-vpn"), color)),
         title: vpn.name.clone().into(),
         title_color: (vpn.activity == Activity::On).then_some(MAUVE),
@@ -615,7 +613,6 @@ fn interfaces_tile(state: &State) -> Tile {
                 .interfaces
                 .iter()
                 .map(|interface| Entry {
-                    id: interface.name.clone().into(),
                     lead: Some(EntryLead::Dot(if interface.up { GREEN } else { OVERLAY2 })),
                     title: interface.name.clone().into(),
                     title_color: None,
@@ -691,9 +688,7 @@ fn routes_tile(state: &State) -> Tile {
             entries: state
                 .routes
                 .iter()
-                .enumerate()
-                .map(|(index, route)| Entry {
-                    id: format!("{index}").into(),
+                .map(|route| Entry {
                     lead: None,
                     title: route.destination.clone().into(),
                     title_color: None,
@@ -810,7 +805,6 @@ fn ports_tile(state: &State) -> Tile {
                 .ports
                 .iter()
                 .map(|port| Entry {
-                    id: format!("{}-{}", port.protocol, port.port).into(),
                     lead: None,
                     title: port.app.clone().into(),
                     title_color: None,
@@ -830,7 +824,6 @@ fn buttons(state: &State, p: &PanelCx<'_>) -> Vec<IconButton> {
     let mut buttons = Vec::new();
     if let Some(wifi) = &state.wifi {
         buttons.push(IconButton {
-            id: "network-wifi-switch".into(),
             glyph: p.glyph(if wifi.enabled {
                 "network-wifi-excellent"
             } else {
@@ -849,7 +842,6 @@ fn buttons(state: &State, p: &PanelCx<'_>) -> Vec<IconButton> {
         });
         if wifi.enabled {
             buttons.push(IconButton {
-                id: "network-scan".into(),
                 glyph: p.glyph("network-scan"),
                 color: None,
                 label: "Scan for networks".into(),
@@ -860,7 +852,6 @@ fn buttons(state: &State, p: &PanelCx<'_>) -> Vec<IconButton> {
         }
         if let Some(active) = wifi.active() {
             buttons.push(IconButton {
-                id: "network-disconnect".into(),
                 glyph: p.glyph("network-disconnect"),
                 color: None,
                 label: format!("Disconnect from {}", active.ssid).into(),
@@ -871,7 +862,6 @@ fn buttons(state: &State, p: &PanelCx<'_>) -> Vec<IconButton> {
             if active.saved {
                 let ssid = active.ssid.clone();
                 buttons.push(IconButton {
-                    id: "network-forget".into(),
                     glyph: p.glyph("network-forget"),
                     color: None,
                     label: format!("Forget {}", active.ssid).into(),
@@ -893,7 +883,6 @@ fn buttons(state: &State, p: &PanelCx<'_>) -> Vec<IconButton> {
         let on = vpn.activity == Activity::On;
         let name = vpn.name.clone();
         buttons.push(IconButton {
-            id: "network-vpn-switch".into(),
             glyph: p.glyph("network-vpn"),
             color: None,
             label: if on {
@@ -925,13 +914,11 @@ fn prompt(state: &State, prompt: &Prompt, p: &PanelCx<'_>) -> PromptView {
     let busy = attempt.is_some_and(|joining| joining.failed.is_none());
     let ready = !prompt.text.is_empty() && !busy;
     PromptView {
-        id: "network-prompt".into(),
         title: format!("Join {}", prompt.ssid).into(),
         detail: format!("{} · enter its password", security.label()).into(),
         code: None,
         confirm: None,
         field: Some(InputView {
-            id: "network-password".into(),
             text: prompt.text.clone().into(),
             placeholder: "Password".into(),
             max_lines: 1,

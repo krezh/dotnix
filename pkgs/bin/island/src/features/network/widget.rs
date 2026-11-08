@@ -78,17 +78,14 @@ pub fn widget(state: &State, w: &mut WidgetCx<'_>) -> BarWidget {
         OVERLAY2
     };
     let base = match active {
-        Some(active) => w.gauge(
-            "bar-network",
-            Gauge {
-                glyph,
-                glyph_color: color,
-                busy: joining,
-                level: Some(f32::from(active.strength) / 100.0),
-                level_color: strength_color(active.strength),
-            },
-        ),
-        None => w.base("bar-network").gap(ICON_GAP).glyph(glyph, color),
+        Some(active) => w.gauge(Gauge {
+            glyph,
+            glyph_color: color,
+            busy: joining,
+            level: Some(f32::from(active.strength) / 100.0),
+            level_color: strength_color(active.strength),
+        }),
+        None => w.base().gap(ICON_GAP).glyph(glyph, color),
     };
     let shield = glyphs::vpn_on(state)
         .then(|| w.glyph("network-vpn"))

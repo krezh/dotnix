@@ -15,25 +15,10 @@ let
     url = "https://registry.npmjs.org/lucide-static/-/lucide-static-1.64.0.tgz";
     hash = "sha256-ObvLERXG5YwBzFHwdvJ+fKtch18n0pn8EZBQiX7YOV8=";
   };
-  cratePatches = {
-    gpui-pre-wgpu = [ ./patches/gpui-pre-wgpu-drop-shadow-clip.patch ];
-  };
 in
 craneLib.buildPackage rec {
   inherit src;
   strictDeps = true;
-
-  cargoVendorDir = craneLib.vendorCargoDeps {
-    inherit src;
-    overrideVendorCargoPackage =
-      p: drv:
-      if cratePatches ? ${p.name} then
-        drv.overrideAttrs (old: {
-          patches = (old.patches or [ ]) ++ cratePatches.${p.name};
-        })
-      else
-        drv;
-  };
 
   ISLAND_PCI_IDS = "${pkgs.hwdata}/share/hwdata/pci.ids";
   ISLAND_GLYPHS = "${lucide}/icons";
@@ -69,7 +54,6 @@ craneLib.buildPackage rec {
     inherit
       src
       strictDeps
-      cargoVendorDir
       buildInputs
       nativeBuildInputs
       OPENSSL_LIB_DIR
@@ -82,7 +66,7 @@ craneLib.buildPackage rec {
   '';
 
   meta = {
-    description = "Dynamic island status bar and notification daemon built with GPUI";
+    description = "Dynamic island status bar and notification daemon drawn with wgpu";
     platforms = lib.platforms.linux;
     mainProgram = "island";
   };

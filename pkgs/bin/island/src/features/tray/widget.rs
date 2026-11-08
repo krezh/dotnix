@@ -40,7 +40,7 @@ impl Tray {
             let opens_menu = item.item_is_menu && item.has_menu;
             let has_menu = item.has_menu;
             let mut widget = w
-                .base(format!("tray-{key}"))
+                .base()
                 .width((ICON + 2.0 * half) * presence)
                 .padding(half * presence)
                 .clip()
@@ -99,6 +99,6 @@ impl Tray {
                     })),
             )
         });
-        Some(BarWidget::new("bar-tray", Frame::Row).parts(slots))
+        Some(BarWidget::new(Frame::Row).parts(slots))
     }
 }

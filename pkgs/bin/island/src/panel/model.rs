@@ -28,7 +28,6 @@ pub fn on(handler: impl Fn(&mut dyn Ui) + 'static) -> Handler {
 }
 
 pub struct Button {
-    pub id: SharedString,
     pub label: SharedString,
     pub glyph: Option<PathBuf>,
     pub bare: bool,
@@ -90,7 +89,6 @@ pub struct Passing {
 
 /// Shows its glyph, with its label as the tooltip; without a glyph, its label.
 pub struct IconButton {
-    pub id: SharedString,
     pub glyph: Option<PathBuf>,
     /// Its glyph's color, filling the button while active, as the session's actions are drawn.
     pub color: Option<u32>,
@@ -114,7 +112,6 @@ pub struct ButtonRow {
 
 /// Lines of history over a shared ceiling, as wide as their place and this tall.
 pub struct ChartView {
-    pub id: SharedString,
     pub series: Vec<Series>,
     pub height: f32,
     /// The clock of a history sampled on its own; otherwise the system sampler sets the pace.
@@ -155,7 +152,6 @@ pub struct Placed {
 }
 
 pub struct ActionTile {
-    pub id: SharedString,
     pub glyph: Option<PathBuf>,
     pub label: SharedString,
     /// How what it switches is now, such as how many are connected; it then shows as a switch,
@@ -169,7 +165,6 @@ pub struct ActionTile {
 
 /// Something needing a look, such as a battery running low, with the value that raised it.
 pub struct Warning {
-    pub id: SharedString,
     pub glyph: Option<PathBuf>,
     pub label: SharedString,
     pub value: SharedString,
@@ -246,9 +241,6 @@ pub struct PanelView {
     /// tall as what it shows.
     pub scroll: bool,
 }
-
-/// The most columns side by side, each with its own scroll.
-pub const COLUMNS: usize = 4;
 
 impl Block {
     pub fn note(text: impl Into<SharedString>) -> Self {
@@ -457,3 +449,7 @@ impl PanelView {
         hasher.finish()
     }
 }
+
+/// How far past what a scrolling [`Block::Placed`] shows its blocks are still drawn, so ones
+/// scrolling in are ready.
+pub const PLACED_MARGIN: f32 = 240.0;

@@ -28,7 +28,7 @@ pub(super) fn pixmap(pixmaps: Vec<(i32, i32, Vec<u8>)>) -> Option<Picture> {
     resampled(RgbaImage::from_raw(width as u32, height as u32, bgra)?)
 }
 
-/// A raster icon file, decoded and resampled; vector files are left for GPUI to render.
+/// A raster icon file, decoded and resampled; vector files are drawn as they are.
 pub(super) fn file(path: &Path) -> Option<Picture> {
     let mut buffer = image::open(path).ok()?.into_rgba8();
     for pixel in buffer.pixels_mut() {

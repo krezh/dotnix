@@ -62,7 +62,6 @@ pub(super) fn pieces(reply: &str) -> Vec<Piece> {
         .map(|block| match block {
             markdown::Block::Paragraph(parsed) => Piece::Text(styled(parsed)),
             markdown::Block::Code { language, lines } => Piece::Code(Code {
-                key: "".into(),
                 heading: (!language.is_empty()).then(|| (language.into(), "".into())),
                 copy: Some(copier(lines.join("\n"))),
                 lines: lines.into_iter().map(CodeLine::plain).collect(),
@@ -123,9 +122,7 @@ fn turns(chat: &Chat, p: &PanelCx<'_>) -> Vec<Turn> {
 fn welcome(p: &PanelCx<'_>) -> Vec<Block> {
     let starters = STARTERS
         .iter()
-        .enumerate()
-        .map(|(index, (label, start))| IconButton {
-            id: format!("ai-chat-starter-{index}").into(),
+        .map(|(label, start)| IconButton {
             glyph: None,
             color: None,
             label: (*label).into(),
@@ -184,7 +181,6 @@ pub(super) fn panel(
     let next_model = (model + 1) % MODELS.len();
     let buttons = vec![
         Button {
-            id: "ai-chat-model".into(),
             label: MODELS[model].0.into(),
             glyph: None,
             bare: false,
@@ -196,7 +192,6 @@ pub(super) fn panel(
             on_click: p.call::<Ai>(move |ai| ai.chat_model(next_model)),
         },
         Button {
-            id: "ai-chat-new".into(),
             label: "New chat".into(),
             glyph: None,
             bare: false,
@@ -212,7 +207,6 @@ pub(super) fn panel(
         welcome(p)
     } else {
         vec![Block::Transcript(Transcript {
-            id: "ai-chat".into(),
             turns: turns(chat, p),
             glyph: Some(harness::glyph(Source::Claude).to_path_buf()),
             color: PEACH,
@@ -226,7 +220,6 @@ pub(super) fn panel(
     // The field comes after the card, so it stays at the panel's foot.
     let mut blocks = vec![Block::Card(None, card::Size::Full, blocks)];
     blocks.push(Block::Input(InputView {
-        id: "ai-chat-input".into(),
         text: view.draft.clone().into(),
         placeholder: "Ask Claude…".into(),
         max_lines: INPUT_LINES,

@@ -59,13 +59,3 @@ fn unknown_widgets_list_the_known_ones() {
     assert!(error.contains("headset"), "{error}");
     assert!(error.contains("zowie"), "{error}");
 }
-
-#[test]
-fn gpui_draws_unless_the_config_says_otherwise() {
-    let config: Config = toml::from_str("").unwrap();
-    assert_eq!(config.frontend, Frontend::Gpui);
-    let config: Config = toml::from_str("frontend = \"wgpu\"").unwrap();
-    assert_eq!(config.frontend, Frontend::Wgpu);
-    assert_eq!(config.frontend.name(), "wgpu");
-    assert!(toml::from_str::<Config>("frontend = \"qt\"").is_err());
-}

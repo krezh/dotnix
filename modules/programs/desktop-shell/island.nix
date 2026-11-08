@@ -7,7 +7,6 @@
     {
       homeModules.island = {
         enable = true;
-        frontend = "wgpu";
         appearance = {
           opacity = config.var.opacity;
           radius = config.var.rounding;

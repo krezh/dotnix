@@ -109,6 +109,28 @@ pub fn rows(body: [f32; 4], corner: (f32, f32), merge: Merge) -> Vec<[i32; 4]> {
     found
 }
 
+/// A rounded `body` with corners `(radius, power)`, as whole-pixel rows.
+pub fn region([x, y, w, h]: [i32; 4], (radius, power): (f32, f32)) -> Vec<[i32; 4]> {
+    if w <= 0 || h <= 0 {
+        return Vec::new();
+    }
+    let r = radius.clamp(0.0, w.min(h) as f32 / 2.0);
+    let rows = r.ceil() as i32;
+    let mut rects = Vec::with_capacity(2 * rows as usize + 1);
+    for row in 0..rows {
+        let from_centre = ((r - (row as f32 + 0.5)) / r).max(0.0);
+        let reach = r * (1.0 - from_centre.powf(power)).max(0.0).powf(power.recip());
+        let inset = (r - reach).round() as i32;
+        let width = w - 2 * inset;
+        rects.push([x + inset, y + row, width, 1]);
+        rects.push([x + inset, y + h - 1 - row, width, 1]);
+    }
+    if h > 2 * rows {
+        rects.push([x, y + rows, w, h - 2 * rows]);
+    }
+    rects
+}
+
 #[cfg(test)]
 #[path = "merge_test.rs"]
 mod tests;

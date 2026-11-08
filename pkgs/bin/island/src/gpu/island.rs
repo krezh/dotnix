@@ -108,6 +108,8 @@ pub struct Look {
     pub opacity: f32,
     pub shadow: f32,
     pub glow: f32,
+    /// How wide the line round the island's edge is; none at 0.
+    pub border: f32,
     pub samples: Samples,
     pub system: std::rc::Rc<config::System>,
 }
@@ -1459,12 +1461,18 @@ impl Island {
         match &merge {
             Some(merge) => {
                 sprites.push(Sprite::merged(body, glass, corner, merge, MERGED_FILL));
-                sprites.push(Sprite::merged(body, edge, corner, merge, MERGED_RIM));
             }
-            None => {
-                sprites.push(Sprite::shape(body, glass, radius, power));
-                sprites.push(Sprite::ring(body, edge, radius, power));
-            }
+            None => sprites.push(Sprite::shape(body, glass, radius, power)),
+        }
+        let border = self.look.border;
+        if border > 0.0 {
+            sprites.push(
+                match &merge {
+                    Some(merge) => Sprite::merged(body, edge, corner, merge, MERGED_RIM),
+                    None => Sprite::ring(body, edge, radius, power),
+                }
+                .lined(border),
+            );
         }
 
         let fade = self.stage.morph.layers[COLLAPSED_LAYER]
@@ -1956,7 +1964,7 @@ impl Island {
             let corner = (radius.min(self.body[3] / 2.0), power);
             let rows = match self.merge {
                 Some(merge) => crate::merge::rows(self.body, corner, merge),
-                None => crate::shape::region_of(whole(self.body), self.look.corner, None),
+                None => crate::merge::region(whole(self.body), self.look.corner),
             };
             for [x, y, w, h] in rows {
                 blur.add(x, y, w, h);
@@ -2591,10 +2599,6 @@ impl Ui for IslandUi<'_> {
             pick,
         });
     }
-
-    fn menu_enter(&mut self, _index: usize) {}
-
-    fn menu_pick(&mut self, _id: i32) {}
 
     fn update_local(&mut self, name: &'static str, action: &mut dyn FnMut(&mut dyn AnyLocal)) {
         self.island.stage.update_local(name, action);

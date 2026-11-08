@@ -1,4 +1,4 @@
-use std::{fs, path::PathBuf};
+use std::{fs, path::PathBuf, rc::Rc};
 
 use serde::{Deserialize, Deserializer, de::Error as _};
 
@@ -8,7 +8,7 @@ use crate::{
         media::Media, molt::Molt, notifications::Notifications, tray::Tray, workspaces::Workspaces,
         zowie::Zowie,
     },
-    paths, shape, theme,
+    paths, theme,
 };
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -80,12 +80,6 @@ impl Bar {
             .chain(&self.right)
             .copied()
     }
-
-    pub fn section_of(&self, widget: Widget) -> Option<usize> {
-        [&self.left, &self.middle, &self.right]
-            .iter()
-            .position(|section| section.contains(&widget))
-    }
 }
 
 fn number<'de, D: serde::Deserializer<'de>>(deserializer: D) -> Result<f32, D::Error> {
@@ -123,9 +117,9 @@ impl Default for Appearance {
     fn default() -> Self {
         Self {
             opacity: theme::DEFAULT_OPACITY,
-            radius: shape::DEFAULT_RADIUS,
-            power: shape::DEFAULT_POWER,
-            border: shape::DEFAULT_BORDER,
+            radius: DEFAULT_RADIUS,
+            power: DEFAULT_POWER,
+            border: DEFAULT_BORDER,
             shadow: 1.0,
             icon_theme: "hicolor".to_owned(),
         }
@@ -211,28 +205,9 @@ impl Default for Log {
     }
 }
 
-/// What draws the islands.
-#[derive(Clone, Copy, Debug, Default, Deserialize, PartialEq, Eq)]
-#[serde(rename_all = "lowercase")]
-pub enum Frontend {
-    #[default]
-    Gpui,
-    Wgpu,
-}
-
-impl Frontend {
-    pub fn name(self) -> &'static str {
-        match self {
-            Self::Gpui => "gpui",
-            Self::Wgpu => "wgpu",
-        }
-    }
-}
-
 #[derive(Clone, Debug, Default, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct Config {
-    pub frontend: Frontend,
     pub bar: Bar,
     pub appearance: Appearance,
     pub features: Features,
@@ -281,3 +256,21 @@ pub fn load(path: Option<PathBuf>) -> Result<Config, String> {
 #[cfg(test)]
 #[path = "config_test.rs"]
 mod tests;
+
+const DEFAULT_RADIUS: f32 = 28.0;
+const DEFAULT_POWER: f32 = 2.0;
+const DEFAULT_BORDER: f32 = 1.0;
+
+/// What every island starts with, from the config and the flags over it.
+#[derive(Clone)]
+pub struct Startup {
+    pub layout: Rc<Bar>,
+    pub features: Rc<toml::Table>,
+    pub top: f32,
+    pub corner: (f32, f32),
+    pub opacity: f32,
+    pub shadow: f32,
+    pub glow: f32,
+    /// How wide the line round its edge is; none at 0.
+    pub border: f32,
+}

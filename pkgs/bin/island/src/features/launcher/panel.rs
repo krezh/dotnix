@@ -16,7 +16,6 @@ pub(super) fn panel(p: &PanelCx<'_>) -> Option<PanelView> {
         .map(|(position, app)| {
             let picked = app.clone();
             SearchRow {
-                id: format!("app-{}", app.id).into(),
                 name: app.name.clone().into(),
                 detail: if app.generic.is_empty() {
                     &app.comment

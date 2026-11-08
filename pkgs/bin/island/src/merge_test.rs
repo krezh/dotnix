@@ -63,3 +63,20 @@ fn a_menu_all_but_gone_leaves_no_bump() {
         assert!(distance((275.0, y), BODY, CORNER, thin) > 0.0);
     }
 }
+
+#[test]
+fn a_rounded_region_is_full_width_in_the_middle_and_inset_at_its_corners() {
+    let rects = region([10, 20, 100, 40], (12.0, 2.0));
+    let covers = |x: i32, y: i32| {
+        rects
+            .iter()
+            .any(|[rx, ry, rw, rh]| x >= *rx && x < rx + rw && y >= *ry && y < ry + rh)
+    };
+    assert!(covers(10, 40) && covers(109, 40), "full width halfway down");
+    assert!(!covers(10, 20) && !covers(109, 59), "the corners are cut");
+    assert!(
+        covers(60, 20) && covers(60, 59),
+        "the top and bottom edges are there"
+    );
+    assert!(region([0, 0, 0, 10], (12.0, 2.0)).is_empty());
+}
