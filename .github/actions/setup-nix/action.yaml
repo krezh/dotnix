@@ -55,13 +55,12 @@ runs:
         nix-permission-edict: false
 
     - name: Install Lix
-      uses: samueldr/lix-gha-installer-action@7b7f14d320d6aacfb65bd1ef761566b3b69e474c # v2026-02-22
+      uses: krezh/nix-action@d90dbf2020e6b029faed266150b54c0bc434c734 # v1.0.0
       with:
-        github_access_token: ${{ inputs.github-token }}
-        extra_nix_config: |
+        github-token: ${{ inputs.github-token || github.token }}
+        extra-conf: |
           accept-flake-config = true
           http-connections = 100
-
     - name: Setup xilo
       if: inputs.skip-cache != 'true' && inputs.xilo-url != '' && inputs.xilo-cache != '' && inputs.xilo-token != ''
       uses: stubbedev/xilo@d99c760085bbb83dca1c07cb5298d88e3835b83f # v1.2.7
