@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-gpui_shared_string = { package = "gpui-pre-shared-string", version = "=0.3.11" }
+gpui_shared_string = { package = "gpui-pre-shared-string", version = "=0.3.12" }
 chrono = { version = "0.4", default-features = false, features = ["clock"] }
 icu_segmenter = { version = "2.3", default-features = false, features = ["compiled_data"] }
 futures = { version = "0.3", default-features = false, features = ["std"] }
