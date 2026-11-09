@@ -12,7 +12,6 @@
         plex-desktop
         jellyfin-media-player
         jellyfin-mpv-shim
-        tsukimi
         ueberzugpp
         vipsdisp
         fladder
