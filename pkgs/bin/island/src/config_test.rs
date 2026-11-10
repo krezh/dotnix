@@ -21,6 +21,7 @@ fn invalid_feature_settings_are_rejected() {
         "[notifications]\nprivate = true",
         "[system]\npartitions = ['/']",
         "[visualizer]\nglow = 0.8",
+        "[features.battery]\nnotifi = true",
     ] {
         let result = toml::from_str::<Config>(raw)
             .map_err(|error| error.to_string())
@@ -58,4 +59,26 @@ fn unknown_widgets_list_the_known_ones() {
     assert!(error.contains("unknown widget 'headsett'"), "{error}");
     assert!(error.contains("headset"), "{error}");
     assert!(error.contains("zowie"), "{error}");
+}
+
+#[test]
+fn battery_settings_are_parsed() {
+    let config: Config =
+        toml::from_str("[features.battery]\nnotify = false\nlow = 15\ncritical = 5").unwrap();
+    assert!(!config.features.battery.notify);
+    assert_eq!(config.features.battery.low, 15);
+    assert_eq!(config.features.battery.critical, 5);
+}
+
+#[test]
+fn battery_alerts_need_critical_below_low() {
+    let parse = |raw: &str| {
+        toml::from_str::<Config>(raw)
+            .map_err(|error| error.to_string())
+            .and_then(Config::check)
+    };
+    assert!(parse("[features.battery]\nlow = 25\ncritical = 5").is_ok());
+    let error = parse("[features.battery]\nlow = 10\ncritical = 20").unwrap_err();
+    assert!(error.contains("critical below low"), "{error}");
+    assert!(parse("[features.battery]\nlow = 120").is_err());
 }

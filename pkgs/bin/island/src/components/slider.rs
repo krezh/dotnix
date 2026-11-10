@@ -13,6 +13,7 @@ pub type OnChange = Rc<dyn Fn(f32, &mut dyn Ui)>;
 
 pub const FILL_SPRING: SpringConfig = SpringConfig::new(420.0, 41.0, 1.0);
 pub const TRACK_H: f32 = 10.0;
+pub const THIN_H: f32 = 4.0;
 pub const HIT_H: f32 = 16.0;
 /// The handle sticks out 4 px past each side of the track while hovered, 5 px while held.
 pub const HANDLE_W: f32 = 4.0;
@@ -38,4 +39,7 @@ pub struct Slider {
     pub on_change: Option<OnChange>,
     /// Makes it large, carrying these inside it.
     pub label: Option<SliderLabel>,
+    /// A thin line only showing how far along something is, such as progress, with no room kept
+    /// round it for the pointer.
+    pub thin: bool,
 }

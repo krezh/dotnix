@@ -1,17 +1,13 @@
 {
   lib,
-  stdenv,
-  buildGoModule,
-  fetchFromGitHub,
-  go-bin,
-  installShellFiles,
+  pkgs,
 }:
-(buildGoModule.override { go = go-bin.latestStable; }) (finalAttrs: {
+(pkgs.buildGoModule.override { go = pkgs.go-bin.latestStable; }) (finalAttrs: {
   pname = "talosctl";
   # renovate: datasource=github-releases depName=siderolabs/talos
   version = "1.14.5";
 
-  src = fetchFromGitHub {
+  src = pkgs.fetchFromGitHub {
     owner = "siderolabs";
     repo = "talos";
     rev = "v${finalAttrs.version}";
@@ -33,9 +29,9 @@
 
   subPackages = [ "cmd/${finalAttrs.pname}" ];
 
-  nativeBuildInputs = [ installShellFiles ];
+  nativeBuildInputs = [ pkgs.installShellFiles ];
 
-  postInstall = lib.optionalString (stdenv.buildPlatform.canExecute stdenv.hostPlatform) ''
+  postInstall = lib.optionalString (pkgs.stdenv.buildPlatform.canExecute pkgs.stdenv.hostPlatform) ''
     installShellCompletion --cmd ${finalAttrs.pname} \
       --bash <($out/bin/${finalAttrs.pname} completion bash) \
       --fish <($out/bin/${finalAttrs.pname} completion fish) \

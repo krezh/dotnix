@@ -32,11 +32,13 @@ pub struct Notice {
     pub via: bool,
     /// Led by the mark its feature lends, rather than the app's letter.
     pub lead: bool,
+    pub icon: Option<String>,
     pub actions: Vec<NoticeAction>,
     pub received: SystemTime,
     /// There before island heard of it, such as messages waiting on a server: it waits with what
     /// was missed rather than popping up.
     pub quiet: bool,
+    pub transient: bool,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]

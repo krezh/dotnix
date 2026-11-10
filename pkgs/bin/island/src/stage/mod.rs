@@ -7,11 +7,13 @@ mod panel;
 pub mod report;
 #[allow(clippy::module_inception)]
 mod stage;
+mod stance;
 
 pub use morph::{Morph, Shape};
 pub use motion::{CONTENT_DRIFT, CONTENT_IN, CONTENT_OUT, FOLD_SPRING, SHAPE_SPRING};
 pub use panel::{COLLAPSED_LAYER, Grab, LAYERS, Mode, Panel};
 pub use stage::{Stage, collapsed_width};
+pub use stance::{SWITCH_OFF, Stance};
 
 pub const COLLAPSED_H: f32 = 38.0;
 

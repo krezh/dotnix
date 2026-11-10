@@ -40,6 +40,7 @@ use super::{
     panel::{self, Built, DROP, MorphText, Shown},
     records,
     renderer::{Gpu, MERGED_FILL, MERGED_OUTLINE, MERGED_RIM, Presented, Sprite, inside},
+    stand::Stand,
     turn::Turn,
     widget::{Drawn, Hit, Layout, Tint, color, sets, tinted},
 };
@@ -232,6 +233,8 @@ pub struct Island {
     pub configured: bool,
     pub turn: Turn,
     pub dirty: bool,
+    /// Where it stands on its screen, and how big its surface is.
+    pub stand: Stand,
     look: Look,
     cache: HashMap<Widget, Cached>,
     last_frame: Option<Instant>,
@@ -338,6 +341,7 @@ impl Island {
             configured: false,
             turn: Turn::new(),
             dirty: true,
+            stand: Stand::new(),
             look,
             cache: HashMap::new(),
             last_frame: None,
@@ -426,10 +430,30 @@ impl Island {
     }
 
     pub fn buffer_size(&self) -> (u32, u32) {
+        let (width, height) = self.stand.size;
         (
-            (SURFACE_W * self.scale).round() as u32,
-            (SURFACE_H * self.scale).round() as u32,
+            (width * self.scale).round() as u32,
+            (height * self.scale).round() as u32,
         )
+    }
+
+    /// The compositor gave its surface `size`, its own room or the whole screen.
+    pub fn resized(&mut self, (width, height): (u32, u32), gpu: Option<&Gpu>) {
+        let size = (width as f32, height as f32);
+        if width == 0 || height == 0 || size == self.stand.size {
+            return;
+        }
+        self.stand.size = size;
+        if let Some((viewport, _)) = &self.fractional {
+            viewport.set_destination(width as i32, height as i32);
+        }
+        if let (Some(surface), Some(gpu)) = (&self.surface, gpu) {
+            let (w, h) = self.buffer_size();
+            gpu.configure(surface, w, h);
+        }
+        self.region = None;
+        self.last_frame.get_or_insert_with(Instant::now);
+        self.dirty = true;
     }
 
     /// The atlas was emptied: whatever was laid out from it has to be made again.
@@ -453,6 +477,7 @@ impl Island {
         self.stage.sync_local(name);
         self.stage.sync_held();
         self.stale = self.stage.mode != Mode::Collapsed;
+        self.sync_popups();
         self.dirty = true;
     }
 
@@ -474,16 +499,29 @@ impl Island {
     /// Shows the pop-ups once any has something, and takes them away once none has.
     pub fn local_changed(&mut self, name: &'static str) {
         self.forget_widgets_of(name);
+        self.sync_popups();
+        self.dirty = true;
+    }
+
+    /// A pop-up taking the island to the middle of the screen takes it from whatever is open.
+    fn sync_popups(&mut self) {
         let waiting = self.stage.popup_waiting();
+        let centered = self.stage.stance().centered();
+        if centered {
+            self.close_menu();
+        }
         match self.stage.mode {
             Mode::Collapsed if waiting && self.menu.is_none() => {
                 self.set_mode(Mode::Open(Panel::Popups));
             }
             Mode::Open(Panel::Popups) if !waiting => self.set_mode(Mode::Collapsed),
+            Mode::Open(panel) if panel != Panel::Popups && waiting && centered => {
+                self.set_mode(Mode::Open(Panel::Popups));
+            }
             Mode::Open(_) => self.stale = true,
             _ => {}
         }
-        self.dirty = true;
+        self.last_frame.get_or_insert_with(Instant::now);
     }
 
     pub fn set_workspaces(&mut self, snapshot: Snapshot) {
@@ -665,6 +703,12 @@ impl Island {
             let watches: Vec<Box<dyn Any>> = features::dashboard_tabs()
                 .into_iter()
                 .filter_map(|(name, _, _)| self.stage.features.get(name)?.panel_opened())
+                .chain(
+                    self.stage
+                        .features
+                        .iter()
+                        .filter_map(|feature| feature.dashboard_opened()),
+                )
                 .collect();
             self.panel_watch = Some(Box::new(watches));
         }
@@ -742,7 +786,7 @@ impl Island {
             .map(|(_, shape)| shape);
         let at_end = self.active_built().is_none_or(|built| {
             built.scrolling.iter().all(|area| {
-                area.key.as_ref() != BODY
+                area.key != BODY
                     || area.reach - self.offsets.get(&area.key).copied().unwrap_or(0.0)
                         < FOLLOW_SLACK
             })
@@ -1005,6 +1049,7 @@ impl Island {
 
     fn still(&self, local_still: impl Fn(&dyn AnyLocal) -> bool) -> bool {
         self.stage.still(local_still)
+            && self.stand.is_settled()
             && self.strip.is_settled()
             && self.menu.as_ref().is_none_or(Menu::is_settled)
             && self
@@ -1770,6 +1815,7 @@ impl Island {
             .map_or(Duration::ZERO, |last| (now - last).min(MAX_STEP))
             .as_secs_f32();
         self.stage.advance(dt, now);
+        self.stand.advance(dt, now);
         if self.look.glow > 0.0 {
             let levels = self
                 .stage
@@ -1845,7 +1891,16 @@ impl Island {
             let width = collapsed_width(self.bar_width(false), self.stage.hovered);
             self.stage.morph.w.reset(width);
         }
-        let sprites = self.compose(glyphs, painter, gpu);
+        self.stand.aim(
+            self.stage.stance(),
+            self.stage.morph.h.target(),
+            self.look.top,
+            now,
+        );
+        let mut sprites = self.compose(glyphs, painter, gpu);
+        let radius = self.look.corner.0.min(self.body[3] / 2.0);
+        self.stand
+            .dress(&mut sprites, self.body, radius, self.scale);
         self.sync_regions(compositor);
         self.show(&sprites, gpu, now);
         self.drew_at = now;
@@ -1929,7 +1984,7 @@ impl Island {
         let Some(surface) = &self.surface else {
             return;
         };
-        match gpu.draw(surface, sprites, self.scale) {
+        match gpu.draw_in(surface, sprites, self.scale, self.stand.view(self.scale)) {
             Presented::Shown => return,
             Presented::Skipped => {}
             Presented::Outdated => {
@@ -1942,30 +1997,45 @@ impl Island {
     }
 
     fn sync_regions(&mut self, compositor: &CompositorState) {
-        let holes = self.holes();
-        if self.region.as_ref() == Some(&holes) {
-            return;
-        }
+        let (radius, power) = self.look.corner;
+        let corner = (radius.min(self.body[3] / 2.0), power);
+        let (holes, rows) = match self.stand.regions(self.body, corner, self.scale) {
+            Some((input, blur)) => {
+                let mut key = input.clone();
+                key.extend(blur.iter().copied());
+                if self.region.as_ref() == Some(&key) {
+                    return;
+                }
+                self.region = Some(key);
+                (input, blur)
+            }
+            None => {
+                let holes = self.holes();
+                if self.region.as_ref() == Some(&holes) {
+                    return;
+                }
+                self.region = Some(holes.clone());
+                let whole = |rect: [f32; 4]| rect.map(|value| value.round() as i32);
+                let rows = match self.merge {
+                    Some(merge) => crate::merge::rows(self.body, corner, merge),
+                    None => crate::merge::region(whole(self.body), self.look.corner),
+                };
+                (holes, rows)
+            }
+        };
         let Ok(region) = Region::new(compositor) else {
+            self.region = None;
             return;
         };
         for [x, y, w, h] in &holes {
             region.add(*x, *y, *w, *h);
         }
-        self.region = Some(holes);
         self.layer
             .wl_surface()
             .set_input_region(Some(region.wl_region()));
         if let Some(effect) = &self.blur
             && let Ok(blur) = Region::new(compositor)
         {
-            let whole = |rect: [f32; 4]| rect.map(|value| value.round() as i32);
-            let (radius, power) = self.look.corner;
-            let corner = (radius.min(self.body[3] / 2.0), power);
-            let rows = match self.merge {
-                Some(merge) => crate::merge::rows(self.body, corner, merge),
-                None => crate::merge::region(whole(self.body), self.look.corner),
-            };
             for [x, y, w, h] in rows {
                 blur.add(x, y, w, h);
             }
@@ -1992,7 +2062,10 @@ impl Island {
         })
     }
 
+    /// `at` is on its surface, which shows the island moved while it stands off the bar.
     pub fn pointer_moved(&mut self, at: (f32, f32)) {
+        let (x, y) = self.stand.shift(self.scale);
+        let at = (at.0 - x, at.1 - y);
         self.pointer = Some(at);
         if !self.stage.hovered {
             self.stage.set_pointer(true);

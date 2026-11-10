@@ -7,6 +7,7 @@ fn edge() -> Edge {
         width: 100.0,
         height: 30.0,
         radius: 10.0,
+        scale: 1.0,
     }
 }
 

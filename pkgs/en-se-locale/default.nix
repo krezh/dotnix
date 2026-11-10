@@ -1,6 +1,6 @@
-{ glibcLocales }:
+{ pkgs }:
 
-glibcLocales.overrideAttrs (oldAttrs: {
+pkgs.glibcLocales.overrideAttrs (oldAttrs: {
   pname = "glibc-locales-en-se";
   postPatch = (oldAttrs.postPatch or "") + ''
     cp ${./en_SE} localedata/locales/en_SE

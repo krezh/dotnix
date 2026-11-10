@@ -48,6 +48,14 @@ pub fn span(seconds: u64) -> String {
     }
 }
 
+/// How long something under way has taken, counting the seconds for its first minute.
+pub fn running(seconds: u64) -> String {
+    match seconds {
+        ..60 => format!("{seconds}s"),
+        seconds => span(seconds),
+    }
+}
+
 pub fn ago(seconds: i64) -> String {
     match seconds.max(0) {
         ..60 => "just now".to_owned(),

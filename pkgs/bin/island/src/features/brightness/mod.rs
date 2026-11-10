@@ -1,10 +1,8 @@
-//! Neither logind nor DDC/CI tells of changes made elsewhere, so a screen's level is as island last
-//! read or set it.
-
 mod device;
 mod feature;
 mod overview;
 mod runtime;
 mod state;
+mod uevent;
 
 pub use runtime::Brightness;

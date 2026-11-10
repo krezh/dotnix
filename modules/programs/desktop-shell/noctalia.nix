@@ -40,17 +40,7 @@
             fi
 
             if [[ -n "$hyprland_signature" && -S "''${XDG_RUNTIME_DIR:?}/hypr/$hyprland_signature/.socket.sock" ]]; then
-              case "$action" in
-                logout)
-                  exec ${lib.getExe config.homeModules.dusk.package} logout
-                  ;;
-                reboot)
-                  exec ${lib.getExe config.homeModules.dusk.package} reboot
-                  ;;
-                shutdown)
-                  exec ${lib.getExe config.homeModules.dusk.package} shutdown
-                  ;;
-              esac
+              exec ${lib.getExe config.homeModules.island.package} ctl session "$action"
             fi
 
             printf 'unsupported compositor session\n' >&2

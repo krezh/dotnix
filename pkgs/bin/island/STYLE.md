@@ -17,13 +17,14 @@ something this guide does not cover, add it here and to the shared code, not to 
 
 Always format through `units.rs`, so a value reads the same everywhere.
 
-| What           | Function       | Reads as                                 |
-| -------------- | -------------- | ---------------------------------------- |
-| Size           | `units::bytes` | `512 B`, `4.2 kB`, `12 MB`, `1.5 GB`     |
-| Speed          | `units::rate`  | `512 B/s`, `1.5 MB/s`                    |
-| Link speed     | `units::link`  | `866 Mb/s`, `2.5 Gb/s`                   |
-| Length of time | `units::span`  | `<1m`, `4m`, `2h 5m`, `3d 4h`            |
-| Time since     | `units::ago`   | `just now`, `4m ago`, `2h ago`, `3d ago` |
+| What           | Function         | Reads as                                 |
+| -------------- | ---------------- | ---------------------------------------- |
+| Size           | `units::bytes`   | `512 B`, `4.2 kB`, `12 MB`, `1.5 GB`     |
+| Speed          | `units::rate`    | `512 B/s`, `1.5 MB/s`                    |
+| Link speed     | `units::link`    | `866 Mb/s`, `2.5 Gb/s`                   |
+| Length of time | `units::span`    | `<1m`, `4m`, `2h 5m`, `3d 4h`            |
+| Time since     | `units::ago`     | `just now`, `4m ago`, `2h ago`, `3d ago` |
+| Time under way | `units::running` | `0s`, `42s`, `1m`, `1h 5m`               |
 
 - Sizes count in steps of 1024 and keep one decimal only under 10.
 - Other units take a space: `12 ms`, `2.4 GHz`, `-60 dBm`, `3.92 V`.

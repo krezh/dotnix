@@ -1,11 +1,9 @@
 {
   lib,
-  craneLib,
   pkgs,
-  makeWrapper,
 }:
-craneLib.buildPackage rec {
-  src = craneLib.cleanCargoSource ./.;
+pkgs.craneLib.buildPackage rec {
+  src = pkgs.craneLib.cleanCargoSource ./.;
   strictDeps = true;
 
   buildInputs = with pkgs; [
@@ -15,7 +13,7 @@ craneLib.buildPackage rec {
     libxkbcommon
   ];
 
-  cargoArtifacts = craneLib.buildDepsOnly {
+  cargoArtifacts = pkgs.craneLib.buildDepsOnly {
     inherit src strictDeps buildInputs;
     nativeBuildInputs = with pkgs; [
       pkg-config

@@ -143,6 +143,7 @@ fn connected(device: &Device, open: bool, now: i64, subsec: Duration, p: &PanelC
                 ],
             ),
             Block::Buttons(ButtonRow {
+                fill: false,
                 buttons: vec![IconButton {
                     glyph: None,
                     color: None,
@@ -372,6 +373,7 @@ pub fn panel(state: &State, p: &PanelCx<'_>) -> PanelView {
         };
     }
     blocks.push(Block::Buttons(ButtonRow {
+        fill: false,
         buttons: buttons(state, now, subsec, p),
         compact: false,
         indent: 0.0,

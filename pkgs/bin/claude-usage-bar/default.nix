@@ -1,11 +1,11 @@
 {
   lib,
-  craneLib,
+  pkgs,
 }:
-craneLib.buildPackage rec {
-  src = craneLib.cleanCargoSource ./.;
+pkgs.craneLib.buildPackage rec {
+  src = pkgs.craneLib.cleanCargoSource ./.;
   strictDeps = true;
-  cargoArtifacts = craneLib.buildDepsOnly { inherit src strictDeps; };
+  cargoArtifacts = pkgs.craneLib.buildDepsOnly { inherit src strictDeps; };
 
   meta = {
     description = "Claude Code status line showing rate limit and context window usage";

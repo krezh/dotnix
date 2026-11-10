@@ -49,6 +49,7 @@ fn level(state: &AudioState, target: Target, p: &PanelCx<'_>) -> Option<Block> {
         Target::Input => ("Input", glyphs::microphone(channel.muted), PINK),
     };
     Some(Block::Slider(Slider {
+        thin: false,
         value: if channel.muted { 0.0 } else { channel.volume },
         color: if channel.muted { OVERLAY2 } else { color },
         signal: None,
@@ -190,6 +191,7 @@ fn playing_card(state: &AudioState, p: &PanelCx<'_>) -> Option<Block> {
                 )],
             };
             let slider = Block::Slider(Slider {
+                thin: false,
                 value: if app.muted { 0.0 } else { app.volume },
                 color: MAUVE,
                 signal: None,

@@ -14,7 +14,6 @@
     in
     {
       services.polkit-gnome.enable = true;
-      homeModules.dusk.enable = true;
 
       catppuccin.hyprland.enable = false;
       wayland.windowManager.hyprland = {

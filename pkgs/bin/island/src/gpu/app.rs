@@ -184,6 +184,7 @@ struct App {
     samples: Samples,
     workspaces: Option<Snapshot>,
     new_outputs: Vec<wl_output::WlOutput>,
+    battery_monitor: features::battery::Monitor,
 }
 
 impl App {
@@ -394,6 +395,35 @@ impl App {
         }
     }
 
+    /// Gives each island the whole of its screen while it stands off the bar, keeping the room it
+    /// keeps clear at the top, and its own room again once it is back.
+    fn sync_screens(&mut self) {
+        for island in &mut self.islands {
+            let wanted = island.stand.wants_screen();
+            if wanted == island.stand.asked {
+                continue;
+            }
+            if wanted {
+                let Some((_, height)) = self
+                    .output_state
+                    .info(&island.output)
+                    .and_then(|info| info.logical_size)
+                else {
+                    continue;
+                };
+                island
+                    .layer
+                    .set_anchor(Anchor::TOP | Anchor::LEFT | Anchor::RIGHT);
+                island.layer.set_size(0, height.max(1) as u32);
+            } else {
+                island.layer.set_anchor(Anchor::TOP);
+                island.layer.set_size(SURFACE_W as u32, SURFACE_H as u32);
+            }
+            island.stand.asked = wanted;
+            island.layer.commit();
+        }
+    }
+
     fn cover(&mut self, qh: &QueueHandle<Self>, output: wl_output::WlOutput, keys: bool) {
         let scale = self
             .output_state
@@ -507,6 +537,7 @@ impl Frontend for App {
     }
 
     fn changed(&mut self, name: &'static str) {
+        self.battery_monitor.update(&self.features);
         for island in &mut self.islands {
             island.feature_changed(name);
         }
@@ -628,6 +659,7 @@ impl LayerShellHandler for App {
             .find(|island| &island.layer == layer)
         {
             island.configured = true;
+            island.resized(configure.new_size, self.gpu.as_ref());
             island.dirty = true;
         }
         if let (Some(cover), Some(gpu)) = (
@@ -1064,6 +1096,7 @@ pub fn run(
         grabbed: None,
         glyphs: Glyphs::default(),
         features: Rc::new(started),
+        battery_monitor: features::battery::Monitor::new(config.battery.clone()),
         config,
         system: Rc::new(system),
         samples: sys::watch(),
@@ -1071,6 +1104,7 @@ pub fn run(
         new_outputs: Vec::new(),
     };
     bar::measure_labels(&mut |title, size| app.painter.line(title, size, SEMIBOLD, 1.0).width);
+    app.battery_monitor.update(&app.features);
 
     let wake = Arc::new(Woken(event_fd()?));
     let wake_fd = wake.0.try_clone().map_err(|error| error.to_string())?;
@@ -1147,6 +1181,7 @@ pub fn run(
                 }
             }
         }
+        app.sync_screens();
         app.sync_covers(&qh);
         app.sync_cursor();
         if let Some(manager) = &app.idle_manager {

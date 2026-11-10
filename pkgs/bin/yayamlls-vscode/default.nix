@@ -1,16 +1,14 @@
 {
   lib,
-  buildNpmPackage,
-  fetchFromGitHub,
   pkgs,
 }:
 
-buildNpmPackage (finalAttrs: {
+pkgs.buildNpmPackage (finalAttrs: {
   pname = "yayamlls-vscode";
   # renovate: datasource=github-releases depName=home-operations/yayamlls
   version = "0.3.3";
 
-  src = fetchFromGitHub {
+  src = pkgs.fetchFromGitHub {
     owner = "home-operations";
     repo = "yayamlls";
     tag = finalAttrs.version;

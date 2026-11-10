@@ -1,8 +1,6 @@
 {
-  pkgs,
-  go-bin,
   lib,
-  ...
+  pkgs,
 }:
 let
   src = builtins.path {
@@ -15,7 +13,7 @@ pkgs.buildGoApplication {
   version = "0.1.0";
   inherit src;
 
-  go = go-bin.latestStable;
+  go = pkgs.go-bin.latestStable;
   modules = "${src}/govendor.toml";
   buildInputs = [ pkgs.kopia ];
   ldflags = [

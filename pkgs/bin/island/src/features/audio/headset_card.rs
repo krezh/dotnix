@@ -38,6 +38,7 @@ fn reading(id: &'static str, title: &'static str, value: f32, color: u32) -> Blo
         trail: vec![Trail::Text(amount(value, false).into(), color)],
     };
     let slider = Slider {
+        thin: false,
         value,
         color,
         signal: None,

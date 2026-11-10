@@ -1,20 +1,19 @@
 {
   lib,
-  appimageTools,
-  fetchurl,
+  pkgs,
 }:
 let
   pname = "wowup-cf";
   # renovate: datasource=github-releases depName=WowUp/WowUp.CF
   version = "2.25.4";
-  src = fetchurl {
+  src = pkgs.fetchurl {
     url = "https://github.com/WowUp/WowUp.CF/releases/download/v${version}/WowUp-CF-${version}.AppImage";
     hash = "sha256-tKOFboaUo1wgLJ2xjLPOyqHrf8Do+oS0ZzL2fcs8Jc4=";
   };
 
-  appimageContents = appimageTools.extract { inherit pname version src; };
+  appimageContents = pkgs.appimageTools.extract { inherit pname version src; };
 in
-appimageTools.wrapType2 {
+pkgs.appimageTools.wrapType2 {
   inherit pname version src;
 
   extraInstallCommands = ''

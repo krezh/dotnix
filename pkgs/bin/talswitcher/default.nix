@@ -1,16 +1,13 @@
 {
   lib,
-  buildGoModule,
-  fetchFromGitHub,
-  go-bin,
-  installShellFiles,
+  pkgs,
 }:
-(buildGoModule.override { go = go-bin.latestStable; }) (finalAttrs: {
+(pkgs.buildGoModule.override { go = pkgs.go-bin.latestStable; }) (finalAttrs: {
   pname = "talswitcher";
   # renovate: datasource=github-releases depName=mirceanton/talswitcher
   version = "2.2.43";
 
-  src = fetchFromGitHub {
+  src = pkgs.fetchFromGitHub {
     owner = "mirceanton";
     repo = "talswitcher";
     rev = "v${finalAttrs.version}";
@@ -30,7 +27,7 @@
     "-X=github.com/mirceanton/${finalAttrs.pname}/cmd.version=${finalAttrs.version}"
   ];
 
-  nativeBuildInputs = [ installShellFiles ];
+  nativeBuildInputs = [ pkgs.installShellFiles ];
 
   postInstall = ''
     installShellCompletion --cmd talswitcher \

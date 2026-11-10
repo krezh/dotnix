@@ -11,6 +11,7 @@ mod paint;
 mod panel;
 mod records;
 mod renderer;
+mod stand;
 mod turn;
 mod widget;
 mod wrap;

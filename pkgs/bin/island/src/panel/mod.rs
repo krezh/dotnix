@@ -23,11 +23,11 @@ pub use crate::components::{
     transcript::{Piece, Transcript, Turn},
 };
 
-pub use gpui_shared_string::SharedString;
 pub use model::{
-    ActionTile, Block, Button, ButtonRow, ChartView, Handler, Header, HeaderLead, IconButton,
+    ActionTile, Block, Button, ButtonRow, ChartView, Handler, Header, HeaderLead, Hero, IconButton,
     PanelView, Passing, Place, Placed, Split, Views, Warning, on,
 };
+pub use smol_str::SmolStr as SharedString;
 pub use ui::Ui;
 
 pub use model::PLACED_MARGIN;

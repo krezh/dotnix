@@ -1,20 +1,19 @@
 {
   lib,
-  appimageTools,
-  fetchurl,
+  pkgs,
 }:
 let
   pname = "fladder";
   # renovate: datasource=github-releases depName=DonutWare/Fladder
   version = "0.11.1";
-  src = fetchurl {
+  src = pkgs.fetchurl {
     url = "https://github.com/DonutWare/Fladder/releases/download/v${version}/Fladder-Linux-${version}.AppImage";
     hash = "sha256-LQB7ifqa8geVX9xjHlInNY9eIPeqlsPy9mQJwECk40M=";
   };
 
-  appimageContents = appimageTools.extract { inherit pname version src; };
+  appimageContents = pkgs.appimageTools.extract { inherit pname version src; };
 in
-appimageTools.wrapType2 {
+pkgs.appimageTools.wrapType2 {
   inherit pname version src;
 
   extraPkgs = pkgs: [

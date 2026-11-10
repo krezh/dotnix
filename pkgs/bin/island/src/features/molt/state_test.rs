@@ -10,10 +10,10 @@ fn reads_the_watchlist_and_lays_out_each_pr_s_path() {
     let watchlist = report.watchlist.as_ref().unwrap();
     let row = watchlist.prs[0].row();
     assert_eq!(
-        row.title.as_ref(),
+        row.title.as_str(),
         "#573942 lixPackageSets.lix_2_95.lix: drop unsupported option mimalloc"
     );
-    assert_eq!(row.detail.as_ref(), "NixOS/nixpkgs · Merged · 982cb88");
+    assert_eq!(row.detail.as_str(), "NixOS/nixpkgs · Merged · 982cb88");
     assert!(row.done.is_none());
     let states: Vec<StopState> = row.stops.into_iter().map(|stop| stop.state).collect();
     assert_eq!(

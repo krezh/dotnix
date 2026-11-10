@@ -1,25 +1,12 @@
 {
-  fetchFromGitHub,
-  gobject-introspection,
-  gtk4,
-  imagemagick,
   lib,
-  libadwaita,
-  libgudev,
-  libmanette,
-  meson,
-  ninja,
-  python3Packages,
-  umu-launcher,
-  lsfg-vk,
-  wrapGAppsHook4,
-  xdg-utils,
+  pkgs,
 }:
 
-python3Packages.buildPythonApplication (
+pkgs.python3Packages.buildPythonApplication (
   finalAttrs:
   let
-    pythonDeps = with python3Packages; [
+    pythonDeps = with pkgs.python3Packages; [
       dbus-python
       icoextract
       pillow
@@ -35,7 +22,7 @@ python3Packages.buildPythonApplication (
     version = "2.5.7";
     pyproject = false;
 
-    src = fetchFromGitHub {
+    src = pkgs.fetchFromGitHub {
       owner = "Faugus";
       repo = "faugus-launcher";
       tag = finalAttrs.version;
@@ -43,39 +30,39 @@ python3Packages.buildPythonApplication (
     };
 
     nativeBuildInputs = [
-      gobject-introspection
-      meson
-      ninja
-      wrapGAppsHook4
+      pkgs.gobject-introspection
+      pkgs.meson
+      pkgs.ninja
+      pkgs.wrapGAppsHook4
     ];
 
     buildInputs = [
-      gtk4
-      libadwaita
-      libgudev
-      libmanette
+      pkgs.gtk4
+      pkgs.libadwaita
+      pkgs.libgudev
+      pkgs.libmanette
     ];
 
     dependencies = pythonDeps;
 
     postPatch = ''
       substituteInPlace faugus-launcher \
-        --replace-fail "/usr/bin/python3" "${python3Packages.python.interpreter}"
+        --replace-fail "/usr/bin/python3" "${pkgs.python3Packages.python.interpreter}"
 
       substituteInPlace faugus/path_manager.py \
-        --replace-fail "PathManager.user_data('faugus-launcher/umu-run')" "'${lib.getExe umu-launcher}'" \
-        --replace-fail 'next((p for p in _LSFGVK_CANDIDATES if p.exists()), _LSFGVK_CANDIDATES[-1])' 'Path("${lsfg-vk}/lib/liblsfg-vk.so")'
+        --replace-fail "PathManager.user_data('faugus-launcher/umu-run')" "'${lib.getExe pkgs.umu-launcher}'" \
+        --replace-fail 'next((p for p in _LSFGVK_CANDIDATES if p.exists()), _LSFGVK_CANDIDATES[-1])' 'Path("${pkgs.lsfg-vk}/lib/liblsfg-vk.so")'
     '';
 
     preFixup = ''
       gappsWrapperArgs+=(
-        --prefix PYTHONPATH : "$out/${python3Packages.python.sitePackages}:${python3Packages.makePythonPath pythonDeps}"
+        --prefix PYTHONPATH : "$out/${pkgs.python3Packages.python.sitePackages}:${pkgs.python3Packages.makePythonPath pythonDeps}"
         --suffix PATH : "${
           lib.makeBinPath [
-            python3Packages.icoextract
-            imagemagick
-            umu-launcher
-            xdg-utils
+            pkgs.python3Packages.icoextract
+            pkgs.imagemagick
+            pkgs.umu-launcher
+            pkgs.xdg-utils
           ]
         }"
       )

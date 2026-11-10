@@ -161,6 +161,7 @@ fn welcome(p: &PanelCx<'_>) -> Vec<Block> {
             ))],
         ),
         Block::Buttons(ButtonRow {
+            fill: false,
             buttons: starters,
             compact: true,
             indent: LEAD + item::LEAD_GAP,

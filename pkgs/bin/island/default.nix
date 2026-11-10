@@ -1,6 +1,5 @@
 {
   lib,
-  craneLib,
   pkgs,
 }:
 let
@@ -9,14 +8,14 @@ let
     wayland
     libxkbcommon
   ];
-  src = craneLib.cleanCargoSource ./.;
+  src = pkgs.craneLib.cleanCargoSource ./.;
   lucide = pkgs.fetchzip {
     name = "lucide-static-1.64.0";
     url = "https://registry.npmjs.org/lucide-static/-/lucide-static-1.64.0.tgz";
     hash = "sha256-ObvLERXG5YwBzFHwdvJ+fKtch18n0pn8EZBQiX7YOV8=";
   };
 in
-craneLib.buildPackage rec {
+pkgs.craneLib.buildPackage rec {
   inherit src;
   strictDeps = true;
 
@@ -50,7 +49,7 @@ craneLib.buildPackage rec {
     $out/bin/island ai-hook plugin $out/share/island/claude-code
   '';
 
-  cargoArtifacts = craneLib.buildDepsOnly {
+  cargoArtifacts = pkgs.craneLib.buildDepsOnly {
     inherit
       src
       strictDeps

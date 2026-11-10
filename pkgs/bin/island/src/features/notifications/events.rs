@@ -4,9 +4,13 @@ use super::{
     Cards, Event, Notifications,
     notification::{Action, Expire, Notification, Posted, Reason, Signal, next_id},
 };
-use crate::features::{
-    Islands,
-    notice::{Notice, Post},
+use crate::{
+    components::icon::Picture,
+    features::{
+        Islands,
+        notice::{Notice, Post},
+    },
+    glyphs, icons,
 };
 
 impl Notifications {
@@ -52,7 +56,9 @@ impl Notifications {
     }
 
     fn show(&self, notification: Notification, islands: &mut Islands<'_, Cards>) {
-        self.remember(&notification);
+        if !notification.transient {
+            self.remember(&notification);
+        }
         let shown = islands.find(|cards| cards.toasts.live_card_for(notification.id).is_some());
         let (missed, dnd) = {
             let store = self.store.borrow();
@@ -74,7 +80,9 @@ impl Notifications {
         if shown.is_some() {
             self.show(notification, islands);
         } else {
-            self.remember(&notification);
+            if !notification.transient {
+                self.remember(&notification);
+            }
             self.add_missed(notification);
         }
     }
@@ -134,16 +142,21 @@ impl Notifications {
 
 fn from_notice(id: u32, notice: Notice) -> Notification {
     let lead = notice.lead.then(|| notice.origin.feature.clone());
+    let icon = notice
+        .icon
+        .as_deref()
+        .and_then(|icon| icons::lookup(icon).or_else(|| glyphs::bundled(icon)))
+        .map(Picture::File);
     Notification {
         id,
         app: notice.app,
         summary: notice.title,
         body: notice.body,
         critical: notice.critical,
-        icon: None,
+        icon,
         image: None,
         lead,
-        transient: false,
+        transient: notice.transient,
         resident: false,
         expire: Expire::Default,
         actions: notice

@@ -65,6 +65,7 @@ fn button(label: &str, active: bool, on_click: crate::panel::Handler) -> IconBut
 
 fn buttons(buttons: Vec<IconButton>, lead: f32) -> Block {
     Block::Buttons(ButtonRow {
+        fill: false,
         buttons,
         compact: true,
         indent: lead + item::LEAD_GAP,

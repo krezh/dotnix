@@ -32,6 +32,7 @@ mod presence;
 mod profile;
 mod resume;
 mod run;
+mod session_lock;
 mod spring;
 mod stage;
 mod supervisor;
@@ -213,9 +214,11 @@ fn main() {
     logging::serve();
 
     let workspaces = compositor::start();
+    features::battery::set_low(settings.features.battery.low);
     let config = Startup {
         layout: Rc::new(settings.bar.clone()),
         features: Rc::new(settings.features.settings),
+        battery: settings.features.battery.clone(),
         top: compositor::backend()
             .and_then(|backend| backend.top_gap())
             .unwrap_or(10.0),

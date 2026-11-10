@@ -14,7 +14,7 @@ pub const START: f32 = 0.12;
 /// The fraction of the edge the beam covers.
 const BEAM: f32 = 0.35;
 /// The height the beam's widths are drawn for; it scales with what it runs round.
-const UNIT_H: f32 = 30.0;
+pub const UNIT_H: f32 = 30.0;
 /// Between the dots that make up the beam.
 const STEP: f32 = 0.75;
 
@@ -24,6 +24,34 @@ pub struct Edge {
     pub width: f32,
     pub height: f32,
     pub radius: f32,
+    /// How thick the beam is, 1 for something [`UNIT_H`] tall.
+    pub scale: f32,
+}
+
+/// What a beam is drawn in: its tail, the glow round its head, and the head's core.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Hue {
+    pub tail: u32,
+    pub head: u32,
+    pub core: u32,
+}
+
+/// The beam of something busy that has no color of its own.
+pub const ENERGY: Hue = Hue {
+    tail: SAPPHIRE,
+    head: SKY,
+    core: TEXT,
+};
+
+impl Hue {
+    /// A beam in one color, such as that of what is under way.
+    pub fn of(color: u32) -> Self {
+        Self {
+            tail: color,
+            head: color,
+            core: TEXT,
+        }
+    }
 }
 
 /// One of the dots a beam is made of.
@@ -49,6 +77,7 @@ impl Edge {
             width,
             height,
             radius: r,
+            ..
         } = *self;
         let across = width - 2.0 * r;
         let down = height - 2.0 * r;
@@ -91,8 +120,8 @@ impl Edge {
 }
 
 /// The head is `phase` of the way round; the tail thins and fades behind it.
-pub fn dots(edge: &Edge, phase: f32, opacity: f32) -> Vec<Dot> {
-    let scale = edge.height / UNIT_H;
+pub fn dots(edge: &Edge, phase: f32, opacity: f32, hue: Hue) -> Vec<Dot> {
+    let scale = edge.scale;
     let mut shown = Vec::new();
     let dots = ((BEAM * edge.length() / STEP).ceil() as usize).max(24);
     for index in (0..=dots).rev() {
@@ -106,27 +135,27 @@ pub fn dots(edge: &Edge, phase: f32, opacity: f32) -> Vec<Dot> {
         shown.push(Dot {
             at: edge.point(phase - BEAM * behind),
             diameter,
-            color: SAPPHIRE,
+            color: hue.tail,
             alpha,
         });
     }
     shown.push(Dot {
         at: edge.point(phase - BEAM),
         diameter: 1.4 * scale,
-        color: SAPPHIRE,
+        color: hue.tail,
         alpha: 0.12 * opacity,
     });
     let head = edge.point(phase);
     shown.push(Dot {
         at: head,
         diameter: 4.0 * scale,
-        color: SKY,
+        color: hue.head,
         alpha: 0.70 * opacity,
     });
     shown.push(Dot {
         at: head,
         diameter: 1.8 * scale,
-        color: TEXT,
+        color: hue.core,
         alpha: 0.80 * opacity,
     });
     shown

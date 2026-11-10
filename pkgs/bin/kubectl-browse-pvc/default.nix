@@ -1,15 +1,13 @@
 {
   lib,
-  buildGoModule,
-  fetchFromGitHub,
-  go-bin,
+  pkgs,
 }:
-(buildGoModule.override { go = go-bin.latestStable; }) (finalAttrs: {
+(pkgs.buildGoModule.override { go = pkgs.go-bin.latestStable; }) (finalAttrs: {
   pname = "kubectl-browse-pvc";
   # renovate: datasource=github-releases depName=clbx/kubectl-browse-pvc
   version = "1.4.4";
 
-  src = fetchFromGitHub {
+  src = pkgs.fetchFromGitHub {
     owner = "clbx";
     repo = "kubectl-browse-pvc";
     rev = "v${finalAttrs.version}";

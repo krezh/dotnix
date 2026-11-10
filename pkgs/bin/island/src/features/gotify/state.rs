@@ -251,6 +251,7 @@ impl Entry {
             detail: self.detail(),
             via: true,
             lead: false,
+            icon: None,
             actions: self
                 .url
                 .iter()
@@ -264,6 +265,7 @@ impl Entry {
                 .collect(),
             received,
             quiet,
+            transient: false,
         }
     }
 }

@@ -10,10 +10,10 @@ use std::{
     rc::Rc,
 };
 
-use gpui_shared_string::SharedString;
+use smol_str::SmolStr as SharedString;
 
 use super::{
-    Actions, CalendarView, Code, Dropdown, FrameView, InputView, Item, Line, Mark, Meter,
+    Actions, CalendarView, Code, Dropdown, FrameView, InputView, Item, Lead, Line, Mark, Meter,
     MeterShape, Piece, PlayerView, PromptView, Route, SearchView, Series, Slider, TabLabel, Text,
     Tone, Transcript, Turn, Ui,
 };
@@ -90,7 +90,9 @@ pub struct Passing {
 /// Shows its glyph, with its label as the tooltip; without a glyph, its label.
 pub struct IconButton {
     pub glyph: Option<PathBuf>,
-    /// Its glyph's color, filling the button while active, as the session's actions are drawn.
+    /// Its glyph's color, filling the button while active, as the session's actions are drawn. A
+    /// button showing its label is tinted in it at rest, its label in it, such as one forcing
+    /// something.
     pub color: Option<u32>,
     pub label: SharedString,
     pub active: bool,
@@ -108,6 +110,8 @@ pub struct ButtonRow {
     pub menu: Option<Actions>,
     /// At the row's far end, such as actions closing what is shown.
     pub end: bool,
+    /// The buttons share the row's width evenly, such as a choice between two that end something.
+    pub fill: bool,
 }
 
 /// Lines of history over a shared ceiling, as wide as their place and this tall.
@@ -149,6 +153,17 @@ pub struct Placed {
     pub rewind: Option<f32>,
     /// Back to front.
     pub blocks: Vec<(Place, Block)>,
+}
+
+/// A name over fainter lines, optionally beside a lead, such as a host on a tile or what is under
+/// way over how far it has got.
+pub struct Hero {
+    pub lead: Option<Lead>,
+    pub name: SharedString,
+    pub lines: Vec<SharedString>,
+    /// The name at a heading's size, as a panel's title, its words and the lines morphing as
+    /// they change; otherwise larger and still.
+    pub heading: bool,
 }
 
 pub struct ActionTile {
@@ -216,7 +231,7 @@ pub enum Block {
     /// Label and value chips, three to a row, as a tile shows them; a value may have a color.
     Facts(Vec<(SharedString, SharedString, Option<u32>)>),
     /// A large name over fainter lines, as a tile shows a host.
-    Hero(SharedString, Vec<SharedString>),
+    Hero(Hero),
     /// Lanes along one stretch of time from now.
     Timeline(Timeline),
     Ledger(Ledger),
@@ -281,7 +296,14 @@ impl Block {
         discriminant(self).hash(hasher);
         match self {
             Block::Calendar(_) | Block::Slider(_) | Block::Segments(..) => {}
-            Block::Text(text) => text.lines.hash(hasher),
+            // Words that wrap decide how many lines they take.
+            Block::Text(text) => {
+                text.lines.hash(hasher);
+                let wraps = matches!(text.tone, Tone::Body | Tone::Reading | Tone::Caption(_));
+                if wraps && text.lines != Some(1) {
+                    text.text.hash(hasher);
+                }
+            }
             // What it shows decides its size, not where its blocks are in their motion.
             Block::Placed(placed) => placed
                 .visible
@@ -292,6 +314,9 @@ impl Block {
             Block::Tiles(tiles) => tiles.len().hash(hasher),
             Block::Item(item, blocks) => {
                 (item.lead.is_some(), item.trail.len()).hash(hasher);
+                if item.wrap {
+                    item.title.hash(hasher);
+                }
                 for block in blocks {
                     block.hash_shape(hasher);
                 }
@@ -352,7 +377,7 @@ impl Block {
                 }
             }
             Block::Facts(items) => items.len().hash(hasher),
-            Block::Hero(_, lines) => lines.len().hash(hasher),
+            Block::Hero(hero) => (hero.lead.is_some(), hero.heading, hero.lines.len()).hash(hasher),
             Block::Timeline(view) => {
                 (view.side.is_some(), view.lanes.len(), !view.pins.is_empty()).hash(hasher)
             }
@@ -453,3 +478,7 @@ impl PanelView {
 /// How far past what a scrolling [`Block::Placed`] shows its blocks are still drawn, so ones
 /// scrolling in are ready.
 pub const PLACED_MARGIN: f32 = 240.0;
+
+#[cfg(test)]
+#[path = "model_test.rs"]
+mod tests;

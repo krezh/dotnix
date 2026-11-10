@@ -14,7 +14,7 @@ pub struct Glyphs(Arc<HashMap<&'static str, PathBuf>>);
 const BUNDLED: Option<&str> = option_env!("ISLAND_GLYPHS");
 
 /// One of the icons island ships, by its name.
-fn bundled(name: &str) -> Option<PathBuf> {
+pub fn bundled(name: &str) -> Option<PathBuf> {
     let path = Path::new(BUNDLED?).join(format!("{name}.svg"));
     path.exists().then_some(path)
 }

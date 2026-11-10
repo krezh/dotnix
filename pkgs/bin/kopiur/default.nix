@@ -1,7 +1,6 @@
 {
   lib,
-  stdenvNoCC,
-  fetchurl,
+  pkgs,
 }:
 let
   pname = "kopiur";
@@ -10,8 +9,8 @@ let
 
   selectSystem =
     attrs:
-    attrs.${stdenvNoCC.hostPlatform.system}
-      or (throw "${pname}: unsupported system ${stdenvNoCC.hostPlatform.system}");
+    attrs.${pkgs.stdenvNoCC.hostPlatform.system}
+      or (throw "${pname}: unsupported system ${pkgs.stdenvNoCC.hostPlatform.system}");
 
   suffix = selectSystem {
     x86_64-linux = "linux_amd64";
@@ -27,10 +26,10 @@ let
     aarch64-darwin = "sha256-ZL8b+fZUmZ/l8sMX2L5geKHnTy5IsrkkO+0LGlS0YCY=";
   };
 in
-stdenvNoCC.mkDerivation (_finalAttrs: {
+pkgs.stdenvNoCC.mkDerivation (_finalAttrs: {
   inherit pname version;
 
-  src = fetchurl {
+  src = pkgs.fetchurl {
     url = "https://github.com/home-operations/kopiur/releases/download/${version}/kubectl-kopiur_${version}_${suffix}.tar.gz";
     inherit hash;
   };

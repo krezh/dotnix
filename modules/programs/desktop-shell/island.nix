@@ -1,9 +1,6 @@
 {
   flake.modules.homeManager.desktop-shell =
-    { config, lib, ... }:
-    let
-      dusk = lib.getExe config.homeModules.dusk.package;
-    in
+    { config, ... }:
     {
       homeModules.island = {
         enable = true;
@@ -48,23 +45,7 @@
             tokenFile = config.sops.secrets."gotify/token".path;
             url = "wss://gotify.plexuz.xyz";
           };
-          session = {
-            confirm = false;
-            commands = {
-              logout = [
-                dusk
-                "logout"
-              ];
-              reboot = [
-                dusk
-                "reboot"
-              ];
-              shutdown = [
-                dusk
-                "shutdown"
-              ];
-            };
-          };
+          session.confirm = false;
         };
       };
     };

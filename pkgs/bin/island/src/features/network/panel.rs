@@ -988,6 +988,7 @@ pub fn panel(state: &State, p: &PanelCx<'_>) -> PanelView {
         ));
     }
     blocks.push(Block::Buttons(ButtonRow {
+        fill: false,
         buttons: buttons(state, p),
         compact: false,
         indent: 0.0,

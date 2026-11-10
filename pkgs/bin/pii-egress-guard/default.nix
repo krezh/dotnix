@@ -1,16 +1,15 @@
 {
   lib,
-  stdenvNoCC,
-  python3,
+  pkgs,
 }:
-stdenvNoCC.mkDerivation {
+pkgs.stdenvNoCC.mkDerivation {
   pname = "pii-egress-guard";
   version = "0.1.0";
   src = ./.;
 
   dontBuild = true;
   doCheck = true;
-  nativeCheckInputs = [ python3 ];
+  nativeCheckInputs = [ pkgs.python3 ];
 
   checkPhase = ''
     runHook preCheck
@@ -22,7 +21,7 @@ stdenvNoCC.mkDerivation {
     runHook preInstall
     install -Dm755 pii_egress_guard.py $out/bin/pii-egress-guard
     substituteInPlace $out/bin/pii-egress-guard \
-      --replace-fail "#!/usr/bin/env python3" "#!${python3.interpreter} -I"
+      --replace-fail "#!/usr/bin/env python3" "#!${pkgs.python3.interpreter} -I"
     runHook postInstall
   '';
 

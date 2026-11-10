@@ -1,8 +1,8 @@
 {
   lib,
-  stdenvNoCC,
+  pkgs,
 }:
-stdenvNoCC.mkDerivation {
+pkgs.stdenvNoCC.mkDerivation {
   pname = "noctalia-plugin-omp-usage";
   version = "0.2.0";
 

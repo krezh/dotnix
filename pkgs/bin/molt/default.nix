@@ -1,15 +1,14 @@
 {
   lib,
-  craneLib,
   pkgs,
 }:
-craneLib.buildPackage rec {
+pkgs.craneLib.buildPackage rec {
   # The root spans `pkgs/bin` so the `nix-changelog` path dependency is in the source.
   src = lib.fileset.toSource {
     root = ../.;
     fileset = lib.fileset.unions [
       (lib.fileset.fromSource (lib.cleanSource ./.))
-      (craneLib.fileset.commonCargoSources ../nix-changelog)
+      (pkgs.craneLib.fileset.commonCargoSources ../nix-changelog)
     ];
   };
   cargoToml = ./Cargo.toml;
@@ -30,7 +29,7 @@ craneLib.buildPackage rec {
     MOLT_JJ = lib.getExe pkgs.jujutsu;
   };
 
-  cargoArtifacts = craneLib.buildDepsOnly {
+  cargoArtifacts = pkgs.craneLib.buildDepsOnly {
     inherit
       src
       cargoToml
@@ -56,7 +55,7 @@ craneLib.buildPackage rec {
   '';
   cargoTestExtraArgs = "--all-targets";
 
-  passthru.tests.clippy = craneLib.cargoClippy {
+  passthru.tests.clippy = pkgs.craneLib.cargoClippy {
     inherit
       src
       cargoToml

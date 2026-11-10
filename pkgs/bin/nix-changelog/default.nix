@@ -1,18 +1,17 @@
 {
   lib,
-  craneLib,
-  installShellFiles,
+  pkgs,
 }:
-craneLib.buildPackage rec {
+pkgs.craneLib.buildPackage rec {
   pname = "nix-changelog";
   version = "0.1.0";
 
-  src = craneLib.cleanCargoSource ./.;
+  src = pkgs.craneLib.cleanCargoSource ./.;
   strictDeps = true;
-  cargoArtifacts = craneLib.buildDepsOnly { inherit src strictDeps; };
+  cargoArtifacts = pkgs.craneLib.buildDepsOnly { inherit src strictDeps; };
 
   nativeBuildInputs = [
-    installShellFiles
+    pkgs.installShellFiles
   ];
 
   postInstall = ''

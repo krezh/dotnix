@@ -37,8 +37,8 @@ use crate::{
     },
     panel::PLACED_MARGIN,
     panel::{
-        ActionTile, Block, Button, ButtonRow, Handler, Header, HeaderLead, IconButton, PanelView,
-        Placed, SharedString, Split, Views, Warning,
+        ActionTile, Block, Button, ButtonRow, Handler, Header, HeaderLead, Hero, IconButton,
+        PanelView, Placed, SharedString, Split, Views, Warning,
     },
     stage::CONTENT_IN,
     theme::{
@@ -59,11 +59,14 @@ const PILL: f32 = 1.0e4;
 const CAPTION: f32 = 12.0;
 const FACT_LEADING: f32 = 1.3;
 const HERO_LEADING: f32 = 1.4;
+const HERO_LEAD_GAP: f32 = 14.0;
 const GRID_GAP: f32 = 10.0;
 const SWITCH_GAP: f32 = 8.0;
 const SWITCHES_PER_ROW: usize = 4;
 const COMPACT_GAP: f32 = 6.0;
 const BUTTON_GAP: f32 = 8.0;
+/// A button sharing a row's width, such as one of two choices ending something.
+const FILL_BUTTON_H: f32 = 34.0;
 const COLUMN_H: f32 = 600.0;
 const LEAD: f32 = 40.0;
 const AMOUNT_W: f32 = 40.0;
@@ -479,7 +482,7 @@ impl Blocks<'_, '_> {
             Block::Board(columns) => board(columns),
             Block::Buttons(row) => self.buttons(row),
             Block::Facts(items) => facts(items),
-            Block::Hero(name, lines) => hero(&name, &lines),
+            Block::Hero(view) => hero(view, at),
             Block::Views(views) => self.views_row(views),
             Block::Actions(tiles) => div()
                 .flex()
@@ -697,7 +700,7 @@ impl Blocks<'_, '_> {
                         .bottom(0.0)
                         .h(drawn)
                         .flex()
-                        .child(inner),
+                        .child(inner.flex_1().min_w(0.0)),
                     None => div().w_full().child(inner),
                 };
                 Some(
@@ -1476,6 +1479,7 @@ fn slider(view: Slider) -> Node {
     let value = view.value.clamp(0.0, 1.0);
     let (height, radius) = match view.label {
         Some(_) => (LARGE_H, CONTROL_RADIUS),
+        None if view.thin => (slider_fill::THIN_H, PILL),
         None => (TRACK_H, PILL),
     };
     let fill_tint = if view.signal.is_some() {
@@ -1551,7 +1555,9 @@ fn slider(view: Slider) -> Node {
         .children(signal);
     let node = div()
         .w_full()
-        .when(view.label.is_none(), |hit| hit.py((HIT_H - TRACK_H) / 2.0))
+        .when(view.label.is_none() && !view.thin, |hit| {
+            hit.py((HIT_H - TRACK_H) / 2.0)
+        })
         .child(track);
     match view.on_change {
         Some(on_change) => node.slides(on_change),
@@ -1875,6 +1881,7 @@ fn bar_meter(view: Meter) -> Node {
                     .child(amount),
             )
             .child(slider(Slider {
+                thin: false,
                 value: if muted { 0.0 } else { value },
                 color: tint,
                 signal: None,
@@ -2013,6 +2020,7 @@ fn player(view: PlayerView) -> Node {
             .col()
             .gap(4.0)
             .child(slider(Slider {
+                thin: false,
                 value: fraction,
                 color: ACCENT,
                 signal: None,
@@ -2221,12 +2229,13 @@ fn buttons(row: ButtonRow) -> Node {
         BUTTON_GAP - crate::components::button::BADGE_OVERHANG
     };
     let compact = row.compact;
+    let fill = row.fill;
     div()
         .flex()
         .items_center()
         .when(row.end, Node::justify_end)
         .ml(row.indent)
-        .gap(gap)
+        .gap(if fill { BUTTON_GAP } else { gap })
         .children(row.buttons.into_iter().map(move |button| {
             let side = if compact { CONTROL_H } else { ICON_BUTTON };
             let tint = button.color.unwrap_or(if button.glyph.is_some() {
@@ -2235,11 +2244,17 @@ fn buttons(row: ButtonRow) -> Node {
                 TEXT
             });
             let lit = button.active;
+            let labelled = button.glyph.is_none();
             let rest = match (lit, button.color) {
                 (true, Some(own)) => color(own),
                 (true, None) => surface_fill(true),
+                (false, Some(own)) if labelled => tinted(own, ACCENT_TINT_ALPHA),
                 (false, _) => surface_fill(false),
             };
+            let edge = button
+                .color
+                .filter(|_| labelled && !lit)
+                .map(|own| tinted(own, CARD_BORDER_ALPHA));
             let shown = if lit && button.color.is_some() {
                 ON_ACCENT
             } else if lit {
@@ -2250,13 +2265,15 @@ fn buttons(row: ButtonRow) -> Node {
             let has_glyph = button.glyph.is_some();
             let badge = button.badge.clone();
             let node = control(Some(rest), CONTROL_RADIUS)
-                .flex_none()
+                .when(!fill, Node::flex_none)
+                .when(fill, |node| node.flex_1().min_w(0.0))
+                .when_some(edge, |node, edge| node.outline(edge, CONTROL_RADIUS))
                 .when(has_glyph, |node| node.size(side))
                 .when(!has_glyph, |node| {
-                    node.h(CONTROL_H)
+                    node.h(if fill { FILL_BUTTON_H } else { CONTROL_H })
                         .px(12.0)
                         .gap(8.0)
-                        .text_size(SMALL_SIZE)
+                        .text_size(if fill { TEXT_SIZE } else { SMALL_SIZE })
                         .weight(SEMIBOLD)
                 })
                 .color(shown)
@@ -2266,7 +2283,11 @@ fn buttons(row: ButtonRow) -> Node {
                 })
                 .when(has_glyph, |node| node.tip(button.label.clone()))
                 .on_click(button.on_click);
-            if compact { node } else { badged(node, badge) }
+            if compact || fill {
+                node
+            } else {
+                badged(node, badge)
+            }
         }))
 }
 
@@ -2493,28 +2514,50 @@ fn facts(items: Vec<(SharedString, SharedString, Option<u32>)>) -> Node {
     div().col().gap(6.0).children(rows)
 }
 
-fn hero(name: &str, lines: &[SharedString]) -> Node {
-    div()
+fn hero(hero: Hero, at: &str) -> Node {
+    let Hero {
+        lead,
+        name,
+        lines,
+        heading,
+    } = hero;
+    let words = |line: SharedString| if heading { moving(line) } else { text(line) };
+    let named = if heading {
+        div()
+            .text_size(HEADING_SIZE)
+            .weight(SEMIBOLD)
+            .truncate()
+            .child(words(name))
+    } else {
+        div().text_size(20.0).weight(BOLD).child(words(name))
+    };
+    let column = div()
+        .flex_1()
+        .min_w(0.0)
         .col()
-        .gap(4.0)
-        .child(
-            div()
-                .text_size(20.0)
-                .weight(BOLD)
-                .child(text(name.to_owned())),
-        )
+        .gap(if heading { 3.0 } else { 4.0 })
+        .child(named)
         .child(
             div()
                 .col()
-                .text_size(CAPTION)
+                .text_size(if heading { SMALL_SIZE } else { CAPTION })
                 .leading(HERO_LEADING)
-                .color(SUBTEXT1)
+                .color(if heading { OVERLAY2 } else { SUBTEXT1 })
                 .children(
                     lines
-                        .iter()
-                        .map(|line| div().truncate().child(text(line.clone()))),
+                        .into_iter()
+                        .map(|line| div().truncate().child(words(line))),
                 ),
-        )
+        );
+    match lead {
+        Some(lead) => div()
+            .flex()
+            .items_center()
+            .gap(HERO_LEAD_GAP)
+            .child(lead_node(lead, at))
+            .child(column),
+        None => column,
+    }
 }
 
 fn tile_meters(rows: Vec<tile::Meter>) -> Node {
@@ -2804,7 +2847,16 @@ fn part(part: Part, id: &str, index: usize, span: usize) -> Node {
                 .collect(),
         )
         .flex_none(),
-        Part::Hero { name, lines } => hero(&name, &lines).flex_none(),
+        Part::Hero { name, lines } => hero(
+            Hero {
+                lead: None,
+                name,
+                lines,
+                heading: false,
+            },
+            &id,
+        )
+        .flex_none(),
         Part::Volumes(items) => volumes(format!("{id}-volumes"), items),
         Part::Drives(items) => drives(items),
         Part::Entries { entries, scroll } => {

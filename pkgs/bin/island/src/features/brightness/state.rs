@@ -22,6 +22,34 @@ pub struct Levels {
     pub(super) changes: u64,
 }
 
+/// Closer than any backlight's step.
+const SAME: f32 = 1e-4;
+
+/// Takes in a fresh reading of the screens, without an OSD. A screen that does not answer keeps
+/// its last level, since a monitor sometimes misses a read.
+pub(super) fn reread(levels: &mut Levels, readings: Vec<(String, Option<f32>)>) {
+    for (name, reading) in readings {
+        if let Some(screen) = levels.screens.iter_mut().find(|screen| screen.name == name)
+            && reading.is_some()
+        {
+            screen.level = reading;
+        }
+    }
+}
+
+/// A screen changed by itself or by something else: shown, unless island left it there.
+pub(super) fn moved(levels: &mut Levels, name: &str, level: f32) {
+    let Some(screen) = levels.screens.iter_mut().find(|screen| screen.name == name) else {
+        return;
+    };
+    if screen.level.is_some_and(|last| (last - level).abs() < SAME) {
+        return;
+    }
+    screen.level = Some(level);
+    levels.changed = vec![name.to_owned()];
+    levels.changes += 1;
+}
+
 /// Names the screen when there are several and one changed; with all of them, shows the first.
 pub(super) fn osd(before: &Levels, after: &Levels) -> Option<Osd> {
     if after.changes == before.changes {

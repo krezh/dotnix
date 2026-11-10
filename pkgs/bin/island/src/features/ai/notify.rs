@@ -39,9 +39,11 @@ pub(super) fn send(notices: Vec<Notice>) {
             detail: None,
             via: false,
             lead: true,
+            icon: None,
             actions,
             received: SystemTime::now(),
             quiet: false,
+            transient: false,
         }));
     }
 }

@@ -72,6 +72,7 @@ fn volume(
     let tint = if channel.muted { OVERLAY2 } else { color };
     let mut under = vec![
         Block::Slider(Slider {
+            thin: false,
             value: if channel.muted { 0.0 } else { channel.volume },
             color,
             signal: None,
@@ -240,6 +241,7 @@ fn app_item(
         String::new()
     };
     let slider = Block::Slider(Slider {
+        thin: false,
         value: if app.muted { 0.0 } else { app.volume },
         color: ACCENT,
         signal: Some(peaks.get(&Probe::App(index)).map_or(0.0, |peak| peak.level)),

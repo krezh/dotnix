@@ -1,4 +1,12 @@
-use super::{ago, bytes, link, plural, rate, span};
+use super::{ago, bytes, link, plural, rate, running, span};
+
+#[test]
+fn what_is_under_way_counts_its_first_minute_in_seconds() {
+    assert_eq!(running(0), "0s");
+    assert_eq!(running(59), "59s");
+    assert_eq!(running(65), "1m");
+    assert_eq!(running(3700), "1h 1m");
+}
 
 #[test]
 fn links_read_in_the_largest_whole_unit() {

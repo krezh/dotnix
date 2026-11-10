@@ -1,16 +1,12 @@
 {
   lib,
-  craneLib,
   pkgs,
-  makeWrapper,
-  llvmPackages,
-  installShellFiles,
 }:
-craneLib.buildPackage rec {
+pkgs.craneLib.buildPackage rec {
   src = lib.fileset.toSource {
     root = ./.;
     fileset = lib.fileset.unions [
-      (craneLib.fileset.commonCargoSources ./.)
+      (pkgs.craneLib.fileset.commonCargoSources ./.)
       ./protocols/hyprland-toplevel-export-v1.xml
     ];
   };
@@ -36,11 +32,11 @@ craneLib.buildPackage rec {
   ];
 
   env = {
-    LIBCLANG_PATH = "${llvmPackages.libclang.lib}/lib";
-    BINDGEN_EXTRA_CLANG_ARGS = "-isystem ${llvmPackages.libclang.lib}/lib/clang/${llvmPackages.libclang.version}/include";
+    LIBCLANG_PATH = "${pkgs.llvmPackages.libclang.lib}/lib";
+    BINDGEN_EXTRA_CLANG_ARGS = "-isystem ${pkgs.llvmPackages.libclang.lib}/lib/clang/${pkgs.llvmPackages.libclang.version}/include";
   };
 
-  cargoArtifacts = craneLib.buildDepsOnly {
+  cargoArtifacts = pkgs.craneLib.buildDepsOnly {
     inherit
       src
       strictDeps

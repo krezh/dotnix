@@ -1,17 +1,13 @@
 {
   lib,
-  rustPlatform,
-  fetchFromForgejo,
-  pkg-config,
-  openssl,
-  sqlite,
+  pkgs,
 }:
-rustPlatform.buildRustPackage rec {
+pkgs.rustPlatform.buildRustPackage rec {
   pname = "towonel";
   # renovate: datasource=forgejo-releases registryUrl=https://codeberg.org depName=towonel/towonel
   version = "0.1.10";
 
-  src = fetchFromForgejo {
+  src = pkgs.fetchFromForgejo {
     domain = "codeberg.org";
     owner = "towonel";
     repo = "towonel";
@@ -27,10 +23,10 @@ rustPlatform.buildRustPackage rec {
   ];
   doCheck = false;
 
-  nativeBuildInputs = [ pkg-config ];
+  nativeBuildInputs = [ pkgs.pkg-config ];
   buildInputs = [
-    openssl
-    sqlite
+    pkgs.openssl
+    pkgs.sqlite
   ];
 
   env = {

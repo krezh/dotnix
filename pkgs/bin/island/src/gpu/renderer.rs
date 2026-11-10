@@ -14,7 +14,7 @@ pub const ATLAS: u32 = 2048;
 const FIRST_ROOM: usize = 8192;
 
 const SHADER: &str = r#"
-struct Screen { size: vec2<f32>, pad: vec2<f32> }
+struct Screen { size: vec2<f32>, pad: vec2<f32>, shift: vec2<f32>, rest: vec2<f32> }
 const GAMMA_1_8 = vec4<f32>(0.14805, -0.89459, 1.47591, -0.32467);
 
 @group(0) @binding(0) var<uniform> screen: Screen;
@@ -69,7 +69,8 @@ struct Out {
         pos = middle + vec2<f32>(arm.x * c - arm.y * s, arm.x * s + arm.y * c);
     }
     var out: Out;
-    out.position = vec4<f32>(pos.x / screen.size.x * 2.0 - 1.0, 1.0 - pos.y / screen.size.y * 2.0, 0.0, 1.0);
+    let shown = pos + screen.shift;
+    out.position = vec4<f32>(shown.x / screen.size.x * 2.0 - 1.0, 1.0 - shown.y / screen.size.y * 2.0, 0.0, 1.0);
     out.local = pos;
     out.texel = v.uv.xy + at * v.uv.zw;
     out.rect = rect;
@@ -247,6 +248,23 @@ pub enum Presented {
 }
 
 pub const NO_CLIP: [f32; 4] = [-1.0e6, -1.0e6, 1.0e6, 1.0e6];
+
+/// What a surface shows of the sprites: how big it is, and how far they are moved on it.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct View {
+    pub size: [f32; 2],
+    /// Whole pixels at the scale drawn at, so what is crisp stays crisp.
+    pub shift: [f32; 2],
+}
+
+impl View {
+    pub fn new(size: [f32; 2]) -> Self {
+        Self {
+            size,
+            shift: [0.0; 2],
+        }
+    }
+}
 
 /// Whether `at` is in a rect given as left, top, width and height.
 pub fn inside(rect: [f32; 4], (x, y): (f32, f32)) -> bool {
@@ -682,11 +700,15 @@ impl Gpu {
         });
         let screen = device.create_buffer(&wgpu::BufferDescriptor {
             label: None,
-            size: 16,
+            size: 32,
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
             mapped_at_creation: false,
         });
-        queue.write_buffer(&screen, 0, bytes(&[size[0], size[1], 0.0, 0.0]));
+        queue.write_buffer(
+            &screen,
+            0,
+            bytes(&[size[0], size[1], 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]),
+        );
         let items = RefCell::new(sprite_room(&device, FIRST_ROOM));
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: None,
@@ -810,14 +832,27 @@ impl Gpu {
 
     /// `scale` is how many of its pixels make one of the sprites' units.
     pub fn draw(&self, surface: &wgpu::Surface<'_>, sprites: &[Sprite], scale: f32) -> Presented {
+        self.draw_in(surface, sprites, scale, View::new(self.size))
+    }
+
+    /// As [`Self::draw`], on a surface `view` describes.
+    pub fn draw_in(
+        &self,
+        surface: &wgpu::Surface<'_>,
+        sprites: &[Sprite],
+        scale: f32,
+        view: View,
+    ) -> Presented {
         let mut items = self.items.borrow_mut();
         if items.size() < size_of_val(sprites) as u64 {
             *items = sprite_room(&self.device, sprites.len().next_power_of_two());
         }
+        let [width, height] = view.size;
+        let [x, y] = view.shift;
         self.queue.write_buffer(
             &self.screen,
             0,
-            bytes(&[self.size[0], self.size[1], scale, 0.0]),
+            bytes(&[width, height, scale, 0.0, x, y, 0.0, 0.0]),
         );
         self.queue.write_buffer(&items, 0, bytes(sprites));
         let frame = match surface.get_current_texture() {

@@ -1,8 +1,8 @@
 {
   lib,
-  stdenvNoCC,
+  pkgs,
 }:
-stdenvNoCC.mkDerivation {
+pkgs.stdenvNoCC.mkDerivation {
   pname = "noctalia-plugin-molt-check";
   version = "0.1.0";
 

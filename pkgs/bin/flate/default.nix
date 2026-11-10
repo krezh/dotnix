@@ -1,18 +1,14 @@
 {
   lib,
-  buildGoModule,
-  fetchFromGitHub,
-  go-bin,
-  stdenv,
-  installShellFiles,
+  pkgs,
 }:
 
-(buildGoModule.override { go = go-bin.latestStable; }) (finalAttrs: {
+(pkgs.buildGoModule.override { go = pkgs.go-bin.latestStable; }) (finalAttrs: {
   pname = "flate";
   # renovate: datasource=github-releases depName=home-operations/flate
   version = "0.7.3";
 
-  src = fetchFromGitHub {
+  src = pkgs.fetchFromGitHub {
     owner = "home-operations";
     repo = "flate";
     tag = "v${finalAttrs.version}";
@@ -28,9 +24,9 @@
     "-w"
   ];
 
-  nativeBuildInputs = [ installShellFiles ];
+  nativeBuildInputs = [ pkgs.installShellFiles ];
 
-  postInstall = lib.optionalString (stdenv.buildPlatform.canExecute stdenv.hostPlatform) ''
+  postInstall = lib.optionalString (pkgs.stdenv.buildPlatform.canExecute pkgs.stdenv.hostPlatform) ''
     installShellCompletion --cmd flate \
       --bash <($out/bin/flate completion bash) \
       --fish <($out/bin/flate completion fish) \

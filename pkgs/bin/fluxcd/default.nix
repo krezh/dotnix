@@ -1,18 +1,13 @@
 {
-  buildGoModule,
-  fetchFromGitHub,
-  fetchzip,
-  go-bin,
-  installShellFiles,
   lib,
-  stdenv,
+  pkgs,
 }:
-(buildGoModule.override { go = go-bin.latestStable; }) (finalAttrs: {
+(pkgs.buildGoModule.override { go = pkgs.go-bin.latestStable; }) (finalAttrs: {
   pname = "fluxcd";
   # renovate: datasource=github-releases depName=fluxcd/flux2
   version = "2.10.0";
 
-  src = fetchFromGitHub {
+  src = pkgs.fetchFromGitHub {
     owner = "fluxcd";
     repo = "flux2";
     rev = "v${finalAttrs.version}";
@@ -21,7 +16,7 @@
 
   vendorHash = "sha256-l/4P92/8tpBuQodAw6aHpGpm1sm/t0a605CUyVRdxKY=";
 
-  manifests = fetchzip {
+  manifests = pkgs.fetchzip {
     url = "https://github.com/fluxcd/flux2/releases/download/v${finalAttrs.version}/manifests.tar.gz";
     hash = "sha256-PdhR+UDquIJWtpSymtT6V7qO5fVJOkFz6RGzAx7xeb4=";
     stripRoot = false;
@@ -43,14 +38,14 @@
 
   HOME = "$TMPDIR";
 
-  nativeBuildInputs = [ installShellFiles ];
+  nativeBuildInputs = [ pkgs.installShellFiles ];
 
   doInstallCheck = true;
   installCheckPhase = ''
     $out/bin/flux --version | grep ${finalAttrs.version} > /dev/null
   '';
 
-  postInstall = lib.optionalString (stdenv.buildPlatform.canExecute stdenv.hostPlatform) ''
+  postInstall = lib.optionalString (pkgs.stdenv.buildPlatform.canExecute pkgs.stdenv.hostPlatform) ''
     for shell in bash fish zsh; do
       $out/bin/flux completion $shell > flux.$shell
       installShellCompletion flux.$shell

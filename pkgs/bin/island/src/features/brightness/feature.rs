@@ -1,5 +1,7 @@
 //! How island sees brightness: each screen's level, the OSD it shows, and `island ctl brightness`.
 
+use std::any::Any;
+
 use super::{
     overview,
     runtime::{self, Brightness},
@@ -71,6 +73,10 @@ impl Surface for Brightness {
 
     fn osd(before: &Levels, after: &Levels) -> Option<Osd> {
         state::osd(before, after)
+    }
+
+    fn dashboard_opened(&self) -> Option<Box<dyn Any>> {
+        Some(Box::new(self.watch()))
     }
 
     fn dashboard(&self, levels: &Levels, p: &PanelCx<'_>) -> Dashboard {

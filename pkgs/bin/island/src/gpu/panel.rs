@@ -275,8 +275,28 @@ impl Beam {
     }
 }
 
-/// Round the inside of `rect`.
+/// Round the inside of `rect`, a control.
 pub fn beam_sprites(rect: [f32; 4], phase: f32, opacity: f32, out: &mut Vec<Sprite>) {
+    let scale = (rect[3] - 2.0) / energy::UNIT_H;
+    edge_beam(
+        rect,
+        CONTROL_RADIUS,
+        scale,
+        (phase, opacity),
+        energy::ENERGY,
+        out,
+    );
+}
+
+/// Round the inside of `rect` with corners of `radius`, `scale` thick, in `hue`.
+pub fn edge_beam(
+    rect: [f32; 4],
+    radius: f32,
+    scale: f32,
+    (phase, opacity): (f32, f32),
+    hue: energy::Hue,
+    out: &mut Vec<Sprite>,
+) {
     let (width, height) = (rect[2] - 2.0, rect[3] - 2.0);
     if width <= 0.0 || height <= 0.0 {
         return;
@@ -286,9 +306,10 @@ pub fn beam_sprites(rect: [f32; 4], phase: f32, opacity: f32, out: &mut Vec<Spri
         y: rect[1] + 1.0,
         width,
         height,
-        radius: (CONTROL_RADIUS - 1.0).max(0.0).min(width.min(height) / 2.0),
+        radius: (radius - 1.0).max(0.0).min(width.min(height) / 2.0),
+        scale,
     };
-    for dot in energy::dots(&edge, phase, opacity) {
+    for dot in energy::dots(&edge, phase, opacity, hue) {
         let (x, y) = dot.at;
         let side = dot.diameter;
         out.push(Sprite::shape(

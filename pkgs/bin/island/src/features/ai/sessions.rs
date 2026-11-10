@@ -12,8 +12,8 @@ use crate::{
     },
     features::PanelCx,
     panel::{
-        Block, Change, Code, CodeLine, CodeMotion, FrameView, Item, Lead, Mark, Piece, Split, Text,
-        Tone, Trail, Transcript, Turn,
+        Block, Change, Code, CodeLine, CodeMotion, FrameView, Hero, Item, Lead, Mark, Piece, Split,
+        Text, Tone, Trail, Transcript, Turn,
     },
     paths,
     theme::{ACCENT, GREEN, PEACH, YELLOW},
@@ -394,10 +394,12 @@ fn detail(session: &Session, state: &State, view: &View, p: &PanelCx<'_>) -> Blo
     };
     // Three chips fill one row, as on a tile; the mode goes with the folder.
     let mut blocks = vec![
-        Block::Hero(
-            session.project.clone().into(),
-            vec![format!("{} · {mode} mode", folder(&session.cwd)).into()],
-        ),
+        Block::Hero(Hero {
+            lead: None,
+            name: session.project.clone().into(),
+            lines: vec![format!("{} · {mode} mode", folder(&session.cwd)).into()],
+            heading: false,
+        }),
         // The state in its color, the model in Claude's; the time stays plain.
         Block::Facts(vec![
             ("Status".into(), label.into(), Some(color)),

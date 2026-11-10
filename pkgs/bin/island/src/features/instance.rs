@@ -81,6 +81,7 @@ pub trait AnyFeature {
     fn glow(&self) -> Option<Vec<f32>>;
     fn panel<'a>(&self, p: &mut PanelCx<'a>) -> Option<PanelView>;
     fn panel_opened(&self) -> Option<Box<dyn Any>>;
+    fn dashboard_opened(&self) -> Option<Box<dyn Any>>;
     fn popup<'a>(&self, p: &mut PanelCx<'a>) -> Option<PanelView>;
     fn elapse(&self, local: &mut dyn AnyLocal, hovered: bool);
     fn pointer(&self, local: &mut dyn AnyLocal, over: bool);
@@ -140,6 +141,10 @@ impl<F: Surface> AnyFeature for Rc<Instance<F>> {
 
     fn panel_opened(&self) -> Option<Box<dyn Any>> {
         self.feature.panel_opened()
+    }
+
+    fn dashboard_opened(&self) -> Option<Box<dyn Any>> {
+        self.feature.dashboard_opened()
     }
 
     fn popup<'a>(&self, p: &mut PanelCx<'a>) -> Option<PanelView> {
@@ -223,6 +228,12 @@ impl Features {
     /// Every running feature's rows for `island ctl`'s overview, in the registry's order.
     pub fn status(&self) -> Vec<Row> {
         self.0.iter().flat_map(|feature| feature.status()).collect()
+    }
+    pub fn batteries(&self) -> Vec<Battery> {
+        self.0
+            .iter()
+            .flat_map(|feature| feature.batteries())
+            .collect()
     }
 
     pub fn owning(&self, widget: &str) -> Option<&dyn AnyFeature> {

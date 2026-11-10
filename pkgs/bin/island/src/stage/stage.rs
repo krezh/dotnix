@@ -12,7 +12,7 @@ use std::{
 
 use uuid::Uuid;
 
-use super::{COLLAPSED_H, COLLAPSED_LAYER, FOLD_SPRING, Grab, Mode, Morph, Panel, Shape};
+use super::{COLLAPSED_H, COLLAPSED_LAYER, FOLD_SPRING, Grab, Mode, Morph, Panel, Shape, Stance};
 use crate::{
     config,
     features::{self, AnyLocal, Battery, Features, IslandInfo, PanelCx},
@@ -120,6 +120,14 @@ impl Stage {
 
     pub fn popup_waiting(&self) -> bool {
         self.locals.iter().any(|(_, local)| local.popup())
+    }
+
+    /// Where the features have the island stand, the one taking the most of the screen winning.
+    pub fn stance(&self) -> Stance {
+        self.locals
+            .iter()
+            .map(|(_, local)| local.stance())
+            .fold(Stance::Bar, Stance::over)
     }
 
     pub fn next_due(&self) -> Option<Instant> {
@@ -321,11 +329,13 @@ impl Stage {
             .panel(&mut self.panel_cx(name, glyphs, redraw))
     }
 
+    /// In the middle of the screen, only the pop-ups that took it there.
     pub fn popups(&self, glyphs: &Glyphs, redraw: &Cell<Option<Duration>>) -> Option<PanelView> {
+        let centered = self.stance().centered();
         let blocks: Vec<_> = self
             .locals
             .iter()
-            .filter(|(_, local)| local.popup())
+            .filter(|(_, local)| local.popup() && (!centered || local.stance().centered()))
             .filter_map(|(name, _)| {
                 self.features
                     .get(name)?

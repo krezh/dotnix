@@ -1,4 +1,4 @@
-{ pkgs, go-bin, ... }:
+{ pkgs }:
 let
   src = builtins.path {
     path = ./src;
@@ -10,7 +10,7 @@ pkgs.buildGoApplication {
   version = "0.0.0";
   inherit src;
 
-  go = go-bin.latestStable;
+  go = pkgs.go-bin.latestStable;
   modules = "${src}/govendor.toml";
 
   ldflags = [

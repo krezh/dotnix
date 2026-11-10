@@ -1,5 +1,30 @@
-use super::{Request, Target, batch, merge};
+use std::time::{Duration, Instant};
+
+use super::{Due, Look, Request, Target, batch, merge, postpone};
 use crate::control::Change;
+
+#[test]
+fn a_burst_of_events_waits_for_the_last() {
+    let now = Instant::now();
+    let later = now + Duration::from_secs(1);
+    let first = postpone(None, now, Look::Read);
+    assert_eq!(
+        postpone(Some(first), later, Look::Read),
+        Due {
+            at: later,
+            look: Look::Read
+        }
+    );
+}
+
+#[test]
+fn finding_the_screens_covers_reading_them() {
+    let now = Instant::now();
+    let found = postpone(None, now, Look::Find);
+    assert_eq!(postpone(Some(found), now, Look::Read).look, Look::Find);
+    let read = postpone(None, now, Look::Read);
+    assert_eq!(postpone(Some(read), now, Look::Find).look, Look::Find);
+}
 
 #[test]
 fn queued_steps_add_up() {

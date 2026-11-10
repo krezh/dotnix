@@ -1,17 +1,17 @@
 {
   lib,
-  craneLib,
+  pkgs,
 }:
-craneLib.buildPackage rec {
+pkgs.craneLib.buildPackage rec {
   src = lib.fileset.toSource {
     root = ./.;
     fileset = lib.fileset.unions [
-      (craneLib.fileset.commonCargoSources ./.)
+      (pkgs.craneLib.fileset.commonCargoSources ./.)
       ./70-zowie-batt.rules
     ];
   };
   strictDeps = true;
-  cargoArtifacts = craneLib.buildDepsOnly { inherit src strictDeps; };
+  cargoArtifacts = pkgs.craneLib.buildDepsOnly { inherit src strictDeps; };
 
   postInstall = ''
     install -Dm444 70-zowie-batt.rules -t $out/lib/udev/rules.d

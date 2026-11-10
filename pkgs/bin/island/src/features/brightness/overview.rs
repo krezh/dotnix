@@ -23,6 +23,7 @@ pub fn cards(levels: &Levels, p: &PanelCx<'_>) -> Vec<Block> {
                 (true, false) => screen.model.clone(),
             };
             Some(Block::Slider(Slider {
+                thin: false,
                 value: level,
                 color: YELLOW,
                 signal: None,

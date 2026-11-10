@@ -1,18 +1,17 @@
 {
   lib,
-  stdenvNoCC,
-  fetchurl,
+  pkgs,
 }:
 
 let
   addonId = "share-capture@opentodo";
 in
-stdenvNoCC.mkDerivation (finalAttrs: {
+pkgs.stdenvNoCC.mkDerivation (finalAttrs: {
   pname = "opentodo-browser-extension";
   # renovate: datasource=github-releases depName=pixari/OpenTodo
   version = "1.3.0";
 
-  src = fetchurl {
+  src = pkgs.fetchurl {
     url = "https://github.com/pixari/OpenTodo/releases/download/v${finalAttrs.version}/opentodo-browser-extension-firefox.zip";
     hash = "sha256-sIh4gqaHJTAkjJcWUDkfKAAsJVqvY/iEx7Xf/mmX2BM=";
   };

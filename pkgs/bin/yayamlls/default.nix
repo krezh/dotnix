@@ -1,17 +1,15 @@
 {
   lib,
-  buildGoModule,
-  fetchFromGitHub,
-  go-bin,
+  pkgs,
 }:
 
-(buildGoModule.override { go = go-bin.latestStable; }) (finalAttrs: {
+(pkgs.buildGoModule.override { go = pkgs.go-bin.latestStable; }) (finalAttrs: {
   pname = "yayamlls";
   # renovate: datasource=github-releases depName=home-operations/yayamlls
   version = "0.3.3";
   __structuredAttrs = true;
 
-  src = fetchFromGitHub {
+  src = pkgs.fetchFromGitHub {
     owner = "home-operations";
     repo = "yayamlls";
     tag = finalAttrs.version;

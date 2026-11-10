@@ -14,7 +14,7 @@ use crate::{
     control::{Command, Reply, Report, Row},
     key::Key,
     panel::{ActionTile, Block, Mark, PanelView, Warning},
-    stage::Panel,
+    stage::{Panel, Stance},
     wm::Monitor,
 };
 
@@ -158,6 +158,11 @@ pub trait Surface: Feature {
         None
     }
 
+    /// Held while the dashboard is open, whichever of its views shows.
+    fn dashboard_opened(&self) -> Option<Box<dyn Any>> {
+        None
+    }
+
     fn panel<'a>(&self, _: &Self::State, _: &PanelCx<'a>) -> Option<PanelView> {
         None
     }
@@ -233,6 +238,12 @@ pub trait Local: 'static {
 
     fn popup(&self) -> bool {
         false
+    }
+
+    /// Where it has the island stand: in the bar, or off it, such as in the middle of the screen
+    /// with its pop-up while the session ends.
+    fn stance(&self) -> Stance {
+        Stance::Bar
     }
 
     /// While its panel shows, whether it wants the keys; a feature that takes the keyboard can let

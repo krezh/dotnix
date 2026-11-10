@@ -63,6 +63,9 @@
           icon_theme = cfg.appearance.iconTheme;
         };
         features = {
+          battery = {
+            inherit (cfg.features.battery) notify low critical;
+          };
           notifications = {
             privacy = {
               inherit (cfg.features.notifications.privacy) private;
@@ -223,6 +226,26 @@
         };
 
         features = {
+          battery = {
+            notify = lib.mkOption {
+              type = lib.types.bool;
+              default = true;
+              description = "Whether to show desktop notifications when connected devices reach low or critical battery levels.";
+            };
+
+            low = lib.mkOption {
+              type = lib.types.ints.between 1 100;
+              default = 20;
+              description = "Battery percentage threshold for low battery warnings.";
+            };
+
+            critical = lib.mkOption {
+              type = lib.types.ints.between 1 100;
+              default = 10;
+              description = "Battery percentage threshold for critical battery alerts.";
+            };
+          };
+
           visualizer.glow = lib.mkOption {
             type = lib.types.numbers.between 0 1;
             default = 0.5;
@@ -281,7 +304,7 @@
               lib.mkOption {
                 type = lib.types.listOf lib.types.str;
                 default = [ ];
-                description = "Command (argv) run for ${action} instead of asking logind; empty asks logind.";
+                description = "Command (argv) run for ${action} instead of asking logind, or, for logout, instead of exiting Hyprland; logout, reboot and shutdown run it only once every app has closed. Empty does the usual.";
               }
             );
           };
@@ -567,6 +590,12 @@
       };
 
       config = lib.mkIf cfg.enable {
+        assertions = [
+          {
+            assertion = cfg.features.battery.critical < cfg.features.battery.low;
+            message = "homeModules.island.features.battery.critical must be below low.";
+          }
+        ];
         programs.claude-code = lib.mkIf cfg.features.ai.claudeCode.enable {
           plugins.island = "${cfg.package}/share/island/claude-code";
           settings = {

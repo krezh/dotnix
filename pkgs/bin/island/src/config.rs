@@ -139,6 +139,23 @@ impl Default for Visualizer {
         Self { glow: 0.5 }
     }
 }
+#[derive(Clone, Debug, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct Battery {
+    pub notify: bool,
+    pub low: u8,
+    pub critical: u8,
+}
+
+impl Default for Battery {
+    fn default() -> Self {
+        Self {
+            notify: true,
+            low: crate::features::battery::LOW,
+            critical: crate::features::battery::CRITICAL,
+        }
+    }
+}
 
 #[derive(Clone, Debug, Default, Deserialize)]
 #[serde(default, deny_unknown_fields)]
@@ -219,6 +236,7 @@ pub struct Config {
 pub struct Features {
     pub visualizer: Visualizer,
     pub system: System,
+    pub battery: Battery,
     #[serde(flatten)]
     pub settings: toml::Table,
 }
@@ -227,6 +245,13 @@ impl Config {
     fn check(self) -> Result<Self, String> {
         for (section, settings) in &self.features.settings {
             features::check_settings(section, settings)?;
+        }
+        let battery = &self.features.battery;
+        if battery.low > 100 || battery.critical >= battery.low {
+            return Err(format!(
+                "[features.battery] needs critical below low and low at most 100, got critical = {} and low = {}",
+                battery.critical, battery.low
+            ));
         }
         Ok(self)
     }
@@ -266,6 +291,7 @@ const DEFAULT_BORDER: f32 = 1.0;
 pub struct Startup {
     pub layout: Rc<Bar>,
     pub features: Rc<toml::Table>,
+    pub battery: Battery,
     pub top: f32,
     pub corner: (f32, f32),
     pub opacity: f32,

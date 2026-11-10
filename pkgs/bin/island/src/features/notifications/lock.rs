@@ -1,23 +1,14 @@
 use futures::StreamExt;
-use zbus::{Connection, MatchRule, MessageStream, block_on, message::Type};
+use zbus::{Connection, block_on};
 
 use tracing::{debug, info};
 
 use super::{Event, State};
-use crate::{dbus::uncached, features::Feed, supervisor::Ended};
-
-const LOGIN: &str = "org.freedesktop.login1";
-const SESSION: &str = "/org/freedesktop/login1/session/auto";
-const INTERFACE: &str = "org.freedesktop.login1.Session";
-
-async fn locked(connection: &Connection) -> Option<bool> {
-    uncached(connection, LOGIN, SESSION, INTERFACE)
-        .await
-        .ok()?
-        .get_property::<bool>("LockedHint")
-        .await
-        .ok()
-}
+use crate::{
+    features::Feed,
+    session_lock::{changes, locked},
+    supervisor::Ended,
+};
 
 pub fn follow(feed: &Feed<State, Event>) -> Ended {
     block_on(watch(feed))
@@ -33,17 +24,10 @@ async fn watch(feed: &Feed<State, Event>) -> Ended {
     if !feed.send(Event::Locked(last)) {
         return Ended::Unwanted;
     }
-    let rule = MatchRule::builder()
-        .msg_type(Type::Signal)
-        .sender(LOGIN)
-        .interface("org.freedesktop.DBus.Properties")
-        .member("PropertiesChanged")
-        .build();
-    let mut stream =
-        match async { MessageStream::for_match_rule(rule?, &connection, None).await }.await {
-            Ok(stream) => stream,
-            Err(error) => return Ended::Failed(error.to_string()),
-        };
+    let mut stream = match changes(&connection).await {
+        Ok(stream) => stream,
+        Err(error) => return Ended::Failed(error.to_string()),
+    };
     while let Some(message) = stream.next().await {
         if message.is_err() {
             continue;

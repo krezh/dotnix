@@ -1,18 +1,14 @@
 {
   lib,
-  stdenv,
-  cmake,
-  fetchFromGitHub,
-  pkg-config,
-  hidapi,
+  pkgs,
 }:
 
-stdenv.mkDerivation (finalAttrs: {
+pkgs.stdenv.mkDerivation (finalAttrs: {
   pname = "headsetcontrol";
   # renovate: datasource=github-releases depName=Sapd/HeadsetControl
   version = "4.2.0";
 
-  src = fetchFromGitHub {
+  src = pkgs.fetchFromGitHub {
     owner = "Sapd";
     repo = "HeadsetControl";
     tag = finalAttrs.version;
@@ -20,11 +16,11 @@ stdenv.mkDerivation (finalAttrs: {
   };
 
   nativeBuildInputs = [
-    cmake
-    pkg-config
+    pkgs.cmake
+    pkgs.pkg-config
   ];
 
-  buildInputs = [ hidapi ];
+  buildInputs = [ pkgs.hidapi ];
 
   cmakeFlags = [ "-DCMAKE_BUILD_TYPE=Release" ];
 
@@ -32,7 +28,7 @@ stdenv.mkDerivation (finalAttrs: {
   # fetched tarball has no .git, so inject the real version via a stub git.
   postPatch = ''
     cat > git <<'EOF'
-    #!${stdenv.shell}
+    #!${pkgs.stdenv.shell}
     case "$1 $2" in
       "describe --tags") echo "${finalAttrs.version}" ;;
       "rev-parse --short") echo "nix" ;;

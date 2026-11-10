@@ -387,6 +387,7 @@ fn message(
     let mut blocks = vec![Block::Item(item, under)];
     if !buttons.is_empty() {
         blocks.push(Block::Buttons(ButtonRow {
+            fill: false,
             buttons,
             compact: true,
             indent: ICON + item::LEAD_GAP,

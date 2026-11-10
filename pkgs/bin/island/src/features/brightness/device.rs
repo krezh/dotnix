@@ -1,5 +1,8 @@
 //! The screens island can set the brightness of: a laptop's backlight through logind, and monitors
 //! over DDC/CI. Each is named after its connector as the compositor names it, such as `DP-1`.
+//!
+//! The kernel announces every backlight change, wherever it came from; DDC/CI announces nothing, so a
+//! monitor's level is as island last read or set it.
 
 use std::{
     cmp, fs,
@@ -53,17 +56,28 @@ impl Screen {
         }
     }
 
-    pub(super) fn write(&mut self, level: f32) -> Option<()> {
+    /// The level it was left at: a backlight's is read back, so its own change event matches it.
+    pub(super) fn write(&mut self, level: f32) -> Option<f32> {
         match &mut self.output {
-            Output::Backlight(device) => set_backlight(device, level),
+            Output::Backlight(device) => {
+                set_backlight(device, level)?;
+                backlight_level(device).or(Some(level))
+            }
             Output::Ddc { display, maximum } => {
                 let target = (level.clamp(0.0, 1.0) * f32::from(*maximum)).round() as u16;
-                display.set_brightness(target).or_else(|| {
-                    warn!(screen = %self.name, "cannot set the brightness over DDC/CI");
-                    None
-                })
+                match display.set_brightness(target) {
+                    Some(()) => Some(level),
+                    None => {
+                        warn!(screen = %self.name, "cannot set the brightness over DDC/CI");
+                        None
+                    }
+                }
             }
         }
+    }
+
+    pub(super) fn is_backlight(&self) -> bool {
+        matches!(self.output, Output::Backlight(_))
     }
 }
 

@@ -1,15 +1,13 @@
 {
   lib,
-  buildGoModule,
-  fetchFromGitHub,
-  go-bin,
+  pkgs,
 }:
-(buildGoModule.override { go = go-bin.latestStable; }) (finalAttrs: {
+(pkgs.buildGoModule.override { go = pkgs.go-bin.latestStable; }) (finalAttrs: {
   pname = "kubestr";
   # renovate: datasource=github-releases depName=kastenhq/kubestr
   version = "0.4.49";
 
-  src = fetchFromGitHub {
+  src = pkgs.fetchFromGitHub {
     owner = "kastenhq";
     repo = "kubestr";
     rev = "v${finalAttrs.version}";

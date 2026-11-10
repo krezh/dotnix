@@ -57,7 +57,7 @@
               no_anim = true;
             }
             {
-              match.namespace = "^(dusk)$";
+              match.namespace = "^(island|island-preview)$";
               no_anim = true;
             }
           ];
