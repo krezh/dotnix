@@ -174,6 +174,7 @@ pub(super) fn lead(ai: &Ai, state: &State, view: &View, p: &PanelCx<'_>) -> Opti
         size: LARGE,
         overline: overline(&ai.settings.sources).into(),
         title: title(&ai.settings.sources, state, view.tab).into(),
+        title_color: None,
         on_click: Some(p.on_local::<Ai>(|_, view| view.poke())),
     })
 }

@@ -19,6 +19,8 @@ pub enum Mark {
     Picture(Picture, bool),
     /// The first letter of the text, on the color, for something without an icon.
     Letter(SharedString, u32),
+    /// As a letter, keeping its case, such as the key that picks a menu's choice.
+    Key(SharedString, u32),
     /// Whether an option is picked: a check box when `many` may be, a radio dot when only one.
     /// `key` names its animation, so it fills and empties in place.
     Choice { picked: bool, many: bool },

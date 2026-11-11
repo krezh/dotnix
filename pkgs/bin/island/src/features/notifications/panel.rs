@@ -299,6 +299,7 @@ impl Notifications {
             buttons: Vec::new(),
             icons: self.icons(state, cards, p),
             passing: None,
+            back: None,
         });
         let mut blocks = vec![views];
         let troubles: Vec<Block> = cards

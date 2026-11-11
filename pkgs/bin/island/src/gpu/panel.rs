@@ -22,7 +22,7 @@ use crate::{
         search::Scroll as Rows,
         slider::OnChange,
     },
-    panel::{Handler, SharedString},
+    panel::{Grow, Handler, SharedString},
     spring::SpringConfig,
     theme::{POPOVER_OPACITY, SHADOW_ALPHA, SURFACE, SURFACE_BORDER_ALPHA, SURFACE1, TINT},
     ui::CONTROL_RADIUS,
@@ -30,6 +30,134 @@ use crate::{
 
 /// How far a surface that drops from what opens it falls below it.
 pub const DROP: f32 = 6.0;
+
+/// What a view growing out of a part of another is named by while it passes, and the one it replaces.
+pub const GROW_COMING: &str = "grow-coming";
+pub const GROW_LEAVING: &str = "grow-leaving";
+/// How far the view behind sinks back as another grows over it, and how much of the growing it
+/// takes to fade out entirely.
+const GROW_SINK: f32 = 0.03;
+const GROW_GONE: f32 = 0.15;
+/// How much of the shrinking back it takes the view behind to come back, under the card.
+const GROW_RETURNS: f32 = 0.85;
+/// Where in its growing what it holds starts showing, and how much it takes to show fully.
+const GROW_SHOWS: (f32, f32) = (0.08, 0.45);
+/// From how far through its growing the card's surface dissolves into the panel.
+const GROW_DISSOLVES: f32 = 0.75;
+/// How quickly a view shrinking back turns into a card again.
+const GROW_SOLIDIFIES: f32 = 0.12;
+/// How much of the growing the card it grew out of takes to fade, its own words handing over to the view's.
+const GROW_CARD: f32 = 0.3;
+/// The card a view grows as, under what it holds.
+pub const GROW_SHEET: &str = "grow-sheet";
+
+/// The smallest rect holding both.
+fn union(a: [f32; 4], b: [f32; 4]) -> [f32; 4] {
+    let (left, top) = (a[0].min(b[0]), a[1].min(b[1]));
+    let (right, bottom) = (
+        (a[0] + a[2]).max(b[0] + b[2]),
+        (a[1] + a[3]).max(b[1] + b[3]),
+    );
+    [left, top, right - left, bottom - top]
+}
+
+fn lerp_rect(from: [f32; 4], to: [f32; 4], at: f32) -> [f32; 4] {
+    [0, 1, 2, 3].map(|index| from[index] + (to[index] - from[index]) * at)
+}
+
+/// `sprite` moved and scaled by `by` so what was at `from`'s top left is at `to`'s.
+fn carried(sprite: Sprite, from: [f32; 4], to: [f32; 4], by: f32) -> Sprite {
+    super::stand::folded(sprite.moved(-from[0], -from[1]), (0.0, 0.0), (by, by), 0.0)
+        .moved(to[0], to[1])
+}
+
+/// A view growing out of a part of the one it replaces, or shrinking back into it, as that part
+/// itself would: its surface stretches from the part to the whole, what it holds is carried inside
+/// it at its scale, the part it left stays hidden under it, and the view behind sinks back and
+/// fades. `own` are the panel's sprites before any lie over its edge.
+pub fn grow_sprites(built: &Built, own: &mut [Sprite]) {
+    let Some((grow, at)) = &built.grow else {
+        return;
+    };
+    let (Some(&coming), Some(&leaving)) = (
+        built.anchored.get(GROW_COMING),
+        built.anchored.get(GROW_LEAVING),
+    ) else {
+        return;
+    };
+    let (Some(&coming_rect), Some(&leaving_rect), Some(&part)) = (
+        built.anchors.get(GROW_COMING),
+        built.anchors.get(GROW_LEAVING),
+        built.anchors.get(&grow.anchor),
+    ) else {
+        return;
+    };
+    let whole = union(coming_rect, leaving_rect);
+    // The panel's body is as tall as the coming view alone, the leaving one lying over it, so
+    // what it cuts off would show the two only where they overlap: they take the whole instead.
+    if let Some(body) = built.scrolling.iter().find(|area| area.key == "panel-body") {
+        let (top, bottom) = (body.rect[1], body.rect[1] + body.rect[3]);
+        let at_body = |a: f32, b: f32| (a - top).abs() < 0.5 && (b - bottom).abs() < 0.5;
+        let room = [whole[0], whole[1], whole[0] + whole[2], whole[1] + whole[3]];
+        let len = own.len();
+        for range in [coming, leaving] {
+            for sprite in &mut own[range.0.min(len)..range.1.min(len)] {
+                if at_body(sprite.clip[1], sprite.clip[3]) {
+                    sprite.clip = room;
+                }
+                if at_body(sprite.edges[0], sprite.edges[2]) {
+                    sprite.edges = super::renderer::NO_EDGES;
+                }
+            }
+        }
+    }
+    let at = at.clamp(0.0, 1.0);
+    let (grower, behind, open) = if grow.back {
+        (leaving, coming, 1.0 - at)
+    } else {
+        (coming, leaving, at)
+    };
+    let shape = lerp_rect(part, whole, open);
+    let scale = (shape[2] / whole[2].max(1.0)).clamp(0.01, 1.0);
+    let shows = smoothstep(((open - GROW_SHOWS.0) / GROW_SHOWS.1).clamp(0.0, 1.0));
+    let middle = (whole[0] + whole[2] / 2.0, whole[1] + whole[3] / 2.0);
+    let sink = 1.0 - GROW_SINK * open;
+    let len = own.len();
+    let within = |range: (usize, usize)| range.0.min(len)..range.1.min(len);
+    let gone =
+        1.0 - smoothstep((open / if grow.back { GROW_RETURNS } else { GROW_GONE }).clamp(0.0, 1.0));
+    for sprite in &mut own[within(behind)] {
+        *sprite = super::stand::folded(*sprite, middle, (sink, sink), 0.0).faded(gone);
+    }
+    if let Some(&card) = built.anchored.get(&grow.anchor) {
+        let card_shows = 1.0 - smoothstep((open / GROW_CARD).clamp(0.0, 1.0));
+        for sprite in &mut own[within(card)] {
+            *sprite = sprite.faded(card_shows);
+        }
+    }
+    let grower = within(grower);
+    let layers = built
+        .anchored
+        .get(GROW_SHEET)
+        .map_or(grower.start..grower.start, |sheet| within(*sheet));
+    let near_card = smoothstep((open / GROW_CARD).clamp(0.0, 1.0));
+    let solid = near_card
+        * if grow.back {
+            smoothstep(((1.0 - open) / GROW_SOLIDIFIES).clamp(0.0, 1.0))
+        } else {
+            1.0 - smoothstep(((open - GROW_DISSOLVES) / (1.0 - GROW_DISSOLVES)).clamp(0.0, 1.0))
+        };
+    for sprite in &mut own[layers.clone()] {
+        sprite.rect = shape;
+        *sprite = sprite.faded(solid);
+    }
+    let clip = [shape[0], shape[1], shape[0] + shape[2], shape[1] + shape[3]];
+    for sprite in &mut own[layers.end.max(grower.start)..grower.end] {
+        *sprite = carried(*sprite, whole, shape, scale)
+            .within(clip)
+            .faded(shows);
+    }
+}
 
 /// Takes down by `stretch` those of `sprites` in `rect`, a scrolling area pulled past its end.
 pub fn pulled_along(sprites: &mut [Sprite], rect: [f32; 4], stretch: f32) {
@@ -586,6 +714,8 @@ pub struct Scrolling {
     pub key: SharedString,
     pub rect: [f32; 4],
     pub reach: f32,
+    /// Keeps its end in view as more arrives, while scrolled to it.
+    pub follows: bool,
     /// The sprites of what it holds.
     pub from: usize,
     pub to: usize,
@@ -637,6 +767,8 @@ pub struct Built {
     pub reveals: Vec<Reveal>,
     /// Sprites that fade in and out, each from and to.
     pub pulsing: Vec<(usize, usize)>,
+    /// A view growing out of a part of the one it replaces, and how far.
+    pub grow: Option<(Grow, f32)>,
 }
 
 /// `at` is where the glyph's middle is across a slot `slot` wide; 1 clear of both edges.
@@ -722,34 +854,29 @@ pub fn chart_sprites(chart: &Chart, phase: f32, pixel: f32, out: &mut Vec<Sprite
     }
 }
 
-/// `gone` is the share of its time since it last changed. Relative to the panel.
+/// `gone` is the share of its time since it last changed. Relative to the panel. As GPUI drew it:
+/// each layer a line through the frame's middle, its shadow spread round it and blurred.
 pub fn countdown_sprites(countdown: &Countdown, gone: f32, out: &mut Vec<Sprite>) {
-    const BLUR: f32 = 46.0;
+    const BLUR: f32 = 28.0;
     const SPREAD: f32 = 18.0;
     const START: f32 = 10.0;
     const END: f32 = 28.0;
     let [x, y, w, h] = countdown.rect;
     let left = countdown.left * (1.0 - gone.clamp(0.0, 1.0));
     let clip = [x, y, x + w, y + h];
-    let reach = SPREAD + BLUR;
+    let span = w * left;
+    let middle = y + h / 2.0;
     for (from, alpha) in [(0.0, 0x38), (0.5, 0x30)] {
-        let span = w * left;
-        let start = x + from * span + START + SPREAD;
-        let end = x + span - END - SPREAD;
+        let start = x + from * span + START;
+        let end = x + span - END;
         if end <= start {
             continue;
         }
-        let middle = y + h / 2.0;
         out.push(
-            Sprite::glow(
-                [
-                    start - reach,
-                    middle - reach,
-                    end - start + 2.0 * reach,
-                    2.0 * reach,
-                ],
+            Sprite::blurred(
+                [start, middle - SPREAD, end - start, 2.0 * SPREAD],
                 tinted(countdown.color, alpha),
-                reach,
+                0.0,
                 BLUR,
             )
             .within(clip)

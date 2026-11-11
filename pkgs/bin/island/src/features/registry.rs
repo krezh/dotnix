@@ -7,7 +7,7 @@ use crate::{cli::Client, control::Command};
 use super::{
     Arrivals, Feature, Features, GlyphSpec, Surface, ai, audio, bluetooth, brightness, caffeine,
     clipboard, clock, feature::widgets_of, gotify, headset, instance::start_one, launcher, media,
-    molt, network, notifications, session, tray, workspaces, zowie,
+    molt, network, notifications, session, tray, which_key, workspaces, zowie,
 };
 
 macro_rules! features {
@@ -36,6 +36,24 @@ macro_rules! features {
                 }
             )*
             None
+        }
+
+        pub fn panel_size(feature: &str) -> Option<(f32, f32)> {
+            $(
+                if <$feature as Feature>::NAME == feature {
+                    return <$feature as Surface>::PANEL_SIZE;
+                }
+            )*
+            None
+        }
+
+        pub fn stays_open(feature: &str) -> bool {
+            $(
+                if <$feature as Feature>::NAME == feature {
+                    return <$feature as Surface>::STAYS_OPEN;
+                }
+            )*
+            false
         }
 
         pub fn check_settings(section: &str, settings: &toml::Value) -> Result<(), String> {
@@ -79,6 +97,16 @@ macro_rules! features {
                 }
             )*
             &[]
+        }
+
+        /// Whether the panel named `panel` takes views named in its settings.
+        pub fn named_views(panel: &str) -> bool {
+            $(
+                if <$feature as Surface>::PANEL == Some(panel) {
+                    return <$feature as Surface>::NAMED_VIEWS;
+                }
+            )*
+            false
         }
 
         pub fn panel_of(feature: &str) -> Option<&'static str> {
@@ -181,5 +209,6 @@ features![
     session::Session,
     clipboard::Clipboard,
     launcher::Launcher,
+    which_key::WhichKey,
     gotify::Gotify,
 ];

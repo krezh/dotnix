@@ -28,6 +28,8 @@ pub struct Countdown {
 pub enum Look {
     /// A quiet surface inset in its card, such as one of many rows in a grid.
     Inset,
+    /// As inset, with no surface until the pointer is over it, such as one of a menu's choices.
+    Plain,
     /// Its own outlined surface, filling the space it is given, such as a message; urgent ones
     /// have a red outline.
     Raised { urgent: bool },

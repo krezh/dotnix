@@ -1,11 +1,19 @@
-//! The bar and a menu hanging from it as one surface, blended like liquid where they meet.
+//! The bar, a menu hanging from it and a droplet splitting off one of its ends, as one surface,
+//! blended like liquid where they meet.
+
+use crate::stage::COLLAPSED_H;
 
 /// How far the menu reaches up into the bar, as a share of the bar's height. Its top is hidden
 /// there, so only the blend shows where the two meet, and the bar's top stays flat.
 const TUCK: f32 = 0.5;
+/// How round the two sides of the waist pressing in at the bar's end are.
+pub const WAIST_RADIUS: f32 = 30.0;
+/// How softly the waist is cut in, and the thread joined on.
+const WAIST_BLEND: f32 = 7.0;
+const THREAD_BLEND: f32 = 6.0;
 
 /// What hangs from the bar, and how softly the two blend.
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct Merge {
     /// Left, top, width and height of what hangs, its top at the bar's bottom.
     pub hang: [f32; 4],
@@ -14,6 +22,68 @@ pub struct Merge {
     /// How wide the blend between the two is; 0 joins them with a sharp corner. Never more than
     /// twice what hangs is tall, so the blend shrinks away with it rather than outlasting it.
     pub blend: f32,
+    /// A droplet splitting off one end of the bar.
+    pub split: Option<Split>,
+}
+
+/// A droplet of the bar's glass at the bar's height, its own size throughout, sliding out of one
+/// end. The bar never changes shape: while the droplet still overlaps it a waist presses in at
+/// the bar's end, and once it is clear a thread thinner than the waist joins the two round ends.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct Split {
+    /// Its left edge and width; it stands at the bar's top, [`COLLAPSED_H`] tall.
+    pub x: f32,
+    pub width: f32,
+    /// How deep the waist presses in at the bar's end.
+    pub waist: f32,
+    /// Half the thread's thickness across the gap; none at 0.
+    pub thread: f32,
+}
+
+fn smooth_max(a: f32, b: f32, blend: f32) -> f32 {
+    -smooth_min(-a, -b, blend)
+}
+
+/// `bar` with the droplet `split` of the bar `body` added, its waist cut in and its thread
+/// joined on.
+fn with_split(at: (f32, f32), bar: f32, body: [f32; 4], corner: (f32, f32), split: Split) -> f32 {
+    let [x, y, w, _] = body;
+    let half = COLLAPSED_H / 2.0;
+    let middle = y + half;
+    if split.width < 0.5 {
+        return bar;
+    }
+    let drop = corner_distance(
+        at,
+        (split.x + split.width / 2.0, middle),
+        (split.width / 2.0, half),
+        corner.0,
+        corner.1,
+    );
+    let mut d = bar.min(drop);
+    let left = split.x + split.width / 2.0 < x + w / 2.0;
+    let edge = if left { x } else { x + w };
+    if split.waist > 0.05 {
+        let r = WAIST_RADIUS;
+        let up =
+            ((at.0 - edge).powi(2) + (at.1 - (middle - half - r + split.waist)).powi(2)).sqrt() - r;
+        let down =
+            ((at.0 - edge).powi(2) + (at.1 - (middle + half + r - split.waist)).powi(2)).sqrt() - r;
+        d = smooth_max(d, -up.min(down), WAIST_BLEND);
+    }
+    let near = if left { split.x + split.width } else { split.x };
+    let gap = if left { edge - near } else { near - edge };
+    if split.thread > 0.2 && gap > 0.05 {
+        let thread = corner_distance(
+            at,
+            ((edge + near) / 2.0, middle),
+            (gap / 2.0 + split.thread + 2.0, split.thread),
+            split.thread,
+            2.0,
+        );
+        d = smooth_min(d, thread, THREAD_BLEND);
+    }
+    d
 }
 
 /// Signed distance from `at` to the edge of the box centred on `center`, `half` its size, with
@@ -41,7 +111,7 @@ fn smooth_min(a: f32, b: f32, blend: f32) -> f32 {
 }
 
 /// Signed distance from `at` to the edge of the bar `body`, its corners `corner`, with `merge`
-/// hanging from it: below 0 inside. The shader draws the same shape.
+/// hanging from it and its droplet: below 0 inside. The shader draws the same shape.
 pub fn distance(at: (f32, f32), body: [f32; 4], (radius, power): (f32, f32), merge: Merge) -> f32 {
     let [x, y, w, h] = body;
     let bar = corner_distance(
@@ -52,22 +122,31 @@ pub fn distance(at: (f32, f32), body: [f32; 4], (radius, power): (f32, f32), mer
         power,
     );
     let [mx, my, mw, mh] = merge.hang;
-    if mh < 0.5 || mw < 1.0 {
-        return bar;
-    }
-    let top = y + h * TUCK;
-    let half = (mw / 2.0, (my + mh - top) / 2.0);
-    let menu = corner_distance(at, (mx + half.0, top + half.1), half, merge.radius, 2.0);
-    if at.1 < top {
-        bar.min(menu)
+    let joined = if mh < 0.5 || mw < 1.0 {
+        bar
     } else {
-        smooth_min(bar, menu, merge.blend.min(2.0 * mh))
+        let top = y + h * TUCK;
+        let half = (mw / 2.0, (my + mh - top) / 2.0);
+        let menu = corner_distance(at, (mx + half.0, top + half.1), half, merge.radius, 2.0);
+        if at.1 < top {
+            bar.min(menu)
+        } else {
+            smooth_min(bar, menu, merge.blend.min(2.0 * mh))
+        }
+    };
+    match merge.split {
+        Some(split) => with_split(at, joined, body, (radius, power), split),
+        None => joined,
     }
 }
 
-/// The rows of whole pixels the shape covers, as left, top, width and height, for a region the
-/// compositor takes, such as where to blur.
+/// The rows of whole pixels the bar and its menu cover, as left, top, width and height, for a
+/// region the compositor takes, such as where to blur. The droplet gives its own.
 pub fn rows(body: [f32; 4], corner: (f32, f32), merge: Merge) -> Vec<[i32; 4]> {
+    let merge = Merge {
+        split: None,
+        ..merge
+    };
     let [x, y, w, h] = body;
     let [mx, my, mw, mh] = merge.hang;
     let bottom = (my + mh).max(y + h);

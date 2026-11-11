@@ -67,6 +67,7 @@ pub(super) fn pieces(reply: &str) -> Vec<Piece> {
                 lines: lines.into_iter().map(CodeLine::plain).collect(),
                 wrap: false,
                 motion: CodeMotion::Still,
+                scroll: None,
             }),
         })
         .collect()

@@ -8,7 +8,73 @@ fn hanging(blend: f32) -> Merge {
         hang: [200.0, 46.0, 150.0, 90.0],
         radius: 16.0,
         blend,
+        split: None,
     }
+}
+
+fn dropping(x: f32, waist: f32, thread: f32) -> Merge {
+    Merge {
+        split: Some(Split {
+            x,
+            width: 80.0,
+            waist,
+            thread,
+        }),
+        ..Merge::default()
+    }
+}
+
+const BAR: [f32; 4] = [0.0, 10.0, 600.0, 38.0];
+
+#[test]
+fn a_droplet_never_reaches_above_or_below_the_bar() {
+    for x in [-40.0, -20.0, -5.0, -92.0, 560.0, 612.0] {
+        for (waist, thread) in [(0.0, 0.0), (10.0, 0.0), (5.0, 3.0), (0.0, 8.0)] {
+            let merge = dropping(x, waist, thread);
+            for at in (-150..750).step_by(5) {
+                let at = at as f32;
+                assert!(
+                    distance((at, 9.5), BAR, CORNER, merge) > 0.0,
+                    "{x} {at} above"
+                );
+                assert!(
+                    distance((at, 48.5), BAR, CORNER, merge) > 0.0,
+                    "{x} {at} below"
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn a_droplet_clear_of_the_bar_is_its_own_round_shape() {
+    let merge = dropping(-92.0, 0.0, 0.0);
+    assert!(distance((-52.0, 29.0), BAR, CORNER, merge) < -10.0);
+    assert!(distance((-6.0, 29.0), BAR, CORNER, merge) > 0.0);
+    assert!(distance((300.0, 29.0), BAR, CORNER, merge) < 0.0);
+}
+
+#[test]
+fn a_thread_joins_a_droplet_across_the_gap() {
+    let merge = dropping(-92.0, 0.0, 4.0);
+    assert!(distance((-6.0, 29.0), BAR, CORNER, merge) < 0.0);
+    assert!(distance((-6.0, 20.0), BAR, CORNER, merge) > 0.0);
+}
+
+#[test]
+fn a_waist_presses_in_at_the_bars_end() {
+    let open = dropping(-40.0, 0.0, 0.0);
+    let pressed = dropping(-40.0, 10.0, 0.0);
+    let near_top = |merge| distance((0.0, 13.0), BAR, CORNER, merge);
+    assert!(near_top(pressed) > near_top(open));
+    assert!(distance((0.0, 29.0), BAR, CORNER, pressed) < 0.0);
+}
+
+#[test]
+fn a_droplet_splits_off_the_right_end_too() {
+    let merge = dropping(612.0, 0.0, 0.0);
+    assert!(distance((652.0, 29.0), BAR, CORNER, merge) < -10.0);
+    assert!(distance((606.0, 29.0), BAR, CORNER, merge) > 0.0);
 }
 
 #[test]
@@ -58,6 +124,7 @@ fn a_menu_all_but_gone_leaves_no_bump() {
         hang: [200.0, 46.0, 150.0, 0.6],
         radius: 30.0,
         blend: 36.0,
+        split: None,
     };
     for y in [47.0, 48.0, 52.0] {
         assert!(distance((275.0, y), BODY, CORNER, thin) > 0.0);

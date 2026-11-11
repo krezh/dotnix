@@ -30,8 +30,8 @@ fn tip(track: &Track) -> String {
 }
 
 impl Media {
-    /// Without a track it rests as a dimmed play icon, which the title unfolds out of when
-    /// something starts playing.
+    /// Without a track it rests in the bar as a dimmed play icon. With one, the whole widget, its
+    /// icon and its scrolling title, splits off the bar into a droplet of its own.
     fn now_playing(track: Option<&Track>, w: &WidgetCx<'_>) -> BarWidget {
         let glyph = w.glyph(if track.is_some_and(|track| track.playing) {
             "pause"
@@ -40,17 +40,21 @@ impl Media {
         });
         let tint = if track.is_some() { ACCENT } else { OVERLAY2 };
         let slot = MEDIA_W - 2.0 * w.padding() - GLYPH - ICON_GAP;
-        let widget = w
-            .compact()
-            .tip(track.map_or_else(|| "Nothing playing".to_owned(), tip))
-            .parts(glyph.map(|path| Part::glyph(path, tint).fixed()))
-            .parts(track.map(|track| Part::marquee(track.title.clone(), slot)))
-            .on_click(w.toggle(Self::panel_handle()))
-            .on_middle(w.call(|media: &Media| media.send(Control::PlayPause)));
-        if track.is_some() {
-            widget.width(MEDIA_W).start()
-        } else {
-            widget
+        let widget = || {
+            w.compact()
+                .tip(track.map_or_else(|| "Nothing playing".to_owned(), tip))
+                .parts(glyph.map(|path| Part::glyph(path, tint).fixed()))
+                .on_click(w.toggle(Self::panel_handle()))
+                .on_middle(w.call(|media: &Media| media.send(Control::PlayPause)))
+        };
+        match track {
+            Some(track) => widget().split(
+                widget()
+                    .part(Part::marquee(track.title.clone(), slot))
+                    .width(MEDIA_W)
+                    .start(),
+            ),
+            None => widget(),
         }
     }
 

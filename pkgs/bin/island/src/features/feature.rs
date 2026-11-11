@@ -8,6 +8,7 @@ use std::{
 
 use super::{Battery, Feed, Islands, Osd, PanelCx, WidgetCx};
 use crate::{
+    activity::Activity,
     bar_widget::BarWidget,
     cli::Client,
     components::measure::Measure,
@@ -154,6 +155,14 @@ pub trait Surface: Feature {
     /// For content that moves without new state, such as a play position.
     const PANEL_REFRESH: Option<Duration> = None;
 
+    /// Holds its panel to this width and height whichever view it shows and however much is in
+    /// it, scrolling what does not fit, so the island keeps still while it is worked in.
+    const PANEL_SIZE: Option<(f32, f32)> = None;
+
+    /// Its panel stays open when the pointer leaves it, closing on a click outside it, as a panel
+    /// worked in rather than glanced at.
+    const STAYS_OPEN: bool = false;
+
     fn panel_opened(&self) -> Option<Box<dyn Any>> {
         None
     }
@@ -170,6 +179,12 @@ pub trait Surface: Feature {
     /// Takes the bar's place while [`Local::popup`] says so; the pointer leaving does not close it.
     fn popup<'a>(&self, _: &Self::State, _: &PanelCx<'a>) -> Option<PanelView> {
         None
+    }
+
+    /// Work under way or just ended that island shows while the panel is closed. Asked again
+    /// when the state changes, and every second while any runs.
+    fn activities(&self, _: &Self::State, _: &PanelCx<'_>) -> Vec<Activity> {
+        Vec::new()
     }
 
     /// Called when [`Local::due`] comes.
@@ -191,6 +206,10 @@ pub trait Surface: Feature {
 
     /// Views its panel can be opened on, such as its tabs: `island ctl open PANEL VIEW`.
     const VIEWS: &'static [&'static str] = &[];
+
+    /// Its views are named in its settings, such as menus, so `island ctl` takes any word for one
+    /// and the panel says when it has no view of that name.
+    const NAMED_VIEWS: bool = false;
 
     const KEYBOARD: bool = false;
 

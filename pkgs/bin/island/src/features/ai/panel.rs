@@ -76,6 +76,8 @@ pub(super) fn panel(ai: &Ai, state: &State, p: &PanelCx<'_>) -> Option<PanelView
         at: view.passing.at.value().clamp(0.0, 1.0),
         rightwards: tab_index(view.tab) > tab_index(from),
         width: view.passing.width.clone(),
+        grow: None,
+        views: None,
     });
     Some(PanelView {
         scroll: view.tab == Tab::Chat,
@@ -97,6 +99,7 @@ pub(super) fn panel(ai: &Ai, state: &State, p: &PanelCx<'_>) -> Option<PanelView
             buttons,
             icons: Vec::new(),
             passing,
+            back: None,
         }),
         blocks,
     })

@@ -97,6 +97,7 @@ fn permission_blocks(request: &Request, at: &str, view: &View, p: &PanelCx<'_>) 
         wrap: true,
         copy: None,
         motion: CodeMotion::Still,
+        scroll: None,
     })];
     under.push(Block::Text(Text {
         min_width: Some(MIN_W - lead(view) - item::LEAD_GAP),

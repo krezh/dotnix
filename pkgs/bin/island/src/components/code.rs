@@ -36,6 +36,15 @@ pub enum Motion {
     Appear,
 }
 
+/// Lines held to a height, scrolling under soft edges, such as a log.
+pub struct Scroll {
+    /// Unique among what the panel shows, so the place scrolled to is kept.
+    pub key: SharedString,
+    pub height: f32,
+    /// Opens at the newest line and stays on it as lines arrive, until scrolled up.
+    pub follows: bool,
+}
+
 pub struct Code {
     /// A name over the lines, such as a file's, with a fainter detail at the other end.
     pub heading: Option<(SharedString, SharedString)>,
@@ -45,4 +54,6 @@ pub struct Code {
     /// A Copy chip in the heading, which gets one if it has none.
     pub copy: Option<Handler>,
     pub motion: Motion,
+    /// Otherwise every line shows.
+    pub scroll: Option<Scroll>,
 }

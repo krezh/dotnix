@@ -49,6 +49,8 @@ pub struct SearchView {
     pub pictures: bool,
     pub on_scroll: Scroll,
     pub preview: Option<(Preview, SharedString)>,
+    /// As wide as what holds it, such as a card beside what is picked in it.
+    pub fill: bool,
 }
 
 thread_local! {

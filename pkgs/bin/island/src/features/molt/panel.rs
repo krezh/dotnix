@@ -83,6 +83,7 @@ pub(super) fn panel(state: &Updates, p: &PanelCx<'_>) -> PanelView {
                         commit.id
                     )
                     .into(),
+                    menu: None,
                 })
                 .collect(),
         )),

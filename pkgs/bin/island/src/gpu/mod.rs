@@ -2,6 +2,7 @@
 
 mod app;
 mod blocks;
+mod bubble;
 mod chrome;
 mod cover;
 mod island;

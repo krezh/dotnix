@@ -13,8 +13,9 @@ use std::{
 
 use taffy::{
     AlignItems, AvailableSpace, CompactLength, Dimension, Display, FlexDirection, FlexWrap,
-    JustifyContent, LengthPercentage, LengthPercentageAuto, NodeId, Position, Rect, Size, Style,
-    TaffyTree, compute_leaf_layout,
+    JustifyContent, LengthPercentage, LengthPercentageAuto, MinTrackSizingFunction, NodeId,
+    Position, Rect, Size, Style, TaffyTree, compute_leaf_layout,
+    style_helpers::{fr, minmax, repeat},
 };
 
 use super::{
@@ -192,6 +193,7 @@ pub struct Node {
     style: Style,
     words: Inherited,
     fill: Option<([f32; 4], f32)>,
+    wash: Option<([f32; 4], f32)>,
     ring: Option<([f32; 4], f32)>,
     top_line: Option<[f32; 4]>,
     opacity: f32,
@@ -208,6 +210,8 @@ pub struct Node {
     soft_reach: f32,
     /// The furthest it scrolls, however much it holds.
     scroll_reach: f32,
+    /// Opens scrolled to its end, and stays there as more arrives until scrolled away from it.
+    follows: bool,
     eases: Vec<(Easing, f32, SpringConfig)>,
     /// Takes up room but shows nothing.
     hidden: bool,
@@ -229,6 +233,7 @@ pub fn div() -> Node {
         },
         words: Inherited::default(),
         fill: None,
+        wash: None,
         ring: None,
         top_line: None,
         opacity: 1.0,
@@ -242,6 +247,7 @@ pub fn div() -> Node {
         soft: false,
         soft_reach: f32::INFINITY,
         scroll_reach: f32::INFINITY,
+        follows: false,
         eases: Vec::new(),
         hidden: false,
         shadow: None,
@@ -471,6 +477,19 @@ impl Node {
 
     pub fn justify_start(mut self) -> Self {
         self.style.justify_content = JustifyContent::FLEX_START;
+        self
+    }
+
+    /// Its children in `columns` equal columns, filled a row at a time: shared out when its width
+    /// is set, and otherwise each as wide as the widest child.
+    pub fn grid(mut self, columns: usize) -> Self {
+        let columns = u16::try_from(columns.max(1)).unwrap_or(u16::MAX);
+        self.style.display = Display::Grid;
+        self.style.grid_template_columns = vec![repeat(
+            columns,
+            vec![minmax(MinTrackSizingFunction::length(0.0), fr(1.0))],
+        )];
+        self.style.align_items = AlignItems::START;
         self
     }
 
@@ -711,6 +730,12 @@ impl Node {
         self
     }
 
+    /// A soft light of `color` from its top left corner, within its own corners.
+    pub fn wash(mut self, color: [f32; 4], radius: f32) -> Self {
+        self.wash = Some((color, radius));
+        self
+    }
+
     pub fn outline(mut self, color: [f32; 4], radius: f32) -> Self {
         self.ring = Some((color, radius));
         self
@@ -794,6 +819,12 @@ impl Node {
     pub fn scrolls(mut self, key: impl Into<SharedString>) -> Self {
         self.scroll = Some(key.into());
         self.clip = true;
+        self
+    }
+
+    /// As it scrolls, keeps its end in view while more arrives, until scrolled away from it.
+    pub fn follows_end(mut self) -> Self {
+        self.follows = true;
         self
     }
 
@@ -1142,6 +1173,9 @@ pub struct Painting<'a> {
     /// Where text sits in what holds it, 0 at the start and 1 at the end.
     pub align: f32,
     pub paints: u64,
+    /// Text that changes is drawn as it now is rather than turning into it, such as while a view
+    /// grows, which moves only what is drawn as part of it.
+    pub still: bool,
 }
 
 impl Painting<'_> {
@@ -1270,7 +1304,10 @@ impl Painting<'_> {
         clip: Option<[f32; 4]>,
         fade: f32,
     ) -> bool {
-        let shown = noted(self.before.get(&self.path), text);
+        let mut shown = noted(self.before.get(&self.path), text);
+        if self.still {
+            shown.from = None;
+        }
         let from = shown.from.clone();
         self.built.texts.insert(self.path, shown);
         let Some((old, since)) = from else {
@@ -1509,6 +1546,9 @@ impl Painting<'_> {
                 .sprites
                 .push(Sprite::shape(rect, tint, radius, 2.0));
         }
+        if let Some((tint, radius)) = node.wash {
+            self.built.sprites.push(Sprite::wash(rect, tint, radius));
+        }
         if let Some((tint, radius)) = node.ring {
             self.built
                 .sprites
@@ -1683,13 +1723,15 @@ impl Painting<'_> {
                 .fold(0.0, f32::max);
             let room = (bottom - h).max(0.0);
             let reach = room.min(node.scroll_reach).max(0.0);
-            offset = self.offsets.get(key).copied().unwrap_or(0.0).min(reach);
+            let start = if node.follows { reach } else { 0.0 };
+            offset = self.offsets.get(key).copied().unwrap_or(start).min(reach);
             reached = Some(room);
             scrolled = Some(self.built.scrolling.len());
             self.built.scrolling.push(Scrolling {
                 key: key.clone(),
                 rect,
                 reach,
+                follows: node.follows,
                 from: self.built.sprites.len(),
                 to: 0,
             });

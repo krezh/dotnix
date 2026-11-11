@@ -28,7 +28,6 @@
 
       mkInline = lib.generators.mkLuaInline;
       exec = cmd: mkInline "hl.dsp.exec_cmd(${builtins.toJSON cmd})";
-      browser.run = "${lib.getExe config.homeModules.wlr-which-key.package} browser";
       screenshot.run = "${lib.getExe pkgs.chomp}";
       replay.run = "${lib.getExe pkgs.chomp} --replay save";
       windowScreenshot.run = "${lib.getExe pkgs.chomp} --mode image-window";
@@ -104,7 +103,7 @@
               desc = "AI chat";
             };
             "${mainMod} + B" = {
-              rule = exec browser.run;
+              rule = exec "${shell.run} toggle which-key browser";
               desc = "Browser";
             };
             "${mainMod} + E" = {

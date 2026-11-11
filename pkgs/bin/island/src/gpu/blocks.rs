@@ -6,7 +6,7 @@ use chrono::{Datelike, Duration, Local, Months, NaiveDate};
 
 use super::{
     node::{self, BOLD, MEDIUM, Node, Painting, SEMIBOLD, div, glyph, moving, text},
-    panel::{Countdown, Easing},
+    panel::{Countdown, Easing, GROW_COMING, GROW_LEAVING, GROW_SHEET},
     records,
     renderer::Sprite,
     widget::{color, color_alpha, tinted},
@@ -37,8 +37,8 @@ use crate::{
     },
     panel::PLACED_MARGIN,
     panel::{
-        ActionTile, Block, Button, ButtonRow, Handler, Header, HeaderLead, Hero, IconButton,
-        PanelView, Placed, SharedString, Split, Views, Warning,
+        ActionTile, Block, Button, ButtonRow, Grow, Handler, Header, HeaderLead, Hero, IconButton,
+        PanelView, Passing, Placed, SharedString, Split, Views, Warning,
     },
     stage::CONTENT_IN,
     theme::{
@@ -107,6 +107,8 @@ const NOTE_PAD: f32 = 14.0;
 /// A note held to a width keeps room for a second line.
 const HELD_NOTE_LINE: f32 = 20.0;
 const PASSING_GAP: f32 = 96.0;
+/// How strongly a view growing out of a card carries the card's colour, as the card shows it.
+const GROW_WASH_ALPHA: u8 = 0x2e;
 
 pub(super) fn surface_fill(active: bool) -> [f32; 4] {
     color_alpha(if active {
@@ -143,7 +145,7 @@ pub(super) fn card_fill(radius: f32) -> Node {
         .outline(tinted(SURFACE1, SURFACE_BORDER_ALPHA), radius)
 }
 
-fn card_surface() -> Node {
+pub(super) fn card_surface() -> Node {
     div()
         .bg(tinted(SURFACE1, CARD_ALPHA), PANEL_RADIUS)
         .outline(tinted(SURFACE1, CARD_BORDER_ALPHA), PANEL_RADIUS)
@@ -158,7 +160,7 @@ pub fn mark(mark: &Mark, size: f32, fill: f32, key: &str) -> Node {
             .cover()
             .rounded(CONTROL_RADIUS),
         Mark::Picture(source, false) => node::picture(source.clone(), picture),
-        Mark::Letter(name, tint) => div()
+        Mark::Letter(name, tint) | Mark::Key(name, tint) => div()
             .size(picture)
             .flex_none()
             .flex()
@@ -171,7 +173,10 @@ pub fn mark(mark: &Mark, size: f32, fill: f32, key: &str) -> Node {
             .child(text(
                 name.chars()
                     .next()
-                    .map(|first| first.to_uppercase().to_string())
+                    .map(|first| match mark {
+                        Mark::Key(..) => first.to_string(),
+                        _ => first.to_uppercase().to_string(),
+                    })
                     .unwrap_or_default(),
             )),
         Mark::Choice { picked, many, .. } => choice(*picked, *many, (picture * 0.9).round()),
@@ -323,6 +328,8 @@ pub struct Blocks<'a, 'b> {
     pub sliding: bool,
     /// What was chosen on each dropdown when it last stood open, so it leaves as it stood.
     pub chosen: HashMap<SharedString, Option<usize>>,
+    /// A view growing out of a part of the one it replaces, and how far.
+    pub grow: Option<(Grow, f32)>,
 }
 
 impl Blocks<'_, '_> {
@@ -336,9 +343,10 @@ impl Blocks<'_, '_> {
             Header::Views(views) => views.passing.take(),
             _ => None,
         };
-        let header = match std::mem::replace(&mut view.header, Header::None) {
+        let mut header = match std::mem::replace(&mut view.header, Header::None) {
             Header::Tabs => Some(div().h(HEADER_H).min_w(tabs_width().ceil())),
             Header::Title(title, buttons) => Some(self.title_header(title, buttons)),
+            Header::Path(path) => Some(path_header(path)),
             Header::Views(views) => Some(self.views_header(views)),
             Header::None => None,
         };
@@ -366,6 +374,74 @@ impl Blocks<'_, '_> {
             None => column,
         };
         let content = match passing {
+            Some(Passing {
+                grow: Some(grow),
+                blocks,
+                at,
+                views,
+                ..
+            }) => {
+                self.sliding = true;
+                let with_header = |header: Option<Node>, page: Node| match header {
+                    Some(header) => div()
+                        .col()
+                        .child(header)
+                        .child(div().h(HEADER_GAP).flex_none())
+                        .child(page),
+                    None => page,
+                };
+                let popovers = self.popovers.len();
+                let leaving_header = views.map(|views| self.views_header(*views));
+                self.popovers.truncate(popovers);
+                let leaving_blocks = div()
+                    .col()
+                    .gap(BLOCK_GAP)
+                    .children(self.all(blocks, "passing"));
+                let wash = grow
+                    .tint
+                    .map_or([0.0; 4], |tint| tinted(tint, GROW_WASH_ALPHA));
+                let fill = super::panel::mixed(
+                    color(SURFACE),
+                    color(SURFACE1),
+                    f32::from(CARD_ALPHA) / 255.0,
+                );
+                // The card it grows as, under what it holds; the grow finds it by its name.
+                let held = |page: Node, grows: bool| {
+                    let held = div().col();
+                    if grows {
+                        held.child(
+                            div()
+                                .absolute()
+                                .inset(0.0)
+                                .bg(fill, PANEL_RADIUS)
+                                .wash(wash, PANEL_RADIUS)
+                                .outline(tinted(SURFACE1, CARD_BORDER_ALPHA), PANEL_RADIUS)
+                                .anchor(GROW_SHEET),
+                        )
+                        .child(page)
+                    } else {
+                        held.child(page)
+                    }
+                };
+                let leaving = held(with_header(leaving_header, leaving_blocks), grow.back)
+                    .absolute()
+                    .top(0.0)
+                    .left(0.0)
+                    .w_full()
+                    .anchor(GROW_LEAVING);
+                let coming = held(
+                    with_header(header.take(), content.named("page")),
+                    !grow.back,
+                )
+                .anchor(GROW_COMING);
+                self.grow = Some((grow.clone(), at));
+                let cover = (at < SETTLED).then(settling);
+                if grow.back {
+                    div().child(coming).child(leaving).children(cover)
+                } else {
+                    div().child(leaving).child(coming).children(cover)
+                }
+            }
             Some(passing) => {
                 self.sliding = true;
                 let side = if passing.rightwards { 1.0 } else { -1.0 };
@@ -389,10 +465,11 @@ impl Blocks<'_, '_> {
                             .w(width)
                             .col()
                             .gap(BLOCK_GAP)
-                            .children(leaving),
+                            .children(leaving)
+                            .child(settling()),
                     )
             }
-            None => content,
+            None => content.named("page"),
         };
         let body = if view.scroll {
             div()
@@ -423,7 +500,7 @@ impl Blocks<'_, '_> {
             })
     }
 
-    fn all(&mut self, blocks: Vec<Block>, at: &str) -> Vec<Node> {
+    pub(super) fn all(&mut self, blocks: Vec<Block>, at: &str) -> Vec<Node> {
         blocks
             .into_iter()
             .enumerate()
@@ -449,17 +526,11 @@ impl Blocks<'_, '_> {
                 div().flex().items_start().gap(card::GAP).children(columns)
             }
             Block::Grid(columns, blocks) => {
-                let columns = columns.max(1);
-                let cells = self.all(blocks, at);
-                let mut cells = cells.into_iter().peekable();
-                let mut rows = Vec::new();
-                while cells.peek().is_some() {
-                    let row: Vec<Node> = (0..columns)
-                        .map(|_| div().flex_1().min_w(0.0).children(cells.next()))
-                        .collect();
-                    rows.push(div().flex().items_start().gap(GRID_GAP).children(row));
-                }
-                div().col().gap(GRID_GAP).children(rows)
+                let cells = self
+                    .all(blocks, at)
+                    .into_iter()
+                    .map(|cell| div().min_w(0.0).col().child(cell));
+                div().grid(columns).gap(GRID_GAP).children(cells)
             }
             Block::Item(item, blocks) => {
                 let under = self.all(blocks, at);
@@ -477,17 +548,18 @@ impl Blocks<'_, '_> {
             Block::Meter(view) => meter(view, at),
             Block::Meters(columns, meters) => meters_row(columns, meters, at),
             Block::Player(view) => player(view),
-            Block::Lines(entries) => lines(entries),
+            Block::Lines(entries) => self.lines(entries),
             Block::Routes(entries) => routes(entries),
             Block::Board(columns) => board(columns),
             Block::Buttons(row) => self.buttons(row),
             Block::Facts(items) => facts(items),
             Block::Hero(view) => hero(view, at),
             Block::Views(views) => self.views_row(views),
-            Block::Actions(tiles) => div()
-                .flex()
-                .gap(card::GAP)
-                .children(tiles.into_iter().map(action)),
+            Block::Actions(tiles) => div().flex().gap(card::GAP).children(
+                tiles
+                    .into_iter()
+                    .map(|tile| div().grow(1.0).min_w(0.0).col().child(action(tile))),
+            ),
             Block::Switches(tiles) => {
                 let mut tiles = tiles.into_iter().peekable();
                 let mut rows = Vec::new();
@@ -552,13 +624,19 @@ impl Blocks<'_, '_> {
         for (card, column) in cards.into_iter().zip(columns) {
             sides[column].push(card);
         }
+        let level = |cards: Vec<Node>| {
+            let last = cards.len().saturating_sub(1);
+            cards
+                .into_iter()
+                .enumerate()
+                .map(move |(index, card)| if index == last { card.grow(1.0) } else { card })
+        };
         let [left, right] = sides;
         div()
             .flex()
-            .items_start()
             .gap(card::GAP)
-            .child(div().col().gap(card::GAP).children(left))
-            .child(div().col().gap(card::GAP).children(right))
+            .child(div().col().gap(card::GAP).children(level(left)))
+            .child(div().col().gap(card::GAP).children(level(right)))
     }
 
     fn item(&mut self, item: Item, under: Vec<Node>, at: &str) -> Node {
@@ -611,7 +689,14 @@ impl Blocks<'_, '_> {
                                 .child(div().min_w(0.0).truncate().child(text(overline.clone())))
                                 .children(tints(true)),
                         )
-                        .children(trail),
+                        .children((!trail.is_empty()).then(|| {
+                            div()
+                                .flex_none()
+                                .flex()
+                                .items_center()
+                                .gap(4.0)
+                                .children(trail)
+                        })),
                 )
                 .child(
                     div()
@@ -736,6 +821,8 @@ impl Blocks<'_, '_> {
         }
     }
 
+    /// The lead, the tabs between it and the end, then the pick, buttons and icons; the tabs keep
+    /// to the middle while the end leaves room, and give way to it when it does not.
     fn title_header(&mut self, title: SharedString, buttons: Vec<Button>) -> Node {
         let leading = div()
             .min_w(0.0)
@@ -747,35 +834,37 @@ impl Blocks<'_, '_> {
     }
 
     fn views_header(&mut self, views: Views) -> Node {
-        let tabs = tabs(views.tabs, views.selected, views.on_select);
-        let lead = views.lead.map(header_lead);
-        header_row(tabs, true, lead, views.buttons)
+        let tabs = if views.tabs.is_empty() {
+            div()
+        } else {
+            tabs(views.tabs, views.selected, views.on_select)
+        };
+        let back = views.back.map(|handler| {
+            control(None, CONTROL_RADIUS)
+                .size(HEADER_H)
+                .flex_none()
+                .text_size(HEADING_SIZE)
+                .color(SUBTEXT1)
+                .lit(TEXT)
+                .tip("Back")
+                .child(text("‹"))
+                .on_click(handler)
+        });
+        let lead = match (back, views.lead.map(header_lead)) {
+            (Some(back), Some(lead)) => {
+                Some(div().flex().items_center().gap(8.0).child(back).child(lead))
+            }
+            (back, lead) => back.or(lead),
+        };
+        let pick = views.pick.map(|pick| self.dropdown(pick));
+        let icons = icon_strip(views.icons);
+        header_row_with(tabs, true, lead, pick, views.buttons, icons)
     }
 
     fn views_row(&mut self, views: Views) -> Node {
         let tabs = self.strip(views.tabs, views.selected, views.on_select);
         let pick = views.pick.map(|pick| self.dropdown(pick));
-        let groups = views.icons.len();
-        let mut strip = Vec::new();
-        for (index, group) in views.icons.into_iter().enumerate() {
-            for button in group {
-                strip.push(strip_icon(button));
-            }
-            if index + 1 < groups {
-                strip.push(
-                    div()
-                        .flex_none()
-                        .w(1.0)
-                        .h(18.0)
-                        .mx(3.0)
-                        .bg(tinted(TINT, STRIP_DIVIDER_ALPHA), 0.0),
-                );
-            }
-        }
-        let icons = (!strip.is_empty()).then(|| {
-            strip_surface(div().flex_none().p(STRIP_PAD))
-                .child(div().flex().items_center().gap(2.0).children(strip))
-        });
+        let icons = icon_strip(views.icons);
         div()
             .min_h(HEADER_H)
             .flex()
@@ -942,6 +1031,43 @@ impl Blocks<'_, '_> {
         button
     }
 
+    fn lines(&mut self, entries: Vec<Line>) -> Node {
+        div()
+            .col()
+            .children(entries.into_iter().enumerate().map(|(index, line)| {
+                let menu = line.menu.map(|menu| self.actions(menu));
+                let words = div()
+                    .flex_1()
+                    .min_w(0.0)
+                    .col()
+                    .gap(2.0)
+                    .child(
+                        div()
+                            .min_w(0.0)
+                            .truncate()
+                            .text_size(SMALL_SIZE)
+                            .weight(SEMIBOLD)
+                            .child(text(line.summary)),
+                    )
+                    .child(
+                        div()
+                            .min_w(0.0)
+                            .truncate()
+                            .text_size(CAPTION)
+                            .color(SUBTEXT1)
+                            .child(text(line.detail)),
+                    );
+                div()
+                    .flex()
+                    .items_center()
+                    .gap(12.0)
+                    .py(8.0)
+                    .when(index > 0, |row| row.rule(tinted(SURFACE1, CONTROL_ALPHA)))
+                    .child(words)
+                    .children(menu)
+            }))
+    }
+
     fn buttons(&mut self, mut row: ButtonRow) -> Node {
         let menu = row.menu.take().map(|menu| self.actions(menu));
         buttons(row).when_some(menu, |row, menu| row.child(div().flex_1()).child(menu))
@@ -1069,10 +1195,29 @@ fn card_title(title: Title) -> Node {
 }
 
 fn header_lead(lead: HeaderLead) -> Node {
+    let glyph_tint = match &lead.mark {
+        Mark::Glyph(_, tint) => Some(*tint),
+        Mark::Pulsing(inner) => match inner.as_ref() {
+            Mark::Glyph(_, tint) => Some(*tint),
+            _ => None,
+        },
+        _ => None,
+    };
     let holder = div()
         .size(lead.size)
         .flex_none()
-        .child(mark(&lead.mark, lead.size, 1.0, "header"));
+        .flex()
+        .items_center()
+        .justify_center()
+        .when_some(glyph_tint, |holder, tint| {
+            holder.bg(tinted(tint, ACCENT_TINT_ALPHA), CONTROL_RADIUS)
+        })
+        .child(mark(
+            &lead.mark,
+            lead.size,
+            if glyph_tint.is_some() { 0.55 } else { 1.0 },
+            "header",
+        ));
     let holder = match lead.on_click {
         Some(handler) => holder.on_click(handler),
         None => holder,
@@ -1094,7 +1239,13 @@ fn header_lead(lead: HeaderLead) -> Node {
                         .color(OVERLAY2)
                         .child(text(lead.overline)),
                 )
-                .child(div().truncate().weight(SEMIBOLD).child(moving(lead.title))),
+                .child(
+                    div()
+                        .truncate()
+                        .weight(SEMIBOLD)
+                        .when_some(lead.title_color, Node::color)
+                        .child(moving(lead.title)),
+                ),
         )
 }
 
@@ -1107,14 +1258,79 @@ fn close_button() -> Node {
         .on_click(crate::panel::on(|ui| ui.collapse()))
 }
 
+fn path_header(path: Vec<SharedString>) -> Node {
+    let last = path.len().saturating_sub(1);
+    let mut steps = Vec::new();
+    for (index, step) in path.into_iter().enumerate() {
+        let here = index == last;
+        steps.push(
+            div()
+                .flex_none()
+                .nowrap()
+                .when(!here, |step| step.color(OVERLAY1))
+                .child(moving(step)),
+        );
+        if !here {
+            steps.push(div().flex_none().color(SURFACE1).child(text("›")));
+        }
+    }
+    let leading = div()
+        .min_w(0.0)
+        .flex()
+        .items_center()
+        .gap(8.0)
+        .text_size(HEADING_SIZE)
+        .weight(SEMIBOLD)
+        .children(steps);
+    header_row(leading, false, None, Vec::new())
+}
+
+/// Icon buttons in a strip of their own, each group parted from the next by a line.
+fn icon_strip(groups: Vec<Vec<IconButton>>) -> Option<Node> {
+    let count = groups.len();
+    let mut strip = Vec::new();
+    for (index, group) in groups.into_iter().enumerate() {
+        for button in group {
+            strip.push(strip_icon(button));
+        }
+        if index + 1 < count {
+            strip.push(
+                div()
+                    .flex_none()
+                    .w(1.0)
+                    .h(18.0)
+                    .mx(3.0)
+                    .bg(tinted(TINT, STRIP_DIVIDER_ALPHA), 0.0),
+            );
+        }
+    }
+    (!strip.is_empty()).then(|| {
+        strip_surface(div().flex_none().p(STRIP_PAD))
+            .child(div().flex().items_center().gap(2.0).children(strip))
+    })
+}
+
 fn header_row(leading: Node, centred: bool, lead: Option<Node>, buttons: Vec<Button>) -> Node {
+    header_row_with(leading, centred, lead, None, buttons, None)
+}
+
+fn header_row_with(
+    leading: Node,
+    centred: bool,
+    lead: Option<Node>,
+    pick: Option<Node>,
+    buttons: Vec<Button>,
+    icons: Option<Node>,
+) -> Node {
     let end = div()
         .flex()
         .when(centred, |end| end.flex_1().no_shrink().justify_end())
         .when(!centred, Node::flex_none)
         .items_center()
         .gap(6.0)
+        .children(pick)
         .children(buttons.into_iter().map(button_node))
+        .children(icons)
         .child(close_button());
     div()
         .min_h(HEADER_H)
@@ -1377,6 +1593,20 @@ fn trail_node(trail: Trail) -> Node {
     }
 }
 
+/// How far a view growing out of another has come before what is drawn is near enough where it
+/// will end for clicks to reach it, so the panel answers again before it has quite settled.
+const SETTLED: f32 = 0.7;
+
+/// Over what a click must not reach while one view passes to the next: a page leaving, or both
+/// pages while what is drawn is still far from where it is clicked.
+fn settling() -> Node {
+    div()
+        .absolute()
+        .inset(0.0)
+        .blocks()
+        .on_click(Rc::new(|_| {}))
+}
+
 fn frame(view: FrameView, children: Vec<Node>) -> Node {
     let motion = view.motion;
     let FrameView {
@@ -1392,11 +1622,13 @@ fn frame(view: FrameView, children: Vec<Node>) -> Node {
     let chosen = tinted(TINT, SELECTED_ALPHA);
     let lit = f32::from(u8::from(selected));
     let node = match look {
-        Look::Inset => div()
+        Look::Inset | Look::Plain => div()
             .p(8.0)
             .col()
             .gap(6.0)
-            .bg(tinted(SURFACE1, CARD_ALPHA), CONTROL_RADIUS)
+            .when(matches!(look, Look::Inset), |node| {
+                node.bg(tinted(SURFACE1, CARD_ALPHA), CONTROL_RADIUS)
+            })
             .child(
                 div()
                     .absolute()
@@ -1791,21 +2023,23 @@ fn bar_meter(view: Meter) -> Node {
     const TILE: f32 = 40.0;
     let muted = view.level.is_some_and(|(_, muted)| muted);
     let tint = if muted { OVERLAY2 } else { view.color };
-    let tile = div()
-        .size(TILE)
-        .flex_none()
-        .flex()
-        .items_center()
-        .justify_center()
-        .bg(tinted(tint, ACCENT_TINT_ALPHA), CONTROL_RADIUS)
-        .children(view.glyph.clone().map(|path| glyph(path, GLYPH, tint)));
-    let row = div()
-        .w(WIDTH)
-        .px(4.0)
-        .flex()
-        .items_center()
-        .gap(12.0)
-        .child(tile);
+    let tile = view.glyph.clone().map(|path| {
+        div()
+            .size(TILE)
+            .flex_none()
+            .flex()
+            .items_center()
+            .justify_center()
+            .bg(tinted(tint, ACCENT_TINT_ALPHA), CONTROL_RADIUS)
+            .child(glyph(path, GLYPH, tint))
+    });
+    let row = match tile {
+        Some(tile) => div().w(WIDTH).px(4.0).child(tile),
+        None => div().w_full(),
+    }
+    .flex()
+    .items_center()
+    .gap(12.0);
     let Some((value, muted)) = view.level else {
         return row.child(
             div()
@@ -2085,34 +2319,6 @@ fn player(view: PlayerView) -> Node {
         )
 }
 
-fn lines(entries: Vec<Line>) -> Node {
-    div()
-        .col()
-        .children(entries.into_iter().enumerate().map(|(index, line)| {
-            div()
-                .col()
-                .gap(2.0)
-                .py(8.0)
-                .when(index > 0, |row| row.rule(tinted(SURFACE1, CONTROL_ALPHA)))
-                .child(
-                    div()
-                        .min_w(0.0)
-                        .truncate()
-                        .text_size(SMALL_SIZE)
-                        .weight(SEMIBOLD)
-                        .child(text(line.summary)),
-                )
-                .child(
-                    div()
-                        .min_w(0.0)
-                        .truncate()
-                        .text_size(CAPTION)
-                        .color(SUBTEXT1)
-                        .child(text(line.detail)),
-                )
-        }))
-}
-
 fn stop(stop: Stop) -> Node {
     const DOT: f32 = 7.0;
     let (tint, words) = match stop.state {
@@ -2132,8 +2338,11 @@ fn stop(stop: Stop) -> Node {
         .gap(6.0)
         .child(dot)
         .child(div().color(words).child(text(stop.label).nowrap()));
-    if let StopState::Pending(Some(left)) = stop.state {
-        node = node.child(div().color(SUBTEXT1).child(text(left).nowrap()));
+    match stop.state {
+        StopState::Pending(Some(left)) => {
+            node = node.child(div().color(SUBTEXT1).child(text(left).nowrap()));
+        }
+        _ => {}
     }
     node
 }
@@ -2443,13 +2652,22 @@ fn pick(tile: ActionTile) -> Node {
         .on_click(tile.on_click)
 }
 
+/// One line of a warning, however many it was given; the rest shows in its tooltip.
 fn warning(warning: Warning) -> Node {
     let tint = warning.color;
+    let full = format!("{} {}", warning.label, warning.value);
+    let value: SharedString = warning
+        .value
+        .lines()
+        .map(str::trim)
+        .find(|line| !line.is_empty())
+        .unwrap_or_default()
+        .into();
     let chip = div()
         .flex()
         .items_center()
-        .justify_center()
-        .flex_none()
+        .min_w(0.0)
+        .max_w_share(1.0)
         .h(30.0)
         .pl(6.0)
         .pr(12.0)
@@ -2466,8 +2684,15 @@ fn warning(warning: Warning) -> Node {
                 .bg(color(tint), BADGE_RADIUS)
                 .children(warning.glyph.map(|path| glyph(path, 14.0, ON_ACCENT))),
         )
-        .child(moving(warning.label).nowrap())
-        .child(div().color(tint).child(moving(warning.value).nowrap()));
+        .child(div().flex_none().child(moving(warning.label).nowrap()))
+        .child(
+            div()
+                .min_w(0.0)
+                .truncate()
+                .color(tint)
+                .child(moving(value).nowrap()),
+        )
+        .tip(full);
     match warning.on_click {
         Some(handler) => chip.hover(CONTROL_RADIUS).on_click(handler),
         None => chip,
@@ -3121,6 +3346,7 @@ fn search(view: SearchView) -> Node {
             }
         })
         .collect();
+    let fill = view.fill;
     let width = if view.preview.is_some() {
         LIST_W
     } else {
@@ -3157,7 +3383,8 @@ fn search(view: SearchView) -> Node {
     });
     let list = div()
         .flex_none()
-        .w(width)
+        .when(fill, Node::w_full)
+        .when(!fill, |list| list.w(width))
         .h(list_h)
         .on_rows(view.on_scroll)
         .children(pill)

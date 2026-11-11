@@ -177,6 +177,8 @@ struct App {
     covers: Vec<Cover>,
     /// Which island holds the keyboard or the clicks, and which.
     grabbed: Option<(wl_output::WlOutput, Grab)>,
+    /// The surface the compositor gave the keyboard, such as an island clicked into.
+    keyboard_on: Option<wl_surface::WlSurface>,
     glyphs: Glyphs,
     features: Rc<Features>,
     config: Startup,
@@ -222,6 +224,7 @@ impl App {
             shadow: self.config.shadow,
             glow: self.config.glow,
             border: self.config.border,
+            bubble: self.config.bubble,
             samples: self.samples.clone(),
             system: self.system.clone(),
         };
@@ -312,7 +315,18 @@ impl App {
     }
 
     fn key(&mut self, key: &Key) {
-        if let Some(island) = self.holder() {
+        if self.grabbed.is_some() {
+            if let Some(island) = self.holder() {
+                island.key(key);
+            }
+            return;
+        }
+        let focused = self.keyboard_on.clone();
+        if let Some(island) = self
+            .islands
+            .iter_mut()
+            .find(|island| Some(island.layer.wl_surface()) == focused.as_ref())
+        {
             island.key(key);
         }
     }
@@ -347,10 +361,22 @@ impl App {
 
     fn sync_covers(&mut self, qh: &QueueHandle<Self>) {
         let held = self.grabbed.as_ref().map(|(held, _)| held.clone());
+        for island in &mut self.islands {
+            let on_demand = island.grab() == Grab::OnDemand;
+            if island.keys_on_demand != on_demand {
+                island.keys_on_demand = on_demand;
+                island.layer.set_keyboard_interactivity(if on_demand {
+                    KeyboardInteractivity::OnDemand
+                } else {
+                    KeyboardInteractivity::None
+                });
+                island.layer.commit();
+            }
+        }
         let grabbing: Vec<(wl_output::WlOutput, Grab)> = self
             .islands
             .iter()
-            .filter(|island| island.grab() != Grab::None)
+            .filter(|island| !matches!(island.grab(), Grab::None | Grab::OnDemand))
             .map(|island| (island.output.clone(), island.grab()))
             .collect();
         let taken = grabbing
@@ -836,11 +862,12 @@ impl KeyboardHandler for App {
         _: &Connection,
         _: &QueueHandle<Self>,
         _: &wl_keyboard::WlKeyboard,
-        _: &wl_surface::WlSurface,
+        surface: &wl_surface::WlSurface,
         _: u32,
         _: &[u32],
         _: &[Keysym],
     ) {
+        self.keyboard_on = Some(surface.clone());
     }
 
     fn leave(
@@ -851,6 +878,7 @@ impl KeyboardHandler for App {
         _: &wl_surface::WlSurface,
         _: u32,
     ) {
+        self.keyboard_on = None;
         self.repeat = None;
         self.held = None;
     }
@@ -981,15 +1009,22 @@ fn wait(
     conn: &Connection,
     wake: &OwnedFd,
     until: Option<Instant>,
-) {
-    let _ = conn.flush();
-    let caught = scale_queue.dispatch_pending(scales).unwrap_or(1)
-        + queue.dispatch_pending(app).unwrap_or(1);
+) -> Result<(), String> {
+    let lost = |error: &dyn std::fmt::Display| format!("the Wayland connection failed: {error}");
+    if let Err(wayland_client::backend::WaylandError::Io(error)) = conn.flush()
+        && error.kind() != std::io::ErrorKind::WouldBlock
+    {
+        return Err(lost(&error));
+    }
+    let caught = scale_queue
+        .dispatch_pending(scales)
+        .map_err(|error| lost(&error))?
+        + queue.dispatch_pending(app).map_err(|error| lost(&error))?;
     if caught > 0 {
-        return;
+        return Ok(());
     }
     let Some(read) = queue.prepare_read() else {
-        return;
+        return Ok(());
     };
     let timeout = until.map_or(-1, |until| {
         until
@@ -1013,11 +1048,22 @@ fn wait(
     // Both descriptors live past the call.
     unsafe { libc::poll(fds.as_mut_ptr(), 2, timeout) };
     if fds[0].revents & libc::POLLIN != 0 {
-        let _ = read.read();
+        match read.read() {
+            Err(wayland_client::backend::WaylandError::Io(error))
+                if error.kind() != std::io::ErrorKind::WouldBlock =>
+            {
+                return Err(lost(&error));
+            }
+            Err(error) => return Err(lost(&error)),
+            Ok(_) => {}
+        }
+    } else if fds[0].revents & (libc::POLLHUP | libc::POLLERR) != 0 {
+        return Err(lost(&"the compositor closed it"));
     }
     if fds[1].revents & libc::POLLIN != 0 {
         drained(wake);
     }
+    Ok(())
 }
 
 fn bind(
@@ -1094,6 +1140,7 @@ pub fn run(
         held: None,
         covers: Vec::new(),
         grabbed: None,
+        keyboard_on: None,
         glyphs: Glyphs::default(),
         features: Rc::new(started),
         battery_monitor: features::battery::Monitor::new(config.battery.clone()),
@@ -1181,6 +1228,17 @@ pub fn run(
                 }
             }
         }
+        for at in 0..app.islands.len() {
+            let seen = app.islands[at].take_seen();
+            if seen.is_empty() {
+                continue;
+            }
+            for (other, island) in app.islands.iter_mut().enumerate() {
+                if other != at {
+                    island.seen(&seen);
+                }
+            }
+        }
         app.sync_screens();
         app.sync_covers(&qh);
         app.sync_cursor();
@@ -1203,6 +1261,6 @@ pub fn run(
             &conn,
             &wake_fd,
             until,
-        );
+        )?;
     }
 }

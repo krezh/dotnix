@@ -46,6 +46,8 @@ pub struct Entry {
     pub folded: Option<Folded>,
     pub expanded: bool,
     pub on_toggle: Option<Handler>,
+    /// A tick before the lead, and what it does when clicked, such as leaving the row out of a plan.
+    pub pick: Option<(bool, Handler)>,
 }
 
 pub struct Columns {
@@ -62,6 +64,8 @@ pub struct Ledger {
     pub columns: Option<Columns>,
     pub chevron: Option<PathBuf>,
     pub entries: Vec<Entry>,
+    /// For a narrow card: a narrower name, and labels and notes left out where they are empty.
+    pub compact: bool,
 }
 
 impl Entry {

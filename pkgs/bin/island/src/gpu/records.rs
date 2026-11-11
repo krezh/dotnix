@@ -136,17 +136,24 @@ pub fn code(view: Code) -> Node {
                 .child(div().flex_none().h(1.0).bg(rule, 0.0))
         })
         .when(!rows.is_empty(), |block| {
-            block.child(
-                div()
-                    .py(CODE_PAD_Y)
-                    .col()
-                    .mono()
-                    .weight(400)
-                    .text_size(CODE_SIZE)
-                    .line(CODE_LINE)
-                    .children(rows)
-                    .when(rising, Node::rises),
-            )
+            let lines = div()
+                .py(CODE_PAD_Y)
+                .col()
+                .mono()
+                .weight(400)
+                .text_size(CODE_SIZE)
+                .line(CODE_LINE)
+                .children(rows)
+                .when(rising, Node::rises);
+            block.child(match view.scroll {
+                Some(scroll) => div()
+                    .max_h(scroll.height)
+                    .scrolls(scroll.key)
+                    .soft_edges()
+                    .when(scroll.follows, Node::follows_end)
+                    .child(lines),
+                None => lines,
+            })
         })
 }
 
@@ -558,6 +565,8 @@ pub fn timeline(view: Timeline) -> Node {
 }
 
 const ENTRY_W: f32 = 228.0;
+/// The name column of a compact ledger.
+const COMPACT_ENTRY_W: f32 = 150.0;
 const LABEL_W: f32 = 126.0;
 const VALUE_W: f32 = 46.0;
 const NOTE_W: f32 = 124.0;
@@ -568,6 +577,9 @@ const HEAD_SIZE: f32 = 11.0;
 const DETAIL_SIZE: f32 = 12.0;
 const SUB_SIZE: f32 = 11.5;
 const MARK_BOX: f32 = 28.0;
+/// The tick before a row that can be left out, and its box.
+const PICK_BOX: f32 = 24.0;
+const PICK_MARK: f32 = 20.0;
 const BAR_H: f32 = 6.0;
 const TICK_W: f32 = 2.0;
 const TICK_H: f32 = 12.0;
@@ -673,31 +685,37 @@ fn note_cell(note: SharedString, tint: u32, trail: Option<Node>) -> Node {
         .nowrap()
         .text_size(SUB_SIZE)
         .color(tint)
-        .child(moving(note))
+        .child(div().min_w(0.0).truncate().child(moving(note)))
         .children(trail)
 }
 
-fn bar_line(bar: Bar, trail: Option<Node>) -> Node {
+fn bar_line(bar: Bar, trail: Option<Node>, compact: bool) -> Node {
     let meter = bar_meter(&bar);
     let rising = bar.appear;
+    let label = !(compact && bar.label.is_empty());
+    let note = !(compact && bar.note.is_empty() && trail.is_none());
     div()
         .h(21.0)
         .flex()
         .items_center()
         .gap(COL_GAP)
-        .child(
-            div()
-                .w(LABEL_W)
-                .flex_none()
-                .truncate()
-                .text_size(DETAIL_SIZE)
-                .weight(MEDIUM)
-                .color(bar.label_color)
-                .child(text(bar.label)),
-        )
+        .when(label, |line| {
+            line.child(
+                div()
+                    .w(LABEL_W)
+                    .flex_none()
+                    .truncate()
+                    .text_size(DETAIL_SIZE)
+                    .weight(MEDIUM)
+                    .color(bar.label_color)
+                    .child(text(bar.label)),
+            )
+        })
         .child(meter)
         .child(value_cell(bar.value, bar.value_color, SEMIBOLD))
-        .child(note_cell(bar.note, bar.note_color, trail))
+        .when(note, |line| {
+            line.child(note_cell(bar.note, bar.note_color, trail))
+        })
         .when(rising, Node::rises)
 }
 
@@ -727,8 +745,8 @@ fn folded_line(folded: Folded, trail: Option<Node>) -> Node {
         .child(note_cell(folded.note, OVERLAY2, trail))
 }
 
-fn entry_lead(entry: &Entry, key: &str) -> Node {
-    let own_shape = matches!(entry.mark, Mark::Letter(..));
+fn entry_lead(entry: &Entry, key: &str, compact: bool) -> Node {
+    let own_shape = matches!(entry.mark, Mark::Letter(..) | Mark::Key(..));
     let fill = (!own_shape).then(|| match (entry.faded, entry.tint) {
         (true, _) => tinted(TINT, 0x10),
         (false, Some(tint)) => tinted(tint, ACCENT_TINT_ALPHA / 2),
@@ -763,12 +781,33 @@ fn entry_lead(entry: &Entry, key: &str) -> Node {
             .nowrap()
             .child(text(words.clone()))
     });
+    let pick = entry.pick.as_ref().map(|(picked, handler)| {
+        div()
+            .size(PICK_BOX)
+            .flex_none()
+            .flex()
+            .items_center()
+            .justify_center()
+            .hover(ROW_RADIUS)
+            .on_click(handler.clone())
+            .child(mark(
+                &Mark::Choice {
+                    picked: *picked,
+                    many: true,
+                },
+                PICK_MARK,
+                1.0,
+                &format!("{key}-pick"),
+            ))
+    });
     div()
-        .w(ENTRY_W)
+        .w(if compact { COMPACT_ENTRY_W } else { ENTRY_W }
+            + pick.as_ref().map_or(0.0, |_| PICK_BOX + 10.0))
         .flex_none()
         .flex()
         .items_center()
         .gap(10.0)
+        .children(pick)
         .child(lead)
         .child(
             div()
@@ -809,11 +848,12 @@ fn entry_row(
     index: usize,
     entry: Entry,
     chevron_path: Option<&std::path::PathBuf>,
+    compact: bool,
 ) -> Node {
     let key = format!("{at}-{}", entry.key);
     let lines_in = (entry.bars.len() + usize::from(entry.folded.is_some())).max(1);
     let single = lines_in == 1;
-    let left = entry_lead(&entry, &key);
+    let left = entry_lead(&entry, &key, compact);
     let accent = entry.accent;
     let whole = entry.on_toggle.is_some() && (entry.bars.is_empty() || entry.folded.is_none());
     let sub = entry.on_toggle.is_some() && !whole;
@@ -828,7 +868,7 @@ fn entry_row(
             let trail = (whole && number + 1 == count)
                 .then(|| chevron(chevron_path, expanded))
                 .flatten();
-            bar_line(bar, trail)
+            bar_line(bar, trail, compact)
         })
         .collect();
     if let Some(folded) = entry.folded {
@@ -990,11 +1030,12 @@ fn ledger_header(columns: Columns) -> Node {
 pub fn ledger(view: Ledger, at: &str) -> Node {
     let overflows = view.overflows();
     let path = view.chevron;
+    let compact = view.compact;
     let rows: Vec<Node> = view
         .entries
         .into_iter()
         .enumerate()
-        .map(|(index, entry)| entry_row(at, index, entry, path.as_ref()))
+        .map(|(index, entry)| entry_row(at, index, entry, path.as_ref(), compact))
         .collect();
     let list = div().col().children(rows);
     let body = if overflows {
@@ -1035,6 +1076,7 @@ fn prompt_button(label: impl Into<SharedString>, lit: bool, handler: Handler) ->
 }
 
 /// As big as the panel, with the card in the middle.
+/// Over a panel `size` big, or taller where the card needs more room.
 pub fn prompt(view: PromptView, size: (f32, f32)) -> Node {
     let cancel = view.on_cancel.clone();
     let eye = view.reveal.map(|reveal| {
@@ -1113,7 +1155,8 @@ pub fn prompt(view: PromptView, size: (f32, f32)) -> Node {
         );
     div()
         .w(size.0)
-        .h(size.1)
+        .min_h(size.1)
+        .py(PROMPT_PAD)
         .flex()
         .items_center()
         .justify_center()

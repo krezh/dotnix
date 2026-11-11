@@ -34,6 +34,8 @@ pub fn notches(scrolled: &Cell<f32>, delta: f32) -> i32 {
 pub enum Emphasis {
     Title,
     Small,
+    /// As strong as the bar's own short text.
+    Strong,
 }
 
 pub enum Frame {
@@ -158,6 +160,9 @@ pub struct BarWidget {
     pub on_scroll: Option<Scroll>,
     /// Keeps a left press from reaching what lies under it, as the click opens a menu.
     pub holds_press: bool,
+    /// What splits off the bar into a droplet of its own while it is there, rather than widening
+    /// the bar.
+    pub split: Option<Box<BarWidget>>,
 }
 
 impl BarWidget {
@@ -179,6 +184,7 @@ impl BarWidget {
             on_middle: None,
             on_scroll: None,
             holds_press: false,
+            split: None,
         }
     }
 
@@ -264,6 +270,11 @@ impl BarWidget {
 
     pub fn holds_press(mut self) -> Self {
         self.holds_press = true;
+        self
+    }
+
+    pub fn split(mut self, widget: BarWidget) -> Self {
+        self.split = Some(Box::new(widget));
         self
     }
 }

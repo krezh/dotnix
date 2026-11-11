@@ -35,6 +35,35 @@
         "reboot"
         "shutdown"
       ];
+      whichKeyEntry = lib.types.submodule {
+        options = {
+          key = lib.mkOption {
+            type = lib.types.strMatching ".";
+            description = "One character that picks this entry; case matters.";
+          };
+          desc = lib.mkOption {
+            type = lib.types.str;
+            description = "What the entry is called in the menu.";
+          };
+          cmd = lib.mkOption {
+            type = lib.types.nullOr lib.types.str;
+            default = null;
+            description = "Shell command run through `sh -c`; set this or submenu.";
+          };
+          submenu = lib.mkOption {
+            type = lib.types.listOf whichKeyEntry;
+            default = [ ];
+            description = "Entries of a further menu this key opens; set this or cmd.";
+          };
+        };
+      };
+      whichKeyToml =
+        entry:
+        {
+          inherit (entry) key desc;
+        }
+        // lib.optionalAttrs (entry.cmd != null) { inherit (entry) cmd; }
+        // lib.optionalAttrs (entry.submenu != [ ]) { submenu = map whichKeyToml entry.submenu; };
       section =
         default:
         lib.mkOption {
@@ -103,6 +132,9 @@
           };
           launcher = {
             inherit (cfg.features.launcher) terminal;
+          };
+          which-key = {
+            menus = lib.mapAttrs (_: map whichKeyToml) cfg.features.whichKey.menus;
           };
           clipboard = {
             history = {
@@ -471,6 +503,24 @@
               [features.launcher]
               terminal = ["foot", "-e"]
               ```
+            '';
+          };
+
+          whichKey.menus = lib.mkOption {
+            type = lib.types.attrsOf (lib.types.nonEmptyListOf whichKeyEntry);
+            default = { };
+            example = lib.literalExpression ''
+              {
+                browser = [
+                  { key = "h"; desc = "Helium"; cmd = "helium"; }
+                  { key = "z"; desc = "Zen"; cmd = "zen"; }
+                ];
+              }
+            '';
+            description = ''
+              Which-key menus, opened from the bar with `island ctl open which-key NAME`;
+              without a name it opens the menu called default. Press an entry's key to run its
+              command or open its submenu, Backspace to go back and Esc to close.
             '';
           };
 

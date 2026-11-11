@@ -12,7 +12,9 @@ use std::{
 
 use uuid::Uuid;
 
-use super::{COLLAPSED_H, COLLAPSED_LAYER, FOLD_SPRING, Grab, Mode, Morph, Panel, Shape, Stance};
+use super::{
+    Activities, COLLAPSED_H, COLLAPSED_LAYER, FOLD_SPRING, Grab, Mode, Morph, Panel, Shape, Stance,
+};
 use crate::{
     config,
     features::{self, AnyLocal, Battery, Features, IslandInfo, PanelCx},
@@ -45,6 +47,7 @@ pub struct Stage {
     /// The compositor snapshot changed, so the island's monitor and the features' per-island
     /// parts need another look.
     pub monitor_stale: bool,
+    pub activities: Activities,
 }
 
 /// The bar's width at rest, or with the pointer on it.
@@ -80,6 +83,7 @@ impl Stage {
             monitor_stale: workspaces.is_some(),
             workspaces,
             display: None,
+            activities: Activities::default(),
         };
         stage.sync_held();
         stage
@@ -179,7 +183,11 @@ impl Stage {
                     _ => true,
                 }
         };
-        if matches!(self.mode, Mode::Open(panel) if wants_keys(panel)) {
+        let stays =
+            matches!(self.mode, Mode::Open(Panel::Feature(name)) if features::stays_open(name));
+        if stays && !menu_open {
+            Grab::OnDemand
+        } else if matches!(self.mode, Mode::Open(panel) if wants_keys(panel)) {
             Grab::Keyboard
         } else if menu_open {
             Grab::Clicks
@@ -348,6 +356,27 @@ impl Stage {
             blocks,
             scroll: false,
         })
+    }
+
+    /// Asks every feature what it has under way.
+    pub fn refresh_activities(&mut self, glyphs: &Glyphs, now: Instant) {
+        let redraw = Cell::new(None);
+        let all: Vec<_> = self
+            .features
+            .iter()
+            .flat_map(|feature| {
+                let name = feature.name();
+                feature
+                    .activities(&mut self.panel_cx(name, glyphs, &redraw))
+                    .into_iter()
+                    .map(move |activity| (name, activity))
+            })
+            .collect();
+        let open = match self.mode {
+            Mode::Open(Panel::Feature(name)) => Some(name),
+            _ => None,
+        };
+        self.activities.update(all, open, now);
     }
 
     /// What every running feature puts on the dashboard's overview, in their places.

@@ -1,4 +1,5 @@
 mod activation;
+mod activity;
 #[cfg(test)]
 #[path = "architecture_test.rs"]
 mod architecture;
@@ -230,6 +231,7 @@ fn main() {
         shadow: appearance.shadow.max(0.0),
         glow: settings.features.visualizer.glow.max(0.0),
         border: appearance.border.max(0.0),
+        bubble: appearance.bubble,
     };
     let system = settings.features.system;
 

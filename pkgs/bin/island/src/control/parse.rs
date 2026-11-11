@@ -152,7 +152,7 @@ fn check(command: &Command, rest: &[&str]) -> Result<(), Mistake> {
             };
             match view {
                 [] => Ok(()),
-                [view] if views.contains(view) => Ok(()),
+                [view] if views.contains(view) || crate::features::named_views(panel) => Ok(()),
                 [_] if views.is_empty() => Err(Mistake::new(
                     Line::new()
                         .plain("The ")

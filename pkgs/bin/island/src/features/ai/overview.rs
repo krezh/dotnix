@@ -613,6 +613,7 @@ fn ledger_entry(
         bars,
         folded,
         expanded,
+        pick: None,
         on_toggle,
     }
 }
@@ -946,6 +947,7 @@ pub(super) fn blocks(ai: &Ai, state: &State, view: &View, p: &PanelCx<'_>, now: 
                 }),
                 chevron: p.glyph("ai-chevron"),
                 entries,
+                compact: false,
             })],
         ));
         if let Some(week) = horizon(&seen, now) {

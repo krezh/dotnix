@@ -56,8 +56,12 @@ struct Out {
         if (v.params.y > 12.5 && v.params.y < 13.5) {
             reach = reach + 3.0 * v.clip.z + v.clip.w;
         }
-        let low = min(rect.xy, v.uv.xy) - reach;
-        let high = max(rect.xy + rect.zw, v.uv.xy + v.uv.zw) + reach;
+        var low = min(rect.xy, v.uv.xy) - reach;
+        var high = max(rect.xy + rect.zw, v.uv.xy + v.uv.zw) + reach;
+        if (v.edges.y > 0.5) {
+            low.x = min(low.x, v.edges.x - reach);
+            high.x = max(high.x, v.edges.x + v.edges.y + reach);
+        }
         quad = vec4<f32>(low, high - low);
     }
     var pos = quad.xy + at * quad.zw;
@@ -98,19 +102,54 @@ fn smooth_min(a: f32, b: f32, blend: f32) -> f32 {
     return min(a, b) - h * h * blend * 0.25;
 }
 
-// As `merge::distance`: the bar `body` and the menu `hang` from it as one blended surface.
-fn merged(at: vec2<f32>, body: vec4<f32>, radius: f32, power: f32, hang: vec4<f32>, rounding: f32, blend: f32) -> f32 {
+fn smooth_max(a: f32, b: f32, blend: f32) -> f32 {
+    return -smooth_min(-a, -b, blend);
+}
+
+const DROP_HALF: f32 = 19.0;
+const WAIST_RADIUS: f32 = 30.0;
+const WAIST_BLEND: f32 = 7.0;
+const THREAD_BLEND: f32 = 6.0;
+
+// As `merge::with_split`: `bar` with the droplet `split` (left, width, waist, thread) added.
+fn with_split(at: vec2<f32>, bar: f32, body: vec4<f32>, radius: f32, power: f32, split: vec4<f32>) -> f32 {
+    if (split.y < 0.5) {
+        return bar;
+    }
+    let middle = body.y + DROP_HALF;
+    let drop = corner_distance(at, vec2<f32>(split.x + split.y * 0.5, middle), vec2<f32>(split.y * 0.5, DROP_HALF), radius, power);
+    var d = min(bar, drop);
+    let left = split.x + split.y * 0.5 < body.x + body.z * 0.5;
+    let edge = select(body.x + body.z, body.x, left);
+    if (split.z > 0.05) {
+        let r = WAIST_RADIUS;
+        let up = length(at - vec2<f32>(edge, middle - DROP_HALF - r + split.z)) - r;
+        let down = length(at - vec2<f32>(edge, middle + DROP_HALF + r - split.z)) - r;
+        d = smooth_max(d, -min(up, down), WAIST_BLEND);
+    }
+    let near = select(split.x, split.x + split.y, left);
+    let gap = select(near - edge, edge - near, left);
+    if (split.w > 0.2 && gap > 0.05) {
+        let thread = corner_distance(at, vec2<f32>((edge + near) * 0.5, middle), vec2<f32>(gap * 0.5 + split.w + 2.0, split.w), split.w, 2.0);
+        d = smooth_min(d, thread, THREAD_BLEND);
+    }
+    return d;
+}
+
+// As `merge::distance`: the bar `body`, the menu `hang` from it and its droplet `split` as one
+// blended surface.
+fn merged(at: vec2<f32>, body: vec4<f32>, radius: f32, power: f32, hang: vec4<f32>, rounding: f32, blend: f32, split: vec4<f32>) -> f32 {
     let bar = corner_distance(at, body.xy + body.zw * 0.5, body.zw * 0.5, radius, power);
     if (hang.w < 0.5 || hang.z < 1.0) {
-        return bar;
+        return with_split(at, bar, body, radius, power, split);
     }
     let top = body.y + body.w * 0.5;
     let extent = vec2<f32>(hang.z * 0.5, (hang.y + hang.w - top) * 0.5);
     let menu = corner_distance(at, vec2<f32>(hang.x + extent.x, top + extent.y), extent, rounding, 2.0);
     if (at.y < top) {
-        return min(bar, menu);
+        return with_split(at, min(bar, menu), body, radius, power, split);
     }
-    return smooth_min(bar, menu, min(blend, 2.0 * hang.w));
+    return with_split(at, smooth_min(bar, menu, min(blend, 2.0 * hang.w)), body, radius, power, split);
 }
 
 // How much of a line `width` wide (1 when 0) just inside an edge `d` away covers.
@@ -132,9 +171,17 @@ fn ink(coverage: f32, color: vec4<f32>) -> f32 {
 const EDGE_DEPTH: f32 = 44.0;
 
 @fragment fn fs(v: Out) -> @location(0) vec4<f32> {
+    if (v.params.y > 9.5) {
+        return shade(v);
+    }
     let top = v.edges.y * clamp(1.0 - (v.local.y - v.edges.x) / EDGE_DEPTH, 0.0, 1.0);
     let bottom = v.edges.w * clamp(1.0 - (v.edges.z - v.local.y) / EDGE_DEPTH, 0.0, 1.0);
     return shade(v) * (1.0 - top) * (1.0 - bottom);
+}
+
+fn soft_erf(t: vec2<f32>) -> vec2<f32> {
+    let c = clamp(t, vec2<f32>(-4.0), vec2<f32>(4.0));
+    return tanh(1.1283792 * c + 0.1009 * c * c * c);
 }
 
 fn shade(v: Out) -> vec4<f32> {
@@ -158,6 +205,14 @@ fn shade(v: Out) -> vec4<f32> {
         }
         return sampled * v.color;
     } else if (kind < 2.5) {
+        if (v.uv.z > 1.5) {
+            let sigma = v.uv.x;
+            let shape_half = v.rect.zw * 0.5 - 3.0 * sigma;
+            let p = v.local - center;
+            let s = sigma * 1.41421356;
+            let across = soft_erf((p + shape_half) / s) - soft_erf((p - shape_half) / s);
+            return v.color * 0.25 * across.x * across.y;
+        }
         if (v.uv.z > 0.5) {
             let sigma = v.uv.x;
             let shape_half = v.rect.zw * 0.5 - 3.0 * sigma;
@@ -184,7 +239,7 @@ fn shade(v: Out) -> vec4<f32> {
         return v.color * clamp(0.5 + (radius - length(v.local - a - ab * t)) * pixel, 0.0, 1.0);
     }
     if (kind > 9.5) {
-        let d = merged(v.local, v.rect, radius, power, v.uv, v.clip.x, v.clip.y);
+        let d = merged(v.local, v.rect, radius, power, v.uv, v.clip.x, v.clip.y, v.edges);
         if (kind < 10.5) {
             return v.color * clamp(0.5 - d * pixel, 0.0, 1.0);
         }
@@ -201,10 +256,15 @@ fn shade(v: Out) -> vec4<f32> {
             return light * v.params.w * clamp(0.5 - d * pixel, 0.0, 1.0);
         }
         let sigma = v.clip.z;
-        let thrown = merged(v.local - vec2<f32>(0.0, v.clip.w), v.rect, radius, power, v.uv, v.clip.x, v.clip.y);
+        let thrown = merged(v.local - vec2<f32>(0.0, v.clip.w), v.rect, radius, power, v.uv, v.clip.x, v.clip.y, v.edges);
         let t = clamp(thrown / (sigma * 1.41421356), -4.0, 4.0);
         let spread = tanh(1.1283792 * t + 0.1009 * t * t * t);
         return v.color * (0.5 - 0.5 * spread) * clamp(0.5 + d * pixel, 0.0, 1.0);
+    }
+    if (kind > 8.5) {
+        let inside = clamp(0.5 - corner_distance(v.local, center, v.rect.zw * 0.5, radius, power) * pixel, 0.0, 1.0);
+        let fall = clamp(1.0 - length((v.local - v.rect.xy) / v.uv.zw), 0.0, 1.0);
+        return v.color * inside * fall * fall;
     }
     if (kind > 7.5) {
         let light = textureSampleLevel(atlas, blended, v.texel, 0.0);
@@ -309,8 +369,19 @@ const AREA: f32 = 5.0;
 const GLOW: f32 = 6.0;
 const ARC: f32 = 7.0;
 const SOFT: f32 = 8.0;
+/// A shape lit softly from its top left corner, fading to nothing across it.
+const WASH: f32 = 9.0;
+/// How far across and down a wash reaches, as shares of its shape.
+const WASH_REACH: (f32, f32) = (0.8, 1.3);
 /// The bar and the menu hanging from it as one surface: its fill, the line just inside its edge,
 /// the line just outside it, its shadow and the light over it.
+/// A merged surface's droplet as the shader takes it, in place of the edges it never fades under.
+fn split_of(merge: &Merge) -> [f32; 4] {
+    merge.split.map_or([0.0; 4], |split| {
+        [split.x, split.width, split.waist, split.thread]
+    })
+}
+
 pub const MERGED_FILL: f32 = 10.0;
 pub const MERGED_RIM: f32 = 11.0;
 pub const MERGED_OUTLINE: f32 = 12.0;
@@ -392,6 +463,14 @@ impl Sprite {
         }
     }
 
+    /// `shape`, square cornered, blurred as a Gaussian of `sigma`, under it as well as round it, as
+    /// GPUI draws a box shadow. `radius` is ignored.
+    pub fn blurred(shape: [f32; 4], color: [f32; 4], radius: f32, sigma: f32) -> Self {
+        let mut sprite = Self::drop_shadow(shape, color, radius, sigma, 0.0);
+        sprite.uv[2] = 2.0;
+        sprite
+    }
+
     /// From `a` to `b`, with round ends.
     pub fn line(a: (f32, f32), b: (f32, f32), width: f32, color: [f32; 4]) -> Self {
         let pad = width / 2.0 + 1.0;
@@ -432,6 +511,18 @@ impl Sprite {
         }
     }
 
+    /// `rect` with `radius` corners, lit from its top left corner and fading out across it.
+    pub fn wash(rect: [f32; 4], color: [f32; 4], radius: f32) -> Self {
+        Self {
+            rect,
+            uv: [0.0, 0.0, rect[2] * WASH_REACH.0, rect[3] * WASH_REACH.1],
+            color,
+            params: [radius, WASH, 2.0, 0.0],
+            clip: NO_CLIP,
+            edges: NO_EDGES,
+        }
+    }
+
     /// Round `rect`'s middle, `stroke` thick, from the share `from` of the way round from the top,
     /// clockwise, to `to`, with round ends.
     pub fn arc(rect: [f32; 4], stroke: f32, from: f32, to: f32, color: [f32; 4]) -> Self {
@@ -461,7 +552,7 @@ impl Sprite {
             color,
             params: [radius, part, power, 0.0],
             clip: [merge.radius, merge.blend, 0.0, 0.0],
-            edges: NO_EDGES,
+            edges: split_of(merge),
         }
     }
 
@@ -479,7 +570,7 @@ impl Sprite {
             color,
             params: [radius, MERGED_SHADOW, power, 0.0],
             clip: [merge.radius, merge.blend, sigma, drop],
-            edges: NO_EDGES,
+            edges: split_of(merge),
         }
     }
 
@@ -498,7 +589,7 @@ impl Sprite {
             color: uv,
             params: [radius, MERGED_GLOW, power, fade],
             clip: [merge.radius, merge.blend, 0.0, 0.0],
-            edges: NO_EDGES,
+            edges: split_of(merge),
         }
     }
 
@@ -537,7 +628,9 @@ impl Sprite {
             self.clip[2] += x;
             self.clip[3] += y;
         }
-        if self.edges != NO_EDGES {
+        if self.params[1] >= MERGED_FILL {
+            self.edges[0] += x;
+        } else if self.edges != NO_EDGES {
             self.edges[0] += y;
             self.edges[2] += y;
         }
@@ -546,7 +639,7 @@ impl Sprite {
 
     /// Fading out under `edges`, unless it already fades under those of something closer in.
     pub fn fading(mut self, edges: [f32; 4]) -> Self {
-        if self.edges == NO_EDGES {
+        if self.edges == NO_EDGES && self.params[1] < MERGED_FILL {
             self.edges = edges;
         }
         self

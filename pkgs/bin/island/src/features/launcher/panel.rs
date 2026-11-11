@@ -45,6 +45,7 @@ pub(super) fn panel(p: &PanelCx<'_>) -> Option<PanelView> {
             pictures: false,
             on_scroll: p.on_local_with::<Launcher, i32>(move |_, local, rows| local.scroll(rows)),
             preview: None,
+            fill: false,
         })],
     })
 }

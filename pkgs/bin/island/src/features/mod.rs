@@ -19,6 +19,7 @@ pub mod notifications;
 pub mod osd;
 pub mod session;
 pub mod tray;
+pub mod which_key;
 pub mod workspaces;
 pub mod zowie;
 

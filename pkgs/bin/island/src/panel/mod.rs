@@ -24,8 +24,8 @@ pub use crate::components::{
 };
 
 pub use model::{
-    ActionTile, Block, Button, ButtonRow, ChartView, Handler, Header, HeaderLead, Hero, IconButton,
-    PanelView, Passing, Place, Placed, Split, Views, Warning, on,
+    ActionTile, Block, Button, ButtonRow, ChartView, Grow, Handler, Header, HeaderLead, Hero,
+    IconButton, PanelView, Passing, Place, Placed, Split, Views, Warning, on,
 };
 pub use smol_str::SmolStr as SharedString;
 pub use ui::Ui;

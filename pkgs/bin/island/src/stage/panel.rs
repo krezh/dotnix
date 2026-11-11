@@ -2,7 +2,7 @@
 
 use crate::features;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Panel {
     /// The dashboard's overview: every feature's switches and cards together.
     Dashboard,
@@ -20,6 +20,9 @@ pub enum Grab {
     /// Clicks outside the island, leaving the keyboard with the focused window.
     Clicks,
     Keyboard,
+    /// Nothing outside the island, which stays open through clicks elsewhere; it takes the
+    /// keyboard once clicked into, as a window would.
+    OnDemand,
 }
 
 impl Panel {

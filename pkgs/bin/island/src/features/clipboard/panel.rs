@@ -68,6 +68,7 @@ pub(super) fn panel(state: &State, p: &PanelCx<'_>) -> Option<PanelView> {
             on_scroll: p
                 .on_local_with::<Clipboard, i32>(move |_, picker, rows| picker.scroll(rows, count)),
             preview: Some(preview),
+            fill: false,
         })],
     })
 }

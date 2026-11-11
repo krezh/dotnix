@@ -111,6 +111,17 @@ pub struct Appearance {
     #[serde(deserialize_with = "number")]
     pub shadow: f32,
     pub icon_theme: String,
+    /// Which end of the bar work carried on after a panel closes splits off from.
+    pub bubble: Side,
+}
+
+/// One end of the bar.
+#[derive(Clone, Copy, Debug, Default, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum Side {
+    #[default]
+    Left,
+    Right,
 }
 
 impl Default for Appearance {
@@ -122,6 +133,7 @@ impl Default for Appearance {
             border: DEFAULT_BORDER,
             shadow: 1.0,
             icon_theme: "hicolor".to_owned(),
+            bubble: Side::Left,
         }
     }
 }
@@ -299,4 +311,5 @@ pub struct Startup {
     pub glow: f32,
     /// How wide the line round its edge is; none at 0.
     pub border: f32,
+    pub bubble: Side,
 }

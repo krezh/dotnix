@@ -236,6 +236,7 @@ fn live_code(live: &Live, fresh: bool) -> Code {
         } else {
             CodeMotion::Still
         },
+        scroll: None,
     }
 }
 

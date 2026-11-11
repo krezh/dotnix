@@ -139,6 +139,7 @@ impl Layout<'_> {
         match emphasis {
             Emphasis::Title => (TITLE_SIZE, BOLD),
             Emphasis::Small => (SMALL_SIZE, MEDIUM),
+            Emphasis::Strong => (SMALL_SIZE, SEMIBOLD),
         }
     }
 

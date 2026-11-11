@@ -45,6 +45,8 @@ pub struct Button {
 pub enum Header {
     Tabs,
     Title(SharedString, Vec<Button>),
+    /// A title after the fainter ones leading to it, such as a menu inside other menus.
+    Path(Vec<SharedString>),
     Views(Views),
     None,
 }
@@ -56,6 +58,8 @@ pub struct HeaderLead {
     pub size: f32,
     pub overline: SharedString,
     pub title: SharedString,
+    /// The title in this color, such as what it says going well or wrong.
+    pub title_color: Option<u32>,
     pub on_click: Option<Handler>,
 }
 
@@ -73,6 +77,8 @@ pub struct Views {
     pub icons: Vec<Vec<IconButton>>,
     /// The view being left, while the picked one slides in over it.
     pub passing: Option<Passing>,
+    /// A way back before the lead, for a view opened from another.
+    pub back: Option<Handler>,
 }
 
 /// One view moving out as another comes in, as their tabs sit side by side.
@@ -85,6 +91,20 @@ pub struct Passing {
     /// How wide the leaving view was as it started leaving, kept across frames: the panel is
     /// already changing size, and it has to clear what it passes.
     pub width: Rc<Cell<Option<f32>>>,
+    /// Grows out of a part of the view it replaces, or shrinks back into one, rather than sliding.
+    pub grow: Option<Grow>,
+    /// The header of the view leaving, which leaves with it as one grows out of the other.
+    pub views: Option<Box<Views>>,
+}
+
+/// A view opened from a part of another, such as a tool from its card: it grows out of the part
+/// named `anchor`, and going `back` it shrinks into it again.
+#[derive(Clone)]
+pub struct Grow {
+    pub anchor: SharedString,
+    pub back: bool,
+    /// The color the part it grows out of is washed in, which it carries as it grows.
+    pub tint: Option<u32>,
 }
 
 /// Shows its glyph, with its label as the tooltip; without a glyph, its label.
@@ -314,6 +334,10 @@ impl Block {
             Block::Tiles(tiles) => tiles.len().hash(hasher),
             Block::Item(item, blocks) => {
                 (item.lead.is_some(), item.trail.len()).hash(hasher);
+                if let Some(lead) = &item.lead {
+                    (lead.size.map(f32::to_bits), lead.top).hash(hasher);
+                }
+                item.overline.is_some().hash(hasher);
                 if item.wrap {
                     item.title.hash(hasher);
                 }
@@ -462,6 +486,7 @@ impl PanelView {
                 title.hash(&mut hasher);
                 buttons.len().hash(&mut hasher);
             }
+            Header::Path(path) => path.hash(&mut hasher),
             Header::Views(views) => {
                 views.tabs.len().hash(&mut hasher);
                 views.buttons.len().hash(&mut hasher);
