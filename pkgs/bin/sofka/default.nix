@@ -16,6 +16,13 @@ pkgs.rustPlatform.buildRustPackage rec {
 
   cargoHash = "sha256-lE49u1KKXl9r3SCEOvXfyakn3tnNvf1qoJ1LOMlAhKU=";
 
+  nativeBuildInputs = [ pkgs.pkg-config ];
+
+  buildInputs = [
+    pkgs.aws-lc
+    pkgs.zstd
+  ];
+
   doCheck = false;
 
   meta = {
