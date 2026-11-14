@@ -5,16 +5,16 @@
 (pkgs.buildGoModule.override { go = pkgs.go-bin.latestStable; }) (finalAttrs: {
   pname = "talswitcher";
   # renovate: datasource=github-releases depName=mirceanton/talswitcher
-  version = "2.2.43";
+  version = "2.2.44";
 
   src = pkgs.fetchFromGitHub {
     owner = "mirceanton";
     repo = "talswitcher";
     rev = "v${finalAttrs.version}";
-    hash = "sha256-coUxudbFTpVx4Ir+9SeTBxYtDSNGvFLS5VFRbhqeSQM=";
+    hash = "sha256-+Ek5audnfcxi/mUsDZeuBkls9X5bi4w4+m0mavtczEY=";
   };
 
-  vendorHash = "sha256-qF02mIrymELdv9CaQw+dB7rx/zX9LkVD7rKWTQBMoS0=";
+  vendorHash = "sha256-UzcUhFDDKCGrQyI8B5+4W6UR/z5GU2uKeZZ7s/GKU4g=";
 
   preBuild = ''
     export HOME="$TMPDIR"
