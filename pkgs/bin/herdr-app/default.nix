@@ -66,6 +66,7 @@ pkgs.rustPlatform.buildRustPackage (finalAttrs: {
     pkgs.libxkbcommon
     pkgs.libxcb
     pkgs.wayland
+    pkgs.libz
   ];
 
   env = {
