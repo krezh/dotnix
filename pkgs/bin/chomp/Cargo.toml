@@ -13,7 +13,7 @@ smithay-client-toolkit = { version = "0.21", default-features = false, features 
 ] }
 cairo-rs = { version = "0.22", features = ["png"] }
 image = "0.25"
-nix = { version = "0.31", features = ["fs", "mman", "signal", "process", "socket"] }
+nix = { version = "0.32", features = ["fs", "mman", "signal", "process", "socket"] }
 anyhow = "1.0"
 clap = { version = "4.5", features = ["derive"] }
 clap_complete = "4.5"
