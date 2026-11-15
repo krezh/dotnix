@@ -5,7 +5,7 @@
 pkgs.rustPlatform.buildRustPackage (finalAttrs: {
   pname = "herdr-app";
   # renovate: datasource=github-tags depName=herdrdev/herdr-app
-  version = "0.1.15";
+  version = "0.1.16";
   # renovate: datasource=github-tags depName=herdrdev/herdr-core
   coreVersion = "0.1.20";
 
