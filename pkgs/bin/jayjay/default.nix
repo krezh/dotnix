@@ -5,10 +5,10 @@
 let
   pname = "jayjay";
   # renovate: datasource=github-releases depName=hewigovens/jayjay
-  version = "0.3.23";
+  version = "0.3.24";
   src = pkgs.fetchurl {
     url = "https://github.com/hewigovens/jayjay/releases/download/v${version}/jayjay-gpui-x86_64.AppImage";
-    hash = "sha256-eAjqLKpzaanGNb20otkmwzjBGrg1+Bju+aIK05aD0QE=";
+    hash = "sha256-d/SyWFwnaxEkXtnkiudDpnZa978NU4EpL3O4EmMEUAc=";
   };
 
   appimageContents = pkgs.appimageTools.extract { inherit pname version src; };
