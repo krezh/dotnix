@@ -5,16 +5,16 @@
 pkgs.rustPlatform.buildRustPackage rec {
   pname = "sofka";
   # renovate: datasource=github-releases depName=nklmilojevic/sofka
-  version = "0.36.0";
+  version = "0.37.0";
 
   src = pkgs.fetchFromGitHub {
     owner = "nklmilojevic";
     repo = "sofka";
     tag = "v${version}";
-    hash = "sha256-mxuJfZDP2ripRCADEB/qRecICbe58ZjEju0iqAoKiLA=";
+    hash = "sha256-5n9/eZsZa7EIwm8bZvG3cAmXusgLmvPQREEcWSqrIts=";
   };
 
-  cargoHash = "sha256-JSL9wou9Owa7fR7+78Hqxr5hE/hHjeZmqiJXTCUJbno=";
+  cargoHash = "sha256-8vSD8EQmzMZM4zuKyPB9gjVHDncHkVycp7sU7/7TUNk=";
 
   nativeBuildInputs = [ pkgs.pkg-config ];
 
