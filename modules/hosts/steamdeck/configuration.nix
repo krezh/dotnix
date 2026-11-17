@@ -48,6 +48,7 @@ in
 
       jovian = {
         devices.steamdeck.enable = true;
+        decky-loader.enable = true;
         steam = {
           enable = true;
           autoStart = true;
