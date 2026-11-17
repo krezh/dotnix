@@ -15,7 +15,6 @@ use super::{
     Surface, WidgetCx, feature::widgets_of, owner,
 };
 use crate::{
-    activity::Activity,
     bar_widget::BarWidget,
     control::{Reply, Row},
     key::Key,
@@ -84,7 +83,6 @@ pub trait AnyFeature {
     fn panel_opened(&self) -> Option<Box<dyn Any>>;
     fn dashboard_opened(&self) -> Option<Box<dyn Any>>;
     fn popup<'a>(&self, p: &mut PanelCx<'a>) -> Option<PanelView>;
-    fn activities(&self, p: &mut PanelCx<'_>) -> Vec<Activity>;
     fn elapse(&self, local: &mut dyn AnyLocal, hovered: bool);
     fn pointer(&self, local: &mut dyn AnyLocal, over: bool);
     fn lead(&self, local: &dyn AnyLocal) -> Option<Mark>;
@@ -152,11 +150,6 @@ impl<F: Surface> AnyFeature for Rc<Instance<F>> {
     fn popup<'a>(&self, p: &mut PanelCx<'a>) -> Option<PanelView> {
         p.instance = Some(self.clone());
         self.feature.popup(&self.state.borrow(), p)
-    }
-
-    fn activities(&self, p: &mut PanelCx<'_>) -> Vec<Activity> {
-        p.instance = Some(self.clone());
-        self.feature.activities(&self.state.borrow(), p)
     }
 
     fn elapse(&self, local: &mut dyn AnyLocal, hovered: bool) {

@@ -208,9 +208,9 @@ impl App {
             Some(namespace),
             Some(&output),
         );
-        layer.set_anchor(Anchor::TOP);
+        layer.set_anchor(Anchor::TOP | Anchor::LEFT | Anchor::RIGHT);
         layer.set_keyboard_interactivity(KeyboardInteractivity::None);
-        layer.set_size(SURFACE_W as u32, SURFACE_H as u32);
+        layer.set_size(0, SURFACE_H as u32);
         layer.set_exclusive_zone((self.config.top + COLLAPSED_H) as i32);
         let stage = Stage::new(
             self.config.layout.clone(),
@@ -422,7 +422,7 @@ impl App {
     }
 
     /// Gives each island the whole of its screen while it stands off the bar, keeping the room it
-    /// keeps clear at the top, and its own room again once it is back.
+    /// keeps clear at the top, and its own room across the top again once it is back.
     fn sync_screens(&mut self) {
         for island in &mut self.islands {
             let wanted = island.stand.wants_screen();
@@ -437,13 +437,9 @@ impl App {
                 else {
                     continue;
                 };
-                island
-                    .layer
-                    .set_anchor(Anchor::TOP | Anchor::LEFT | Anchor::RIGHT);
                 island.layer.set_size(0, height.max(1) as u32);
             } else {
-                island.layer.set_anchor(Anchor::TOP);
-                island.layer.set_size(SURFACE_W as u32, SURFACE_H as u32);
+                island.layer.set_size(0, SURFACE_H as u32);
             }
             island.stand.asked = wanted;
             island.layer.commit();
@@ -1225,17 +1221,6 @@ pub fn run(
                         surface.frame(&qh, FrameCallbackData(surface.clone()));
                     }
                     island.frame(&app.glyphs, &mut app.painter, gpu, &app.compositor);
-                }
-            }
-        }
-        for at in 0..app.islands.len() {
-            let seen = app.islands[at].take_seen();
-            if seen.is_empty() {
-                continue;
-            }
-            for (other, island) in app.islands.iter_mut().enumerate() {
-                if other != at {
-                    island.seen(&seen);
                 }
             }
         }

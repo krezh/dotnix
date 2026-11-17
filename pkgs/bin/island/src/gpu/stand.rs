@@ -120,7 +120,8 @@ pub fn lift_to_middle(screen: f32, panel: f32, top: f32) -> f32 {
 
 pub struct Stand {
     stance: Stance,
-    /// The surface's size: the island's own room, or the whole screen.
+    /// The surface's size: the island's own room across the whole width of the screen, or the
+    /// whole screen.
     pub size: (f32, f32),
     /// The whole screen has been asked for.
     pub asked: bool,
@@ -142,9 +143,10 @@ impl Stand {
         }
     }
 
-    /// Its surface is the whole screen, whether or not it is still wanted.
+    /// Its surface is the whole screen, whether or not it is still wanted. Its own room is as
+    /// wide as the screen too, so only the height tells them apart.
     fn on_screen(&self) -> bool {
-        self.size != (SURFACE_W, SURFACE_H)
+        self.size.1 != SURFACE_H
     }
 
     /// Has the whole screen, and keeps it.
@@ -212,6 +214,7 @@ impl Stand {
         View {
             size: [self.size.0, self.size.1],
             shift: [x, y],
+            ..View::new([0.0; 2])
         }
     }
 

@@ -40,7 +40,10 @@ use super::{
     paint::Painter,
     panel::{self, Built, DROP, MorphText, Shown},
     records,
-    renderer::{Gpu, MERGED_FILL, MERGED_OUTLINE, MERGED_RIM, Presented, Sprite, inside},
+    renderer::{
+        Chain, Gpu, MERGED_FILL, MERGED_OUTLINE, MERGED_RIM, NO_CHAIN, Presented, Sprite, View,
+        chain_of, inside,
+    },
     stand::Stand,
     turn::Turn,
     widget::{Drawn, Hit, Layout, Tint, color, sets, tinted},
@@ -103,8 +106,6 @@ const BODY: &str = "panel-body";
 const FOLLOW_SLACK: f32 = 24.0;
 const GLIDE: Duration = Duration::from_millis(16);
 const SHADOW_BELOW: f32 = 55.0;
-/// How often work under way is asked about, for its clock.
-const ACTIVITY_TICK: Duration = Duration::from_secs(1);
 
 pub struct Look {
     pub top: f32,
@@ -244,12 +245,11 @@ pub struct Island {
     pub stand: Stand,
     look: Look,
     cache: HashMap<Widget, Cached>,
-    /// What a widget splits off the bar into the droplet, as last drawn, and whether it is still
-    /// there; once gone it stays drawn while the droplet sinks back in.
-    carried: Option<(Widget, Drawn, bool)>,
-    carried_texts: HashMap<u64, Shown>,
-    /// How far that widget has left the bar: its place there closes up as it goes.
-    carry: Spring,
+    /// Each widget that asked for a droplet, as last drawn there, and whether it still does; once
+    /// it stops it stays drawn while its droplet melts back in.
+    carried: HashMap<Widget, (Drawn, bool)>,
+    /// The droplets splitting off the bar, as the shader takes them.
+    chain: Chain,
     last_frame: Option<Instant>,
     started: Instant,
     pointer: Option<(f32, f32)>,
@@ -336,11 +336,6 @@ pub struct Island {
     /// Since the island started moving, and when it did.
     frames: Option<(u32, Instant)>,
     bubble: Bubble,
-    /// Ask the features what they have under way before the next frame, or at this time.
-    activities_stale: bool,
-    activities_at: Option<Instant>,
-    /// Its shape over a fullscreen window while something is under way.
-    pill: Option<Shape>,
 }
 
 impl Island {
@@ -366,9 +361,8 @@ impl Island {
             stand: Stand::new(),
             look,
             cache: HashMap::new(),
-            carried: None,
-            carried_texts: HashMap::new(),
-            carry: Spring::new(0.0, SHAPE_SPRING, 0.002),
+            carried: HashMap::new(),
+            chain: NO_CHAIN,
             last_frame: None,
             started: Instant::now(),
             pointer: None,
@@ -425,9 +419,6 @@ impl Island {
             awaited: None,
             frames: None,
             bubble: Bubble::new(),
-            activities_stale: true,
-            activities_at: None,
-            pill: None,
         }
     }
 
@@ -503,26 +494,12 @@ impl Island {
     }
 
     pub fn feature_changed(&mut self, name: &'static str) {
-        self.activities_stale = true;
         self.forget_widgets_of(name);
         self.stage.sync_local(name);
         self.stage.sync_held();
         self.stale = self.stage.mode != Mode::Collapsed;
         self.sync_popups();
         self.dirty = true;
-    }
-
-    /// What this island's panels have shown since last asked, for the other islands.
-    pub fn take_seen(&mut self) -> Vec<SharedString> {
-        self.stage.activities.take_newly_seen()
-    }
-
-    /// Seen on another island, so it stops showing here too.
-    pub fn seen(&mut self, keys: &[SharedString]) {
-        if self.stage.activities.see(keys) {
-            self.activities_stale = true;
-            self.dirty = true;
-        }
     }
 
     pub fn feature_live(&mut self, name: &'static str) {
@@ -624,60 +601,51 @@ impl Island {
         let grouped = self.stage.layout.group.contains(&kind);
         let half = bar::half(spacing);
         let mut w = WidgetCx::new(half, grouped, glyphs, local);
-        let mut widget = feature.widget(name, &*state, &mut w);
-        let split = widget.as_mut().and_then(|widget| widget.split.take());
+        let widget = feature.widget(name, &*state, &mut w);
+        let droplet = widget.as_ref().is_some_and(|widget| widget.droplet);
         let nothing = HashMap::new();
-        let owner = format!("{}-{}", kind.0, self.output.id().protocol_id());
         let mut layout = Layout {
             painter,
             gpu,
             scale: self.scale,
-            hover_inset: spacing / 2.0,
+            hover_inset: if droplet { 0.0 } else { spacing / 2.0 },
             half,
-            grouped,
+            grouped: grouped && !droplet,
             started: self.started,
             before: self.widget_texts.get(&kind).unwrap_or(&nothing),
-            owner: owner.clone(),
+            owner: format!("{}-{}", kind.0, self.output.id().protocol_id()),
         };
         let mut drawn = widget
             .map(|widget| layout.draw(&widget))
             .unwrap_or_default();
         self.widget_texts
             .insert(kind, std::mem::take(&mut drawn.texts));
-        let mut moving = drawn.moving;
-        match split {
-            Some(split) => {
-                let mut layout = Layout {
-                    painter,
-                    gpu,
-                    scale: self.scale,
-                    hover_inset: 0.0,
-                    half,
-                    grouped: false,
-                    started: self.started,
-                    before: &self.carried_texts,
-                    owner: format!("{owner}-split"),
-                };
-                let mut carried = layout.draw(&split);
-                self.carried_texts = std::mem::take(&mut carried.texts);
-                moving |= carried.moving;
-                self.carried = Some((kind, carried, true));
-            }
-            None => {
-                if let Some((owner, _, live)) = &mut self.carried
-                    && *owner == kind
-                {
-                    *live = false;
-                }
-            }
-        }
         let redraw_at = w.next_redraw().map(|after| now + after);
-        let redraw_at = if moving {
+        let redraw_at = if drawn.moving {
             Some(redraw_at.map_or(now + TICK, |at| at.min(now + TICK)))
         } else {
             redraw_at
         };
-        self.cache.insert(kind, Cached { drawn, redraw_at });
+        let changed = if droplet {
+            self.carried.insert(kind, (drawn, true));
+            self.cache.insert(
+                kind,
+                Cached {
+                    drawn: Drawn::default(),
+                    redraw_at,
+                },
+            );
+            self.stage.droplets.insert(name)
+        } else {
+            if let Some((_, live)) = self.carried.get_mut(&kind) {
+                *live = false;
+            }
+            self.cache.insert(kind, Cached { drawn, redraw_at });
+            self.stage.droplets.remove(name)
+        };
+        if changed {
+            self.stage.sync_held();
+        }
     }
 
     /// What each section holds and how wide it is at each widget's fold.
@@ -689,6 +657,9 @@ impl Island {
                 .iter()
                 .filter_map(|kind| {
                     let Widget(name) = *kind;
+                    if self.stage.droplets.contains(name) {
+                        return None;
+                    }
                     let rest = self
                         .stage
                         .features
@@ -705,28 +676,10 @@ impl Island {
                         .get(kind)
                         .map_or(0.0, |cached| cached.drawn.width);
                     let width = rest + (natural - rest).max(0.0) * presence;
-                    let kept = self.kept(*kind, target);
-                    Some((*kind, width * kept, presence, rest))
+                    Some((*kind, width, presence, rest))
                 })
                 .collect()
         })
-    }
-
-    /// How much of `kind` is left in the bar, as it splits off into the droplet.
-    fn kept(&self, kind: Widget, target: bool) -> f32 {
-        if self
-            .carried
-            .as_ref()
-            .is_none_or(|(owner, ..)| *owner != kind)
-        {
-            return 1.0;
-        }
-        let carry = if target {
-            self.carry.target()
-        } else {
-            self.carry.value()
-        };
-        (1.0 - carry).clamp(0.0, 1.0)
     }
 
     fn bar_width(&self, target: bool) -> f32 {
@@ -738,10 +691,7 @@ impl Island {
     }
 
     fn retarget(&mut self) {
-        let shape = match self.pill.filter(|_| self.stage.hidden()) {
-            Some(pill) => Some(pill),
-            None => self.stage.desired_shape(Some(self.bar_width(true))),
-        };
+        let shape = self.stage.desired_shape(Some(self.bar_width(true)));
         if self.stage.morph.fit(shape) {
             self.dirty = true;
         }
@@ -792,7 +742,6 @@ impl Island {
                 .insert(panel, std::mem::take(&mut self.offsets));
         }
         self.stage.mode = mode;
-        self.activities_stale = true;
         if let Mode::Open(Panel::Feature(name)) = mode
             && let Some(feature) = self.stage.features.get(name)
         {
@@ -1186,7 +1135,6 @@ impl Island {
             && self.strip.is_settled()
             && self.menu.as_ref().is_none_or(Menu::is_settled)
             && self.bubble.is_settled()
-            && self.carry.is_settled()
             && self
                 .eases
                 .values()
@@ -1269,7 +1217,6 @@ impl Island {
             .chain(pace)
             .chain(refresh)
             .chain(self.leave_at)
-            .chain(self.activities_at)
             .chain(self.redraw_at)
             .chain(self.turn.again())
             .chain(self.stage.next_due())
@@ -1288,12 +1235,6 @@ impl Island {
         if self.redraw_at.is_some_and(|at| at <= now) {
             self.redraw_at = None;
             self.stale = true;
-            self.dirty = true;
-        }
-        if self.activities_at.is_some_and(|at| at <= now) {
-            self.activities_at = None;
-            self.activities_stale = true;
-            self.last_frame.get_or_insert_with(Instant::now);
             self.dirty = true;
         }
         for name in self.stage.elapse(now) {
@@ -1614,6 +1555,7 @@ impl Island {
         if w < 1.0 || h < 1.0 {
             self.placed.clear();
             self.bubble.unplace();
+            self.chain = NO_CHAIN;
             return sprites;
         }
 
@@ -1622,13 +1564,15 @@ impl Island {
         let strength = self.look.shadow;
         let merge = self.merge(radius);
         self.merge = merge;
-        let merge = match self.bubble.split(body, self.look.bubble, scale) {
-            Some(split) => Some(Merge {
-                split: Some(split),
-                ..merge.unwrap_or_default()
-            }),
-            None => merge,
-        };
+        let (reach, _) = self.stand.shift(scale);
+        let room = (-reach, viewport + reach);
+        let open = self.stage.mode != Mode::Collapsed;
+        let shaped = self.bar_shaped();
+        let chain = self
+            .bubble
+            .chain(body, self.look.bubble, room, (open, shaped), scale);
+        self.chain = chain_of(&chain);
+        let merge = merge.or_else(|| (!chain.is_empty()).then(Merge::default));
         let corner = (radius, power);
         if strength > 0.0 {
             let shade = [0.0, 0.0, 0.0, 0.35 * strength];
@@ -1732,16 +1676,14 @@ impl Island {
                         continue;
                     };
                     let fold = [at, row, at + width, row + WIDGET_H];
-                    let kept = self.kept(*kind, false);
                     let opacity = fade
-                        * smoothstep(kept)
                         * if *rest <= 0.0 {
                             smoothstep(*presence)
                         } else {
                             1.0
                         };
                     for (index, hit) in cached.drawn.hits.iter().enumerate() {
-                        if !collapsed || kept < 0.5 {
+                        if !collapsed {
                             break;
                         }
                         self.placed.push(Placed {
@@ -1783,30 +1725,10 @@ impl Island {
                 }
             }
         }
-        if self.stage.hidden() {
-            self.bubble.pill_sprites(
-                body,
-                &self.stage.activities,
-                painter,
-                gpu,
-                scale,
-                &mut sprites,
-            );
-        }
         self.panel_sprites(clip, &mut sprites);
         self.chrome_sprites(glyphs, painter, gpu, clip, &mut sprites);
         self.menu_sprites(painter, gpu, &mut sprites);
-        self.bubble.sprites(
-            self.look.bubble,
-            self.carried.as_ref().map(|(_, drawn, _)| drawn),
-            self.look.corner,
-            (glass, edge, border, strength),
-            self.pointer,
-            painter,
-            gpu,
-            scale,
-            &mut sprites,
-        );
+        self.bubble.sprites(&self.carried, scale, &mut sprites);
         self.tip_sprites(painter, gpu, &mut sprites);
         sprites
     }
@@ -1826,7 +1748,6 @@ impl Island {
             hang,
             radius: rounding,
             blend: blend.min((2.0 * room).max(menu::SOFT_OPEN)),
-            split: None,
         })
     }
 
@@ -1973,50 +1894,46 @@ impl Island {
         }
     }
 
-    /// Asks the features what they have under way when that is due, and has the bubble or the
-    /// fullscreen ring follow it.
-    fn sync_activities(&mut self, glyphs: &Glyphs, painter: &mut Painter, gpu: &Gpu, now: Instant) {
-        if self.activities_stale {
-            self.activities_stale = false;
-            self.stage.refresh_activities(glyphs, now);
-            self.bubble.changed();
-            let activities = &self.stage.activities;
-            let tick = activities.running().then(|| now + ACTIVITY_TICK);
-            self.activities_at = tick.into_iter().chain(activities.due(now)).min();
-        }
-        let bar = self.stage.mode == Mode::Collapsed && !self.stage.fullscreen;
-        let owner = self.output.id().protocol_id().to_string();
+    /// Has the droplets follow the widgets that asked for one.
+    fn sync_droplets(&mut self) {
         let edge = bar::edge(&self.stage.layout);
-        let carried = self
-            .carried
-            .as_ref()
-            .filter(|(_, _, live)| *live)
-            .map(|(_, drawn, _)| (drawn.width + 2.0 * edge).ceil());
-        self.bubble.aim(
-            &mut self.stage.activities,
-            carried,
-            bar,
-            self.stage.morph.sized,
-            painter,
-            gpu,
-            self.scale,
-            &owner,
-        );
-        let carry = if self.bubble.carries() { 1.0 } else { 0.0 };
-        if self.carry.target() != carry {
-            if self.stage.morph.sized {
-                self.carry.retarget(carry, SHAPE_SPRING);
-            } else {
-                self.carry.reset(carry);
-            }
-        }
-        self.stage.activities.ring(now);
-        self.pill = if self.stage.fullscreen {
-            self.bubble
-                .pill_shape(&self.stage.activities, now, painter, self.scale)
-        } else {
-            None
+        let open = match self.stage.mode {
+            Mode::Open(Panel::Feature(name)) => Some(name),
+            _ => None,
         };
+        let carried: Vec<(Widget, f32)> = self
+            .stage
+            .layout
+            .widgets()
+            .filter_map(|kind| {
+                let (drawn, live) = self.carried.get(&kind)?;
+                live.then(|| (kind, (drawn.width + 2.0 * edge).ceil()))
+            })
+            .collect();
+        let inside: Vec<Widget> = carried
+            .iter()
+            .map(|(kind, _)| *kind)
+            .filter(|Widget(name)| {
+                open.is_some_and(|open| {
+                    self.stage
+                        .features
+                        .owning(name)
+                        .is_some_and(|feature| feature.name() == open)
+                })
+            })
+            .collect();
+        let shown = (self.bar_shaped(), self.stage.fullscreen);
+        self.bubble
+            .aim(&carried, &inside, shown, self.stage.morph.sized);
+    }
+
+    /// The island is the bar, shown and at rest in its shape, so droplets may join it.
+    fn bar_shaped(&self) -> bool {
+        let morph = &self.stage.morph;
+        self.stage.mode == Mode::Collapsed
+            && !self.stage.fullscreen
+            && (morph.h.value() - COLLAPSED_H).abs() < 1.5
+            && (morph.w.value() - morph.w.target()).abs() < 3.0
     }
 
     /// Something needs drawing, and the compositor is ready for it.
@@ -2096,7 +2013,6 @@ impl Island {
             self.menu = None;
         }
         self.bubble.advance(dt, now);
-        self.carry.advance(dt, now);
         self.measure_locals(painter);
         self.forget_unsettled();
         self.refresh_panel(glyphs, painter, gpu);
@@ -2109,7 +2025,7 @@ impl Island {
         for kind in wanted {
             self.draw_widget(kind, glyphs, painter, gpu, now);
         }
-        self.sync_activities(glyphs, painter, gpu, now);
+        self.sync_droplets();
         self.retarget();
         if self.stage.mode == Mode::Collapsed
             && !self.stage.fullscreen
@@ -2194,7 +2110,6 @@ impl Island {
         }
         let soonest = [
             self.beaming.then_some(GLIDE),
-            self.bubble.moving(self.stage.hidden()).then_some(GLIDE),
             (self.aura.is_lit() && !self.stage.hidden()).then_some(AURA_EVERY),
         ]
         .into_iter()
@@ -2212,7 +2127,11 @@ impl Island {
         let Some(surface) = &self.surface else {
             return;
         };
-        match gpu.draw_in(surface, sprites, self.scale, self.stand.view(self.scale)) {
+        let view = View {
+            chain: self.chain,
+            ..self.stand.view(self.scale)
+        };
+        match gpu.draw_in(surface, sprites, self.scale, view) {
             Presented::Shown => return,
             Presented::Skipped => {}
             Presented::Outdated => {
@@ -2239,7 +2158,13 @@ impl Island {
                 for rect in self.bubble.glass_rects() {
                     rows.extend(crate::merge::region(whole(rect), corner));
                 }
-                (self.holes(), rows)
+                let (x, y) = self.stand.shift(self.scale);
+                let (x, y) = (x.round() as i32, y.round() as i32);
+                let on_surface = |[left, top, w, h]: [i32; 4]| [left + x, top + y, w, h];
+                (
+                    self.holes().into_iter().map(on_surface).collect(),
+                    rows.into_iter().map(on_surface).collect(),
+                )
             });
         // Both go into the key: over a fullscreen window the input stays empty while the blur
         // still follows the island closing.
@@ -2295,7 +2220,6 @@ impl Island {
         let at = (at.0 - x, at.1 - y);
         self.pointer = Some(at);
         let on_bubble = self.bubble.covers(at);
-        self.bubble.hover(on_bubble);
         if on_bubble {
             if self.stage.hovered {
                 self.stage.set_pointer(false);
@@ -2500,12 +2424,11 @@ impl Island {
             return Cursor::Default;
         };
         if self.bubble.covers(at) {
-            let carried = self.carried.as_ref().is_some_and(|(_, drawn, _)| {
-                self.bubble
-                    .carried_hit(drawn, at)
-                    .is_some_and(|(hit, _)| hit.on_click.is_some())
-            });
-            return if carried || self.bubble.clickable(at) {
+            let carried = self
+                .bubble
+                .carried_hit(&self.carried, at)
+                .is_some_and(|(hit, _)| hit.on_click.is_some());
+            return if carried {
                 Cursor::Pointer
             } else {
                 Cursor::Default
@@ -2659,7 +2582,6 @@ impl Island {
         self.pointer = None;
         self.pressed = None;
         self.tip = None;
-        self.bubble.hover(false);
         self.last_frame.get_or_insert_with(Instant::now);
         self.stage.set_pointer(false);
         let stays = matches!(self.stage.mode, Mode::Open(Panel::Feature(name)) if features::stays_open(name));
@@ -2680,9 +2602,8 @@ impl Island {
         self.tip = None;
         if self.bubble.covers(at) {
             let carried = self
-                .carried
-                .as_ref()
-                .and_then(|(_, drawn, _)| self.bubble.carried_hit(drawn, at))
+                .bubble
+                .carried_hit(&self.carried, at)
                 .and_then(|(hit, rect)| {
                     let press = match button {
                         LEFT => hit.on_click.clone(),
@@ -2703,18 +2624,6 @@ impl Island {
                 } else {
                     press(Pointer { x: at.0 }, &mut IslandUi { island: self });
                 }
-                self.dirty = true;
-                return;
-            }
-            if button == LEFT
-                && let Some((handler, rect)) = self.bubble.press(at)
-            {
-                self.pressed = Some(Pressed {
-                    act: Act::Panel(handler),
-                    rect,
-                    panel: false,
-                    sprites: (0, 0),
-                });
                 self.dirty = true;
             }
             return;
@@ -2942,12 +2851,10 @@ impl Ui for IslandUi<'_> {
         let monitor = self.island.stage.monitor()?;
         let (left, top) = compositor::backend()
             .and_then(|backend| backend.surface_origin(&monitor.name))
-            .unwrap_or((
-                monitor.x + (monitor.width - SURFACE_W as i32) / 2,
-                monitor.y,
-            ));
+            .unwrap_or((monitor.x, monitor.y));
+        let (shift, _) = self.island.stand.shift(self.island.scale);
         let y = self.island.look.top + COLLAPSED_H + MENU_GAP;
-        Some((left + x.round() as i32, top + y.round() as i32))
+        Some((left + (x + shift).round() as i32, top + y.round() as i32))
     }
 
     fn menu_open_for(&self, source: &str) -> bool {

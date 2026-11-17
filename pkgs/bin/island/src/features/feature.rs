@@ -8,7 +8,6 @@ use std::{
 
 use super::{Battery, Feed, Islands, Osd, PanelCx, WidgetCx};
 use crate::{
-    activity::Activity,
     bar_widget::BarWidget,
     cli::Client,
     components::measure::Measure,
@@ -179,12 +178,6 @@ pub trait Surface: Feature {
     /// Takes the bar's place while [`Local::popup`] says so; the pointer leaving does not close it.
     fn popup<'a>(&self, _: &Self::State, _: &PanelCx<'a>) -> Option<PanelView> {
         None
-    }
-
-    /// Work under way or just ended that island shows while the panel is closed. Asked again
-    /// when the state changes, and every second while any runs.
-    fn activities(&self, _: &Self::State, _: &PanelCx<'_>) -> Vec<Activity> {
-        Vec::new()
     }
 
     /// Called when [`Local::due`] comes.

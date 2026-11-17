@@ -2,7 +2,7 @@
 
 use std::{cell::RefCell, ffi::c_void, ptr::NonNull};
 
-use crate::merge::Merge;
+use crate::merge::{MAX_DROPS, Merge, Split};
 
 use raw_window_handle::{
     DisplayHandle, HandleError, HasDisplayHandle, RawDisplayHandle, RawWindowHandle,
@@ -14,7 +14,9 @@ pub const ATLAS: u32 = 2048;
 const FIRST_ROOM: usize = 8192;
 
 const SHADER: &str = r#"
-struct Screen { size: vec2<f32>, pad: vec2<f32>, shift: vec2<f32>, rest: vec2<f32> }
+// `chain` holds the droplets splitting off the bar, two to each: left, width, waist and thread,
+// then where it parts, the edge it is cut at and whether it is.
+struct Screen { size: vec2<f32>, pad: vec2<f32>, shift: vec2<f32>, rest: vec2<f32>, chain: array<vec4<f32>, 8> }
 const GAMMA_1_8 = vec4<f32>(0.14805, -0.89459, 1.47591, -0.32467);
 
 @group(0) @binding(0) var<uniform> screen: Screen;
@@ -58,9 +60,12 @@ struct Out {
         }
         var low = min(rect.xy, v.uv.xy) - reach;
         var high = max(rect.xy + rect.zw, v.uv.xy + v.uv.zw) + reach;
-        if (v.edges.y > 0.5) {
-            low.x = min(low.x, v.edges.x - reach);
-            high.x = max(high.x, v.edges.x + v.edges.y + reach);
+        for (var i = 0; i < 4; i++) {
+            let drop = screen.chain[2 * i];
+            if (drop.y > 0.5) {
+                low.x = min(low.x, drop.x - reach);
+                high.x = max(high.x, drop.x + drop.y + reach);
+            }
         }
         quad = vec4<f32>(low, high - low);
     }
@@ -111,45 +116,67 @@ const WAIST_RADIUS: f32 = 30.0;
 const WAIST_BLEND: f32 = 7.0;
 const THREAD_BLEND: f32 = 6.0;
 
-// As `merge::with_split`: `bar` with the droplet `split` (left, width, waist, thread) added.
-fn with_split(at: vec2<f32>, bar: f32, body: vec4<f32>, radius: f32, power: f32, split: vec4<f32>) -> f32 {
-    if (split.y < 0.5) {
-        return bar;
-    }
+// As `merge::with_chain`: `bar` with the droplets in `screen.chain` added, their waists cut in
+// and their threads joined on.
+fn with_chain(at: vec2<f32>, bar: f32, body: vec4<f32>, radius: f32, power: f32) -> f32 {
     let middle = body.y + DROP_HALF;
-    let drop = corner_distance(at, vec2<f32>(split.x + split.y * 0.5, middle), vec2<f32>(split.y * 0.5, DROP_HALF), radius, power);
-    var d = min(bar, drop);
-    let left = split.x + split.y * 0.5 < body.x + body.z * 0.5;
-    let edge = select(body.x + body.z, body.x, left);
-    if (split.z > 0.05) {
+    let centre = body.x + body.z * 0.5;
+    var d = bar;
+    for (var i = 0; i < 4; i++) {
+        let drop = screen.chain[2 * i];
+        let part = screen.chain[2 * i + 1];
+        if (drop.y < 0.5) {
+            continue;
+        }
+        var shape = corner_distance(at, vec2<f32>(drop.x + drop.y * 0.5, middle), vec2<f32>(drop.y * 0.5, DROP_HALF), radius, power);
+        if (part.z > 0.5) {
+            let left = drop.x + drop.y * 0.5 < centre;
+            shape = max(shape, select(part.y - at.x, at.x - part.y, left));
+        }
+        d = min(d, shape);
+    }
+    for (var i = 0; i < 4; i++) {
+        let drop = screen.chain[2 * i];
+        let edge = screen.chain[2 * i + 1].x;
+        if (drop.y < 0.5 || drop.z <= 0.05) {
+            continue;
+        }
         let r = WAIST_RADIUS;
-        let up = length(at - vec2<f32>(edge, middle - DROP_HALF - r + split.z)) - r;
-        let down = length(at - vec2<f32>(edge, middle + DROP_HALF + r - split.z)) - r;
+        let up = length(at - vec2<f32>(edge, middle - DROP_HALF - r + drop.z)) - r;
+        let down = length(at - vec2<f32>(edge, middle + DROP_HALF + r - drop.z)) - r;
         d = smooth_max(d, -min(up, down), WAIST_BLEND);
     }
-    let near = select(split.x, split.x + split.y, left);
-    let gap = select(near - edge, edge - near, left);
-    if (split.w > 0.2 && gap > 0.05) {
-        let thread = corner_distance(at, vec2<f32>((edge + near) * 0.5, middle), vec2<f32>(gap * 0.5 + split.w + 2.0, split.w), split.w, 2.0);
-        d = smooth_min(d, thread, THREAD_BLEND);
+    for (var i = 0; i < 4; i++) {
+        let drop = screen.chain[2 * i];
+        let edge = screen.chain[2 * i + 1].x;
+        if (drop.y < 0.5 || drop.w <= 0.2) {
+            continue;
+        }
+        let left = drop.x + drop.y * 0.5 < centre;
+        let near = select(drop.x, drop.x + drop.y, left);
+        let gap = abs(edge - near);
+        if (gap > 0.05) {
+            let thread = corner_distance(at, vec2<f32>((edge + near) * 0.5, middle), vec2<f32>(gap * 0.5 + drop.w + 2.0, drop.w), drop.w, 2.0);
+            d = smooth_min(d, thread, THREAD_BLEND);
+        }
     }
     return d;
 }
 
-// As `merge::distance`: the bar `body`, the menu `hang` from it and its droplet `split` as one
-// blended surface.
-fn merged(at: vec2<f32>, body: vec4<f32>, radius: f32, power: f32, hang: vec4<f32>, rounding: f32, blend: f32, split: vec4<f32>) -> f32 {
+// As `merge::distance` and `merge::with_chain`: the bar `body`, the menu `hang` from it and the
+// droplets splitting off it as one blended surface.
+fn merged(at: vec2<f32>, body: vec4<f32>, radius: f32, power: f32, hang: vec4<f32>, rounding: f32, blend: f32) -> f32 {
     let bar = corner_distance(at, body.xy + body.zw * 0.5, body.zw * 0.5, radius, power);
     if (hang.w < 0.5 || hang.z < 1.0) {
-        return with_split(at, bar, body, radius, power, split);
+        return with_chain(at, bar, body, radius, power);
     }
     let top = body.y + body.w * 0.5;
     let extent = vec2<f32>(hang.z * 0.5, (hang.y + hang.w - top) * 0.5);
     let menu = corner_distance(at, vec2<f32>(hang.x + extent.x, top + extent.y), extent, rounding, 2.0);
     if (at.y < top) {
-        return with_split(at, min(bar, menu), body, radius, power, split);
+        return with_chain(at, min(bar, menu), body, radius, power);
     }
-    return with_split(at, smooth_min(bar, menu, min(blend, 2.0 * hang.w)), body, radius, power, split);
+    return with_chain(at, smooth_min(bar, menu, min(blend, 2.0 * hang.w)), body, radius, power);
 }
 
 // How much of a line `width` wide (1 when 0) just inside an edge `d` away covers.
@@ -239,7 +266,7 @@ fn shade(v: Out) -> vec4<f32> {
         return v.color * clamp(0.5 + (radius - length(v.local - a - ab * t)) * pixel, 0.0, 1.0);
     }
     if (kind > 9.5) {
-        let d = merged(v.local, v.rect, radius, power, v.uv, v.clip.x, v.clip.y, v.edges);
+        let d = merged(v.local, v.rect, radius, power, v.uv, v.clip.x, v.clip.y);
         if (kind < 10.5) {
             return v.color * clamp(0.5 - d * pixel, 0.0, 1.0);
         }
@@ -256,7 +283,7 @@ fn shade(v: Out) -> vec4<f32> {
             return light * v.params.w * clamp(0.5 - d * pixel, 0.0, 1.0);
         }
         let sigma = v.clip.z;
-        let thrown = merged(v.local - vec2<f32>(0.0, v.clip.w), v.rect, radius, power, v.uv, v.clip.x, v.clip.y, v.edges);
+        let thrown = merged(v.local - vec2<f32>(0.0, v.clip.w), v.rect, radius, power, v.uv, v.clip.x, v.clip.y);
         let t = clamp(thrown / (sigma * 1.41421356), -4.0, 4.0);
         let spread = tanh(1.1283792 * t + 0.1009 * t * t * t);
         return v.color * (0.5 - 0.5 * spread) * clamp(0.5 + d * pixel, 0.0, 1.0);
@@ -309,12 +336,14 @@ pub enum Presented {
 
 pub const NO_CLIP: [f32; 4] = [-1.0e6, -1.0e6, 1.0e6, 1.0e6];
 
-/// What a surface shows of the sprites: how big it is, and how far they are moved on it.
+/// What a surface shows of the sprites: how big it is, how far they are moved on it, and the
+/// droplets splitting off the bar drawn in it.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct View {
     pub size: [f32; 2],
     /// Whole pixels at the scale drawn at, so what is crisp stays crisp.
     pub shift: [f32; 2],
+    pub chain: Chain,
 }
 
 impl View {
@@ -322,8 +351,30 @@ impl View {
         Self {
             size,
             shift: [0.0; 2],
+            chain: NO_CHAIN,
         }
     }
+}
+
+/// The droplets splitting off the bar as the shader takes them: two rows to each, its left edge,
+/// width, waist and thread, then where it parts, the edge it is cut at and whether it is.
+pub type Chain = [[f32; 4]; 2 * MAX_DROPS];
+
+pub const NO_CHAIN: Chain = [[0.0; 4]; 2 * MAX_DROPS];
+
+/// `chain` as the shader takes it; past [`MAX_DROPS`] are left out.
+pub fn chain_of(chain: &[Split]) -> Chain {
+    let mut rows = NO_CHAIN;
+    for (index, split) in chain.iter().take(MAX_DROPS).enumerate() {
+        rows[2 * index] = [split.x, split.width, split.waist, split.thread];
+        rows[2 * index + 1] = [
+            split.anchor,
+            split.cut.unwrap_or(0.0),
+            if split.cut.is_some() { 1.0 } else { 0.0 },
+            0.0,
+        ];
+    }
+    rows
 }
 
 /// Whether `at` is in a rect given as left, top, width and height.
@@ -373,15 +424,8 @@ const SOFT: f32 = 8.0;
 const WASH: f32 = 9.0;
 /// How far across and down a wash reaches, as shares of its shape.
 const WASH_REACH: (f32, f32) = (0.8, 1.3);
-/// The bar and the menu hanging from it as one surface: its fill, the line just inside its edge,
-/// the line just outside it, its shadow and the light over it.
-/// A merged surface's droplet as the shader takes it, in place of the edges it never fades under.
-fn split_of(merge: &Merge) -> [f32; 4] {
-    merge.split.map_or([0.0; 4], |split| {
-        [split.x, split.width, split.waist, split.thread]
-    })
-}
-
+/// The bar, the menu hanging from it and the droplets splitting off it as one surface: its fill,
+/// the line just inside its edge, the line just outside it, its shadow and the light over it.
 pub const MERGED_FILL: f32 = 10.0;
 pub const MERGED_RIM: f32 = 11.0;
 pub const MERGED_OUTLINE: f32 = 12.0;
@@ -552,7 +596,7 @@ impl Sprite {
             color,
             params: [radius, part, power, 0.0],
             clip: [merge.radius, merge.blend, 0.0, 0.0],
-            edges: split_of(merge),
+            edges: NO_EDGES,
         }
     }
 
@@ -570,7 +614,7 @@ impl Sprite {
             color,
             params: [radius, MERGED_SHADOW, power, 0.0],
             clip: [merge.radius, merge.blend, sigma, drop],
-            edges: split_of(merge),
+            edges: NO_EDGES,
         }
     }
 
@@ -589,7 +633,7 @@ impl Sprite {
             color: uv,
             params: [radius, MERGED_GLOW, power, fade],
             clip: [merge.radius, merge.blend, 0.0, 0.0],
-            edges: split_of(merge),
+            edges: NO_EDGES,
         }
     }
 
@@ -628,9 +672,7 @@ impl Sprite {
             self.clip[2] += x;
             self.clip[3] += y;
         }
-        if self.params[1] >= MERGED_FILL {
-            self.edges[0] += x;
-        } else if self.edges != NO_EDGES {
+        if self.edges != NO_EDGES {
             self.edges[0] += y;
             self.edges[2] += y;
         }
@@ -639,7 +681,7 @@ impl Sprite {
 
     /// Fading out under `edges`, unless it already fades under those of something closer in.
     pub fn fading(mut self, edges: [f32; 4]) -> Self {
-        if self.edges == NO_EDGES && self.params[1] < MERGED_FILL {
+        if self.edges == NO_EDGES {
             self.edges = edges;
         }
         self
@@ -793,7 +835,7 @@ impl Gpu {
         });
         let screen = device.create_buffer(&wgpu::BufferDescriptor {
             label: None,
-            size: 32,
+            size: (32 + size_of::<Chain>()) as u64,
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
             mapped_at_creation: false,
         });
@@ -802,6 +844,7 @@ impl Gpu {
             0,
             bytes(&[size[0], size[1], 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]),
         );
+        queue.write_buffer(&screen, 32, bytes(&NO_CHAIN));
         let items = RefCell::new(sprite_room(&device, FIRST_ROOM));
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: None,
@@ -947,6 +990,8 @@ impl Gpu {
             0,
             bytes(&[width, height, scale, 0.0, x, y, 0.0, 0.0]),
         );
+        self.queue
+            .write_buffer(&self.screen, 32, bytes(&view.chain));
         self.queue.write_buffer(&items, 0, bytes(sprites));
         let frame = match surface.get_current_texture() {
             wgpu::CurrentSurfaceTexture::Success(frame)

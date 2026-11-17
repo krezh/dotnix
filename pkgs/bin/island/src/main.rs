@@ -1,5 +1,4 @@
 mod activation;
-mod activity;
 #[cfg(test)]
 #[path = "architecture_test.rs"]
 mod architecture;
