@@ -63,7 +63,7 @@ runs:
           http-connections = 100
     - name: Setup xilo
       if: inputs.skip-cache != 'true' && inputs.xilo-url != '' && inputs.xilo-cache != '' && inputs.xilo-token != ''
-      uses: stubbedev/xilo@f084b3fa09985d57d76f26b24a8c662f80b8e70f # v1.2.11
+      uses: stubbedev/xilo@db459a1e5524e5ee578a6956399fc88ba0175046 # v1.2.12
       with:
         url: ${{ inputs.xilo-url }}
         cache: ${{ inputs.xilo-cache }}
