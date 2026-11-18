@@ -1,20 +1,12 @@
-//! Monospaced lines, plain or as a diff, such as a command about to run or the change to a file.
+//! Monospaced lines, such as a command about to run or a file's source.
 
 use crate::panel::SharedString;
 
 use crate::panel::Handler;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub enum Change {
-    Same,
-    Added,
-    Removed,
-}
-
 pub struct CodeLine {
     pub number: Option<u32>,
     pub text: SharedString,
-    pub change: Change,
 }
 
 impl CodeLine {
@@ -22,7 +14,6 @@ impl CodeLine {
         Self {
             number: None,
             text: text.into(),
-            change: Change::Same,
         }
     }
 }

@@ -6,7 +6,7 @@ use std::{
     collections::{HashMap, VecDeque},
     env, fmt,
     fs::{self, File},
-    io::{self, BufRead, BufReader, IsTerminal, Read, Write as _},
+    io::{self, BufRead, BufReader, Read, Write as _},
     net::Shutdown,
     os::{
         fd::AsFd,
@@ -114,10 +114,6 @@ fn stderr_is_journal() -> bool {
     device.parse() == Ok(stderr.dev()) && inode.parse() == Ok(stderr.ino())
 }
 
-fn use_color(stream: &impl IsTerminal) -> bool {
-    stream.is_terminal() && env::var_os("NO_COLOR").is_none_or(|value| value.is_empty())
-}
-
 /// The module part of a target: `island::shell` is `shell`, and a feature's
 /// `island::features::audio::pulse` is `audio::pulse`.
 fn module(target: &str) -> &str {
@@ -182,23 +178,23 @@ struct Collect {
     fields: Vec<(String, String)>,
 }
 
+impl Collect {
+    fn record(&mut self, field: &Field, value: String) {
+        if field.name() == "message" {
+            self.message = value;
+        } else {
+            self.fields.push((field.name().to_owned(), value));
+        }
+    }
+}
+
 impl Visit for Collect {
     fn record_str(&mut self, field: &Field, value: &str) {
-        if field.name() == "message" {
-            self.message = value.to_owned();
-        } else {
-            self.fields
-                .push((field.name().to_owned(), value.to_owned()));
-        }
+        self.record(field, value.to_owned());
     }
 
     fn record_debug(&mut self, field: &Field, value: &dyn fmt::Debug) {
-        if field.name() == "message" {
-            self.message = format!("{value:?}");
-        } else {
-            self.fields
-                .push((field.name().to_owned(), format!("{value:?}")));
-        }
+        self.record(field, format!("{value:?}"));
     }
 }
 
@@ -257,7 +253,10 @@ impl Request {
     fn wants(&self, entry: &Entry, level: Option<Level>) -> bool {
         level.is_none_or(|level| entry.level() <= level)
             && self.module.as_ref().is_none_or(|wanted| {
-                entry.module == *wanted || entry.module.starts_with(&format!("{wanted}::"))
+                entry
+                    .module
+                    .strip_prefix(wanted.as_str())
+                    .is_some_and(|rest| rest.is_empty() || rest.starts_with("::"))
             })
     }
 }
@@ -361,7 +360,7 @@ pub fn init(spec: &str) {
     let terminal = journal.is_none().then(|| {
         tracing_subscriber::fmt::layer()
             .with_writer(io::stderr)
-            .with_ansi(use_color(&io::stderr()))
+            .with_ansi(cli::colour(true))
             .event_format(Compact)
     });
     let installed = Registry::default()
@@ -529,7 +528,7 @@ fn follow(request: &Request) -> Result<(), Mistake> {
     let mut stream = UnixStream::connect(&path).map_err(|_| cli::not_running())?;
     let line = serde_json::to_string(request).map_err(|error| plain(error.to_string()))?;
     writeln!(stream, "{line}").map_err(|error| plain(format!("Cannot reach island: {error}")))?;
-    let color = use_color(&io::stdout());
+    let color = cli::colour(false);
     let mut stdout = io::stdout().lock();
     for line in BufReader::new(stream).lines() {
         let Ok(line) = line else {

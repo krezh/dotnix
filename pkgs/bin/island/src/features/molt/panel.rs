@@ -32,31 +32,20 @@ fn open() {
 
 pub(super) fn panel(state: &Updates, p: &PanelCx<'_>) -> PanelView {
     let buttons = vec![
-        Button {
-            label: if state.checking { CHECKING } else { CHECK }.into(),
-            glyph: None,
-            bare: false,
-            active: state.checking,
-            toggle: false,
-            fits: vec![CHECK.into(), CHECKING.into()],
-            busy: state.refreshing,
-            enabled: true,
-            on_click: p.call(Molt::refresh),
-        },
-        Button {
-            label: "Open Molt".into(),
-            glyph: None,
-            bare: false,
-            active: false,
-            toggle: false,
-            fits: Vec::new(),
-            busy: false,
-            enabled: true,
-            on_click: on(|ui| {
+        Button::new(
+            if state.checking { CHECKING } else { CHECK },
+            p.call(Molt::refresh),
+        )
+        .active(state.checking)
+        .fits(vec![CHECK.into(), CHECKING.into()])
+        .busy(state.refreshing),
+        Button::new(
+            "Open Molt",
+            on(|ui| {
                 open();
                 ui.collapse();
             }),
-        },
+        ),
     ];
     let card = |block: Block| Block::Card(None, card::Size::Large, vec![block]);
     let block = match (&state.error, &state.report) {

@@ -11,7 +11,7 @@ use chrono::Local;
 use super::{
     Cards, Event, Notifications,
     earlier_list::{EarlierList, Entry as EarlierEntry},
-    missed_list::{self, Body, MissedList, PEEKS},
+    missed_list::{Body, MissedList},
     notification::{DEFAULT_ACTION, Notification, Reason, Signal},
     toasts::Toasts,
 };
@@ -20,18 +20,20 @@ use crate::{
     components::{
         card::{self, Look as FrameLook},
         item::{self, Item, Lead, Tint, Trail, TrailButton},
+        stack::{self, Card as StackCard, Note, Peeks, Scroll, Stack},
         text,
     },
     features::PanelCx,
     markdown,
     panel::SharedString,
     panel::{
-        self, Block, ButtonRow, Countdown, FrameView, Handler, IconButton, Mark, Place, Placed,
-        Text, TextStyle, Tone,
+        self, Block, ButtonRow, Countdown, FrameView, Handler, IconButton, Mark, Text, TextStyle,
+        Tone,
     },
     spring::SpringConfig,
     theme::{CRITICAL, PEACH, SAPPHIRE, SUBTEXT1, app_color},
     ui::{CONTROL_H, INSET, TIGHT_INSET},
+    units,
 };
 
 /// A pop-up's width.
@@ -40,17 +42,8 @@ pub const MIN_W: f32 = 520.0;
 pub const LIST_W: f32 = 760.0 - 2.0 * INSET;
 /// The most lines of what a card says, in the panel's lists and pop-ups alike.
 pub const LIST_LINES: usize = 5;
-pub const GAP: f32 = 8.0;
-pub const FOOTER_H: f32 = 18.0;
 const ICON: f32 = 36.0;
 pub const BODY_LINES: usize = LIST_LINES;
-/// How far in from the front card's sides each edge showing below a folded group sits, and how
-/// strongly it shows, nearest first.
-const PEEK_INSETS: [f32; 2] = [12.0, 26.0];
-const PEEK_OPACITY: [f32; 2] = [1.0, 0.6];
-/// The frame each edge is the bottom of, tall enough for its rounded corners.
-const PEEK_DRAWN: f32 = 40.0;
-const EMPTY_H: f32 = 52.0;
 /// How a dismissed card leaves: fading by halfway, then the room it took closes.
 pub const FOLD: SpringConfig = SpringConfig::new(260.0, 32.2, 1.0);
 
@@ -195,9 +188,7 @@ pub fn missed_height(notification: &Notification, lines: usize) -> f32 {
 }
 
 pub fn toasts_height(heights: &[f32], footer: bool) -> f32 {
-    let cards: f32 = heights.iter().sum::<f32>() + GAP * heights.len().saturating_sub(1) as f32;
-    let footer = if footer { GAP + FOOTER_H } else { 0.0 };
-    cards + footer + 2.0 * TIGHT_INSET
+    stack::height(heights, footer) + 2.0 * TIGHT_INSET
 }
 
 fn received_label(received: SystemTime) -> String {
@@ -216,16 +207,7 @@ fn received_label(received: SystemTime) -> String {
 
 pub(super) fn next_label_change(received: SystemTime) -> Option<Duration> {
     let elapsed = received.elapsed().unwrap_or_default();
-    let seconds = elapsed.as_secs();
-    let step = match seconds {
-        ..3600 => 60,
-        ..86_400 => 3600,
-        _ => return None,
-    };
-    Some(
-        Duration::from_secs(step - (seconds % step))
-            .saturating_sub(Duration::from_nanos(u64::from(elapsed.subsec_nanos()))),
-    )
+    (elapsed.as_secs() < 86_400).then(|| units::next_change(units::Label::Ago, elapsed))
 }
 
 /// The markup as styled text.
@@ -282,10 +264,12 @@ fn message(
     look: Look,
     shown_height: Option<f32>,
 ) -> Block {
+    let hidden;
     let notification = if look.hidden {
-        redacted(notification)
+        hidden = redacted(notification);
+        &hidden
     } else {
-        notification.clone()
+        notification
     };
     let frame_id = kind.element_id("body");
     let from = match &notification.posted {
@@ -345,20 +329,15 @@ fn message(
         id: kind.element_id("item"),
         lead: Some(Lead {
             mark: Some(mark),
-            tint: None,
-            glow: None,
-            faded: false,
             size: Some(ICON),
-            on_click: None,
-            top: false,
+            ..Default::default()
         }),
         overline: Some(overline.into()),
         title: markdown::parse(&notification.summary).text.into(),
         title_color: notification.critical.then_some(CRITICAL),
-        wrap: false,
-        detail: SharedString::default(),
         tinted,
         trail: vec![trail],
+        ..Default::default()
     };
     let lines = match kind {
         Kind::Toast(_) => BODY_LINES,
@@ -411,55 +390,6 @@ fn message(
     Block::Frame(frame, blocks)
 }
 
-fn place(y: f32, height: f32, opacity: f32) -> Place {
-    Place {
-        inset: 0.0,
-        offset: 0.0,
-        y,
-        height,
-        opacity,
-        from_bottom: false,
-        drawn: None,
-    }
-}
-
-/// The edges of the cards folded behind a group's front one, showing below it as it is folded,
-/// `peek` of the way out, nearest first.
-fn peeks(id: u32, bottom: f32, count: usize, peek: f32, opacity: f32) -> Vec<(Place, Block)> {
-    let mut y = bottom;
-    PEEKS
-        .iter()
-        .zip(PEEK_INSETS)
-        .zip(PEEK_OPACITY)
-        .take(count)
-        .enumerate()
-        .map(|(index, ((height, inset), strength))| {
-            let height = height * peek;
-            let at = Place {
-                inset,
-                offset: 0.0,
-                y,
-                height,
-                opacity: opacity * strength * peek,
-                from_bottom: false,
-                drawn: Some(PEEK_DRAWN),
-            };
-            y += height;
-            let frame = FrameView {
-                id: format!("missed-{id}-peek-{index}").into(),
-                look: FrameLook::Raised { urgent: false },
-                on_click: None,
-                on_dismiss: None,
-                countdown: None,
-                selected: false,
-                motion: card::Motion::Still,
-                shown_height: None,
-            };
-            (at, Block::Frame(frame, Vec::new()))
-        })
-        .collect()
-}
-
 /// What a group's heading does, and the glyphs on its buttons.
 pub struct HeadLook {
     pub toggle: Handler,
@@ -485,12 +415,7 @@ fn head(app: &str, count: usize, via: Option<&str>, open: bool, look: HeadLook) 
     Block::Item(
         Item {
             id: format!("missed-head-{app}").into(),
-            lead: None,
-            overline: None,
             title: app.to_owned().into(),
-            title_color: None,
-            wrap: false,
-            detail: SharedString::default(),
             tinted: via
                 .map(|source| Tint::Title(format!("via {source}").into(), SAPPHIRE))
                 .into_iter()
@@ -512,6 +437,7 @@ fn head(app: &str, count: usize, via: Option<&str>, open: bool, look: HeadLook) 
                     on_click: look.clear,
                 }),
             ],
+            ..Default::default()
         },
         Vec::new(),
     )
@@ -527,44 +453,34 @@ pub fn missed(rows: &MissedList, looks: Vec<RowLook>, empty: &'static str) -> Bl
             .iter()
             .map(|row| row.fold.value().clamp(0.0, 1.0))
             .fold(0.0, f32::max);
-        (place(0.0, EMPTY_H, 1.0 - outgoing), Block::note(empty))
+        Note {
+            text: empty.into(),
+            opacity: 1.0 - outgoing,
+        }
     });
     let mut looks: Vec<Option<RowLook>> = looks.into_iter().map(Some).collect();
     let drawn = rows.drawn_y();
     let mut order: Vec<usize> = (0..rows.rows().len()).collect();
     order.sort_by_key(|&index| std::cmp::Reverse(rows.rows()[index].depth));
-    let mut blocks = Vec::new();
+    let mut cards = Vec::new();
     for index in order {
         let row = &rows.rows()[index];
         let alpha = row.alpha.value().clamp(0.0, 1.0);
         let Some(look) = looks.get_mut(index).and_then(Option::take) else {
             continue;
         };
-        let height = row.clip.unwrap_or(row.height());
         let shown_height = row.clip;
         // A leaving one slides out to the right and fades before the room it took closes.
-        let out = if row.leaving {
-            missed_list::sliding(row.fold.value())
-        } else {
-            0.0
-        };
-        let opacity = alpha * (1.0 - out);
-        if opacity <= 0.001 {
-            continue;
-        }
-        let at = place(drawn[index], shown_height.unwrap_or(height), opacity);
-        if row.peeks > 0
-            && row.peek.value() > 0.001
-            && let Some(notification) = row.notification()
-        {
-            blocks.extend(peeks(
-                notification.id,
-                drawn[index] + height,
-                row.peeks,
-                row.peek.value().clamp(0.0, 1.0),
-                1.0 - out,
-            ));
-        }
+        let out = row.out();
+        let peeks = row
+            .notification()
+            .filter(|_| row.peeks > 0)
+            .map(|notification| Peeks {
+                id: format!("missed-{}", notification.id).into(),
+                count: row.peeks,
+                out: row.peek.value().clamp(0.0, 1.0),
+                opacity: 1.0 - out,
+            });
         let block = match (&row.body, look) {
             (Body::Card(notification), RowLook::Card(look)) => message(
                 Kind::Missed(notification.id),
@@ -583,106 +499,25 @@ pub fn missed(rows: &MissedList, looks: Vec<RowLook>, empty: &'static str) -> Bl
             ) => head(app, *count, via.as_deref(), *open, look),
             _ => continue,
         };
-        blocks.push((at, block));
+        cards.push(StackCard {
+            y: drawn[index],
+            height: shown_height.unwrap_or(row.height()),
+            opacity: alpha * (1.0 - out),
+            peeks,
+            block,
+        });
     }
-    let (visible, still) = if empty.is_some() {
-        (EMPTY_H, EMPTY_H)
-    } else {
-        (rows.visible_height(), rows.full_height())
-    };
-    blocks.extend(empty);
-    Block::Placed(Placed {
+    stack::stack(Stack {
         width: LIST_W,
-        height: rows.extent().max(visible),
-        visible: Some(visible),
-        still: still.max(visible),
-        rewind: None,
-        blocks,
+        cards,
+        height: rows.extent(),
+        scroll: Some(Scroll {
+            visible: rows.visible_height(),
+            still: rows.full_height(),
+        }),
+        empty,
+        footer: None,
     })
-}
-
-/// Between two lists as they pass: wide enough that the leaving one is past the island's edge
-/// before the spring slows at the end, or its edge lingers in the panel's padding.
-const ACROSS_GAP: f32 = 96.0;
-
-/// `left` moving out as `right` moves in, `at` of the way across, as their tabs sit side by side;
-/// the other way round unless `rightwards`. Both stay whole, so nothing blanks or shows through
-/// the other on the way, and the one leaving scrolls back to the top as it goes, so the one coming
-/// in arrives at its top.
-pub fn across(left: Block, right: Block, at: f32, rightwards: bool) -> Block {
-    let (mut left, mut right) = match (left, right) {
-        (Block::Placed(left), Block::Placed(right)) => (left, right),
-        (_, right) => return right,
-    };
-    let width = left.width.max(right.width);
-    let travel = width + ACROSS_GAP;
-    let (leaving, coming, left_to_go) = if rightwards {
-        (&left, &right, 1.0 - at)
-    } else {
-        (&right, &left, at)
-    };
-    let out_of_view = |list: &Placed| (list.still - list.visible.unwrap_or(list.still)).max(0.0);
-    let rewind = Some(out_of_view(leaving) * left_to_go);
-    let coming_out_of_view = out_of_view(coming);
-    for (place, _) in &mut left.blocks {
-        place.offset -= at * travel;
-    }
-    for (place, _) in &mut right.blocks {
-        place.offset += (1.0 - at) * travel;
-    }
-    let visible = left
-        .visible
-        .zip(right.visible)
-        .map(|(left, right)| left + (right - left) * at);
-    left.blocks.append(&mut right.blocks);
-    Block::Placed(Placed {
-        width,
-        height: left.height.max(right.height),
-        visible,
-        // Its edges are the coming one's from the start, so they are there as it comes in.
-        still: visible.unwrap_or(0.0) + coming_out_of_view,
-        rewind,
-        blocks: left.blocks,
-    })
-}
-
-/// How tall each line over a list is, such as a source's trouble.
-const ABOVE_H: f32 = 28.0;
-
-/// `above` opening over `list`, `open` of the way out, the list moving down to make room.
-pub fn opening(list: Block, above: Vec<Block>, open: f32) -> Vec<Block> {
-    let open = open.clamp(0.0, 1.0);
-    if above.is_empty() || open <= 0.001 {
-        return vec![list];
-    }
-    let Block::Placed(mut placed) = list else {
-        let mut blocks = above;
-        blocks.push(list);
-        return blocks;
-    };
-    let room = (above.len() as f32 * ABOVE_H + GAP) * open;
-    for (place, _) in &mut placed.blocks {
-        if !place.from_bottom {
-            place.y += room;
-        }
-    }
-    let lines = above.into_iter().enumerate().map(|(index, block)| {
-        let at = Place {
-            inset: 0.0,
-            offset: 0.0,
-            y: index as f32 * ABOVE_H * open,
-            height: ABOVE_H * open,
-            opacity: open,
-            from_bottom: false,
-            drawn: Some(ABOVE_H),
-        };
-        (at, block)
-    });
-    placed.blocks.splice(0..0, lines);
-    placed.height += room;
-    placed.still += room;
-    placed.visible = placed.visible.map(|visible| visible + room);
-    vec![Block::Placed(placed)]
 }
 
 fn day_label(day: chrono::NaiveDate) -> String {
@@ -696,28 +531,21 @@ fn day_label(day: chrono::NaiveDate) -> String {
 
 /// `looks` is in the order of `list.rows()`, `None` for a day's heading. One dismissed slides out
 /// and fades before those below rise into its place.
-pub fn earlier(list: &EarlierList, looks: Vec<Option<Look>>) -> Block {
+pub fn earlier(list: &EarlierList, mut looks: Vec<Option<Look>>) -> Block {
     let empty = list.is_empty().then(|| {
         let outgoing = list
             .rows()
             .iter()
             .map(|row| 1.0 - row.out())
             .fold(0.0, f32::max);
-        (
-            place(0.0, EMPTY_H, 1.0 - outgoing),
-            Block::note("Nothing earlier"),
-        )
-    });
-    let mut looks: Vec<Option<Look>> = looks;
-    let drawn = list.drawn_y();
-    let mut blocks = Vec::new();
-    for (index, row) in list.rows().iter().enumerate() {
-        let out = row.out();
-        let opacity = row.alpha.value().clamp(0.0, 1.0) * (1.0 - out);
-        if opacity <= 0.001 {
-            continue;
+        Note {
+            text: "Nothing earlier".into(),
+            opacity: 1.0 - outgoing,
         }
-        let at = place(drawn[index], row.height(), opacity);
+    });
+    let drawn = list.drawn_y();
+    let mut cards = Vec::new();
+    for (index, row) in list.rows().iter().enumerate() {
         let block = match (&row.entry, looks.get_mut(index).and_then(Option::take)) {
             (EarlierEntry::Day(day), _) => Block::heading(day_label(*day)),
             (EarlierEntry::Card(kept), Some(look)) => {
@@ -726,21 +554,24 @@ pub fn earlier(list: &EarlierList, looks: Vec<Option<Look>>) -> Block {
             }
             (EarlierEntry::Card(_), None) => continue,
         };
-        blocks.push((at, block));
+        cards.push(StackCard {
+            y: drawn[index],
+            height: row.height(),
+            opacity: row.alpha.value().clamp(0.0, 1.0) * (1.0 - row.out()),
+            peeks: None,
+            block,
+        });
     }
-    let (visible, still) = if empty.is_some() {
-        (EMPTY_H, EMPTY_H)
-    } else {
-        (list.visible_height(), list.full_height())
-    };
-    blocks.extend(empty);
-    Block::Placed(Placed {
+    stack::stack(Stack {
         width: LIST_W,
-        height: list.extent().max(visible),
-        visible: Some(visible),
-        still: still.max(visible),
-        rewind: None,
-        blocks,
+        cards,
+        height: list.extent(),
+        scroll: Some(Scroll {
+            visible: list.visible_height(),
+            still: list.full_height(),
+        }),
+        empty,
+        footer: None,
     })
 }
 
@@ -750,7 +581,7 @@ pub fn toasts(stack: &Toasts, looks: Vec<Look>) -> Block {
     let mut looks: Vec<Option<Look>> = looks.into_iter().map(Some).collect();
     let all = stack.cards();
     let drawn = stack.drawn_y();
-    let mut blocks = Vec::new();
+    let mut cards = Vec::new();
     for index in (0..all.len()).rev() {
         let shown = &all[index];
         let alpha = shown.alpha.value().clamp(0.0, 1.0);
@@ -758,37 +589,24 @@ pub fn toasts(stack: &Toasts, looks: Vec<Look>) -> Block {
             continue;
         };
         // A leaving one rises back the way it came and fades before the room it took closes.
-        let out = shown.out();
-        let opacity = alpha * (1.0 - out);
-        if opacity > 0.001 {
-            let at = place(drawn[index] - shown.lift(), shown.height(), opacity);
-            blocks.push((
-                at,
-                message(Kind::Toast(shown.id), &shown.notification, look, None),
-            ));
-        }
+        cards.push(StackCard {
+            y: drawn[index] - shown.lift(),
+            height: shown.height(),
+            opacity: alpha * (1.0 - shown.out()),
+            peeks: None,
+            block: message(Kind::Toast(shown.id), &shown.notification, look, None),
+        });
     }
-    let footer = stack.footer.value().clamp(0.0, 1.0);
-    if footer > 0.001 {
-        let at = Place {
-            inset: 0.0,
-            offset: 0.0,
-            y: TIGHT_INSET,
-            height: FOOTER_H,
-            opacity: footer,
-            from_bottom: true,
-            drawn: None,
-        };
-        blocks.push((at, Block::note(format!("+{} more", stack.footer_count()))));
-    }
-    let height = stack.height() - 2.0 * TIGHT_INSET;
-    Block::Placed(Placed {
+    stack::stack(Stack {
         width: MIN_W,
-        height,
-        visible: None,
-        still: height,
-        rewind: None,
-        blocks,
+        cards,
+        height: stack.height() - 2.0 * TIGHT_INSET,
+        scroll: None,
+        empty: None,
+        footer: Some(Note {
+            text: format!("+{} more", stack.footer_count()).into(),
+            opacity: stack.footer.value().clamp(0.0, 1.0),
+        }),
     })
 }
 

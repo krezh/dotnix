@@ -13,7 +13,8 @@ use std::{
 use smol_str::SmolStr as SharedString;
 
 use super::{
-    Actions, CalendarView, Code, Dropdown, FrameView, InputView, Item, Lead, Line, Mark, Meter,
+    Actions, CalendarView, Code, Dropdown, FrameView, GalleryView, InputView, Item, Lead, Line,
+    Mark, Meter,
     MeterShape, Piece, PlayerView, PromptView, Route, SearchView, Series, Slider, TabLabel, Text,
     Tone, Transcript, Turn, Ui,
 };
@@ -40,6 +41,46 @@ pub struct Button {
     /// keeps its size.
     pub enabled: bool,
     pub on_click: Handler,
+}
+
+impl Button {
+    pub fn new(label: impl Into<SharedString>, on_click: Handler) -> Self {
+        Self {
+            label: label.into(),
+            glyph: None,
+            bare: false,
+            active: false,
+            toggle: false,
+            fits: Vec::new(),
+            busy: false,
+            enabled: true,
+            on_click,
+        }
+    }
+
+    pub fn glyph(self, glyph: Option<PathBuf>) -> Self {
+        Self { glyph, ..self }
+    }
+
+    pub fn bare(self) -> Self {
+        Self { bare: true, ..self }
+    }
+
+    pub fn active(self, active: bool) -> Self {
+        Self { active, ..self }
+    }
+
+    pub fn fits(self, fits: Vec<SharedString>) -> Self {
+        Self { fits, ..self }
+    }
+
+    pub fn busy(self, busy: bool) -> Self {
+        Self { busy, ..self }
+    }
+
+    pub fn enabled(self, enabled: bool) -> Self {
+        Self { enabled, ..self }
+    }
 }
 
 pub enum Header {
@@ -118,6 +159,19 @@ pub struct IconButton {
     pub active: bool,
     pub badge: Option<SharedString>,
     pub on_click: Handler,
+}
+
+impl IconButton {
+    pub fn text(label: impl Into<SharedString>, active: bool, on_click: Handler) -> Self {
+        Self {
+            glyph: None,
+            color: None,
+            label: label.into(),
+            active,
+            badge: None,
+            on_click,
+        }
+    }
 }
 
 pub struct ButtonRow {
@@ -209,9 +263,6 @@ pub struct Warning {
 
 /// How [`Block::Columns`] shares its blocks between columns.
 pub enum Split {
-    /// Each block a column of its own, scrolling on its own once taller than a panel's room, such
-    /// as a list beside what is picked in it.
-    Scrolling,
     /// Cards shared between two columns of about the same height, each named by its title.
     Balanced,
 }
@@ -231,6 +282,7 @@ pub enum Block {
     Segments(f32, f32),
     Text(Text),
     Search(SearchView),
+    Gallery(GalleryView),
     Calendar(CalendarView),
     Meter(Meter),
     Player(PlayerView),
@@ -248,8 +300,6 @@ pub enum Block {
     Transcript(Transcript),
     /// Side by side, as the split says.
     Columns(Split, Vec<Block>),
-    /// Label and value chips, three to a row, as a tile shows them; a value may have a color.
-    Facts(Vec<(SharedString, SharedString, Option<u32>)>),
     /// A large name over fainter lines, as a tile shows a host.
     Hero(Hero),
     /// Lanes along one stretch of time from now.
@@ -277,7 +327,31 @@ pub struct PanelView {
     pub scroll: bool,
 }
 
+impl PanelView {
+    /// How wide it has to be to show its widest block whole, with its own inset, where that
+    /// block keeps a set width, such as a grid of cards.
+    pub fn room(&self) -> Option<f32> {
+        let inset = match self.header {
+            Header::None => crate::ui::TIGHT_INSET,
+            _ => crate::ui::INSET,
+        };
+        self.blocks
+            .iter()
+            .filter_map(Block::room)
+            .reduce(f32::max)
+            .map(|room| room + 2.0 * inset)
+    }
+}
+
 impl Block {
+    /// The width it keeps whatever room it is given, for one wider than panels usually are.
+    fn room(&self) -> Option<f32> {
+        match self {
+            Block::Gallery(view) => Some(crate::components::gallery::width(view.places)),
+            _ => None,
+        }
+    }
+
     pub fn note(text: impl Into<SharedString>) -> Self {
         Block::Text(Text::new(Tone::Note, text))
     }
@@ -345,9 +419,7 @@ impl Block {
                     block.hash_shape(hasher);
                 }
             }
-            Block::Frame(_, blocks)
-            | Block::Row(blocks)
-            | Block::Columns(Split::Scrolling, blocks) => {
+            Block::Frame(_, blocks) | Block::Row(blocks) => {
                 for block in blocks {
                     block.hash_shape(hasher);
                 }
@@ -391,6 +463,19 @@ impl Block {
             }
             Block::Buttons(row) => (row.buttons.len(), row.compact).hash(hasher),
             Block::Actions(tiles) => tiles.len().hash(hasher),
+            // Which rows the cards stand in, how many lines each name and the caption take.
+            Block::Gallery(view) => {
+                (
+                    view.places,
+                    view.caption_lines,
+                    view.cards.is_empty(),
+                    view.keys.len(),
+                )
+                    .hash(hasher);
+                for card in &view.cards {
+                    (card.slot, card.lines).hash(hasher);
+                }
+            }
             Block::Search(view) => (ROWS, view.preview.is_some()).hash(hasher),
             Block::Code(code) => {
                 (code.heading.is_some(), code.wrap, code.lines.len()).hash(hasher);
@@ -400,7 +485,6 @@ impl Block {
                     }
                 }
             }
-            Block::Facts(items) => items.len().hash(hasher),
             Block::Hero(hero) => (hero.lead.is_some(), hero.heading, hero.lines.len()).hash(hasher),
             Block::Timeline(view) => {
                 (view.side.is_some(), view.lanes.len(), !view.pins.is_empty()).hash(hasher)

@@ -21,7 +21,6 @@ mod panel;
 mod requests;
 mod runtime;
 mod session;
-mod sessions;
 mod settings;
 mod sources;
 mod state;

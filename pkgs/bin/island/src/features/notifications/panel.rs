@@ -9,7 +9,7 @@ use super::{
 use std::path::PathBuf;
 
 use crate::{
-    components::{item::TrailButton, tabs},
+    components::{item::TrailButton, stack, tabs},
     control::Switch,
     features::{
         PanelCx,
@@ -70,10 +70,10 @@ impl Notifications {
     fn pick<'a>(
         &self,
         cards: &Cards,
-        found: Vec<(Filter, usize)>,
         notifications: impl Iterator<Item = &'a Notification> + Clone,
         p: &PanelCx<'_>,
     ) -> Dropdown {
+        let found = sources(notifications.clone());
         let total = found.iter().map(|(_, count)| count).sum();
         let mut filters = vec![(Filter::All, total)];
         filters.extend(found);
@@ -171,23 +171,16 @@ impl Notifications {
         let feature = feature.to_owned();
         let lead = p.glyph("notifications-offline").map(|glyph| Lead {
             mark: Some(Mark::Pulsing(Box::new(Mark::Glyph(glyph, RED)))),
-            tint: None,
-            glow: None,
-            faded: false,
             size: Some(TROUBLE_GLYPH),
-            on_click: None,
-            top: false,
+            ..Default::default()
         });
         Block::Item(
             Item {
                 id: format!("notifications-trouble-{feature}").into(),
                 lead,
-                overline: None,
                 title: trouble.title.clone().into(),
                 title_color: Some(RED),
-                wrap: false,
                 detail: trouble.detail.clone().into(),
-                tinted: Vec::new(),
                 trail: vec![Trail::Button(TrailButton {
                     label: Some("Retry now".into()),
                     glyph: None,
@@ -195,6 +188,7 @@ impl Notifications {
                     tint: Some(RED),
                     on_click: p.call::<Self>(move |_| notice::reply(&feature, Reply::Retry)),
                 })],
+                ..Default::default()
             },
             Vec::new(),
         )
@@ -260,21 +254,11 @@ impl Notifications {
 
     pub(super) fn panel_view(&self, state: &State, p: &PanelCx<'_>) -> Option<PanelView> {
         let cards = p.local::<Cards>()?;
-        let earlier = Self::earlier(state);
-        let found = if cards.earlier {
-            sources(earlier.iter().map(|kept| &kept.notification))
-        } else {
-            sources(state.missed.iter())
-        };
         let pick = if cards.earlier {
-            self.pick(
-                cards,
-                found,
-                earlier.iter().map(|kept| &kept.notification),
-                p,
-            )
+            let earlier = Self::earlier(state);
+            self.pick(cards, earlier.iter().map(|kept| &kept.notification), p)
         } else {
-            self.pick(cards, found, state.missed.iter(), p)
+            self.pick(cards, state.missed.iter(), p)
         };
         let views = Block::Views(Views {
             lead: None,
@@ -315,14 +299,14 @@ impl Notifications {
         } else if across >= 1.0 {
             self.earlier_list(state, cards, p)
         } else {
-            card::across(
+            stack::across(
                 self.now_list(state, cards, p),
                 self.earlier_list(state, cards, p),
                 across,
                 cards.earlier,
             )
         };
-        blocks.extend(card::opening(list, troubles, open));
+        blocks.extend(stack::opening(list, troubles, open));
         Some(PanelView {
             scroll: false,
             header: Header::Tabs,

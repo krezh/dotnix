@@ -1,4 +1,65 @@
-use super::{ago, bytes, link, plural, rate, running, span};
+use std::time::Duration;
+
+use super::{
+    Label, ago, bytes, capitalise, link, next_change, plural, rate, running, span, truncate,
+};
+
+fn first_change(format: fn(u64) -> String, from: u64) -> u64 {
+    (from + 1..).find(|&s| format(s) != format(from)).unwrap()
+}
+
+fn ago_unsigned(seconds: u64) -> String {
+    ago(seconds as i64)
+}
+
+#[test]
+fn next_change_lands_where_the_label_changes() {
+    let samples = [
+        0, 1, 59, 60, 61, 119, 3599, 3600, 3601, 7199, 86_399, 86_400, 86_401, 90_061, 200_000,
+    ];
+    let labels: [(Label, fn(u64) -> String); 2] = [(Label::Ago, ago_unsigned), (Label::Span, span)];
+    for (label, format) in labels {
+        for from in samples {
+            assert_eq!(
+                next_change(label, Duration::from_secs(from)),
+                Duration::from_secs(first_change(format, from) - from),
+                "{label:?} at {from}s",
+            );
+        }
+    }
+}
+
+#[test]
+fn next_change_counts_the_part_second_already_gone() {
+    assert_eq!(
+        next_change(Label::Ago, Duration::from_millis(59_250)),
+        Duration::from_millis(750)
+    );
+    assert_eq!(
+        next_change(Label::Span, Duration::from_millis(86_400_400)),
+        Duration::from_millis(3_599_600)
+    );
+}
+
+#[test]
+fn capitalise_raises_only_the_first_letter() {
+    assert_eq!(capitalise("browser"), "Browser");
+    assert_eq!(capitalise("pro plan"), "Pro plan");
+    assert_eq!(capitalise("Max"), "Max");
+    assert_eq!(capitalise("éclair"), "Éclair");
+    assert_eq!(capitalise("ßa"), "SSa");
+    assert_eq!(capitalise(""), "");
+}
+
+#[test]
+fn truncate_counts_characters_and_adds_an_ellipsis_past_the_limit() {
+    assert_eq!(truncate("hello", 5), "hello");
+    assert_eq!(truncate("hello!", 5), "hello…");
+    assert_eq!(truncate("héllo wörld", 7), "héllo w…");
+    assert_eq!(truncate("ab ", 2), "ab…");
+    assert_eq!(truncate("", 0), "");
+    assert_eq!(truncate("a", 0), "…");
+}
 
 #[test]
 fn what_is_under_way_counts_its_first_minute_in_seconds() {

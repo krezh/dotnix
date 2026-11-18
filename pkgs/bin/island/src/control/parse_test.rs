@@ -34,7 +34,7 @@ fn a_panel_opens_on_one_of_its_views() {
 fn an_unknown_view_is_named_with_the_ones_there_are() {
     let error = mistake("open ai histry");
     assert!(error.contains("no view histry"), "{error}");
-    assert!(error.contains("Views: sessions chat usage"), "{error}");
+    assert!(error.contains("Views: chat usage"), "{error}");
     let error = mistake("open calendar week");
     assert!(error.contains("no views"), "{error}");
 }

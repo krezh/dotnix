@@ -1,11 +1,11 @@
 //! The bar widget: the Bluetooth glyph, blue while Bluetooth is on, with the lowest battery of what
 //! is connected beside it when anything connected reports one.
 
-use super::{Bluetooth, glyphs, state::State};
+use super::{Bluetooth, state::State};
 use crate::{
     bar::ICON_GAP,
     bar_widget::{BarWidget, Gauge},
-    features::{Surface, WidgetCx},
+    features::{Surface, WidgetCx, battery},
     theme::{BLUE, OVERLAY2},
 };
 
@@ -41,7 +41,7 @@ pub fn widget(state: &State, w: &mut WidgetCx<'_>) -> BarWidget {
             glyph_color: color,
             busy,
             level: Some(f32::from(level) / 100.0),
-            level_color: glyphs::battery(Some(level)),
+            level_color: battery::level_color(level),
         }),
         None => w.base().gap(ICON_GAP).glyph(glyph, color),
     };

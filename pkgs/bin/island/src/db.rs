@@ -83,7 +83,7 @@ fn key() -> Result<Vec<u8>, String> {
     if let Some(key) = cached.as_ref() {
         return Ok(key.clone());
     }
-    let (key, _) = keyring::database_key()?;
+    let key = keyring::database_key()?;
     *cached = Some(key.clone());
     Ok(key)
 }

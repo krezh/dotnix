@@ -10,10 +10,7 @@ fn value(value: Value) -> Line {
     match value {
         Value::Nothing => Line::new(),
         Value::Percent => Line::new().plain(" ").push(Tone::Value, "<percent>"),
-        Value::MaybePercent => Line::new()
-            .push(Tone::Faint, " [")
-            .push(Tone::Value, "percent")
-            .push(Tone::Faint, "]"),
+        Value::MaybePercent => optional("percent"),
     }
 }
 
@@ -26,8 +23,8 @@ fn choices_inline(command: &Command) -> bool {
     }
 }
 
-/// Such as ` [monitor]`, for the word an aimed command may take first.
-fn aimed_at(at: &str) -> Line {
+/// Such as ` [monitor]`, for a word that may be left out.
+fn optional(at: &str) -> Line {
     Line::new()
         .push(Tone::Faint, " [")
         .push(Tone::Value, at)
@@ -52,9 +49,7 @@ fn forms_signature(command: &Command, forms: &[Form], bare: Option<&str>) -> Lin
                 line.plain(" ")
                     .push(Tone::Faint, format!("{open}{}{close}", words.join("|")))
             } else if bare.is_some() {
-                line.push(Tone::Faint, " [")
-                    .push(Tone::Value, "action")
-                    .push(Tone::Faint, "]")
+                line.append(optional("action"))
             } else {
                 line.plain(" ").push(Tone::Value, "<action>")
             }
@@ -69,7 +64,7 @@ fn signature(command: &Command) -> Line {
         Takes::Nothing => line,
         Takes::Forms { forms, bare } => line.append(forms_signature(command, forms, *bare)),
         Takes::Aimed { at, forms, bare } => line
-            .append(aimed_at(at))
+            .append(optional(at))
             .append(forms_signature(command, forms, *bare)),
         Takes::Panel => line
             .plain(" ")
@@ -206,7 +201,7 @@ fn takes(command: &Command) -> Line {
     match &command.takes {
         Takes::Nothing => Line::new(),
         Takes::Forms { forms, bare } => forms_usage(forms, *bare),
-        Takes::Aimed { at, forms, bare } => aimed_at(at).append(forms_usage(forms, *bare)),
+        Takes::Aimed { at, forms, bare } => optional(at).append(forms_usage(forms, *bare)),
         _ => {
             let signature = signature(command);
             Line(signature.0.into_iter().skip(1).collect())

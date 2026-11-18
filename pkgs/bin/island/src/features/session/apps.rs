@@ -62,11 +62,7 @@ impl Apps {
                 identity: None,
             })
             .collect();
-        let windowed: HashSet<i32> = clients
-            .iter()
-            .filter(|client| client.pid > 0)
-            .map(|client| client.pid)
-            .collect();
+        let windowed = windowed(&clients);
         let mut alone = HashSet::new();
         for layer in layers
             .into_values()
@@ -194,11 +190,7 @@ impl Apps {
             .retain(|identity, _| living.contains(identity));
         self.open.retain(|app| still_open(app, &clients, &living));
         let again = self.asked_at.is_none_or(|at| at.elapsed() >= ASK_AGAIN);
-        let windowed: HashSet<i32> = clients
-            .iter()
-            .filter(|client| client.pid > 0)
-            .map(|client| client.pid)
-            .collect();
+        let windowed = windowed(&clients);
         let mut signals = HashSet::new();
         for app in &self.open {
             if again
@@ -250,6 +242,14 @@ impl Apps {
     pub fn forced(&mut self) {
         self.forced = true;
     }
+}
+
+fn windowed(clients: &[Client]) -> HashSet<i32> {
+    clients
+        .iter()
+        .filter(|client| client.pid > 0)
+        .map(|client| client.pid)
+        .collect()
 }
 
 pub fn still_open(app: &Open, clients: &[Client], living: &HashSet<Identity>) -> bool {

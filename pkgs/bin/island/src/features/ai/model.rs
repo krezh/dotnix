@@ -8,6 +8,7 @@ use super::{
     settings::Settings,
     state::{Freshness, Issue, Limit, Provider, Severity, Source, SourceReport, State},
 };
+use crate::units::plural;
 
 /// Claude's numbers as Claude Code's status line reads them, laid over the usage API's last
 /// reading, which names the account and its other limits. Nothing while there is no such reading
@@ -96,8 +97,6 @@ pub(super) fn passed_reset(state: &State, now: i64) -> Option<i64> {
 pub(super) struct Notice {
     /// What it is about, so a later notice about the same takes its place.
     pub(super) key: String,
-    /// The Claude Code session it is about, which it can show.
-    pub(super) session: Option<String>,
     /// Who it is from, as the notification names it.
     pub(super) app: &'static str,
     pub(super) title: String,
@@ -136,18 +135,17 @@ fn project(limit: &mut Limit, measured_at: i64, readings: &[(i64, f64)], setting
     }
 }
 
-fn notice(provider: &Provider, limit: &Limit, before: Severity) -> Option<Notice> {
+fn subject(provider: &Provider) -> String {
     let account = if provider.account.is_empty() {
         String::new()
     } else {
         format!(" · {}", provider.account)
     };
-    let subject = format!(
-        "{} · {}{account} · {}",
-        provider.source.name(),
-        provider.name,
-        limit.label
-    );
+    format!("{} · {}{account}", provider.source.name(), provider.name)
+}
+
+fn notice(provider: &Provider, limit: &Limit, before: Severity) -> Option<Notice> {
+    let subject = format!("{} · {}", subject(provider), limit.label);
     let (title, body, critical) = match limit.severity {
         Severity::Exhausted => (
             format!("{subject} exhausted"),
@@ -172,7 +170,6 @@ fn notice(provider: &Provider, limit: &Limit, before: Severity) -> Option<Notice
     };
     Some(Notice {
         key: format!("quota {subject}"),
-        session: None,
         app: "Island AI",
         title,
         body,
@@ -184,28 +181,17 @@ fn credit_notice(provider: &Provider, count: u64, before: u64) -> Option<Notice>
     if added == 0 {
         return None;
     }
-    let account = if provider.account.is_empty() {
-        String::new()
-    } else {
-        format!(" · {}", provider.account)
-    };
-    let subject = format!("{} · {}{account}", provider.source.name(), provider.name);
+    let subject = subject(provider);
     let title = if added == 1 {
         format!("{subject} · Reset token added")
     } else {
         format!("{subject} · {added} reset tokens added")
     };
-    let noun = if count == 1 {
-        "reset token"
-    } else {
-        "reset tokens"
-    };
     Some(Notice {
         key: format!("credits {subject}"),
-        session: None,
         app: "Island AI",
         title,
-        body: format!("{count} {noun} available"),
+        body: format!("{} available", plural(count, "reset token", "reset tokens")),
         critical: false,
     })
 }
@@ -338,12 +324,12 @@ impl Tracker {
             let credit_key = (source, provider.id.clone());
             let count = provider.credits.as_ref().map_or(0, |credits| credits.count);
             if settings.alerts.notifications && provider.freshness.is_fresh() {
-                if let Some(&before) = self.previous_credits.get(&credit_key) {
-                    if count > before {
-                        if let Some(notice) = credit_notice(provider, count, before) {
-                            notices.push(notice);
-                        }
-                    }
+                if let Some(notice) = self
+                    .previous_credits
+                    .get(&credit_key)
+                    .and_then(|&before| credit_notice(provider, count, before))
+                {
+                    notices.push(notice);
                 }
             }
             if provider.freshness != Freshness::Cached {

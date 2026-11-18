@@ -7,10 +7,11 @@ use std::time::Instant;
 use super::{
     panel::{Beam, edge_beam},
     renderer::{NO_CLIP, NO_EDGES, Sprite, View},
-    widget::{color, tinted},
+    widget::tinted,
 };
 use crate::{
-    components::{energy::Hue, marquee::smoothstep},
+    components::energy::Hue,
+    math::{color, mix, smoothstep},
     spring::Spring,
     stage::{SHAPE_SPRING, SURFACE_H, SURFACE_W, SWITCH_OFF, Stance},
     theme::{BLUE, RED, TEXT},
@@ -31,10 +32,6 @@ const BLACK: (f32, f32) = (0.0, 0.9);
 /// How far along `span` the time `t` is, from 0 to 1.
 fn along(t: f32, (from, to): (f32, f32)) -> f32 {
     ((t - from) / (to - from)).clamp(0.0, 1.0)
-}
-
-fn lerp(from: f32, to: f32, by: f32) -> f32 {
-    from + (to - from) * by
 }
 
 /// What switching off shows `t` seconds in.
@@ -66,15 +63,15 @@ pub fn crt(t: f32) -> Crt {
         (0.0, 0.0)
     } else if flare_at < 0.3 {
         let up = flare_at / 0.3;
-        (lerp(0.2, 0.45, up), up)
+        (mix(0.2, 0.45, up), up)
     } else {
         let down = (flare_at - 0.3) / 0.7;
-        (lerp(0.45, 0.05, down), 1.0 - down)
+        (mix(0.45, 0.05, down), 1.0 - down)
     };
     Crt {
         fold,
         island,
-        line: (1.0 - pinch, lerp(LINE_H, 2.0, pinch), line_strength),
+        line: (1.0 - pinch, mix(LINE_H, 2.0, pinch), line_strength),
         flare: (flare_size, flare_strength),
         black: smoothstep(along(t, BLACK)),
     }
@@ -108,7 +105,7 @@ pub fn folded(
         sprite.edges[2] = y(sprite.edges[2]);
     }
     sprite.params[0] *= sx.min(sy);
-    sprite.color = sprite.color.map(|channel| lerp(channel, 1.0, white));
+    sprite.color = sprite.color.map(|channel| mix(channel, 1.0, white));
     sprite
 }
 
@@ -254,8 +251,8 @@ impl Stand {
 
     fn fold(&self, sprites: &mut Vec<Sprite>, body: [f32; 4], crt: Crt) {
         let middle = (body[0] + body[2] / 2.0, body[1] + body[3] / 2.0);
-        let squash = lerp(1.0, LINE_H / body[3].max(LINE_H), crt.fold);
-        let widen = lerp(1.0, 1.02, crt.fold);
+        let squash = mix(1.0, LINE_H / body[3].max(LINE_H), crt.fold);
+        let widen = mix(1.0, 1.02, crt.fold);
         for sprite in sprites.iter_mut() {
             *sprite = folded(*sprite, middle, (widen, squash), crt.fold).faded(crt.island);
         }
@@ -312,16 +309,16 @@ impl Stand {
         }
         let (x, y) = self.shift(scale);
         let whole = [0.0, 0.0, self.size.0, self.size.1];
+        let shown = [body[0] + x, body[1] + y, body[2], body[3]].map(|value| value.round() as i32);
         let input = if self.takes_input() {
             vec![whole.map(|value| value.round() as i32)]
         } else {
-            vec![[body[0] + x, body[1] + y, body[2], body[3]].map(|value| value.round() as i32)]
+            vec![shown]
         };
-        let shown = [body[0] + x, body[1] + y, body[2], body[3]];
         let blur = if self.off.is_some() {
             Vec::new()
         } else {
-            crate::merge::region(shown.map(|value| value.round() as i32), corner)
+            crate::merge::region(shown, corner)
         };
         Some((input, blur))
     }

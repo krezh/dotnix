@@ -34,11 +34,12 @@ use super::{
     blocks::{Blocks, chip_label, chip_look},
     bubble::Bubble,
     chrome::{self, Action, Chrome},
+    laps::Laps,
     menu::{self, Menu},
     node::Painting,
     node::div,
     paint::Painter,
-    panel::{self, Built, DROP, MorphText, Shown},
+    panel::{self, BODY, Built, DROP, MorphText, Shown},
     records,
     renderer::{
         Chain, Gpu, MERGED_FILL, MERGED_OUTLINE, MERGED_RIM, NO_CHAIN, Presented, Sprite, View,
@@ -46,7 +47,7 @@ use super::{
     },
     stand::Stand,
     turn::Turn,
-    widget::{Drawn, Hit, Layout, Tint, color, sets, tinted},
+    widget::{Drawn, Hit, Layout, Tint, sets, tinted},
 };
 use crate::{
     bar::{self, TabStrip, WIDGET_H},
@@ -61,14 +62,15 @@ use crate::{
         slider::{HANDLE_W, HELD_H, HOVER_H, STRETCH_REACH},
     },
     components::{
-        marquee::{BRISK, TICK, smoothstep},
+        marquee::{BRISK, TICK},
         slider::{HIT_H, OnChange},
     },
     compositor,
     config::{self, Widget},
     features::{self, AnyLocal, Outcome, WidgetCx},
     glyphs::Glyphs,
-    key::Key,
+    key::{Key, Modifier},
+    math::{color, smoothstep},
     menu::MenuNode,
     merge::Merge,
     panel::{Block, Handler, SharedString, Ui},
@@ -102,10 +104,25 @@ const POPOVER_MARGIN: f32 = 8.0;
 const AURA_EVERY: Duration = Duration::from_millis(33);
 const HELD_DIM: f32 = 0.85;
 const FILL_EPSILON: f32 = 0.001;
-const BODY: &str = "panel-body";
 const FOLLOW_SLACK: f32 = 24.0;
 const GLIDE: Duration = Duration::from_millis(16);
+const SLOW_FRAME: Duration = Duration::from_millis(3);
+const GAP: Duration = Duration::from_millis(12);
 const SHADOW_BELOW: f32 = 55.0;
+/// Mouse buttons as Linux numbers them.
+const LEFT: u32 = 0x110;
+const RIGHT: u32 = 0x111;
+const MIDDLE: u32 = 0x112;
+
+/// What pressing `button` on a widget's `hit` does.
+fn bar_press(hit: &Hit, button: u32) -> Option<Press> {
+    match button {
+        LEFT => hit.on_click.clone(),
+        RIGHT => hit.on_right.clone(),
+        MIDDLE => hit.on_middle.clone(),
+        _ => None,
+    }
+}
 
 pub struct Look {
     pub top: f32,
@@ -746,6 +763,7 @@ impl Island {
             && let Some(feature) = self.stage.features.get(name)
         {
             self.panel_watch = feature.panel_opened();
+            self.stage.update_local(name, |local| local.panel_opened());
         }
         if mode == Mode::Open(Panel::Dashboard) {
             let watches: Vec<Box<dyn Any>> = features::dashboard_tabs()
@@ -881,7 +899,10 @@ impl Island {
             still: false,
         };
         let max = (
-            PANEL_ROOM - 2.0 * SHADOW_SIDE,
+            view.room()
+                .unwrap_or(0.0)
+                .max(PANEL_ROOM - 2.0 * SHADOW_SIDE)
+                .min(SURFACE_W - 2.0 * SHADOW_SIDE),
             SURFACE_H - self.look.top - SHADOW_BELOW,
         );
         let mut blocks = Blocks {
@@ -902,7 +923,11 @@ impl Island {
                 .w(shape.w)
                 .h(shape.h)
                 .child(blocks.panel(view, shape.w, (shape.w, shape.h)).named(BODY)),
-            None => blocks.panel(view, 0.0, max).named(BODY),
+            None => {
+                let panel = blocks.panel(view, 0.0, max).named(BODY);
+                let (width, _) = blocks.painting.measure(&panel, None);
+                panel.w(width)
+            }
         };
         let popovers = blocks.popovers;
         let prompt = blocks.prompt;
@@ -1240,17 +1265,13 @@ impl Island {
         for name in self.stage.elapse(now) {
             self.local_changed(name);
         }
-        let hidden = self.stage.hidden();
-        let due: Vec<Widget> = self
-            .cache
-            .iter()
-            .filter(|_| !hidden)
-            .filter(|(_, cached)| cached.redraw_at.is_some_and(|at| at <= now))
-            .map(|(kind, _)| *kind)
-            .collect();
-        for kind in due {
-            self.cache.remove(&kind);
-            self.dirty = true;
+        if !self.stage.hidden() {
+            let before = self.cache.len();
+            self.cache
+                .retain(|_, cached| !cached.redraw_at.is_some_and(|at| at <= now));
+            if self.cache.len() != before {
+                self.dirty = true;
+            }
         }
         if self.pace.is_some_and(|pace| self.drew_at + pace <= now) {
             self.dirty = true;
@@ -1277,6 +1298,8 @@ impl Island {
         let active = self.stage.active_layer();
         let phase = self.sampled_at.elapsed().as_secs_f32() / sys::INTERVAL.as_secs_f32();
         let width = self.stage.morph.slide_width;
+        let seconds = self.started.elapsed().as_secs_f32();
+        let pulse_shown = pulsed((seconds / PULSE.as_secs_f32()).fract());
         for (layer, built) in &self.built {
             let layer = *layer;
             let faded = self.stage.morph.layers[layer].value().clamp(0.0, 1.0);
@@ -1364,11 +1387,9 @@ impl Island {
                     }
                 }
             }
-            let shown =
-                pulsed((self.started.elapsed().as_secs_f32() / PULSE.as_secs_f32()).fract());
             for &(from, to) in built.pulsing.iter().filter(|(_, to)| *to <= above) {
                 for sprite in &mut own[from..to] {
-                    *sprite = sprite.faded(shown);
+                    *sprite = sprite.faded(pulse_shown);
                 }
             }
             for track in &built.sliding {
@@ -1409,7 +1430,6 @@ impl Island {
                     });
                 panel::countdown_sprites(countdown, gone, out);
             }
-            let seconds = self.started.elapsed().as_secs_f32();
             for marquee in &built.marquees {
                 match marquee.hover {
                     Some(_) => {
@@ -1531,12 +1551,11 @@ impl Island {
             scale,
             pointer: self.pointer,
         };
-        let (sprites, hits) = chrome.draw(x, y, right);
-        out.extend(
-            sprites
-                .iter()
-                .map(|sprite| sprite.within(clip).faded(opacity)),
-        );
+        let first = out.len();
+        let hits = chrome.draw(x, y, right, out);
+        for sprite in &mut out[first..] {
+            *sprite = sprite.within(clip).faded(opacity);
+        }
         self.chrome = hits;
     }
 
@@ -1951,9 +1970,20 @@ impl Island {
         self.dirty = false;
         self.sync_monitor();
         let now = Instant::now();
-        let dt = self
-            .last_frame
-            .map_or(Duration::ZERO, |last| (now - last).min(MAX_STEP))
+        let mut laps = Laps::start();
+        let since = self.last_frame.map(|last| now - last);
+        if let Some(gap) = since
+            && gap > GAP
+        {
+            debug!(
+                target: "island::frames",
+                mode = ?self.stage.mode,
+                gap = ?gap,
+                "frame gap"
+            );
+        }
+        let dt = since
+            .map_or(Duration::ZERO, |gap| gap.min(MAX_STEP))
             .as_secs_f32();
         self.stage.advance(dt, now);
         self.stand.advance(dt, now);
@@ -2013,9 +2043,12 @@ impl Island {
             self.menu = None;
         }
         self.bubble.advance(dt, now);
+        laps.lap("step");
         self.measure_locals(painter);
         self.forget_unsettled();
+        laps.lap("measure");
         self.refresh_panel(glyphs, painter, gpu);
+        laps.lap("layout");
         let wanted: Vec<Widget> = self
             .stage
             .layout
@@ -2025,6 +2058,7 @@ impl Island {
         for kind in wanted {
             self.draw_widget(kind, glyphs, painter, gpu, now);
         }
+        laps.lap("widgets");
         self.sync_droplets();
         self.retarget();
         if self.stage.mode == Mode::Collapsed
@@ -2040,12 +2074,26 @@ impl Island {
             self.look.top,
             now,
         );
+        laps.lap("aim");
         let mut sprites = self.compose(glyphs, painter, gpu);
         let radius = self.look.corner.0.min(self.body[3] / 2.0);
         self.stand
             .dress(&mut sprites, self.body, radius, self.scale);
+        laps.lap("compose");
         self.sync_regions(compositor);
+        laps.lap("regions");
         self.show(&sprites, gpu, now);
+        laps.lap("present");
+        if let Some(total) = laps.over(SLOW_FRAME) {
+            debug!(
+                target: "island::frames",
+                mode = ?self.stage.mode,
+                total = ?total,
+                sprites = sprites.len(),
+                stages = %laps,
+                "slow frame"
+            );
+        }
         self.drew_at = now;
         let open = self.stage.mode != Mode::Collapsed;
         let morph = &self.stage.morph;
@@ -2329,17 +2377,17 @@ impl Island {
 
     /// Shows `view` of it if it stays open. Whether it is open after.
     pub fn open_panel(&mut self, panel: Panel, view: Option<&str>, toggle: bool) -> bool {
-        let closing = toggle && self.stage.mode == Mode::Open(panel);
-        if let (Some(view), Panel::Feature(feature), false) = (view, panel, closing) {
-            self.stage.update_local(feature, |local| local.show(view));
-            self.local_changed(feature);
-        }
-        if toggle {
+        let open = if toggle {
             self.toggle(panel)
         } else {
             self.set_mode(Mode::Open(panel));
             true
+        };
+        if let (Some(view), Panel::Feature(feature), true) = (view, panel, open) {
+            self.stage.update_local(feature, |local| local.show(view));
+            self.local_changed(feature);
         }
+        open
     }
 
     /// What it needs covers over the outputs for.
@@ -2409,6 +2457,25 @@ impl Island {
         let mut outcome = Outcome::Close;
         self.stage
             .update_local(name, |local| outcome = feature.key(local, key));
+        self.keyed(name, outcome);
+    }
+
+    /// Tells the open panel taking the keyboard that `modifier` came up.
+    pub fn released(&mut self, modifier: Modifier) {
+        let Mode::Open(Panel::Feature(name)) = self.stage.mode else {
+            return;
+        };
+        let features = self.stage.features.clone();
+        let Some(feature) = features.get(name) else {
+            return;
+        };
+        let mut outcome = Outcome::Open;
+        self.stage
+            .update_local(name, |local| outcome = feature.released(local, modifier));
+        self.keyed(name, outcome);
+    }
+
+    fn keyed(&mut self, name: &'static str, outcome: Outcome) {
         match outcome {
             Outcome::Open => self.local_changed(name),
             Outcome::Close => self.set_mode(Mode::Collapsed),
@@ -2472,7 +2539,6 @@ impl Island {
 
     /// `button` as Linux numbers them.
     pub fn release(&mut self, button: u32) {
-        const RIGHT: u32 = 0x111;
         if button == RIGHT {
             let local = self.pointer.map(|at| self.in_panel(at));
             let handler = self
@@ -2593,9 +2659,6 @@ impl Island {
 
     /// `button` as Linux numbers them.
     pub fn press(&mut self, button: u32) {
-        const LEFT: u32 = 0x110;
-        const RIGHT: u32 = 0x111;
-        const MIDDLE: u32 = 0x112;
         let Some(at) = self.pointer else {
             return;
         };
@@ -2604,15 +2667,7 @@ impl Island {
             let carried = self
                 .bubble
                 .carried_hit(&self.carried, at)
-                .and_then(|(hit, rect)| {
-                    let press = match button {
-                        LEFT => hit.on_click.clone(),
-                        RIGHT => hit.on_right.clone(),
-                        MIDDLE => hit.on_middle.clone(),
-                        _ => None,
-                    };
-                    press.map(|press| (press, rect))
-                });
+                .and_then(|(hit, rect)| bar_press(hit, button).map(|press| (press, rect)));
             if let Some((press, rect)) = carried {
                 if button == LEFT {
                     self.pressed = Some(Pressed {
@@ -2718,12 +2773,7 @@ impl Island {
                 return;
             }
         }
-        let press = self.answer_at(at, |hit| match button {
-            LEFT => hit.on_click.clone(),
-            RIGHT => hit.on_right.clone(),
-            MIDDLE => hit.on_middle.clone(),
-            _ => None,
-        });
+        let press = self.answer_at(at, |hit| bar_press(hit, button));
         if let Some(press) = press {
             let place = self
                 .placed

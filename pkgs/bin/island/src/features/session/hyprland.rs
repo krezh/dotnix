@@ -1,5 +1,6 @@
-//! What leaving the session asks of Hyprland: its process, windows and layers, closing windows and
-//! exiting, each answered within a second or not at all, and the events that say a window went.
+//! What leaving the session asks of Hyprland: its process, windows and layers, closing windows
+//! (through the [`compositor`]) and exiting, each answered within a second or not at all, and the
+//! events that say a window went.
 
 use std::{
     env, fs,
@@ -11,7 +12,7 @@ use std::{
 
 use serde::{Deserialize, de::DeserializeOwned};
 
-use crate::paths;
+use crate::{compositor, paths};
 
 const TIMEOUT: Duration = Duration::from_secs(1);
 const MOST: usize = 16 * 1024 * 1024;
@@ -36,17 +37,8 @@ pub struct Layers {
     pub levels: std::collections::HashMap<String, Vec<Layer>>,
 }
 
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct Status {
-    #[serde(default)]
-    config_provider: Option<String>,
-}
-
 pub struct Hyprland {
     directory: PathBuf,
-    /// Its config is Lua, which names dispatchers differently.
-    lua: bool,
     pub pid: i32,
 }
 
@@ -65,18 +57,7 @@ impl Hyprland {
         let lock = fs::read_to_string(directory.join("hyprland.lock"))
             .map_err(|error| format!("cannot read hyprland.lock: {error}"))?;
         let pid = parse_lock(&lock)?;
-        let mut found = Self {
-            directory,
-            lua: false,
-            pid,
-        };
-        let status: Status = found.query("j/status")?;
-        found.lua = match status.config_provider.as_deref() {
-            Some("lua") => true,
-            Some("hyprlang") | None => false,
-            Some(provider) => return Err(format!("Hyprland's config is in {provider}, unknown")),
-        };
-        Ok(found)
+        Ok(Self { directory, pid })
     }
 
     fn socket(&self) -> PathBuf {
@@ -117,15 +98,13 @@ impl Hyprland {
 
     pub fn close(&self, address: &str) -> Result<(), String> {
         check_address(address)?;
-        self.dispatch(&if self.lua {
-            format!("hl.dsp.window.close({{ window = 'address:{address}' }})")
-        } else {
-            format!("closewindow address:{address}")
-        })
+        compositor::backend()
+            .ok_or("island follows no compositor")?
+            .close_window(address)
     }
 
     pub fn exit(&self) -> Result<(), String> {
-        self.dispatch(if self.lua { "hl.dsp.exit()" } else { "exit" })
+        self.dispatch("hl.dsp.exit()")
     }
 
     /// Hyprland's events as they come, read only to know something changed.

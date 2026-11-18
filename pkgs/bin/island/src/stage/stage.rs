@@ -49,6 +49,17 @@ pub struct Stage {
     pub droplets: HashSet<&'static str>,
 }
 
+fn monitor_of(workspaces: Option<&Snapshot>, display: Option<Uuid>) -> Option<&Monitor> {
+    let monitors = &workspaces?.monitors;
+    display
+        .and_then(|display| {
+            monitors.iter().find(|monitor| {
+                Uuid::new_v5(&Uuid::NAMESPACE_DNS, monitor.name.as_bytes()) == display
+            })
+        })
+        .or_else(|| monitors.iter().find(|monitor| monitor.focused))
+}
+
 /// The bar's width at rest, or with the pointer on it.
 pub fn collapsed_width(bar: f32, hovered: bool) -> f32 {
     if hovered { bar + 4.0 * HOVER_GROW } else { bar }
@@ -62,6 +73,7 @@ impl Stage {
     ) -> Self {
         let nowhere = IslandInfo {
             monitor: None,
+            snapshot: None,
             panel_open: false,
         };
         let locals = features
@@ -276,21 +288,14 @@ impl Stage {
     }
 
     pub fn monitor(&self) -> Option<&Monitor> {
-        let monitors = &self.workspaces.as_ref()?.monitors;
-        self.display
-            .and_then(|display| {
-                monitors.iter().find(|monitor| {
-                    Uuid::new_v5(&Uuid::NAMESPACE_DNS, monitor.name.as_bytes()) == display
-                })
-            })
-            .or_else(|| monitors.iter().find(|monitor| monitor.focused))
+        monitor_of(self.workspaces.as_ref(), self.display)
     }
 
     pub fn sync_local(&mut self, name: &'static str) {
         let animate = self.morph.sized;
-        let monitor = self.monitor().cloned();
         let here = IslandInfo {
-            monitor: monitor.as_ref(),
+            monitor: monitor_of(self.workspaces.as_ref(), self.display),
+            snapshot: self.workspaces.as_ref(),
             panel_open: self.mode == Mode::Open(Panel::Feature(name)),
         };
         if let (Some(feature), Some((_, local))) = (
@@ -307,6 +312,7 @@ impl Stage {
             if let Some(feature) = self.features.get(name) {
                 let here = IslandInfo {
                     monitor,
+                    snapshot: self.workspaces.as_ref(),
                     panel_open: self.mode == Mode::Open(Panel::Feature(name)),
                 };
                 feature.sync_local(&mut **local, &here, animate);
@@ -322,8 +328,7 @@ impl Stage {
     ) -> PanelCx<'a> {
         let lend = move |lender: &str| {
             self.lent.borrow_mut().insert(lender.to_owned());
-            let (_, local) = self.locals.iter().find(|(owner, _)| *owner == lender)?;
-            self.features.get(lender)?.lead(&**local)
+            self.features.get(lender)?.lead(self.local(lender)?)
         };
         PanelCx::new(glyphs.clone(), self.local(name), redraw, Box::new(lend))
     }

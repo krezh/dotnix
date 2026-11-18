@@ -12,10 +12,10 @@ use crate::{
     cli::Client,
     components::measure::Measure,
     control::{Command, Reply, Report, Row},
-    key::Key,
+    key::{Key, Modifier},
     panel::{ActionTile, Block, Mark, PanelView, Warning},
     stage::{Panel, Stance},
-    wm::Monitor,
+    wm::{Monitor, Snapshot},
 };
 
 /// Whether a panel that takes the keyboard stays open after a key.
@@ -209,6 +209,12 @@ pub trait Surface: Feature {
     fn key(&self, _: &Self::State, _local: &mut Self::Local, _key: &Key) -> Outcome {
         Outcome::Close
     }
+
+    /// A modifier came up while its panel takes the keyboard, such as Alt for a switcher opened
+    /// with Alt held; ignored unless a panel acts on it.
+    fn released(&self, _: &Self::State, _local: &mut Self::Local, _: Modifier) -> Outcome {
+        Outcome::Open
+    }
 }
 
 /// A feature's part of the dashboard's overview.
@@ -224,6 +230,8 @@ pub struct Dashboard {
 
 pub struct IslandInfo<'a> {
     pub monitor: Option<&'a Monitor>,
+    /// Every monitor and window the compositor reports.
+    pub snapshot: Option<&'a Snapshot>,
     pub panel_open: bool,
 }
 
@@ -247,6 +255,9 @@ pub trait Local: 'static {
     }
 
     fn panel_closed(&mut self) {}
+
+    /// Its panel opened from something else showing, before any view it is opened on is shown.
+    fn panel_opened(&mut self) {}
 
     fn popup(&self) -> bool {
         false

@@ -1,7 +1,7 @@
 //! A search field over a list of results, with an optional preview of the selected one beside it,
 //! such as apps to launch or clipboard history to paste.
 
-use std::{cell::Cell, path::PathBuf, rc::Rc};
+use std::{path::PathBuf, rc::Rc};
 
 use crate::panel::SharedString;
 
@@ -51,9 +51,4 @@ pub struct SearchView {
     pub preview: Option<(Preview, SharedString)>,
     /// As wide as what holds it, such as a card beside what is picked in it.
     pub fill: bool,
-}
-
-thread_local! {
-    /// Pixels scrolled over a list that do not yet add up to a whole row.
-    static SCROLLED: Cell<f32> = const { Cell::new(0.0) };
 }

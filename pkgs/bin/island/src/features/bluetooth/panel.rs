@@ -11,13 +11,13 @@ use super::{
 };
 use crate::{
     components::card::{self, Look, Motion, Title},
-    features::PanelCx,
+    features::{PanelCx, battery},
     panel::{
         Action, Actions, Block, ButtonRow, FrameView, Header, IconButton, Item, Lead, Mark,
         PanelView, PromptView, SharedString, Trail,
     },
     theme::{BLUE, GREEN, OVERLAY2, SUBTEXT1},
-    units::{plural, span},
+    units::{Label, next_change, plural, span},
 };
 
 const LEAD: f32 = 56.0;
@@ -54,7 +54,7 @@ fn connected(device: &Device, open: bool, now: i64, subsec: Duration, p: &PanelC
     let mark = match device.battery {
         Some(level) => Mark::Ring {
             fraction: f32::from(level) / 100.0,
-            color: glyphs::battery(Some(level)),
+            color: battery::level_color(level),
             value: format!("{level}%").into(),
         },
         None => Mark::Glyph(
@@ -66,8 +66,10 @@ fn connected(device: &Device, open: bool, now: i64, subsec: Duration, p: &PanelC
         (Some(busy), _) => (busy.label().to_owned(), BLUE),
         (None, Some(since)) => {
             let elapsed = (now - since).max(0) as u64;
-            let step = if elapsed < 86_400 { 60 } else { 3600 };
-            p.redraw_in(Duration::from_secs(step - (elapsed % step) - 1) + subsec);
+            p.redraw_in(next_change(
+                Label::Span,
+                Duration::from_secs(elapsed + 1) - subsec,
+            ));
             (format!("Connected · {}", span(elapsed)), GREEN)
         }
         (None, None) => ("Connected".to_owned(), GREEN),
@@ -77,19 +79,11 @@ fn connected(device: &Device, open: bool, now: i64, subsec: Duration, p: &PanelC
         lead: Some(Lead {
             mark: Some(mark),
             tint: device.battery.is_none().then_some(BLUE),
-            glow: None,
-            faded: false,
             size: Some(LEAD),
-            on_click: None,
-            top: false,
+            ..Default::default()
         }),
-        overline: None,
         title: device.name.clone().into(),
-        title_color: None,
-        wrap: false,
-        detail: SharedString::default(),
-        tinted: Vec::new(),
-        trail: Vec::new(),
+        ..Default::default()
     };
     let (trust_path, forget_path, menu_path, off_path) =
         (path.clone(), path.clone(), path.clone(), path.clone());
@@ -144,16 +138,13 @@ fn connected(device: &Device, open: bool, now: i64, subsec: Duration, p: &PanelC
             ),
             Block::Buttons(ButtonRow {
                 fill: false,
-                buttons: vec![IconButton {
-                    glyph: None,
-                    color: None,
-                    label: "Disconnect".into(),
-                    active: false,
-                    badge: None,
-                    on_click: p.call(move |bluetooth: &Bluetooth| {
+                buttons: vec![IconButton::text(
+                    "Disconnect",
+                    false,
+                    p.call(move |bluetooth: &Bluetooth| {
                         bluetooth.send(Request::Disconnect(off_path.clone()));
                     }),
-                }],
+                )],
                 compact: true,
                 indent: 0.0,
                 menu: Some(menu),
@@ -176,20 +167,11 @@ fn row(device: &Device, detail: String, does: &str, request: Request, p: &PanelC
             mark: p
                 .glyph(glyphs::device(&device.icon))
                 .map(|glyph| Mark::Glyph(glyph, SUBTEXT1)),
-            tint: None,
-            glow: None,
-            faded: false,
-            size: None,
-            on_click: None,
-            top: false,
+            ..Default::default()
         }),
-        overline: None,
         title: device.name.clone().into(),
-        title_color: None,
-        wrap: false,
-        detail: SharedString::default(),
-        tinted: Vec::new(),
         trail: vec![Trail::Text(busy.unwrap_or(does).into(), BLUE)],
+        ..Default::default()
     };
     Block::Frame(
         frame(format!("bt-row-{path}"), Look::Inset, on_click),

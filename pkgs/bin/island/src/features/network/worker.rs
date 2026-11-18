@@ -22,11 +22,11 @@ use zbus::{Connection, MatchRule, MessageStream, OwnedObjectPath, block_on};
 
 use super::{
     kernel::{self, Counters},
-    nm::{self, Saved, Snapshot},
+    nm::{self, ETHERNET, Saved, Snapshot, WIFI},
     runtime::{Probes, Request, Settings, Watched},
     state::{
-        AccessPoint, Activity, Interface, Internet, Joining, Link, LinkKind, Signal, State, Usage,
-        Vpn, Wifi, Wired,
+        AccessPoint, Activity, Interface, Internet, Joining, Link, LinkKind, Signal, State, Vpn,
+        Wifi, Wired,
     },
     usage,
 };
@@ -35,6 +35,7 @@ use crate::{
     features::Feed,
     supervisor::{self, Ended},
     sync::lock,
+    time,
 };
 
 const SOCKETS_EVERY: u64 = 3;
@@ -48,8 +49,6 @@ const SCAN_TIMEOUT: Duration = Duration::from_secs(15);
 const SCAN_STALE_MS: i64 = 30_000;
 /// NetworkManager's reasons a Wi-Fi connection ends without coming up that point at the password.
 const SECRET_REASONS: [u32; 5] = [7, 8, 9, 10, 11];
-const WIFI: u32 = 2;
-const ETHERNET: u32 = 1;
 
 struct Join {
     ssid: String,
@@ -85,7 +84,7 @@ impl Glance {
                 )
             }),
             wired: state.wired.as_ref().map(|wired| wired.active),
-            vpn: state.vpns.iter().any(|vpn| vpn.activity == Activity::On),
+            vpn: state.active_vpn().is_some(),
             joining: state.joining.clone(),
             internet: state.internet,
         }
@@ -110,7 +109,6 @@ struct World {
     probes_seen: (u64, u64),
     samples: u64,
     flushed: Option<Instant>,
-    last_counters: HashMap<String, Counters>,
     dirty: bool,
     published: Option<Glance>,
 }
@@ -285,12 +283,12 @@ impl World {
                     carrier_changes: counters.carrier_changes,
                 }
             });
-        let now = chrono::Utc::now().timestamp();
+        let now = crate::time::now();
         let mut vpns = Vec::new();
         for saved in self
             .saved
             .iter()
-            .filter(|saved| matches!(saved.kind.as_str(), "vpn" | "wireguard"))
+            .filter(|saved| saved.is_vpn())
         {
             let active = active_of(&saved.path);
             let activity = active.map_or(Activity::Off, |active| active.activity);
@@ -389,9 +387,7 @@ impl World {
         traffic.sampled = Some(std::time::Instant::now());
         let vpn = self
             .state
-            .vpns
-            .iter()
-            .find(|vpn| vpn.activity == Activity::On)
+            .active_vpn()
             .and_then(|vpn| vpn.interface.clone());
         let vpn_rate = vpn.as_deref().map_or(0.0, |vpn| {
             let (rx, tx) = self.rate(vpn);
@@ -534,10 +530,7 @@ impl World {
             }
             days.push((label, rx + tx));
         }
-        self.state.usage = Usage {
-            days,
-            ..self.state.usage.clone()
-        };
+        self.state.usage.days = days;
     }
 
     fn follow_join(&mut self, connection: &Connection) {
@@ -679,9 +672,7 @@ impl World {
                     let Some(saved) = self
                         .saved
                         .iter()
-                        .find(|saved| {
-                            saved.name == name && matches!(saved.kind.as_str(), "vpn" | "wireguard")
-                        })
+                        .find(|saved| saved.name == name && saved.is_vpn())
                         .map(|saved| saved.path.clone())
                     else {
                         return Ok(());
@@ -714,8 +705,7 @@ impl World {
     fn refresh(&mut self, connection: &Connection) {
         self.read(connection);
         // The counters too, so data used keeps up as links come and go.
-        self.last_counters = self.sample();
-        let counters = self.last_counters.clone();
+        let counters = self.sample();
         self.build(connection, &counters);
         self.follow_join(connection);
         self.usage(false);
@@ -729,8 +719,7 @@ impl World {
         settings: &Settings,
     ) {
         self.samples += 1;
-        self.last_counters = self.sample();
-        let counters = self.last_counters.clone();
+        let counters = self.sample();
         self.build(connection, &counters);
         self.measure(&counters);
         self.probes(probes, settings);
@@ -750,8 +739,7 @@ impl World {
             .wifi_device()
             .and_then(|device| device.wireless.as_ref())
             .is_some_and(|wireless| {
-                chrono::Utc::now().timestamp_millis() - boot_ms_to_unix(wireless.last_scan)
-                    > SCAN_STALE_MS
+                time::now_ms() - boot_ms_to_unix(wireless.last_scan) > SCAN_STALE_MS
             });
         if stale && self.snapshot.wireless_enabled {
             self.handle(connection, sender, Request::Scan);
@@ -765,7 +753,7 @@ fn boot_ms_to_unix(boot_ms: i64) -> i64 {
         .ok()
         .and_then(|text| text.split_whitespace().next()?.parse::<f64>().ok())
         .map_or(0, |seconds| (seconds * 1000.0) as i64);
-    chrono::Utc::now().timestamp_millis() - uptime_ms + boot_ms
+    time::now_ms() - uptime_ms + boot_ms
 }
 
 fn saved_changed(interface: Option<&str>, member: Option<&str>) -> bool {
@@ -857,7 +845,7 @@ pub(super) fn run(
                     (changed, sample) = (true, true);
                 }
                 Event::Request(Request::Midnight) => {
-                    world.last_counters = world.sample();
+                    world.sample();
                     world.usage(true);
                 }
                 Event::Request(request) => {

@@ -20,6 +20,7 @@ pub struct Session {
     pub(super) active_at: i64,
 }
 
+#[cfg(test)]
 impl Session {
     /// The exchange going on now, or the last one.
     pub(super) fn current(&self) -> Option<&Exchange> {

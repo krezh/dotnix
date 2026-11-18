@@ -7,22 +7,23 @@ use super::{
     blocks::{BADGE_RADIUS, ROW_RADIUS, card_fill, control, input, mark, surface_fill, text_block},
     node::{self, MEDIUM, Node, SEMIBOLD, div, glyph, moving, text},
     panel::{Easing, PulseKind},
-    widget::{color, tinted},
+    widget::tinted,
 };
 use crate::{
     components::{
         badge::Mark,
-        code::{Change, Code, CodeLine, Motion},
+        code::{Code, CodeLine, Motion},
         ledger::{self, Bar, Columns, Entry, Folded, Ledger},
         prompt::PromptView,
         text::Text,
         timeline::{Pin, Side, Span, Timeline},
         transcript::{Piece, Transcript, Turn},
     },
+    math::color,
     panel::{Handler, SharedString},
     stage::CONTENT_IN,
     theme::{
-        ACCENT, ACCENT_TINT_ALPHA, BASE, CARD_BORDER_ALPHA, CONTROL_ALPHA, CRUST, GREEN,
+        ACCENT, ACCENT_TINT_ALPHA, BASE, CARD_BORDER_ALPHA, CONTROL_ALPHA, CRUST,
         NOTIFICATION_ALPHA, OVERLAY1, OVERLAY2, RED, SUBTEXT1, SURFACE1, TEXT, TINT, TRACK_ALPHA,
     },
     ui::{CONTROL_H, CONTROL_RADIUS, PANEL_RADIUS, SMALL_SIZE, TITLE_SIZE},
@@ -34,23 +35,12 @@ const CODE_PAD_X: f32 = 10.0;
 const CODE_PAD_Y: f32 = 8.0;
 const NUMBER_W: f32 = 34.0;
 const GROUND_ALPHA: u8 = 0x80;
-const CHANGE_ALPHA: u8 = 0x1a;
 
 fn code_line(line: CodeLine, numbered: bool, wrap: bool) -> Node {
-    let (tint, ground, sign) = match line.change {
-        Change::Same => (TEXT, None, " "),
-        Change::Added => (GREEN, Some(GREEN), "+"),
-        Change::Removed => (RED, Some(RED), "−"),
-    };
-    let diff = ground.is_some() || numbered;
-    let removed = line.change == Change::Removed;
     div()
         .flex()
         .px(if numbered { 0.0 } else { CODE_PAD_X })
-        .color(tint)
-        .when_some(ground, |row, ground| {
-            row.bg(tinted(ground, CHANGE_ALPHA), 0.0)
-        })
+        .color(TEXT)
         .when(numbered, |row| {
             row.child(
                 div()
@@ -59,19 +49,16 @@ fn code_line(line: CodeLine, numbered: bool, wrap: bool) -> Node {
                     .pr(CODE_PAD_X)
                     .flex()
                     .justify_end()
-                    .color(if ground.is_some() { tint } else { OVERLAY1 })
+                    .color(OVERLAY1)
                     .children(line.number.map(|number| text(number.to_string()))),
             )
-        })
-        .when(diff, |row| {
-            row.child(div().flex_none().w(CODE_SIZE).child(text(sign)))
+            .child(div().flex_none().w(CODE_SIZE))
         })
         .child(
             div()
                 .min_w(0.0)
                 .pr(CODE_PAD_X)
                 .when(!wrap, |words| words.nowrap().clip())
-                .when(removed, Node::strike)
                 .child(text(line.text)),
         )
 }

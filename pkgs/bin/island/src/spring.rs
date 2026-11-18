@@ -15,6 +15,15 @@ pub struct SpringState {
     pub velocity: f32,
 }
 
+impl SpringState {
+    const fn resting(position: f32) -> Self {
+        Self {
+            position,
+            velocity: 0.0,
+        }
+    }
+}
+
 impl SpringConfig {
     pub const fn new(stiffness: f32, damping: f32, mass: f32) -> Self {
         Self {
@@ -124,10 +133,7 @@ pub struct Spring {
 impl Spring {
     pub fn new(value: f32, config: SpringConfig, epsilon: f32) -> Self {
         Self {
-            state: SpringState {
-                position: value,
-                velocity: 0.0,
-            },
+            state: SpringState::resting(value),
             target: value,
             config,
             epsilon,
@@ -147,10 +153,7 @@ impl Spring {
     }
 
     pub fn reset(&mut self, value: f32) {
-        self.state = SpringState {
-            position: value,
-            velocity: 0.0,
-        };
+        self.state = SpringState::resting(value);
         self.target = value;
         self.hold_until = None;
     }
@@ -197,10 +200,7 @@ impl Spring {
             .config
             .is_settled(self.state, self.target, self.epsilon)
         {
-            self.state = SpringState {
-                position: self.target,
-                velocity: 0.0,
-            };
+            self.state = SpringState::resting(self.target);
         }
     }
 }

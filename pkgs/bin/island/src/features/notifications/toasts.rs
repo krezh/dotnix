@@ -1,17 +1,19 @@
 use std::time::{Duration, Instant};
 
-use super::{card, missed_list::sliding, notification::Notification};
+use super::{
+    card,
+    missed_list::{ENTER_DRIFT, sliding},
+    notification::Notification,
+};
 use crate::{
-    components::measure::Measure,
+    components::{measure::Measure, stack},
     panel::Countdown,
     spring::Spring,
-    spring::SpringConfig,
     stage::{CONTENT_IN, CONTENT_OUT, SHAPE_SPRING},
     theme::app_color,
 };
 
 pub const MAX_VISIBLE: usize = 3;
-const ENTER_DRIFT: f32 = 12.0;
 /// How long a card shows when its app leaves it to the server.
 const DURATION: Duration = Duration::from_millis(4500);
 /// The least time a card gets once the pointer leaves, so one paused near its end does not vanish
@@ -53,7 +55,7 @@ impl Card {
     /// then closing.
     fn folding(&self) -> f32 {
         if self.leaving {
-            (self.height() + card::GAP) * (self.fold.value() * 2.0).clamp(0.0, 1.0)
+            (self.height() + stack::GAP) * (self.fold.value() * 2.0).clamp(0.0, 1.0)
         } else {
             0.0
         }
@@ -124,9 +126,6 @@ pub struct Toasts {
     shown: bool,
     /// Over the island, which pauses the countdowns.
     pointer: bool,
-    motion: SpringConfig,
-    fade_in: SpringConfig,
-    fade_out: SpringConfig,
 }
 
 impl Default for Toasts {
@@ -141,9 +140,6 @@ impl Default for Toasts {
             footer: Spring::new(0.0, CONTENT_OUT, 0.002),
             shown: false,
             pointer: false,
-            motion: SHAPE_SPRING,
-            fade_in: CONTENT_IN,
-            fade_out: CONTENT_OUT,
         }
     }
 }
@@ -208,9 +204,9 @@ impl Toasts {
                         id,
                         notification,
                         lines: None,
-                        y: Spring::new(-ENTER_DRIFT, self.motion, 0.1),
+                        y: Spring::new(-ENTER_DRIFT, SHAPE_SPRING, 0.1),
                         fold: Spring::new(1.0, card::FOLD, 0.001),
-                        alpha: Spring::new(0.0, self.fade_in, 0.002),
+                        alpha: Spring::new(0.0, CONTENT_IN, 0.002),
                         leaving: false,
                         visible: false,
                         due: None,
@@ -245,7 +241,7 @@ impl Toasts {
             card.fold.retarget(0.0, card::FOLD);
             // Those below take their new places at once, and are drawn lower by what it still
             // takes, so they rise with its edge.
-            let room = card.height() + card::GAP;
+            let room = card.height() + stack::GAP;
             for below in &mut self.cards[index + 1..] {
                 below.y.shift(-room);
             }
@@ -336,7 +332,6 @@ impl Toasts {
     }
 
     fn layout(&mut self) {
-        let (motion, fade_in, fade_out) = (self.motion, self.fade_in, self.fade_out);
         let mut y = 0.0;
         let mut heights = Vec::with_capacity(MAX_VISIBLE);
         let mut live = 0;
@@ -346,16 +341,16 @@ impl Toasts {
         for card in self.cards.iter_mut().filter(|card| !card.leaving) {
             live += 1;
             let height = card.height();
-            card.y.retarget(y, motion);
-            y += height + card::GAP;
+            card.y.retarget(y, SHAPE_SPRING);
+            y += height + stack::GAP;
             if heights.len() == MAX_VISIBLE {
                 card.visible = false;
                 card.stop();
-                card.alpha.retarget(0.0, fade_out);
+                card.alpha.retarget(0.0, CONTENT_OUT);
                 continue;
             }
 
-            card.alpha.retarget(1.0, fade_in);
+            card.alpha.retarget(1.0, CONTENT_IN);
             card.visible = true;
             heights.push(height);
         }
@@ -363,15 +358,15 @@ impl Toasts {
         self.overflow = live - heights.len();
         self.height = if heights.is_empty() {
             // What the last one still takes includes a gap it no longer has below it.
-            card::toasts_height(&[], false) - card::GAP
+            card::toasts_height(&[], false) - stack::GAP
         } else {
             card::toasts_height(&heights, self.overflow > 0)
         };
         if self.overflow > 0 {
             self.footer_count = self.overflow;
-            self.footer.retarget(1.0, fade_in);
+            self.footer.retarget(1.0, CONTENT_IN);
         } else {
-            self.footer.retarget(0.0, fade_out);
+            self.footer.retarget(0.0, CONTENT_OUT);
         }
         self.arm();
     }

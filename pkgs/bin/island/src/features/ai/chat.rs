@@ -1,6 +1,6 @@
 use super::{
     Ai,
-    conversation::{Chat, Line, MODELS},
+    conversation::{Chat, Line, MODELS, model_name},
     harness,
     state::{Source, State},
     view::View,
@@ -75,7 +75,7 @@ pub(super) fn pieces(reply: &str) -> Vec<Piece> {
 
 /// Who answered, and how long it took or that it is still writing.
 fn overline(line: &Line, streaming: bool) -> String {
-    let model = MODELS[line.model.min(MODELS.len() - 1)].0;
+    let model = model_name(line.model);
     match (streaming, line.took_ms) {
         (true, _) => format!("{model} · writing…"),
         (false, Some(took)) => format!("{model} · {:.1}s", took as f64 / 1000.0),
@@ -113,7 +113,7 @@ fn turns(chat: &Chat, p: &PanelCx<'_>) -> Vec<Turn> {
     if chat.busy && chat.lines.last().is_some_and(|line| line.mine) {
         let model = chat.lines.last().map_or(chat.model, |line| line.model);
         turns.push(Turn::Waiting {
-            overline: format!("{} · thinking…", MODELS[model.min(MODELS.len() - 1)].0).into(),
+            overline: format!("{} · thinking…", model_name(model)).into(),
         });
     }
     turns
@@ -123,13 +123,12 @@ fn turns(chat: &Chat, p: &PanelCx<'_>) -> Vec<Turn> {
 fn welcome(p: &PanelCx<'_>) -> Vec<Block> {
     let starters = STARTERS
         .iter()
-        .map(|(label, start)| IconButton {
-            glyph: None,
-            color: None,
-            label: (*label).into(),
-            active: false,
-            badge: None,
-            on_click: p.on_local::<Ai>(move |_, view| view.draft = (*start).to_owned()),
+        .map(|(label, start)| {
+            IconButton::text(
+                *label,
+                false,
+                p.on_local::<Ai>(move |_, view| view.draft = (*start).to_owned()),
+            )
         })
         .collect();
     vec![
@@ -142,19 +141,12 @@ fn welcome(p: &PanelCx<'_>) -> Vec<Block> {
                         PEACH,
                     )),
                     tint: Some(PEACH),
-                    glow: None,
-                    faded: false,
                     size: Some(LEAD),
-                    on_click: None,
-                    top: false,
+                    ..Default::default()
                 }),
                 overline: Some("Claude".into()),
                 title: "Ask something quick".into(),
-                title_color: None,
-                wrap: false,
-                detail: "".into(),
-                tinted: Vec::new(),
-                trail: Vec::new(),
+                ..Default::default()
             },
             vec![Block::Text(Text::new(
                 Tone::Body,
@@ -182,28 +174,13 @@ pub(super) fn panel(
     let model = chat.model.min(MODELS.len() - 1);
     let next_model = (model + 1) % MODELS.len();
     let buttons = vec![
-        Button {
-            label: MODELS[model].0.into(),
-            glyph: None,
-            bare: false,
-            active: false,
-            toggle: false,
-            fits: MODELS.iter().map(|(name, _)| (*name).into()).collect(),
-            busy: false,
-            enabled: !chat.busy,
-            on_click: p.call::<Ai>(move |ai| ai.chat_model(next_model)),
-        },
-        Button {
-            label: "New chat".into(),
-            glyph: None,
-            bare: false,
-            active: false,
-            toggle: false,
-            fits: Vec::new(),
-            busy: false,
-            enabled: !chat.lines.is_empty(),
-            on_click: p.call::<Ai>(Ai::chat_new),
-        },
+        Button::new(
+            MODELS[model].0,
+            p.call::<Ai>(move |ai| ai.chat_model(next_model)),
+        )
+        .fits(MODELS.iter().map(|(name, _)| (*name).into()).collect())
+        .enabled(!chat.busy),
+        Button::new("New chat", p.call::<Ai>(Ai::chat_new)).enabled(!chat.lines.is_empty()),
     ];
     let mut blocks = if chat.lines.is_empty() {
         welcome(p)

@@ -20,7 +20,6 @@ wayland-sys = { version = "0.31", features = ["client", "dlopen"] }
 zbus = "6"
 image = { version = "0.25", default-features = false, features = ["bmp", "gif", "jpeg", "png", "webp"] }
 libc = "0.2"
-anyhow = "1"
 libpulse-binding = "2"
 ureq = "3"
 toml = "1"
@@ -35,6 +34,7 @@ resvg = "0.50"
 pollster = "1.0"
 smithay-client-toolkit = { version = "0.21.1", default-features = false, features = ["xkbcommon"] }
 taffy = "0.15"
+ash = "0.38"
 
 [profile.release]
 opt-level = 3

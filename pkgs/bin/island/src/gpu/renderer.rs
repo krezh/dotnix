@@ -580,7 +580,6 @@ impl Sprite {
         }
     }
 
-    /// A coarse picture smoothed up to fill `rect`.
     /// `part` of the bar `body`, its corners `corner`, and `merge` hanging from it as one surface.
     /// Nothing cuts it off.
     pub fn merged(
@@ -637,6 +636,7 @@ impl Sprite {
         }
     }
 
+    /// A coarse picture smoothed up to fill `rect`.
     pub fn soft(rect: [f32; 4], uv: [f32; 4], color: [f32; 4], radius: f32, power: f32) -> Self {
         Self {
             rect,
@@ -732,6 +732,182 @@ impl HasDisplayHandle for Display {
     }
 }
 
+const SCALE_SHADER: &str = r"
+struct Scale {
+    content: vec4<f32>,
+    steps: vec2<f32>,
+    opaque: f32,
+    unused: f32,
+};
+
+@group(0) @binding(0) var source: texture_2d<f32>;
+@group(0) @binding(1) var soft: sampler;
+@group(0) @binding(2) var<uniform> scale: Scale;
+
+struct Out {
+    @builtin(position) position: vec4<f32>,
+    @location(0) at: vec2<f32>,
+};
+
+@vertex
+fn vertex(@builtin(vertex_index) index: u32) -> Out {
+    let corner = vec2<f32>(f32((index << 1u) & 2u), f32(index & 2u));
+    var out: Out;
+    out.position = vec4<f32>(corner * vec2<f32>(2.0, -2.0) + vec2<f32>(-1.0, 1.0), 0.0, 1.0);
+    out.at = corner;
+    return out;
+}
+
+@fragment
+fn fragment(input: Out) -> @location(0) vec4<f32> {
+    let uv = (input.at - scale.content.xy) / scale.content.zw;
+    if any(uv < vec2<f32>(0.0)) || any(uv > vec2<f32>(1.0)) {
+        return vec4<f32>(0.0);
+    }
+    var sum = vec4<f32>(0.0);
+    for (var y = 0; y < 4; y++) {
+        for (var x = 0; x < 4; x++) {
+            let offset = (vec2<f32>(f32(x), f32(y)) - vec2<f32>(1.5)) * scale.steps;
+            sum += textureSampleLevel(source, soft, uv + offset, 0.0);
+        }
+    }
+    var color = sum / 16.0;
+    if scale.opaque > 0.5 {
+        color.a = 1.0;
+    }
+    return color;
+}
+";
+
+/// Draws a large texture small into a part of the atlas, averaging taps spread over what each
+/// pixel stands for, such as a window's capture into its card.
+struct Scaler {
+    pipeline: wgpu::RenderPipeline,
+    layout: wgpu::BindGroupLayout,
+    sampler: wgpu::Sampler,
+}
+
+impl Scaler {
+    fn new(device: &wgpu::Device) -> Self {
+        let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
+            label: Some("scale"),
+            source: wgpu::ShaderSource::Wgsl(SCALE_SHADER.into()),
+        });
+        let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+            label: Some("scale"),
+            layout: None,
+            vertex: wgpu::VertexState {
+                module: &shader,
+                entry_point: Some("vertex"),
+                compilation_options: wgpu::PipelineCompilationOptions::default(),
+                buffers: &[],
+            },
+            fragment: Some(wgpu::FragmentState {
+                module: &shader,
+                entry_point: Some("fragment"),
+                compilation_options: wgpu::PipelineCompilationOptions::default(),
+                targets: &[Some(wgpu::ColorTargetState {
+                    format: wgpu::TextureFormat::Rgba8Unorm,
+                    blend: None,
+                    write_mask: wgpu::ColorWrites::ALL,
+                })],
+            }),
+            primitive: wgpu::PrimitiveState::default(),
+            depth_stencil: None,
+            multisample: wgpu::MultisampleState::default(),
+            multiview_mask: None,
+            cache: None,
+        });
+        let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
+            mag_filter: wgpu::FilterMode::Linear,
+            min_filter: wgpu::FilterMode::Linear,
+            ..wgpu::SamplerDescriptor::default()
+        });
+        Self {
+            layout: pipeline.get_bind_group_layout(0),
+            pipeline,
+            sampler,
+        }
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn draw(
+        &self,
+        device: &wgpu::Device,
+        encoder: &mut wgpu::CommandEncoder,
+        source: &wgpu::Texture,
+        target: &wgpu::TextureView,
+        [x, y, w, h]: [u32; 4],
+        content: [f32; 4],
+        opaque: bool,
+    ) {
+        if w == 0 || h == 0 {
+            return;
+        }
+        let tap = |across: f32, shown: f32| 1.0 / (across * shown).max(1.0) / 4.0;
+        let uniform = [
+            content[0],
+            content[1],
+            content[2],
+            content[3],
+            tap(w as f32, content[2]),
+            tap(h as f32, content[3]),
+            if opaque { 1.0 } else { 0.0 },
+            0.0,
+        ];
+        let scale = wgpu::util::DeviceExt::create_buffer_init(
+            device,
+            &wgpu::util::BufferInitDescriptor {
+                label: Some("scale"),
+                contents: bytes(&uniform),
+                usage: wgpu::BufferUsages::UNIFORM,
+            },
+        );
+        let view = source.create_view(&wgpu::TextureViewDescriptor::default());
+        let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            label: Some("scale"),
+            layout: &self.layout,
+            entries: &[
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: wgpu::BindingResource::TextureView(&view),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 1,
+                    resource: wgpu::BindingResource::Sampler(&self.sampler),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 2,
+                    resource: scale.as_entire_binding(),
+                },
+            ],
+        });
+        {
+            let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                label: Some("scale"),
+                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                    view: target,
+                    depth_slice: None,
+                    resolve_target: None,
+                    ops: wgpu::Operations {
+                        load: wgpu::LoadOp::Load,
+                        store: wgpu::StoreOp::Store,
+                    },
+                })],
+                depth_stencil_attachment: None,
+                timestamp_writes: None,
+                occlusion_query_set: None,
+                multiview_mask: None,
+            });
+            pass.set_pipeline(&self.pipeline);
+            pass.set_bind_group(0, &bind_group, &[]);
+            pass.set_viewport(x as f32, y as f32, w as f32, h as f32, 0.0, 1.0);
+            pass.set_scissor_rect(x, y, w, h);
+            pass.draw(0..3, 0..1);
+        }
+    }
+}
+
 pub struct Gpu {
     screen: wgpu::Buffer,
     size: [f32; 2],
@@ -743,6 +919,8 @@ pub struct Gpu {
     pipeline: wgpu::RenderPipeline,
     bind_group: wgpu::BindGroup,
     pub atlas: wgpu::Texture,
+    atlas_view: wgpu::TextureView,
+    scaler: Scaler,
     items: RefCell<wgpu::Buffer>,
     format: wgpu::TextureFormat,
     alpha_mode: wgpu::CompositeAlphaMode,
@@ -787,10 +965,13 @@ impl Gpu {
         .map_err(|error| format!("no graphics adapter: {error}"))?;
         info!(adapter = adapter.get_info().name, "drawing with wgpu");
         let (device, queue) = pollster::block_on(adapter.request_device(&wgpu::DeviceDescriptor {
+            required_features: adapter.features()
+                & wgpu::Features::VULKAN_EXTERNAL_MEMORY_DMA_BUF,
             memory_hints: wgpu::MemoryHints::MemoryUsage,
             ..Default::default()
         }))
         .map_err(|error| format!("cannot open the graphics device: {error}"))?;
+        super::export::Images::offer(&device, &queue);
         let caps = first.get_capabilities(&adapter);
         let format = caps
             .formats
@@ -823,10 +1004,13 @@ impl Gpu {
             sample_count: 1,
             dimension: wgpu::TextureDimension::D2,
             format: wgpu::TextureFormat::Rgba8Unorm,
-            usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+            usage: wgpu::TextureUsages::TEXTURE_BINDING
+                | wgpu::TextureUsages::COPY_DST
+                | wgpu::TextureUsages::RENDER_ATTACHMENT,
             view_formats: &[],
         });
         let atlas_view = atlas.create_view(&wgpu::TextureViewDescriptor::default());
+        let scaler = Scaler::new(&device);
         let sampler = device.create_sampler(&wgpu::SamplerDescriptor::default());
         let smooth = device.create_sampler(&wgpu::SamplerDescriptor {
             mag_filter: wgpu::FilterMode::Linear,
@@ -932,6 +1116,8 @@ impl Gpu {
                 pipeline,
                 bind_group,
                 atlas,
+                atlas_view,
+                scaler,
                 items,
                 format,
                 alpha_mode,
@@ -939,6 +1125,37 @@ impl Gpu {
             },
             first,
         ))
+    }
+
+    /// Where [`Self::scale_into`] records, to [`Self::submit`] once for all of them.
+    pub fn scaling(&self) -> wgpu::CommandEncoder {
+        self.device
+            .create_command_encoder(&wgpu::CommandEncoderDescriptor { label: Some("scale") })
+    }
+
+    pub fn submit(&self, encoder: wgpu::CommandEncoder) {
+        self.queue.submit([encoder.finish()]);
+    }
+
+    /// Draws `source` into the atlas at `slot`, scaled to fill `content`, the part of the slot
+    /// it covers as shares of it, and clears the rest of the slot.
+    pub fn scale_into(
+        &self,
+        encoder: &mut wgpu::CommandEncoder,
+        source: &wgpu::Texture,
+        slot: [u32; 4],
+        content: [f32; 4],
+        opaque: bool,
+    ) {
+        self.scaler.draw(
+            &self.device,
+            encoder,
+            source,
+            &self.atlas_view,
+            slot,
+            content,
+            opaque,
+        );
     }
 
     pub fn surface(&self, window: NonNull<c_void>) -> Result<wgpu::Surface<'static>, String> {

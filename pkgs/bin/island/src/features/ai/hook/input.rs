@@ -11,6 +11,17 @@ pub struct Origin {
     pub transcript: String,
 }
 
+impl Origin {
+    pub fn folder(&self) -> String {
+        self.cwd
+            .trim_end_matches('/')
+            .rsplit('/')
+            .next()
+            .unwrap_or_default()
+            .to_owned()
+    }
+}
+
 /// One Claude Code hook call, by its event.
 #[derive(Clone, Debug, PartialEq)]
 pub enum Hook {

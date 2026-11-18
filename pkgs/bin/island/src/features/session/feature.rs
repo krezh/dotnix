@@ -15,7 +15,6 @@ use super::{
 use crate::{
     control::{Command, Group, Report, Row, Takes, Value, form},
     features::{Feature, Feed, parse_settings},
-    launch::{self, Launch},
     sync::lock,
 };
 
@@ -38,19 +37,10 @@ impl Session {
             self.leave(action, false);
             return;
         }
-        let argv = self.settings.commands.of(action).to_vec();
-        if argv.is_empty() {
+        if !worker::command(action, &self.settings) {
             thread::spawn(move || match logind(action) {
                 Ok(()) => info!(action = action.word(), "asked logind"),
                 Err(error) => warn!(action = action.word(), "logind refused: {error}"),
-            });
-        } else {
-            info!(action = action.word(), command = ?argv, "running the session command");
-            launch::spawn(Launch {
-                id: format!("io.github.krezh.Island.{}", action.word()),
-                name: action.label().to_owned(),
-                argv,
-                directory: None,
             });
         }
     }

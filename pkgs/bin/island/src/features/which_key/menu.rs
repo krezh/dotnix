@@ -1,6 +1,7 @@
 //! Finding where in its menus the panel is: the menu named, then the keys pressed inside it.
 
 use super::settings::{Entry, Settings};
+use crate::units::capitalise;
 
 /// The menu shown when `island ctl open which-key` names none.
 pub(super) const DEFAULT: &str = "default";
@@ -14,7 +15,7 @@ pub(super) struct Level<'a> {
 /// The level `keys` lead to in the menu `name`, or `None` without such a menu.
 pub(super) fn level<'a>(settings: &'a Settings, name: &str, keys: &[String]) -> Option<Level<'a>> {
     let mut entries = settings.menus.get(name)?.as_slice();
-    let mut path = vec![title(name)];
+    let mut path = vec![capitalise(name)];
     for key in keys {
         let entry = entries
             .iter()
@@ -23,15 +24,6 @@ pub(super) fn level<'a>(settings: &'a Settings, name: &str, keys: &[String]) -> 
         entries = &entry.submenu;
     }
     Some(Level { path, entries })
-}
-
-/// A menu's name as its title: `browser` reads `Browser`.
-pub(super) fn title(name: &str) -> String {
-    let mut chars = name.chars();
-    chars
-        .next()
-        .map(|first| first.to_uppercase().chain(chars).collect())
-        .unwrap_or_default()
 }
 
 /// Columns for this many entries: side by side up to three, then on to further rows.

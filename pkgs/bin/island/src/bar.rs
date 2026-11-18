@@ -247,20 +247,20 @@ impl TabStrip {
         self.pill_x.retarget(x, SHAPE_SPRING);
         self.pill_w.retarget(w, SHAPE_SPRING);
         if at_once {
-            for spring in [&mut self.pill_x, &mut self.pill_w, &mut self.fan]
-                .into_iter()
-                .chain(self.labels.iter_mut())
-            {
+            for spring in self.springs() {
                 spring.reset(spring.target());
             }
         }
     }
 
-    pub fn advance(&mut self, dt: f32, now: Instant) {
-        for spring in [&mut self.pill_x, &mut self.pill_w, &mut self.fan]
+    fn springs(&mut self) -> impl Iterator<Item = &mut Spring> {
+        [&mut self.pill_x, &mut self.pill_w, &mut self.fan]
             .into_iter()
             .chain(self.labels.iter_mut())
-        {
+    }
+
+    pub fn advance(&mut self, dt: f32, now: Instant) {
+        for spring in self.springs() {
             spring.advance(dt, now);
         }
     }

@@ -21,11 +21,7 @@ pub fn strength_color(strength: u8) -> u32 {
 }
 
 fn tip(state: &State) -> String {
-    let joining = state
-        .joining
-        .as_ref()
-        .filter(|joining| joining.failed.is_none());
-    let link = match (&state.wifi, joining) {
+    let link = match (&state.wifi, state.connecting()) {
         (_, Some(joining)) => format!("Joining {}", joining.ssid),
         (Some(wifi), None) if !wifi.enabled => "Wi-Fi is off".to_owned(),
         (Some(wifi), None) => match wifi.active() {
@@ -48,11 +44,7 @@ fn tip(state: &State) -> String {
     if let Some(ipv4) = state.link.as_ref().and_then(|link| link.ipv4.clone()) {
         lines.push(ipv4);
     }
-    if let Some(vpn) = state
-        .vpns
-        .iter()
-        .find(|vpn| vpn.activity == super::state::Activity::On)
-    {
+    if let Some(vpn) = state.active_vpn() {
         lines.push(format!("VPN {}", vpn.name));
     }
     lines.join(" · ")
@@ -65,10 +57,7 @@ pub fn widget(state: &State, w: &mut WidgetCx<'_>) -> BarWidget {
         .as_ref()
         .filter(|wifi| wifi.enabled)
         .and_then(|wifi| wifi.active());
-    let joining = state
-        .joining
-        .as_ref()
-        .is_some_and(|joining| joining.failed.is_none());
+    let joining = state.connecting().is_some();
     let connected = active.is_some() || state.wired.as_ref().is_some_and(|wired| wired.active);
     let color = if connected && state.internet.missing() {
         YELLOW
@@ -87,9 +76,9 @@ pub fn widget(state: &State, w: &mut WidgetCx<'_>) -> BarWidget {
         }),
         None => w.base().gap(ICON_GAP).glyph(glyph, color),
     };
-    let shield = glyphs::vpn_on(state)
-        .then(|| w.glyph("network-vpn"))
-        .flatten();
+    let shield = state
+        .active_vpn()
+        .and_then(|_| w.glyph("network-vpn"));
     base.glyph(shield, MAUVE)
         .tip(tip(state))
         .on_click(w.toggle(Network::panel_handle()))

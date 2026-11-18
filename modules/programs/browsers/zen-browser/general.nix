@@ -161,10 +161,10 @@
         };
       };
 
-      # xdg.configFile."zen/${config.home.username}/chrome" = {
-      #   source = ./chrome;
-      #   recursive = true;
-      #   force = true;
-      # };
+      xdg.configFile."zen/${config.home.username}/chrome" = {
+        source = ./chrome;
+        recursive = true;
+        force = true;
+      };
     };
 }

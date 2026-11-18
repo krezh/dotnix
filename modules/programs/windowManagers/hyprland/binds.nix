@@ -140,7 +140,7 @@
               desc = "Mail Client";
             };
             "${mainModShift} + R" = {
-              rule = mkInline "hl.dsp.reload_config()";
+              rule = exec "hyprctl reload && hyprctl notify -1 3000 'rgb(88c0d0)' 'Config reloaded'";
               desc = "Reload Hyprland config";
             };
             "${mainMod} + A" = {
@@ -162,6 +162,19 @@
             "ALT + Print" = {
               rule = exec windowScreenshot.run;
               desc = "Screenshot active window";
+            };
+
+            "ALT + TAB" = {
+              rule = exec "${shell.run} open switcher next";
+              desc = "Switch to the next window";
+            };
+            "ALT + SHIFT + TAB" = {
+              rule = exec "${shell.run} open switcher prev";
+              desc = "Switch to the previous window";
+            };
+            "ALT + code:49" = {
+              rule = exec "${shell.run} open switcher same";
+              desc = "Switch between the focused app's windows";
             };
 
             # "${mainMod} + TAB" = {

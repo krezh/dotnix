@@ -9,7 +9,7 @@ use crate::{
         state::{Credits, Freshness, Limit, Provider, Severity, Source, State},
         view::{Account, Tab, View},
     },
-    theme::{OVERLAY1, OVERLAY2, RED, TEAL, YELLOW},
+    theme::{OVERLAY1, OVERLAY2, RED},
 };
 
 const HOUR: i64 = 60 * 60 * 1000;
@@ -53,15 +53,12 @@ fn resets_say_how_long_they_have_left() {
     let now = 1_000_000;
     assert_eq!(
         resets(&credits(2, Some(now + 3 * DAY + 4 * HOUR)), now),
-        Some((Some(TEAL), "2 resets · 3d 4h left".into()))
+        Some("2 resets · 3d 4h left".to_owned())
     );
-    assert_eq!(
-        resets(&credits(1, None), now),
-        Some((Some(TEAL), "1 reset".into()))
-    );
+    assert_eq!(resets(&credits(1, None), now), Some("1 reset".to_owned()));
     assert_eq!(
         resets(&credits(1, Some(now - 1)), now),
-        Some((Some(YELLOW), "1 reset expired".into()))
+        Some("1 reset expired".to_owned())
     );
     assert_eq!(resets(&credits(0, Some(now + DAY)), now), None);
 }
@@ -289,15 +286,5 @@ fn time_text_next_change_lands_on_the_boundary() {
         let wait = format::next_ago_ms(at, now).unwrap() as i64;
         assert_eq!(format::ago(at, now + wait - 1), format::ago(at, now));
         assert_ne!(format::ago(at, now + wait), format::ago(at, now));
-
-        let wait = format::next_elapsed_ms(at, now) as i64;
-        assert_eq!(
-            format::countdown(now + wait - 1, at),
-            format::countdown(now, at)
-        );
-        assert_ne!(
-            format::countdown(now + wait, at),
-            format::countdown(now, at)
-        );
     }
 }

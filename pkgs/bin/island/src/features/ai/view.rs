@@ -44,17 +44,15 @@ impl Account {
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum Tab {
-    #[default]
-    Sessions,
     Chat,
+    #[default]
     Usage,
 }
 
 impl Tab {
-    pub(super) const ALL: [Tab; 3] = [Tab::Sessions, Tab::Chat, Tab::Usage];
+    pub(super) const ALL: [Tab; 2] = [Tab::Chat, Tab::Usage];
     pub(super) fn glyph(self) -> &'static str {
         match self {
-            Tab::Sessions => "ai-sessions",
             Tab::Chat => "ai-chat",
             Tab::Usage => "ai-usage",
         }
@@ -62,7 +60,6 @@ impl Tab {
 
     pub(super) fn label(self) -> &'static str {
         match self {
-            Tab::Sessions => "Sessions",
             Tab::Chat => "Chat",
             Tab::Usage => "Usage",
         }
@@ -112,16 +109,10 @@ pub struct View {
     open: bool,
     pub(super) tab: Tab,
     pub(super) passing: Passing,
-    /// The session the Sessions view shows; the first one when none is picked.
-    pub(super) session: Option<String>,
-    /// Steps, by their number, opened or closed by hand; the rest follow what is happening.
     expanded: HashSet<Account>,
     toggled_accounts: HashSet<Account>,
-    toggled: HashSet<u64>,
-    /// Each session's last step number as the panel opened: what came before is history, shown
-    /// still; only what arrives while it shows moves in.
-    seen_steps: HashMap<String, u64>,
-    /// The chat's turns as the panel opened, likewise shown still.
+    /// The chat's turns as the panel opened: what came before is history, shown still; only what
+    /// arrives while it shows moves in.
     pub(super) seen_lines: usize,
     /// Requests waiting now, which keep the pop-up showing.
     pending: Vec<u64>,
@@ -173,11 +164,6 @@ impl View {
         self.known = state.requests.to_vec();
         self.sync_jelly(state, now);
         if open && !self.open {
-            self.seen_steps = state
-                .sessions
-                .iter()
-                .map(|session| (session.id.clone(), session.seq))
-                .collect();
             self.seen_lines = state.chat.lines.len();
         }
         if self.open == open
@@ -301,23 +287,6 @@ impl View {
         }
     }
 
-    /// Whether something numbered `seq` in `session` arrived since the panel opened; a session
-    /// that started since then is all new.
-    pub(super) fn fresh(&self, session: &str, seq: u64) -> bool {
-        self.seen_steps.get(session).is_none_or(|seen| seq > *seen)
-    }
-
-    /// A step is open on its own while it is the one being worked on; picking it flips that.
-    pub(super) fn step_open(&self, seq: u64, following: bool) -> bool {
-        following != self.toggled.contains(&seq)
-    }
-
-    pub(super) fn toggle_step(&mut self, seq: u64) {
-        if !self.toggled.remove(&seq) {
-            self.toggled.insert(seq);
-        }
-    }
-
     pub(super) fn is_expanded(&self, account: &Account) -> bool {
         self.expanded.contains(account)
     }
@@ -357,19 +326,12 @@ impl Local for View {
         self.tab == Tab::Chat
     }
 
-    /// A view, or the Sessions view and a session in it, such as `sessions <id>`.
     fn show(&mut self, view: &str) {
-        let (view, session) = view
-            .split_once(' ')
-            .map_or((view, None), |(view, session)| (view, Some(session)));
         if let Some(tab) = Tab::ALL
             .into_iter()
             .find(|tab| tab.label().eq_ignore_ascii_case(view))
         {
             self.tab = tab;
-            if let Some(session) = session {
-                self.session = Some(session.to_owned());
-            }
         }
     }
 

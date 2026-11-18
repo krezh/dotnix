@@ -186,6 +186,10 @@ impl Sampler {
             self.update_mem(&meminfo, true);
         }
         self.update_gpu_instant();
+        self.update_load_and_uptime();
+    }
+
+    fn update_load_and_uptime(&mut self) {
         if let Ok(loadavg) = fs::read_to_string("/proc/loadavg") {
             for (slot, value) in self.stats.load.iter_mut().zip(loadavg.split_whitespace()) {
                 *slot = value.parse().unwrap_or(0.0);
@@ -358,18 +362,7 @@ impl Sampler {
 
         if watched {
             self.look();
-            if let Ok(loadavg) = fs::read_to_string("/proc/loadavg") {
-                for (slot, value) in self.stats.load.iter_mut().zip(loadavg.split_whitespace()) {
-                    *slot = value.parse().unwrap_or(0.0);
-                }
-            }
-            if let Ok(uptime) = fs::read_to_string("/proc/uptime") {
-                self.stats.uptime_secs = uptime
-                    .split_whitespace()
-                    .next()
-                    .and_then(|secs| secs.parse::<f64>().ok())
-                    .map_or(0, |secs| secs as u64);
-            }
+            self.update_load_and_uptime();
         }
     }
 }

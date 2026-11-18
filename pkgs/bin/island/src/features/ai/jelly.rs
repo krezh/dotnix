@@ -13,6 +13,7 @@ use crate::{
     features::PanelCx,
     panel::HeaderLead,
     theme::{GREEN, LAVENDER, OVERLAY1, OVERLAY2, PEACH, YELLOW},
+    units::plural,
 };
 
 const LARGE: f32 = 52.0;
@@ -161,8 +162,7 @@ pub(super) fn title(sources: &[Source], state: &State, tab: Tab) -> String {
         }
         Activity::Asleep | Activity::Rest => match state.sessions.len() {
             0 => "No sessions".to_owned(),
-            1 => "1 session".to_owned(),
-            count => format!("{count} sessions"),
+            count => plural(count, "session", "sessions"),
         },
     }
 }

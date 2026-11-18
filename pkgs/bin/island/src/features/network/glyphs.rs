@@ -1,6 +1,6 @@
 //! Which glyph stands for the network as it is.
 
-use super::state::{Activity, State};
+use super::state::State;
 
 /// The Wi-Fi glyph for a signal strength from 0 to 100.
 pub fn signal(strength: u8) -> &'static str {
@@ -17,11 +17,7 @@ pub fn signal(strength: u8) -> &'static str {
 /// nothing.
 pub fn link(state: &State) -> &'static str {
     if let Some(wifi) = &state.wifi {
-        if state
-            .joining
-            .as_ref()
-            .is_some_and(|joining| joining.failed.is_none())
-        {
+        if state.connecting().is_some() {
             return "network-wifi-acquiring";
         }
         if !wifi.enabled {
@@ -42,8 +38,4 @@ pub fn link(state: &State) -> &'static str {
         None if state.wifi.is_some() => "network-offline",
         None => "network-wired-off",
     }
-}
-
-pub fn vpn_on(state: &State) -> bool {
-    state.vpns.iter().any(|vpn| vpn.activity == Activity::On)
 }

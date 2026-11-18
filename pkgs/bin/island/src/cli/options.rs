@@ -23,13 +23,7 @@ pub fn parse<'a>(
             }
             _ => (arg.clone(), None),
         };
-        let opt = opts.iter().find(|opt| {
-            spelled == opt.spelled()
-                || opt
-                    .short
-                    .is_some_and(|short| spelled == format!("-{short}"))
-        });
-        let Some(opt) = opt else {
+        let Some(opt) = opts.iter().find(|opt| opt.is(&spelled)) else {
             return Err(unknown(opts, &arg, path, commands));
         };
         let value = match opt.value {

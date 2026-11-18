@@ -57,6 +57,16 @@ pub const INTERVAL: Duration = chart::SAMPLE_EVERY;
 /// Between the two process scans a CPU share needs, when someone starts watching.
 const FIRST_LOOK: Duration = Duration::from_millis(500);
 
+/// False once the lock is poisoned.
+fn publish(latest: &Mutex<Latest>, sampler: &Sampler) -> bool {
+    let Ok(mut latest) = latest.lock() else {
+        return false;
+    };
+    latest.stats = sampler.stats.clone();
+    latest.revision += 1;
+    true
+}
+
 pub fn watch() -> Samples {
     let mut sampler = Sampler::default();
     sampler.sample(true);
@@ -75,23 +85,15 @@ pub fn watch() -> Samples {
             match woken.recv_timeout(next.saturating_duration_since(Instant::now())) {
                 Ok(()) => {
                     sampler.read_instant();
-                    match writer.lock() {
-                        Ok(mut latest) => {
-                            latest.stats = sampler.stats.clone();
-                            latest.revision += 1;
-                        }
-                        Err(_) => return Ended::Unwanted,
+                    if !publish(&writer, &sampler) {
+                        return Ended::Unwanted;
                     }
                     // Fresh costly readings now, rather than up to an interval of stale ones.
                     sampler.scan_processes();
                     std::thread::sleep(FIRST_LOOK);
                     sampler.look();
-                    match writer.lock() {
-                        Ok(mut latest) => {
-                            latest.stats = sampler.stats.clone();
-                            latest.revision += 1;
-                        }
-                        Err(_) => return Ended::Unwanted,
+                    if !publish(&writer, &sampler) {
+                        return Ended::Unwanted;
                     }
                     continue;
                 }

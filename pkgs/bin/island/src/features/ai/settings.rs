@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 
 use serde::Deserialize;
 
-use super::state::Source;
+use super::{conversation::MODELS, state::Source};
 use crate::features::parse_settings;
 
 #[derive(Clone, Copy, Debug, Default, Deserialize, PartialEq, Eq)]
@@ -129,7 +129,10 @@ pub(super) fn check(settings: &toml::Value) -> Result<(), String> {
     if !(1..=60).contains(&settings.refresh_minutes) {
         return Err("refresh_minutes must be from 1 to 60".to_owned());
     }
-    if !["haiku", "sonnet", "opus"].contains(&settings.chat.model.as_str()) {
+    if !MODELS
+        .iter()
+        .any(|(_, alias)| *alias == settings.chat.model)
+    {
         return Err("chat.model must be haiku, sonnet or opus".to_owned());
     }
     if !(5..=3600).contains(&settings.sessions.answer_seconds) {

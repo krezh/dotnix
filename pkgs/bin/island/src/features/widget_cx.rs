@@ -14,6 +14,11 @@ use crate::{
 
 const LATE: Duration = Duration::from_millis(5);
 
+pub(super) fn redraw_by(redraw: &Cell<Option<Duration>>, after: Duration) {
+    let after = after + LATE;
+    redraw.set(Some(redraw.get().map_or(after, |prior| prior.min(after))));
+}
+
 pub struct WidgetCx<'a> {
     padding: f32,
     grouped: bool,
@@ -44,10 +49,7 @@ impl<'a> WidgetCx<'a> {
 
     /// Asks to redraw the widget after `after`, when time-based text it shows next changes.
     pub fn redraw_in(&self, after: Duration) {
-        let after = after + LATE;
-        self.redraw.set(Some(
-            self.redraw.get().map_or(after, |prior| prior.min(after)),
-        ));
+        redraw_by(&self.redraw, after);
     }
 
     pub(crate) fn next_redraw(&self) -> Option<Duration> {
@@ -118,12 +120,7 @@ impl<'a> WidgetCx<'a> {
     }
 
     pub fn call<F: Surface>(&self, action: impl Fn(&F) + 'static) -> Press {
-        let instance = instance::<F>(&self.instance);
-        Rc::new(move |_, _: &mut dyn Ui| {
-            if let Some(instance) = &instance {
-                action(&instance.feature);
-            }
-        })
+        self.on_island::<F>(move |feature, _, _| action(feature))
     }
 
     pub fn on_island<F: Surface>(

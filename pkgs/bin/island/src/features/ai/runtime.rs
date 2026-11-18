@@ -28,6 +28,7 @@ use super::{
 use crate::{
     features::Feed,
     supervisor::{self, Ended},
+    time,
 };
 
 /// Claude's usage comes from Claude Code's status line while it runs; the usage API is asked at
@@ -136,19 +137,19 @@ fn chat(
     message: ChatMessage,
 ) -> bool {
     let chat = Arc::make_mut(&mut state.chat);
+    let replies = || {
+        let replies = sender.clone();
+        move |run: u64, streamed: Streamed| {
+            let _ = replies.send(Message::Chat(ChatMessage::Streamed(run, streamed)));
+        }
+    };
     match message {
         ChatMessage::Send(text) => {
-            let replies = sender.clone();
-            conversation.send(chat, &settings.chat.command, text, move |run, streamed| {
-                let _ = replies.send(Message::Chat(ChatMessage::Streamed(run, streamed)));
-            });
+            conversation.send(chat, &settings.chat.command, text, replies());
             true
         }
         ChatMessage::Retry => {
-            let replies = sender.clone();
-            conversation.retry(chat, &settings.chat.command, move |run, streamed| {
-                let _ = replies.send(Message::Chat(ChatMessage::Streamed(run, streamed)));
-            });
+            conversation.retry(chat, &settings.chat.command, replies());
             true
         }
         ChatMessage::New => {
@@ -164,7 +165,7 @@ fn chat(
 }
 
 fn begin(state: &mut State, sources: &[Source], sender: &Sender<Message>) -> usize {
-    state.attempted_at = Some(format::now());
+    state.attempted_at = Some(time::now_ms());
     state.refreshing = !sources.is_empty();
     for &source in sources {
         let replies = sender.clone();
@@ -193,10 +194,6 @@ fn settle(state: &mut State, notices: Vec<Notice>) {
             warn!("{error}");
         }
     }
-    announce(notices);
-}
-
-fn announce(notices: Vec<Notice>) {
     notify::send(notices);
 }
 
@@ -208,10 +205,10 @@ fn call(
     settings: &Settings,
     call: Call,
 ) -> bool {
-    let at = format::now();
+    let at = time::now_ms();
     match call {
         Call::Tell(hook, told_at) => {
-            announce(alerts.tell(state, &hook, at).into_iter().collect());
+            notify::send(alerts.tell(state, &hook, at).into_iter().collect());
             let settled = requests::settle(state, waiting, &hook, told_at);
             hook::apply(Arc::make_mut(&mut state.sessions), &hook, at);
             settled
@@ -234,7 +231,7 @@ fn work(
     pending: &AtomicBool,
 ) -> Ended {
     let interval = Duration::from_secs(settings.refresh_minutes * 60);
-    let started = format::now();
+    let started = time::now_ms();
     let windows = cache::windows(started).unwrap_or_else(|error| {
         warn!("{error}");
         Vec::new()
@@ -285,7 +282,7 @@ fn work(
             .min()
             .map(|at| {
                 Instant::now()
-                    + Duration::from_millis(u64::try_from(at - format::now()).unwrap_or(0))
+                    + Duration::from_millis(u64::try_from(at - time::now_ms()).unwrap_or(0))
             });
         let idle_chat =
             (!state.chat.busy && !state.chat.lines.is_empty()).then_some(chatted + CHAT_IDLE);
@@ -366,7 +363,7 @@ fn work(
                     settings,
                 );
                 if let Some(wait) = slowed {
-                    let at = format::now();
+                    let at = time::now_ms();
                     let again = at + i64::try_from(wait.as_millis()).unwrap_or(i64::MAX / 2);
                     if let Some(issue) = Arc::make_mut(&mut state.issues)
                         .iter_mut()
@@ -384,11 +381,12 @@ fn work(
                 changed = true;
             }
             Ok(Message::Call(Call::Tell(Hook::Usage { readings, .. }, _))) => {
-                if let Some(report) = model::status_line(&state, &readings, format::now()) {
+                let now = time::now_ms();
+                if let Some(report) = model::status_line(&state, &readings, now) {
                     claude_heard = Instant::now();
                     for reading in readings
                         .iter()
-                        .filter(|reading| reading.resets_at.is_none_or(|at| at > format::now()))
+                        .filter(|reading| reading.resets_at.is_none_or(|at| at > now))
                     {
                         claude_live.retain(|(_, kept)| kept.id != reading.id);
                         claude_live.push((claude_heard, reading.clone()));
@@ -407,7 +405,7 @@ fn work(
                 changed = asked;
             }
             Ok(Message::Hold(island, over)) => {
-                changed = waiting.hold(&mut state, island, over, format::now());
+                changed = waiting.hold(&mut state, island, over, time::now_ms());
             }
             Ok(Message::Chat(message)) => {
                 chatted = Instant::now();
@@ -416,12 +414,12 @@ fn work(
             Err(RecvTimeoutError::Timeout) => {}
             Err(RecvTimeoutError::Disconnected) => return Ended::Unwanted,
         }
-        let at = format::now();
+        let at = time::now_ms();
         if waiting.expire(&mut state, at) {
             asked = true;
             changed = true;
         }
-        announce(alerts.due(&state, at));
+        notify::send(alerts.due(&state, at));
         let instant = Instant::now();
         let claude_allowed = claude_wait.is_none_or(|until| instant >= until);
         // A reset that has passed leaves the last reading out of date, and the status line

@@ -22,6 +22,24 @@ pub struct State {
     pub ports: Vec<Port>,
 }
 
+impl State {
+    pub fn active_vpn(&self) -> Option<&Vpn> {
+        self.vpns.iter().find(|vpn| vpn.activity == Activity::On)
+    }
+
+    /// The VPN a switch acts on: with several, the one that is on or coming up, or else the first.
+    pub fn switched_vpn(&self) -> Option<&Vpn> {
+        self.vpns
+            .iter()
+            .find(|vpn| vpn.activity != Activity::Off)
+            .or_else(|| self.vpns.first())
+    }
+
+    pub fn connecting(&self) -> Option<&Joining> {
+        self.joining.as_ref().filter(|joining| joining.underway())
+    }
+}
+
 /// Whether the internet answers past the link, as NetworkManager last checked.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum Internet {
@@ -198,6 +216,12 @@ pub struct Link {
 pub struct Joining {
     pub ssid: String,
     pub failed: Option<String>,
+}
+
+impl Joining {
+    pub fn underway(&self) -> bool {
+        self.failed.is_none()
+    }
 }
 
 /// Rates in bytes a second, histories oldest first.

@@ -10,6 +10,7 @@ use crate::{
     features::PanelCx,
     panel::{Block, FrameView, Header, Item, Lead, Mark, PanelView, SharedString, Trail},
     theme::{OVERLAY1, app_color},
+    units::capitalise,
 };
 
 pub(super) fn panel(which_key: &WhichKey, p: &PanelCx<'_>) -> Option<PanelView> {
@@ -17,7 +18,7 @@ pub(super) fn panel(which_key: &WhichKey, p: &PanelCx<'_>) -> Option<PanelView> 
     let name = local.menu();
     let Some(Level { path, entries }) = menu::level(&which_key.settings, name, &local.keys) else {
         return Some(PanelView {
-            header: Header::Path(vec![menu::title(name).into()]),
+            header: Header::Path(vec![capitalise(name).into()]),
             blocks: vec![Block::note(format!("No menu named {name}"))],
             scroll: false,
         });
@@ -39,8 +40,8 @@ pub(super) fn panel(which_key: &WhichKey, p: &PanelCx<'_>) -> Option<PanelView> 
 }
 
 fn row(entry: &Entry, at: &str, p: &PanelCx<'_>) -> Block {
-    let picked = entry.clone();
     let on_click = if entry.submenu.is_empty() {
+        let picked = entry.clone();
         p.on_island::<WhichKey>(move |which_key, ui| {
             if let Picked::Run = which_key.pick(&picked) {
                 ui.collapse();
@@ -59,20 +60,11 @@ fn row(entry: &Entry, at: &str, p: &PanelCx<'_>) -> Block {
         id: format!("which-key-{at}-{}", entry.key).into(),
         lead: Some(Lead {
             mark: Some(Mark::Key(entry.key.clone().into(), app_color(&entry.desc))),
-            tint: None,
-            glow: None,
-            faded: false,
-            size: None,
-            on_click: None,
-            top: false,
+            ..Default::default()
         }),
-        overline: None,
         title: entry.desc.clone().into(),
-        title_color: None,
-        wrap: false,
-        detail: SharedString::default(),
-        tinted: Vec::new(),
         trail,
+        ..Default::default()
     };
     Block::Frame(
         FrameView {

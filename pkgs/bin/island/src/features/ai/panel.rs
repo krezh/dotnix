@@ -1,33 +1,32 @@
 use std::time::Duration;
 
 use super::{
-    Ai, asking, chat, format, jelly, overview, sessions,
+    Ai, asking, chat, format, jelly, overview,
     state::State,
     view::{Tab, View},
 };
 use crate::{
     features::PanelCx,
     panel::{Block, Button, Header, PanelView, Passing, TabLabel, Views},
+    time,
 };
 
 fn usage(ai: &Ai, state: &State, view: &View, p: &PanelCx<'_>) -> (Vec<Button>, Vec<Block>) {
-    let buttons = vec![Button {
-        label: if state.refreshing {
-            "Refreshing…"
-        } else {
-            "Refresh"
-        }
-        .into(),
-        glyph: p.glyph("ai-refresh"),
-        bare: true,
-        active: state.refreshing,
-        toggle: false,
-        fits: Vec::new(),
-        busy: false,
-        enabled: !ai.settings.sources.is_empty() && !state.refreshing,
-        on_click: p.call(Ai::refresh),
-    }];
-    let now = format::now();
+    let buttons = vec![
+        Button::new(
+            if state.refreshing {
+                "Refreshing…"
+            } else {
+                "Refresh"
+            },
+            p.call(Ai::refresh),
+        )
+        .glyph(p.glyph("ai-refresh"))
+        .bare()
+        .active(state.refreshing)
+        .enabled(!ai.settings.sources.is_empty() && !state.refreshing),
+    ];
+    let now = time::now_ms();
     if let Some(after) = format::usage_next_change(&ai.settings.sources, state, now) {
         p.redraw_in(after);
     }
@@ -42,23 +41,6 @@ fn tab_view(
     p: &PanelCx<'_>,
 ) -> (Vec<Button>, Vec<Block>) {
     match tab {
-        Tab::Sessions => {
-            let now = format::now();
-            if let Some(ms) = state
-                .sessions
-                .iter()
-                .flat_map(|session| {
-                    [
-                        format::next_elapsed_ms(session.active_at, now),
-                        format::next_elapsed_ms(session.started_at, now),
-                    ]
-                })
-                .min()
-            {
-                p.redraw_in(Duration::from_millis(ms));
-            }
-            (Vec::new(), sessions::blocks(state, view, p))
-        }
         Tab::Chat => chat::panel(ai, state, view, p),
         Tab::Usage => usage(ai, state, view, p),
     }
@@ -111,7 +93,7 @@ pub(super) fn popup(state: &State, p: &PanelCx<'_>) -> Option<PanelView> {
     if state.requests.is_empty() && view.leaving.is_empty() {
         return None;
     }
-    let now = format::now();
+    let now = time::now_ms();
     if let Some(ms) = state
         .requests
         .iter()

@@ -251,29 +251,29 @@ fn write_frame(stream: &mut impl Write, opcode: u8, payload: &[u8]) -> io::Resul
     stream.flush()
 }
 
+fn read_exact(stream: &mut impl Read, buffer: &mut [u8]) -> Result<(), String> {
+    stream
+        .read_exact(buffer)
+        .map_err(|error| format!("stream read failed: {error}"))
+}
+
 pub fn read_message(stream: &mut (impl Read + Write)) -> Result<RawMessage, String> {
     let mut fragments = Vec::new();
     let payload = loop {
         let mut head = [0_u8; 2];
-        stream
-            .read_exact(&mut head)
-            .map_err(|error| format!("stream read failed: {error}"))?;
+        read_exact(stream, &mut head)?;
         let fin = (head[0] & 0x80) != 0;
         let opcode = head[0] & 0x0f;
         let masked = (head[1] & 0x80) != 0;
         let len = match head[1] & 0x7f {
             126 => {
                 let mut ext = [0_u8; 2];
-                stream
-                    .read_exact(&mut ext)
-                    .map_err(|error| format!("stream read failed: {error}"))?;
+                read_exact(stream, &mut ext)?;
                 usize::from(u16::from_be_bytes(ext))
             }
             127 => {
                 let mut ext = [0_u8; 8];
-                stream
-                    .read_exact(&mut ext)
-                    .map_err(|error| format!("stream read failed: {error}"))?;
+                read_exact(stream, &mut ext)?;
                 usize::try_from(u64::from_be_bytes(ext))
                     .map_err(|_| "WebSocket frame exceeds limit".to_owned())?
             }
@@ -284,14 +284,10 @@ pub fn read_message(stream: &mut (impl Read + Write)) -> Result<RawMessage, Stri
         }
         let mut mask = [0_u8; 4];
         if masked {
-            stream
-                .read_exact(&mut mask)
-                .map_err(|error| format!("stream read failed: {error}"))?;
+            read_exact(stream, &mut mask)?;
         }
         let mut payload = vec![0_u8; len];
-        stream
-            .read_exact(&mut payload)
-            .map_err(|error| format!("stream read failed: {error}"))?;
+        read_exact(stream, &mut payload)?;
         if masked {
             for (index, byte) in payload.iter_mut().enumerate() {
                 *byte ^= mask[index & 3];

@@ -6,10 +6,10 @@ use chrono::{Datelike, Duration, Local, Months, NaiveDate};
 
 use super::{
     node::{self, BOLD, MEDIUM, Node, Painting, SEMIBOLD, div, glyph, moving, text},
-    panel::{Countdown, Easing, GROW_COMING, GROW_LEAVING, GROW_SHEET},
+    panel::{BODY, Countdown, Easing, GROW_COMING, GROW_LEAVING, GROW_SHEET},
     records,
     renderer::Sprite,
-    widget::{color, color_alpha, tinted},
+    widget::{color_alpha, tinted},
 };
 use crate::{
     bar::tabs_width,
@@ -20,6 +20,7 @@ use crate::{
         calendar::CalendarView,
         card::{self, FrameView, Look, RAISED_GAP, RAISED_PAD, Size, Title},
         dropdown::Dropdown,
+        gallery::{self, GalleryView},
         input::{CARET, InputView},
         item::{self, HEADLINE_H, Item, LEAD_GAP, Lead, MESSAGE_GAP, OVERLINE_H, Tint, Trail},
         lines::Line,
@@ -35,6 +36,7 @@ use crate::{
         text::{BODY_LINE, BODY_SIZE, Style as TextStyle, Text, Tone},
         tile::{self, Drive, Entry, EntryLead, Part, Tile, Volume},
     },
+    math::color,
     panel::PLACED_MARGIN,
     panel::{
         ActionTile, Block, Button, ButtonRow, Grow, Handler, Header, HeaderLead, Hero, IconButton,
@@ -42,7 +44,8 @@ use crate::{
     },
     stage::CONTENT_IN,
     theme::{
-        ACCENT, ACCENT_TINT_ALPHA, CARD_ALPHA, CARD_BORDER_ALPHA, CONTROL_ALPHA, CRITICAL, GREEN,
+        ACCENT, ACCENT_TINT_ALPHA, CARD_ALPHA, CARD_BORDER_ALPHA, CONTROL_ALPHA, CRITICAL, CRUST,
+        GREEN,
         HOVER_ALPHA, NOTIFICATION_ALPHA, ON_ACCENT, OVERLAY1, OVERLAY2, PEACH, POPOVER_OPACITY,
         RED, SELECTED_ALPHA, SUBTEXT1, SURFACE, SURFACE_BORDER_ALPHA, SURFACE1, TEXT, TINT,
         TRACK_ALPHA, YELLOW, with_alpha,
@@ -67,7 +70,6 @@ const COMPACT_GAP: f32 = 6.0;
 const BUTTON_GAP: f32 = 8.0;
 /// A button sharing a row's width, such as one of two choices ending something.
 const FILL_BUTTON_H: f32 = 34.0;
-const COLUMN_H: f32 = 600.0;
 const LEAD: f32 = 40.0;
 const AMOUNT_W: f32 = 40.0;
 const STRIP_ICON_W: f32 = 32.0;
@@ -475,7 +477,7 @@ impl Blocks<'_, '_> {
             div()
                 .flex_1()
                 .min_h(0.0)
-                .scrolls("panel-body")
+                .scrolls(BODY)
                 .soft_edges()
                 .child(content)
         } else {
@@ -513,18 +515,6 @@ impl Blocks<'_, '_> {
             Block::Card(title, size, blocks) => self.card(title, size, blocks, at),
             Block::Row(blocks) => div().flex().gap(card::GAP).children(self.all(blocks, at)),
             Block::Columns(Split::Balanced, blocks) => self.balanced(blocks, at),
-            Block::Columns(Split::Scrolling, blocks) => {
-                let columns: Vec<Node> = blocks
-                    .into_iter()
-                    .enumerate()
-                    .map(|(index, block)| {
-                        let key = format!("{at}-column-{index}");
-                        let inner = self.block(block, &key);
-                        div().flex_none().max_h(COLUMN_H).scrolls(key).child(inner)
-                    })
-                    .collect();
-                div().flex().items_start().gap(card::GAP).children(columns)
-            }
             Block::Grid(columns, blocks) => {
                 let cells = self
                     .all(blocks, at)
@@ -545,14 +535,13 @@ impl Blocks<'_, '_> {
             Block::Segments(level, hold) => segments_row(level, hold),
             Block::Text(content) => text_block(&content),
             Block::Calendar(view) => calendar(view),
-            Block::Meter(view) => meter(view, at),
-            Block::Meters(columns, meters) => meters_row(columns, meters, at),
+            Block::Meter(view) => meter(view),
+            Block::Meters(columns, meters) => meters_row(columns, meters),
             Block::Player(view) => player(view),
             Block::Lines(entries) => self.lines(entries),
             Block::Routes(entries) => routes(entries),
             Block::Board(columns) => board(columns),
             Block::Buttons(row) => self.buttons(row),
-            Block::Facts(items) => facts(items),
             Block::Hero(view) => hero(view, at),
             Block::Views(views) => self.views_row(views),
             Block::Actions(tiles) => div().flex().gap(card::GAP).children(
@@ -586,6 +575,7 @@ impl Blocks<'_, '_> {
                 .child(node::chart(view.series, view.phase).size_full()),
             Block::Tiles(tiles) => div().flex().gap(8.0).children(tiles.into_iter().map(pick)),
             Block::Search(view) => search(view),
+            Block::Gallery(view) => gallery(view),
             Block::Input(view) => input(view),
             Block::Code(view) => records::code(view),
             Block::Transcript(view) => records::transcript(view),
@@ -1981,15 +1971,15 @@ fn calendar(view: CalendarView) -> Node {
         .children(weeks)
 }
 
-fn meter(view: Meter, at: &str) -> Node {
+fn meter(view: Meter) -> Node {
     match view.shape {
         Shape::Bar => bar_meter(view),
         Shape::Ring => ring_meter(view),
-        Shape::History { .. } => history_meter(view, at),
+        Shape::History { .. } => history_meter(view),
     }
 }
 
-fn meters_row(columns: usize, meters: Vec<Meter>, at: &str) -> Node {
+fn meters_row(columns: usize, meters: Vec<Meter>) -> Node {
     if meters
         .iter()
         .all(|meter| matches!(meter.shape, Shape::Ring))
@@ -2000,15 +1990,12 @@ fn meters_row(columns: usize, meters: Vec<Meter>, at: &str) -> Node {
             .children(meters.into_iter().map(ring_meter));
     }
     let columns = columns.max(1);
-    let mut cells = meters.into_iter().enumerate().peekable();
+    let mut cells = meters.into_iter().peekable();
     let mut rows = Vec::new();
     while cells.peek().is_some() {
         let row: Vec<Node> = (0..columns)
             .map(|_| match cells.next() {
-                Some((index, next)) => div()
-                    .flex_1()
-                    .min_w(0.0)
-                    .child(meter(next, &format!("{at}-{index}"))),
+                Some(next) => div().flex_1().min_w(0.0).child(meter(next)),
                 None => div().flex_1(),
             })
             .collect();
@@ -2162,7 +2149,7 @@ fn ring_meter(view: Meter) -> Node {
         )
 }
 
-fn history_meter(view: Meter, _at: &str) -> Node {
+fn history_meter(view: Meter) -> Node {
     const NAME: f32 = 11.5;
     const GLYPH: f32 = 14.0;
     const VALUE: f32 = 20.0;
@@ -3243,6 +3230,198 @@ pub(super) fn input(view: InputView) -> Node {
                 )
                 .child(div().flex_none().pb(inset).child(send)),
         )
+}
+
+fn gallery(view: GalleryView) -> Node {
+    let title_line = (TITLE_SIZE * node::LEADING).round();
+    let detail_line = (SMALL_SIZE * node::LEADING).round();
+    let card_h = |lines: usize| {
+        let words = (lines.max(1) as f32 * title_line + detail_line).max(gallery::MARK);
+        3.0 * gallery::CARD_PAD + gallery::PICTURE_H + words
+    };
+    if view.cards.is_empty() {
+        return div()
+            .w(560.0)
+            .h(98.0)
+            .flex()
+            .items_center()
+            .justify_center()
+            .color(SUBTEXT1)
+            .child(text(view.empty));
+    }
+    let columns = gallery::columns(view.places);
+    let width = gallery::width(view.places);
+    let slots = view
+        .cards
+        .iter()
+        .map(|card| card.slot + 1)
+        .max()
+        .unwrap_or(0)
+        .max(view.places);
+    let rows = slots.div_ceil(columns).max(1);
+    let heights: Vec<f32> = (0..rows)
+        .map(|row| {
+            view.cards
+                .iter()
+                .filter(|card| card.slot / columns == row)
+                .map(|card| card_h(card.lines))
+                .fold(card_h(1), f32::max)
+        })
+        .collect();
+    let tops: Vec<f32> = heights
+        .iter()
+        .scan(0.0, |top, height| {
+            let at = *top;
+            *top += height + gallery::CARD_GAP;
+            Some(at)
+        })
+        .collect();
+    let whole = heights.iter().sum::<f32>() + (rows - 1) as f32 * gallery::CARD_GAP;
+    let seen = if rows > gallery::ROWS {
+        gallery::ROWS as f32 * card_h(1) + (gallery::ROWS - 1) as f32 * gallery::CARD_GAP
+    } else {
+        whole
+    };
+    let offset = tops[view.first_row.min(rows - 1)].min(whole - seen).max(0.0);
+    let place = |slot: usize| {
+        let (row, column) = (slot / columns, slot % columns);
+        (
+            column as f32 * (gallery::CARD_W + gallery::CARD_GAP),
+            tops[row],
+            heights[row],
+        )
+    };
+    let pill = view.picked.map(|slot| {
+        let (x, y, h) = place(slot);
+        div()
+            .absolute()
+            .left(x)
+            .top(y)
+            .w(gallery::CARD_W)
+            .h(h)
+            .bg(tinted(ACCENT, HOVER_ALPHA), ROW_RADIUS)
+            .named("gallery-pick")
+            .eases(Easing::Shift { x: 1.0, y: 0.0 }, x, SELECTION_SPRING)
+            .eases(Easing::Shift { x: 0.0, y: 1.0 }, y, SELECTION_SPRING)
+    });
+    let picked = view.picked;
+    let cards = view.cards.into_iter().map(|card| {
+        let (x, y, h) = place(card.slot);
+        let key = card.key.to_string();
+        let picture = div()
+            .w(gallery::PICTURE_W)
+            .h(gallery::PICTURE_H)
+            .flex_none()
+            .flex()
+            .items_center()
+            .justify_center()
+            .bg(tinted(CRUST, 0xcc), CONTROL_RADIUS)
+            .outline(tinted(SURFACE1, CARD_BORDER_ALPHA), CONTROL_RADIUS)
+            .child(match card.picture {
+                Some(picture) => node::picture(picture, 0.0)
+                    .size_full()
+                    .rounded(CONTROL_RADIUS),
+                None => mark(&card.mark, 48.0, 1.0, &format!("{key}-big")),
+            });
+        let name = div().text_size(TITLE_SIZE).weight(SEMIBOLD);
+        let name = if card.lines > 1 { name } else { name.nowrap() };
+        let detail = div()
+            .flex()
+            .items_center()
+            .gap(6.0)
+            .text_size(SMALL_SIZE)
+            .color(SUBTEXT1)
+            .children(
+                card.flag
+                    .map(|flag| div().size(7.0).flex_none().bg(color(flag), 3.5)),
+            )
+            .child(div().nowrap().child(text(card.detail)));
+        let words = div()
+            .flex_1()
+            .min_w(0.0)
+            .col()
+            .child(name.child(text(card.name)))
+            .child(detail);
+        let node = div()
+            .absolute()
+            .left(x)
+            .top(y)
+            .w(gallery::CARD_W)
+            .h(h)
+            .p(gallery::CARD_PAD)
+            .col()
+            .gap(gallery::CARD_PAD)
+            .opacity(card.presence.clamp(0.0, 1.0))
+            .named(&key)
+            .eases(Easing::Shift { x: 1.0, y: 0.0 }, x, SELECTION_SPRING)
+            .eases(Easing::Shift { x: 0.0, y: 1.0 }, y, SELECTION_SPRING)
+            .child(picture)
+            .child(
+                div()
+                    .flex()
+                    .items_center()
+                    .gap(gallery::MARK_GAP)
+                    .child(mark(&card.mark, gallery::MARK, 1.0, &key))
+                    .child(words),
+            );
+        let node = match card.on_hover {
+            Some(handler) => node.on_hover(handler),
+            None => node,
+        };
+        match card.on_click {
+            Some(handler) if picked != Some(card.slot) => node.hover(ROW_RADIUS).on_click(handler),
+            Some(handler) => node.on_click(handler),
+            None => node,
+        }
+    });
+    let content = div()
+        .w(width)
+        .h(whole)
+        .flex_none()
+        .named("gallery-content")
+        .eases(Easing::Shift { x: 0.0, y: -1.0 }, offset, SELECTION_SPRING)
+        .children(pill)
+        .children(cards);
+    let grid = div()
+        .w(width)
+        .h(seen)
+        .flex_none()
+        .scrolled_to("gallery", offset)
+        .soft_edges()
+        .on_rows(view.on_rows)
+        .child(content);
+    let caption = div()
+        .w(width)
+        .flex()
+        .justify_center()
+        .text_size(TITLE_SIZE)
+        .weight(SEMIBOLD)
+        .child(div().max_w(width).child(moving(view.caption)));
+    let keys = (!view.keys.is_empty()).then(|| {
+        div()
+            .flex()
+            .justify_center()
+            .pt(4.0)
+            .text_size(SMALL_SIZE)
+            .color(SUBTEXT1)
+            .gap(6.0)
+            .children(view.keys.into_iter().enumerate().flat_map(|(index, (key, does))| {
+                let parted = (index > 0).then(|| div().nowrap().child(text("·")));
+                parted.into_iter().chain([div()
+                    .flex()
+                    .gap(4.0)
+                    .nowrap()
+                    .child(div().weight(SEMIBOLD).color(TEXT).child(text(key)))
+                    .child(text(does))])
+            }))
+    });
+    div()
+        .col()
+        .items_center()
+        .gap(gallery::GAP)
+        .child(grid)
+        .child(caption)
+        .children(keys)
 }
 
 fn search(view: SearchView) -> Node {

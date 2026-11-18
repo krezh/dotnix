@@ -76,8 +76,6 @@ pub enum Size {
     Wide,
     /// As wide as a board of three small tiles, so a panel keeps one width across its views.
     Full,
-    /// For text to read, such as a conversation: about 85 characters a line at reading size.
-    Reading,
 }
 
 impl Size {
@@ -88,7 +86,6 @@ impl Size {
             Size::Large => 2.0 * WIDTH + GAP,
             Size::Wide => 2.0 * Size::Medium.width() + GAP,
             Size::Full => 3.0 * WIDTH + 2.0 * GAP,
-            Size::Reading => 760.0,
         }
     }
 }

@@ -19,7 +19,7 @@ pub fn status(workspaces: Option<&Snapshot>, features: &Features) -> Report {
     Report {
         title: Some(format!("island {}{on}", env!("CARGO_PKG_VERSION"))),
         changed: false,
-        rows: features.status().into_iter().collect(),
+        rows: features.status(),
     }
 }
 

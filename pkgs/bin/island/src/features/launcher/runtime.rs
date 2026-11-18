@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use super::{
-    desktop, history,
+    history,
     index::{Index, Refresh},
     settings::Settings,
     state::Apps,
@@ -20,7 +20,7 @@ pub(super) fn start(feed: Feed<Apps>) -> Launcher {
     let requested = refresh.clone();
     feed.supervise(move |feed| {
         history::load();
-        let mut index = match Index::new(desktop::dirs(), requested.clone()) {
+        let mut index = match Index::new(crate::desktop::dirs(), requested.clone()) {
             Ok(index) => index,
             Err(error) => return Ended::Failed(error),
         };

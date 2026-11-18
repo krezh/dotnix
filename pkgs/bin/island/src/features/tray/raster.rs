@@ -31,9 +31,7 @@ pub(super) fn pixmap(pixmaps: Vec<(i32, i32, Vec<u8>)>) -> Option<Picture> {
 /// A raster icon file, decoded and resampled; vector files are drawn as they are.
 pub(super) fn file(path: &Path) -> Option<Picture> {
     let mut buffer = image::open(path).ok()?.into_rgba8();
-    for pixel in buffer.pixels_mut() {
-        pixel.0.swap(0, 2);
-    }
+    crate::picture::swap_red_blue(&mut buffer);
     resampled(buffer)
 }
 

@@ -5,14 +5,16 @@ use std::{
 
 use super::{card, notification::Notification};
 use crate::{
-    components::measure::Measure,
+    components::{
+        measure::Measure,
+        stack::{self, PEEKS},
+    },
     spring::Spring,
-    spring::SpringConfig,
     stage::{CONTENT_IN, CONTENT_OUT, SHAPE_SPRING},
 };
 
-const ENTER_DRIFT: f32 = 12.0;
-const LEAVE_STAGGER: Duration = Duration::from_millis(45);
+pub const ENTER_DRIFT: f32 = 12.0;
+pub const LEAVE_STAGGER: Duration = Duration::from_millis(45);
 /// The most that leave one after another; any more leave with the last of them.
 pub const STAGGERED: u32 = 8;
 /// How long a card coming to the front of its group waits as the one it replaces starts sliding out.
@@ -22,9 +24,6 @@ const MAX_VISIBLE_H: f32 = 600.0;
 /// A group's heading over its cards.
 pub const HEAD_H: f32 = 24.0;
 const HEAD_GAP: f32 = 6.0;
-/// How tall each edge showing below a folded group's front card is, nearest first: one for each
-/// card folded behind it, up to two.
-pub const PEEKS: [f32; 2] = [8.0, 6.0];
 
 #[derive(Clone)]
 pub enum Body {
@@ -83,6 +82,15 @@ impl Row {
         !self.leaving && self.depth == 0 && self.peeks > 0 && self.peek.target() > 0.5
     }
 
+    /// How far it has slid out, 0 to 1.
+    pub fn out(&self) -> f32 {
+        if self.leaving {
+            sliding(self.fold.value())
+        } else {
+            0.0
+        }
+    }
+
     pub fn notification(&self) -> Option<&Notification> {
         match &self.body {
             Body::Card(notification) => Some(notification),
@@ -120,6 +128,7 @@ struct Placement {
 
 /// Its rows are kept in the order they show, leaving ones where they were. Each app's cards are
 /// grouped under a heading once it has more than one, folded behind the newest until opened.
+#[derive(Default)]
 pub struct MissedList {
     rows: Vec<Row>,
     height: f32,
@@ -133,24 +142,6 @@ pub struct MissedList {
     order: Vec<String>,
     /// Laying out another set in place of this one, as [`Self::swap`] does.
     swapping: bool,
-    motion: SpringConfig,
-    fade_in: SpringConfig,
-}
-
-impl Default for MissedList {
-    fn default() -> Self {
-        Self {
-            rows: Vec::new(),
-            height: 0.0,
-            items: Vec::new(),
-            open: HashSet::new(),
-            lines: HashMap::new(),
-            order: Vec::new(),
-            swapping: false,
-            motion: SHAPE_SPRING,
-            fade_in: CONTENT_IN,
-        }
-    }
 }
 
 /// Those folded behind another are out of sight until spread out.
@@ -311,12 +302,12 @@ impl MissedList {
                         body: Body::Card(item.clone()),
                         y,
                         height,
-                        room: height + card::GAP,
+                        room: height + stack::GAP,
                         depth: 0,
                         clip: None,
                         peeks: 0,
                     });
-                    y += height + card::GAP;
+                    y += height + stack::GAP;
                 }
                 continue;
             }
@@ -329,7 +320,7 @@ impl MissedList {
                     y,
                     height: front,
                     room: if depth == 0 {
-                        front + below + card::GAP
+                        front + below + stack::GAP
                     } else {
                         0.0
                     },
@@ -338,13 +329,13 @@ impl MissedList {
                     peeks: if depth == 0 { peeks } else { 0 },
                 });
             }
-            y += front + below + card::GAP;
+            y += front + below + stack::GAP;
         }
-        (placed, (y - card::GAP).max(0.0))
+        (placed, (y - stack::GAP).max(0.0))
     }
 
     fn layout(&mut self, animate: bool, reveal_at: Instant) {
-        let (motion, fade_in) = (self.motion, self.fade_in);
+        let (motion, fade_in) = (SHAPE_SPRING, CONTENT_IN);
         let (placed, height) = self.placements();
         let now = Instant::now();
         let swapping = self.swapping;

@@ -2,10 +2,7 @@ use std::{
     collections::HashMap,
     fs::File,
     io::{self, ErrorKind, Read, Write},
-    os::{
-        fd::{AsFd, AsRawFd, OwnedFd},
-        unix::net::UnixStream,
-    },
+    os::fd::{AsFd, AsRawFd, OwnedFd},
     sync::{
         Arc,
         atomic::{AtomicU64, Ordering},
@@ -16,7 +13,7 @@ use std::{
 };
 
 use tracing::{debug, info, warn};
-use wayland_backend::client::{ObjectId, WaylandError};
+use wayland_backend::client::ObjectId;
 use wayland_client::{
     Connection, Dispatch, Proxy, QueueHandle, delegate_noop, event_created_child,
     globals::{GlobalListContents, registry_queue_init},
@@ -42,7 +39,13 @@ use super::{
     state::State,
     store::{Clip, Store},
 };
-use crate::{compositor, features::Feed, profile, supervisor::Ended};
+use crate::{
+    compositor,
+    features::Feed,
+    profile,
+    supervisor::Ended,
+    wake::{self, Woken},
+};
 
 /// Offered by island's own selections, so it does not copy them back in.
 const MARKER: &str = "application/x-island-clipboard";
@@ -65,6 +68,10 @@ const PASTE_DELAY: Duration = Duration::from_millis(150);
 
 /// Tells published states apart across restarts of the worker.
 static VERSION: AtomicU64 = AtomicU64::new(0);
+
+fn next_version() -> u64 {
+    VERSION.fetch_add(1, Ordering::Relaxed) + 1
+}
 
 struct Served {
     source: ExtDataControlSourceV1,
@@ -336,7 +343,7 @@ impl Worker<'_> {
         self.feed.publish(State {
             entries: Arc::new(entries),
             error,
-            version: VERSION.fetch_add(1, Ordering::Relaxed) + 1,
+            version: next_version(),
         })
     }
 
@@ -465,11 +472,6 @@ impl Worker<'_> {
     }
 }
 
-fn drain(wake: &UnixStream) {
-    let mut buffer = [0; 64];
-    while matches!((&*wake).read(&mut buffer), Ok(read) if read > 0) {}
-}
-
 fn connect<'a>(
     feed: &'a Feed<State>,
     settings: &'a Settings,
@@ -505,7 +507,7 @@ fn connect<'a>(
 pub(super) fn run(
     feed: &Feed<State>,
     requests: &Receiver<Request>,
-    wake: &UnixStream,
+    wake: &Woken,
     settings: &Settings,
 ) -> Ended {
     let (worker, mut queue) = match connect(feed, settings) {
@@ -513,7 +515,7 @@ pub(super) fn run(
         Err(error) => {
             feed.publish(State {
                 error: Some(error.clone()),
-                version: VERSION.fetch_add(1, Ordering::Relaxed) + 1,
+                version: next_version(),
                 ..State::default()
             });
             return Ended::Failed(error);
@@ -563,39 +565,10 @@ pub(super) fn run(
         let Some(guard) = queue.prepare_read() else {
             continue;
         };
-        let mut polls = [
-            libc::pollfd {
-                fd: guard.connection_fd().as_raw_fd(),
-                events: libc::POLLIN,
-                revents: 0,
-            },
-            libc::pollfd {
-                fd: wake.as_raw_fd(),
-                events: libc::POLLIN,
-                revents: 0,
-            },
-        ];
-        let timeout = watch.paste_at.map_or(-1, |at| {
-            let left = at.saturating_duration_since(Instant::now()).as_millis();
-            libc::c_int::try_from(left).unwrap_or(libc::c_int::MAX)
-        });
-        let ready = unsafe { libc::poll(polls.as_mut_ptr(), polls.len() as libc::nfds_t, timeout) };
-        if ready < 0 {
-            let error = io::Error::last_os_error();
-            if error.kind() != ErrorKind::Interrupted {
-                return Ended::Failed(error.to_string());
-            }
-            continue;
-        }
-        if polls[1].revents != 0 {
-            drain(wake);
-        }
-        if polls[0].revents != 0 {
-            match guard.read() {
-                Ok(_) => {}
-                Err(WaylandError::Io(error)) if error.kind() == ErrorKind::WouldBlock => {}
-                Err(error) => return Ended::Failed(error.to_string()),
-            }
+        match wake::wait(guard, wake.as_raw_fd(), watch.paste_at) {
+            Ok(true) => wake.drain(),
+            Ok(false) => {}
+            Err(error) => return Ended::Failed(error),
         }
     }
 }

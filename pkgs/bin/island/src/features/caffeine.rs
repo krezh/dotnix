@@ -8,6 +8,10 @@ use crate::{
     theme::{ACCENT, PEACH},
 };
 
+fn row(on: bool) -> Row {
+    Row::new("Caffeine", Shown::Switch(on))
+}
+
 pub struct Caffeine {
     feed: Feed<bool>,
     on: Cell<bool>,
@@ -57,7 +61,6 @@ impl Feature for Caffeine {
     }
 
     fn command(&self, _: &bool, args: &[&str]) -> Report {
-        let row = |on| Row::new("Caffeine", Shown::Switch(on));
         if args.len() == 1 {
             return Report::shows(vec![row(self.on.get())]);
         }
@@ -69,7 +72,7 @@ impl Feature for Caffeine {
     }
 
     fn status(&self, on: &bool) -> Vec<Row> {
-        vec![Row::new("Caffeine", Shown::Switch(*on))]
+        vec![row(*on)]
     }
 }
 

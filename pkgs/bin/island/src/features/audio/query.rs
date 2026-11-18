@@ -53,6 +53,28 @@ fn ours(name: &str) -> bool {
     name == "island" || name.starts_with("island ")
 }
 
+fn device(
+    index: u32,
+    name: Option<&str>,
+    description: Option<&str>,
+    properties: &Proplist,
+    spec: &Spec,
+    volume: &ChannelVolumes,
+    muted: bool,
+) -> Device {
+    Device {
+        index,
+        name: name.unwrap_or_default().to_owned(),
+        description: description.unwrap_or_default().to_owned(),
+        form: form(properties),
+        format: format(spec),
+        monitor: String::new(),
+        volume: level(volume),
+        muted,
+        channels: volume.len(),
+    }
+}
+
 fn app(
     index: u32,
     device: u32,
@@ -106,19 +128,20 @@ impl Query {
             let (answers, remaining) = (answers.clone(), remaining.clone());
             introspect.get_sink_info_list(move |result| match result {
                 ListResult::Item(info) => answers.borrow_mut().sinks.push(Device {
-                    index: info.index,
-                    name: info.name.as_deref().unwrap_or_default().to_owned(),
-                    description: info.description.as_deref().unwrap_or_default().to_owned(),
-                    form: form(&info.proplist),
-                    format: format(&info.sample_spec),
                     monitor: info
                         .monitor_source_name
                         .as_deref()
                         .unwrap_or_default()
                         .to_owned(),
-                    volume: level(&info.volume),
-                    muted: info.mute,
-                    channels: info.volume.len(),
+                    ..device(
+                        info.index,
+                        info.name.as_deref(),
+                        info.description.as_deref(),
+                        &info.proplist,
+                        &info.sample_spec,
+                        &info.volume,
+                        info.mute,
+                    )
                 }),
                 ListResult::End | ListResult::Error => remaining.set(remaining.get() - 1),
             });
@@ -127,17 +150,15 @@ impl Query {
             let (answers, remaining) = (answers.clone(), remaining.clone());
             introspect.get_source_info_list(move |result| match result {
                 ListResult::Item(info) if info.monitor_of_sink.is_none() => {
-                    answers.borrow_mut().sources.push(Device {
-                        index: info.index,
-                        name: info.name.as_deref().unwrap_or_default().to_owned(),
-                        description: info.description.as_deref().unwrap_or_default().to_owned(),
-                        form: form(&info.proplist),
-                        format: format(&info.sample_spec),
-                        monitor: String::new(),
-                        volume: level(&info.volume),
-                        muted: info.mute,
-                        channels: info.volume.len(),
-                    })
+                    answers.borrow_mut().sources.push(device(
+                        info.index,
+                        info.name.as_deref(),
+                        info.description.as_deref(),
+                        &info.proplist,
+                        &info.sample_spec,
+                        &info.volume,
+                        info.mute,
+                    ))
                 }
                 ListResult::Item(_) => {}
                 ListResult::End | ListResult::Error => remaining.set(remaining.get() - 1),

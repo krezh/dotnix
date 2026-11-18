@@ -26,6 +26,13 @@ impl Opt {
     pub fn spelled(&self) -> String {
         format!("--{}", self.long)
     }
+
+    pub fn is(&self, token: &str) -> bool {
+        token.strip_prefix("--") == Some(self.long)
+            || self.short.is_some_and(|short| {
+                token.strip_prefix('-').and_then(|rest| rest.parse::<char>().ok()) == Some(short)
+            })
+    }
 }
 
 const fn opt(long: &'static str, value: (&'static str, Kind), about: &'static str) -> Opt {

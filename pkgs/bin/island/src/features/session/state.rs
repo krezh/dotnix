@@ -1,7 +1,7 @@
 use std::{path::PathBuf, time::Instant};
 
 use super::Action;
-use crate::icons;
+use crate::{icons, units::capitalise};
 
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct State {
@@ -73,12 +73,7 @@ impl App {
 /// A window class as people know the app: `dev.zed.Zed` is Zed, `com.mitchellh.ghostty` Ghostty.
 pub fn name_of(class: &str) -> String {
     let last = class.rsplit('.').next().unwrap_or(class);
-    let last = if last.is_empty() { class } else { last };
-    let mut letters = last.chars();
-    letters
-        .next()
-        .map(|first| first.to_uppercase().chain(letters).collect())
-        .unwrap_or_default()
+    capitalise(if last.is_empty() { class } else { last })
 }
 
 fn icon_of(class: &str) -> Option<PathBuf> {

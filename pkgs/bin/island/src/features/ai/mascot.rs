@@ -9,6 +9,7 @@ use std::{
 
 use crate::{
     drawing::{Color, Drawing, Shape},
+    math::{self, rgb, smooth},
     panel::Mark,
     spring::Spring,
     spring::SpringConfig,
@@ -130,13 +131,6 @@ pub struct Pose {
     badge: f32,
 }
 
-fn channels(color: u32) -> [f32; 3] {
-    let [_, r, g, b] = color
-        .to_be_bytes()
-        .map(|channel| f32::from(channel) / 255.0);
-    [r, g, b]
-}
-
 /// Moves one character: give it a [`Mood`] as things change, step it each frame, and draw its
 /// [`Body::pose`]. Calm, it bobs while busy or asking and rests between blinks otherwise, so it
 /// costs no frames while nothing happens; lively, it breathes and bounces all the time.
@@ -179,7 +173,7 @@ impl Body {
     /// Bodies with different `seed`s blink and look about at different times, so several shown
     /// at once do not move in step.
     pub fn new(lively: bool, mood: Mood, now: Instant, seed: u64) -> Self {
-        let color = channels(mood.color);
+        let color = rgb(mood.color);
         let mut body = Self {
             lively,
             mood,
@@ -462,7 +456,7 @@ impl Body {
         }
         self.badge
             .retarget(if wanted == Extra::None { 0.0 } else { 1.0 }, POP);
-        self.goal = channels(if self.cheering(now) && !self.asleep() {
+        self.goal = rgb(if self.cheering(now) && !self.asleep() {
             self.mood.cheer_color
         } else {
             self.mood.color
@@ -499,7 +493,7 @@ impl Body {
             && self.lift == 0.0
             && self.jump_at.is_none()
             && self.blink_at.is_none()
-            && self.color == channels(self.mood.color)
+            && self.color == rgb(self.mood.color)
             && [
                 &self.squash,
                 &self.grow,
@@ -609,7 +603,7 @@ fn white(a: f32) -> Color {
 }
 
 fn mix(from: [f32; 3], to: [f32; 3], t: f32) -> [f32; 3] {
-    [0, 1, 2].map(|i| from[i] + (to[i] - from[i]) * t)
+    [0, 1, 2].map(|i| math::mix(from[i], to[i], t))
 }
 
 fn fill(shapes: &mut Vec<Shape>, points: &[(f32, f32)], color: Color) {
@@ -650,12 +644,6 @@ fn curve(a: (f32, f32), c: (f32, f32), b: (f32, f32)) -> Vec<(f32, f32)> {
         .collect()
 }
 
-/// Eased from 0 at `from` to 1 at `to`, either way round.
-fn smooth(from: f32, to: f32, t: f32) -> f32 {
-    let s = ((t - from) / (to - from)).clamp(0.0, 1.0);
-    s * s * (3.0 - 2.0 * s)
-}
-
 /// An eye as one outline that bends from open toward a shut arc and toward a happy arc, so it never
 /// swaps shape from one frame to the next.
 struct Eye {
@@ -682,8 +670,7 @@ impl Eye {
             joy,
             half,
         } = *self;
-        let lerp = |a: f32, b: f32, t: f32| a + (b - a) * t;
-        let width = lerp(lerp(ew, ew * 0.9, shut), ew, joy);
+        let width = math::mix(math::mix(ew, ew * 0.9, shut), ew, joy);
         let at = |u: f32, top: bool| {
             let round = (1.0 - u * u).max(0.0).sqrt();
             // A quadratic curve whose control is midway, as `curve` draws it.
@@ -697,7 +684,7 @@ impl Eye {
             let happy_y = y + eh * (0.2 - bend) + thick;
             (
                 x + u * width,
-                lerp(lerp(open_y, shut_y, shut), happy_y, joy),
+                math::mix(math::mix(open_y, shut_y, shut), happy_y, joy),
             )
         };
         let along = |i: usize| -(i as f32 / STEPS as f32 * PI).cos();
@@ -744,7 +731,7 @@ fn paint(pose: &Pose, x0: f32, y0: f32, side: f32, shapes: &mut Vec<Shape>) {
     let lift = (pose.lift * side * hop).min(room);
     let at = |(x, y): (f32, f32)| (x0 + side / 2.0 + x * sx * g, ground - lift + y * sy * g);
     let place = |points: Vec<(f32, f32)>| points.into_iter().map(at).collect::<Vec<_>>();
-    let ink = color(channels(CRUST), 1.0);
+    let ink = color(rgb(CRUST), 1.0);
 
     let off = (lift / (side * 0.2)).clamp(0.0, 1.0);
     let shadow = ellipse(
@@ -761,7 +748,7 @@ fn paint(pose: &Pose, x0: f32, y0: f32, side: f32, shapes: &mut Vec<Shape>) {
         color(pose.color, 0.92),
     );
     // A darker core shows through the jelly.
-    let core = mix(pose.color, channels(CRUST), 0.12);
+    let core = mix(pose.color, rgb(CRUST), 0.12);
     fill(
         shapes,
         &place(squircle(pose, 0.0, -h * 0.42, w * 0.3, h * 0.28)),
@@ -779,7 +766,7 @@ fn paint(pose: &Pose, x0: f32, y0: f32, side: f32, shapes: &mut Vec<Shape>) {
     );
 
     if pose.cheeks > 0.02 {
-        let blush = color(channels(PINK), pose.cheeks * 0.55);
+        let blush = color(rgb(PINK), pose.cheeks * 0.55);
         for side in [-1.0, 1.0] {
             fill(
                 shapes,
@@ -882,7 +869,7 @@ fn paint(pose: &Pose, x0: f32, y0: f32, side: f32, shapes: &mut Vec<Shape>) {
     let x = (x0 + side / 2.0 - w * sx * g / 2.0 + r * 0.55).clamp(x0 + edge, x0 + side - edge);
     let y = (top + r * 0.45).clamp(y0 + edge, y0 + side - edge);
     fill(shapes, &(ellipse(x, y, r + ring, r + ring)), ink);
-    fill(shapes, &(ellipse(x, y, r, r)), color(channels(tint), 1.0));
+    fill(shapes, &(ellipse(x, y, r, r)), color(rgb(tint), 1.0));
     match pose.extra {
         Extra::Asking(_) | Extra::Warning => {
             stroke(

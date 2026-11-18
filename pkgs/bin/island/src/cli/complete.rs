@@ -39,19 +39,13 @@ fn options(opts: &[Opt]) -> Vec<(String, String)> {
         .collect()
 }
 
-fn find_option<'a>(opts: &'a [Opt], token: &str) -> Option<&'a Opt> {
-    opts.iter().find(|opt| {
-        token == opt.spelled() || opt.short.is_some_and(|short| token == format!("-{short}"))
-    })
-}
-
 /// After `token`, an option of `opts` or a word that is not one: where the next word goes, or
 /// `None` when `token` is not an option.
 fn after_option(opts: &[Opt], token: &str, here: At) -> Option<At> {
     if !token.starts_with('-') {
         return None;
     }
-    Some(match find_option(opts, token).and_then(|opt| opt.value) {
+    Some(match opts.iter().find(|opt| opt.is(token)).and_then(|opt| opt.value) {
         Some((_, kind)) if !token.contains('=') => At::OptionValue(kind),
         _ => here,
     })

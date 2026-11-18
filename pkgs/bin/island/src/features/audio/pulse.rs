@@ -3,8 +3,7 @@
 
 use std::{
     cell::Cell,
-    io::{ErrorKind, Read},
-    os::{fd::AsRawFd, unix::net::UnixStream},
+    os::fd::AsRawFd,
     rc::Rc,
     sync::{
         Arc, Mutex,
@@ -14,7 +13,7 @@ use std::{
 };
 
 use libpulse_binding::{
-    context::{Context, FlagSet, State, subscribe::InterestMaskSet},
+    context::{State, subscribe::InterestMaskSet},
     mainloop::{
         api::Mainloop as _,
         events::io::FlagSet as IoFlags,
@@ -31,20 +30,10 @@ use super::{
 };
 use crate::{
     features::Feed,
+    pulse,
     supervisor::{Ended, Reconnect},
+    wake::{self, Woken},
 };
-
-fn drain(stream: &UnixStream) {
-    let mut buffer = [0u8; 64];
-    loop {
-        match (&*stream).read(&mut buffer) {
-            Ok(0) => break,
-            Ok(_) => {}
-            Err(error) if error.kind() == ErrorKind::Interrupted => {}
-            Err(_) => break,
-        }
-    }
-}
 
 fn log_change(before: &AudioState, after: &AudioState) {
     if after.default_sink != before.default_sink {
@@ -64,33 +53,24 @@ fn log_change(before: &AudioState, after: &AudioState) {
 
 fn run(
     requests: &Receiver<Request>,
-    wake: &UnixStream,
+    wake: &Woken,
     feed: &Feed<AudioState>,
     levels: &Mutex<Levels>,
 ) -> Option<()> {
     let mut mainloop = Mainloop::new()?;
-    let waker = wake.try_clone().ok()?;
+    let woken = wake.try_clone().ok()?;
     let _wake_event = mainloop.new_io_event(
         wake.as_raw_fd(),
         IoFlags::INPUT,
-        Box::new(move |_, _, _| drain(&waker)),
+        Box::new(move |_, _, _| woken.drain()),
     )?;
-    let mut context = Context::new(&mainloop, "island")?;
-    context.connect(None, FlagSet::NOFAIL, None).ok()?;
-    loop {
-        match mainloop.iterate(true) {
-            IterateResult::Success(_) => {}
-            IterateResult::Quit(_) | IterateResult::Err(_) => return None,
-        }
-        match context.get_state() {
-            State::Ready => break,
-            State::Failed | State::Terminated => {
-                debug!(error = ?context.errno(), "cannot connect to the sound server");
-                return None;
+    let mut context = pulse::connect(&mut mainloop, "island")
+        .map_err(|error| {
+            if let Some(error) = error {
+                debug!(?error, "cannot connect to the sound server");
             }
-            _ => {}
-        }
-    }
+        })
+        .ok()?;
     info!(
         server = context.get_server().as_deref().unwrap_or("unknown"),
         "connected to the sound server"
@@ -147,16 +127,14 @@ fn run(
 pub fn start(feed: Feed<AudioState>) -> Mixer {
     let (sender, requests) = mpsc::channel();
     let levels = Arc::new(Mutex::new(Levels::default()));
-    let wake = match UnixStream::pair() {
-        Ok((wake, waker)) => {
-            let _ = wake.set_nonblocking(true);
-            let _ = waker.set_nonblocking(true);
+    let wake = match wake::pair() {
+        Ok((waker, woken)) => {
             let mut pace = Reconnect::default();
             let levels = levels.clone();
             feed.supervise(move |feed| {
                 loop {
                     let started = Instant::now();
-                    if run(&requests, &waker, feed, &levels).is_some()
+                    if run(&requests, &woken, feed, &levels).is_some()
                         || !feed.publish(AudioState::default())
                     {
                         return Ended::Unwanted;
@@ -164,7 +142,7 @@ pub fn start(feed: Feed<AudioState>) -> Mixer {
                     pace.wait(started);
                 }
             });
-            Some(Arc::new(wake))
+            Some(waker)
         }
         Err(error) => {
             error!("audio failed to start: {error}");

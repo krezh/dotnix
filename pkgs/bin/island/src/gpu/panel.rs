@@ -9,19 +9,20 @@ use std::{
 
 use super::{
     renderer::{IMAGE, NO_CLIP, RING, SHAPE, Sprite, inside, overlap},
-    widget::{color, tinted},
+    widget::tinted,
 };
 use crate::{
     components::{
         card,
         chart::{BASELINE_ALPHA, FILL_ALPHA, LINE, Phase, Series, history_points},
         energy,
-        marquee::{FADE as MARQUEE_FADE, GAP as MARQUEE_GAP, SPEED as MARQUEE_SPEED, smoothstep},
+        marquee::{FADE as MARQUEE_FADE, GAP as MARQUEE_GAP, SPEED as MARQUEE_SPEED},
         motion::{MORPH, stagger},
         popover::{SHADOW_SPREAD, cover, opener_shown, rows_shown},
         search::Scroll as Rows,
         slider::OnChange,
     },
+    math::{color, mix, smoothstep},
     panel::{Grow, Handler, SharedString},
     spring::SpringConfig,
     theme::{POPOVER_OPACITY, SHADOW_ALPHA, SURFACE, SURFACE_BORDER_ALPHA, SURFACE1, TINT},
@@ -30,6 +31,8 @@ use crate::{
 
 /// How far a surface that drops from what opens it falls below it.
 pub const DROP: f32 = 6.0;
+
+pub const BODY: &str = "panel-body";
 
 /// What a view growing out of a part of another is named by while it passes, and the one it replaces.
 pub const GROW_COMING: &str = "grow-coming";
@@ -61,10 +64,6 @@ fn union(a: [f32; 4], b: [f32; 4]) -> [f32; 4] {
     [left, top, right - left, bottom - top]
 }
 
-fn lerp_rect(from: [f32; 4], to: [f32; 4], at: f32) -> [f32; 4] {
-    [0, 1, 2, 3].map(|index| from[index] + (to[index] - from[index]) * at)
-}
-
 /// `sprite` moved and scaled by `by` so what was at `from`'s top left is at `to`'s.
 fn carried(sprite: Sprite, from: [f32; 4], to: [f32; 4], by: f32) -> Sprite {
     super::stand::folded(sprite.moved(-from[0], -from[1]), (0.0, 0.0), (by, by), 0.0)
@@ -93,15 +92,16 @@ pub fn grow_sprites(built: &Built, own: &mut [Sprite]) {
         return;
     };
     let whole = union(coming_rect, leaving_rect);
+    let len = own.len();
+    let within = |range: (usize, usize)| range.0.min(len)..range.1.min(len);
     // The panel's body is as tall as the coming view alone, the leaving one lying over it, so
     // what it cuts off would show the two only where they overlap: they take the whole instead.
-    if let Some(body) = built.scrolling.iter().find(|area| area.key == "panel-body") {
+    if let Some(body) = built.scrolling.iter().find(|area| area.key == BODY) {
         let (top, bottom) = (body.rect[1], body.rect[1] + body.rect[3]);
         let at_body = |a: f32, b: f32| (a - top).abs() < 0.5 && (b - bottom).abs() < 0.5;
         let room = [whole[0], whole[1], whole[0] + whole[2], whole[1] + whole[3]];
-        let len = own.len();
         for range in [coming, leaving] {
-            for sprite in &mut own[range.0.min(len)..range.1.min(len)] {
+            for sprite in &mut own[within(range)] {
                 if at_body(sprite.clip[1], sprite.clip[3]) {
                     sprite.clip = room;
                 }
@@ -117,22 +117,19 @@ pub fn grow_sprites(built: &Built, own: &mut [Sprite]) {
     } else {
         (coming, leaving, at)
     };
-    let shape = lerp_rect(part, whole, open);
+    let shape = mixed(part, whole, open);
     let scale = (shape[2] / whole[2].max(1.0)).clamp(0.01, 1.0);
-    let shows = smoothstep(((open - GROW_SHOWS.0) / GROW_SHOWS.1).clamp(0.0, 1.0));
+    let shows = smoothstep((open - GROW_SHOWS.0) / GROW_SHOWS.1);
     let middle = (whole[0] + whole[2] / 2.0, whole[1] + whole[3] / 2.0);
     let sink = 1.0 - GROW_SINK * open;
-    let len = own.len();
-    let within = |range: (usize, usize)| range.0.min(len)..range.1.min(len);
-    let gone =
-        1.0 - smoothstep((open / if grow.back { GROW_RETURNS } else { GROW_GONE }).clamp(0.0, 1.0));
+    let gone = 1.0 - smoothstep(open / if grow.back { GROW_RETURNS } else { GROW_GONE });
     for sprite in &mut own[within(behind)] {
         *sprite = super::stand::folded(*sprite, middle, (sink, sink), 0.0).faded(gone);
     }
+    let near_card = smoothstep(open / GROW_CARD);
     if let Some(&card) = built.anchored.get(&grow.anchor) {
-        let card_shows = 1.0 - smoothstep((open / GROW_CARD).clamp(0.0, 1.0));
         for sprite in &mut own[within(card)] {
-            *sprite = sprite.faded(card_shows);
+            *sprite = sprite.faded(1.0 - near_card);
         }
     }
     let grower = within(grower);
@@ -140,12 +137,11 @@ pub fn grow_sprites(built: &Built, own: &mut [Sprite]) {
         .anchored
         .get(GROW_SHEET)
         .map_or(grower.start..grower.start, |sheet| within(*sheet));
-    let near_card = smoothstep((open / GROW_CARD).clamp(0.0, 1.0));
     let solid = near_card
         * if grow.back {
-            smoothstep(((1.0 - open) / GROW_SOLIDIFIES).clamp(0.0, 1.0))
+            smoothstep((1.0 - open) / GROW_SOLIDIFIES)
         } else {
-            1.0 - smoothstep(((open - GROW_DISSOLVES) / (1.0 - GROW_DISSOLVES)).clamp(0.0, 1.0))
+            1.0 - smoothstep((open - GROW_DISSOLVES) / (1.0 - GROW_DISSOLVES))
         };
     for sprite in &mut own[layers.clone()] {
         sprite.rect = shape;
@@ -477,10 +473,6 @@ pub struct Surface {
     pub hits: (usize, usize),
     /// Its rows show, so they take the pointer.
     pub live: bool,
-}
-
-fn mix(from: f32, to: f32, at: f32) -> f32 {
-    from + (to - from) * at
 }
 
 pub fn mixed(from: [f32; 4], to: [f32; 4], at: f32) -> [f32; 4] {
@@ -854,35 +846,31 @@ pub fn chart_sprites(chart: &Chart, phase: f32, pixel: f32, out: &mut Vec<Sprite
     }
 }
 
-/// `gone` is the share of its time since it last changed. Relative to the panel. As GPUI drew it:
-/// each layer a line through the frame's middle, its shadow spread round it and blurred.
+/// `gone` is the share of its time since it last changed. Relative to the panel. A soft glow along
+/// the frame's bottom edge, the same on every frame however tall.
 pub fn countdown_sprites(countdown: &Countdown, gone: f32, out: &mut Vec<Sprite>) {
-    const BLUR: f32 = 28.0;
-    const SPREAD: f32 = 18.0;
+    const SIGMA: f32 = 16.0;
+    const THICK: f32 = 30.0;
+    const SHOWN: f32 = 16.0;
     const START: f32 = 10.0;
     const END: f32 = 28.0;
+    const ALPHA: u8 = 0x8c;
     let [x, y, w, h] = countdown.rect;
     let left = countdown.left * (1.0 - gone.clamp(0.0, 1.0));
-    let clip = [x, y, x + w, y + h];
-    let span = w * left;
-    let middle = y + h / 2.0;
-    for (from, alpha) in [(0.0, 0x38), (0.5, 0x30)] {
-        let start = x + from * span + START;
-        let end = x + span - END;
-        if end <= start {
-            continue;
-        }
-        out.push(
-            Sprite::blurred(
-                [start, middle - SPREAD, end - start, 2.0 * SPREAD],
-                tinted(countdown.color, alpha),
-                0.0,
-                BLUR,
-            )
-            .within(clip)
-            .faded(countdown.opacity),
-        );
+    let length = (w - START - END) * left;
+    if length <= 0.0 {
+        return;
     }
+    out.push(
+        Sprite::blurred(
+            [x + START, y + h - SHOWN, length, THICK],
+            tinted(countdown.color, ALPHA),
+            THICK / 2.0,
+            SIGMA,
+        )
+        .within([x, y, x + w, y + h])
+        .faded(countdown.opacity),
+    );
 }
 
 impl Built {

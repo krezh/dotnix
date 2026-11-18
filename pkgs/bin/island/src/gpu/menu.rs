@@ -6,9 +6,10 @@ use super::{
     node::{MEDIUM, SEMIBOLD},
     paint::Painter,
     renderer::{Gpu, Sprite, inside},
-    widget::{color, tinted},
+    widget::tinted,
 };
 use crate::{
+    math::color,
     menu::{MAX_W, MenuNode},
     spring::Spring,
     stage::{CONTENT_DRIFT, CONTENT_IN, CONTENT_OUT, SHAPE_SPRING},
@@ -238,7 +239,6 @@ impl Menu {
         (width, total)
     }
 
-    /// Hung from `bottom`, within the bar from `left` to `right`.
     /// Where it hangs this frame, between `left` and `right` from `bottom`, before anything is
     /// drawn round it.
     pub fn place(

@@ -133,26 +133,16 @@ impl Updates {
     }
 
     pub(super) fn summary(&self) -> String {
-        let incoming = self.incoming();
-        let ready = self.ready();
-        let ready = (ready > 0).then(|| {
-            format!(
-                "{} ready",
-                plural(
-                    u32::try_from(ready).unwrap_or(u32::MAX),
-                    "watched PR",
-                    "watched PRs"
-                )
-            )
-        });
+        let incoming = Some(self.incoming())
+            .filter(|incoming| *incoming > 0)
+            .map(|incoming| plural(incoming, "incoming change", "incoming changes"));
+        let ready = Some(self.ready())
+            .filter(|ready| *ready > 0)
+            .map(|ready| format!("{} ready", plural(ready, "watched PR", "watched PRs")));
         match (incoming, ready) {
-            (0, None) => "Up to date".to_owned(),
-            (0, Some(ready)) => ready,
-            (incoming, None) => plural(incoming, "incoming change", "incoming changes"),
-            (incoming, Some(ready)) => format!(
-                "{} · {ready}",
-                plural(incoming, "incoming change", "incoming changes")
-            ),
+            (None, None) => "Up to date".to_owned(),
+            (Some(one), None) | (None, Some(one)) => one,
+            (Some(incoming), Some(ready)) => format!("{incoming} · {ready}"),
         }
     }
 }

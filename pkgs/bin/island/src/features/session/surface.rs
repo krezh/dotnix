@@ -6,7 +6,7 @@ use crate::{
     features::{GlyphSpec, IslandInfo, PanelCx, Surface, WidgetCx},
     panel::{ActionTile, Block, Header, PanelView},
     theme::TEXT,
-    units::span,
+    units::{Label, next_change, span},
 };
 
 /// "Up 2 d 3 h", "Up 3 h 12 min", "Up 12 min".
@@ -17,11 +17,9 @@ fn uptime(p: &PanelCx<'_>) -> Option<String> {
         .next()?
         .parse()
         .ok()?;
-    let seconds = raw as u64;
-    let step = if seconds < 86_400 { 60 } else { 3600 };
-    let next = (step - (seconds % step)) as f64 - raw.fract();
-    p.redraw_in(Duration::from_secs_f64(next.max(0.0)));
-    Some(format!("Up {}", span(seconds)))
+    let up = Duration::try_from_secs_f64(raw).ok()?;
+    p.redraw_in(next_change(Label::Span, up));
+    Some(format!("Up {}", span(up.as_secs())))
 }
 
 impl Surface for Session {

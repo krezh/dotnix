@@ -7,7 +7,7 @@ use crate::{
         PanelCx, battery,
         headset::{self, Battery},
     },
-    panel::{Block, Item, Lead, Mark, SharedString, Slider, Trail},
+    panel::{Block, Item, Lead, Mark, Slider, Trail},
     theme::{BLUE, GREEN, MAUVE, SUBTEXT1},
 };
 
@@ -28,14 +28,9 @@ fn battery_line(battery: &Battery) -> (String, u32) {
 fn reading(id: &'static str, title: &'static str, value: f32, color: u32) -> Block {
     let item = Item {
         id: format!("{id}-item").into(),
-        lead: None,
-        overline: None,
         title: title.into(),
-        title_color: None,
-        wrap: false,
-        detail: SharedString::default(),
-        tinted: Vec::new(),
         trail: vec![Trail::Text(amount(value, false).into(), color)],
+        ..Default::default()
     };
     let slider = Slider {
         thin: false,
@@ -48,26 +43,17 @@ fn reading(id: &'static str, title: &'static str, value: f32, color: u32) -> Blo
     Block::Item(item, vec![Block::Slider(slider)])
 }
 
-pub fn headset_card(battery: Battery, p: &PanelCx<'_>) -> Block {
-    let (line, color) = battery_line(&battery);
+pub fn headset_card(battery: &Battery, p: &PanelCx<'_>) -> Block {
+    let (line, color) = battery_line(battery);
     let name = Item {
         id: "headset".into(),
         lead: Some(Lead {
             mark: p.glyph("headset").map(|path| Mark::Glyph(path, MAUVE)),
             tint: Some(MAUVE),
-            glow: None,
-            faded: false,
-            size: None,
-            on_click: None,
-            top: false,
+            ..Default::default()
         }),
-        overline: None,
-        title: battery.name.into(),
-        title_color: None,
-        wrap: false,
-        detail: SharedString::default(),
-        tinted: Vec::new(),
-        trail: Vec::new(),
+        title: battery.name.clone().into(),
+        ..Default::default()
     };
     let mut cells = vec![Block::Item(name, vec![Block::caption(line, color)])];
     if let Some(value) = battery.chatmix {

@@ -4,7 +4,7 @@
 use super::{
     Network, glyphs,
     runtime::{PROBE_EVERY, Request, SAMPLE_EVERY, phase},
-    state::{AccessPoint, Activity, Security, State, Vpn, channel},
+    state::{AccessPoint, Activity, Joining, Security, State, Vpn, channel},
     view::{Prompt, View},
 };
 use crate::{
@@ -51,7 +51,7 @@ fn hero(name: impl Into<SharedString>, lines: Vec<String>) -> Part {
     }
 }
 
-fn joining<'a>(state: &'a State, ssid: &str) -> Option<&'a super::state::Joining> {
+fn joining<'a>(state: &'a State, ssid: &str) -> Option<&'a Joining> {
     state
         .joining
         .as_ref()
@@ -61,11 +61,7 @@ fn joining<'a>(state: &'a State, ssid: &str) -> Option<&'a super::state::Joining
 fn wifi_tile(state: &State) -> Tile {
     let wifi = state.wifi.as_ref();
     let active = wifi.and_then(|wifi| wifi.active());
-    let connecting = state
-        .joining
-        .as_ref()
-        .filter(|joining| joining.failed.is_none());
-    let (stat_text, parts) = match (wifi, active, connecting) {
+    let (stat_text, parts) = match (wifi, active, state.connecting()) {
         (Some(wifi), _, _) if !wifi.enabled => (
             stat("Off", OVERLAY2),
             vec![hero(
@@ -212,9 +208,9 @@ fn latency_tile(state: &State) -> Tile {
 
 fn network_entry(network: &AccessPoint, state: &State, p: &PanelCx<'_>) -> Entry {
     let attempt = joining(state, &network.ssid);
-    let connecting = attempt.is_some_and(|joining| joining.failed.is_none());
+    let connecting = attempt.is_some_and(Joining::underway);
     let detail = match (attempt, network.active) {
-        (Some(joining), _) if joining.failed.is_none() => "Connecting…".to_owned(),
+        (Some(joining), _) if joining.underway() => "Connecting…".to_owned(),
         (Some(joining), _) => joining.failed.clone().unwrap_or_default(),
         (None, true) => format!("Connected · {}", network.security.label()),
         (None, false) if network.saved => format!("Saved · {}", network.security.label()),
@@ -351,7 +347,7 @@ fn vpn_entry(vpn: &Vpn, p: &PanelCx<'_>) -> Entry {
 }
 
 fn vpn_tile(state: &State, span: usize, p: &PanelCx<'_>) -> Tile {
-    let active = state.vpns.iter().find(|vpn| vpn.activity == Activity::On);
+    let active = state.active_vpn();
     let stat_text = match active {
         Some(vpn) => stat(
             vpn.address.clone().unwrap_or_else(|| "On".to_owned()),
@@ -379,7 +375,7 @@ fn vpn_tile(state: &State, span: usize, p: &PanelCx<'_>) -> Tile {
         scroll: span == 1,
     }];
     if span > 1 {
-        let now = chrono::Utc::now().timestamp();
+        let now = crate::time::now();
         let traffic = &state.traffic;
         let peak = nice_peak(&traffic.vpn_history, 64.0 * 1024.0);
         parts.push(Part::Chart {
@@ -434,7 +430,7 @@ fn connection_tile(state: &State) -> Tile {
             vec![hero("Offline", vec!["No connection is up".into()])],
         );
     };
-    let now = chrono::Utc::now().timestamp();
+    let now = crate::time::now();
     let via = link.gateway.as_ref().map_or_else(
         || "no gateway".to_owned(),
         |gateway| format!("via {gateway}"),
@@ -874,12 +870,7 @@ fn buttons(state: &State, p: &PanelCx<'_>) -> Vec<IconButton> {
             }
         }
     }
-    if let Some(vpn) = state
-        .vpns
-        .iter()
-        .find(|vpn| vpn.activity != Activity::Off)
-        .or_else(|| state.vpns.first())
-    {
+    if let Some(vpn) = state.switched_vpn() {
         let on = vpn.activity == Activity::On;
         let name = vpn.name.clone();
         buttons.push(IconButton {
@@ -911,7 +902,7 @@ fn prompt(state: &State, prompt: &Prompt, p: &PanelCx<'_>) -> PromptView {
         })
         .map_or(Security::Wpa2, |network| network.security);
     let attempt = joining(state, &prompt.ssid);
-    let busy = attempt.is_some_and(|joining| joining.failed.is_none());
+    let busy = attempt.is_some_and(Joining::underway);
     let ready = !prompt.text.is_empty() && !busy;
     PromptView {
         title: format!("Join {}", prompt.ssid).into(),

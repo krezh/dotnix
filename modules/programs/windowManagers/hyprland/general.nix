@@ -99,7 +99,7 @@
             debug.vfr = true;
 
             misc = {
-              vrr = 1;
+              vrr = 0;
               enable_swallow = false;
               mouse_move_enables_dpms = true;
               key_press_enables_dpms = true;

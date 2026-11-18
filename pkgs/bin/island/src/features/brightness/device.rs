@@ -241,9 +241,17 @@ impl DdcDevice {
         Some(())
     }
 
+    fn transfer(&self, msgs: &mut [I2cMsg]) -> Option<()> {
+        let mut data = I2cRdwrIoctlData {
+            msgs: msgs.as_mut_ptr(),
+            nmsgs: msgs.len() as u32,
+        };
+        (unsafe { libc::ioctl(self.file.as_raw_fd(), I2C_RDWR, &mut data) } >= 0).then_some(())
+    }
+
     fn transfer_edid(&self, offset: u8, buf: &mut [u8]) -> Option<()> {
         let mut reg = [offset];
-        let mut msgs = [
+        self.transfer(&mut [
             I2cMsg {
                 addr: I2C_ADDR_EDID,
                 flags: 0,
@@ -256,45 +264,26 @@ impl DdcDevice {
                 len: buf.len() as u16,
                 buf: buf.as_mut_ptr(),
             },
-        ];
-        let mut data = I2cRdwrIoctlData {
-            msgs: msgs.as_mut_ptr(),
-            nmsgs: 2,
-        };
-        (unsafe { libc::ioctl(self.file.as_raw_fd(), I2C_RDWR, &mut data) } >= 0).then_some(())
+        ])
     }
 
     fn get_brightness(&mut self) -> Option<(u16, u16)> {
         self.wait_before_command();
         let cmd = [0x51, 0x82, 0x01, BRIGHTNESS, 0xAC];
-        let mut write_msg = [I2cMsg {
+        self.transfer(&mut [I2cMsg {
             addr: I2C_ADDR_DDC,
             flags: 0,
             len: cmd.len() as u16,
             buf: cmd.as_ptr() as *mut u8,
-        }];
-        let mut write_data = I2cRdwrIoctlData {
-            msgs: write_msg.as_mut_ptr(),
-            nmsgs: 1,
-        };
-        if unsafe { libc::ioctl(self.file.as_raw_fd(), I2C_RDWR, &mut write_data) } < 0 {
-            return None;
-        }
+        }])?;
         thread::sleep(Duration::from_millis(40));
         let mut resp = [0u8; 11];
-        let mut read_msg = [I2cMsg {
+        self.transfer(&mut [I2cMsg {
             addr: I2C_ADDR_DDC,
             flags: I2C_M_RD,
             len: resp.len() as u16,
             buf: resp.as_mut_ptr(),
-        }];
-        let mut read_data = I2cRdwrIoctlData {
-            msgs: read_msg.as_mut_ptr(),
-            nmsgs: 1,
-        };
-        if unsafe { libc::ioctl(self.file.as_raw_fd(), I2C_RDWR, &mut read_data) } < 0 {
-            return None;
-        }
+        }])?;
         self.last_command = Some(Instant::now());
         if resp[2] != 0x02 || resp[3] != 0x00 || resp[4] != BRIGHTNESS {
             return None;
@@ -313,18 +302,12 @@ impl DdcDevice {
         let [hi, lo] = value.to_be_bytes();
         let chk = 0x6E ^ 0x51 ^ 0x84 ^ 0x03 ^ BRIGHTNESS ^ hi ^ lo;
         let cmd = [0x51, 0x84, 0x03, BRIGHTNESS, hi, lo, chk];
-        let mut write_msg = [I2cMsg {
+        let res = self.transfer(&mut [I2cMsg {
             addr: I2C_ADDR_DDC,
             flags: 0,
             len: cmd.len() as u16,
             buf: cmd.as_ptr() as *mut u8,
-        }];
-        let mut write_data = I2cRdwrIoctlData {
-            msgs: write_msg.as_mut_ptr(),
-            nmsgs: 1,
-        };
-        let res = (unsafe { libc::ioctl(self.file.as_raw_fd(), I2C_RDWR, &mut write_data) } >= 0)
-            .then_some(());
+        }]);
         self.last_command = Some(Instant::now());
         res
     }

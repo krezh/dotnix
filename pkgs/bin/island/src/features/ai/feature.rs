@@ -84,14 +84,13 @@ impl Surface for Ai {
             &["github-copilot-symbolic", "github-copilot", "copilot"],
         ),
         ("ai-send", &["arrow-up"]),
-        ("ai-sessions", &["square-terminal"]),
         ("ai-chat", &["message-circle"]),
         ("ai-usage", &["gauge"]),
         ("ai-refresh", &["rotate-cw", "refresh-cw"]),
         ("ai-chevron", &["chevron-right"]),
     ];
 
-    const VIEWS: &'static [&'static str] = &["sessions", "chat", "usage"];
+    const VIEWS: &'static [&'static str] = &["chat", "usage"];
 
     const KEYBOARD: bool = true;
 

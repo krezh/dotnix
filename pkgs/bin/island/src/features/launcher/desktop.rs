@@ -1,5 +1,5 @@
 use std::{
-    collections::{HashMap, HashSet},
+    collections::HashMap,
     fs,
     path::{Path, PathBuf},
 };
@@ -7,9 +7,8 @@ use std::{
 use super::settings::Settings;
 
 use crate::{
-    icons,
+    desktop as entries, icons,
     launch::{self, Launch},
-    paths,
 };
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -25,16 +24,8 @@ pub struct App {
     pub icon: Option<PathBuf>,
 }
 
-pub(super) fn dirs() -> Vec<PathBuf> {
-    paths::data_dirs()
-        .into_iter()
-        .map(|dir| dir.join("applications"))
-        .collect()
-}
-
 fn parse(path: &Path, id: String) -> Option<App> {
     let raw = fs::read_to_string(path).ok()?;
-    let mut in_entry = false;
     let mut app = App {
         id,
         name: String::new(),
@@ -49,20 +40,9 @@ fn parse(path: &Path, id: String) -> Option<App> {
     let mut icon = String::new();
     let mut kind = String::new();
     let mut hidden = false;
-    for line in raw.lines() {
-        let line = line.trim();
-        if line.starts_with('[') {
-            in_entry = line == "[Desktop Entry]";
-            continue;
-        }
-        if !in_entry {
-            continue;
-        }
-        let Some((key, value)) = line.split_once('=') else {
-            continue;
-        };
-        let value = value.trim().to_owned();
-        match key.trim() {
+    for (key, value) in entries::keys(&raw) {
+        let value = value.to_owned();
+        match key {
             "Name" => app.name = value,
             "GenericName" => app.generic = value,
             "Comment" => app.comment = value,
@@ -90,35 +70,10 @@ fn parse(path: &Path, id: String) -> Option<App> {
 }
 
 pub(super) fn load(dirs: &[PathBuf]) -> Vec<App> {
-    let mut seen = HashSet::new();
-    let mut apps = Vec::new();
-    for dir in dirs {
-        let Ok(entries) = fs::read_dir(&dir) else {
-            continue;
-        };
-        let mut paths: Vec<PathBuf> = entries.flatten().map(|entry| entry.path()).collect();
-        paths.sort();
-        for path in paths {
-            if path
-                .extension()
-                .is_none_or(|extension| extension != "desktop")
-            {
-                continue;
-            }
-            let Some(id) = path
-                .file_name()
-                .map(|name| name.to_string_lossy().into_owned())
-            else {
-                continue;
-            };
-            if !seen.insert(id.clone()) {
-                continue;
-            }
-            if let Some(app) = parse(&path, id) {
-                apps.push(app);
-            }
-        }
-    }
+    let mut apps: Vec<App> = entries::files(dirs)
+        .into_iter()
+        .filter_map(|(id, path)| parse(&path, id))
+        .collect();
     apps.sort_by_key(|app| app.name.to_lowercase());
     apps
 }

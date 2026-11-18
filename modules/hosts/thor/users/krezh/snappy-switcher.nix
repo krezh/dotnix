@@ -4,7 +4,7 @@
     {
       home-manager.users.krezh = {
         homeModules.snappy-switcher = {
-          enable = true;
+          enable = false;
           settings.font.family = config.var.fonts.sans;
         };
       };

@@ -13,7 +13,7 @@ fn next(line: &str) -> Vec<String> {
 
 #[test]
 fn a_panel_s_views_complete_after_it_even_when_it_shares_a_command_s_name() {
-    assert_eq!(next("ctl toggle ai "), ["sessions", "chat", "usage"]);
+    assert_eq!(next("ctl toggle ai "), ["chat", "usage"]);
     assert_eq!(next("ctl open ai c"), ["chat"]);
     assert!(next("ctl toggle media ").is_empty());
     assert!(next("ctl toggle ").contains(&"launcher".to_owned()));

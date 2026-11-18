@@ -12,6 +12,7 @@ use super::{
 use crate::{
     bar::WIDGET_H,
     config::{Side, Widget},
+    math::smooth,
     merge::{MAX_DROPS, Split},
     spring::{Spring, SpringConfig},
     stage::{COLLAPSED_H, CONTENT_DRIFT},
@@ -37,12 +38,6 @@ const CLOSE: SpringConfig = SpringConfig::new(157.9, 25.1, 1.0);
 /// Into the island as it grows into the droplet's own panel: response 0.22 s, quicker than the
 /// panel grows, so it never hangs off it.
 const INTO_PANEL: SpringConfig = SpringConfig::new(815.6, 57.1, 1.0);
-
-/// 0 at `from` or before, 1 at `to` or past, easing in and out between.
-fn smooth(from: f32, to: f32, at: f32) -> f32 {
-    let t = ((at - from) / (to - from)).clamp(0.0, 1.0);
-    t * t * (3.0 - 2.0 * t)
-}
 
 /// One droplet in the chain.
 struct Droplet {
@@ -408,19 +403,21 @@ impl Bubble {
 
     /// Where it takes the pointer: each droplet out.
     pub fn rects(&self) -> Vec<[f32; 4]> {
-        self.drops
-            .iter()
-            .filter(|drop| drop.split.is_some())
-            .map(|drop| drop.rect)
-            .collect()
+        self.out_rects().collect()
     }
 
     /// Where its glass is, for the screen behind to blur.
     pub fn glass_rects(&self) -> Vec<[f32; 4]> {
-        self.rects()
-            .into_iter()
+        self.out_rects()
             .filter(|rect| rect[2] >= 1.0 && rect[3] >= 0.5)
             .collect()
+    }
+
+    fn out_rects(&self) -> impl Iterator<Item = [f32; 4]> + '_ {
+        self.drops
+            .iter()
+            .filter(|drop| drop.split.is_some())
+            .map(|drop| drop.rect)
     }
 
     fn under(&self, at: (f32, f32)) -> Option<&Droplet> {

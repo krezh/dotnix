@@ -17,6 +17,7 @@ use crate::{
         Mark, Text, Tone, Trail,
     },
     theme::{ACCENT, OVERLAY2, PEACH, SUBTEXT1},
+    time,
 };
 
 /// As wide as a notification, so the two read as one kind of thing.
@@ -52,17 +53,6 @@ fn title(request: &Request, picks_step: usize) -> String {
     }
 }
 
-fn button(label: &str, active: bool, on_click: crate::panel::Handler) -> IconButton {
-    IconButton {
-        glyph: None,
-        color: None,
-        label: label.to_owned().into(),
-        active,
-        badge: None,
-        on_click,
-    }
-}
-
 fn buttons(buttons: Vec<IconButton>, lead: f32) -> Block {
     Block::Buttons(ButtonRow {
         fill: false,
@@ -86,11 +76,11 @@ fn permission_blocks(request: &Request, at: &str, view: &View, p: &PanelCx<'_>) 
     };
     let id = request.id;
     let answer = |answer: Answer| p.call::<Ai>(move |ai| ai.answer(id, answer.clone()));
-    let mut row = vec![button("Deny", false, answer(Answer::Deny))];
+    let mut row = vec![IconButton::text("Deny", false, answer(Answer::Deny))];
     if suggestion.is_some() {
-        row.push(button("Always allow", false, answer(Answer::Always)));
+        row.push(IconButton::text("Always allow", false, answer(Answer::Always)));
     }
-    row.push(button("Allow", true, answer(Answer::Allow)));
+    row.push(IconButton::text("Allow", true, answer(Answer::Allow)));
     let mut under = vec![Block::Code(Code {
         heading: None,
         lines: vec![CodeLine::plain(subject.clone())],
@@ -155,20 +145,12 @@ fn question_blocks(request: &Request, at: &str, view: &View, p: &PanelCx<'_>) ->
                             picked,
                             many: multi,
                         }),
-                        tint: None,
-                        glow: None,
-                        faded: false,
                         size: Some(CHOICE),
-                        on_click: None,
-                        top: false,
+                        ..Default::default()
                     }),
-                    overline: None,
                     title: label.clone().into(),
-                    title_color: None,
                     wrap: true,
-                    detail: "".into(),
-                    tinted: Vec::new(),
-                    trail: Vec::new(),
+                    ..Default::default()
                 },
                 (!description.is_empty())
                     .then(|| Block::Text(Text::new(Tone::Caption(OVERLAY2), description.clone())))
@@ -219,10 +201,10 @@ fn question_blocks(request: &Request, at: &str, view: &View, p: &PanelCx<'_>) ->
                 .collect();
             ai.answer(id, Answer::Picked(picked));
         });
-        button(&label("Send answers"), answered, send)
+        IconButton::text(label("Send answers"), answered, send)
     } else {
-        button(
-            &if ready {
+        IconButton::text(
+            if ready {
                 label("Next")
             } else {
                 "Skip".to_owned()
@@ -231,7 +213,7 @@ fn question_blocks(request: &Request, at: &str, view: &View, p: &PanelCx<'_>) ->
             p.on_local::<Ai>(move |_, view| view.next_question(id)),
         )
     };
-    let terminal = button(
+    let terminal = IconButton::text(
         "Reply in terminal",
         false,
         p.call::<Ai>(move |ai| ai.answer(id, Answer::Terminal)),
@@ -244,7 +226,7 @@ fn question_blocks(request: &Request, at: &str, view: &View, p: &PanelCx<'_>) ->
 
 /// Led by Jelly when it is on, otherwise Claude's mark.
 fn item_for(request: &Request, at: &str, step: usize, view: &View) -> Item {
-    let now = format::now();
+    let now = time::now_ms();
     let pose = view.pose();
     // Jelly stands at the top of the card, beside its first lines.
     let top = pose.is_some();
@@ -258,19 +240,15 @@ fn item_for(request: &Request, at: &str, step: usize, view: &View) -> Item {
         lead: Some(Lead {
             mark: Some(mark),
             tint,
-            glow: None,
-            faded: false,
             size: Some(lead(view)),
-            on_click: None,
             top,
+            ..Default::default()
         }),
         overline: Some(format!("Claude Code · {}", request.project).into()),
         title: title(request, step).into(),
-        title_color: None,
         wrap: true,
-        detail: "".into(),
-        tinted: Vec::new(),
         trail: vec![Trail::Faint(format::ago(request.received_at, now).into())],
+        ..Default::default()
     }
 }
 

@@ -9,14 +9,12 @@ use std::{
     time::Duration,
 };
 
-use super::{AnyLocal, Local, Surface, instance::instance};
+use super::{AnyLocal, Local, Surface, instance::instance, widget_cx::redraw_by};
 use crate::{
     components::{dropdown::Select, slider::OnChange},
     glyphs::Glyphs,
     panel::{Handler, Mark, Ui},
 };
-
-const LATE: Duration = Duration::from_millis(5);
 
 pub struct PanelCx<'a> {
     glyphs: Glyphs,
@@ -45,10 +43,7 @@ impl<'a> PanelCx<'a> {
 
     /// Asks to redraw the panel after `after`, when time-based text it shows next changes.
     pub fn redraw_in(&self, after: Duration) {
-        let after = after + LATE;
-        self.redraw.set(Some(
-            self.redraw.get().map_or(after, |prior| prior.min(after)),
-        ));
+        redraw_by(self.redraw, after);
     }
 
     /// The mark the feature named `name` lends, if it lends one now.
@@ -90,12 +85,7 @@ impl<'a> PanelCx<'a> {
     }
 
     pub fn call<F: Surface>(&self, action: impl Fn(&F) + 'static) -> Handler {
-        let instance = instance::<F>(&self.instance);
-        Rc::new(move |_: &mut dyn Ui| {
-            if let Some(instance) = &instance {
-                action(&instance.feature);
-            }
-        })
+        self.on_island::<F>(move |feature, _| action(feature))
     }
 
     pub fn on_island<F: Surface>(&self, action: impl Fn(&F, &mut dyn Ui) + 'static) -> Handler {

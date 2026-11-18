@@ -238,20 +238,15 @@ impl Entry {
             .timestamp
             .and_then(|at| u64::try_from(at).ok())
             .map_or_else(SystemTime::now, |at| UNIX_EPOCH + Duration::from_secs(at));
+        let origin = Origin {
+            feature: Gotify::NAME.to_owned(),
+            source: SOURCE.to_owned(),
+            key: self.key(),
+        };
         Notice {
-            origin: Origin {
-                feature: Gotify::NAME.to_owned(),
-                source: SOURCE.to_owned(),
-                key: self.key(),
-            },
-            app: self.app.clone(),
-            title: self.title.clone(),
-            body: self.body.clone(),
             critical: self.critical(),
             detail: self.detail(),
             via: true,
-            lead: false,
-            icon: None,
             actions: self
                 .url
                 .iter()
@@ -265,7 +260,7 @@ impl Entry {
                 .collect(),
             received,
             quiet,
-            transient: false,
+            ..Notice::new(origin, self.app.clone(), self.title.clone(), self.body.clone())
         }
     }
 }

@@ -26,13 +26,12 @@ use crate::{
     components::{motion::shared, text::Style},
     drawing::{Drawing, Shape},
     icons,
-    picture::Picture,
+    picture::{Frame, Live, Picture},
     theme::{ACCENT, FONT, SURFACE1},
 };
 
 /// Text that changes, such as readings, would otherwise pile up.
 const MOST_LINES: usize = 4096;
-const SVG_DETAIL: f32 = 2.0;
 
 #[derive(Clone, Copy)]
 struct Entry {
@@ -114,6 +113,8 @@ pub struct Painter {
     shelves: Shelves,
     glyphs: HashMap<CacheKey, Option<Entry>>,
     pictures: HashMap<(String, u32, u32), Option<Entry>>,
+    /// Each live picture's one place in the atlas, at a size, and which of its images is there.
+    live: HashMap<(usize, u32, u32), LiveSlot>,
     drawings: HashMap<String, Entry>,
     lines: HashMap<(String, &'static str, u32, u16, u32, bool), Rc<Line>>,
     rich: HashMap<(String, u64, u32, u16, u32, u32), Rc<Rich>>,
@@ -196,6 +197,61 @@ pub struct RichRow {
 pub struct Rich {
     pub width: f32,
     pub rows: Vec<RichRow>,
+}
+
+struct LiveSlot {
+    live: Arc<Live>,
+    entry: Entry,
+    framing: Framing,
+    version: u64,
+}
+
+/// How much a `from` picture is scaled to be framed in `room`.
+fn fit_ratio(framing: Framing, (from_w, from_h): (f32, f32), (box_w, box_h): (f32, f32)) -> f32 {
+    let ratios = (box_w / from_w, box_h / from_h);
+    match framing {
+        Framing::Contain => ratios.0.min(ratios.1),
+        Framing::Cover => ratios.0.max(ratios.1),
+    }
+}
+
+/// Scales a live picture's frame into its place on the GPU, recorded in `scaling`.
+fn show_live(
+    gpu: &Gpu,
+    scaling: &mut wgpu::CommandEncoder,
+    entry: Entry,
+    frame: &Frame,
+    framing: Framing,
+) {
+    let Some(texture) = frame.image.downcast_ref::<wgpu::Texture>() else {
+        return;
+    };
+    let (width, height) = (frame.size.0 as f32, frame.size.1 as f32);
+    let (box_w, box_h) = (entry.w as f32, entry.h as f32);
+    let ratio = fit_ratio(framing, (width, height), (box_w, box_h));
+    let (fit_w, fit_h) = (
+        (width * ratio).round() / box_w,
+        (height * ratio).round() / box_h,
+    );
+    let content = [
+        ((1.0 - fit_w) / 2.0 * box_w).floor() / box_w,
+        ((1.0 - fit_h) / 2.0 * box_h).floor() / box_h,
+        fit_w,
+        fit_h,
+    ];
+    gpu.scale_into(
+        scaling,
+        texture,
+        [entry.x, entry.y, entry.w, entry.h],
+        content,
+        frame.opaque,
+    );
+}
+
+/// Pixels kept blue first, as the compositor and the tray hand them over, turned red first.
+fn red_first(mut pixels: Vec<u8>) -> Vec<u8> {
+    crate::picture::swap_red_blue(&mut pixels);
+    pixels
 }
 
 fn upload(gpu: &Gpu, entry: Entry, rgba: &[u8]) {
@@ -333,43 +389,12 @@ fn symbol_coverage(bytes: &[u8], side: u32) -> Option<Vec<u8>> {
     Some(halved(pixmap.data(), side as usize))
 }
 
-/// A picture file's own pixels. An SVG comes out at twice its size, with its colors unmultiplied.
-fn picture_pixels(path: &Path) -> Option<image::RgbaImage> {
-    if !icons::is_svg(path) {
-        return image::open(path).ok().map(|image| image.to_rgba8());
-    }
-    let tree = usvg::Tree::from_data(&std::fs::read(path).ok()?, &usvg::Options::default()).ok()?;
-    let size = tree.size();
-    let (width, height) = (size.width() * SVG_DETAIL, size.height() * SVG_DETAIL);
-    let mut pixmap = tiny_skia::Pixmap::new(width as u32, height as u32)?;
-    resvg::render(
-        &tree,
-        tiny_skia::Transform::from_scale(SVG_DETAIL, SVG_DETAIL),
-        &mut pixmap.as_mut(),
-    );
-    let (width, height) = (pixmap.width(), pixmap.height());
-    let mut rgba = pixmap.take();
-    for pixel in rgba.chunks_exact_mut(4) {
-        if pixel[3] > 0 {
-            let alpha = f32::from(pixel[3]) / 255.0;
-            for channel in &mut pixel[..3] {
-                *channel = (f32::from(*channel) / alpha) as u8;
-            }
-        }
-    }
-    image::RgbaImage::from_raw(width, height, rgba)
-}
-
 /// `image` in a `width` by `height` box, read at each pixel's center between its four nearest
 /// source pixels, however much smaller the box is. Premultiplied.
 fn framed(image: &image::RgbaImage, (width, height): (u32, u32), framing: Framing) -> Vec<u8> {
     let (from_w, from_h) = (image.width() as f32, image.height() as f32);
     let (box_w, box_h) = (width as f32, height as f32);
-    let ratios = (box_w / from_w, box_h / from_h);
-    let ratio = match framing {
-        Framing::Contain => ratios.0.min(ratios.1),
-        Framing::Cover => ratios.0.max(ratios.1),
-    };
+    let ratio = fit_ratio(framing, (from_w, from_h), (box_w, box_h));
     let (left, top) = (
         (box_w - from_w * ratio) / 2.0,
         (box_h - from_h * ratio) / 2.0,
@@ -452,6 +477,7 @@ impl Painter {
             shelves: Shelves::default(),
             glyphs: HashMap::new(),
             pictures: HashMap::new(),
+            live: HashMap::new(),
             drawings: HashMap::new(),
             lines: HashMap::new(),
             rich: HashMap::new(),
@@ -471,6 +497,28 @@ impl Painter {
         })
     }
 
+    /// Puts each live picture's newest image in its place, and lets go of those nothing else
+    /// holds. Whether any changed, so what shows them is drawn again.
+    pub fn refresh_live(&mut self, gpu: &Gpu) -> bool {
+        self.live
+            .retain(|_, slot| Arc::strong_count(&slot.live) > 1);
+        let mut changed = false;
+        let mut scaling = gpu.scaling();
+        for slot in self.live.values_mut() {
+            let version = slot.live.version();
+            if version == slot.version {
+                continue;
+            }
+            show_live(gpu, &mut scaling, slot.entry, &slot.live.frame(), slot.framing);
+            slot.version = version;
+            changed = true;
+        }
+        if changed {
+            gpu.submit(scaling);
+        }
+        changed
+    }
+
     /// Empties the atlas if that has come due. Whether it did: what was laid out from it is then
     /// no good, and has to be made again.
     pub fn reclaim(&mut self, now: Instant) -> bool {
@@ -482,6 +530,7 @@ impl Painter {
         self.shelves = Shelves::default();
         self.glyphs.clear();
         self.pictures.clear();
+        self.live.clear();
         self.drawings.clear();
         self.glows.clear();
         self.addressed.clear();
@@ -536,6 +585,13 @@ impl Painter {
         left: i32,
         top: i32,
     ) -> Option<Entry> {
+        let entry = self.room(w, h, left, top)?;
+        upload(gpu, entry, rgba);
+        Some(entry)
+    }
+
+    /// A place in the atlas, left as it is for its owner to fill.
+    fn room(&mut self, w: u32, h: u32, left: i32, top: i32) -> Option<Entry> {
         if !Shelves::fits(w, h) {
             warn!(w, h, "too big for the atlas");
             return None;
@@ -544,7 +600,7 @@ impl Painter {
             self.full = true;
             return None;
         };
-        let entry = Entry {
+        Some(Entry {
             x,
             y,
             w,
@@ -552,9 +608,7 @@ impl Painter {
             left,
             top,
             colored: false,
-        };
-        upload(gpu, entry, rgba);
-        Some(entry)
+        })
     }
 
     /// How far a line of this type reaches above and below its baseline.
@@ -1069,7 +1123,7 @@ impl Painter {
             Picture::File(path) => {
                 let key = format!("{}-{framing:?}", path.to_string_lossy());
                 self.cached_picture(gpu, key, size, || {
-                    picture_pixels(path).map(|image| framed(&image, size, framing))
+                    crate::picture::decode(path).map(|image| framed(&image, size, framing))
                 })
             }
             Picture::Pixels(image) => {
@@ -1077,16 +1131,37 @@ impl Painter {
                 let mut made = false;
                 let entry = self.cached_picture(gpu, key, size, || {
                     made = true;
-                    let mut rgba = framed(image, size, framing);
-                    for pixel in rgba.chunks_exact_mut(4) {
-                        pixel.swap(0, 2);
-                    }
-                    Some(rgba)
+                    Some(red_first(framed(image, size, framing)))
                 });
                 if made {
                     self.addressed.push(Arc::downgrade(image));
                 }
                 entry
+            }
+            Picture::Live(live) => {
+                let key = (Arc::as_ptr(live) as usize, size.0, size.1);
+                match self.live.get(&key) {
+                    Some(slot) => Some(slot.entry),
+                    None => {
+                        let version = live.version();
+                        let entry = self.room(size.0, size.1, 0, 0);
+                        if let Some(entry) = entry {
+                            let mut scaling = gpu.scaling();
+                            show_live(gpu, &mut scaling, entry, &live.frame(), framing);
+                            gpu.submit(scaling);
+                            self.live.insert(
+                                key,
+                                LiveSlot {
+                                    live: live.clone(),
+                                    entry,
+                                    framing,
+                                    version,
+                                },
+                            );
+                        }
+                        entry
+                    }
+                }
             }
         };
         if let Some(entry) = entry {
@@ -1115,7 +1190,7 @@ impl Painter {
                     size,
                     color,
                 } => {
-                    let color = super::widget::color(*color);
+                    let color = crate::math::color(*color);
                     out.push(Sprite::shape(
                         [x + left, y + top, *size, *size],
                         color,

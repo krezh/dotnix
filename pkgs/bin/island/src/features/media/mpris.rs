@@ -10,6 +10,7 @@ use std::{
     time::{Duration, Instant, SystemTime},
 };
 
+use futures::future::{join_all, join4};
 use zbus::{
     Connection, MatchRule, ObjectPath, OwnedObjectPath, OwnedVariant, Variant, block_on,
     fdo::DBusProxy, message::Type,
@@ -199,25 +200,24 @@ async fn read(connection: &Connection, player: &str) -> Option<Track> {
     let proxy = uncached(connection, player.to_owned(), PATH, PLAYER)
         .await
         .ok()?;
-    let status: String = proxy.get_property("PlaybackStatus").await.ok()?;
-    let metadata: HashMap<String, OwnedVariant> =
-        proxy.get_property("Metadata").await.unwrap_or_default();
-    let position = proxy
-        .get_property::<i64>("Position")
-        .await
-        .map_or(0.0, |micros| micros as f64 / 1e6);
-    let identity = match uncached(
-        connection,
-        player.to_owned(),
-        PATH,
-        "org.mpris.MediaPlayer2",
+    let (status, metadata, position, identity) = join4(
+        proxy.get_property::<String>("PlaybackStatus"),
+        proxy.get_property::<HashMap<String, OwnedVariant>>("Metadata"),
+        proxy.get_property::<i64>("Position"),
+        async {
+            uncached(connection, player.to_owned(), PATH, "org.mpris.MediaPlayer2")
+                .await
+                .ok()?
+                .get_property::<String>("Identity")
+                .await
+                .ok()
+        },
     )
-    .await
-    {
-        Ok(root) => root.get_property::<String>("Identity").await.ok(),
-        Err(_) => None,
-    }
-    .unwrap_or_else(|| player.trim_start_matches(PREFIX).to_owned());
+    .await;
+    let status = status.ok()?;
+    let metadata = metadata.unwrap_or_default();
+    let position = position.map_or(0.0, |micros| micros as f64 / 1e6);
+    let identity = identity.unwrap_or_else(|| player.trim_start_matches(PREFIX).to_owned());
     let track_id = metadata
         .get("mpris:trackid")
         .and_then(|value| match &**value {
@@ -247,13 +247,18 @@ fn current(
     changed: &Sender<Event>,
 ) -> Option<Track> {
     let names = block_on(async { DBusProxy::new(connection).await?.list_names().await }).ok()?;
-    let tracks: Vec<Track> = names
+    let players: Vec<String> = names
         .iter()
         .map(|name| name.to_string())
         .filter(|name| name.starts_with(PREFIX))
-        .filter_map(|name| block_on(read(connection, &name)))
-        .filter(|track| !track.title.is_empty())
         .collect();
+    let tracks: Vec<Track> = block_on(join_all(
+        players.iter().map(|player| read(connection, player)),
+    ))
+    .into_iter()
+    .flatten()
+    .filter(|track| !track.title.is_empty())
+    .collect();
     tracks
         .iter()
         .find(|track| track.playing)

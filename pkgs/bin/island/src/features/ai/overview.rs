@@ -15,8 +15,9 @@ use crate::{
     features::PanelCx,
     panel::{Block, SharedString},
     theme::{
-        BLUE, GREEN, MAUVE, OVERLAY1, OVERLAY2, PEACH, RED, SUBTEXT1, TEAL, TEXT, YELLOW, app_color,
+        BLUE, GREEN, MAUVE, OVERLAY1, OVERLAY2, PEACH, RED, SUBTEXT1, TEXT, YELLOW, app_color,
     },
+    units::{capitalise, plural, truncate},
 };
 use chrono::{Local, TimeZone, Timelike};
 
@@ -112,22 +113,21 @@ fn summarize_fleet(seen: &[Seen<'_>]) -> FleetCounts {
     counts
 }
 
-pub(super) fn fleet_counts(sources: &[Source], state: &State) -> FleetCounts {
+fn counts_of(state: &State, keep: impl Fn(&Provider) -> bool) -> FleetCounts {
     let providers: Vec<&Provider> = state
         .providers
         .iter()
-        .filter(|provider| !provider.is_empty() && sources.contains(&provider.source))
+        .filter(|provider| !provider.is_empty() && keep(provider))
         .collect();
     summarize_fleet(&accounts(&providers))
 }
 
+pub(super) fn fleet_counts(sources: &[Source], state: &State) -> FleetCounts {
+    counts_of(state, |provider| sources.contains(&provider.source))
+}
+
 pub(super) fn all_fleet_counts(state: &State) -> FleetCounts {
-    let providers: Vec<&Provider> = state
-        .providers
-        .iter()
-        .filter(|provider| !provider.is_empty())
-        .collect();
-    summarize_fleet(&accounts(&providers))
+    counts_of(state, |_| true)
 }
 
 fn unwrap_leading_parens(text: &str) -> String {
@@ -171,29 +171,15 @@ fn short_label(label: &str, limits: &[Limit]) -> String {
     unwrap_leading_parens(stripped)
 }
 
-fn compact(text: &str, max: usize) -> String {
-    match text.char_indices().nth(max) {
-        Some((end, _)) => format!("{}…", &text[..end]),
-        None => text.to_owned(),
-    }
-}
-
-fn resets(credits: &Credits, now: i64) -> Option<(Option<u32>, SharedString)> {
+fn resets(credits: &Credits, now: i64) -> Option<String> {
     if credits.count == 0 {
         return None;
     }
-    let count = format!(
-        "{} reset{}",
-        credits.count,
-        if credits.count == 1 { "" } else { "s" }
-    );
+    let count = plural(credits.count, "reset", "resets");
     Some(match credits.expires_at {
-        Some(at) if at <= now => (Some(YELLOW), format!("{count} expired").into()),
-        Some(at) => (
-            Some(TEAL),
-            format!("{count} · {} left", format::countdown(at, now)).into(),
-        ),
-        None => (Some(TEAL), count.into()),
+        Some(at) if at <= now => format!("{count} expired"),
+        Some(at) => format!("{count} · {} left", format::countdown(at, now)),
+        None => count,
     })
 }
 
@@ -201,14 +187,10 @@ fn credit_chip(credits: &Credits, now: i64) -> Option<(SharedString, u32)> {
     if credits.count == 0 {
         return None;
     }
-    let noun = if credits.count == 1 {
-        "reset"
-    } else {
-        "resets"
-    };
+    let count = plural(credits.count, "reset", "resets");
     Some(match credits.expires_at {
-        Some(at) if at <= now => (format!("{} {noun} exp", credits.count).into(), YELLOW),
-        _ => (format!("{} {noun}", credits.count).into(), GREEN),
+        Some(at) if at <= now => (format!("{count} exp").into(), YELLOW),
+        _ => (count.into(), GREEN),
     })
 }
 
@@ -411,15 +393,10 @@ fn subtitle(seen: &Seen<'_>, named_twice: bool) -> String {
         );
     }
     if !provider.plan.is_empty() {
-        let mut chars = provider.plan.chars();
-        let plan = match chars.next() {
-            Some(first) => format!("{}{}", first.to_uppercase(), chars.as_str()),
-            None => String::new(),
-        };
-        parts.push(plan);
+        parts.push(capitalise(&provider.plan));
     }
     if named_twice && !provider.account.is_empty() {
-        parts.push(compact(&provider.account, 22));
+        parts.push(truncate(&provider.account, 22));
     }
     parts.extend(seen.sources.iter().map(|source| source.name().to_owned()));
     parts.join(" · ")
@@ -493,12 +470,18 @@ fn ledger_entry(
         .count();
     let fold_idle_tail = !all_idle && fresh && ordered.len() > 3 && idle_tail_count >= 2;
 
-    let (faded, bars, folded, on_toggle) = if ordered.is_empty() {
+    let on_toggle = (all_idle || fold_idle_tail).then(|| {
+        let toggle_account = account.clone();
+        p.on_local::<Ai>(move |_, view| {
+            view.toggle_account(toggle_account.clone());
+        })
+    });
+    let (faded, bars, folded) = if ordered.is_empty() {
         let note = provider
             .credits
             .as_ref()
             .and_then(|credits| resets(credits, now))
-            .map_or_else(String::new, |(_, text)| text.to_string());
+            .unwrap_or_default();
         (
             false,
             Vec::new(),
@@ -507,19 +490,14 @@ fn ledger_entry(
                 value: "—".into(),
                 note: note.into(),
             }),
-            None,
         )
     } else if all_idle {
-        let toggle_account = account.clone();
-        let handler = Some(p.on_local::<Ai>(move |_, view| {
-            view.toggle_account(toggle_account.clone());
-        }));
         if expanded {
             let bars = ordered
                 .iter()
                 .map(|limit| build_bar(limit, &provider.limits, fresh, toggled, now))
                 .collect();
-            (false, bars, None, handler)
+            (false, bars, None)
         } else {
             (
                 true,
@@ -529,15 +507,10 @@ fn ledger_entry(
                     value: "0%".into(),
                     note: "idle".into(),
                 }),
-                handler,
             )
         }
     } else if fold_idle_tail {
         let active_len = ordered.len() - idle_tail_count;
-        let toggle_account = account.clone();
-        let handler = Some(p.on_local::<Ai>(move |_, view| {
-            view.toggle_account(toggle_account.clone());
-        }));
         if expanded {
             let bars = ordered
                 .iter()
@@ -560,7 +533,6 @@ fn ledger_entry(
                     value: "".into(),
                     note: "hide".into(),
                 }),
-                handler,
             )
         } else {
             let bars = ordered[..active_len]
@@ -575,7 +547,6 @@ fn ledger_entry(
                     value: "0%".into(),
                     note: "show".into(),
                 }),
-                handler,
             )
         }
     } else {
@@ -583,7 +554,7 @@ fn ledger_entry(
             .iter()
             .map(|limit| build_bar(limit, &provider.limits, fresh, false, now))
             .collect();
-        (false, bars, None, None)
+        (false, bars, None)
     };
 
     let mark_color = if faded { OVERLAY2 } else { glyph_color };
@@ -838,20 +809,10 @@ fn horizon(seen: &[Seen<'_>], now: i64) -> Option<Timeline> {
 
     let mut summary = Vec::new();
     if outage_count > 0 {
-        summary.push(format!(
-            "{outage_count} {}",
-            if outage_count == 1 {
-                "outage"
-            } else {
-                "outages"
-            }
-        ));
+        summary.push(plural(outage_count, "outage", "outages"));
     }
     if reset_count > 0 {
-        summary.push(format!(
-            "{reset_count} {}",
-            if reset_count == 1 { "reset" } else { "resets" }
-        ));
+        summary.push(plural(reset_count, "reset", "resets"));
     }
 
     Some(Timeline {
@@ -874,8 +835,7 @@ fn entry_heading(
     count: usize,
     now: i64,
 ) -> String {
-    let noun = if count == 1 { "account" } else { "accounts" };
-    let mut parts = vec![format!("{count} {noun}")];
+    let mut parts = vec![plural(count, "account", "accounts")];
     if state.refreshing {
         parts.push("refreshing…".to_owned());
         return parts.join(" · ");

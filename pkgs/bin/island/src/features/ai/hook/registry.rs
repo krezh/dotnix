@@ -3,6 +3,7 @@ use serde_json::Value;
 use super::input::{Hook, Origin};
 use super::live::short_path;
 use crate::features::ai::session::{Activity, Exchange, Live, Session, Step, StepState};
+use crate::units::{plural, truncate};
 
 /// Steps kept across a session's history.
 const MAX_STEPS: usize = 80;
@@ -28,11 +29,7 @@ fn project(cwd: &str) -> String {
 }
 
 fn clip(text: &str) -> String {
-    let line = text.lines().next().unwrap_or_default().trim();
-    match line.char_indices().nth(MAX_TARGET) {
-        Some((end, _)) => format!("{}…", &line[..end]),
-        None => line.to_owned(),
-    }
+    truncate(text.lines().next().unwrap_or_default().trim(), MAX_TARGET)
 }
 
 fn field<'a>(input: &'a Value, key: &str) -> &'a str {
@@ -65,15 +62,6 @@ pub fn describe(tool: &str, input: &Value) -> (String, String) {
         },
     };
     (verb.to_owned(), target)
-}
-
-/// A step as one line, such as "Edit ai/overview.rs"; one described in words is just that.
-pub fn label(verb: &str, target: &str) -> String {
-    match (verb.is_empty(), target.is_empty()) {
-        (true, _) => target.to_owned(),
-        (false, true) => verb.to_owned(),
-        (false, false) => format!("{verb} {target}"),
-    }
 }
 
 fn doing(verb: &str, target: &str) -> String {
@@ -292,11 +280,7 @@ pub fn apply(sessions: &mut Vec<Session>, hook: &Hook, now: i64) {
                 .get("questions")
                 .and_then(Value::as_array)
                 .map_or(0, Vec::len);
-            let what = if count == 1 {
-                "1 question".to_owned()
-            } else {
-                format!("{count} questions")
-            };
+            let what = plural(count, "question", "questions");
             push(
                 found,
                 "Ask".to_owned(),

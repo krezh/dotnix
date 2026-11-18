@@ -1,17 +1,18 @@
 //! Level meters, as pavucontrol draws them: peak-detecting record streams, for which the server
 //! sends only the highest sample of each slice. They run only while the panel shows them.
 
-use std::{collections::HashMap, sync::Mutex};
+use std::{collections::HashMap, ops::ControlFlow, sync::Mutex};
 
 use libpulse_binding::{
     context::Context,
     def::BufferAttr,
     sample::{Format, Spec},
-    stream::{FlagSet as StreamFlags, PeekResult, Stream},
+    stream::{FlagSet as StreamFlags, Stream},
 };
 use tracing::debug;
 
 use super::state::{AudioState, Target};
+use crate::pulse;
 
 /// What a level meter listens to.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -118,22 +119,11 @@ fn open(context: &mut Context, source: &str, app: Option<u32>) -> Option<Stream>
 /// The loudest peak that arrived since last time, if any did.
 fn loudest(stream: &mut Stream) -> Option<f32> {
     let mut loudest: Option<f32> = None;
-    loop {
-        match stream.peek() {
-            Ok(PeekResult::Data(bytes)) => {
-                for sample in bytes.chunks_exact(4) {
-                    let peak =
-                        f32::from_le_bytes([sample[0], sample[1], sample[2], sample[3]]).abs();
-                    loudest = Some(loudest.map_or(peak, |loudest| loudest.max(peak)));
-                }
-                let _ = stream.discard();
-            }
-            Ok(PeekResult::Hole(_)) => {
-                let _ = stream.discard();
-            }
-            Ok(PeekResult::Empty) | Err(_) => break,
-        }
-    }
+    let _ = pulse::drain(stream, |sample| {
+        let peak = sample.abs();
+        loudest = Some(loudest.map_or(peak, |loudest| loudest.max(peak)));
+        ControlFlow::Continue(())
+    });
     loudest
 }
 

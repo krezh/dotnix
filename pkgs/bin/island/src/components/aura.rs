@@ -4,7 +4,10 @@ use std::{cell::RefCell, f32::consts::TAU, rc::Rc, time::Instant};
 
 use image::RgbaImage;
 
-use crate::theme::{BLUE, FLAMINGO, LAVENDER, MAUVE, PEACH, PINK, SAPPHIRE, SKY, YELLOW};
+use crate::{
+    math::{rgb, smoothstep},
+    theme::{BLUE, FLAMINGO, LAVENDER, MAUVE, PEACH, PINK, SAPPHIRE, SKY, YELLOW},
+};
 
 /// Bands of light; levels beyond them are ignored and missing ones are silent.
 const BANDS: usize = 10;
@@ -51,15 +54,6 @@ impl Default for Aura {
             epoch: Instant::now(),
         })))
     }
-}
-
-fn smoothstep(t: f32) -> f32 {
-    let t = t.clamp(0.0, 1.0);
-    t * t * (3.0 - 2.0 * t)
-}
-
-fn rgb(color: u32) -> [f32; 3] {
-    [(color >> 16) & 0xff, (color >> 8) & 0xff, color & 0xff].map(|channel| channel as f32 / 255.0)
 }
 
 fn byte(value: f32) -> u8 {

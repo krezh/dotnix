@@ -16,7 +16,7 @@ use crate::{
         ActionTile, Block, Choice, Dropdown, FrameView, Header, Item, Lead, Mark, PanelView,
         SharedString, Slider, Trail,
     },
-    theme::{ACCENT, BLUE, CRITICAL, GREEN, MAUVE, OVERLAY2, RED, app_color},
+    theme::{ACCENT, BLUE, CRITICAL, GREEN, MAUVE, OVERLAY2, RED},
 };
 
 /// Above this the microphone is taken to hear speech, rather than room noise.
@@ -93,26 +93,25 @@ fn volume(
             mark: p.glyph(glyph).map(|path| Mark::Glyph(path, tint)),
             tint: Some(tint),
             glow: (target == Target::Input).then_some((color, peak.level)),
-            faded: false,
-            size: None,
             on_click: Some(p.call(move |audio: &Audio| audio.send(Request::ToggleMute(target)))),
-            top: false,
+            ..Default::default()
         }),
-        overline: None,
         title: device.description.clone().into(),
-        title_color: None,
-        wrap: false,
-        detail: SharedString::default(),
-        tinted: Vec::new(),
         trail: vec![Trail::Text(
             amount(channel.volume, channel.muted).into(),
             tint,
         )],
+        ..Default::default()
     };
     Some(Block::Item(item, under))
 }
 
-fn devices(state: &AudioState, target: Target, p: &PanelCx<'_>) -> Vec<Block> {
+fn devices(
+    state: &AudioState,
+    target: Target,
+    headset: Option<&str>,
+    p: &PanelCx<'_>,
+) -> Vec<Block> {
     let devices = state.devices(target);
     if devices.len() < 2 {
         return Vec::new();
@@ -120,7 +119,6 @@ fn devices(state: &AudioState, target: Target, p: &PanelCx<'_>) -> Vec<Block> {
     let current = state
         .default_device(target)
         .map(|device| device.name.clone());
-    let headset = headset::latest().map(|battery| battery.name);
     let color = match target {
         Target::Output => BLUE,
         Target::Input => MAUVE,
@@ -130,7 +128,7 @@ fn devices(state: &AudioState, target: Target, p: &PanelCx<'_>) -> Vec<Block> {
         .map(|device| {
             let name = device.name.clone();
             ActionTile {
-                glyph: p.glyph(glyphs::device(device, headset.as_deref())),
+                glyph: p.glyph(glyphs::device(device, headset)),
                 label: device.description.clone().into(),
                 state: None,
                 color,
@@ -142,13 +140,6 @@ fn devices(state: &AudioState, target: Target, p: &PanelCx<'_>) -> Vec<Block> {
         })
         .collect();
     vec![Block::heading("Devices"), Block::Tiles(tiles)]
-}
-
-fn app_mark(app: &App) -> Mark {
-    match &app.icon {
-        Some(path) => Mark::Image(path.clone()),
-        None => Mark::Letter(app.name.clone().into(), app_color(&app.name)),
-    }
 }
 
 /// Apps recording from a microphone, each named once.
@@ -163,21 +154,12 @@ fn recording(state: &AudioState) -> Vec<Block> {
         let item = Item {
             id: format!("recording-{}", app.index).into(),
             lead: Some(Lead {
-                mark: Some(app_mark(app)),
-                tint: None,
-                glow: None,
-                faded: false,
-                size: None,
-                on_click: None,
-                top: false,
+                mark: Some(Mark::app(app.icon.as_deref(), &app.name)),
+                ..Default::default()
             }),
-            overline: None,
             title: app.name.clone().into(),
-            title_color: None,
-            wrap: false,
-            detail: SharedString::default(),
-            tinted: Vec::new(),
             trail: vec![Trail::Status("Recording".into(), CRITICAL)],
+            ..Default::default()
         };
         blocks.push(Block::Item(item, Vec::new()));
     }
@@ -193,12 +175,12 @@ fn app_item(
     state: &AudioState,
     app: &App,
     peaks: &HashMap<Probe, Peak>,
+    headset: Option<&str>,
     p: &PanelCx<'_>,
 ) -> Block {
     let index = app.index;
     let choosing = audio.choosing.get() == Some(index);
     let id = format!("app-{index}");
-    let headset = headset::latest().map(|battery| battery.name);
     let sinks: Vec<String> = state.sinks.iter().map(|sink| sink.name.clone()).collect();
     let device = Dropdown {
         id: format!("{id}-device").into(),
@@ -207,7 +189,7 @@ fn app_item(
             .iter()
             .map(|sink| Choice {
                 label: sink.description.clone().into(),
-                glyph: p.glyph(glyphs::device(sink, headset.as_deref())),
+                glyph: p.glyph(glyphs::device(sink, headset)),
                 detail: None,
             })
             .collect(),
@@ -263,20 +245,13 @@ fn app_item(
     let item = Item {
         id: id.into(),
         lead: Some(Lead {
-            mark: Some(app_mark(app)),
-            tint: None,
-            glow: None,
+            mark: Some(Mark::app(app.icon.as_deref(), &app.name)),
             faded: app.muted,
-            size: None,
             on_click: Some(p.call(move |audio: &Audio| audio.send(Request::ToggleAppMute(index)))),
-            top: false,
+            ..Default::default()
         }),
-        overline: None,
         title: app.name.clone().into(),
-        title_color: None,
-        wrap: false,
         detail: detail.into(),
-        tinted: Vec::new(),
         trail: vec![
             Trail::Dropdown(device),
             Trail::Text(
@@ -284,17 +259,20 @@ fn app_item(
                 if app.muted { OVERLAY2 } else { ACCENT },
             ),
         ],
+        ..Default::default()
     };
     Block::Frame(frame, vec![Block::Item(item, vec![slider])])
 }
 
 pub fn panel<'a>(audio: &Audio, state: &AudioState, p: &PanelCx<'a>) -> PanelView {
     let peaks = audio.mixer.peaks();
+    let battery = headset::latest();
+    let headset = battery.as_ref().map(|battery| battery.name.as_str());
     let sides: Vec<Block> = [(Target::Output, "Output"), (Target::Input, "Input")]
         .into_iter()
         .filter_map(|(target, title)| {
             let mut blocks = vec![volume(state, target, &peaks, p)?];
-            blocks.extend(devices(state, target, p));
+            blocks.extend(devices(state, target, headset, p));
             if target == Target::Input {
                 blocks.extend(recording(state));
             }
@@ -326,7 +304,7 @@ pub fn panel<'a>(audio: &Audio, state: &AudioState, p: &PanelCx<'a>) -> PanelVie
         };
     }
     let mut blocks = Vec::new();
-    if let Some(battery) = headset::latest() {
+    if let Some(battery) = &battery {
         blocks.push(headset_card(battery, p));
     }
     blocks.push(Block::Row(sides));
@@ -334,7 +312,7 @@ pub fn panel<'a>(audio: &Audio, state: &AudioState, p: &PanelCx<'a>) -> PanelVie
         let apps = state
             .playing
             .iter()
-            .map(|app| app_item(audio, state, app, &peaks, p))
+            .map(|app| app_item(audio, state, app, &peaks, headset, p))
             .collect();
         blocks.push(Block::Card(
             Some("Apps".into()),

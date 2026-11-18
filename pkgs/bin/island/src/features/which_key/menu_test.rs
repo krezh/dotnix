@@ -1,4 +1,4 @@
-use super::{columns, level, title};
+use super::{columns, level};
 use crate::features::which_key::settings::Settings;
 
 fn settings() -> Settings {
@@ -45,12 +45,6 @@ fn a_key_running_a_command_leads_nowhere() {
 #[test]
 fn an_unknown_menu_has_no_level() {
     assert!(level(&settings(), "browser", &[]).is_none());
-}
-
-#[test]
-fn titles_start_with_a_capital() {
-    assert_eq!(title("browser"), "Browser");
-    assert_eq!(title(""), "");
 }
 
 #[test]

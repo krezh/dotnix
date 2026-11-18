@@ -1,12 +1,10 @@
 //! Whether the session is locked, as logind's `LockedHint` tells it, and hearing it unlock.
 
-use std::thread;
-
 use futures::StreamExt;
 use tracing::{debug, warn};
 use zbus::{Connection, MatchRule, MessageStream, block_on, message::Type};
 
-use crate::dbus::uncached;
+use crate::{dbus::uncached, supervisor};
 
 const LOGIN: &str = "org.freedesktop.login1";
 const SESSION: &str = "/org/freedesktop/login1/session/auto";
@@ -51,14 +49,9 @@ async fn follow(unlocked: &mut impl FnMut()) -> zbus::Result<()> {
 }
 
 pub fn listen_unlocked(mut unlocked: impl FnMut() + Send + 'static) {
-    let spawned = thread::Builder::new()
-        .name("island-unlock".into())
-        .spawn(move || {
-            if let Err(error) = block_on(follow(&mut unlocked)) {
-                warn!("cannot hear the session unlock: {error}");
-            }
-        });
-    if let Err(error) = spawned {
-        warn!("cannot listen for the session unlocking: {error}");
-    }
+    supervisor::spawn("island-unlock", move || {
+        if let Err(error) = block_on(follow(&mut unlocked)) {
+            warn!("cannot hear the session unlock: {error}");
+        }
+    });
 }

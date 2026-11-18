@@ -118,18 +118,11 @@ fn ago(at: i64) -> String {
 }
 
 fn next_ago(at: i64) -> Duration {
-    let now = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap_or_default();
-    let now_secs = i64::try_from(now.as_secs()).unwrap_or(i64::MAX);
-    let elapsed = u64::try_from(now_secs.saturating_sub(at)).unwrap_or(0);
-    let step = match elapsed {
-        ..3600 => 60,
-        ..86_400 => 3600,
-        _ => 86_400,
-    };
-    Duration::from_secs(step - (elapsed % step))
-        .saturating_sub(Duration::from_nanos(u64::from(now.subsec_nanos())))
+    let at = UNIX_EPOCH + Duration::from_secs(u64::try_from(at).unwrap_or(0));
+    units::next_change(
+        units::Label::Ago,
+        SystemTime::now().duration_since(at).unwrap_or_default(),
+    )
 }
 
 pub(super) fn files(uris: &[u8]) -> Vec<PathBuf> {

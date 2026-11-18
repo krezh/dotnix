@@ -25,7 +25,7 @@ use super::{
         Rise, Scrolling, Shown, Sliding, noted,
     },
     renderer::{Gpu, Sprite, overlap},
-    widget::{color as solid, tinted},
+    widget::tinted,
     wrap::cut_styles,
 };
 use crate::{
@@ -37,6 +37,7 @@ use crate::{
         text::Style as TextStyle,
     },
     drawing::Drawing,
+    math::color as solid,
     panel::{Handler, SharedString},
     picture::Picture,
     spring::SpringConfig,
@@ -56,7 +57,7 @@ const DASH: f32 = 2.5;
 const DASH_EVERY: f32 = 5.5;
 pub const BOLD: u16 = 700;
 /// The line height when nothing sets one.
-const LEADING: f32 = 1.618;
+pub const LEADING: f32 = 1.618;
 
 #[derive(Clone, Copy, Default)]
 struct Inherited {
@@ -210,6 +211,8 @@ pub struct Node {
     soft_reach: f32,
     /// The furthest it scrolls, however much it holds.
     scroll_reach: f32,
+    /// Scrolled this far by its owner rather than by the wheel.
+    scroll_at: Option<f32>,
     /// Opens scrolled to its end, and stays there as more arrives until scrolled away from it.
     follows: bool,
     eases: Vec<(Easing, f32, SpringConfig)>,
@@ -247,6 +250,7 @@ pub fn div() -> Node {
         soft: false,
         soft_reach: f32::INFINITY,
         scroll_reach: f32::INFINITY,
+        scroll_at: None,
         follows: false,
         eases: Vec::new(),
         hidden: false,
@@ -680,12 +684,6 @@ impl Node {
         self
     }
 
-    /// Struck through.
-    pub fn strike(mut self) -> Self {
-        self.words.strike = Some(true);
-        self
-    }
-
     pub fn mb(mut self, value: f32) -> Self {
         self.style.margin.bottom = LengthPercentageAuto::length(value);
         self
@@ -819,6 +817,15 @@ impl Node {
     pub fn scrolls(mut self, key: impl Into<SharedString>) -> Self {
         self.scroll = Some(key.into());
         self.clip = true;
+        self
+    }
+
+    /// Scrolled `offset` down by its owner, such as to keep what is picked in view; the wheel
+    /// leaves it to the owner, and what is past its edges fades as it does for [`Self::scrolls`].
+    pub fn scrolled_to(mut self, key: impl Into<SharedString>, offset: f32) -> Self {
+        self.scroll = Some(key.into());
+        self.clip = true;
+        self.scroll_at = Some(offset);
         self
     }
 
@@ -1724,13 +1731,16 @@ impl Painting<'_> {
             let room = (bottom - h).max(0.0);
             let reach = room.min(node.scroll_reach).max(0.0);
             let start = if node.follows { reach } else { 0.0 };
-            offset = self.offsets.get(key).copied().unwrap_or(start).min(reach);
+            offset = match node.scroll_at {
+                Some(at) => at.clamp(0.0, reach),
+                None => self.offsets.get(key).copied().unwrap_or(start).min(reach),
+            };
             reached = Some(room);
             scrolled = Some(self.built.scrolling.len());
             self.built.scrolling.push(Scrolling {
                 key: key.clone(),
                 rect,
-                reach,
+                reach: if node.scroll_at.is_some() { 0.0 } else { reach },
                 follows: node.follows,
                 from: self.built.sprites.len(),
                 to: 0,

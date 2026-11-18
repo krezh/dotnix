@@ -2,11 +2,15 @@
 //! the mark a choice shows (a check box or a radio dot), a ring with a value, or something its owner draws; any of
 //! them with a small glyph at its corner, or pulsing.
 
-use std::{path::PathBuf, rc::Rc, time::Duration};
+use std::{
+    path::{Path, PathBuf},
+    rc::Rc,
+    time::Duration,
+};
 
 use crate::panel::SharedString;
 
-use crate::{components::icon::Picture, drawing::Drawing};
+use crate::{components::icon::Picture, drawing::Drawing, theme::app_color};
 
 #[derive(Clone)]
 pub enum Mark {
@@ -37,6 +41,15 @@ pub enum Mark {
     Marked(Box<Mark>, PathBuf, u32),
     /// A mark fading and coming back, over and over, such as something still being tried.
     Pulsing(Box<Mark>),
+}
+
+impl Mark {
+    pub fn app(icon: Option<&Path>, name: &str) -> Self {
+        match icon {
+            Some(path) => Self::Image(path.to_path_buf()),
+            None => Self::Letter(name.to_owned().into(), app_color(name)),
+        }
+    }
 }
 
 pub const PULSE: Duration = Duration::from_millis(1600);

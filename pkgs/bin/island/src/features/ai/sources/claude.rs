@@ -8,7 +8,8 @@ use crate::{
         cache,
         state::{Credits, Freshness, Issue, Limit, Provider, Source, SourceReport},
     },
-    paths, run,
+    paths, run, time,
+    units::capitalise,
 };
 
 const USAGE_URL: &str = "https://api.anthropic.com/api/oauth/usage";
@@ -28,7 +29,7 @@ struct Login {
 pub(super) fn fetch(
     publish_cached: impl FnOnce(Option<String>, Option<Provider>),
 ) -> Result<SourceReport, Failure> {
-    let now = chrono::Utc::now().timestamp_millis();
+    let now = time::now_ms();
     let mut login = match discover() {
         Ok(login) => login,
         Err(error) => {
@@ -252,11 +253,8 @@ fn apply_profile(login: &mut Login, profile: &Value) {
         .unwrap_or("")
         .to_owned();
     if login.plan.is_empty() {
-        login.plan = text(organization, "rate_limit_tier")
-            .unwrap_or("")
-            .strip_prefix("default_claude_")
-            .unwrap_or_else(|| text(organization, "rate_limit_tier").unwrap_or(""))
-            .to_owned();
+        let tier = text(organization, "rate_limit_tier").unwrap_or("");
+        login.plan = tier.strip_prefix("default_claude_").unwrap_or(tier).to_owned();
     }
 }
 
@@ -465,13 +463,7 @@ fn make_limit(
 fn title(value: &str) -> String {
     value
         .split('_')
-        .map(|word| {
-            let mut chars = word.chars();
-            match chars.next() {
-                Some(first) => first.to_uppercase().collect::<String>() + chars.as_str(),
-                None => String::new(),
-            }
-        })
+        .map(capitalise)
         .collect::<Vec<_>>()
         .join(" ")
 }

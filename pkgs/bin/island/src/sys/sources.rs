@@ -77,15 +77,17 @@ fn hwmons() -> Vec<(String, PathBuf)> {
     found
 }
 
+fn is_hwmon(dir: &Path, canonical: Option<&Path>) -> bool {
+    canonical.is_some_and(|wanted| dir.canonicalize().ok().as_deref() == Some(wanted))
+}
+
 /// Every temperature worth showing, named for people rather than drivers, in a stable order.
 pub(super) fn sensors(gpu_hwmon: Option<&Path>) -> Vec<Probe> {
     let mut probes = Vec::new();
     let (mut nvme, mut ram) = (0, 0);
     let gpu_hwmon = gpu_hwmon.and_then(|dir| dir.canonicalize().ok());
     for (name, dir) in hwmons() {
-        let discrete = gpu_hwmon
-            .as_deref()
-            .is_some_and(|gpu| dir.canonicalize().ok().as_deref() == Some(gpu));
+        let discrete = is_hwmon(&dir, gpu_hwmon.as_deref());
         let mut add = |label: String, input: Option<PathBuf>, rank: u32| {
             if let Some(path) = input.filter(|path| path.exists()) {
                 probes.push(Probe { label, path, rank });
@@ -158,9 +160,7 @@ pub(super) fn power_sources(gpu_hwmon: Option<&Path>) -> Vec<Probe> {
         .into_iter()
         .filter(|(name, _)| name == "amdgpu")
         .filter_map(|(_, dir)| {
-            let discrete = gpu_hwmon
-                .as_deref()
-                .is_some_and(|gpu| dir.canonicalize().ok().as_deref() == Some(gpu));
+            let discrete = is_hwmon(&dir, gpu_hwmon.as_deref());
             let path = ["power1_average", "power1_input"]
                 .into_iter()
                 .map(|file| dir.join(file))
@@ -332,16 +332,21 @@ fn marketing(entry: &str) -> String {
 /// Looks a device up in pci.ids text: the board under its subsystem entry if listed, else the chip.
 /// Comment lines (`#`, unindented even inside a vendor's block) are skipped.
 fn pci_name(database: &str, vendor: &str, product: &str, subsystem: &str) -> Option<String> {
+    let (vendor, product, subsystem) = (
+        format!("{vendor} "),
+        format!("\t{product} "),
+        format!("\t\t{subsystem} "),
+    );
     let mut lines = database
         .lines()
         .filter(|line| !line.trim_start().starts_with('#') && !line.trim().is_empty())
-        .skip_while(|line| !line.starts_with(&format!("{vendor} ")))
+        .skip_while(|line| !line.starts_with(&vendor))
         .skip(1)
         .take_while(|line| line.starts_with('\t'));
-    let family = lines.find_map(|line| line.strip_prefix(&format!("\t{product} ")))?;
+    let family = lines.find_map(|line| line.strip_prefix(&product))?;
     let board = lines
         .take_while(|line| line.starts_with("\t\t"))
-        .find_map(|line| line.strip_prefix(&format!("\t\t{subsystem} ")));
+        .find_map(|line| line.strip_prefix(&subsystem));
     Some(marketing(board.unwrap_or(family).trim()))
 }
 
@@ -562,24 +567,19 @@ pub(super) fn process_ticks(
             continue;
         };
         let fields: Vec<&str> = stat[close + 1..].split_whitespace().collect();
-        let started = fields
-            .get(19)
-            .and_then(|value| value.parse::<u64>().ok())
-            .unwrap_or(0);
+        let field = |index: usize| {
+            fields
+                .get(index)
+                .and_then(|value| value.parse::<u64>().ok())
+                .unwrap_or(0)
+        };
+        let started = field(19);
         let name = match programs.remove(&(pid, started)) {
             Some(name) => name,
             None => program(&entry.path(), &stat[open + 1..close]),
         };
         known.insert((pid, started), name.clone());
-        let used = fields
-            .get(11)
-            .and_then(|value| value.parse::<u64>().ok())
-            .unwrap_or(0)
-            + fields
-                .get(12)
-                .and_then(|value| value.parse::<u64>().ok())
-                .unwrap_or(0);
-        ticks.insert(pid, (name, used));
+        ticks.insert(pid, (name, field(11) + field(12)));
     }
     *programs = known;
     (ticks, count)

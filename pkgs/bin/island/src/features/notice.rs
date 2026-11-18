@@ -10,6 +10,8 @@ use std::{
     time::SystemTime,
 };
 
+use crate::sync::lock;
+
 /// Who posted a notification: the feature, the name its source goes by in the panel, and the
 /// feature's own name for it, which a later post under the same key replaces.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
@@ -39,6 +41,31 @@ pub struct Notice {
     /// was missed rather than popping up.
     pub quiet: bool,
     pub transient: bool,
+}
+
+impl Notice {
+    pub fn new(
+        origin: Origin,
+        app: impl Into<String>,
+        title: impl Into<String>,
+        body: impl Into<String>,
+    ) -> Self {
+        Self {
+            origin,
+            app: app.into(),
+            title: title.into(),
+            body: body.into(),
+            critical: false,
+            detail: None,
+            via: false,
+            lead: false,
+            icon: None,
+            actions: Vec::new(),
+            received: SystemTime::now(),
+            quiet: false,
+            transient: false,
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -107,30 +134,24 @@ pub fn post(post: Post) {
 
 /// The center's, once.
 pub fn take() -> Option<Receiver<Post>> {
-    inbox().unread.lock().ok()?.take()
+    lock(&inbox().unread).take()
 }
 
 /// What the center tells `feature`; a later call replaces the earlier one.
 pub fn listen(feature: &str) -> Receiver<Reply> {
     let (sender, replies) = mpsc::channel();
-    if let Ok(mut listeners) = inbox().replies.lock() {
-        listeners.insert(feature.to_owned(), sender);
-    }
+    lock(&inbox().replies).insert(feature.to_owned(), sender);
     replies
 }
 
 pub fn reply(feature: &str, reply: Reply) {
-    if let Ok(listeners) = inbox().replies.lock()
-        && let Some(listener) = listeners.get(feature)
-    {
+    if let Some(listener) = lock(&inbox().replies).get(feature) {
         let _ = listener.send(reply);
     }
 }
 
 pub fn looked() {
-    if let Ok(listeners) = inbox().replies.lock() {
-        for listener in listeners.values() {
-            let _ = listener.send(Reply::Looked);
-        }
+    for listener in lock(&inbox().replies).values() {
+        let _ = listener.send(Reply::Looked);
     }
 }

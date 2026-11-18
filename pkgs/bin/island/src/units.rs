@@ -1,4 +1,4 @@
-use std::fmt::Display;
+use std::{fmt::Display, time::Duration};
 
 const STEP: f64 = 1024.0;
 const SIZES: [&str; 5] = ["B", "kB", "MB", "GB", "TB"];
@@ -65,9 +65,41 @@ pub fn ago(seconds: i64) -> String {
     }
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Label {
+    Ago,
+    Span,
+}
+
+pub fn next_change(label: Label, elapsed: Duration) -> Duration {
+    let seconds = elapsed.as_secs();
+    let step = match (label, seconds) {
+        (Label::Ago, ..3600) | (Label::Span, ..86_400) => 60,
+        (Label::Ago, ..86_400) | (Label::Span, _) => 3600,
+        (Label::Ago, _) => 86_400,
+    };
+    Duration::from_secs(step - seconds % step)
+        .saturating_sub(Duration::from_nanos(u64::from(elapsed.subsec_nanos())))
+}
+
 pub fn plural<T: Display + PartialEq + From<u8>>(count: T, one: &str, many: &str) -> String {
     let word = if count == T::from(1) { one } else { many };
     format!("{count} {word}")
+}
+
+pub fn capitalise(text: &str) -> String {
+    let mut chars = text.chars();
+    chars
+        .next()
+        .map(|first| first.to_uppercase().chain(chars).collect())
+        .unwrap_or_default()
+}
+
+pub fn truncate(text: &str, max: usize) -> String {
+    match text.char_indices().nth(max) {
+        Some((end, _)) => format!("{}…", &text[..end]),
+        None => text.to_owned(),
+    }
 }
 
 #[cfg(test)]

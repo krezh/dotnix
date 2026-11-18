@@ -23,6 +23,7 @@ pub const HEADLINE_H: f32 = 18.0;
 pub const MESSAGE_GAP: f32 = 2.0;
 
 /// What sits left of the title.
+#[derive(Default)]
 pub struct Lead {
     pub mark: Option<Mark>,
     /// A square of this color behind the mark.
@@ -68,6 +69,7 @@ pub struct TrailButton {
 }
 
 /// A row: an optional lead, a title line, and whatever the item holds under the title.
+#[derive(Default)]
 pub struct Item {
     pub id: SharedString,
     pub lead: Option<Lead>,

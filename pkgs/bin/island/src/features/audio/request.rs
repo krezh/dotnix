@@ -2,8 +2,6 @@
 
 use std::{
     collections::HashMap,
-    io::Write,
-    os::unix::net::UnixStream,
     sync::{Arc, Mutex, mpsc::Sender},
     time::{Duration, Instant},
 };
@@ -17,6 +15,7 @@ use super::{
     meters::{Levels, Peak, Probe},
     state::{AudioState, Target},
 };
+use crate::wake::Waker;
 
 pub enum Request {
     SetVolume(Target, f32),
@@ -34,7 +33,7 @@ pub enum Request {
 #[derive(Clone)]
 pub struct Mixer {
     pub(super) sender: Sender<Request>,
-    pub(super) wake: Option<Arc<UnixStream>>,
+    pub(super) wake: Option<Waker>,
     pub(super) levels: Arc<Mutex<Levels>>,
 }
 
@@ -43,7 +42,7 @@ impl Mixer {
         if self.sender.send(request).is_ok()
             && let Some(wake) = &self.wake
         {
-            let _ = (&**wake).write(&[1]);
+            wake.wake();
         }
     }
 

@@ -41,9 +41,7 @@ impl Local {
             })
             .unwrap_or(self.selection.selected);
         self.selection.keep(selected, matching.len());
-        if &self.apps != apps {
-            self.apps = apps.clone();
-        }
+        self.apps = apps.clone();
         self.matching = matching;
     }
 

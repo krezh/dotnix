@@ -168,7 +168,7 @@ pub fn parse_exec(exec: &str, name: &str) -> Option<Vec<String>> {
     let mut current = String::new();
     let mut started = false;
     let mut quoted = false;
-    let mut chars = exec.chars().peekable();
+    let mut chars = exec.chars();
     while let Some(char) = chars.next() {
         match char {
             '"' => {

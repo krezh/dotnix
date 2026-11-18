@@ -15,6 +15,7 @@ use crate::{
     bar_widget::{BarWidget, Gauge},
     run,
     stage::Panel,
+    sync::lock,
     theme::{GREEN, OVERLAY2, TEXT},
 };
 
@@ -29,7 +30,7 @@ static WATCHERS: AtomicUsize = AtomicUsize::new(0);
 static WAKE: Mutex<Option<Sender<Wake>>> = Mutex::new(None);
 
 pub fn latest() -> Option<Battery> {
-    LATEST.lock().ok()?.clone()
+    lock(&LATEST).clone()
 }
 
 pub struct Watch;
@@ -43,7 +44,7 @@ impl Drop for Watch {
 /// Keeps readings frequent until the returned [`Watch`] is dropped.
 pub fn watch() -> Watch {
     if WATCHERS.fetch_add(1, Ordering::SeqCst) == 0
-        && let Some(wake) = WAKE.lock().ok().and_then(|wake| wake.clone())
+        && let Some(wake) = lock(&WAKE).clone()
     {
         let _ = wake.send(Wake::Retimed);
     }
@@ -91,9 +92,10 @@ fn read() -> Reading {
     let Ok(report) = serde_json::from_str::<Value>(&output.stdout) else {
         return Reading::Failed(output.failure("invalid output from headsetcontrol"));
     };
-    let devices = report["devices"].as_array().cloned().unwrap_or_default();
-    devices
-        .iter()
+    report["devices"]
+        .as_array()
+        .into_iter()
+        .flatten()
         .find_map(|device| {
             let battery = device.get("battery")?;
             let status = battery["status"].as_str().unwrap_or("BATTERY_UNAVAILABLE");
@@ -118,12 +120,10 @@ fn read() -> Reading {
 
 fn reading() -> Reading {
     let reading = read();
-    if let Ok(mut latest) = LATEST.lock() {
-        *latest = match &reading {
-            Reading::Present(battery) => Some(battery.clone()),
-            _ => None,
-        };
-    }
+    *lock(&LATEST) = match &reading {
+        Reading::Present(battery) => Some(battery.clone()),
+        _ => None,
+    };
     reading
 }
 
@@ -167,9 +167,7 @@ impl Feature for Headset {
 
     fn start(feed: Feed<Refreshed<Reading>>) -> Self {
         let (refresh, requests) = mpsc::channel();
-        if let Ok(mut wake) = WAKE.lock() {
-            *wake = Some(refresh.clone());
-        }
+        *lock(&WAKE) = Some(refresh.clone());
         feed.supervise(move |feed| feed.poll(&requests, interval, reading, report));
         Self { refresh }
     }

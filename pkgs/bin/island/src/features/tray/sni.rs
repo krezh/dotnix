@@ -14,7 +14,7 @@ use futures::channel::oneshot;
 use serde::de::DeserializeOwned;
 use zbus::{
     Connection, MatchRule, OwnedObjectPath, OwnedVariant, Proxy, Variant, as_variant, block_on,
-    fdo::{DBusProxy, RequestNameFlags, RequestNameReply},
+    fdo::DBusProxy,
     interface,
     message::{Header, Type},
     object_server::SignalEmitter,
@@ -24,11 +24,10 @@ use tracing::{debug, info, warn};
 
 use super::raster;
 use crate::{
-    dbus::{follow, session_with_timeout, uncached},
+    dbus::{claim_shared, follow, session_with_timeout, uncached},
     features::Feed,
     icons,
     menu::MenuNode,
-    profile,
     supervisor::Ended,
     sync::lock,
 };
@@ -604,22 +603,22 @@ fn worker(
                 match command {
                     Command::Activate(key) => {
                         if let Some(entry) = find(&key) {
-                            activate(&connection, entry, "Activate", 0, 0);
+                            activate(connection, entry, "Activate", 0, 0);
                         }
                     }
                     Command::Secondary(key) => {
                         if let Some(entry) = find(&key) {
-                            activate(&connection, entry, "SecondaryActivate", 0, 0);
+                            activate(connection, entry, "SecondaryActivate", 0, 0);
                         }
                     }
                     Command::ContextMenu(key, x, y) => {
                         if let Some(entry) = find(&key) {
-                            activate(&connection, entry, "ContextMenu", x, y);
+                            activate(connection, entry, "ContextMenu", x, y);
                         }
                     }
                     Command::Menu(key, reply) => {
                         let menu = match find(&key) {
-                            Some(entry) => fetch_menu(&connection, entry)
+                            Some(entry) => fetch_menu(connection, entry)
                                 .inspect_err(|error| {
                                     warn!(item = key, "cannot open the tray menu: {error}")
                                 })
@@ -633,7 +632,7 @@ fn worker(
                     }
                     Command::Click(key, id) => {
                         if let Some(entry) = find(&key) {
-                            click(&connection, entry, id);
+                            click(connection, entry, id);
                         }
                     }
                 }
@@ -659,9 +658,7 @@ pub fn start(feed: Feed<Vec<TrayItem>>) -> Result<Client, String> {
     };
     block_on(connection.object_server().at(WATCHER_PATH, watcher))
         .map_err(|error| format!("tray: {error}"))?;
-    let own_watcher = !profile::preview()
-        && block_on(connection.request_name_with_flags(WATCHER, RequestNameFlags::DO_NOT_QUEUE))
-            .is_ok_and(|reply| reply == RequestNameReply::PrimaryOwner);
+    let own_watcher = block_on(claim_shared(&connection, WATCHER)).unwrap_or(false);
     if own_watcher {
         info!("serving the tray watcher");
     } else {

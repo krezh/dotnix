@@ -80,26 +80,24 @@ fn immutable(path: &Path) -> bool {
 }
 
 fn child(plan: &mut Plan, parent: &Path, name: &std::ffi::OsStr) {
-    if !immutable(parent) {
-        if let Some(interest) = plan.get_mut(parent) {
-            if !interest.desktops
-                || Path::new(name)
-                    .extension()
-                    .is_none_or(|extension| extension != "desktop")
-            {
-                if !interest.children.contains(name) {
-                    interest.children.insert(name.to_owned());
-                }
-            }
-        } else {
-            plan.insert(
-                parent.to_owned(),
-                Interest {
-                    children: HashSet::from([name.to_owned()]),
-                    desktops: false,
-                },
-            );
-        }
+    if immutable(parent) {
+        return;
+    }
+    let Some(interest) = plan.get_mut(parent) else {
+        plan.insert(
+            parent.to_owned(),
+            Interest {
+                children: HashSet::from([name.to_owned()]),
+                desktops: false,
+            },
+        );
+        return;
+    };
+    let desktop = Path::new(name)
+        .extension()
+        .is_some_and(|extension| extension == "desktop");
+    if !(interest.desktops && desktop) && !interest.children.contains(name) {
+        interest.children.insert(name.to_owned());
     }
 }
 

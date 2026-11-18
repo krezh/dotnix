@@ -99,19 +99,15 @@ fn dir_size(path: &Path) -> u32 {
         let Some(s) = component.as_os_str().to_str() else {
             continue;
         };
-        if let Some((dims, rest)) = s.split_once('@') {
-            if let Some(dim) = dims.split('x').next() {
-                if let Ok(d) = dim.parse::<u32>() {
-                    size = d;
-                }
-            }
-            if let Some(sc) = rest.strip_suffix('x').and_then(|x| x.parse::<u32>().ok()) {
-                scale = sc;
-            }
-        } else if let Some(dim) = s.split('x').next() {
-            if let Ok(d) = dim.parse::<u32>() {
-                size = d;
-            }
+        let (dims, rest) = s.split_once('@').map_or((s, None), |(dims, rest)| (dims, Some(rest)));
+        if let Ok(d) = dims.split_once('x').map_or(dims, |(width, _)| width).parse::<u32>() {
+            size = d;
+        }
+        if let Some(sc) = rest
+            .and_then(|rest| rest.strip_suffix('x'))
+            .and_then(|x| x.parse::<u32>().ok())
+        {
+            scale = sc;
         }
     }
     size * scale
@@ -131,14 +127,17 @@ fn dir_rank(path: &Path) -> (u8, u32) {
     (1, penalty)
 }
 
+fn sort_by_rank(directories: &mut [PathBuf]) {
+    directories.sort_by(|a, b| dir_rank(a).cmp(&dir_rank(b)).then_with(|| a.cmp(b)));
+}
+
 fn score(path: &Path) -> u32 {
-    let is_svg = path.extension().is_some_and(|ext| ext == "svg");
-    let is_scalable = path.to_string_lossy().contains("scalable");
-    if is_svg && is_scalable {
+    let svg = is_svg(path);
+    if svg && path.to_string_lossy().contains("scalable") {
         return 0;
     }
     let size = dir_size(path);
-    if is_svg {
+    if svg {
         if size >= TARGET_SIZE {
             1 + (size - TARGET_SIZE)
         } else if size > 0 {
@@ -218,8 +217,7 @@ impl Catalog {
             }
             if self.declared {
                 self.directories.push(root.to_path_buf());
-                self.directories
-                    .sort_by(|a, b| dir_rank(a).cmp(&dir_rank(b)).then_with(|| a.cmp(b)));
+                sort_by_rank(&mut self.directories);
                 self.directories.dedup();
                 self.tree.clear();
             }
@@ -232,10 +230,9 @@ impl Catalog {
                 &mut HashSet::new(),
                 &mut self.directories,
             );
-            self.directories
-                .sort_by(|a, b| dir_rank(a).cmp(&dir_rank(b)).then_with(|| a.cmp(b)));
-            self.tree
-                .retain(|path, _| self.directories.binary_search(path).is_ok());
+            sort_by_rank(&mut self.directories);
+            let found: HashSet<&PathBuf> = self.directories.iter().collect();
+            self.tree.retain(|path, _| found.contains(path));
         }
         &self.directories
     }
@@ -441,12 +438,12 @@ pub fn lookup(name: &str) -> Option<PathBuf> {
 
 pub fn lookup_in(dir: &str, name: &str) -> Option<PathBuf> {
     let mut index = INDEX.lock().ok()?;
-    if !dir.is_empty() && Path::new(name).file_name() == Some(std::ffi::OsStr::new(name)) {
-        if let Some((_, path)) = index.in_directory(Path::new(dir), name) {
-            if let Ok(path) = fs::canonicalize(path) {
-                return Some(path);
-            }
-        }
+    if !dir.is_empty()
+        && Path::new(name).file_name() == Some(std::ffi::OsStr::new(name))
+        && let Some((_, path)) = index.in_directory(Path::new(dir), name)
+        && let Ok(path) = fs::canonicalize(path)
+    {
+        return Some(path);
     }
     index.lookup(name)
 }

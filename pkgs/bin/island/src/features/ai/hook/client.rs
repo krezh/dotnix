@@ -12,7 +12,7 @@ use super::{
     plugin,
     server::{INTERFACE, NAME, PATH},
 };
-use crate::{cli, dbus};
+use crate::{cli, dbus, time};
 
 /// Longer than any hook may run, so Claude Code's own timeout is the one that ends the wait.
 const WAIT: Duration = Duration::from_secs(2 * 60 * 60);
@@ -40,7 +40,7 @@ pub fn run(args: &[String]) -> i32 {
     }
     // island's own chat is not a session to follow.
     let followed = std::env::var_os(crate::features::ai::converse::CHAT_ENV).is_none();
-    let at = chrono::Utc::now().timestamp_millis();
+    let at = time::now_ms();
     let mut input = String::new();
     if std::io::stdin().read_to_string(&mut input).is_err() {
         return 0;

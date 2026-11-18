@@ -6,7 +6,7 @@ use super::{
     paint::Painter,
     panel::mixed,
     renderer::{Gpu, Sprite, inside},
-    widget::{color, tinted},
+    widget::tinted,
 };
 use crate::{
     bar::{
@@ -14,6 +14,7 @@ use crate::{
         TAB_GAP, TAB_GLYPH, TabStrip, VIEWS_ALPHA, VIEWS_BORDER_ALPHA, tab_list,
     },
     glyphs::Glyphs,
+    math::color,
     stage::Panel,
     theme::{ACCENT, HOVER_ALPHA, ON_ACCENT, OVERLAY2, SUBTEXT1, TINT},
     ui::{CONTROL_RADIUS, HEADER_H, STRIP_PAD},
@@ -49,8 +50,7 @@ impl Chrome<'_> {
     }
 
     /// With the strip's left at `x` and top at `y`, and the close button ending at `right`.
-    pub fn draw(&mut self, x: f32, y: f32, right: f32) -> (Vec<Sprite>, Vec<Hit>) {
-        let mut out = Vec::with_capacity(48);
+    pub fn draw(&mut self, x: f32, y: f32, right: f32, out: &mut Vec<Sprite>) -> Vec<Hit> {
         let mut hits = Vec::new();
         let (places, width) = self.strip.places();
         let fan = self.strip.fan();
@@ -69,13 +69,13 @@ impl Chrome<'_> {
             radius,
             2.0,
         ));
-        let views: Vec<(f32, f32)> = tabs
+        let mut views = tabs
             .iter()
             .zip(&places)
             .filter(|(tab, _)| tab.view)
-            .map(|(_, place)| *place)
-            .collect();
-        if let (Some(first), Some(last)) = (views.first(), views.last())
+            .map(|(_, place)| *place);
+        let first = views.next();
+        if let (Some(first), Some(last)) = (first, views.last().or(first))
             && fan > 0.01
         {
             let group = [x + first.0, y, last.0 + last.1 - first.0, HEADER_H];
@@ -149,7 +149,7 @@ impl Chrome<'_> {
                     ],
                     color(tint),
                     self.scale,
-                    &mut out,
+                    out,
                 );
             }
             let label = self.strip.label(index);
@@ -167,7 +167,7 @@ impl Chrome<'_> {
                     ),
                     color(tint),
                     self.scale,
-                    &mut out,
+                    out,
                 );
                 for sprite in &mut out[start..] {
                     *sprite = sprite.faded(label);
@@ -211,13 +211,13 @@ impl Chrome<'_> {
                 SUBTEXT1
             }),
             self.scale,
-            &mut out,
+            out,
         );
         hits.push(Hit {
             rect: close,
             action: Action::Close,
             tip: "",
         });
-        (out, hits)
+        hits
     }
 }

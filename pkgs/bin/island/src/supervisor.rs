@@ -92,21 +92,19 @@ pub fn supervise(
             loop {
                 let started = Instant::now();
                 debug!(worker = name, "worker started");
-                match panic::catch_unwind(AssertUnwindSafe(&mut run)) {
+                let ended = panic::catch_unwind(AssertUnwindSafe(&mut run));
+                if started.elapsed() > RETRY_MAX {
+                    delay = RETRY_MIN;
+                }
+                match ended {
                     Ok(Ended::Unwanted) => {
                         debug!(worker = name, "worker finished");
                         return;
                     }
                     Ok(Ended::Failed(reason)) => {
-                        if started.elapsed() > RETRY_MAX {
-                            delay = RETRY_MIN;
-                        }
                         warn!(worker = name, cause = reason, retry_in = ?delay, "worker stopped, restarting");
                     }
                     Err(payload) => {
-                        if started.elapsed() > RETRY_MAX {
-                            delay = RETRY_MIN;
-                        }
                         error!(
                             worker = name,
                             cause = panic_message(&*payload),

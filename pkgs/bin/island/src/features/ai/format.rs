@@ -1,16 +1,10 @@
 use std::time::Duration;
 
-use chrono::Utc;
-
 use super::state::{Freshness, Limit, Provider, Severity, Source, State};
 use crate::{
     theme::{BLUE, CRITICAL, GREEN, MAUVE, YELLOW},
     units,
 };
-
-pub(super) fn now() -> i64 {
-    Utc::now().timestamp_millis()
-}
 
 /// Usage as a percentage, truncated rather than rounded so a limit reads 100% only once it is
 /// spent.
@@ -142,24 +136,8 @@ pub(super) fn next_ago_ms(at: i64, now: i64) -> Option<u64> {
     if at <= 0 {
         return None;
     }
-    let elapsed = u64::try_from(now.saturating_sub(at).max(0)).unwrap_or(0);
-    let step = match elapsed / 60_000 {
-        ..60 => 60_000,
-        ..1440 => 3_600_000,
-        _ => 86_400_000,
-    };
-    Some(step - (elapsed % step))
-}
-
-pub(super) fn next_elapsed_ms(since: i64, now: i64) -> u64 {
-    let elapsed = u64::try_from(now.saturating_sub(since).max(0)).unwrap_or(0);
-    let minutes = (elapsed + 59_999) / 60_000;
-    let target = if minutes < 1440 {
-        minutes * 60_000 + 1
-    } else {
-        (minutes / 60 + 1) * 3_600_000 - 59_999
-    };
-    target.saturating_sub(elapsed).max(1)
+    let elapsed = Duration::from_millis(u64::try_from(now.saturating_sub(at)).unwrap_or(0));
+    u64::try_from(units::next_change(units::Label::Ago, elapsed).as_millis()).ok()
 }
 
 pub(super) fn usage_next_change(sources: &[Source], state: &State, now: i64) -> Option<Duration> {

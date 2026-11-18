@@ -7,7 +7,7 @@ use crate::{cli::Client, control::Command};
 use super::{
     Arrivals, Feature, Features, GlyphSpec, Surface, ai, audio, bluetooth, brightness, caffeine,
     clipboard, clock, feature::widgets_of, gotify, headset, instance::start_one, launcher, media,
-    molt, network, notifications, session, tray, which_key, workspaces, zowie,
+    molt, network, notifications, session, switcher, tray, which_key, workspaces, zowie,
 };
 
 macro_rules! features {
@@ -210,5 +210,6 @@ features![
     clipboard::Clipboard,
     launcher::Launcher,
     which_key::WhichKey,
+    switcher::Switcher,
     gotify::Gotify,
 ];

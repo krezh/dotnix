@@ -16,6 +16,8 @@ use wayland_protocols::ext::data_control::v1::client::{
     ext_data_control_source_v1::{self, ExtDataControlSourceV1},
 };
 
+use crate::supervisor;
+
 /// Text types, preferred first, as apps ask for them.
 const TEXT: [&str; 5] = [
     "text/plain;charset=utf-8",
@@ -132,14 +134,9 @@ fn serve(text: String) -> Result<(), String> {
 }
 
 pub fn text(text: String) {
-    let spawned = thread::Builder::new()
-        .name("copy".to_owned())
-        .spawn(move || {
-            if let Err(error) = serve(text) {
-                warn!("cannot copy: {error}");
-            }
-        });
-    if let Err(error) = spawned {
-        warn!("cannot copy: {error}");
-    }
+    supervisor::spawn("copy", move || {
+        if let Err(error) = serve(text) {
+            warn!("cannot copy: {error}");
+        }
+    });
 }

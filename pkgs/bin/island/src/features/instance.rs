@@ -17,7 +17,7 @@ use super::{
 use crate::{
     bar_widget::BarWidget,
     control::{Reply, Row},
-    key::Key,
+    key::{Key, Modifier},
     panel::{Mark, PanelView},
 };
 
@@ -93,6 +93,7 @@ pub trait AnyFeature {
     fn command(&self, args: &[&str]) -> Reply;
     fn status(&self) -> Vec<Row>;
     fn key(&self, local: &mut dyn AnyLocal, keystroke: &Key) -> Outcome;
+    fn released(&self, local: &mut dyn AnyLocal, modifier: Modifier) -> Outcome;
     fn new_local(&self, island: &IslandInfo<'_>) -> Box<dyn AnyLocal>;
     fn sync_local(&self, local: &mut dyn AnyLocal, island: &IslandInfo<'_>, animate: bool);
 }
@@ -199,6 +200,13 @@ impl<F: Surface> AnyFeature for Rc<Instance<F>> {
             return Outcome::Close;
         };
         self.feature.key(&self.state.borrow(), local, keystroke)
+    }
+
+    fn released(&self, local: &mut dyn AnyLocal, modifier: Modifier) -> Outcome {
+        let Some(local) = local.as_any_mut().downcast_mut::<F::Local>() else {
+            return Outcome::Open;
+        };
+        self.feature.released(&self.state.borrow(), local, modifier)
     }
 
     fn new_local(&self, island: &IslandInfo<'_>) -> Box<dyn AnyLocal> {

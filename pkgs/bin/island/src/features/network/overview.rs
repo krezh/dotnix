@@ -62,13 +62,7 @@ pub fn switches(state: &State, p: &PanelCx<'_>) -> Vec<ActionTile> {
             on_click: open(),
         });
     }
-    // With several, the switch turns off the one that is on, or else turns on the first.
-    let vpn = state
-        .vpns
-        .iter()
-        .find(|vpn| vpn.activity != Activity::Off)
-        .or_else(|| state.vpns.first());
-    if let Some(vpn) = vpn {
+    if let Some(vpn) = state.switched_vpn() {
         let (name, on) = (vpn.name.clone(), vpn.activity != Activity::Off);
         tiles.push(ActionTile {
             glyph: p.glyph("network-vpn"),

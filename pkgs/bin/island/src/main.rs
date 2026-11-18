@@ -1,9 +1,11 @@
 mod activation;
+mod apps;
 #[cfg(test)]
 #[path = "architecture_test.rs"]
 mod architecture;
 mod bar;
 mod bar_widget;
+mod capture;
 mod cli;
 mod components;
 mod compositor;
@@ -12,6 +14,7 @@ mod control;
 mod copy;
 mod db;
 mod dbus;
+mod desktop;
 mod drawing;
 mod features;
 mod glyphs;
@@ -22,6 +25,7 @@ mod keyring;
 mod launch;
 mod logging;
 mod markdown;
+mod math;
 mod menu;
 mod merge;
 mod panel;
@@ -30,9 +34,11 @@ mod paths;
 mod picture;
 mod presence;
 mod profile;
+mod pulse;
 mod resume;
 mod run;
 mod session_lock;
+mod share;
 mod spring;
 mod stage;
 mod supervisor;
@@ -45,6 +51,7 @@ mod time;
 mod ui;
 mod units;
 mod uri;
+mod wake;
 mod wm;
 
 use std::{path::PathBuf, rc::Rc};
@@ -126,10 +133,6 @@ fn main() {
         }
     }
     match args.peek().map(String::as_str) {
-        Some("-h" | "--help") => {
-            cli::print_help(None);
-            std::process::exit(0);
-        }
         Some("ctl") => {
             args.next();
             std::process::exit(control::run(args.collect()));

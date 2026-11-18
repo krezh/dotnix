@@ -16,6 +16,7 @@ use crate::{
         button::BADGE_OVERHANG,
         marquee::{GAP as MARQUEE_GAP, SPEED as MARQUEE_SPEED},
     },
+    math::color,
     panel::SharedString,
     theme::{BASE, FONT, TEXT, TINT, TRACK_ALPHA, with_alpha},
     ui::{SMALL_SIZE, TEXT_SIZE, TITLE_SIZE},
@@ -26,12 +27,6 @@ const BADGE_TEXT: f32 = 10.0;
 
 pub fn tinted(tint: u32, alpha: u8) -> [f32; 4] {
     color_alpha(with_alpha(tint, alpha))
-}
-
-/// From a color and alpha packed as `0xrrggbb`, premultiplied.
-pub fn color(rgb: u32) -> [f32; 4] {
-    let [_, r, g, b] = rgb.to_be_bytes().map(|channel| f32::from(channel) / 255.0);
-    [r, g, b, 1.0]
 }
 
 /// From a color packed as `0xrrggbbaa`, premultiplied.

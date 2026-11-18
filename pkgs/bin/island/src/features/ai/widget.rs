@@ -11,6 +11,7 @@ use crate::{
     bar_widget::{BarWidget, Part},
     features::{Surface, WidgetCx},
     theme::{ACCENT, CRITICAL, OVERLAY2, SUBTEXT1, YELLOW},
+    time,
 };
 
 /// Jelly in the bar: a little larger than a glyph, as its face needs the room.
@@ -20,7 +21,7 @@ pub(super) fn tooltip(ai: &Ai, state: &State) -> String {
     if ai.settings.sources.is_empty() {
         return "AI usage · disabled".to_owned();
     }
-    let now = format::now();
+    let now = time::now_ms();
     let mut text = String::with_capacity(ai.settings.sources.len() * 96);
     for &source in &ai.settings.sources {
         for provider in state
@@ -133,7 +134,7 @@ fn provider_badge(provider: &Provider, now: i64, state: Option<&State>, w: &Widg
 /// One mark for usage and Claude Code alike: a session at work runs the moving border, and
 /// requests waiting on you show as a count on the mark.
 pub(super) fn widget(ai: &Ai, state: &State, w: &WidgetCx<'_>) -> BarWidget {
-    let now = format::now();
+    let now = time::now_ms();
     if let Some(after) = format::usage_next_change(&ai.settings.sources, state, now) {
         w.redraw_in(after);
     }

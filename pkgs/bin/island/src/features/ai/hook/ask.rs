@@ -82,13 +82,7 @@ pub fn request(hook: &Hook, id: u64, now: i64, expires_at: i64) -> Option<Reques
     Some(Request {
         id,
         session: from.session.clone(),
-        project: from
-            .cwd
-            .trim_end_matches('/')
-            .rsplit('/')
-            .next()
-            .unwrap_or_default()
-            .to_owned(),
+        project: from.folder(),
         ask,
         received_at: now,
         expires_at,

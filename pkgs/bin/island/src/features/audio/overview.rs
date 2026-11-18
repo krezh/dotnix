@@ -14,7 +14,7 @@ use crate::{
         self, ActionTile, Block, Choice, Dropdown, Item, Lead, Mark, SharedString, Slider,
         SliderLabel, Trail,
     },
-    theme::{CRITICAL, MAUVE, OVERLAY2, PINK, SUBTEXT1, app_color},
+    theme::{CRITICAL, MAUVE, OVERLAY2, PINK, SUBTEXT1},
     units::plural,
 };
 
@@ -113,20 +113,11 @@ fn picker(audio: &Audio, state: &AudioState, target: Target, p: &PanelCx<'_>) ->
         id: format!("dashboard-{side}-pick").into(),
         lead: Some(Lead {
             mark: p.glyph(glyph).map(|path| Mark::Glyph(path, SUBTEXT1)),
-            tint: None,
-            glow: None,
-            faded: false,
             size: Some(PICK_GLYPH),
-            on_click: None,
-            top: false,
+            ..Default::default()
         }),
-        overline: None,
-        title: SharedString::default(),
-        title_color: None,
-        wrap: false,
-        detail: SharedString::default(),
-        tinted: Vec::new(),
         trail: vec![Trail::Dropdown(dropdown)],
+        ..Default::default()
     };
     Some(Block::Item(item, Vec::new()))
 }
@@ -165,30 +156,20 @@ fn playing_card(state: &AudioState, p: &PanelCx<'_>) -> Option<Block> {
             let item = Item {
                 id: format!("dashboard-app-{index}").into(),
                 lead: Some(Lead {
-                    mark: Some(match &app.icon {
-                        Some(path) => Mark::Image(path.clone()),
-                        None => Mark::Letter(app.name.clone().into(), app_color(&app.name)),
-                    }),
-                    tint: None,
-                    glow: None,
+                    mark: Some(Mark::app(app.icon.as_deref(), &app.name)),
                     faded: app.muted,
-                    size: None,
-                    on_click: None,
-                    top: false,
+                    ..Default::default()
                 }),
-                overline: None,
                 title: app.name.clone().into(),
-                title_color: None,
-                wrap: false,
                 detail: state
                     .sink(app.device)
                     .map(|sink| SharedString::from(sink.description.clone()))
                     .unwrap_or_default(),
-                tinted: Vec::new(),
                 trail: vec![Trail::Text(
                     amount(app.volume, app.muted).into(),
                     if app.muted { OVERLAY2 } else { SUBTEXT1 },
                 )],
+                ..Default::default()
             };
             let slider = Block::Slider(Slider {
                 thin: false,

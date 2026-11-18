@@ -7,7 +7,7 @@ use std::{
         atomic::{AtomicU8, Ordering},
         mpsc::Receiver,
     },
-    time::{Duration, Instant, SystemTime},
+    time::{Duration, Instant},
 };
 
 use crate::{
@@ -143,10 +143,10 @@ impl Monitor {
 
     pub fn drain_replies(&mut self) {
         while let Ok(reply) = self.replies.try_recv() {
-            if let Reply::Dismissed(key) = reply {
-                if let Some(device) = self.devices.get_mut(key.as_str()) {
-                    device.dismissed = device.alerted;
-                }
+            if let Reply::Dismissed(key) = reply
+                && let Some(device) = self.devices.get_mut(key.as_str())
+            {
+                device.dismissed = device.alerted;
             }
         }
     }
@@ -191,46 +191,35 @@ impl Monitor {
                 active_keys.push(battery.id.to_string());
                 if Some(tier) > device.alerted.max(device.dismissed) {
                     let critical = tier == AlertTier::Critical;
-                    let title = if critical {
-                        format!("{} battery critical", battery.name)
+                    let (title, body, icon) = if critical {
+                        (
+                            format!("{} battery critical", battery.name),
+                            format!("{} remaining — connect to power", battery.percent()),
+                            "battery-warning",
+                        )
                     } else {
-                        format!("{} is low", battery.name)
+                        (
+                            format!("{} is low", battery.name),
+                            format!("{} remaining", battery.percent()),
+                            "battery-low",
+                        )
                     };
-                    let body = if critical {
-                        format!("{} remaining — connect to power", battery.percent())
-                    } else {
-                        format!("{} remaining", battery.percent())
+                    let origin = Origin {
+                        feature: "battery".into(),
+                        source: "Battery".into(),
+                        key: battery.id.to_string(),
                     };
-                    let icon = Some(
-                        (if critical {
-                            "battery-warning"
-                        } else {
-                            "battery-low"
-                        })
-                        .to_owned(),
-                    );
                     notice::post(Post::Show(Notice {
-                        origin: Origin {
-                            feature: "battery".into(),
-                            source: "Battery".into(),
-                            key: battery.id.to_string(),
-                        },
-                        app: "Battery".into(),
-                        title,
-                        body,
                         critical,
                         detail: Some(battery.percent()),
-                        via: false,
-                        lead: false,
-                        icon,
+                        icon: Some(icon.to_owned()),
                         actions: vec![NoticeAction {
                             key: DEFAULT_ACTION.into(),
                             label: "View".into(),
                             opens: Some(("dashboard".into(), "overview".into())),
                         }],
-                        received: SystemTime::now(),
-                        quiet: false,
                         transient: true,
+                        ..Notice::new(origin, "Battery", title, body)
                     }));
                     device.alerted = Some(tier);
                     device.dismissed = None;

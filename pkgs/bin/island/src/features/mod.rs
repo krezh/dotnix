@@ -18,6 +18,7 @@ pub mod notice;
 pub mod notifications;
 pub mod osd;
 pub mod session;
+pub mod switcher;
 pub mod tray;
 pub mod which_key;
 pub mod workspaces;

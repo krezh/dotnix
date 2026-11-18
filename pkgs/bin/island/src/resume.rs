@@ -1,10 +1,10 @@
 //! Hears the machine wake from sleep, which timers that sleep through it do not notice.
 
-use std::thread;
-
 use futures::StreamExt;
 use tracing::{debug, warn};
 use zbus::{Connection, MatchRule, MessageStream, block_on, message::Type};
+
+use crate::supervisor;
 
 async fn follow(resumed: &mut impl FnMut()) -> zbus::Result<()> {
     let connection = Connection::system().await?;
@@ -26,14 +26,9 @@ async fn follow(resumed: &mut impl FnMut()) -> zbus::Result<()> {
 }
 
 pub fn listen(mut resumed: impl FnMut() + Send + 'static) {
-    let spawned = thread::Builder::new()
-        .name("island-resume".into())
-        .spawn(move || {
-            if let Err(error) = block_on(follow(&mut resumed)) {
-                warn!("cannot hear the machine wake: {error}");
-            }
-        });
-    if let Err(error) = spawned {
-        warn!("cannot listen for the machine waking: {error}");
-    }
+    supervisor::spawn("island-resume", move || {
+        if let Err(error) = block_on(follow(&mut resumed)) {
+            warn!("cannot hear the machine wake: {error}");
+        }
+    });
 }

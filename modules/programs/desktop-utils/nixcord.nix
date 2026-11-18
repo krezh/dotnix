@@ -66,6 +66,8 @@
         };
       };
 
+      home.file."${config.programs.nixcord.vesktop.configDir}/settings.json".force = true;
+
       autostart.apps.vesktop = {
         exec = "${lib.getExe config.programs.nixcord.finalPackage.vesktop}";
         after = [

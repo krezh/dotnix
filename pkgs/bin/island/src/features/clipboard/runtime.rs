@@ -1,16 +1,12 @@
-use std::{
-    io::Write,
-    os::unix::net::UnixStream,
-    sync::{
-        Arc,
-        mpsc::{self, Sender},
-    },
-};
+use std::sync::mpsc::{self, Sender};
 
 use tracing::error;
 
 use super::{settings::Settings, state::State, watch};
-use crate::features::Feed;
+use crate::{
+    features::Feed,
+    wake::{self, Waker},
+};
 
 pub(super) enum Request {
     Select { id: i64, paste: bool },
@@ -22,7 +18,7 @@ pub(super) enum Request {
 pub struct Clipboard {
     requests: Sender<Request>,
     /// The worker waits on Wayland, so requests must wake it.
-    wake: Option<Arc<UnixStream>>,
+    wake: Option<Waker>,
 }
 
 impl Clipboard {
@@ -30,7 +26,7 @@ impl Clipboard {
         if self.requests.send(request).is_ok()
             && let Some(wake) = &self.wake
         {
-            let _ = (&**wake).write(&[1]);
+            wake.wake();
         }
     }
 }
@@ -38,12 +34,10 @@ impl Clipboard {
 pub(super) fn start(feed: Feed<State>) -> Clipboard {
     let settings: Settings = feed.settings();
     let (requests, incoming) = mpsc::channel();
-    let wake = match UnixStream::pair()
-        .and_then(|(reader, writer)| reader.set_nonblocking(true).map(|()| (reader, writer)))
-    {
-        Ok((reader, writer)) => {
-            feed.supervise(move |feed| watch::run(feed, &incoming, &reader, &settings));
-            Some(Arc::new(writer))
+    let wake = match wake::pair() {
+        Ok((waker, woken)) => {
+            feed.supervise(move |feed| watch::run(feed, &incoming, &woken, &settings));
+            Some(waker)
         }
         Err(error) => {
             error!("cannot start the clipboard worker: {error}");

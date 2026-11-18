@@ -13,17 +13,17 @@
           left = [
             "molt"
             "ai"
-            "headset"
-            "zowie"
             "media"
+            "tray"
           ];
           middle = [ "workspaces" ];
           right = [
-            "tray"
             "caffeine"
             "network"
             "bluetooth"
             "audio"
+            "headset"
+            "zowie"
             "clock"
             "notifications"
             "session"
@@ -33,6 +33,8 @@
             "network"
             "bluetooth"
             "audio"
+            "headset"
+            "zowie"
           ];
         };
 

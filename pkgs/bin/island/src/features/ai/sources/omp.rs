@@ -5,7 +5,7 @@ use serde_json::Value;
 use super::{TIMEOUT, credits, number, percentage, severity, text, timestamp};
 use crate::{
     features::ai::state::{Freshness, Issue, Limit, Provider, Source, SourceReport},
-    run,
+    run, time,
 };
 
 pub(super) fn fetch() -> Result<SourceReport, String> {
@@ -18,7 +18,7 @@ pub(super) fn fetch() -> Result<SourceReport, String> {
     }
     let value = serde_json::from_str(&output.stdout)
         .map_err(|_| "omp usage returned invalid JSON".to_owned())?;
-    parse(&value, chrono::Utc::now().timestamp_millis())
+    parse(&value, time::now_ms())
 }
 
 fn parse(value: &Value, now: i64) -> Result<SourceReport, String> {

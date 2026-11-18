@@ -11,7 +11,7 @@ use crate::{
         Block, ButtonRow, Header, Hero, IconButton, Item, Lead, Mark, PanelView, Place, Placed,
         SharedString, Slider, Text, Tone, Trail,
     },
-    theme::{CRITICAL, RED, YELLOW, app_color},
+    theme::{CRITICAL, RED, YELLOW},
     ui::INSET,
     units::{plural, running},
 };
@@ -46,10 +46,7 @@ fn heading(leaving: &Leaving, p: &PanelCx<'_>) -> Vec<SharedString> {
 }
 
 fn row(app: &App) -> Block {
-    let mark = match &app.icon {
-        Some(icon) => Mark::Image(icon.clone()),
-        None => Mark::Letter(app.name.clone().into(), app_color(&app.name)),
-    };
+    let mark = Mark::app(app.icon.as_deref(), &app.name);
     let trail = match app.mood {
         Mood::Closing => Trail::Faint("Closing…".into()),
         Mood::Lingering => Trail::Text("Not responding".into(), YELLOW),
@@ -65,20 +62,12 @@ fn row(app: &App) -> Block {
             id: format!("session-app-{}", app.key).into(),
             lead: Some(Lead {
                 mark: Some(mark),
-                tint: None,
-                glow: None,
-                faded: false,
                 size: Some(APP_LEAD),
-                on_click: None,
-                top: false,
+                ..Default::default()
             }),
-            overline: None,
             title: app.name.clone().into(),
-            title_color: None,
-            wrap: false,
-            detail: SharedString::default(),
-            tinted: Vec::new(),
             trail: vec![trail],
+            ..Default::default()
         },
         under.into_iter().collect(),
     )
@@ -133,11 +122,8 @@ impl Session {
                     .glyph(&format!("session-{}", action.word()))
                     .map(|path| Mark::Glyph(path, tint)),
                 tint: Some(tint),
-                glow: None,
-                faded: false,
                 size: Some(44.0),
-                on_click: None,
-                top: false,
+                ..Default::default()
             }),
             name: format!("{}…", action.doing()).into(),
             lines: heading(leaving, p),
@@ -157,21 +143,10 @@ impl Session {
             thin: true,
         });
         let failed = matches!(leaving.phase, Phase::Failed(_));
-        let cancel = IconButton {
-            glyph: None,
-            color: None,
-            label: "Cancel".into(),
-            active: false,
-            badge: None,
-            on_click: p.call::<Self>(Self::cancel),
-        };
+        let cancel = IconButton::text("Cancel", false, p.call::<Self>(Self::cancel));
         let force = IconButton {
-            glyph: None,
             color: Some(RED),
-            label: "Force quit".into(),
-            active: false,
-            badge: None,
-            on_click: p.call::<Self>(Self::force),
+            ..IconButton::text("Force quit", false, p.call::<Self>(Self::force))
         };
         let buttons = Block::Buttons(ButtonRow {
             buttons: if failed {

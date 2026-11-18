@@ -1,10 +1,7 @@
 use std::{path::PathBuf, sync::Arc};
 
-use super::{
-    converse::{self, Running, Streamed},
-    format,
-};
-use crate::paths;
+use super::converse::{self, Running, Streamed};
+use crate::{paths, time};
 
 /// Name and the alias Claude Code takes.
 pub const MODELS: [(&str, &str); 3] = [("Haiku", "haiku"), ("Sonnet", "sonnet"), ("Opus", "opus")];
@@ -45,6 +42,10 @@ fn folder() -> PathBuf {
         .join("chat")
 }
 
+pub fn model_name(index: usize) -> &'static str {
+    MODELS[index.min(MODELS.len() - 1)].0
+}
+
 pub fn model_index(alias: &str) -> usize {
     MODELS
         .iter()
@@ -72,7 +73,7 @@ impl Conversation {
             mine: true,
             text: text.clone(),
             model,
-            at: format::now(),
+            at: time::now_ms(),
             took_ms: None,
         }));
         match converse::start(
@@ -107,7 +108,7 @@ impl Conversation {
         let Some(asked) = chat.lines.pop().filter(|line| line.mine) else {
             return;
         };
-        self.send(chat, program, asked.text.clone(), each);
+        self.send(chat, program, Arc::unwrap_or_clone(asked).text, each);
     }
 
     /// False for what a stopped reply still sends.
@@ -121,7 +122,7 @@ impl Conversation {
                 mine: false,
                 text,
                 model: chat.lines.last().map_or(chat.model, |line| line.model),
-                at: format::now(),
+                at: time::now_ms(),
                 took_ms: None,
             })
         };
@@ -153,7 +154,7 @@ impl Conversation {
                 if let (Some(line), Some(asked_at)) = (chat.lines.last_mut(), asked_at)
                     && !line.mine
                 {
-                    Arc::make_mut(line).took_ms = Some(format::now() - asked_at);
+                    Arc::make_mut(line).took_ms = Some(time::now_ms() - asked_at);
                 }
                 if let Err(error) = result {
                     chat.error = Some(error);

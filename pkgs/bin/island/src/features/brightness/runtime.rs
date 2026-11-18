@@ -313,8 +313,7 @@ impl Worker {
     /// Monitors may have come or gone, so they are looked for afresh.
     fn find(&mut self) {
         debug!("looking for the screens again");
-        self.devices = device::find();
-        self.levels.screens = self.devices.iter_mut().map(read).collect();
+        refind(&mut self.devices, &mut self.levels);
         self.talked = Instant::now();
     }
 
@@ -345,6 +344,11 @@ fn read(device: &mut Device) -> Screen {
         model: device.model.clone(),
         level: device.read(),
     }
+}
+
+fn refind(devices: &mut Vec<Device>, levels: &mut Levels) {
+    *devices = device::find();
+    levels.screens = devices.iter_mut().map(read).collect();
 }
 
 /// Requests queued one after another for the same screens, joined into one, since DDC/CI is slow.
@@ -389,8 +393,7 @@ fn serve(
     request: &Request,
 ) -> Result<Report, String> {
     attempt(devices, levels, request).or_else(|_| {
-        *devices = device::find();
-        levels.screens = devices.iter_mut().map(read).collect();
+        refind(devices, levels);
         attempt(devices, levels, request)
     })
 }

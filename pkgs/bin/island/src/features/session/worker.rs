@@ -295,18 +295,26 @@ fn settle(orders: &Receiver<Order>, bell: &Bell) -> Option<Order> {
     None
 }
 
+/// Runs the action's own command from the settings; false when it has none.
+pub fn command(action: Action, settings: &Settings) -> bool {
+    let argv = settings.commands.of(action).to_vec();
+    if argv.is_empty() {
+        return false;
+    }
+    info!(action = action.word(), command = ?argv, "running the session command");
+    launch::spawn(Launch {
+        id: format!("io.github.krezh.Island.{}", action.word()),
+        name: action.label().to_owned(),
+        argv,
+        directory: None,
+    });
+    true
+}
+
 /// Runs the action once the apps have closed: its own command, or exiting Hyprland to log out, or
 /// logind.
 fn finish(action: Action, settings: &Settings, apps: &Apps) -> Result<(), String> {
-    let argv = settings.commands.of(action).to_vec();
-    if !argv.is_empty() {
-        info!(action = action.word(), command = ?argv, "running the session command");
-        launch::spawn(Launch {
-            id: format!("io.github.krezh.Island.{}", action.word()),
-            name: action.label().to_owned(),
-            argv,
-            directory: None,
-        });
+    if command(action, settings) {
         return Ok(());
     }
     match action {

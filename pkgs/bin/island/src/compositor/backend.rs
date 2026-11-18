@@ -20,6 +20,13 @@ pub trait Compositor: Send + Sync + Sized + 'static {
 
     fn focus_relative(&self, step: i32);
 
+    /// `address` is a [`Window`](crate::wm::Window)'s.
+    fn focus_window(&self, _address: &str) {}
+
+    fn close_window(&self, _address: &str) -> Result<(), String> {
+        Err(format!("{} cannot close windows", Self::NAME))
+    }
+
     /// So the island lines up with windows.
     fn top_gap(&self) -> Option<f32> {
         None
@@ -44,6 +51,8 @@ pub trait Compositor: Send + Sync + Sized + 'static {
 pub trait Backend: Send + Sync {
     fn focus_workspace(&self, id: i64);
     fn focus_relative(&self, step: i32);
+    fn focus_window(&self, address: &str);
+    fn close_window(&self, address: &str) -> Result<(), String>;
     fn top_gap(&self) -> Option<f32>;
     fn focused_class(&self) -> Option<String>;
     fn focused_monitor(&self) -> Option<String>;
@@ -57,6 +66,14 @@ impl<C: Compositor> Backend for C {
 
     fn focus_relative(&self, step: i32) {
         Compositor::focus_relative(self, step);
+    }
+
+    fn focus_window(&self, address: &str) {
+        Compositor::focus_window(self, address);
+    }
+
+    fn close_window(&self, address: &str) -> Result<(), String> {
+        Compositor::close_window(self, address)
     }
 
     fn top_gap(&self) -> Option<f32> {

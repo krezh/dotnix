@@ -1,13 +1,9 @@
-use std::{
-    fs,
-    path::PathBuf,
-    time::{SystemTime, UNIX_EPOCH},
-};
+use std::{fs, path::PathBuf};
 
 use serde::{Deserialize, Serialize};
 
 use super::state::Report;
-use crate::paths;
+use crate::{paths, time};
 
 #[derive(Default, Serialize, Deserialize)]
 pub(super) struct Cache {
@@ -20,9 +16,7 @@ fn cache_path() -> Option<PathBuf> {
 }
 
 pub(super) fn now() -> u64 {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map_or(0, |elapsed| elapsed.as_secs())
+    u64::try_from(time::now()).unwrap_or(0)
 }
 
 pub(super) fn load() -> Cache {

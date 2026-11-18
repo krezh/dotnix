@@ -1,27 +1,21 @@
-use std::{
-    collections::HashMap,
-    time::{Duration, Instant},
-};
+use std::{collections::HashMap, time::Instant};
 
 use chrono::{Local, NaiveDate};
 
 use super::{
     card,
     history::Earlier,
-    missed_list::{STAGGERED, sliding},
+    missed_list::{ENTER_DRIFT, LEAVE_STAGGER, STAGGERED, sliding},
 };
 use crate::{
-    components::measure::Measure,
+    components::{measure::Measure, stack},
     spring::Spring,
-    spring::SpringConfig,
     stage::{CONTENT_IN, CONTENT_OUT, SHAPE_SPRING},
 };
 
-const ENTER_DRIFT: f32 = 12.0;
 pub const DAY_H: f32 = 22.0;
 /// How tall the list can be before it scrolls, as the missed list.
 const MAX_VISIBLE_H: f32 = 480.0;
-const LEAVE_STAGGER: Duration = Duration::from_millis(45);
 
 #[derive(Clone)]
 pub enum Entry {
@@ -85,6 +79,7 @@ impl Row {
 
 /// Earlier notifications by day, newest first, each day under its heading; one dismissed slides
 /// out, then those below rise into its place.
+#[derive(Default)]
 pub struct EarlierList {
     rows: Vec<Row>,
     height: f32,
@@ -93,22 +88,6 @@ pub struct EarlierList {
     lines: HashMap<(i64, u32), usize>,
     /// Laying out another set in place of this one, as [`Self::swap`] does.
     swapping: bool,
-    motion: SpringConfig,
-    fade_in: SpringConfig,
-}
-
-impl Default for EarlierList {
-    fn default() -> Self {
-        Self {
-            rows: Vec::new(),
-            height: 0.0,
-            items: Vec::new(),
-            lines: HashMap::new(),
-            swapping: false,
-            motion: SHAPE_SPRING,
-            fade_in: CONTENT_IN,
-        }
-    }
 }
 
 impl EarlierList {
@@ -201,13 +180,13 @@ impl EarlierList {
                 self.lines.get(&kept.key()).copied().unwrap_or(1),
             );
             placed.push((Entry::Card(kept.clone()), y, height));
-            y += height + card::GAP;
+            y += height + stack::GAP;
         }
-        (placed, (y - card::GAP).max(0.0))
+        (placed, (y - stack::GAP).max(0.0))
     }
 
     fn layout(&mut self, animate: bool, reveal_at: Instant) {
-        let (motion, fade_in) = (self.motion, self.fade_in);
+        let (motion, fade_in) = (SHAPE_SPRING, CONTENT_IN);
         let (placed, height) = self.placements();
         let now = Instant::now();
         let swapping = self.swapping;
@@ -259,7 +238,7 @@ impl EarlierList {
             let key = entry.key();
             let room = match entry {
                 Entry::Day(_) => DAY_H,
-                Entry::Card(_) => height + card::GAP,
+                Entry::Card(_) => height + stack::GAP,
             };
             let existing = old.iter().position(|slot| {
                 slot.as_ref()

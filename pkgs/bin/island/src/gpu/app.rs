@@ -2,7 +2,7 @@
 //! the compositor and `island ctl` send is applied as it arrives.
 
 use std::{
-    os::fd::{AsFd, AsRawFd, FromRawFd, OwnedFd},
+    os::fd::{AsRawFd, FromRawFd, OwnedFd},
     pin::Pin,
     ptr::NonNull,
     rc::Rc,
@@ -66,6 +66,7 @@ use wayland_protocols::{
 use super::{
     cover::Cover,
     island::{Cursor, Island, Look, PIXELS_PER_NOTCH},
+    laps::Laps,
     node::SEMIBOLD,
     paint::Painter,
     renderer::Gpu,
@@ -78,7 +79,7 @@ use crate::{
     control::{Asked, Control, Reply, Report, Row},
     features::{self, AnyLocal, Arrivals, Features, Frontend},
     glyphs::Glyphs,
-    key::Key,
+    key::{Key, Modifier},
     profile,
     stage::{COLLAPSED_H, Grab, Panel, SURFACE_H, SURFACE_W, Stage, report},
     sys::{self, Samples},
@@ -89,6 +90,7 @@ use crate::{
 const FRACTION: f32 = 120.0;
 const REPEAT_AFTER: Duration = Duration::from_millis(400);
 const REPEAT_EVERY: Duration = Duration::from_millis(33);
+const SLOW_TURN: Duration = Duration::from_millis(4);
 /// Acted on when let go: closing hands the keyboard to the window below, which would see them.
 const ON_RELEASE: [&str; 2] = ["escape", "enter"];
 
@@ -170,6 +172,9 @@ struct App {
     pointer: Option<wl_pointer::WlPointer>,
     keyboard: Option<wl_keyboard::WlKeyboard>,
     modifiers: Modifiers,
+    /// The keyboard just came to us, so the next modifiers say what is held now, whatever was
+    /// pressed before.
+    modifiers_fresh: bool,
     /// A key held down, and when it next repeats.
     repeat: Option<Repeat>,
     /// A key that acts when let go.
@@ -314,19 +319,19 @@ impl App {
         self.islands.get_mut(at)
     }
 
-    fn key(&mut self, key: &Key) {
+    /// The island keys go to: the one holding the keyboard, or else the one it is on.
+    fn keyed(&mut self) -> Option<&mut Island> {
         if self.grabbed.is_some() {
-            if let Some(island) = self.holder() {
-                island.key(key);
-            }
-            return;
+            return self.holder();
         }
         let focused = self.keyboard_on.clone();
-        if let Some(island) = self
-            .islands
+        self.islands
             .iter_mut()
             .find(|island| Some(island.layer.wl_surface()) == focused.as_ref())
-        {
+    }
+
+    fn key(&mut self, key: &Key) {
+        if let Some(island) = self.keyed() {
             island.key(key);
         }
     }
@@ -864,6 +869,7 @@ impl KeyboardHandler for App {
         _: &[Keysym],
     ) {
         self.keyboard_on = Some(surface.clone());
+        self.modifiers_fresh = true;
     }
 
     fn leave(
@@ -956,7 +962,30 @@ impl KeyboardHandler for App {
         _: RawModifiers,
         _: u32,
     ) {
+        let was = if self.modifiers_fresh {
+            Modifiers {
+                ctrl: true,
+                shift: true,
+                alt: true,
+                logo: true,
+                ..modifiers
+            }
+        } else {
+            self.modifiers
+        };
+        self.modifiers_fresh = false;
         self.modifiers = modifiers;
+        let released = [
+            (was.ctrl && !modifiers.ctrl, Modifier::Control),
+            (was.shift && !modifiers.shift, Modifier::Shift),
+            (was.alt && !modifiers.alt, Modifier::Alt),
+            (was.logo && !modifiers.logo, Modifier::Super),
+        ];
+        for (came_up, modifier) in released {
+            if came_up && let Some(island) = self.keyed() {
+                island.released(modifier);
+            }
+        }
     }
 }
 
@@ -1022,41 +1051,7 @@ fn wait(
     let Some(read) = queue.prepare_read() else {
         return Ok(());
     };
-    let timeout = until.map_or(-1, |until| {
-        until
-            .saturating_duration_since(Instant::now())
-            .as_nanos()
-            .div_ceil(1_000_000)
-            .min(i32::MAX as u128) as i32
-    });
-    let mut fds = [
-        libc::pollfd {
-            fd: read.connection_fd().as_fd().as_raw_fd(),
-            events: libc::POLLIN,
-            revents: 0,
-        },
-        libc::pollfd {
-            fd: wake.as_raw_fd(),
-            events: libc::POLLIN,
-            revents: 0,
-        },
-    ];
-    // Both descriptors live past the call.
-    unsafe { libc::poll(fds.as_mut_ptr(), 2, timeout) };
-    if fds[0].revents & libc::POLLIN != 0 {
-        match read.read() {
-            Err(wayland_client::backend::WaylandError::Io(error))
-                if error.kind() != std::io::ErrorKind::WouldBlock =>
-            {
-                return Err(lost(&error));
-            }
-            Err(error) => return Err(lost(&error)),
-            Ok(_) => {}
-        }
-    } else if fds[0].revents & (libc::POLLHUP | libc::POLLERR) != 0 {
-        return Err(lost(&"the compositor closed it"));
-    }
-    if fds[1].revents & libc::POLLIN != 0 {
+    if crate::wake::wait(read, wake.as_raw_fd(), until).map_err(|error| lost(&error))? {
         drained(wake);
     }
     Ok(())
@@ -1132,6 +1127,7 @@ pub fn run(
         pointer: None,
         keyboard: None,
         modifiers: Modifiers::default(),
+        modifiers_fresh: false,
         repeat: None,
         held: None,
         covers: Vec::new(),
@@ -1168,7 +1164,16 @@ pub fn run(
             }
         }
 
+        let mut laps = Laps::start();
         drain(&mut arrivals, &mut cx, |arrival| arrival(&mut app));
+        laps.lap("arrivals");
+        if let Some(gpu) = &app.gpu
+            && app.painter.refresh_live(gpu)
+        {
+            for island in &mut app.islands {
+                island.dirty = true;
+            }
+        }
         drain(&mut controls, &mut cx, |asked| app.answer(asked));
         if let Some(snapshots) = &mut workspaces {
             drain(snapshots, &mut cx, |snapshot| app.set_workspaces(snapshot));
@@ -1213,6 +1218,7 @@ pub fn run(
                 island.forget_atlas();
             }
         }
+        laps.lap("before");
         if let Some(gpu) = &app.gpu {
             for island in &mut app.islands {
                 if island.wants_frame() {
@@ -1224,9 +1230,19 @@ pub fn run(
                 }
             }
         }
+        laps.lap("draw");
         app.sync_screens();
         app.sync_covers(&qh);
         app.sync_cursor();
+        laps.lap("sync");
+        if let Some(total) = laps.over(SLOW_TURN) {
+            tracing::debug!(
+                target: "island::frames",
+                total = ?total,
+                stages = %laps,
+                "slow turn"
+            );
+        }
         if let Some(manager) = &app.idle_manager {
             let awake = app.features.iter().any(|feature| feature.inhibits_idle());
             for island in &mut app.islands {

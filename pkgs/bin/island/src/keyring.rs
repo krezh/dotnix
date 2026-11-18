@@ -101,8 +101,8 @@ fn unlock(
     }
 }
 
-/// Made and stored the first time; the flag says whether it was just made.
-pub fn database_key() -> Result<(Vec<u8>, bool), String> {
+/// Made and stored the first time.
+pub fn database_key() -> Result<Vec<u8>, String> {
     let connection =
         block_on(Connection::session()).map_err(|error| format!("no session bus: {error}"))?;
     let (service, session): (Proxy<'_>, OwnedObjectPath) = block_on(async {
@@ -133,7 +133,7 @@ pub fn database_key() -> Result<(Vec<u8>, bool), String> {
                 .await
         })
         .map_err(|error| format!("cannot read the database key: {error}"))?;
-        return Ok((key, false));
+        return Ok(key);
     }
 
     let collection: OwnedObjectPath = block_on(service.call("ReadAlias", &("default",)))
@@ -170,5 +170,5 @@ pub fn database_key() -> Result<(Vec<u8>, bool), String> {
         return Err("storing the database key was refused".to_owned());
     }
     info!("made a new database key and stored it in the keyring");
-    Ok((key, true))
+    Ok(key)
 }

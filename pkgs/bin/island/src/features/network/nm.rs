@@ -21,8 +21,8 @@ const IP4: &str = "org.freedesktop.NetworkManager.IP4Config";
 const IP6: &str = "org.freedesktop.NetworkManager.IP6Config";
 const DHCP4: &str = "org.freedesktop.NetworkManager.DHCP4Config";
 
-const ETHERNET: u32 = 1;
-const WIFI: u32 = 2;
+pub(super) const ETHERNET: u32 = 1;
+pub(super) const WIFI: u32 = 2;
 const ACTIVATED: u32 = 100;
 const ACTIVE_ACTIVATING: u32 = 1;
 const ACTIVE_ACTIVATED: u32 = 2;
@@ -41,6 +41,12 @@ pub struct Saved {
     pub kind: String,
     pub ssid: Option<String>,
     pub endpoint: Option<String>,
+}
+
+impl Saved {
+    pub fn is_vpn(&self) -> bool {
+        matches!(self.kind.as_str(), "vpn" | "wireguard")
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -342,11 +348,7 @@ async fn active(connection: &Connection, path: OwnedObjectPath) -> zbus::Result<
     Ok(Active {
         saved: proxy.get_property("Connection").await?,
         name: proxy.get_property("Id").await?,
-        activity: match state {
-            ACTIVE_ACTIVATING => Activity::Connecting,
-            ACTIVE_ACTIVATED => Activity::On,
-            _ => Activity::Off,
-        },
+        activity: activity_of(state),
         devices: proxy.get_property("Devices").await.unwrap_or_default(),
         ip4: proxy.get_property("Ip4Config").await?,
         path,
@@ -437,26 +439,19 @@ pub async fn join(
     password: &str,
 ) -> zbus::Result<(OwnedObjectPath, OwnedObjectPath)> {
     let mut settings: HashMap<&str, HashMap<&str, Value<'_>>> = HashMap::new();
-    match security {
-        Security::Wpa2 => {
-            settings.insert(
-                "802-11-wireless-security",
-                HashMap::from([
-                    ("key-mgmt", Value::from("wpa-psk")),
-                    ("psk", Value::from(password)),
-                ]),
-            );
-        }
-        Security::Wpa3 => {
-            settings.insert(
-                "802-11-wireless-security",
-                HashMap::from([
-                    ("key-mgmt", Value::from("sae")),
-                    ("psk", Value::from(password)),
-                ]),
-            );
-        }
-        Security::Open | Security::Enterprise => {}
+    let key_mgmt = match security {
+        Security::Wpa2 => Some("wpa-psk"),
+        Security::Wpa3 => Some("sae"),
+        Security::Open | Security::Enterprise => None,
+    };
+    if let Some(key_mgmt) = key_mgmt {
+        settings.insert(
+            "802-11-wireless-security",
+            HashMap::from([
+                ("key-mgmt", Value::from(key_mgmt)),
+                ("psk", Value::from(password)),
+            ]),
+        );
     }
     uncached(connection, NM, NM_PATH, NM)
         .await?
@@ -483,11 +478,15 @@ pub async fn activity(connection: &Connection, active: &OwnedObjectPath) -> Opti
     let state: u32 = get(connection, active.as_str(), ACTIVE, "State")
         .await
         .ok()?;
-    Some(match state {
+    Some(activity_of(state))
+}
+
+fn activity_of(state: u32) -> Activity {
+    match state {
         ACTIVE_ACTIVATING => Activity::Connecting,
         ACTIVE_ACTIVATED => Activity::On,
         _ => Activity::Off,
-    })
+    }
 }
 
 /// Why a device last changed state, as NetworkManager numbers its reasons.

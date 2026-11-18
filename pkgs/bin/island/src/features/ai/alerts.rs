@@ -1,27 +1,22 @@
 //! What Claude Code would tell you in a desktop notification, sent by island instead of the
 //! terminal, so Jelly leads it.
 
-use super::{hook::Hook, model::Notice, state::State};
+use super::{
+    hook::{Hook, Origin},
+    model::Notice,
+    state::State,
+};
 use crate::markdown;
 
 /// The most of a reply a "Finished" notification shows.
 const REPLY_CHARS: usize = 160;
 
-fn project(state: &State, session: &str, cwd: &str) -> String {
+fn project(state: &State, from: &Origin) -> String {
     state
         .sessions
         .iter()
-        .find(|known| known.id == session)
-        .map_or_else(
-            || {
-                cwd.trim_end_matches('/')
-                    .rsplit('/')
-                    .next()
-                    .unwrap_or_default()
-                    .to_owned()
-            },
-            |known| known.project.clone(),
-        )
+        .find(|known| known.id == from.session)
+        .map_or_else(|| from.folder(), |known| known.project.clone())
 }
 
 /// The first line of a reply, as shown, cut short when long.
@@ -58,22 +53,20 @@ pub(super) fn notice(state: &State, hook: &Hook) -> Option<Notice> {
             }
             Some(Notice {
                 key: format!("needs {}", from.session),
-                session: Some(from.session.clone()),
                 app: "Claude Code",
                 title: if message.is_empty() {
                     "Claude Code needs you".to_owned()
                 } else {
                     message.clone()
                 },
-                body: project(state, &from.session, &from.cwd),
+                body: project(state, from),
                 critical: false,
             })
         }
         Hook::Stop { from, reply } => Some(Notice {
             key: format!("finished {}", from.session),
-            session: Some(from.session.clone()),
             app: "Claude Code",
-            title: format!("Finished in {}", project(state, &from.session, &from.cwd)),
+            title: format!("Finished in {}", project(state, from)),
             body: gist(reply),
             critical: false,
         }),

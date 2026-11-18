@@ -30,6 +30,7 @@ use crate::{
     profile,
     supervisor::{self, Ended},
     sync::lock,
+    time::now,
 };
 
 /// How long a scan runs before it stops by itself.
@@ -56,10 +57,6 @@ struct World {
     state: State,
 }
 
-fn now() -> i64 {
-    chrono::Utc::now().timestamp()
-}
-
 impl World {
     async fn reload(&mut self, connection: &Connection) {
         match bluez::objects(connection).await {
@@ -74,7 +71,7 @@ impl World {
     /// Folds one of BlueZ's signals into what is known.
     fn apply(&mut self, message: &Message) -> bool {
         let header = message.header();
-        let Some(member) = header.member().map(|member| member.as_str().to_owned()) else {
+        let Some(member) = header.member() else {
             return false;
         };
         let body = message.body();
@@ -133,7 +130,8 @@ impl World {
 
     fn build(&mut self, asked: &Mutex<Asked>, visible: &Mutex<bool>) {
         let parsed = bluez::parse(&self.objects);
-        let (adapter, mut devices) = parsed.clone().unwrap_or_default();
+        let available = parsed.is_some();
+        let (adapter, mut devices) = parsed.unwrap_or_default();
         let at = now();
         let connected: HashSet<String> = devices
             .iter()
@@ -166,7 +164,7 @@ impl World {
             confirm: ask.confirm,
         });
         self.state = State {
-            available: parsed.is_some(),
+            available,
             powered: adapter.powered,
             discovering: adapter.discovering,
             discoverable: adapter.discoverable,
@@ -176,7 +174,7 @@ impl World {
             devices,
             asking,
         };
-        self.adapter = parsed.map(|(adapter, _)| adapter);
+        self.adapter = available.then_some(adapter);
     }
 
     fn adapter_path(&self) -> Option<String> {

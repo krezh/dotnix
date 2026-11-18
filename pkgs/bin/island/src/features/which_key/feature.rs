@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use super::{panel, settings, settings::Settings, state::Local};
 use crate::{
-    features::{Feature, Feed, IslandInfo, Outcome, PanelCx, Surface},
+    features::{Feature, Feed, Outcome, PanelCx, Surface},
     key::Key,
     panel::PanelView,
 };
@@ -40,8 +40,6 @@ impl Surface for WhichKey {
     const KEYBOARD: bool = true;
 
     type Local = Local;
-
-    fn sync_local(_: &(), _: &mut Local, _: &IslandInfo<'_>, _: bool) {}
 
     fn panel<'a>(&self, _: &(), p: &PanelCx<'a>) -> Option<PanelView> {
         panel::panel(self, p)

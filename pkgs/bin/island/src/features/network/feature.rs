@@ -106,7 +106,7 @@ impl Feature for Network {
                 }),
             ));
         }
-        if let Some(vpn) = state.vpns.iter().find(|vpn| vpn.activity == Activity::On) {
+        if let Some(vpn) = state.active_vpn() {
             rows.push(Row::new("VPN", Shown::Text(vpn.name.clone())));
         }
         rows

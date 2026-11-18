@@ -1,20 +1,21 @@
 //! A spectrum of whatever is playing, captured from the default output's monitor through the
 //! PulseAudio protocol (served by pipewire-pulse) and analysed in-process: no external tools.
 
-use std::{cell::Cell, f32::consts::PI, rc::Rc, time::Instant};
+use std::{cell::Cell, f32::consts::PI, ops::ControlFlow, rc::Rc, time::Instant};
 
 use libpulse_binding::{
-    context::{Context, FlagSet as ContextFlags, State, subscribe::InterestMaskSet},
+    context::{State, subscribe::InterestMaskSet},
     def::BufferAttr,
     mainloop::standard::{IterateResult, Mainloop},
     sample::{Format, Spec},
-    stream::{FlagSet as StreamFlags, PeekResult, State as StreamState, Stream},
+    stream::{FlagSet as StreamFlags, State as StreamState, Stream},
 };
 
 use tracing::{debug, error};
 
 use crate::{
     features::Feed,
+    pulse,
     supervisor::{self, Reconnect},
 };
 
@@ -71,22 +72,9 @@ fn capture<S: Send + 'static>(feed: &Feed<S>) -> Ended {
     let Some(mut mainloop) = Mainloop::new() else {
         return Ended::Stopped;
     };
-    let Some(mut context) = Context::new(&mainloop, "island visualizer") else {
+    let Ok(mut context) = pulse::connect(&mut mainloop, "island visualizer") else {
         return Ended::Stopped;
     };
-    if context.connect(None, ContextFlags::NOFAIL, None).is_err() {
-        return Ended::Stopped;
-    }
-    loop {
-        if !iterate(&mut mainloop) {
-            return Ended::Stopped;
-        }
-        match context.get_state() {
-            State::Ready => break,
-            State::Failed | State::Terminated => return Ended::Stopped,
-            _ => {}
-        }
-    }
 
     let moved = Rc::new(Cell::new(false));
     let flag = moved.clone();
@@ -139,26 +127,21 @@ fn capture<S: Send + 'static>(feed: &Feed<S>) -> Ended {
             let _ = stream.disconnect();
             return Ended::Moved;
         }
-        loop {
-            match stream.peek() {
-                Ok(PeekResult::Data(bytes)) => {
-                    for sample in bytes.chunks_exact(4) {
-                        if let Some(levels) = analyser.push(f32::from_le_bytes([
-                            sample[0], sample[1], sample[2], sample[3],
-                        ])) && !feed.publish_live(levels)
-                        {
-                            let _ = stream.disconnect();
-                            return Ended::Unwanted;
-                        }
-                    }
-                    let _ = stream.discard();
-                }
-                Ok(PeekResult::Hole(_)) => {
-                    let _ = stream.discard();
-                }
-                Ok(PeekResult::Empty) => break,
-                Err(_) => return Ended::Stopped,
+        let drained = pulse::drain(&mut stream, |sample| {
+            if let Some(levels) = analyser.push(sample)
+                && !feed.publish_live(levels)
+            {
+                return ControlFlow::Break(());
             }
+            ControlFlow::Continue(())
+        });
+        match drained {
+            Ok(ControlFlow::Continue(())) => {}
+            Ok(ControlFlow::Break(())) => {
+                let _ = stream.disconnect();
+                return Ended::Unwanted;
+            }
+            Err(_) => return Ended::Stopped,
         }
     }
 }
