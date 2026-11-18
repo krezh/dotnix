@@ -2,7 +2,6 @@
 //! (`build::ui`, `report::ui`, `inputs::ui`, …).
 
 mod animation;
-mod blur;
 mod energy;
 mod fade_scroll;
 mod format;

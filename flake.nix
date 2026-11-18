@@ -17,6 +17,7 @@
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    nixpkgs-mesa.url = "github:NixOS/nixpkgs/f9a75f41be3a74eab55d3a7679d34ad6cc0da977";
     hardware = {
       url = "github:nixos/nixos-hardware";
       inputs.nixpkgs.follows = "nixpkgs";

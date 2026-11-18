@@ -8,6 +8,9 @@
       ];
 
       environment = {
+        etc."mesa-pinned/radeon_icd.x86_64.json".source = "${
+          inputs.nixpkgs-mesa.legacyPackages.${pkgs.stdenv.hostPlatform.system}.mesa
+        }/share/vulkan/icd.d/radeon_icd.x86_64.json";
         sessionVariables = {
           STEAM_EXTRA_COMPAT_TOOLS_PATHS = "$HOME/.steam/root/compatibilitytools.d";
         };

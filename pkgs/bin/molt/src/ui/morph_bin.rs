@@ -11,13 +11,13 @@ use gtk::subclass::prelude::*;
 use gtk::{graphene, gsk};
 
 use super::animation::ease_in_out;
-use super::blur::{self, Blur};
 use super::theme;
 use super::widgets::animations_enabled;
 
 const MORPH_US: f64 = 420_000.0;
 /// The panel: base at 75%, so compositor blur reads through it, and edgeless.
 const PANEL_ALPHA: f32 = 0.75;
+const BACKDROP_BLUR: f64 = 20.0;
 
 mod imp {
     use super::*;
@@ -33,8 +33,6 @@ mod imp {
         pub(super) morphing: Cell<bool>,
         /// Bumped by every morph, so a newer one takes over from an older one.
         pub(super) generation: Cell<u64>,
-        pub(super) blur: RefCell<Option<Blur>>,
-        pub(super) blur_surface: Cell<Option<usize>>,
     }
 
     #[glib::object_subclass]
@@ -64,38 +62,6 @@ mod imp {
             } else {
                 self.screen.borrow().clone()
             }
-        }
-
-        fn update_blur(&self, panel: &graphene::Rect) {
-            let widget = self.obj();
-            let Some(native) = widget.native() else {
-                return;
-            };
-            let Some(surface) = native.surface() else {
-                return;
-            };
-            let key = blur::surface_key(&surface);
-            if key != self.blur_surface.get() {
-                self.blur_surface.set(key);
-                self.blur.replace(Blur::attach(&surface));
-            }
-            let mut blur = self.blur.borrow_mut();
-            let Some(blur) = blur.as_mut() else {
-                return;
-            };
-            let Some(origin) =
-                widget.compute_point(&native, &graphene::Point::new(panel.x(), panel.y()))
-            else {
-                return;
-            };
-            let (dx, dy) = native.surface_transform();
-            blur.set_shape(
-                origin.x() + dx as f32,
-                origin.y() + dy as f32,
-                panel.width(),
-                panel.height(),
-                self.radius.get(),
-            );
         }
     }
 
@@ -155,8 +121,13 @@ mod imp {
                 .unwrap_or(full);
             let panel = lerp_rect(&full, &compact_bounds, eased);
             let rounded = gsk::RoundedRect::from_rect(panel, self.radius.get());
-            self.update_blur(&panel);
 
+            snapshot.push_copy();
+            snapshot.push_rounded_clip(&rounded);
+            snapshot.push_blur(BACKDROP_BLUR);
+            snapshot.append_paste(&panel, 0);
+            snapshot.pop();
+            snapshot.pop();
             snapshot.push_rounded_clip(&rounded);
             snapshot.append_color(&theme::BASE.with_alpha(PANEL_ALPHA), &panel);
             snapshot.pop();
@@ -182,6 +153,7 @@ mod imp {
             if let Some(compact) = compact {
                 draw(compact, smoothstep(0.45, 1.0, eased));
             }
+            snapshot.pop();
             snapshot.pop();
         }
     }

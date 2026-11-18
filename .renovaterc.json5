@@ -107,5 +107,11 @@
       automergeType: "pr",
       ignoreTests: false,
     },
+    {
+      description: "Keep the pinned mesa nixpkgs revision manual",
+      matchManagers: ["nix"],
+      matchDepNames: ["nixpkgs-mesa"],
+      enabled: false,
+    },
   ],
 }

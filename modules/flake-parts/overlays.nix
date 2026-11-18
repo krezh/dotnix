@@ -10,8 +10,8 @@
       inputs.go-overlay.overlays.default
       inputs.nix4vscode.overlays.default
       inputs.rust-overlay.overlays.default
-      inputs.snappy-switcher.overlays.default
       (final: _prev: {
+        snappy-switcher = inputs.snappy-switcher.packages.${final.stdenv.hostPlatform.system}.default;
         craneLib = (inputs.crane.mkLib final).overrideToolchain final.rust-bin.stable.latest.default;
       })
       (

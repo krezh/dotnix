@@ -66,7 +66,13 @@
       };
 
       nix.registry = lib.mapAttrs (_: value: { flake = value; }) (
-        lib.filterAttrs (name: _: name != "self") inputs
+        lib.filterAttrs (
+          name: _:
+          !builtins.elem name [
+            "self"
+            "nixpkgs-mesa"
+          ]
+        ) inputs
       );
 
       time.timeZone = "Europe/Stockholm";
