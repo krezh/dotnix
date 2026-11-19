@@ -6,7 +6,7 @@
 (pkgs.buildGoModule.override { go = pkgs.go-bin.latestStable; }) (finalAttrs: {
   pname = "flate";
   # renovate: datasource=github-releases depName=home-operations/flate
-  version = "0.7.3";
+  version = "0.8.0";
 
   src = pkgs.fetchFromGitHub {
     owner = "home-operations";
