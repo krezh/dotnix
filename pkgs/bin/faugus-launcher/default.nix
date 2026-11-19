@@ -19,7 +19,7 @@ pkgs.python3Packages.buildPythonApplication (
   {
     pname = "faugus-launcher";
     # renovate: datasource=github-releases depName=Faugus/faugus-launcher
-    version = "2.5.7";
+    version = "2.5.9";
     pyproject = false;
 
     src = pkgs.fetchFromGitHub {
