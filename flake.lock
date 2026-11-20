@@ -911,11 +911,11 @@
         "treefmt-nix": "treefmt-nix_4"
       },
       "locked": {
-        "lastModified": 1795116900,
-        "narHash": "sha256-qxjTZtT1r//z1qCBZLLvT1bRcpRBOnN4iyeuql4hzGs=",
+        "lastModified": 1795215121,
+        "narHash": "sha256-YxcbpHvrOYWNE65gfQjNGX9RtDyjP/AfM5av8MsuWIQ=",
         "owner": "4evy",
         "repo": "nixcord",
-        "rev": "8502898984d2715309e94b80249394a08c38d9ff",
+        "rev": "0ddb1c558973efc6a5b4be8960bdcffca7269dbb",
         "type": "github"
       },
       "original": {
@@ -960,11 +960,11 @@
     },
     "nixpkgs-ci": {
       "locked": {
-        "lastModified": 1794840529,
-        "narHash": "sha256-i4bQ1+DYOg+08KQNJDtmhTlFnn1DYUMKGzVOfBt23mQ=",
-        "rev": "e21fec321d73511849707a7585e4ea155ee4bf40",
+        "lastModified": 1795095985,
+        "narHash": "sha256-iE8oRwNZcE7Mcupd5cNTCWMi4e07CoQIRYUmw5tf+9w=",
+        "rev": "19cfded70b91ca0981373973c5b1efffdd4d6647",
         "type": "tarball",
-        "url": "https://releases.nixos.org/nixpkgs/nixpkgs-26.11pre1122334.e21fec321d73/nixexprs.tar.zst"
+        "url": "https://releases.nixos.org/nixpkgs/nixpkgs-26.11pre1124565.19cfded70b91/nixexprs.tar.zst"
       },
       "original": {
         "type": "tarball",
@@ -989,11 +989,11 @@
     },
     "nixpkgs-packages": {
       "locked": {
-        "lastModified": 1794840529,
-        "narHash": "sha256-i4bQ1+DYOg+08KQNJDtmhTlFnn1DYUMKGzVOfBt23mQ=",
-        "rev": "e21fec321d73511849707a7585e4ea155ee4bf40",
+        "lastModified": 1795095985,
+        "narHash": "sha256-iE8oRwNZcE7Mcupd5cNTCWMi4e07CoQIRYUmw5tf+9w=",
+        "rev": "19cfded70b91ca0981373973c5b1efffdd4d6647",
         "type": "tarball",
-        "url": "https://releases.nixos.org/nixpkgs/nixpkgs-26.11pre1122334.e21fec321d73/nixexprs.tar.zst"
+        "url": "https://releases.nixos.org/nixpkgs/nixpkgs-26.11pre1124565.19cfded70b91/nixexprs.tar.zst"
       },
       "original": {
         "type": "tarball",
@@ -1453,11 +1453,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1795017206,
-        "narHash": "sha256-WSBJcYjPRxGetDNxVzKnRPs1TQasQQlAC25W/S4W6YE=",
+        "lastModified": 1795173499,
+        "narHash": "sha256-J8IYl3oEdctyvBgWr+/L01MY5Xm0TU4WXwZDccN5jjk=",
         "owner": "numtide",
         "repo": "treefmt-nix",
-        "rev": "0ba5d67225c3f5c88eb134e1a665a379bfd3bea9",
+        "rev": "a0a97e31a897a3537eea5c49df4f8adaa83b3b37",
         "type": "github"
       },
       "original": {
@@ -1492,11 +1492,11 @@
         "xdg-desktop-portal-umbriel": "xdg-desktop-portal-umbriel"
       },
       "locked": {
-        "lastModified": 1795142438,
-        "narHash": "sha256-NrplgqO10WxQk2XMpUmO5Y5G9nVcMduBwXRa0ZYBqUI=",
+        "lastModified": 1795213831,
+        "narHash": "sha256-B5pggfUTXJ31GFlAcuQoABcLNMOpkyAe1ljbi1lzRyc=",
         "owner": "noctalia-dev",
         "repo": "umbriel",
-        "rev": "bc10febde287a6430d6af9dd6bada478beeb0ae5",
+        "rev": "60639b8f4dcca747296c92cfa966d88ae287dc61",
         "type": "github"
       },
       "original": {
@@ -1533,11 +1533,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1795061605,
-        "narHash": "sha256-f7iI1U1C6XpbtZH88vuVOHL4MM/AX5L+rXqcIPRKaK0=",
+        "lastModified": 1795209939,
+        "narHash": "sha256-/V/k3mzeAdiAQKaJqSr96vsS/dqECsmKacQf1vVleds=",
         "owner": "noctalia-dev",
         "repo": "xdg-desktop-portal-umbriel",
-        "rev": "62030bb90784229f6fdc8b15bbb03bcd28867488",
+        "rev": "6a077cedca619ab0af91b99851fa78ba5ab17d7f",
         "type": "github"
       },
       "original": {
