@@ -4,14 +4,14 @@ schema = 4
 
 [mod]
   [mod."charm.land/bubbles/v2"]
-    version = "v2.2.1"
-    hash = "sha256-0PFf3lMornz1C2eR7WRZ1iTEu59AD+1fdwPS6j+AQ2c="
-    go = "1.25.0"
+    version = "v2.2.2"
+    hash = "sha256-g4qxsmhG7xnFOFB9Xc2CsENWyG/NNTxW9ixbAZPdNFY="
+    go = "1.26.0"
     packages = ["charm.land/bubbles/v2/progress"]
   [mod."charm.land/bubbletea/v2"]
-    version = "v2.0.8"
-    hash = "sha256-ZWcqUjUSKcT8uovaljKp4V8IQ7kIJtoAOGZ2VbpF3hs="
-    go = "1.25.0"
+    version = "v2.1.1"
+    hash = "sha256-70xD8FTEP2fmWOjOQYsBVmgFPR8lW8i1GlMulyaKYW8="
+    go = "1.26.0"
     packages = ["charm.land/bubbletea/v2"]
   [mod."charm.land/lipgloss/v2"]
     version = "v2.1.1"
@@ -59,9 +59,9 @@ schema = 4
     go = "1.16"
     packages = ["github.com/charmbracelet/harmonica"]
   [mod."github.com/charmbracelet/ultraviolet"]
-    version = "v0.0.0-20260811164956-006e29f97886"
-    hash = "sha256-yCXV58PFdrl5jeCS8jyWF5X+5Ndye8W5hxux9981O6E="
-    go = "1.25.0"
+    version = "v0.0.0-20261008173134-6b8d4baf91b4"
+    hash = "sha256-1r9yJFWHGBJnT0SZEgrXqNdh8ggzCX6Us/Ui5n53hGI="
+    go = "1.26.0"
     packages = ["github.com/charmbracelet/ultraviolet"]
   [mod."github.com/charmbracelet/x/ansi"]
     version = "v0.11.10"
@@ -170,8 +170,8 @@ schema = 4
     go = "1.12"
     packages = ["github.com/lucasb-eyer/go-colorful"]
   [mod."github.com/mattn/go-runewidth"]
-    version = "v0.0.27"
-    hash = "sha256-TQd0ek+jjvxgN9YA6N/ctOyrADIAg9bBcClJCDltIWc="
+    version = "v0.0.31"
+    hash = "sha256-0R1i3gS3Ya0JYUfNdpJ7B1ynWGqRaP0Mxvv6mEz0qSI="
     go = "1.23"
     packages = ["github.com/mattn/go-runewidth"]
   [mod."github.com/muesli/cancelreader"]
@@ -223,9 +223,9 @@ schema = 4
     go = "1.23.0"
     packages = ["github.com/prometheus/procfs", "github.com/prometheus/procfs/internal/fs", "github.com/prometheus/procfs/internal/util"]
   [mod."github.com/rivo/uniseg"]
-    version = "v0.4.7"
-    hash = "sha256-rDcdNYH6ZD8KouyyiZCUEy8JrjOQoAkxHBhugrfHjFo="
-    go = "1.18"
+    version = "v0.4.8-0.20261110175422-3a370411ca06"
+    hash = "sha256-H7MRaWZIKRY7mjDf+1JvkXLMZoveh/TwvTtqcXdudHA="
+    go = "1.23"
     packages = ["github.com/rivo/uniseg"]
   [mod."github.com/spf13/cobra"]
     version = "v1.10.2"
@@ -238,8 +238,8 @@ schema = 4
     go = "1.12"
     packages = ["github.com/spf13/pflag"]
   [mod."github.com/xo/terminfo"]
-    version = "v0.0.0-20220910002029-abceb7e1c41e"
-    hash = "sha256-GyCDxxMQhXA3Pi/TsWXpA8cX5akEoZV7CFx4RO3rARU="
+    version = "v1.0.0"
+    hash = "sha256-WRD2MrAHjXy2/DWPmUew1ojVQzamOJM3EEWmZedpYKs="
     go = "1.19"
     packages = ["github.com/xo/terminfo"]
   [mod."github.com/zeebo/blake3"]
