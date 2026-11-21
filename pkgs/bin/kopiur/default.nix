@@ -5,7 +5,7 @@
 let
   pname = "kopiur";
   # renovate: datasource=github-releases depName=home-operations/kopiur
-  version = "0.11.0";
+  version = "0.11.2";
 
   selectSystem =
     attrs:
