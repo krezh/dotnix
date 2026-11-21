@@ -58,7 +58,7 @@ checksum = "ee548131103ad8f698c6725669647b9c757b3b66992dd6a026037596417bee21"
 dependencies = [
  "glib-sys",
  "libc",
- "system-deps 9.0.1",
+ "system-deps",
 ]
 
 [[package]]
@@ -299,7 +299,7 @@ dependencies = [
  "glib-sys",
  "gobject-sys",
  "libc",
- "system-deps 9.0.1",
+ "system-deps",
 ]
 
 [[package]]
@@ -332,7 +332,7 @@ dependencies = [
  "libc",
  "pango-sys",
  "pkg-config",
- "system-deps 9.0.1",
+ "system-deps",
 ]
 
 [[package]]
@@ -372,7 +372,7 @@ dependencies = [
  "glib-sys",
  "gobject-sys",
  "libc",
- "system-deps 9.0.1",
+ "system-deps",
  "windows-sys 0.61.2",
 ]
 
@@ -436,7 +436,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8b01e8b94529c2698b98f765b887f1e001b76195c1e25d1139aa9336019e745d"
 dependencies = [
  "libc",
- "system-deps 9.0.1",
+ "system-deps",
 ]
 
 [[package]]
@@ -447,7 +447,7 @@ checksum = "07595c9ba696bd9819cb6a8df39f08078f3dd679508fe052dd558492c2053834"
 dependencies = [
  "glib-sys",
  "libc",
- "system-deps 9.0.1",
+ "system-deps",
 ]
 
 [[package]]
@@ -468,7 +468,7 @@ checksum = "97842c7543828f98aa5583aa54fcda28aa84fa2b0f8c556142177f7bbb638057"
 dependencies = [
  "glib-sys",
  "libc",
- "system-deps 9.0.1",
+ "system-deps",
 ]
 
 [[package]]
@@ -499,7 +499,7 @@ dependencies = [
  "graphene-sys",
  "libc",
  "pango-sys",
- "system-deps 9.0.1",
+ "system-deps",
 ]
 
 [[package]]
@@ -525,30 +525,27 @@ dependencies = [
 
 [[package]]
 name = "gtk4-layer-shell"
-version = "0.8.1"
+version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "17c28ea0f4676fdaaae7ff2413a24d0d35c8657424f84856c1103c73454c9da4"
+checksum = "cc070e72e5e2cf5deab2adc68b7c8cd759ca99b4f9044a6578c84001cf7f9db0"
 dependencies = [
- "bitflags",
  "gdk4",
  "glib",
- "glib-sys",
  "gtk4",
  "gtk4-layer-shell-sys",
- "libc",
 ]
 
 [[package]]
 name = "gtk4-layer-shell-sys"
-version = "0.6.1"
+version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bcf19bb884ef0ef55b9e6b2b369c39b4fcc0c41e3a0c1cbc8c267720338b690b"
+checksum = "58f38ce9d3abb33f7a37567b713fca1d6a6ed9d7751e96a62b48795a93ca9e38"
 dependencies = [
  "gdk4-sys",
  "glib-sys",
  "gtk4-sys",
  "libc",
- "system-deps 8.0.0",
+ "system-deps",
 ]
 
 [[package]]
@@ -579,7 +576,7 @@ dependencies = [
  "gsk4-sys",
  "libc",
  "pango-sys",
- "system-deps 9.0.1",
+ "system-deps",
 ]
 
 [[package]]
@@ -864,7 +861,7 @@ dependencies = [
  "glib-sys",
  "gobject-sys",
  "libc",
- "system-deps 9.0.1",
+ "system-deps",
 ]
 
 [[package]]
@@ -1136,19 +1133,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
-]
-
-[[package]]
-name = "system-deps"
-version = "8.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "83779a5c956bcb6ba627a4ecf0a9d7625db47d7537e0892d97f712ac995648a3"
-dependencies = [
- "cfg-expr",
- "heck",
- "pkg-config",
- "toml",
- "version-compare",
 ]
 
 [[package]]
