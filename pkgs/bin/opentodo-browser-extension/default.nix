@@ -9,7 +9,7 @@ in
 pkgs.stdenvNoCC.mkDerivation (finalAttrs: {
   pname = "opentodo-browser-extension";
   # renovate: datasource=github-releases depName=pixari/OpenTodo
-  version = "1.5.0";
+  version = "1.6.0";
 
   src = pkgs.fetchurl {
     url = "https://github.com/pixari/OpenTodo/releases/download/v${finalAttrs.version}/opentodo-browser-extension-firefox.zip";
