@@ -5,7 +5,7 @@
 let
   pname = "kopiur";
   # renovate: datasource=github-releases depName=home-operations/kopiur
-  version = "0.11.0";
+  version = "0.11.2";
 
   selectSystem =
     attrs:
@@ -20,10 +20,10 @@ let
   };
 
   hash = selectSystem {
-    x86_64-linux = "sha256-kMxn3UQEWNWQFR4LrVcOo8t1KP++qgEOstWAN15uPc4=";
-    aarch64-linux = "sha256-2oo7eiWrRjzRZwhlhre0lYunQgiD1Rm+WQRHWKFxg2Y=";
-    x86_64-darwin = "sha256-HyVzdkt1GhqDxUAD5tSt3EbxChC6/B/uGeNotuePEFY=";
-    aarch64-darwin = "sha256-ZL8b+fZUmZ/l8sMX2L5geKHnTy5IsrkkO+0LGlS0YCY=";
+    x86_64-linux = "sha256-eFqoCbUZE8hLJStdgr2M3sWL1688R8WUb2KyRCHx1bA=";
+    aarch64-linux = "sha256-d7HE3mHWmAb7Md7hzQ8wItokKUFGIAlH57R8PjHUWjk=";
+    x86_64-darwin = "sha256-MA799tgJpMaEwgvZVRHVPKu5rYOgoeYA8+gdeHy7wGI=";
+    aarch64-darwin = "sha256-ISsxEvzez1F/+aYAOcTS/fajRUM4JB4CqBBSA8sp2dg=";
   };
 in
 pkgs.stdenvNoCC.mkDerivation (_finalAttrs: {

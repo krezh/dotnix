@@ -1135,7 +1135,6 @@
         "nixpkgs-mesa": "nixpkgs-mesa",
         "nvf": "nvf",
         "rust-overlay": "rust-overlay_2",
-        "serein": "serein",
         "silentSDDM": "silentSDDM",
         "snappy-switcher": "snappy-switcher",
         "sops-nix": "sops-nix",
@@ -1145,7 +1144,6 @@
         "umbriel": "umbriel",
         "undo": "undo",
         "xilo": "xilo",
-        "yapfast": "yapfast",
         "zen-browser": "zen-browser"
       }
     },
@@ -1187,29 +1185,6 @@
       "original": {
         "owner": "oxalica",
         "repo": "rust-overlay",
-        "type": "github"
-      }
-    },
-    "serein": {
-      "inputs": {
-        "flake-parts": [
-          "flake-parts"
-        ],
-        "nixpkgs": [
-          "nixpkgs"
-        ]
-      },
-      "locked": {
-        "lastModified": 1795173255,
-        "narHash": "sha256-TSOanUEYl5x/zNkatw9pcgfzLmnycFrQiXVtB5b9LyY=",
-        "owner": "ViceVerse-cz",
-        "repo": "Serein",
-        "rev": "c01b98864650d86ec8aeb632ff09fd67690de462",
-        "type": "github"
-      },
-      "original": {
-        "owner": "ViceVerse-cz",
-        "repo": "Serein",
         "type": "github"
       }
     },
@@ -1590,29 +1565,6 @@
       "original": {
         "owner": "stubbedev",
         "repo": "xilo",
-        "type": "github"
-      }
-    },
-    "yapfast": {
-      "inputs": {
-        "nixpkgs": [
-          "nixpkgs"
-        ],
-        "rust-overlay": [
-          "rust-overlay"
-        ]
-      },
-      "locked": {
-        "lastModified": 1795146699,
-        "narHash": "sha256-2hf1AFvn6S646SHY6/8LI5qSRUpTuOyVt8LrlK//mZM=",
-        "owner": "yapfast",
-        "repo": "yapfast",
-        "rev": "8bc56d9cf3f20cc7de0717a4922a0ec26c96ad23",
-        "type": "github"
-      },
-      "original": {
-        "owner": "yapfast",
-        "repo": "yapfast",
         "type": "github"
       }
     },

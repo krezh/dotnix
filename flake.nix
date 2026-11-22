@@ -202,22 +202,6 @@
       };
     };
 
-    yapfast = {
-      url = "github:yapfast/yapfast";
-      inputs = {
-        nixpkgs.follows = "nixpkgs";
-        rust-overlay.follows = "rust-overlay";
-      };
-    };
-
-    serein = {
-      url = "github:ViceVerse-cz/Serein";
-      inputs = {
-        nixpkgs.follows = "nixpkgs";
-        flake-parts.follows = "flake-parts";
-      };
-    };
-
     xilo = {
       url = "github:stubbedev/xilo";
       inputs.nixpkgs.follows = "nixpkgs";

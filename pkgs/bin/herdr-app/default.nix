@@ -5,9 +5,9 @@
 pkgs.rustPlatform.buildRustPackage (finalAttrs: {
   pname = "herdr-app";
   # renovate: datasource=github-tags depName=herdrdev/herdr-app
-  version = "0.1.16";
+  version = "0.1.18";
   # renovate: datasource=github-tags depName=herdrdev/herdr-core
-  coreVersion = "0.1.20";
+  coreVersion = "0.1.22";
 
   __structuredAttrs = true;
 
@@ -16,7 +16,7 @@ pkgs.rustPlatform.buildRustPackage (finalAttrs: {
     repo = "herdr-app";
     tag = "v${finalAttrs.version}";
     fetchSubmodules = true;
-    hash = "sha256-CNktD+tQrMMN4vpzFPZkZWnwDalaTkUV0A2UiLVeO3E=";
+    hash = "sha256-DZ1Fa0dvv+oFabF5aeTlg2BErtnhqPi65jU01IkeIic=";
   };
 
   coreSrc = pkgs.fetchFromGitHub {
@@ -24,7 +24,7 @@ pkgs.rustPlatform.buildRustPackage (finalAttrs: {
     repo = "herdr-core";
     tag = "v${finalAttrs.coreVersion}";
     fetchSubmodules = true;
-    hash = "sha256-YzKVuMPt8CPns3q+1gnD6AcoDhuuqeh5zNMOq79aZ0o=";
+    hash = "sha256-di4jTvmZrMnXCMBli18HCAAKmC23VaydWL1to87y2Ms=";
   };
 
   cargoDeps = pkgs.symlinkJoin {
@@ -33,12 +33,12 @@ pkgs.rustPlatform.buildRustPackage (finalAttrs: {
       (pkgs.rustPlatform.fetchCargoVendor {
         inherit (finalAttrs) src;
         name = "herdr-app-${finalAttrs.version}-vendor";
-        hash = "sha256-usCdairGam65XVKtb1jJpRC0tNXnoafAnMFQjPgvgqQ=";
+        hash = "sha256-VvCvQEnkS1ocY6+kRukd4DTiYA99aSA6c4KZmphz24g=";
       })
       (pkgs.rustPlatform.fetchCargoVendor {
         src = finalAttrs.coreSrc;
         name = "herdr-core-${finalAttrs.coreVersion}-vendor";
-        hash = "sha256-v+0gGNHJX1tWTBBg4F5kUeu7QHHG9A+0ZagvpiIeQeE=";
+        hash = "sha256-TeKSnj/87ABBPpiiU52p1XCTzkq0KueGSS4UJzdDbmY=";
       })
     ];
   };
