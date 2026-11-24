@@ -28,7 +28,7 @@
     };
 
     nix-cachyos-kernel = {
-      url = "github:krezh/nix-cachyos-kernel/v7.3.5-1";
+      url = "github:krezh/nix-cachyos-kernel/v7.3.6-1";
     };
 
     # Do not follow nixpkgs here: chaotic's binary cache is built against its
