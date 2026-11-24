@@ -33,7 +33,7 @@ cosmic-text = "0.19"
 resvg = "0.50"
 pollster = "1.0"
 smithay-client-toolkit = { version = "0.21.1", default-features = false, features = ["xkbcommon"] }
-taffy = "0.15"
+taffy = "0.16"
 ash = "0.38"
 
 [profile.release]
