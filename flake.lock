@@ -780,16 +780,16 @@
         "nixpkgs": "nixpkgs_2"
       },
       "locked": {
-        "lastModified": 1794939596,
-        "narHash": "sha256-ygIM7CdjbIQU7Ap5P19ZHjCUUUmfICYV4JdMuE67Oi0=",
+        "lastModified": 1795451095,
+        "narHash": "sha256-mktz5g/plzlHzfHWE6bRafq/yy5KfmByXV1sLggOYe4=",
         "owner": "krezh",
         "repo": "nix-cachyos-kernel",
-        "rev": "f79f48042fcb4ca8d47c97936349cff381a93aa8",
+        "rev": "47f22a246af8d9e2ca1b3721f2bc36fa8dabc77a",
         "type": "github"
       },
       "original": {
         "owner": "krezh",
-        "ref": "v7.3.5-1",
+        "ref": "v7.3.6-1",
         "repo": "nix-cachyos-kernel",
         "type": "github"
       }
