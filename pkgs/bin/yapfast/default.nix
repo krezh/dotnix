@@ -47,7 +47,7 @@ in
 pkgs.rustPlatform.buildRustPackage (finalAttrs: {
   pname = "yapfast";
   # renovate: datasource=github-releases depName=yapfast/yapfast
-  version = "0.5.0-nightly.20261120.19";
+  version = "0.5.0-nightly.20261124.21";
 
   src = pkgs.fetchFromGitHub {
     owner = "yapfast";
