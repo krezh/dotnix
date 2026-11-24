@@ -5,7 +5,7 @@
 (pkgs.buildGoModule.override { go = pkgs.go-bin.latestStable; }) (finalAttrs: {
   pname = "talosctl";
   # renovate: datasource=github-releases depName=siderolabs/talos
-  version = "1.14.6";
+  version = "1.14.7";
 
   src = pkgs.fetchFromGitHub {
     owner = "siderolabs";
