@@ -20,7 +20,7 @@ cli = ["dep:clap", "dep:clap_complete", "dep:glamour", "dep:terminal_size"]
 anyhow = "1"
 clap = { version = "4", features = ["derive"], optional = true }
 clap_complete = { version = "4", optional = true }
-glamour = { package = "charmed-glamour", version = "0.2", optional = true }
+glamour = { package = "charmed-glamour", version = "0.3", optional = true }
 rustix = { version = "1", features = ["process"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

@@ -100,22 +100,23 @@ checksum = "4e7648175b45a9a48536d676f68d918270699102aa8dab5496df06904c914600"
 
 [[package]]
 name = "charmed-glamour"
-version = "0.2.4"
+version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "25f68ce2a29b120a8a953c9027a71dfa479eaa24bc63ec8198c15f691cafe4fc"
+checksum = "383848f88f5f97396b03bcc0b29d6eb0fa3d09344f79a26de7d41fbfc1a8207f"
 dependencies = [
  "charmed-lipgloss",
  "lru",
  "pulldown-cmark",
+ "serde_json",
  "tracing",
  "unicode-width",
 ]
 
 [[package]]
 name = "charmed-lipgloss"
-version = "0.2.4"
+version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "26a44bb12c9e26b484817605b0494457800aa1abe4e2d6f02dee8b5e5c1ad8bf"
+checksum = "3d6a1d6bb980b832f6c7aa588537aafa18af4deb8c234784dc8145ea8282dc77"
 dependencies = [
  "bitflags",
  "colored",
@@ -581,9 +582,9 @@ checksum = "5d15f86d12da44cd8d4ec3c73984537eb7f4cadcb9776a575a0a8a05ca11005c"
 
 [[package]]
 name = "lru"
-version = "0.18.5"
+version = "0.19.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ef9ac18847474e638e3702b76c65d4eb93428471a74778ef0f1be711717f89b5"
+checksum = "d4e2a1b977b42ee8b53a2a4adbd1183431c493f1d1960b7ccd893e2f0b9407ba"
 dependencies = [
  "hashbrown",
 ]
