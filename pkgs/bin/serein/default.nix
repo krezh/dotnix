@@ -28,7 +28,7 @@ in
 pkgs.rustPlatform.buildRustPackage (finalAttrs: {
   pname = "serein";
   # renovate: datasource=github-releases depName=ViceVerse-cz/Serein
-  version = "1.0.0-nightly.20261121.100";
+  version = "1.0.0-nightly.20261123.102";
 
   src = pkgs.fetchFromGitHub {
     owner = "ViceVerse-cz";
