@@ -8,7 +8,6 @@ use std::{
         atomic::{AtomicU64, Ordering},
         mpsc::{Receiver, TryRecvError},
     },
-    thread,
     time::{Duration, Instant},
 };
 
@@ -43,7 +42,7 @@ use crate::{
     compositor,
     features::Feed,
     profile,
-    supervisor::Ended,
+    supervisor::{self, Ended},
     wake::{self, Woken},
 };
 
@@ -189,7 +188,7 @@ impl Dispatch<ExtDataControlSourceV1, ()> for Watch {
 
 /// Off the worker, so a slow reader cannot hold it up.
 fn send(fd: OwnedFd, data: Arc<Vec<u8>>) {
-    thread::spawn(move || {
+    supervisor::spawn("island-clipboard-send", move || {
         if let Err(error) = File::from(fd).write_all(&data) {
             debug!("pasting stopped early: {error}");
         }
@@ -375,7 +374,7 @@ impl Worker<'_> {
         &self,
         watch: &mut Watch,
         offer: Option<ExtDataControlOfferV1>,
-    ) -> io::Result<bool> {
+    ) -> bool {
         let Some(offer) = offer else {
             if self.settings.persist && !profile::preview() && watch.served.is_none() {
                 if let Ok(Some(newest)) = self.store.newest() {
@@ -383,7 +382,7 @@ impl Worker<'_> {
                     self.serve(watch, newest);
                 }
             }
-            return Ok(false);
+            return false;
         };
         let mimes = watch.offers.remove(&offer.id()).unwrap_or_default();
         let wanted = wanted(&mimes, self.settings.history.images);
@@ -394,14 +393,19 @@ impl Worker<'_> {
                 .saturating_mul(1024 * 1024),
         )
         .unwrap_or(usize::MAX);
+        // One app's broken handover loses only that copy; a lost connection still shows at the
+        // next flush.
         let clip = if wanted.is_empty() {
             None
         } else {
-            take(&self.connection, &offer, wanted, limit)?
+            take(&self.connection, &offer, wanted, limit).unwrap_or_else(|error| {
+                warn!("cannot take the copy: {error}");
+                None
+            })
         };
         offer.destroy();
         let Some(clip) = clip else {
-            return Ok(false);
+            return false;
         };
         if let Err(error) = self
             .store
@@ -409,7 +413,7 @@ impl Worker<'_> {
             .and_then(|()| self.store.prune(self.settings))
         {
             warn!("cannot keep the copy: {error}");
-            return Ok(false);
+            return false;
         }
         debug!(
             kind = clip.kind.word(),
@@ -417,7 +421,7 @@ impl Worker<'_> {
             bytes = clip.data.len(),
             "kept a copy"
         );
-        Ok(true)
+        true
     }
 
     fn paste(&self, watch: &mut Watch) {
@@ -463,9 +467,10 @@ impl Worker<'_> {
                 }
             }
             Request::Delete(id) => self.store.delete(id)?,
+            Request::Pin { id, pinned } => self.store.pin(id, pinned)?,
             Request::Clear => {
                 self.store.clear()?;
-                info!("cleared the clipboard history");
+                info!("cleared the clipboard history, keeping what is pinned");
             }
         }
         Ok(())
@@ -535,10 +540,7 @@ pub(super) fn run(
         }
         let mut changed = false;
         if let Some(offer) = watch.selection.take() {
-            match worker.selection(&mut watch, offer) {
-                Ok(kept) => changed |= kept,
-                Err(error) => return Ended::Failed(error.to_string()),
-            }
+            changed |= worker.selection(&mut watch, offer);
         }
         loop {
             match requests.try_recv() {

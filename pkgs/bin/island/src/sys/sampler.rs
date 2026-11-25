@@ -5,7 +5,7 @@ use super::{
         HISTORY, Mount, Probe, busy, cpu_ghz, cpu_model, discrete_gpu, drives, first_dir,
         generation, gpu_name, hwmon_temp, mounts, os_name, parse_cpu_line, power_sources,
         process_ticks, push, rate, read_disks, read_net, read_temp, read_text, read_u64, sensors,
-        statvfs, temp_input,
+        statvfs, temp_input, uptime,
     },
     stats::{Gpu, Info, Partition, PowerSource, Process, Sensor, SysStats},
 };
@@ -195,12 +195,8 @@ impl Sampler {
                 *slot = value.parse().unwrap_or(0.0);
             }
         }
-        if let Ok(uptime) = fs::read_to_string("/proc/uptime") {
-            self.stats.uptime_secs = uptime
-                .split_whitespace()
-                .next()
-                .and_then(|secs| secs.parse::<f64>().ok())
-                .map_or(0, |secs| secs as u64);
+        if let Some(up) = uptime() {
+            self.stats.uptime_secs = up.as_secs();
         }
     }
 

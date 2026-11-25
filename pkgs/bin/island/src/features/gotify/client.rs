@@ -1,13 +1,18 @@
 use std::{
     collections::HashMap,
     fmt,
-    io::{self, Read, Write},
+    io::{Read, Write},
     sync::{Arc, Mutex},
     time::Duration,
 };
 
 use super::state::{Endpoint, Entry, PagedMessages, RawApp, RawMessage};
+use crate::sync;
 use serde::de::DeserializeOwned;
+use tungstenite::{
+    HandshakeError, Message, WebSocket, client::IntoClientRequest, http::HeaderValue,
+    protocol::WebSocketConfig,
+};
 use ureq::{
     Agent, Timeout,
     config::Config,
@@ -24,8 +29,8 @@ const CONNECT_TIMEOUT: Duration = Duration::from_secs(15);
 const READ_TIMEOUT: Duration = Duration::from_secs(90);
 const WRITE_TIMEOUT: Duration = Duration::from_secs(15);
 const API_TIMEOUT: Duration = Duration::from_secs(10);
-const MAX_HANDSHAKE: usize = 8 * 1024;
-const MAX_FRAME: usize = 1024 * 1024;
+/// Far more than any one Gotify message.
+const MAX_MESSAGE: usize = 1024 * 1024;
 const MESSAGE_LIMIT: usize = 200;
 const MOST_PAGES: usize = 50;
 
@@ -117,7 +122,7 @@ impl fmt::Debug for Capture {
 
 impl Capture {
     fn take(&self) -> Option<TransportAdapter> {
-        self.0.lock().ok()?.take()
+        sync::lock(&self.0).take()
     }
 }
 
@@ -129,10 +134,8 @@ impl Connector<Box<dyn Transport>> for Capture {
         details: &ConnectionDetails,
         chained: Option<Box<dyn Transport>>,
     ) -> Result<Option<Self::Out>, ureq::Error> {
-        if let Some(transport) = chained
-            && let Ok(mut slot) = self.0.lock()
-        {
-            *slot = Some(TransportAdapter::new(
+        if let Some(transport) = chained {
+            *sync::lock(&self.0) = Some(TransportAdapter::new(
                 transport,
                 details.current_time.clone(),
             ));
@@ -141,10 +144,10 @@ impl Connector<Box<dyn Transport>> for Capture {
     }
 }
 
-pub fn connect_stream(
-    endpoint: &Endpoint,
-    token: &str,
-) -> Result<(Agent, TransportAdapter), String> {
+/// Gotify's `/stream`, over the connection ureq opened, so it goes through ureq's TLS.
+pub type Socket = WebSocket<TransportAdapter>;
+
+pub fn connect_stream(endpoint: &Endpoint, token: &str) -> Result<(Agent, Socket), String> {
     let capture = Capture::default();
     let connector = DefaultConnector::default().chain(capture.clone());
     let config = Config::builder()
@@ -165,166 +168,51 @@ pub fn connect_stream(
         per_read: Some(CONNECT_TIMEOUT.into()),
         per_write: Some(CONNECT_TIMEOUT.into()),
     });
-    handshake(&mut stream, endpoint, token)?;
-    stream.set_timeout(NextTimeout {
+    let mut socket = handshake(stream, endpoint, token)?;
+    socket.get_mut().set_timeout(NextTimeout {
         after: ureq::unversioned::transport::time::Duration::NotHappening,
         reason: Timeout::Global,
         per_read: Some(READ_TIMEOUT.into()),
         per_write: Some(WRITE_TIMEOUT.into()),
     });
-    Ok((agent, stream))
+    Ok((agent, socket))
 }
 
-pub fn handshake(
-    stream: &mut (impl Read + Write),
+/// Upgrades `stream` to Gotify's `/stream`, signed in with `token`.
+pub fn handshake<S: Read + Write>(
+    stream: S,
     endpoint: &Endpoint,
     token: &str,
-) -> Result<(), String> {
-    write!(
-        stream,
-        "GET {} HTTP/1.1\r\n\
-         Host: {}\r\n\
-         Upgrade: websocket\r\n\
-         Connection: Upgrade\r\n\
-         Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n\
-         Sec-WebSocket-Version: 13\r\n\
-         X-Gotify-Key: {}\r\n\r\n",
-        endpoint.stream_path(),
-        endpoint.authority,
-        token,
-    )
-    .and_then(|()| stream.flush())
-    .map_err(|error| format!("cannot send WebSocket upgrade: {error}"))?;
-
-    let mut header = Vec::with_capacity(256);
-    let mut byte = [0_u8; 1];
-    while !header.ends_with(b"\r\n\r\n") {
-        if header.len() >= MAX_HANDSHAKE {
-            return Err("Gotify handshake headers exceeded limit".to_owned());
-        }
-        match stream.read(&mut byte) {
-            Ok(0) => return Err("Gotify closed connection during handshake".to_owned()),
-            Ok(_) => header.push(byte[0]),
-            Err(error) => return Err(format!("cannot read handshake response: {error}")),
-        }
-    }
-    let text = String::from_utf8_lossy(&header);
-    let status = text.lines().next().unwrap_or_default().trim();
-    if !status.starts_with("HTTP/1.1 101") {
-        return Err(format!("Gotify rejected /stream upgrade: {status}"));
-    }
-    Ok(())
+) -> Result<WebSocket<S>, String> {
+    let mut request = format!("ws://{}{}", endpoint.authority, endpoint.stream_path())
+        .into_client_request()
+        .map_err(|error| format!("cannot ask for Gotify's stream: {error}"))?;
+    let key = HeaderValue::from_str(token).map_err(|_| "the Gotify token is not a valid header")?;
+    request.headers_mut().insert("X-Gotify-Key", key);
+    let config = WebSocketConfig::default()
+        .max_message_size(Some(MAX_MESSAGE))
+        .max_frame_size(Some(MAX_MESSAGE));
+    tungstenite::client::client_with_config(request, stream, Some(config))
+        .map(|(socket, _)| socket)
+        .map_err(|error| match error {
+            HandshakeError::Failure(error) => format!("Gotify refused the stream: {error}"),
+            HandshakeError::Interrupted(_) => "Gotify took too long to open the stream".to_owned(),
+        })
 }
 
-fn random_mask() -> [u8; 4] {
-    let mut mask = [0_u8; 4];
-    let ret = unsafe { libc::getrandom(mask.as_mut_ptr().cast(), mask.len(), 0) };
-    if ret == mask.len() as isize {
-        mask
-    } else {
-        let nanos = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .map_or(0x1234_5678, |d| d.subsec_nanos());
-        nanos.to_ne_bytes()
-    }
-}
-
-fn write_frame(stream: &mut impl Write, opcode: u8, payload: &[u8]) -> io::Result<()> {
-    let mut frame = Vec::with_capacity(14 + payload.len());
-    frame.push(0x80 | (opcode & 0x0f));
-    let len = payload.len();
-    if len < 126 {
-        frame.push(0x80 | (len as u8));
-    } else if len <= usize::from(u16::MAX) {
-        frame.push(0x80 | 126);
-        frame.extend_from_slice(&(len as u16).to_be_bytes());
-    } else {
-        frame.push(0x80 | 127);
-        frame.extend_from_slice(&(len as u64).to_be_bytes());
-    }
-    let mask = random_mask();
-    frame.extend_from_slice(&mask);
-    for (index, byte) in payload.iter().enumerate() {
-        frame.push(byte ^ mask[index & 3]);
-    }
-    stream.write_all(&frame)?;
-    stream.flush()
-}
-
-fn read_exact(stream: &mut impl Read, buffer: &mut [u8]) -> Result<(), String> {
-    stream
-        .read_exact(buffer)
-        .map_err(|error| format!("stream read failed: {error}"))
-}
-
-pub fn read_message(stream: &mut (impl Read + Write)) -> Result<RawMessage, String> {
-    let mut fragments = Vec::new();
-    let payload = loop {
-        let mut head = [0_u8; 2];
-        read_exact(stream, &mut head)?;
-        let fin = (head[0] & 0x80) != 0;
-        let opcode = head[0] & 0x0f;
-        let masked = (head[1] & 0x80) != 0;
-        let len = match head[1] & 0x7f {
-            126 => {
-                let mut ext = [0_u8; 2];
-                read_exact(stream, &mut ext)?;
-                usize::from(u16::from_be_bytes(ext))
-            }
-            127 => {
-                let mut ext = [0_u8; 8];
-                read_exact(stream, &mut ext)?;
-                usize::try_from(u64::from_be_bytes(ext))
-                    .map_err(|_| "WebSocket frame exceeds limit".to_owned())?
-            }
-            len => usize::from(len),
+/// The next message; pings are answered as the stream is read.
+pub fn read_message<S: Read + Write>(socket: &mut WebSocket<S>) -> Result<RawMessage, String> {
+    loop {
+        let payload = match socket.read() {
+            Ok(Message::Text(text)) => text.as_bytes().to_vec(),
+            Ok(Message::Binary(bytes)) => bytes.to_vec(),
+            Ok(Message::Close(_)) => return Err("Gotify closed the stream".to_owned()),
+            Ok(Message::Ping(_) | Message::Pong(_) | Message::Frame(_)) => continue,
+            Err(error) => return Err(format!("stream read failed: {error}")),
         };
-        if len > MAX_FRAME || fragments.len().saturating_add(len) > MAX_FRAME {
-            return Err("WebSocket frame exceeds limit".to_owned());
-        }
-        let mut mask = [0_u8; 4];
-        if masked {
-            read_exact(stream, &mut mask)?;
-        }
-        let mut payload = vec![0_u8; len];
-        read_exact(stream, &mut payload)?;
-        if masked {
-            for (index, byte) in payload.iter_mut().enumerate() {
-                *byte ^= mask[index & 3];
-            }
-        }
-        match opcode {
-            0x1 | 0x2 => {
-                if !fragments.is_empty() {
-                    return Err("new message arrived before prior fragment finished".to_owned());
-                }
-                if fin {
-                    break payload;
-                }
-                fragments.extend_from_slice(&payload);
-            }
-            0x0 => {
-                if fragments.is_empty() {
-                    return Err("unexpected continuation frame without initial fragment".to_owned());
-                }
-                fragments.extend_from_slice(&payload);
-                if fin {
-                    break std::mem::take(&mut fragments);
-                }
-            }
-            0x9 => {
-                write_frame(stream, 0xA, &payload)
-                    .map_err(|error| format!("cannot send WebSocket pong: {error}"))?;
-            }
-            0xA => {}
-            0x8 => {
-                let _ = write_frame(stream, 0x8, &[]);
-                return Err("Gotify closed the stream".to_owned());
-            }
-            other => return Err(format!("unexpected WebSocket opcode {other:#x}")),
-        }
-    };
-    serde_json::from_slice(&payload).map_err(|error| format!("invalid Gotify message: {error}"))
+        return serde_json::from_slice(&payload)
+            .map_err(|error| format!("invalid Gotify message: {error}"));
+    }
 }
 
 #[cfg(test)]

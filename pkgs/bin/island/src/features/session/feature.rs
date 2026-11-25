@@ -1,6 +1,5 @@
 use std::{
     sync::{Arc, Mutex},
-    thread,
     time::Duration,
 };
 
@@ -15,6 +14,7 @@ use super::{
 use crate::{
     control::{Command, Group, Report, Row, Takes, Value, form},
     features::{Feature, Feed, parse_settings},
+    supervisor,
     sync::lock,
 };
 
@@ -38,7 +38,7 @@ impl Session {
             return;
         }
         if !worker::command(action, &self.settings) {
-            thread::spawn(move || match logind(action) {
+            supervisor::spawn("island-session-logind", move || match logind(action) {
                 Ok(()) => info!(action = action.word(), "asked logind"),
                 Err(error) => warn!(action = action.word(), "logind refused: {error}"),
             });
@@ -98,8 +98,7 @@ impl Session {
         };
         self.shared.update(|state| state.armed = Some(action));
         let (shared, armings) = (self.shared.clone(), self.armings.clone());
-        thread::spawn(move || {
-            thread::sleep(CONFIRM);
+        supervisor::after("island-session-disarm", CONFIRM, move || {
             if *lock(&armings) == arming {
                 shared.update(|state| state.armed = None);
             }

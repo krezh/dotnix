@@ -834,6 +834,8 @@ fn buttons(state: &State, p: &PanelCx<'_>) -> Vec<IconButton> {
             .into(),
             active: wifi.enabled,
             badge: None,
+            enabled: true,
+            busy: false,
             on_click: p.call(|network: &Network| network.send(Request::Wifi(None))),
         });
         if wifi.enabled {
@@ -843,6 +845,8 @@ fn buttons(state: &State, p: &PanelCx<'_>) -> Vec<IconButton> {
                 label: "Scan for networks".into(),
                 active: wifi.scanning,
                 badge: Some(wifi.networks.len().to_string().into()),
+                enabled: true,
+                busy: false,
                 on_click: p.call(|network: &Network| network.send(Request::Scan)),
             });
         }
@@ -853,6 +857,8 @@ fn buttons(state: &State, p: &PanelCx<'_>) -> Vec<IconButton> {
                 label: format!("Disconnect from {}", active.ssid).into(),
                 active: false,
                 badge: None,
+                enabled: true,
+                busy: false,
                 on_click: p.call(|network: &Network| network.send(Request::Disconnect)),
             });
             if active.saved {
@@ -863,6 +869,8 @@ fn buttons(state: &State, p: &PanelCx<'_>) -> Vec<IconButton> {
                     label: format!("Forget {}", active.ssid).into(),
                     active: false,
                     badge: None,
+                    enabled: true,
+                    busy: false,
                     on_click: p.call(move |network: &Network| {
                         network.send(Request::Forget(ssid.clone()));
                     }),
@@ -884,6 +892,8 @@ fn buttons(state: &State, p: &PanelCx<'_>) -> Vec<IconButton> {
             .into(),
             active: on,
             badge: None,
+            enabled: true,
+            busy: false,
             on_click: p
                 .call(move |network: &Network| network.send(Request::Vpn(name.clone(), None))),
         });
@@ -907,6 +917,8 @@ fn prompt(state: &State, prompt: &Prompt, p: &PanelCx<'_>) -> PromptView {
     PromptView {
         title: format!("Join {}", prompt.ssid).into(),
         detail: format!("{} · enter its password", security.label()).into(),
+        changes: Vec::new(),
+        busy,
         code: None,
         confirm: None,
         field: Some(InputView {
@@ -918,6 +930,8 @@ fn prompt(state: &State, prompt: &Prompt, p: &PanelCx<'_>) -> PromptView {
                 .then(|| p.on_local::<Network>(|network, view: &mut View| view.submit(network))),
             busy,
             secret: !prompt.shown,
+            focused: true,
+            on_focus: None,
         }),
         reveal: Some(Reveal {
             glyph: p.glyph(if prompt.shown {
@@ -979,6 +993,7 @@ pub fn panel(state: &State, p: &PanelCx<'_>) -> PanelView {
         ));
     }
     blocks.push(Block::Buttons(ButtonRow {
+        lead: None,
         fill: false,
         buttons: buttons(state, p),
         compact: false,

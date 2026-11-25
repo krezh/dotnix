@@ -1,4 +1,9 @@
-use std::{env, fs, path::PathBuf, time::Duration};
+use std::{
+    env, fs,
+    path::PathBuf,
+    sync::{LazyLock, Mutex},
+    time::Duration,
+};
 
 use serde_json::Value;
 
@@ -6,14 +11,17 @@ use super::{Failure, TIMEOUT, number, percentage, severity, text, timestamp};
 use crate::{
     features::ai::{
         cache,
-        state::{Credits, Freshness, Issue, Limit, Provider, Source, SourceReport},
+        state::{Credits, Freshness, Grant, Issue, Limit, Provider, Source, SourceReport},
     },
-    paths, run, time,
+    launch, paths, run, sync, time,
     units::capitalise,
 };
 
-const USAGE_URL: &str = "https://api.anthropic.com/api/oauth/usage";
+const USAGE_URL: &str =
+    "https://api.anthropic.com/api/oauth/usage?cedar_ember=1&at_wall=1&skip_spend=1";
 const PROFILE_URL: &str = "https://api.anthropic.com/api/oauth/profile";
+const CEDAR: &str = "cedar_ember";
+const JUNIPER: &str = "juniper_tide";
 const FIVE_HOURS: i64 = 5 * 60 * 60 * 1000;
 const SEVEN_DAYS: i64 = 7 * 24 * 60 * 60 * 1000;
 
@@ -37,6 +45,12 @@ pub(super) fn fetch(
             return Err(error.into());
         }
     };
+    // An environment-token login names no account, so the cached usage is found only once the
+    // profile has.
+    if let Err(error) = identify(&AGENT, &mut login) {
+        publish_cached(None, None);
+        return Err(error);
+    }
     let identity = login.identity();
     let snapshot = identity
         .as_deref()
@@ -50,28 +64,10 @@ pub(super) fn fetch(
     publish_cached(identity, snapshot);
     if login.check_expiry(now).is_err() {
         login = renew(now)?;
+        // Account identity must survive token refreshes, including environment-token logins.
+        identify(&AGENT, &mut login)?;
     }
-    let agent: ureq::Agent = ureq::Agent::config_builder()
-        .timeout_global(Some(TIMEOUT))
-        .timeout_connect(Some(Duration::from_secs(8)))
-        .https_only(true)
-        .max_redirects(0)
-        .http_status_as_error(false)
-        .build()
-        .into();
-    // Account identity must survive token refreshes, including environment-token logins.
-    if login.account_id.is_empty() || login.organization_id.is_empty() {
-        let profile = get(&agent, PROFILE_URL, &login.token)?;
-        apply_profile(&mut login, &profile);
-        if login.account_id.is_empty() {
-            return Err(
-                "Claude usage login has no account identity; sign in with a Claude subscription"
-                    .to_owned()
-                    .into(),
-            );
-        }
-    }
-    let usage = get(&agent, USAGE_URL, &login.token)?;
+    let usage = get(&AGENT, USAGE_URL, &login.token)?;
     let report = parse(&usage, &login, now)?;
     if login.identity().is_some() {
         for provider in &report.providers {
@@ -81,6 +77,51 @@ pub(super) fn fetch(
         }
     }
     Ok(report)
+}
+
+/// Kept across refreshes, so its connection to the API is reused. Redirects are refused, so the
+/// token is never sent elsewhere.
+static AGENT: LazyLock<ureq::Agent> = LazyLock::new(|| {
+    ureq::Agent::config_builder()
+        .timeout_global(Some(TIMEOUT))
+        .timeout_connect(Some(Duration::from_secs(8)))
+        .https_only(true)
+        .max_redirects(0)
+        .http_status_as_error(false)
+        .build()
+        .into()
+});
+
+/// The profile's ids for the last token that needed them, so each refresh does not ask again.
+static PROFILED: Mutex<Option<(String, String, String)>> = Mutex::new(None);
+
+/// Fills in the account and organization from the profile when the login itself does not name them.
+fn identify(agent: &ureq::Agent, login: &mut Login) -> Result<(), Failure> {
+    if login.identity().is_some() {
+        return Ok(());
+    }
+    if let Some((token, account_id, organization_id)) = sync::lock(&PROFILED).as_ref()
+        && *token == login.token
+    {
+        login.account_id.clone_from(account_id);
+        login.organization_id.clone_from(organization_id);
+        return Ok(());
+    }
+    let profile = get(agent, PROFILE_URL, &login.token)?;
+    apply_profile(login, &profile);
+    if login.account_id.is_empty() {
+        return Err(
+            "Claude usage login has no account identity; sign in with a Claude subscription"
+                .to_owned()
+                .into(),
+        );
+    }
+    *sync::lock(&PROFILED) = Some((
+        login.token.clone(),
+        login.account_id.clone(),
+        login.organization_id.clone(),
+    ));
+    Ok(())
 }
 
 impl Login {
@@ -264,7 +305,7 @@ fn get(agent: &ureq::Agent, url: &'static str, token: &str) -> Result<Value, Fai
         .header("Authorization", format!("Bearer {token}"))
         .header("anthropic-beta", "oauth-2025-04-20")
         .header("Accept", "application/json")
-        .header("User-Agent", concat!("island/", env!("CARGO_PKG_VERSION")))
+        .header("User-Agent", user_agent())
         .call()
         .map_err(|_| {
             "Cannot reach Claude usage API (connection, TLS, timeout, or redirect failure)"
@@ -294,6 +335,50 @@ fn get(agent: &ureq::Agent, url: &'static str, token: &str) -> Result<Value, Fai
         .map_err(|_| "Cannot read Claude usage API response".to_owned())?;
     serde_json::from_slice(&bytes)
         .map_err(|_| "Claude usage API returned invalid JSON".to_owned().into())
+}
+
+/// The usage API reports saved resets only to a current Claude Code, so requests name the
+/// installed one. Its version is read again whenever the `claude` binary changes.
+static CLIENT: Mutex<Option<(PathBuf, String)>> = Mutex::new(None);
+
+fn user_agent() -> String {
+    let own = concat!("island/", env!("CARGO_PKG_VERSION"));
+    let Some(path) = launch::resolve("claude").and_then(|path| fs::canonicalize(path).ok()) else {
+        return own.to_owned();
+    };
+    let mut client = sync::lock(&CLIENT);
+    if let Some((known, agent)) = client.as_ref()
+        && *known == path
+    {
+        return agent.clone();
+    }
+    let agent = path
+        .to_str()
+        .ok_or_else(|| "Claude Code path is not UTF-8".to_owned())
+        .and_then(|program| run::output(program, &["--version"], TIMEOUT))
+        .and_then(|output| {
+            claude_version(&output.stdout)
+                .map(str::to_owned)
+                .ok_or(output.stderr)
+        })
+        .map_or_else(
+            |error| {
+                tracing::warn!("cannot read Claude Code version; saved resets stay hidden: {error}");
+                own.to_owned()
+            },
+            |version| format!("claude-cli/{version} (external, cli)"),
+        );
+    *client = Some((path, agent.clone()));
+    agent
+}
+
+fn claude_version(output: &str) -> Option<&str> {
+    let version = output.split_whitespace().next()?;
+    (version.split('.').count() == 3
+        && version
+            .split('.')
+            .all(|part| !part.is_empty() && part.bytes().all(|byte| byte.is_ascii_digit())))
+    .then_some(version)
 }
 
 fn http_error(status: u16) -> String {
@@ -481,15 +566,29 @@ fn reset_credits(value: &Value, now: i64) -> Option<Credits> {
         if offer.get("eligible")?.as_bool()? != true || text(offer, "arm") != Some("reset") {
             return None;
         }
-        return offer.get("available")?.as_bool()?.then_some(Credits {
+        return offer.get("available")?.as_bool()?.then(|| Credits {
             count: 1,
             expires_at: None,
+            next: Some(Grant {
+                program: JUNIPER.to_owned(),
+                id: String::new(),
+                label: "Session limit reset".to_owned(),
+                expires_at: None,
+                clears: vec!["five_hour".to_owned()],
+                used: Vec::new(),
+            }),
         });
     };
     if inventory.get("eligible")?.as_bool()? != true {
         return None;
     }
     let grants = inventory.get("grants")?.as_array()?;
+    let cooling = inventory
+        .get("cooldown_until")
+        .and_then(timestamp)
+        .is_some_and(|until| until > now);
+    let chosen = text(inventory, "next_grant_id").filter(|_| !cooling);
+    let mut next = None;
     let mut count = 0_u64;
     let mut expires_at: Option<i64> = None;
     for grant in grants {
@@ -523,8 +622,116 @@ fn reset_credits(value: &Value, now: i64) -> Option<Credits> {
         if let Some(ends) = ends {
             expires_at = Some(expires_at.map_or(ends, |previous| previous.min(ends)));
         }
+        let id = text(grant, "id").filter(|id| valid_id(id, 40));
+        if id.is_some()
+            && id == chosen
+            && grant.get("usable_now").and_then(Value::as_bool) == Some(true)
+        {
+            next = id.map(|id| Grant {
+                program: CEDAR.to_owned(),
+                id: id.to_owned(),
+                label: text(grant, "label")
+                    .unwrap_or("Claude limit reset")
+                    .to_owned(),
+                expires_at: ends,
+                clears: grant
+                    .get("clears")
+                    .and_then(Value::as_array)
+                    .into_iter()
+                    .flatten()
+                    .filter_map(Value::as_str)
+                    .map(str::to_owned)
+                    .collect(),
+                used: grant
+                    .get("percent_used")
+                    .and_then(Value::as_object)
+                    .into_iter()
+                    .flatten()
+                    .filter_map(|(window, percent)| Some((window.clone(), percent.as_f64()?)))
+                    .collect(),
+            });
+        }
     }
-    (count > 0).then_some(Credits { count, expires_at })
+    (count > 0).then_some(Credits {
+        count,
+        expires_at,
+        next,
+    })
+}
+
+fn valid_id(id: &str, longest: usize) -> bool {
+    !id.is_empty()
+        && id.len() <= longest
+        && id
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || byte == b'-' || byte == b'_')
+}
+
+/// A key the API keeps a spend to once, however often it is sent.
+fn request_id() -> String {
+    static COUNT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+    let nanos = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |since| since.as_nanos());
+    let count = COUNT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    format!("island-{nanos:x}-{:x}-{count:x}", std::process::id())
+}
+
+/// Spends `grant`, saying why not when Claude refuses it.
+pub(in crate::features::ai) fn redeem(grant: &Grant) -> Result<(), String> {
+    let now = time::now_ms();
+    let mut login = discover()?;
+    identify(&AGENT, &mut login).map_err(|failure| failure.message)?;
+    if login.check_expiry(now).is_err() {
+        login = renew(now)?;
+        identify(&AGENT, &mut login).map_err(|failure| failure.message)?;
+    }
+    if !valid_id(&login.organization_id, 128) {
+        return Err("cannot use the reset: this Claude login names no organization".to_owned());
+    }
+    let body = if grant.program == CEDAR {
+        if !valid_id(&grant.id, 40) {
+            return Err("cannot use the reset: Claude named it oddly".to_owned());
+        }
+        serde_json::json!({"program": CEDAR, "grant_id": grant.id, "request_id": request_id()})
+    } else {
+        serde_json::json!({"program": JUNIPER})
+    };
+    let url = format!(
+        "https://api.anthropic.com/api/organizations/{}/reset_rate_limits",
+        login.organization_id
+    );
+    let mut response = AGENT
+        .post(&url)
+        .header("Authorization", format!("Bearer {}", login.token))
+        .header("anthropic-beta", "oauth-2025-04-20")
+        .header("Accept", "application/json")
+        .header("Content-Type", "application/json")
+        .header("User-Agent", user_agent())
+        .send(body.to_string())
+        .map_err(|_| "cannot reach Claude to use the reset".to_owned())?;
+    let status = response.status().as_u16();
+    let answer: Option<Value> = response
+        .body_mut()
+        .with_config()
+        .limit(64 * 1024)
+        .read_to_vec()
+        .ok()
+        .and_then(|bytes| serde_json::from_slice(&bytes).ok());
+    if status != 200 {
+        return Err(format!("cannot use the reset: {}", http_error(status)));
+    }
+    let answer = answer.unwrap_or(Value::Null);
+    match text(&answer, "result") {
+        Some("reset") => Ok(()),
+        Some("already_used") => Err("cannot use the reset: it was already used".to_owned()),
+        Some("not_limited") => Err("cannot use the reset: nothing to reset yet".to_owned()),
+        Some(result) => Err(match text(&answer, "reason") {
+            Some(reason) => format!("cannot use the reset: {result} ({reason})"),
+            None => format!("cannot use the reset: {result}"),
+        }),
+        None => Err("cannot use the reset: Claude gave no answer".to_owned()),
+    }
 }
 
 #[cfg(test)]

@@ -3,24 +3,22 @@ use std::{
     time::{Duration, Instant},
 };
 
-use super::{card, notification::Notification};
+use super::{
+    card,
+    notification::Notification,
+    rows::{self, Kept, Kind, Place, Rows},
+};
 use crate::{
     components::{
         measure::Measure,
         stack::{self, PEEKS},
     },
     spring::Spring,
-    stage::{CONTENT_IN, CONTENT_OUT, SHAPE_SPRING},
+    stage::{CONTENT_IN, SHAPE_SPRING},
 };
 
-pub const ENTER_DRIFT: f32 = 12.0;
-pub const LEAVE_STAGGER: Duration = Duration::from_millis(45);
-/// The most that leave one after another; any more leave with the last of them.
-pub const STAGGERED: u32 = 8;
 /// How long a card coming to the front of its group waits as the one it replaces starts sliding out.
 const PROMOTE_AFTER: Duration = Duration::from_millis(60);
-/// About five cards.
-const MAX_VISIBLE_H: f32 = 600.0;
 /// A group's heading over its cards.
 pub const HEAD_H: f32 = 24.0;
 const HEAD_GAP: f32 = 6.0;
@@ -38,57 +36,126 @@ pub enum Body {
 }
 
 #[derive(Clone, PartialEq, Eq)]
-enum Key {
+pub enum Key {
     Card(u32),
     Head(String),
 }
 
-impl Body {
-    fn key(&self) -> Key {
-        match self {
+/// Where a card sits in its group.
+#[derive(Clone, Copy)]
+pub struct Stacked {
+    /// How far behind the front card of its group it is folded; 0 for one in front.
+    depth: usize,
+    /// Drawn this tall, as the card it is folded behind.
+    clip: Option<f32>,
+    /// The edges of the cards folded behind it that show below it.
+    peeks: usize,
+}
+
+pub struct Folded {
+    pub depth: usize,
+    pub clip: Option<f32>,
+    pub peeks: usize,
+    /// How far out those edges are: 1 while folded, 0 once spread out.
+    pub peek: Spring,
+}
+
+/// Those folded behind another are out of sight until spread out.
+fn faded(depth: usize) -> f32 {
+    if depth == 0 { 1.0 } else { 0.0 }
+}
+
+pub enum Groups {}
+
+impl Kind for Groups {
+    type Body = Body;
+    type Key = Key;
+    type Place = Stacked;
+    type Extra = Folded;
+
+    /// About five cards.
+    const MAX_VISIBLE_H: f32 = 600.0;
+
+    fn key(body: &Body) -> Key {
+        match body {
             Body::Card(notification) => Key::Card(notification.id),
             Body::Head { app, .. } => Key::Head(app.clone()),
         }
     }
-}
 
-pub struct Row {
-    pub body: Body,
-    pub y: Spring,
-    /// How much of it shows: 1 for all of it, folding to 0 as it leaves.
-    pub fold: Spring,
-    pub alpha: Spring,
-    pub leaving: bool,
-    /// How far behind the front card of its group it is folded; 0 for one in front.
-    pub depth: usize,
-    /// Drawn this tall, as the card it is folded behind.
-    pub clip: Option<f32>,
-    /// The edges of the cards folded behind it that show below it.
-    pub peeks: usize,
-    /// How far out those edges are: 1 while folded, 0 once spread out.
-    pub peek: Spring,
-    height: f32,
-    /// What it takes from those below it.
-    room: f32,
-}
-
-impl Row {
-    pub fn height(&self) -> f32 {
-        self.height
+    fn alpha(place: &Stacked) -> f32 {
+        faded(place.depth)
     }
 
+    fn enter(place: &Stacked, animate: bool, reveal_at: Instant) -> Folded {
+        let mut peek = Spring::new(
+            if place.peeks > 0 && !animate { 1.0 } else { 0.0 },
+            SHAPE_SPRING,
+            0.002,
+        );
+        if animate && place.peeks > 0 {
+            peek.retarget_at(1.0, SHAPE_SPRING, reveal_at);
+        }
+        Folded {
+            depth: place.depth,
+            clip: place.clip,
+            peeks: place.peeks,
+            peek,
+        }
+    }
+
+    /// The front of a folded group gives no room back: the next card of the group takes its
+    /// place.
+    fn leave(row: &mut Row) {
+        if row.peeks > 0 && row.peek.target() > 0.5 {
+            row.room = 0.0;
+            row.extra.peek.reset(0.0);
+        }
+    }
+
+    fn kept(row: &mut Row, place: &Place<Self>, kept: Kept) {
+        let alpha = faded(place.extra.depth);
+        let peek = if place.extra.peeks > 0 { 1.0 } else { 0.0 };
+        // Coming to the front in place of one folding away, it shows once that one has.
+        let promoted = row.depth > 0 && place.extra.depth == 0 && kept.left > 0;
+        if kept.animate && promoted {
+            // Already where the leaving one was, under it, so the edges below stay.
+            row.alpha
+                .retarget_at(alpha, CONTENT_IN, kept.now + PROMOTE_AFTER);
+            row.y.reset(place.y);
+            row.extra.peek.reset(peek);
+        } else if kept.animate {
+            row.alpha.retarget(alpha, CONTENT_IN);
+            row.extra.peek.retarget(peek, SHAPE_SPRING);
+        } else {
+            row.alpha.reset(alpha);
+            row.extra.peek.reset(peek);
+        }
+    }
+
+    fn assign(row: &mut Row, place: Stacked) {
+        row.extra.depth = place.depth;
+        row.extra.clip = place.clip;
+        if place.peeks > 0 {
+            row.extra.peeks = place.peeks;
+        }
+    }
+
+    fn advance(folded: &mut Folded, dt: f32, now: Instant) {
+        folded.peek.advance(dt, now);
+    }
+
+    fn settled(folded: &Folded) -> bool {
+        folded.peek.is_settled()
+    }
+}
+
+pub type Row = rows::Row<Groups>;
+
+impl Row {
     /// The front of a group with cards folded behind it, which opens the group when clicked.
     pub fn folded_front(&self) -> bool {
         !self.leaving && self.depth == 0 && self.peeks > 0 && self.peek.target() > 0.5
-    }
-
-    /// How far it has slid out, 0 to 1.
-    pub fn out(&self) -> f32 {
-        if self.leaving {
-            sliding(self.fold.value())
-        } else {
-            0.0
-        }
     }
 
     pub fn notification(&self) -> Option<&Notification> {
@@ -97,41 +164,13 @@ impl Row {
             Body::Head { .. } => None,
         }
     }
-
-    /// The room a leaving row still takes from those below it: all of it while it slides out,
-    /// then closing.
-    fn folding(&self) -> f32 {
-        if self.leaving {
-            self.room * (self.fold.value() * 2.0).clamp(0.0, 1.0)
-        } else {
-            0.0
-        }
-    }
 }
 
-/// How far a leaving row has slid out, 0 to 1, as its fold goes from 1 to 0: it is gone by
-/// halfway, and the room it took closes after.
-pub fn sliding(fold: f32) -> f32 {
-    (1.0 - (fold - 0.5) * 2.0).clamp(0.0, 1.0)
-}
-
-/// Where a row goes, as the layout works it out.
-struct Placement {
-    body: Body,
-    y: f32,
-    height: f32,
-    room: f32,
-    depth: usize,
-    clip: Option<f32>,
-    peeks: usize,
-}
-
-/// Its rows are kept in the order they show, leaving ones where they were. Each app's cards are
-/// grouped under a heading once it has more than one, folded behind the newest until opened.
+/// Each app's cards are grouped under a heading once it has more than one, folded behind the
+/// newest until opened.
 #[derive(Default)]
 pub struct MissedList {
-    rows: Vec<Row>,
-    height: f32,
+    rows: Rows<Groups>,
     items: Vec<Notification>,
     /// Apps whose cards are spread out rather than folded.
     open: HashSet<String>,
@@ -140,57 +179,19 @@ pub struct MissedList {
     /// Apps in the order their groups show: one moves to the top only when something new arrives
     /// for it, so dismissing never moves a group.
     order: Vec<String>,
-    /// Laying out another set in place of this one, as [`Self::swap`] does.
-    swapping: bool,
 }
 
-/// Those folded behind another are out of sight until spread out.
-fn faded(depth: usize) -> f32 {
-    if depth == 0 { 1.0 } else { 0.0 }
+/// Its visible height is known from the cards' heights alone, so the center never has to measure
+/// it, and dismissing while the list overflows leaves the center's size alone.
+impl std::ops::Deref for MissedList {
+    type Target = Rows<Groups>;
+
+    fn deref(&self) -> &Rows<Groups> {
+        &self.rows
+    }
 }
 
 impl MissedList {
-    pub fn rows(&self) -> &[Row] {
-        &self.rows
-    }
-
-    /// Known from the cards' heights alone, so the center never has to measure it, and dismissing
-    /// while the list overflows leaves the center's size alone.
-    pub fn visible_height(&self) -> f32 {
-        self.full_height().min(MAX_VISIBLE_H)
-    }
-
-    /// How tall it all is where the rows are going, with the room those leaving still take.
-    pub fn full_height(&self) -> f32 {
-        self.height + self.rows.iter().map(Row::folding).sum::<f32>()
-    }
-
-    /// Where each row is drawn, in the order of [`Self::rows`]: below every row folding away
-    /// above it by what that one still takes, so they follow its edge up.
-    pub fn drawn_y(&self) -> Vec<f32> {
-        let mut above = 0.0;
-        self.rows
-            .iter()
-            .map(|row| {
-                let y = row.y.value() + above;
-                above += row.folding();
-                y
-            })
-            .collect()
-    }
-
-    pub fn extent(&self) -> f32 {
-        self.rows
-            .iter()
-            .zip(self.drawn_y())
-            .map(|(row, y)| y.max(row.y.target()) + row.height())
-            .fold(self.height, f32::max)
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.rows.iter().all(|row| row.leaving)
-    }
-
     pub fn sync(&mut self, items: &[Notification], animate: bool, reveal_at: Instant) {
         let arrived: Vec<&str> = items
             .iter()
@@ -214,9 +215,9 @@ impl MissedList {
     /// Shows `items` in place of what it shows now, such as another source's: cards in both slide
     /// to their new places, and the rest fade where they are, together, giving their room at once.
     pub fn swap(&mut self, items: &[Notification], now: Instant) {
-        self.swapping = true;
+        self.rows.swapping = true;
         self.sync(items, true, now);
-        self.swapping = false;
+        self.rows.swapping = false;
     }
 
     /// Spreads an app's cards out, or folds them back behind the newest.
@@ -268,14 +269,19 @@ impl MissedList {
         groups
     }
 
-    fn placements(&self) -> (Vec<Placement>, f32) {
+    fn placements(&self) -> (Vec<Place<Groups>>, f32) {
+        const ALONE: Stacked = Stacked {
+            depth: 0,
+            clip: None,
+            peeks: 0,
+        };
         let mut placed = Vec::new();
         let mut y = 0.0;
         for group in self.groups() {
             let app = &group[0].app;
             let open = self.open.contains(app);
             if group.len() > 1 {
-                placed.push(Placement {
+                placed.push(Place {
                     body: Body::Head {
                         app: app.clone(),
                         count: group.len(),
@@ -289,23 +295,19 @@ impl MissedList {
                     y,
                     height: HEAD_H,
                     room: HEAD_H + HEAD_GAP,
-                    depth: 0,
-                    clip: None,
-                    peeks: 0,
+                    extra: ALONE,
                 });
                 y += HEAD_H + HEAD_GAP;
             }
             if open || group.len() == 1 {
                 for item in group {
                     let height = self.card_height(item);
-                    placed.push(Placement {
+                    placed.push(Place {
                         body: Body::Card(item.clone()),
                         y,
                         height,
                         room: height + stack::GAP,
-                        depth: 0,
-                        clip: None,
-                        peeks: 0,
+                        extra: ALONE,
                     });
                     y += height + stack::GAP;
                 }
@@ -315,7 +317,7 @@ impl MissedList {
             let peeks = (group.len() - 1).min(PEEKS.len());
             let below: f32 = PEEKS[..peeks].iter().sum();
             for (depth, item) in group.into_iter().enumerate() {
-                placed.push(Placement {
+                placed.push(Place {
                     body: Body::Card(item.clone()),
                     y,
                     height: front,
@@ -324,9 +326,11 @@ impl MissedList {
                     } else {
                         0.0
                     },
-                    depth,
-                    clip: (depth > 0).then_some(front),
-                    peeks: if depth == 0 { peeks } else { 0 },
+                    extra: Stacked {
+                        depth,
+                        clip: (depth > 0).then_some(front),
+                        peeks: if depth == 0 { peeks } else { 0 },
+                    },
                 });
             }
             y += front + below + stack::GAP;
@@ -335,172 +339,11 @@ impl MissedList {
     }
 
     fn layout(&mut self, animate: bool, reveal_at: Instant) {
-        let (motion, fade_in) = (SHAPE_SPRING, CONTENT_IN);
         let (placed, height) = self.placements();
-        let now = Instant::now();
-        let swapping = self.swapping;
-        let mut left = 0;
-        for index in 0..self.rows.len() {
-            let row = &mut self.rows[index];
-            if row.leaving
-                || placed
-                    .iter()
-                    .any(|place| place.body.key() == row.body.key())
-            {
-                continue;
-            }
-            row.leaving = true;
-            if swapping {
-                row.room = 0.0;
-                row.fold.retarget(0.0, CONTENT_OUT);
-                continue;
-            }
-            // The front of a folded group gives no room back: the next card of the group takes its
-            // place.
-            if row.peeks > 0 && row.peek.target() > 0.5 {
-                row.room = 0.0;
-                row.peek.reset(0.0);
-            }
-            if animate {
-                // Several leaving at once, as when cleared, fold away one after another.
-                row.fold
-                    .retarget_at(0.0, card::FOLD, now + LEAVE_STAGGER * left.min(STAGGERED));
-                left += 1;
-                // Those below take their new places at once, and are drawn lower by what it still
-                // takes, so they rise with its edge.
-                let room = row.room;
-                for below in &mut self.rows[index + 1..] {
-                    below.y.shift(-room);
-                }
-            } else {
-                row.fold.reset(0.0);
-            }
-        }
-
-        let mut old: Vec<Option<Row>> = std::mem::take(&mut self.rows)
-            .into_iter()
-            .map(Some)
-            .collect();
-        let keep_leaving = |rows: &mut [Option<Row>], next: &mut Vec<Row>| {
-            for slot in rows {
-                if slot.as_ref().is_some_and(|row| row.leaving)
-                    && let Some(row) = slot.take()
-                    && !row.fold.is_settled()
-                {
-                    next.push(row);
-                }
-            }
-        };
-        let mut next = Vec::with_capacity(placed.len());
-        for place in placed {
-            let key = place.body.key();
-            let existing = old.iter().position(|slot| {
-                slot.as_ref()
-                    .is_some_and(|row| !row.leaving && row.body.key() == key)
-            });
-            let alpha = faded(place.depth);
-            let fresh = existing.is_none();
-            let mut row = match existing.and_then(|index| {
-                keep_leaving(&mut old[..index], &mut next);
-                old[index].take()
-            }) {
-                Some(mut row) => {
-                    let peek = if place.peeks > 0 { 1.0 } else { 0.0 };
-                    // Coming to the front in place of one folding away, it shows once that one has.
-                    let promoted = row.depth > 0 && place.depth == 0 && left > 0;
-                    if animate && promoted {
-                        // Already where the leaving one was, under it, so the edges below stay.
-                        row.alpha.retarget_at(alpha, fade_in, now + PROMOTE_AFTER);
-                        row.y.reset(place.y);
-                        row.peek.reset(peek);
-                    } else if animate {
-                        row.alpha.retarget(alpha, fade_in);
-                        row.peek.retarget(peek, motion);
-                    } else {
-                        row.alpha.reset(alpha);
-                        row.peek.reset(peek);
-                    }
-                    row
-                }
-                None => {
-                    let mut row = Row {
-                        body: place.body.clone(),
-                        y: Spring::new(place.y - ENTER_DRIFT, motion, 0.1),
-                        fold: Spring::new(1.0, card::FOLD, 0.001),
-                        alpha: Spring::new(0.0, fade_in, 0.002),
-                        leaving: false,
-                        depth: place.depth,
-                        clip: place.clip,
-                        peeks: place.peeks,
-                        peek: Spring::new(
-                            if place.peeks > 0 && !animate {
-                                1.0
-                            } else {
-                                0.0
-                            },
-                            motion,
-                            0.002,
-                        ),
-                        height: place.height,
-                        room: place.room,
-                    };
-                    if animate {
-                        row.alpha.retarget_at(alpha, fade_in, reveal_at);
-                        if place.peeks > 0 {
-                            row.peek.retarget_at(1.0, motion, reveal_at);
-                        }
-                    } else {
-                        row.y.reset(place.y);
-                        row.alpha.reset(alpha);
-                    }
-                    row
-                }
-            };
-            // From far out of sight, it rises in where it goes rather than sweeping across the list.
-            if swapping && !fresh && (row.y.value() - place.y).abs() > MAX_VISIBLE_H {
-                row.y.reset(place.y - ENTER_DRIFT);
-                row.alpha.reset(0.0);
-                row.alpha.retarget(alpha, fade_in);
-            }
-            row.body = place.body;
-            row.depth = place.depth;
-            row.clip = place.clip;
-            if place.peeks > 0 {
-                row.peeks = place.peeks;
-            }
-            row.height = place.height;
-            row.room = place.room;
-            if animate && fresh {
-                row.y.retarget_at(place.y, motion, reveal_at);
-            } else if animate {
-                row.y.retarget(place.y, motion);
-            } else {
-                row.y.reset(place.y);
-            }
-            next.push(row);
-        }
-        keep_leaving(&mut old, &mut next);
-        self.height = height;
-        self.rows = next;
+        self.rows.layout(placed, height, animate, reveal_at);
     }
 
     pub fn advance(&mut self, dt: f32, now: Instant) {
-        for row in &mut self.rows {
-            row.y.advance(dt, now);
-            row.fold.advance(dt, now);
-            row.alpha.advance(dt, now);
-            row.peek.advance(dt, now);
-        }
-        self.rows
-            .retain(|row| !(row.leaving && row.fold.is_settled()));
-    }
-
-    pub fn is_settled(&self) -> bool {
-        self.rows.iter().all(|row| {
-            row.y.is_settled()
-                && row.fold.is_settled()
-                && row.alpha.is_settled()
-                && row.peek.is_settled()
-        })
+        self.rows.advance(dt, now);
     }
 }

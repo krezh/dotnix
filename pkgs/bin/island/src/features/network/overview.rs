@@ -118,6 +118,7 @@ pub fn cards(state: &State, p: &PanelCx<'_>) -> Vec<Block> {
             amount: amount.into(),
             unit: unit.to_owned().into(),
             history: None,
+            phase: None,
         },
     };
     let numbers = vec![

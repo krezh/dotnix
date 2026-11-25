@@ -1,10 +1,6 @@
 use std::{
     collections::HashMap,
-    sync::{
-        Arc, Mutex,
-        mpsc::{self, Receiver, RecvTimeoutError, Sender},
-    },
-    thread,
+    sync::mpsc::{self, Receiver, RecvTimeoutError, Sender},
     time::Instant,
 };
 
@@ -21,7 +17,7 @@ use crate::{
         Feature, Feed,
         notice::{self, Post, Reply, Trouble},
     },
-    launch::{self, Launch},
+    launch,
     supervisor::{self, Ended, Reconnect},
 };
 
@@ -38,7 +34,6 @@ enum WorkerEvent {
     Connected(u64, Agent),
     Arrived(u64, RawMessage),
     StreamEnded(u64, String),
-    Reconnect(u64),
 }
 
 #[derive(Clone)]
@@ -98,6 +93,41 @@ fn spawn_stream(generation: u64, endpoint: Endpoint, token: String, sender: Send
             }
         }
     });
+}
+
+/// The live stream, by generation, so events from one already replaced are ignored.
+struct Stream {
+    generation: u64,
+    started: Instant,
+    /// A stream's read cannot be interrupted, so a second is never started beside one connecting.
+    connecting: bool,
+    agent: Option<Agent>,
+}
+
+impl Default for Stream {
+    fn default() -> Self {
+        Self {
+            generation: 0,
+            started: Instant::now(),
+            connecting: false,
+            agent: None,
+        }
+    }
+}
+
+impl Stream {
+    fn start(&mut self, endpoint: &Endpoint, token: String, sender: &Sender<WorkerEvent>) {
+        self.generation += 1;
+        self.started = Instant::now();
+        self.connecting = true;
+        spawn_stream(self.generation, endpoint.clone(), token, sender.clone());
+    }
+
+    fn stop(&mut self) {
+        if let Some(agent) = self.agent.take() {
+            agent.shutdown();
+        }
+    }
 }
 
 fn trouble(trouble: Option<(&str, String)>) {
@@ -207,7 +237,7 @@ impl Server {
         }
         if raw.appid != 0
             && !self.apps.contains_key(&raw.appid)
-            && let Ok(apps) = client::fetch_applications(&self.api, &self.endpoint, &self.token)
+            && let Ok(apps) = client::fetch_applications(&self.api, &self.endpoint, &self.token())
         {
             self.apps = apps;
         }
@@ -253,12 +283,7 @@ impl Server {
                     .ok()
                     .and_then(|id| self.messages.get(&id).cloned().flatten());
                 if let Some(url) = url {
-                    launch::spawn(Launch {
-                        id: "xdg-open".to_owned(),
-                        name: "Gotify link".to_owned(),
-                        argv: vec!["xdg-open".to_owned(), url],
-                        directory: None,
-                    });
+                    launch::open(&url, "Gotify link");
                 }
             }
             Reply::Action(..) | Reply::Retry => {}
@@ -313,30 +338,40 @@ fn run(
     };
     server.sync(&mut state);
 
-    let mut generation: u64 = 1;
-    let mut started = Instant::now();
-    let pace: Arc<Mutex<Reconnect>> = Arc::default();
-    let mut stream_agent: Option<Agent> = None;
-    // A stream's read cannot be interrupted, so a second is never started beside one connecting.
-    let mut connecting = true;
-    spawn_stream(generation, endpoint.clone(), server.token(), sender.clone());
+    let mut pace = Reconnect::default();
+    let mut stream = Stream::default();
+    stream.start(&endpoint, server.token(), sender);
     if !feed.publish(state.clone()) {
         return Ended::Unwanted;
     }
 
     let every = settings.sync_interval();
+    // Deadlines, so a steady stream of events cannot keep pushing either back.
+    let mut next_sync = every.map(|every| Instant::now() + every);
+    let mut reconnect_at: Option<Instant> = None;
     loop {
-        let event = match every.map_or_else(
+        let deadline = [next_sync, reconnect_at].into_iter().flatten().min();
+        let event = match deadline.map_or_else(
             || receiver.recv().map_err(|_| RecvTimeoutError::Disconnected),
-            |every| receiver.recv_timeout(every),
+            |at| receiver.recv_timeout(at.saturating_duration_since(Instant::now())),
         ) {
             Ok(event) => event,
-            // Gotify's stream does not say when a message is deleted, so the server is asked
-            // again now and then.
             Err(RecvTimeoutError::Timeout) => {
+                let now = Instant::now();
                 let before = state.clone();
-                server.sync(&mut state);
+                if reconnect_at.is_some_and(|at| at <= now) {
+                    reconnect_at = None;
+                    server.sync(&mut state);
+                    stream.start(&endpoint, server.token(), sender);
+                }
+                // Gotify's stream does not say when a message is deleted, so the server is asked
+                // again now and then.
+                if next_sync.is_some_and(|at| at <= now) {
+                    next_sync = every.map(|every| now + every);
+                    server.sync(&mut state);
+                }
                 if state != before && !feed.publish(state.clone()) {
+                    stream.stop();
                     return Ended::Unwanted;
                 }
                 continue;
@@ -346,14 +381,10 @@ fn run(
         match event {
             WorkerEvent::Request(Request::Refresh) => {
                 server.sync(&mut state);
-                if !state.connected && !connecting {
-                    if let Some(agent) = stream_agent.take() {
-                        agent.shutdown();
-                    }
-                    generation += 1;
-                    started = Instant::now();
-                    connecting = true;
-                    spawn_stream(generation, endpoint.clone(), server.token(), sender.clone());
+                if !state.connected && !stream.connecting {
+                    reconnect_at = None;
+                    stream.stop();
+                    stream.start(&endpoint, server.token(), sender);
                 }
             }
             WorkerEvent::Request(Request::Clear) => server.clear(&mut state),
@@ -362,50 +393,33 @@ fn run(
                 continue;
             }
             WorkerEvent::Reply(reply) => server.replied(reply, &mut state),
-            WorkerEvent::Connected(epoch, agent) if epoch == generation => {
+            WorkerEvent::Connected(epoch, agent) if epoch == stream.generation => {
                 info!(server = endpoint.authority, "connected to Gotify stream");
-                connecting = false;
-                stream_agent = Some(agent);
+                stream.connecting = false;
+                stream.agent = Some(agent);
                 state.connected = true;
                 state.error = None;
                 trouble(None);
             }
-            WorkerEvent::Arrived(epoch, raw) if epoch == generation => {
+            WorkerEvent::Arrived(epoch, raw) if epoch == stream.generation => {
                 server.arrived(raw, &mut state);
             }
-            WorkerEvent::StreamEnded(epoch, reason) if epoch == generation => {
+            WorkerEvent::StreamEnded(epoch, reason) if epoch == stream.generation => {
                 warn!(cause = reason, "Gotify stream ended, reconnecting");
                 trouble(Some((
                     "disconnected",
                     format!("{} · reconnecting", endpoint.authority),
                 )));
-                connecting = false;
+                stream.connecting = false;
+                stream.agent = None;
                 state.connected = false;
                 state.error = Some(reason);
-                stream_agent = None;
-                let attempt_started = started;
-                let pace = pace.clone();
-                let tx = sender.clone();
-                let _ = thread::spawn(move || {
-                    if let Ok(mut pace) = pace.lock() {
-                        pace.wait(attempt_started);
-                    }
-                    let _ = tx.send(WorkerEvent::Reconnect(epoch));
-                });
-            }
-            WorkerEvent::Reconnect(epoch) if epoch == generation => {
-                server.sync(&mut state);
-                generation += 1;
-                started = Instant::now();
-                connecting = true;
-                spawn_stream(generation, endpoint.clone(), server.token(), sender.clone());
+                reconnect_at = Some(Instant::now() + pace.delay(stream.started));
             }
             _ => continue,
         }
         if !feed.publish(state.clone()) {
-            if let Some(agent) = stream_agent.take() {
-                agent.shutdown();
-            }
+            stream.stop();
             return Ended::Unwanted;
         }
     }

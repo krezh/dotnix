@@ -9,6 +9,10 @@ pub const TEXT_SIZE: f32 = 14.0;
 pub const SMALL_SIZE: f32 = 13.0;
 pub const TITLE_SIZE: f32 = 16.0;
 pub const HEADING_SIZE: f32 = 18.0;
+/// A figure a card leads with, such as space free.
+pub const FIGURE_SIZE: f32 = 22.0;
+/// The one figure a screen is about, such as space to reclaim.
+pub const DISPLAY_SIZE: f32 = 28.0;
 
 pub const PANEL_RADIUS: f32 = 16.0;
 pub const CONTROL_RADIUS: f32 = 10.0;

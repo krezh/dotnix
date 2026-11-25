@@ -12,10 +12,11 @@ use tracing::debug;
 
 use super::{
     AnyLocal, Battery, Dashboard, Feed, Frontend, IslandInfo, Islands, Local, Outcome, PanelCx,
-    Surface, WidgetCx, feature::widgets_of, owner,
+    Surface, WidgetCx, battery, feature::widgets_of, owner,
 };
 use crate::{
     bar_widget::BarWidget,
+    config::Battery as BatterySettings,
     control::{Reply, Row},
     key::{Key, Modifier},
     panel::{Mark, PanelView},
@@ -29,7 +30,8 @@ pub type Arrivals = SelectAll<LocalBoxStream<'static, Arrival>>;
 
 pub struct Instance<F: Surface> {
     pub(super) feature: F,
-    state: RefCell<F::State>,
+    /// Shared with the snapshots islands hold, so taking one copies nothing.
+    state: RefCell<Rc<F::State>>,
     live: RefCell<Vec<f32>>,
 }
 
@@ -37,17 +39,17 @@ impl<F: Surface> Instance<F> {
     fn new(feature: F) -> Self {
         Self {
             feature,
-            state: RefCell::new(F::initial()),
+            state: RefCell::new(Rc::new(F::initial())),
             live: RefCell::default(),
         }
     }
 
     fn set_state(&self, state: F::State, frontend: &mut dyn Frontend) {
-        if *self.state.borrow() == state {
+        if **self.state.borrow() == state {
             return;
         }
         let osd = F::osd(&self.state.borrow(), &state);
-        self.state.replace(state);
+        self.state.replace(Rc::new(state));
         if let Some(osd) = osd {
             Islands::<F::Local>::new(F::NAME, frontend).update_all(|local| local.osd(osd.clone()));
         }
@@ -116,7 +118,7 @@ impl<F: Surface> AnyFeature for Rc<Instance<F>> {
     }
 
     fn snapshot(&self) -> Rc<dyn Any> {
-        Rc::new(self.state.borrow().clone())
+        self.state.borrow().clone()
     }
 
     fn rest_width(&self, widget: &str, spacing: f32) -> f32 {
@@ -223,11 +225,22 @@ impl<F: Surface> AnyFeature for Rc<Instance<F>> {
 }
 
 #[derive(Default)]
-pub struct Features(pub(super) Vec<Rc<dyn AnyFeature>>);
+pub struct Features {
+    pub(super) all: Vec<Rc<dyn AnyFeature>>,
+    /// Alerts of every feature's batteries running low, once asked to.
+    alerts: RefCell<Option<battery::Monitor>>,
+}
 
 impl Features {
+    pub(super) fn new(all: Vec<Rc<dyn AnyFeature>>) -> Self {
+        Self {
+            all,
+            alerts: RefCell::default(),
+        }
+    }
+
     pub fn get(&self, name: &str) -> Option<&dyn AnyFeature> {
-        self.0
+        self.all
             .iter()
             .find(|feature| feature.name() == name)
             .map(|feature| &**feature)
@@ -235,13 +248,27 @@ impl Features {
 
     /// Every running feature's rows for `island ctl`'s overview, in the registry's order.
     pub fn status(&self) -> Vec<Row> {
-        self.0.iter().flat_map(|feature| feature.status()).collect()
+        self.all.iter().flat_map(|feature| feature.status()).collect()
     }
+
     pub fn batteries(&self) -> Vec<Battery> {
-        self.0
+        self.all
             .iter()
             .flat_map(|feature| feature.batteries())
             .collect()
+    }
+
+    /// Alerts when a battery runs low, as `settings` say, from now on.
+    pub fn alert_batteries(&self, settings: BatterySettings) {
+        *self.alerts.borrow_mut() = Some(battery::Monitor::new(settings));
+        self.changed();
+    }
+
+    /// Some feature's state changed.
+    pub fn changed(&self) {
+        if let Some(alerts) = self.alerts.borrow_mut().as_mut() {
+            alerts.update(self);
+        }
     }
 
     pub fn owning(&self, widget: &str) -> Option<&dyn AnyFeature> {
@@ -249,7 +276,7 @@ impl Features {
     }
 
     pub fn iter(&self) -> impl Iterator<Item = &dyn AnyFeature> {
-        self.0.iter().map(|feature| &**feature)
+        self.all.iter().map(|feature| &**feature)
     }
 }
 

@@ -27,6 +27,7 @@ fn report(source: Source, used: f64) -> SourceReport {
             credits: Some(Credits {
                 count: 2,
                 expires_at: Some(NOW + 86_400_000),
+                next: None,
             }),
             fetched_at: NOW,
             freshness: Freshness::Fresh,
@@ -651,6 +652,7 @@ fn adding_reset_tokens_notifies_and_spending_them_is_silent() {
     baseline.providers[0].credits = Some(Credits {
         count: 1,
         expires_at: Some(NOW + 86_400_000),
+        next: None,
     });
     assert!(
         tracker
@@ -662,6 +664,7 @@ fn adding_reset_tokens_notifies_and_spending_them_is_silent() {
     added.providers[0].credits = Some(Credits {
         count: 2,
         expires_at: Some(NOW + 86_400_000),
+        next: None,
     });
     let notices = tracker.apply(&mut state, Source::Omp, Ok(added), &settings);
     assert_eq!(notices.len(), 1);
@@ -676,6 +679,7 @@ fn adding_reset_tokens_notifies_and_spending_them_is_silent() {
     multiple.providers[0].credits = Some(Credits {
         count: 5,
         expires_at: Some(NOW + 86_400_000),
+        next: None,
     });
     let notices = tracker.apply(&mut state, Source::Omp, Ok(multiple), &settings);
     assert_eq!(notices.len(), 1);
@@ -689,6 +693,7 @@ fn adding_reset_tokens_notifies_and_spending_them_is_silent() {
     spent.providers[0].credits = Some(Credits {
         count: 4,
         expires_at: Some(NOW + 86_400_000),
+        next: None,
     });
     assert!(
         tracker
@@ -702,6 +707,7 @@ fn adding_reset_tokens_notifies_and_spending_them_is_silent() {
     more.providers[0].credits = Some(Credits {
         count: 6,
         expires_at: Some(NOW + 86_400_000),
+        next: None,
     });
     assert!(
         tracker
@@ -713,6 +719,7 @@ fn adding_reset_tokens_notifies_and_spending_them_is_silent() {
     claude_baseline.providers[0].credits = Some(Credits {
         count: 1,
         expires_at: Some(NOW + 86_400_000),
+        next: None,
     });
     assert!(
         tracker
@@ -732,6 +739,7 @@ fn adding_reset_tokens_notifies_and_spending_them_is_silent() {
     claude_added.providers[0].credits = Some(Credits {
         count: 2,
         expires_at: Some(NOW + 86_400_000),
+        next: None,
     });
     let notices = tracker.apply(&mut state, Source::Claude, Ok(claude_added), &settings);
     assert_eq!(notices.len(), 1);

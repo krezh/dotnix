@@ -7,7 +7,9 @@ use std::path::PathBuf;
 use crate::panel::SharedString;
 
 use crate::{
-    components::{badge::Mark, dropdown::Dropdown},
+    components::{
+        badge::Mark, chip::Chip, dropdown::Dropdown, search::Filters, stepper::Stepper,
+    },
     panel::Handler,
     spring::SpringConfig,
 };
@@ -45,6 +47,8 @@ pub enum Trail {
     Text(SharedString, u32),
     /// Quiet, such as how long ago.
     Faint(SharedString),
+    /// In a tinted pill, such as how old something is once that matters.
+    Chip(Chip),
     /// A dot before the text, both in the color, such as "Recording".
     Status(SharedString, u32),
     Dropdown(Dropdown),
@@ -55,6 +59,21 @@ pub enum Trail {
     },
     /// A quiet button, such as one showing more.
     Button(TrailButton),
+    /// A tick box, such as whether the row is in a plan; `None` when it cannot change.
+    Tick(bool, Option<Handler>),
+    Stepper(Stepper),
+    /// A short field this wide, such as a duration, its text typed where focus sends it.
+    Field(Field),
+    /// A strip of tabs, each as wide as its words and count, such as which rows a list shows.
+    Strip(Filters),
+}
+
+pub struct Field {
+    pub text: SharedString,
+    pub placeholder: SharedString,
+    pub width: f32,
+    pub focused: bool,
+    pub on_focus: Option<Handler>,
 }
 
 pub struct TrailButton {
@@ -84,6 +103,17 @@ pub struct Item {
     /// Words in a color of their own, after the line they belong to.
     pub tinted: Vec<Tint>,
     pub trail: Vec<Trail>,
+    /// The title larger than a row's, from `ui`'s sizes, such as a card's name or a figure.
+    pub title_size: Option<f32>,
+    /// The title in the monospaced face, such as a commit.
+    pub title_mono: bool,
+    /// Quiet words before the title, naming what it is, such as "Locked".
+    pub label: Option<SharedString>,
+    /// The trail beside what is under the title too, centred on it all, such as a control beside
+    /// a setting's name and hint.
+    pub trail_beside: bool,
+    /// After the label, before the title, such as tabs choosing which rows under it show.
+    pub before: Vec<Trail>,
 }
 
 /// Words that stand out in their color, such as how urgent a message is or where it is from.
@@ -92,4 +122,6 @@ pub enum Tint {
     Overline(SharedString, u32),
     /// After the title, before its detail.
     Title(SharedString, u32),
+    /// After the title in a tinted pill, such as what kind of thing it names.
+    Chip(SharedString, u32),
 }

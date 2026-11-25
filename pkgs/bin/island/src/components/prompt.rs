@@ -15,9 +15,22 @@ pub struct Reveal {
     pub on_click: Handler,
 }
 
+/// Something answering the card changes, as a bar from where it stands to where it goes.
+pub struct Change {
+    pub label: SharedString,
+    pub fraction: f32,
+    pub color: u32,
+    pub from: SharedString,
+    pub to: SharedString,
+    pub to_color: u32,
+}
+
 pub struct PromptView {
     pub title: SharedString,
     pub detail: SharedString,
+    pub changes: Vec<Change>,
+    /// The answer is under way: its button shows the moving border.
+    pub busy: bool,
     /// Its send button answers the card.
     pub field: Option<InputView>,
     pub reveal: Option<Reveal>,

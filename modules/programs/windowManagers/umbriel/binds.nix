@@ -25,7 +25,6 @@
       fileManager = mkProg pkgs.nautilus;
       passwords = mkProg pkgs.proton-pass;
       sysMonitor = mkProg pkgs.resources;
-      molt = mkProg osConfig.nixosModules.molt.package;
       hyprlock = "${lib.getExe config.programs.hyprlock.package} --grace 0";
       shell = "${lib.getExe config.programs.noctalia.package} msg";
       mail = mkProg pkgs.protonmail-desktop;
@@ -71,7 +70,6 @@
         "Mod+G" = spawn audioControl;
         "Mod+M" = spawn mail;
         "Mod+A" = spawn "${audioSwitch} toggle";
-        "Mod+U" = spawn molt;
         "Mod+S" = spawn screenshot;
         "Mod+Shift+R" = "config-reload";
 

@@ -10,7 +10,8 @@ use super::{
 use crate::{
     bar_widget::{BarWidget, Part},
     features::{Surface, WidgetCx},
-    theme::{ACCENT, CRITICAL, OVERLAY2, SUBTEXT1, YELLOW},
+    panel::SharedString,
+    theme::{ACCENT, CRITICAL, GREEN, OVERLAY2, SUBTEXT1, YELLOW},
     time,
 };
 
@@ -47,6 +48,9 @@ pub(super) fn tooltip(ai: &Ai, state: &State) -> String {
                     text.push_str(" · saved resets");
                 } else {
                     let _ = write!(text, " · {}", format::status(provider.severity()));
+                }
+                if let Some(saved) = format::saved_resets(provider) {
+                    let _ = write!(text, "\n{saved}");
                 }
             } else {
                 for limit in &provider.limits {
@@ -100,12 +104,25 @@ fn account_icon(provider: &Provider, tint: u32, w: &WidgetCx<'_>) -> Part {
     }
 }
 
-/// How many Claude Code requests wait on you, as a yellow count on a mark's corner.
+/// How many Claude Code requests wait on you, as a yellow count on a mark's corner; else a green
+/// dot there while a reset is saved.
 fn waiting(icon: Part, state: &State) -> Part {
     let count = state.requests.len();
+    let saved = state.providers.iter().any(|provider| {
+        provider.freshness.is_fresh()
+            && provider
+                .credits
+                .as_ref()
+                .is_some_and(|credits| credits.count > 0)
+    });
+    let badge = if count > 0 {
+        Some((count.to_string().into(), YELLOW))
+    } else {
+        saved.then(|| (SharedString::default(), GREEN))
+    };
     Part::Badged {
         part: Box::new(icon),
-        badge: (count > 0).then(|| (count.to_string().into(), YELLOW)),
+        badge,
     }
 }
 

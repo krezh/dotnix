@@ -67,6 +67,7 @@ fn provider(identity: &str) -> Provider {
         credits: Some(Credits {
             count: 20,
             expires_at: Some(1_800_086_400_000),
+            next: None,
         }),
         fetched_at: 1_800_000_000_000,
         freshness: Freshness::Fresh,

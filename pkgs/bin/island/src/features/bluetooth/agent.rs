@@ -71,9 +71,7 @@ impl Agent {
     }
 
     fn poke(&self) {
-        if let Ok(poke) = self.poke.lock() {
-            let _ = poke.unbounded_send(Request::Refresh);
-        }
+        let _ = lock(&self.poke).unbounded_send(Request::Refresh);
     }
 }
 

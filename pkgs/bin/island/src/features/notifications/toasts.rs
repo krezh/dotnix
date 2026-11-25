@@ -2,8 +2,8 @@ use std::time::{Duration, Instant};
 
 use super::{
     card,
-    missed_list::{ENTER_DRIFT, sliding},
     notification::Notification,
+    rows::{ENTER_DRIFT, sliding},
 };
 use crate::{
     components::{measure::Measure, stack},

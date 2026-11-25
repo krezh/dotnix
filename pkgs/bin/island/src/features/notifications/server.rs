@@ -6,7 +6,7 @@ use std::{
 };
 
 use tracing::{debug, info, trace, warn};
-use zbus::{Connection, OwnedVariant, block_on, connection, interface};
+use zbus::{Connection, OwnedVariant, block_on, interface};
 
 use super::{
     Event, State,
@@ -174,7 +174,7 @@ impl Server {
                 .map(|[key, label]| Action {
                     key: key.clone(),
                     label: label.clone(),
-                    icon: action_icons.then(|| icons::lookup(label)).flatten(),
+                    icon: action_icons.then(|| icons::lookup(key)).flatten(),
                     opens: None,
                 })
                 .collect(),
@@ -205,23 +205,20 @@ impl Server {
 }
 
 pub fn serve(feed: &Feed<State, Event>, signals: &Receiver<Signal>) -> Ended {
-    let built = block_on(
-        connection::Builder::session()
-            .serve_at(PATH, Server { feed: feed.clone() })
-            .build(),
-    );
-    let connection = match built {
-        Ok(connection) => connection,
-        Err(error) => return Ended::Failed(format!("cannot connect to the session bus: {error}")),
-    };
-    match block_on(dbus::claim_shared(&connection, NAME)) {
-        Ok(true) => info!(name = NAME, "serving notifications"),
-        Ok(false) => warn!(
-            name = NAME,
-            "another notification daemon owns the name; notifications are off"
-        ),
+    let connection = match dbus::serve_shared(PATH, Server { feed: feed.clone() }, NAME) {
+        Ok((connection, true)) => {
+            info!(name = NAME, "serving notifications");
+            connection
+        }
+        Ok((connection, false)) => {
+            warn!(
+                name = NAME,
+                "another notification daemon owns the name; notifications are off"
+            );
+            connection
+        }
         Err(error) => return Ended::Failed(error),
-    }
+    };
     let mut activation = None;
     for signal in signals {
         emit(&connection, &mut activation, signal);

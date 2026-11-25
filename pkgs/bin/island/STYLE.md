@@ -46,6 +46,8 @@ Always format through `units.rs`, so a value reads the same everywhere.
 
 - `FONT` for everything, with tabular numbers, as `ui::base` sets up. `MONO` for code and commands.
 - Sizes come from `ui.rs`: `SMALL_SIZE`, `TEXT_SIZE`, `TITLE_SIZE`, `HEADING_SIZE`.
+- Large figures take `FIGURE_SIZE` when a card leads with one, and `DISPLAY_SIZE` for the one
+  figure a screen is about.
 
 ## Space and shape
 

@@ -19,7 +19,7 @@ use futures::{
 use smithay_client_toolkit::{
     compositor::{CompositorHandler, CompositorState, FrameCallbackData},
     delegate_registry,
-    output::{OutputHandler, OutputState},
+    output::{OutputHandler, OutputInfo, OutputState},
     registry::{ProvidesRegistryState, RegistryState},
     registry_handlers,
     seat::{
@@ -55,6 +55,10 @@ use wayland_protocols::{
             wp_fractional_scale_manager_v1::WpFractionalScaleManagerV1,
             wp_fractional_scale_v1::{self, WpFractionalScaleV1},
         },
+        presentation_time::client::{
+            wp_presentation::{self, WpPresentation},
+            wp_presentation_feedback::{self, WpPresentationFeedback},
+        },
         idle_inhibit::zv1::client::{
             zwp_idle_inhibit_manager_v1::ZwpIdleInhibitManagerV1,
             zwp_idle_inhibitor_v1::ZwpIdleInhibitorV1,
@@ -64,6 +68,7 @@ use wayland_protocols::{
 };
 
 use super::{
+    beat::Shown,
     cover::Cover,
     island::{Cursor, Island, Look, PIXELS_PER_NOTCH},
     laps::Laps,
@@ -75,14 +80,13 @@ use uuid::Uuid;
 
 use crate::{
     bar,
-    config::{self, Startup},
+    config::Startup,
     control::{Asked, Control, Reply, Report, Row},
     features::{self, AnyLocal, Arrivals, Features, Frontend},
     glyphs::Glyphs,
     key::{Key, Modifier},
     profile,
     stage::{COLLAPSED_H, Grab, Panel, SURFACE_H, SURFACE_W, Stage, report},
-    sys::{self, Samples},
     wm::Snapshot,
 };
 
@@ -108,9 +112,14 @@ impl Wake for Woken {
     }
 }
 
-/// The scales the compositor would like each surface drawn at, as they arrive.
+/// The scales the compositor would like each surface drawn at, and when it showed each surface's
+/// frames, as they arrive.
 #[derive(Default)]
-struct Scales(Vec<(wl_surface::WlSurface, f32)>);
+struct Scales {
+    scales: Vec<(wl_surface::WlSurface, f32)>,
+    shown: Vec<(wl_surface::WlSurface, Shown)>,
+    clock: Option<u32>,
+}
 
 impl Dispatch<WpFractionalScaleV1, wl_surface::WlSurface> for Scales {
     fn event(
@@ -122,7 +131,51 @@ impl Dispatch<WpFractionalScaleV1, wl_surface::WlSurface> for Scales {
         _: &QueueHandle<Self>,
     ) {
         if let wp_fractional_scale_v1::Event::PreferredScale { scale } = event {
-            state.0.push((surface.clone(), scale as f32 / FRACTION));
+            state.scales.push((surface.clone(), scale as f32 / FRACTION));
+        }
+    }
+}
+
+impl Dispatch<WpPresentation, ()> for Scales {
+    fn event(
+        state: &mut Self,
+        _: &WpPresentation,
+        event: wp_presentation::Event,
+        _: &(),
+        _: &Connection,
+        _: &QueueHandle<Self>,
+    ) {
+        if let wp_presentation::Event::ClockId { clk_id } = event {
+            state.clock = Some(clk_id);
+        }
+    }
+}
+
+impl Dispatch<WpPresentationFeedback, wl_surface::WlSurface> for Scales {
+    fn event(
+        state: &mut Self,
+        _: &WpPresentationFeedback,
+        event: wp_presentation_feedback::Event,
+        surface: &wl_surface::WlSurface,
+        _: &Connection,
+        _: &QueueHandle<Self>,
+    ) {
+        if let wp_presentation_feedback::Event::Presented {
+            tv_sec_hi,
+            tv_sec_lo,
+            tv_nsec,
+            refresh,
+            ..
+        } = event
+        {
+            let seconds = (u64::from(tv_sec_hi) << 32) | u64::from(tv_sec_lo);
+            state.shown.push((
+                surface.clone(),
+                Shown {
+                    at: Duration::new(seconds, tv_nsec),
+                    refresh: Duration::from_nanos(refresh.into()),
+                },
+            ));
         }
     }
 }
@@ -187,11 +240,8 @@ struct App {
     glyphs: Glyphs,
     features: Rc<Features>,
     config: Startup,
-    system: Rc<config::System>,
-    samples: Samples,
     workspaces: Option<Snapshot>,
     new_outputs: Vec<wl_output::WlOutput>,
-    battery_monitor: features::battery::Monitor,
 }
 
 impl App {
@@ -230,8 +280,6 @@ impl App {
             glow: self.config.glow,
             border: self.config.border,
             bubble: self.config.bubble,
-            samples: self.samples.clone(),
-            system: self.system.clone(),
         };
         let mut island = Island::new(stage, layer, output, scale as f32, look);
         let surface = island.layer.wl_surface().clone();
@@ -244,6 +292,9 @@ impl App {
                 island.fractional = Some((viewport, preferred));
             }
             _ => surface.set_buffer_scale(scale),
+        }
+        if let Some(rate) = info.as_ref().and_then(refresh_rate) {
+            island.set_refresh_rate(rate);
         }
         if let Some(name) = info.and_then(|info| info.name) {
             island.set_output_name(&name);
@@ -366,22 +417,10 @@ impl App {
 
     fn sync_covers(&mut self, qh: &QueueHandle<Self>) {
         let held = self.grabbed.as_ref().map(|(held, _)| held.clone());
-        for island in &mut self.islands {
-            let on_demand = island.grab() == Grab::OnDemand;
-            if island.keys_on_demand != on_demand {
-                island.keys_on_demand = on_demand;
-                island.layer.set_keyboard_interactivity(if on_demand {
-                    KeyboardInteractivity::OnDemand
-                } else {
-                    KeyboardInteractivity::None
-                });
-                island.layer.commit();
-            }
-        }
         let grabbing: Vec<(wl_output::WlOutput, Grab)> = self
             .islands
             .iter()
-            .filter(|island| !matches!(island.grab(), Grab::None | Grab::OnDemand))
+            .filter(|island| island.grab() != Grab::None)
             .map(|island| (island.output.clone(), island.grab()))
             .collect();
         let taken = grabbing
@@ -564,7 +603,7 @@ impl Frontend for App {
     }
 
     fn changed(&mut self, name: &'static str) {
-        self.battery_monitor.update(&self.features);
+        self.features.changed();
         for island in &mut self.islands {
             island.feature_changed(name);
         }
@@ -654,7 +693,19 @@ impl OutputHandler for App {
         self.new_outputs.push(output);
     }
 
-    fn update_output(&mut self, _: &Connection, _: &QueueHandle<Self>, _: wl_output::WlOutput) {}
+    fn update_output(
+        &mut self,
+        _: &Connection,
+        _: &QueueHandle<Self>,
+        output: wl_output::WlOutput,
+    ) {
+        let Some(rate) = self.output_state.info(&output).as_ref().and_then(refresh_rate) else {
+            return;
+        };
+        for island in self.islands.iter_mut().filter(|island| island.output == output) {
+            island.set_refresh_rate(rate);
+        }
+    }
 
     fn output_destroyed(
         &mut self,
@@ -786,7 +837,7 @@ impl PointerHandler for App {
                 if matches!(event.kind, PointerEventKind::Press { .. })
                     && let Some(island) = self.holder()
                 {
-                    island.dismiss();
+                    island.pressed_outside();
                 }
                 continue;
             }
@@ -1000,6 +1051,13 @@ impl ProvidesRegistryState for App {
 
 smithay_client_toolkit::delegate_dispatch2!(App);
 
+fn refresh_rate(info: &OutputInfo) -> Option<i32> {
+    info.modes
+        .iter()
+        .find(|mode| mode.current)
+        .map(|mode| mode.refresh_rate)
+}
+
 fn event_fd() -> Result<OwnedFd, String> {
     // A new descriptor, which `OwnedFd` then owns.
     let fd = unsafe { libc::eventfd(0, libc::EFD_NONBLOCK | libc::EFD_CLOEXEC) };
@@ -1067,7 +1125,6 @@ fn bind(
 /// Runs until the process ends.
 pub fn run(
     config: Startup,
-    system: config::System,
     mut controls: UnboundedReceiver<Asked>,
     mut workspaces: Option<UnboundedReceiver<Snapshot>>,
 ) -> Result<(), String> {
@@ -1089,6 +1146,7 @@ pub fn run(
     let viewporter = globals.bind(&scale_handle, 1..=1, ()).ok();
     let fractional = globals.bind(&scale_handle, 1..=1, ()).ok();
     let cursors = globals.bind(&scale_handle, 1..=1, ()).ok();
+    let presentation: Option<WpPresentation> = globals.bind(&scale_handle, 1..=2, ()).ok();
     let mut scales = Scales::default();
 
     let layout = config.layout.clone();
@@ -1135,15 +1193,12 @@ pub fn run(
         keyboard_on: None,
         glyphs: Glyphs::default(),
         features: Rc::new(started),
-        battery_monitor: features::battery::Monitor::new(config.battery.clone()),
         config,
-        system: Rc::new(system),
-        samples: sys::watch(),
         workspaces: None,
         new_outputs: Vec::new(),
     };
     bar::measure_labels(&mut |title, size| app.painter.line(title, size, SEMIBOLD, 1.0).width);
-    app.battery_monitor.update(&app.features);
+    app.features.alert_batteries(app.config.battery.clone());
 
     let wake = Arc::new(Woken(event_fd()?));
     let wake_fd = wake.0.try_clone().map_err(|error| error.to_string())?;
@@ -1166,6 +1221,11 @@ pub fn run(
 
         let mut laps = Laps::start();
         drain(&mut arrivals, &mut cx, |arrival| arrival(&mut app));
+        if app.painter.receive(&mut cx) {
+            for island in &mut app.islands {
+                island.pictures_arrived();
+            }
+        }
         laps.lap("arrivals");
         if let Some(gpu) = &app.gpu
             && app.painter.refresh_live(gpu)
@@ -1189,7 +1249,15 @@ pub fn run(
         }
 
         let _ = scale_queue.dispatch_pending(&mut scales);
-        for (surface, scale) in scales.0.drain(..) {
+        for (surface, shown) in scales.shown.drain(..) {
+            if let Some(island) = app.island_of(&surface) {
+                island.beat.shown = Some(shown);
+            }
+        }
+        for island in &mut app.islands {
+            island.beat.clock = scales.clock;
+        }
+        for (surface, scale) in scales.scales.drain(..) {
             let gpu = app.gpu.as_ref();
             if let Some(island) = app
                 .islands
@@ -1222,9 +1290,12 @@ pub fn run(
         if let Some(gpu) = &app.gpu {
             for island in &mut app.islands {
                 if island.wants_frame() {
+                    let surface = island.layer.wl_surface();
                     if island.turn.start() {
-                        let surface = island.layer.wl_surface();
                         surface.frame(&qh, FrameCallbackData(surface.clone()));
+                    }
+                    if let Some(presentation) = &presentation {
+                        presentation.feedback(surface, &app.scale_handle, surface.clone());
                     }
                     island.frame(&app.glyphs, &mut app.painter, gpu, &app.compositor);
                 }

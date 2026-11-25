@@ -20,7 +20,7 @@
     {
       options.nixosModules.molt = {
         enable = mkEnableOption "socket-activated Molt activation and system-maintenance service";
-        package = lib.mkPackageOption pkgs "molt" { };
+        package = lib.mkPackageOption pkgs "island" { };
         user = mkOption {
           type = types.str;
           description = ''
@@ -30,23 +30,6 @@
           '';
         };
         settings = {
-          appearance = {
-            sansFont = mkOption {
-              type = types.str;
-              default = "sans-serif";
-              description = "Font family used for interface text.";
-            };
-            monoFont = mkOption {
-              type = types.str;
-              default = "monospace";
-              description = "Font family used for versions, metrics, and keycaps.";
-            };
-            rounding = mkOption {
-              type = types.ints.between 0 64;
-              default = 15;
-              description = "Outer corner radius in pixels.";
-            };
-          };
           cleanup = {
             keepGenerations = mkOption {
               type = types.ints.between 0 100;
@@ -72,35 +55,23 @@
             type = types.str;
             description = "NixOS configuration name.";
           };
-          disableKeybinds = mkOption {
-            type = types.bool;
-            default = false;
-            description = "Whether Molt ignores the keyboard entirely.";
-          };
         };
       };
 
       config = mkIf cfg.enable {
-        environment = {
-          systemPackages = [ cfg.package ];
-          etc."molt/molt.toml".source = toml.generate "molt.toml" (
-            {
-              flake_dir = settings.flakeDir;
-              nixos_flake = settings.nixosFlake;
-              sans_font = settings.appearance.sansFont;
-              mono_font = settings.appearance.monoFont;
-              rounding = settings.appearance.rounding;
-              cleanup = {
-                keep_generations = settings.cleanup.keepGenerations;
-                journal_max_age = settings.cleanup.journalMaxAge;
-              };
-              keybinds = !settings.disableKeybinds;
-            }
-            // lib.optionalAttrs (settings.homeFlake != null) {
-              home_flake = settings.homeFlake;
-            }
-          );
-        };
+        environment.etc."molt/molt.toml".source = toml.generate "molt.toml" (
+          {
+            flake_dir = settings.flakeDir;
+            nixos_flake = settings.nixosFlake;
+            cleanup = {
+              keep_generations = settings.cleanup.keepGenerations;
+              journal_max_age = settings.cleanup.journalMaxAge;
+            };
+          }
+          // lib.optionalAttrs (settings.homeFlake != null) {
+            home_flake = settings.homeFlake;
+          }
+        );
 
         systemd = {
           tmpfiles.rules = [ "z /run/molt.sock 0600 ${cfg.user} root - -" ];

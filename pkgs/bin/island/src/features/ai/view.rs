@@ -33,7 +33,7 @@ impl Account {
         }
     }
 
-    fn matches(&self, provider: &Provider) -> bool {
+    pub(super) fn matches(&self, provider: &Provider) -> bool {
         self.source == provider.source && self.id == provider.id
     }
 
@@ -130,6 +130,10 @@ pub struct View {
     pub(super) held: Option<Held>,
     /// Sessions at work as last seen, to cheer when one finishes.
     working: HashSet<String>,
+    /// The account whose saved reset the card asks about.
+    pub(super) resetting: Option<Account>,
+    /// Resets spent as last seen, to put the card away once one is.
+    spent: u32,
 }
 
 impl View {
@@ -166,6 +170,10 @@ impl View {
         if open && !self.open {
             self.seen_lines = state.chat.lines.len();
         }
+        if !open || self.spent != state.redeem.done {
+            self.resetting = None;
+        }
+        self.spent = state.redeem.done;
         if self.open == open
             && self
                 .seen

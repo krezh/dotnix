@@ -12,7 +12,7 @@ use libpulse_binding::{
 use tracing::debug;
 
 use super::state::{AudioState, Target};
-use crate::pulse;
+use crate::{pulse, sync};
 
 /// What a level meter listens to.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -141,9 +141,7 @@ impl Meters {
             debug!("level meters stopped");
             self.open.clear();
         }
-        if let Ok(mut levels) = levels.lock() {
-            self.measure(&mut levels);
-        }
+        self.measure(&mut sync::lock(levels));
     }
 
     fn sync(&mut self, context: &mut Context, wanted: Vec<Want>) {

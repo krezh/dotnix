@@ -1,12 +1,9 @@
 use serde::Deserialize;
 
-use crate::theme::{BLUE, MAUVE, PEACH, RED, TEAL, YELLOW};
-
-pub const LOGIN: &str = "org.freedesktop.login1";
-pub const SESSION_PATH: &str = "/org/freedesktop/login1/session/auto";
-pub const SESSION: &str = "org.freedesktop.login1.Session";
-pub const MANAGER_PATH: &str = "/org/freedesktop/login1";
-pub const MANAGER: &str = "org.freedesktop.login1.Manager";
+use crate::{
+    logind::{MANAGER, MANAGER_PATH, SESSION, SESSION_PATH},
+    theme::{BLUE, MAUVE, PEACH, RED, TEAL, YELLOW},
+};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize)]
 #[serde(rename_all = "lowercase")]

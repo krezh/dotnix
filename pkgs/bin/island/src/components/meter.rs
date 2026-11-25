@@ -7,17 +7,19 @@ use std::path::PathBuf;
 
 use crate::panel::SharedString;
 
-use crate::components::chart::Series;
+use crate::components::chart::{Phase, Series};
 
 pub enum Shape {
     Bar,
     /// The level as a ring round the glyph, as a share of 100.
     Ring,
-    /// The amount, in its unit, in place of the level, and the line of what it was before.
+    /// The amount, in its unit, in place of the level, and the line of what it was before, which
+    /// slides on the clock of `phase` when given.
     History {
         amount: SharedString,
         unit: SharedString,
         history: Option<Series>,
+        phase: Option<Phase>,
     },
 }
 

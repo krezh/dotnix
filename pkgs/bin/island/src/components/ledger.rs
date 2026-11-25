@@ -42,6 +42,8 @@ pub struct Entry {
     pub title: SharedString,
     pub subtitle: SharedString,
     pub chip: Option<(SharedString, u32)>,
+    /// What clicking the chip does, such as asking to spend what it counts.
+    pub on_chip: Option<Handler>,
     pub bars: Vec<Bar>,
     pub folded: Option<Folded>,
     pub expanded: bool,

@@ -6,9 +6,7 @@ use std::{
     hash::{Hash, Hasher},
     ops::Range,
     path::PathBuf,
-    process::Command,
     rc::Rc,
-    thread,
 };
 
 use taffy::{
@@ -605,6 +603,12 @@ impl Node {
         self
     }
 
+    /// Takes all the room left before it, pushing it to its line's end.
+    pub fn ml_auto(mut self) -> Self {
+        self.style.margin.left = LengthPercentageAuto::auto();
+        self
+    }
+
     pub fn mr(mut self, side: f32) -> Self {
         self.style.margin.right = length(side);
         self
@@ -1154,13 +1158,6 @@ fn branch(path: u64, index: usize) -> u64 {
     (path ^ (index as u64 + 1)).wrapping_mul(0x0100_0000_01b3)
 }
 
-fn open_address(address: &str) {
-    let address = address.to_owned();
-    thread::spawn(move || {
-        let _ = Command::new("xdg-open").arg(address).status();
-    });
-}
-
 /// Paints into a [`Built`], from its corner.
 pub struct Painting<'a> {
     pub painter: &'a mut Painter,
@@ -1168,7 +1165,6 @@ pub struct Painting<'a> {
     pub scale: f32,
     pub built: Built,
     pub offsets: &'a HashMap<SharedString, f32>,
-    /// How wide what holds the node being painted is.
     /// Where what holds the node being painted is.
     pub holder_rect: [f32; 4],
     /// The hit whose words light up, and the color they rest in.
@@ -1189,32 +1185,9 @@ impl Painting<'_> {
     /// Lays `node` out within `room` and returns how big it came out; what it paints goes in the
     /// built panel.
     pub fn paint(&mut self, node: &Node, room: Option<f32>, origin: (f32, f32)) -> (f32, f32) {
-        let mut taffy: TaffyTree<Context> = TaffyTree::new();
-        taffy.disable_rounding();
-        let laid = tree(node, Words::base(self.scale), &mut taffy);
-        let (painter, scale) = (&mut *self.painter, self.scale);
-        let space = Size {
-            width: room.map_or(AvailableSpace::MaxContent, AvailableSpace::Definite),
-            height: AvailableSpace::MaxContent,
-        };
-        let done =
-            taffy.compute_layout_with_measure(laid.id, space, |inputs, _, context, style| {
-                compute_leaf_layout(
-                    inputs,
-                    style,
-                    |_, _| 0.0,
-                    |known, available| match context.as_deref() {
-                        Some(context) => measured(context, known, available, painter, scale),
-                        None => Size::ZERO,
-                    },
-                )
-            });
-        if done.is_err() {
+        let Some((taffy, laid, size)) = self.lay_out(node, room) else {
             return (0.0, 0.0);
-        }
-        let size = taffy
-            .layout(laid.id)
-            .map_or((0.0, 0.0), |layout| (layout.size.width, layout.size.height));
+        };
         self.paints += 1;
         self.path = branch(0, self.paints as usize);
         self.node(node, &laid, &taffy, origin, 1.0, None);
@@ -1223,6 +1196,15 @@ impl Painting<'_> {
 
     /// How big `node` comes out, without painting it.
     pub fn measure(&mut self, node: &Node, room: Option<f32>) -> (f32, f32) {
+        self.lay_out(node, room)
+            .map_or((0.0, 0.0), |(.., size)| size)
+    }
+
+    fn lay_out(
+        &mut self,
+        node: &Node,
+        room: Option<f32>,
+    ) -> Option<(TaffyTree<Context>, Laid, (f32, f32))> {
         let mut taffy: TaffyTree<Context> = TaffyTree::new();
         taffy.disable_rounding();
         let laid = tree(node, Words::base(self.scale), &mut taffy);
@@ -1231,8 +1213,8 @@ impl Painting<'_> {
             width: room.map_or(AvailableSpace::MaxContent, AvailableSpace::Definite),
             height: AvailableSpace::MaxContent,
         };
-        let done =
-            taffy.compute_layout_with_measure(laid.id, space, |inputs, _, context, style| {
+        taffy
+            .compute_layout_with_measure(laid.id, space, |inputs, _, context, style| {
                 compute_leaf_layout(
                     inputs,
                     style,
@@ -1242,13 +1224,12 @@ impl Painting<'_> {
                         None => Size::ZERO,
                     },
                 )
-            });
-        if done.is_err() {
-            return (0.0, 0.0);
-        }
-        taffy
+            })
+            .ok()?;
+        let size = taffy
             .layout(laid.id)
-            .map_or((0.0, 0.0), |layout| (layout.size.width, layout.size.height))
+            .map_or((0.0, 0.0), |layout| (layout.size.width, layout.size.height));
+        Some((taffy, laid, size))
     }
 
     fn marquee(
@@ -1439,7 +1420,7 @@ impl Painting<'_> {
                     let address = address.clone();
                     self.built.hits.push(Hit {
                         rect: seen_part([x, box_top, *wide, line], clip),
-                        on_click: Some(Rc::new(move |_| open_address(&address))),
+                        on_click: Some(Rc::new(move |_| crate::launch::open(&address, "Link"))),
                         ..Hit::default()
                     });
                 }

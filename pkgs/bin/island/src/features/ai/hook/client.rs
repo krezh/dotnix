@@ -24,7 +24,12 @@ const AFTER_COMMAND: Duration = Duration::from_secs(1);
 /// `--`, a command such as a status line gets the same input and prints its own output, without
 /// waiting on island. `plugin <dir>` instead writes the plugin that runs these hooks.
 pub fn run(args: &[String]) -> i32 {
-    if args.iter().any(|arg| arg == "-h" || arg == "--help") {
+    // What follows `--` belongs to the passed-through command, `-h` included.
+    if args
+        .iter()
+        .take_while(|arg| *arg != "--")
+        .any(|arg| arg == "-h" || arg == "--help")
+    {
         cli::print_help(Some("ai-hook"));
         return 0;
     }

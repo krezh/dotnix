@@ -2,7 +2,7 @@ use std::sync::mpsc::{Receiver, Sender};
 
 use futures::channel::oneshot;
 use tracing::{debug, info, warn};
-use zbus::{block_on, connection, interface};
+use zbus::interface;
 
 use super::input::{Hook, parse};
 use crate::{dbus, supervisor::Ended};
@@ -50,23 +50,20 @@ impl Server {
 
 /// Serves until `stop` closes, which it does once the feature is gone.
 pub fn serve(calls: Sender<Call>, stop: &Receiver<()>) -> Ended {
-    let built = block_on(
-        connection::Builder::session()
-            .serve_at(PATH, Server { calls })
-            .build(),
-    );
-    let connection = match built {
-        Ok(connection) => connection,
-        Err(error) => return Ended::Failed(format!("cannot connect to the session bus: {error}")),
-    };
-    match block_on(dbus::claim_shared(&connection, NAME)) {
-        Ok(true) => info!(name = NAME, "answering Claude Code hooks"),
-        Ok(false) => warn!(
-            name = NAME,
-            "another island answers Claude Code hooks; sessions are off here"
-        ),
+    let connection = match dbus::serve_shared(PATH, Server { calls }, NAME) {
+        Ok((connection, true)) => {
+            info!(name = NAME, "answering Claude Code hooks");
+            connection
+        }
+        Ok((connection, false)) => {
+            warn!(
+                name = NAME,
+                "another island answers Claude Code hooks; sessions are off here"
+            );
+            connection
+        }
         Err(error) => return Ended::Failed(error),
-    }
+    };
     while stop.recv().is_ok() {}
     drop(connection);
     Ended::Unwanted

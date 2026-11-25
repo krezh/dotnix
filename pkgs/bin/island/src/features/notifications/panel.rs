@@ -127,6 +127,8 @@ impl Notifications {
                 label: private.into(),
                 active: state.private,
                 badge: None,
+                enabled: true,
+                busy: false,
                 on_click: p.call::<Self>(|notifications| notifications.set_private(Switch::Toggle)),
             },
             IconButton {
@@ -135,6 +137,8 @@ impl Notifications {
                 label: dnd.into(),
                 active: state.dnd,
                 badge: None,
+                enabled: true,
+                busy: false,
                 on_click: p.call::<Self>(|notifications| notifications.set_dnd(Switch::Toggle)),
             },
         ];
@@ -144,6 +148,8 @@ impl Notifications {
             label: "Clear".into(),
             active: false,
             badge: None,
+            enabled: true,
+            busy: false,
             on_click: p.on_local::<Self>(move |notifications, cards| {
                 if earlier {
                     notifications.clear_earlier(&cards.filter);
@@ -280,10 +286,14 @@ impl Notifications {
                 cards.show_earlier_view(tab == 1);
             }),
             pick: Some(pick),
+            segments: None,
+            field: None,
             buttons: Vec::new(),
             icons: self.icons(state, cards, p),
             passing: None,
             back: None,
+            status: None,
+            route: None,
         });
         let mut blocks = vec![views];
         let troubles: Vec<Block> = cards
@@ -329,7 +339,7 @@ impl Notifications {
             .rows()
             .iter()
             .map(|row| {
-                let EarlierEntry::Card(kept) = &row.entry else {
+                let EarlierEntry::Card(kept) = &row.body else {
                     return None;
                 };
                 let key = kept.key();

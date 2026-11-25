@@ -1,7 +1,9 @@
 //! A new compositor implements [`Compositor`] and is listed once in `registry.rs`; the rest of
-//! island only sees [`Snapshot`](crate::wm::Snapshot), [`windows`] and [`backend`].
+//! island only sees [`Snapshot`](crate::wm::Snapshot), [`windows`] and [`backend`], and
+//! [`hyprctl`] for what only Hyprland can answer.
 
 mod backend;
+pub mod hyprctl;
 mod hyprland;
 mod registry;
 mod windows;

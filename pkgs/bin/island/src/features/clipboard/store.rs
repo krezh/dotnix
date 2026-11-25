@@ -12,6 +12,7 @@ use tracing::debug;
 use uuid::Uuid;
 
 use super::{
+    class::Class,
     entry::{Entry, Kind, files},
     settings::Settings,
 };
@@ -37,6 +38,8 @@ CREATE TABLE clipboard (
     used INTEGER NOT NULL
 );
 CREATE INDEX clipboard_used ON clipboard (used DESC);
+", "
+ALTER TABLE clipboard ADD COLUMN pinned INTEGER NOT NULL DEFAULT 0;
 "];
 
 static DB: db::Owner = db::Owner::new("clipboard", MIGRATIONS);
@@ -169,7 +172,8 @@ impl Store {
 
     pub(super) fn list(&self) -> rusqlite::Result<Vec<Entry>> {
         let mut statement = self.db.prepare(
-            "SELECT id, hash, kind, mime, substr(text, 1, ?1), length(text), size, width, height, used
+            "SELECT id, hash, kind, mime, substr(text, 1, ?1), length(text), size, width, height, used,
+                pinned
              FROM clipboard ORDER BY used DESC",
         )?;
         let rows = statement.query_map(params![SEARCHED as i64], |row| {
@@ -177,15 +181,19 @@ impl Store {
             let kind: String = row.get(2)?;
             let width: Option<u32> = row.get(7)?;
             let height: Option<u32> = row.get(8)?;
+            let kind = Kind::parse(&kind).unwrap_or(Kind::Text);
+            let text: String = row.get(4)?;
             Ok(Entry {
                 id: row.get(0)?,
-                kind: Kind::parse(&kind).unwrap_or(Kind::Text),
+                kind,
+                class: Class::of(kind, &text),
                 mime: row.get(3)?,
-                text: row.get(4)?,
+                text,
                 chars: row.get(5)?,
                 size: row.get(6)?,
                 dimensions: width.zip(height),
                 used: row.get(9)?,
+                pinned: row.get(10)?,
                 preview: Some(self.preview_path(&hash)).filter(|path| path.exists()),
             })
         })?;
@@ -244,20 +252,32 @@ impl Store {
         Ok(())
     }
 
+    pub(super) fn pin(&self, id: i64, pinned: bool) -> rusqlite::Result<()> {
+        self.db.execute(
+            "UPDATE clipboard SET pinned = ?1 WHERE id = ?2",
+            params![pinned, id],
+        )?;
+        Ok(())
+    }
+
+    /// Keeps what is pinned.
     pub(super) fn clear(&self) -> rusqlite::Result<()> {
-        self.db.execute("DELETE FROM clipboard", [])?;
-        if let Ok(previews) = fs::read_dir(&self.previews) {
-            for preview in previews.flatten() {
-                let _ = fs::remove_file(preview.path());
-            }
+        let ids: Vec<i64> = self
+            .db
+            .prepare("SELECT id FROM clipboard WHERE pinned = 0")?
+            .query_map([], |row| row.get(0))?
+            .collect::<rusqlite::Result<_>>()?;
+        for id in ids {
+            self.delete(id)?;
         }
         Ok(())
     }
 
+    /// What is pinned neither counts toward the limits nor goes.
     pub(super) fn prune(&self, settings: &Settings) -> rusqlite::Result<()> {
         let rows: Vec<(i64, i64)> = self
             .db
-            .prepare("SELECT id, size FROM clipboard ORDER BY used DESC")?
+            .prepare("SELECT id, size FROM clipboard WHERE pinned = 0 ORDER BY used DESC")?
             .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))?
             .collect::<rusqlite::Result<_>>()?;
         let budget = i64::try_from(settings.history.max_total_mb.saturating_mul(1024 * 1024))

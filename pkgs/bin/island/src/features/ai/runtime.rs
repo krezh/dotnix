@@ -54,6 +54,11 @@ enum Message {
     /// The pointer came over an island, by its view's number, or left it.
     Hold(u64, bool),
     Chat(ChatMessage),
+    /// Spend the reset Claude would use next for the provider with this id.
+    Redeem(String),
+    Redeemed(Result<(), String>),
+    /// Forget why the last spend was refused.
+    Unfail,
 }
 
 enum ChatMessage {
@@ -111,6 +116,41 @@ impl Ai {
     pub(super) fn chat_model(&self, model: usize) {
         let _ = self.requests.send(Message::Chat(ChatMessage::Model(model)));
     }
+
+    pub(super) fn redeem(&self, provider: String) {
+        let _ = self.requests.send(Message::Redeem(provider));
+    }
+
+    pub(super) fn unfail(&self) {
+        let _ = self.requests.send(Message::Unfail);
+    }
+}
+
+fn redeem(state: &mut State, sender: &Sender<Message>, provider: &str) -> bool {
+    if state.redeem.busy {
+        return false;
+    }
+    let Some(grant) = state
+        .providers
+        .iter()
+        .find(|known| known.source == Source::Claude && known.id == provider)
+        .and_then(|known| known.credits.as_ref()?.next.clone())
+    else {
+        return false;
+    };
+    state.redeem.busy = true;
+    state.redeem.failed = None;
+    let replies = sender.clone();
+    if let Err(error) = thread::Builder::new()
+        .name("ai-redeem".to_owned())
+        .spawn(move || {
+            let _ = replies.send(Message::Redeemed(sources::redeem(&grant)));
+        })
+    {
+        state.redeem.busy = false;
+        state.redeem.failed = Some(format!("cannot use the reset: {error}"));
+    }
+    true
 }
 
 /// One island's hold on what waits on you. Dropping it lets go, also when the island goes while
@@ -410,6 +450,38 @@ fn work(
             Ok(Message::Chat(message)) => {
                 chatted = Instant::now();
                 changed = chat(&mut state, &mut conversation, settings, sender, message);
+            }
+            Ok(Message::Redeem(provider)) => {
+                changed = redeem(&mut state, sender, &provider);
+            }
+            Ok(Message::Redeemed(result)) => {
+                state.redeem.busy = false;
+                match result {
+                    Ok(()) => {
+                        state.redeem.done = state.redeem.done.wrapping_add(1);
+                        for provider in Arc::make_mut(&mut state.providers)
+                            .iter_mut()
+                            .filter(|provider| provider.source == Source::Claude)
+                        {
+                            if let Some(credits) = &mut provider.credits
+                                && credits.next.take().is_some()
+                            {
+                                credits.count = credits.count.saturating_sub(1);
+                            }
+                        }
+                        claude_wait = None;
+                        queued = true;
+                        by_hand = true;
+                    }
+                    Err(error) => {
+                        warn!("{error}");
+                        state.redeem.failed = Some(error);
+                    }
+                }
+                changed = true;
+            }
+            Ok(Message::Unfail) => {
+                changed = state.redeem.failed.take().is_some();
             }
             Err(RecvTimeoutError::Timeout) => {}
             Err(RecvTimeoutError::Disconnected) => return Ended::Unwanted,

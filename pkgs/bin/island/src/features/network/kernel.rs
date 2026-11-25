@@ -1,9 +1,10 @@
 //! What the kernel says about the network without asking for privileges: byte counters, the
 //! wireless link, sockets, listening ports and routes.
 
-use std::{collections::HashMap, fs, net::Ipv4Addr};
+use std::{collections::HashMap, fs, net::Ipv4Addr, path::Path};
 
 use super::state::{Port, Route, Sockets};
+use crate::sys::read_u64;
 
 /// One interface's counters since it came up.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -17,10 +18,7 @@ pub struct Counters {
 }
 
 fn number(path: &str) -> u64 {
-    fs::read_to_string(path)
-        .ok()
-        .and_then(|text| text.trim().parse().ok())
-        .unwrap_or(0)
+    read_u64(Path::new(path)).unwrap_or(0)
 }
 
 pub fn counters(interface: &str) -> Counters {

@@ -6,6 +6,7 @@ use crate::{
     compositor,
     spring::Spring,
     spring::SpringConfig,
+    supervisor,
     theme::{ACCENT, CRITICAL, OVERLAY1, SUBTEXT1},
     wm::Monitor,
 };
@@ -119,7 +120,7 @@ impl Local for Dots {
 
 fn focus(id: i64) {
     if let Some(backend) = compositor::backend() {
-        std::thread::spawn(move || backend.focus_workspace(id));
+        supervisor::spawn("island-workspace-focus", move || backend.focus_workspace(id));
     }
 }
 
@@ -128,7 +129,9 @@ fn scroll(scrolled: &Cell<f32>, delta: f32) {
     if steps != 0
         && let Some(backend) = compositor::backend()
     {
-        std::thread::spawn(move || backend.focus_relative(-steps));
+        supervisor::spawn("island-workspace-focus", move || {
+            backend.focus_relative(-steps)
+        });
     }
 }
 

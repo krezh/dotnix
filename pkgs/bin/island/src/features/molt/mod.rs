@@ -1,8 +1,21 @@
+mod build;
 mod cache;
+mod check;
+mod cleanup;
 mod feature;
+mod format;
+mod home;
+mod inputs;
+mod keys;
+mod notes;
 mod panel;
+mod parts;
+mod review;
 mod runtime;
+mod search;
 mod state;
+mod view;
+mod watchlist;
 mod widget;
 
 pub use runtime::Molt;

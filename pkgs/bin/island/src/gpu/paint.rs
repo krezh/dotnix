@@ -7,6 +7,7 @@ use std::{
     path::Path,
     rc::Rc,
     sync::{Arc, Weak},
+    task::Context,
     time::{Duration, Instant},
 };
 
@@ -18,6 +19,7 @@ use resvg::{tiny_skia, usvg};
 use tracing::warn;
 
 use super::{
+    decode::{Decoder, Key, Source},
     panel::Slot,
     renderer::{ATLAS, Gpu, Sprite},
     wrap::{along, row_starts, shortened_line, shortened_rows},
@@ -31,7 +33,27 @@ use crate::{
 };
 
 /// Text that changes, such as readings, would otherwise pile up.
+/// Text whose changed part is at most this long turns one character after another, as a count
+/// ticking; anything longer, such as one title giving way to another, turns over as a whole.
+const MORPH_BY_CHARACTER: usize = 4;
 const MOST_LINES: usize = 4096;
+/// Glyphs kept drawn off the atlas, so emptying it does not draw them all again.
+const MOST_GLYPHS: usize = 4096;
+/// Bytes of pictures kept drawn off the atlas, for the same reason.
+const RASTER_BUDGET: usize = 64 << 20;
+/// Pixel pictures this small are framed where they are wanted rather than waited for.
+const INLINE_PIXELS: u32 = 128 * 128;
+
+/// A glyph as swash drew it, ready for the atlas.
+#[derive(Clone)]
+struct GlyphRaster {
+    w: u32,
+    h: u32,
+    left: i32,
+    top: i32,
+    colored: bool,
+    rgba: Rc<[u8]>,
+}
 
 #[derive(Clone, Copy)]
 struct Entry {
@@ -112,7 +134,12 @@ pub struct Painter {
     swash: SwashCache,
     shelves: Shelves,
     glyphs: HashMap<CacheKey, Option<Entry>>,
-    pictures: HashMap<(String, u32, u32), Option<Entry>>,
+    glyph_rasters: HashMap<CacheKey, Option<GlyphRaster>>,
+    pictures: HashMap<Key, Option<Entry>>,
+    /// Each picture's pixels, kept past the atlas being emptied; `None` if it could not be read.
+    rasters: HashMap<Key, Option<Vec<u8>>>,
+    raster_bytes: usize,
+    decoder: Decoder,
     /// Each live picture's one place in the atlas, at a size, and which of its images is there.
     live: HashMap<(usize, u32, u32), LiveSlot>,
     drawings: HashMap<String, Entry>,
@@ -252,6 +279,20 @@ fn show_live(
 fn red_first(mut pixels: Vec<u8>) -> Vec<u8> {
     crate::picture::swap_red_blue(&mut pixels);
     pixels
+}
+
+/// `source` framed in a `size` box, red first and premultiplied, as the atlas takes it.
+pub(super) fn framed_picture(
+    source: &Source,
+    size: (u32, u32),
+    framing: Framing,
+) -> Option<Vec<u8>> {
+    match source {
+        Source::File(path) => {
+            crate::picture::decode(path).map(|image| framed(&image, size, framing))
+        }
+        Source::Pixels(image) => Some(red_first(framed(image, size, framing))),
+    }
 }
 
 fn upload(gpu: &Gpu, entry: Entry, rgba: &[u8]) {
@@ -476,7 +517,11 @@ impl Painter {
             swash: SwashCache::new(),
             shelves: Shelves::default(),
             glyphs: HashMap::new(),
+            glyph_rasters: HashMap::new(),
             pictures: HashMap::new(),
+            rasters: HashMap::new(),
+            raster_bytes: 0,
+            decoder: Decoder::new(),
             live: HashMap::new(),
             drawings: HashMap::new(),
             lines: HashMap::new(),
@@ -533,10 +578,97 @@ impl Painter {
         self.live.clear();
         self.drawings.clear();
         self.glows.clear();
-        self.addressed.clear();
+        self.forget_dead_pixels();
         self.full = false;
         self.reclaimed = Some(now);
         true
+    }
+
+    /// Lets go of pixel pictures no one holds, whose places could now be taken by others.
+    fn forget_dead_pixels(&mut self) {
+        let dead: Vec<String> = self
+            .addressed
+            .iter()
+            .filter(|image| image.strong_count() == 0)
+            .map(|image| format!("pixels-{:p}-", image.as_ptr()))
+            .collect();
+        if dead.is_empty() {
+            return;
+        }
+        self.rasters
+            .retain(|(key, _, _), _| !dead.iter().any(|prefix| key.starts_with(prefix)));
+        self.raster_bytes = self.rasters.values().flatten().map(Vec::len).sum();
+        self.addressed.retain(|image| image.strong_count() > 0);
+    }
+
+    fn keep_raster(&mut self, key: Key, rgba: Option<Vec<u8>>) {
+        let bytes = rgba.as_ref().map_or(0, Vec::len);
+        if self.raster_bytes + bytes > RASTER_BUDGET {
+            self.rasters.clear();
+            self.raster_bytes = 0;
+        }
+        self.raster_bytes += bytes;
+        if let Some(Some(old)) = self.rasters.insert(key, rgba) {
+            self.raster_bytes -= old.len();
+        }
+    }
+
+    /// Takes in the pictures made off the main thread. Whether any came, so what shows them is
+    /// laid out again.
+    pub fn receive(&mut self, cx: &mut Context<'_>) -> bool {
+        let done = self.decoder.finished(cx);
+        let any = !done.is_empty();
+        for done in done {
+            self.keep_raster(done.key, done.rgba);
+        }
+        any
+    }
+
+    /// Puts a kept picture in the atlas.
+    fn place_raster(&mut self, gpu: &Gpu, key: Key) -> Option<Entry> {
+        let (width, height) = (key.1, key.2);
+        let entry = match self.rasters.get(&key) {
+            Some(Some(_)) => self.room(width, height, 0, 0),
+            _ => None,
+        };
+        if let (Some(entry), Some(Some(rgba))) = (entry, self.rasters.get(&key)) {
+            upload(gpu, entry, rgba);
+        }
+        if !self.full {
+            self.pictures.insert(key, entry);
+        }
+        entry
+    }
+
+    /// A picture made off the main thread, or `None` until it is.
+    fn decoded(
+        &mut self,
+        gpu: &Gpu,
+        key: Key,
+        source: impl FnOnce() -> Source,
+        framing: Framing,
+    ) -> Option<Entry> {
+        if let Some(entry) = self.pictures.get(&key) {
+            return *entry;
+        }
+        if !self.rasters.contains_key(&key) {
+            let source = source();
+            let small = matches!(
+                &source,
+                Source::Pixels(image) if image.width() * image.height() <= INLINE_PIXELS
+            );
+            let here = if small {
+                source
+            } else {
+                match self.decoder.ask(&key, source, framing) {
+                    Ok(()) => return None,
+                    Err(source) => source,
+                }
+            };
+            let made = framed_picture(&here, (key.1, key.2), framing);
+            self.keep_raster(key.clone(), made);
+        }
+        self.place_raster(gpu, key)
     }
 
     /// Keeps room for a glow, and names it.
@@ -838,6 +970,22 @@ impl Painter {
         let (start, end) = shared(old, new);
         let gone: Vec<char> = old[start..old.len() - end].chars().collect();
         let come: Vec<char> = new[start..new.len() - end].chars().collect();
+        if gone.len().max(come.len()) > MORPH_BY_CHARACTER {
+            let (from, from_w) =
+                self.pieces(gpu, family, &old[start..old.len() - end], style, (tint, top), scale);
+            let (to, to_w) =
+                self.pieces(gpu, family, &new[start..new.len() - end], style, (tint, top), scale);
+            let first = self.pieces(gpu, family, &new[..start], style, (tint, top), scale);
+            let (last, _) =
+                self.pieces(gpu, family, &new[new.len() - end..], style, (tint, top), scale);
+            let whole = Slot {
+                from,
+                from_w,
+                to,
+                to_w,
+            };
+            return (first, vec![whole], last);
+        }
         let slots = (0..gone.len().max(come.len()))
             .map(|index| {
                 let part =
@@ -1033,20 +1181,40 @@ impl Painter {
         if let Some(entry) = self.glyphs.get(&key) {
             return *entry;
         }
-        let image = self.swash.get_image_uncached(&mut self.fonts, key);
-        let entry = image.and_then(|image| {
-            let (w, h) = (image.placement.width, image.placement.height);
-            if w == 0 || h == 0 {
-                return None;
+        if !self.glyph_rasters.contains_key(&key) {
+            if self.glyph_rasters.len() >= MOST_GLYPHS {
+                self.glyph_rasters.clear();
             }
-            let colored = !matches!(image.content, SwashContent::Mask);
-            let rgba: Vec<u8> = if colored {
-                premultiplied(&image.data)
-            } else {
-                image.data.iter().flat_map(|alpha| [*alpha; 4]).collect()
-            };
-            self.placed(gpu, w, h, &rgba, image.placement.left, image.placement.top)
-                .map(|entry| Entry { colored, ..entry })
+            let image = self.swash.get_image_uncached(&mut self.fonts, key);
+            let raster = image.and_then(|image| {
+                let (w, h) = (image.placement.width, image.placement.height);
+                if w == 0 || h == 0 {
+                    return None;
+                }
+                let colored = !matches!(image.content, SwashContent::Mask);
+                let rgba: Rc<[u8]> = if colored {
+                    premultiplied(&image.data).into()
+                } else {
+                    image.data.iter().flat_map(|alpha| [*alpha; 4]).collect()
+                };
+                Some(GlyphRaster {
+                    w,
+                    h,
+                    left: image.placement.left,
+                    top: image.placement.top,
+                    colored,
+                    rgba,
+                })
+            });
+            self.glyph_rasters.insert(key, raster);
+        }
+        let raster = self.glyph_rasters.get(&key).cloned().flatten();
+        let entry = raster.and_then(|raster| {
+            self.placed(gpu, raster.w, raster.h, &raster.rgba, raster.left, raster.top)
+                .map(|entry| Entry {
+                    colored: raster.colored,
+                    ..entry
+                })
         });
         if !self.full {
             self.glyphs.insert(key, entry);
@@ -1065,11 +1233,11 @@ impl Painter {
         if let Some(entry) = self.pictures.get(&key) {
             return *entry;
         }
-        let entry = make().and_then(|rgba| self.placed(gpu, width, height, &rgba, 0, 0));
-        if !self.full {
-            self.pictures.insert(key, entry);
+        if !self.rasters.contains_key(&key) {
+            let made = make();
+            self.keep_raster(key.clone(), made);
         }
-        entry
+        self.place_raster(gpu, key)
     }
 
     /// A symbolic icon in `color`, in the square at `rect`.
@@ -1121,22 +1289,26 @@ impl Painter {
         }
         let entry = match picture {
             Picture::File(path) => {
-                let key = format!("{}-{framing:?}", path.to_string_lossy());
-                self.cached_picture(gpu, key, size, || {
-                    crate::picture::decode(path).map(|image| framed(&image, size, framing))
-                })
+                let key = (
+                    format!("{}-{framing:?}", path.to_string_lossy()),
+                    size.0,
+                    size.1,
+                );
+                self.decoded(gpu, key, || Source::File(path.clone()), framing)
             }
             Picture::Pixels(image) => {
-                let key = format!("pixels-{:p}-{framing:?}", Arc::as_ptr(image));
-                let mut made = false;
-                let entry = self.cached_picture(gpu, key, size, || {
-                    made = true;
-                    Some(red_first(framed(image, size, framing)))
-                });
-                if made {
+                let key = (
+                    format!("pixels-{:p}-{framing:?}", Arc::as_ptr(image)),
+                    size.0,
+                    size.1,
+                );
+                if !self.pictures.contains_key(&key)
+                    && !self.rasters.contains_key(&key)
+                    && !self.decoder.is_pending(&key)
+                {
                     self.addressed.push(Arc::downgrade(image));
                 }
-                entry
+                self.decoded(gpu, key, || Source::Pixels(image.clone()), framing)
             }
             Picture::Live(live) => {
                 let key = (Arc::as_ptr(live) as usize, size.0, size.1);

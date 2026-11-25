@@ -3,7 +3,7 @@
 use std::{
     any::Any,
     cell::Cell,
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     pin::Pin,
     task::{Context, Poll},
     time::{Duration, Instant},
@@ -31,6 +31,7 @@ use wayland_protocols::{
 
 use super::{
     app::EffectState,
+    beat::Beat,
     blocks::{Blocks, chip_label, chip_look},
     bubble::Bubble,
     chrome::{self, Action, Chrome},
@@ -47,7 +48,7 @@ use super::{
     },
     stand::Stand,
     turn::Turn,
-    widget::{Drawn, Hit, Layout, Tint, sets, tinted},
+    widget::{Drawn, Hit, Layout, Sweep, Tint, sets, tinted},
 };
 use crate::{
     bar::{self, TabStrip, WIDGET_H},
@@ -66,7 +67,7 @@ use crate::{
         slider::{HIT_H, OnChange},
     },
     compositor,
-    config::{self, Widget},
+    config::Widget,
     features::{self, AnyLocal, Outcome, WidgetCx},
     glyphs::Glyphs,
     key::{Key, Modifier},
@@ -80,7 +81,6 @@ use crate::{
         COLLAPSED_H, COLLAPSED_LAYER, CONTENT_DRIFT, CONTENT_IN, CONTENT_OUT, Grab, Mode,
         PANEL_ROOM, Panel, SHAPE_SPRING, SURFACE_H, SURFACE_W, Shape, Stage, collapsed_width,
     },
-    sys::{self, Samples, SysStats, Watch},
     theme::{ACCENT, HOVER_ALPHA, SURFACE, SURFACE_BORDER_ALPHA, SURFACE1, TEXT},
     ui::{CONTROL_RADIUS, INSET, SMALL_SIZE},
     wm::Snapshot,
@@ -106,6 +106,7 @@ const HELD_DIM: f32 = 0.85;
 const FILL_EPSILON: f32 = 0.001;
 const FOLLOW_SLACK: f32 = 24.0;
 const GLIDE: Duration = Duration::from_millis(16);
+const DEFAULT_FRAME_TIME: Duration = Duration::from_micros(16_667);
 const SLOW_FRAME: Duration = Duration::from_millis(3);
 const GAP: Duration = Duration::from_millis(12);
 const SHADOW_BELOW: f32 = 55.0;
@@ -134,8 +135,6 @@ pub struct Look {
     pub border: f32,
     /// Which end of the bar the bubble splits off from.
     pub bubble: crate::config::Side,
-    pub samples: Samples,
-    pub system: std::rc::Rc<config::System>,
 }
 
 struct Cached {
@@ -249,8 +248,8 @@ pub struct Island {
     pub stage: Stage,
     pub layer: LayerSurface,
     pub output: wayland_client::protocol::wl_output::WlOutput,
-    /// Its layer takes the keyboard when clicked into, for a panel that stays open.
-    pub keys_on_demand: bool,
+    /// The last frame's sprites, kept so each frame reuses the allocation.
+    frame: Vec<Sprite>,
     pub blur: Option<ExtBackgroundEffectSurfaceV1>,
     pub scale: f32,
     /// Keeps the compositor's fractional scale coming, while there is one.
@@ -318,10 +317,13 @@ pub struct Island {
     rises: HashMap<usize, HashMap<u64, Spring>>,
     /// What each bar widget's text shows.
     widget_texts: HashMap<Widget, HashMap<u64, Shown>>,
+    widget_rings: HashMap<Widget, HashMap<u64, Sweep>>,
     /// What each built panel's text shows.
     texts: HashMap<usize, HashMap<u64, Shown>>,
     /// Lay the panel out again before drawing it.
     stale: bool,
+    /// Features that changed while a panel was open, laying it out again only if it shows them.
+    changed: HashSet<&'static str>,
     offsets: HashMap<SharedString, f32>,
     /// Where each panel was scrolled to when it last closed, so it opens there again.
     scrolled: HashMap<Panel, HashMap<SharedString, f32>>,
@@ -336,10 +338,6 @@ pub struct Island {
     held: Option<Grip>,
     /// The row last told the pointer came onto it.
     entered: Option<[f32; 4]>,
-    stats: SysStats,
-    revision: u64,
-    sampled_at: Instant,
-    watch: Option<Watch>,
     leave_at: Option<Instant>,
     /// The parts that moved last frame, which show where they came to rest once more.
     moving: Vec<&'static str>,
@@ -353,6 +351,10 @@ pub struct Island {
     /// Since the island started moving, and when it did.
     frames: Option<(u32, Instant)>,
     bubble: Bubble,
+    /// How long its monitor shows each frame.
+    frame_time: Duration,
+    /// When the compositor last showed one of its frames.
+    pub beat: Beat,
 }
 
 impl Island {
@@ -367,7 +369,7 @@ impl Island {
             stage,
             layer,
             output,
-            keys_on_demand: false,
+            frame: Vec::with_capacity(2048),
             surface: None,
             blur: None,
             scale,
@@ -412,8 +414,10 @@ impl Island {
             pulled: None,
             rises: HashMap::new(),
             widget_texts: HashMap::new(),
+            widget_rings: HashMap::new(),
             texts: HashMap::new(),
             stale: false,
+            changed: HashSet::new(),
             offsets: HashMap::new(),
             scrolled: HashMap::new(),
             chrome: Vec::new(),
@@ -423,10 +427,6 @@ impl Island {
             refreshed: Instant::now(),
             held: None,
             entered: None,
-            stats: SysStats::default(),
-            revision: 0,
-            sampled_at: Instant::now(),
-            watch: None,
             leave_at: None,
             moving: Vec::new(),
             countdowns: HashMap::new(),
@@ -436,7 +436,28 @@ impl Island {
             awaited: None,
             frames: None,
             bubble: Bubble::new(),
+            frame_time: DEFAULT_FRAME_TIME,
+            beat: Beat::default(),
         }
+    }
+
+    /// Its monitor's refresh rate in millihertz, as the compositor gives it; 0 if it has none.
+    pub fn set_refresh_rate(&mut self, millihertz: i32) {
+        self.frame_time = u64::try_from(millihertz)
+            .ok()
+            .filter(|rate| *rate > 0)
+            .map_or(DEFAULT_FRAME_TIME, |rate| {
+                Duration::from_nanos(1_000_000_000_000 / rate)
+            });
+    }
+
+    /// `pace` as a whole number of the monitor's frames, so frames drawn at it keep the same place
+    /// between the monitor's refreshes instead of drifting across them.
+    fn on_beat(&self, pace: Duration) -> Duration {
+        let frames = (pace.as_secs_f64() / self.frame_time.as_secs_f64())
+            .round()
+            .max(1.0);
+        self.frame_time.mul_f64(frames)
     }
 
     pub fn set_output_name(&mut self, name: &str) {
@@ -505,6 +526,12 @@ impl Island {
         self.dirty = true;
     }
 
+    /// Pictures made off the main thread can now be shown.
+    pub fn pictures_arrived(&mut self) {
+        self.forget_widgets();
+        self.stale = true;
+    }
+
     pub fn forget_widgets(&mut self) {
         self.cache.clear();
         self.dirty = true;
@@ -514,9 +541,15 @@ impl Island {
         self.forget_widgets_of(name);
         self.stage.sync_local(name);
         self.stage.sync_held();
-        self.stale = self.stage.mode != Mode::Collapsed;
+        self.note_change(name);
         self.sync_popups();
         self.dirty = true;
+    }
+
+    fn note_change(&mut self, name: &'static str) {
+        if self.stage.mode != Mode::Collapsed {
+            self.changed.insert(name);
+        }
     }
 
     pub fn feature_live(&mut self, name: &'static str) {
@@ -528,15 +561,21 @@ impl Island {
             .features
             .get(name)
             .map_or(&[][..], |feature| feature.live_widgets());
+        let mut seen = self.stage.mode == Mode::Collapsed
+            || self.stage.morph.layers[COLLAPSED_LAYER].value() > 0.001;
         for widget in live {
             self.cache.remove(&Widget(widget));
+            seen |= self.stage.droplets.contains(widget);
         }
-        self.dirty = true;
+        if seen {
+            self.dirty = true;
+        }
     }
 
     /// Shows the pop-ups once any has something, and takes them away once none has.
     pub fn local_changed(&mut self, name: &'static str) {
         self.forget_widgets_of(name);
+        self.note_change(name);
         self.sync_popups();
         self.dirty = true;
     }
@@ -556,7 +595,7 @@ impl Island {
             Mode::Open(panel) if panel != Panel::Popups && waiting && centered => {
                 self.set_mode(Mode::Open(Panel::Popups));
             }
-            Mode::Open(_) => self.stale = true,
+            Mode::Open(Panel::Popups) => self.stale = true,
             _ => {}
         }
         self.last_frame.get_or_insert_with(Instant::now);
@@ -620,6 +659,7 @@ impl Island {
         let mut w = WidgetCx::new(half, grouped, glyphs, local);
         let widget = feature.widget(name, &*state, &mut w);
         let droplet = widget.as_ref().is_some_and(|widget| widget.droplet);
+        let no_rings = HashMap::new();
         let nothing = HashMap::new();
         let mut layout = Layout {
             painter,
@@ -630,6 +670,7 @@ impl Island {
             grouped: grouped && !droplet,
             started: self.started,
             before: self.widget_texts.get(&kind).unwrap_or(&nothing),
+            rings: self.widget_rings.get(&kind).unwrap_or(&no_rings),
             owner: format!("{}-{}", kind.0, self.output.id().protocol_id()),
         };
         let mut drawn = widget
@@ -637,9 +678,12 @@ impl Island {
             .unwrap_or_default();
         self.widget_texts
             .insert(kind, std::mem::take(&mut drawn.texts));
+        self.widget_rings
+            .insert(kind, std::mem::take(&mut drawn.rings));
         let redraw_at = w.next_redraw().map(|after| now + after);
+        let tick = now + self.on_beat(TICK);
         let redraw_at = if drawn.moving {
-            Some(redraw_at.map_or(now + TICK, |at| at.min(now + TICK)))
+            Some(redraw_at.map_or(tick, |at| at.min(tick)))
         } else {
             redraw_at
         };
@@ -668,42 +712,48 @@ impl Island {
     /// What each section holds and how wide it is at each widget's fold.
     fn sections(&self, target: bool) -> [Vec<(Widget, f32, f32, f32)>; 3] {
         let layout = &self.stage.layout;
-        let spacing = layout.spacing;
-        [&layout.left, &layout.middle, &layout.right].map(|widgets| {
-            widgets
-                .iter()
-                .filter_map(|kind| {
-                    let Widget(name) = *kind;
-                    if self.stage.droplets.contains(name) {
-                        return None;
-                    }
-                    let rest = self
-                        .stage
-                        .features
-                        .owning(name)
-                        .map_or(0.0, |feature| feature.rest_width(name, spacing));
-                    let presence = match self.stage.held.iter().find(|slot| slot.key == name) {
-                        Some(slot) if target => slot.presence.target(),
-                        Some(slot) => slot.presence.value().clamp(0.0, 1.0),
-                        None if rest > 0.0 => 0.0,
-                        None => return None,
-                    };
-                    let natural = self
-                        .cache
-                        .get(kind)
-                        .map_or(0.0, |cached| cached.drawn.width);
-                    let width = rest + (natural - rest).max(0.0) * presence;
-                    Some((*kind, width, presence, rest))
-                })
-                .collect()
+        [&layout.left, &layout.middle, &layout.right]
+            .map(|widgets| self.section(widgets, target).collect())
+    }
+
+    fn section<'a>(
+        &'a self,
+        widgets: &'a [Widget],
+        target: bool,
+    ) -> impl Iterator<Item = (Widget, f32, f32, f32)> + 'a {
+        let spacing = self.stage.layout.spacing;
+        widgets.iter().filter_map(move |kind| {
+            let Widget(name) = *kind;
+            if self.stage.droplets.contains(name) {
+                return None;
+            }
+            let rest = self
+                .stage
+                .features
+                .owning(name)
+                .map_or(0.0, |feature| feature.rest_width(name, spacing));
+            let presence = match self.stage.held.iter().find(|slot| slot.key == name) {
+                Some(slot) if target => slot.presence.target(),
+                Some(slot) => slot.presence.value().clamp(0.0, 1.0),
+                None if rest > 0.0 => 0.0,
+                None => return None,
+            };
+            let natural = self
+                .cache
+                .get(kind)
+                .map_or(0.0, |cached| cached.drawn.width);
+            let width = rest + (natural - rest).max(0.0) * presence;
+            Some((*kind, width, presence, rest))
         })
     }
 
     fn bar_width(&self, target: bool) -> f32 {
-        let widths = self
-            .sections(target)
-            .map(|section| section.iter().map(|(_, width, _, _)| width).sum::<f32>());
-        let [left, middle, right] = widths;
+        let layout = &self.stage.layout;
+        let [left, middle, right] = [&layout.left, &layout.middle, &layout.right].map(|widgets| {
+            self.section(widgets, target)
+                .map(|(_, width, _, _)| width)
+                .sum::<f32>()
+        });
         2.0 * bar::edge(&self.stage.layout) + middle + 2.0 * left.max(right)
     }
 
@@ -778,8 +828,6 @@ impl Island {
                 .collect();
             self.panel_watch = Some(Box::new(watches));
         }
-        let stats = matches!(mode, Mode::Open(panel) if panel.shows_stats());
-        self.watch = stats.then(|| self.look.samples.watch());
         self.offsets = match mode {
             Mode::Open(panel) => self.scrolled.remove(&panel).unwrap_or_default(),
             Mode::Collapsed => HashMap::new(),
@@ -818,12 +866,8 @@ impl Island {
         let Mode::Open(panel) = self.stage.mode else {
             return;
         };
-        if panel.shows_stats()
-            && let Some((stats, at, revision)) = self.look.samples.since(self.revision)
-        {
-            self.stats = stats;
-            self.sampled_at = at;
-            self.revision = revision;
+        let changed = std::mem::take(&mut self.changed);
+        if !self.stale && changed.iter().any(|name| self.stage.shows_feature(name, glyphs)) {
             self.stale = true;
         }
         if !self.stale {
@@ -834,15 +878,8 @@ impl Island {
         self.refreshed = Instant::now();
         self.redraw.set(None);
         let view = match panel {
-            Panel::System => Some(panels::system(
-                &self.stats,
-                &self.look.system,
-                self.stage.displays(),
-            )),
             Panel::Dashboard => Some(panels::dashboard(
                 self.stage.dashboard(glyphs, &self.redraw),
-                &self.stats,
-                glyphs,
             )),
             Panel::Feature(name) => self.stage.feature_panel(name, glyphs, &self.redraw),
             Panel::Popups => self.stage.popups(glyphs, &self.redraw),
@@ -915,7 +952,10 @@ impl Island {
             grow: None,
         };
         let fixed = match panel {
-            Panel::Feature(name) => features::panel_size(name),
+            Panel::Feature(name) => self
+                .stage
+                .feature_panel_size(name)
+                .or_else(|| features::panel_size(name)),
             _ => None,
         };
         let node = match fixed.map(|(w, h)| Shape { w, h }).or(frozen) {
@@ -1209,9 +1249,7 @@ impl Island {
         let settling = std::mem::replace(&mut self.moving, moving.clone());
         let names = moving.into_iter().chain(settling);
         for name in names {
-            if self.stage.shows_local(name) {
-                self.stale = true;
-            }
+            self.note_change(name);
             self.forget_widgets_of(name);
         }
     }
@@ -1296,7 +1334,6 @@ impl Island {
         let scale = self.scale;
         let collapsed = self.stage.mode == Mode::Collapsed;
         let active = self.stage.active_layer();
-        let phase = self.sampled_at.elapsed().as_secs_f32() / sys::INTERVAL.as_secs_f32();
         let width = self.stage.morph.slide_width;
         let seconds = self.started.elapsed().as_secs_f32();
         let pulse_shown = pulsed((seconds / PULSE.as_secs_f32()).fract());
@@ -1414,10 +1451,12 @@ impl Island {
                     }
                 }
             }
-            panel::grow_sprites(built, &mut out[first..first + above]);
+            let (shown_w, shown_h) = (self.stage.morph.w.value(), self.stage.morph.h.value());
+            let shown = [(built.width - shown_w) / 2.0, 0.0, shown_w, shown_h];
+            panel::grow_sprites(built, shown, &mut out[first..first + above]);
             let over = out.split_off(first + above);
             for chart in &built.charts {
-                let phase = chart.phase.map_or(phase, Phase::now);
+                let phase = chart.phase.map_or(1.0, Phase::now);
                 panel::chart_sprites(chart, phase, 1.0 / scale, out);
             }
             for countdown in &built.countdowns {
@@ -1569,7 +1608,8 @@ impl Island {
         self.body = [x, top, w, h];
         let (radius, power) = self.look.corner;
         let radius = radius.min(h / 2.0);
-        let mut sprites = Vec::with_capacity(2048);
+        let mut sprites = std::mem::take(&mut self.frame);
+        sprites.clear();
         self.beaming = false;
         if w < 1.0 || h < 1.0 {
             self.placed.clear();
@@ -1647,7 +1687,9 @@ impl Island {
             let area = [body[2], reach];
             let due = self
                 .aura_shown
-                .is_none_or(|(_, made, at)| made.elapsed() >= AURA_EVERY || at != area);
+                .is_none_or(|(_, made, at)| {
+                    made.elapsed() + self.frame_time / 2 >= self.on_beat(AURA_EVERY) || at != area
+                });
             if due {
                 if self.aura_room.is_none() {
                     self.aura_room = painter.glow_room();
@@ -1969,7 +2011,7 @@ impl Island {
     ) {
         self.dirty = false;
         self.sync_monitor();
-        let now = Instant::now();
+        let now = Instant::now() + self.beat.ahead();
         let mut laps = Laps::start();
         let since = self.last_frame.map(|last| now - last);
         if let Some(gap) = since
@@ -2094,6 +2136,7 @@ impl Island {
                 "slow frame"
             );
         }
+        self.frame = sprites;
         self.drew_at = now;
         let open = self.stage.mode != Mode::Collapsed;
         let morph = &self.stage.morph;
@@ -2128,10 +2171,13 @@ impl Island {
             }
             self.last_frame = None;
             // Charts slide with the clock, and countdowns run out.
-            let moving = self
-                .built
-                .values()
-                .any(|built| !built.charts.is_empty() || !built.countdowns.is_empty());
+            let moving = self.built.values().any(|built| {
+                built
+                    .charts
+                    .iter()
+                    .any(|chart| chart.phase.is_some_and(|phase| phase.now() < 1.0))
+                    || !built.countdowns.is_empty()
+            });
             let gliding = self.built.values().any(|built| {
                 built.marquees.iter().any(|marquee| marquee.hover.is_none())
                     || !built.carets.is_empty()
@@ -2158,7 +2204,10 @@ impl Island {
         }
         let soonest = [
             self.beaming.then_some(GLIDE),
-            (self.aura.is_lit() && !self.stage.hidden()).then_some(AURA_EVERY),
+            (self.aura.is_lit()
+                && !self.stage.hidden()
+                && self.stage.morph.layers[COLLAPSED_LAYER].value() > 0.001)
+                .then_some(AURA_EVERY),
         ]
         .into_iter()
         .flatten()
@@ -2168,6 +2217,7 @@ impl Island {
         {
             self.pace = Some(self.pace.map_or(soonest, |pace| pace.min(soonest)));
         }
+        self.pace = self.pace.map(|pace| self.on_beat(pace));
     }
 
     /// Puts `sprites` on the surface, or sets up trying again.
@@ -2262,6 +2312,17 @@ impl Island {
         })
     }
 
+    /// The pointer came over the island or left it. What features do with that, such as pausing a
+    /// countdown, shows at once.
+    fn hover(&mut self, over: bool) {
+        if self.stage.hovered == over {
+            return;
+        }
+        self.stage.set_pointer(over);
+        self.stale = true;
+        self.dirty = true;
+    }
+
     /// `at` is on its surface, which shows the island moved while it stands off the bar.
     pub fn pointer_moved(&mut self, at: (f32, f32)) {
         let (x, y) = self.stand.shift(self.scale);
@@ -2269,18 +2330,14 @@ impl Island {
         self.pointer = Some(at);
         let on_bubble = self.bubble.covers(at);
         if on_bubble {
-            if self.stage.hovered {
-                self.stage.set_pointer(false);
-            }
+            self.hover(false);
             self.tip = None;
             self.leave_at = None;
             self.last_frame.get_or_insert_with(Instant::now);
             self.dirty = true;
             return;
         }
-        if !self.stage.hovered {
-            self.stage.set_pointer(true);
-        }
+        self.hover(true);
         self.leave_at = None;
         if let Some(grip) = self.held.clone() {
             let x = at.0 - self.panel_at.0 - grip.rect[0] - grip.offset;
@@ -2344,14 +2401,13 @@ impl Island {
     /// What the chart under `at` says there.
     fn chart_reading(&self, at: (f32, f32)) -> Option<SharedString> {
         let local = self.in_panel(at);
-        let phase = self.sampled_at.elapsed().as_secs_f32() / sys::INTERVAL.as_secs_f32();
         let chart = self
             .active_built()?
             .charts
             .iter()
             .find(|chart| inside(chart.rect, local))?;
         let across = (local.0 - chart.rect[0]) / chart.rect[2].max(1.0);
-        let phase = chart.phase.map_or(phase, Phase::now).clamp(0.0, 1.0);
+        let phase = chart.phase.map_or(1.0, Phase::now).clamp(0.0, 1.0);
         let words = chart::text(&chart.series, card::SLOTS, phase, across);
         (!words.is_empty()).then(|| words.into())
     }
@@ -2444,6 +2500,22 @@ impl Island {
     pub fn dismiss(&mut self) {
         self.close_menu();
         self.set_mode(Mode::Collapsed);
+    }
+
+    /// A click off the island while it holds the clicks or keys: a panel worked in lets go of the
+    /// keyboard and stays, anything else closes.
+    pub fn pressed_outside(&mut self) {
+        let open = match self.stage.mode {
+            Mode::Open(Panel::Feature(name)) if features::stays_open(name) => Some(name),
+            _ => None,
+        };
+        match open {
+            Some(name) if self.menu.as_ref().is_none_or(|menu| !menu.is_open()) => {
+                self.stage.update_local(name, |local| local.let_go());
+                self.dirty = true;
+            }
+            _ => self.dismiss(),
+        }
     }
 
     pub fn key(&mut self, key: &Key) {
@@ -2547,6 +2619,7 @@ impl Island {
                 .and_then(|(built, local)| built.under(local).find_map(|hit| hit.on_right.clone()));
             if let Some(handler) = handler {
                 handler(&mut IslandUi { island: self });
+                self.stale = true;
                 self.dirty = true;
             }
             return;
@@ -2567,7 +2640,10 @@ impl Island {
         match pressed.act {
             Act::Chrome(Action::Open(panel)) => self.set_mode(Mode::Open(panel)),
             Act::Chrome(Action::Close) => self.set_mode(Mode::Collapsed),
-            Act::Panel(handler) => handler(&mut IslandUi { island: self }),
+            Act::Panel(handler) => {
+                handler(&mut IslandUi { island: self });
+                self.stale = true;
+            }
             Act::Menu(action) => match action {
                 menu::Action::Enter(index) => {
                     if let Some(menu) = &mut self.menu {
@@ -2649,7 +2725,7 @@ impl Island {
         self.pressed = None;
         self.tip = None;
         self.last_frame.get_or_insert_with(Instant::now);
-        self.stage.set_pointer(false);
+        self.hover(false);
         let stays = matches!(self.stage.mode, Mode::Open(Panel::Feature(name)) if features::stays_open(name));
         if !stays && !matches!(self.stage.mode, Mode::Collapsed | Mode::Open(Panel::Popups)) {
             self.leave_at = Some(Instant::now() + LEAVE_GRACE);
@@ -2761,6 +2837,7 @@ impl Island {
                 }
                 if immediate {
                     handler(&mut IslandUi { island: self });
+                    self.stale = true;
                 } else {
                     self.pressed = Some(Pressed {
                         act: Act::Panel(handler),

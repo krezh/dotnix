@@ -30,8 +30,6 @@ fn stage() -> Stage {
 fn only_what_an_open_panel_reads_moves_it() {
     let mut stage = stage();
     assert!(!stage.shows_local("ai"));
-    stage.mode = Mode::Open(Panel::System);
-    assert!(!stage.shows_local("ai"));
     stage.mode = Mode::Open(Panel::Dashboard);
     assert!(stage.shows_local("ai"));
     stage.mode = Mode::Open(Panel::Feature("audio"));
@@ -54,8 +52,8 @@ fn collapsing_shows_waiting_popups_instead() {
     ));
     assert_eq!(stage.resolved(Mode::Collapsed), Mode::Open(Panel::Popups));
     assert_eq!(
-        stage.resolved(Mode::Open(Panel::System)),
-        Mode::Open(Panel::System)
+        stage.resolved(Mode::Open(Panel::Dashboard)),
+        Mode::Open(Panel::Dashboard)
     );
 }
 
@@ -69,9 +67,9 @@ fn a_fullscreen_window_hides_the_bar_only_while_collapsed() {
         stage.desired_shape(Some(500.0)),
         Some(Shape { w: 0.0, h: 0.0 })
     );
-    stage.mode = Mode::Open(Panel::System);
+    stage.mode = Mode::Open(Panel::Dashboard);
     assert!(!stage.hidden());
-    assert_eq!(stage.active_layer(), Some(Panel::System.layer()));
+    assert_eq!(stage.active_layer(), Some(Panel::Dashboard.layer()));
 }
 
 #[test]
@@ -93,10 +91,10 @@ fn the_bar_grows_under_the_pointer() {
 #[test]
 fn an_open_panel_takes_the_shape_it_measured() {
     let mut stage = stage();
-    stage.mode = Mode::Open(Panel::System);
+    stage.mode = Mode::Open(Panel::Dashboard);
     assert_eq!(stage.desired_shape(Some(500.0)), None);
     let shape = Shape { w: 800.0, h: 600.0 };
-    stage.morph.frozen[Panel::System.layer()] = Some((1, shape));
+    stage.morph.frozen[Panel::Dashboard.layer()] = Some((1, shape));
     assert_eq!(stage.desired_shape(Some(500.0)), Some(shape));
 }
 
@@ -122,7 +120,7 @@ fn the_first_shape_is_taken_at_once_and_later_ones_animate() {
 #[test]
 fn only_the_active_layer_fades_in() {
     let mut morph = Morph::new();
-    let layer = Panel::System.layer();
+    let layer = Panel::Dashboard.layer();
     morph.fade(Some(layer));
     assert_eq!(morph.layers[layer].target(), 1.0);
     assert_eq!(morph.layers[COLLAPSED_LAYER].target(), 0.0);
@@ -131,7 +129,7 @@ fn only_the_active_layer_fades_in() {
 #[test]
 fn a_passing_panel_comes_in_from_the_other_side() {
     let mut morph = Morph::new();
-    let (out, into) = (Panel::System.layer(), Panel::Dashboard.layer());
+    let (out, into) = (Panel::Popups.layer(), Panel::Dashboard.layer());
     morph.slide(out, into, true);
     assert_eq!(morph.slides[out].target(), -1.0);
     assert_eq!(morph.slides[into].value(), 1.0);

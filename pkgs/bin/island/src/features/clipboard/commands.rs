@@ -1,24 +1,22 @@
 use super::{
+    picker::Picker,
     runtime::{Clipboard, Request},
     state::State,
 };
 use crate::{
-    components::list::{self, ROWS, Selection},
+    components::list::{self, ROWS},
     control::{Command, Group, Report, Row, Takes, Value, form},
     features::Outcome,
     key::Key,
 };
 
 impl Clipboard {
-    pub(super) fn handle_key(
-        &self,
-        state: &State,
-        picker: &mut Selection,
-        keystroke: &Key,
-    ) -> Outcome {
-        let matching = state.matching(&picker.query);
-        let count = matching.len();
-        let selected = matching.get(picker.selected.min(count.saturating_sub(1)));
+    pub(super) fn handle_key(&self, state: &State, picker: &mut Picker, keystroke: &Key) -> Outcome {
+        let matching = state.matching(&picker.selection.query, picker.filter);
+        let layout = matching.layout;
+        let selected = matching
+            .entries
+            .get(picker.selection.selected.min(layout.count.saturating_sub(1)));
         match keystroke.name.as_str() {
             "escape" => return Outcome::Close,
             "enter" => {
@@ -30,10 +28,10 @@ impl Clipboard {
                 }
                 return Outcome::Close;
             }
-            "up" => picker.step(-1, count),
-            "down" | "tab" => picker.step(1, count),
-            "pageup" => picker.step(-(ROWS as i32), count),
-            "pagedown" => picker.step(ROWS as i32, count),
+            "up" => picker.step(-1, layout),
+            "down" | "tab" => picker.step(1, layout),
+            "pageup" => picker.step(-(ROWS as i32), layout),
+            "pagedown" => picker.step(ROWS as i32, layout),
             "delete" => {
                 if let Some(entry) = selected {
                     self.request(Request::Delete(entry.id));
@@ -57,7 +55,7 @@ impl Clipboard {
             return Report::default();
         }
         self.request(Request::Clear);
-        Report::did(Row::said("Forgot the clipboard history"))
+        Report::did(Row::said("Forgot the clipboard history, keeping what is pinned"))
     }
 }
 
@@ -69,7 +67,7 @@ pub(super) const CONTROLS: &[Command] = &[Command {
         forms: &[form(
             "clear",
             Value::Nothing,
-            "Forget the clipboard history",
+            "Forget the clipboard history, keeping what is pinned",
         )],
         bare: None,
     },

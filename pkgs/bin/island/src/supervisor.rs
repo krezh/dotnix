@@ -25,13 +25,14 @@ pub struct Reconnect {
 }
 
 impl Reconnect {
-    pub fn wait(&mut self, started: Instant) {
+    /// How long to wait before reconnecting, after a connection made at `started` ended.
+    pub fn delay(&mut self, started: Instant) -> Duration {
         self.delay = if started.elapsed() >= RECONNECT_HELD {
             Duration::ZERO
         } else {
             (self.delay * 2).clamp(RECONNECT_MIN, RECONNECT_MAX)
         };
-        thread::sleep(self.delay);
+        self.delay
     }
 }
 
@@ -69,6 +70,9 @@ pub enum Ended {
     Unwanted,
     /// Runs again after a pause.
     Failed(String),
+    /// The source it follows went away, as a restarting sound server does: it runs again as
+    /// [`Reconnect`] paces it.
+    Lost,
 }
 
 fn panic_message(payload: &(dyn Any + Send)) -> &str {
@@ -89,6 +93,7 @@ pub fn supervise(
         .name(format!("island-{name}"))
         .spawn(move || {
             let mut delay = RETRY_MIN;
+            let mut pace = Reconnect::default();
             loop {
                 let started = Instant::now();
                 debug!(worker = name, "worker started");
@@ -100,6 +105,12 @@ pub fn supervise(
                     Ok(Ended::Unwanted) => {
                         debug!(worker = name, "worker finished");
                         return;
+                    }
+                    Ok(Ended::Lost) => {
+                        let wait = pace.delay(started);
+                        debug!(worker = name, reconnect_in = ?wait, "source lost, reconnecting");
+                        thread::sleep(wait);
+                        continue;
                     }
                     Ok(Ended::Failed(reason)) => {
                         warn!(worker = name, cause = reason, retry_in = ?delay, "worker stopped, restarting");

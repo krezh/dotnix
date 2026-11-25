@@ -15,14 +15,18 @@ use uuid::Uuid;
 use super::{COLLAPSED_H, COLLAPSED_LAYER, FOLD_SPRING, Grab, Mode, Morph, Panel, Shape, Stance};
 use crate::{
     config,
-    features::{self, AnyLocal, Battery, Features, IslandInfo, PanelCx},
+    features::{self, AnyLocal, Features, IslandInfo, PanelCx},
     glyphs::Glyphs,
     panel::PanelView,
+    panels,
     presence::Presence,
     wm::{Monitor, Snapshot},
 };
 
 const HOVER_GROW: f32 = 4.0;
+/// Where the Batteries card sits among the features' cards on the overview, by their
+/// [`DASHBOARD_ORDER`](features::Surface::DASHBOARD_ORDER).
+const BATTERIES_ORDER: u8 = 100;
 
 /// Kept so a feature widget can still draw while it folds away.
 pub type Held = Rc<dyn Any>;
@@ -33,6 +37,8 @@ pub struct Stage {
     pub closing: Option<&'static str>,
     /// Whose marks the panel being shown borrowed.
     pub lent: RefCell<HashSet<String>>,
+    /// The features that gave the dashboard something when it was last made.
+    pub shown: RefCell<HashSet<&'static str>>,
     pub hovered: bool,
     pub fullscreen: bool,
     pub morph: Morph,
@@ -84,6 +90,7 @@ impl Stage {
             mode: Mode::Collapsed,
             closing: None,
             lent: RefCell::default(),
+            shown: RefCell::default(),
             hovered: false,
             fullscreen: false,
             morph: Morph::new(),
@@ -104,20 +111,36 @@ impl Stage {
         self.mode == Mode::Collapsed && self.fullscreen
     }
 
-    pub fn displays(&self) -> usize {
-        self.workspaces
-            .as_ref()
-            .map_or(1, |snapshot| snapshot.monitors.len().max(1))
-    }
 
     /// Whether what is open shows anything of `name`'s part, so changes when it moves.
     pub fn shows_local(&self, name: &str) -> bool {
         match self.mode {
-            Mode::Collapsed | Mode::Open(Panel::System) => false,
+            Mode::Collapsed => false,
             Mode::Open(Panel::Dashboard) => true,
             Mode::Open(Panel::Popups) => self.local(name).is_some_and(|local| local.popup()),
             Mode::Open(Panel::Feature(open)) => open == name || self.lent.borrow().contains(name),
         }
+    }
+
+    /// Whether a change to `name` can change what is open: the dashboard shows only the features
+    /// that give it something, and one that gave nothing is asked again.
+    pub fn shows_feature(&self, name: &str, glyphs: &Glyphs) -> bool {
+        if self.mode != Mode::Open(Panel::Dashboard) {
+            return self.shows_local(name);
+        }
+        let lent = self.lent.borrow().contains(name);
+        let shown = self.shown.borrow().contains(name);
+        if lent || shown {
+            return true;
+        }
+        let Some(feature) = self.features.get(name) else {
+            return false;
+        };
+        let redraw = Cell::new(None);
+        !feature.batteries().is_empty()
+            || !feature
+                .dashboard(&mut self.panel_cx(name, glyphs, &redraw))
+                .is_empty()
     }
 
     pub fn update_local(&mut self, name: &str, action: impl FnOnce(&mut dyn AnyLocal)) {
@@ -194,11 +217,7 @@ impl Stage {
                     _ => true,
                 }
         };
-        let stays =
-            matches!(self.mode, Mode::Open(Panel::Feature(name)) if features::stays_open(name));
-        if stays && !menu_open {
-            Grab::OnDemand
-        } else if matches!(self.mode, Mode::Open(panel) if wants_keys(panel)) {
+        if matches!(self.mode, Mode::Open(panel) if wants_keys(panel)) {
             Grab::Keyboard
         } else if menu_open {
             Grab::Clicks
@@ -344,6 +363,14 @@ impl Stage {
             .panel(&mut self.panel_cx(name, glyphs, redraw))
     }
 
+    /// The size a feature's panel is held to for the view it shows now.
+    pub fn feature_panel_size(&self, name: &str) -> Option<(f32, f32)> {
+        self.locals
+            .iter()
+            .find(|(owner, _)| *owner == name)
+            .and_then(|(_, local)| local.panel_size())
+    }
+
     /// In the middle of the screen, only the pop-ups that took it there.
     pub fn popups(&self, glyphs: &Glyphs, redraw: &Cell<Option<Duration>>) -> Option<PanelView> {
         let centered = self.stance().centered();
@@ -370,19 +397,33 @@ impl Stage {
         &self,
         glyphs: &Glyphs,
         redraw: &Cell<Option<Duration>>,
-    ) -> (features::Dashboard, Vec<Battery>) {
+    ) -> features::Dashboard {
         let mut features: Vec<_> = self.features.iter().collect();
         features.sort_by_key(|feature| feature.dashboard_order());
-        let mut all = features::Dashboard::default();
-        let mut batteries = Vec::new();
+        let batteries = self.features.batteries();
+        let mut all = features::Dashboard {
+            warnings: panels::battery_warnings(&batteries, glyphs),
+            ..features::Dashboard::default()
+        };
+        let mut batteries = (!batteries.is_empty()).then(|| panels::batteries_card(&batteries, glyphs));
+        let mut shown = HashSet::new();
         for feature in features {
+            if feature.dashboard_order() > BATTERIES_ORDER
+                && let Some(card) = batteries.take()
+            {
+                all.cards.push(card);
+            }
             let part = feature.dashboard(&mut self.panel_cx(feature.name(), glyphs, redraw));
+            if !part.is_empty() || !feature.batteries().is_empty() {
+                shown.insert(feature.name());
+            }
             all.switches.extend(part.switches);
             all.cards.extend(part.cards);
             all.warnings.extend(part.warnings);
-            batteries.extend(feature.batteries());
         }
-        (all, batteries)
+        all.cards.extend(batteries);
+        self.shown.replace(shown);
+        all
     }
 }
 

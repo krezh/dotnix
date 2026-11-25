@@ -105,7 +105,7 @@ fn only_a_new_state_reaches_the_frontend() {
     instance.set_state(1, &mut frontend);
     instance.set_state(1, &mut frontend);
     assert_eq!(frontend.told, ["changed"]);
-    assert_eq!(*instance.state.borrow(), 1);
+    assert_eq!(**instance.state.borrow(), 1);
 }
 
 #[test]
@@ -153,6 +153,6 @@ fn what_arrives_is_applied_in_order() {
             arrival(&mut frontend);
         }
     });
-    assert_eq!(*instance.state.borrow(), 2);
+    assert_eq!(**instance.state.borrow(), 2);
     assert_eq!(frontend.told, ["changed", "changed"]);
 }

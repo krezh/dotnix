@@ -1,22 +1,83 @@
 use std::sync::Arc;
 
-use super::{accounts, horizon, pack_outages, pool_note, resets, short_label};
+use chrono::TimeZone;
+
+use super::{
+    accounts, horizon, pack_outages, pool_note, reset_changes, reset_detail, resets, short_label,
+};
 use crate::{
     components::timeline::Span,
     features::ai::{
         format, jelly,
         mascot::Activity,
-        state::{Credits, Freshness, Limit, Provider, Severity, Source, State},
+        state::{Credits, Freshness, Grant, Limit, Provider, Severity, Source, State},
         view::{Account, Tab, View},
     },
-    theme::{OVERLAY1, OVERLAY2, RED},
+    theme::{GREEN, OVERLAY1, OVERLAY2, RED},
 };
+
+fn grant(clears: &[&str], expires_at: Option<i64>) -> Grant {
+    Grant {
+        program: "cedar_ember".to_owned(),
+        id: "full-reset-2611".to_owned(),
+        label: "One full limit reset (November 2026)".to_owned(),
+        expires_at,
+        clears: clears.iter().map(|window| (*window).to_owned()).collect(),
+        used: Vec::new(),
+    }
+}
+
+#[test]
+fn reset_card_shows_only_the_pools_it_clears_that_are_shown() {
+    let mut session = limit("5 Hour");
+    session.id = "five_hour".to_owned();
+    session.used = 7.0;
+    let mut week = limit("7 Day");
+    week.id = "seven_day".to_owned();
+    week.used = 68.0;
+    let mut other = limit("7 Day · Opus");
+    other.id = "seven_day_opus".to_owned();
+    other.used = 30.0;
+    let limits = vec![session, week, other];
+    let changes = reset_changes(
+        &grant(&["five_hour", "seven_day", "seven_day_overage_included"], None),
+        &limits,
+    );
+    let shown: Vec<_> = changes
+        .iter()
+        .map(|change| (change.label.as_str(), change.from.as_str(), change.to.as_str()))
+        .collect();
+    assert_eq!(shown, [("5 Hour", "7%", "0%"), ("7 Day", "68%", "0%")]);
+    assert!((changes[1].fraction - 0.68).abs() < 1e-6);
+    assert!(changes.iter().all(|change| change.to_color == GREEN));
+}
+
+#[test]
+fn reset_card_names_the_reset_and_says_it_is_final() {
+    assert_eq!(
+        reset_detail(&grant(&[], None)),
+        "One full limit reset (November 2026)\nCan't be undone"
+    );
+    let at = chrono::Local
+        .with_ymd_and_hms(2026, 12, 10, 23, 0, 0)
+        .single()
+        .unwrap()
+        .timestamp_millis();
+    assert_eq!(
+        reset_detail(&grant(&[], Some(at))),
+        "One full limit reset (November 2026)\nExpires Thu 10 Dec · can't be undone"
+    );
+}
 
 const HOUR: i64 = 60 * 60 * 1000;
 const DAY: i64 = 24 * HOUR;
 
 fn credits(count: u64, expires_at: Option<i64>) -> Credits {
-    Credits { count, expires_at }
+    Credits {
+        count,
+        expires_at,
+        next: None,
+    }
 }
 
 fn limit(label: &str) -> Limit {

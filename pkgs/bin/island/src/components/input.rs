@@ -21,6 +21,10 @@ pub struct InputView {
     pub busy: bool,
     /// Shows a dot for each character, such as for a password.
     pub secret: bool,
+    /// Typing goes here, so the caret shows; one of several fields may not have it.
+    pub focused: bool,
+    /// Clicked, such as to take the typing from another field.
+    pub on_focus: Option<Handler>,
 }
 
 /// What a key did to the text.

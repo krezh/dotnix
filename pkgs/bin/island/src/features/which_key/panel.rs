@@ -76,6 +76,7 @@ fn row(entry: &Entry, at: &str, p: &PanelCx<'_>) -> Block {
             selected: false,
             motion: Motion::Still,
             shown_height: None,
+            min_height: None,
         },
         vec![Block::Item(item, Vec::new())],
     )

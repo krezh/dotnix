@@ -1,23 +1,16 @@
-use std::{fs, time::Duration};
-
 use super::{Session, local, local::Exit, state::State};
 use crate::{
     bar_widget::BarWidget,
     features::{GlyphSpec, IslandInfo, PanelCx, Surface, WidgetCx},
     panel::{ActionTile, Block, Header, PanelView},
+    sys,
     theme::TEXT,
     units::{Label, next_change, span},
 };
 
 /// "Up 2 d 3 h", "Up 3 h 12 min", "Up 12 min".
 fn uptime(p: &PanelCx<'_>) -> Option<String> {
-    let raw: f64 = fs::read_to_string("/proc/uptime")
-        .ok()?
-        .split_whitespace()
-        .next()?
-        .parse()
-        .ok()?;
-    let up = Duration::try_from_secs_f64(raw).ok()?;
+    let up = sys::uptime()?;
     p.redraw_in(next_change(Label::Span, up));
     Some(format!("Up {}", span(up.as_secs())))
 }

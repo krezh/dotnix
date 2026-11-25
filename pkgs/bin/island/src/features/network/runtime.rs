@@ -1,10 +1,7 @@
 use std::{
     collections::VecDeque,
     net::Ipv4Addr,
-    sync::{
-        Arc, Condvar, Mutex,
-        atomic::{AtomicUsize, Ordering},
-    },
+    sync::{Arc, Mutex},
     thread,
     time::Duration,
 };
@@ -15,7 +12,12 @@ use serde::Deserialize;
 use tracing::warn;
 
 use super::{probe, state::State, worker};
-use crate::{components::chart, features::Feed, resume, supervisor, sync::lock};
+use crate::{
+    components::chart,
+    features::Feed,
+    resume, supervisor,
+    sync::{Watchers, Watching, lock},
+};
 
 /// How often what the charts show is measured, while the panel is open.
 pub(super) const SAMPLE_EVERY: Duration = chart::SAMPLE_EVERY;
@@ -86,46 +88,14 @@ pub(super) struct Probes {
     pub dns_address: Option<Ipv4Addr>,
 }
 
-/// How many islands have the panel open, and a way to wake whatever sleeps until one does.
-#[derive(Default)]
-pub(super) struct Watched {
-    watchers: AtomicUsize,
-    lock: Mutex<()>,
-    opened: Condvar,
-}
-
-impl Watched {
-    pub fn watching(&self) -> bool {
-        self.watchers.load(Ordering::SeqCst) > 0
-    }
-
-    /// Sleeps until the panel is open, without waking until it is.
-    fn wait(&self) {
-        let guard = lock(&self.lock);
-        drop(
-            self.opened
-                .wait_while(guard, |_| !self.watching())
-                .unwrap_or_else(|poisoned| poisoned.into_inner()),
-        );
-    }
-}
-
 #[derive(Clone)]
 pub struct Network {
     requests: UnboundedSender<Request>,
-    watched: Arc<Watched>,
-}
-
-pub(super) struct Watch(Arc<Watched>);
-
-impl Drop for Watch {
-    fn drop(&mut self) {
-        self.0.watchers.fetch_sub(1, Ordering::SeqCst);
-    }
+    watched: Watchers,
 }
 
 /// Asks for a sample each second while the panel is open, and sleeps while it is not.
-fn sampler(watched: &Watched, requests: &UnboundedSender<Request>) {
+fn sampler(watched: &Watchers, requests: &UnboundedSender<Request>) {
     loop {
         watched.wait();
         while watched.watching() {
@@ -166,7 +136,7 @@ fn midnight(requests: &UnboundedSender<Request>) {
     }
 }
 
-fn probe_loop(watched: &Watched, probes: &Mutex<Probes>, settings: &Settings) {
+fn probe_loop(watched: &Watchers, probes: &Mutex<Probes>, settings: &Settings) {
     let target: Option<Ipv4Addr> = settings.latency_target.parse().ok();
     if target.is_none() {
         warn!(
@@ -182,14 +152,27 @@ fn probe_loop(watched: &Watched, probes: &Mutex<Probes>, settings: &Settings) {
                 let probes = lock(&probes);
                 (probes.gateway_address, probes.dns_address, probes.round)
             };
-            sequence = sequence.wrapping_add(1);
-            let gateway =
-                gateway_address.and_then(|address| probe::ping(address, sequence, PROBE_TIMEOUT));
-            sequence = sequence.wrapping_add(1);
-            let internet = target.and_then(|address| probe::ping(address, sequence, PROBE_TIMEOUT));
-            let lookup = (round % LOOKUP_EVERY == 0).then(|| {
-                dns_address
-                    .and_then(|server| probe::lookup(server, &settings.dns_probe, PROBE_TIMEOUT))
+            let (to_gateway, to_internet) = (sequence.wrapping_add(1), sequence.wrapping_add(2));
+            sequence = to_internet;
+            // At once, so one that times out does not hold up the others' charts.
+            let (gateway, internet, lookup) = thread::scope(|scope| {
+                let gateway = scope.spawn(|| {
+                    gateway_address
+                        .and_then(|address| probe::ping(address, to_gateway, PROBE_TIMEOUT))
+                });
+                let internet = scope.spawn(|| {
+                    target.and_then(|address| probe::ping(address, to_internet, PROBE_TIMEOUT))
+                });
+                let lookup = (round % LOOKUP_EVERY == 0).then(|| {
+                    dns_address.and_then(|server| {
+                        probe::lookup(server, &settings.dns_probe, PROBE_TIMEOUT)
+                    })
+                });
+                (
+                    gateway.join().ok().flatten(),
+                    internet.join().ok().flatten(),
+                    lookup,
+                )
             });
             {
                 let mut probes = lock(&probes);
@@ -217,7 +200,7 @@ impl Network {
         let settings: Settings = feed.settings();
         let (requests, received) = mpsc::unbounded();
         let received: Arc<Mutex<UnboundedReceiver<Request>>> = Arc::new(Mutex::new(received));
-        let watched = Arc::new(Watched::default());
+        let watched = Watchers::default();
         let probes = Arc::new(Mutex::new(Probes::default()));
         {
             let (watched, probes, settings) = (watched.clone(), probes.clone(), settings.clone());
@@ -248,12 +231,7 @@ impl Network {
     }
 
     /// The panel is in view: the worker measures what it shows until it is not.
-    pub(super) fn watch(&self) -> Watch {
-        if self.watched.watchers.fetch_add(1, Ordering::SeqCst) == 0 {
-            let _guard = lock(&self.watched.lock);
-            self.watched.opened.notify_all();
-            self.send(Request::Watch);
-        }
-        Watch(self.watched.clone())
+    pub(super) fn watch(&self) -> Watching {
+        self.watched.watch(|| self.send(Request::Watch))
     }
 }

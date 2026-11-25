@@ -14,7 +14,8 @@ use crate::{
         badge::Mark,
         code::{Code, CodeLine, Motion},
         ledger::{self, Bar, Columns, Entry, Folded, Ledger},
-        prompt::PromptView,
+        prompt::{Change, PromptView},
+        table::{Cell, Column, Line, Row, Table, Width},
         text::Text,
         timeline::{Pin, Side, Span, Timeline},
         transcript::{Piece, Transcript, Turn},
@@ -26,21 +27,23 @@ use crate::{
         ACCENT, ACCENT_TINT_ALPHA, BASE, CARD_BORDER_ALPHA, CONTROL_ALPHA, CRUST,
         NOTIFICATION_ALPHA, OVERLAY1, OVERLAY2, RED, SUBTEXT1, SURFACE1, TEXT, TINT, TRACK_ALPHA,
     },
-    ui::{CONTROL_H, CONTROL_RADIUS, PANEL_RADIUS, SMALL_SIZE, TITLE_SIZE},
+    ui::{CONTROL_H, CONTROL_RADIUS, PANEL_RADIUS, SMALL_SIZE, TEXT_SIZE, TITLE_SIZE},
 };
 
-const CODE_SIZE: f32 = 12.0;
+pub(super) const CODE_SIZE: f32 = 12.0;
 const CODE_LINE: f32 = 19.0;
-const CODE_PAD_X: f32 = 10.0;
-const CODE_PAD_Y: f32 = 8.0;
+pub(super) const CODE_PAD_X: f32 = 10.0;
+pub(super) const CODE_PAD_Y: f32 = 8.0;
 const NUMBER_W: f32 = 34.0;
-const GROUND_ALPHA: u8 = 0x80;
+pub(super) const GROUND_ALPHA: u8 = 0x80;
 
 fn code_line(line: CodeLine, numbered: bool, wrap: bool) -> Node {
+    let (tint, washed) = line.color.unwrap_or((TEXT, false));
     div()
         .flex()
         .px(if numbered { 0.0 } else { CODE_PAD_X })
-        .color(TEXT)
+        .color(tint)
+        .when(washed, |row| row.bg(tinted(tint, 0x1a), 0.0))
         .when(numbered, |row| {
             row.child(
                 div()
@@ -767,6 +770,9 @@ fn entry_lead(entry: &Entry, key: &str, compact: bool) -> Node {
             .color(*tint)
             .nowrap()
             .child(text(words.clone()))
+            .when_some(entry.on_chip.clone(), |chip, handler| {
+                chip.hover(8.0).on_click(handler)
+            })
     });
     let pick = entry.pick.as_ref().map(|(picked, handler)| {
         div()
@@ -1040,6 +1046,189 @@ pub fn ledger(view: Ledger, at: &str) -> Node {
         .child(body)
 }
 
+const TABLE_ROW_H: f32 = 28.0;
+const TABLE_HEADING_H: f32 = 34.0;
+const TABLE_GAP: f32 = 14.0;
+
+fn table_column(column: &Column, cell: Node) -> Node {
+    let slot = match column.width {
+        Width::Share(share) => div().flex_1().grow(share).min_w(0.0),
+        Width::Fixed(width) => div().w(width).flex_none(),
+    };
+    slot.flex()
+        .items_center()
+        .when(column.end, Node::justify_end)
+        .child(cell)
+}
+
+fn table_cell(cell: Cell) -> Node {
+    match cell {
+        Cell::Text {
+            text: words,
+            color: tint,
+            strong,
+            mono,
+        } => div()
+            .min_w(0.0)
+            .color(tint)
+            .weight(if strong { SEMIBOLD } else { 400 })
+            .when(mono, |cell| cell.mono().text_size(SMALL_SIZE))
+            .child(moving(words)),
+        Cell::Parts(parts, mono) => div()
+            .min_w(0.0)
+            .wrap()
+            .items_center()
+            .when(mono, |cell| cell.mono().text_size(SMALL_SIZE))
+            .children(
+                parts
+                    .into_iter()
+                    .map(|(words, tint)| div().min_w(0.0).color(tint).child(moving(words))),
+            ),
+        Cell::Dot(tint) => div().size(TABLE_DOT).flex_none().bg(color(tint), TABLE_DOT),
+        Cell::Bar(parts) if parts.is_empty() => div(),
+        Cell::Bar(parts) => parts_bar(parts, BAR_H),
+    }
+}
+
+/// Shares of the whole laid end to end from the start, each in its color, over a track this tall.
+pub(super) fn parts_bar(parts: Vec<(f32, u32)>, height: f32) -> Node {
+    let mut at = 0.0;
+    let fills: Vec<Node> = parts
+        .into_iter()
+        .map(|(share, tint)| {
+            let share = share.clamp(0.0, 1.0 - at);
+            let fill = div()
+                .absolute()
+                .top(0.0)
+                .h_full()
+                .left_share(at)
+                .springy(share)
+                .bg(color(tint), height / 2.0);
+            at += share;
+            fill
+        })
+        .collect();
+    div()
+        .w_full()
+        .h(height)
+        .bg(ledger_track(false), height / 2.0)
+        .clip()
+        .children(fills)
+}
+
+pub fn table(view: Table) -> Node {
+    let headings = view
+        .columns
+        .iter()
+        .any(|column| !column.title.is_empty())
+        .then(|| {
+            let titles = div()
+                .h(TABLE_ROW_H)
+                .px(TABLE_INSET)
+                .flex()
+                .items_center()
+                .gap(TABLE_GAP)
+                .text_size(SMALL_SIZE)
+                .weight(MEDIUM)
+                .color(OVERLAY2)
+                .children(view.columns.iter().map(|column| {
+                    table_column(
+                        column,
+                        div().truncate().child(text(column.title.clone())),
+                    )
+                }));
+            div()
+                .flex_none()
+                .col()
+                .child(titles)
+                .child(div().h(1.0).bg(tinted(SURFACE1, CONTROL_ALPHA), 0.0))
+        });
+    let rows = view.rows.into_iter().map(|row| match row {
+        Row::Heading(chip) => div()
+            .flex_none()
+            .h(TABLE_HEADING_H)
+            .flex()
+            .items_end()
+            .pb(4.0)
+            .child(super::blocks::chip(chip)),
+        Row::Group(words, tint) => div()
+            .flex_none()
+            .h(TABLE_HEADING_H)
+            .flex()
+            .items_end()
+            .pb(6.0)
+            .text_size(SMALL_SIZE)
+            .weight(SEMIBOLD)
+            .color(tint)
+            .child(moving(words).nowrap()),
+        Row::Line(line) => table_line(&view.columns, line),
+    });
+    div().col().children(headings).children(rows)
+}
+
+fn table_line(columns: &[Column], line: Line) -> Node {
+    let Line {
+        cells,
+        tip,
+        under,
+        wash,
+        busy,
+        on_click,
+    } = line;
+    let two = under.is_some();
+    let mut under = under;
+    let cells = columns.iter().zip(cells).enumerate().map(|(index, (column, cell))| {
+        let cell = table_cell(cell);
+        let cell = match under.take_if(|(at, _)| *at == index) {
+            Some((_, words)) => div()
+                .min_w(0.0)
+                .col()
+                .gap(1.0)
+                .child(cell.weight(SEMIBOLD))
+                .child(
+                    div()
+                        .min_w(0.0)
+                        .mono()
+                        .text_size(SMALL_SIZE)
+                        .color(OVERLAY2)
+                        .child(moving(words)),
+                ),
+            None => cell,
+        };
+        table_column(column, cell)
+    });
+    let row = div()
+        .flex()
+        .items_center()
+        .py(TABLE_ROW_PAD)
+        .gap(TABLE_GAP)
+        .text_size(TEXT_SIZE)
+        .children(cells);
+    let height = if two { TABLE_TWO_H } else { TABLE_ROW_H };
+    let held = match on_click {
+        Some(handler) => control(None, ROW_RADIUS)
+            .justify_start()
+            .child(row.flex_1().min_w(0.0))
+            .on_click(handler),
+        None => div().col().justify_center().child(row),
+    };
+    held.flex_none()
+        .min_h(height)
+        .px(TABLE_INSET)
+        .when_some(wash, |held, tint| held.bg(tinted(tint, TABLE_WASH_ALPHA), ROW_RADIUS))
+        .when(busy, |held| held.bg(tinted(SURFACE1, CONTROL_ALPHA), ROW_RADIUS).beams(true))
+        .when_some(tip, Node::tip)
+}
+
+const TABLE_DOT: f32 = 8.0;
+/// Over and under a row's cells, which grow as long words wrap rather than being cut short.
+const TABLE_ROW_PAD: f32 = 4.0;
+const TABLE_TWO_H: f32 = 46.0;
+/// Rows and headings sit this far in from the table's sides, under their group's chip, so a row's
+/// hover or wash has room around its words.
+const TABLE_INSET: f32 = 10.0;
+const TABLE_WASH_ALPHA: u8 = 0x1a;
+
 const CAPTION_SIZE: f32 = 12.0;
 const PROMPT_W: f32 = 340.0;
 const PROMPT_PAD: f32 = 16.0;
@@ -1048,7 +1237,10 @@ const PAIRING_SIZE: f32 = 30.0;
 const PROMPT_ICON: f32 = 36.0;
 const PROMPT_GLYPH: f32 = 18.0;
 
-fn prompt_button(label: impl Into<SharedString>, lit: bool, handler: Handler) -> Node {
+const CHANGE_LABEL_W: f32 = 84.0;
+const CHANGE_VALUE_W: f32 = 34.0;
+
+fn prompt_button(label: impl Into<SharedString>, lit: bool, busy: bool, handler: Handler) -> Node {
     let tint = if lit { ACCENT } else { TEXT };
     control(Some(surface_fill(lit)), CONTROL_RADIUS)
         .flex_none()
@@ -1058,8 +1250,58 @@ fn prompt_button(label: impl Into<SharedString>, lit: bool, handler: Handler) ->
         .text_size(SMALL_SIZE)
         .weight(SEMIBOLD)
         .color(tint)
-        .child(text(label).nowrap())
+        .child(moving(label.into()).nowrap())
+        .beams(busy)
         .on_click(handler)
+}
+
+fn prompt_change(change: Change) -> Node {
+    let round = BAR_H / 2.0;
+    let fraction = change.fraction.clamp(0.0, 1.0);
+    let figure = |words: SharedString, tint: u32| {
+        div()
+            .w(CHANGE_VALUE_W)
+            .flex_none()
+            .flex()
+            .justify_end()
+            .nowrap()
+            .weight(SEMIBOLD)
+            .color(tint)
+            .child(moving(words))
+    };
+    div()
+        .flex()
+        .items_center()
+        .gap(8.0)
+        .text_size(CAPTION_SIZE)
+        .child(
+            div()
+                .w(CHANGE_LABEL_W)
+                .flex_none()
+                .truncate()
+                .color(TEXT)
+                .child(text(change.label)),
+        )
+        .child(
+            div().flex_1().min_w(0.0).h(BAR_H).child(
+                div()
+                    .size_full()
+                    .bg(ledger_track(fraction == 0.0), round)
+                    .clip()
+                    .child(
+                        div()
+                            .absolute()
+                            .top(0.0)
+                            .left(0.0)
+                            .h_full()
+                            .springy(fraction)
+                            .bg(color(change.color), round),
+                    ),
+            ),
+        )
+        .child(figure(change.from, change.color))
+        .child(div().flex_none().color(OVERLAY1).child(text("→")))
+        .child(figure(change.to, change.to_color))
 }
 
 /// As big as the panel, with the card in the middle.
@@ -1104,6 +1346,17 @@ pub fn prompt(view: PromptView, size: (f32, f32)) -> Node {
                     )
                 }),
         )
+        .when(!view.changes.is_empty(), |card| {
+            card.child(
+                div()
+                    .col()
+                    .gap(6.0)
+                    .px(12.0)
+                    .py(10.0)
+                    .bg(tinted(TINT, 0x0d), CONTROL_RADIUS)
+                    .children(view.changes.into_iter().map(prompt_change)),
+            )
+        })
         .children(view.code.map(|code| {
             div()
                 .py(14.0)
@@ -1134,10 +1387,10 @@ pub fn prompt(view: PromptView, size: (f32, f32)) -> Node {
                 .flex()
                 .justify_end()
                 .gap(8.0)
-                .child(prompt_button("Cancel", false, view.on_cancel))
+                .child(prompt_button("Cancel", false, false, view.on_cancel))
                 .children(
                     view.confirm
-                        .map(|(label, handler)| prompt_button(label, true, handler)),
+                        .map(|(label, handler)| prompt_button(label, true, view.busy, handler)),
                 ),
         );
     div()

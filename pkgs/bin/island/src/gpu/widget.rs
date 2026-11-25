@@ -1,7 +1,11 @@
 //! Lays a [`BarWidget`] out into sprites and the areas that answer the pointer, once, at the origin;
 //! the island places the result, so a moving island reuses it.
 
-use std::{collections::HashMap, time::Instant};
+use std::{
+    collections::HashMap,
+    f32::consts::TAU,
+    time::{Duration, Instant},
+};
 
 use super::{
     node::{BOLD, MEDIUM, SEMIBOLD},
@@ -11,7 +15,8 @@ use super::{
 };
 use crate::{
     bar::{GLYPH, ICON_GAP, METER_H, METER_W, WIDGET_H},
-    bar_widget::{BarWidget, Emphasis, Frame, Part, Press, Scroll},
+    bar_widget::{BarWidget, Emphasis, Frame, Part, Press, RingMark, Scroll},
+    drawing::{Drawing, Shape},
     components::{
         button::BADGE_OVERHANG,
         marquee::{GAP as MARQUEE_GAP, SPEED as MARQUEE_SPEED},
@@ -23,6 +28,11 @@ use crate::{
 };
 
 const BADGE_H: f32 = 17.0;
+/// A badge with no count: a dot ringed in the bar's colour, reaching past the corner without
+/// widening what it marks.
+const DOT_H: f32 = 9.0;
+const DOT_INNER: f32 = 5.0;
+const DOT_OVERHANG: f32 = 3.0;
 const BADGE_TEXT: f32 = 10.0;
 
 pub fn tinted(tint: u32, alpha: u8) -> [f32; 4] {
@@ -89,7 +99,113 @@ pub struct Drawn {
     pub busy: Option<(bool, [f32; 4])>,
     /// What each text shows now, for the next time it is drawn.
     pub texts: HashMap<u64, Shown>,
+    /// Where each ring is sweeping, for the next time it is drawn.
+    pub rings: HashMap<u64, Sweep>,
     drawings: usize,
+}
+
+/// A ring on its way from one share to another.
+#[derive(Clone, Copy)]
+pub struct Sweep {
+    from: f32,
+    to: f32,
+    since: Instant,
+    /// When its mark began to show.
+    marked: Option<Instant>,
+}
+
+const RING: f32 = 20.0;
+const RING_W: f32 = 2.2;
+const RING_STEPS: usize = 64;
+const RING_TRACK_ALPHA: f32 = 0.18;
+const SWEEP: Duration = Duration::from_millis(600);
+const MARK_FADE: Duration = Duration::from_millis(250);
+/// Of the ring that spins while nothing says how far along it is.
+const SPINNING: f32 = 0.28;
+/// Turns a second.
+const SPIN: f32 = 0.9;
+
+fn eased(since: Instant, length: Duration, now: Instant) -> f32 {
+    let done = (now.saturating_duration_since(since).as_secs_f32() / length.as_secs_f32()).min(1.0);
+    1.0 - (1.0 - done).powi(3)
+}
+
+impl Sweep {
+    fn at(&self, now: Instant) -> f32 {
+        self.from + (self.to - self.from) * eased(self.since, SWEEP, now)
+    }
+
+    fn running(&self, now: Instant) -> bool {
+        now.saturating_duration_since(self.since) < SWEEP
+            || self.marked.is_some_and(|marked| now.saturating_duration_since(marked) < MARK_FADE)
+    }
+
+    /// Carries on from `prior` towards `to`, the mark starting once the ring is round.
+    fn toward(prior: Option<&Self>, to: f32, mark: bool, now: Instant) -> Self {
+        let mut sweep = match prior {
+            Some(prior) if (prior.to - to).abs() < f32::EPSILON => *prior,
+            Some(prior) => Self {
+                from: prior.at(now),
+                to,
+                since: now,
+                marked: prior.marked,
+            },
+            None => Self {
+                from: to,
+                to,
+                since: now,
+                marked: None,
+            },
+        };
+        if !mark {
+            sweep.marked = None;
+        } else if sweep.marked.is_none() && now.saturating_duration_since(sweep.since) >= SWEEP {
+            sweep.marked = Some(now);
+        }
+        sweep
+    }
+}
+
+/// An arc `length` turns long from `start` turns past the top, clockwise.
+fn arc(start: f32, length: f32) -> Vec<(f32, f32)> {
+    let centre = RING / 2.0;
+    let radius = (RING - RING_W) / 2.0;
+    let steps = ((RING_STEPS as f32 * length).ceil() as usize).max(1);
+    (0..=steps)
+        .map(|step| {
+            let turn = start + length * step as f32 / steps as f32;
+            let angle = turn * TAU - TAU / 4.0;
+            (centre + radius * angle.cos(), centre + radius * angle.sin())
+        })
+        .collect()
+}
+
+fn ring(start: f32, length: f32, tint: u32, mark: Option<(RingMark, f32)>) -> Drawing {
+    let [red, green, blue, _] = color(tint);
+    let mut shapes = vec![
+        Shape::Stroke {
+            points: arc(0.0, 1.0),
+            width: RING_W,
+            color: [red, green, blue, RING_TRACK_ALPHA],
+        },
+        Shape::Stroke {
+            points: arc(start, length.clamp(0.02, 1.0)),
+            width: RING_W,
+            color: color(tint),
+        },
+    ];
+    if let Some((mark, shown)) = mark.filter(|(_, shown)| *shown > 0.0) {
+        let lines = match mark {
+            RingMark::Done => vec![vec![(6.2, 10.3), (8.8, 12.9), (13.9, 7.3)]],
+            RingMark::Failed => vec![vec![(7.0, 7.0), (13.0, 13.0)], vec![(13.0, 7.0), (7.0, 13.0)]],
+        };
+        shapes.extend(lines.into_iter().map(|points| Shape::Stroke {
+            points,
+            width: 2.0,
+            color: [red, green, blue, shown],
+        }));
+    }
+    Drawing { side: RING, shapes }
 }
 
 #[derive(Clone, Copy)]
@@ -108,6 +224,8 @@ pub struct Layout<'a> {
     pub started: Instant,
     /// What each text showed the last time.
     pub before: &'a HashMap<u64, Shown>,
+    /// Where each ring was sweeping the last time.
+    pub rings: &'a HashMap<u64, Sweep>,
     /// Which widget on which output this is, for what it keeps in the atlas.
     pub owner: String,
 }
@@ -142,10 +260,16 @@ impl Layout<'_> {
             Part::Glyph(..) => GLYPH,
             Part::Picture(_, side) => *side,
             Part::Meter { .. } => METER_W,
+            Part::Ring { .. } => RING,
             Part::Busy(_) | Part::Underline { .. } => 0.0,
             Part::Text { text, emphasis, .. } => {
                 let (size, weight) = Self::text_style(emphasis);
-                self.line(text, size, weight).width.ceil()
+                let steady: String = text
+                    .chars()
+                    .map(|glyph| if glyph.is_ascii_digit() { '0' } else { glyph })
+                    .collect();
+                let width = self.line(text, size, weight).width;
+                width.max(self.line(&steady, size, weight).width).ceil()
             }
             Part::Count(text) => {
                 let least = self.count_width();
@@ -162,7 +286,8 @@ impl Layout<'_> {
                 sum + ICON_GAP * parts.len().saturating_sub(1) as f32
             }
             Part::Badged { part, badge, .. } => {
-                self.width_of(part, style) + if badge.is_some() { BADGE_OVERHANG } else { 0.0 }
+                let counted = badge.as_ref().is_some_and(|(text, _)| !text.is_empty());
+                self.width_of(part, style) + if counted { BADGE_OVERHANG } else { 0.0 }
             }
             Part::Pill { width, .. } => *width,
             Part::Widget(widget) => self.widget_width(widget, style),
@@ -449,7 +574,23 @@ impl Layout<'_> {
             Part::Badged { part, badge, .. } => {
                 let width = self.width_of(part, style);
                 self.part(part, x, style, drawn);
-                if let Some((text, tint)) = badge {
+                if let Some((_, tint)) = badge.as_ref().filter(|(text, _)| text.is_empty()) {
+                    let right = x + width + DOT_OVERHANG;
+                    let top = Self::middle(GLYPH) - DOT_H / 2.0;
+                    drawn.sprites.push(Sprite::shape(
+                        [right - DOT_H, top, DOT_H, DOT_H],
+                        color(BASE),
+                        DOT_H / 2.0,
+                        2.0,
+                    ));
+                    let inset = (DOT_H - DOT_INNER) / 2.0;
+                    drawn.sprites.push(Sprite::shape(
+                        [right - DOT_H + inset, top + inset, DOT_INNER, DOT_INNER],
+                        color(*tint),
+                        DOT_INNER / 2.0,
+                        2.0,
+                    ));
+                } else if let Some((text, tint)) = badge {
                     let right = x + width + BADGE_OVERHANG;
                     let top = Self::middle(GLYPH) - BADGE_OVERHANG;
                     drawn.sprites.push(Sprite::shape(
@@ -495,6 +636,36 @@ impl Layout<'_> {
                 2.0,
             )),
             Part::Widget(widget) => self.place(widget, x, style, drawn),
+            Part::Ring {
+                share,
+                color: tint,
+                mark,
+            } => {
+                let now = Instant::now();
+                let index = drawn.rings.len() as u64;
+                let (start, length) = match share {
+                    Some(share) => {
+                        let target = share.clamp(0.0, 1.0);
+                        let sweep =
+                            Sweep::toward(self.rings.get(&index), target, mark.is_some(), now);
+                        drawn.rings.insert(index, sweep);
+                        drawn.moving |= sweep.running(now) || (mark.is_some() && sweep.marked.is_none());
+                        (0.0, sweep.at(now))
+                    }
+                    None => {
+                        drawn.rings.insert(index, Sweep::toward(None, 0.0, false, now));
+                        drawn.moving = true;
+                        let spun = now.saturating_duration_since(self.started).as_secs_f32() * SPIN;
+                        (spun.fract(), SPINNING)
+                    }
+                };
+                let shown = mark.map(|mark| {
+                    let since = drawn.rings[&index].marked;
+                    (mark, since.map_or(0.0, |since| eased(since, MARK_FADE, now)))
+                });
+                let drawing = ring(start, length, *tint, shown);
+                self.part(&Part::Drawing(drawing), x, style, drawn);
+            }
             Part::Drawing(drawing) => {
                 let key = format!("{}-{}", self.owner, drawn.drawings);
                 drawn.drawings += 1;

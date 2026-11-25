@@ -140,7 +140,7 @@ pub trait Surface: Feature {
     const TAB: Option<(&'static str, u8)> = None;
 
     /// Title and place among the Dashboard tab's views, for a panel that opens from it rather than
-    /// from a tab of its own; the overview is 0 and island's own System view is 2.
+    /// from a tab of its own; the overview is 0.
     const DASHBOARD_TAB: Option<(&'static str, u8)> = None;
 
     /// Where what it puts on the dashboard's overview sits among every feature's, lowest first.
@@ -228,6 +228,12 @@ pub struct Dashboard {
     pub warnings: Vec<Warning>,
 }
 
+impl Dashboard {
+    pub fn is_empty(&self) -> bool {
+        self.switches.is_empty() && self.cards.is_empty() && self.warnings.is_empty()
+    }
+}
+
 pub struct IslandInfo<'a> {
     pub monitor: Option<&'a Monitor>,
     /// Every monitor and window the compositor reports.
@@ -263,6 +269,12 @@ pub trait Local: 'static {
         false
     }
 
+    /// Holds its panel to this width and height for the view it shows now, in place of
+    /// [`Surface::PANEL_SIZE`], such as a small first view opening onto larger ones.
+    fn panel_size(&self) -> Option<(f32, f32)> {
+        None
+    }
+
     /// Where it has the island stand: in the bar, or off it, such as in the middle of the screen
     /// with its pop-up while the session ends.
     fn stance(&self) -> Stance {
@@ -274,6 +286,10 @@ pub trait Local: 'static {
     fn keyboard(&self) -> bool {
         true
     }
+
+    /// A click off a panel that stays open, which lets go of the keyboard as a window losing focus
+    /// would, such as by leaving the field it was typing into.
+    fn let_go(&mut self) {}
 
     /// Turns its panel to `view`, one of the feature's `VIEWS`, as it is opened on it.
     fn show(&mut self, _view: &str) {}

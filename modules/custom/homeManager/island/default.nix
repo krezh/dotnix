@@ -35,6 +35,10 @@
         "reboot"
         "shutdown"
       ];
+      aiSources = [
+        "omp"
+        "claude"
+      ];
       whichKeyEntry = lib.types.submodule {
         options = {
           key = lib.mkOption {
@@ -343,16 +347,8 @@
 
           ai = {
             sources = lib.mkOption {
-              type = lib.types.listOf (
-                lib.types.enum [
-                  "omp"
-                  "claude"
-                ]
-              );
-              default = [
-                "omp"
-                "claude"
-              ];
+              type = lib.types.listOf (lib.types.enum aiSources);
+              default = aiSources;
               description = ''
                 AI usage harnesses, in overview and tooltip order. Each harness has its own
                 account tiles, refresh status and issues. Accounts without quotas or saved
@@ -374,7 +370,7 @@
             };
             disabledLimits = lib.mkOption {
               type = lib.types.submodule {
-                options = lib.genAttrs [ "omp" "claude" ] (
+                options = lib.genAttrs aiSources (
                   source:
                   lib.mkOption {
                     type = lib.types.attrsOf (lib.types.listOf lib.types.str);

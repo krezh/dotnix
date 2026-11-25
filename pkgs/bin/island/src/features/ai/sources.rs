@@ -25,6 +25,8 @@ impl From<String> for Failure {
     }
 }
 
+pub(super) use claude::redeem;
+
 pub(super) fn fetch(
     source: Source,
     publish_cached: impl FnOnce(Option<String>, Option<Provider>),
@@ -77,7 +79,11 @@ fn credits(value: &Value) -> Option<Credits> {
         .filter(|credit| text(credit, "status") == Some("available"))
         .filter_map(|credit| credit.get("expiresAt").and_then(timestamp))
         .min();
-    Some(Credits { count, expires_at })
+    Some(Credits {
+        count,
+        expires_at,
+        next: None,
+    })
 }
 
 fn percentage(used: f64) -> Result<(f64, f64), String> {

@@ -34,7 +34,6 @@
       fileManager = mkProg pkgs.nautilus;
       passwords = mkProg pkgs.proton-pass;
       sysMonitor = mkProg pkgs.resources;
-      molt = mkProg osConfig.nixosModules.molt.package;
       hyprlock.run = "${lib.getExe config.programs.hyprlock.package} --grace 0";
       # shell.run = "${lib.getExe config.programs.noctalia.package} msg";
       shell.run = "${lib.getExe config.homeModules.island.package} ctl";
@@ -148,7 +147,7 @@
               desc = "Toggle between audio devices";
             };
             "${mainMod} + U" = {
-              rule = exec molt.run;
+              rule = exec "${shell.run} toggle molt";
               desc = "Software Updates (Molt)";
             };
             "${mainMod} + S" = {

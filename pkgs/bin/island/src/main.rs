@@ -24,6 +24,7 @@ mod key;
 mod keyring;
 mod launch;
 mod logging;
+mod logind;
 mod markdown;
 mod math;
 mod menu;
@@ -235,9 +236,8 @@ fn main() {
         border: appearance.border.max(0.0),
         bubble: appearance.bubble,
     };
-    let system = settings.features.system;
 
-    if let Err(error) = gpu::run(config, system, incoming, workspaces) {
+    if let Err(error) = gpu::run(config, incoming, workspaces) {
         error!("{error}");
         std::process::exit(1);
     }

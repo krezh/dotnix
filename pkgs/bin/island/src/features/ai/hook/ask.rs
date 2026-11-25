@@ -1,15 +1,10 @@
 use serde_json::Value;
 
-use super::{input::Hook, registry};
+use super::{
+    input::{Hook, text},
+    registry,
+};
 use crate::features::ai::session::{Ask, Question, Request};
-
-fn text(value: &Value, key: &str) -> String {
-    value
-        .get(key)
-        .and_then(Value::as_str)
-        .unwrap_or_default()
-        .to_owned()
-}
 
 fn questions(input: &Value) -> Vec<Question> {
     input

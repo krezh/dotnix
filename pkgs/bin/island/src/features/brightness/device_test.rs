@@ -1,4 +1,12 @@
-use super::{connector_for, connector_name, model_name};
+use super::{Connector, connector_for, connector_name, model_name};
+
+fn connector(name: &str, edid: Vec<u8>, adapter: Option<&str>) -> Connector {
+    Connector {
+        name: name.to_owned(),
+        edid,
+        adapter: adapter.map(str::to_owned),
+    }
+}
 
 #[test]
 fn a_connector_is_named_without_its_card() {
@@ -13,13 +21,36 @@ fn a_monitor_is_found_by_its_edid_base_block() {
     let first = vec![1; 128];
     let mut second = vec![2; 384];
     let connectors = vec![
-        ("DP-1".to_owned(), first),
-        ("DP-2".to_owned(), second.clone()),
+        connector("DP-1", first, None),
+        connector("DP-2", second.clone(), None),
     ];
     second.truncate(128);
-    assert_eq!(connector_for(&connectors, &second).as_deref(), Some("DP-2"));
-    assert_eq!(connector_for(&connectors, &[3; 128]), None);
-    assert_eq!(connector_for(&connectors, &[2; 16]), None);
+    let find = |edid: &[u8]| connector_for(&connectors, "i2c-9", edid, &[]);
+    assert_eq!(find(&second).as_deref(), Some("DP-2"));
+    assert_eq!(find(&[3; 128]), None);
+    assert_eq!(find(&[2; 16]), None);
+}
+
+#[test]
+fn identical_monitors_get_their_own_connectors() {
+    let same = vec![1; 128];
+    let unlinked = vec![
+        connector("DP-1", same.clone(), None),
+        connector("DP-2", same.clone(), None),
+    ];
+    let first = connector_for(&unlinked, "i2c-5", &same, &[]).unwrap();
+    let second = connector_for(&unlinked, "i2c-6", &same, &[first.clone()]);
+    assert_eq!(first, "DP-1");
+    assert_eq!(second.as_deref(), Some("DP-2"));
+
+    let linked = vec![
+        connector("DP-1", same.clone(), Some("i2c-5")),
+        connector("DP-2", same.clone(), Some("i2c-6")),
+    ];
+    assert_eq!(
+        connector_for(&linked, "i2c-6", &same, &[]).as_deref(),
+        Some("DP-2")
+    );
 }
 
 #[test]

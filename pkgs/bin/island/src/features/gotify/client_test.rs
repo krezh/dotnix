@@ -1,8 +1,14 @@
 use std::{
     collections::HashMap,
-    io::{Read, Write},
+    io::{Cursor, Read, Write},
     net::TcpListener,
     thread,
+};
+
+use tungstenite::{
+    Message, WebSocket,
+    handshake::server::Request,
+    protocol::Role,
 };
 
 use super::{
@@ -29,36 +35,23 @@ fn upgrades_answers_pings_reads_frames_and_calls_rest_endpoints() {
 
     let server = thread::spawn(move || {
         // 1. WebSocket /stream handshake + Ping/Pong + fragmented message
-        let (mut ws, _) = listener.accept().unwrap();
-        let req = read_http_request(&mut ws);
-        assert!(req.starts_with("GET /stream HTTP/1.1\r\n"));
-        assert!(req.contains("X-Gotify-Key: secret-token\r\n"));
-        ws.write_all(
-            b"HTTP/1.1 101 Switching Protocols\r\n\
-              Upgrade: websocket\r\n\
-              Connection: Upgrade\r\n\r\n",
-        )
+        let (conn, _) = listener.accept().unwrap();
+        let mut ws = tungstenite::accept_hdr(conn, |request: &Request, response| {
+            assert_eq!(request.uri().path(), "/stream");
+            assert_eq!(request.headers()["X-Gotify-Key"], "secret-token");
+            Ok(response)
+        })
         .unwrap();
-
-        ws.write_all(&[0x89, 2, b'h', b'i']).unwrap();
-        let mut pong = [0_u8; 8];
-        ws.read_exact(&mut pong).unwrap();
-        assert_eq!(pong[0], 0x8A);
-        assert_eq!(pong[1], 0x82);
-        let mask = &pong[2..6];
-        let payload: Vec<u8> = pong[6..8]
-            .iter()
-            .enumerate()
-            .map(|(i, b)| b ^ mask[i])
-            .collect();
-        assert_eq!(payload, b"hi");
+        ws.send(Message::Ping("hi".into())).unwrap();
+        assert_eq!(ws.read().unwrap(), Message::Pong("hi".into()));
 
         let part1 = br#"{"id":99,"appid":3,"title":"Alert","#;
         let part2 = br#""message":"Hello","priority":8,"date":"2026-10-25T16:00:00Z"}"#;
-        ws.write_all(&[0x01, part1.len() as u8]).unwrap();
-        ws.write_all(part1).unwrap();
-        ws.write_all(&[0x80, part2.len() as u8]).unwrap();
-        ws.write_all(part2).unwrap();
+        let raw = ws.get_mut();
+        raw.write_all(&[0x01, part1.len() as u8]).unwrap();
+        raw.write_all(part1).unwrap();
+        raw.write_all(&[0x80, part2.len() as u8]).unwrap();
+        raw.write_all(part2).unwrap();
 
         // 2. GET /application
         let (mut app_conn, _) = listener.accept().unwrap();
@@ -104,9 +97,9 @@ fn upgrades_answers_pings_reads_frames_and_calls_rest_endpoints() {
             .unwrap();
     });
 
-    let mut client = std::net::TcpStream::connect(addr).unwrap();
-    handshake(&mut client, &endpoint, "secret-token").unwrap();
-    let raw = read_message(&mut client).unwrap();
+    let client = std::net::TcpStream::connect(addr).unwrap();
+    let mut socket = handshake(client, &endpoint, "secret-token").unwrap();
+    let raw = read_message(&mut socket).unwrap();
     assert_eq!(raw.id, 99);
     assert_eq!(raw.appid, 3);
     assert_eq!(raw.priority, 8);
@@ -157,25 +150,27 @@ fn follows_every_page_of_messages() {
     server.join().unwrap();
 }
 
+/// What a server sent, as the client's end of an open stream.
+fn received(frames: Vec<u8>) -> WebSocket<Cursor<Vec<u8>>> {
+    WebSocket::from_raw_socket(Cursor::new(frames), Role::Client, None)
+}
+
 #[test]
 fn rejects_invalid_fragmented_frame_sequences() {
-    use std::io::Cursor;
-
-    // Unexpected continuation frame without preceding fragment
-    let mut bad_continuation = Cursor::new(vec![0x80, 0x02, b'h', b'i']);
-    let err = read_message(&mut bad_continuation).unwrap_err();
-    assert!(
-        err.contains("unexpected continuation frame"),
-        "expected continuation error, got: {err}"
-    );
-
-    // New message arriving before prior fragmented sequence completed
-    let mut interleaved = Cursor::new(vec![
+    // A continuation frame without a first fragment.
+    assert!(read_message(&mut received(vec![0x80, 0x02, b'h', b'i'])).is_err());
+    // A new message before the one split over frames has finished.
+    let interleaved = vec![
         0x01, 0x04, b'p', b'a', b'r', b't', 0x81, 0x04, b'n', b'e', b'x', b't',
-    ]);
-    let err = read_message(&mut interleaved).unwrap_err();
-    assert!(
-        err.contains("new message arrived before prior fragment finished"),
-        "expected interleaved error, got: {err}"
-    );
+    ];
+    assert!(read_message(&mut received(interleaved)).is_err());
+}
+
+#[test]
+fn reads_a_message_whose_first_fragment_is_empty() {
+    let body = br#"{"id":7}"#;
+    let mut frames = vec![0x01, 0x00, 0x80, body.len() as u8];
+    frames.extend_from_slice(body);
+    let raw = read_message(&mut received(frames)).unwrap();
+    assert_eq!(raw.id, 7);
 }

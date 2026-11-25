@@ -4,7 +4,7 @@
 use std::{
     path::PathBuf,
     sync::{Arc, OnceLock, mpsc::Receiver},
-    time::{Duration, SystemTime, UNIX_EPOCH},
+    time::{Duration, SystemTime},
 };
 
 use rusqlite::{Connection, params};
@@ -20,7 +20,7 @@ use crate::{
     db,
     features::{Feed, notice::Origin},
     supervisor::Ended,
-    time::seconds,
+    time,
 };
 
 /// Only ever append.
@@ -82,7 +82,7 @@ pub enum Write {
 /// Named by when it started; notification ids count afresh in each.
 pub fn session() -> i64 {
     static STARTED: OnceLock<i64> = OnceLock::new();
-    *STARTED.get_or_init(|| seconds(SystemTime::now()))
+    *STARTED.get_or_init(time::now)
 }
 
 pub fn aged(received: SystemTime, days: u32) -> bool {
@@ -92,7 +92,7 @@ pub fn aged(received: SystemTime, days: u32) -> bool {
 }
 
 fn read(db: &Connection, days: u32) -> rusqlite::Result<Vec<Earlier>> {
-    let cutoff = seconds(SystemTime::now()) - i64::from(days) * 86_400;
+    let cutoff = time::now() - i64::from(days) * 86_400;
     db.execute("DELETE FROM history WHERE received < ?1", params![cutoff])?;
     let mut statement = db.prepare(
         "SELECT session, id, app, summary, body, critical, icon, received, lead, feature, origin, source, via, detail
@@ -129,7 +129,7 @@ fn read(db: &Connection, days: u32) -> rusqlite::Result<Vec<Earlier>> {
                 resident: false,
                 expire: Expire::Default,
                 actions: Vec::new(),
-                received: UNIX_EPOCH + Duration::from_secs(u64::try_from(received).unwrap_or(0)),
+                received: time::at(received),
                 posted,
             },
         })
@@ -171,7 +171,7 @@ fn write(db: &mut Connection, write: Write) -> rusqlite::Result<()> {
                     notification.body,
                     notification.critical,
                     icon,
-                    seconds(notification.received),
+                    time::seconds(notification.received),
                     notification.lead,
                     origin.map(|origin| &origin.feature),
                     origin.map(|origin| &origin.key),

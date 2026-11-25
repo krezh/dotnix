@@ -55,6 +55,7 @@ fn title(request: &Request, picks_step: usize) -> String {
 
 fn buttons(buttons: Vec<IconButton>, lead: f32) -> Block {
     Block::Buttons(ButtonRow {
+        lead: None,
         fill: false,
         buttons,
         compact: true,
@@ -136,6 +137,7 @@ fn question_blocks(request: &Request, at: &str, view: &View, p: &PanelCx<'_>) ->
                 selected: picked,
                 motion: Motion::Appear,
                 shown_height: None,
+                min_height: None,
             },
             vec![Block::Item(
                 Item {
@@ -301,6 +303,7 @@ pub(super) fn frame(
                 Motion::Appear
             },
             shown_height: None,
+            min_height: None,
         },
         blocks,
     )

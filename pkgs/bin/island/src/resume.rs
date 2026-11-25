@@ -4,16 +4,16 @@ use futures::StreamExt;
 use tracing::{debug, warn};
 use zbus::{Connection, MatchRule, MessageStream, block_on, message::Type};
 
-use crate::supervisor;
+use crate::{logind, supervisor};
 
 async fn follow(resumed: &mut impl FnMut()) -> zbus::Result<()> {
     let connection = Connection::system().await?;
     let rule = MatchRule::builder()
         .msg_type(Type::Signal)
-        .sender("org.freedesktop.login1")
-        .interface("org.freedesktop.login1.Manager")
+        .sender(logind::NAME)
+        .interface(logind::MANAGER)
         .member("PrepareForSleep")
-        .path("/org/freedesktop/login1")
+        .path(logind::MANAGER_PATH)
         .build()?;
     let mut stream = MessageStream::for_match_rule(rule, &connection, None).await?;
     while let Some(message) = stream.next().await {

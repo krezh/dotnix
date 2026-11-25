@@ -1,19 +1,21 @@
 use std::{
     collections::{BTreeSet, HashMap},
     env,
-    io::{self, BufRead, BufReader, Read, Write},
+    io::{self, BufRead, BufReader},
     os::unix::net::UnixStream,
-    path::PathBuf,
-    time::Duration,
 };
 
 use serde::Deserialize;
 use tracing::{info, trace, warn};
 
-use super::{Compositor, windows};
+use super::{
+    Compositor,
+    hyprctl::{self, dispatch, lua_string, query},
+    windows,
+};
 use crate::{
     features::Feed,
-    paths, profile,
+    profile,
     supervisor::Ended,
     wm::{Monitor, Place, Snapshot, Window, Workspace},
 };
@@ -110,12 +112,13 @@ fn window(address: &str) -> String {
 }
 
 /// Hyprland's windows, most recently focused first, none of them urgent yet.
-fn query_windows() -> io::Result<Vec<Window>> {
-    let mut clients: Vec<RawClient> = query("j/clients")?;
-    let monitors: Vec<RawMonitor> = query("j/monitors")?;
-    clients.retain(|client| client.mapped && !client.hidden);
+fn windows_of(clients: &[RawClient], monitors: &[RawMonitor]) -> Vec<Window> {
+    let mut clients: Vec<&RawClient> = clients
+        .iter()
+        .filter(|client| client.mapped && !client.hidden)
+        .collect();
     clients.sort_by_key(|client| client.focus_history);
-    Ok(clients
+    clients
         .into_iter()
         .filter_map(|client| {
             let id = client.workspace.id?;
@@ -132,10 +135,10 @@ fn query_windows() -> io::Result<Vec<Window>> {
                 .find(|monitor| monitor.id == client.monitor)?;
             Some(Window {
                 urgent: false,
-                address: client.address,
-                id: client.stable_id,
-                class: client.class,
-                title: client.title,
+                address: client.address.clone(),
+                id: client.stable_id.clone(),
+                class: client.class.clone(),
+                title: client.title.clone(),
                 place,
                 monitor: monitor.name.clone(),
                 x: client.at[0] - monitor.x,
@@ -145,7 +148,7 @@ fn query_windows() -> io::Result<Vec<Window>> {
                 floating: client.floating,
             })
         })
-        .collect())
+        .collect()
 }
 
 /// One output's layer surfaces, keyed by layer ("0" background … "3" overlay).
@@ -162,59 +165,28 @@ struct RawLayer {
     pid: u32,
 }
 
-fn socket_dir() -> Option<PathBuf> {
-    let signature = env::var_os("HYPRLAND_INSTANCE_SIGNATURE")?;
-    Some(paths::runtime_root()?.join("hypr").join(signature))
-}
-
-/// Hyprland answers well within this, unless it is stuck; nothing waits on it longer.
-const ANSWER_WITHIN: Duration = Duration::from_secs(1);
-
-fn request(command: &str) -> io::Result<String> {
-    let path = socket_dir()
-        .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "not running under Hyprland"))?
-        .join(".socket.sock");
-    let mut stream = UnixStream::connect(path)?;
-    stream.set_write_timeout(Some(ANSWER_WITHIN))?;
-    stream.set_read_timeout(Some(ANSWER_WITHIN))?;
-    stream.write_all(command.as_bytes())?;
-    let mut reply = String::new();
-    stream.read_to_string(&mut reply)?;
-    Ok(reply)
-}
-
-fn query<T: for<'de> Deserialize<'de>>(command: &str) -> io::Result<T> {
-    serde_json::from_str(&request(command)?).map_err(io::Error::other)
-}
-
-fn lua_string(text: &str) -> String {
-    let escaped = text
-        .replace('\\', "\\\\")
-        .replace('"', "\\\"")
-        .replace('\n', "\\n");
-    format!("\"{escaped}\"")
-}
-
-/// Runs a Lua dispatcher such as `hl.dsp.exec_cmd(...)`. Dispatchers are only descriptions until
-/// handed to `hl.dispatch`, and Hyprland reports Lua failures in the reply, not as a socket error.
-fn dispatch(dispatcher: &str) -> io::Result<()> {
-    let reply = request(&format!("eval hl.dispatch({dispatcher})"))?;
-    match reply.trim() {
-        reply if reply.starts_with("error") => Err(io::Error::other(reply.to_owned())),
-        _ => Ok(()),
-    }
-}
-
-fn snapshot(urgent: &BTreeSet<i64>) -> io::Result<Snapshot> {
-    let raw_monitors: Vec<RawMonitor> = query("j/monitors")?;
+/// `clients` when already read, so they are not asked for twice.
+fn snapshot(
+    urgent: &BTreeSet<i64>,
+    raw_monitors: Vec<RawMonitor>,
+    clients: Option<&[RawClient]>,
+) -> io::Result<Snapshot> {
     let raw_workspaces: Vec<RawWorkspace> = query("j/workspaces")?;
     // `hasfullscreen` is also set for maximized windows, which leave the bar visible.
     let fullscreen: BTreeSet<i64> = if raw_workspaces
         .iter()
         .any(|workspace| workspace.hasfullscreen)
     {
-        query::<Vec<RawClient>>("j/clients")?
-            .into_iter()
+        let queried;
+        let clients = match clients {
+            Some(clients) => clients,
+            None => {
+                queried = query::<Vec<RawClient>>("j/clients")?;
+                &queried
+            }
+        };
+        clients
+            .iter()
             .filter(|client| client.fullscreen & 2 != 0)
             .filter_map(|client| client.workspace.id)
             .collect()
@@ -298,6 +270,14 @@ fn affects_workspaces(event: &str) -> bool {
     EVENTS.contains(&event)
 }
 
+/// What the events read so far ask for, done once those already waiting are in too.
+#[derive(Clone, Copy, Default)]
+struct Wanted {
+    share: bool,
+    windows: bool,
+    workspaces: bool,
+}
+
 /// What following Hyprland's events keeps: the windows, which ask for attention, and the
 /// workspaces last published.
 struct Follower<'a> {
@@ -309,13 +289,6 @@ struct Follower<'a> {
 }
 
 impl Follower<'_> {
-    fn read_windows(&mut self) {
-        match query_windows() {
-            Ok(windows) => self.windows = windows,
-            Err(error) => warn!("cannot read the windows: {error}"),
-        }
-    }
-
     fn knows(&self, address: &str) -> Option<usize> {
         self.windows
             .iter()
@@ -340,9 +313,45 @@ impl Follower<'_> {
             .collect()
     }
 
+    /// Reads what `wanted` asks for, each thing once; whether the workspaces are still wanted.
+    fn catch_up(&mut self, wanted: Wanted) -> bool {
+        let read = wanted.windows || wanted.workspaces;
+        let monitors = if read {
+            match query::<Vec<RawMonitor>>("j/monitors") {
+                Ok(monitors) => Some(monitors),
+                Err(error) => {
+                    warn!("cannot read the monitors: {error}");
+                    None
+                }
+            }
+        } else {
+            None
+        };
+        let clients = match &monitors {
+            Some(monitors) if wanted.windows => match query::<Vec<RawClient>>("j/clients") {
+                Ok(clients) => {
+                    self.windows = windows_of(&clients, monitors);
+                    Some(clients)
+                }
+                Err(error) => {
+                    warn!("cannot read the windows: {error}");
+                    None
+                }
+            },
+            _ => None,
+        };
+        if wanted.share || read {
+            self.share_windows();
+        }
+        match monitors {
+            Some(monitors) if wanted.workspaces => self.publish(monitors, clients.as_deref()),
+            _ => true,
+        }
+    }
+
     /// Publishes the workspaces if they changed; whether they are still wanted.
-    fn publish(&mut self) -> bool {
-        let Ok(mut current) = snapshot(&self.urgent_workspaces()) else {
+    fn publish(&mut self, monitors: Vec<RawMonitor>, clients: Option<&[RawClient]>) -> bool {
+        let Ok(mut current) = snapshot(&self.urgent_workspaces(), monitors, clients) else {
             return true;
         };
         let shown: Vec<i64> = current
@@ -378,28 +387,28 @@ impl Follower<'_> {
         self.feed.publish(current)
     }
 
-    /// Takes in one event; whether the workspaces are still wanted.
-    fn event(&mut self, event: &str, data: &str) -> bool {
+    /// Takes in one event, adding to what is `wanted`.
+    fn event(&mut self, event: &str, data: &str, wanted: &mut Wanted) {
         let mut workspaces = affects_workspaces(event);
         match event {
             "activewindowv2" if !data.is_empty() => {
                 workspaces |= self.urgent.remove(bare(data));
                 match self.knows(data) {
                     Some(at) => self.windows[..=at].rotate_right(1),
-                    None => self.read_windows(),
+                    None => wanted.windows = true,
                 }
             }
             "windowtitlev2" => {
                 let (address, title) = data.split_once(',').unwrap_or((data, ""));
                 match self.knows(address) {
                     Some(at) => title.clone_into(&mut self.windows[at].title),
-                    None => self.read_windows(),
+                    None => wanted.windows = true,
                 }
             }
             "urgent" => {
                 self.urgent.insert(bare(data).to_owned());
                 if self.knows(bare(data)).is_none() {
-                    self.read_windows();
+                    wanted.windows = true;
                 }
                 workspaces = true;
             }
@@ -407,13 +416,13 @@ impl Follower<'_> {
                 if event == "closewindow" {
                     self.urgent.remove(bare(data));
                 }
-                self.read_windows();
+                wanted.windows = true;
             }
-            _ if !workspaces => return true,
+            _ if !workspaces => return,
             _ => {}
         }
-        self.share_windows();
-        !workspaces || self.publish()
+        wanted.share = true;
+        wanted.workspaces |= workspaces;
     }
 }
 
@@ -424,25 +433,34 @@ fn follow(events: UnixStream, feed: &Feed<Snapshot>) -> Ended {
         urgent: BTreeSet::new(),
         last: Snapshot::default(),
     };
-    follower.read_windows();
-    follower.share_windows();
-    if !follower.publish() {
+    let everything = Wanted {
+        share: true,
+        windows: true,
+        workspaces: true,
+    };
+    if !follower.catch_up(everything) {
         return Ended::Unwanted;
     }
     info!("following Hyprland's events");
-    for line in BufReader::new(events).split(b'\n') {
-        let line = match line {
-            Ok(line) => line,
+    let mut events = BufReader::new(events);
+    let mut line = Vec::new();
+    let mut wanted = Wanted::default();
+    loop {
+        line.clear();
+        match events.read_until(b'\n', &mut line) {
+            Ok(0) => return Ended::Failed("the event socket closed".to_owned()),
+            Ok(_) => {}
             Err(error) => return Ended::Failed(error.to_string()),
-        };
+        }
         // Window titles in the stream can be any bytes.
-        let line = String::from_utf8_lossy(&line);
-        let (event, data) = line.split_once(">>").unwrap_or((&line, ""));
-        if !follower.event(event, data) {
+        let text = String::from_utf8_lossy(line.strip_suffix(b"\n").unwrap_or(&line));
+        let (event, data) = text.split_once(">>").unwrap_or((&text, ""));
+        follower.event(event, data, &mut wanted);
+        // A burst, such as the several events of one workspace switch, is read in once it is all in.
+        if events.buffer().is_empty() && !follower.catch_up(std::mem::take(&mut wanted)) {
             return Ended::Unwanted;
         }
     }
-    Ended::Failed("the event socket closed".to_owned())
 }
 
 pub struct Hyprland;
@@ -455,10 +473,9 @@ impl Compositor for Hyprland {
     }
 
     fn start(feed: Feed<Snapshot>) -> Option<Self> {
-        let path = socket_dir()?.join(".socket2.sock");
-        let mut events = Some(UnixStream::connect(&path).ok()?);
+        let mut events = Some(hyprctl::events().ok()?);
         feed.supervise(move |feed| {
-            match events.take().map_or_else(|| UnixStream::connect(&path), Ok) {
+            match events.take().map_or_else(hyprctl::events, Ok) {
                 Ok(events) => follow(events, feed),
                 Err(error) => Ended::Failed(error.to_string()),
             }

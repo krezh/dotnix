@@ -16,6 +16,26 @@ pub(super) fn percent(value: f64) -> String {
     }
 }
 
+/// A day as `Thu 10 Dec`, in local time.
+pub(super) fn day(at: i64) -> Option<String> {
+    use chrono::TimeZone;
+    let at = chrono::Local.timestamp_millis_opt(at).single()?;
+    Some(at.format("%a %-d %b").to_string())
+}
+
+/// What the widget's tooltip says of an account's saved resets, while it has any.
+pub(super) fn saved_resets(provider: &Provider) -> Option<String> {
+    let credits = provider.credits.as_ref().filter(|credits| credits.count > 0)?;
+    let mut line = units::plural(credits.count, "saved reset", "saved resets");
+    if let Some(day) = credits.expires_at.and_then(day) {
+        line.push_str(&format!(" · expires {day}"));
+    }
+    if credits.next.is_some() {
+        line.push_str(" · click the chip in the panel to use it");
+    }
+    Some(line)
+}
+
 /// How much of the limit's window has passed, from 0 to 1, when it says how long its window is.
 pub(super) fn elapsed(limit: &Limit, now: i64) -> Option<f32> {
     let (reset, duration) = (limit.resets_at?, limit.duration_ms?);

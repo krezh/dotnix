@@ -41,14 +41,17 @@ fn partitions_are_hidden_or_picked() {
             .copied()
             .collect::<Vec<_>>()
     };
+    // The section reaches the System feature as its settings.
+    let section = |raw: &str| {
+        let config: Config = toml::from_str(raw).unwrap();
+        crate::features::parse_settings::<System>(&config.features.settings["system"]).unwrap()
+    };
     assert_eq!(shown(System::default()), ["/", "/home", "/mnt/data"]);
-    let picked: Config =
-        toml::from_str("[features.system.storage]\npartitions = [\"/home\", \"/\", \"/gone\"]")
-            .unwrap();
-    assert_eq!(shown(picked.features.system), ["/home", "/"]);
-    let everything: Config =
-        toml::from_str("[features.system.storage]\nhidden_partitions = []").unwrap();
-    assert_eq!(shown(everything.features.system), mounts);
+    let picked =
+        section("[features.system.storage]\npartitions = [\"/home\", \"/\", \"/gone\"]");
+    assert_eq!(shown(picked), ["/home", "/"]);
+    let everything = section("[features.system.storage]\nhidden_partitions = []");
+    assert_eq!(shown(everything), mounts);
 }
 
 #[test]

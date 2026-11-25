@@ -356,6 +356,8 @@ fn message(
             label: action.label.clone().into(),
             active: false,
             badge: None,
+            enabled: true,
+            busy: false,
             on_click: look
                 .invoke
                 .iter()
@@ -366,6 +368,7 @@ fn message(
     let mut blocks = vec![Block::Item(item, under)];
     if !buttons.is_empty() {
         blocks.push(Block::Buttons(ButtonRow {
+            lead: None,
             fill: false,
             buttons,
             compact: true,
@@ -386,6 +389,7 @@ fn message(
         // Placed and moved by the toast stack itself.
         motion: card::Motion::Still,
         shown_height,
+        min_height: None,
     };
     Block::Frame(frame, blocks)
 }
@@ -546,7 +550,7 @@ pub fn earlier(list: &EarlierList, mut looks: Vec<Option<Look>>) -> Block {
     let drawn = list.drawn_y();
     let mut cards = Vec::new();
     for (index, row) in list.rows().iter().enumerate() {
-        let block = match (&row.entry, looks.get_mut(index).and_then(Option::take)) {
+        let block = match (&row.body, looks.get_mut(index).and_then(Option::take)) {
             (EarlierEntry::Day(day), _) => Block::heading(day_label(*day)),
             (EarlierEntry::Card(kept), Some(look)) => {
                 let (session, id) = kept.key();

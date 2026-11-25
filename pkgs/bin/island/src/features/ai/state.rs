@@ -52,6 +52,29 @@ pub struct Limit {
 pub struct Credits {
     pub(super) count: u64,
     pub(super) expires_at: Option<i64>,
+    /// The reset that would be spent now, while one can be.
+    #[serde(default)]
+    pub(super) next: Option<Grant>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
+pub struct Grant {
+    pub(super) program: String,
+    pub(super) id: String,
+    pub(super) label: String,
+    pub(super) expires_at: Option<i64>,
+    /// The usage windows it clears, by the usage API's names such as `five_hour`.
+    pub(super) clears: Vec<String>,
+    /// How used each window was, in percent, as the grant was read.
+    pub(super) used: Vec<(String, f64)>,
+}
+
+/// Spending a saved reset: under way, or why it was refused. `done` counts the ones spent.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct Redeem {
+    pub(super) busy: bool,
+    pub(super) failed: Option<String>,
+    pub(super) done: u32,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -162,11 +185,13 @@ pub struct State {
     pub(super) mascot: Mascot,
     pub(super) chat: Arc<Chat>,
     pub(super) windows: Arc<Vec<Window>>,
+    pub(super) redeem: Redeem,
 }
 
 impl PartialEq for State {
     fn eq(&self, other: &Self) -> bool {
         self.refreshing == other.refreshing
+            && self.redeem == other.redeem
             && self.attempted_at == other.attempted_at
             && self.hold == other.hold
             && self.mascot == other.mascot

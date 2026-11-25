@@ -3,6 +3,9 @@ name = "island"
 version = "0.1.0"
 edition = "2024"
 
+[workspace]
+members = [".", "molt-core"]
+
 [dependencies]
 chrono = { version = "0.4", default-features = false, features = ["clock"] }
 icu_segmenter = { version = "2.3", default-features = false, features = ["compiled_data"] }
@@ -21,7 +24,9 @@ zbus = "6"
 image = { version = "0.25", default-features = false, features = ["bmp", "gif", "jpeg", "png", "webp"] }
 libc = "0.2"
 libpulse-binding = "2"
+molt-core = { path = "molt-core" }
 ureq = "3"
+tungstenite = { version = "0.30", default-features = false, features = ["handshake"] }
 toml = "1"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }

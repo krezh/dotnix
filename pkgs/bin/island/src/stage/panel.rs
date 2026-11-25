@@ -6,7 +6,6 @@ use crate::features;
 pub enum Panel {
     /// The dashboard's overview: every feature's switches and cards together.
     Dashboard,
-    System,
     Feature(&'static str),
     /// Every feature pop-up with something to show, together, such as an OSD below notification
     /// cards.
@@ -19,20 +18,18 @@ pub enum Grab {
     None,
     /// Clicks outside the island, leaving the keyboard with the focused window.
     Clicks,
+    /// The keyboard, and clicks outside the island; a panel that stays open lets go of the keyboard
+    /// on such a click rather than closing.
     Keyboard,
-    /// Nothing outside the island, which stays open through clicks elsewhere; it takes the
-    /// keyboard once clicked into, as a window would.
-    OnDemand,
 }
 
 impl Panel {
     /// Feature panels' layers follow these.
-    const ALL: [Panel; 3] = [Panel::System, Panel::Popups, Panel::Dashboard];
+    const ALL: [Panel; 2] = [Panel::Popups, Panel::Dashboard];
 
     pub fn name(self) -> &'static str {
         match self {
             Panel::Dashboard => "dashboard",
-            Panel::System => "system",
             Panel::Popups => "popups",
             Panel::Feature(name) => features::panel_of(name).unwrap_or(name),
         }
@@ -43,15 +40,9 @@ impl Panel {
     }
 
     pub fn parse(name: &str) -> Option<Self> {
-        [Panel::Dashboard, Panel::System]
-            .into_iter()
-            .find(|panel| panel.name() == name)
+        (name == Panel::Dashboard.name())
+            .then_some(Panel::Dashboard)
             .or_else(|| features::panel_named(name).map(Panel::Feature))
-    }
-
-    /// Island's own panels showing what the system sampler reads: System and the dashboard.
-    pub fn shows_stats(self) -> bool {
-        matches!(self, Panel::Dashboard | Panel::System)
     }
 
     pub fn layer(self) -> usize {

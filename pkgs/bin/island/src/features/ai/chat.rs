@@ -154,6 +154,7 @@ fn welcome(p: &PanelCx<'_>) -> Vec<Block> {
             ))],
         ),
         Block::Buttons(ButtonRow {
+            lead: None,
             fill: false,
             buttons: starters,
             compact: true,
@@ -207,6 +208,8 @@ pub(super) fn panel(
             .then(|| p.on_local::<Ai>(|ai, view| ai.chat_send(std::mem::take(&mut view.draft)))),
         busy: chat.busy,
         secret: false,
+        focused: true,
+        on_focus: None,
     }));
     (buttons, blocks)
 }

@@ -4,14 +4,15 @@ use futures::StreamExt;
 use tracing::{debug, warn};
 use zbus::{Connection, MatchRule, MessageStream, block_on, message::Type};
 
-use crate::{dbus::uncached, supervisor};
-
-const LOGIN: &str = "org.freedesktop.login1";
-const SESSION: &str = "/org/freedesktop/login1/session/auto";
-const INTERFACE: &str = "org.freedesktop.login1.Session";
+use crate::{dbus::uncached, logind, supervisor};
 
 pub async fn locked(connection: &Connection) -> Option<bool> {
-    uncached(connection, LOGIN, SESSION, INTERFACE)
+    uncached(
+        connection,
+        logind::NAME,
+        logind::SESSION_PATH,
+        logind::SESSION,
+    )
         .await
         .ok()?
         .get_property::<bool>("LockedHint")
@@ -23,7 +24,7 @@ pub async fn locked(connection: &Connection) -> Option<bool> {
 pub async fn changes(connection: &Connection) -> zbus::Result<MessageStream> {
     let rule = MatchRule::builder()
         .msg_type(Type::Signal)
-        .sender(LOGIN)
+        .sender(logind::NAME)
         .interface("org.freedesktop.DBus.Properties")
         .member("PropertiesChanged")
         .build()?;

@@ -10,7 +10,7 @@ mod stage;
 mod stance;
 
 pub use morph::{Morph, Shape};
-pub use motion::{CONTENT_DRIFT, CONTENT_IN, CONTENT_OUT, FOLD_SPRING, SHAPE_SPRING};
+pub use motion::{CONTENT_DRIFT, CONTENT_IN, CONTENT_OUT, FOLD_SPRING, GROW_SPRING, SHAPE_SPRING};
 pub use panel::{COLLAPSED_LAYER, Grab, LAYERS, Mode, Panel};
 pub use stage::{Stage, collapsed_width};
 pub use stance::{SWITCH_OFF, Stance};

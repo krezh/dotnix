@@ -4,7 +4,7 @@ use std::{
     hash::{DefaultHasher, Hash, Hasher},
     path::{Path, PathBuf},
     sync::{
-        Mutex,
+        LazyLock, Mutex,
         mpsc::{self, Receiver, Sender},
     },
     time::{Duration, Instant, SystemTime},
@@ -179,12 +179,15 @@ fn art(url: &str, changed: &Sender<Event>) -> Option<PathBuf> {
 }
 
 fn download(url: &str, dir: &Path, path: &Path) -> Option<()> {
+    /// Kept, so its connections are reused across tracks from the same place.
+    static AGENT: LazyLock<ureq::Agent> = LazyLock::new(|| {
+        ureq::Agent::config_builder()
+            .timeout_global(Some(Duration::from_secs(10)))
+            .build()
+            .into()
+    });
     std::fs::create_dir_all(dir).ok()?;
-    let agent: ureq::Agent = ureq::Agent::config_builder()
-        .timeout_global(Some(Duration::from_secs(10)))
-        .build()
-        .into();
-    let response = agent.get(url).call().ok()?;
+    let response = AGENT.get(url).call().ok()?;
     let bytes = response
         .into_body()
         .with_config()

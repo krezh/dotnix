@@ -3,7 +3,7 @@ use std::{
     ffi::CString,
     fs,
     path::{Path, PathBuf},
-    time::Instant,
+    time::{Duration, Instant},
 };
 
 use super::stats::{Drive, DrivePart, Partition};
@@ -29,8 +29,19 @@ pub(super) fn read_text(path: impl AsRef<Path>) -> String {
         .unwrap_or_default()
 }
 
-pub(super) fn read_u64(path: &Path) -> Option<u64> {
+pub fn read_u64(path: &Path) -> Option<u64> {
     fs::read_to_string(path).ok()?.trim().parse().ok()
+}
+
+/// How long since the machine booted.
+pub fn uptime() -> Option<Duration> {
+    let seconds: f64 = fs::read_to_string("/proc/uptime")
+        .ok()?
+        .split_whitespace()
+        .next()?
+        .parse()
+        .ok()?;
+    Duration::try_from_secs_f64(seconds).ok()
 }
 
 pub(super) fn read_temp(path: &Path) -> Option<f32> {

@@ -140,9 +140,13 @@ fn session<'a>(sessions: &'a mut Vec<Session>, origin: &Origin, now: i64) -> &'a
     found
 }
 
-fn push(found: &mut Session, verb: String, target: String, state: StepState, live: Option<Live>) {
+fn next_seq(found: &mut Session) -> u64 {
     found.seq += 1;
-    let seq = found.seq;
+    found.seq
+}
+
+fn push(found: &mut Session, verb: String, target: String, state: StepState, live: Option<Live>) {
+    let seq = next_seq(found);
     found.doing = doing(&verb, &target);
     let steps = &mut current(found).steps;
     for step in steps.iter_mut() {
@@ -188,8 +192,7 @@ pub fn apply(sessions: &mut Vec<Session>, hook: &Hook, now: i64) {
         Hook::End { .. } | Hook::Usage { .. } => {}
         Hook::Prompt { prompt, .. } => {
             found.activity = Activity::Working;
-            found.seq += 1;
-            let seq = found.seq;
+            let seq = next_seq(found);
             found.history.push(Exchange {
                 prompt: prompt.clone(),
                 seq,
@@ -223,8 +226,7 @@ pub fn apply(sessions: &mut Vec<Session>, hook: &Hook, now: i64) {
         } => {
             let (verb, target) = describe(name, input);
             let shown = super::live::after(name, input, response);
-            found.seq += 1;
-            let seq = found.seq;
+            let seq = next_seq(found);
             if let Some(step) = current(found)
                 .steps
                 .iter_mut()
@@ -251,8 +253,7 @@ pub fn apply(sessions: &mut Vec<Session>, hook: &Hook, now: i64) {
         Hook::Stop { reply, .. } => {
             found.activity = Activity::Idle;
             found.doing = "Finished".to_owned();
-            found.seq += 1;
-            let seq = found.seq;
+            let seq = next_seq(found);
             let exchange = current(found);
             exchange.reply.clone_from(reply);
             exchange.reply_seq = seq;
@@ -263,15 +264,26 @@ pub fn apply(sessions: &mut Vec<Session>, hook: &Hook, now: i64) {
         Hook::Permission { tool, input, .. } => {
             found.activity = Activity::Waiting;
             let (verb, target) = describe(tool, input);
-            found.doing = if verb.is_empty() {
+            let wants = if verb.is_empty() {
                 format!("Wants to: {target}")
             } else {
                 format!("Wants to {} {target}", verb.to_lowercase())
                     .trim_end()
                     .to_owned()
             };
-            let wants = found.doing.clone();
-            push(found, verb, target, StepState::Waiting, None);
+            // PreToolUse already added this tool's step; it now waits rather than repeating.
+            let started = current(found).steps.iter().rposition(|step| {
+                step.state == StepState::Now && step.verb == verb && step.target == target
+            });
+            match started {
+                Some(index) => {
+                    let seq = next_seq(found);
+                    let step = &mut current(found).steps[index];
+                    step.state = StepState::Waiting;
+                    step.seq = seq;
+                }
+                None => push(found, verb, target, StepState::Waiting, None),
+            }
             found.doing = wants;
         }
         Hook::Questions { input, .. } => {

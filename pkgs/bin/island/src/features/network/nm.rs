@@ -9,6 +9,10 @@ use crate::dbus::uncached;
 
 const NM: &str = "org.freedesktop.NetworkManager";
 const NM_PATH: &str = "/org/freedesktop/NetworkManager";
+/// Where NetworkManager's object manager lists everything it exports.
+const TREE_PATH: &str = "/org/freedesktop";
+const OBJECT_MANAGER: &str = "org.freedesktop.DBus.ObjectManager";
+const PROPERTIES: &str = "org.freedesktop.DBus.Properties";
 pub(super) const SETTINGS: &str = "org.freedesktop.NetworkManager.Settings";
 const SETTINGS_PATH: &str = "/org/freedesktop/NetworkManager/Settings";
 pub(super) const CONNECTION: &str = "org.freedesktop.NetworkManager.Settings.Connection";
@@ -213,22 +217,48 @@ fn security(flags: u32, wpa: u32, rsn: u32) -> Security {
     }
 }
 
-async fn access_point(connection: &Connection, path: &str) -> zbus::Result<AccessPoint> {
-    let proxy = uncached(connection, NM, path.to_owned(), ACCESS_POINT).await?;
-    let bytes: Vec<u8> = proxy.get_property("Ssid").await?;
-    let flags: u32 = proxy.get_property("Flags").await?;
-    let wpa: u32 = proxy.get_property("WpaFlags").await?;
-    let rsn: u32 = proxy.get_property("RsnFlags").await?;
-    Ok(AccessPoint {
-        ssid: ssid(&bytes),
-        strength: proxy.get_property("Strength").await?,
-        frequency: proxy.get_property("Frequency").await?,
+type Properties = HashMap<String, OwnedValue>;
+
+/// Every object NetworkManager exports, with each interface's properties, as one call gives them.
+struct Tree(HashMap<OwnedObjectPath, HashMap<String, Properties>>);
+
+impl Tree {
+    async fn read(connection: &Connection) -> zbus::Result<Self> {
+        uncached(connection, NM, TREE_PATH, OBJECT_MANAGER)
+            .await?
+            .call("GetManagedObjects", &())
+            .await
+            .map(Self)
+    }
+
+    fn properties(&self, path: &str, interface: &str) -> Option<&Properties> {
+        self.0
+            .iter()
+            .find(|(at, _)| at.as_str() == path)?
+            .1
+            .get(interface)
+    }
+
+    fn get<T: TryFrom<OwnedValue>>(&self, path: &str, interface: &str, name: &str) -> Option<T> {
+        owned(self.properties(path, interface)?.get(name))
+    }
+}
+
+fn access_point(tree: &Tree, path: &str) -> Option<AccessPoint> {
+    let get = |name| tree.properties(path, ACCESS_POINT)?.get(name);
+    let flags: u32 = owned(get("Flags"))?;
+    let wpa: u32 = owned(get("WpaFlags"))?;
+    let rsn: u32 = owned(get("RsnFlags"))?;
+    Some(AccessPoint {
+        ssid: ssid(&owned::<Vec<u8>>(get("Ssid"))?),
+        strength: owned(get("Strength"))?,
+        frequency: owned(get("Frequency"))?,
         security: security(flags, wpa, rsn),
         saved: false,
         active: false,
-        bssid: proxy.get_property("HwAddress").await.unwrap_or_default(),
-        max_bitrate: proxy.get_property::<u32>("MaxBitrate").await.unwrap_or(0) / 1000,
-        width: proxy.get_property("Bandwidth").await.unwrap_or(0),
+        bssid: owned(get("HwAddress")).unwrap_or_default(),
+        max_bitrate: owned::<u32>(get("MaxBitrate")).unwrap_or(0) / 1000,
+        width: owned(get("Bandwidth")).unwrap_or(0),
     })
 }
 
@@ -236,45 +266,37 @@ fn address_of(entry: &HashMap<String, OwnedValue>) -> Option<String> {
     owned(entry.get("address"))
 }
 
-async fn lease(connection: &Connection, dhcp4: &OwnedObjectPath) -> Option<i64> {
+fn lease(tree: &Tree, dhcp4: &OwnedObjectPath) -> Option<i64> {
     if is_root(dhcp4) {
         return None;
     }
-    let options: HashMap<String, OwnedValue> = get(connection, dhcp4.as_str(), DHCP4, "Options")
-        .await
-        .ok()?;
+    let options: Properties = tree.get(dhcp4.as_str(), DHCP4, "Options")?;
     owned::<String>(options.get("expiry"))?.parse().ok()
 }
 
-async fn address(connection: &Connection, ip4: &OwnedObjectPath, ip6: &OwnedObjectPath) -> Address {
+fn address(tree: &Tree, ip4: &OwnedObjectPath, ip6: &OwnedObjectPath) -> Address {
     let mut address = Address::default();
     if !is_root(ip4) {
         let path = ip4.as_str();
-        if let Ok(entries) =
-            get::<Vec<HashMap<String, OwnedValue>>>(connection, path, IP4, "AddressData").await
+        if let Some(entries) = tree.get::<Vec<Properties>>(path, IP4, "AddressData")
             && let Some(first) = entries.first()
         {
             address.ipv4 = address_of(first);
             address.prefix = owned(first.get("prefix")).unwrap_or(0);
         }
-        address.gateway = get::<String>(connection, path, IP4, "Gateway")
-            .await
-            .ok()
+        address.gateway = tree
+            .get::<String>(path, IP4, "Gateway")
             .filter(|gateway| !gateway.is_empty());
-        address.dns =
-            get::<Vec<HashMap<String, OwnedValue>>>(connection, path, IP4, "NameserverData")
-                .await
-                .map(|entries| entries.iter().filter_map(address_of).collect())
-                .unwrap_or_default();
-        address.domain = get::<Vec<String>>(connection, path, IP4, "Domains")
-            .await
-            .ok()
+        address.dns = tree
+            .get::<Vec<Properties>>(path, IP4, "NameserverData")
+            .map(|entries| entries.iter().filter_map(address_of).collect())
+            .unwrap_or_default();
+        address.domain = tree
+            .get::<Vec<String>>(path, IP4, "Domains")
             .and_then(|domains| domains.into_iter().next());
     }
     if !is_root(ip6)
-        && let Ok(entries) =
-            get::<Vec<HashMap<String, OwnedValue>>>(connection, ip6.as_str(), IP6, "AddressData")
-                .await
+        && let Some(entries) = tree.get::<Vec<Properties>>(ip6.as_str(), IP6, "AddressData")
     {
         address.ipv6 = entries
             .iter()
@@ -284,54 +306,55 @@ async fn address(connection: &Connection, ip4: &OwnedObjectPath, ip6: &OwnedObje
     address
 }
 
-async fn device(connection: &Connection, path: OwnedObjectPath) -> zbus::Result<Device> {
-    let proxy = uncached(connection, NM, path.as_str().to_owned(), DEVICE).await?;
-    let kind: u32 = proxy.get_property("DeviceType").await?;
-    let state: u32 = proxy.get_property("State").await?;
-    let ip4: OwnedObjectPath = proxy.get_property("Ip4Config").await?;
-    let ip6: OwnedObjectPath = proxy.get_property("Ip6Config").await?;
+/// `None` for one gone since the tree was read.
+async fn device(connection: &Connection, tree: &Tree, path: OwnedObjectPath) -> Option<Device> {
+    let at = path.as_str();
+    let get = |name| tree.properties(at, DEVICE)?.get(name);
+    let kind: u32 = owned(get("DeviceType"))?;
+    let state: u32 = owned(get("State"))?;
     let wireless = if kind == WIFI {
-        let wifi = uncached(connection, NM, path.as_str().to_owned(), WIRELESS).await?;
-        let aps: Vec<OwnedObjectPath> = wifi.call("GetAllAccessPoints", &()).await?;
-        let mut access_points = Vec::new();
-        for ap in aps {
-            if let Ok(found) = access_point(connection, ap.as_str()).await {
-                access_points.push((ap, found));
-            }
-        }
+        // All of them, unlike the property, which leaves out hidden networks.
+        let aps: Vec<OwnedObjectPath> = uncached(connection, NM, at.to_owned(), WIRELESS)
+            .await
+            .ok()?
+            .call("GetAllAccessPoints", &())
+            .await
+            .ok()?;
+        let wifi = |name| tree.properties(at, WIRELESS)?.get(name);
         Some(WirelessDevice {
-            bitrate: wifi.get_property::<u32>("Bitrate").await.unwrap_or(0) / 1000,
-            last_scan: wifi.get_property("LastScan").await.unwrap_or(0),
-            active_ap: wifi.get_property("ActiveAccessPoint").await?,
-            access_points,
+            bitrate: owned::<u32>(wifi("Bitrate")).unwrap_or(0) / 1000,
+            last_scan: owned(wifi("LastScan")).unwrap_or(0),
+            active_ap: owned(wifi("ActiveAccessPoint"))?,
+            access_points: aps
+                .into_iter()
+                .filter_map(|ap| {
+                    let found = access_point(tree, ap.as_str())?;
+                    Some((ap, found))
+                })
+                .collect(),
         })
     } else {
         None
     };
-    let wired = if kind == ETHERNET {
-        let wired = uncached(connection, NM, path.as_str().to_owned(), WIRED).await?;
-        Some(WiredDevice {
-            carrier: wired.get_property("Carrier").await.unwrap_or(false),
-            speed: wired.get_property("Speed").await.unwrap_or(0),
-        })
-    } else {
-        None
-    };
-    Ok(Device {
-        interface: proxy.get_property("Interface").await?,
+    let wired = (kind == ETHERNET).then(|| WiredDevice {
+        carrier: tree.get(at, WIRED, "Carrier").unwrap_or(false),
+        speed: tree.get(at, WIRED, "Speed").unwrap_or(0),
+    });
+    let ip4: OwnedObjectPath = owned(get("Ip4Config"))?;
+    let ip6: OwnedObjectPath = owned(get("Ip6Config"))?;
+    Some(Device {
+        interface: owned(get("Interface"))?,
         kind,
         activated: state == ACTIVATED,
-        mtu: proxy.get_property("Mtu").await.unwrap_or(0),
-        mac: proxy.get_property("HwAddress").await.unwrap_or_default(),
-        active: proxy.get_property("ActiveConnection").await?,
+        mtu: owned(get("Mtu")).unwrap_or(0),
+        mac: owned(get("HwAddress")).unwrap_or_default(),
+        active: owned(get("ActiveConnection"))?,
         address: if state == ACTIVATED {
-            let dhcp4: OwnedObjectPath = proxy
-                .get_property("Dhcp4Config")
-                .await
-                .unwrap_or_else(|_| root().into());
+            let dhcp4: OwnedObjectPath =
+                owned(get("Dhcp4Config")).unwrap_or_else(|| root().into());
             Address {
-                lease: lease(connection, &dhcp4).await,
-                ..address(connection, &ip4, &ip6).await
+                lease: lease(tree, &dhcp4),
+                ..address(tree, &ip4, &ip6)
             }
         } else {
             Address::default()
@@ -342,34 +365,37 @@ async fn device(connection: &Connection, path: OwnedObjectPath) -> zbus::Result<
     })
 }
 
-async fn active(connection: &Connection, path: OwnedObjectPath) -> zbus::Result<Active> {
-    let proxy = uncached(connection, NM, path.as_str().to_owned(), ACTIVE).await?;
-    let state: u32 = proxy.get_property("State").await?;
-    Ok(Active {
-        saved: proxy.get_property("Connection").await?,
-        name: proxy.get_property("Id").await?,
+fn active(tree: &Tree, path: OwnedObjectPath) -> Option<Active> {
+    let get = |name| tree.properties(path.as_str(), ACTIVE)?.get(name);
+    let state: u32 = owned(get("State"))?;
+    Some(Active {
+        saved: owned(get("Connection"))?,
+        name: owned(get("Id"))?,
         activity: activity_of(state),
-        devices: proxy.get_property("Devices").await.unwrap_or_default(),
-        ip4: proxy.get_property("Ip4Config").await?,
+        devices: owned(get("Devices")).unwrap_or_default(),
+        ip4: owned(get("Ip4Config"))?,
         path,
     })
 }
 
+/// Read in two calls and one more per Wi-Fi device, rather than one per property.
 pub async fn snapshot(connection: &Connection) -> zbus::Result<Snapshot> {
-    let manager = uncached(connection, NM, NM_PATH, NM).await?;
-    let primary: OwnedObjectPath = manager.get_property("PrimaryConnection").await?;
-    let devices: Vec<OwnedObjectPath> = manager.call("GetDevices", &()).await?;
-    let actives: Vec<OwnedObjectPath> = manager.get_property("ActiveConnections").await?;
+    let manager: Properties = uncached(connection, NM, NM_PATH, PROPERTIES)
+        .await?
+        .call("GetAll", &(NM,))
+        .await?;
+    let tree = Tree::read(connection).await?;
+    let get = |name| manager.get(name);
+    let property = |name| zbus::Error::Failure(format!("NetworkManager does not say its {name}"));
+    let primary: OwnedObjectPath = owned(get("PrimaryConnection")).ok_or_else(|| property("PrimaryConnection"))?;
+    let devices: Vec<OwnedObjectPath> = owned(get("Devices")).unwrap_or_default();
+    let actives: Vec<OwnedObjectPath> = owned(get("ActiveConnections")).unwrap_or_default();
     let mut snapshot = Snapshot {
-        wireless_enabled: manager.get_property("WirelessEnabled").await?,
+        wireless_enabled: owned(get("WirelessEnabled")).ok_or_else(|| property("WirelessEnabled"))?,
         // Without its own check NetworkManager still reports a guess from the routes, which says
         // nothing about the internet, so it counts as not known.
-        connectivity: if manager
-            .get_property("ConnectivityCheckEnabled")
-            .await
-            .unwrap_or(false)
-        {
-            manager.get_property("Connectivity").await.unwrap_or(0)
+        connectivity: if owned(get("ConnectivityCheckEnabled")).unwrap_or(false) {
+            owned(get("Connectivity")).unwrap_or(0)
         } else {
             0
         },
@@ -377,15 +403,14 @@ pub async fn snapshot(connection: &Connection) -> zbus::Result<Snapshot> {
         ..Snapshot::default()
     };
     for path in devices {
-        if let Ok(found) = device(connection, path).await {
+        if let Some(found) = device(connection, &tree, path).await {
             snapshot.devices.push(found);
         }
     }
-    for path in actives {
-        if let Ok(found) = active(connection, path).await {
-            snapshot.active.push(found);
-        }
-    }
+    snapshot.active = actives
+        .into_iter()
+        .filter_map(|path| active(&tree, path))
+        .collect();
     Ok(snapshot)
 }
 

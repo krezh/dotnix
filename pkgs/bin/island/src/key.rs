@@ -7,6 +7,7 @@ pub enum Modifier {
     Super,
 }
 
+#[derive(Clone, Debug)]
 pub struct Key {
     pub name: String,
     /// The text it types, if any.

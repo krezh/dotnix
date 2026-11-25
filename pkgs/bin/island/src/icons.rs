@@ -7,15 +7,11 @@ use std::{
     sync::{LazyLock, Mutex, OnceLock},
 };
 
-use crate::paths;
+use crate::{paths, sync};
 
 /// A glyph's bytes, from island's own or a file.
 pub fn load(path: &str) -> Option<Cow<'static, [u8]>> {
-    if let Some(bytes) = BUNDLED
-        .lock()
-        .ok()
-        .and_then(|bundled| bundled.get(path).copied())
-    {
+    if let Some(bytes) = sync::lock(&BUNDLED).get(path).copied() {
         return Some(Cow::Borrowed(bytes));
     }
     fs::read(path).ok().map(Cow::Owned)
@@ -38,9 +34,7 @@ static BUNDLED: LazyLock<Mutex<HashMap<String, &'static [u8]>>> = LazyLock::new(
 /// theme draws separately.
 pub fn bundle(name: &str, svg: &'static str) -> PathBuf {
     let path = format!("bundled/{name}.svg");
-    if let Ok(mut bundled) = BUNDLED.lock() {
-        bundled.insert(path.clone(), svg.as_bytes());
-    }
+    sync::lock(&BUNDLED).insert(path.clone(), svg.as_bytes());
     PathBuf::from(path)
 }
 
@@ -433,11 +427,11 @@ impl Index {
 }
 
 pub fn lookup(name: &str) -> Option<PathBuf> {
-    INDEX.lock().ok()?.lookup(name)
+    sync::lock(&INDEX).lookup(name)
 }
 
 pub fn lookup_in(dir: &str, name: &str) -> Option<PathBuf> {
-    let mut index = INDEX.lock().ok()?;
+    let mut index = sync::lock(&INDEX);
     if !dir.is_empty()
         && Path::new(name).file_name() == Some(std::ffi::OsStr::new(name))
         && let Some((_, path)) = index.in_directory(Path::new(dir), name)

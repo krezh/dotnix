@@ -25,11 +25,16 @@ pub struct Countdown {
     pub color: u32,
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub enum Look {
     /// A quiet surface inset in its card, such as one of many rows in a grid.
     Inset,
     /// As inset, with no surface until the pointer is over it, such as one of a menu's choices.
     Plain,
+    /// As inset, washed in a color, such as a warning about what is under it.
+    Washed(u32),
+    /// As plain, closer round what it holds, such as one of a list's rows.
+    Row,
     /// Its own outlined surface, filling the space it is given, such as a message; urgent ones
     /// have a red outline.
     Raised { urgent: bool },
@@ -48,6 +53,9 @@ pub struct FrameView {
     /// Shows only this much of a raised frame from its top, such as one folding away: its outline
     /// closes above the cut, and what it holds keeps its size and is cut off. `None` for all of it.
     pub shown_height: Option<f32>,
+    /// At least this tall, its last block kept to the bottom, such as cards side by side whose
+    /// actions line up.
+    pub min_height: Option<f32>,
 }
 
 /// How a frame comes and goes, for one that is not placed and moved by its owner.

@@ -89,6 +89,24 @@ pub async fn claim_shared(connection: &Connection, name: &'static str) -> Result
     claim(connection, name).await
 }
 
+/// Serves `object` at `path` on its own session connection, then [`claim_shared`]s `name`. Keep
+/// the connection for as long as it serves.
+pub fn serve_shared<I: zbus::object_server::Interface>(
+    path: &'static str,
+    object: I,
+    name: &'static str,
+) -> Result<(Connection, bool), String> {
+    block_on(async {
+        let connection = connection::Builder::session()
+            .serve_at(path, object)
+            .build()
+            .await
+            .map_err(|error| format!("cannot connect to the session bus: {error}"))?;
+        let claimed = claim_shared(&connection, name).await?;
+        Ok((connection, claimed))
+    })
+}
+
 /// Whether anything holds one of the names.
 pub fn held(names: &[&str]) -> bool {
     block_on(async {

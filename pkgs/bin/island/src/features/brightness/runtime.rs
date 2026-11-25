@@ -1,9 +1,5 @@
 use std::{
-    sync::{
-        Arc,
-        atomic::{AtomicUsize, Ordering},
-        mpsc::{self, Receiver, RecvTimeoutError, Sender},
-    },
+    sync::mpsc::{self, Receiver, RecvTimeoutError, Sender},
     time::{Duration, Instant},
 };
 
@@ -21,6 +17,7 @@ use crate::{
     features::Feed,
     resume, session_lock,
     supervisor::{self, Ended},
+    sync::{Watchers, Watching},
 };
 
 /// How often the screens are read again while the dashboard shows them, counted from when island
@@ -31,7 +28,7 @@ const SETTLE: Duration = Duration::from_secs(2);
 
 pub struct Brightness {
     messages: Sender<Message>,
-    watchers: Arc<AtomicUsize>,
+    watchers: Watchers,
 }
 
 pub(super) enum Message {
@@ -71,15 +68,6 @@ pub(super) fn postpone(due: Option<Due>, at: Instant, look: Look) -> Due {
     }
 }
 
-/// Held while the dashboard is open.
-pub(super) struct Watch(Arc<AtomicUsize>);
-
-impl Drop for Watch {
-    fn drop(&mut self) {
-        self.0.fetch_sub(1, Ordering::SeqCst);
-    }
-}
-
 /// Which screens a request is for.
 #[derive(Clone, Debug, PartialEq)]
 pub(super) enum Target {
@@ -99,7 +87,7 @@ impl Brightness {
     /// The screens are found on its own thread, since DDC/CI is slow, and before the first press.
     pub(super) fn start(feed: Feed<Levels>) -> Self {
         let (messages, arrived) = mpsc::channel();
-        let watchers = Arc::new(AtomicUsize::new(0));
+        let watchers = Watchers::default();
         listen(&messages);
         let watched = watchers.clone();
         feed.supervise(move |feed| run(feed, &arrived, &watched));
@@ -115,12 +103,11 @@ impl Brightness {
         }));
     }
 
-    /// The monitors are read again every so often until the returned [`Watch`] is dropped.
-    pub(super) fn watch(&self) -> Watch {
-        if self.watchers.fetch_add(1, Ordering::SeqCst) == 0 {
+    /// The monitors are read again every so often until the returned watch is dropped.
+    pub(super) fn watch(&self) -> Watching {
+        self.watchers.watch(|| {
             let _ = self.messages.send(Message::Watch);
-        }
-        Watch(self.watchers.clone())
+        })
     }
 
     pub(super) fn reply(&self, args: &[&str]) -> Reply {
@@ -199,7 +186,7 @@ struct Worker {
     due: Option<Due>,
 }
 
-fn run(feed: &Feed<Levels>, arrived: &Receiver<Message>, watchers: &AtomicUsize) -> Ended {
+fn run(feed: &Feed<Levels>, arrived: &Receiver<Message>, watchers: &Watchers) -> Ended {
     let mut devices = device::find();
     let mut worker = Worker {
         levels: Levels {
@@ -214,7 +201,7 @@ fn run(feed: &Feed<Levels>, arrived: &Receiver<Message>, watchers: &AtomicUsize)
         return Ended::Unwanted;
     }
     loop {
-        let watching = watchers.load(Ordering::SeqCst) > 0;
+        let watching = watchers.watching();
         let poll = watching.then(|| worker.talked + POLL_EVERY);
         let deadline = [poll, worker.due.map(|due| due.at)]
             .into_iter()
@@ -242,7 +229,7 @@ fn run(feed: &Feed<Levels>, arrived: &Receiver<Message>, watchers: &AtomicUsize)
                     return Ended::Unwanted;
                 }
             }
-            None => worker.elapse(watchers.load(Ordering::SeqCst) > 0),
+            None => worker.elapse(watchers.watching()),
         }
         if worker.levels != before && !feed.publish(worker.levels.clone()) {
             return Ended::Unwanted;
@@ -407,9 +394,12 @@ fn attempt(
     let mut changed = Vec::new();
     for index in chosen.iter().copied() {
         let device = &mut devices[index];
-        let level = match (device.read(), request.change) {
-            (Some(current), Some(change)) => device.write(apply(current, change)),
-            (level, _) => level,
+        let level = match request.change {
+            Some(Change::Set(value)) => device.write(value),
+            Some(change) => device
+                .read()
+                .and_then(|current| device.write(apply(current, change))),
+            None => device.read(),
         };
         if level.is_some() && request.change.is_some() {
             changed.push(device.name.clone());

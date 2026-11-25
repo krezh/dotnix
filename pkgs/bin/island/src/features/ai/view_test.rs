@@ -161,6 +161,7 @@ fn empty_accounts_are_hidden_but_zero_usage_and_saved_credits_remain_visible() {
     unused_credits.credits = Some(Credits {
         count: 0,
         expires_at: Some(5000),
+        next: None,
     });
     let mut zero_usage = provider(Source::Omp, "zero", 0.0);
     zero_usage.freshness = Freshness::Stale;
@@ -169,6 +170,7 @@ fn empty_accounts_are_hidden_but_zero_usage_and_saved_credits_remain_visible() {
     credits.credits = Some(Credits {
         count: 2,
         expires_at: None,
+        next: None,
     });
     let report = state(vec![empty, unused_credits, zero_usage, credits]);
     let mut view = View::default();

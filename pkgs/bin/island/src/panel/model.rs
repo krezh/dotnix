@@ -13,13 +13,14 @@ use std::{
 use smol_str::SmolStr as SharedString;
 
 use super::{
-    Actions, CalendarView, Code, Dropdown, FrameView, GalleryView, InputView, Item, Lead, Line,
+    Actions, CalendarView, Chip, Code, Dropdown, FrameView, GalleryView, InputView, Item, Lead, Line,
     Mark, Meter,
-    MeterShape, Piece, PlayerView, PromptView, Route, SearchView, Series, Slider, TabLabel, Text,
-    Tone, Transcript, Turn, Ui,
+    MeterShape, Piece, PlayerView, PromptView, Route, SearchView, Series, Slider, Stop, TabLabel,
+    Text, Tone, Transcript, Turn, Ui,
 };
 use crate::components::{
-    card, chart::Phase, ledger::Ledger, list::ROWS, tabs, tile::Tile, timeline::Timeline,
+    card, chart::Phase, ledger::Ledger, list::ROWS, table::Table, tabs, tile::Tile,
+    timeline::Timeline,
 };
 
 pub type Handler = Rc<dyn Fn(&mut dyn Ui)>;
@@ -74,10 +75,6 @@ impl Button {
         Self { fits, ..self }
     }
 
-    pub fn busy(self, busy: bool) -> Self {
-        Self { busy, ..self }
-    }
-
     pub fn enabled(self, enabled: bool) -> Self {
         Self { enabled, ..self }
     }
@@ -112,6 +109,11 @@ pub struct Views {
     pub on_select: tabs::Select,
     /// Beside the tabs in a page's row, such as which of a view's items to show.
     pub pick: Option<Dropdown>,
+    /// A choice of a few, as tabs, at the end of the header rather than its middle, such as how
+    /// a view's list is sorted.
+    pub segments: Option<Segments>,
+    /// A one-line field before the buttons, such as what to add to the view's list.
+    pub field: Option<InputView>,
     pub buttons: Vec<Button>,
     /// After the buttons in a page's row, in a strip of their own, each group parted from the next
     /// by a line and each button named by its tooltip.
@@ -120,6 +122,23 @@ pub struct Views {
     pub passing: Option<Passing>,
     /// A way back before the lead, for a view opened from another.
     pub back: Option<Handler>,
+    /// Words before the buttons saying how the view stands, such as what it is busy with.
+    pub status: Option<HeaderStatus>,
+    /// The steps of what the view follows, drawn across, such as a build's.
+    pub route: Option<Vec<Stop>>,
+}
+
+pub struct HeaderStatus {
+    pub text: SharedString,
+    pub color: u32,
+    /// A pulse before the words while what they say is under way.
+    pub busy: bool,
+}
+
+pub struct Segments {
+    pub labels: Vec<TabLabel>,
+    pub selected: usize,
+    pub on_select: tabs::Select,
 }
 
 /// One view moving out as another comes in, as their tabs sit side by side.
@@ -158,6 +177,10 @@ pub struct IconButton {
     pub label: SharedString,
     pub active: bool,
     pub badge: Option<SharedString>,
+    /// Drawn as inactive and not answering clicks, such as while what it does is under way.
+    pub enabled: bool,
+    /// The moving border, while what it started runs.
+    pub busy: bool,
     pub on_click: Handler,
 }
 
@@ -169,12 +192,25 @@ impl IconButton {
             label: label.into(),
             active,
             badge: None,
+            enabled: true,
+            busy: false,
             on_click,
         }
     }
 }
 
+/// What sits at the start of a row of buttons, the buttons then keeping to its end.
+pub enum RowLead {
+    Chip(Chip),
+    /// Quiet words, such as what the buttons are about.
+    Note(SharedString),
+    /// What the buttons act on, as an item with what it holds, such as a name with its source.
+    Item(Box<Item>, Vec<Block>),
+}
+
 pub struct ButtonRow {
+    /// Before the buttons, which then stand at the row's end.
+    pub lead: Option<RowLead>,
     pub buttons: Vec<IconButton>,
     /// Control-sized and closer together, such as a message's actions.
     pub compact: bool,
@@ -265,6 +301,12 @@ pub struct Warning {
 pub enum Split {
     /// Cards shared between two columns of about the same height, each named by its title.
     Balanced,
+    /// The first block this wide and the rest sharing what is left, all this tall, such as a list
+    /// beside what is picked in it.
+    Lead { width: f32, height: f32 },
+    /// The last block this wide, parted from the rest by a hairline and centred down it, such as a
+    /// figure summing up what is beside it.
+    Trail { width: f32 },
 }
 
 pub enum Block {
@@ -272,6 +314,20 @@ pub enum Block {
     Row(Vec<Block>),
     /// This many equal columns, filled a row at a time; cells line up at the top.
     Grid(usize, Vec<Block>),
+    /// Equal columns side by side, parted by hairlines, such as figures in a strip.
+    Divided(Vec<Block>),
+    /// A hairline across, parting what is over it from what is under it.
+    Rule,
+    /// A chip on a line of its own.
+    Chip(Chip),
+    /// A bar across of tinted parts laid end to end, each a share of the whole, such as how far
+    /// something has come.
+    Bar(Vec<(f32, u32)>),
+    /// This tall of what it holds, the rest scrolling under soft edges, such as a long list in a
+    /// card of a set height.
+    Scrolled(SharedString, f32, Vec<Block>),
+    /// One under another, close together, such as a list's rows.
+    Rows(Vec<Block>),
     /// The blocks go under its title.
     Item(Item, Vec<Block>),
     /// Blocks on a surface of their own, such as one of many in a grid, or a message.
@@ -305,6 +361,7 @@ pub enum Block {
     /// Lanes along one stretch of time from now.
     Timeline(Timeline),
     Ledger(Ledger),
+    Table(Table),
     /// A small card over the whole panel asking for something, wherever it is in the blocks.
     Prompt(PromptView),
     /// A page's own views and their buttons, in a row at its top, for a tab of the panel that has
@@ -372,6 +429,7 @@ impl Block {
             | Block::Row(blocks)
             | Block::Columns(_, blocks)
             | Block::Grid(_, blocks)
+            | Block::Divided(blocks)
             | Block::Frame(_, blocks)
             | Block::Item(_, blocks) => blocks.iter().any(Block::follows_end),
             _ => false,
@@ -389,7 +447,12 @@ impl Block {
     fn hash_shape(&self, hasher: &mut DefaultHasher) {
         discriminant(self).hash(hasher);
         match self {
-            Block::Calendar(_) | Block::Slider(_) | Block::Segments(..) => {}
+            Block::Calendar(_)
+            | Block::Slider(_)
+            | Block::Segments(..)
+            | Block::Rule
+            | Block::Chip(_)
+            | Block::Bar(_) => {}
             // Words that wrap decide how many lines they take.
             Block::Text(text) => {
                 text.lines.hash(hasher);
@@ -407,7 +470,12 @@ impl Block {
             Block::Meter(meter) => (meter.level.is_some(), discriminant(&meter.shape)).hash(hasher),
             Block::Tiles(tiles) => tiles.len().hash(hasher),
             Block::Item(item, blocks) => {
-                (item.lead.is_some(), item.trail.len()).hash(hasher);
+                (
+                    item.lead.is_some(),
+                    item.trail.len(),
+                    item.title_size.map(f32::to_bits),
+                )
+                    .hash(hasher);
                 if let Some(lead) = &item.lead {
                     (lead.size.map(f32::to_bits), lead.top).hash(hasher);
                 }
@@ -419,7 +487,19 @@ impl Block {
                     block.hash_shape(hasher);
                 }
             }
-            Block::Frame(_, blocks) | Block::Row(blocks) => {
+            Block::Frame(view, blocks) => {
+                view.min_height.map(f32::to_bits).hash(hasher);
+                for block in blocks {
+                    block.hash_shape(hasher);
+                }
+            }
+            Block::Row(blocks) | Block::Divided(blocks) => {
+                for block in blocks {
+                    block.hash_shape(hasher);
+                }
+            }
+            Block::Scrolled(_, height, _) => height.to_bits().hash(hasher),
+            Block::Rows(blocks) => {
                 for block in blocks {
                     block.hash_shape(hasher);
                 }
@@ -439,6 +519,18 @@ impl Block {
             }
             Block::Grid(columns, blocks) => {
                 columns.hash(hasher);
+                for block in blocks {
+                    block.hash_shape(hasher);
+                }
+            }
+            Block::Columns(Split::Lead { width, height }, blocks) => {
+                (width.to_bits(), height.to_bits()).hash(hasher);
+                for block in blocks {
+                    block.hash_shape(hasher);
+                }
+            }
+            Block::Columns(Split::Trail { width }, blocks) => {
+                width.to_bits().hash(hasher);
                 for block in blocks {
                     block.hash_shape(hasher);
                 }
@@ -499,6 +591,7 @@ impl Block {
                     }
                 }
             }
+            Block::Table(table) => (table.columns.len(), table.rows.len()).hash(hasher),
             // It floats over the panel, so it never decides its size.
             Block::Prompt(_) => {}
             Block::Views(views) => (

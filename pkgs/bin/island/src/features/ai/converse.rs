@@ -6,7 +6,7 @@ use std::{
     thread,
 };
 
-use crate::paths;
+use crate::{paths, sync};
 use serde_json::Value;
 
 /// Says only what a quick question needs, so a chat stays a chat.
@@ -74,9 +74,7 @@ pub struct Running(Arc<Mutex<Child>>);
 
 impl Running {
     pub fn stop(&self) {
-        if let Ok(mut child) = self.0.lock() {
-            let _ = child.kill();
-        }
+        let _ = sync::lock(&self.0).kill();
     }
 }
 

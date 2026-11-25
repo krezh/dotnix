@@ -126,7 +126,7 @@ impl Hook {
     }
 }
 
-fn text(value: &Value, key: &str) -> String {
+pub(super) fn text(value: &Value, key: &str) -> String {
     value
         .get(key)
         .and_then(Value::as_str)

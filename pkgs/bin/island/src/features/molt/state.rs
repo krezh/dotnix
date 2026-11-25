@@ -1,9 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    panel::{Route, Stop, StopState},
-    units::plural,
-};
+use crate::units::plural;
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Report {
@@ -63,45 +60,6 @@ pub struct Branch {
     pub ahead_by: Option<usize>,
 }
 
-impl WatchedPr {
-    pub(super) fn row(&self) -> Route {
-        let state = match self.state.as_str() {
-            "merged" => "Merged",
-            "open" => "Open",
-            "closed" => "Closed",
-            other => other,
-        };
-        let commit = self
-            .merge_commit
-            .as_deref()
-            .map(|sha| format!(" · {}", &sha[..sha.len().min(7)]))
-            .unwrap_or_default();
-        Route {
-            title: format!("#{} {}", self.pr_number, self.title).into(),
-            detail: format!("{} · {state}{commit}", self.repo).into(),
-            done: self.ready.then(|| "Ready".into()),
-            vertical: false,
-            stops: self
-                .branches
-                .iter()
-                .map(|branch| Stop {
-                    label: branch.name.clone().into(),
-                    state: match (branch.reached, branch.status.as_str()) {
-                        (true, _) => StopState::Reached,
-                        (false, "pending") => StopState::Pending(
-                            branch
-                                .ahead_by
-                                .filter(|ahead| *ahead > 0)
-                                .map(|ahead| format!("+{ahead}").into()),
-                        ),
-                        _ => StopState::NotYet,
-                    },
-                })
-                .collect(),
-        }
-    }
-}
-
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Commit {
     pub id: String,
@@ -111,7 +69,7 @@ pub struct Commit {
     pub summary: String,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct Updates {
     pub report: Option<Report>,
     pub checking: bool,
@@ -121,6 +79,22 @@ pub struct Updates {
     pub error: Option<String>,
     /// Unix seconds of the last check attempt.
     pub checked_at: Option<u64>,
+    /// Molt's Home, read when the panel opens.
+    pub home: Option<molt_core::home::flow::Home>,
+    /// Molt's Inputs, read when it opens, kept after so its undo outlives the screen.
+    pub inputs: Option<molt_core::inputs::flow::Inputs>,
+    pub watchlist: Option<molt_core::watchlist::flow::Watchlist>,
+    pub search: Option<molt_core::search::flow::Search>,
+    pub cleanup: Option<molt_core::cleanup::flow::Cleanup>,
+    /// The latest build, kept once it ends so its failure or report stays to see.
+    pub build: Option<molt_core::build::flow::Build>,
+    /// What the latest successful build changes, and switching to it.
+    pub review: Option<molt_core::report::flow::Review>,
+    pub notes: Option<molt_core::report::notes::Notes>,
+    /// The build whose end has been seen, so its droplet melts back into the bar.
+    pub seen_build: u64,
+    /// The latest switch's end has been seen.
+    pub seen_activation: bool,
 }
 
 impl Updates {

@@ -1,7 +1,7 @@
 //! A spectrum of whatever is playing, captured from the default output's monitor through the
 //! PulseAudio protocol (served by pipewire-pulse) and analysed in-process: no external tools.
 
-use std::{cell::Cell, f32::consts::PI, ops::ControlFlow, rc::Rc, time::Instant};
+use std::{cell::Cell, f32::consts::PI, ops::ControlFlow, rc::Rc};
 
 use libpulse_binding::{
     context::{State, subscribe::InterestMaskSet},
@@ -16,7 +16,7 @@ use tracing::{debug, error};
 use crate::{
     features::Feed,
     pulse,
-    supervisor::{self, Reconnect},
+    supervisor,
 };
 
 pub const BARS: usize = 10;
@@ -34,19 +34,18 @@ const NOISE_REDUCTION: f64 = 0.77;
 
 /// Silence is sent once rather than every frame.
 pub fn start<S: Send + 'static>(feed: Feed<S>) {
-    let mut pace = Reconnect::default();
     let spawned = supervisor::supervise("visualizer", move || {
         loop {
-            let started = Instant::now();
             match capture(&feed) {
                 Ended::Unwanted => return supervisor::Ended::Unwanted,
                 Ended::Moved => debug!("default output changed, capturing it instead"),
                 Ended::Stopped => {
                     debug!("capture stopped, reconnecting");
-                    if !feed.publish_live(vec![0.0; BARS]) {
-                        return supervisor::Ended::Unwanted;
-                    }
-                    pace.wait(started);
+                    return if feed.publish_live(vec![0.0; BARS]) {
+                        supervisor::Ended::Lost
+                    } else {
+                        supervisor::Ended::Unwanted
+                    };
                 }
             }
         }

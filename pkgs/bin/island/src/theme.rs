@@ -1,6 +1,7 @@
 pub const CRUST: u32 = 0x11111b;
 pub const BASE: u32 = 0x1e1e2e;
 pub const SURFACE1: u32 = 0x45475a;
+pub const OVERLAY0: u32 = 0x6c7086;
 pub const OVERLAY1: u32 = 0x7f849c;
 pub const OVERLAY2: u32 = 0x9399b2;
 pub const SUBTEXT1: u32 = 0xbac2de;

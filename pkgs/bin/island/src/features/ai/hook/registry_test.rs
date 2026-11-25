@@ -132,6 +132,20 @@ fn a_permission_waits_and_resumes() {
 }
 
 #[test]
+fn a_permission_after_its_tool_starts_waits_on_the_same_step() {
+    let mut sessions = Vec::new();
+    let edit = json!({
+        "tool_name": "Edit",
+        "tool_input": {"file_path": "/x/foo.rs", "old_string": "a", "new_string": "b"},
+    });
+    apply(&mut sessions, &hook("PreToolUse", edit.clone()), 1);
+    apply(&mut sessions, &hook("PermissionRequest", edit), 2);
+    assert_eq!(steps(&sessions[0]).len(), 1);
+    assert_eq!(steps(&sessions[0])[0].state, StepState::Waiting);
+    assert_eq!(sessions[0].activity, Activity::Waiting);
+}
+
+#[test]
 fn tools_read_as_a_verb_and_what_they_touch() {
     assert_eq!(
         describe("Grep", &json!({"pattern": "duration_ms"})),

@@ -282,3 +282,101 @@ fn parses_explicit_weekly_reset_offer_without_inventing_expiry() {
         .is_none()
     );
 }
+
+#[test]
+fn reads_claude_code_version() {
+    assert_eq!(claude_version("2.1.331 (Claude Code)\n"), Some("2.1.331"));
+    assert_eq!(claude_version("2.1.331"), Some("2.1.331"));
+    assert_eq!(claude_version(""), None);
+    assert_eq!(claude_version("Claude Code 2.1.331"), None);
+    assert_eq!(claude_version("2.1"), None);
+    assert_eq!(claude_version("2..1"), None);
+}
+
+#[test]
+fn counts_live_cedar_grant() {
+    let now = 1_795_000_000_000;
+    let usage = json!({"cedar_ember": {
+        "eligible": true,
+        "ineligible_reason": null,
+        "at_limit": false,
+        "exhausted": [],
+        "grants": [{
+            "id": "full-reset-2611",
+            "label": "One full limit reset (November 2026)",
+            "resets_total": 1,
+            "resets_left": 1,
+            "starts_at": "2026-11-10T21:30:00+00:00",
+            "ends_at": "2026-12-10T22:00:00+00:00",
+            "clears": ["five_hour", "seven_day", "seven_day_overage_included"],
+            "paused": false,
+            "usable_now": true,
+            "use_requires_limit": false,
+            "percent_used": {"five_hour": 7, "seven_day": 68},
+            "blocking": [],
+            "arm": null,
+            "type": "full",
+            "unavailable_reason": null,
+            "gives_back_weekly": false
+        }],
+        "next_grant_id": "full-reset-2611",
+        "weekly_resets_at": "2026-12-02T00:00:00+00:00",
+        "cooldown_until": null,
+        "event_props": null
+    }, "juniper_tide": {"eligible": false, "ineligible_reason": "not_at_wall", "arm": null, "available": false}});
+    let credits = reset_credits(&usage, now).unwrap();
+    assert_eq!(credits.count, 1);
+    assert_eq!(credits.expires_at, timestamp(&json!("2026-12-10T22:00:00+00:00")));
+    let next = credits.next.unwrap();
+    assert_eq!(next.program, "cedar_ember");
+    assert_eq!(next.id, "full-reset-2611");
+    assert_eq!(next.label, "One full limit reset (November 2026)");
+    assert_eq!(next.expires_at, credits.expires_at);
+    assert_eq!(
+        next.clears,
+        ["five_hour", "seven_day", "seven_day_overage_included"]
+    );
+    assert_eq!(
+        next.used,
+        [("five_hour".to_owned(), 7.0), ("seven_day".to_owned(), 68.0)]
+    );
+}
+
+#[test]
+fn spends_only_the_grant_claude_picks_while_it_can() {
+    let now = 1_795_000_000_000;
+    let usage = |next: Value, usable: bool, cooldown: Value| {
+        json!({"cedar_ember": {
+            "eligible": true,
+            "next_grant_id": next,
+            "cooldown_until": cooldown,
+            "grants": [{"id": "full-reset-2611", "resets_left": 1, "paused": false,
+                        "usable_now": usable, "clears": ["five_hour"]}]
+        }})
+    };
+    let next = |usage: Value| reset_credits(&usage, now).unwrap().next;
+    assert!(next(usage(json!("full-reset-2611"), true, Value::Null)).is_some());
+    assert!(next(usage(Value::Null, true, Value::Null)).is_none());
+    assert!(next(usage(json!("other"), true, Value::Null)).is_none());
+    assert!(next(usage(json!("full-reset-2611"), false, Value::Null)).is_none());
+    assert!(
+        next(usage(
+            json!("full-reset-2611"),
+            true,
+            json!("2027-01-01T00:00:00Z")
+        ))
+        .is_none()
+    );
+}
+
+#[test]
+fn juniper_offer_clears_the_session_window() {
+    let credits = reset_credits(
+        &json!({"juniper_tide": {"eligible": true, "arm": "reset", "available": true}}),
+        0,
+    )
+    .unwrap();
+    let next = credits.next.unwrap();
+    assert_eq!(next.program, "juniper_tide");
+    assert_eq!(next.clears, ["five_hour"]);
+}

@@ -78,7 +78,6 @@
               center = [ "workspaces" ];
               end = [
                 "krezh/omp-usage:bar"
-                "krezh/molt-check:bar"
                 "krezh/zowie-battery:bar"
                 "krezh/headsetcontrol:bar"
                 "audio_visualizer"
@@ -138,7 +137,6 @@
           plugins = {
             enabled = [
               "krezh/omp-usage"
-              "krezh/molt-check"
               "krezh/zowie-battery"
               "krezh/headsetcontrol"
             ];
@@ -275,9 +273,7 @@
       };
 
       xdg.dataFile = {
-        "noctalia/plugins/omp-usage".source = "${pkgs.noctalia-plugin-omp-usage}/omp-usage";
-        "noctalia/plugins/molt-check".source = "${pkgs.noctalia-plugin-molt-check}/molt-check";
-        "noctalia/plugins/zowie-battery".source = "${pkgs.noctalia-plugin-zowie-battery}/zowie-battery";
+        "noctalia/plugins/omp-usage".source = "${pkgs.noctalia-plugin-omp-usage}/omp-usage";        "noctalia/plugins/zowie-battery".source = "${pkgs.noctalia-plugin-zowie-battery}/zowie-battery";
         "noctalia/plugins/headsetcontrol".source = "${pkgs.noctalia-plugin-headsetcontrol}/headsetcontrol";
       };
     };

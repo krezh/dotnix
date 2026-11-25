@@ -107,6 +107,7 @@ fn peeks(peeks: &Peeks, bottom: f32) -> Vec<(Place, Block)> {
                 selected: false,
                 motion: Motion::Still,
                 shown_height: None,
+                min_height: None,
             };
             (at, Block::Frame(frame, Vec::new()))
         })

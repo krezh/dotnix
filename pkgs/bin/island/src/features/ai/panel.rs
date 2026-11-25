@@ -78,10 +78,14 @@ pub(super) fn panel(ai: &Ai, state: &State, p: &PanelCx<'_>) -> Option<PanelView
                 view.pick_tab(Tab::ALL[index.min(Tab::ALL.len() - 1)]);
             }),
             pick: None,
+            segments: None,
+            field: None,
             buttons,
             icons: Vec::new(),
             passing,
             back: None,
+            status: None,
+            route: None,
         }),
         blocks,
     })

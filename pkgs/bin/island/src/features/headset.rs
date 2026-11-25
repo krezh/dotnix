@@ -1,7 +1,6 @@
 use std::{
     sync::{
-        Mutex,
-        atomic::{AtomicUsize, Ordering},
+        LazyLock, Mutex,
         mpsc::{self, Sender},
     },
     time::Duration,
@@ -15,7 +14,7 @@ use crate::{
     bar_widget::{BarWidget, Gauge},
     run,
     stage::Panel,
-    sync::lock,
+    sync::{Watchers, Watching, lock},
     theme::{GREEN, OVERLAY2, TEXT},
 };
 
@@ -26,33 +25,24 @@ const TIMEOUT: Duration = Duration::from_secs(15);
 
 /// The latest reading, for the audio panel.
 static LATEST: Mutex<Option<Battery>> = Mutex::new(None);
-static WATCHERS: AtomicUsize = AtomicUsize::new(0);
+static WATCHERS: LazyLock<Watchers> = LazyLock::new(Watchers::default);
 static WAKE: Mutex<Option<Sender<Wake>>> = Mutex::new(None);
 
 pub fn latest() -> Option<Battery> {
     lock(&LATEST).clone()
 }
 
-pub struct Watch;
-
-impl Drop for Watch {
-    fn drop(&mut self) {
-        WATCHERS.fetch_sub(1, Ordering::SeqCst);
-    }
-}
-
-/// Keeps readings frequent until the returned [`Watch`] is dropped.
-pub fn watch() -> Watch {
-    if WATCHERS.fetch_add(1, Ordering::SeqCst) == 0
-        && let Some(wake) = lock(&WAKE).clone()
-    {
-        let _ = wake.send(Wake::Retimed);
-    }
-    Watch
+/// Keeps readings frequent until the returned watch is dropped.
+pub fn watch() -> Watching {
+    WATCHERS.watch(|| {
+        if let Some(wake) = lock(&WAKE).clone() {
+            let _ = wake.send(Wake::Retimed);
+        }
+    })
 }
 
 fn interval() -> Duration {
-    if WATCHERS.load(Ordering::SeqCst) > 0 {
+    if WATCHERS.watching() {
         WATCHED_INTERVAL
     } else {
         INTERVAL

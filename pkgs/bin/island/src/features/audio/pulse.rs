@@ -9,7 +9,6 @@ use std::{
         Arc, Mutex,
         mpsc::{self, Receiver},
     },
-    time::Instant,
 };
 
 use libpulse_binding::{
@@ -31,7 +30,7 @@ use super::{
 use crate::{
     features::Feed,
     pulse,
-    supervisor::{Ended, Reconnect},
+    supervisor::Ended,
     wake::{self, Woken},
 };
 
@@ -129,17 +128,14 @@ pub fn start(feed: Feed<AudioState>) -> Mixer {
     let levels = Arc::new(Mutex::new(Levels::default()));
     let wake = match wake::pair() {
         Ok((waker, woken)) => {
-            let mut pace = Reconnect::default();
             let levels = levels.clone();
             feed.supervise(move |feed| {
-                loop {
-                    let started = Instant::now();
-                    if run(&requests, &woken, feed, &levels).is_some()
-                        || !feed.publish(AudioState::default())
-                    {
-                        return Ended::Unwanted;
-                    }
-                    pace.wait(started);
+                if run(&requests, &woken, feed, &levels).is_some()
+                    || !feed.publish(AudioState::default())
+                {
+                    Ended::Unwanted
+                } else {
+                    Ended::Lost
                 }
             });
             Some(waker)

@@ -41,7 +41,7 @@ fn settle(list: &mut EarlierList) {
 fn days(list: &EarlierList) -> usize {
     list.rows()
         .iter()
-        .filter(|row| !row.leaving && matches!(row.entry, Entry::Day(_)))
+        .filter(|row| !row.leaving && matches!(row.body, Entry::Day(_)))
         .count()
 }
 
@@ -74,7 +74,7 @@ fn a_swap_keeps_what_both_show_and_the_rest_leave_together() {
     let card = |list: &EarlierList, id: u32| {
         list.rows()
             .iter()
-            .position(|row| matches!(&row.entry, Entry::Card(card) if card.notification.id == id))
+            .position(|row| matches!(&row.body, Entry::Card(card) if card.notification.id == id))
             .unwrap()
     };
     let near_at = list.drawn_y()[card(&list, 3)];

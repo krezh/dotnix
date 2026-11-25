@@ -12,6 +12,7 @@ mod missed_list;
 mod notification;
 mod panel;
 mod popup;
+mod rows;
 mod runtime;
 mod server;
 mod settings;

@@ -11,22 +11,26 @@ pub use crate::components::{
     dropdown::{Choice, Dropdown},
     gallery::{GalleryCard, GalleryView},
     input::{Edit, InputView},
-    item::{Item, Lead, Trail},
+    item::{Field, Item, Lead, Tint, Trail, TrailButton},
     lines::Line,
     meter::{Meter, Shape as MeterShape},
     player::PlayerView,
-    prompt::{PromptView, Reveal},
+    prompt::{Change, PromptView, Reveal},
     route::{Route, Stop, StopState},
-    search::{Preview, RowIcon, SearchRow, SearchView},
+    chip::Chip,
+    search::{FileRow, Filters, Preview, RowIcon, SearchPreview, SearchRow, SearchView},
     slider::{Slider, SliderLabel},
+    stepper::Stepper,
+    table::{Cell, Column, Row as TableRow, Table, Width},
     tabs::TabLabel,
     text::{Style as TextStyle, Text, Tone},
     transcript::{Piece, Transcript, Turn},
 };
 
 pub use model::{
-    ActionTile, Block, Button, ButtonRow, ChartView, Grow, Handler, Header, HeaderLead, Hero,
-    IconButton, PanelView, Passing, Place, Placed, Split, Views, Warning, on,
+    ActionTile, Block, Button, ButtonRow, ChartView, Grow, Handler, Header, HeaderLead,
+    HeaderStatus, Hero,
+    IconButton, PanelView, Passing, Place, Placed, RowLead, Segments, Split, Views, Warning, on,
 };
 pub use smol_str::SmolStr as SharedString;
 pub use ui::Ui;

@@ -7,7 +7,7 @@ use crate::{cli::Client, control::Command};
 use super::{
     Arrivals, Feature, Features, GlyphSpec, Surface, ai, audio, bluetooth, brightness, caffeine,
     clipboard, clock, feature::widgets_of, gotify, headset, instance::start_one, launcher, media,
-    molt, network, notifications, session, switcher, tray, which_key, workspaces, zowie,
+    molt, network, notifications, session, switcher, system, tray, which_key, workspaces, zowie,
 };
 
 macro_rules! features {
@@ -186,7 +186,7 @@ macro_rules! features {
                     started.push(start_one::<$feature>(live, section, &mut arrivals));
                 }
             )*
-            (Features(started), arrivals)
+            (Features::new(started), arrivals)
         }
     };
 }
@@ -212,4 +212,5 @@ features![
     which_key::WhichKey,
     switcher::Switcher,
     gotify::Gotify,
+    system::System,
 ];

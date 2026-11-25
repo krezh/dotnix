@@ -8,7 +8,7 @@ use raw_window_handle::{
     DisplayHandle, HandleError, HasDisplayHandle, RawDisplayHandle, RawWindowHandle,
     WaylandDisplayHandle, WaylandWindowHandle,
 };
-use tracing::info;
+use tracing::{info, warn};
 
 pub const ATLAS: u32 = 2048;
 const FIRST_ROOM: usize = 8192;
@@ -991,6 +991,11 @@ impl Gpu {
         let present_mode = if caps.present_modes.contains(&wgpu::PresentMode::Mailbox) {
             wgpu::PresentMode::Mailbox
         } else {
+            warn!(
+                modes = ?caps.present_modes,
+                "the driver offers no mailbox presenting, so drawing one monitor can wait on \
+                 another's refresh"
+            );
             wgpu::PresentMode::Fifo
         };
         let atlas = device.create_texture(&wgpu::TextureDescriptor {

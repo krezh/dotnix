@@ -57,7 +57,17 @@ pub fn spawn(launch: Launch) {
     });
 }
 
-fn resolve(program: &str) -> Option<PathBuf> {
+/// Opens `address` in whatever the desktop opens it with.
+pub fn open(address: &str, name: &str) {
+    spawn(Launch {
+        id: "xdg-open".to_owned(),
+        name: name.to_owned(),
+        argv: vec!["xdg-open".to_owned(), address.to_owned()],
+        directory: None,
+    });
+}
+
+pub fn resolve(program: &str) -> Option<PathBuf> {
     let path = Path::new(program);
     if path.is_absolute() {
         return path.is_file().then(|| path.to_path_buf());

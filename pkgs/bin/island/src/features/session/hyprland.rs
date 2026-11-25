@@ -1,21 +1,15 @@
 //! What leaving the session asks of Hyprland: its process, windows and layers, closing windows
-//! (through the [`compositor`]) and exiting, each answered within a second or not at all, and the
-//! events that say a window went.
+//! (through the [`compositor`]) and exiting, and the events that say a window went.
 
 use std::{
-    env, fs,
-    io::{self, Read, Write},
+    fs,
+    io::{self, Read},
     os::{fd::AsRawFd, unix::net::UnixStream},
-    path::{Path, PathBuf},
-    time::{Duration, Instant},
 };
 
 use serde::{Deserialize, de::DeserializeOwned};
 
-use crate::{compositor, paths};
-
-const TIMEOUT: Duration = Duration::from_secs(1);
-const MOST: usize = 16 * 1024 * 1024;
+use crate::compositor::{self, hyprctl};
 
 #[derive(Clone, Debug, Deserialize)]
 pub struct Client {
@@ -38,37 +32,19 @@ pub struct Layers {
 }
 
 pub struct Hyprland {
-    directory: PathBuf,
     pub pid: i32,
 }
 
 impl Hyprland {
     pub fn find() -> Result<Self, String> {
-        let signature = env::var("HYPRLAND_INSTANCE_SIGNATURE")
-            .map_err(|_| "not running under Hyprland".to_owned())?;
-        if signature.is_empty() || signature.contains('/') || signature == "." || signature == ".."
-        {
-            return Err("HYPRLAND_INSTANCE_SIGNATURE is not a folder's name".to_owned());
-        }
-        let directory = paths::runtime_root()
-            .ok_or("XDG_RUNTIME_DIR is not set")?
-            .join("hypr")
-            .join(signature);
-        let lock = fs::read_to_string(directory.join("hyprland.lock"))
+        let lock = fs::read_to_string(hyprctl::socket_dir()?.join("hyprland.lock"))
             .map_err(|error| format!("cannot read hyprland.lock: {error}"))?;
         let pid = parse_lock(&lock)?;
-        Ok(Self { directory, pid })
-    }
-
-    fn socket(&self) -> PathBuf {
-        self.directory.join(".socket.sock")
+        Ok(Self { pid })
     }
 
     pub fn query<T: DeserializeOwned>(&self, command: &str) -> Result<T, String> {
-        let reply = request(&self.socket(), command)?;
-        serde_json::from_str(&reply).map_err(|error| {
-            format!("Hyprland answered {command} with what cannot be read: {error}")
-        })
+        hyprctl::query(command).map_err(|error| format!("cannot ask Hyprland {command}: {error}"))
     }
 
     pub fn clients(&self) -> Result<Vec<Client>, String> {
@@ -87,15 +63,6 @@ impl Hyprland {
         self.query("j/layers")
     }
 
-    fn dispatch(&self, dispatcher: &str) -> Result<(), String> {
-        let command = format!("/dispatch {dispatcher}");
-        let reply = request(&self.socket(), &command)?;
-        if reply.trim() != "ok" {
-            return Err(format!("Hyprland refused {command}: {}", reply.trim()));
-        }
-        Ok(())
-    }
-
     pub fn close(&self, address: &str) -> Result<(), String> {
         check_address(address)?;
         compositor::backend()
@@ -104,15 +71,19 @@ impl Hyprland {
     }
 
     pub fn exit(&self) -> Result<(), String> {
-        self.dispatch("hl.dsp.exit()")
+        const EXIT: &str = "/dispatch hl.dsp.exit()";
+        let reply = hyprctl::request(EXIT)
+            .map_err(|error| format!("cannot ask Hyprland {EXIT}: {error}"))?;
+        if reply.trim() != "ok" {
+            return Err(format!("Hyprland refused {EXIT}: {}", reply.trim()));
+        }
+        Ok(())
     }
 
     /// Hyprland's events as they come, read only to know something changed.
     pub fn events(&self) -> Result<Events, String> {
-        let stream = UnixStream::connect(self.directory.join(".socket2.sock"))
-            .map_err(|error| format!("cannot hear Hyprland's events: {error}"))?;
-        stream
-            .set_nonblocking(true)
+        let stream = hyprctl::events()
+            .and_then(|stream| stream.set_nonblocking(true).map(|()| stream))
             .map_err(|error| format!("cannot hear Hyprland's events: {error}"))?;
         Ok(Events(stream))
     }
@@ -165,38 +136,6 @@ pub fn check_address(address: &str) -> Result<(), String> {
     } else {
         Err(format!("Hyprland named a window {address:?}"))
     }
-}
-
-fn left(deadline: Instant) -> io::Result<Duration> {
-    deadline
-        .checked_duration_since(Instant::now())
-        .filter(|left| !left.is_zero())
-        .ok_or_else(|| io::Error::new(io::ErrorKind::TimedOut, "Hyprland took too long"))
-}
-
-fn request(path: &Path, command: &str) -> Result<String, String> {
-    let ask = || -> io::Result<String> {
-        let deadline = Instant::now() + TIMEOUT;
-        let mut stream = UnixStream::connect(path)?;
-        stream.set_write_timeout(Some(left(deadline)?))?;
-        stream.write_all(command.as_bytes())?;
-        let mut reply = Vec::new();
-        let mut buffer = [0_u8; 8192];
-        loop {
-            stream.set_read_timeout(Some(left(deadline)?))?;
-            match stream.read(&mut buffer) {
-                Ok(0) => break,
-                Ok(count) if reply.len() + count > MOST => {
-                    return Err(io::Error::other("Hyprland's answer is too long"));
-                }
-                Ok(count) => reply.extend_from_slice(&buffer[..count]),
-                Err(error) if error.kind() == io::ErrorKind::Interrupted => {}
-                Err(error) => return Err(error),
-            }
-        }
-        String::from_utf8(reply).map_err(io::Error::other)
-    };
-    ask().map_err(|error| format!("cannot ask Hyprland {command}: {error}"))
 }
 
 #[cfg(test)]

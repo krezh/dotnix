@@ -1,10 +1,6 @@
 { inputs, ... }: {
   flake.modules.homeManager.browsers =
-    {
-      config,
-      pkgs,
-      ...
-    }:
+    { config, ... }:
     let
       lock = Value: {
         inherit Value;
@@ -18,7 +14,6 @@
         enable = true;
         profiles.${config.home.username} = {
           isDefault = true;
-          extensions.packages = [ pkgs.opentodo-browser-extension ];
           mods = [ ];
           sine = {
             enable = true;
@@ -79,12 +74,6 @@
           };
         };
         policies = {
-          ExtensionSettings = {
-            "share-capture@opentodo" = {
-              installation_mode = "force_installed";
-              install_url = "file://${pkgs.opentodo-browser-extension}/share-capture@opentodo.xpi";
-            };
-          };
           AutofillAddressEnabled = false;
           AutofillCreditCardEnabled = false;
           DisableAppUpdate = true;

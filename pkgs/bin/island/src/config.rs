@@ -247,7 +247,6 @@ pub struct Config {
 #[serde(default)]
 pub struct Features {
     pub visualizer: Visualizer,
-    pub system: System,
     pub battery: Battery,
     #[serde(flatten)]
     pub settings: toml::Table,

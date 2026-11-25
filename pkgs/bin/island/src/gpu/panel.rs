@@ -37,20 +37,20 @@ pub const BODY: &str = "panel-body";
 /// What a view growing out of a part of another is named by while it passes, and the one it replaces.
 pub const GROW_COMING: &str = "grow-coming";
 pub const GROW_LEAVING: &str = "grow-leaving";
-/// How far the view behind sinks back as another grows over it, and how much of the growing it
-/// takes to fade out entirely.
-const GROW_SINK: f32 = 0.03;
-const GROW_GONE: f32 = 0.15;
-/// How much of the shrinking back it takes the view behind to come back, under the card.
-const GROW_RETURNS: f32 = 0.85;
+/// Through which part of the growing the view behind, zooming in with the card, fades away.
+const GROW_GONE: (f32, f32) = (0.2, 0.5);
+/// Through which part of the growing the card's own words, zooming in with it, hand over to what
+/// the view holds.
+const GROW_HANDS_OVER: (f32, f32) = (0.12, 0.4);
 /// Where in its growing what it holds starts showing, and how much it takes to show fully.
-const GROW_SHOWS: (f32, f32) = (0.08, 0.45);
+const GROW_SHOWS: (f32, f32) = (0.15, 0.4);
 /// From how far through its growing the card's surface dissolves into the panel.
 const GROW_DISSOLVES: f32 = 0.75;
 /// How quickly a view shrinking back turns into a card again.
 const GROW_SOLIDIFIES: f32 = 0.12;
-/// How much of the growing the card it grew out of takes to fade, its own words handing over to the view's.
-const GROW_CARD: f32 = 0.3;
+/// How much of the growing the card it grew out of takes to hand over to the surface growing
+/// from it: soon, so the card itself is seen to grow.
+const GROW_CARD: f32 = 0.1;
 /// The card a view grows as, under what it holds.
 pub const GROW_SHEET: &str = "grow-sheet";
 
@@ -64,17 +64,28 @@ fn union(a: [f32; 4], b: [f32; 4]) -> [f32; 4] {
     [left, top, right - left, bottom - top]
 }
 
+/// Where the two overlap, if they do.
+fn intersection(a: [f32; 4], b: [f32; 4]) -> Option<[f32; 4]> {
+    let (left, top) = (a[0].max(b[0]), a[1].max(b[1]));
+    let (right, bottom) = (
+        (a[0] + a[2]).min(b[0] + b[2]),
+        (a[1] + a[3]).min(b[1] + b[3]),
+    );
+    (right > left && bottom > top).then(|| [left, top, right - left, bottom - top])
+}
+
 /// `sprite` moved and scaled by `by` so what was at `from`'s top left is at `to`'s.
 fn carried(sprite: Sprite, from: [f32; 4], to: [f32; 4], by: f32) -> Sprite {
     super::stand::folded(sprite.moved(-from[0], -from[1]), (0.0, 0.0), (by, by), 0.0)
         .moved(to[0], to[1])
 }
 
-/// A view growing out of a part of the one it replaces, or shrinking back into it, as that part
-/// itself would: its surface stretches from the part to the whole, what it holds is carried inside
-/// it at its scale, the part it left stays hidden under it, and the view behind sinks back and
-/// fades. `own` are the panel's sprites before any lie over its edge.
-pub fn grow_sprites(built: &Built, own: &mut [Sprite]) {
+/// A view growing out of a part of the one it replaces, or shrinking back into it, as a camera
+/// moving into that part: its surface stretches from the part to the whole, the view behind grows
+/// with it so the rest passes out over the edges as it fades, the part's own words grow and hand
+/// over to what the view holds, which grows from the part's size to its own. It grows only as far as `shown`, the part of the panel the island shows as it changes
+/// size. `own` are the panel's sprites before any lie over its edge.
+pub fn grow_sprites(built: &Built, shown: [f32; 4], own: &mut [Sprite]) {
     let Some((grow, at)) = &built.grow else {
         return;
     };
@@ -117,21 +128,53 @@ pub fn grow_sprites(built: &Built, own: &mut [Sprite]) {
     } else {
         (coming, leaving, at)
     };
-    let shape = mixed(part, whole, open);
-    let scale = (shape[2] / whole[2].max(1.0)).clamp(0.01, 1.0);
-    let shows = smoothstep((open - GROW_SHOWS.0) / GROW_SHOWS.1);
-    let middle = (whole[0] + whole[2] / 2.0, whole[1] + whole[3] / 2.0);
-    let sink = 1.0 - GROW_SINK * open;
-    let gone = 1.0 - smoothstep(open / if grow.back { GROW_RETURNS } else { GROW_GONE });
+    let inset = whole[0].min(whole[1]).max(0.0);
+    let room = [
+        shown[0] + inset,
+        shown[1] + whole[1],
+        shown[2] - 2.0 * inset,
+        shown[3] - whole[1] - inset,
+    ];
+    let target = intersection(whole, room).unwrap_or(whole);
+    let room_clip = [
+        shown[0],
+        shown[1],
+        shown[0] + shown[2],
+        shown[1] + shown[3],
+    ];
+    let full = (target[2] / part[2].max(1.0)).max(1.0);
+    let even = if full > 1.001 {
+        (full.powf(open) - 1.0) / (full - 1.0)
+    } else {
+        open
+    };
+    let shape = mixed(part, target, even);
+    let (centre_x, centre_y) = (shape[0] + shape[2] / 2.0, shape[1] + shape[3] / 2.0);
+    let through = |(from, length): (f32, f32)| smoothstep((even - from) / length);
+    // As a camera moving into the card: the view behind grows with it about its middle, as far
+    // as the card has grown across, so what lay around it passes out over the edges.
+    let zoom = (shape[2] / part[2].max(1.0)).max(1.0);
+    let camera = [
+        centre_x - part[2] * zoom / 2.0,
+        centre_y - part[3] * zoom / 2.0,
+        part[2] * zoom,
+        part[3] * zoom,
+    ];
+    let gone = 1.0 - through(GROW_GONE);
     for sprite in &mut own[within(behind)] {
-        *sprite = super::stand::folded(*sprite, middle, (sink, sink), 0.0).faded(gone);
+        *sprite = carried(*sprite, part, camera, zoom)
+            .within(room_clip)
+            .faded(gone);
     }
     let near_card = smoothstep(open / GROW_CARD);
     if let Some(&card) = built.anchored.get(&grow.anchor) {
+        let handed = 1.0 - through(GROW_HANDS_OVER);
         for sprite in &mut own[within(card)] {
-            *sprite = sprite.faded(1.0 - near_card);
+            *sprite = sprite.faded((handed / gone.max(0.001)).min(1.0));
         }
     }
+    let scale = (shape[2] / target[2].max(1.0)).clamp(0.01, 1.0);
+    let shows = through(GROW_SHOWS);
     let grower = within(grower);
     let layers = built
         .anchored
@@ -148,8 +191,14 @@ pub fn grow_sprites(built: &Built, own: &mut [Sprite]) {
         *sprite = sprite.faded(solid);
     }
     let clip = [shape[0], shape[1], shape[0] + shape[2], shape[1] + shape[3]];
+    let held = [
+        centre_x - whole[2] * scale / 2.0,
+        centre_y - whole[3] * scale / 2.0,
+        whole[2] * scale,
+        whole[3] * scale,
+    ];
     for sprite in &mut own[layers.end.max(grower.start)..grower.end] {
-        *sprite = carried(*sprite, whole, shape, scale)
+        *sprite = carried(*sprite, whole, held, scale)
             .within(clip)
             .faded(shows);
     }
@@ -847,7 +896,8 @@ pub fn chart_sprites(chart: &Chart, phase: f32, pixel: f32, out: &mut Vec<Sprite
 }
 
 /// `gone` is the share of its time since it last changed. Relative to the panel. A soft glow along
-/// the frame's bottom edge, the same on every frame however tall.
+/// the frame's bottom edge, the same on every frame however tall, fading as it runs out so its last
+/// stretch never lingers as a blot.
 pub fn countdown_sprites(countdown: &Countdown, gone: f32, out: &mut Vec<Sprite>) {
     const SIGMA: f32 = 16.0;
     const THICK: f32 = 30.0;
@@ -855,6 +905,8 @@ pub fn countdown_sprites(countdown: &Countdown, gone: f32, out: &mut Vec<Sprite>
     const START: f32 = 10.0;
     const END: f32 = 28.0;
     const ALPHA: u8 = 0x8c;
+    /// Shorter than this, the bar fades as it goes, so its blur never shows as a blot.
+    const FADE_FROM: f32 = 2.0 * THICK;
     let [x, y, w, h] = countdown.rect;
     let left = countdown.left * (1.0 - gone.clamp(0.0, 1.0));
     let length = (w - START - END) * left;
@@ -869,7 +921,7 @@ pub fn countdown_sprites(countdown: &Countdown, gone: f32, out: &mut Vec<Sprite>
             SIGMA,
         )
         .within([x, y, x + w, y + h])
-        .faded(countdown.opacity),
+        .faded(countdown.opacity * (length / FADE_FROM).min(1.0)),
     );
 }
 

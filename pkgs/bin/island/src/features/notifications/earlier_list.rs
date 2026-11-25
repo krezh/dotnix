@@ -5,17 +5,11 @@ use chrono::{Local, NaiveDate};
 use super::{
     card,
     history::Earlier,
-    missed_list::{ENTER_DRIFT, LEAVE_STAGGER, STAGGERED, sliding},
+    rows::{self, Kind, Place, Rows},
 };
-use crate::{
-    components::{measure::Measure, stack},
-    spring::Spring,
-    stage::{CONTENT_IN, CONTENT_OUT, SHAPE_SPRING},
-};
+use crate::components::{measure::Measure, stack};
 
 pub const DAY_H: f32 = 22.0;
-/// How tall the list can be before it scrolls, as the missed list.
-const MAX_VISIBLE_H: f32 = 480.0;
 
 #[derive(Clone)]
 pub enum Entry {
@@ -25,109 +19,57 @@ pub enum Entry {
 }
 
 #[derive(Clone, PartialEq, Eq)]
-enum Key {
+pub enum Key {
     Day(NaiveDate),
     Card((i64, u32)),
-}
-
-impl Entry {
-    fn key(&self) -> Key {
-        match self {
-            Entry::Day(day) => Key::Day(*day),
-            Entry::Card(kept) => Key::Card(kept.key()),
-        }
-    }
 }
 
 pub fn day_of(kept: &Earlier) -> NaiveDate {
     chrono::DateTime::<Local>::from(kept.notification.received).date_naive()
 }
 
-pub struct Row {
-    pub entry: Entry,
-    pub y: Spring,
-    /// 1 while it stays; as it leaves, it slides out by halfway to 0 and the room it took closes.
-    pub fold: Spring,
-    pub alpha: Spring,
-    pub leaving: bool,
-    height: f32,
-    room: f32,
-}
+pub enum Days {}
 
-impl Row {
-    pub fn height(&self) -> f32 {
-        self.height
-    }
+impl Kind for Days {
+    type Body = Entry;
+    type Key = Key;
+    type Place = ();
+    type Extra = ();
 
-    /// How far it has slid out, 0 to 1.
-    pub fn out(&self) -> f32 {
-        if self.leaving {
-            sliding(self.fold.value())
-        } else {
-            0.0
+    /// As the missed list.
+    const MAX_VISIBLE_H: f32 = 480.0;
+
+    fn key(entry: &Entry) -> Key {
+        match entry {
+            Entry::Day(day) => Key::Day(*day),
+            Entry::Card(kept) => Key::Card(kept.key()),
         }
     }
 
-    fn folding(&self) -> f32 {
-        if self.leaving {
-            self.room * (self.fold.value() * 2.0).clamp(0.0, 1.0)
-        } else {
-            0.0
-        }
-    }
+    fn enter(_: &(), _: bool, _: Instant) {}
+
+    fn assign(_: &mut rows::Row<Self>, _: ()) {}
 }
 
 /// Earlier notifications by day, newest first, each day under its heading; one dismissed slides
 /// out, then those below rise into its place.
 #[derive(Default)]
 pub struct EarlierList {
-    rows: Vec<Row>,
-    height: f32,
+    rows: Rows<Days>,
     items: Vec<Earlier>,
     /// How many lines each one's text takes, once measured.
     lines: HashMap<(i64, u32), usize>,
-    /// Laying out another set in place of this one, as [`Self::swap`] does.
-    swapping: bool,
+}
+
+impl std::ops::Deref for EarlierList {
+    type Target = Rows<Days>;
+
+    fn deref(&self) -> &Rows<Days> {
+        &self.rows
+    }
 }
 
 impl EarlierList {
-    pub fn rows(&self) -> &[Row] {
-        &self.rows
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.rows.iter().all(|row| row.leaving)
-    }
-
-    pub fn visible_height(&self) -> f32 {
-        self.full_height().min(MAX_VISIBLE_H)
-    }
-
-    /// How tall it all is where the rows are going, with the room those leaving still take.
-    pub fn full_height(&self) -> f32 {
-        self.height + self.rows.iter().map(Row::folding).sum::<f32>()
-    }
-
-    pub fn drawn_y(&self) -> Vec<f32> {
-        let mut above = 0.0;
-        self.rows
-            .iter()
-            .map(|row| {
-                let y = row.y.value() + above;
-                above += row.folding();
-                y
-            })
-            .collect()
-    }
-
-    pub fn extent(&self) -> f32 {
-        self.rows
-            .iter()
-            .zip(self.drawn_y())
-            .map(|(row, y)| y.max(row.y.target()) + row.height())
-            .fold(self.height, f32::max)
-    }
-
     pub fn sync(&mut self, items: Vec<Earlier>, animate: bool, reveal_at: Instant) {
         self.lines
             .retain(|key, _| items.iter().any(|kept| kept.key() == *key));
@@ -138,9 +80,9 @@ impl EarlierList {
     /// Shows `items` in place of what it shows now, such as another source's: rows in both slide
     /// to their new places, and the rest fade where they are, together, giving their room at once.
     pub fn swap(&mut self, items: Vec<Earlier>, now: Instant) {
-        self.swapping = true;
+        self.rows.swapping = true;
         self.sync(items, true, now);
-        self.swapping = false;
+        self.rows.swapping = false;
     }
 
     /// True when any one's text changed its height.
@@ -164,14 +106,20 @@ impl EarlierList {
         measured
     }
 
-    fn placements(&self) -> (Vec<(Entry, f32, f32)>, f32) {
+    fn layout(&mut self, animate: bool, reveal_at: Instant) {
         let mut placed = Vec::new();
         let mut y = 0.0;
         let mut day = None;
         for kept in &self.items {
             let this = day_of(kept);
             if day != Some(this) {
-                placed.push((Entry::Day(this), y, DAY_H));
+                placed.push(Place {
+                    body: Entry::Day(this),
+                    y,
+                    height: DAY_H,
+                    room: DAY_H,
+                    extra: (),
+                });
                 y += DAY_H;
                 day = Some(this);
             }
@@ -179,133 +127,21 @@ impl EarlierList {
                 &kept.notification,
                 self.lines.get(&kept.key()).copied().unwrap_or(1),
             );
-            placed.push((Entry::Card(kept.clone()), y, height));
+            placed.push(Place {
+                body: Entry::Card(kept.clone()),
+                y,
+                height,
+                room: height + stack::GAP,
+                extra: (),
+            });
             y += height + stack::GAP;
         }
-        (placed, (y - stack::GAP).max(0.0))
-    }
-
-    fn layout(&mut self, animate: bool, reveal_at: Instant) {
-        let (motion, fade_in) = (SHAPE_SPRING, CONTENT_IN);
-        let (placed, height) = self.placements();
-        let now = Instant::now();
-        let swapping = self.swapping;
-        let mut left = 0;
-        for index in 0..self.rows.len() {
-            let row = &mut self.rows[index];
-            if row.leaving
-                || placed
-                    .iter()
-                    .any(|(entry, ..)| entry.key() == row.entry.key())
-            {
-                continue;
-            }
-            row.leaving = true;
-            if swapping {
-                row.room = 0.0;
-                row.fold.retarget(0.0, CONTENT_OUT);
-                continue;
-            }
-            if animate {
-                row.fold
-                    .retarget_at(0.0, card::FOLD, now + LEAVE_STAGGER * left.min(STAGGERED));
-                left += 1;
-                let room = row.room;
-                for below in &mut self.rows[index + 1..] {
-                    below.y.shift(-room);
-                }
-            } else {
-                row.fold.reset(0.0);
-            }
-        }
-
-        let mut old: Vec<Option<Row>> = std::mem::take(&mut self.rows)
-            .into_iter()
-            .map(Some)
-            .collect();
-        let keep_leaving = |rows: &mut [Option<Row>], next: &mut Vec<Row>| {
-            for slot in rows {
-                if slot.as_ref().is_some_and(|row| row.leaving)
-                    && let Some(row) = slot.take()
-                    && !row.fold.is_settled()
-                {
-                    next.push(row);
-                }
-            }
-        };
-        let mut next = Vec::with_capacity(placed.len());
-        for (entry, y, height) in placed {
-            let key = entry.key();
-            let room = match entry {
-                Entry::Day(_) => DAY_H,
-                Entry::Card(_) => height + stack::GAP,
-            };
-            let existing = old.iter().position(|slot| {
-                slot.as_ref()
-                    .is_some_and(|row| !row.leaving && row.entry.key() == key)
-            });
-            let fresh = existing.is_none();
-            let mut row = match existing.and_then(|index| {
-                keep_leaving(&mut old[..index], &mut next);
-                old[index].take()
-            }) {
-                Some(row) => row,
-                None => {
-                    let mut row = Row {
-                        entry: entry.clone(),
-                        y: Spring::new(y - ENTER_DRIFT, motion, 0.1),
-                        fold: Spring::new(1.0, card::FOLD, 0.001),
-                        alpha: Spring::new(0.0, fade_in, 0.002),
-                        leaving: false,
-                        height,
-                        room,
-                    };
-                    if animate {
-                        row.alpha.retarget_at(1.0, fade_in, reveal_at);
-                    } else {
-                        row.y.reset(y);
-                        row.alpha.reset(1.0);
-                    }
-                    row
-                }
-            };
-            // From far out of sight, it rises in where it goes rather than sweeping across the list.
-            if swapping && !fresh && (row.y.value() - y).abs() > MAX_VISIBLE_H {
-                row.y.reset(y - ENTER_DRIFT);
-                row.alpha.reset(0.0);
-                row.alpha.retarget(1.0, fade_in);
-            }
-            row.entry = entry;
-            row.height = height;
-            row.room = room;
-            if animate && fresh {
-                row.y.retarget_at(y, motion, reveal_at);
-            } else if animate {
-                row.y.retarget(y, motion);
-            } else {
-                row.y.reset(y);
-            }
-            next.push(row);
-        }
-        keep_leaving(&mut old, &mut next);
-        self.height = height;
-        self.rows = next;
+        self.rows
+            .layout(placed, (y - stack::GAP).max(0.0), animate, reveal_at);
     }
 
     pub fn advance(&mut self, dt: f32, now: Instant) {
-        for row in &mut self.rows {
-            row.y.advance(dt, now);
-            row.fold.advance(dt, now);
-            row.alpha.advance(dt, now);
-        }
-        self.rows
-            .retain(|row| !(row.leaving && row.fold.is_settled()));
-    }
-
-    pub fn is_settled(&self) -> bool {
-        self.rows
-            .iter()
-            .all(|row| row.y.is_settled() && row.fold.is_settled() && row.alpha.is_settled())
+        self.rows.advance(dt, now);
     }
 }
 

@@ -149,6 +149,7 @@ impl Session {
             ..IconButton::text("Force quit", false, p.call::<Self>(Self::force))
         };
         let buttons = Block::Buttons(ButtonRow {
+            lead: None,
             buttons: if failed {
                 vec![cancel]
             } else {

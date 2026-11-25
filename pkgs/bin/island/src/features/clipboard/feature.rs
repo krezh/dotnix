@@ -1,10 +1,11 @@
 //! How island sees the clipboard: its history, the widget, the picker panel and its keys, and
 //! `island ctl clipboard clear`.
 
-use super::{commands, panel, runtime, runtime::Clipboard, settings, state::State, widget};
+use super::{
+    commands, panel, picker::Picker, runtime, runtime::Clipboard, settings, state::State, widget,
+};
 use crate::bar_widget::BarWidget;
 use crate::{
-    components::list::Selection,
     control::{Command, Report},
     features::{Feature, Feed, GlyphSpec, Outcome, PanelCx, Surface, WidgetCx},
     key::Key,
@@ -37,15 +38,24 @@ impl Surface for Clipboard {
     const GLYPHS: &'static [GlyphSpec] = &[
         ("clipboard", &["clipboard"]),
         ("clipboard-text", &["file-text"]),
+        ("clipboard-link", &["link"]),
+        ("clipboard-code", &["code"]),
+        ("clipboard-color", &["palette"]),
         ("clipboard-image", &["image"]),
         ("clipboard-files", &["folder"]),
+        ("clipboard-search", &["search"]),
+        ("clipboard-site", &["globe"]),
+        ("clipboard-paste", &["clipboard-paste"]),
+        ("clipboard-copy", &["copy"]),
+        ("clipboard-pin", &["pin"]),
+        ("clipboard-forget", &["trash-2"]),
     ];
 
     const PANEL: Option<&'static str> = Some("clipboard");
 
     const KEYBOARD: bool = true;
 
-    type Local = Selection;
+    type Local = Picker;
 
     fn widget(&self, _: &str, _: &State, w: &mut WidgetCx<'_>) -> Option<BarWidget> {
         widget::widget(w)
@@ -55,7 +65,7 @@ impl Surface for Clipboard {
         panel::panel(state, p)
     }
 
-    fn key(&self, state: &State, picker: &mut Selection, keystroke: &Key) -> Outcome {
+    fn key(&self, state: &State, picker: &mut Picker, keystroke: &Key) -> Outcome {
         self.handle_key(state, picker, keystroke)
     }
 }

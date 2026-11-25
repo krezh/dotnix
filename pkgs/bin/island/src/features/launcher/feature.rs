@@ -9,7 +9,7 @@ use super::{
     state::{Apps, Local},
 };
 use crate::{
-    features::{Feature, Feed, IslandInfo, Outcome, PanelCx, Surface},
+    features::{Feature, Feed, GlyphSpec, IslandInfo, Outcome, PanelCx, Surface},
     key::Key,
     panel::PanelView,
 };
@@ -31,6 +31,8 @@ impl Feature for Launcher {
 }
 
 impl Surface for Launcher {
+    const GLYPHS: &'static [GlyphSpec] = &[("launcher-search", &["search"])];
+
     const PANEL: Option<&'static str> = Some("launcher");
 
     const KEYBOARD: bool = true;

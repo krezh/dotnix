@@ -5,7 +5,7 @@
 //! monitor's level is as island last read or set it.
 
 use std::{
-    cmp, fs,
+    fs,
     os::unix::{fs::MetadataExt, io::AsRawFd},
     path::{Path, PathBuf},
     thread,
@@ -15,9 +15,11 @@ use std::{
 use tracing::warn;
 use zbus::{Connection, block_on};
 
-use crate::dbus::uncached;
+use crate::{dbus::uncached, logind, sys::read_u64};
 
 const BRIGHTNESS: u8 = 0x10;
+/// The pause DDC/CI wants between commands.
+const COMMAND_GAP: Duration = Duration::from_millis(50);
 
 /// An EDID's base block, which tells monitors apart.
 const EDID_BLOCK: usize = 128;
@@ -33,9 +35,14 @@ pub(super) struct Screen {
     output: Output,
 }
 
+/// Each with the maximum it reported when found, so setting it needs no read.
 enum Output {
-    Backlight(PathBuf),
-    /// With the maximum it reported when found, so setting it needs no read.
+    Backlight {
+        device: PathBuf,
+        maximum: u32,
+        /// Kept between changes; dropped when a call on it fails.
+        bus: Option<Connection>,
+    },
     Ddc {
         display: DdcDevice,
         maximum: u16,
@@ -45,7 +52,9 @@ enum Output {
 impl Screen {
     pub(super) fn read(&mut self) -> Option<f32> {
         match &mut self.output {
-            Output::Backlight(device) => backlight_level(device),
+            Output::Backlight {
+                device, maximum, ..
+            } => backlight_level(device, *maximum),
             Output::Ddc { display, maximum } => match display.get_brightness() {
                 Some((value, _)) => Some(f32::from(value) / f32::from(*maximum)),
                 None => {
@@ -59,9 +68,13 @@ impl Screen {
     /// The level it was left at: a backlight's is read back, so its own change event matches it.
     pub(super) fn write(&mut self, level: f32) -> Option<f32> {
         match &mut self.output {
-            Output::Backlight(device) => {
-                set_backlight(device, level)?;
-                backlight_level(device).or(Some(level))
+            Output::Backlight {
+                device,
+                maximum,
+                bus,
+            } => {
+                set_backlight(device, *maximum, bus, level)?;
+                backlight_level(device, *maximum).or(Some(level))
             }
             Output::Ddc { display, maximum } => {
                 let target = (level.clamp(0.0, 1.0) * f32::from(*maximum)).round() as u16;
@@ -77,7 +90,7 @@ impl Screen {
     }
 
     pub(super) fn is_backlight(&self) -> bool {
-        matches!(self.output, Output::Backlight(_))
+        matches!(self.output, Output::Backlight { .. })
     }
 }
 
@@ -90,8 +103,15 @@ pub(super) fn find() -> Vec<Screen> {
         .collect()
 }
 
-/// Each connected connector's name and EDID.
-fn connectors() -> Vec<(String, Vec<u8>)> {
+pub(super) struct Connector {
+    pub(super) name: String,
+    pub(super) edid: Vec<u8>,
+    /// The i2c adapter its monitor answers DDC/CI on, such as `i2c-5`, when the driver says.
+    pub(super) adapter: Option<String>,
+}
+
+/// Each connected connector.
+fn connectors() -> Vec<Connector> {
     let Ok(entries) = fs::read_dir("/sys/class/drm") else {
         return Vec::new();
     };
@@ -102,7 +122,13 @@ fn connectors() -> Vec<(String, Vec<u8>)> {
             let path = entry.path();
             let connected = fs::read_to_string(path.join("status"))
                 .is_ok_and(|status| status.trim() == "connected");
-            connected.then(|| (name, fs::read(path.join("edid")).unwrap_or_default()))
+            connected.then(|| Connector {
+                name,
+                edid: fs::read(path.join("edid")).unwrap_or_default(),
+                adapter: fs::read_link(path.join("ddc"))
+                    .ok()
+                    .and_then(|link| Some(link.file_name()?.to_string_lossy().into_owned())),
+            })
         })
         .collect()
 }
@@ -113,16 +139,30 @@ pub(super) fn connector_name(entry: &str) -> Option<String> {
     card.starts_with("card").then(|| name.to_owned())
 }
 
-/// The connector showing the monitor with `edid`.
-pub(super) fn connector_for(connectors: &[(String, Vec<u8>)], edid: &[u8]) -> Option<String> {
+/// The connector showing the monitor on i2c `adapter` with `edid`: the one whose DDC link is that
+/// adapter, or else the first not yet `taken` with the same EDID base block, since identical
+/// monitors without a serial share it.
+pub(super) fn connector_for(
+    connectors: &[Connector],
+    adapter: &str,
+    edid: &[u8],
+    taken: &[String],
+) -> Option<String> {
+    if let Some(linked) = connectors
+        .iter()
+        .find(|connector| connector.adapter.as_deref() == Some(adapter))
+    {
+        return Some(linked.name.clone());
+    }
     let base = edid.get(..EDID_BLOCK)?;
     connectors
         .iter()
-        .find(|(_, theirs)| theirs.get(..EDID_BLOCK) == Some(base))
-        .map(|(name, _)| name.clone())
+        .filter(|connector| !taken.contains(&connector.name))
+        .find(|connector| connector.edid.get(..EDID_BLOCK) == Some(base))
+        .map(|connector| connector.name.clone())
 }
 
-fn backlight(connectors: &[(String, Vec<u8>)]) -> Option<Screen> {
+fn backlight(connectors: &[Connector]) -> Option<Screen> {
     let device = fs::read_dir("/sys/class/backlight")
         .ok()?
         .flatten()
@@ -135,22 +175,28 @@ fn backlight(connectors: &[(String, Vec<u8>)]) -> Option<Screen> {
         .or_else(|| {
             connectors
                 .iter()
-                .map(|(name, _)| name)
+                .map(|connector| &connector.name)
                 .find(|name| name.starts_with("eDP") || name.starts_with("LVDS"))
                 .cloned()
         })
         .or_else(|| Some(device.file_name()?.to_string_lossy().into_owned()))?;
+    let maximum = read_number(&device.join("max_brightness")).filter(|max| *max > 0)?;
     Some(Screen {
         name,
         model: "Built-in display".to_owned(),
-        output: Output::Backlight(device),
+        output: Output::Backlight {
+            device,
+            maximum,
+            bus: None,
+        },
     })
 }
 
-fn monitors(connectors: &[(String, Vec<u8>)]) -> Vec<Screen> {
+fn monitors(connectors: &[Connector]) -> Vec<Screen> {
     let Ok(entries) = fs::read_dir("/sys/class/i2c-dev") else {
         return Vec::new();
     };
+    let mut taken = Vec::new();
     entries
         .flatten()
         .filter_map(|entry| {
@@ -167,10 +213,7 @@ fn monitors(connectors: &[(String, Vec<u8>)]) -> Vec<Screen> {
                 .ok()?;
             let id = file.metadata().map_or(0, |meta| meta.rdev()).to_string();
             let mut display = DdcDevice::new(file);
-            let mut edid = vec![0; 2 * EDID_BLOCK];
-            if display.read_edid(&mut edid).is_none() {
-                return None;
-            }
+            let edid = display.read_edid()?;
             let maximum = match display.get_brightness() {
                 Some((_, max)) if max > 0 => max,
                 Some(_) => return None,
@@ -179,8 +222,16 @@ fn monitors(connectors: &[(String, Vec<u8>)]) -> Vec<Screen> {
                     return None;
                 }
             };
+            let adapter = entry.file_name().to_string_lossy().into_owned();
+            let name = match connector_for(connectors, &adapter, &edid, &taken) {
+                Some(name) => {
+                    taken.push(name.clone());
+                    name
+                }
+                None => id,
+            };
             Some(Screen {
-                name: connector_for(connectors, &edid).unwrap_or(id),
+                name,
                 model: model_name(&edid).unwrap_or_default(),
                 output: Output::Ddc { display, maximum },
             })
@@ -221,24 +272,26 @@ impl DdcDevice {
     }
 
     fn wait_before_command(&mut self) {
-        if let Some(last) = self.last_command {
-            let elapsed = last.elapsed();
-            if elapsed < Duration::from_millis(50) {
-                thread::sleep(Duration::from_millis(50) - elapsed);
-            }
+        if let Some(rest) = self
+            .last_command
+            .and_then(|last| COMMAND_GAP.checked_sub(last.elapsed()))
+        {
+            thread::sleep(rest);
         }
     }
 
-    fn read_edid(&mut self, edid: &mut [u8]) -> Option<()> {
-        let first_len = cmp::min(EDID_BLOCK, edid.len());
-        self.transfer_edid(0, &mut edid[..first_len])?;
-        if edid.len() < 8 || edid[..8] != [0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x00] {
+    /// The base block and, when the monitor has one, the first extension block.
+    fn read_edid(&mut self) -> Option<[u8; 2 * EDID_BLOCK]> {
+        let mut edid = [0; 2 * EDID_BLOCK];
+        let (base, extension) = edid.split_at_mut(EDID_BLOCK);
+        self.transfer_edid(0, base)?;
+        if base[..8] != [0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x00] {
             return None;
         }
-        if edid.len() >= 2 * EDID_BLOCK && edid.get(126).copied().unwrap_or(0) > 0 {
-            let _ = self.transfer_edid(EDID_BLOCK as u8, &mut edid[EDID_BLOCK..2 * EDID_BLOCK]);
+        if base[126] > 0 {
+            let _ = self.transfer_edid(EDID_BLOCK as u8, extension);
         }
-        Some(())
+        Some(edid)
     }
 
     fn transfer(&self, msgs: &mut [I2cMsg]) -> Option<()> {
@@ -330,35 +383,43 @@ pub(super) fn model_name(edid: &[u8]) -> Option<String> {
 }
 
 fn read_number(path: &Path) -> Option<u32> {
-    fs::read_to_string(path).ok()?.trim().parse().ok()
+    read_u64(path)?.try_into().ok()
 }
 
-fn backlight_level(device: &Path) -> Option<f32> {
-    let current = read_number(&device.join("brightness"))? as f32;
-    let max = read_number(&device.join("max_brightness"))? as f32;
-    (max > 0.0).then(|| current / max)
+fn backlight_level(device: &Path, maximum: u32) -> Option<f32> {
+    let current = read_number(&device.join("brightness"))?;
+    Some(current as f32 / maximum as f32)
 }
 
-fn set_backlight(device: &Path, level: f32) -> Option<()> {
-    let max = read_number(&device.join("max_brightness"))?;
-    let value = (level.clamp(0.01, 1.0) * max as f32).round() as u32;
+fn set_backlight(
+    device: &Path,
+    maximum: u32,
+    bus: &mut Option<Connection>,
+    level: f32,
+) -> Option<()> {
+    let value = (level.clamp(0.01, 1.0) * maximum as f32).round() as u32;
     let name = device.file_name()?.to_string_lossy().into_owned();
-    block_on(async {
-        let connection = Connection::system().await.ok()?;
-        let session = uncached(
+    let set = block_on(async {
+        if bus.is_none() {
+            *bus = Some(Connection::system().await.ok()?);
+        }
+        let connection = bus.clone()?;
+        uncached(
             &connection,
-            "org.freedesktop.login1",
-            "/org/freedesktop/login1/session/auto",
-            "org.freedesktop.login1.Session",
+            logind::NAME,
+            logind::SESSION_PATH,
+            logind::SESSION,
         )
         .await
-        .ok()?;
-        session
-            .call_method("SetBrightness", &("backlight", name.as_str(), value))
-            .await
-            .ok()?;
-        Some(())
-    })
+        .ok()?
+        .call_method("SetBrightness", &("backlight", name.as_str(), value))
+        .await
+        .ok()
+    });
+    if set.is_none() {
+        *bus = None;
+    }
+    set.map(drop)
 }
 
 #[cfg(test)]

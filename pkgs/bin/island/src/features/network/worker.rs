@@ -23,7 +23,7 @@ use zbus::{Connection, MatchRule, MessageStream, OwnedObjectPath, block_on};
 use super::{
     kernel::{self, Counters},
     nm::{self, ETHERNET, Saved, Snapshot, WIFI},
-    runtime::{Probes, Request, Settings, Watched},
+    runtime::{Probes, Request, Settings},
     state::{
         AccessPoint, Activity, Interface, Internet, Joining, Link, LinkKind, Signal, State, Vpn,
         Wifi, Wired,
@@ -34,7 +34,7 @@ use crate::{
     components::card::SLOTS,
     features::Feed,
     supervisor::{self, Ended},
-    sync::lock,
+    sync::{Watchers, lock},
     time,
 };
 
@@ -749,10 +749,8 @@ impl World {
 
 /// NetworkManager gives LastScan in milliseconds of CLOCK_BOOTTIME.
 fn boot_ms_to_unix(boot_ms: i64) -> i64 {
-    let uptime_ms = std::fs::read_to_string("/proc/uptime")
-        .ok()
-        .and_then(|text| text.split_whitespace().next()?.parse::<f64>().ok())
-        .map_or(0, |seconds| (seconds * 1000.0) as i64);
+    let uptime_ms = crate::sys::uptime()
+        .map_or(0, |up| i64::try_from(up.as_millis()).unwrap_or(i64::MAX));
     time::now_ms() - uptime_ms + boot_ms
 }
 
@@ -776,7 +774,7 @@ pub(super) fn run(
     feed: &Feed<State>,
     requests: &Mutex<UnboundedReceiver<Request>>,
     sender: &UnboundedSender<Request>,
-    watched: &Watched,
+    watched: &Watchers,
     probes: &Mutex<Probes>,
     settings: &Settings,
 ) -> Ended {

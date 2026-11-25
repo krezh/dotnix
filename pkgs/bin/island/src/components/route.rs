@@ -1,5 +1,6 @@
-//! Something on its way through a series of stops, each reached, on its way, or not yet, such as a
-//! pull request through the branches it lands in, or a task through its steps, one to a line.
+//! Something on its way through a series of stops, each reached, on its way, not yet, or where it
+//! failed, such as a pull request through the branches it lands in, or a task through its steps,
+//! one to a line or across a header.
 
 use crate::panel::SharedString;
 
@@ -9,6 +10,8 @@ pub enum StopState {
     /// On its way, with how far it has to go, such as "+63".
     Pending(Option<SharedString>),
     NotYet,
+    /// Stopped there, such as a build that failed.
+    Failed,
 }
 
 pub struct Stop {

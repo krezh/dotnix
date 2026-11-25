@@ -32,6 +32,7 @@ fn frame(id: String, look: Look, on_click: Option<crate::panel::Handler>) -> Fra
         selected: false,
         motion: Motion::Appear,
         shown_height: None,
+        min_height: None,
     }
 }
 
@@ -137,6 +138,7 @@ fn connected(device: &Device, open: bool, now: i64, subsec: Duration, p: &PanelC
                 ],
             ),
             Block::Buttons(ButtonRow {
+                lead: None,
                 fill: false,
                 buttons: vec![IconButton::text(
                     "Disconnect",
@@ -267,6 +269,8 @@ fn buttons(state: &State, now: i64, subsec: Duration, p: &PanelCx<'_>) -> Vec<Ic
         .into(),
         active: state.powered,
         badge: None,
+        enabled: true,
+        busy: false,
         on_click: p.call(|bluetooth: &Bluetooth| bluetooth.send(Request::Power(None))),
     }];
     if !state.powered {
@@ -284,6 +288,8 @@ fn buttons(state: &State, now: i64, subsec: Duration, p: &PanelCx<'_>) -> Vec<Ic
         .into(),
         active: state.discovering,
         badge: (nearby > 0).then(|| nearby.to_string().into()),
+        enabled: true,
+        busy: false,
         on_click: p.call(|bluetooth: &Bluetooth| bluetooth.send(Request::Scan)),
     });
     let left = state.visible_until.map(|until| (until - now).max(0));
@@ -304,6 +310,8 @@ fn buttons(state: &State, now: i64, subsec: Duration, p: &PanelCx<'_>) -> Vec<Ic
             .discoverable
             .then(|| left.map(|left| format!("{}:{:02}", left / 60, left % 60).into()))
             .flatten(),
+        enabled: true,
+        busy: false,
         on_click: p.call(|bluetooth: &Bluetooth| bluetooth.send(Request::Visible)),
     });
     buttons
@@ -323,6 +331,8 @@ fn prompt(state: &State, p: &PanelCx<'_>) -> Option<Block> {
             format!("Type this code on {} and press Enter on it.", asking.device)
         }
         .into(),
+        changes: Vec::new(),
+        busy: false,
         field: None,
         reveal: None,
         code: Some(asking.code.clone().into()),
@@ -355,6 +365,7 @@ pub fn panel(state: &State, p: &PanelCx<'_>) -> PanelView {
         };
     }
     blocks.push(Block::Buttons(ButtonRow {
+        lead: None,
         fill: false,
         buttons: buttons(state, now, subsec, p),
         compact: false,

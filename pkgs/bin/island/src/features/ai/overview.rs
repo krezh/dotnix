@@ -2,7 +2,7 @@ use std::{cmp::Ordering, path::Path};
 
 use super::{
     Ai, format, logos,
-    state::{Credits, Limit, Provider, Severity, Source, State},
+    state::{Credits, Grant, Limit, Provider, Severity, Source, State},
     view::{Account, View},
 };
 use crate::{
@@ -13,7 +13,7 @@ use crate::{
         timeline::{Pin, Side, Span, Timeline},
     },
     features::PanelCx,
-    panel::{Block, SharedString},
+    panel::{Block, Change, PromptView, SharedString},
     theme::{
         BLUE, GREEN, MAUVE, OVERLAY1, OVERLAY2, PEACH, RED, SUBTEXT1, TEXT, YELLOW, app_color,
     },
@@ -571,6 +571,18 @@ fn ledger_entry(
                 .and_then(|credits| credit_chip(credits, now))
         })
         .flatten();
+    let spendable = fresh
+        && provider
+            .credits
+            .as_ref()
+            .is_some_and(|credits| credits.next.is_some());
+    let on_chip = (spendable && chip.is_some()).then(|| {
+        let asked = account.clone();
+        p.on_local::<Ai>(move |ai, view| {
+            ai.unfail();
+            view.resetting = Some(asked.clone());
+        })
+    });
 
     Entry {
         key: account.element_id().into(),
@@ -581,6 +593,7 @@ fn ledger_entry(
         title: provider.name.clone().into(),
         subtitle: subtitle(seen, named_twice).into(),
         chip,
+        on_chip,
         bars,
         folded,
         expanded,
@@ -859,6 +872,68 @@ fn entry_heading(
     parts.join(" · ")
 }
 
+/// What spending `grant` does to each window it clears that the account shows.
+fn reset_changes(grant: &Grant, limits: &[Limit]) -> Vec<Change> {
+    grant
+        .clears
+        .iter()
+        .filter_map(|window| limits.iter().find(|limit| limit.id == *window))
+        .map(|limit| Change {
+            label: short_label(&limit.label, limits).into(),
+            fraction: (limit.used / 100.0).clamp(0.0, 1.0) as f32,
+            color: bar_color(limit, true),
+            from: format::percent(limit.used).into(),
+            to: format::percent(0.0).into(),
+            to_color: GREEN,
+        })
+        .collect()
+}
+
+fn reset_detail(grant: &Grant) -> String {
+    let expiry = grant
+        .expires_at
+        .and_then(format::day)
+        .map(|day| format!("Expires {day} · can't be undone"));
+    format!(
+        "{}\n{}",
+        grant.label,
+        expiry.unwrap_or_else(|| "Can't be undone".to_owned())
+    )
+}
+
+fn reset_prompt(state: &State, view: &View, p: &PanelCx<'_>) -> Option<Block> {
+    let asked = view.resetting.as_ref()?;
+    let provider = state
+        .providers
+        .iter()
+        .find(|provider| asked.matches(provider))?;
+    let grant = provider.credits.as_ref()?.next.as_ref()?;
+    let busy = state.redeem.busy;
+    let id = provider.id.clone();
+    Some(Block::Prompt(PromptView {
+        title: "Use saved reset?".into(),
+        detail: reset_detail(grant).into(),
+        changes: reset_changes(grant, &provider.limits),
+        busy,
+        field: None,
+        reveal: None,
+        code: None,
+        confirm: Some((
+            if busy { "Using…" } else { "Use reset" }.into(),
+            p.call(move |ai: &Ai| ai.redeem(id.clone())),
+        )),
+        error: state
+            .redeem
+            .failed
+            .as_ref()
+            .map(|error| format!("{}.", capitalise(error)).into()),
+        on_cancel: p.on_local::<Ai>(|ai, view| {
+            ai.unfail();
+            view.resetting = None;
+        }),
+    }))
+}
+
 pub(super) fn blocks(ai: &Ai, state: &State, view: &View, p: &PanelCx<'_>, now: i64) -> Vec<Block> {
     let providers = view.ordered(state);
     let mut blocks = Vec::new();
@@ -931,6 +1006,7 @@ pub(super) fn blocks(ai: &Ai, state: &State, view: &View, p: &PanelCx<'_>, now: 
         }
         blocks.push(Block::Card(None, card::Size::Full, issue_blocks));
     }
+    blocks.extend(reset_prompt(state, view, p));
     blocks
 }
 

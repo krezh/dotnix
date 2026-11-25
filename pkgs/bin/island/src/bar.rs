@@ -40,7 +40,6 @@ pub const DIVIDER_ALPHA: u8 = 0x4d;
 
 /// Island's own tabs; each feature's tab glyph comes with the feature's glyphs.
 pub const GLYPHS: &[features::GlyphSpec] = &[
-    ("tab-system", &["cpu"]),
     ("tab-dashboard", &["layout-grid"]),
     ("dashboard-warning", &["triangle-alert"]),
     ("dashboard-battery", &["battery-full"]),
@@ -56,10 +55,7 @@ pub struct Tab {
 /// The dashboard's views follow one another where its tab goes, the overview first.
 pub fn tab_list() -> &'static [Tab] {
     static TABS: LazyLock<Vec<Tab>> = LazyLock::new(|| {
-        let mut views = vec![
-            (Panel::Dashboard, "Dashboard", 0),
-            (Panel::System, "System", 2),
-        ];
+        let mut views = vec![(Panel::Dashboard, "Dashboard", 0)];
         views.extend(
             features::dashboard_tabs()
                 .into_iter()

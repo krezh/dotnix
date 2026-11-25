@@ -1,10 +1,10 @@
 use std::{
     path::PathBuf,
-    time::{Duration, SystemTime, UNIX_EPOCH},
+    time::{Duration, SystemTime},
 };
 
+use super::class::{self, Class};
 use crate::{
-    panel::Preview,
     units::{self, plural},
     uri,
 };
@@ -37,6 +37,7 @@ impl Kind {
 pub(super) struct Entry {
     pub(super) id: i64,
     pub(super) kind: Kind,
+    pub(super) class: Class,
     pub(super) mime: String,
     /// The start of the text, or the files' paths one per line.
     pub(super) text: String,
@@ -46,6 +47,8 @@ pub(super) struct Entry {
     pub(super) dimensions: Option<(u32, u32)>,
     /// Unix seconds it was last copied or picked.
     pub(super) used: i64,
+    /// Kept through clearing and past the limits.
+    pub(super) pinned: bool,
     pub(super) preview: Option<PathBuf>,
 }
 
@@ -66,40 +69,52 @@ impl Entry {
         }
     }
 
+    fn lines(&self) -> usize {
+        self.text.lines().count().max(1)
+    }
+
+    /// What it holds, without when it was copied.
+    fn size_words(&self) -> String {
+        let characters = plural(self.chars, "character", "characters");
+        match self.class {
+            Class::Text if self.lines() > 1 => format!(
+                "{characters} · {}",
+                plural(self.lines() as i64, "line", "lines")
+            ),
+            Class::Code if self.lines() > 1 => format!(
+                "{} · {characters}",
+                plural(self.lines() as i64, "line", "lines")
+            ),
+            Class::Text | Class::Code | Class::Link => characters,
+            Class::Color => class::color(&self.text).map_or(characters, rgb_words),
+            Class::Picture => {
+                let bytes = units::bytes(u64::try_from(self.size).unwrap_or(0));
+                match self.dimensions {
+                    Some((width, height)) => format!("{width}×{height} · {bytes}"),
+                    None => bytes,
+                }
+            }
+            Class::Files => plural(self.text.lines().count() as i64, "file", "files"),
+        }
+    }
+
+    /// Under its name in the list.
     pub(super) fn detail(&self) -> String {
-        let what = match self.kind {
-            Kind::Text => plural(self.chars, "character", "characters"),
-            Kind::Image => match self.dimensions {
-                Some((width, height)) => format!(
-                    "{width}×{height} · {}",
-                    units::bytes(u64::try_from(self.size).unwrap_or(0))
-                ),
-                None => units::bytes(u64::try_from(self.size).unwrap_or(0)),
-            },
-            Kind::Files => plural(self.text.lines().count() as i64, "file", "files"),
+        let what = match self.class {
+            Class::Link => class::site(&self.text).unwrap_or_default().to_owned(),
+            _ => self.size_words(),
         };
         format!("{what} · {}", ago(self.used))
     }
 
-    pub(super) fn preview(&self) -> Preview {
-        match (&self.preview, self.kind) {
-            (Some(picture), Kind::Image | Kind::Files) => Preview::Picture(picture.clone()),
-            (_, Kind::Text | Kind::Files) => Preview::Text(self.text.clone().into()),
-            (None, Kind::Image) => Preview::Empty,
-        }
-    }
-
+    /// Over its preview.
     pub(super) fn about(&self) -> String {
-        match self.kind {
-            Kind::Text => format!(
-                "{} · {} · {}",
-                plural(self.chars, "character", "characters"),
-                plural(self.text.lines().count().max(1) as i64, "line", "lines"),
-                ago(self.used)
-            ),
-            Kind::Image => format!("{} · {}", self.mime, self.detail()),
-            Kind::Files => self.detail(),
-        }
+        let what = match self.class {
+            Class::Picture => format!("{} · {}", self.mime, self.size_words()),
+            _ => self.size_words(),
+        };
+        let pinned = if self.pinned { " · pinned" } else { "" };
+        format!("{what}{pinned} · {}", ago(self.used))
     }
 
     pub(super) fn matches(&self, query: &str) -> bool {
@@ -113,12 +128,17 @@ impl Entry {
     }
 }
 
+fn rgb_words(rgb: u32) -> String {
+    let [_, r, g, b] = rgb.to_be_bytes();
+    format!("rgb({r}, {g}, {b})")
+}
+
 fn ago(at: i64) -> String {
     units::ago(crate::time::now().saturating_sub(at))
 }
 
 fn next_ago(at: i64) -> Duration {
-    let at = UNIX_EPOCH + Duration::from_secs(u64::try_from(at).unwrap_or(0));
+    let at = crate::time::at(at);
     units::next_change(
         units::Label::Ago,
         SystemTime::now().duration_since(at).unwrap_or_default(),

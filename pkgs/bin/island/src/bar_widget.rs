@@ -55,16 +55,31 @@ pub struct Gauge<'a> {
     pub level_color: u32,
 }
 
+/// What a finished [`Part::Ring`] shows inside it.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum RingMark {
+    Done,
+    Failed,
+}
+
 pub enum Part {
     Glyph(PathBuf, u32),
     Picture(Picture, f32),
+    /// How far something has come, as a ring that sweeps on to each new share rather than jumping
+    /// to it; with no share it spins. Its mark fades in once the ring has come round.
+    Ring {
+        share: Option<f32>,
+        color: u32,
+        mark: Option<RingMark>,
+    },
     Meter {
         level: Option<f32>,
         color: u32,
     },
     /// The moving border, while `true`.
     Busy(bool),
-    /// Changes in place when the text does.
+    /// Changes in place when the text does, as wide as it is with its digits at their widest so a
+    /// ticking number does not move what sits beside it.
     Text {
         text: SharedString,
         emphasis: Emphasis,
@@ -84,7 +99,7 @@ pub enum Part {
         color: u32,
         parts: Vec<Part>,
     },
-    /// A count on the part's corner, in the color.
+    /// A count on the part's corner, in the color; with no text, a dot that does not widen it.
     Badged {
         part: Box<Part>,
         badge: Option<(SharedString, u32)>,

@@ -7,6 +7,9 @@ use crate::panel::Handler;
 pub struct CodeLine {
     pub number: Option<u32>,
     pub text: SharedString,
+    /// In a color of its own, the whole line washed faintly in it when `washed`, such as a line a
+    /// diff adds.
+    pub color: Option<(u32, bool)>,
 }
 
 impl CodeLine {
@@ -14,6 +17,7 @@ impl CodeLine {
         Self {
             number: None,
             text: text.into(),
+            color: None,
         }
     }
 }
