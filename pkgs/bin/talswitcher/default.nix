@@ -5,7 +5,7 @@
 (pkgs.buildGoModule.override { go = pkgs.go-bin.latestStable; }) (finalAttrs: {
   pname = "talswitcher";
   # renovate: datasource=github-releases depName=mirceanton/talswitcher
-  version = "2.2.44";
+  version = "2.2.45";
 
   src = pkgs.fetchFromGitHub {
     owner = "mirceanton";
