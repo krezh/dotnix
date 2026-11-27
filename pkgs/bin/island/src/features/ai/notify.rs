@@ -18,6 +18,7 @@ pub(super) fn send(notices: Vec<Notice>) {
         notice::post(Post::Show(notice::Notice {
             critical: notice.critical,
             lead: true,
+            mood: Some(notice.feeling.name().to_owned()),
             ..notice::Notice::new(origin, notice.app, notice.title, notice.body)
         }));
     }

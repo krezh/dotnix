@@ -28,4 +28,7 @@ pub trait Ui {
     );
     /// Changes this island's own part of the feature.
     fn update_local(&mut self, name: &'static str, action: &mut dyn FnMut(&mut dyn AnyLocal));
+    fn move_local(&mut self, name: &'static str, action: &mut dyn FnMut(&mut dyn AnyLocal)) {
+        self.update_local(name, action);
+    }
 }

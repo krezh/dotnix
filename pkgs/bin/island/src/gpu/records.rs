@@ -16,16 +16,17 @@ use crate::{
         ledger::{self, Bar, Columns, Entry, Folded, Ledger},
         prompt::{Change, PromptView},
         table::{Cell, Column, Line, Row, Table, Width},
-        text::Text,
+        text::{Style as TextStyle, Text},
         timeline::{Pin, Side, Span, Timeline},
-        transcript::{Piece, Transcript, Turn},
+        transcript::{Detail, Entry as ListEntry, Piece, Source, Transcript, Turn},
     },
     math::color,
     panel::{Handler, SharedString},
     stage::CONTENT_IN,
     theme::{
         ACCENT, ACCENT_TINT_ALPHA, BASE, CARD_BORDER_ALPHA, CONTROL_ALPHA, CRUST,
-        NOTIFICATION_ALPHA, OVERLAY1, OVERLAY2, RED, SUBTEXT1, SURFACE1, TEXT, TINT, TRACK_ALPHA,
+        NOTIFICATION_ALPHA, OVERLAY0, OVERLAY1, OVERLAY2, RED, SUBTEXT0, SUBTEXT1, SURFACE1, TEXT,
+        TINT, TRACK_ALPHA,
     },
     ui::{CONTROL_H, CONTROL_RADIUS, PANEL_RADIUS, SMALL_SIZE, TEXT_SIZE, TITLE_SIZE},
 };
@@ -198,6 +199,144 @@ fn overline(words: SharedString, tint: u32) -> Node {
         .child(text(words))
 }
 
+const DETAIL_GAP: f32 = 4.0;
+const DETAIL_LINE_SIZE: f32 = 12.0;
+const DETAIL_GLYPH: f32 = 13.0;
+const READING_LINE: f32 = 22.0;
+const ENTRY_GAP: f32 = 5.0;
+const BULLET_W: f32 = 16.0;
+const NUMBER_MARK_W: f32 = 20.0;
+const MARK_GAP: f32 = 4.0;
+const BULLET: f32 = 5.0;
+const QUOTE_RULE: f32 = 2.0;
+const QUOTE_GAP: f32 = 10.0;
+const SOURCE_NUMBER: f32 = 15.0;
+const SOURCE_NUMBER_SIZE: f32 = 10.0;
+const SOURCE_NUMBER_ALPHA: u8 = 0x38;
+
+fn detail_line(detail: Detail) -> Node {
+    div()
+        .flex()
+        .items_center()
+        .gap(6.0)
+        .text_size(DETAIL_LINE_SIZE)
+        .children(
+            detail
+                .glyph
+                .map(|path| glyph(&path, DETAIL_GLYPH, detail.tint)),
+        )
+        .child({
+            let mut line = String::new();
+            let styles = detail
+                .parts
+                .into_iter()
+                .map(|(words, tint)| {
+                    let start = line.len();
+                    line.push_str(&words);
+                    let style = TextStyle {
+                        color: Some(tint),
+                        ..TextStyle::default()
+                    };
+                    (start..line.len(), style)
+                })
+                .collect();
+            div()
+                .flex_1()
+                .min_w(0.0)
+                .child(node::styled(line, styles, Vec::new(), Some(1)))
+        })
+}
+
+/// Each entry's mark in a column of its own, so wrapped lines stay under its words, and entries
+/// further in starting under the words of the one out from them.
+fn list(entries: Vec<ListEntry>) -> Node {
+    div()
+        .col()
+        .gap(ENTRY_GAP)
+        .children(entries.into_iter().map(|entry| {
+            let numbered = entry.number.is_some();
+            let mark_w = if numbered { NUMBER_MARK_W } else { BULLET_W };
+            let mark = match entry.number {
+                Some(number) => div()
+                    .text_size(TEXT_SIZE)
+                    .line(READING_LINE)
+                    .weight(MEDIUM)
+                    .color(OVERLAY2)
+                    .child(text(format!("{number}.")).nowrap()),
+                None => {
+                    let dot = div().size(BULLET).ml(3.0).mt((READING_LINE - BULLET) / 2.0);
+                    if entry.depth == 0 {
+                        dot.bg(color(OVERLAY2), BULLET / 2.0)
+                    } else {
+                        dot.outline(color(OVERLAY1), BULLET / 2.0)
+                    }
+                }
+            };
+            div()
+                .flex()
+                .items_start()
+                .gap(MARK_GAP)
+                .pl(entry.depth as f32 * (BULLET_W + MARK_GAP))
+                .child(div().w(mark_w).flex_none().child(mark))
+                .child(div().flex_1().min_w(0.0).child(text_block(&entry.text)))
+        }))
+}
+
+fn quote(content: &Text) -> Node {
+    div()
+        .flex()
+        .gap(QUOTE_GAP)
+        .child(
+            div()
+                .w(QUOTE_RULE)
+                .flex_none()
+                .bg(color(OVERLAY0), QUOTE_RULE / 2.0),
+        )
+        .child(
+            div()
+                .flex_1()
+                .min_w(0.0)
+                .color(SUBTEXT0)
+                .child(text_block(content)),
+        )
+}
+
+fn chip_rule() -> Node {
+    div()
+        .w(1.0)
+        .h(16.0)
+        .mx(2.0)
+        .flex_none()
+        .bg(tinted(OVERLAY0, GROUND_ALPHA), 0.0)
+}
+
+fn source_chip(number: usize, source: Source, tint: u32) -> Node {
+    control(Some(surface_fill(false)), BADGE_RADIUS)
+        .flex_none()
+        .h(24.0)
+        .pl(5.0)
+        .pr(9.0)
+        .gap(6.0)
+        .items_center()
+        .text_size(12.0)
+        .weight(SEMIBOLD)
+        .color(SUBTEXT1)
+        .child(
+            div()
+                .size(SOURCE_NUMBER)
+                .flex_none()
+                .flex()
+                .items_center()
+                .justify_center()
+                .bg(tinted(tint, SOURCE_NUMBER_ALPHA), 4.0)
+                .text_size(SOURCE_NUMBER_SIZE)
+                .color(tint)
+                .child(text(number.to_string())),
+        )
+        .child(text(source.label).nowrap())
+        .on_click(source.on_click)
+}
+
 fn mine(content: &Text) -> Node {
     div().flex().justify_end().child(
         div()
@@ -228,9 +367,12 @@ pub fn transcript(view: Transcript) -> Node {
                     Turn::Mine(content) => mine(&content),
                     Turn::Theirs {
                         overline: line,
+                        detail,
                         pieces,
                         streaming,
                         actions,
+                        sources,
+                        source_tint,
                     } => {
                         let count = pieces.len();
                         let body: Vec<Node> = pieces
@@ -239,6 +381,9 @@ pub fn transcript(view: Transcript) -> Node {
                             .map(|(part, piece)| {
                                 let shown = match piece {
                                     Piece::Text(content) => text_block(&content),
+                                    Piece::List(entries) => list(entries),
+                                    Piece::Quote(content) => quote(&content),
+                                    Piece::Table(view) => table(view),
                                     Piece::Code(block) => code(block),
                                 };
                                 if streaming && part + 1 == count {
@@ -253,10 +398,18 @@ pub fn transcript(view: Transcript) -> Node {
                                 }
                             })
                             .collect();
-                        let chips: Vec<Node> = actions
+                        let mut chips: Vec<Node> = actions
                             .into_iter()
                             .map(|(label, handler)| chip(label, handler))
                             .collect();
+                        if !sources.is_empty() {
+                            if !chips.is_empty() {
+                                chips.push(chip_rule());
+                            }
+                            chips.extend(sources.into_iter().enumerate().map(|(index, source)| {
+                                source_chip(index + 1, source, source_tint)
+                            }));
+                        }
                         div()
                             .flex()
                             .items_start()
@@ -269,10 +422,23 @@ pub fn transcript(view: Transcript) -> Node {
                                         .col()
                                         .gap(PIECE_GAP)
                                         .text_size(SMALL_SIZE)
-                                        .child(overline(line, tint))
+                                        .child(
+                                            div()
+                                                .col()
+                                                .gap(DETAIL_GAP)
+                                                .child(overline(line, tint))
+                                                .children(detail.map(detail_line)),
+                                        )
                                         .children(body)
                                         .when(!chips.is_empty(), |reply| {
-                                            reply.child(div().flex().gap(6.0).children(chips))
+                                            reply.child(
+                                                div()
+                                                    .flex()
+                                                    .wrap()
+                                                    .items_center()
+                                                    .gap(6.0)
+                                                    .children(chips),
+                                            )
                                         }),
                                 ),
                             )
@@ -1132,10 +1298,7 @@ pub fn table(view: Table) -> Node {
                 .weight(MEDIUM)
                 .color(OVERLAY2)
                 .children(view.columns.iter().map(|column| {
-                    table_column(
-                        column,
-                        div().truncate().child(text(column.title.clone())),
-                    )
+                    table_column(column, div().truncate().child(text(column.title.clone())))
                 }));
             div()
                 .flex_none()
@@ -1177,26 +1340,30 @@ fn table_line(columns: &[Column], line: Line) -> Node {
     } = line;
     let two = under.is_some();
     let mut under = under;
-    let cells = columns.iter().zip(cells).enumerate().map(|(index, (column, cell))| {
-        let cell = table_cell(cell);
-        let cell = match under.take_if(|(at, _)| *at == index) {
-            Some((_, words)) => div()
-                .min_w(0.0)
-                .col()
-                .gap(1.0)
-                .child(cell.weight(SEMIBOLD))
-                .child(
-                    div()
-                        .min_w(0.0)
-                        .mono()
-                        .text_size(SMALL_SIZE)
-                        .color(OVERLAY2)
-                        .child(moving(words)),
-                ),
-            None => cell,
-        };
-        table_column(column, cell)
-    });
+    let cells = columns
+        .iter()
+        .zip(cells)
+        .enumerate()
+        .map(|(index, (column, cell))| {
+            let cell = table_cell(cell);
+            let cell = match under.take_if(|(at, _)| *at == index) {
+                Some((_, words)) => div()
+                    .min_w(0.0)
+                    .col()
+                    .gap(1.0)
+                    .child(cell.weight(SEMIBOLD))
+                    .child(
+                        div()
+                            .min_w(0.0)
+                            .mono()
+                            .text_size(SMALL_SIZE)
+                            .color(OVERLAY2)
+                            .child(moving(words)),
+                    ),
+                None => cell,
+            };
+            table_column(column, cell)
+        });
     let row = div()
         .flex()
         .items_center()
@@ -1215,8 +1382,13 @@ fn table_line(columns: &[Column], line: Line) -> Node {
     held.flex_none()
         .min_h(height)
         .px(TABLE_INSET)
-        .when_some(wash, |held, tint| held.bg(tinted(tint, TABLE_WASH_ALPHA), ROW_RADIUS))
-        .when(busy, |held| held.bg(tinted(SURFACE1, CONTROL_ALPHA), ROW_RADIUS).beams(true))
+        .when_some(wash, |held, tint| {
+            held.bg(tinted(tint, TABLE_WASH_ALPHA), ROW_RADIUS)
+        })
+        .when(busy, |held| {
+            held.bg(tinted(SURFACE1, CONTROL_ALPHA), ROW_RADIUS)
+                .beams(true)
+        })
         .when_some(tip, Node::tip)
 }
 

@@ -79,7 +79,8 @@ pub struct Look {
 
 /// The mark the feature `notification` names lends, if any.
 pub(super) fn lead(notification: &Notification, p: &PanelCx<'_>) -> Option<Mark> {
-    p.lead(notification.lead.as_deref()?)
+    let lent = notification.lead.as_ref()?;
+    p.lead(&lent.feature, lent.mood.as_deref())
 }
 
 /// The glyph a feature marks what it posts with, by its name.
@@ -226,6 +227,7 @@ fn body(body: &str, lines: usize) -> Text {
                 code: style.code,
                 covered: style.spoiler,
                 link: style.link.is_some(),
+                color: None,
             };
             (range, style)
         })

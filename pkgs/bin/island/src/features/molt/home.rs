@@ -130,7 +130,11 @@ fn card(card: &Card, height: f32, p: &PanelCx<'_>) -> Block {
             Block::Item(item, vec![Block::caption(card.detail.clone(), SUBTEXT1)]),
             Block::Buttons(ButtonRow {
                 lead,
-                buttons: card.actions.iter().map(|action| button(action, p)).collect(),
+                buttons: card
+                    .actions
+                    .iter()
+                    .map(|action| button(action, p))
+                    .collect(),
                 compact: false,
                 indent: 0.0,
                 menu: None,
@@ -179,6 +183,7 @@ pub(super) fn home(state: &Updates, p: &PanelCx<'_>) -> (Views, Vec<Block>) {
         title: view.title.into(),
         title_color: None,
         on_click: None,
+        on_point: None,
     };
     let mut blocks = Vec::new();
     if let Some(error) = &view.error {

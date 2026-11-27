@@ -371,9 +371,9 @@ fn progress(build: &Build, now: Instant, units: &dyn Units) -> (ProgressCard, Do
     let summary = build.plan.summary();
     let finished = summary.done + summary.failed;
     let total = summary.total.max(1) as f32;
-    let elapsed = build
-        .evaluation_done
-        .map_or(Duration::ZERO, |started| now.saturating_duration_since(started));
+    let elapsed = build.evaluation_done.map_or(Duration::ZERO, |started| {
+        now.saturating_duration_since(started)
+    });
     let status = build.compare_status;
     let estimate = status
         .is_none()
@@ -451,9 +451,7 @@ pub fn view(
     };
     let side = match &build.stage {
         Stage::Failed {
-            error,
-            derivations,
-            ..
+            error, derivations, ..
         } => {
             let derivation = derivations
                 .first()
@@ -602,8 +600,7 @@ pub fn mini(build: &Build, now: Instant, units: &dyn Units) -> Mini {
                         note.push_str(" · ↓ ");
                         note.push_str(&units.amount(downloaded));
                     }
-                    let share =
-                        (summary.total > 0).then(|| finished as f32 / summary.total as f32);
+                    let share = (summary.total > 0).then(|| finished as f32 / summary.total as f32);
                     (note, share)
                 }
                 BuildPhase::Compare => (

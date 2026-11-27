@@ -4,6 +4,7 @@ pub const SURFACE1: u32 = 0x45475a;
 pub const OVERLAY0: u32 = 0x6c7086;
 pub const OVERLAY1: u32 = 0x7f849c;
 pub const OVERLAY2: u32 = 0x9399b2;
+pub const SUBTEXT0: u32 = 0xa6adc8;
 pub const SUBTEXT1: u32 = 0xbac2de;
 pub const TEXT: u32 = 0xcdd6f4;
 pub const LAVENDER: u32 = 0xb4befe;

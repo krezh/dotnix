@@ -105,15 +105,19 @@ impl Exporter {
         let physical = hal.raw_physical_device();
         let mut list = vk::DrmFormatModifierPropertiesListEXT::default();
         let mut properties = vk::FormatProperties2::default().push_next(&mut list);
-        unsafe { instance.get_physical_device_format_properties2(physical, FORMAT, &mut properties) };
+        unsafe {
+            instance.get_physical_device_format_properties2(physical, FORMAT, &mut properties)
+        };
         let count = list.drm_format_modifier_count as usize;
         let mut known = vec![vk::DrmFormatModifierPropertiesEXT::default(); count];
-        let mut list =
-            vk::DrmFormatModifierPropertiesListEXT::default().drm_format_modifier_properties(&mut known);
+        let mut list = vk::DrmFormatModifierPropertiesListEXT::default()
+            .drm_format_modifier_properties(&mut known);
         let mut properties = vk::FormatProperties2::default().push_next(&mut list);
-        unsafe { instance.get_physical_device_format_properties2(physical, FORMAT, &mut properties) };
-        let sampled =
-            vk::FormatFeatureFlags::SAMPLED_IMAGE | vk::FormatFeatureFlags::SAMPLED_IMAGE_FILTER_LINEAR;
+        unsafe {
+            instance.get_physical_device_format_properties2(physical, FORMAT, &mut properties)
+        };
+        let sampled = vk::FormatFeatureFlags::SAMPLED_IMAGE
+            | vk::FormatFeatureFlags::SAMPLED_IMAGE_FILTER_LINEAR;
         let layouts = known
             .iter()
             .filter(|known| {
@@ -134,7 +138,11 @@ impl Exporter {
     /// # Safety
     /// Uses the device's own Vulkan handles; everything made is either handed to wgpu, which then
     /// owns it, or destroyed before returning.
-    unsafe fn export(&self, (width, height): (u32, u32), modifiers: &[u64]) -> Result<Shared, String> {
+    unsafe fn export(
+        &self,
+        (width, height): (u32, u32),
+        modifiers: &[u64],
+    ) -> Result<Shared, String> {
         let hal = unsafe { self.device.as_hal::<Vulkan>() }.ok_or("the device is not Vulkan")?;
         let device = hal.raw_device();
         let usable: Vec<u64> = self
@@ -147,7 +155,8 @@ impl Exporter {
             return Err("no layout both sides take".to_owned());
         }
 
-        let mut chosen = vk::ImageDrmFormatModifierListCreateInfoEXT::default().drm_format_modifiers(&usable);
+        let mut chosen =
+            vk::ImageDrmFormatModifierListCreateInfoEXT::default().drm_format_modifiers(&usable);
         let mut external = vk::ExternalMemoryImageCreateInfo::default().handle_types(HANDLE);
         let info = vk::ImageCreateInfo::default()
             .image_type(vk::ImageType::TYPE_2D)
@@ -223,9 +232,10 @@ impl Exporter {
         // A new descriptor, which `OwnedFd` then owns.
         let fd = unsafe { OwnedFd::from_raw_fd(raw_fd) };
         let mut laid = vk::ImageDrmFormatModifierPropertiesEXT::default();
-        if let Err(error) =
-            unsafe { self.modifiers.get_image_drm_format_modifier_properties(image, &mut laid) }
-        {
+        if let Err(error) = unsafe {
+            self.modifiers
+                .get_image_drm_format_modifier_properties(image, &mut laid)
+        } {
             undo();
             return Err(format!("cannot read the image's layout: {error}"));
         }

@@ -24,9 +24,7 @@ use crate::{
         Block, Cell, Column, Field, FrameView, HeaderLead, HeaderStatus, IconButton, Item, Lead,
         Mark, SearchView, Split, Stepper, Table, TableRow, Trail, Views, Width,
     },
-    theme::{
-        ACCENT, CRITICAL, GREEN, OVERLAY0, OVERLAY2, PEACH, SUBTEXT1, TEXT, YELLOW,
-    },
+    theme::{ACCENT, CRITICAL, GREEN, OVERLAY0, OVERLAY2, PEACH, SUBTEXT1, TEXT, YELLOW},
     ui::{BLOCK_GAP, DISPLAY_SIZE, FIGURE_SIZE, HEADING_SIZE, TITLE_SIZE},
 };
 
@@ -77,7 +75,8 @@ fn storage(shown: &CleanupView) -> (Block, f32) {
                         .iter()
                         .map(|(share, part)| (*share, part.map_or(OVERLAY0, hue)))
                         .collect();
-                    let tip = (!volume.breakdown.is_empty()).then(|| volume.breakdown.join("\n").into());
+                    let tip =
+                        (!volume.breakdown.is_empty()).then(|| volume.breakdown.join("\n").into());
                     TableRow::cells(
                         vec![
                             Cell::strong(volume.mount.clone(), SUBTEXT1),
@@ -181,7 +180,13 @@ fn items(items: &Items, height: f32, view: &View, p: &PanelCx<'_>) -> Block {
                 vec![
                     Cell::text(entry.label.clone(), TEXT),
                     Cell::text(entry.detail.clone(), OVERLAY2),
-                    Cell::Bar(entry.fraction.map(|share| (share, tint)).into_iter().collect()),
+                    Cell::Bar(
+                        entry
+                            .fraction
+                            .map(|share| (share, tint))
+                            .into_iter()
+                            .collect(),
+                    ),
                     if entry.pending {
                         Cell::text(entry.size.clone(), OVERLAY2)
                     } else {
@@ -307,9 +312,8 @@ fn retention(setting: &Retention, view: &View, p: &PanelCx<'_>) -> Block {
                 on_less: (editable && count.is_some_and(|count| count > 0))
                     .then(|| p.call(|molt: &Molt| molt.cleanup(Msg::StepGenerations(-1)))),
                 on_more: (editable
-                    && count.is_some_and(|count| {
-                        count < molt_core::cleanup::flow::MAX_GENERATIONS
-                    }))
+                    && count
+                        .is_some_and(|count| count < molt_core::cleanup::flow::MAX_GENERATIONS))
                 .then(|| p.call(|molt: &Molt| molt.cleanup(Msg::StepGenerations(1)))),
             })
         }
@@ -380,7 +384,12 @@ fn plan(shown: &CleanupView, height: f32, view: &View, p: &PanelCx<'_>) -> Block
             shown.plan.iter().map(|entry| plan_row(entry, p)).collect(),
         )],
     ));
-    blocks.extend(shown.retention.iter().map(|setting| retention(setting, view, p)));
+    blocks.extend(
+        shown
+            .retention
+            .iter()
+            .map(|setting| retention(setting, view, p)),
+    );
     Block::Frame(frame("molt-cleanup-plan".to_owned(), None), blocks)
 }
 
@@ -429,6 +438,7 @@ pub(super) fn cleanup(state: &Updates, view: &View, p: &PanelCx<'_>) -> (Views, 
             title: shown.title.into(),
             title_color: None,
             on_click: None,
+            on_point: None,
         }),
         shown.back_enabled.then_some(back),
         p,

@@ -61,8 +61,14 @@ pub enum Msg {
 #[derive(Clone, Debug, PartialEq)]
 pub enum Effect {
     Settle(u64),
-    Fetch { request: SearchRequest, prefetch: bool },
-    Evaluate { key: String, item: SearchResultItem },
+    Fetch {
+        request: SearchRequest,
+        prefetch: bool,
+    },
+    Evaluate {
+        key: String,
+        item: SearchResultItem,
+    },
 }
 
 pub fn local_key(item: &SearchResultItem) -> String {
@@ -122,7 +128,13 @@ impl Search {
         self.shown = Some((offset, results));
     }
 
-    fn change(&mut self, query: String, scope: SearchScope, offset: usize, settle: bool) -> Vec<Effect> {
+    fn change(
+        &mut self,
+        query: String,
+        scope: SearchScope,
+        offset: usize,
+        settle: bool,
+    ) -> Vec<Effect> {
         let blank = query.trim().is_empty();
         self.queue.replace(query, scope, offset, !settle);
         if let Some((request, results)) = self.queue.take_cached() {
@@ -185,7 +197,12 @@ impl Search {
             }
             Msg::Next => {
                 let current = self.queue.current.clone();
-                self.change(current.query, current.scope, current.offset + PAGE_SIZE, false)
+                self.change(
+                    current.query,
+                    current.scope,
+                    current.offset + PAGE_SIZE,
+                    false,
+                )
             }
             Msg::Retry => {
                 self.queue.forget_current();
@@ -208,10 +225,7 @@ impl Search {
                     .as_ref()
                     .map_or(0, |(_, results)| results.items.len());
                 if count > 0 {
-                    self.selected = self
-                        .selected
-                        .saturating_add_signed(by)
-                        .min(count - 1);
+                    self.selected = self.selected.saturating_add_signed(by).min(count - 1);
                 }
                 Vec::new()
             }

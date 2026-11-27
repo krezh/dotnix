@@ -46,7 +46,10 @@ impl RawMonitor {
             (self.width, self.height)
         };
         let scale = self.scale.max(0.1);
-        ((width / scale).round() as i32, (height / scale).round() as i32)
+        (
+            (width / scale).round() as i32,
+            (height / scale).round() as i32,
+        )
     }
 }
 
@@ -474,12 +477,12 @@ impl Compositor for Hyprland {
 
     fn start(feed: Feed<Snapshot>) -> Option<Self> {
         let mut events = Some(hyprctl::events().ok()?);
-        feed.supervise(move |feed| {
-            match events.take().map_or_else(hyprctl::events, Ok) {
+        feed.supervise(
+            move |feed| match events.take().map_or_else(hyprctl::events, Ok) {
                 Ok(events) => follow(events, feed),
                 Err(error) => Ended::Failed(error.to_string()),
-            }
-        });
+            },
+        );
         Some(Self)
     }
 

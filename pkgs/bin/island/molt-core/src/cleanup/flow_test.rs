@@ -121,7 +121,14 @@ fn stepping_generations_rescans_nix_once_settled() {
     assert!(!screen.can_act());
     assert!(screen.update(Msg::Settled(0)).is_empty());
     let effects = screen.update(Msg::Settled(1));
-    let [Effect::Scan { serial, kinds, policy }] = effects.as_slice() else {
+    let [
+        Effect::Scan {
+            serial,
+            kinds,
+            policy,
+        },
+    ] = effects.as_slice()
+    else {
         panic!("expected a rescan, got {effects:?}");
     };
     assert_eq!(kinds, &vec![CleanupKind::Nix]);
@@ -131,7 +138,12 @@ fn stepping_generations_rescans_nix_once_settled() {
     screen.update(Msg::Scanned(serial, vec![volume(200)]));
     assert!(screen.plan_is_current());
     assert!(screen.can_act());
-    assert_eq!(screen.group(CleanupKind::Nix).map(|group| group.reclaimable), Some(400));
+    assert_eq!(
+        screen
+            .group(CleanupKind::Nix)
+            .map(|group| group.reclaimable),
+        Some(400)
+    );
 }
 
 #[test]

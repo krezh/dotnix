@@ -23,7 +23,7 @@ use crate::{
         slider::OnChange,
     },
     math::{color, mix, smoothstep},
-    panel::{Grow, Handler, SharedString},
+    panel::{Grow, Handler, Point, SharedString},
     spring::SpringConfig,
     theme::{POPOVER_OPACITY, SHADOW_ALPHA, SURFACE, SURFACE_BORDER_ALPHA, SURFACE1, TINT},
     ui::CONTROL_RADIUS,
@@ -136,12 +136,7 @@ pub fn grow_sprites(built: &Built, shown: [f32; 4], own: &mut [Sprite]) {
         shown[3] - whole[1] - inset,
     ];
     let target = intersection(whole, room).unwrap_or(whole);
-    let room_clip = [
-        shown[0],
-        shown[1],
-        shown[0] + shown[2],
-        shown[1] + shown[3],
-    ];
+    let room_clip = [shown[0], shown[1], shown[0] + shown[2], shown[1] + shown[3]];
     let full = (target[2] / part[2].max(1.0)).max(1.0);
     let even = if full > 1.001 {
         (full.powf(open) - 1.0) / (full - 1.0)
@@ -232,6 +227,7 @@ pub struct Hit {
     pub on_click: Option<Handler>,
     pub on_right: Option<Handler>,
     pub on_hover: Option<Handler>,
+    pub on_point: Option<Point>,
     pub on_rows: Option<Rows>,
     pub tip: Option<SharedString>,
     /// Acts as the button goes down rather than when it comes back up.
@@ -426,8 +422,7 @@ pub struct Beam {
 
 impl Beam {
     /// Where it has got to and how strong it is, if it shows.
-    pub fn shine(&mut self, busy: bool) -> Option<(f32, f32)> {
-        let now = Instant::now();
+    pub fn shine(&mut self, busy: bool, now: Instant) -> Option<(f32, f32)> {
         if busy {
             self.fading = None;
             self.since.get_or_insert(now);
@@ -436,14 +431,14 @@ impl Beam {
         }
         let since = self.since?;
         let fade = self.fading.map_or(0.0, |fading| {
-            now.duration_since(fading).as_secs_f32() / energy::FADE.as_secs_f32()
+            now.saturating_duration_since(fading).as_secs_f32() / energy::FADE.as_secs_f32()
         });
         if fade >= 1.0 {
             *self = Self::default();
             return None;
         }
-        let phase =
-            energy::START + now.duration_since(since).as_secs_f32() / energy::LAP.as_secs_f32();
+        let phase = energy::START
+            + now.saturating_duration_since(since).as_secs_f32() / energy::LAP.as_secs_f32();
         Some((phase, 1.0 - smoothstep(fade)))
     }
 }

@@ -91,9 +91,7 @@ impl Watchlist {
     }
 
     fn set_prs(&mut self, prs: Vec<WatchedPr>) {
-        let keep = self
-            .selected
-            .filter(|id| prs.iter().any(|pr| pr.id == *id));
+        let keep = self.selected.filter(|id| prs.iter().any(|pr| pr.id == *id));
         self.selected = keep.or_else(|| prs.first().map(|pr| pr.id));
         self.prs = prs;
     }
@@ -114,7 +112,9 @@ impl Watchlist {
                 let shown = self.shown();
                 let at = shown.iter().position(|pr| Some(pr.id) == self.selected);
                 let next = match at {
-                    Some(at) => at.saturating_add_signed(by).min(shown.len().saturating_sub(1)),
+                    Some(at) => at
+                        .saturating_add_signed(by)
+                        .min(shown.len().saturating_sub(1)),
                     None => 0,
                 };
                 if let Some(pr) = shown.get(next) {
@@ -190,14 +190,16 @@ pub fn run(effect: Effect, cancellation: &AtomicBool) -> Msg {
             owner,
             repo,
             number,
-        } => Msg::Tracked(fetch_pr(&owner, &repo, number, None, cancellation).map(|pr| {
-            let id = open_db()
-                .ok()
-                .flatten()
-                .and_then(|conn| save_pr(&conn, &pr).ok())
-                .unwrap_or(0);
-            (id, read())
-        })),
+        } => Msg::Tracked(
+            fetch_pr(&owner, &repo, number, None, cancellation).map(|pr| {
+                let id = open_db()
+                    .ok()
+                    .flatten()
+                    .and_then(|conn| save_pr(&conn, &pr).ok())
+                    .unwrap_or(0);
+                (id, read())
+            }),
+        ),
         Effect::Untrack(id) => {
             if let Ok(Some(conn)) = open_db() {
                 let _ = delete_pr(&conn, id);

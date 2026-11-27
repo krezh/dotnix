@@ -23,7 +23,10 @@ fn incoming_changes_offer_a_pull() {
     let status = card.status.unwrap();
     assert_eq!(status.text, "3 incoming · 1 local");
     assert_eq!(status.tone, Tone::Attention);
-    assert_eq!(card.actions.iter().map(|a| a.label).collect::<Vec<_>>(), ["Check", "Pull"]);
+    assert_eq!(
+        card.actions.iter().map(|a| a.label).collect::<Vec<_>>(),
+        ["Check", "Pull"]
+    );
 }
 
 #[test]
@@ -67,5 +70,8 @@ fn checking_runs_the_badge() {
     let status = card.status.unwrap();
     assert!(status.busy);
     assert_eq!(status.text, "Checking");
-    assert_eq!(card.actions.iter().map(|a| a.label).collect::<Vec<_>>(), ["Checking…"]);
+    assert_eq!(
+        card.actions.iter().map(|a| a.label).collect::<Vec<_>>(),
+        ["Checking…"]
+    );
 }

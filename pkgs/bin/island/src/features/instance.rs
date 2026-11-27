@@ -87,7 +87,7 @@ pub trait AnyFeature {
     fn popup<'a>(&self, p: &mut PanelCx<'a>) -> Option<PanelView>;
     fn elapse(&self, local: &mut dyn AnyLocal, hovered: bool);
     fn pointer(&self, local: &mut dyn AnyLocal, over: bool);
-    fn lead(&self, local: &dyn AnyLocal) -> Option<Mark>;
+    fn lead(&self, local: &dyn AnyLocal, mood: Option<&str>) -> Option<Mark>;
     fn dashboard_order(&self) -> u8;
     fn dashboard(&self, p: &mut PanelCx<'_>) -> Dashboard;
     fn batteries(&self) -> Vec<Battery>;
@@ -167,9 +167,9 @@ impl<F: Surface> AnyFeature for Rc<Instance<F>> {
         }
     }
 
-    fn lead(&self, local: &dyn AnyLocal) -> Option<Mark> {
+    fn lead(&self, local: &dyn AnyLocal, mood: Option<&str>) -> Option<Mark> {
         let local = local.as_any().downcast_ref::<F::Local>()?;
-        self.feature.lead(local)
+        self.feature.lead(local, mood)
     }
 
     fn dashboard_order(&self) -> u8 {
@@ -248,7 +248,10 @@ impl Features {
 
     /// Every running feature's rows for `island ctl`'s overview, in the registry's order.
     pub fn status(&self) -> Vec<Row> {
-        self.all.iter().flat_map(|feature| feature.status()).collect()
+        self.all
+            .iter()
+            .flat_map(|feature| feature.status())
+            .collect()
     }
 
     pub fn batteries(&self) -> Vec<Battery> {

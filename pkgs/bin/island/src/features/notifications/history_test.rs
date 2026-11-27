@@ -7,7 +7,7 @@ use crate::{
     db,
     features::{
         notice::Origin,
-        notifications::notification::{Expire, Notification, Posted},
+        notifications::notification::{Expire, Lent, Notification, Posted},
     },
 };
 
@@ -121,6 +121,19 @@ fn a_posted_one_is_kept_once_however_often_it_is_posted() {
         again.notification.posted,
         posted(2, 9, "41", "again").notification.posted
     );
+}
+
+#[test]
+fn keeps_the_mood_its_lead_was_sent_with() {
+    let mut db = database();
+    let mut led = entry(1, 1, "led", Duration::ZERO);
+    led.notification.lead = Some(Lent {
+        feature: "ai".to_owned(),
+        mood: Some("happy".to_owned()),
+    });
+    write(&mut db, Write::Record(led.clone())).unwrap();
+    let kept = read(&db, 7).unwrap();
+    assert_eq!(kept[0].notification.lead, led.notification.lead);
 }
 
 #[test]

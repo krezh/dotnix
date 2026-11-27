@@ -7,6 +7,7 @@ pub use crate::components::{
     calendar::CalendarView,
     card::{Countdown, FrameView},
     chart::Series,
+    chip::Chip,
     code::{Code, CodeLine, Motion as CodeMotion},
     dropdown::{Choice, Dropdown},
     gallery::{GalleryCard, GalleryView},
@@ -17,20 +18,19 @@ pub use crate::components::{
     player::PlayerView,
     prompt::{Change, PromptView, Reveal},
     route::{Route, Stop, StopState},
-    chip::Chip,
     search::{FileRow, Filters, Preview, RowIcon, SearchPreview, SearchRow, SearchView},
     slider::{Slider, SliderLabel},
     stepper::Stepper,
     table::{Cell, Column, Row as TableRow, Table, Width},
     tabs::TabLabel,
     text::{Style as TextStyle, Text, Tone},
-    transcript::{Piece, Transcript, Turn},
+    transcript::{Detail, Entry, Piece, Source, Transcript, Turn},
 };
 
 pub use model::{
     ActionTile, Block, Button, ButtonRow, ChartView, Grow, Handler, Header, HeaderLead,
-    HeaderStatus, Hero,
-    IconButton, PanelView, Passing, Place, Placed, RowLead, Segments, Split, Views, Warning, on,
+    HeaderStatus, Hero, IconButton, PanelView, Passing, Place, Placed, Point, RowLead, Segments,
+    Split, Views, Warning, on,
 };
 pub use smol_str::SmolStr as SharedString;
 pub use ui::Ui;

@@ -120,7 +120,9 @@ impl Local for Dots {
 
 fn focus(id: i64) {
     if let Some(backend) = compositor::backend() {
-        supervisor::spawn("island-workspace-focus", move || backend.focus_workspace(id));
+        supervisor::spawn("island-workspace-focus", move || {
+            backend.focus_workspace(id)
+        });
     }
 }
 

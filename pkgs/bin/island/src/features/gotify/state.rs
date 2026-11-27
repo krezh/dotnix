@@ -260,7 +260,12 @@ impl Entry {
                 .collect(),
             received,
             quiet,
-            ..Notice::new(origin, self.app.clone(), self.title.clone(), self.body.clone())
+            ..Notice::new(
+                origin,
+                self.app.clone(),
+                self.title.clone(),
+                self.body.clone(),
+            )
         }
     }
 }

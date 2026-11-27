@@ -269,6 +269,7 @@ pub struct Island {
     last_frame: Option<Instant>,
     started: Instant,
     pointer: Option<(f32, f32)>,
+    pointed: bool,
     tip: Option<Tip>,
     placed: Vec<Placed>,
     body: [f32; 4],
@@ -276,6 +277,10 @@ pub struct Island {
     inhibitor: Option<ZwpIdleInhibitorV1>,
     pace: Option<Duration>,
     drew_at: Instant,
+    /// When the frame being drawn will be shown, so what loops is placed for that moment.
+    shown_at: Instant,
+    /// When features still moving were last drawn anew.
+    moved_at: Instant,
     strip: TabStrip,
     /// Each panel on show, as it was last laid out.
     built: HashMap<usize, Built>,
@@ -385,6 +390,7 @@ impl Island {
             last_frame: None,
             started: Instant::now(),
             pointer: None,
+            pointed: false,
             tip: None,
             placed: Vec::new(),
             body: [0.0; 4],
@@ -392,6 +398,8 @@ impl Island {
             inhibitor: None,
             pace: None,
             drew_at: Instant::now(),
+            shown_at: Instant::now(),
+            moved_at: Instant::now(),
             strip: TabStrip::default(),
             built: HashMap::new(),
             eases: HashMap::new(),
@@ -867,7 +875,11 @@ impl Island {
             return;
         };
         let changed = std::mem::take(&mut self.changed);
-        if !self.stale && changed.iter().any(|name| self.stage.shows_feature(name, glyphs)) {
+        if !self.stale
+            && changed
+                .iter()
+                .any(|name| self.stage.shows_feature(name, glyphs))
+        {
             self.stale = true;
         }
         if !self.stale {
@@ -1238,6 +1250,8 @@ impl Island {
     }
 
     /// Redraws the widgets of features still moving, whose locals only they know the look of.
+    /// Only as often as the slowest pace their motion allows, so a frame drawn sooner for
+    /// something else, such as a beam, moves just that.
     fn forget_unsettled(&mut self) {
         let moving: Vec<&'static str> = self
             .stage
@@ -1246,6 +1260,28 @@ impl Island {
             .filter(|(_, local)| !local.is_settled())
             .map(|(name, _)| *name)
             .collect();
+        let pace = self
+            .stage
+            .locals
+            .iter()
+            .filter(|(_, local)| !local.is_settled())
+            .map(|(_, local)| {
+                if local.is_drifting() {
+                    Some(TICK)
+                } else if local.is_brisk() {
+                    Some(BRISK)
+                } else {
+                    None
+                }
+            })
+            .try_fold(TICK, |slowest, pace| pace.map(|pace| slowest.min(pace)));
+        if !moving.is_empty()
+            && let Some(pace) = pace
+            && self.shown_at + self.frame_time / 2 < self.moved_at + self.on_beat(pace)
+        {
+            return;
+        }
+        self.moved_at = self.shown_at;
         let settling = std::mem::replace(&mut self.moving, moving.clone());
         let names = moving.into_iter().chain(settling);
         for name in names {
@@ -1335,7 +1371,10 @@ impl Island {
         let collapsed = self.stage.mode == Mode::Collapsed;
         let active = self.stage.active_layer();
         let width = self.stage.morph.slide_width;
-        let seconds = self.started.elapsed().as_secs_f32();
+        let seconds = self
+            .shown_at
+            .saturating_duration_since(self.started)
+            .as_secs_f32();
         let pulse_shown = pulsed((seconds / PULSE.as_secs_f32()).fract());
         for (layer, built) in &self.built {
             let layer = *layer;
@@ -1494,7 +1533,11 @@ impl Island {
                 out.push(panel::pulse_sprite(pulse, seconds));
             }
             for (key, busy, rect) in built.beams.iter().filter(|_| !growing) {
-                let shone = self.panel_beams.entry(*key).or_default().shine(*busy);
+                let shone = self
+                    .panel_beams
+                    .entry(*key)
+                    .or_default()
+                    .shine(*busy, self.shown_at);
                 if let Some((phase, strength)) = shone {
                     self.beaming = true;
                     panel::beam_sprites(*rect, phase, strength, out);
@@ -1685,11 +1728,9 @@ impl Island {
                 (merge.hang[1] + merge.hang[3] - body[1]).max(body[3])
             });
             let area = [body[2], reach];
-            let due = self
-                .aura_shown
-                .is_none_or(|(_, made, at)| {
-                    made.elapsed() + self.frame_time / 2 >= self.on_beat(AURA_EVERY) || at != area
-                });
+            let due = self.aura_shown.is_none_or(|(_, made, at)| {
+                made.elapsed() + self.frame_time / 2 >= self.on_beat(AURA_EVERY) || at != area
+            });
             if due {
                 if self.aura_room.is_none() {
                     self.aura_room = painter.glow_room();
@@ -1769,7 +1810,11 @@ impl Island {
                         panel::morph_sprites(morph, &mut sprites);
                     }
                     if let Some((busy, rect)) = cached.drawn.busy {
-                        let shone = self.bar_beams.entry(*kind).or_default().shine(busy);
+                        let shone = self
+                            .bar_beams
+                            .entry(*kind)
+                            .or_default()
+                            .shine(busy, self.shown_at);
                         if let Some((phase, strength)) = shone {
                             self.beaming = true;
                             panel::beam_sprites(rect, phase, strength, &mut sprites);
@@ -2012,6 +2057,7 @@ impl Island {
         self.dirty = false;
         self.sync_monitor();
         let now = Instant::now() + self.beat.ahead();
+        self.shown_at = now;
         let mut laps = Laps::start();
         let since = self.last_frame.map(|last| now - last);
         if let Some(gap) = since
@@ -2120,7 +2166,7 @@ impl Island {
         let mut sprites = self.compose(glyphs, painter, gpu);
         let radius = self.look.corner.0.min(self.body[3] / 2.0);
         self.stand
-            .dress(&mut sprites, self.body, radius, self.scale);
+            .dress(&mut sprites, self.body, radius, self.scale, self.shown_at);
         laps.lap("compose");
         self.sync_regions(compositor);
         laps.lap("regions");
@@ -2203,7 +2249,7 @@ impl Island {
             }
         }
         let soonest = [
-            self.beaming.then_some(GLIDE),
+            self.beaming.then_some(self.frame_time),
             (self.aura.is_lit()
                 && !self.stage.hidden()
                 && self.stage.morph.layers[COLLAPSED_LAYER].value() > 0.001)
@@ -2329,6 +2375,7 @@ impl Island {
         let at = (at.0 - x, at.1 - y);
         self.pointer = Some(at);
         let on_bubble = self.bubble.covers(at);
+        self.point(if on_bubble { None } else { Some(at) });
         if on_bubble {
             self.hover(false);
             self.tip = None;
@@ -2396,6 +2443,29 @@ impl Island {
             (_, None) => self.tip = None,
         }
         self.dirty = true;
+    }
+
+    fn point(&mut self, at: Option<(f32, f32)>) {
+        let local = at.map(|at| self.in_panel(at));
+        let told = self.active_built().and_then(|built| {
+            built.hits.iter().find_map(|hit| {
+                let handler = hit.on_point.clone()?;
+                let [x, y, w, h] = hit.rect;
+                let from = local.map(|(px, py)| {
+                    (
+                        (px - x - w / 2.0) / w.max(1.0),
+                        (py - y - h / 2.0) / h.max(1.0),
+                    )
+                });
+                Some((handler, from))
+            })
+        });
+        let Some((handler, from)) = told.filter(|_| local.is_some() || self.pointed) else {
+            self.pointed = false;
+            return;
+        };
+        self.pointed = local.is_some();
+        handler(from, &mut IslandUi { island: self });
     }
 
     /// What the chart under `at` says there.
@@ -2721,6 +2791,7 @@ impl Island {
     }
 
     pub fn pointer_left(&mut self) {
+        self.point(None);
         self.pointer = None;
         self.pressed = None;
         self.tip = None;
@@ -3013,5 +3084,11 @@ impl Ui for IslandUi<'_> {
     fn update_local(&mut self, name: &'static str, action: &mut dyn FnMut(&mut dyn AnyLocal)) {
         self.island.stage.update_local(name, action);
         self.island.local_changed(name);
+    }
+
+    fn move_local(&mut self, name: &'static str, action: &mut dyn FnMut(&mut dyn AnyLocal)) {
+        self.island.stage.update_local(name, action);
+        self.island.last_frame.get_or_insert_with(Instant::now);
+        self.island.dirty = true;
     }
 }

@@ -79,7 +79,11 @@ fn permission_blocks(request: &Request, at: &str, view: &View, p: &PanelCx<'_>) 
     let answer = |answer: Answer| p.call::<Ai>(move |ai| ai.answer(id, answer.clone()));
     let mut row = vec![IconButton::text("Deny", false, answer(Answer::Deny))];
     if suggestion.is_some() {
-        row.push(IconButton::text("Always allow", false, answer(Answer::Always)));
+        row.push(IconButton::text(
+            "Always allow",
+            false,
+            answer(Answer::Always),
+        ));
     }
     row.push(IconButton::text("Allow", true, answer(Answer::Allow)));
     let mut under = vec![Block::Code(Code {

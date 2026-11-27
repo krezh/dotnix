@@ -53,7 +53,11 @@ fn opens_on_the_first_input_and_fetches_its_history() {
     let screen = screen();
     assert_eq!(screen.selected.as_deref(), Some("nixpkgs"));
     assert_eq!(screen.history, History::Loading);
-    let names: Vec<&str> = screen.shown().iter().map(|input| input.name.as_str()).collect();
+    let names: Vec<&str> = screen
+        .shown()
+        .iter()
+        .map(|input| input.name.as_str())
+        .collect();
     assert_eq!(names, ["nixpkgs", "home-manager", "agenix", "zen"]);
 }
 
@@ -61,7 +65,11 @@ fn opens_on_the_first_input_and_fetches_its_history() {
 fn oldest_first_keeps_the_pinned_inputs_on_top() {
     let mut screen = screen();
     screen.update(Msg::OldestFirst(true));
-    let names: Vec<&str> = screen.shown().iter().map(|input| input.name.as_str()).collect();
+    let names: Vec<&str> = screen
+        .shown()
+        .iter()
+        .map(|input| input.name.as_str())
+        .collect();
     assert_eq!(names, ["nixpkgs", "home-manager", "agenix", "zen"]);
 }
 
@@ -73,7 +81,10 @@ fn a_late_history_answer_for_another_pick_is_dropped() {
     assert!(matches!(effect, Some(Effect::History { .. })));
     screen.update(Msg::History(first, Ok(vec![record("old")])));
     assert_eq!(screen.history, History::Loading);
-    screen.update(Msg::History(screen.history_generation, Ok(vec![record("new")])));
+    screen.update(Msg::History(
+        screen.history_generation,
+        Ok(vec![record("new")]),
+    ));
     assert_eq!(screen.history, History::Ready(vec![record("new")]));
 }
 
@@ -102,7 +113,10 @@ fn only_one_lock_change_runs_at_a_time() {
     let mut screen = screen();
     let (effect, _) = screen.update(Msg::UpdateAll);
     assert_eq!(effect, Some(Effect::Update(None)));
-    assert_eq!(screen.busy.as_ref().unwrap().message, "Updating every input…");
+    assert_eq!(
+        screen.busy.as_ref().unwrap().message,
+        "Updating every input…"
+    );
     assert_eq!(screen.update(Msg::UpdateSelected).0, None);
     assert_eq!(screen.update(Msg::Select("zen".to_owned())).0, None);
 }
@@ -127,7 +141,10 @@ fn locking_at_a_history_commit_names_it() {
     let generation = screen.history_generation;
     screen.update(Msg::History(
         generation,
-        Ok(vec![record("aaaaaaaaaaaaaaaaaaaa"), record("bbbbbbbbbbbbbbbbbbbb")]),
+        Ok(vec![
+            record("aaaaaaaaaaaaaaaaaaaa"),
+            record("bbbbbbbbbbbbbbbbbbbb"),
+        ]),
     ));
     let (effect, _) = screen.update(Msg::LockAt(1));
     assert_eq!(
@@ -137,5 +154,8 @@ fn locking_at_a_history_commit_names_it() {
             flake_ref: "github:owner/repo/bbbbbbbbbbbbbbbbbbbb".to_owned(),
         })
     );
-    assert_eq!(screen.busy.unwrap().message, "Setting nixpkgs to bbbbbbbbbbbb…");
+    assert_eq!(
+        screen.busy.unwrap().message,
+        "Setting nixpkgs to bbbbbbbbbbbb…"
+    );
 }

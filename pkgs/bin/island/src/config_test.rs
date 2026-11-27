@@ -47,8 +47,7 @@ fn partitions_are_hidden_or_picked() {
         crate::features::parse_settings::<System>(&config.features.settings["system"]).unwrap()
     };
     assert_eq!(shown(System::default()), ["/", "/home", "/mnt/data"]);
-    let picked =
-        section("[features.system.storage]\npartitions = [\"/home\", \"/\", \"/gone\"]");
+    let picked = section("[features.system.storage]\npartitions = [\"/home\", \"/\", \"/gone\"]");
     assert_eq!(shown(picked), ["/home", "/"]);
     let everything = section("[features.system.storage]\nhidden_partitions = []");
     assert_eq!(shown(everything), mounts);

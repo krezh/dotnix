@@ -45,7 +45,12 @@ fn kind(kind: Kind) -> (&'static str, u32) {
     }
 }
 
-fn plain_button(label: &str, primary: bool, enabled: bool, on_click: crate::panel::Handler) -> IconButton {
+fn plain_button(
+    label: &str,
+    primary: bool,
+    enabled: bool,
+    on_click: crate::panel::Handler,
+) -> IconButton {
     IconButton {
         glyph: None,
         color: primary.then_some(ACCENT),
@@ -86,8 +91,18 @@ fn detail(detail: &Detail, p: &PanelCx<'_>) -> Vec<Block> {
     let mut blocks = vec![
         row(
             vec![
-                plain_button(copy_label, false, true, on(move |_| copy::text(copy_text.clone()))),
-                plain_button("Copy snippet", false, true, on(move |_| copy::text(snippet.clone()))),
+                plain_button(
+                    copy_label,
+                    false,
+                    true,
+                    on(move |_| copy::text(copy_text.clone())),
+                ),
+                plain_button(
+                    "Copy snippet",
+                    false,
+                    true,
+                    on(move |_| copy::text(snippet.clone())),
+                ),
             ],
             Some(RowLead::Chip(Chip::new(detail.category, color))),
         ),
@@ -114,7 +129,12 @@ fn detail(detail: &Detail, p: &PanelCx<'_>) -> Vec<Block> {
                 .iter()
                 .map(|(label, url)| {
                     let url = url.clone();
-                    plain_button(label, false, true, on(move |_| launch::open(&url, "Nixpkgs")))
+                    plain_button(
+                        label,
+                        false,
+                        true,
+                        on(move |_| launch::open(&url, "Nixpkgs")),
+                    )
                 })
                 .collect(),
             None,
@@ -162,7 +182,10 @@ fn detail(detail: &Detail, p: &PanelCx<'_>) -> Vec<Block> {
 pub(super) fn search(state: &Updates, view: &View, p: &PanelCx<'_>) -> (Views, Vec<Block>) {
     let back = p.on_local::<Molt>(|_, view: &mut View| view.open(Screen::Home));
     let Some(screen) = &state.search else {
-        return (views(None, Some(back), p), vec![Block::note("Opening Search…")]);
+        return (
+            views(None, Some(back), p),
+            vec![Block::note("Opening Search…")],
+        );
     };
     let shown = present::view(screen);
     let header = views(
@@ -177,6 +200,7 @@ pub(super) fn search(state: &Updates, view: &View, p: &PanelCx<'_>) -> (Views, V
             title: shown.title.into(),
             title_color: None,
             on_click: None,
+            on_point: None,
         }),
         Some(back),
         p,
@@ -237,7 +261,9 @@ pub(super) fn search(state: &Updates, view: &View, p: &PanelCx<'_>) -> (Views, V
                 .collect(),
             selected: shown.scope,
             on_select: p.on_local_with::<Molt, usize>(|molt, _, index| {
-                molt.search(Msg::Scope(SearchScope::ALL[index.min(SearchScope::ALL.len() - 1)]));
+                molt.search(Msg::Scope(
+                    SearchScope::ALL[index.min(SearchScope::ALL.len() - 1)],
+                ));
             }),
         }),
         rows,
@@ -271,7 +297,12 @@ pub(super) fn search(state: &Updates, view: &View, p: &PanelCx<'_>) -> (Views, V
     if shown.failed {
         footer.insert(
             0,
-            plain_button("Retry", false, true, p.call(|molt: &Molt| molt.search(Msg::Retry))),
+            plain_button(
+                "Retry",
+                false,
+                true,
+                p.call(|molt: &Molt| molt.search(Msg::Retry)),
+            ),
         );
     }
     (

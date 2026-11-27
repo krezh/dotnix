@@ -2,7 +2,7 @@ use std::{collections::HashSet, sync::Arc};
 
 use super::{
     Cards, Event, Notifications,
-    notification::{Action, Expire, Notification, Posted, Reason, Signal, next_id},
+    notification::{Action, Expire, Lent, Notification, Posted, Reason, Signal, next_id},
 };
 use crate::{
     components::icon::Picture,
@@ -141,7 +141,10 @@ impl Notifications {
 }
 
 fn from_notice(id: u32, notice: Notice) -> Notification {
-    let lead = notice.lead.then(|| notice.origin.feature.clone());
+    let lead = notice.lead.then(|| Lent {
+        feature: notice.origin.feature.clone(),
+        mood: notice.mood.clone(),
+    });
     let icon = notice
         .icon
         .as_deref()

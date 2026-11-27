@@ -22,7 +22,7 @@ fn plain_text_drops_the_marks_and_keeps_code() {
     assert_eq!(plain("**2**"), "2");
     assert_eq!(
         plain("# Sum\nIt is *two*.\n\n```rust\nlet x = 1 + 1;\n```"),
-        "Sum\nIt is two.\n\nlet x = 1 + 1;"
+        "Sum\n\nIt is two.\n\nlet x = 1 + 1;"
     );
 }
 
@@ -172,13 +172,72 @@ fn blocks_keep_paragraphs_lists_and_fenced_code() {
         }
     );
     match &parsed[2] {
-        super::Block::Paragraph(text) => {
-            assert_eq!(text.text, "• keep it\n• or squash");
-            // "•" takes three bytes.
-            assert_eq!(text.spans, vec![(9..11, bold())]);
+        super::Block::List(items) => {
+            assert_eq!(items.len(), 2);
+            assert_eq!(items[0].text.text, "keep it");
+            assert_eq!(items[0].text.spans, vec![(5..7, bold())]);
+            assert_eq!((items[1].depth, items[1].number), (0, None));
         }
-        other => panic!("expected a paragraph, got {other:?}"),
+        other => panic!("expected a list, got {other:?}"),
     }
+}
+
+fn texts(items: &[super::Item]) -> Vec<(usize, Option<u64>, &str)> {
+    items
+        .iter()
+        .map(|item| (item.depth, item.number, item.text.text.as_str()))
+        .collect()
+}
+
+#[test]
+fn lists_nest_by_indent_and_number_on() {
+    let parsed = super::blocks(
+        "- **Materials:**\n  - 30 Blood\n    across lines\n  - 3 Bars\n- Gold\n\n1. Farm\n1. Buy",
+    );
+    match &parsed[..] {
+        [super::Block::List(items)] => assert_eq!(
+            texts(items),
+            vec![
+                (0, None, "Materials:"),
+                (1, None, "30 Blood across lines"),
+                (1, None, "3 Bars"),
+                (0, None, "Gold"),
+                (0, Some(1), "Farm"),
+                (0, Some(2), "Buy"),
+            ]
+        ),
+        other => panic!("expected one list, got {other:?}"),
+    }
+}
+
+#[test]
+fn headings_quotes_and_tables_stand_apart() {
+    let parsed = super::blocks(
+        "## Quickest route\n| Mount | Gold |\n|---|--:|\n| Dreadsteed | 150 g |\n> From 2019.\n> Maybe more.",
+    );
+    assert_eq!(parsed.len(), 3);
+    match &parsed[0] {
+        super::Block::Heading(text) => assert_eq!(text.text, "Quickest route"),
+        other => panic!("expected a heading, got {other:?}"),
+    }
+    match &parsed[1] {
+        super::Block::Table { head, rows } => {
+            assert_eq!(head[1].text, "Gold");
+            assert_eq!(rows.len(), 1);
+            assert_eq!(rows[0][0].text, "Dreadsteed");
+        }
+        other => panic!("expected a table, got {other:?}"),
+    }
+    match &parsed[2] {
+        super::Block::Quote(text) => assert_eq!(text.text, "From 2019.\nMaybe more."),
+        other => panic!("expected a quote, got {other:?}"),
+    }
+}
+
+#[test]
+fn a_table_still_arriving_reads_as_a_paragraph() {
+    let parsed = super::blocks("| Mount | Gold |");
+    assert!(matches!(&parsed[..], [super::Block::Paragraph(_)]));
 }
 
 #[test]

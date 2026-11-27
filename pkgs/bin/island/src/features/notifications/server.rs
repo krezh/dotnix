@@ -10,7 +10,7 @@ use zbus::{Connection, OwnedVariant, block_on, interface};
 
 use super::{
     Event, State,
-    notification::{Action, Expire, Notification, Signal, claim_id},
+    notification::{Action, Expire, Lent, Notification, Signal, claim_id},
 };
 use crate::{
     activation::Activation, components::icon::Picture, dbus, features::Feed, icons,
@@ -159,7 +159,10 @@ impl Server {
             id,
             icon: self::app_icon(&app_icon, &app, &hints),
             image: image_hint(&hints),
-            lead: hint_string(&hints, "x-island-lead"),
+            lead: hint_string(&hints, "x-island-lead").map(|feature| Lent {
+                feature,
+                mood: hint_string(&hints, "x-island-mood"),
+            }),
             transient: hint_bool(&hints, "transient"),
             resident: hint_bool(&hints, "resident"),
             app,

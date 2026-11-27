@@ -89,7 +89,11 @@ impl Kind for Groups {
 
     fn enter(place: &Stacked, animate: bool, reveal_at: Instant) -> Folded {
         let mut peek = Spring::new(
-            if place.peeks > 0 && !animate { 1.0 } else { 0.0 },
+            if place.peeks > 0 && !animate {
+                1.0
+            } else {
+                0.0
+            },
             SHAPE_SPRING,
             0.002,
         );

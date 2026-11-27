@@ -43,7 +43,10 @@ fn nothing_is_told_by_a_stale_or_unknown_refresh() {
         at: Duration::from_millis(100),
         refresh: Duration::ZERO,
     };
-    assert_eq!(ahead_of(unknown, Duration::from_millis(103)), Duration::ZERO);
+    assert_eq!(
+        ahead_of(unknown, Duration::from_millis(103)),
+        Duration::ZERO
+    );
     assert_eq!(
         ahead_of(shown_at(100), Duration::from_millis(50)),
         Duration::ZERO

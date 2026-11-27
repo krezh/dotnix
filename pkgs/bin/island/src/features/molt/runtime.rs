@@ -22,10 +22,10 @@ use molt_core::{
     },
     cleanup::flow as cleanup,
     config::load_config,
-    protocol::ActivationMode,
-    report::{flow as review, notes},
     home::flow::{self, Home, Msg},
     inputs::flow as inputs,
+    protocol::ActivationMode,
+    report::{flow as review, notes},
     search::flow as search,
     watchlist::flow as watchlist,
 };
@@ -147,7 +147,12 @@ fn switched(review: &review::Review) -> bool {
 }
 
 /// Sends `tick` every `every` until `done` is set.
-fn ticker(every: Duration, done: Arc<AtomicBool>, requests: Sender<Request>, tick: fn() -> Request) {
+fn ticker(
+    every: Duration,
+    done: Arc<AtomicBool>,
+    requests: Sender<Request>,
+    tick: fn() -> Request,
+) {
     thread::spawn(move || {
         while !done.load(Ordering::Relaxed) {
             thread::sleep(every);
@@ -159,7 +164,13 @@ fn ticker(every: Duration, done: Arc<AtomicBool>, requests: Sender<Request>, tic
 }
 
 impl Building {
-    fn start(&mut self, state: &mut Updates, target: Target, after: AfterBuild, requests: &Sender<Request>) {
+    fn start(
+        &mut self,
+        state: &mut Updates,
+        target: Target,
+        after: AfterBuild,
+        requests: &Sender<Request>,
+    ) {
         if state.build.as_ref().is_some_and(build::Build::running) {
             return;
         }
@@ -222,7 +233,11 @@ impl Building {
                 home.reviewed.push(target);
             }
             if switch {
-                self.review(state, review::Msg::Activate(ActivationMode::Switch), requests);
+                self.review(
+                    state,
+                    review::Msg::Activate(ActivationMode::Switch),
+                    requests,
+                );
             }
         }
     }
@@ -342,7 +357,9 @@ fn typed(
         (Field::InputsFilter, Edit::Cancel) => {
             inputs_msg(state, inputs::Msg::Query(String::new()), requests);
         }
-        (Field::InputsPin, Edit::Changed) => inputs_msg(state, inputs::Msg::PinText(text), requests),
+        (Field::InputsPin, Edit::Changed) => {
+            inputs_msg(state, inputs::Msg::PinText(text), requests)
+        }
         (Field::InputsPin, Edit::Send) => inputs_msg(state, inputs::Msg::ApplyPin, requests),
         (Field::InputsPin, Edit::Cancel) => inputs_msg(state, inputs::Msg::TogglePin, requests),
         (Field::WatchFilter, Edit::Changed) => {
@@ -355,7 +372,9 @@ fn typed(
             watchlist_msg(state, watchlist::Msg::TrackText(text), requests);
         }
         (Field::WatchTrack, Edit::Send) => watchlist_msg(state, watchlist::Msg::Track, requests),
-        (Field::SearchQuery, Edit::Changed) => search_msg(state, search::Msg::Query(text), requests),
+        (Field::SearchQuery, Edit::Changed) => {
+            search_msg(state, search::Msg::Query(text), requests)
+        }
         (Field::SearchQuery, Edit::Cancel) => {
             search_msg(state, search::Msg::Query(String::new()), requests);
         }
@@ -419,9 +438,14 @@ fn watchlist_msg(state: &mut Updates, msg: watchlist::Msg, requests: &Sender<Req
 fn spawn_inputs(effect: inputs::Effect, directory: PathBuf, requests: Sender<Request>) {
     thread::spawn(move || {
         let progress = requests.clone();
-        let msg = inputs::run(effect, &directory, &AtomicBool::new(false), move |fetched| {
-            let _ = progress.send(Request::Inputs(inputs::Msg::Progress(fetched)));
-        });
+        let msg = inputs::run(
+            effect,
+            &directory,
+            &AtomicBool::new(false),
+            move |fetched| {
+                let _ = progress.send(Request::Inputs(inputs::Msg::Progress(fetched)));
+            },
+        );
         let _ = requests.send(Request::Inputs(msg));
     });
 }
@@ -474,7 +498,11 @@ fn spawn(effect: flow::Effect, home: Home, requests: Sender<Request>) {
     });
 }
 
-fn work(feed: &Feed<Updates>, incoming: &mpsc::Receiver<Request>, requests: &Sender<Request>) -> Ended {
+fn work(
+    feed: &Feed<Updates>,
+    incoming: &mpsc::Receiver<Request>,
+    requests: &Sender<Request>,
+) -> Ended {
     let mut cache = cache::load();
     let mut state = Updates {
         report: cache.report.clone(),

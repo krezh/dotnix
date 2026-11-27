@@ -289,12 +289,17 @@ impl Session {
         {
             let fits = self.shared.as_ref().is_some_and(|shared| {
                 shared.images[0].shared.size == size
-                    && self.shared_formats.iter().any(|(fourcc, _)| *fourcc == shared.fourcc)
+                    && self
+                        .shared_formats
+                        .iter()
+                        .any(|(fourcc, _)| *fourcc == shared.fourcc)
             });
             if !fits {
                 self.shared = [XRGB8888, ARGB8888].into_iter().find_map(|fourcc| {
-                    let (_, modifiers) =
-                        self.shared_formats.iter().find(|(offered, _)| *offered == fourcc)?;
+                    let (_, modifiers) = self
+                        .shared_formats
+                        .iter()
+                        .find(|(offered, _)| *offered == fourcc)?;
                     let make = || SharedBuffer::new(dmabuf, size, fourcc, modifiers, handle);
                     Some(Shared2 {
                         images: [make()?, make()?],
@@ -370,7 +375,11 @@ struct Capture {
 
 impl Capture {
     fn wants(&self, id: &str) -> bool {
-        self.live && self.wanted.as_ref().is_none_or(|wanted| wanted.contains(id))
+        self.live
+            && self
+                .wanted
+                .as_ref()
+                .is_none_or(|wanted| wanted.contains(id))
     }
 
     fn toplevel(&mut self, handle: &ExtForeignToplevelHandleV1) -> Option<&mut Toplevel> {
@@ -380,9 +389,7 @@ impl Capture {
     }
 
     fn by_key(&mut self, id: &str) -> Option<&mut Toplevel> {
-        self.toplevels
-            .iter_mut()
-            .find(|toplevel| toplevel.id == id)
+        self.toplevels.iter_mut().find(|toplevel| toplevel.id == id)
     }
 
     /// When the next capture paced by [`LIVE_EVERY`] comes due, if one waits for that.
@@ -538,7 +545,6 @@ impl Capture {
         self.shots.named.retain(|_, id| *id != toplevel.id);
         self.news = News::Changed;
     }
-
 }
 
 impl Dispatch<WlRegistry, GlobalListContents> for Capture {

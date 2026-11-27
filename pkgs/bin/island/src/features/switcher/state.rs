@@ -3,12 +3,12 @@ use std::{collections::HashMap, path::PathBuf, sync::Arc, time::Instant};
 use crate::{
     apps::{self, App},
     capture::Shots,
-    picture::Picture,
     components::{
         gallery::{self, NAME_W},
         measure::Measure,
     },
     features,
+    picture::Picture,
     presence::{Presence, Slot},
     spring::SpringConfig,
     ui::TITLE_SIZE,
@@ -133,9 +133,10 @@ impl Local {
 
     /// What `window` is called: its app's name, or else its class.
     pub(super) fn name(&self, window: &Window) -> String {
-        self.apps
-            .get(&window.class)
-            .map_or_else(|| window.class.clone(), |app| apps::name(app, &window.class))
+        self.apps.get(&window.class).map_or_else(
+            || window.class.clone(),
+            |app| apps::name(app, &window.class),
+        )
     }
 
     pub(super) fn name_lines(&self, name: &str) -> usize {

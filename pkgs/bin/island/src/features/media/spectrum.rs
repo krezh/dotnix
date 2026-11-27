@@ -13,11 +13,7 @@ use libpulse_binding::{
 
 use tracing::{debug, error};
 
-use crate::{
-    features::Feed,
-    pulse,
-    supervisor,
-};
+use crate::{features::Feed, pulse, supervisor};
 
 pub const BARS: usize = 10;
 const RATE: u32 = 48_000;

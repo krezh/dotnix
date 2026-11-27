@@ -13,13 +13,18 @@ use std::{
 use smol_str::SmolStr as SharedString;
 
 use super::{
-    Actions, CalendarView, Chip, Code, Dropdown, FrameView, GalleryView, InputView, Item, Lead, Line,
-    Mark, Meter,
-    MeterShape, Piece, PlayerView, PromptView, Route, SearchView, Series, Slider, Stop, TabLabel,
-    Text, Tone, Transcript, Turn, Ui,
+    Actions, CalendarView, Chip, Code, Dropdown, FrameView, GalleryView, InputView, Item, Lead,
+    Line, Mark, Meter, MeterShape, Piece, PlayerView, PromptView, Route, SearchView, Series,
+    Slider, Stop, TabLabel, Text, Tone, Transcript, Turn, Ui,
 };
 use crate::components::{
-    card, chart::Phase, ledger::Ledger, list::ROWS, table::Table, tabs, tile::Tile,
+    card,
+    chart::Phase,
+    ledger::Ledger,
+    list::ROWS,
+    table::{Cell as TableCell, Row as TableRow, Table},
+    tabs,
+    tile::Tile,
     timeline::Timeline,
 };
 
@@ -28,6 +33,8 @@ pub type Handler = Rc<dyn Fn(&mut dyn Ui)>;
 pub fn on(handler: impl Fn(&mut dyn Ui) + 'static) -> Handler {
     Rc::new(handler)
 }
+
+pub type Point = Rc<dyn Fn(Option<(f32, f32)>, &mut dyn Ui)>;
 
 pub struct Button {
     pub label: SharedString,
@@ -71,10 +78,6 @@ impl Button {
         Self { active, ..self }
     }
 
-    pub fn fits(self, fits: Vec<SharedString>) -> Self {
-        Self { fits, ..self }
-    }
-
     pub fn enabled(self, enabled: bool) -> Self {
         Self { enabled, ..self }
     }
@@ -99,6 +102,7 @@ pub struct HeaderLead {
     /// The title in this color, such as what it says going well or wrong.
     pub title_color: Option<u32>,
     pub on_click: Option<Handler>,
+    pub on_point: Option<Point>,
 }
 
 pub struct Views {
@@ -608,15 +612,43 @@ impl Block {
                     match turn {
                         Turn::Mine(text) => text.text.hash(hasher),
                         Turn::Theirs {
+                            detail,
                             pieces,
                             streaming,
                             actions,
+                            sources,
                             ..
                         } => {
-                            (streaming, actions.len()).hash(hasher);
+                            (streaming, actions.len(), sources.len(), detail.is_some())
+                                .hash(hasher);
+                            if let Some(detail) = detail {
+                                for (words, _) in &detail.parts {
+                                    words.hash(hasher);
+                                }
+                            }
                             for piece in pieces {
                                 match piece {
-                                    Piece::Text(text) => text.text.hash(hasher),
+                                    Piece::Text(text) | Piece::Quote(text) => {
+                                        text.text.hash(hasher)
+                                    }
+                                    Piece::List(entries) => {
+                                        for entry in entries {
+                                            (entry.depth, entry.number).hash(hasher);
+                                            entry.text.text.hash(hasher);
+                                        }
+                                    }
+                                    Piece::Table(table) => {
+                                        table.rows.len().hash(hasher);
+                                        for row in &table.rows {
+                                            if let TableRow::Line(line) = row {
+                                                for cell in &line.cells {
+                                                    if let TableCell::Text { text, .. } = cell {
+                                                        text.hash(hasher);
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
                                     Piece::Code(code) => code.lines.len().hash(hasher),
                                 }
                             }

@@ -43,6 +43,23 @@ fn stays_on_the_edge() {
 }
 
 #[test]
+fn something_wide_is_gone_round_no_faster_than_the_most_speed() {
+    let small = edge();
+    assert!((super::travelled(&small, 1.0) - 1.0).abs() < 0.001);
+    let wide = Edge {
+        width: 1100.0,
+        height: 44.0,
+        ..edge()
+    };
+    let lap = super::LAP.as_secs_f32();
+    let pixels_a_second = super::travelled(&wide, 1.0) * wide.length() / lap;
+    assert!(
+        pixels_a_second <= super::MOST_SPEED + 0.5,
+        "{pixels_a_second}"
+    );
+}
+
+#[test]
 fn moves_evenly() {
     let edge = edge();
     let steps = 1000;

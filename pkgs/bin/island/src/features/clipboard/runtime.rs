@@ -10,9 +10,15 @@ use crate::{
 
 #[derive(Clone)]
 pub(super) enum Request {
-    Select { id: i64, paste: bool },
+    Select {
+        id: i64,
+        paste: bool,
+    },
     Delete(i64),
-    Pin { id: i64, pinned: bool },
+    Pin {
+        id: i64,
+        pinned: bool,
+    },
     /// Keeps what is pinned.
     Clear,
 }

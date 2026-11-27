@@ -200,10 +200,7 @@ pub fn build_report(
 }
 
 /// The build log nix kept for `derivation`, without terminal colours.
-pub fn derivation_log(
-    derivation: &str,
-    cancellation: &AtomicBool,
-) -> Result<String, String> {
+pub fn derivation_log(derivation: &str, cancellation: &AtomicBool) -> Result<String, String> {
     let output = run(
         Command::new(NIX).arg("log").arg(derivation),
         "nix log",

@@ -34,10 +34,11 @@ pub(super) fn activity(state: &State) -> Activity {
     if !state.requests.is_empty() {
         return Activity::Asking;
     }
-    if state
-        .sessions
-        .iter()
-        .any(|session| session.activity == Work::Working)
+    if state.chat.busy
+        || state
+            .sessions
+            .iter()
+            .any(|session| session.activity == Work::Working)
     {
         return Activity::Busy;
     }
@@ -98,8 +99,8 @@ pub(super) fn mood(state: &State, near: bool) -> Mood {
         },
         cheer_color: GREEN,
         near,
-        loading: state.refreshing,
-        warning: !state.issues.is_empty(),
+        loading: state.refreshing || (state.chat.busy && state.chat.activity.is_some()),
+        warning: !state.issues.is_empty() || state.chat.error.is_some(),
     }
 }
 
@@ -125,7 +126,19 @@ pub(super) fn title(sources: &[Source], state: &State, tab: Tab) -> String {
             .iter()
             .find(|session| session.activity == Work::Working)
             .map_or_else(
-                || "Working".to_owned(),
+                || {
+                    if state.chat.busy {
+                        let replying = state.chat.lines.last().is_some_and(|line| !line.mine);
+                        let doing = state.chat.activity.unwrap_or(if replying {
+                            "writing"
+                        } else {
+                            "thinking"
+                        });
+                        format!("Chat · {doing}")
+                    } else {
+                        "Working".to_owned()
+                    }
+                },
                 |session| {
                     if session.doing.is_empty() {
                         format!("Working · {}", session.project)
@@ -176,5 +189,6 @@ pub(super) fn lead(ai: &Ai, state: &State, view: &View, p: &PanelCx<'_>) -> Opti
         title: title(&ai.settings.sources, state, view.tab).into(),
         title_color: None,
         on_click: Some(p.on_local::<Ai>(|_, view| view.poke())),
+        on_point: Some(p.on_point::<Ai>(|_, view, at| view.point(at))),
     })
 }

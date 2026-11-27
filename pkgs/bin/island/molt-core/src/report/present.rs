@@ -209,9 +209,7 @@ const LONG_CHANGE: usize = 28;
 
 /// Where `version` may be split: after each `.`, `-`, `_` or `+`.
 fn segments(version: &str) -> Vec<&str> {
-    version
-        .split_inclusive(['.', '-', '_', '+'])
-        .collect()
+    version.split_inclusive(['.', '-', '_', '+']).collect()
 }
 
 /// `1.0 → 2.0`; when that is long, what the versions share written once round what changed, as
@@ -435,7 +433,11 @@ fn closure(review: &Review, units: &dyn Units) -> Closure {
             true,
         ));
     }
-    rows.push(("Packages", format!("{} changed", report.changes.len()), false));
+    rows.push((
+        "Packages",
+        format!("{} changed", report.changes.len()),
+        false,
+    ));
     rows.push((
         "Config files",
         match &report.config {
@@ -517,7 +519,11 @@ fn activation(review: &Review) -> Option<ActivationCard> {
                     format!("Activating {} #{}", report.target.name(), report.flake)
                 }
                 ActivationMode::Boot => {
-                    format!("Applying {} #{} on reboot", report.target.name(), report.flake)
+                    format!(
+                        "Applying {} #{} on reboot",
+                        report.target.name(),
+                        report.flake
+                    )
                 }
             },
             elapsed: format!("{:.1}s", activation.started.elapsed().as_secs_f64()),
@@ -600,7 +606,11 @@ pub fn view(review: &Review, units: &dyn Units) -> ReviewView {
     let (files, footer, store_paths) = match &report.config {
         Ok(config) => {
             let count = config.store_path_only.len();
-            let noun = if count == 1 { "file differs" } else { "files differ" };
+            let noun = if count == 1 {
+                "file differs"
+            } else {
+                "files differ"
+            };
             (
                 config.changes.as_slice(),
                 (count > 0).then(|| format!("{count} {noun} only in store paths")),

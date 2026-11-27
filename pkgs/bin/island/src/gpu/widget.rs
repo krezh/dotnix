@@ -16,11 +16,11 @@ use super::{
 use crate::{
     bar::{GLYPH, ICON_GAP, METER_H, METER_W, WIDGET_H},
     bar_widget::{BarWidget, Emphasis, Frame, Part, Press, RingMark, Scroll},
-    drawing::{Drawing, Shape},
     components::{
         button::BADGE_OVERHANG,
         marquee::{GAP as MARQUEE_GAP, SPEED as MARQUEE_SPEED},
     },
+    drawing::{Drawing, Shape},
     math::color,
     panel::SharedString,
     theme::{BASE, FONT, TEXT, TINT, TRACK_ALPHA, with_alpha},
@@ -137,7 +137,9 @@ impl Sweep {
 
     fn running(&self, now: Instant) -> bool {
         now.saturating_duration_since(self.since) < SWEEP
-            || self.marked.is_some_and(|marked| now.saturating_duration_since(marked) < MARK_FADE)
+            || self
+                .marked
+                .is_some_and(|marked| now.saturating_duration_since(marked) < MARK_FADE)
     }
 
     /// Carries on from `prior` towards `to`, the mark starting once the ring is round.
@@ -197,7 +199,10 @@ fn ring(start: f32, length: f32, tint: u32, mark: Option<(RingMark, f32)>) -> Dr
     if let Some((mark, shown)) = mark.filter(|(_, shown)| *shown > 0.0) {
         let lines = match mark {
             RingMark::Done => vec![vec![(6.2, 10.3), (8.8, 12.9), (13.9, 7.3)]],
-            RingMark::Failed => vec![vec![(7.0, 7.0), (13.0, 13.0)], vec![(13.0, 7.0), (7.0, 13.0)]],
+            RingMark::Failed => vec![
+                vec![(7.0, 7.0), (13.0, 13.0)],
+                vec![(13.0, 7.0), (7.0, 13.0)],
+            ],
         };
         shapes.extend(lines.into_iter().map(|points| Shape::Stroke {
             points,
@@ -649,11 +654,14 @@ impl Layout<'_> {
                         let sweep =
                             Sweep::toward(self.rings.get(&index), target, mark.is_some(), now);
                         drawn.rings.insert(index, sweep);
-                        drawn.moving |= sweep.running(now) || (mark.is_some() && sweep.marked.is_none());
+                        drawn.moving |=
+                            sweep.running(now) || (mark.is_some() && sweep.marked.is_none());
                         (0.0, sweep.at(now))
                     }
                     None => {
-                        drawn.rings.insert(index, Sweep::toward(None, 0.0, false, now));
+                        drawn
+                            .rings
+                            .insert(index, Sweep::toward(None, 0.0, false, now));
                         drawn.moving = true;
                         let spun = now.saturating_duration_since(self.started).as_secs_f32() * SPIN;
                         (spun.fract(), SPINNING)
@@ -661,7 +669,10 @@ impl Layout<'_> {
                 };
                 let shown = mark.map(|mark| {
                     let since = drawn.rings[&index].marked;
-                    (mark, since.map_or(0.0, |since| eased(since, MARK_FADE, now)))
+                    (
+                        mark,
+                        since.map_or(0.0, |since| eased(since, MARK_FADE, now)),
+                    )
                 });
                 let drawing = ring(start, length, *tint, shown);
                 self.part(&Part::Drawing(drawing), x, style, drawn);

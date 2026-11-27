@@ -208,12 +208,17 @@ async fn read(connection: &Connection, player: &str) -> Option<Track> {
         proxy.get_property::<HashMap<String, OwnedVariant>>("Metadata"),
         proxy.get_property::<i64>("Position"),
         async {
-            uncached(connection, player.to_owned(), PATH, "org.mpris.MediaPlayer2")
-                .await
-                .ok()?
-                .get_property::<String>("Identity")
-                .await
-                .ok()
+            uncached(
+                connection,
+                player.to_owned(),
+                PATH,
+                "org.mpris.MediaPlayer2",
+            )
+            .await
+            .ok()?
+            .get_property::<String>("Identity")
+            .await
+            .ok()
         },
     )
     .await;

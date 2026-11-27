@@ -111,7 +111,8 @@ fn status(text: impl Into<String>, tone: Tone) -> Option<Status> {
 
 fn since(now: SystemTime, unix: i64) -> u64 {
     let then = UNIX_EPOCH + std::time::Duration::from_secs(unix.max(0) as u64);
-    now.duration_since(then).map_or(0, |elapsed| elapsed.as_secs())
+    now.duration_since(then)
+        .map_or(0, |elapsed| elapsed.as_secs())
 }
 
 pub fn view(home: &Home, now: SystemTime, units: &dyn Units) -> HomeView {
@@ -283,9 +284,7 @@ fn figures(
         chip: system.staged.map(|staged| {
             (
                 format!("{staged} on reboot"),
-                format!(
-                    "Generation {staged} is applied and becomes active after the next reboot"
-                ),
+                format!("Generation {staged} is applied and becomes active after the next reboot"),
             )
         }),
     };

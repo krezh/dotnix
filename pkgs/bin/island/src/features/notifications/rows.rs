@@ -180,7 +180,13 @@ impl<K: Kind> Rows<K> {
     }
 
     /// Places the rows where `placed` says, `height` tall in all.
-    pub fn layout(&mut self, placed: Vec<Place<K>>, height: f32, animate: bool, reveal_at: Instant) {
+    pub fn layout(
+        &mut self,
+        placed: Vec<Place<K>>,
+        height: f32,
+        animate: bool,
+        reveal_at: Instant,
+    ) {
         let (motion, fade_in) = (SHAPE_SPRING, CONTENT_IN);
         let now = Instant::now();
         let swapping = self.swapping;

@@ -30,8 +30,7 @@ use crate::{
         prompt::PromptView,
         route::{Route, Stop, StopState},
         search::{
-            Preview, RowIcon, SECTION_SHARE, SELECTION_SPRING, SearchPreview, SearchRow,
-            SearchView,
+            Preview, RowIcon, SECTION_SHARE, SELECTION_SPRING, SearchPreview, SearchRow, SearchView,
         },
         segments,
         slider::{self as slider_fill, HIT_H, Slider, SliderLabel, TRACK_H},
@@ -48,10 +47,9 @@ use crate::{
     stage::CONTENT_IN,
     theme::{
         ACCENT, ACCENT_TINT_ALPHA, CARD_ALPHA, CARD_BORDER_ALPHA, CONTROL_ALPHA, CRITICAL, CRUST,
-        GREEN,
-        HOVER_ALPHA, NOTIFICATION_ALPHA, ON_ACCENT, OVERLAY1, OVERLAY2, PEACH, POPOVER_OPACITY,
-        RED, SELECTED_ALPHA, SUBTEXT1, SURFACE, SURFACE_BORDER_ALPHA, SURFACE1, TEXT, TINT,
-        TRACK_ALPHA, YELLOW, with_alpha,
+        GREEN, HOVER_ALPHA, NOTIFICATION_ALPHA, ON_ACCENT, OVERLAY1, OVERLAY2, PEACH,
+        POPOVER_OPACITY, RED, SELECTED_ALPHA, SUBTEXT1, SURFACE, SURFACE_BORDER_ALPHA, SURFACE1,
+        TEXT, TINT, TRACK_ALPHA, YELLOW, with_alpha,
     },
     ui::{
         BLOCK_GAP, CARD_PAD, CONTROL_H, CONTROL_RADIUS, HEADER_GAP, HEADER_H, HEADING_SIZE, INSET,
@@ -528,32 +526,40 @@ impl Blocks<'_, '_> {
             Block::Row(blocks) => div().flex().gap(card::GAP).children(self.all(blocks, at)),
             Block::Columns(Split::Balanced, blocks) => self.balanced(blocks, at),
             Block::Columns(Split::Lead { width, height }, blocks) => {
-                let columns = self.all(blocks, at).into_iter().enumerate().map(|(index, column)| {
-                    let cell = div().h(height).min_w(0.0).col().child(column.h_full());
-                    if index == 0 {
-                        cell.w(width).flex_none()
-                    } else {
-                        cell.flex_1()
-                    }
-                });
+                let columns =
+                    self.all(blocks, at)
+                        .into_iter()
+                        .enumerate()
+                        .map(|(index, column)| {
+                            let cell = div().h(height).min_w(0.0).col().child(column.h_full());
+                            if index == 0 {
+                                cell.w(width).flex_none()
+                            } else {
+                                cell.flex_1()
+                            }
+                        });
                 div().flex().gap(card::GAP).children(columns)
             }
             Block::Columns(Split::Trail { width }, blocks) => {
                 let last = blocks.len().saturating_sub(1);
                 let rule = tinted(SURFACE1, CARD_BORDER_ALPHA);
-                let cells = self.all(blocks, at).into_iter().enumerate().map(|(index, cell)| {
-                    if index == last {
-                        div()
-                            .w(width)
-                            .flex_none()
-                            .flex()
-                            .gap(INSET)
-                            .child(div().w(1.0).flex_none().bg(rule, 0.0))
-                            .child(div().flex_1().min_w(0.0).col().justify_center().child(cell))
-                    } else {
-                        div().flex_1().min_w(0.0).col().child(cell)
-                    }
-                });
+                let cells = self
+                    .all(blocks, at)
+                    .into_iter()
+                    .enumerate()
+                    .map(|(index, cell)| {
+                        if index == last {
+                            div()
+                                .w(width)
+                                .flex_none()
+                                .flex()
+                                .gap(INSET)
+                                .child(div().w(1.0).flex_none().bg(rule, 0.0))
+                                .child(div().flex_1().min_w(0.0).col().justify_center().child(cell))
+                        } else {
+                            div().flex_1().min_w(0.0).col().child(cell)
+                        }
+                    });
                 div().flex().gap(INSET).children(cells)
             }
             Block::Grid(columns, blocks) => {
@@ -581,15 +587,20 @@ impl Blocks<'_, '_> {
             Block::Chip(view) => div().flex().child(chip(view)),
             Block::Divided(blocks) => {
                 let rule = tinted(SURFACE1, CARD_BORDER_ALPHA);
-                let cells = self.all(blocks, at).into_iter().enumerate().flat_map(|(index, cell)| {
-                    let parting = (index > 0).then(|| div().w(1.0).flex_none().bg(rule, 0.0));
-                    parting.into_iter().chain([div()
-                        .flex_1()
-                        .min_w(0.0)
-                        .px(DIVIDED_PAD)
-                        .col()
-                        .child(cell)])
-                });
+                let cells =
+                    self.all(blocks, at)
+                        .into_iter()
+                        .enumerate()
+                        .flat_map(|(index, cell)| {
+                            let parting =
+                                (index > 0).then(|| div().w(1.0).flex_none().bg(rule, 0.0));
+                            parting.into_iter().chain([div()
+                                .flex_1()
+                                .min_w(0.0)
+                                .px(DIVIDED_PAD)
+                                .col()
+                                .child(cell)])
+                        });
                 div().flex().children(cells)
             }
             Block::Item(item, blocks) => {
@@ -724,16 +735,14 @@ impl Blocks<'_, '_> {
                 other => trail_node(other),
             })
             .collect();
-        let beside = item
-            .trail_beside
-            .then(|| {
-                div()
-                    .flex_none()
-                    .flex()
-                    .items_center()
-                    .gap(8.0)
-                    .children(std::mem::take(&mut trail))
-            });
+        let beside = item.trail_beside.then(|| {
+            div()
+                .flex_none()
+                .flex()
+                .items_center()
+                .gap(8.0)
+                .children(std::mem::take(&mut trail))
+        });
         let tints = |overline: bool| -> Vec<Node> {
             item.tinted
                 .iter()
@@ -1024,15 +1033,25 @@ impl Blocks<'_, '_> {
                 .child(div().min_w(0.0).truncate().child(moving(status.text)))
         });
         let pick = match (status, pick) {
-            (Some(status), Some(pick)) => {
-                Some(div().flex().items_center().gap(12.0).child(status).child(pick))
-            }
+            (Some(status), Some(pick)) => Some(
+                div()
+                    .flex()
+                    .items_center()
+                    .gap(12.0)
+                    .child(status)
+                    .child(pick),
+            ),
             (status, pick) => status.or(pick),
         };
         let pick = match (pick, views.route.map(header_route)) {
-            (Some(pick), Some(route)) => {
-                Some(div().flex().items_center().gap(12.0).child(pick).child(route))
-            }
+            (Some(pick), Some(route)) => Some(
+                div()
+                    .flex()
+                    .items_center()
+                    .gap(12.0)
+                    .child(pick)
+                    .child(route),
+            ),
             (pick, route) => pick.or(route),
         };
         let icons = icon_strip(views.icons);
@@ -1412,6 +1431,10 @@ fn header_lead(lead: HeaderLead) -> Node {
         ));
     let holder = match lead.on_click {
         Some(handler) => holder.on_click(handler),
+        None => holder,
+    };
+    let holder = match lead.on_point {
+        Some(handler) => holder.on_point(handler),
         None => holder,
     };
     div()
@@ -3596,6 +3619,7 @@ pub(super) fn input(view: InputView) -> Node {
     };
     let inset = (LINE + 2.0 * PAD_Y - ICON_BUTTON) / 2.0;
     div()
+        .named(&format!("input-{}", view.placeholder))
         .min_w(0.0)
         .when_some(view.on_focus, Node::on_click)
         .beams(view.busy)
@@ -3674,7 +3698,9 @@ fn gallery(view: GalleryView) -> Node {
     } else {
         whole
     };
-    let offset = tops[view.first_row.min(rows - 1)].min(whole - seen).max(0.0);
+    let offset = tops[view.first_row.min(rows - 1)]
+        .min(whole - seen)
+        .max(0.0);
     let place = |slot: usize| {
         let (row, column) = (slot / columns, slot % columns);
         (
@@ -3797,15 +3823,20 @@ fn gallery(view: GalleryView) -> Node {
             .text_size(SMALL_SIZE)
             .color(SUBTEXT1)
             .gap(6.0)
-            .children(view.keys.into_iter().enumerate().flat_map(|(index, (key, does))| {
-                let parted = (index > 0).then(|| div().nowrap().child(text("·")));
-                parted.into_iter().chain([div()
-                    .flex()
-                    .gap(4.0)
-                    .nowrap()
-                    .child(div().weight(SEMIBOLD).color(TEXT).child(text(key)))
-                    .child(text(does))])
-            }))
+            .children(
+                view.keys
+                    .into_iter()
+                    .enumerate()
+                    .flat_map(|(index, (key, does))| {
+                        let parted = (index > 0).then(|| div().nowrap().child(text("·")));
+                        parted.into_iter().chain([div()
+                            .flex()
+                            .gap(4.0)
+                            .nowrap()
+                            .child(div().weight(SEMIBOLD).color(TEXT).child(text(key)))
+                            .child(text(does))])
+                    }),
+            )
     });
     div()
         .col()
@@ -3815,7 +3846,6 @@ fn gallery(view: GalleryView) -> Node {
         .child(caption)
         .children(keys)
 }
-
 
 const SEARCH_ICON: f32 = 30.0;
 const SEARCH_PICTURE_W: f32 = 56.0;
@@ -4030,22 +4060,19 @@ fn search_row(row: SearchRow, slot_w: f32, height: f32, compact: bool) -> Node {
             .weight(SEMIBOLD)
     };
     let iconless = matches!(row.icon, RowIcon::None) && compact;
-    let node = div()
-        .flex()
-        .items_center()
-        .flex_none()
-        .h(height)
-        .px(10.0)
-        .justify_start()
-        .gap(12.0)
-        .when(!iconless, |node| node.child(row_icon(row.icon, slot_w)))
-        .child(
-            div()
-                .flex_1()
-                .min_w(0.0)
-                .col()
-                .child(name)
-                .when(!row.detail.is_empty(), |words| {
+    let node =
+        div()
+            .flex()
+            .items_center()
+            .flex_none()
+            .h(height)
+            .px(10.0)
+            .justify_start()
+            .gap(12.0)
+            .when(!iconless, |node| node.child(row_icon(row.icon, slot_w)))
+            .child(div().flex_1().min_w(0.0).col().child(name).when(
+                !row.detail.is_empty(),
+                |words| {
                     words.child(
                         div()
                             .text_size(SMALL_SIZE)
@@ -4053,15 +4080,15 @@ fn search_row(row: SearchRow, slot_w: f32, height: f32, compact: bool) -> Node {
                             .truncate()
                             .child(text(row.detail)),
                     )
-                }),
-        )
-        .children(
-            row.mark
-                .map(|(path, tint)| div().flex_none().child(glyph(path, ROW_MARK, tint))),
-        )
-        .children(row.trail.into_iter().map(trail_node))
-        .on_click(row.on_click)
-        .on_hover(row.on_hover);
+                },
+            ))
+            .children(
+                row.mark
+                    .map(|(path, tint)| div().flex_none().child(glyph(path, ROW_MARK, tint))),
+            )
+            .children(row.trail.into_iter().map(trail_node))
+            .on_click(row.on_click)
+            .on_hover(row.on_hover);
     if row.selected {
         node
     } else {
@@ -4293,13 +4320,6 @@ fn search_preview(preview: SearchPreview, width: f32, height: f32) -> Node {
         .col()
         .gap(12.0)
         .children(heading)
-        .child(
-            div()
-                .flex_1()
-                .min_h(0.0)
-                .clip()
-                .col()
-                .child(content),
-        )
+        .child(div().flex_1().min_h(0.0).clip().col().child(content))
         .children(actions)
 }

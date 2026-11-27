@@ -285,11 +285,7 @@ impl World {
             });
         let now = crate::time::now();
         let mut vpns = Vec::new();
-        for saved in self
-            .saved
-            .iter()
-            .filter(|saved| saved.is_vpn())
-        {
+        for saved in self.saved.iter().filter(|saved| saved.is_vpn()) {
             let active = active_of(&saved.path);
             let activity = active.map_or(Activity::Off, |active| active.activity);
             let interface = active
@@ -749,8 +745,8 @@ impl World {
 
 /// NetworkManager gives LastScan in milliseconds of CLOCK_BOOTTIME.
 fn boot_ms_to_unix(boot_ms: i64) -> i64 {
-    let uptime_ms = crate::sys::uptime()
-        .map_or(0, |up| i64::try_from(up.as_millis()).unwrap_or(i64::MAX));
+    let uptime_ms =
+        crate::sys::uptime().map_or(0, |up| i64::try_from(up.as_millis()).unwrap_or(i64::MAX));
     time::now_ms() - uptime_ms + boot_ms
 }
 

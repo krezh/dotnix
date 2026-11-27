@@ -6,8 +6,26 @@ use crate::{paths, time};
 /// Name and the alias Claude Code takes.
 pub const MODELS: [(&str, &str); 3] = [("Haiku", "haiku"), ("Sonnet", "sonnet"), ("Opus", "opus")];
 
+/// What a reply looked up on its way.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct Steps {
+    pub(super) searched: Vec<String>,
+    pub(super) read: usize,
+}
+
+impl Steps {
+    fn add(&mut self, tool: &str, on: String) {
+        match tool {
+            "WebFetch" | "web_fetch" => self.read += 1,
+            _ if !on.is_empty() => self.searched.push(on),
+            _ => {}
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct Line {
+    pub(super) steps: Steps,
     pub(super) mine: bool,
     pub(super) text: String,
     /// Into [`MODELS`]: the one asked, or the one answering.
@@ -23,6 +41,10 @@ pub struct Chat {
     pub(super) lines: Vec<Arc<Line>>,
     /// While a reply is on its way.
     pub(super) busy: bool,
+    /// What Claude is doing with a tool, until it writes again.
+    pub(super) activity: Option<&'static str>,
+    /// What the reply on its way looked up before its first words.
+    pub(super) steps: Steps,
     pub(super) model: usize,
     pub(super) error: Option<String>,
 }
@@ -44,6 +66,15 @@ fn folder() -> PathBuf {
 
 pub fn model_name(index: usize) -> &'static str {
     MODELS[index.min(MODELS.len() - 1)].0
+}
+
+/// What the overline says while Claude uses `tool`.
+pub fn activity(tool: &str) -> &'static str {
+    match tool {
+        "WebSearch" | "web_search" => "searching the web",
+        "WebFetch" | "web_fetch" => "reading a page",
+        _ => "using a tool",
+    }
 }
 
 pub fn model_index(alias: &str) -> usize {
@@ -69,7 +100,9 @@ impl Conversation {
         let run = self.run;
         let model = chat.model.min(MODELS.len() - 1);
         chat.error = None;
+        chat.steps = Steps::default();
         chat.lines.push(Arc::new(Line {
+            steps: Steps::default(),
             mine: true,
             text: text.clone(),
             model,
@@ -117,8 +150,9 @@ impl Conversation {
             return false;
         }
         let replying = chat.lines.last().is_some_and(|line| !line.mine);
-        let reply = |text: String, chat: &Chat| {
+        let reply = |text: String, chat: &mut Chat| {
             Arc::new(Line {
+                steps: std::mem::take(&mut chat.steps),
                 mine: false,
                 text,
                 model: chat.lines.last().map_or(chat.model, |line| line.model),
@@ -126,8 +160,28 @@ impl Conversation {
                 took_ms: None,
             })
         };
+        if matches!(
+            streamed,
+            Streamed::Text(_) | Streamed::Whole(_) | Streamed::Done(_)
+        ) {
+            chat.activity = None;
+        }
         match streamed {
             Streamed::Session(id) => self.session = Some(id),
+            Streamed::Tool(tool) => chat.activity = Some(activity(&tool)),
+            Streamed::Used(tool, on) => match chat.lines.last_mut() {
+                Some(line) if replying => Arc::make_mut(line).steps.add(&tool, on),
+                _ => chat.steps.add(&tool, on),
+            },
+            Streamed::Paragraph => {
+                if let Some(line) = chat.lines.last_mut()
+                    && replying
+                    && !line.text.trim().is_empty()
+                    && !line.text.ends_with("\n\n")
+                {
+                    Arc::make_mut(line).text.push_str("\n\n");
+                }
+            }
             Streamed::Text(more) => match chat.lines.last_mut() {
                 Some(line) if replying => Arc::make_mut(line).text.push_str(&more),
                 _ => {

@@ -260,10 +260,10 @@ pub fn view(notes: &Notes, units: &dyn Units) -> NotesView {
     match &notes.result {
         None => NotesView {
             loading: Some((
-                notes
-                    .steps
-                    .last()
-                    .map_or_else(|| "Looking up release notes…".to_owned(), |(step, _)| step.clone()),
+                notes.steps.last().map_or_else(
+                    || "Looking up release notes…".to_owned(),
+                    |(step, _)| step.clone(),
+                ),
                 timing(notes.started.elapsed()),
             )),
             ..base

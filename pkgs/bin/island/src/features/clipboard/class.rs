@@ -15,11 +15,59 @@ pub(super) enum Class {
 
 /// Commands that start a line read as a shell command.
 const COMMANDS: &[&str] = &[
-    "awk", "bash", "brew", "cargo", "cat", "cd", "chmod", "chown", "cp", "curl", "docker", "echo",
-    "export", "find", "fish", "flux", "gh", "git", "go", "grep", "helm", "jj", "journalctl",
-    "kubectl", "ln", "ls", "make", "mkdir", "mv", "nix", "nix-shell", "nixos-rebuild", "npm",
-    "npx", "pacman", "pip", "podman", "python", "python3", "rm", "rsync", "scp", "sed", "sh",
-    "ssh", "sudo", "systemctl", "tar", "talosctl", "tmux", "uv", "wget", "yarn",
+    "awk",
+    "bash",
+    "brew",
+    "cargo",
+    "cat",
+    "cd",
+    "chmod",
+    "chown",
+    "cp",
+    "curl",
+    "docker",
+    "echo",
+    "export",
+    "find",
+    "fish",
+    "flux",
+    "gh",
+    "git",
+    "go",
+    "grep",
+    "helm",
+    "jj",
+    "journalctl",
+    "kubectl",
+    "ln",
+    "ls",
+    "make",
+    "mkdir",
+    "mv",
+    "nix",
+    "nix-shell",
+    "nixos-rebuild",
+    "npm",
+    "npx",
+    "pacman",
+    "pip",
+    "podman",
+    "python",
+    "python3",
+    "rm",
+    "rsync",
+    "scp",
+    "sed",
+    "sh",
+    "ssh",
+    "sudo",
+    "systemctl",
+    "tar",
+    "talosctl",
+    "tmux",
+    "uv",
+    "wget",
+    "yarn",
 ];
 
 impl Class {
@@ -42,7 +90,8 @@ pub(super) fn site(text: &str) -> Option<&str> {
         return None;
     }
     let (scheme, rest) = text.split_once("://")?;
-    if !["http", "https", "ftp", "sftp", "ssh", "git"].contains(&scheme.to_ascii_lowercase().as_str())
+    if !["http", "https", "ftp", "sftp", "ssh", "git"]
+        .contains(&scheme.to_ascii_lowercase().as_str())
     {
         return None;
     }
@@ -90,7 +139,10 @@ pub(super) fn color(text: &str) -> Option<u32> {
 
 /// A shell command, or several lines that read as source.
 pub(super) fn code(text: &str) -> bool {
-    let lines: Vec<&str> = text.lines().filter(|line| !line.trim().is_empty()).collect();
+    let lines: Vec<&str> = text
+        .lines()
+        .filter(|line| !line.trim().is_empty())
+        .collect();
     match lines[..] {
         [] => false,
         [line] => command(line),

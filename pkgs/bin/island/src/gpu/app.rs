@@ -55,13 +55,13 @@ use wayland_protocols::{
             wp_fractional_scale_manager_v1::WpFractionalScaleManagerV1,
             wp_fractional_scale_v1::{self, WpFractionalScaleV1},
         },
-        presentation_time::client::{
-            wp_presentation::{self, WpPresentation},
-            wp_presentation_feedback::{self, WpPresentationFeedback},
-        },
         idle_inhibit::zv1::client::{
             zwp_idle_inhibit_manager_v1::ZwpIdleInhibitManagerV1,
             zwp_idle_inhibitor_v1::ZwpIdleInhibitorV1,
+        },
+        presentation_time::client::{
+            wp_presentation::{self, WpPresentation},
+            wp_presentation_feedback::{self, WpPresentationFeedback},
         },
         viewporter::client::{wp_viewport::WpViewport, wp_viewporter::WpViewporter},
     },
@@ -131,7 +131,9 @@ impl Dispatch<WpFractionalScaleV1, wl_surface::WlSurface> for Scales {
         _: &QueueHandle<Self>,
     ) {
         if let wp_fractional_scale_v1::Event::PreferredScale { scale } = event {
-            state.scales.push((surface.clone(), scale as f32 / FRACTION));
+            state
+                .scales
+                .push((surface.clone(), scale as f32 / FRACTION));
         }
     }
 }
@@ -699,10 +701,19 @@ impl OutputHandler for App {
         _: &QueueHandle<Self>,
         output: wl_output::WlOutput,
     ) {
-        let Some(rate) = self.output_state.info(&output).as_ref().and_then(refresh_rate) else {
+        let Some(rate) = self
+            .output_state
+            .info(&output)
+            .as_ref()
+            .and_then(refresh_rate)
+        else {
             return;
         };
-        for island in self.islands.iter_mut().filter(|island| island.output == output) {
+        for island in self
+            .islands
+            .iter_mut()
+            .filter(|island| island.output == output)
+        {
             island.set_refresh_rate(rate);
         }
     }

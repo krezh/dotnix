@@ -34,6 +34,7 @@ pub struct Notice {
     pub via: bool,
     /// Led by the mark its feature lends, rather than the app's letter.
     pub lead: bool,
+    pub mood: Option<String>,
     pub icon: Option<String>,
     pub actions: Vec<NoticeAction>,
     pub received: SystemTime,
@@ -59,6 +60,7 @@ impl Notice {
             detail: None,
             via: false,
             lead: false,
+            mood: None,
             icon: None,
             actions: Vec::new(),
             received: SystemTime::now(),

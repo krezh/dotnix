@@ -59,8 +59,7 @@ impl Decoder {
                     rgba,
                     _source: job.source,
                 };
-                if finished.unbounded_send(done).is_err()
-                {
+                if finished.unbounded_send(done).is_err() {
                     return;
                 }
             }

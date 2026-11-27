@@ -10,10 +10,7 @@ pub struct StorePath {
     pub nar_size: i64,
 }
 
-pub fn query_closures(
-    old: &Path,
-    new: &Path,
-) -> Result<(Vec<StorePath>, Vec<StorePath>), String> {
+pub fn query_closures(old: &Path, new: &Path) -> Result<(Vec<StorePath>, Vec<StorePath>), String> {
     query_database(Path::new(NIX_DATABASE), old, new)
 }
 

@@ -166,7 +166,8 @@ pub fn distance(at: (f32, f32), body: [f32; 4], (radius, power): (f32, f32), mer
 }
 
 /// The rows of whole pixels the bar and its menu cover, as left, top, width and height, for a
-/// region the compositor takes, such as where to blur. Each droplet gives its own.
+/// region the compositor takes, such as where to blur. Each row stays inside the edge, so the
+/// blur never steps out past the smooth outline. Each droplet gives its own.
 pub fn rows(body: [f32; 4], corner: (f32, f32), merge: Merge) -> Vec<[i32; 4]> {
     let [x, y, w, h] = body;
     let [mx, my, mw, mh] = merge.hang;
@@ -196,9 +197,15 @@ pub fn rows(body: [f32; 4], corner: (f32, f32), merge: Merge) -> Vec<[i32; 4]> {
                     within = middle;
                 }
             }
-            ((outside + within) / 2.0).round() as i32
+            (outside + within) / 2.0
         };
-        let (from, to) = (edge(left, inner), edge(right, inner));
+        let (from, to) = (
+            edge(left, inner).ceil() as i32,
+            edge(right, inner).floor() as i32,
+        );
+        if to <= from {
+            continue;
+        }
         match found.last_mut() {
             Some(last) if last[0] == from && last[2] == to - from && last[1] + last[3] == row => {
                 last[3] += 1;
@@ -209,7 +216,7 @@ pub fn rows(body: [f32; 4], corner: (f32, f32), merge: Merge) -> Vec<[i32; 4]> {
     found
 }
 
-/// A rounded `body` with corners `(radius, power)`, as whole-pixel rows.
+/// A rounded `body` with corners `(radius, power)`, as whole-pixel rows inside its edge.
 pub fn region([x, y, w, h]: [i32; 4], (radius, power): (f32, f32)) -> Vec<[i32; 4]> {
     if w <= 0 || h <= 0 {
         return Vec::new();
@@ -220,7 +227,7 @@ pub fn region([x, y, w, h]: [i32; 4], (radius, power): (f32, f32)) -> Vec<[i32; 
     for row in 0..rows {
         let from_centre = ((r - (row as f32 + 0.5)) / r).max(0.0);
         let reach = r * (1.0 - from_centre.powf(power)).max(0.0).powf(power.recip());
-        let inset = (r - reach).round() as i32;
+        let inset = (r - reach).ceil() as i32;
         let width = w - 2 * inset;
         rects.push([x + inset, y + row, width, 1]);
         rects.push([x + inset, y + h - 1 - row, width, 1]);

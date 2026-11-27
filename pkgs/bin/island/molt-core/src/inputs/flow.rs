@@ -80,10 +80,7 @@ pub enum Msg {
     History(u64, Result<Vec<RevisionRecord>, String>),
     Progress(LockProgress),
     /// A lock change finished, with flake.lock read again after it.
-    Finished(
-        Result<Done, String>,
-        Result<Vec<FlakeInput>, String>,
-    ),
+    Finished(Result<Done, String>, Result<Vec<FlakeInput>, String>),
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -278,7 +275,9 @@ impl Inputs {
                     .iter()
                     .position(|input| Some(&input.name) == self.selected.as_ref());
                 let next = match at {
-                    Some(at) => at.saturating_add_signed(by).min(shown.len().saturating_sub(1)),
+                    Some(at) => at
+                        .saturating_add_signed(by)
+                        .min(shown.len().saturating_sub(1)),
                     None => 0,
                 };
                 match shown.get(next).map(|input| input.name.clone()) {
@@ -312,7 +311,11 @@ impl Inputs {
                 self.oldest_first = oldest_first;
                 None
             }
-            Msg::TogglePin if self.current().is_some_and(|input| input.flake_ref.is_some()) => {
+            Msg::TogglePin
+                if self
+                    .current()
+                    .is_some_and(|input| input.flake_ref.is_some()) =>
+            {
                 self.pin = match self.pin {
                     Some(_) => None,
                     None => Some(String::new()),
@@ -359,10 +362,7 @@ impl Inputs {
                 };
                 match (input, record) {
                     (Some(input), Some(record)) => self.start(
-                        format!(
-                            "Setting {input} to {}…",
-                            short_revision(&record.revision)
-                        ),
+                        format!("Setting {input} to {}…", short_revision(&record.revision)),
                         Effect::Revision {
                             input,
                             flake_ref: record.flake_ref,
@@ -437,8 +437,7 @@ impl Inputs {
                             Ok(loaded) => {
                                 let effect = self.set_inputs(loaded);
                                 self.status = Some(Status {
-                                    text: "flake.lock restored to before Molt's changes"
-                                        .to_owned(),
+                                    text: "flake.lock restored to before Molt's changes".to_owned(),
                                     error: None,
                                 });
                                 effect
@@ -462,8 +461,13 @@ impl Inputs {
 
     pub fn can_apply_pin(&self) -> bool {
         self.busy.is_none()
-            && self.current().is_some_and(|input| input.flake_ref.is_some())
-            && self.pin.as_ref().is_some_and(|text| !text.trim().is_empty())
+            && self
+                .current()
+                .is_some_and(|input| input.flake_ref.is_some())
+            && self
+                .pin
+                .as_ref()
+                .is_some_and(|text| !text.trim().is_empty())
     }
 }
 

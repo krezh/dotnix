@@ -223,12 +223,22 @@ impl Stand {
 
     /// While switching off, folds `sprites` away and turns the screen behind black; `body` is the
     /// island's shape and `radius` its corners.
-    pub fn dress(&mut self, sprites: &mut Vec<Sprite>, body: [f32; 4], radius: f32, scale: f32) {
-        let crt = self
-            .off
-            .map(|(since, centered)| (crt(since.elapsed().as_secs_f32()), centered));
+    pub fn dress(
+        &mut self,
+        sprites: &mut Vec<Sprite>,
+        body: [f32; 4],
+        radius: f32,
+        scale: f32,
+        now: Instant,
+    ) {
+        let crt = self.off.map(|(since, centered)| {
+            (
+                crt(now.saturating_duration_since(since).as_secs_f32()),
+                centered,
+            )
+        });
         if let Stance::Center { busy } = self.stance {
-            let shone = self.beam.shine(busy.is_some());
+            let shone = self.beam.shine(busy.is_some(), now);
             if let (Some((phase, strength)), Some(tint)) = (shone, busy) {
                 edge_beam(body, radius, 1.0, (phase, strength), Hue::of(tint), sprites);
             }

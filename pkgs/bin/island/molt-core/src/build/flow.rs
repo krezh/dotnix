@@ -139,7 +139,12 @@ pub fn warning_text(warning: &str) -> &str {
 
 impl Build {
     /// A build of `target` with `config`, to be run with the returned effect.
-    pub fn start(config: Config, target: Target, after: AfterBuild, generation: u64) -> (Self, Effect) {
+    pub fn start(
+        config: Config,
+        target: Target,
+        after: AfterBuild,
+        generation: u64,
+    ) -> (Self, Effect) {
         let flake = target.flake(&config).unwrap_or("<unset>").to_owned();
         let flake_inputs = inputs::load(&config.flake_dir)
             .map(|(_, inputs)| inputs)
@@ -235,7 +240,9 @@ impl Build {
             let newest_first = specs.get(group).is_some_and(|spec| spec.newest_first);
             (group, if newest_first { -entered } else { entered })
         };
-        rows.sort_by_cached_key(|(key, content)| (order(key, content.group), content.title.clone()));
+        rows.sort_by_cached_key(|(key, content)| {
+            (order(key, content.group), content.title.clone())
+        });
         rows
     }
 
@@ -287,7 +294,8 @@ impl Build {
                         self.push_warnings(&update.warnings);
                         self.plan.update(&update, now);
                         self.progress = *update;
-                        self.throughput.sample(now, download_bytes(&self.progress).0);
+                        self.throughput
+                            .sample(now, download_bytes(&self.progress).0);
                     }
                 }
                 self.note_groups(now, units);
@@ -295,11 +303,14 @@ impl Build {
             }
             Msg::Tick(generation) if generation == self.generation && self.running() => {
                 if self.evaluation_done.is_some() {
-                    self.throughput.sample(now, download_bytes(&self.progress).0);
+                    self.throughput
+                        .sample(now, download_bytes(&self.progress).0);
                 }
                 None
             }
-            Msg::Finished(generation, result) if generation == self.generation && self.running() => {
+            Msg::Finished(generation, result)
+                if generation == self.generation && self.running() =>
+            {
                 self.took = Some(now - self.started);
                 match *result {
                     Ok(report) => self.stage = Stage::Ready(Box::new(report)),
@@ -372,7 +383,9 @@ impl Build {
             let mut known = self
                 .plan
                 .failed()
-                .filter(|path| path.ends_with(".drv") && !derivations.iter().any(|named| named == path))
+                .filter(|path| {
+                    path.ends_with(".drv") && !derivations.iter().any(|named| named == path)
+                })
                 .map(str::to_owned)
                 .collect::<Vec<_>>();
             known.sort();

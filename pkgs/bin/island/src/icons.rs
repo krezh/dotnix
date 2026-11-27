@@ -93,8 +93,14 @@ fn dir_size(path: &Path) -> u32 {
         let Some(s) = component.as_os_str().to_str() else {
             continue;
         };
-        let (dims, rest) = s.split_once('@').map_or((s, None), |(dims, rest)| (dims, Some(rest)));
-        if let Ok(d) = dims.split_once('x').map_or(dims, |(width, _)| width).parse::<u32>() {
+        let (dims, rest) = s
+            .split_once('@')
+            .map_or((s, None), |(dims, rest)| (dims, Some(rest)));
+        if let Ok(d) = dims
+            .split_once('x')
+            .map_or(dims, |(width, _)| width)
+            .parse::<u32>()
+        {
             size = d;
         }
         if let Some(sc) = rest

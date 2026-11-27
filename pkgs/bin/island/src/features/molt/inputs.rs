@@ -172,6 +172,7 @@ pub(super) fn inputs(state: &Updates, view: &View, p: &PanelCx<'_>) -> (Views, V
             title: shown.title.into(),
             title_color: None,
             on_click: None,
+            on_point: None,
         }),
         Some(back),
         p,

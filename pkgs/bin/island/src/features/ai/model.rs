@@ -5,6 +5,7 @@ use chrono::{Local, TimeZone, Timelike};
 use super::{
     forecast, format,
     hook::Reading,
+    mascot::Feeling,
     settings::Settings,
     state::{Freshness, Issue, Limit, Provider, Severity, Source, SourceReport, State},
 };
@@ -102,6 +103,7 @@ pub(super) struct Notice {
     pub(super) title: String,
     pub(super) body: String,
     pub(super) critical: bool,
+    pub(super) feeling: Feeling,
 }
 
 #[derive(Default)]
@@ -146,16 +148,18 @@ fn subject(provider: &Provider) -> String {
 
 fn notice(provider: &Provider, limit: &Limit, before: Severity) -> Option<Notice> {
     let subject = format!("{} · {}", subject(provider), limit.label);
-    let (title, body, critical) = match limit.severity {
+    let (title, body, critical, feeling) = match limit.severity {
         Severity::Exhausted => (
             format!("{subject} exhausted"),
             "Quota exhausted; see AI usage for the reset time.".to_owned(),
             true,
+            Feeling::Asleep,
         ),
         _ if before == Severity::Exhausted => (
             format!("{subject} available again"),
             format!("{} used", format::percent(limit.used)),
             false,
+            Feeling::Happy,
         ),
         Severity::High => (
             format!("{subject} running high"),
@@ -165,6 +169,7 @@ fn notice(provider: &Provider, limit: &Limit, before: Severity) -> Option<Notice
                 format!("{} used", format::percent(limit.used))
             },
             false,
+            Feeling::Tired,
         ),
         Severity::Ok => return None,
     };
@@ -174,6 +179,7 @@ fn notice(provider: &Provider, limit: &Limit, before: Severity) -> Option<Notice
         title,
         body,
         critical,
+        feeling,
     })
 }
 fn credit_notice(provider: &Provider, count: u64, before: u64) -> Option<Notice> {
@@ -193,6 +199,7 @@ fn credit_notice(provider: &Provider, count: u64, before: u64) -> Option<Notice>
         title,
         body: format!("{} available", plural(count, "reset token", "reset tokens")),
         critical: false,
+        feeling: Feeling::Happy,
     })
 }
 

@@ -45,10 +45,16 @@ fn after_option(opts: &[Opt], token: &str, here: At) -> Option<At> {
     if !token.starts_with('-') {
         return None;
     }
-    Some(match opts.iter().find(|opt| opt.is(token)).and_then(|opt| opt.value) {
-        Some((_, kind)) if !token.contains('=') => At::OptionValue(kind),
-        _ => here,
-    })
+    Some(
+        match opts
+            .iter()
+            .find(|opt| opt.is(token))
+            .and_then(|opt| opt.value)
+        {
+            Some((_, kind)) if !token.contains('=') => At::OptionValue(kind),
+            _ => here,
+        },
+    )
 }
 
 fn step(at: At, token: &str, resume: &mut Option<At>) -> At {

@@ -25,7 +25,10 @@ pub(super) fn day(at: i64) -> Option<String> {
 
 /// What the widget's tooltip says of an account's saved resets, while it has any.
 pub(super) fn saved_resets(provider: &Provider) -> Option<String> {
-    let credits = provider.credits.as_ref().filter(|credits| credits.count > 0)?;
+    let credits = provider
+        .credits
+        .as_ref()
+        .filter(|credits| credits.count > 0)?;
     let mut line = units::plural(credits.count, "saved reset", "saved resets");
     if let Some(day) = credits.expires_at.and_then(day) {
         line.push_str(&format!(" · expires {day}"));

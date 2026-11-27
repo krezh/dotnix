@@ -13,7 +13,7 @@ use tracing::{debug, warn};
 use super::{
     Event, Notifications, State,
     cards::Filter,
-    notification::{Expire, Notification, Posted},
+    notification::{Expire, Lent, Notification, Posted},
 };
 use crate::{
     components::icon::Picture,
@@ -49,6 +49,9 @@ ALTER TABLE history ADD COLUMN source TEXT;
 ALTER TABLE history ADD COLUMN via INTEGER NOT NULL DEFAULT 0;
 ALTER TABLE history ADD COLUMN detail TEXT;
 CREATE INDEX history_origin ON history (feature, origin);
+",
+    "
+ALTER TABLE history ADD COLUMN mood TEXT;
 ",
 ];
 
@@ -95,11 +98,13 @@ fn read(db: &Connection, days: u32) -> rusqlite::Result<Vec<Earlier>> {
     let cutoff = time::now() - i64::from(days) * 86_400;
     db.execute("DELETE FROM history WHERE received < ?1", params![cutoff])?;
     let mut statement = db.prepare(
-        "SELECT session, id, app, summary, body, critical, icon, received, lead, feature, origin, source, via, detail
+        "SELECT session, id, app, summary, body, critical, icon, received, lead, feature, origin, source, via, detail,
+            mood
          FROM history ORDER BY received DESC",
     )?;
     let rows = statement.query_map([], |row| {
         let received: i64 = row.get(7)?;
+        let mood: Option<String> = row.get(14)?;
         let posted = match (row.get(9)?, row.get(10)?, row.get(11)?) {
             (Some(feature), Some(key), Some(source)) => Some(Posted {
                 origin: Origin {
@@ -124,7 +129,9 @@ fn read(db: &Connection, days: u32) -> rusqlite::Result<Vec<Earlier>> {
                     .get::<_, Option<String>>(6)?
                     .map(|path| Picture::File(PathBuf::from(path))),
                 image: None,
-                lead: row.get(8)?,
+                lead: row
+                    .get::<_, Option<String>>(8)?
+                    .map(|feature| Lent { feature, mood }),
                 transient: false,
                 resident: false,
                 expire: Expire::Default,
@@ -156,13 +163,13 @@ fn write(db: &mut Connection, write: Write) -> rusqlite::Result<()> {
             }
             db.execute(
                 "INSERT INTO history (session, id, app, summary, body, critical, icon, received, lead,
-                    feature, origin, source, via, detail)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)
+                    feature, origin, source, via, detail, mood)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)
                  ON CONFLICT (session, id) DO UPDATE SET app = excluded.app, summary = excluded.summary,
                     body = excluded.body, critical = excluded.critical, icon = excluded.icon,
                     received = excluded.received, lead = excluded.lead, feature = excluded.feature,
                     origin = excluded.origin, source = excluded.source, via = excluded.via,
-                    detail = excluded.detail",
+                    detail = excluded.detail, mood = excluded.mood",
                 params![
                     earlier.session,
                     notification.id,
@@ -172,12 +179,13 @@ fn write(db: &mut Connection, write: Write) -> rusqlite::Result<()> {
                     notification.critical,
                     icon,
                     time::seconds(notification.received),
-                    notification.lead,
+                    notification.lead.as_ref().map(|lent| &lent.feature),
                     origin.map(|origin| &origin.feature),
                     origin.map(|origin| &origin.key),
                     origin.map(|origin| &origin.source),
                     posted.is_some_and(|posted| posted.via),
                     posted.and_then(|posted| posted.detail.as_ref()),
+                    notification.lead.as_ref().and_then(|lent| lent.mood.as_ref()),
                 ],
             )?;
         }

@@ -31,10 +31,12 @@ fn screen(screen: Screen, state: &Updates, view: &View, p: &PanelCx<'_>) -> (Vie
         Screen::Search => search(state, view, p),
         Screen::Cleanup => cleanup(state, view, p),
         Screen::Build(target) => {
-            let built = build.filter(|build| {
-                build.target == target && !matches!(build.stage, Stage::Ready(_))
-            });
-            match (built, review.filter(|review| review.report.target == target)) {
+            let built = build
+                .filter(|build| build.target == target && !matches!(build.stage, Stage::Ready(_)));
+            match (
+                built,
+                review.filter(|review| review.report.target == target),
+            ) {
                 (Some(build), _) => self::build(build, screen, view, p),
                 (None, Some(review)) => self::review(review, screen, view, p),
                 (None, None) => (

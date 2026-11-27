@@ -965,8 +965,7 @@ impl Gpu {
         .map_err(|error| format!("no graphics adapter: {error}"))?;
         info!(adapter = adapter.get_info().name, "drawing with wgpu");
         let (device, queue) = pollster::block_on(adapter.request_device(&wgpu::DeviceDescriptor {
-            required_features: adapter.features()
-                & wgpu::Features::VULKAN_EXTERNAL_MEMORY_DMA_BUF,
+            required_features: adapter.features() & wgpu::Features::VULKAN_EXTERNAL_MEMORY_DMA_BUF,
             memory_hints: wgpu::MemoryHints::MemoryUsage,
             ..Default::default()
         }))
@@ -1135,7 +1134,9 @@ impl Gpu {
     /// Where [`Self::scale_into`] records, to [`Self::submit`] once for all of them.
     pub fn scaling(&self) -> wgpu::CommandEncoder {
         self.device
-            .create_command_encoder(&wgpu::CommandEncoderDescriptor { label: Some("scale") })
+            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                label: Some("scale"),
+            })
     }
 
     pub fn submit(&self, encoder: wgpu::CommandEncoder) {

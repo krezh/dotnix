@@ -27,9 +27,7 @@ use crate::{
         Block, Cell, Chip, Code, CodeLine, CodeMotion, Column, Field, Filters, IconButton, Item,
         Split, TabLabel, Table, TableRow, Trail, TrailButton, Views, Width, on,
     },
-    theme::{
-        ACCENT, CRITICAL, GREEN, MAUVE, OVERLAY1, OVERLAY2, SUBTEXT1, TEXT, YELLOW,
-    },
+    theme::{ACCENT, CRITICAL, GREEN, MAUVE, OVERLAY1, OVERLAY2, SUBTEXT1, TEXT, YELLOW},
     ui::{DISPLAY_SIZE, TITLE_SIZE},
 };
 
@@ -50,13 +48,7 @@ const fn ink(ink: Ink) -> u32 {
     }
 }
 
-fn changes(
-    shown: &ReviewView,
-    target: Target,
-    height: f32,
-    view: &View,
-    p: &PanelCx<'_>,
-) -> Block {
+fn changes(shown: &ReviewView, target: Target, height: f32, view: &View, p: &PanelCx<'_>) -> Block {
     let tabs = Filters {
         tabs: shown
             .tabs
@@ -93,7 +85,10 @@ fn changes(
     );
     let mut rows = Vec::new();
     for group in &shown.groups {
-        rows.push(TableRow::Heading(Chip::new(group.heading.clone(), hue(group.hue))));
+        rows.push(TableRow::Heading(Chip::new(
+            group.heading.clone(),
+            hue(group.hue),
+        )));
         for change in &group.rows {
             let opens = change.opens.as_ref().map(|(opens, _, _)| opens.clone());
             let (name, folder) = match change.name.rsplit_once('/') {
@@ -212,10 +207,19 @@ fn changes(
         Block::Scrolled("molt-review-rows".into(), room.max(0.0), listed),
     ];
     blocks.extend(under);
-    Block::Frame(frame("molt-review-changes".to_owned(), Some(height)), blocks)
+    Block::Frame(
+        frame("molt-review-changes".to_owned(), Some(height)),
+        blocks,
+    )
 }
 
-fn titled(id: &str, title: String, color: Option<u32>, trail: Vec<Trail>, mut blocks: Vec<Block>) -> Block {
+fn titled(
+    id: &str,
+    title: String,
+    color: Option<u32>,
+    trail: Vec<Trail>,
+    mut blocks: Vec<Block>,
+) -> Block {
     blocks.insert(
         0,
         Block::Item(
@@ -297,7 +301,10 @@ fn side(shown: &ReviewView, p: &PanelCx<'_>) -> Vec<Block> {
                 Item {
                     id: format!("molt-review-services-{}", group.heading).into(),
                     title: "".into(),
-                    before: vec![Trail::Chip(Chip::new(group.heading.clone(), hue(group.hue)))],
+                    before: vec![Trail::Chip(Chip::new(
+                        group.heading.clone(),
+                        hue(group.hue),
+                    ))],
                     ..Default::default()
                 },
                 vec![Block::Text(crate::panel::Text {
@@ -343,14 +350,35 @@ fn side(shown: &ReviewView, p: &PanelCx<'_>) -> Vec<Block> {
 
 fn activation(card: &ActivationCard) -> Block {
     let (tint, capsule) = match card.state {
-        CapsuleState::Running => (SUBTEXT1, Chip { busy: true, wide: true, ..Chip::new(card.capsule, SUBTEXT1) }),
-        CapsuleState::Done => (GREEN, Chip { wide: true, ..Chip::new(card.capsule, GREEN) }),
-        CapsuleState::Failed => (CRITICAL, Chip { wide: true, ..Chip::new(card.capsule, CRITICAL) }),
+        CapsuleState::Running => (
+            SUBTEXT1,
+            Chip {
+                busy: true,
+                wide: true,
+                ..Chip::new(card.capsule, SUBTEXT1)
+            },
+        ),
+        CapsuleState::Done => (
+            GREEN,
+            Chip {
+                wide: true,
+                ..Chip::new(card.capsule, GREEN)
+            },
+        ),
+        CapsuleState::Failed => (
+            CRITICAL,
+            Chip {
+                wide: true,
+                ..Chip::new(card.capsule, CRITICAL)
+            },
+        ),
     };
     let mut trail = Vec::new();
     match (&card.chip, card.state) {
         (Some(chip), _) => trail.push(Trail::Chip(Chip::new(chip.clone(), GREEN))),
-        (None, CapsuleState::Failed) => trail.push(Trail::Chip(Chip::new(card.elapsed.clone(), CRITICAL))),
+        (None, CapsuleState::Failed) => {
+            trail.push(Trail::Chip(Chip::new(card.elapsed.clone(), CRITICAL)))
+        }
         (None, _) => trail.push(Trail::Faint(card.elapsed.clone().into())),
     }
     let mut blocks = vec![Block::Chip(capsule)];
@@ -418,7 +446,12 @@ fn button(shown: &ActivateButton, p: &PanelCx<'_>) -> IconButton {
     }
 }
 
-pub(super) fn review(review: &Review, screen: Screen, view: &View, p: &PanelCx<'_>) -> (Views, Vec<Block>) {
+pub(super) fn review(
+    review: &Review,
+    screen: Screen,
+    view: &View,
+    p: &PanelCx<'_>,
+) -> (Views, Vec<Block>) {
     let shown = present::view(review, &IslandUnits);
     let mut head = header(
         shown.title.to_owned(),

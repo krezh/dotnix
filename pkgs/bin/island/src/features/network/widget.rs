@@ -76,9 +76,7 @@ pub fn widget(state: &State, w: &mut WidgetCx<'_>) -> BarWidget {
         }),
         None => w.base().gap(ICON_GAP).glyph(glyph, color),
     };
-    let shield = state
-        .active_vpn()
-        .and_then(|_| w.glyph("network-vpn"));
+    let shield = state.active_vpn().and_then(|_| w.glyph("network-vpn"));
     base.glyph(shield, MAUVE)
         .tip(tip(state))
         .on_click(w.toggle(Network::panel_handle()))

@@ -370,11 +370,7 @@ impl Worker<'_> {
     }
 
     /// An emptied clipboard gets the newest entry back with `persist`.
-    fn selection(
-        &self,
-        watch: &mut Watch,
-        offer: Option<ExtDataControlOfferV1>,
-    ) -> bool {
+    fn selection(&self, watch: &mut Watch, offer: Option<ExtDataControlOfferV1>) -> bool {
         let Some(offer) = offer else {
             if self.settings.persist && !profile::preview() && watch.served.is_none() {
                 if let Ok(Some(newest)) = self.store.newest() {

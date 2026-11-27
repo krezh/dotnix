@@ -32,7 +32,11 @@ pub fn socket_dir() -> Result<PathBuf, String> {
 
 /// The socket its events come on.
 pub fn events() -> io::Result<UnixStream> {
-    UnixStream::connect(socket_dir().map_err(io::Error::other)?.join(".socket2.sock"))
+    UnixStream::connect(
+        socket_dir()
+            .map_err(io::Error::other)?
+            .join(".socket2.sock"),
+    )
 }
 
 fn left(deadline: Instant) -> io::Result<Duration> {

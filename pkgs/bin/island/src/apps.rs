@@ -1,11 +1,6 @@
 //! What a window's class stands for: its app's name and icon, from the app's desktop entry.
 
-use std::{
-    collections::HashMap,
-    fs,
-    path::PathBuf,
-    sync::LazyLock,
-};
+use std::{collections::HashMap, fs, path::PathBuf, sync::LazyLock};
 
 use crate::{desktop, icons};
 

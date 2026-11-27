@@ -162,12 +162,14 @@ pub fn plain(text: &str) -> String {
 }
 
 fn text(caption: &'static str, value: Option<&str>) -> Option<Section> {
-    value.filter(|value| !value.is_empty()).map(|value| Section {
-        caption,
-        text: value.to_owned(),
-        code: false,
-        muted: false,
-    })
+    value
+        .filter(|value| !value.is_empty())
+        .map(|value| Section {
+            caption,
+            text: value.to_owned(),
+            code: false,
+            muted: false,
+        })
 }
 
 fn value(caption: &'static str, value: &Value) -> Section {
@@ -193,7 +195,10 @@ fn detail(screen: &Search, item: &SearchResultItem, revision: Option<&str>) -> D
     match item {
         SearchResultItem::Package(hit) => {
             sections.extend(text("Version", hit.version.as_deref()));
-            sections.extend(text("Description", hit.description.as_deref().map(plain).as_deref()));
+            sections.extend(text(
+                "Description",
+                hit.description.as_deref().map(plain).as_deref(),
+            ));
             if !hit.licenses.is_empty() {
                 sections.extend(text("Licenses", Some(&hit.licenses.join(", "))));
             }
@@ -203,7 +208,10 @@ fn detail(screen: &Search, item: &SearchResultItem, revision: Option<&str>) -> D
             sections.extend(text("Declaration", hit.position.as_deref()));
         }
         SearchResultItem::NixOsOption(hit) | SearchResultItem::HomeManagerOption(hit) => {
-            sections.extend(text("Description", hit.description.as_deref().map(plain).as_deref()));
+            sections.extend(text(
+                "Description",
+                hit.description.as_deref().map(plain).as_deref(),
+            ));
             sections.extend(text("Type", hit.option_type.as_deref()));
             sections.push(value("Default", &hit.default_value));
             sections.push(value("Example", &hit.example));
@@ -219,28 +227,31 @@ fn detail(screen: &Search, item: &SearchResultItem, revision: Option<&str>) -> D
     {
         links.push(("Open homepage", url.to_owned()));
     }
-    let local = screen.config.as_ref().map(|_| match screen.local.get(&local_key(item)) {
-        None => LocalView::Idle {
-            note: "Evaluate this against your flake's locked nixpkgs and configuration",
-            action: "Check locally",
-        },
-        Some(Local::Running) => LocalView::Running("Evaluating with nix eval…"),
-        Some(Local::Done(Ok(found))) => LocalView::Done {
-            summary: match (item, found.set) {
-                (SearchResultItem::Package(_), _) => "Version in your nixpkgs",
-                (_, Some(true)) => "Set in your configuration",
-                (_, Some(false)) => "Not set; the module default applies",
-                (_, None) => "Value in your configuration",
+    let local = screen
+        .config
+        .as_ref()
+        .map(|_| match screen.local.get(&local_key(item)) {
+            None => LocalView::Idle {
+                note: "Evaluate this against your flake's locked nixpkgs and configuration",
+                action: "Check locally",
             },
-            value: found.value.clone(),
-            attribute: found.attribute.clone(),
-            action: "Check again",
-        },
-        Some(Local::Done(Err(error))) => LocalView::Failed {
-            error: error.clone(),
-            action: "Retry",
-        },
-    });
+            Some(Local::Running) => LocalView::Running("Evaluating with nix eval…"),
+            Some(Local::Done(Ok(found))) => LocalView::Done {
+                summary: match (item, found.set) {
+                    (SearchResultItem::Package(_), _) => "Version in your nixpkgs",
+                    (_, Some(true)) => "Set in your configuration",
+                    (_, Some(false)) => "Not set; the module default applies",
+                    (_, None) => "Value in your configuration",
+                },
+                value: found.value.clone(),
+                attribute: found.attribute.clone(),
+                action: "Check again",
+            },
+            Some(Local::Done(Err(error))) => LocalView::Failed {
+                error: error.clone(),
+                action: "Retry",
+            },
+        });
     Detail {
         kind,
         category,
@@ -332,10 +343,12 @@ pub fn view(screen: &Search) -> SearchView {
                 SearchResultItem::Package(hit) => {
                     hit.version.as_deref().unwrap_or(category).to_owned()
                 }
-                SearchResultItem::NixOsOption(hit) | SearchResultItem::HomeManagerOption(hit) => hit
-                    .option_type
-                    .as_deref()
-                    .map_or_else(|| category.to_owned(), |kind| format!("{category} · {kind}")),
+                SearchResultItem::NixOsOption(hit) | SearchResultItem::HomeManagerOption(hit) => {
+                    hit.option_type.as_deref().map_or_else(
+                        || category.to_owned(),
+                        |kind| format!("{category} · {kind}"),
+                    )
+                }
             };
             Row {
                 name: name.to_owned(),

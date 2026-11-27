@@ -3,6 +3,7 @@
 
 use super::{
     hook::{Hook, Origin},
+    mascot::Feeling,
     model::Notice,
     state::State,
 };
@@ -61,6 +62,7 @@ pub(super) fn notice(state: &State, hook: &Hook) -> Option<Notice> {
                 },
                 body: project(state, from),
                 critical: false,
+                feeling: Feeling::Asking,
             })
         }
         Hook::Stop { from, reply } => Some(Notice {
@@ -69,6 +71,7 @@ pub(super) fn notice(state: &State, hook: &Hook) -> Option<Notice> {
             title: format!("Finished in {}", project(state, from)),
             body: gist(reply),
             critical: false,
+            feeling: Feeling::Happy,
         }),
         _ => None,
     }

@@ -574,7 +574,13 @@ pub struct Inline {
 }
 
 /// Markup as plain text, the styled spans in it by byte range, and its links with where they go.
-pub fn spans(markup: &str) -> (String, Vec<(std::ops::Range<usize>, Inline)>, Vec<(std::ops::Range<usize>, String)>) {
+pub fn spans(
+    markup: &str,
+) -> (
+    String,
+    Vec<(std::ops::Range<usize>, Inline)>,
+    Vec<(std::ops::Range<usize>, String)>,
+) {
     let mut text = String::with_capacity(markup.len());
     let mut style = Inline::default();
     let mut styled = Vec::new();
@@ -617,7 +623,10 @@ pub fn spans(markup: &str) -> (String, Vec<(std::ops::Range<usize>, Inline)>, Ve
                 }
             }
             _ => {
-                if let Some(href) = tag.strip_prefix("a href=\"").and_then(|href| href.strip_suffix('"')) {
+                if let Some(href) = tag
+                    .strip_prefix("a href=\"")
+                    .and_then(|href| href.strip_suffix('"'))
+                {
                     link = Some((text.len(), decode_entities(href).into_owned()));
                 }
             }

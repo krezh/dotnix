@@ -11,12 +11,20 @@ use crate::{
 };
 
 impl Clipboard {
-    pub(super) fn handle_key(&self, state: &State, picker: &mut Picker, keystroke: &Key) -> Outcome {
+    pub(super) fn handle_key(
+        &self,
+        state: &State,
+        picker: &mut Picker,
+        keystroke: &Key,
+    ) -> Outcome {
         let matching = state.matching(&picker.selection.query, picker.filter);
         let layout = matching.layout;
-        let selected = matching
-            .entries
-            .get(picker.selection.selected.min(layout.count.saturating_sub(1)));
+        let selected = matching.entries.get(
+            picker
+                .selection
+                .selected
+                .min(layout.count.saturating_sub(1)),
+        );
         match keystroke.name.as_str() {
             "escape" => return Outcome::Close,
             "enter" => {
@@ -55,7 +63,9 @@ impl Clipboard {
             return Report::default();
         }
         self.request(Request::Clear);
-        Report::did(Row::said("Forgot the clipboard history, keeping what is pinned"))
+        Report::did(Row::said(
+            "Forgot the clipboard history, keeping what is pinned",
+        ))
     }
 }
 

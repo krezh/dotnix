@@ -554,7 +554,13 @@ impl Painter {
             if version == slot.version {
                 continue;
             }
-            show_live(gpu, &mut scaling, slot.entry, &slot.live.frame(), slot.framing);
+            show_live(
+                gpu,
+                &mut scaling,
+                slot.entry,
+                &slot.live.frame(),
+                slot.framing,
+            );
             slot.version = version;
             changed = true;
         }
@@ -971,13 +977,31 @@ impl Painter {
         let gone: Vec<char> = old[start..old.len() - end].chars().collect();
         let come: Vec<char> = new[start..new.len() - end].chars().collect();
         if gone.len().max(come.len()) > MORPH_BY_CHARACTER {
-            let (from, from_w) =
-                self.pieces(gpu, family, &old[start..old.len() - end], style, (tint, top), scale);
-            let (to, to_w) =
-                self.pieces(gpu, family, &new[start..new.len() - end], style, (tint, top), scale);
+            let (from, from_w) = self.pieces(
+                gpu,
+                family,
+                &old[start..old.len() - end],
+                style,
+                (tint, top),
+                scale,
+            );
+            let (to, to_w) = self.pieces(
+                gpu,
+                family,
+                &new[start..new.len() - end],
+                style,
+                (tint, top),
+                scale,
+            );
             let first = self.pieces(gpu, family, &new[..start], style, (tint, top), scale);
-            let (last, _) =
-                self.pieces(gpu, family, &new[new.len() - end..], style, (tint, top), scale);
+            let (last, _) = self.pieces(
+                gpu,
+                family,
+                &new[new.len() - end..],
+                style,
+                (tint, top),
+                scale,
+            );
             let whole = Slot {
                 from,
                 from_w,
@@ -1035,6 +1059,7 @@ impl Painter {
                 style.code,
                 style.covered,
                 style.link,
+                style.color,
             )
                 .hash(&mut hasher);
         }
@@ -1081,6 +1106,10 @@ impl Painter {
                 }
                 if style.link {
                     let [r, g, b] = rgb_of(ACCENT);
+                    attrs = attrs.color(TextColor::rgb(r, g, b));
+                }
+                if let Some(tint) = style.color {
+                    let [r, g, b] = rgb_of(tint);
                     attrs = attrs.color(TextColor::rgb(r, g, b));
                 }
                 if style.covered {
@@ -1210,11 +1239,18 @@ impl Painter {
         }
         let raster = self.glyph_rasters.get(&key).cloned().flatten();
         let entry = raster.and_then(|raster| {
-            self.placed(gpu, raster.w, raster.h, &raster.rgba, raster.left, raster.top)
-                .map(|entry| Entry {
-                    colored: raster.colored,
-                    ..entry
-                })
+            self.placed(
+                gpu,
+                raster.w,
+                raster.h,
+                &raster.rgba,
+                raster.left,
+                raster.top,
+            )
+            .map(|entry| Entry {
+                colored: raster.colored,
+                ..entry
+            })
         });
         if !self.full {
             self.glyphs.insert(key, entry);

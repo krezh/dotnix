@@ -36,8 +36,8 @@ pub struct Notification {
     pub critical: bool,
     pub icon: Option<Picture>,
     pub image: Option<Picture>,
-    /// The feature, by name, whose mark leads it in place of the icon (hint `x-island-lead`).
-    pub lead: Option<String>,
+    /// The feature whose mark leads it in place of the icon (hints `x-island-lead`, `x-island-mood`).
+    pub lead: Option<Lent>,
     pub transient: bool,
     pub resident: bool,
     pub expire: Expire,
@@ -45,6 +45,12 @@ pub struct Notification {
     pub received: SystemTime,
     /// For one a feature posted itself; one from D-Bus has none.
     pub posted: Option<Posted>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Lent {
+    pub feature: String,
+    pub mood: Option<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]

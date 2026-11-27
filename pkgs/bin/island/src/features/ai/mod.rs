@@ -2,6 +2,7 @@ mod alerts;
 mod asking;
 mod cache;
 mod chat;
+mod cite;
 mod conversation;
 pub(crate) mod converse;
 mod feature;

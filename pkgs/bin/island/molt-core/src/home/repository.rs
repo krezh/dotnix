@@ -107,10 +107,7 @@ pub fn check(
     }
 }
 
-pub fn update(
-    directory: &Path,
-    cancellation: &AtomicBool,
-) -> Result<RepositoryStatus, String> {
+pub fn update(directory: &Path, cancellation: &AtomicBool) -> Result<RepositoryStatus, String> {
     let repository = detect(directory)?;
     match repository.kind {
         RepositoryKind::Git => git_update(&repository.root, cancellation)?,

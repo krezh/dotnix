@@ -133,7 +133,8 @@ pub struct StatusLine {
 
 fn since(now: SystemTime, unix: i64) -> u64 {
     let then = UNIX_EPOCH + std::time::Duration::from_secs(unix.max(0) as u64);
-    now.duration_since(then).map_or(0, |elapsed| elapsed.as_secs())
+    now.duration_since(then)
+        .map_or(0, |elapsed| elapsed.as_secs())
 }
 
 fn lock_age(input: &FlakeInput, now: SystemTime) -> Option<u64> {
@@ -251,7 +252,11 @@ fn detail(
         tooltip: Some("Lock this input to a specific commit, tag, or branch"),
         ..Action::new(
             ActionId::TogglePin,
-            if screen.pin.is_some() { "Cancel" } else { "Pin…" },
+            if screen.pin.is_some() {
+                "Cancel"
+            } else {
+                "Pin…"
+            },
             pinnable,
         )
     };

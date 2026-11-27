@@ -13,7 +13,7 @@ use super::{AnyLocal, Local, Surface, instance::instance, widget_cx::redraw_by};
 use crate::{
     components::{dropdown::Select, slider::OnChange},
     glyphs::Glyphs,
-    panel::{Handler, Mark, Ui},
+    panel::{Handler, Mark, Point, Ui},
 };
 
 pub struct PanelCx<'a> {
@@ -22,7 +22,7 @@ pub struct PanelCx<'a> {
     redraw: &'a Cell<Option<Duration>>,
     pub(super) instance: Option<Rc<dyn Any>>,
     /// The mark a feature lends, by its name, as [`Feature::lead`] gives it; asked only when needed.
-    lend: Box<dyn Fn(&str) -> Option<Mark> + 'a>,
+    lend: Box<dyn Fn(&str, Option<&str>) -> Option<Mark> + 'a>,
 }
 
 impl<'a> PanelCx<'a> {
@@ -30,7 +30,7 @@ impl<'a> PanelCx<'a> {
         glyphs: Glyphs,
         local: Option<&'a dyn AnyLocal>,
         redraw: &'a Cell<Option<Duration>>,
-        lend: Box<dyn Fn(&str) -> Option<Mark> + 'a>,
+        lend: Box<dyn Fn(&str, Option<&str>) -> Option<Mark> + 'a>,
     ) -> Self {
         Self {
             glyphs,
@@ -46,9 +46,9 @@ impl<'a> PanelCx<'a> {
         redraw_by(self.redraw, after);
     }
 
-    /// The mark the feature named `name` lends, if it lends one now.
-    pub fn lead(&self, name: &str) -> Option<Mark> {
-        (self.lend)(name)
+    /// The mark the feature named `name` lends, showing `mood`, if it lends one now.
+    pub fn lead(&self, name: &str, mood: Option<&str>) -> Option<Mark> {
+        (self.lend)(name, mood)
     }
 
     pub fn glyph(&self, key: &str) -> Option<PathBuf> {
@@ -79,6 +79,23 @@ impl<'a> PanelCx<'a> {
                     (local.as_any_mut().downcast_mut::<F::Local>(), value.take())
                 {
                     action(&instance.feature, local, value);
+                }
+            });
+        })
+    }
+
+    pub fn on_point<F: Surface>(
+        &self,
+        action: impl Fn(&F, &mut F::Local, Option<(f32, f32)>) + 'static,
+    ) -> Point {
+        let instance = instance::<F>(&self.instance);
+        Rc::new(move |at, ui: &mut dyn Ui| {
+            let Some(instance) = &instance else {
+                return;
+            };
+            ui.move_local(F::NAME, &mut |local| {
+                if let Some(local) = local.as_any_mut().downcast_mut::<F::Local>() {
+                    action(&instance.feature, local, at);
                 }
             });
         })

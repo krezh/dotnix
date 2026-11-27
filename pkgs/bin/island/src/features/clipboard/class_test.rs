@@ -7,7 +7,10 @@ fn reads_one_address_as_a_link() {
         site("https://github.com/catppuccin/catppuccin"),
         Some("github.com")
     );
-    assert_eq!(site(" https://me@example.org:8443/a?b#c\n"), Some("example.org"));
+    assert_eq!(
+        site(" https://me@example.org:8443/a?b#c\n"),
+        Some("example.org")
+    );
     assert_eq!(site("see https://example.org"), None);
     assert_eq!(site("github.com/catppuccin"), None);
     assert_eq!(

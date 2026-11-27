@@ -12,7 +12,13 @@ use serde_json::Value;
 /// Says only what a quick question needs, so a chat stays a chat.
 const SYSTEM_PROMPT: &str = "You are answering a quick question in a small chat window on the \
 user's desktop. Answer directly and briefly in Markdown. Use a fenced code block for commands \
-or code. You have no tools.";
+or code. You can search the web and read web pages. Use them when the answer depends on \
+something recent or version-specific, without announcing that you will. When you used them, \
+mark each claim taken from a page with its number in brackets, such as [1], and end with a \
+line saying Sources: followed by the pages in that order as a list of Markdown links.";
+
+/// The tools the chat may use, all of which only read the web.
+const TOOLS: &str = "WebSearch,WebFetch";
 
 /// Marks the chat's own Claude Code process, so island's hooks leave it out of the sessions.
 pub const CHAT_ENV: &str = "ISLAND_CHAT";
@@ -26,6 +32,12 @@ pub enum Streamed {
     Text(String),
     /// The whole reply at once, when nothing arrived piece by piece.
     Whole(String),
+    /// A new block of text starts, which may follow text from before a tool.
+    Paragraph,
+    /// Claude started using a tool, by its name.
+    Tool(String),
+    /// Claude used a tool, by its name, on what it searched for or read.
+    Used(String, String),
     /// The turn is over; an error says why it failed.
     Done(Result<(), String>),
 }
@@ -38,14 +50,38 @@ pub fn parse(line: &str) -> Option<Streamed> {
             Some(Streamed::Session(text(&value, "session_id")?))
         }
         "stream_event" => {
-            let delta = value.get("event")?.get("delta")?;
-            (text(delta, "type").as_deref() == Some("text_delta"))
-                .then(|| text(delta, "text"))
-                .flatten()
-                .map(Streamed::Text)
+            let event = value.get("event")?;
+            match text(event, "type")?.as_str() {
+                "content_block_start" => {
+                    let block = event.get("content_block")?;
+                    match text(block, "type")?.as_str() {
+                        "text" => Some(Streamed::Paragraph),
+                        "tool_use" | "server_tool_use" => text(block, "name").map(Streamed::Tool),
+                        _ => None,
+                    }
+                }
+                "content_block_delta" => {
+                    let delta = event.get("delta")?;
+                    (text(delta, "type").as_deref() == Some("text_delta"))
+                        .then(|| text(delta, "text"))
+                        .flatten()
+                        .map(Streamed::Text)
+                }
+                _ => None,
+            }
         }
         "assistant" => {
             let content = value.get("message")?.get("content")?.as_array()?;
+            if let Some(tool) = content
+                .iter()
+                .find(|part| text(part, "type").as_deref() == Some("tool_use"))
+            {
+                let on = tool
+                    .get("input")
+                    .and_then(|input| text(input, "query").or_else(|| text(input, "url")))
+                    .unwrap_or_default();
+                return Some(Streamed::Used(text(tool, "name")?, on));
+            }
             let whole: String = content
                 .iter()
                 .filter(|part| text(part, "type").as_deref() == Some("text"))
@@ -102,9 +138,10 @@ pub fn start(
             "--verbose",
         ])
         .args(["--model", model])
+        .args(["--tools", TOOLS, "--allowedTools", TOOLS])
         .args([
-            "--tools",
-            "",
+            "--permission-prompts",
+            "none",
             "--strict-mcp-config",
             "--setting-sources",
             "",

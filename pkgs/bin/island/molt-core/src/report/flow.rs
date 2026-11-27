@@ -180,6 +180,8 @@ impl Review {
 /// Runs an [`Effect`] to the end.
 pub fn run(effect: Effect, cancellation: &AtomicBool) -> Msg {
     match effect {
-        Effect::Activate(mode, report) => Msg::Activated(mode, activate(&report, mode, cancellation)),
+        Effect::Activate(mode, report) => {
+            Msg::Activated(mode, activate(&report, mode, cancellation))
+        }
     }
 }

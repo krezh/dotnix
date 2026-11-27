@@ -111,7 +111,6 @@ impl Stage {
         self.mode == Mode::Collapsed && self.fullscreen
     }
 
-
     /// Whether what is open shows anything of `name`'s part, so changes when it moves.
     pub fn shows_local(&self, name: &str) -> bool {
         match self.mode {
@@ -345,9 +344,9 @@ impl Stage {
         glyphs: &Glyphs,
         redraw: &'a Cell<Option<Duration>>,
     ) -> PanelCx<'a> {
-        let lend = move |lender: &str| {
+        let lend = move |lender: &str, mood: Option<&str>| {
             self.lent.borrow_mut().insert(lender.to_owned());
-            self.features.get(lender)?.lead(self.local(lender)?)
+            self.features.get(lender)?.lead(self.local(lender)?, mood)
         };
         PanelCx::new(glyphs.clone(), self.local(name), redraw, Box::new(lend))
     }
@@ -405,7 +404,8 @@ impl Stage {
             warnings: panels::battery_warnings(&batteries, glyphs),
             ..features::Dashboard::default()
         };
-        let mut batteries = (!batteries.is_empty()).then(|| panels::batteries_card(&batteries, glyphs));
+        let mut batteries =
+            (!batteries.is_empty()).then(|| panels::batteries_card(&batteries, glyphs));
         let mut shown = HashSet::new();
         for feature in features {
             if feature.dashboard_order() > BATTERIES_ORDER

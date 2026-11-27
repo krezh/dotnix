@@ -7,9 +7,7 @@ use std::path::PathBuf;
 use crate::panel::SharedString;
 
 use crate::{
-    components::{
-        badge::Mark, chip::Chip, dropdown::Dropdown, search::Filters, stepper::Stepper,
-    },
+    components::{badge::Mark, chip::Chip, dropdown::Dropdown, search::Filters, stepper::Stepper},
     panel::Handler,
     spring::SpringConfig,
 };

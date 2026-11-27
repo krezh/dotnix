@@ -12,8 +12,8 @@ use crate::{
     components::list::ROWS,
     features::PanelCx,
     panel::{
-        Block, Code, CodeLine, CodeMotion, FileRow, Filters, Header, IconButton, PanelView,
-        Chip, Preview, RowIcon, SearchPreview, SearchRow, SearchView, TabLabel,
+        Block, Chip, Code, CodeLine, CodeMotion, FileRow, Filters, Header, IconButton, PanelView,
+        Preview, RowIcon, SearchPreview, SearchRow, SearchView, TabLabel,
     },
     theme::{ACCENT, GREEN, LAVENDER, PEACH, PINK, RED, SAPPHIRE, YELLOW},
 };
@@ -89,15 +89,17 @@ pub(super) fn panel(state: &State, p: &PanelCx<'_>) -> Option<PanelView> {
                 icon: icon(entry, p),
                 mono: entry.class == Class::Code,
                 section: layout.section(position).map(Into::into),
-                mark: pin.clone().filter(|_| entry.pinned).map(|path| (path, YELLOW)),
+                mark: pin
+                    .clone()
+                    .filter(|_| entry.pinned)
+                    .map(|path| (path, YELLOW)),
                 trail: Vec::new(),
                 selected: position == selected,
                 on_click: p.on_island::<Clipboard>(move |clipboard, ui| {
                     clipboard.request(Request::Select { id, paste: true });
                     ui.collapse();
                 }),
-                on_hover: p
-                    .on_local::<Clipboard>(move |_, picker| picker.select(position, layout)),
+                on_hover: p.on_local::<Clipboard>(move |_, picker| picker.select(position, layout)),
             }
         })
         .collect();
@@ -221,8 +223,8 @@ fn preview(entry: &Entry, p: &PanelCx<'_>) -> SearchPreview {
             .map_or(Preview::Empty, Preview::Picture),
         Class::Files => Preview::Files(entry.text.lines().map(|path| file_row(path, p)).collect()),
     };
-    let button = |glyph: &str, label: &str, color: Option<u32>, active: bool, request: Request| {
-        IconButton {
+    let button =
+        |glyph: &str, label: &str, color: Option<u32>, active: bool, request: Request| IconButton {
             glyph: p.glyph(glyph),
             color,
             label: label.into(),
@@ -237,8 +239,7 @@ fn preview(entry: &Entry, p: &PanelCx<'_>) -> SearchPreview {
                     ui.collapse();
                 }
             }),
-        }
-    };
+        };
     SearchPreview {
         tag: Some(Chip {
             glyph: p.glyph(glyph_key(entry.class)),
@@ -298,7 +299,10 @@ fn file_row(path: &str, p: &PanelCx<'_>) -> FileRow {
     let class = if picture { Class::Picture } else { Class::Text };
     let home = std::env::var_os("HOME").filter(|home| !home.is_empty());
     let place = path.parent().map_or(String::new(), |parent| {
-        match home.as_deref().and_then(|home| parent.strip_prefix(home).ok()) {
+        match home
+            .as_deref()
+            .and_then(|home| parent.strip_prefix(home).ok())
+        {
             Some(within) if within.as_os_str().is_empty() => "~".to_owned(),
             Some(within) => format!("~/{}", within.display()),
             None => parent.display().to_string(),
@@ -310,9 +314,10 @@ fn file_row(path: &str, p: &PanelCx<'_>) -> FileRow {
             .map_or(RowIcon::None, |glyph| RowIcon::Tinted(glyph, color(class))),
         name: path
             .file_name()
-            .map_or_else(|| path.display().to_string(), |name| {
-                name.to_string_lossy().into_owned()
-            })
+            .map_or_else(
+                || path.display().to_string(),
+                |name| name.to_string_lossy().into_owned(),
+            )
             .into(),
         place: place.into(),
     }

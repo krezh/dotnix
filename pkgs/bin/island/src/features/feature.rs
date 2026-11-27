@@ -188,8 +188,8 @@ pub trait Surface: Feature {
     fn pointer(&self, _local: &mut Self::Local, _over: bool) {}
 
     /// A mark it lends to another feature's rows, asked for by its name, such as what leads a
-    /// notification it sent.
-    fn lead(&self, _local: &Self::Local) -> Option<Mark> {
+    /// notification it sent, showing the `mood` that notification was sent with.
+    fn lead(&self, _local: &Self::Local, _mood: Option<&str>) -> Option<Mark> {
         None
     }
 

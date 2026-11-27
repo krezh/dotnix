@@ -76,14 +76,26 @@ fn step(step: &Step, index: usize) -> Block {
         trail: vec![Trail::Chip(Chip::new(pill.clone(), color(*tone)))],
         ..Default::default()
     };
-    let block = Block::Item(item, vec![Block::caption(step.description.clone(), SUBTEXT1)]);
+    let block = Block::Item(
+        item,
+        vec![Block::caption(step.description.clone(), SUBTEXT1)],
+    );
     match &step.url {
-        Some(url) => Block::Frame(opens(url.clone(), format!("molt-watch-step-{index}")), vec![block]),
+        Some(url) => Block::Frame(
+            opens(url.clone(), format!("molt-watch-step-{index}")),
+            vec![block],
+        ),
         None => block,
     }
 }
 
-fn text_button(label: &str, primary: bool, enabled: bool, busy: bool, on_click: crate::panel::Handler) -> IconButton {
+fn text_button(
+    label: &str,
+    primary: bool,
+    enabled: bool,
+    busy: bool,
+    on_click: crate::panel::Handler,
+) -> IconButton {
     IconButton {
         glyph: None,
         color: primary.then_some(crate::theme::ACCENT),
@@ -99,19 +111,25 @@ fn text_button(label: &str, primary: bool, enabled: bool, busy: bool, on_click: 
 pub(super) fn watchlist(state: &Updates, view: &View, p: &PanelCx<'_>) -> (Views, Vec<Block>) {
     let back = p.on_local::<Molt>(|_, view: &mut View| view.open(Screen::Home));
     let Some(screen) = &state.watchlist else {
-        return (views(None, Some(back), p), vec![Block::note("Reading the watchlist…")]);
+        return (
+            views(None, Some(back), p),
+            vec![Block::note("Reading the watchlist…")],
+        );
     };
     let shown = present::view(screen);
     let mut header = views(
         Some(HeaderLead {
             mark: p
                 .glyph("molt-watchlist")
-                .map_or(Mark::Letter("W".into(), TEAL), |path| Mark::Glyph(path, TEAL)),
+                .map_or(Mark::Letter("W".into(), TEAL), |path| {
+                    Mark::Glyph(path, TEAL)
+                }),
             size: LEAD,
             overline: shown.subtitle.clone().into(),
             title: shown.title.into(),
             title_color: None,
             on_click: None,
+            on_point: None,
         }),
         Some(back),
         p,

@@ -91,7 +91,8 @@ fn detail(pr: &WatchedPr) -> Detail {
         PrState::Open => ("Open", Tone::Mauve),
         PrState::Closed => ("Closed", Tone::Peach),
     };
-    let commit_url = |sha: &str| format!("https://github.com/{}/{}/commit/{sha}", pr.owner, pr.repo);
+    let commit_url =
+        |sha: &str| format!("https://github.com/{}/{}/commit/{sha}", pr.owner, pr.repo);
     let (commit, meta) = match (pr.pr_state, pr.merge_commit.as_deref()) {
         (PrState::Merged, Some(sha)) => (
             Some((sha[..sha.len().min(12)].to_owned(), commit_url(sha))),
@@ -149,9 +150,10 @@ fn detail(pr: &WatchedPr) -> Detail {
                     ),
                     Some(compare(sha)),
                 ),
-                StepState::Pending { .. } => {
-                    ("Waiting on branch advancement".to_owned(), Some(compare(sha)))
-                }
+                StepState::Pending { .. } => (
+                    "Waiting on branch advancement".to_owned(),
+                    Some(compare(sha)),
+                ),
                 StepState::Open => ("Pending PR merge".to_owned(), Some(pr.html_url.clone())),
             },
             None => (

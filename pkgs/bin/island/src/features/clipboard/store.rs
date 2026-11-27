@@ -23,7 +23,8 @@ const PREVIEW_W: u32 = 860;
 const PREVIEW_H: u32 = 720;
 
 /// Only ever append.
-const MIGRATIONS: &[&str] = &["
+const MIGRATIONS: &[&str] = &[
+    "
 CREATE TABLE clipboard (
     id INTEGER PRIMARY KEY,
     hash TEXT NOT NULL UNIQUE,
@@ -38,9 +39,11 @@ CREATE TABLE clipboard (
     used INTEGER NOT NULL
 );
 CREATE INDEX clipboard_used ON clipboard (used DESC);
-", "
+",
+    "
 ALTER TABLE clipboard ADD COLUMN pinned INTEGER NOT NULL DEFAULT 0;
-"];
+",
+];
 
 static DB: db::Owner = db::Owner::new("clipboard", MIGRATIONS);
 

@@ -90,7 +90,9 @@ pkgs.rustPlatform.buildRustPackage (finalAttrs: {
           pkgs.xdg-dbus-proxy
         ]
       }"
-      --prefix GST_PLUGIN_SYSTEM_PATH_1_0 : "${lib.makeSearchPathOutput "lib" "lib/gstreamer-1.0" gstPlugins}"
+      --prefix GST_PLUGIN_SYSTEM_PATH_1_0 : "${
+        lib.makeSearchPathOutput "lib" "lib/gstreamer-1.0" gstPlugins
+      }"
     )
   '';
 

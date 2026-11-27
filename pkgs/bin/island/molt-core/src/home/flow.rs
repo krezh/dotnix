@@ -14,7 +14,9 @@ use crate::watchlist::db::{WatchlistSummary, open_db, summary};
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Repository {
     /// Whether Pull stays on show from before the check, as it does in molt.
-    Checking { pull: bool },
+    Checking {
+        pull: bool,
+    },
     Ready(RepositoryStatus),
     CheckFailed(String),
     /// Pulling; the card keeps showing what it showed before.
@@ -91,10 +93,8 @@ impl Home {
                 Some(Effect::Check)
             }
             Msg::Pull if self.can_pull() => {
-                let before = std::mem::replace(
-                    &mut self.repository,
-                    Repository::Checking { pull: false },
-                );
+                let before =
+                    std::mem::replace(&mut self.repository, Repository::Checking { pull: false });
                 self.repository = Repository::Updating(Box::new(before));
                 Some(Effect::Pull)
             }

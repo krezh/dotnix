@@ -39,7 +39,6 @@ impl Default for CleanupPolicy {
     }
 }
 
-
 pub fn load_config() -> Result<Config, String> {
     let path = Path::new("/etc/molt/molt.toml");
     let content = fs::read_to_string(path)

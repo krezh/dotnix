@@ -8,8 +8,9 @@ fn code_spans_are_plain_tt() {
 
 #[test]
 fn markup_reads_as_text_with_styles_and_links() {
-    let (text, styled, links) =
-        spans("Use <b>bold</b> and <tt>a &lt; b</tt> <a href=\"https://x.dev/?a=1&amp;b=2\">here</a>");
+    let (text, styled, links) = spans(
+        "Use <b>bold</b> and <tt>a &lt; b</tt> <a href=\"https://x.dev/?a=1&amp;b=2\">here</a>",
+    );
     assert_eq!(text, "Use bold and a < b here");
     assert_eq!(
         styled,

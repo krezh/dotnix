@@ -77,7 +77,7 @@ pub(super) fn panel(ai: &Ai, state: &State, p: &PanelCx<'_>) -> Option<PanelView
             on_select: p.on_local_with::<Ai, usize>(|_, view, index| {
                 view.pick_tab(Tab::ALL[index.min(Tab::ALL.len() - 1)]);
             }),
-            pick: None,
+            pick: (view.tab == Tab::Chat).then(|| chat::pick(state, view, p)),
             segments: None,
             field: None,
             buttons,

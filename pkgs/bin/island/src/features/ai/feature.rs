@@ -84,6 +84,7 @@ impl Surface for Ai {
             &["github-copilot-symbolic", "github-copilot", "copilot"],
         ),
         ("ai-send", &["arrow-up"]),
+        ("ai-search", &["search"]),
         ("ai-chat", &["message-circle"]),
         ("ai-usage", &["gauge"]),
         ("ai-refresh", &["rotate-cw", "refresh-cw"]),
@@ -133,8 +134,10 @@ impl Surface for Ai {
         }
     }
 
-    fn lead(&self, view: &View) -> Option<Mark> {
-        view.pose().map(mascot::mark)
+    fn lead(&self, view: &View, mood: Option<&str>) -> Option<Mark> {
+        view.pose()?;
+        let feeling = mood.and_then(mascot::Feeling::named);
+        Some(mascot::mark(mascot::Pose::feeling(feeling)))
     }
 
     fn key(&self, state: &State, view: &mut View, keystroke: &Key) -> Outcome {

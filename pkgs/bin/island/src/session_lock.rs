@@ -13,11 +13,11 @@ pub async fn locked(connection: &Connection) -> Option<bool> {
         logind::SESSION_PATH,
         logind::SESSION,
     )
-        .await
-        .ok()?
-        .get_property::<bool>("LockedHint")
-        .await
-        .ok()
+    .await
+    .ok()?
+    .get_property::<bool>("LockedHint")
+    .await
+    .ok()
 }
 
 /// logind's property changes, after each of which the lock may have changed.

@@ -36,7 +36,7 @@ use crate::{
     },
     drawing::Drawing,
     math::color as solid,
-    panel::{Handler, SharedString},
+    panel::{Handler, Point, SharedString},
     picture::Picture,
     spring::SpringConfig,
     stage::CONTENT_IN,
@@ -179,6 +179,7 @@ struct Answers {
     tip: Option<SharedString>,
     on_change: Option<OnChange>,
     on_hover: Option<Handler>,
+    on_point: Option<Point>,
     on_rows: Option<Rows>,
     anchor: Option<SharedString>,
     immediate: bool,
@@ -940,6 +941,11 @@ impl Node {
         self
     }
 
+    pub fn on_point(mut self, handler: Point) -> Self {
+        self.answers.on_point = Some(handler);
+        self
+    }
+
     /// Told how many rows it scrolled.
     pub fn on_rows(mut self, rows: Rows) -> Self {
         self.answers.on_rows = Some(rows);
@@ -1674,6 +1680,7 @@ impl Painting<'_> {
             || answers.hover.is_some()
             || answers.tip.is_some()
             || answers.on_hover.is_some()
+            || answers.on_point.is_some()
             || answers.on_rows.is_some()
             || answers.lit.is_some()
             || answers.blocks
@@ -1685,6 +1692,7 @@ impl Painting<'_> {
                 on_click: answers.on_click.clone(),
                 on_right: answers.on_right.clone(),
                 on_hover: answers.on_hover.clone(),
+                on_point: answers.on_point.clone(),
                 on_rows: answers.on_rows.clone(),
                 tip: answers.tip.clone(),
                 immediate: answers.immediate,

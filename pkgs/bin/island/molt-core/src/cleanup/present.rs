@@ -504,16 +504,16 @@ pub fn view(screen: &Cleanup, limit: usize, units: &dyn Units) -> CleanupView {
     let bytes = total(&plan);
     let count = plan.len();
     let (available, volumes) = match &screen.volumes {
-        None => ("Inspecting storage…".to_owned(), Err("Reading filesystem capacity")),
+        None => (
+            "Inspecting storage…".to_owned(),
+            Err("Reading filesystem capacity"),
+        ),
         Some(volumes) if volumes.is_empty() => (
             "Storage unavailable".to_owned(),
             Err("Could not read filesystem usage"),
         ),
         Some(volumes) => (
-            format!(
-                "{} available",
-                units.size(super::flow::available(volumes))
-            ),
+            format!("{} available", units.size(super::flow::available(volumes))),
             Ok(volumes
                 .iter()
                 .map(|volume| volume_row(screen, volume, &plan, units))
@@ -555,10 +555,7 @@ pub fn view(screen: &Cleanup, limit: usize, units: &dyn Units) -> CleanupView {
         available,
         volumes,
         reclaim: units.size(bytes),
-        reclaim_detail: format!(
-            "to reclaim · {}",
-            plural(count, "category", "categories")
-        ),
+        reclaim_detail: format!("to reclaim · {}", plural(count, "category", "categories")),
         items: items(screen, limit, units),
         plan_title: "Removal plan",
         plan_summary: match count {

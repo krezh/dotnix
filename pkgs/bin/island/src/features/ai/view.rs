@@ -118,6 +118,8 @@ pub struct View {
     pending: Vec<u64>,
     picks: HashMap<u64, Picks>,
     pub(super) draft: String,
+    /// The chat's model list is open.
+    pub(super) picking_model: bool,
     /// The requests as last seen, to tell which went.
     known: Vec<Request>,
     /// Ones just gone, still sliding out, until then.
@@ -130,6 +132,8 @@ pub struct View {
     pub(super) held: Option<Held>,
     /// Sessions at work as last seen, to cheer when one finishes.
     working: HashSet<String>,
+    /// The chat was answering as last seen, to cheer when the answer is in.
+    chatting: bool,
     /// The account whose saved reset the card asks about.
     pub(super) resetting: Option<Account>,
     /// Resets spent as last seen, to put the card away once one is.
@@ -148,6 +152,7 @@ impl View {
         } else {
             0.0
         };
+        self.picking_model = false;
         self.passing.from = Some(self.tab);
         self.passing.width.set(None);
         self.tab = tab;
@@ -246,16 +251,26 @@ impl View {
             .map(|session| session.id.clone())
             .collect();
         // A session that stopped working and now waits for your next prompt has finished.
-        let finished = self.working.iter().any(|id| {
-            state
-                .sessions
-                .iter()
-                .any(|session| session.id == *id && session.activity == Activity::Idle)
-        });
-        if finished && state.requests.is_empty() {
-            body.cheer(now);
+        let finished = self
+            .working
+            .iter()
+            .filter(|id| {
+                state
+                    .sessions
+                    .iter()
+                    .any(|session| session.id == **id && session.activity == Activity::Idle)
+            })
+            .count();
+        let answered = self.chatting
+            && !state.chat.busy
+            && state.chat.error.is_none()
+            && state.chat.lines.last().is_some_and(|line| !line.mine);
+        let done = finished + usize::from(answered);
+        if done > 0 && state.requests.is_empty() {
+            body.cheer(now, done as u32);
         }
         self.working = working;
+        self.chatting = state.chat.busy;
     }
 
     pub(super) fn pose(&self) -> Option<Pose> {
@@ -265,6 +280,12 @@ impl View {
     pub(super) fn poke(&mut self) {
         if let Some(body) = &mut self.jelly {
             body.poke(Instant::now());
+        }
+    }
+
+    pub(super) fn point(&mut self, at: Option<(f32, f32)>) {
+        if let Some(body) = &mut self.jelly {
+            body.point(at, Instant::now());
         }
     }
 
@@ -322,7 +343,9 @@ impl Local for View {
         self.toggled_accounts.clear();
         self.seen = None;
         self.open = false;
+        self.picking_model = false;
         self.passing = Passing::default();
+        self.point(None);
     }
 
     fn popup(&self) -> bool {

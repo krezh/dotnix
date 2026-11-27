@@ -6,8 +6,8 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use serde::Deserialize;
 
 use super::{ChannelStep, PrState, StepState, WatchedPr};
-use crate::inputs::github::get;
 use crate::command::CANCELLED;
+use crate::inputs::github::get;
 
 const API: &str = "https://api.github.com";
 

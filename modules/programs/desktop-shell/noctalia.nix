@@ -273,7 +273,8 @@
       };
 
       xdg.dataFile = {
-        "noctalia/plugins/omp-usage".source = "${pkgs.noctalia-plugin-omp-usage}/omp-usage";        "noctalia/plugins/zowie-battery".source = "${pkgs.noctalia-plugin-zowie-battery}/zowie-battery";
+        "noctalia/plugins/omp-usage".source = "${pkgs.noctalia-plugin-omp-usage}/omp-usage";
+        "noctalia/plugins/zowie-battery".source = "${pkgs.noctalia-plugin-zowie-battery}/zowie-battery";
         "noctalia/plugins/headsetcontrol".source = "${pkgs.noctalia-plugin-headsetcontrol}/headsetcontrol";
       };
     };

@@ -34,6 +34,8 @@ pub struct Style {
     /// Hidden until looked at closely, such as a spoiler.
     pub covered: bool,
     pub link: bool,
+    /// Its words in this color, over a link's.
+    pub color: Option<u32>,
 }
 
 pub struct Text {

@@ -350,8 +350,7 @@ async fn device(connection: &Connection, tree: &Tree, path: OwnedObjectPath) -> 
         mac: owned(get("HwAddress")).unwrap_or_default(),
         active: owned(get("ActiveConnection"))?,
         address: if state == ACTIVATED {
-            let dhcp4: OwnedObjectPath =
-                owned(get("Dhcp4Config")).unwrap_or_else(|| root().into());
+            let dhcp4: OwnedObjectPath = owned(get("Dhcp4Config")).unwrap_or_else(|| root().into());
             Address {
                 lease: lease(tree, &dhcp4),
                 ..address(tree, &ip4, &ip6)
@@ -387,11 +386,13 @@ pub async fn snapshot(connection: &Connection) -> zbus::Result<Snapshot> {
     let tree = Tree::read(connection).await?;
     let get = |name| manager.get(name);
     let property = |name| zbus::Error::Failure(format!("NetworkManager does not say its {name}"));
-    let primary: OwnedObjectPath = owned(get("PrimaryConnection")).ok_or_else(|| property("PrimaryConnection"))?;
+    let primary: OwnedObjectPath =
+        owned(get("PrimaryConnection")).ok_or_else(|| property("PrimaryConnection"))?;
     let devices: Vec<OwnedObjectPath> = owned(get("Devices")).unwrap_or_default();
     let actives: Vec<OwnedObjectPath> = owned(get("ActiveConnections")).unwrap_or_default();
     let mut snapshot = Snapshot {
-        wireless_enabled: owned(get("WirelessEnabled")).ok_or_else(|| property("WirelessEnabled"))?,
+        wireless_enabled: owned(get("WirelessEnabled"))
+            .ok_or_else(|| property("WirelessEnabled"))?,
         // Without its own check NetworkManager still reports a guess from the routes, which says
         // nothing about the internet, so it counts as not known.
         connectivity: if owned(get("ConnectivityCheckEnabled")).unwrap_or(false) {

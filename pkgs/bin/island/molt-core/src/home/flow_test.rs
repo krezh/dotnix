@@ -68,7 +68,10 @@ fn a_failed_pull_can_be_retried() {
     home.update(Msg::Checked(Ok(status(3, 0))));
     home.update(Msg::Pull);
     home.update(Msg::Pulled(Err("conflict".to_owned())));
-    assert_eq!(home.repository, Repository::UpdateFailed("conflict".to_owned()));
+    assert_eq!(
+        home.repository,
+        Repository::UpdateFailed("conflict".to_owned())
+    );
     assert_eq!(home.update(Msg::Pull), Some(Effect::Pull));
     home.update(Msg::Pulled(Ok(status(0, 0))));
     assert_eq!(home.repository, Repository::Ready(status(0, 0)));

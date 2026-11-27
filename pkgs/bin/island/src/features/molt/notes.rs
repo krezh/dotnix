@@ -23,8 +23,8 @@ use crate::{
     },
     features::PanelCx,
     panel::{
-        Block, Cell, Chip, Code, CodeLine, CodeMotion, Column, FrameView, HeaderLead,
-        HeaderStatus, Item, Mark, Table, TableRow, Text, TextStyle, Tone, Trail, Views, Width,
+        Block, Cell, Chip, Code, CodeLine, CodeMotion, Column, FrameView, HeaderLead, HeaderStatus,
+        Item, Mark, Table, TableRow, Text, TextStyle, Tone, Trail, Views, Width,
     },
     theme::{CRITICAL, GREEN, MAUVE, OVERLAY2, SUBTEXT1, YELLOW},
     ui::{HEADING_SIZE, TITLE_SIZE},
@@ -38,12 +38,15 @@ fn header(title: String, subtitle: String, target: Target, p: &PanelCx<'_>) -> V
         Some(HeaderLead {
             mark: p
                 .glyph("molt-notes")
-                .map_or(Mark::Letter("N".into(), MAUVE), |path| Mark::Glyph(path, MAUVE)),
+                .map_or(Mark::Letter("N".into(), MAUVE), |path| {
+                    Mark::Glyph(path, MAUVE)
+                }),
             size: LEAD,
             overline: subtitle.into(),
             title: title.into(),
             title_color: None,
             on_click: None,
+            on_point: None,
         }),
         Some(p.on_local::<Molt>(move |_, view: &mut View| view.open(Screen::Build(target)))),
         p,
@@ -148,9 +151,14 @@ fn release_blocks(release: &notes::ReleaseView) -> Vec<Block> {
                     Tone::Body,
                 )));
             }
-            MarkdownBlockKind::Paragraph => blocks.push(Block::Text(rich(&block.markup, Tone::Body))),
+            MarkdownBlockKind::Paragraph => {
+                blocks.push(Block::Text(rich(&block.markup, Tone::Body)))
+            }
             MarkdownBlockKind::Quote => {
-                blocks.push(Block::Text(rich(&format!("<i>{}</i>", block.markup), Tone::Body)));
+                blocks.push(Block::Text(rich(
+                    &format!("<i>{}</i>", block.markup),
+                    Tone::Body,
+                )));
             }
             MarkdownBlockKind::Code => {
                 let (text, _, _) = spans(&block.markup);
@@ -170,7 +178,11 @@ fn release_blocks(release: &notes::ReleaseView) -> Vec<Block> {
 
 pub(super) fn notes(notes: &Notes, target: Target, p: &PanelCx<'_>) -> (Views, Vec<Block>) {
     let shown = notes::view(notes, &IslandUnits);
-    let versions: String = shown.versions.iter().map(|(text, _)| text.as_str()).collect();
+    let versions: String = shown
+        .versions
+        .iter()
+        .map(|(text, _)| text.as_str())
+        .collect();
     let mut head = header(
         shown.title.clone(),
         format!("{versions} · {}", shown.configuration),

@@ -5,11 +5,7 @@ use std::{
     thread,
 };
 
-use tungstenite::{
-    Message, WebSocket,
-    handshake::server::Request,
-    protocol::Role,
-};
+use tungstenite::{Message, WebSocket, handshake::server::Request, protocol::Role};
 
 use super::{
     api_agent, delete_all_messages, delete_message, fetch_applications, fetch_messages, handshake,

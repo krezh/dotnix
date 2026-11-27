@@ -350,7 +350,9 @@ impl Cleanup {
                         .groups
                         .iter()
                         .filter(|group| group.available)
-                        .fold(0_u64, |total, group| total.saturating_add(group.reclaimable));
+                        .fold(0_u64, |total, group| {
+                            total.saturating_add(group.reclaimable)
+                        });
                     effects.push(Effect::Estimate(Some(reclaimable)));
                 }
                 self.rescanning = false;

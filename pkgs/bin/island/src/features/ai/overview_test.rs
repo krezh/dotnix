@@ -40,12 +40,21 @@ fn reset_card_shows_only_the_pools_it_clears_that_are_shown() {
     other.used = 30.0;
     let limits = vec![session, week, other];
     let changes = reset_changes(
-        &grant(&["five_hour", "seven_day", "seven_day_overage_included"], None),
+        &grant(
+            &["five_hour", "seven_day", "seven_day_overage_included"],
+            None,
+        ),
         &limits,
     );
     let shown: Vec<_> = changes
         .iter()
-        .map(|change| (change.label.as_str(), change.from.as_str(), change.to.as_str()))
+        .map(|change| {
+            (
+                change.label.as_str(),
+                change.from.as_str(),
+                change.to.as_str(),
+            )
+        })
         .collect();
     assert_eq!(shown, [("5 Hour", "7%", "0%"), ("7 Day", "68%", "0%")]);
     assert!((changes[1].fraction - 0.68).abs() < 1e-6);

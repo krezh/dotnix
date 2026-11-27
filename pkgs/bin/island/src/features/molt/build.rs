@@ -27,9 +27,12 @@ use crate::{
     panel::{
         Block, Cell, ChartView, Code, CodeLine, CodeMotion, Column, Field, Filters, FrameView,
         HeaderLead, IconButton, Item, Mark, RowLead, Series, Split, Stop, StopState, TabLabel,
-        TableRow, Table, Trail, TrailButton, Views, Width, on,
+        Table, TableRow, Trail, TrailButton, Views, Width, on,
     },
-    theme::{ACCENT, BLUE, CRITICAL, GREEN, OVERLAY0, OVERLAY1, OVERLAY2, SAPPHIRE, SUBTEXT1, TEXT, YELLOW},
+    theme::{
+        ACCENT, BLUE, CRITICAL, GREEN, OVERLAY0, OVERLAY1, OVERLAY2, SAPPHIRE, SUBTEXT1, TEXT,
+        YELLOW,
+    },
     ui::{DISPLAY_SIZE, FIGURE_SIZE, TITLE_SIZE},
 };
 
@@ -231,7 +234,11 @@ fn log_card(log: &LogView, height: f32, p: &PanelCx<'_>) -> Block {
         blocks.push(Block::caption(note.clone(), OVERLAY2));
     }
     if let Some(text) = &log.text {
-        let used = if log.note.is_some() { 20.0 + RAISED_GAP } else { 0.0 };
+        let used = if log.note.is_some() {
+            20.0 + RAISED_GAP
+        } else {
+            0.0
+        };
         blocks.push(Block::Code(Code {
             heading: None,
             lines: text.lines().map(CodeLine::plain).collect(),
@@ -248,7 +255,14 @@ fn log_card(log: &LogView, height: f32, p: &PanelCx<'_>) -> Block {
     Block::Frame(frame("molt-build-log".to_owned(), Some(height)), blocks)
 }
 
-fn card(id: &str, title: &str, title_color: Option<u32>, trail: Vec<Trail>, mut blocks: Vec<Block>, height: Option<f32>) -> Block {
+fn card(
+    id: &str,
+    title: &str,
+    title_color: Option<u32>,
+    trail: Vec<Trail>,
+    mut blocks: Vec<Block>,
+    height: Option<f32>,
+) -> Block {
     blocks.insert(
         0,
         Block::Item(
@@ -463,7 +477,14 @@ fn warnings(card_view: &WarningsCard, p: &PanelCx<'_>) -> Block {
         })
         .into_iter()
         .collect();
-    card("molt-build-warnings", &card_view.title, None, trail, blocks, None)
+    card(
+        "molt-build-warnings",
+        &card_view.title,
+        None,
+        trail,
+        blocks,
+        None,
+    )
 }
 
 fn action(action: &Action, build: &Build, p: &PanelCx<'_>) -> IconButton {
@@ -500,12 +521,15 @@ pub(super) fn header(
         Some(HeaderLead {
             mark: p
                 .glyph("molt-nixos")
-                .map_or(Mark::Letter("N".into(), tint), |path| Mark::Glyph(path, tint)),
+                .map_or(Mark::Letter("N".into(), tint), |path| {
+                    Mark::Glyph(path, tint)
+                }),
             size: LEAD,
             overline: subtitle.into(),
             title: title.into(),
             title_color: failed.then_some(CRITICAL),
             on_click: None,
+            on_point: None,
         }),
         back.then(|| p.on_local::<Molt>(|_, view: &mut View| view.open(Screen::Home))),
         p,

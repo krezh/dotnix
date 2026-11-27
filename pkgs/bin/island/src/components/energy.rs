@@ -7,7 +7,12 @@ use std::{
 
 use crate::theme::{SAPPHIRE, SKY, TEXT};
 
+/// A lap round something small; round something long it goes no faster than [`MOST_SPEED`].
 pub const LAP: Duration = Duration::from_millis(1400);
+/// In pixels a second, so the head glides rather than jumps round something wide.
+const MOST_SPEED: f32 = 520.0;
+/// The longest the beam gets, in pixels.
+const MOST_BEAM: f32 = 220.0;
 pub const FADE: Duration = Duration::from_millis(260);
 /// A fraction of the way round from the top-left.
 pub const START: f32 = 0.12;
@@ -119,11 +124,22 @@ impl Edge {
     }
 }
 
-/// The head is `phase` of the way round; the tail thins and fades behind it.
-pub fn dots(edge: &Edge, phase: f32, opacity: f32, hue: Hue) -> Vec<Dot> {
+/// How far round the head is after `laps` laps of [`LAP`], slowed to [`MOST_SPEED`] round `edge`.
+pub fn travelled(edge: &Edge, laps: f32) -> f32 {
+    let length = edge.length();
+    let lap = LAP.as_secs_f32().max(length / MOST_SPEED);
+    laps * LAP.as_secs_f32() / lap
+}
+
+/// The head is `laps` laps of [`LAP`] on, as [`travelled`] has it; the tail thins and fades
+/// behind it.
+pub fn dots(edge: &Edge, laps: f32, opacity: f32, hue: Hue) -> Vec<Dot> {
     let scale = edge.scale;
+    let phase = travelled(edge, laps);
+    let length = edge.length();
+    let beam = BEAM.min(MOST_BEAM / length.max(1.0));
     let mut shown = Vec::new();
-    let dots = ((BEAM * edge.length() / STEP).ceil() as usize).max(24);
+    let dots = ((beam * length / STEP).ceil() as usize).max(24);
     for index in (0..=dots).rev() {
         let behind = index as f32 / dots as f32;
         let lit = 1.0 - behind;
@@ -133,14 +149,14 @@ pub fn dots(edge: &Edge, phase: f32, opacity: f32, hue: Hue) -> Vec<Dot> {
         let target = lit * lit * 0.95 * opacity;
         let alpha = 1.0 - (1.0 - target).powf(STEP / diameter);
         shown.push(Dot {
-            at: edge.point(phase - BEAM * behind),
+            at: edge.point(phase - beam * behind),
             diameter,
             color: hue.tail,
             alpha,
         });
     }
     shown.push(Dot {
-        at: edge.point(phase - BEAM),
+        at: edge.point(phase - beam),
         diameter: 1.4 * scale,
         color: hue.tail,
         alpha: 0.12 * opacity,

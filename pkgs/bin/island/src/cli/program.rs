@@ -30,7 +30,10 @@ impl Opt {
     pub fn is(&self, token: &str) -> bool {
         token.strip_prefix("--") == Some(self.long)
             || self.short.is_some_and(|short| {
-                token.strip_prefix('-').and_then(|rest| rest.parse::<char>().ok()) == Some(short)
+                token
+                    .strip_prefix('-')
+                    .and_then(|rest| rest.parse::<char>().ok())
+                    == Some(short)
             })
     }
 }

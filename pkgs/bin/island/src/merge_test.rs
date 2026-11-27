@@ -180,3 +180,38 @@ fn a_rounded_region_is_full_width_in_the_middle_and_inset_at_its_corners() {
     );
     assert!(region([0, 0, 0, 10], (12.0, 2.0)).is_empty());
 }
+
+#[test]
+fn a_rounded_region_never_steps_out_past_its_edge() {
+    let (x, y, w, h) = (10.0, 20.0, 100.0, 40.0);
+    let rects = region([10, 20, 100, 40], (16.0, 2.0));
+    for [rx, ry, rw, rh] in rects {
+        for row in ry..ry + rh {
+            for at_x in [rx, rx + rw - 1] {
+                let at = (at_x as f32 + 0.5, row as f32 + 0.5);
+                let d = corner_distance(
+                    at,
+                    (x + w / 2.0, y + h / 2.0),
+                    (w / 2.0, h / 2.0),
+                    16.0,
+                    2.0,
+                );
+                assert!(d <= 0.0, "pixel {at_x},{row} sticks out by {d}");
+            }
+        }
+    }
+}
+
+#[test]
+fn the_rows_never_step_out_past_the_edge() {
+    let merge = hanging(12.0);
+    for [rx, ry, rw, rh] in rows(BODY, CORNER, merge) {
+        for row in ry..ry + rh {
+            for at_x in [rx, rx + rw - 1] {
+                let at = (at_x as f32 + 0.5, row as f32 + 0.5);
+                let d = distance(at, BODY, CORNER, merge);
+                assert!(d <= 0.0, "pixel {at_x},{row} sticks out by {d}");
+            }
+        }
+    }
+}
