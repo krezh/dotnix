@@ -65,15 +65,7 @@
         dates = lib.mkDefault "weekly";
       };
 
-      nix.registry = lib.mapAttrs (_: value: { flake = value; }) (
-        lib.filterAttrs (
-          name: _:
-          !builtins.elem name [
-            "self"
-            "nixpkgs-mesa"
-          ]
-        ) inputs
-      );
+      nix.registry.nixpkgs.flake = inputs.nixpkgs;
 
       time.timeZone = "Europe/Stockholm";
 
