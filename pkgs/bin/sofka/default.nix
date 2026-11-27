@@ -5,7 +5,7 @@
 pkgs.rustPlatform.buildRustPackage rec {
   pname = "sofka";
   # renovate: datasource=github-releases depName=nklmilojevic/sofka
-  version = "0.38.0";
+  version = "0.39.0";
 
   src = pkgs.fetchFromGitHub {
     owner = "nklmilojevic";
